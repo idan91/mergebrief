@@ -296,8 +296,8 @@ describe("live stack read", () => {
     });
     const warned = logging
       .lines()
-      .find((line) => line["msg"] === "stack record failed");
-    expect(warned).toMatchObject({ level: "warn", code: "not-found" });
+      .find((line) => line["msg"] === "stack record found no row");
+    expect(warned).toMatchObject({ level: "warn" });
   });
 
   it("a null resolve on an open PR keeps the recorded stack and serves null", async () => {

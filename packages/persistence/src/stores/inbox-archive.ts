@@ -9,34 +9,26 @@ import { pullRequest } from "../schema/pull-request";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import type { PullRequestRowId, ReviewerId } from "../types";
-import type { Result, ValueOf } from "types/utils";
 
-export const InboxArchiveErrorCodes = {
-  /** The pull request is not in ctx's scope. */
-  NOT_FOUND: "not-found",
-} as const;
-export type InboxArchiveErrorCode = ValueOf<typeof InboxArchiveErrorCodes>;
-
-export interface InboxArchiveError {
-  readonly code: InboxArchiveErrorCode;
-  readonly message: string;
-}
-
+/**
+ * Both writes answer false, and write nothing, when the pull request is
+ * outside the scope.
+ */
 export interface InboxArchiveStore {
   /**
    * Archive the pull request for `reviewerId`, anchored on the latest
    * brief's head (none when no brief exists yet); archiving again moves the
-   * anchor. `not-found` when the pull request is outside the scope.
+   * anchor.
    */
   set(
     pullRequestId: PullRequestRowId,
     reviewerId: ReviewerId,
-  ): Promise<Result<void, InboxArchiveError>>;
+  ): Promise<boolean>;
   /** Remove the reviewer's archive; a row that was never archived is fine. */
   clear(
     pullRequestId: PullRequestRowId,
     reviewerId: ReviewerId,
-  ): Promise<Result<void, InboxArchiveError>>;
+  ): Promise<boolean>;
 }
 
 type Db = ReturnType<typeof internal>;
@@ -68,19 +60,6 @@ async function readLatestHead(
   return latest[0]?.headSha ?? null;
 }
 
-function buildNotFound(
-  scope: RowScope,
-  pullRequestId: PullRequestRowId,
-): Result<never, InboxArchiveError> {
-  return {
-    ok: false,
-    error: {
-      code: InboxArchiveErrorCodes.NOT_FOUND,
-      message: `pull_request ${pullRequestId} not found in ${scope.label}`,
-    },
-  };
-}
-
 export function createInboxArchiveStore(
   handle: AppDatabase,
   ctx: ScopeContext,
@@ -92,7 +71,7 @@ export function createInboxArchiveStore(
     async set(pullRequestId, reviewerId) {
       return db.transaction(async (tx) => {
         if (!(await isInScope(tx, scope, pullRequestId))) {
-          return buildNotFound(scope, pullRequestId);
+          return false;
         }
         const headSha = await readLatestHead(tx, pullRequestId);
         await tx
@@ -111,14 +90,14 @@ export function createInboxArchiveStore(
             ],
             set: { headSha, createdAt: new Date() },
           });
-        return { ok: true, value: undefined };
+        return true;
       });
     },
 
     async clear(pullRequestId, reviewerId) {
       return db.transaction(async (tx) => {
         if (!(await isInScope(tx, scope, pullRequestId))) {
-          return buildNotFound(scope, pullRequestId);
+          return false;
         }
         await tx
           .delete(inboxArchive)
@@ -132,7 +111,7 @@ export function createInboxArchiveStore(
               eq(inboxArchive.reviewerId, reviewerId),
             ),
           );
-        return { ok: true, value: undefined };
+        return true;
       });
     },
   };

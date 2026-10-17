@@ -39,7 +39,7 @@ export async function deletePull(
     handle,
     access.rowScope,
   ).purgePullRequest(access.row.id, { reviewerId });
-  if (!purged.ok) {
+  if (!purged) {
     return NOT_FOUND;
   }
 

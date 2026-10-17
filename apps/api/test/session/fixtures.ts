@@ -124,15 +124,12 @@ async function writeHop(
   if (pr === undefined) {
     throw new Error("seedHop: pr missing");
   }
-  const written = await createArtifactStore(handle, CTX).hunkSpans.write({
+  await createArtifactStore(handle, CTX).hunkSpans.write({
     pullRequestId: pr.id,
     baselineSha: `head-${fromIndex}`,
     headSha: `head-${toIndex}`,
     spans,
   });
-  if (!written.ok) {
-    throw new Error(`seedHop: ${written.error.code}`);
-  }
 }
 
 /** A hop whose hunk lands inside the flagged region, so a decision reopens. */

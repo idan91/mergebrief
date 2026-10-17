@@ -21,7 +21,7 @@ async function writeArchive(
 ): Promise<Result<PullRequestRowId, ArchivePullFailure>> {
   const { archives } = createTenantRepository(handle, access.rowScope);
   const written = await write(archives, access);
-  if (!written.ok) {
+  if (!written) {
     return { ok: false, error: { kind: "not-found" } };
   }
   return { ok: true, value: access.row.id };

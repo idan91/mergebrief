@@ -10,7 +10,6 @@ import {
   STORED_BODY_VERSION,
 } from "brief-core/artifact";
 import { GenerationKinds } from "persistence";
-import { PermanentJobError } from "../../failure";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { CheckpointDeltasInputs } from "../types";
 import { getGenerationOrigin } from "../utils";
@@ -79,7 +78,7 @@ export async function generateCheckpointDeltas(
         incrementalDiff,
       );
       // oxlint-disable-next-line no-await-in-loop
-      const marksWritten = await store.comparisonMarks.write({
+      await store.comparisonMarks.write({
         pullRequestId,
         marks: {
           baselineSha: marks.baselineSha,
@@ -87,9 +86,6 @@ export async function generateCheckpointDeltas(
           files: marks.files,
         },
       });
-      if (!marksWritten.ok) {
-        throw new PermanentJobError(marksWritten.error.message);
-      }
     }
 
     const deltaSpanHuge = isHugeSpan(

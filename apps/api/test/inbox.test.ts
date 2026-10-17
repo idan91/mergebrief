@@ -198,8 +198,8 @@ async function recordStack(
     handle,
     ctx,
   ).pullRequests.recordStack(pullRequestId, { stack, readAt: new Date() });
-  if (!written.ok) {
-    throw new Error(written.error.message);
+  if (written === undefined) {
+    throw new Error("recordStack found no row in seed");
   }
 }
 

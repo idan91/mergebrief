@@ -14,7 +14,6 @@ import {
   type LiveReadStore,
   type PullRequestRow,
   type PullRequestRowId,
-  type RepositoryError,
   type ReviewerId,
 } from "persistence";
 import {
@@ -30,7 +29,7 @@ import {
   type ReadPlan,
   type ReadTarget,
 } from "./logic/due";
-import type { Mutable, Result } from "types/utils";
+import type { Mutable } from "types/utils";
 import { runInBatches } from "../batches";
 import { parseOwnerAndName } from "../repos/utils";
 import { deriveLifecycle } from "./logic/lifecycle";
@@ -167,13 +166,13 @@ function keepWrittenRows(
   written: Map<PullRequestRowId, PullRequestRow>,
 ): LiveReadStore {
   async function keep(
-    write: Promise<Result<PullRequestRow, RepositoryError>>,
-  ): Promise<Result<PullRequestRow, RepositoryError>> {
-    const result = await write;
-    if (result.ok) {
-      written.set(result.value.id, result.value);
+    write: Promise<PullRequestRow | undefined>,
+  ): Promise<PullRequestRow | undefined> {
+    const row = await write;
+    if (row !== undefined) {
+      written.set(row.id, row);
     }
-    return result;
+    return row;
   }
   return {
     ...store,
@@ -256,7 +255,7 @@ async function readPlan(
     LIVE_READ_WRITE_WIDTH,
     (row) => store.markUnreachable(row.id, now),
   );
-  const unreachable = marked.filter((outcome) => outcome.ok).length;
+  const unreachable = marked.filter((row) => row !== undefined).length;
   const chunks = splitChunks(plan.targets, LIVE_READ_PAGE_SIZE);
   const outcomes = await Promise.all(
     chunks.map((chunk) => readChunk(deps, store, chunk, now)),
@@ -299,7 +298,7 @@ async function readChunk(
     LIVE_READ_WRITE_WIDTH,
     (target) => store.markUnreachable(target.row.id, now),
   );
-  const unreachable = marked.filter((outcome) => outcome.ok).length;
+  const unreachable = marked.filter((row) => row !== undefined).length;
   const unanswered = retried.unanswered;
   await runInBatches(unanswered, LIVE_READ_WRITE_WIDTH, (target) =>
     store.stampAttempt(target.row.id, now),
@@ -354,7 +353,7 @@ async function recordPage(
     LIVE_READ_WRITE_WIDTH,
     ({ target, facts }) => store.record(target.row.id, shapeFacts(facts, now)),
   );
-  const read = recorded.filter((outcome) => outcome.ok).length;
+  const read = recorded.filter((row) => row !== undefined).length;
   return { read, missing, unanswered };
 }
 

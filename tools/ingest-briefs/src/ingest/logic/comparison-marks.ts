@@ -1,9 +1,9 @@
 // Phase 5: comparison marks, from both the current `.comparison.json` and the
 // legacy `.revchanges.json` alias. Both project to the store's
-// coordinates-only body — the CLI's read-time context keys must not reach the
+// coordinates-only body: the CLI's read-time context keys must not reach the
 // strict write boundary. Content-addressed on the span, so overlap between the
 // two shapes for one span rewrites a single row harmlessly.
-import type { PullRequestRow } from "persistence";
+import { InvalidArtifactBodyError, type PullRequestRow } from "persistence";
 import { COMPARISON_FILE, REVCHANGES_FILE } from "../consts";
 import { ComparisonFileSchema, RevchangesSchema } from "../schemas";
 import type { IngestRun } from "../types";
@@ -49,17 +49,21 @@ async function writeMarksRow(
     files: readonly MarkedFile[];
   },
 ): Promise<void> {
-  const written = await run.store.comparisonMarks.write({
-    pullRequestId: prRow.id,
-    marks: {
-      baselineSha: marks.baselineSha,
-      headSha: marks.headSha,
-      files: projectMarkedFiles(marks.files),
-    },
-  });
-  if (!written.ok) {
-    return throwFileError(name, written.error.message);
-  }
+  await run.store.comparisonMarks
+    .write({
+      pullRequestId: prRow.id,
+      marks: {
+        baselineSha: marks.baselineSha,
+        headSha: marks.headSha,
+        files: projectMarkedFiles(marks.files),
+      },
+    })
+    .catch((error: unknown) => {
+      if (error instanceof InvalidArtifactBodyError) {
+        return throwFileError(name, error.message);
+      }
+      throw error;
+    });
   run.log(`marks ${name}`);
 }
 

@@ -193,16 +193,10 @@ describe("stored artifact reads", () => {
   it("serves stored marks and 404s a missing span", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     const pr = await seedPullRequest(harness.handle);
-    const marks = await createArtifactStore(
-      harness.handle,
-      CTX,
-    ).comparisonMarks.write({
+    await createArtifactStore(harness.handle, CTX).comparisonMarks.write({
       pullRequestId: pr.id,
       marks: { baselineSha: "head-1", headSha: "head-2", files: [] },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
 
     const res = await get("/marks?baseline=head-1&head=head-2");
     const missing = await get("/marks?baseline=head-1&head=nope");

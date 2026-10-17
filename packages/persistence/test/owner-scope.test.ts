@@ -321,7 +321,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
     });
 
     const purged = await purge.purgePullRequest(pr.id);
-    expect(purged).toMatchObject({ ok: true, value: 1 });
+    expect(purged).toBe(true);
     expect(await a.pullRequests.getById(pr.id)).toBeUndefined();
 
     const entries = await internal(handle)
@@ -340,7 +340,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
     const purged = await purgeB.purgePullRequest(pr.id);
-    expect(purged.ok).toBe(false);
+    expect(purged).toBe(false);
     expect(await a.pullRequests.getById(pr.id)).toBeDefined();
   });
 
@@ -351,7 +351,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
 
     const pr = await t.pullRequests.upsert(upsertInput(7));
     const purged = await purgeA.purgePullRequest(pr.id);
-    expect(purged.ok).toBe(false);
+    expect(purged).toBe(false);
   });
 });
 

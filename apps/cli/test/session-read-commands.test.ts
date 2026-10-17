@@ -171,13 +171,10 @@ describe("session read commands over the real api app", () => {
     if (!session.ok) {
       throw new Error("session seed failed");
     }
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: { baselineSha: PREV_HEAD_SHA, headSha: HEAD_SHA, files: [] },
     });
-    if (!marks.ok) {
-      throw new Error("marks seed failed");
-    }
     await store.revisionNarratives.write({
       pullRequestId: pr.id,
       briefId: brief.id,

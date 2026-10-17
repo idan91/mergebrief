@@ -7,7 +7,6 @@ import {
   createArtifactStore,
   createPurgeRoutines,
   createTenantRepository,
-  InboxArchiveErrorCodes,
   type AppDatabase,
   type ScopeContext,
 } from "../src/index";
@@ -103,7 +102,7 @@ describe("the inbox archive store", () => {
       prId,
       VIEWER,
     );
-    expect(set.ok).toBe(true);
+    expect(set).toBe(true);
 
     expect(await readArchives(handle)).toEqual([
       {
@@ -161,7 +160,7 @@ describe("the inbox archive store", () => {
     const first = await archives.clear(prId, VIEWER);
     const again = await archives.clear(prId, VIEWER);
 
-    expect(first.ok && again.ok).toBe(true);
+    expect(first && again).toBe(true);
     expect(await readArchives(handle)).toEqual([]);
   });
 
@@ -178,10 +177,8 @@ describe("the inbox archive store", () => {
       CTX_OCTO,
     ).archives.clear(prId, VIEWER);
 
-    expect(!set.ok && set.error.code).toBe(InboxArchiveErrorCodes.NOT_FOUND);
-    expect(!cleared.ok && cleared.error.code).toBe(
-      InboxArchiveErrorCodes.NOT_FOUND,
-    );
+    expect(set).toBe(false);
+    expect(cleared).toBe(false);
     expect(await readArchives(handle)).toEqual([]);
   });
 
@@ -198,8 +195,8 @@ describe("the inbox archive store", () => {
       VIEWER,
     );
 
-    expect(foreign.ok).toBe(false);
-    expect(own.ok).toBe(true);
+    expect(foreign).toBe(false);
+    expect(own).toBe(true);
     expect(await readArchives(handle)).toEqual([
       {
         installation_id: null,

@@ -119,15 +119,12 @@ async function seedHop(
   toIndex: number,
   spans: unknown = SHIFT_BY_THREE,
 ): Promise<void> {
-  const written = await createArtifactStore(world.handle, CTX).hunkSpans.write({
+  await createArtifactStore(world.handle, CTX).hunkSpans.write({
     pullRequestId: world.pullRequestId,
     baselineSha: `head-${fromIndex}`,
     headSha: `head-${toIndex}`,
     spans,
   });
-  if (!written.ok) {
-    throw new Error(`hop seed failed: ${written.error.message}`);
-  }
 }
 
 /** The Brief row id at a head index. */

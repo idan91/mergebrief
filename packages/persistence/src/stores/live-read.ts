@@ -8,14 +8,11 @@ import { resolveScope } from "./scope";
 import type { OwnerContext } from "./scope-context";
 import {
   buildLifecycleColumns,
-  RepositoryErrorCodes,
   type PullRequestLifecycle,
   type PullRequestRow,
   type PullRequestUpdateSet,
-  type RepositoryError,
 } from "./tenant";
 import type { PullRequestRowId } from "../types";
-import type { Result } from "types/utils";
 import { PrStates } from "types/pull-requests";
 
 /** What a paste or a live read stamps: when GitHub answered and which head it reported. */
@@ -52,15 +49,14 @@ export interface LiveReadStore {
    * closed one is due because it can reopen.
    */
   listDue(input: LiveReadDueInput): Promise<PullRequestRow[]>;
-  /** Write what GitHub reported and clear any unreachable mark. */
+  /**
+   * Write what GitHub reported and clear any unreachable mark. Each write
+   * returns `undefined` when the owner holds no row with the id.
+   */
   record(
     pullRequestId: PullRequestRowId,
     facts: LiveReadFacts,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
-  /**
-   * GitHub no longer shows the row to the owner: stamp the read so the row
-   * backs off, and keep the first sighting as the unreachable time.
-   */
+  ): Promise<PullRequestRow | undefined>;
   /**
    * GitHub gave no answer for the row this round: stamp the read so the row
    * waits the window like any other, and change nothing else.
@@ -68,24 +64,15 @@ export interface LiveReadStore {
   stampAttempt(
     pullRequestId: PullRequestRowId,
     readAt: Date,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
+  ): Promise<PullRequestRow | undefined>;
+  /**
+   * GitHub no longer shows the row to the owner: stamp the read so the row
+   * backs off, and keep the first sighting as the unreachable time.
+   */
   markUnreachable(
     pullRequestId: PullRequestRowId,
     readAt: Date,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
-}
-
-function refuseNotFound(
-  pullRequestId: PullRequestRowId,
-  label: string,
-): Result<never, RepositoryError> {
-  return {
-    ok: false,
-    error: {
-      code: RepositoryErrorCodes.NOT_FOUND,
-      message: `pull_request ${pullRequestId} not found in ${label}`,
-    },
-  };
+  ): Promise<PullRequestRow | undefined>;
 }
 
 export function createLiveReadStore(
@@ -142,11 +129,7 @@ export function createLiveReadStore(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return refuseNotFound(pullRequestId, scope.label);
-      }
-      return { ok: true, value: row };
+      return rows[0];
     },
 
     async stampAttempt(pullRequestId, readAt) {
@@ -157,11 +140,7 @@ export function createLiveReadStore(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return refuseNotFound(pullRequestId, scope.label);
-      }
-      return { ok: true, value: row };
+      return rows[0];
     },
 
     async markUnreachable(pullRequestId, readAt) {
@@ -176,11 +155,7 @@ export function createLiveReadStore(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return refuseNotFound(pullRequestId, scope.label);
-      }
-      return { ok: true, value: row };
+      return rows[0];
     },
   };
 }

@@ -9,7 +9,6 @@ import {
   createTenantRepository,
   createGrantAuth,
   parseTenantContext,
-  RepositoryErrorCodes,
   safeParseTenantContext,
   ScopeViolationError,
   type AppDatabase,
@@ -137,16 +136,16 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
     const held = await a.pullRequests.advanceGithubUpdatedAt(aPr.id, earlier);
     const foreign = await b.pullRequests.advanceGithubUpdatedAt(aPr.id, later);
 
-    expect(advanced.ok && advanced.value.githubUpdatedAt).toEqual(later);
-    expect(held.ok && held.value.githubUpdatedAt).toEqual(later);
-    expect(held.ok && held.value.updatedAt).toEqual(
-      advanced.ok && advanced.value.updatedAt,
+    expect(advanced?.githubUpdatedAt).toEqual(later);
+    expect(held?.githubUpdatedAt).toEqual(later);
+    expect(held?.updatedAt).toEqual(advanced?.updatedAt);
+    expect(advanced !== undefined && advanced.updatedAt > aPr.updatedAt).toBe(
+      true,
     );
-    expect(advanced.ok && advanced.value.updatedAt > aPr.updatedAt).toBe(true);
-    expect(foreign.ok).toBe(false);
+    expect(foreign).toBeUndefined();
   });
 
-  it("setEntryComment on a PR outside the tenant returns notFound", async () => {
+  it("setEntryComment on a PR outside the tenant returns undefined", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -154,11 +153,7 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
     const bPr = await b.pullRequests.upsert(upsertInput(7));
     const result = await a.pullRequests.setEntryComment(bPr.id, 9001n);
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected a rejection");
-    }
-    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
+    expect(result).toBeUndefined();
     // B's PR is untouched.
     expect(
       (await b.pullRequests.getByNumber(REPO, 7))?.entryCommentId,
@@ -175,19 +170,11 @@ describe("createTenantRepository entry comment rotation", () => {
     expect(pr.entryCommentId).toBeNull();
 
     const first = await a.pullRequests.setEntryComment(pr.id, 9001n);
-    expect(first.ok).toBe(true);
-    if (!first.ok) {
-      throw new Error("expected success");
-    }
-    expect(first.value.entryCommentId).toBe(9001n);
+    expect(first?.entryCommentId).toBe(9001n);
 
     // Rotation: a repost replaces the stored id in place.
     const second = await a.pullRequests.setEntryComment(pr.id, 9002n);
-    expect(second.ok).toBe(true);
-    if (!second.ok) {
-      throw new Error("expected success");
-    }
-    expect(second.value.entryCommentId).toBe(9002n);
+    expect(second?.entryCommentId).toBe(9002n);
     expect((await a.pullRequests.getById(pr.id))?.entryCommentId).toBe(9002n);
   });
 });
@@ -201,23 +188,15 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
     expect(pr.draft).toBe(true);
 
     const flipped = await a.pullRequests.setDraft(pr.id, false);
-    expect(flipped.ok).toBe(true);
-    if (!flipped.ok) {
-      throw new Error("expected success");
-    }
-    expect(flipped.value.draft).toBe(false);
+    expect(flipped?.draft).toBe(false);
     expect((await a.pullRequests.getById(pr.id))?.draft).toBe(false);
 
     // Idempotent: a second flip (e.g. a double-POST) is a clean no-op write.
     const again = await a.pullRequests.setDraft(pr.id, false);
-    expect(again.ok).toBe(true);
-    if (!again.ok) {
-      throw new Error("expected success");
-    }
-    expect(again.value.draft).toBe(false);
+    expect(again?.draft).toBe(false);
   });
 
-  it("setDraft on a PR outside the tenant returns notFound, touches nothing", async () => {
+  it("setDraft outside the tenant returns undefined, touches nothing", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -225,11 +204,7 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
     const bPr = await b.pullRequests.upsert({ ...upsertInput(7), draft: true });
     const result = await a.pullRequests.setDraft(bPr.id, false);
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected a rejection");
-    }
-    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
+    expect(result).toBeUndefined();
     // B's draft PR is untouched.
     expect((await b.pullRequests.getByNumber(REPO, 7))?.draft).toBe(true);
   });
@@ -257,25 +232,21 @@ describe("createTenantRepository recordStack, the last stack GitHub resolved", (
       stack: FIRST_STACK,
       readAt: STACK_AT,
     });
-    expect(first.ok).toBe(true);
-    if (!first.ok) {
-      throw new Error("expected success");
-    }
-    expect(first.value.stack).toEqual(FIRST_STACK);
-    expect(first.value.stackReadAt).toEqual(STACK_AT);
+    expect(first?.stack).toEqual(FIRST_STACK);
+    expect(first?.stackReadAt).toEqual(STACK_AT);
 
     const fork = { children: [{ number: 8, title: "two" }] };
     const second = await a.pullRequests.recordStack(pr.id, {
       stack: fork,
       readAt: LATER,
     });
-    expect(second.ok).toBe(true);
+    expect(second).toBeDefined();
     const stored = await a.pullRequests.getById(pr.id);
     expect(stored?.stack).toEqual(fork);
     expect(stored?.stackReadAt).toEqual(LATER);
   });
 
-  it("recordStack outside the tenant returns notFound, touches nothing", async () => {
+  it("recordStack outside the tenant returns undefined, touches nothing", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -286,11 +257,7 @@ describe("createTenantRepository recordStack, the last stack GitHub resolved", (
       readAt: STACK_AT,
     });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected a rejection");
-    }
-    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
+    expect(result).toBeUndefined();
     expect((await b.pullRequests.getById(bPr.id))?.stack).toBeNull();
   });
 });

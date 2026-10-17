@@ -388,11 +388,7 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
       pair.handle,
       CTX_A,
     ).purgePullRequest(prId);
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("expected purge success");
-    }
-    expect(result.value).toBe(1);
+    expect(result).toBe(true);
 
     // Every per-PR child gone by FK cascade, including the Review Session
     // graph, which the cascade reaches through `brief`.
@@ -426,7 +422,7 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
       pair.handle,
       CTX_A,
     ).purgePullRequest(prId, actor);
-    expect(result.ok).toBe(true);
+    expect(result).toBe(true);
 
     const rows = await pair.raw
       .select({ actorType: auditLog.actorType, actorId: auditLog.actorId })
@@ -445,16 +441,12 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
     expect(rows).toEqual([{ actorType: "app", actorId: null }]);
   });
 
-  it("rejects a cross-tenant PR with notFound and deletes nothing", async () => {
+  it("refuses a cross-tenant PR and deletes nothing", async () => {
     // Tenant B calls purge on tenant A's PR.
     const result = await createPurgeRoutines(pair.handle, {
       installationId: TENANT_B,
     }).purgePullRequest(prId);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected notFound");
-    }
-    expect(result.error.code).toBe(PurgeErrorCodes.NOT_FOUND);
+    expect(result).toBe(false);
 
     // Nothing deleted, and no spurious audit entry under either tenant.
     expect(await countChildTables(pair.raw, prId)).toBe(8);

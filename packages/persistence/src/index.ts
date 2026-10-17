@@ -102,8 +102,7 @@ export type { ResolveDsnOptions } from "./db/dsn";
 
 // The tenant-scoped repository + the context boundary (web + worker validate
 // into `TenantContext` with the exported Zod schema / parse functions).
-export { createTenantRepository, RepositoryErrorCodes } from "./stores/tenant";
-// The one throw a scoped write makes: the row it named is outside its scope.
+export { createTenantRepository } from "./stores/tenant";
 export { ScopeViolationError } from "./stores/scope";
 export {
   parseTenantContext,
@@ -124,8 +123,6 @@ export type {
   PullRequestRepository,
   CheckpointRepository,
   SessionRepository,
-  RepositoryError,
-  RepositoryErrorCode,
   PullRequestRow,
   CheckpointRow,
   AuthSessionRow,
@@ -145,15 +142,8 @@ export {
   createUserSettingsStore,
   type UserSettingsStore,
 } from "./stores/user-settings";
-export {
-  createInboxArchiveStore,
-  InboxArchiveErrorCodes,
-} from "./stores/inbox-archive";
-export type {
-  InboxArchiveError,
-  InboxArchiveErrorCode,
-  InboxArchiveStore,
-} from "./stores/inbox-archive";
+export { createInboxArchiveStore } from "./stores/inbox-archive";
+export type { InboxArchiveStore } from "./stores/inbox-archive";
 export type {
   InboxBriefRef,
   InboxCounts,
@@ -223,14 +213,12 @@ export type {
 // surface exposed.
 export {
   createArtifactStore,
-  ArtifactErrorCodes,
+  InvalidArtifactBodyError,
   ComparisonMarksBodySchema,
   HunkSpansSchema,
 } from "./stores/artifact-store";
 export type {
   ArtifactStore,
-  ArtifactError,
-  ArtifactErrorCode,
   BriefStore,
   DeltaStore,
   RevisionNarrativeStore,

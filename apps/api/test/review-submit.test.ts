@@ -1381,10 +1381,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       if (pr === undefined) {
         throw new Error("seed: pr missing");
       }
-      const hop = await createArtifactStore(
-        harness.handle,
-        CTX,
-      ).hunkSpans.write({
+      await createArtifactStore(harness.handle, CTX).hunkSpans.write({
         pullRequestId: pr.id,
         baselineSha: PREVIOUS_HEAD,
         headSha: COMMIT_ID,
@@ -1395,9 +1392,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
           },
         ],
       });
-      if (!hop.ok) {
-        throw new Error("seed: hop write failed");
-      }
     }
 
     async function editDraft(cookie: string, draftId: string) {

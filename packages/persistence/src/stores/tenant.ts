@@ -30,30 +30,7 @@ import type {
   ReviewerId,
   RepoId,
 } from "../types";
-import type { Result, ValueOf } from "types/utils";
 import { PrStates, type PrState } from "types/pull-requests";
-
-// ---------------------------------------------------------------------------
-// Repository errors, expected failures. Programmer errors still `throw`.
-// ---------------------------------------------------------------------------
-
-export const RepositoryErrorCodes = {
-  /** A scoped mutation matched no row in ctx's tenant. */
-  NOT_FOUND: "not-found",
-} as const;
-export type RepositoryErrorCode = ValueOf<typeof RepositoryErrorCodes>;
-
-export interface RepositoryError {
-  readonly code: RepositoryErrorCode;
-  readonly message: string;
-}
-
-function fail(
-  code: RepositoryErrorCode,
-  message: string,
-): Result<never, RepositoryError> {
-  return { ok: false, error: { code, message } };
-}
 
 // ---------------------------------------------------------------------------
 // Row + input shapes.
@@ -200,12 +177,13 @@ export interface PullRequestRepository {
   /**
    * Record GitHub's `updated_at` as the worker read it at generate time; a
    * value older than the stored one is left alone. The one write a
-   * generation makes to the row's GitHub facts.
+   * generation makes to the row's GitHub facts. `undefined` when no row in
+   * ctx's scope has the id.
    */
   advanceGithubUpdatedAt(
     pullRequestId: PullRequestRowId,
     githubUpdatedAt: Date,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
+  ): Promise<PullRequestRow | undefined>;
   /** Tenant-scoped read by (repo, number). Absence is a normal `undefined`. */
   getByNumber(
     repoId: RepoId,
@@ -215,34 +193,35 @@ export interface PullRequestRepository {
   getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
   /**
    * Store/rotate the Entry comment id after a delete+repost cycle. A plain
-   * GitHub comment id (no branded type); `notFound` if no row in ctx's tenant.
+   * GitHub comment id (no branded type); `undefined` if no row in ctx's scope.
    */
   setEntryComment(
     pullRequestId: PullRequestRowId,
     /** `null` clears the stored id (entry comment deleted). */
     entryCommentId: bigint | null,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
+  ): Promise<PullRequestRow | undefined>;
   /**
    * Flip the local `draft` mirror after a mark-ready mutation. A NARROW,
    * tenant-scoped update by row id, the caller already resolved the
    * row via `getByNumber`, so this never reconstructs the lifecycle (unlike
    * `recordState`, which is a full webhook upsert). Idempotent: re-running with
-   * the same value is a no-op write. `notFound` if no row in ctx's tenant (a
+   * the same value is a no-op write. `undefined` if no row in ctx's scope (a
    * PR deleted mid-request); the later `ready_for_review` webhook reconciles.
    */
   setDraft(
     pullRequestId: PullRequestRowId,
     draft: boolean,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
+  ): Promise<PullRequestRow | undefined>;
   /**
    * Overwrite the last stack GitHub resolved for the row and its read time.
    * Callers write only a non-null resolve: a null one after every neighbour
-   * merged would erase the history this column exists to keep.
+   * merged would erase the history this column exists to keep. `undefined`
+   * if no row in ctx's scope.
    */
   recordStack(
     pullRequestId: PullRequestRowId,
     input: PullRequestStackInput,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
+  ): Promise<PullRequestRow | undefined>;
 }
 
 export interface CheckpointRepository {
@@ -416,14 +395,7 @@ export function createTenantRepository(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return fail(
-          RepositoryErrorCodes.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in ${scope.label}`,
-        );
-      }
-      return { ok: true, value: row };
+      return rows[0];
     },
 
     async setEntryComment(pullRequestId, entryCommentId) {
@@ -434,14 +406,7 @@ export function createTenantRepository(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return fail(
-          RepositoryErrorCodes.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in ${scope.label}`,
-        );
-      }
-      return { ok: true, value: row };
+      return rows[0];
     },
 
     async setDraft(pullRequestId, draft) {
@@ -452,14 +417,7 @@ export function createTenantRepository(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return fail(
-          RepositoryErrorCodes.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in ${scope.label}`,
-        );
-      }
-      return { ok: true, value: row };
+      return rows[0];
     },
 
     async recordStack(pullRequestId, input) {
@@ -474,14 +432,7 @@ export function createTenantRepository(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return fail(
-          RepositoryErrorCodes.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in ${scope.label}`,
-        );
-      }
-      return { ok: true, value: row };
+      return rows[0];
     },
   };
 

@@ -75,7 +75,7 @@ export async function recordResolvedStack(
     stack: merged,
     readAt: now,
   });
-  if (!recorded.ok) {
-    log.warn("generate: stack record failed", { code: recorded.error.code });
+  if (recorded === undefined) {
+    log.warn("generate: stack record found no row");
   }
 }

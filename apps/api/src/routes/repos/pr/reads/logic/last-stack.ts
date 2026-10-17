@@ -49,12 +49,11 @@ export async function recordResolvedStack(
     stack: merged,
     readAt,
   });
-  if (recorded.ok) {
+  if (recorded !== undefined) {
     return { stack: merged, readAt };
   }
 
-  deps.log.warn("stack record failed", {
-    code: recorded.error.code,
+  deps.log.warn("stack record found no row", {
     pullRequestId: String(pr.id),
   });
   if (stored.success && pr.stackReadAt !== null) {

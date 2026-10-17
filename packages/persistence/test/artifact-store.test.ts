@@ -5,8 +5,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createArtifactStore,
-  ArtifactErrorCodes,
   createTenantRepository,
+  InvalidArtifactBodyError,
   ScopeViolationError,
   type ArtifactStore,
   type TenantContext,
@@ -467,7 +467,7 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await store.comparisonMarks.write({
+    const write = store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         ...validMarks("base", "head"),
@@ -475,12 +475,7 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
         baselineIndex: 0,
       },
     });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
+    await expect(write).rejects.toBeInstanceOf(InvalidArtifactBodyError);
     expect(
       await store.comparisonMarks.get(pr.id, "base", "head"),
     ).toBeUndefined();
@@ -496,26 +491,22 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await store.comparisonMarks.write({
-      pullRequestId: pr.id,
-      marks: {
-        baselineSha: "base",
-        headSha: "head",
-        files: [
-          {
-            file: "src/a.ts",
-            addedRanges: [{ start: 1, end: 2, content: "const x = 1;" }],
-            removedRanges: [],
-          },
-        ],
-      },
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
+    await expect(
+      store.comparisonMarks.write({
+        pullRequestId: pr.id,
+        marks: {
+          baselineSha: "base",
+          headSha: "head",
+          files: [
+            {
+              file: "src/a.ts",
+              addedRanges: [{ start: 1, end: 2, content: "const x = 1;" }],
+              removedRanges: [],
+            },
+          ],
+        },
+      }),
+    ).rejects.toBeInstanceOf(InvalidArtifactBodyError);
   });
 
   it("rejects inverted, zero and negative line ranges", async () => {
@@ -534,21 +525,18 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       { start: -1, end: 5 }, // negative
     ];
     for (const range of bodies) {
-      const result = await store.comparisonMarks.write({
-        pullRequestId: pr.id,
-        marks: {
-          baselineSha: "base",
-          headSha: "head",
-          files: [
-            { file: "src/a.ts", addedRanges: [range], removedRanges: [] },
-          ],
-        },
-      });
-      expect(result.ok).toBe(false);
-      if (result.ok) {
-        throw new Error("expected rejection");
-      }
-      expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
+      await expect(
+        store.comparisonMarks.write({
+          pullRequestId: pr.id,
+          marks: {
+            baselineSha: "base",
+            headSha: "head",
+            files: [
+              { file: "src/a.ts", addedRanges: [range], removedRanges: [] },
+            ],
+          },
+        }),
+      ).rejects.toBeInstanceOf(InvalidArtifactBodyError);
     }
   });
 
@@ -562,18 +550,14 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await store.comparisonMarks.write({
+    const written = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: validMarks("base", "head"),
     });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("expected success");
-    }
-    expect(result.value.baselineSha).toBe("base");
-    expect(result.value.headSha).toBe("head");
+    expect(written.baselineSha).toBe("base");
+    expect(written.headSha).toBe("head");
 
-    const parsedBody: unknown = JSON.parse(result.value.body);
+    const parsedBody: unknown = JSON.parse(written.body);
     expect(parsedBody).toEqual(validMarks("base", "head"));
 
     // Idempotent rewrite of the same span → one row.
@@ -581,10 +565,7 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       pullRequestId: pr.id,
       marks: validMarks("base", "head"),
     });
-    if (!again.ok) {
-      throw new Error("expected success");
-    }
-    expect(again.value.id).toBe(result.value.id);
+    expect(again.id).toBe(written.id);
   });
 });
 
@@ -611,10 +592,7 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
       headSha: "head-2",
       spans: HOP,
     });
-    if (!first.ok) {
-      throw new Error("expected success");
-    }
-    expect(JSON.parse(first.value.spans)).toEqual(HOP);
+    expect(JSON.parse(first.spans)).toEqual(HOP);
 
     // Same pair rewritten in place; a later pair is a second hop.
     const rewritten = await store.hunkSpans.write({
@@ -623,11 +601,8 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
       headSha: "head-2",
       spans: [],
     });
-    if (!rewritten.ok) {
-      throw new Error("expected success");
-    }
-    expect(rewritten.value.id).toBe(first.value.id);
-    expect(JSON.parse(rewritten.value.spans)).toEqual([]);
+    expect(rewritten.id).toBe(first.id);
+    expect(JSON.parse(rewritten.spans)).toEqual([]);
 
     await store.hunkSpans.write({
       pullRequestId: pr.id,
@@ -653,31 +628,27 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await store.hunkSpans.write({
-      pullRequestId: pr.id,
-      baselineSha: "head-1",
-      headSha: "head-2",
-      spans: [
-        {
-          file: "src/a.ts",
-          hunks: [
-            {
-              oldStart: 1,
-              oldLines: 1,
-              newStart: 1,
-              newLines: 2,
-              lines: ["+const x = 1;"],
-            },
-          ],
-        },
-      ],
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
+    await expect(
+      store.hunkSpans.write({
+        pullRequestId: pr.id,
+        baselineSha: "head-1",
+        headSha: "head-2",
+        spans: [
+          {
+            file: "src/a.ts",
+            hunks: [
+              {
+                oldStart: 1,
+                oldLines: 1,
+                newStart: 1,
+                newLines: 2,
+                lines: ["+const x = 1;"],
+              },
+            ],
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(InvalidArtifactBodyError);
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
 

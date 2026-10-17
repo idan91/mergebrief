@@ -164,7 +164,7 @@ describe("comparison artifact reads", () => {
       prNumber: 1,
       state: PrStates.OPEN,
     });
-    const marks = await bStore.comparisonMarks.write({
+    await bStore.comparisonMarks.write({
       pullRequestId: bPr.id,
       marks: {
         baselineSha: "head-1",
@@ -178,9 +178,6 @@ describe("comparison artifact reads", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
     await bStore.deltas.write({
       pullRequestId: bPr.id,
       baselineSha: "head-1",

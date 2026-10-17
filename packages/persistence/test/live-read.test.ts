@@ -16,7 +16,6 @@ import {
   type RepoId,
   type ReviewerId,
 } from "../src/types";
-import type { Result } from "types/utils";
 import { PrStates } from "types/pull-requests";
 import { brandWith, freshDatabase } from "./helpers";
 
@@ -34,11 +33,11 @@ function minutesAgo(minutes: number): Date {
   return new Date(NOW.getTime() - minutes * 60 * 1000);
 }
 
-function unwrap<T, E>(result: Result<T, E>): T {
-  if (!result.ok) {
-    throw new Error(`expected ok, got ${JSON.stringify(result)}`);
+function unwrap<T>(row: T | undefined): T {
+  if (row === undefined) {
+    throw new Error("expected a row, got undefined");
   }
-  return result.value;
+  return row;
 }
 
 function stubFacts(overrides?: Partial<LiveReadFacts>): LiveReadFacts {
@@ -208,7 +207,7 @@ describe("createLiveReadStore.record", () => {
       id,
       stubFacts(),
     );
-    expect(result.ok).toBe(false);
+    expect(result).toBeUndefined();
   });
 });
 
@@ -235,7 +234,7 @@ describe("createLiveReadStore.stampAttempt", () => {
       NOW,
     );
 
-    expect(result.ok).toBe(false);
+    expect(result).toBeUndefined();
   });
 });
 

@@ -39,5 +39,5 @@ export async function purgeRowIn(
     row.id,
     { reviewerId },
   );
-  return purged.ok ? row.id : undefined;
+  return purged ? row.id : undefined;
 }

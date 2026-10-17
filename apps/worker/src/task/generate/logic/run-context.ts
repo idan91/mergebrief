@@ -184,8 +184,10 @@ async function readLivePullRequest(scope: RunScope): Promise<PullRequestInfo> {
     payload.pullRequestId,
     prInfo.updatedAt,
   );
-  if (!stamped.ok) {
-    log.debug(`generate: updated_at stamp skipped, ${stamped.error.message}`);
+  if (stamped === undefined) {
+    log.debug(
+      `generate: updated_at stamp skipped, pull_request ${payload.pullRequestId} not found`,
+    );
   }
 
   if (prInfo.headSha !== headSha) {

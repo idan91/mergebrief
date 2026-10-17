@@ -1,5 +1,9 @@
 import type { LogFields } from "logging";
-import { GenerationErrorCodes, ScopeViolationError } from "persistence";
+import {
+  GenerationErrorCodes,
+  InvalidArtifactBodyError,
+  ScopeViolationError,
+} from "persistence";
 import { GenerationStatuses } from "types/generations";
 import { classifyFailure, PermanentJobError } from "../../failure";
 import type { JobFailureInputs } from "../types";
@@ -26,7 +30,9 @@ export async function reportJobFailure(
   const message = error instanceof Error ? error.message : String(error);
   emitProviderError(log, deps, error);
   const permanent =
-    error instanceof PermanentJobError || error instanceof ScopeViolationError;
+    error instanceof PermanentJobError ||
+    error instanceof ScopeViolationError ||
+    error instanceof InvalidArtifactBodyError;
   const attempt = job?.attempts;
   const maxAttempts = job?.max_attempts;
   const failFields: LogFields = { evt: "job.fail", permanent };

@@ -719,7 +719,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(beforeBody.comparisons?.previousBrief).toBeUndefined();
 
     // Marks for the previous-brief span → available, narrative not yet.
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         baselineSha: "head-1",
@@ -733,9 +733,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
     const marked = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     const markedBody = (await marked.json()) as {
       comparisons?: { previousBrief?: unknown };
@@ -848,7 +845,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
     const store = createArtifactStore(harness.handle, CTX);
 
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         baselineSha: "head-1",
@@ -862,9 +859,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
 
     // Marks-only: an OFFER with the delta core absent.
     expect(await metaLastReview(cookie)).toEqual({
@@ -1111,7 +1105,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await writeBrief(pr.id, "base", "head-3", 3);
 
     // Marks for the (head-2 → head-3) span only.
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         baselineSha: "head-2",
@@ -1125,9 +1119,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
 
     const body = await metaBody(cookie);
     const byHead = new Map((body.revisions ?? []).map((r) => [r.headSha, r]));
@@ -1155,7 +1146,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-2");
 
     // Forward marks (head-2 → head-3) exist; the backward span never will.
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         baselineSha: "head-2",
@@ -1169,9 +1160,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
 
     const body = await metaBody(cookie);
     const byHead = new Map((body.revisions ?? []).map((r) => [r.headSha, r]));
@@ -1200,7 +1188,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
 
     // Previous-brief marks + last-review marks both land on the latest span.
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         baselineSha: "head-1",
@@ -1214,9 +1202,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
 
     const body = await metaBody(cookie);
     const latest = (body.revisions ?? []).find((r) => r.headSha === "head-2");
@@ -1250,7 +1235,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await writeBrief(pr.id, "base-b", "head-2", 3);
 
     // Marks for the current revision's previous-brief span (head-3 → head-2).
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         baselineSha: "head-3",
@@ -1264,9 +1249,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
 
     const body = await metaBody(cookie);
     // Both duplicate-head entries are listed, each with its OWN base.
@@ -1305,7 +1287,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // The reviewer last submitted at head-3; the worker warmed the forward
     // span (head-3 -> head-2) for the current (rebriefed) revision.
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-3");
-    const marks = await store.comparisonMarks.write({
+    await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
         baselineSha: "head-3",
@@ -1319,9 +1301,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
         ],
       },
     });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
 
     const body = await metaBody(cookie);
     const expected = {

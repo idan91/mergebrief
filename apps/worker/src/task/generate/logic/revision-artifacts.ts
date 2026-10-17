@@ -13,7 +13,6 @@ import {
 } from "brief-core/artifact";
 import type { Logger } from "logging";
 import { GenerationKinds } from "persistence";
-import { PermanentJobError } from "../../failure";
 import type { PullRequestSource } from "../../github-port";
 import type { ParsedGeneratePayload } from "../../payload";
 import type { RevisionArtifactInputs } from "../types";
@@ -53,7 +52,7 @@ export async function writeRevisionArtifacts(
   );
   // Persistence's strict schema is coordinates-only: pass exactly the SHA
   // pair + files, never the read-time label/index context.
-  const marksWritten = await store.comparisonMarks.write({
+  await store.comparisonMarks.write({
     pullRequestId,
     marks: {
       baselineSha: marks.baselineSha,
@@ -61,11 +60,6 @@ export async function writeRevisionArtifacts(
       files: marks.files,
     },
   });
-  if (!marksWritten.ok) {
-    // Marks are critical for the comparison UI: surface loudly, but classify
-    // as permanent, the same inputs would fail identically on retry.
-    throw new PermanentJobError(marksWritten.error.message);
-  }
 
   if (generatedBrief === undefined) {
     // Either the narrative for this span is already stored (retry after a

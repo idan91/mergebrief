@@ -180,7 +180,7 @@ async function seedPullRequestWithEntryComment(
     handle,
     CTX,
   ).pullRequests.setEntryComment(row.id, entryCommentId);
-  if (!set.ok) {
+  if (set === undefined) {
     throw new Error("setEntryComment failed in seed");
   }
 }

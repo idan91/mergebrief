@@ -51,9 +51,9 @@ export function createEntryCommentManager(
       pullRequestId,
       null,
     );
-    if (!cleared.ok) {
+    if (cleared === undefined) {
       log.warn(
-        `generate: entry comment id not cleared (job unaffected) — ${cleared.error.message}`,
+        `generate: entry comment id not cleared (job unaffected) — pull_request ${pullRequestId} not found`,
       );
     }
   }
@@ -117,9 +117,9 @@ export function createEntryCommentManager(
       pullRequestId,
       posted.value.commentId,
     );
-    if (!stored.ok) {
+    if (stored === undefined) {
       log.warn(
-        `generate: entry comment id not stored (job unaffected) — ${stored.error.message}`,
+        `generate: entry comment id not stored (job unaffected) — pull_request ${pullRequestId} not found`,
       );
       // The new comment is untracked: a later run would delete only the OLD
       // stored id and post again, leaving this one behind, two comments.

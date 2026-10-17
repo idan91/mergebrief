@@ -206,7 +206,7 @@ describe("countStartedRuns", () => {
       pullRequestId,
     );
 
-    expect(purged.ok).toBe(true);
+    expect(purged).toBe(true);
     expect(await countDay(DAY_START, DAY_END)).toBe(1);
   });
 });

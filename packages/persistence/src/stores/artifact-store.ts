@@ -19,28 +19,20 @@ import { revisionNarrative } from "../schema/revision-narrative";
 import { resolveScope, ScopeViolationError } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import type { BriefRowId, PullRequestRowId } from "../types";
-import type { Result, ValueOf } from "types/utils";
 
 // ---------------------------------------------------------------------------
-// Errors: expected failures. A row outside scope throws `ScopeViolationError`.
+// Errors. A row outside scope throws `ScopeViolationError`.
 // ---------------------------------------------------------------------------
 
-export const ArtifactErrorCodes = {
-  /** A `comparison_marks` or `hunk_span` body failed its coordinates-only Zod schema. */
-  INVALID_BODY: "invalid-body",
-} as const;
-export type ArtifactErrorCode = ValueOf<typeof ArtifactErrorCodes>;
-
-export interface ArtifactError {
-  readonly code: ArtifactErrorCode;
-  readonly message: string;
-}
-
-function fail(
-  code: ArtifactErrorCode,
-  message: string,
-): Result<never, ArtifactError> {
-  return { ok: false, error: { code, message } };
+/**
+ * A `comparison_marks` or `hunk_span` body failed its coordinates-only Zod
+ * schema: a writer defect against a fixed shape, which no retry can fix.
+ */
+export class InvalidArtifactBodyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidArtifactBodyError";
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -316,9 +308,8 @@ export interface RevisionNarrativeStore {
 }
 
 export interface ComparisonMarksStore {
-  write(
-    input: ComparisonMarksWriteInput,
-  ): Promise<Result<ComparisonMarksRow, ArtifactError>>;
+  /** Throws `InvalidArtifactBodyError` when the body is not coordinates-only. */
+  write(input: ComparisonMarksWriteInput): Promise<ComparisonMarksRow>;
   get(
     pullRequestId: PullRequestRowId,
     baselineSha: string,
@@ -335,7 +326,8 @@ export interface ComparisonMarksStore {
 }
 
 export interface HunkSpanStore {
-  write(input: HunkSpanWriteInput): Promise<Result<HunkSpanRow, ArtifactError>>;
+  /** Throws `InvalidArtifactBodyError` when the spans are not coordinates-only. */
+  write(input: HunkSpanWriteInput): Promise<HunkSpanRow>;
   /**
    * Every hop on a PR, full rows, ordered by row id: insertion order, NOT
    * chain order (a re-generated span keeps its original id). A chain links
@@ -749,7 +741,7 @@ export function createArtifactStore(
     async write(input) {
       const parsed = ComparisonMarksBodySchema.safeParse(input.marks);
       if (!parsed.success) {
-        return fail(ArtifactErrorCodes.INVALID_BODY, parsed.error.message);
+        throw new InvalidArtifactBodyError(parsed.error.message);
       }
       const marks = parsed.data;
       // The natural-key SHAs ARE the body's SHA pair.
@@ -783,7 +775,7 @@ export function createArtifactStore(
         if (row === undefined) {
           throw new Error("comparison_marks write returned no row");
         }
-        return { ok: true, value: row };
+        return row;
       });
     },
 
@@ -829,7 +821,7 @@ export function createArtifactStore(
     async write(input) {
       const parsed = HunkSpansSchema.safeParse(input.spans);
       if (!parsed.success) {
-        return fail(ArtifactErrorCodes.INVALID_BODY, parsed.error.message);
+        throw new InvalidArtifactBodyError(parsed.error.message);
       }
       const serialized = JSON.stringify(parsed.data);
       return db.transaction(async (tx) => {
@@ -857,7 +849,7 @@ export function createArtifactStore(
         if (row === undefined) {
           throw new Error("hunk_span write returned no row");
         }
-        return { ok: true, value: row };
+        return row;
       });
     },
 

@@ -53,7 +53,7 @@ const AUDIT_TARGET_AUDIT_LOG = "audit_log";
 // ---------------------------------------------------------------------------
 
 export const PurgeErrorCodes = {
-  /** A tenant-scoped purge/retention op named a `pull_request` not in ctx. */
+  /** `setRetention` named a `pull_request` not in ctx. */
   NOT_FOUND: "not-found",
   /** `graceDays` was negative, fractional-invalid (NaN/Infinity), or absurd. */
   INVALID_GRACE: "invalid-grace",
@@ -91,15 +91,14 @@ export interface PurgeRoutines {
   /**
    * Erase one PR: verify it belongs to ctx, emit a `delete` audit entry, then
    * delete the `pull_request` row (all 8 child tables die by FK cascade, the
-   * DB guarantees erasure completeness). `notFound` (nothing deleted) if the
-   * row is not in ctx's tenant. Returns the number of `pull_request` rows
-   * deleted (1 on success). `actor` names the reviewer on the audit row;
+   * DB guarantees erasure completeness). False, with nothing written, if the
+   * row is not in ctx's scope. `actor` names the reviewer on the audit row;
    * the webhook and sweep callers pass none and stay `app`.
    */
   purgePullRequest(
     prRowId: PullRequestRowId,
     actor?: PurgeActor,
-  ): Promise<Result<number, PurgeError>>;
+  ): Promise<boolean>;
   /**
    * Set-based purge for the `installation_repositories`
    * `removed` webhook: one `repo_id = ANY(...)` delete plus one `delete`
@@ -186,10 +185,7 @@ export function createPurgeRoutines(
           .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))
           .limit(1);
         if (parents[0] === undefined) {
-          return fail(
-            PurgeErrorCodes.NOT_FOUND,
-            `pull_request ${prRowId} not found in ${scope.label}`,
-          );
+          return false;
         }
         // Emit the audit BEFORE the delete lands, same tx, so it survives the
         // cascade it records (audit_log has no FK to pull_request).
@@ -207,11 +203,12 @@ export function createPurgeRoutines(
           entry.actorId = actor.reviewerId;
         }
         await insertAudit(tx, entry);
-        const deleted = await tx
-          .delete(pullRequest)
-          .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))
-          .returning({ id: pullRequest.id });
-        return { ok: true, value: deleted.length };
+        const scopedPullRequest = and(
+          scope.matchesPullRequest(),
+          eq(pullRequest.id, prRowId),
+        );
+        await tx.delete(pullRequest).where(scopedPullRequest);
+        return true;
       });
     },
 

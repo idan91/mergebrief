@@ -30,15 +30,8 @@ function stubRow(overrides: Partial<PullRequestRow>): PullRequestRow {
   } as PullRequestRow;
 }
 
-function stubDeps(ok: boolean) {
-  const recordStack = vi.fn(async () =>
-    ok
-      ? { ok: true as const, value: stubRow({}) }
-      : {
-          ok: false as const,
-          error: { code: "not-found" as const, message: "gone" },
-        },
-  );
+function stubDeps(landed: boolean) {
+  const recordStack = vi.fn(async () => (landed ? stubRow({}) : undefined));
   const warn = vi.fn();
   const log: Logger = {
     error: vi.fn(),

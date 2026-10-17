@@ -6,7 +6,10 @@ import {
   type Generator,
 } from "generators";
 import { FakeFailures } from "github/testing";
-import { createGenerationProjection } from "persistence";
+import {
+  createGenerationProjection,
+  InvalidArtifactBodyError,
+} from "persistence";
 import { GenerationStatuses } from "types/generations";
 import {
   captureLogger,
@@ -133,6 +136,33 @@ describe("generate task, observability", () => {
     expect(row?.errorParams).toEqual({
       detail: `pull_request ${pr.id} is not in tenant 42`,
     });
+  });
+
+  it("fails a job permanently when an artifact body is invalid", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.generate = () => {
+      throw new InvalidArtifactBodyError("spans: unrecognized key");
+    };
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ generator, log: logger });
+
+    const run = task(payload, {
+      job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+    });
+    await expect(run).resolves.toBeUndefined();
+
+    const fail = readLines().find((line) => line["evt"] === "job.fail");
+    expect(fail?.["permanent"]).toBe(true);
+    const done = readLines().find(
+      (line) => line["evt"] === "generation.complete",
+    );
+    expect(done).toBeUndefined();
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorParams).toEqual({ detail: "spans: unrecognized key" });
   });
 
   it("mints job.retries.exhausted on the final attempt", async () => {

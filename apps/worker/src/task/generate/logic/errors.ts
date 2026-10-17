@@ -5,7 +5,11 @@ import {
   type GitHubCallFailure,
 } from "github";
 import type { LogFields, Logger } from "logging";
-import { ScopeViolationError, type GenerationKind } from "persistence";
+import {
+  InvalidArtifactBodyError,
+  ScopeViolationError,
+  type GenerationKind,
+} from "persistence";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
@@ -144,11 +148,13 @@ export async function runGenerator<T>(
     return value;
   } catch (error) {
     // A step the call drives, not the generator, threw an already classified
-    // error or a scope miss: it keeps its class and is no generator outcome.
+    // error or a persistence refusal: it keeps its class and is no generator
+    // outcome.
     const keepsItsClass =
       error instanceof PermanentJobError ||
       error instanceof TransientJobError ||
-      error instanceof ScopeViolationError;
+      error instanceof ScopeViolationError ||
+      error instanceof InvalidArtifactBodyError;
     if (keepsItsClass) {
       throw error;
     }
