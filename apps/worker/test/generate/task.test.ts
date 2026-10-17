@@ -879,15 +879,13 @@ describe("generate task", () => {
 
   it("marks superseded for a PR that went terminal after enqueue", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const setState = await createTenantRepository(
-      harness.handle,
-      ctx,
-    ).pullRequests.setState(pr.id, {
+    await createTenantRepository(harness.handle, ctx).pullRequests.upsert({
+      repoId: pr.repoId,
+      prNumber: pr.prNumber,
       state: PrStates.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
     });
-    expect(setState.ok).toBe(true);
     const generator = stubGenerator();
     const task = makeTask({ generator });
 

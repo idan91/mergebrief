@@ -13,7 +13,6 @@ import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { comparisonMarks } from "../schema/comparison-marks";
 import { delta } from "../schema/delta";
-import { diffSnapshot } from "../schema/diff-snapshot";
 import { hunkSpan } from "../schema/hunk-span";
 import { pullRequest } from "../schema/pull-request";
 import { revisionNarrative } from "../schema/revision-narrative";
@@ -157,7 +156,6 @@ export interface NarrativeSpanRow {
   readonly headSha: string;
 }
 export type DeltaRow = typeof delta.$inferSelect;
-export type DiffSnapshotRow = typeof diffSnapshot.$inferSelect;
 export type RevisionNarrativeRow = typeof revisionNarrative.$inferSelect;
 export type ComparisonMarksRow = typeof comparisonMarks.$inferSelect;
 export type HunkSpanRow = typeof hunkSpan.$inferSelect;
@@ -213,13 +211,6 @@ export interface DeltaWriteInput extends Origin, BodyVersionStamp {
   /** Checkpoint baseline: a prior head at last submit. */
   readonly baselineSha: string;
   readonly headSha: string;
-  readonly body: string;
-}
-
-export interface DiffSnapshotWriteInput {
-  readonly pullRequestId: PullRequestRowId;
-  /** A checkpoint SHA. */
-  readonly sha: string;
   readonly body: string;
 }
 
@@ -302,12 +293,6 @@ export interface DeltaStore {
     baselineSha: string,
     headSha: string,
   ): Promise<DeltaRow | undefined>;
-  /** Lean availability probe: never loads the body. */
-  existsForSpan(
-    pullRequestId: PullRequestRowId,
-    baselineSha: string,
-    headSha: string,
-  ): Promise<boolean>;
   /**
    * All delta spans on a PR: the SHA pair only, never the body. One query
    * backs the per-revision lastReview join; existence is derived in memory,
@@ -316,16 +301,6 @@ export interface DeltaStore {
   listForPullRequest(
     pullRequestId: PullRequestRowId,
   ): Promise<ComparisonSpanRow[]>;
-}
-
-export interface DiffSnapshotStore {
-  write(
-    input: DiffSnapshotWriteInput,
-  ): Promise<Result<DiffSnapshotRow, ArtifactError>>;
-  get(
-    pullRequestId: PullRequestRowId,
-    sha: string,
-  ): Promise<DiffSnapshotRow | undefined>;
 }
 
 export interface RevisionNarrativeStore {
@@ -337,12 +312,6 @@ export interface RevisionNarrativeStore {
     prevHeadSha: string,
     headSha: string,
   ): Promise<RevisionNarrativeRow | undefined>;
-  /** Lean availability probe: never loads the body. */
-  existsForSpan(
-    pullRequestId: PullRequestRowId,
-    prevHeadSha: string,
-    headSha: string,
-  ): Promise<boolean>;
   /**
    * All narrative spans on a PR: the prevHead/head pair only, never the
    * body. One query backs the per-revision previousBrief narrative join.
@@ -361,12 +330,6 @@ export interface ComparisonMarksStore {
     baselineSha: string,
     headSha: string,
   ): Promise<ComparisonMarksRow | undefined>;
-  /** Lean availability probe: never loads the body. */
-  existsForSpan(
-    pullRequestId: PullRequestRowId,
-    baselineSha: string,
-    headSha: string,
-  ): Promise<boolean>;
   /**
    * All marks spans on a PR: the SHA pair only, never the body. One query
    * backs BOTH per-revision joins (previousBrief marks, lastReview marks);
@@ -395,7 +358,6 @@ export interface ArtifactStore {
   readonly ctx: ScopeContext;
   readonly briefs: BriefStore;
   readonly deltas: DeltaStore;
-  readonly diffSnapshots: DiffSnapshotStore;
   readonly revisionNarratives: RevisionNarrativeStore;
   readonly comparisonMarks: ComparisonMarksStore;
   readonly hunkSpans: HunkSpanStore;
@@ -682,22 +644,6 @@ export function createArtifactStore(
       return rows[0];
     },
 
-    async existsForSpan(pullRequestId, baselineSha, headSha) {
-      const rows = await db
-        .select({ id: delta.id })
-        .from(delta)
-        .where(
-          and(
-            scope.matchesChild(delta.installationId, delta.pullRequestId),
-            eq(delta.pullRequestId, pullRequestId),
-            eq(delta.baselineSha, baselineSha),
-            eq(delta.headSha, headSha),
-          ),
-        )
-        .limit(1);
-      return rows.length > 0;
-    },
-
     async listForPullRequest(pullRequestId) {
       return db
         .select({ baselineSha: delta.baselineSha, headSha: delta.headSha })
@@ -708,63 +654,6 @@ export function createArtifactStore(
             eq(delta.pullRequestId, pullRequestId),
           ),
         );
-    },
-  };
-
-  const diffSnapshots: DiffSnapshotStore = {
-    async write(input) {
-      return db.transaction(async (tx) => {
-        if (!(await parentInTenant(tx, input.pullRequestId))) {
-          return fail(
-            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in ${scope.label}`,
-          );
-        }
-        const rows = await tx
-          .insert(diffSnapshot)
-          .values({
-            installationId: scope.installationId,
-            pullRequestId: input.pullRequestId,
-            sha: input.sha,
-            body: input.body,
-            byteSize: byteSize(input.body),
-          })
-          .onConflictDoUpdate({
-            target: [
-              diffSnapshot.installationId,
-              diffSnapshot.pullRequestId,
-              diffSnapshot.sha,
-            ],
-            set: {
-              body: input.body,
-              byteSize: byteSize(input.body),
-            },
-          })
-          .returning();
-        const row = rows[0];
-        if (row === undefined) {
-          throw new Error("diff_snapshot write returned no row");
-        }
-        return { ok: true, value: row };
-      });
-    },
-
-    async get(pullRequestId, sha) {
-      const rows = await db
-        .select()
-        .from(diffSnapshot)
-        .where(
-          and(
-            scope.matchesChild(
-              diffSnapshot.installationId,
-              diffSnapshot.pullRequestId,
-            ),
-            eq(diffSnapshot.pullRequestId, pullRequestId),
-            eq(diffSnapshot.sha, sha),
-          ),
-        )
-        .limit(1);
-      return rows[0];
     },
   };
 
@@ -855,25 +744,6 @@ export function createArtifactStore(
       return rows[0];
     },
 
-    async existsForSpan(pullRequestId, prevHeadSha, headSha) {
-      const rows = await db
-        .select({ id: revisionNarrative.id })
-        .from(revisionNarrative)
-        .where(
-          and(
-            scope.matchesChild(
-              revisionNarrative.installationId,
-              revisionNarrative.pullRequestId,
-            ),
-            eq(revisionNarrative.pullRequestId, pullRequestId),
-            eq(revisionNarrative.prevHeadSha, prevHeadSha),
-            eq(revisionNarrative.headSha, headSha),
-          ),
-        )
-        .limit(1);
-      return rows.length > 0;
-    },
-
     async listForPullRequest(pullRequestId) {
       return db
         .select({
@@ -959,25 +829,6 @@ export function createArtifactStore(
       return rows[0];
     },
 
-    async existsForSpan(pullRequestId, baselineSha, headSha) {
-      const rows = await db
-        .select({ id: comparisonMarks.id })
-        .from(comparisonMarks)
-        .where(
-          and(
-            scope.matchesChild(
-              comparisonMarks.installationId,
-              comparisonMarks.pullRequestId,
-            ),
-            eq(comparisonMarks.pullRequestId, pullRequestId),
-            eq(comparisonMarks.baselineSha, baselineSha),
-            eq(comparisonMarks.headSha, headSha),
-          ),
-        )
-        .limit(1);
-      return rows.length > 0;
-    },
-
     async listForPullRequest(pullRequestId) {
       return db
         .select({
@@ -1056,7 +907,6 @@ export function createArtifactStore(
     ctx,
     briefs,
     deltas,
-    diffSnapshots,
     revisionNarratives,
     comparisonMarks: comparisonMarksStore,
     hunkSpans,

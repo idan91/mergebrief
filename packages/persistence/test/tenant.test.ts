@@ -130,29 +130,6 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
     expect(await b.checkpoints.get(bPr.id, REVIEWER)).toBeUndefined();
   });
 
-  it("setState on a PR outside the tenant returns notFound", async () => {
-    const handle = await freshDatabase();
-    const a = createTenantRepository(handle, CTX_A);
-    const b = createTenantRepository(handle, CTX_B);
-
-    const bPr = await b.pullRequests.upsert(upsertInput(7));
-    const result = await a.pullRequests.setState(bPr.id, {
-      state: PrStates.CLOSED,
-      closedAt: new Date(),
-      purgeAfter: null,
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected a rejection");
-    }
-    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
-    // B's PR is untouched.
-    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(
-      PrStates.OPEN,
-    );
-  });
-
   it("advanceGithubUpdatedAt keeps the newer value, refuses another tenant", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -356,27 +333,12 @@ describe("createTenantRepository idempotent upserts", () => {
     );
     expect(closed.purgeAfter).not.toBeNull();
 
-    // Reopen via BOTH mutation paths; each must clear the armed sweep fields.
+    // Reopening must clear the armed sweep fields.
     const viaUpsert = await a.pullRequests.upsert(
       upsertInput(7, { state: PrStates.OPEN }),
     );
     expect(viaUpsert.closedAt).toBeNull();
     expect(viaUpsert.purgeAfter).toBeNull();
-
-    await a.pullRequests.setState(closed.id, {
-      state: PrStates.CLOSED,
-      closedAt: new Date("2026-07-01T00:00:00Z"),
-      purgeAfter: new Date("2026-07-08T00:00:00Z"),
-    });
-    const viaSetState = await a.pullRequests.setState(closed.id, {
-      state: PrStates.OPEN,
-    });
-    expect(viaSetState.ok).toBe(true);
-    if (!viaSetState.ok) {
-      throw new Error("expected success");
-    }
-    expect(viaSetState.value.closedAt).toBeNull();
-    expect(viaSetState.value.purgeAfter).toBeNull();
   });
 
   it("checkpoint upsertOnSubmit is idempotent and advances the sha", async () => {
@@ -474,19 +436,13 @@ describe("createTenantRepository idempotent upserts", () => {
       keyRef: "env:K1",
       refreshExpiresAt: new Date(Date.now() + 3_600_000),
     });
-    await a.sessions.create({
+    const aRow = await a.sessions.create({
       sessionTokenHash: "hash-a",
       reviewerId: REVIEWER,
       grantId: grant.id,
       expiresAt: new Date(Date.now() + 3_600_000),
     });
-
-    // The hash is the key; a session holds no installation to hide behind.
-    const aRow = await a.sessions.getByTokenHash("hash-a");
-    expect(aRow).toBeDefined();
-    expect(await b.sessions.getByTokenHash("hash-a")).toBeDefined();
-    // The grant reference round-trips through create → select.
-    expect(aRow?.grantId).toBe(grant.id);
+    expect(aRow.grantId).toBe(grant.id);
 
     // Any installation scope addresses the reviewer's sessions; the delete
     // also orphan-cleans the grant in the same transaction.

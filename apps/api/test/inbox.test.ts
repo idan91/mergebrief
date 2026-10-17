@@ -302,10 +302,13 @@ describe("GET /api/inbox", () => {
       repoId: REPO_A,
       prNumber: 8,
     });
-    await createTenantRepository(harness.handle, TENANT).pullRequests.setState(
-      pr.id,
-      { state: PrStates.MERGED, closedAt: new Date(), purgeAfter: null },
-    );
+    await createTenantRepository(harness.handle, TENANT).pullRequests.upsert({
+      repoId: pr.repoId,
+      prNumber: pr.prNumber,
+      state: PrStates.MERGED,
+      closedAt: new Date(),
+      purgeAfter: null,
+    });
     await recordStack(harness.handle, TENANT, pr.id, {
       index: 1,
       members: [
@@ -352,10 +355,13 @@ describe("GET /api/inbox", () => {
       repoId: REPO_A,
       prNumber: 8,
     });
-    await createTenantRepository(harness.handle, TENANT).pullRequests.setState(
-      pr.id,
-      { state: PrStates.MERGED, closedAt: new Date(), purgeAfter: null },
-    );
+    await createTenantRepository(harness.handle, TENANT).pullRequests.upsert({
+      repoId: pr.repoId,
+      prNumber: pr.prNumber,
+      state: PrStates.MERGED,
+      closedAt: new Date(),
+      purgeAfter: null,
+    });
     await recordStack(harness.handle, TENANT, pr.id, {
       index: 1,
       members: [
@@ -548,10 +554,13 @@ describe("GET /api/inbox", () => {
       repoId: REPO_A,
       prNumber: 2,
     });
-    await createTenantRepository(harness.handle, TENANT).pullRequests.setState(
-      merged.id,
-      { state: PrStates.MERGED, closedAt: new Date(), purgeAfter: null },
-    );
+    await createTenantRepository(harness.handle, TENANT).pullRequests.upsert({
+      repoId: merged.repoId,
+      prNumber: merged.prNumber,
+      state: PrStates.MERGED,
+      closedAt: new Date(),
+      purgeAfter: null,
+    });
 
     const opening = await get("/api/inbox", cookie);
     const every = await get(

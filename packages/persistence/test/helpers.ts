@@ -113,18 +113,6 @@ export function waitMs(ms: number): Promise<WaitOutcome> {
   return new Promise((resolve) => setTimeout(() => resolve("timer"), ms));
 }
 
-/** Stamp a pull request's `updated_at`, so an ordering never waits on the clock. */
-export async function writePullRequestUpdatedAt(
-  handle: AppDatabase,
-  id: PullRequestRowId,
-  at: Date,
-): Promise<void> {
-  await internal(handle)
-    .update(pullRequest)
-    .set({ updatedAt: at })
-    .where(eq(pullRequest.id, id));
-}
-
 /** Stamp one projection row's `updated_at`, picked by its natural key. */
 export async function writeGenerationUpdatedAt(
   handle: AppDatabase,

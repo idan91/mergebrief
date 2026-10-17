@@ -343,7 +343,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
   });
 });
 
-describe("createArtifactStore.deltas and diffSnapshots share the discipline", () => {
+describe("createArtifactStore.deltas", () => {
   it("delta: idempotent span rewrite, origin written, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -389,49 +389,6 @@ describe("createArtifactStore.deltas and diffSnapshots share the discipline", ()
       throw new Error("expected rejection");
     }
     expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
-  });
-
-  it("diff_snapshot rewrites per sha, no origin, cross-tenant rejected", async () => {
-    const handle = await freshDatabase();
-    const a = createTenantRepository(handle, CTX_A);
-    const aStore = createArtifactStore(handle, CTX_A);
-    const bStore = createArtifactStore(handle, CTX_B);
-    const pr = await a.pullRequests.upsert({
-      repoId: REPO,
-      prNumber: 11,
-      state: PrStates.OPEN,
-    });
-
-    const first = await aStore.diffSnapshots.write({
-      pullRequestId: pr.id,
-      sha: "chk",
-      body: "s1",
-    });
-    const second = await aStore.diffSnapshots.write({
-      pullRequestId: pr.id,
-      sha: "chk",
-      body: "s2",
-    });
-    expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) {
-      throw new Error("expected both writes to succeed");
-    }
-    expect(second.value.id).toBe(first.value.id);
-    expect(second.value.body).toBe("s2");
-
-    const foreign = await bStore.diffSnapshots.write({
-      pullRequestId: pr.id,
-      sha: "chk2",
-      body: "x",
-    });
-    expect(foreign.ok).toBe(false);
-    if (foreign.ok) {
-      throw new Error("expected rejection");
-    }
-    expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
-
-    const read = await aStore.diffSnapshots.get(pr.id, "chk");
-    expect(read?.body).toBe("s2");
   });
 });
 

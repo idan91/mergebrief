@@ -1,6 +1,4 @@
-// Read boundaries (PGlite): the list endpoint's tenant query
-// (`pullRequests.listForRepos`: allowed-repo filter, updated_at ordering,
-// cap) and the per-PR "current span" enrichment batches
+// Read boundaries (PGlite): the per-PR "current span" enrichment batches
 // (`briefs.latestForPullRequests`, `generation.latestBriefForPullRequests`).
 // Also: `title` is persisted and refreshed by both upsert paths (a purgeable
 // display label, same class as `repo_slug`).
@@ -20,17 +18,11 @@ import {
 } from "../src/types";
 import { GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import {
-  brandWith,
-  freshDatabase,
-  writeGenerationUpdatedAt,
-  writePullRequestUpdatedAt,
-} from "./helpers";
+import { brandWith, freshDatabase, writeGenerationUpdatedAt } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
 const REPO_1: RepoId = brandWith(isRepoId, 111n);
-const REPO_2: RepoId = brandWith(isRepoId, 222n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
@@ -92,54 +84,6 @@ describe("pull_request base_sha persistence", () => {
       state: PrStates.OPEN,
     });
     expect(retargeted.baseSha).toBe("base-2");
-  });
-});
-
-describe("pullRequests.listForRepos", () => {
-  it("returns only ctx-tenant rows in the allowed repo set, newest first", async () => {
-    const handle = await freshDatabase();
-    const a = createTenantRepository(handle, CTX_A);
-    const b = createTenantRepository(handle, CTX_B);
-
-    // Tenant A: two PRs in repo 1, one in repo 2. The newer row is inserted
-    // first, so only updated_at, never the id tiebreak, can put it first.
-    const newer = await a.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 2,
-      title: "a-r1-p2",
-      state: PrStates.OPEN,
-    });
-    const older = await a.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 1,
-      title: "a-r1-p1",
-      state: PrStates.OPEN,
-    });
-    await writePullRequestUpdatedAt(handle, older.id, OLDER);
-    await writePullRequestUpdatedAt(handle, newer.id, NEWER);
-    await a.pullRequests.upsert({
-      repoId: REPO_2,
-      prNumber: 3,
-      title: "a-r2-p3",
-      state: PrStates.OPEN,
-    });
-    // Tenant B: same repo id, must NEVER surface for ctx A.
-    await b.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 9,
-      title: "b-r1-p9",
-      state: PrStates.OPEN,
-    });
-
-    const rows = await a.pullRequests.listForRepos([REPO_1], 100);
-    expect(rows.map((row) => row.prNumber)).toEqual([2, 1]); // newest first
-    expect(rows.every((row) => row.repoId === REPO_1)).toBe(true);
-
-    const capped = await a.pullRequests.listForRepos([REPO_1, REPO_2], 2);
-    expect(capped).toHaveLength(2);
-
-    const none = await a.pullRequests.listForRepos([], 100);
-    expect(none).toEqual([]);
   });
 });
 
@@ -210,104 +154,7 @@ describe("briefs.latestForPullRequests", () => {
   });
 });
 
-describe("comparison existence seams", () => {
-  it("the existsForSpan reads reflect writes and stay lean", async () => {
-    const handle = await freshDatabase();
-    const repo = createTenantRepository(handle, CTX_A);
-    const store = createArtifactStore(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 1,
-      state: PrStates.OPEN,
-    });
-    const brief = await store.briefs.write({
-      pullRequestId: pr.id,
-      baseSha: "base",
-      headSha: "head-2",
-      headIndex: 2,
-      commitCount: 2,
-      body: "{}",
-      ...ORIGIN,
-    });
-    if (!brief.ok) {
-      throw new Error("brief write failed");
-    }
-
-    expect(
-      await store.comparisonMarks.existsForSpan(pr.id, "head-1", "head-2"),
-    ).toBe(false);
-    const marks = await store.comparisonMarks.write({
-      pullRequestId: pr.id,
-      marks: {
-        baselineSha: "head-1",
-        headSha: "head-2",
-        files: [
-          {
-            file: "src/a.ts",
-            addedRanges: [{ start: 1, end: 2 }],
-            removedRanges: [],
-          },
-        ],
-      },
-    });
-    if (!marks.ok) {
-      throw new Error("marks write failed");
-    }
-    expect(
-      await store.comparisonMarks.existsForSpan(pr.id, "head-1", "head-2"),
-    ).toBe(true);
-
-    expect(
-      await store.revisionNarratives.existsForSpan(pr.id, "head-1", "head-2"),
-    ).toBe(false);
-    const narrative = await store.revisionNarratives.write({
-      pullRequestId: pr.id,
-      briefId: brief.value.id,
-      prevHeadSha: "head-1",
-      headSha: "head-2",
-      body: "{}",
-      ...ORIGIN,
-    });
-    if (!narrative.ok) {
-      throw new Error("narrative write failed");
-    }
-    expect(
-      await store.revisionNarratives.existsForSpan(pr.id, "head-1", "head-2"),
-    ).toBe(true);
-  });
-
-  it("deltas.existsForSpan reflects writes, lean", async () => {
-    const handle = await freshDatabase();
-    const repo = createTenantRepository(handle, CTX_A);
-    const store = createArtifactStore(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 1,
-      state: PrStates.OPEN,
-    });
-
-    expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(
-      false,
-    );
-    const written = await store.deltas.write({
-      pullRequestId: pr.id,
-      baselineSha: "cp-1",
-      headSha: "head-2",
-      body: "{}",
-      ...ORIGIN,
-    });
-    if (!written.ok) {
-      throw new Error("delta write failed");
-    }
-    expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(
-      true,
-    );
-    // Span mismatch stays false: the natural key is the whole span.
-    expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-3")).toBe(
-      false,
-    );
-  });
-
+describe("comparison artifact reads", () => {
   it("never sees another tenant's marks/narratives/deltas", async () => {
     const handle = await freshDatabase();
     const b = createTenantRepository(handle, CTX_B);
@@ -347,14 +194,12 @@ describe("comparison existence seams", () => {
 
     const aStore = createArtifactStore(handle, CTX_A);
     expect(
-      await aStore.comparisonMarks.existsForSpan(bPr.id, "head-1", "head-2"),
-    ).toBe(false);
+      await aStore.comparisonMarks.get(bPr.id, "head-1", "head-2"),
+    ).toBeUndefined();
     expect(
-      await aStore.revisionNarratives.existsForSpan(bPr.id, "head-1", "head-2"),
-    ).toBe(false);
-    expect(await aStore.deltas.existsForSpan(bPr.id, "head-1", "head-2")).toBe(
-      false,
-    );
+      await aStore.revisionNarratives.get(bPr.id, "head-1", "head-2"),
+    ).toBeUndefined();
+    expect(await aStore.deltas.get(bPr.id, "head-1", "head-2")).toBeUndefined();
   });
 });
 

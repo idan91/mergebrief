@@ -6,7 +6,7 @@
 // within the scope in the same transaction, and every READ filters on the
 // queried table's own columns (`matchesChild` adds the owner world's PR
 // semi-join), which is safe because writes guarantee the marks match.
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
 import { deleteOrphanedGrants } from "../auth/grant";
@@ -127,8 +127,6 @@ interface BasePullRequestUpsertInput {
 export type PullRequestUpsertInput = BasePullRequestUpsertInput &
   PullRequestLifecycle;
 
-export type PullRequestStatePatch = PullRequestLifecycle;
-
 /** The stack a resolve produced and when; the caller never passes a null stack. */
 export interface PullRequestStackInput {
   readonly stack: unknown;
@@ -215,30 +213,8 @@ export interface PullRequestRepository {
     repoId: RepoId,
     prNumber: number,
   ): Promise<PullRequestRow | undefined>;
-  /**
-   * The tenant's PRs across an ALLOWED repo set (the viewer's GitHub-derived
-   * installation∩user intersection), newest `updated_at` first,
-   * capped at `limit`. An empty allowed set returns no rows (fail closed) -
-   * the caller must never fall back to an unfiltered tenant listing.
-   */
-  listForRepos(
-    repoIds: readonly RepoId[],
-    limit: number,
-  ): Promise<PullRequestRow[]>;
   /** Tenant-scoped read by row id (the worker's job-payload entry point). */
   getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
-  /**
-   * The OWNER world's rows, newest `updated_at` first, capped at `limit` -
-   * the "your briefs" home list. Owner scope only: the installation world's
-   * listing is `listForRepos` over the fail-closed allowed set, and an
-   * unfiltered tenant listing must not exist.
-   */
-  listOwned(limit: number): Promise<PullRequestRow[]>;
-  /** Scoped lifecycle mutation; `notFound` if no row in ctx's tenant. */
-  setState(
-    pullRequestId: PullRequestRowId,
-    patch: PullRequestStatePatch,
-  ): Promise<Result<PullRequestRow, RepositoryError>>;
   /**
    * Store/rotate the Entry comment id after a delete+repost cycle. A plain
    * GitHub comment id (no branded type); `notFound` if no row in ctx's tenant.
@@ -303,10 +279,6 @@ export interface CheckpointRepository {
 export interface SessionRepository {
   /** Insert. `auth_session` has no PR parent and no tenant stamp. */
   create(input: SessionCreateInput): Promise<AuthSessionRow>;
-  /** Read by token hash; absence is a normal `undefined`. */
-  getByTokenHash(sessionTokenHash: string): Promise<AuthSessionRow | undefined>;
-  /** TTL sweep; returns the number deleted. */
-  deleteExpired(now: Date): Promise<number>;
   /** Logout / reviewer offboarding; returns number deleted. */
   deleteByReviewer(reviewerId: ReviewerId): Promise<number>;
 }
@@ -423,38 +395,6 @@ export function createTenantRepository(
       return rows[0];
     },
 
-    async listForRepos(repoIds, limit) {
-      // `inArray` with an empty list is invalid SQL, and an empty ALLOWED set
-      // must return nothing, never "everything" (fail closed).
-      if (repoIds.length === 0) {
-        return [];
-      }
-      return db
-        .select()
-        .from(pullRequest)
-        .where(
-          and(
-            scope.matchesPullRequest(),
-            inArray(pullRequest.repoId, [...repoIds]),
-          ),
-        )
-        .orderBy(desc(pullRequest.updatedAt), desc(pullRequest.id))
-        .limit(limit);
-    },
-
-    async listOwned(limit) {
-      if (scope.ownerUserId === null) {
-        // Programmer error: see the interface note.
-        throw new Error("listOwned is an owner-scope surface");
-      }
-      return db
-        .select()
-        .from(pullRequest)
-        .where(scope.matchesPullRequest())
-        .orderBy(desc(pullRequest.updatedAt), desc(pullRequest.id))
-        .limit(limit);
-    },
-
     async getById(pullRequestId) {
       const rows = await db
         .select()
@@ -475,27 +415,6 @@ export function createTenantRepository(
         .set({
           githubUpdatedAt: sql`greatest(${pullRequest.githubUpdatedAt}, ${githubUpdatedAt})`,
           updatedAt: sql`case when ${advances} then now() else ${pullRequest.updatedAt} end`,
-        })
-        .where(
-          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
-        )
-        .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        return fail(
-          RepositoryErrorCodes.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in ${scope.label}`,
-        );
-      }
-      return { ok: true, value: row };
-    },
-
-    async setState(pullRequestId, patch) {
-      const rows = await db
-        .update(pullRequest)
-        .set({
-          ...buildLifecycleColumns(patch),
-          updatedAt: new Date(),
         })
         .where(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
@@ -698,38 +617,6 @@ export function createTenantRepository(
         throw new Error("auth_session insert returned no row");
       }
       return row;
-    },
-
-    async getByTokenHash(sessionTokenHash) {
-      const conditions = [eq(authSession.sessionTokenHash, sessionTokenHash)];
-      if (scope.ownerUserId !== null) {
-        conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
-      }
-      const rows = await db
-        .select()
-        .from(authSession)
-        .where(and(...conditions))
-        .limit(1);
-      return rows[0];
-    },
-
-    async deleteExpired(now) {
-      // Orphan-clean the grants of the deleted sessions, same tx.
-      const conditions = [lt(authSession.expiresAt, now)];
-      if (scope.ownerUserId !== null) {
-        conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
-      }
-      return db.transaction(async (tx) => {
-        const rows = await tx
-          .delete(authSession)
-          .where(and(...conditions))
-          .returning({ grantId: authSession.grantId });
-        await deleteOrphanedGrants(
-          tx,
-          rows.map((row) => row.grantId),
-        );
-        return rows.length;
-      });
     },
 
     async deleteByReviewer(reviewerId) {

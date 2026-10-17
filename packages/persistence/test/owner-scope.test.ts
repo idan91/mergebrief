@@ -115,10 +115,6 @@ describe("owner-scoped pull_request rows", () => {
 
     const bRow = await b.pullRequests.upsert(upsertInput(7));
     expect(await a.pullRequests.getById(bRow.id)).toBeUndefined();
-    expect(await a.pullRequests.setState(bRow.id, OPEN)).toMatchObject({
-      ok: false,
-      error: { code: RepositoryErrorCodes.NOT_FOUND },
-    });
   });
 });
 
@@ -508,7 +504,6 @@ describe("owner-scoped sessions", () => {
       refreshExpiresAt: new Date(Date.now() + 3_600_000),
     });
     const a = createTenantRepository(handle, CTX_A);
-    const t = createTenantRepository(handle, TENANT_CTX);
 
     const row = await a.sessions.create({
       sessionTokenHash: "hash-owner",
@@ -517,18 +512,10 @@ describe("owner-scoped sessions", () => {
       expiresAt: new Date(Date.now() + 3_600_000),
     });
     expect(row.reviewerId).toBe(OWNER_A);
-    expect(await a.sessions.getByTokenHash("hash-owner")).toBeDefined();
-    // A session holds no installation, so a tenant scope reads it too.
-    expect(await t.sessions.getByTokenHash("hash-owner")).toBeDefined();
 
-    // Another owner's scope cannot delete it: by foreign reviewer id or by
-    // its own sweep.
+    // Another owner's scope cannot delete it by a foreign reviewer id.
     const b = createTenantRepository(handle, CTX_B);
     expect(await b.sessions.deleteByReviewer(OWNER_A)).toBe(0);
-    expect(
-      await b.sessions.deleteExpired(new Date(Date.now() + 7_200_000)),
-    ).toBe(0);
-    expect(await a.sessions.getByTokenHash("hash-owner")).toBeDefined();
     expect(await a.sessions.deleteByReviewer(OWNER_A)).toBe(1);
   });
 });
@@ -558,26 +545,5 @@ describe("url-box instance visibility", () => {
     );
 
     expect(await resolveUrlBoxOwner(handle, REPO, 11, OWNER_A)).toBeUndefined();
-  });
-});
-
-describe("listOwned: the your-briefs home list", () => {
-  it("lists only the owner's rows, newest first; installation scope refuses", async () => {
-    const handle = await freshDatabase();
-    const a = createTenantRepository(handle, CTX_A);
-    const b = createTenantRepository(handle, CTX_B);
-    const t = createTenantRepository(handle, TENANT_CTX);
-
-    await a.pullRequests.upsert(upsertInput(1));
-    await a.pullRequests.upsert(upsertInput(2));
-    await b.pullRequests.upsert(upsertInput(3));
-    await t.pullRequests.upsert(upsertInput(4));
-
-    const owned = await a.pullRequests.listOwned(10);
-    expect(owned.map((row) => row.prNumber)).toEqual([2, 1]);
-
-    await expect(t.pullRequests.listOwned(10)).rejects.toThrow(
-      "owner-scope surface",
-    );
   });
 });

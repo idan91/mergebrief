@@ -101,13 +101,7 @@ export interface PurgeRoutines {
     actor?: PurgeActor,
   ): Promise<Result<number, PurgeError>>;
   /**
-   * Scoped predicate-delete of every `pull_request` for `(ctx, repoId)`
-   * (children cascade) + a `delete` audit entry carrying the count. Returns the
-   * number of PRs purged (0 if the repo held none).
-   */
-  purgeRepo(repoId: RepoId): Promise<number>;
-  /**
-   * Set-based sibling of `purgeRepo` for the `installation_repositories`
+   * Set-based purge for the `installation_repositories`
    * `removed` webhook: one `repo_id = ANY(...)` delete plus one `delete`
    * audit entry PER repo, a repo that held none included. One query rather
    * than a per-repo `Promise.all`, which would open N pool connections on a
@@ -218,29 +212,6 @@ export function createPurgeRoutines(
           .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))
           .returning({ id: pullRequest.id });
         return { ok: true, value: deleted.length };
-      });
-    },
-
-    async purgeRepo(repoId) {
-      return db.transaction(async (tx) => {
-        const deleted = await tx
-          .delete(pullRequest)
-          .where(
-            and(scope.matchesPullRequest(), eq(pullRequest.repoId, repoId)),
-          )
-          .returning({ id: pullRequest.id });
-        const count = deleted.length;
-        await insertAudit(tx, {
-          installationId: scope.installationId,
-          source: scope.source,
-          actorType: AuditActorTypes.APP,
-          operation: AUDIT_OPERATION_DELETE,
-          outcome: AuditOutcomes.OK,
-          targetType: AUDIT_TARGET_REPO,
-          targetId: repoId,
-          metadata: { count },
-        });
-        return count;
       });
     },
 
