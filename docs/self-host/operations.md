@@ -523,10 +523,10 @@ a paste or an owner follow-up) while the running job's head watch, a 20s
 poll that aborts the run on a newer head, stands the older run down. Up to
 one poll of overlap in the normal case (longer while head reads are
 failing) costs spend, never correctness, and the daily cap stays exact
-because every start takes the same instance-wide advisory lock. The scheduled
-`sweep-audit` still runs once per tick: each runner tries to record the
-tick in graphile's `_private_known_crontabs` table, and only the runner
-that advances `last_execution` enqueues the job. Each worker opens its own
+because every start takes the same instance-wide advisory lock. Each
+scheduled sweep (`sweep-audit`, `sweep-sessions`) still runs once per tick:
+each runner tries to record the tick in graphile's `_private_known_crontabs`
+table, and only the runner that advances `last_execution` enqueues the job. Each worker opens its own
 connection pool, so count that against Postgres's `max_connections`.
 Prefer more slots over more workers unless you want the restart isolation.
 

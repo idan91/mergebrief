@@ -129,14 +129,6 @@
       "count": 2
     }
   },
-  "apps/worker/src/task/sweep-audit.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/comment-density": {
-      "count": 1
-    }
-  },
   "apps/worker/test/sweep-audit.test.ts": {
     "house/no-em-dash": {
       "count": 2

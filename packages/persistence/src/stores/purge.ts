@@ -2,7 +2,7 @@
 // bound. Erasure completeness is the DB's job: every per-PR child table FKs
 // `pull_request.id` ON DELETE CASCADE, and the Review Session graph hangs off
 // `brief`. Sessions and API tokens bind no installation and outlive the
-// tenant; only the session TTL sweep touches `auth_session`. `audit_log` is
+// tenant; no routine here touches them. `audit_log` is
 // RETAINED by every tenant-scoped purge: a purge APPENDS a `delete` entry in
 // the same transaction, and only `sweepAuditLog` removes from it. Explicit
 // purges are `app`; the retention sweep is `system`.
@@ -15,13 +15,11 @@ import {
   lt,
 } from "drizzle-orm";
 import type { Mutable } from "types";
-import { deleteOrphanedGrants } from "../auth/grant";
 import { insertAudit, type AuditEntry } from "./audit";
 import { type AppDatabase, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
 import { AUDIT_RETENTION_FLOOR_DAYS } from "../db/config";
 import { pullRequest } from "../schema/pull-request";
-import { authSession } from "../schema/auth-session";
 import type { PullRequestRow } from "./tenant";
 import { resolveScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
@@ -138,11 +136,6 @@ export interface PurgeRoutines {
    * when anything was purged. Returns the number purged.
    */
   sweepExpired(now: Date): Promise<number>;
-  /**
-   * Session TTL sweep: delete every `auth_session` for ctx with
-   * `expires_at < now`. Returns the number deleted.
-   */
-  sweepExpiredSessions(now: Date): Promise<number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,9 +146,7 @@ export interface PurgeRoutines {
  * Build the tenant-scoped purge + retention routines over the opaque handle.
  * `ctx` is the one place an `installation_id` enters; every routine that
  * touches a tenant row filters or stamps that same id, so a caller can never
- * erase another tenant's rows. The one exception is `sweepExpiredSessions`:
- * a session holds no installation, so under an installation scope the sweep
- * is instance-wide, and only the owner world narrows it.
+ * erase another tenant's rows.
  */
 export function createPurgeRoutines(
   handle: AppDatabase,
@@ -343,36 +334,11 @@ export function createPurgeRoutines(
         return count;
       });
     },
-
-    async sweepExpiredSessions(now) {
-      // NO audit emit: reviewer sessions are short-lived churn, so a per-sweep
-      // `delete` entry would flood the ledger with low-signal noise. Sessions
-      // outlive installation offboarding by design, as they hold no
-      // installation; access ends when GitHub stops confirming it.
-      return db.transaction(async (tx) => {
-        // A session holds no installation; the owner world narrows to the
-        // owner's own sessions.
-        const conditions = [lt(authSession.expiresAt, now)];
-        if (scope.ownerUserId !== null) {
-          conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
-        }
-        const deleted = await tx
-          .delete(authSession)
-          .where(and(...conditions))
-          .returning({ grantId: authSession.grantId });
-        // Orphan-clean the grants of the swept sessions, same tx.
-        await deleteOrphanedGrants(
-          tx,
-          deleted.map((row) => row.grantId),
-        );
-        return deleted.length;
-      });
-    },
   };
 }
 
 // ---------------------------------------------------------------------------
-// Audit retention, the one purge that is NOT tenant-scoped.
+// Audit retention, instance-wide rather than tenant-scoped.
 // ---------------------------------------------------------------------------
 
 /**

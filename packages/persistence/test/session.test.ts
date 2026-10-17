@@ -4,7 +4,7 @@
 import { sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
-import { createSessionAuth } from "../src/auth/session";
+import { createSessionAuth, sweepExpiredSessions } from "../src/auth/session";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import { isReviewerId, type ReviewerId } from "../src/types";
@@ -186,6 +186,81 @@ describe("createSessionAuth.setExpiresAt", () => {
     expect(
       await createSessionAuth(handle).setExpiresAt(OTHER_HASH, rotated),
     ).toBe(0);
+  });
+});
+
+describe("sweepExpiredSessions", () => {
+  const NOW = new Date("2026-07-04T00:00:00Z");
+  const EXPIRED = new Date("2026-07-01T00:00:00Z");
+  const LIVE = new Date("2026-07-10T00:00:00Z");
+
+  let handle: AppDatabase;
+  beforeEach(async () => {
+    handle = await freshDatabase();
+  });
+
+  it("deletes expired sessions of every reviewer and keeps live ones", async () => {
+    await seedSession(handle, { hash: HASH, expiresAt: EXPIRED });
+    await seedSession(handle, {
+      hash: OTHER_HASH,
+      expiresAt: EXPIRED,
+      reviewerId: OTHER_REVIEWER_ID,
+    });
+    await seedSession(handle, { hash: THIRD_HASH, expiresAt: LIVE });
+
+    expect(await sweepExpiredSessions(handle, NOW)).toBe(2);
+
+    const sessions = createSessionAuth(handle);
+    expect(await sessions.findSession(HASH)).toBeUndefined();
+    expect(await sessions.findSession(OTHER_HASH)).toBeUndefined();
+    expect(await sessions.findSession(THIRD_HASH)).toBeDefined();
+  });
+
+  it("orphan-cleans swept grants and keeps one a live session shares", async () => {
+    await seedSession(handle, { hash: HASH, expiresAt: EXPIRED });
+    const shared = await seedSession(handle, {
+      hash: OTHER_HASH,
+      expiresAt: EXPIRED,
+    });
+    await seedSession(handle, {
+      hash: THIRD_HASH,
+      expiresAt: LIVE,
+      grant: shared,
+    });
+    expect(await grantCount(handle)).toBe(2);
+
+    expect(await sweepExpiredSessions(handle, NOW)).toBe(2);
+
+    expect(await grantCount(handle)).toBe(1);
+    const survivor = await createSessionAuth(handle).findSession(THIRD_HASH);
+    expect(survivor?.grant.id).toBe(shared.id);
+  });
+
+  it("keeps a session whose expiry is exactly now", async () => {
+    await seedSession(handle, { expiresAt: NOW });
+
+    expect(await sweepExpiredSessions(handle, NOW)).toBe(0);
+    expect(await createSessionAuth(handle).findSession(HASH)).toBeDefined();
+  });
+
+  it("sweeps a backlog larger than one batch in a single call", async () => {
+    const grant = await seedSession(handle, { expiresAt: EXPIRED });
+    const backlog = 1200;
+    await internal(handle).execute(
+      sql`insert into auth_session (session_token_hash, reviewer_id, grant_id, expires_at)
+          select 'backlog-' || n, ${REVIEWER_ID}, ${grant.id}, ${EXPIRED}
+          from generate_series(1, ${backlog}) as n`,
+    );
+
+    expect(await sweepExpiredSessions(handle, NOW)).toBe(backlog + 1);
+    expect(await grantCount(handle)).toBe(0);
+  });
+
+  it("answers 0 when nothing has expired", async () => {
+    await seedSession(handle, { expiresAt: LIVE });
+
+    expect(await sweepExpiredSessions(handle, NOW)).toBe(0);
+    expect(await grantCount(handle)).toBe(1);
   });
 });
 

@@ -4,7 +4,7 @@
 // all of them. The row carries NO credential material: the GitHub pair lives
 // on the `github_grant` row it references, so resolution JOINs the grant and
 // every delete orphan-cleans it in the same tx.
-import { type SQL, eq } from "drizzle-orm";
+import { type SQL, eq, inArray, lt, sql } from "drizzle-orm";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { githubGrant } from "../schema/github-grant";
 import { authSession } from "../schema/auth-session";
@@ -12,6 +12,8 @@ import type { GrantRowId, ReviewerId } from "../types";
 import { type GithubGrantRow, deleteOrphanedGrants } from "./grant";
 
 export type AuthSessionRow = typeof authSession.$inferSelect;
+
+const SESSION_SWEEP_BATCH_SIZE = 500;
 
 export interface SessionCreateInput {
   readonly sessionTokenHash: string;
@@ -105,6 +107,41 @@ export function createSessionAuth(handle: AppDatabase): SessionAuth {
       return rows.length;
     },
   };
+}
+
+/**
+ * Delete every session expired before `now`, across every reviewer, and
+ * orphan-clean their grants. Each batch is its own transaction, so a large
+ * backlog holds no long lock. Writes no audit row: an expired session already
+ * grants nothing, and the row belongs to neither audit world. Returns rows
+ * deleted.
+ */
+export async function sweepExpiredSessions(
+  handle: AppDatabase,
+  now: Date,
+): Promise<number> {
+  const db = internal(handle);
+  const isExpired = lt(authSession.expiresAt, now);
+  let total = 0;
+
+  for (;;) {
+    const deleted = await db.transaction(async (tx) => {
+      const batch = tx
+        .select({ id: authSession.id })
+        .from(authSession)
+        .where(isExpired)
+        .orderBy(authSession.expiresAt)
+        .limit(SESSION_SWEEP_BATCH_SIZE);
+      // The outer predicate is re-checked on a row a concurrent refresh moved,
+      // so a session extended after the batch was picked survives.
+      const inBatch = inArray(authSession.id, batch);
+      return deleteSessionsWhere(tx, sql`${inBatch} and ${isExpired}`);
+    });
+    total += deleted;
+    if (deleted < SESSION_SWEEP_BATCH_SIZE) {
+      return total;
+    }
+  }
 }
 
 /** Must run inside the caller's transaction: the orphan-clean shares it. */

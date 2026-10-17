@@ -39,6 +39,11 @@ import {
   SWEEP_AUDIT_CRONTAB,
   SWEEP_AUDIT_TASK,
 } from "./task/sweep-audit";
+import {
+  createSweepSessionsTask,
+  SWEEP_SESSIONS_CRONTAB,
+  SWEEP_SESSIONS_TASK,
+} from "./task/sweep-sessions";
 import { startWorker } from "./runner";
 
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
@@ -206,6 +211,7 @@ async function main(): Promise<void> {
     retentionDays: config.value.auditRetentionDays,
     log: logger,
   });
+  const sweepSessions = createSweepSessionsTask({ handle, log: logger });
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
@@ -223,12 +229,12 @@ async function main(): Promise<void> {
       generate: (payload, helpers) => generate(payload, helpers),
       [RECOVER_GENERATION_TASK]: (payload, helpers) =>
         recoverGeneration(payload, helpers),
-      // The one scheduled job. Instance-wide, not tenant-scoped: retention is
-      // an operator env setting, so there is no ctx to bind it to.
+      // Scheduled jobs: instance-wide, not tenant-scoped, worker-only.
       [SWEEP_AUDIT_TASK]: () => sweepAudit(),
+      [SWEEP_SESSIONS_TASK]: () => sweepSessions(),
     },
-    // Unset retention → the job still runs and deletes nothing.
-    crontab: SWEEP_AUDIT_CRONTAB,
+    // Unset retention → the audit job still runs and deletes nothing.
+    crontab: [SWEEP_AUDIT_CRONTAB, SWEEP_SESSIONS_CRONTAB].join("\n"),
     // graphile's lifecycle logs flow through the logging boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),
   });

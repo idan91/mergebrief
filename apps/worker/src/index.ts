@@ -23,13 +23,19 @@ export {
 } from "./task/generate";
 export type { GenerateTaskDeps } from "./task/generate";
 
-// The audit-retention sweep: the one scheduled job (graphile cron).
+// The scheduled jobs (graphile cron): audit retention and expired sessions.
 export {
   createSweepAuditTask,
   SWEEP_AUDIT_CRONTAB,
   SWEEP_AUDIT_TASK,
 } from "./task/sweep-audit";
 export type { SweepAuditTaskDeps } from "./task/sweep-audit";
+export {
+  createSweepSessionsTask,
+  SWEEP_SESSIONS_CRONTAB,
+  SWEEP_SESSIONS_TASK,
+} from "./task/sweep-sessions";
+export type { SweepSessionsTaskDeps } from "./task/sweep-sessions";
 
 // Job-payload boundary (the shared `GenerateJobPayload` handshake).
 export { parseGeneratePayload } from "./task/payload";

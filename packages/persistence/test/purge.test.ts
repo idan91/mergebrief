@@ -1,7 +1,7 @@
 // Purge and retention tests over PGlite, proving the deletion boundary: a PR
 // purge cascades the 8 child tables while sparing the no-FK audit ledger and
-// auth_session, cross-tenant purge deletes nothing, and both sweeps stay
-// tenant-scoped. Seeds go through a RAW drizzle handle over the same PGlite.
+// auth_session, cross-tenant purge deletes nothing, and the retention sweep
+// stays tenant-scoped. Seeds go through a RAW drizzle handle over the same PGlite.
 import { and, eq } from "drizzle-orm";
 import { type PgliteDatabase, drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -706,44 +706,5 @@ describe("createPurgeRoutines.setRetention, purge_after semantics", () => {
       throw new Error("expected notFound");
     }
     expect(result.error.code).toBe(PurgeErrorCodes.NOT_FOUND);
-  });
-});
-
-describe("createPurgeRoutines.sweepExpiredSessions, TTL sweep", () => {
-  it("removes every expired session and emits no audit entry", async () => {
-    const { raw, handle } = await freshPair();
-    const now = new Date("2026-07-04T00:00:00Z");
-    const expired = new Date("2026-07-01T00:00:00Z");
-    const live = new Date("2026-07-10T00:00:00Z");
-
-    async function session(token: string, expiresAt: Date): Promise<void> {
-      await raw.insert(authSession).values({
-        sessionTokenHash: token,
-        reviewerId: REVIEWER,
-        grantId: await insertGrant(raw),
-        expiresAt,
-      });
-    }
-    await session("a-expired", expired);
-    await session("a-live", live);
-    await session("b-expired", expired);
-
-    const deleted = await createPurgeRoutines(
-      handle,
-      CTX_A,
-    ).sweepExpiredSessions(now);
-    expect(deleted).toBe(2);
-
-    const remaining = await raw
-      .select({ token: authSession.sessionTokenHash })
-      .from(authSession);
-    expect(remaining.map((r) => r.token)).toEqual(["a-live"]);
-    // The swept sessions' grants died with them; the live row keeps its own.
-    expect(
-      await raw.select({ id: githubGrant.id }).from(githubGrant),
-    ).toHaveLength(1);
-
-    // No artifact-level audit for short-lived session churn (stated choice).
-    expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);
   });
 });

@@ -330,9 +330,10 @@ export type {
 } from "./auth/grant";
 
 // The `auth_session` boundary: every credential-row read and write, keyed by
-// token hash or by reviewer. NOT ctx-bound: a session holds no installation,
-// and the request's repository names the tenant.
-export { createSessionAuth } from "./auth/session";
+// token hash or by reviewer, plus the instance-wide expiry sweep the worker
+// schedules. NOT ctx-bound: a session holds no installation, and the
+// request's repository names the tenant.
+export { createSessionAuth, sweepExpiredSessions } from "./auth/session";
 export type {
   AuthSessionRow,
   SessionAuth,
