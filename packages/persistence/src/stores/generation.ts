@@ -36,6 +36,7 @@ import {
   buildJobPayload,
   getRecoveryJobKey,
   MAX_GENERATION_ATTEMPTS,
+  readQueueJob,
   RECOVER_GENERATION_TASK,
 } from "./queue";
 import { sanitizeErrorDetail } from "logging";
@@ -963,19 +964,24 @@ export function createGenerationProjection(
     },
 
     async getGenerateJobTiming(pullRequestId) {
-      const jobKey = getGenerateJobKey(pullRequestId);
-      const rows = await db
-        .select({
-          startsLater: sql<boolean>`job.run_at > now()`,
-          locked: sql<boolean>`job.locked_at is not null`,
-        })
+      const scopedPullRequest = and(
+        scope.matchesPullRequest(),
+        eq(pullRequest.id, pullRequestId),
+      );
+      const inScope = await db
+        .select({ id: pullRequest.id })
         .from(pullRequest)
-        .innerJoin(sql`graphile_worker.jobs as job`, sql`job.key = ${jobKey}`)
-        .where(
-          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
-        )
+        .where(scopedPullRequest)
         .limit(1);
-      return rows[0];
+      if (inScope[0] === undefined) {
+        return undefined;
+      }
+
+      const job = await readQueueJob(db, getGenerateJobKey(pullRequestId));
+      if (job === undefined) {
+        return undefined;
+      }
+      return { startsLater: job.startsLater, locked: job.locked };
     },
   };
 }

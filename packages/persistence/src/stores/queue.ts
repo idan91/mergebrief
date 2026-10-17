@@ -1,6 +1,6 @@
-// The graphile queue writes this package makes: `graphile_worker.add_job`
-// called BY NAME on the caller's transaction (graphile owns its schema; this
-// package never imports it). Ids cross as STRINGS, since JSON cannot carry
+// Every touch of graphile's queue this package makes: `graphile_worker.add_job`
+// called BY NAME on the caller's transaction, and the one read of its job
+// table (graphile owns its schema; this package never imports it). Ids cross as STRINGS, since JSON cannot carry
 // bigint; the worker re-brands them through `TenantContextSchema`.
 import { sql } from "drizzle-orm";
 import type { AppDrizzle } from "../db/handle";
@@ -23,6 +23,7 @@ export const RECOVER_GENERATION_TASK = "recover-generation";
 export const MAX_GENERATION_ATTEMPTS = 3;
 
 type QueueExecutor = Pick<AppDrizzle, "execute">;
+type QueueReader = Pick<AppDrizzle, "select">;
 
 export interface QueueJob {
   readonly identifier: string;
@@ -89,4 +90,29 @@ export async function addQueueJob(
       job_key_mode => ${job.keyMode}
     )
   `);
+}
+
+/** Where one keyed job stands, judged by the database clock. */
+export interface QueueJobState {
+  readonly locked: boolean;
+  readonly startsLater: boolean;
+  /** False once graphile spent the attempts: the job stays, unlocked, and never runs. */
+  readonly hasAttemptsLeft: boolean;
+}
+
+/** The one read of graphile's job table; `undefined` when no job holds the key. */
+export async function readQueueJob(
+  reader: QueueReader,
+  jobKey: string,
+): Promise<QueueJobState | undefined> {
+  const rows = await reader
+    .select({
+      locked: sql<boolean>`job.locked_at is not null`,
+      startsLater: sql<boolean>`job.run_at > now()`,
+      hasAttemptsLeft: sql<boolean>`job.attempts < job.max_attempts`,
+    })
+    .from(sql`graphile_worker.jobs as job`)
+    .where(sql`job.key = ${jobKey}`)
+    .limit(1);
+  return rows[0];
 }

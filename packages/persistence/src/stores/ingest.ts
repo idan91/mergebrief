@@ -6,7 +6,7 @@
 // is a LEADING-edge debounce: the first push fixes `run_at`, later pushes only
 // replace the payload head, a locked job gets its key detached and a fresh
 // job, and a head a live run holds is neither reset nor re-enqueued.
-import { and, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
@@ -28,6 +28,7 @@ import {
   buildJobPayload,
   GENERATE_TASK_IDENTIFIER,
   getRecoveryJobKey,
+  readQueueJob,
   RECOVER_GENERATION_TASK,
 } from "./queue";
 import { resolveScope, type RowScope } from "./scope";
@@ -133,13 +134,8 @@ async function isGenerateJobHeld(
   tx: IngestTransaction,
   pullRequestId: PullRequestRowId,
 ): Promise<boolean> {
-  const jobKey = getGenerateJobKey(pullRequestId);
-  const rows = await tx
-    .select({ held: sql<boolean>`job.locked_at is not null` })
-    .from(sql`graphile_worker.jobs as job`)
-    .where(sql`job.key = ${jobKey}`)
-    .limit(1);
-  return rows[0]?.held === true;
+  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
+  return job?.locked === true;
 }
 
 /**
@@ -151,15 +147,12 @@ async function hasQueuedGenerateJob(
   tx: IngestTransaction,
   pullRequestId: PullRequestRowId,
 ): Promise<boolean> {
-  const jobKey = getGenerateJobKey(pullRequestId);
-  const rows = await tx
-    .select({ id: sql`job.id` })
-    .from(sql`graphile_worker.jobs as job`)
-    .where(
-      sql`job.key = ${jobKey} and job.locked_at is null and job.attempts < job.max_attempts`,
-    )
-    .limit(1);
-  return rows.length > 0;
+  const job = await readQueueJob(tx, getGenerateJobKey(pullRequestId));
+  if (job === undefined) {
+    return false;
+  }
+  const waitsForWorker = !job.locked && job.hasAttemptsLeft;
+  return waitsForWorker;
 }
 
 /**

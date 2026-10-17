@@ -12,7 +12,7 @@ What the layout can't show:
 
 - `schema/` is one drizzle file per table.
 - `stores/ingest.ts` is the transactional webhook→upsert→enqueue boundary, plus `requeueGenerateJob`, the worker's re-enqueue of a held run's job, and `scheduleClaimRecovery`, which moves a head's `recover-generation` job past a live lease.
-- `stores/queue.ts` holds every `graphile_worker.add_job` call this package makes and the job payload builder; ingest and `claimRun` (which queues the head's recovery job in the claim's transaction) both go through it.
+- `stores/queue.ts` holds every `graphile_worker.add_job` call this package makes, the job payload builder, and `readQueueJob`, the one read of graphile's job table; ingest and `claimRun` (which queues the head's recovery job in the claim's transaction) both go through it.
 - `stores/url-box.ts` holds `resolveUrlBoxOwner`, the ONE unscoped read.
 - `stores/user-settings.ts` is per-user state keyed by GitHub user id, not tenant-scoped on purpose: a person spans installations. One typed column per setting.
 - `stores/inbox.ts` holds the ONE multi-scope read, the Inbox list; `test/scope-containment.test.ts` refuses a second store source that spells an installation set (`inArray` over `installationId`, or a raw `in (`).
