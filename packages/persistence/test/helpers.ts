@@ -164,6 +164,53 @@ export async function freshDatabase(): Promise<AppDatabase> {
   return fromDrizzle(drizzle(await freshPglite()));
 }
 
+export interface QueryLog {
+  readonly handle: AppDatabase;
+  /** Every statement drizzle ran; `begin`, `commit` and `rollback` mark each transaction. */
+  readonly statements: string[];
+}
+
+/** A fresh database whose every statement lands in `statements`, for query-shape tests. */
+export async function createQueryLog(): Promise<QueryLog> {
+  const statements: string[] = [];
+  const db = drizzle(await freshPglite(), {
+    logger: {
+      logQuery(query) {
+        statements.push(query);
+      },
+    },
+  });
+  const runTransaction = db.transaction.bind(db);
+  db.transaction = async (transaction, config) => {
+    statements.push("begin");
+    try {
+      const result = await runTransaction(transaction, config);
+      statements.push("commit");
+      return result;
+    } catch (error) {
+      statements.push("rollback");
+      throw error;
+    }
+  };
+  return { handle: fromDrizzle(db), statements };
+}
+
+export interface RecordedRun<TValue> {
+  /** The statements `run` issued, in order. */
+  readonly statements: string[];
+  readonly outcome: PromiseSettledResult<TValue>;
+}
+
+/** Runs `run` and records its statements; a rejection lands in `outcome` for the caller to assert. */
+export async function recordStatements<TValue>(
+  log: QueryLog,
+  run: () => Promise<TValue>,
+): Promise<RecordedRun<TValue>> {
+  const from = log.statements.length;
+  const [outcome] = await Promise.allSettled([run()]);
+  return { statements: log.statements.slice(from), outcome };
+}
+
 /** Brand a bigint via its guard, the sanctioned no-`as` path. */
 export function brandWith<T extends bigint>(
   guard: (value: bigint) => value is T,

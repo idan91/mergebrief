@@ -16,7 +16,8 @@ const MULTI_SCOPE_MARKS = [
 
 describe("multi-scope reads", () => {
   it("only the Inbox store composes several installations", () => {
-    const composing = readdirSync(STORES_DIR)
+    const composing = readdirSync(STORES_DIR, { recursive: true })
+      .map(String)
       .filter((name) => name.endsWith(".ts"))
       .filter((name) => {
         const source = readFileSync(join(STORES_DIR, name), "utf8");

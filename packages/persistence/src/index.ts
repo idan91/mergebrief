@@ -211,9 +211,13 @@ export type {
 export {
   createArtifactStore,
   InvalidArtifactBodyError,
+} from "./stores/artifact-store";
+export {
   ComparisonMarksBodySchema,
   HunkSpansSchema,
-} from "./stores/artifact-store";
+  type ComparisonMarksBody,
+  type HunkSpans,
+} from "./stores/artifact-store/schemas";
 export type {
   ArtifactStore,
   BriefStore,
@@ -226,9 +230,7 @@ export type {
   DeltaWriteInput,
   RevisionNarrativeWriteInput,
   ComparisonMarksWriteInput,
-  ComparisonMarksBody,
   HunkSpanWriteInput,
-  HunkSpans,
   BriefRow,
   BriefSpanRow,
   ComparisonSpanRow,
@@ -237,7 +239,7 @@ export type {
   RevisionNarrativeRow,
   ComparisonMarksRow,
   HunkSpanRow,
-} from "./stores/artifact-store";
+} from "./stores/artifact-store/types";
 
 // The `generation` status-projection write helpers.
 export {

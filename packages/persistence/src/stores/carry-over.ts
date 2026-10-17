@@ -27,7 +27,7 @@ import {
   type DispositionEvidence,
   type DispositionEvidenceStatus,
 } from "types/dispositions";
-import { HunkSpansSchema } from "./artifact-store";
+import { HunkSpansSchema } from "./artifact-store/schemas";
 
 /** What the NEW Brief offers the evaluation: everything outside the reviewer's rows. */
 export interface CarryOverContext {

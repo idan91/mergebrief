@@ -37,7 +37,9 @@ import {
   expectCheckViolation,
   freshDatabase,
   freshPglite,
+  createQueryLog,
   readCheckValues,
+  recordStatements,
 } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
@@ -234,6 +236,342 @@ describe("owner-scoped artifact store", () => {
       ...ORIGIN,
     });
     expect(await storeT.briefs.listForPullRequest(pr.id)).toEqual([]);
+  });
+});
+
+describe("owner-scoped span artifacts", () => {
+  const HOP = [{ file: "src/a.ts", hunks: [] }];
+
+  function makeMarks(baselineSha: string, headSha: string) {
+    return { baselineSha, headSha, files: [] };
+  }
+
+  async function writeEverySpanArtifact(
+    store: ReturnType<typeof createArtifactStore>,
+    pullRequestId: Parameters<typeof store.briefs.listForPullRequest>[0],
+  ) {
+    const brief = await store.briefs.write({
+      pullRequestId,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 1,
+      commitCount: 1,
+      body: "brief",
+      repoConfig: "{}",
+      ...ORIGIN,
+    });
+    const delta = await store.deltas.write({
+      pullRequestId,
+      baselineSha: "chk",
+      headSha: "head",
+      body: "delta",
+      ...ORIGIN,
+    });
+    const narrative = await store.revisionNarratives.write({
+      pullRequestId,
+      briefId: brief.id,
+      prevHeadSha: "prev",
+      headSha: "head",
+      body: "narrative",
+      ...ORIGIN,
+    });
+    const marks = await store.comparisonMarks.write({
+      pullRequestId,
+      marks: makeMarks("prev", "head"),
+    });
+    const hop = await store.hunkSpans.write({
+      pullRequestId,
+      baselineSha: "prev",
+      headSha: "head",
+      spans: HOP,
+    });
+    return { brief, delta, narrative, marks, hop };
+  }
+
+  it("another owner reads none of the first owner's span artifacts", async () => {
+    const handle = await freshDatabase();
+    const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert(
+      upsertInput(7),
+    );
+    const storeA = createArtifactStore(handle, CTX_A);
+    const storeB = createArtifactStore(handle, CTX_B);
+    const written = await writeEverySpanArtifact(storeA, pr.id);
+    expect(written.hop.installationId).toBeNull();
+
+    expect(await storeB.briefs.getRepoConfig(pr.id, "base", "head")).toBe(
+      undefined,
+    );
+    expect(await storeB.deltas.get(pr.id, "chk", "head")).toBeUndefined();
+    expect(
+      await storeB.revisionNarratives.get(pr.id, "prev", "head"),
+    ).toBeUndefined();
+    expect(
+      await storeB.comparisonMarks.get(pr.id, "prev", "head"),
+    ).toBeUndefined();
+    expect(await storeB.deltas.listForPullRequest(pr.id)).toEqual([]);
+    expect(await storeB.revisionNarratives.listForPullRequest(pr.id)).toEqual(
+      [],
+    );
+    expect(await storeB.comparisonMarks.listForPullRequest(pr.id)).toEqual([]);
+    expect(await storeB.hunkSpans.listForPullRequest(pr.id)).toEqual([]);
+    expect((await storeB.briefs.latestForPullRequests([pr.id])).size).toBe(0);
+
+    // The owner itself reads every row back through the semi-join.
+    expect(await storeA.briefs.getRepoConfig(pr.id, "base", "head")).toBe("{}");
+    expect((await storeA.deltas.get(pr.id, "chk", "head"))?.id).toBe(
+      written.delta.id,
+    );
+    expect(
+      (await storeA.revisionNarratives.get(pr.id, "prev", "head"))?.id,
+    ).toBe(written.narrative.id);
+    expect((await storeA.comparisonMarks.get(pr.id, "prev", "head"))?.id).toBe(
+      written.marks.id,
+    );
+    expect(
+      (await storeA.hunkSpans.listForPullRequest(pr.id)).map((row) => row.id),
+    ).toEqual([written.hop.id]);
+  });
+
+  it("another owner cannot write span artifacts onto the first owner's PR", async () => {
+    const handle = await freshDatabase();
+    const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert(
+      upsertInput(7),
+    );
+    const storeA = createArtifactStore(handle, CTX_A);
+    const storeB = createArtifactStore(handle, CTX_B);
+    const own = await writeEverySpanArtifact(storeA, pr.id);
+
+    const refusals = [
+      storeB.deltas.write({
+        pullRequestId: pr.id,
+        baselineSha: "chk-2",
+        headSha: "head",
+        body: "planted",
+        ...ORIGIN,
+      }),
+      storeB.revisionNarratives.write({
+        pullRequestId: pr.id,
+        briefId: own.brief.id,
+        prevHeadSha: "prev-2",
+        headSha: "head",
+        body: "planted",
+        ...ORIGIN,
+      }),
+      storeB.comparisonMarks.write({
+        pullRequestId: pr.id,
+        marks: makeMarks("prev-2", "head"),
+      }),
+      storeB.hunkSpans.write({
+        pullRequestId: pr.id,
+        baselineSha: "prev-2",
+        headSha: "head",
+        spans: HOP,
+      }),
+    ];
+    for (const refusal of refusals) {
+      await expect(refusal).rejects.toBeInstanceOf(ScopeViolationError);
+      await expect(refusal).rejects.toThrow(/^pull_request /);
+    }
+
+    // Owner A still sees only its own rows: nothing was planted.
+    expect(await storeA.deltas.listForPullRequest(pr.id)).toEqual([
+      { baselineSha: "chk", headSha: "head" },
+    ]);
+    expect(await storeA.revisionNarratives.listForPullRequest(pr.id)).toEqual([
+      { prevHeadSha: "prev", headSha: "head" },
+    ]);
+    expect(await storeA.comparisonMarks.listForPullRequest(pr.id)).toEqual([
+      { baselineSha: "prev", headSha: "head" },
+    ]);
+    expect(await storeA.hunkSpans.listForPullRequest(pr.id)).toHaveLength(1);
+  });
+
+  it("a narrative anchored to another owner's brief is refused", async () => {
+    const handle = await freshDatabase();
+    const prA = await createTenantRepository(handle, CTX_A).pullRequests.upsert(
+      upsertInput(7),
+    );
+    const prB = await createTenantRepository(handle, CTX_B).pullRequests.upsert(
+      upsertInput(8),
+    );
+    const storeB = createArtifactStore(handle, CTX_B);
+    const briefA = await createArtifactStore(handle, CTX_A).briefs.write({
+      pullRequestId: prA.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 1,
+      commitCount: 1,
+      body: "brief",
+      ...ORIGIN,
+    });
+
+    const refused = storeB.revisionNarratives.write({
+      pullRequestId: prB.id,
+      briefId: briefA.id,
+      prevHeadSha: "prev",
+      headSha: "head",
+      body: "narrative",
+      ...ORIGIN,
+    });
+
+    await expect(refused).rejects.toBeInstanceOf(ScopeViolationError);
+    await expect(refused).rejects.toThrow(/^brief /);
+    expect(await storeB.revisionNarratives.listForPullRequest(prB.id)).toEqual(
+      [],
+    );
+  });
+});
+
+describe("owner-scoped span artifact query shape", () => {
+  const OWNER_PARENT_CHECK =
+    'select "id" from "pull_request" where (("pull_request"."installation_id" is null and "pull_request"."owner_user_id" = $1) and "pull_request"."id" = $2) limit $3';
+
+  function collapseWhitespace(statement: string): string {
+    return statement.replace(/\s+/g, " ");
+  }
+
+  /** The owner-world child predicate: the NULL world mark plus the owner semi-join. */
+  function shapeOwnerFilter(table: string): string {
+    return `("${table}"."installation_id" is null and "${table}"."pull_request_id" in ( select "pull_request"."id" from "pull_request" where "pull_request"."owner_user_id" = $1 and "pull_request"."installation_id" is null ))`;
+  }
+
+  function shapeSpanRead(table: string, lowerSha: string): RegExp {
+    const where = `where (${shapeOwnerFilter(table)} and "${table}"."pull_request_id" = $2 and "${table}"."${lowerSha}" = $3 and "${table}"."head_sha" = $4) limit $5`;
+    return new RegExp(`^select .* from "${table}" ${escapeRegExp(where)}$`);
+  }
+
+  function shapeListRead(table: string, orderBy = ""): RegExp {
+    const where = `where (${shapeOwnerFilter(table)} and "${table}"."pull_request_id" = $2)${orderBy}`;
+    return new RegExp(`^select .* from "${table}" ${escapeRegExp(where)}$`);
+  }
+
+  function escapeRegExp(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  async function makeLoggedOwnerStore() {
+    const log = await createQueryLog();
+    const pr = await createTenantRepository(
+      log.handle,
+      CTX_A,
+    ).pullRequests.upsert(upsertInput(7));
+    return { log, store: createArtifactStore(log.handle, CTX_A), pr };
+  }
+
+  it("owner-world reads semi-join the pull request on every table", async () => {
+    const { log, store, pr } = await makeLoggedOwnerStore();
+
+    const reads: readonly (readonly [
+      string,
+      string,
+      () => Promise<unknown>,
+    ])[] = [
+      ["brief", "base_sha", () => store.briefs.get(pr.id, "a", "b")],
+      ["brief", "base_sha", () => store.briefs.getRepoConfig(pr.id, "a", "b")],
+      ["delta", "baseline_sha", () => store.deltas.get(pr.id, "a", "b")],
+      [
+        "revision_narrative",
+        "prev_head_sha",
+        () => store.revisionNarratives.get(pr.id, "a", "b"),
+      ],
+      [
+        "comparison_marks",
+        "baseline_sha",
+        () => store.comparisonMarks.get(pr.id, "a", "b"),
+      ],
+    ];
+    for (const [table, lowerSha, read] of reads) {
+      const { statements } = await recordStatements(log, read);
+      const ranStatements = statements.map(collapseWhitespace);
+      const expectedRead = shapeSpanRead(table, lowerSha);
+      expect(ranStatements).toEqual([expect.stringMatching(expectedRead)]);
+    }
+
+    const lists: readonly (readonly [
+      string,
+      () => Promise<unknown>,
+      string?,
+    ])[] = [
+      [
+        "brief",
+        () => store.briefs.listForPullRequest(pr.id),
+        ' order by "brief"."head_index"',
+      ],
+      ["delta", () => store.deltas.listForPullRequest(pr.id)],
+      [
+        "revision_narrative",
+        () => store.revisionNarratives.listForPullRequest(pr.id),
+      ],
+      [
+        "comparison_marks",
+        () => store.comparisonMarks.listForPullRequest(pr.id),
+      ],
+      [
+        "hunk_span",
+        () => store.hunkSpans.listForPullRequest(pr.id),
+        ' order by "hunk_span"."id" asc',
+      ],
+    ];
+    for (const [table, list, orderBy] of lists) {
+      const { statements } = await recordStatements(log, list);
+      const ranStatements = statements.map(collapseWhitespace);
+      const expectedList = shapeListRead(table, orderBy);
+      expect(ranStatements).toEqual([expect.stringMatching(expectedList)]);
+    }
+
+    const latest = await recordStatements(log, () =>
+      store.briefs.latestForPullRequests([pr.id]),
+    );
+    const latestStatements = latest.statements.map(collapseWhitespace);
+    const ownerFilter = escapeRegExp(shapeOwnerFilter("brief"));
+    const expectedLatest = new RegExp(
+      `^select distinct on .* from "brief" where \\(${ownerFilter} and "brief"\\."pull_request_id" in \\(\\$2\\)\\) order by`,
+    );
+    expect(latestStatements).toEqual([expect.stringMatching(expectedLatest)]);
+  });
+
+  it("owner-world writes resolve the parent by owner inside the transaction", async () => {
+    const { log, store, pr } = await makeLoggedOwnerStore();
+    const brief = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 1,
+      commitCount: 1,
+      body: "brief",
+      ...ORIGIN,
+    });
+
+    const marks = await recordStatements(log, () =>
+      store.comparisonMarks.write({
+        pullRequestId: pr.id,
+        marks: { baselineSha: "prev", headSha: "head", files: [] },
+      }),
+    );
+    const narrative = await recordStatements(log, () =>
+      store.revisionNarratives.write({
+        pullRequestId: pr.id,
+        briefId: brief.id,
+        prevHeadSha: "prev",
+        headSha: "head",
+        body: "narrative",
+        ...ORIGIN,
+      }),
+    );
+
+    expect(marks.statements).toEqual([
+      "begin",
+      OWNER_PARENT_CHECK,
+      expect.stringMatching(/^insert into "comparison_marks" /),
+      "commit",
+    ]);
+    expect(narrative.statements.map(collapseWhitespace)).toEqual([
+      "begin",
+      OWNER_PARENT_CHECK,
+      `select "id" from "brief" where (${shapeOwnerFilter("brief")} and "brief"."id" = $2 and "brief"."pull_request_id" = $3) limit $4`,
+      expect.stringMatching(/^insert into "revision_narrative" /),
+      "commit",
+    ]);
   });
 });
 
