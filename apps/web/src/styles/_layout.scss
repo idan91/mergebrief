@@ -56,3 +56,12 @@ $story-diff-reserve: $story-diff-floor + $story-diff-headroom;
     }
   }
 }
+
+// Equal columns that wrap to one once a column would fall under 340px. The
+// floor is the breakpoint: a media query cannot see a narrowed container.
+@mixin wrapping-columns($row-gap) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: $row-gap functions.to-rem(36px);
+  align-items: start;
+}

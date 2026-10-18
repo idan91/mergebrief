@@ -58,11 +58,7 @@ describe("TicketAlignment", () => {
         ?.textContent,
     ).toBe(ALIGNED.response);
     expect(screen.getByText(/The diff adds that serializer/)).toBeTruthy();
-    expect(
-      screen.getByText(
-        "AI-inferred read — verify against the ticket and the diff",
-      ),
-    ).toBeTruthy();
+    expect(screen.queryByText(/AI-inferred/)).toBeNull();
     expect(screen.getByText("referenced in the PR description")).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
   });
@@ -130,7 +126,6 @@ describe("TicketAlignment", () => {
     );
     expect(screen.queryByText("Ticket asks")).toBeNull();
     expect(screen.queryByTestId("ticket-alignment-read")).toBeNull();
-    expect(screen.queryByText(/AI-inferred read/)).toBeNull();
     expect(screen.getByText("referenced in the PR description")).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
   });
@@ -163,7 +158,7 @@ describe("TicketAlignment", () => {
     expect(screen.getByRole("link", { name: LINK_NAME })).toBeTruthy();
     expect(screen.queryByText("This PR")).toBeNull();
     expect(screen.queryByText("Ticket asks")).toBeNull();
-    expect(screen.queryByText(/AI-inferred read/)).toBeNull();
+    expect(screen.queryByText(/AI-inferred/)).toBeNull();
     expect(screen.getByText("referenced in the branch name")).toBeTruthy();
   });
 
@@ -230,6 +225,44 @@ describe("TicketAlignment", () => {
     expect(screen.getByRole("status").textContent).toMatch(
       new RegExp(`^${READ_TICKET.url} could not be read\\.`),
     );
+  });
+
+  it("shows the Notion header facts without the title and key again", () => {
+    const notionHeader = [
+      READ_TICKET.title,
+      "In review",
+      "Chore",
+      READ_TICKET.key,
+    ].join(" · ");
+    render(
+      <TicketAlignment
+        alignment={ALIGNED}
+        primaryTicket={{ ...READ_TICKET, header: notionHeader }}
+        specificity="precise"
+      />,
+    );
+
+    expect(screen.getByText("In review · Chore")).toBeTruthy();
+    expect(screen.getAllByText(READ_TICKET.title)).toHaveLength(1);
+  });
+
+  it("sets backtick spans in the goal and the read as inline code", () => {
+    const { container } = render(
+      <TicketAlignment
+        alignment={{
+          ...ALIGNED,
+          goal: "Mask secrets in `serializeError`.",
+          response: "The diff adds `scrubUrl` to the seam.",
+        }}
+        primaryTicket={READ_TICKET}
+        specificity="precise"
+      />,
+    );
+
+    const codes = [...container.querySelectorAll("code")].map(
+      (node) => node.textContent,
+    );
+    expect(codes).toEqual(["serializeError", "scrubUrl"]);
   });
 
   it("omits the tracker header line when it is empty", () => {

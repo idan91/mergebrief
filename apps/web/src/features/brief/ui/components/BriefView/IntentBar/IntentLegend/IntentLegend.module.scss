@@ -51,7 +51,7 @@
 
   .markNote {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     gap: functions.to-rem(8px);
     margin: functions.to-rem(14px) 0 0;
     padding-block-start: functions.to-rem(12px);
@@ -60,8 +60,11 @@
     color: var(--color-text-2);
     font-size: var(--font-size-md);
 
+    // A one-line box: the svg centres its fixed-width glyph in it, on the
+    // first line's middle. A flex baseline would sit the glyph on the text.
     > svg {
       flex: none;
+      block-size: 1lh;
       margin-inline-start: 0;
     }
   }

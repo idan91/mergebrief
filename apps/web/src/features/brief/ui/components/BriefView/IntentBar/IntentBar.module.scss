@@ -1,5 +1,6 @@
 @use "functions";
 @use "mixins";
+@use "layout";
 
 @layer components {
   .counts {
@@ -12,20 +13,15 @@
     font-style: italic;
   }
 
-  .scopeNote {
-    font-size: var(--font-size-lg);
-    margin-block: 0 functions.to-rem(10px);
-    max-inline-size: 72ch;
+  .inferenceCaution {
+    margin-block: functions.to-rem(16px) 0;
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+    font-style: italic;
   }
 
   .split {
-    display: grid;
-
-    /* The 340px floor IS the wrap breakpoint — a media query cannot see a
-       narrowed column. */
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
-    gap: functions.to-rem(22px) functions.to-rem(36px);
-    align-items: start;
+    @include layout.wrapping-columns(functions.to-rem(22px));
   }
 
   .splitCol {

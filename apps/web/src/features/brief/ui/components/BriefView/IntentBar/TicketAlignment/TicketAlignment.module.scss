@@ -1,5 +1,6 @@
 @use "functions";
 @use "mixins";
+@use "layout";
 
 @layer components {
   .alignment {
@@ -56,21 +57,19 @@
     color: var(--color-text-2);
   }
 
-  .header {
-    color: var(--color-text-3);
-    font-size: var(--font-size-md);
-    margin: 0;
+  .rows {
+    @include layout.wrapping-columns(functions.to-rem(14px));
+
+    margin: functions.to-rem(2px) 0 0;
   }
 
-  .rows {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: functions.to-rem(6px) functions.to-rem(16px);
-    margin: functions.to-rem(2px) 0 0;
-    max-inline-size: 100ch;
+  .row {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(4px);
+    min-width: 0;
 
     > dt {
-      padding-block-start: functions.to-rem(1px);
       color: var(--color-text-2);
       font-size: var(--font-size-md);
       font-weight: 600;
@@ -93,7 +92,6 @@
   .response {
     display: block;
     margin-block-start: functions.to-rem(4px);
-    max-inline-size: 72ch;
   }
 
   .noRead {
@@ -107,7 +105,6 @@
     border: 1px solid color-mix(in srgb, var(--color-warning) 45%, transparent);
     border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--color-warning) 14%, transparent);
-    max-inline-size: 90ch;
 
     > b {
       font-weight: 600;
@@ -121,16 +118,13 @@
     margin: 0;
   }
 
-  .caution {
-    font-size: var(--font-size-md);
-    font-style: italic;
-    opacity: 0.6;
-    max-width: 68ch;
-  }
-
+  .facts,
   .foundIn {
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
+  }
+
+  .foundIn {
     margin-inline-start: auto;
   }
 }

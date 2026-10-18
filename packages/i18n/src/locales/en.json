@@ -357,7 +357,6 @@
         "title": "referenced in the PR title",
         "branch": "referenced in the branch name"
       },
-      "alignmentCaution": "AI-inferred read — verify against the ticket and the diff",
       "ticketUnread": "{{key}} could not be read.",
       "noAlignmentRead": "No alignment read for this PR.",
       "reason": {
@@ -371,6 +370,7 @@
         "github": "GitHub",
         "notion": "Notion"
       },
+      "inferenceCaution": "AI-inferred — verify against the ticket and the diff",
       "alarmCaution": "AI-inferred tension — verify against the diff and the ticket before acting on it"
     },
     "toolbar": {

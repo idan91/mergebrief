@@ -8,9 +8,10 @@ import {
 } from "brief-core/types";
 import { AccessibleLink } from "@web/components/AccessibleLink";
 import { Badge } from "@web/components/Badge";
+import { InlineCodeText } from "../../InlineCodeText";
 import { isHttpUrl } from "../utils";
 import styles from "./TicketAlignment.module.scss";
-import { deriveTicketLinkText } from "./utils";
+import { deriveTicketFacts, deriveTicketLinkText } from "./utils";
 
 export interface TicketAlignmentProps {
   primaryTicket: PrimaryTicket;
@@ -30,35 +31,44 @@ const NO_READ_KEY = {
   [Specificities.PRECISE]: "brief.intent.noReadPrecise",
 } as const satisfies Record<Specificity, string>;
 
-/** The labelled pair; a missing read keeps the "This PR" row as the no-read line. */
+/** The labelled pair, side by side; a missing read keeps "This PR" as the no-read line. */
 function AlignmentRows({ alignment, specificity }: AlignmentRowsProps) {
   const { t } = useTranslation();
   return (
     <dl className={styles["rows"]}>
       {alignment ? (
-        <>
+        <div className={styles["row"]}>
           <dt>{t("brief.intent.ticketAsks")}</dt>
           <dd>
-            <q className={styles["goal"]}>{alignment.goal}</q>
+            <q className={styles["goal"]}>
+              <InlineCodeText text={alignment.goal} />
+            </q>
           </dd>
-        </>
+        </div>
       ) : null}
-      <dt>{t("brief.intent.thisPr")}</dt>
-      {alignment ? (
-        <dd>
-          <span
-            className={styles["readWord"]}
-            data-testid="ticket-alignment-read"
+      <div className={styles["row"]}>
+        <dt>{t("brief.intent.thisPr")}</dt>
+        {alignment ? (
+          <dd>
+            <span
+              className={styles["readWord"]}
+              data-testid="ticket-alignment-read"
+            >
+              {t(`brief.intent.read.${alignment.read}`)}
+            </span>
+            <span className={styles["response"]}>
+              <InlineCodeText text={alignment.response} />
+            </span>
+          </dd>
+        ) : (
+          <dd
+            className={styles["noRead"]}
+            data-testid="ticket-alignment-no-read"
           >
-            {t(`brief.intent.read.${alignment.read}`)}
-          </span>
-          <span className={styles["response"]}>{alignment.response}</span>
-        </dd>
-      ) : (
-        <dd className={styles["noRead"]} data-testid="ticket-alignment-no-read">
-          {t(NO_READ_KEY[specificity])}
-        </dd>
-      )}
+            {t(NO_READ_KEY[specificity])}
+          </dd>
+        )}
+      </div>
     </dl>
   );
 }
@@ -106,8 +116,9 @@ export function TicketAlignment({
   specificity,
 }: TicketAlignmentProps) {
   const { t } = useTranslation();
-  const { key, url, tracker, foundIn, title, header, status } = primaryTicket;
+  const { key, url, tracker, foundIn, title, status } = primaryTicket;
   const linkText = deriveTicketLinkText(primaryTicket);
+  const facts = deriveTicketFacts(primaryTicket);
   const unread = status === "unread";
   const showTitle = key !== "" && title !== "";
 
@@ -131,20 +142,19 @@ export function TicketAlignment({
             <span className={styles["key"]}>{linkText}</span>
           )}
           {showTitle ? (
-            <span className={styles["ticketTitle"]}>{title}</span>
+            <span className={styles["ticketTitle"]}>
+              <InlineCodeText text={title} />
+            </span>
           ) : null}
         </p>
-        {header !== "" ? <p className={styles["header"]}>{header}</p> : null}
         {unread ? (
           <UnreadNotice primaryTicket={primaryTicket} />
         ) : (
           <AlignmentRows alignment={alignment} specificity={specificity} />
         )}
         <p className={styles["foot"]}>
-          {alignment ? (
-            <span className={styles["caution"]}>
-              {t("brief.intent.alignmentCaution")}
-            </span>
+          {facts !== "" ? (
+            <span className={styles["facts"]}>{facts}</span>
           ) : null}
           <span className={styles["foundIn"]}>
             {t(`brief.intent.foundIn.${foundIn}`)}

@@ -21,7 +21,9 @@ import {
 import { AlarmMark } from "./AlarmMark";
 import styles from "./IntentBar.module.scss";
 import { IntentCount } from "./IntentCount";
+import { InlineCodeText } from "../InlineCodeText";
 import { IntentLegend } from "./IntentLegend";
+import { ScopeNote } from "./ScopeNote";
 import { TicketAlignment } from "./TicketAlignment";
 import {
   isHttpUrl,
@@ -102,12 +104,16 @@ function IntentItemRow({
         ▪
       </span>
       <span className={styles["itemBody"]}>
-        <span className={styles["intent"]}>{item.intent}</span>
+        <span className={styles["intent"]}>
+          <InlineCodeText text={item.intent} />
+        </span>
         {item.quote !== "" || linked ? (
           <span className={styles["itemMeta"]}>
-            {/* Text-only: model-produced quote, never markdown/HTML. */}
+            {/* Model-produced quote: backtick spans only, never markdown or HTML. */}
             {item.quote !== "" ? (
-              <q className={styles["quote"]}>{item.quote}</q>
+              <q className={styles["quote"]}>
+                <InlineCodeText text={item.quote} />
+              </q>
             ) : null}
             <IntentSourceBadge
               item={item}
@@ -253,6 +259,8 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
     );
 
     const legend = available ? <IntentLegend /> : undefined;
+    const showsInference =
+      available || alignment !== undefined || scopeNote !== "";
     const partition = partitionIntentCheck(intentCheck);
     const ticketUrl = primaryTicket?.url;
     const checksOut = partition.checksOut.map((bucket) => (
@@ -285,9 +293,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
         title={t("brief.intent.title")}
         onToggle={() => setOpen((value) => !value)}
       >
-        {scopeNote !== "" ? (
-          <p className={styles["scopeNote"]}>{scopeNote}</p>
-        ) : null}
+        {scopeNote !== "" ? <ScopeNote note={scopeNote} /> : null}
         {primaryTicket ? (
           <TicketAlignment
             alignment={alignment}
@@ -322,6 +328,11 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
               )}
             </div>
           </div>
+        ) : null}
+        {showsInference ? (
+          <p className={styles["inferenceCaution"]}>
+            {t("brief.intent.inferenceCaution")}
+          </p>
         ) : null}
       </CollapsibleBar>
     );

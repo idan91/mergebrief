@@ -500,6 +500,63 @@ describe("IntentBar", () => {
     expect(toggle).toHaveProperty("ariaExpanded", "true");
     expect(container.querySelector(`#${INTENT_BAR_ID}`)).not.toBeNull();
   });
+
+  it("closes the panel with one inference caution below the buckets", () => {
+    render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    const caution = "AI-inferred — verify against the ticket and the diff";
+    expect(screen.getAllByText(caution)).toHaveLength(1);
+    const body = bodyText();
+    expect(body.indexOf(caution)).toBeGreaterThan(
+      body.indexOf("document the endpoint"),
+    );
+    expect(body.endsWith(caution)).toBe(true);
+  });
+
+  it("drops the inference caution when nothing in the panel is inferred", () => {
+    const quiet: IntentCheck = { ...BROAD, scopeNote: "" };
+    render(<IntentBar intentCheck={quiet} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.getByTestId("ticket-alignment-no-read")).toBeTruthy();
+    expect(screen.queryByText(/AI-inferred/)).toBeNull();
+  });
+
+  it("sets backtick spans in the intent check as inline code", () => {
+    const withCode: IntentCheck = {
+      ...PRECISE,
+      scopeNote: "Stacked on `feature/base`, parent #12.",
+      accomplished: [
+        {
+          ...PRECISE.accomplished[0]!,
+          intent: "add the `GET /widgets` endpoint",
+          quote: "Add a `widgets` route",
+        },
+      ],
+    };
+    const { container } = render(
+      <IntentBar intentCheck={withCode} jumpToGroup={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+
+    const codes = [...container.querySelectorAll("code")].map(
+      (node) => node.textContent,
+    );
+    expect(codes).toEqual(["feature/base", "GET /widgets", "widgets"]);
+    expect(screen.getByRole("note").textContent).toBe(
+      "Stacked on feature/base, parent #12.",
+    );
+  });
+
+  it("sets the scope note apart as a note", () => {
+    render(<IntentBar intentCheck={BROAD} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.getByRole("note").textContent).toBe(
+      "parent epic spans several PRs",
+    );
+    expect(
+      screen.getByText("AI-inferred — verify against the ticket and the diff"),
+    ).toBeTruthy();
+  });
 });
 
 /** One alarm-bucket item; `acknowledged` is the only axis these tests vary. */

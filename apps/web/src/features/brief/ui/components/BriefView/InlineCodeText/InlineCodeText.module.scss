@@ -1,0 +1,15 @@
+@use "functions";
+
+@layer components {
+  .code {
+    padding-inline: functions.to-rem(4px);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-3);
+    color: var(--color-text-1);
+    font-family: var(--mono);
+
+    // Earned em: the enclosing text sets the size, from a group summary to
+    // an intent item's quote.
+    font-size: 0.9em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
+  }
+}

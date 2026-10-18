@@ -7,9 +7,9 @@ import {
   isAttributedGroupView,
   type GroupView,
 } from "../../../../model/utils/view-model";
+import { InlineCodeText } from "../InlineCodeText";
 import { CategoryFacts } from "./CategoryFacts";
 import type { GroupFactsSurface } from "./types";
-import { splitInlineCode } from "./utils";
 import styles from "./GroupFacts.module.scss";
 
 export interface GroupFactsProps {
@@ -39,7 +39,6 @@ export function GroupFacts({
   const summary = attributed
     ? group.group.summary
     : t("brief.unattributed.remainderSummary");
-  const segments = splitInlineCode(summary);
   const name = resolveGroupName(t, group);
   const attributedGroup = attributed ? group : undefined;
   const showCategories =
@@ -57,13 +56,7 @@ export function GroupFacts({
         {name}
       </h2>
       <p className={styles["summary"]}>
-        {segments.map((segment) =>
-          segment.code ? (
-            <code key={segment.offset}>{segment.text}</code>
-          ) : (
-            <span key={segment.offset}>{segment.text}</span>
-          ),
-        )}
+        <InlineCodeText text={summary} />
       </p>
       {showCategories ? (
         <CategoryFacts
