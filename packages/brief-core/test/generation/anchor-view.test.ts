@@ -355,6 +355,45 @@ describe("generateBrief anchored threading", () => {
     );
   });
 
+  it("keeps a cited revision-dropped check only on the anchored path", async () => {
+    const fixture = {
+      ...minimalGen,
+      chunks: [
+        {
+          ...chunk("c1", "g1", "src/b.ts", ["removes-validation"]),
+          riskNotes: [
+            {
+              attr: "removes-validation",
+              note: "the previous revision rejected requests without a token",
+            },
+          ],
+        },
+      ],
+    };
+    const anchored = await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator: new RecordingGenerator(fixture),
+      previous,
+    });
+    const fresh = await generateBrief({
+      pr,
+      headIndex: 1,
+      commitRange,
+      generator: new RecordingGenerator(fixture),
+    });
+
+    const anchoredChunk = anchored.brief.chunks.find(
+      (briefChunk) => briefChunk.file === "src/b.ts",
+    );
+    const freshChunk = fresh.brief.chunks.find(
+      (briefChunk) => briefChunk.file === "src/b.ts",
+    );
+    expect(anchoredChunk?.riskSurface).toContain("removes-validation");
+    expect(freshChunk?.riskSurface).not.toContain("removes-validation");
+  });
+
   it("keeps the fresh path byte-free of anchoring when no anchor is passed", async () => {
     const generator = new RecordingGenerator(minimalGen);
     await generateBrief({ pr, headIndex: 1, commitRange, generator });

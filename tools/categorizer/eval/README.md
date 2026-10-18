@@ -224,6 +224,8 @@ Source set: one synthetic pair per change-impact category — `pair-additive`,
 authored diffs over own-repo file shapes (difflib-generated, hunk-correct;
 PR locators are placeholders), plus `pair-real-brief143-docs`, a real pair
 built verbatim from this repo's history (daed6dae → db2fe83e → 472b6d7a).
+`pair-risk-add-new-file` is `pair-risk-add` with the route added by the PR,
+so the chunk that lost its guard removes no lines.
 Mechanical rows (untouched survival, frozen attrs, coverage, id carry,
 anchored stamp) are pipeline guarantees — any failure is a pipeline bug;
 model-judged rows (description updates, verdict transitions, summary

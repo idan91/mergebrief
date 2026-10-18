@@ -149,7 +149,9 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
     carriedChunkIds,
   );
   warnings.reportIssues("repo attrs", tokens.issues);
-  const risks = validateRiskAttributes(tokens.chunks, [...context.fileDiffs]);
+  const risks = validateRiskAttributes(tokens.chunks, [...context.fileDiffs], {
+    acceptsRevisionDroppedChecks: args.acceptsRevisionDroppedChecks,
+  });
   warnings.reportIssues("risk attrs", risks.issues);
 
   const textLength = validateTextLength(groups, risks.chunks);

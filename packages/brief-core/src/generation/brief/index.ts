@@ -77,6 +77,7 @@ export async function generateBrief(
     const brief = validateFinalBrief({
       ...draft,
       carriedChunkIds: [],
+      acceptsRevisionDroppedChecks: false,
       warnings,
     });
     const listed = warnings.listWarnings();
@@ -107,6 +108,7 @@ export async function generateBrief(
     brief: stitched,
     context: draft.context,
     carriedChunkIds: anchoring.carriedChunkIds,
+    acceptsRevisionDroppedChecks: true,
     warnings,
   });
 

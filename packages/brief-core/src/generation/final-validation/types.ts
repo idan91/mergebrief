@@ -26,5 +26,6 @@ export interface FinalValidationArgs {
   readonly context: BriefValidationContext;
   /** Their tokens were checked against the vocabulary of the run that wrote them. */
   readonly carriedChunkIds: readonly string[];
+  readonly acceptsRevisionDroppedChecks: boolean;
   readonly warnings: WarningCollector;
 }

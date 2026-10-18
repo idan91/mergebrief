@@ -148,6 +148,12 @@ describe("validateReadingOrder", () => {
   });
 });
 
+function isNoRemovedLinesDrop(issue: string): boolean {
+  const namesTheDrop =
+    issue.includes("removes-validation") && issue.includes("no lines");
+  return namesTheDrop;
+}
+
 function trioChunk(
   overrides: Partial<Chunk> & { riskSurface: RiskSurfaceAttribute[] },
 ): Chunk {
@@ -409,11 +415,51 @@ describe("validateRiskAttributes", () => {
     ];
     const result = validateRiskAttributes(chunks, []);
     expect(result.chunks[0].riskSurface).toEqual(["no-tests"]);
-    expect(
-      result.issues.some(
-        (i) => i.includes("removes-validation") && i.includes("no lines"),
-      ),
-    ).toBe(true);
+    expect(result.issues.some(isNoRemovedLinesDrop)).toBe(true);
+  });
+
+  it("keeps a revision-dropped check on an additive chunk with its note", () => {
+    const chunks = [
+      trioChunk({
+        riskSurface: ["removes-validation"],
+        riskNotes: [
+          {
+            attr: "removes-validation",
+            note: "the previous revision returned 401 unless requireToken passed",
+          },
+        ],
+        removedRanges: [],
+      }),
+    ];
+    const result = validateRiskAttributes(chunks, [], {
+      acceptsRevisionDroppedChecks: true,
+    });
+    expect(result.issues).toEqual([]);
+    expect(result.chunks[0].riskSurface).toEqual(["removes-validation"]);
+  });
+
+  it("drops an uncited removes-validation on an additive revision chunk", () => {
+    const chunks = [
+      trioChunk({ riskSurface: ["removes-validation"], removedRanges: [] }),
+    ];
+    const result = validateRiskAttributes(chunks, [], {
+      acceptsRevisionDroppedChecks: true,
+    });
+    expect(result.chunks[0].riskSurface).toEqual([]);
+    expect(result.issues.some(isNoRemovedLinesDrop)).toBe(true);
+  });
+
+  it("drops a cited removes-validation on an additive first-time chunk", () => {
+    const chunks = [
+      trioChunk({
+        riskSurface: ["removes-validation"],
+        riskNotes: [{ attr: "removes-validation", note: "guard is gone" }],
+        removedRanges: [],
+      }),
+    ];
+    const result = validateRiskAttributes(chunks, []);
+    expect(result.chunks[0].riskSurface).toEqual([]);
+    expect(result.chunks[0].riskNotes ?? []).toEqual([]);
   });
 
   it("keeps removes-validation when the chunk removes lines", () => {

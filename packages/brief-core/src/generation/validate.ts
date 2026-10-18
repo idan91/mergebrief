@@ -871,15 +871,28 @@ function confirmsNewDependency(
   );
 }
 
+export interface RiskAttributeOptions {
+  /** Set on a revision run, where the previous brief is the before side. */
+  readonly acceptsRevisionDroppedChecks: boolean;
+}
+
+function hasRiskNote(chunk: Chunk, attr: string): boolean {
+  return (chunk.riskNotes ?? []).some(
+    (note) => note.attr === attr && note.note.trim() !== "",
+  );
+}
+
 /**
  * Drop invalid attributes and their notes, never chunks; return copies with warnings.
  * New-dependency needs chunk-local evidence; comment-contradicts-code needs a citation.
  * Removes-validation requires removed lines, accepting misses on added early returns
- * to reject the observed false positives. New-abstraction remains model-observed.
+ * to reject the observed false positives. On a revision run a cited check the
+ * previous revision had also counts. New-abstraction remains model-observed.
  */
 export function validateRiskAttributes<C extends Chunk>(
   chunks: C[],
   fileDiffs: Pick<FileDiff, "file" | "patch">[],
+  options: RiskAttributeOptions = { acceptsRevisionDroppedChecks: false },
 ): { chunks: C[]; issues: string[] } {
   const issues: string[] = [];
   const patchByFile = new Map(fileDiffs.map((d) => [d.file, d.patch]));
@@ -888,10 +901,7 @@ export function validateRiskAttributes<C extends Chunk>(
     const drops = new Set<string>();
 
     if (chunk.riskSurface.includes("comment-contradicts-code")) {
-      const hasCitation = (chunk.riskNotes ?? []).some(
-        (n) => n.attr === "comment-contradicts-code" && n.note.trim() !== "",
-      );
-      if (!hasCitation) {
+      if (!hasRiskNote(chunk, "comment-contradicts-code")) {
         drops.add("comment-contradicts-code");
         issues.push(
           `chunk ${chunk.id} (${chunk.file}): dropped comment-contradicts-code — no riskNotes citation`,
@@ -899,10 +909,14 @@ export function validateRiskAttributes<C extends Chunk>(
       }
     }
 
-    if (
+    const citesRevisionDroppedCheck =
+      options.acceptsRevisionDroppedChecks &&
+      hasRiskNote(chunk, "removes-validation");
+    const claimsUnseenRemoval =
       chunk.riskSurface.includes("removes-validation") &&
-      chunk.removedRanges.length === 0
-    ) {
+      chunk.removedRanges.length === 0 &&
+      !citesRevisionDroppedCheck;
+    if (claimsUnseenRemoval) {
       drops.add("removes-validation");
       issues.push(
         `chunk ${chunk.id} (${chunk.file}): dropped removes-validation — chunk removes no lines`,
