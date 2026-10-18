@@ -1,7 +1,9 @@
 {
-  "key": "anthropic:claude-opus-4-8",
+  "key": "claude-code:claude-opus-5-5",
   "runs": 5,
   "properties": {
+    "alignment-goal-and-response": 5,
+    "alignment-partial": 5,
     "intent-accomplished-anchored": 5,
     "intent-alarm-buckets-empty": 5,
     "intent-docs-gap-found": 5,

@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createGenerator,
-  defaultGeneratorConfig,
   loadGeneratorConfigFile,
   Providers,
   type Effort,
@@ -42,7 +41,7 @@ import { withUsageSink } from "./usageSink";
  * `pnpm -C tools/categorizer eval`, the generation regression runner, taking
  * --config, --case, --runs, --rebaseline, --no-baseline and --prices. Exit 0 is
  * clean, 1 is at least one regression, 2 is a config or usage error. On-demand
- * only, never wired into CI, every run is live API spend.
+ * only, never wired into CI, every run is live generation spend.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -50,6 +49,12 @@ const CASES_DIR = join(here, "cases");
 /** Revision-pair source, one pair = TWO generations per run. */
 const PAIRS_DIR = join(here, "pair-cases");
 const OUT_DIR = "out";
+/** The generator the committed baselines are keyed to. */
+const DEFAULT_CONFIG_PATH = join(
+  here,
+  "..",
+  "mergebrief.eval.claude-code.yaml",
+);
 /**
  * Must mirror brief-core's DEFAULT_EFFORT: the origin-derived baseline key and
  * the generations have to agree on effort.
@@ -172,12 +177,9 @@ function loadEnv(): void {
 }
 
 async function buildGenerator(
-  configPath: string | null,
+  configPath: string,
 ): Promise<Result<{ generator: Generator; effort: Effort }, string>> {
-  const loaded =
-    configPath !== null
-      ? loadGeneratorConfigFile(configPath)
-      : { ok: true as const, value: { generator: defaultGeneratorConfig } };
+  const loaded = loadGeneratorConfigFile(configPath);
   if (!loaded.ok) {
     return { ok: false, error: loaded.error.issues.join("; ") };
   }
@@ -291,7 +293,9 @@ async function main(): Promise<void> {
   const args = parsed.value;
   loadEnv();
 
-  const generator = await buildGenerator(args.configPath);
+  const generator = await buildGenerator(
+    args.configPath ?? DEFAULT_CONFIG_PATH,
+  );
   if (!generator.ok) {
     console.error(generator.error);
     process.exit(2);

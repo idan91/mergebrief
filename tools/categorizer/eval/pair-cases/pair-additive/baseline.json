@@ -1,5 +1,5 @@
 {
-  "key": "anthropic:claude-opus-4-8",
+  "key": "claude-code:claude-opus-5-5",
   "runs": 5,
   "properties": {
     "additive-keeps-category": 5,
@@ -7,7 +7,7 @@
     "coverage-exactly-one-group": 5,
     "frozen-attrs-stable-redact.ts": 5,
     "id-carried-health.ts": 5,
-    "summary-lede-stable": 5,
+    "summary-lede-stable": 1,
     "survivor-order-stable-redact.ts": 5,
     "untouched-survives-redact.ts": 5,
     "verdict-stable": 5

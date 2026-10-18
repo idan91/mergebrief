@@ -9,9 +9,14 @@ pnpm -C tools/categorizer eval --case <id>     # one case
 pnpm -C tools/categorizer eval --runs 1        # quick smoke (verdicts withheld under 5)
 pnpm -C tools/categorizer eval --rebaseline    # rewrite baseline.json (review + commit the diff)
 pnpm -C tools/categorizer eval --no-baseline   # characterize a key with no committed baseline (cross-model runs)
-pnpm -C tools/categorizer eval --config <mergebrief.config.yaml>   # non-default generator
+pnpm -C tools/categorizer eval --config <mergebrief.config.yaml>   # non-default generator (cross-key, so add --no-baseline)
 pnpm -C tools/categorizer eval --prices <json> # non-default price table
 ```
+
+The default generator is `mergebrief.eval.claude-code.yaml`:
+`claude-code:claude-opus-5-5`, billed to the subscription the local
+`claude` CLI is logged into. The adapter strips API-key variables and
+refuses to start unless `claude auth status` reports a `claude.ai` login.
 
 Exit codes: `0` clean · `1` ≥1 REGRESSION · `2` config/usage error.
 Reports land in `out/eval-report.json` + `out/eval-report.md` (paste the
@@ -98,8 +103,9 @@ case before believing a demotion.
   free model text. A throwing predicate counts as a fail with a note.
   Empty lists are rejected.
 - `baseline.json` — pass counts from main, keyed `provider:model`.
-  Cross-key comparison is refused; v1 maintains the Anthropic default key
-  only. Re-baselining is an explicit reviewed commit.
+  Cross-key comparison is refused; the committed key is the default
+  config's, `claude-code:claude-opus-5-5`. Re-baselining is an explicit
+  reviewed commit.
 
 **Source rule: own-repos only.** This repo goes public; every
 checked-in diff must be publishable. No third-party diffs without a
@@ -139,6 +145,10 @@ properties 5/5; the hardening changed no original verdict); origin info
 in its `expected.ts` header.
 
 ## Cost (decision 7)
+
+The default route has no per-generation price; it draws on the
+subscription's usage limits instead. The dollar figures below are the
+API route's, kept for a `--config` run against `anthropic`.
 
 Budgeting: measured 2026-07-25 on `anthropic:claude-opus-4-8`, the
 12-case suite cost **$9.70** over 60 generations (tokens in 536,885 /

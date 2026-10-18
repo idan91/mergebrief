@@ -1,9 +1,9 @@
 {
-  "key": "anthropic:claude-opus-4-8",
+  "key": "claude-code:claude-opus-5-5",
   "runs": 5,
   "properties": {
-    "api-group-before-refactor-group": 1,
-    "app-callsite-rides-along": 3,
+    "api-group-before-refactor-group": 0,
+    "app-callsite-rides-along": 0,
     "at-least-two-groups": 5,
     "no-per-hunk-oversplit": 5,
     "scss-supports-the-refactor-group": 0
