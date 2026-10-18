@@ -1,0 +1,68 @@
+@use "functions";
+
+@layer components {
+  .wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .trigger {
+    color: var(--color-text-2);
+
+    &:hover,
+    &[aria-expanded="true"] {
+      color: var(--color-text-1);
+    }
+  }
+
+  .panel {
+    // Above the reading toolbar (40), under the sidebar (45) and Header (50).
+    z-index: 42;
+    inline-size: min(functions.to-rem(420px), 86vw);
+    padding: functions.to-rem(14px) functions.to-rem(16px);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-float);
+  }
+
+  .title {
+    margin: 0 0 functions.to-rem(10px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    font-weight: 600;
+  }
+
+  .intro {
+    margin: 0 0 functions.to-rem(12px);
+    padding-block-end: functions.to-rem(12px);
+    border-block-end: 1px solid
+      color-mix(in srgb, var(--color-outline-1) 80%, transparent);
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+  }
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(10px);
+    margin: 0;
+  }
+
+  .markNote {
+    display: flex;
+    align-items: baseline;
+    gap: functions.to-rem(8px);
+    margin: functions.to-rem(14px) 0 0;
+    padding-block-start: functions.to-rem(12px);
+    border-block-start: 1px solid
+      color-mix(in srgb, var(--color-outline-1) 80%, transparent);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+
+    > svg {
+      flex: none;
+      margin-inline-start: 0;
+    }
+  }
+}

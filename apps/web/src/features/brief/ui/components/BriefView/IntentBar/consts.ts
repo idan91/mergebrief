@@ -19,12 +19,6 @@ export const UNAVAILABLE_REASON_KEY: Record<
 export const CLAMP_THRESHOLD = 6;
 export const CLAMP_VISIBLE = 5;
 
-/**
- * Marks the alarm buckets. A label mark, never a color: the code-risk
- * palette here would make an epistemic caution read as a severity.
- */
-export const ALARM_GLYPH = "◇";
-
 /** The bar's element id: the mark-ready jump lands on it. One bar per page. */
 export const INTENT_BAR_ID = "intent-bar";
 

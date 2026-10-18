@@ -4,8 +4,11 @@ import { act, createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { IconNames } from "@web/components/Icon/types";
 import { IntentBar, type IntentBarHandle } from ".";
 import { INTENT_BAR_ID } from "./consts";
+
+const ALARM_MARK_SELECTOR = `[data-icon="${IconNames.WARNING_DIAMOND}"]`;
 
 const PRIMARY: PrimaryTicket = {
   key: "T-1",
@@ -86,6 +89,21 @@ const BROAD: IntentCheck = {
 };
 
 describe("IntentBar", () => {
+  it("offers the legend beside the toggle only on a precise check", () => {
+    const { unmount } = render(
+      <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />,
+    );
+    const legend = screen.getByRole("button", { name: "What these mean" });
+    const toggle = screen.getByRole("button", { name: /intent check/i });
+    expect(toggle.contains(legend)).toBe(false);
+    unmount();
+
+    render(<IntentBar intentCheck={BROAD} jumpToGroup={() => {}} />);
+    expect(
+      screen.queryByRole("button", { name: "What these mean" }),
+    ).toBeNull();
+  });
+
   it("shows all five neutral bucket counts in the always-visible header", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     // The count digit renders in its own weighted element, so the pair is
@@ -626,11 +644,30 @@ describe("IntentBar alarm buckets", () => {
       .map((node) => node.textContent);
     expect(bucketHeads).toEqual([
       "Accomplished",
-      "◇Masked fixes",
-      "◇Deviations",
+      "Masked fixes",
+      "Deviations",
       "Stated but missing",
       "Done but unstated",
     ]);
+  });
+
+  it("marks only the alarm headings, with the mark after the label", () => {
+    render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    const marked = screen
+      .getAllByRole("heading", { level: 4 })
+      .filter((node) => node.querySelector(ALARM_MARK_SELECTOR) !== null);
+
+    expect(marked.map((node) => node.textContent)).toEqual([
+      "Masked fixes",
+      "Deviations",
+    ]);
+    for (const heading of marked) {
+      expect(heading.lastElementChild?.matches(ALARM_MARK_SELECTOR)).toBe(true);
+      expect(heading.lastElementChild?.getAttribute("aria-hidden")).toBe(
+        "true",
+      );
+    }
   });
 
   it("keeps an empty split side as information: head + quiet empty line", () => {
@@ -761,7 +798,7 @@ describe("IntentBar alarm buckets", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const html = container.innerHTML;
-    expect(html).not.toContain("◇");
+    expect(container.querySelector(ALARM_MARK_SELECTOR)).toBeNull();
     expect(html).not.toContain("AI-inferred tension");
     expect(html).not.toContain("Masked fixes");
     expect(html).not.toContain("Deviations acknowledged");

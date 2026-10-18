@@ -12,15 +12,16 @@ import { IconButton } from "@web/components/IconButton";
 import { CollapsibleBar } from "@web/components/CollapsibleBar";
 import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
 import {
-  ALARM_GLYPH,
   CLAMP_THRESHOLD,
   CLAMP_VISIBLE,
   INTENT_BAR_ID,
   INTENT_COUNTS,
   UNAVAILABLE_REASON_KEY,
 } from "./consts";
+import { AlarmMark } from "./AlarmMark";
 import styles from "./IntentBar.module.scss";
 import { IntentCount } from "./IntentCount";
+import { IntentLegend } from "./IntentLegend";
 import { TicketAlignment } from "./TicketAlignment";
 import {
   isHttpUrl,
@@ -175,12 +176,8 @@ function IntentBucket({
   return (
     <div className={styles["bucket"]}>
       <h4 className={styles["bucketLabel"]}>
-        {bucket.alarm ? (
-          <span aria-hidden="true" className={styles["alarmGlyph"]}>
-            {ALARM_GLYPH}
-          </span>
-        ) : null}
         {t(bucket.labelKey)}
+        {bucket.alarm ? <AlarmMark /> : null}
       </h4>
       {bucket.alarm ? (
         <p className={styles["caution"]}>{t("brief.intent.alarmCaution")}</p>
@@ -255,6 +252,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
       </span>
     );
 
+    const legend = available ? <IntentLegend /> : undefined;
     const partition = partitionIntentCheck(intentCheck);
     const ticketUrl = primaryTicket?.url;
     const checksOut = partition.checksOut.map((bucket) => (
@@ -278,6 +276,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
 
     return (
       <CollapsibleBar
+        actions={legend}
         data-intent-bar=""
         headingLevel={BarHeadingLevels.H2}
         id={INTENT_BAR_ID}
