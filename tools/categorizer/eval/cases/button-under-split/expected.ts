@@ -1,15 +1,24 @@
 import type { EvalProperty } from "../../properties";
-import { chunksFor, firstGroupIndex, groupIdsFor } from "../../briefQueries";
+import {
+  firstGroupIndex,
+  findGroupIdOwningAddedLine,
+  groupIdsFor,
+} from "../../briefQueries";
 
 /**
  * components#10 @ 3110bbb: ONE file (Button.tsx) carrying two entangled
  * intents: (a) new `rounded` prop (interface + default + render), (b)
  * class-map → data-* attribute refactor (Button.scss selector migration
- * supporting it, App.tsx call-site riding along). Observed under-split:
- * everything grouped as ONE group. The hard variant: the prop default
- * lands inside the rewritten render block. This case measures any
- * base-prompt emphasis tweak on sub-file intent splitting.
+ * supporting it), plus App.tsx's own variant-to-type call-site change.
+ * Observed under-split: everything grouped as ONE group. The hard
+ * variant: the prop default lands inside the rewritten render block. This
+ * case measures any base-prompt emphasis tweak on sub-file intent splitting.
  */
+
+/** New-side Button.tsx lines: `rounded?: boolean` and `data-variant={variant}`. */
+const ROUNDED_PROP_LINE = 28;
+const DATA_VARIANT_LINE = 51;
+
 export const properties: EvalProperty[] = [
   {
     id: "at-least-two-groups",
@@ -24,47 +33,61 @@ export const properties: EvalProperty[] = [
     check: (brief) => brief.changeGroups.length <= 3,
   },
   {
-    id: "scss-supports-the-refactor-group",
+    id: "no-scss-only-group",
     description:
-      "Button.scss belongs to a group that also carries a Button.tsx chunk (the refactor), never a group of its own or the prop group alone",
+      "every group carrying a Button.scss chunk also carries a Button.tsx chunk: styles split with the intent they serve, never a styles group",
     check: (brief) => {
       const scssGroups = groupIdsFor(brief, "Button.scss");
-      if (scssGroups.length !== 1) {
+      const buttonGroups = new Set(groupIdsFor(brief, "Button.tsx"));
+      const stylesRideWithButton =
+        scssGroups.length > 0 && scssGroups.every((id) => buttonGroups.has(id));
+      return stylesRideWithButton;
+    },
+  },
+  {
+    id: "refactor-group-before-rounded-group",
+    description:
+      "the data-attribute refactor reads before the rounded prop: the title leads with it and the prop uses its attribute scheme",
+    check: (brief) => {
+      const refactorGroup = findGroupIdOwningAddedLine(
+        brief,
+        "Button.tsx",
+        DATA_VARIANT_LINE,
+      );
+      const roundedGroup = findGroupIdOwningAddedLine(
+        brief,
+        "Button.tsx",
+        ROUNDED_PROP_LINE,
+      );
+      const refactorSplitFromRounded =
+        refactorGroup !== undefined && refactorGroup !== roundedGroup;
+      if (!refactorSplitFromRounded) {
         return false;
       }
-      return chunksFor(brief, "Button.tsx").some(
-        (chunk) => chunk.changeGroupId === scssGroups[0],
-      );
-    },
-  },
-  {
-    id: "api-group-before-refactor-group",
-    description:
-      "foundation-first: the prop/API group (no scss chunk) reads before the scss-carrying refactor group",
-    check: (brief) => {
-      const scssGroups = new Set(groupIdsFor(brief, "Button.scss"));
-      const buttonGroups = groupIdsFor(brief, "Button.tsx");
-      const apiIndex = firstGroupIndex(
+      const refactorIndex = firstGroupIndex(
         brief,
-        (id) => buttonGroups.includes(id) && !scssGroups.has(id),
+        (id) => id === refactorGroup,
       );
-      const refactorIndex = firstGroupIndex(brief, (id) => scssGroups.has(id));
-      return apiIndex < refactorIndex;
+      const roundedIndex = firstGroupIndex(brief, (id) => id === roundedGroup);
+      return refactorIndex < roundedIndex;
     },
   },
   {
-    id: "app-callsite-rides-along",
+    id: "app-callsite-outside-rounded-group",
     description:
-      "App.tsx is a call-site update riding with a Button group, not a story of its own",
+      "App.tsx's variant-to-type change is not part of the rounded prop: it never rides in the rounded group",
     check: (brief) => {
       const appGroups = groupIdsFor(brief, "App.tsx");
-      const buttonGroups = new Set([
-        ...groupIdsFor(brief, "Button.tsx"),
-        ...groupIdsFor(brief, "Button.scss"),
-      ]);
-      return (
-        appGroups.length > 0 && appGroups.every((id) => buttonGroups.has(id))
+      const roundedGroup = findGroupIdOwningAddedLine(
+        brief,
+        "Button.tsx",
+        ROUNDED_PROP_LINE,
       );
+      const appOutsideRounded =
+        appGroups.length > 0 &&
+        roundedGroup !== undefined &&
+        !appGroups.includes(roundedGroup);
+      return appOutsideRounded;
     },
   },
 ];

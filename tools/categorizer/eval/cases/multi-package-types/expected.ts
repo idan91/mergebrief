@@ -1,9 +1,9 @@
 import type { EvalProperty } from "../../properties";
-import { chunksFor } from "../../briefQueries";
+import { chunksFor, firstGroupIndex, groupIdsFor } from "../../briefQueries";
 
 /**
- * code-review#28 — the shared `types` workspace package: new package +
- * ValueOf/Result/Brand dedupe across consumers. The monorepo
+ * The shared `types` workspace package: a new package plus the
+ * ValueOf/Result/Brand dedupe across its consumers. The monorepo
  * multi-package seed: chunks span several packages and manifests change
  * in lockstep.
  */
@@ -55,6 +55,28 @@ export const properties: EvalProperty[] = [
         brief.changeGroups.length >= 1 &&
         brief.changeGroups.length <= dirs.size + 1
       );
+    },
+  },
+  {
+    id: "types-package-before-consumers",
+    description:
+      "setup first where it is needed: the consumer migration never reads before the new types package it imports from (one shared group passes)",
+    check: (brief) => {
+      const typesGroups = new Set(
+        groupIdsFor(brief, "packages/types/src/lib.ts"),
+      );
+      const consumerGroups = new Set(
+        groupIdsFor(brief, "apps/web/src/features/brief/types.ts"),
+      );
+      const bothSidesGrouped = typesGroups.size > 0 && consumerGroups.size > 0;
+      if (!bothSidesGrouped) {
+        return false;
+      }
+      const typesIndex = firstGroupIndex(brief, (id) => typesGroups.has(id));
+      const consumerIndex = firstGroupIndex(brief, (id) =>
+        consumerGroups.has(id),
+      );
+      return typesIndex <= consumerIndex;
     },
   },
 ];

@@ -5,6 +5,7 @@
     "coherent-grouping": 5,
     "manifests-are-config-concern": 5,
     "spans-multiple-packages": 5,
+    "types-package-before-consumers": 5,
     "types-package-in-one-group": 5
   }
 }

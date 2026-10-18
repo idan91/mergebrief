@@ -4,7 +4,7 @@
   "properties": {
     "coverage-exactly-one-group": 5,
     "frozen-attrs-stable-redact.ts": 5,
-    "risk-attr-fires": 0,
+    "risk-attr-fires": 5,
     "untouched-survives-redact.ts": 5
   }
 }

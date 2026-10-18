@@ -200,6 +200,8 @@ This run UPDATES a previous brief for a new revision of the same PR — it is no
 
 **Intent check — current ask, honest transitions:** re-evaluate every verdict against the CURRENT title/description/tickets, never the previous ask. Previous verdicts anchor your wording — keep their phrasing where the verdict is unchanged — but transitions always flip: a delivered ask leaves statedButMissing, an edited ask gets a fresh verdict, a new ask gets judged fresh.
 
+**Checks dropped since the previous revision:** the PR diff runs from the base branch, so a check an earlier revision added and this revision removed appears on neither side of it. When the Anchor shows a guard, validation, or auth check that the current diff no longer has, the revision removed it: fire \`removes-validation\` on the chunk where the check used to sit, with a \`riskNotes\` entry saying the previous revision had it.
+
 **Reading order — whole, over ALL ids (frozen ids included):** emit the ordering across every group in the final brief, using frozen ids from the Anchor index alongside your own group ids. Preserve the previous order, insert new groups where they belong, drop removed ids.`;
 
 export function buildSystemPrompt(
@@ -281,14 +283,15 @@ ${GROUP_TEXT_CAPS}
 - Intent lives on the core chunk(s); supporting chunks inherit it and are not independently categorized.
 - **Every group MUST have at least one core chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
 - **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports, never a catch-all "exports" group. If one file re-exports several features, split it into separate chunks (one per feature), each attached to its group.
+- **Docs that describe the PR's own change are supporting**: a README section, an AGENTS.md map, or a plan note documenting what the diff does attaches to the group it describes, even when it adds a whole new section. A doc is a core chunk only when documentation is itself the PR's purpose.
 ${STANDALONE_GROUP_RULE}
 
 ## Reading order (optional, over changeGroups)
 
 When a sensible order exists, emit \`readingOrder\`: a strict permutation of the \`changeGroups\` ids you just produced — each group exactly once, no revisits, no invented ids. Omit the field entirely when no clear order applies (e.g. a single group, or fully unrelated groups with no useful sequence).
 
-- **Rule**: foundation-first — a group another group builds on (schema/types, shared model) comes before the group(s) that build on it (logic, then call sites/wiring). Where groups are genuinely independent, fall back to context-first / churn-last: groups whose \`dominantCategory\` is mechanical (\`pure-move\`, \`lib-bump\`, \`dependency-update\`, or generated churn) go last.
-- **\`why\`**: one line, at most ~15 words, in comprehension language — it explains why this group comes next, e.g. "establishes the schema the rest builds on" or "mechanical rename — read last." **Never** importance/priority/severity words ("critical", "important", "minor") and never a score or rank number. This is not a verdict.
+- **Rule: follow the PR's story.** Open with the group that carries the PR's main idea, the change the lede leads with. A setup group comes before it only when the main group cannot be read without it: the main group uses types, a schema, or a pattern that the setup group introduces. A group that only sits beside the main change (a folded-in fix, a side cleanup) comes after the main idea, even when it is a schema or types change. Then the groups that build on the main change (call sites, wiring), then the independent side changes. Groups whose \`dominantCategory\` is mechanical (\`pure-move\`, \`lib-bump\`, \`dependency-update\`, or generated churn) go last unless they are the PR's main idea.
+- **\`why\`**: one line, at most ~15 words, in comprehension language — it explains why this group comes next, e.g. "the PR's main change", "introduces the schema the next group reads", or "mechanical rename — read last." **Never** importance/priority/severity words ("critical", "important", "minor") and never a score or rank number. This is not a verdict.
 - This never changes group membership, categories, or any other field — it is purely a sequence over the groups you already formed.
 
 ## Intent check

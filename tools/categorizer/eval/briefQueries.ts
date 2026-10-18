@@ -17,6 +17,17 @@ export function groupIdsFor(brief: Brief, suffix: string): string[] {
   return [...new Set(chunksFor(brief, suffix).map((c) => c.changeGroupId))];
 }
 
+export function findGroupIdOwningAddedLine(
+  brief: Brief,
+  suffix: string,
+  line: number,
+): string | undefined {
+  const owner = chunksFor(brief, suffix).find((chunk) =>
+    chunk.addedRanges.some((range) => range.start <= line && line <= range.end),
+  );
+  return owner?.changeGroupId;
+}
+
 /** True when any chunk (optionally scoped to a file suffix) fires `attr`. */
 export function fires(
   brief: Brief,

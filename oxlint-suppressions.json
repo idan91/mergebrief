@@ -304,19 +304,6 @@
       "count": 1
     }
   },
-  "tools/categorizer/eval/cases/delta-read-api-contract/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/cases/multi-package-types/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "tools/categorizer/eval/cases/pure-move-persistence/expected.ts": {
     "house/no-em-dash": {
       "count": 1

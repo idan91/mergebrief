@@ -15,6 +15,12 @@ import {
 const A = "packages/logging/src/redact.ts";
 const B = "packages/api/src/routes/health.ts";
 
+function getLedeWords(summary: string): string[] {
+  const lede = summary.split(".")[0] ?? "";
+  const words = lede.toLowerCase().match(/[a-z0-9]+/g);
+  return words ?? [];
+}
+
 export const pairProperties: PairEvalProperty[] = [
   untouchedGroupSurvives(A),
   survivorOrderStable(A),
@@ -41,15 +47,19 @@ export const pairProperties: PairEvalProperty[] = [
     },
   },
   // Spec pair 3 LEFT: the summary lede survives an immaterial increment
-  // (minimal-edit contract; byte-identical is legitimate). Model-judged:
-  // rides the stable-pass/flaky discipline.
+  // under the minimal-edit contract. Inserting the new detail is a minimal
+  // edit; rewording or dropping a fact is not. Model-judged.
   {
-    id: "summary-lede-stable",
+    id: "summary-lede-minimal-edit",
     description:
-      "the summary's first sentence is unchanged on an immaterial increment",
-    check: (pair) =>
-      (pair.base.summary.split(".")[0] ?? "") ===
-      (pair.revised.summary.split(".")[0] ?? ""),
+      "the revised lede keeps every word of the base lede: the increment may add a detail, never reword it",
+    check: (pair) => {
+      const revisedWords = new Set(getLedeWords(pair.revised.summary));
+      const keepsEveryBaseWord = getLedeWords(pair.base.summary).every((word) =>
+        revisedWords.has(word),
+      );
+      return keepsEveryBaseWord;
+    },
   },
   // Spec pair 4 LEFT: the unchanged ask keeps its verdict bucket.
   {
