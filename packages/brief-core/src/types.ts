@@ -427,7 +427,7 @@ export const IntentItemSchema = z.object({
   intent: z
     .string()
     .describe(
-      "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed-but-masked ask (claimedButUnachieved). What, not why.",
+      "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed fix the diff only masks (maskedFixes). What, not why.",
     ),
   quote: z
     .string()
@@ -442,7 +442,7 @@ export const IntentItemSchema = z.object({
   groupIds: z
     .array(z.string())
     .describe(
-      "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, claimedButUnachieved: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+      "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, maskedFixes: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
     ),
   acknowledged: z
     .boolean()
@@ -611,9 +611,9 @@ export const IntentCheckSchema = z.object({
   deviations: z
     .array(IntentItemSchema)
     .describe(
-      "stated asks the diff moves AGAINST that the sources nowhere retract (a reversal acknowledged in the PR description ⇒ acknowledged: true — quiet receipt, not alarm). Behavior moved against the ask belongs here; only its signal touched ⇒ claimedButUnachieved; uncertain ⇒ accomplished, never a guessed alarm. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
+      "stated asks the diff moves AGAINST that the sources nowhere retract (a reversal acknowledged in the PR description ⇒ acknowledged: true — quiet receipt, not alarm). Behavior moved against the ask belongs here; only its signal touched ⇒ maskedFixes; uncertain ⇒ accomplished, never a guessed alarm. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
     ),
-  claimedButUnachieved: z
+  maskedFixes: z
     .array(IntentItemSchema)
     .describe(
       "asks the sources claim fixed/delivered while the diff operates only on the problem's signal/check path (log demotion, catch-and-swallow, test skip/delete, threshold bump) — nothing in the diff plausibly fixes the problem itself. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
@@ -636,7 +636,7 @@ export const IntentBuckets = {
   STATED_BUT_MISSING: "statedButMissing",
   DONE_BUT_UNSTATED: "doneButUnstated",
   DEVIATIONS: "deviations",
-  CLAIMED_BUT_UNACHIEVED: "claimedButUnachieved",
+  MASKED_FIXES: "maskedFixes",
 } as const;
 
 export type IntentBucket = ValueOf<typeof IntentBuckets>;
@@ -651,7 +651,7 @@ export const IntentGenerationItemSchema = IntentItemSchema.extend({
   bucket: z
     .enum(IntentBuckets)
     .describe(
-      "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. claimedButUnachieved: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
+      "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. maskedFixes: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
     ),
 });
 

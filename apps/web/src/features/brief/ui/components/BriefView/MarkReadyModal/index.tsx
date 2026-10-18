@@ -51,7 +51,7 @@ export interface MarkReadyModalProps {
   intentGapCount?: number;
   /**
    * The count of precise intent TENSIONS: unacknowledged deviations plus
-   * claimed-but-unachieved. A second count-only line on the same terms as the
+   * masked fixes. A second count-only line on the same terms as the
    * gap line, sharing its jump target. Acknowledged deviations are excluded
    * by the caller.
    */

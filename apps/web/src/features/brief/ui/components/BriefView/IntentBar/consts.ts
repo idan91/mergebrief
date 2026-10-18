@@ -32,8 +32,8 @@ export const INTENT_BAR_ID = "intent-bar";
 export const INTENT_COUNTS: readonly IntentCountSpec[] = [
   { field: "accomplished", labelKey: "brief.intent.accomplished" },
   {
-    field: "claimedButUnachieved",
-    labelKey: "brief.intent.claimedButUnachieved",
+    field: "maskedFixes",
+    labelKey: "brief.intent.maskedFixes",
   },
   { field: "deviations", labelKey: "brief.intent.deviations" },
   { field: "statedButMissing", labelKey: "brief.intent.statedButMissing" },

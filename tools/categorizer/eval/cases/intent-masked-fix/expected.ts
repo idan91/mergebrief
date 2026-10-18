@@ -1,44 +1,13 @@
 import type { EvalProperty } from "../../properties";
 
 /**
- * BRIEF-85 masking case: the source claims a fix the diff never makes.
- *
- * Fixture origin: unlike the seed cases, the diff here is AUTHORED —
- * hand-written over the real `packages/api` webhook route and its logging
- * test at `d98c3ff5`. No real PR in an own repo carries a fake-fix shape
- * (that would be a genuine defect), and the shape is the whole point of
- * the case. Own-repo files, so the source rule holds: publishable by
- * construction. The PR locator is a placeholder, not a real PR. The
- * `intent-legit-demotion` twin reuses this diff BYTE-IDENTICALLY, so the
- * only variable between the two cases is the intent source.
- *
- * The diff demotes `webhook.dispatch.fail` from error to warn and updates
- * the one test that pins the level. Nothing touches dispatch behaviour.
- * The ticket states three asks:
- *
- *  A. make a redelivered event ingest instead of throwing — the PR title
- *     and description claim this is fixed, but only the problem's SIGNAL
- *     moved ⇒ `claimedButUnachieved`.
- *  B. keep the line at error level so on-call pages — the diff does the
- *     opposite, and the description acknowledges the reversal ⇒
- *     `deviations` with `acknowledged: true` (retracted-nowhere rule: an
- *     acknowledged reversal is a quiet receipt, not an alarm).
- *  C. add a redelivery regression test — simply absent, nothing claims
- *     otherwise ⇒ `statedButMissing`. The routing discriminator: an
- *     undelivered ask stays neutral, it does not get promoted to an alarm.
- *
- * Vacuity note (BRIEF-59 trap): the three bucket assertions
- * (`masked-fix-claim-flagged`, `masked-deviation-acknowledged`,
- * `masked-absent-ask-stays-neutral`) are POSITIVE existence checks, verified
- * to fail on an empty/unavailable intent check. Two of them —
- * `masked-fix-claim-flagged` and `masked-deviation-acknowledged` — could not
- * pass at all before the BRIEF-85 buckets existed on the schema, so this case
- * cannot go green on the pre-BRIEF-85 surface. (`masked-absent-ask-stays-
- * neutral` asserts on `statedButMissing`, a BRIEF-54 bucket, so it alone is
- * not pre-BRIEF-85-proof.) `masked-fix-not-credited` is the one absence check
- * and DOES pass vacuously on an emptied check; it is anchored by the three
- * positives plus `masked-precise`, all of which fail in that world. Read it
- * with them, never alone.
+ * Masking case on an authored diff over the own-repo webhook route at `d98c3ff5`
+ * (the PR locator is a placeholder): it demotes `webhook.dispatch.fail` to warn.
+ * A, redelivered events ingest: claimed fixed, only the signal moved, so `maskedFixes`.
+ * B, keep the line at error: reversed and acknowledged, so an acknowledged deviation.
+ * C, a redelivery regression test: absent and unclaimed, so `statedButMissing`.
+ * `intent-legit-demotion` reuses this diff byte-identically. `masked-fix-not-credited`
+ * passes vacuously on an emptied check; the positives and `masked-precise` anchor it.
  */
 export const properties: EvalProperty[] = [
   {
@@ -50,9 +19,9 @@ export const properties: EvalProperty[] = [
   {
     id: "masked-fix-claim-flagged",
     description:
-      "the claimed-but-unmade redelivery fix lands in claimedButUnachieved (the sources claim a fix; only the log level moved)",
+      "the claimed-but-unmade redelivery fix lands in maskedFixes (the sources claim a fix; only the log level moved)",
     check: (brief) =>
-      (brief.intentCheck?.claimedButUnachieved ?? []).some((item) =>
+      (brief.intentCheck?.maskedFixes ?? []).some((item) =>
         /redeliver|ingest|dispatch fail/i.test(`${item.intent} ${item.quote}`),
       ),
   },

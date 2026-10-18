@@ -395,7 +395,7 @@ const validIntentCheck = {
       acknowledged: true,
     },
   ],
-  claimedButUnachieved: [
+  maskedFixes: [
     {
       intent: "claims the flaky test is fixed but only skips it",
       quote: "fixes the flaky widget test",
@@ -452,7 +452,7 @@ describe("IntentCheckSchema", () => {
         statedButMissing: [],
         doneButUnstated: [],
         deviations: [],
-        claimedButUnachieved: [],
+        maskedFixes: [],
       });
       expect(parsed.success).toBe(true);
     }
@@ -462,8 +462,7 @@ describe("IntentCheckSchema", () => {
     const { deviations: _d, ...noDeviations } =
       structuredClone(validIntentCheck);
     expect(IntentCheckSchema.safeParse(noDeviations).success).toBe(false);
-    const { claimedButUnachieved: _c, ...noClaimed } =
-      structuredClone(validIntentCheck);
+    const { maskedFixes: _c, ...noClaimed } = structuredClone(validIntentCheck);
     expect(IntentCheckSchema.safeParse(noClaimed).success).toBe(false);
   });
 
@@ -593,7 +592,7 @@ describe("IntentCheckGenerationSchema: grammar budget", () => {
       "statedButMissing",
       "doneButUnstated",
       "deviations",
-      "claimedButUnachieved",
+      "maskedFixes",
     ]);
     const storedArrays = Object.keys(IntentCheckSchema.shape).filter(
       (key) =>

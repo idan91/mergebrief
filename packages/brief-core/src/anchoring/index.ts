@@ -333,10 +333,7 @@ function remapIntentCheck(
       referenceMap,
     ),
     deviations: remapIntentItems(intentCheck.deviations, referenceMap),
-    claimedButUnachieved: remapIntentItems(
-      intentCheck.claimedButUnachieved,
-      referenceMap,
-    ),
+    maskedFixes: remapIntentItems(intentCheck.maskedFixes, referenceMap),
   };
 }
 

@@ -345,7 +345,7 @@ describe("intent-check alarm buckets in the prompt", () => {
   });
 
   it("defines all five buckets", () => {
-    for (const bucket of ["deviations", "claimedButUnachieved"]) {
+    for (const bucket of ["deviations", "maskedFixes"]) {
       expect(brief).toContain(`**${bucket}**`);
     }
     expect(brief).toContain("five factual buckets");
@@ -381,9 +381,17 @@ describe("intent-check alarm buckets in the prompt", () => {
     );
   });
 
+  it("opens the masked-fix rule with its one-line test", () => {
+    expect(brief).toContain("the problem was silenced, not fixed");
+    expect(brief).toMatch(
+      /claimed fix the diff never touches at all is not a masked fix: it is `statedButMissing`/,
+    );
+  });
+
   it("states the routing rule and the never-a-guessed-alarm default", () => {
+    expect(brief).toMatch(/only part of it ⇒ `statedButMissing`/);
     expect(brief).toMatch(/against.*the ask ⇒ `deviations`/is);
-    expect(brief).toMatch(/signal.*touched ⇒ `claimedButUnachieved`/is);
+    expect(brief).toMatch(/signal.*touched ⇒ `maskedFixes`/is);
     expect(brief).toContain("never a guessed alarm");
   });
 
@@ -399,7 +407,7 @@ describe("intent-check alarm buckets in the prompt", () => {
       buildRevisionNarrativeSystemPrompt(),
     ]) {
       expect(prompt).not.toContain("deviations");
-      expect(prompt).not.toContain("claimedButUnachieved");
+      expect(prompt).not.toContain("maskedFixes");
     }
   });
 });

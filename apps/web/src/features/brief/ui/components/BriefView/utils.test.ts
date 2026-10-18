@@ -69,7 +69,7 @@ function intentCheck(overrides: Partial<IntentCheck> = {}): IntentCheck {
     statedButMissing: [],
     doneButUnstated: [],
     deviations: [],
-    claimedButUnachieved: [],
+    maskedFixes: [],
     ...overrides,
   };
 }
@@ -112,13 +112,13 @@ describe("countIntentTensions", () => {
         intentCheck({
           specificity: "none",
           deviations: [intentItem()],
-          claimedButUnachieved: [intentItem()],
+          maskedFixes: [intentItem()],
         }),
       ),
     ).toBe(0);
   });
 
-  it("counts unacknowledged deviations and claimed-but-unachieved", () => {
+  it("counts unacknowledged deviations and masked fixes", () => {
     expect(
       countIntentTensions(
         intentCheck({
@@ -127,7 +127,7 @@ describe("countIntentTensions", () => {
             intentItem({ acknowledged: true }),
             intentItem(),
           ],
-          claimedButUnachieved: [intentItem()],
+          maskedFixes: [intentItem()],
         }),
       ),
     ).toBe(3);

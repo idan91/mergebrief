@@ -127,13 +127,13 @@ verdict.
 | `statedButMissing` | stated ask absent from the diff (incl. the remainder of a partial delivery) | neutral |
 | `doneButUnstated` | work the diff does that the sources never asked for | neutral |
 | `deviations` | diff opposes an ask the sources state and nowhere retract; per-item `acknowledged` flag splits quiet receipt from alarm | alarm |
-| `claimedButUnachieved` | sources claim a fix/delivery; diff touches only the problem's signal/check path | alarm |
+| `maskedFixes` | sources claim a fix/delivery; diff touches only the problem's signal/check path | alarm |
 
 Quick rules:
 
 - **Routing:** behavior moved against the ask ⇒ `deviations`; only the signal
   touched (log demotion, catch-and-swallow, test skip/delete, threshold bump)
-  ⇒ `claimedButUnachieved`; uncertain ⇒ `accomplished` — never a guessed alarm.
+  ⇒ `maskedFixes`; uncertain ⇒ `accomplished` — never a guessed alarm.
 - **Retracted-nowhere:** a reversal acknowledged in the PR description means
   the sources no longer stand behind the ticket's ask (⇒ acknowledged
   deviation, or no item at all if the ask is fully superseded).

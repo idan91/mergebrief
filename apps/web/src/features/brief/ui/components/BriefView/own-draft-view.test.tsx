@@ -288,7 +288,7 @@ describe("own-draft Brief view", () => {
             acknowledged: false,
           },
         ],
-        claimedButUnachieved: [],
+        maskedFixes: [],
       },
     };
     const markReady = vi.fn(() =>
@@ -331,7 +331,7 @@ describe("own-draft Brief view", () => {
         ],
         doneButUnstated: [],
         deviations: [],
-        claimedButUnachieved: [],
+        maskedFixes: [],
       },
     };
     await renderBriefView({ markReady: vi.fn() }, briefWithGaps);
@@ -390,7 +390,7 @@ describe("own-draft Brief view", () => {
             acknowledged: true,
           },
         ],
-        claimedButUnachieved: [
+        maskedFixes: [
           {
             intent: "claims the flake is fixed but only skips it",
             quote: "fixes the flaky test",
@@ -405,7 +405,7 @@ describe("own-draft Brief view", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
-    // 1 unacknowledged deviation + 1 claimed-but-unachieved = 2. The
+    // 1 unacknowledged deviation + 1 masked fixes = 2. The
     // acknowledged deviation is excluded, so this is NOT 3.
     expect(screen.getByText("2 intent tensions flagged")).toBeTruthy();
     // The gap line stays absent, the two lines are independent.
@@ -434,7 +434,7 @@ describe("own-draft Brief view", () => {
             acknowledged: false,
           },
         ],
-        claimedButUnachieved: [],
+        maskedFixes: [],
       },
     };
     await renderBriefView({ markReady: vi.fn() }, briefBroad);

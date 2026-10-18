@@ -720,12 +720,19 @@ describe("validateIntentCheck", () => {
       },
     ],
     deviations: [],
-    claimedButUnachieved: [],
+    maskedFixes: [],
   });
 
+  const ALARM_INTENTS = {
+    deviations: "reverses the retry-stop ask",
+    maskedFixes: "demotes the retry-exhausted log instead of stopping retries",
+  } as const;
+
   /** A grounded alarm-bucket item, verifiable quote + valid group anchor. */
-  const alarmItem = () => ({
-    intent: "reverses the retry-stop ask",
+  const makeAlarmItem = (
+    bucket: keyof typeof ALARM_INTENTS = "deviations",
+  ) => ({
+    intent: ALARM_INTENTS[bucket],
     quote: "must stop after three attempts",
     sourceUrl: ticketUrl,
     groupIds: ["g1"],
@@ -770,7 +777,7 @@ describe("validateIntentCheck", () => {
         statedButMissing: [],
         doneButUnstated: [],
         deviations: [],
-        claimedButUnachieved: [],
+        maskedFixes: [],
       },
       groups,
       injected,
@@ -855,7 +862,7 @@ describe("validateIntentCheck", () => {
         statedButMissing: [],
         doneButUnstated: [],
         deviations: [],
-        claimedButUnachieved: [],
+        maskedFixes: [],
         ticketUrls: [forged, ticketUrl],
         ticketTitles: ["Forged ticket", "Stop the retry loop"],
       },
@@ -1092,9 +1099,9 @@ describe("validateIntentCheck", () => {
   });
 
   describe("alarm buckets, drop, never warn-and-keep", () => {
-    for (const bucket of ["deviations", "claimedButUnachieved"] as const) {
+    for (const bucket of ["deviations", "maskedFixes"] as const) {
       it(`keeps a fully grounded ${bucket} item untouched`, () => {
-        const input = { ...preciseCheck(), [bucket]: [alarmItem()] };
+        const input = { ...preciseCheck(), [bucket]: [makeAlarmItem(bucket)] };
         const { intentCheck, issues } = validateIntentCheck(
           input,
           emittedGroups,
@@ -1102,13 +1109,13 @@ describe("validateIntentCheck", () => {
           sources,
         );
         expect(issues).toEqual([]);
-        expect(intentCheck[bucket]).toEqual([alarmItem()]);
+        expect(intentCheck[bucket]).toEqual([makeAlarmItem(bucket)]);
       });
 
       it(`drops a ${bucket} item with an EMPTY quote (neutral siblings only warn)`, () => {
         const input = {
           ...preciseCheck(),
-          [bucket]: [{ ...alarmItem(), quote: "" }],
+          [bucket]: [{ ...makeAlarmItem(bucket), quote: "" }],
         };
         const { intentCheck, issues } = validateIntentCheck(
           input,
@@ -1126,7 +1133,7 @@ describe("validateIntentCheck", () => {
         // presence, is what fails here.
         const input = {
           ...preciseCheck(),
-          [bucket]: [{ ...alarmItem(), quote: "must stop" }],
+          [bucket]: [{ ...makeAlarmItem(bucket), quote: "must stop" }],
         };
         const { intentCheck, issues } = validateIntentCheck(
           input,
@@ -1143,7 +1150,7 @@ describe("validateIntentCheck", () => {
           ...preciseCheck(),
           [bucket]: [
             {
-              ...alarmItem(),
+              ...makeAlarmItem(bucket),
               quote: "this sentence appears nowhere in the source",
             },
           ],
@@ -1159,7 +1166,7 @@ describe("validateIntentCheck", () => {
       });
 
       it(`drops a ${bucket} item whose quote source has no fetched content`, () => {
-        const input = { ...preciseCheck(), [bucket]: [alarmItem()] };
+        const input = { ...preciseCheck(), [bucket]: [makeAlarmItem(bucket)] };
         const sansTicketContent = sources.filter((s) => s.url !== ticketUrl);
         const { intentCheck, issues } = validateIntentCheck(
           input,
@@ -1174,7 +1181,7 @@ describe("validateIntentCheck", () => {
       it(`drops a ${bucket} item once ALL its groupIds dangle (both-sides grounding)`, () => {
         const input = {
           ...preciseCheck(),
-          [bucket]: [{ ...alarmItem(), groupIds: ["g9"] }],
+          [bucket]: [{ ...makeAlarmItem(bucket), groupIds: ["g9"] }],
         };
         const { intentCheck, issues } = validateIntentCheck(
           input,
@@ -1189,7 +1196,7 @@ describe("validateIntentCheck", () => {
       it(`prunes dangling groupIds on a ${bucket} item but keeps it while one anchor survives`, () => {
         const input = {
           ...preciseCheck(),
-          [bucket]: [{ ...alarmItem(), groupIds: ["g1", "g9"] }],
+          [bucket]: [{ ...makeAlarmItem(bucket), groupIds: ["g1", "g9"] }],
         };
         const { intentCheck, issues } = validateIntentCheck(
           input,
@@ -1206,7 +1213,7 @@ describe("validateIntentCheck", () => {
         const forged = "https://evil.example/T-666";
         const input = {
           ...preciseCheck(),
-          [bucket]: [{ ...alarmItem(), sourceUrl: forged }],
+          [bucket]: [{ ...makeAlarmItem(bucket), sourceUrl: forged }],
         };
         const { intentCheck, issues } = validateIntentCheck(
           input,
@@ -1222,7 +1229,7 @@ describe("validateIntentCheck", () => {
     it("preserves acknowledged deviations", () => {
       const input = {
         ...preciseCheck(),
-        deviations: [{ ...alarmItem(), acknowledged: true }],
+        deviations: [{ ...makeAlarmItem(), acknowledged: true }],
       };
       const { intentCheck, issues } = validateIntentCheck(
         input,
@@ -1246,7 +1253,7 @@ describe("validateIntentCheck", () => {
         doneButUnstated: [
           { ...preciseCheck().doneButUnstated[0]!, acknowledged: true },
         ],
-        claimedButUnachieved: [{ ...alarmItem(), acknowledged: true }],
+        maskedFixes: [{ ...makeAlarmItem("maskedFixes"), acknowledged: true }],
       };
       const { intentCheck, issues } = validateIntentCheck(
         input,
@@ -1257,7 +1264,7 @@ describe("validateIntentCheck", () => {
       expect(intentCheck.accomplished[0]?.acknowledged).toBe(false);
       expect(intentCheck.statedButMissing[0]?.acknowledged).toBe(false);
       expect(intentCheck.doneButUnstated[0]?.acknowledged).toBe(false);
-      expect(intentCheck.claimedButUnachieved[0]?.acknowledged).toBe(false);
+      expect(intentCheck.maskedFixes[0]?.acknowledged).toBe(false);
       const acknowledgedIssues = issues.filter((i) =>
         i.includes("forced false (meaningful only in deviations)"),
       );
@@ -1268,8 +1275,8 @@ describe("validateIntentCheck", () => {
       const input = {
         ...preciseCheck(),
         specificity: "broad" as const,
-        deviations: [alarmItem()],
-        claimedButUnachieved: [alarmItem()],
+        deviations: [makeAlarmItem()],
+        maskedFixes: [makeAlarmItem("maskedFixes")],
       };
       const { intentCheck, issues } = validateIntentCheck(
         input,
@@ -1278,7 +1285,7 @@ describe("validateIntentCheck", () => {
         sources,
       );
       expect(intentCheck.deviations).toEqual([]);
-      expect(intentCheck.claimedButUnachieved).toEqual([]);
+      expect(intentCheck.maskedFixes).toEqual([]);
       expect(issues.join("\n")).toContain("never a guessed gap");
     });
   });
@@ -1307,7 +1314,7 @@ describe("fanOutIntentCheck within the grammar budget", () => {
         genItem("statedButMissing", "missed the thing"),
         genItem("doneButUnstated", "extra thing"),
         genItem("deviations", "opposed the thing", { acknowledged: true }),
-        genItem("claimedButUnachieved", "masked the thing"),
+        genItem("maskedFixes", "masked the thing"),
       ],
       alignment: { read: "", goal: "", response: "" },
     });
@@ -1317,9 +1324,7 @@ describe("fanOutIntentCheck within the grammar budget", () => {
     ]);
     expect(out.doneButUnstated.map((i) => i.intent)).toEqual(["extra thing"]);
     expect(out.deviations.map((i) => i.intent)).toEqual(["opposed the thing"]);
-    expect(out.claimedButUnachieved.map((i) => i.intent)).toEqual([
-      "masked the thing",
-    ]);
+    expect(out.maskedFixes.map((i) => i.intent)).toEqual(["masked the thing"]);
     // The bucket tag is wire framing, it never reaches the stored artifact.
     expect(out.accomplished[0]).not.toHaveProperty("bucket");
     expect(out.deviations[0]?.acknowledged).toBe(true);
@@ -1360,7 +1365,7 @@ describe("fanOutIntentCheck within the grammar budget", () => {
     expect(out.statedButMissing).toEqual([]);
     expect(out.doneButUnstated).toEqual([]);
     expect(out.deviations).toEqual([]);
-    expect(out.claimedButUnachieved).toEqual([]);
+    expect(out.maskedFixes).toEqual([]);
   });
 
   it("validates dispatched tagged items like native bucket arrays", () => {
@@ -1518,7 +1523,7 @@ describe("validateIntentCheck, the alignment read", () => {
     statedButMissing: [],
     doneButUnstated: [],
     deviations: [],
-    claimedButUnachieved: [],
+    maskedFixes: [],
     alignment,
     ...overrides,
   });

@@ -1,17 +1,11 @@
 import type { EvalProperty } from "../../properties";
 
 /**
- * BRIEF-54 none case: the button-under-split diff with a boilerplate title
- * ("updates"), an empty body, and no links — no usable stated intent
- * anywhere in the source. Specificity must be none. The second property
- * borrows the base case's headline grouping check as a canary that the
- * intent-check addition does not perturb the base story.
- *
- * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` passes trivially
- * whenever the check is unavailable — this case's expected state, and also
- * what a model producing nothing looks like. It is a floor check on the
- * validator, not a model-quality signal; `intent-none` and
- * `intent-not-precise` carry the actual verdict here.
+ * None case: the button-under-split diff with a boilerplate title, an empty
+ * body and no links, so specificity must be none. The second property borrows
+ * the base case's headline grouping check as a canary for the base story.
+ * `intent-alarm-buckets-empty` passes trivially on an unavailable check: it is
+ * a validator floor, while `intent-none` and `intent-not-precise` carry the verdict.
  */
 export const properties: EvalProperty[] = [
   {
@@ -30,16 +24,11 @@ export const properties: EvalProperty[] = [
     id: "at-least-two-groups",
     description:
       "base-story canary (borrowed from button-under-split): the two intents still split into >=2 change groups",
-    // Baselined 5/5, but it has a MEASURED TAIL: across three 5-run samples
-    // (2026-07-25, BRIEF-85 rebaseline) it scored 5/5, 3/5, 5/5 — 13/15 runs.
-    // The two failures both collapsed the whole 4KB diff into ONE group
-    // ("Refactor Button styling to data-attributes"), folding the styling
-    // refactor, the pill prop, and the App call-site switch into a single
-    // story. So a REGRESSION verdict here may be that tail rather than a real
-    // break: RE-RUN the case before acting on it. The same instability shows
-    // up as a flaky property on the origin case (button-under-split's
-    // `scss-supports-the-refactor-group`, baselined 2/5) — grouping on this
-    // diff is genuinely borderline, not a property defect.
+    // Baselined 5/5 with a measured tail: three 5-run samples scored 5/5, 3/5
+    // and 5/5, both failures collapsing the diff into one group. A REGRESSION
+    // here may be that tail: re-run the case before acting on it. The origin
+    // case's `scss-supports-the-refactor-group` (baselined 2/5) shows the same
+    // borderline grouping; it is not a property defect.
     check: (brief) => brief.changeGroups.length >= 2,
   },
   {
@@ -51,9 +40,9 @@ export const properties: EvalProperty[] = [
   {
     id: "intent-alarm-buckets-empty",
     description:
-      "the BRIEF-85 alarm buckets stay empty on an unavailable intent check — the validator's never-a-guessed-gap floor covers all five buckets",
+      "the alarm buckets stay empty on an unavailable intent check — the validator's never-a-guessed-gap floor covers all five buckets",
     check: (brief) =>
       (brief.intentCheck?.deviations ?? []).length === 0 &&
-      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
+      (brief.intentCheck?.maskedFixes ?? []).length === 0,
   },
 ];

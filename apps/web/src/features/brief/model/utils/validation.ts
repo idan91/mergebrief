@@ -95,7 +95,7 @@ function alignIntentCheck(check: IntentCheck): IntentCheck {
     accomplished: clearAcknowledged(check.accomplished),
     statedButMissing: clearAcknowledged(check.statedButMissing),
     doneButUnstated: clearAcknowledged(check.doneButUnstated),
-    claimedButUnachieved: clearAcknowledged(check.claimedButUnachieved),
+    maskedFixes: clearAcknowledged(check.maskedFixes),
   };
 }
 

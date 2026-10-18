@@ -65,8 +65,8 @@ export type Catalog = typeof en & {
       unavailable: "intent check unavailable — {{reason}}";
       accomplished_one: "<0>{{count}}</0> accomplished";
       accomplished_other: "<0>{{count}}</0> accomplished";
-      claimedButUnachieved_one: "<0>{{count}}</0> claimed but unachieved";
-      claimedButUnachieved_other: "<0>{{count}}</0> claimed but unachieved";
+      maskedFixes_one: "<0>{{count}}</0> masked fix";
+      maskedFixes_other: "<0>{{count}}</0> masked fixes";
       statedButMissing_one: "<0>{{count}}</0> stated but missing";
       statedButMissing_other: "<0>{{count}}</0> stated but missing";
       doneButUnstated_one: "<0>{{count}}</0> done but unstated";

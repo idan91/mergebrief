@@ -347,7 +347,7 @@ describe("brief screen characterization", () => {
         statedButMissing: [],
         doneButUnstated: [],
         deviations: [],
-        claimedButUnachieved: [],
+        maskedFixes: [],
       },
     });
     const summary = screen.getByTestId("brief-summary");

@@ -98,7 +98,7 @@ const previousBrief: Brief = {
     statedButMissing: [],
     doneButUnstated: [],
     deviations: [],
-    claimedButUnachieved: [],
+    maskedFixes: [],
   },
 };
 

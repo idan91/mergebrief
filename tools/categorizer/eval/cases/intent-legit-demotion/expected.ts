@@ -1,24 +1,12 @@
 import type { EvalProperty } from "../../properties";
 
 /**
- * BRIEF-85 false-positive twin of `intent-masked-fix`: the SAME diff
- * (byte-identical, see that case's origin note) against a ticket that
- * ASKS for exactly this log demotion. Nothing is masked and nothing is
- * opposed, so both alarm buckets must stay empty.
- *
- * This is the case that pays for the alarm buckets' precision. The diff
- * shape alone — a log line demoted, a level assertion updated — is
- * exactly what the masking definition describes; only the source says
- * whether it is a fake fix or the requested work. A model that fires on
- * the shape rather than the source passes `intent-masked-fix` and fails
- * here, which is the whole point of running them as a pair.
- *
- * Vacuity note (BRIEF-59 trap): `legit-no-deviations` and
- * `legit-no-masking-alarm` pass trivially if a regressed model rates this
- * source broad/none (the validator empties every bucket mechanically), so
- * they are anchored by `legit-precise` and `legit-demotion-accomplished`,
- * both of which fail in that world. Read the four together, never the
- * negatives alone.
+ * False-positive twin of `intent-masked-fix`: the byte-identical diff against a
+ * ticket that asks for exactly this log demotion, so both alarm buckets stay
+ * empty. The diff shape alone matches the masking definition; only the source
+ * says whether it is a fake fix or the requested work. Run the two as a pair.
+ * `legit-no-deviations` and `legit-no-masking-alarm` pass trivially on a
+ * broad/none read; `legit-precise` and `legit-demotion-accomplished` anchor them.
  */
 export const properties: EvalProperty[] = [
   {
@@ -47,9 +35,8 @@ export const properties: EvalProperty[] = [
   {
     id: "legit-no-masking-alarm",
     description:
-      "claimedButUnachieved stays empty — a demotion the sources ASKED for is not a masked fix, however much it looks like one",
-    check: (brief) =>
-      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
+      "maskedFixes stays empty — a demotion the sources ASKED for is not a masked fix, however much it looks like one",
+    check: (brief) => (brief.intentCheck?.maskedFixes ?? []).length === 0,
   },
   {
     id: "legit-alignment-aligned",

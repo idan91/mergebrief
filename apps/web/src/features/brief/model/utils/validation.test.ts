@@ -64,7 +64,7 @@ const intentCheck = {
   statedButMissing: [],
   doneButUnstated: [],
   deviations: [],
-  claimedButUnachieved: [],
+  maskedFixes: [],
 };
 
 function readBrief(body: object, warnings?: ParseWarnings) {
@@ -150,7 +150,7 @@ describe("parseBrief intent check view", () => {
         statedButMissing: [{ ...acknowledged, groupIds: [] }],
         doneButUnstated: [{ ...acknowledged, quote: "", sourceUrl: "" }],
         deviations: [acknowledged],
-        claimedButUnachieved: [acknowledged],
+        maskedFixes: [acknowledged],
       },
     });
 
@@ -159,7 +159,7 @@ describe("parseBrief intent check view", () => {
     expect(check?.accomplished[0]?.acknowledged).toBe(false);
     expect(check?.statedButMissing[0]?.acknowledged).toBe(false);
     expect(check?.doneButUnstated[0]?.acknowledged).toBe(false);
-    expect(check?.claimedButUnachieved[0]?.acknowledged).toBe(false);
+    expect(check?.maskedFixes[0]?.acknowledged).toBe(false);
   });
 });
 

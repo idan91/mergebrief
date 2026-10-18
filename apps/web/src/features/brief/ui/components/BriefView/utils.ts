@@ -141,7 +141,7 @@ export function countIntentGaps(intentCheck: IntentCheck | undefined): number {
 
 /**
  * Soft-gate line 2: count of precise intent TENSIONS, unacknowledged
- * deviations plus claimed-but-unachieved. Acknowledged deviations are excluded:
+ * deviations plus masked fixes. Acknowledged deviations are excluded:
  * the description already owns that reversal. Never part of the gate's OPEN
  * condition.
  */
@@ -150,7 +150,7 @@ export function countIntentTensions(
 ): number {
   return intentCheck?.specificity === Specificities.PRECISE
     ? intentCheck.deviations.filter((item) => !item.acknowledged).length +
-        intentCheck.claimedButUnachieved.length
+        intentCheck.maskedFixes.length
     : 0;
 }
 

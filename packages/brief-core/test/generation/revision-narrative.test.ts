@@ -57,7 +57,7 @@ const storedIntentCheck = {
   statedButMissing: [],
   doneButUnstated: [],
   deviations: [],
-  claimedButUnachieved: [],
+  maskedFixes: [],
 };
 
 /** What the model "generates" for a full brief (CLI metadata omitted). */

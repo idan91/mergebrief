@@ -131,7 +131,6 @@ exports[`adversarial stitch goldens > pair-additive stitches the adversarial out
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -144,6 +143,7 @@ exports[`adversarial stitch goldens > pair-additive stitches the adversarial out
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -245,7 +245,6 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -258,6 +257,7 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -449,7 +449,6 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -471,6 +470,7 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -655,7 +655,6 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -668,6 +667,7 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -770,7 +770,6 @@ exports[`adversarial stitch goldens > pair-meaning-changing stitches the adversa
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -783,6 +782,7 @@ exports[`adversarial stitch goldens > pair-meaning-changing stitches the adversa
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -996,7 +996,6 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -1027,6 +1026,7 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -1173,7 +1173,6 @@ exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adver
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -1186,6 +1185,7 @@ exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adver
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -1249,9 +1249,9 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -1443,7 +1443,6 @@ exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial out
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -1465,6 +1464,7 @@ exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial out
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -1621,7 +1621,6 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -1634,6 +1633,7 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -1734,7 +1734,6 @@ exports[`adversarial stitch goldens > pair-subtractive stitches the adversarial 
   "index": 2,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [
       {
@@ -1747,6 +1746,7 @@ exports[`adversarial stitch goldens > pair-subtractive stitches the adversarial 
         "sourceUrl": ""
       }
     ],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "precise",
     "statedButMissing": [],
@@ -2312,9 +2312,9 @@ exports[`brief goldens > button-under-split produces the recorded brief 1`] = `
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -2637,9 +2637,9 @@ exports[`brief goldens > copybutton-new-export produces the recorded brief 1`] =
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -3140,9 +3140,9 @@ exports[`brief goldens > delta-read-api-contract produces the recorded brief 1`]
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -3505,9 +3505,9 @@ exports[`brief goldens > intent-adversarial-ticket produces the recorded brief 1
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "primaryTicket": {
       "foundIn": "description",
       "header": "",
@@ -3695,9 +3695,9 @@ exports[`brief goldens > intent-broad-epic produces the recorded brief 1`] = `
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "primaryTicket": {
       "foundIn": "description",
       "header": "",
@@ -3934,9 +3934,9 @@ exports[`brief goldens > intent-legit-demotion produces the recorded brief 1`] =
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "primaryTicket": {
       "foundIn": "description",
       "header": "",
@@ -4091,9 +4091,9 @@ exports[`brief goldens > intent-masked-fix produces the recorded brief 1`] = `
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "primaryTicket": {
       "foundIn": "description",
       "header": "",
@@ -4281,9 +4281,9 @@ exports[`brief goldens > intent-none-no-ticket produces the recorded brief 1`] =
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -4606,9 +4606,9 @@ exports[`brief goldens > intent-precise-ticket produces the recorded brief 1`] =
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "primaryTicket": {
       "foundIn": "description",
       "header": "",
@@ -4859,9 +4859,9 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "primaryTicket": {
       "foundIn": "description",
       "header": "",
@@ -5514,9 +5514,9 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -5772,9 +5772,9 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -5918,9 +5918,9 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -6058,9 +6058,9 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -6204,9 +6204,9 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -6368,9 +6368,9 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -6542,9 +6542,9 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -6645,9 +6645,9 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -6787,9 +6787,9 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -6927,9 +6927,9 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -7074,9 +7074,9 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -7225,9 +7225,9 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -7401,9 +7401,9 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -7494,9 +7494,9 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -7628,9 +7628,9 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -7764,9 +7764,9 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -7909,9 +7909,9 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -8054,9 +8054,9 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -8211,9 +8211,9 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -8355,9 +8355,9 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -8497,9 +8497,9 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -8637,9 +8637,9 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
     "index": 1,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -8744,9 +8744,9 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
     "index": 2,
     "intentCheck": {
       "accomplished": [],
-      "claimedButUnachieved": [],
       "deviations": [],
       "doneButUnstated": [],
+      "maskedFixes": [],
       "scopeNote": "",
       "specificity": "none",
       "statedButMissing": [],
@@ -9551,9 +9551,9 @@ exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] =
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -10002,9 +10002,9 @@ exports[`brief goldens > repo-policy-scoped-attribute produces the recorded brie
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -10248,9 +10248,9 @@ exports[`brief goldens > schema-change-provenance produces the recorded brief 1`
   "index": 1,
   "intentCheck": {
     "accomplished": [],
-    "claimedButUnachieved": [],
     "deviations": [],
     "doneButUnstated": [],
+    "maskedFixes": [],
     "scopeNote": "",
     "specificity": "none",
     "statedButMissing": [],
@@ -10316,12 +10316,12 @@ exports[`request goldens > button-under-split sends the recorded request digests
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 4606,
@@ -10336,12 +10336,12 @@ exports[`request goldens > copybutton-new-export sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 13609,
@@ -10356,12 +10356,12 @@ exports[`request goldens > delta-read-api-contract sends the recorded request di
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 88196,
@@ -10376,12 +10376,12 @@ exports[`request goldens > intent-adversarial-ticket sends the recorded request 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 13073,
@@ -10396,12 +10396,12 @@ exports[`request goldens > intent-broad-epic sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 4745,
@@ -10416,12 +10416,12 @@ exports[`request goldens > intent-legit-demotion sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 3534,
@@ -10436,12 +10436,12 @@ exports[`request goldens > intent-masked-fix sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 3787,
@@ -10456,12 +10456,12 @@ exports[`request goldens > intent-none-no-ticket sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 4301,
@@ -10476,12 +10476,12 @@ exports[`request goldens > intent-precise-ticket sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 14101,
@@ -10496,12 +10496,12 @@ exports[`request goldens > intent-primary-plus-refs sends the recorded request d
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 14173,
@@ -10516,12 +10516,12 @@ exports[`request goldens > multi-package-types sends the recorded request digest
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 22530,
@@ -10536,12 +10536,12 @@ exports[`request goldens > pair-additive sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1485,
@@ -10551,12 +10551,12 @@ exports[`request goldens > pair-additive sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 2584,
@@ -10571,12 +10571,12 @@ exports[`request goldens > pair-ask-edit sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1485,
@@ -10586,12 +10586,12 @@ exports[`request goldens > pair-ask-edit sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 2662,
@@ -10606,12 +10606,12 @@ exports[`request goldens > pair-boundary-restructure sends the recorded request 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1881,
@@ -10621,12 +10621,12 @@ exports[`request goldens > pair-boundary-restructure sends the recorded request 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 3228,
@@ -10641,12 +10641,12 @@ exports[`request goldens > pair-intent-transition sends the recorded request dig
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 881,
@@ -10656,12 +10656,12 @@ exports[`request goldens > pair-intent-transition sends the recorded request dig
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 2359,
@@ -10676,12 +10676,12 @@ exports[`request goldens > pair-meaning-changing sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1485,
@@ -10691,12 +10691,12 @@ exports[`request goldens > pair-meaning-changing sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 2572,
@@ -10711,12 +10711,12 @@ exports[`request goldens > pair-new-material sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1535,
@@ -10726,12 +10726,12 @@ exports[`request goldens > pair-new-material sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 3052,
@@ -10746,12 +10746,12 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 10238,
@@ -10761,12 +10761,12 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 20696,
@@ -10781,12 +10781,12 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1485,
@@ -10796,12 +10796,12 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 2591,
@@ -10816,12 +10816,12 @@ exports[`request goldens > pair-risk-add sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1692,
@@ -10831,12 +10831,12 @@ exports[`request goldens > pair-risk-add sends the recorded request digests 1`] 
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 2519,
@@ -10851,12 +10851,12 @@ exports[`request goldens > pair-risk-remove sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1631,
@@ -10866,12 +10866,12 @@ exports[`request goldens > pair-risk-remove sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 2359,
@@ -10886,12 +10886,12 @@ exports[`request goldens > pair-subtractive sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 1485,
@@ -10901,12 +10901,12 @@ exports[`request goldens > pair-subtractive sends the recorded request digests 1
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 27844,
-      "sha256": "6735ce071ce2c8a6eb27f359ac5aea57745ce314b9ce6e29b138869768a374ab"
+      "bytes": 28195,
+      "sha256": "7c181c1f0b648b829d12d872ac95cda4664065d6d38d233b94288cf2402cdc6b"
     },
     "user": {
       "bytes": 1902,
@@ -10921,12 +10921,12 @@ exports[`request goldens > pure-move-persistence sends the recorded request dige
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 37073,
@@ -10941,12 +10941,12 @@ exports[`request goldens > repo-policy-scoped-attribute sends the recorded reque
   {
     "label": "brief",
     "schema": {
-      "bytes": 10663,
-      "sha256": "4af61c51d51c3cd319002e73924975a4152ce6950ced95d9421cfbaa6930a44c"
+      "bytes": 10636,
+      "sha256": "508c50aff7be0a39ebb38e0186331a043f28a77f8765ee070cbc971a17162fde"
     },
     "system": {
-      "bytes": 26143,
-      "sha256": "a4f18fd287fa896e6bbf6125f283f646013299b77a9639c4a942e6b89463a746"
+      "bytes": 26494,
+      "sha256": "64c5329a63af81aca38cef82361e6bdccd9fd9e9134571234f2d369a1b0a19b7"
     },
     "user": {
       "bytes": 14385,
@@ -10961,12 +10961,12 @@ exports[`request goldens > schema-change-provenance sends the recorded request d
   {
     "label": "brief",
     "schema": {
-      "bytes": 10628,
-      "sha256": "f4ac6e6c70cb76bc438e86d94a71f4173754fd2d619564bc9a5568094fcfe367"
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 23803,
-      "sha256": "c9ebc313ef416ce3662fa8532e28821f276f8f11ae34f5a21c2ef4d218d6fa0c"
+      "bytes": 24154,
+      "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
       "bytes": 45160,
@@ -11247,7 +11247,7 @@ exports[`wire schema goldens > repo-policy-scoped-attribute sends the recorded s
             "properties": {
               "intent": {
                 "type": "string",
-                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed-but-masked ask (claimedButUnachieved). What, not why."
+                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed fix the diff only masks (maskedFixes). What, not why."
               },
               "quote": {
                 "type": "string",
@@ -11259,7 +11259,7 @@ exports[`wire schema goldens > repo-policy-scoped-attribute sends the recorded s
               },
               "groupIds": {
                 "type": "array",
-                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, claimedButUnachieved: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, maskedFixes: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
                 "items": {
                   "type": "string"
                 }
@@ -11270,13 +11270,13 @@ exports[`wire schema goldens > repo-policy-scoped-attribute sends the recorded s
               },
               "bucket": {
                 "type": "string",
-                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. claimedButUnachieved: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
+                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. maskedFixes: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
                 "enum": [
                   "accomplished",
                   "statedButMissing",
                   "doneButUnstated",
                   "deviations",
-                  "claimedButUnachieved"
+                  "maskedFixes"
                 ]
               }
             },

@@ -269,7 +269,7 @@ exports[`wire json schemas are byte-pinned > brief 1`] = `
             "properties": {
               "intent": {
                 "type": "string",
-                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed-but-masked ask (claimedButUnachieved). What, not why."
+                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed fix the diff only masks (maskedFixes). What, not why."
               },
               "quote": {
                 "type": "string",
@@ -281,7 +281,7 @@ exports[`wire json schemas are byte-pinned > brief 1`] = `
               },
               "groupIds": {
                 "type": "array",
-                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, claimedButUnachieved: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, maskedFixes: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
                 "items": {
                   "type": "string"
                 }
@@ -292,13 +292,13 @@ exports[`wire json schemas are byte-pinned > brief 1`] = `
               },
               "bucket": {
                 "type": "string",
-                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. claimedButUnachieved: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
+                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. maskedFixes: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
                 "enum": [
                   "accomplished",
                   "statedButMissing",
                   "doneButUnstated",
                   "deviations",
-                  "claimedButUnachieved"
+                  "maskedFixes"
                 ]
               }
             },
@@ -635,7 +635,7 @@ exports[`wire json schemas are byte-pinned > brief with a custom attribute 1`] =
             "properties": {
               "intent": {
                 "type": "string",
-                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed-but-masked ask (claimedButUnachieved). What, not why."
+                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed fix the diff only masks (maskedFixes). What, not why."
               },
               "quote": {
                 "type": "string",
@@ -647,7 +647,7 @@ exports[`wire json schemas are byte-pinned > brief with a custom attribute 1`] =
               },
               "groupIds": {
                 "type": "array",
-                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, claimedButUnachieved: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, maskedFixes: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
                 "items": {
                   "type": "string"
                 }
@@ -658,13 +658,13 @@ exports[`wire json schemas are byte-pinned > brief with a custom attribute 1`] =
               },
               "bucket": {
                 "type": "string",
-                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. claimedButUnachieved: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
+                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. maskedFixes: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
                 "enum": [
                   "accomplished",
                   "statedButMissing",
                   "doneButUnstated",
                   "deviations",
-                  "claimedButUnachieved"
+                  "maskedFixes"
                 ]
               }
             },

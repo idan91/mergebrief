@@ -183,7 +183,7 @@ export function fanOutIntentCheck(
     statedButMissing: [],
     doneButUnstated: [],
     deviations: [],
-    claimedButUnachieved: [],
+    maskedFixes: [],
   };
   for (const { bucket, ...item } of generated.items) {
     buckets[bucket].push(item);
@@ -324,7 +324,7 @@ export function validateIntentCheck(
       intentCheck.statedButMissing.length +
       intentCheck.doneButUnstated.length +
       intentCheck.deviations.length +
-      intentCheck.claimedButUnachieved.length;
+      intentCheck.maskedFixes.length;
     if (counts > 0) {
       issues.push(
         `intent check is ${intentCheck.specificity} but carries ${counts} bucket item(s) — buckets emptied (never a guessed gap)`,
@@ -346,7 +346,7 @@ export function validateIntentCheck(
         statedButMissing: [],
         doneButUnstated: [],
         deviations: [],
-        claimedButUnachieved: [],
+        maskedFixes: [],
       },
       issues,
     };
@@ -474,7 +474,7 @@ export function validateIntentCheck(
 
   /** Drop-not-warn sanitation shared by both alarm buckets (rule 6). */
   function sanitizeAlarmBucket(
-    bucket: "deviations" | "claimedButUnachieved",
+    bucket: "deviations" | "maskedFixes",
     items: IntentCheck["deviations"],
   ): IntentCheck["deviations"] {
     return items
@@ -551,10 +551,10 @@ export function validateIntentCheck(
 
   const deviations = sanitizeAlarmBucket("deviations", intentCheck.deviations);
 
-  const claimedButUnachieved = sanitizeAlarmBucket(
-    "claimedButUnachieved",
-    intentCheck.claimedButUnachieved,
-  ).map((item) => forceUnacknowledged("claimedButUnachieved", item));
+  const maskedFixes = sanitizeAlarmBucket(
+    "maskedFixes",
+    intentCheck.maskedFixes,
+  ).map((item) => forceUnacknowledged("maskedFixes", item));
 
   const alignment = verifyAlignment(
     intentCheck.alignment,
@@ -571,7 +571,7 @@ export function validateIntentCheck(
     statedButMissing,
     doneButUnstated,
     deviations,
-    claimedButUnachieved,
+    maskedFixes,
   };
   if (alignment !== undefined) {
     verified.alignment = alignment;

@@ -1,18 +1,12 @@
 import type { EvalProperty } from "../../properties";
 
 /**
- * BRIEF-54 broad case: the button-under-split diff with a thin PR body and
- * an epic-style umbrella ticket (authored fixture link). The composite
- * source (one-line title + epic) defines no checkable change — specificity
- * must be broad, never a guessed gap (ADR 0009 unavailable-over-
- * provisional; the buckets themselves are mechanically emptied by the
- * validator, so the judgment under test is the specificity token).
- *
- * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` passes trivially
- * whenever the check is unavailable — which is exactly this case's expected
- * state, and also what a model producing nothing looks like. It is a floor
- * check on the validator, not a model-quality signal; `intent-broad` and
- * `intent-not-precise` carry the actual verdict here.
+ * Broad case: the button-under-split diff with a thin PR body and an epic-style
+ * umbrella ticket. No checkable change is defined, so specificity must be broad,
+ * never a guessed gap; the validator empties the buckets, so the judgment under
+ * test is the specificity token. `intent-alarm-buckets-empty` passes trivially
+ * on an unavailable check: it is a validator floor, while `intent-broad` and
+ * `intent-not-precise` carry the verdict.
  */
 const EPIC_URL = "https://tasks.example/DS-9";
 
@@ -44,10 +38,10 @@ export const properties: EvalProperty[] = [
   {
     id: "intent-alarm-buckets-empty",
     description:
-      "the BRIEF-85 alarm buckets stay empty on an unavailable intent check — the validator's never-a-guessed-gap floor covers all five buckets",
+      "the alarm buckets stay empty on an unavailable intent check — the validator's never-a-guessed-gap floor covers all five buckets",
     check: (brief) =>
       (brief.intentCheck?.deviations ?? []).length === 0 &&
-      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
+      (brief.intentCheck?.maskedFixes ?? []).length === 0,
   },
   {
     id: "alignment-absent-on-broad",

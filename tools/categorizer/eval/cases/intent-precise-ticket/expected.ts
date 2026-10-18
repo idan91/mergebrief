@@ -1,17 +1,12 @@
 import type { EvalProperty } from "../../properties";
 
 /**
- * BRIEF-54 positive case: the copybutton-new-export diff with an authored
- * precise ticket (fixture link, tasks.example). Three of the ticket's four
- * asks are in the diff; "document the component on the docs site" is not —
- * the statedButMissing target. Source rule: the DIFF is the publishable
- * artifact (components#7); the ticket text is authored fixture data.
- *
- * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` also passes if a
- * regressed model rates this source broad/none (the validator empties every
- * bucket mechanically). It is anchored by `intent-precise` and
- * `intent-accomplished-anchored`, which both fail in that world — read them
- * together.
+ * Positive case: the copybutton-new-export diff with an authored precise ticket.
+ * Three of its four asks are in the diff; "document the component on the docs
+ * site" is not, and is the statedButMissing target. The diff is the publishable
+ * artifact; the ticket text is authored fixture data. `intent-alarm-buckets-empty`
+ * also passes on a broad/none read; `intent-precise` and
+ * `intent-accomplished-anchored` anchor it.
  */
 const TICKET_URL = "https://tasks.example/DS-42";
 
@@ -54,10 +49,10 @@ export const properties: EvalProperty[] = [
   {
     id: "intent-alarm-buckets-empty",
     description:
-      "no alarm fires on a straightforwardly-delivered ticket: the diff opposes nothing and masks nothing, so deviations and claimedButUnachieved stay empty (BRIEF-85)",
+      "no alarm fires on a straightforwardly-delivered ticket: the diff opposes nothing and masks nothing, so deviations and maskedFixes stay empty",
     check: (brief) =>
       (brief.intentCheck?.deviations ?? []).length === 0 &&
-      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
+      (brief.intentCheck?.maskedFixes ?? []).length === 0,
   },
   {
     id: "alignment-partial",

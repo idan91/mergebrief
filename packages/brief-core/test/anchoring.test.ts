@@ -465,7 +465,7 @@ describe("stitchBrief", () => {
           statedButMissing: [],
           doneButUnstated: [],
           deviations: [],
-          claimedButUnachieved: [],
+          maskedFixes: [],
         },
       },
     );
@@ -499,7 +499,7 @@ describe("stitchBrief", () => {
           statedButMissing: [],
           doneButUnstated: [],
           deviations: [],
-          claimedButUnachieved: [],
+          maskedFixes: [],
         },
       },
     );

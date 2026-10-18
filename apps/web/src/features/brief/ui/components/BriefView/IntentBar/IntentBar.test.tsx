@@ -58,7 +58,7 @@ const PRECISE_NO_TICKET: IntentCheck = {
     },
   ],
   deviations: [],
-  claimedButUnachieved: [],
+  maskedFixes: [],
 };
 
 const PRECISE: IntentCheck = {
@@ -82,7 +82,7 @@ const BROAD: IntentCheck = {
   statedButMissing: [],
   doneButUnstated: [],
   deviations: [],
-  claimedButUnachieved: [],
+  maskedFixes: [],
 };
 
 describe("IntentBar", () => {
@@ -93,7 +93,7 @@ describe("IntentBar", () => {
     const toggle = screen.getByRole("button", { name: /intent check/i });
     for (const pair of [
       "1 accomplished",
-      "0 claimed but unachieved",
+      "0 masked fixes",
       "0 deviations",
       "1 stated but missing",
       "1 done but unstated",
@@ -114,7 +114,7 @@ describe("IntentBar", () => {
     const zero = [...container.querySelectorAll("[data-zero]")].map(
       (count) => count.textContent,
     );
-    expect(zero).toEqual(["0 claimed but unachieved", "0 deviations"]);
+    expect(zero).toEqual(["0 masked fixes", "0 deviations"]);
   });
 
   it("starts collapsed and never auto-expands, even with a missing ask", () => {
@@ -408,7 +408,7 @@ describe("IntentBar", () => {
       statedButMissing: [],
       doneButUnstated: [],
       deviations: [],
-      claimedButUnachieved: [],
+      maskedFixes: [],
     };
     render(<IntentBar intentCheck={uncited} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
@@ -433,7 +433,7 @@ describe("IntentBar", () => {
       statedButMissing: [],
       doneButUnstated: [],
       deviations: [],
-      claimedButUnachieved: [],
+      maskedFixes: [],
     };
     render(<IntentBar intentCheck={malicious} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
@@ -457,7 +457,7 @@ describe("IntentBar", () => {
       statedButMissing: [],
       doneButUnstated: [],
       deviations: [],
-      claimedButUnachieved: [],
+      maskedFixes: [],
     };
     const { container } = render(
       <IntentBar intentCheck={htmlish} jumpToGroup={() => {}} />,
@@ -589,7 +589,7 @@ describe("IntentBar alarm buckets", () => {
   const WITH_ALARMS: IntentCheck = {
     ...PRECISE,
     deviations: [item("drops the cache the ticket asked to keep")],
-    claimedButUnachieved: [item("claims the flake is fixed but only skips it")],
+    maskedFixes: [item("claims the flake is fixed but only skips it")],
   };
 
   it("ships the DOM in split order, Checks out first, static within a side", () => {
@@ -600,7 +600,7 @@ describe("IntentBar alarm buckets", () => {
       "Checks out",
       "Accomplished",
       "Needs a look",
-      "Claimed but unachieved",
+      "Masked fixes",
       "Deviations",
       "Stated but missing",
       "Done but unstated",
@@ -626,7 +626,7 @@ describe("IntentBar alarm buckets", () => {
       .map((node) => node.textContent);
     expect(bucketHeads).toEqual([
       "Accomplished",
-      "◇Claimed but unachieved",
+      "◇Masked fixes",
       "◇Deviations",
       "Stated but missing",
       "Done but unstated",
@@ -763,12 +763,12 @@ describe("IntentBar alarm buckets", () => {
     const html = container.innerHTML;
     expect(html).not.toContain("◇");
     expect(html).not.toContain("AI-inferred tension");
-    expect(html).not.toContain("Claimed but unachieved");
+    expect(html).not.toContain("Masked fixes");
     expect(html).not.toContain("Deviations acknowledged");
     // The header counts stay the neutral flat five: same class, no color,
     // no ordering.
     const counts = [...container.querySelectorAll("span")].filter((node) =>
-      /^\d+ (accomplished|claimed but unachieved|deviations|stated but missing|done but unstated)$/.test(
+      /^\d+ (accomplished|masked fix(?:es)?|deviations|stated but missing|done but unstated)$/.test(
         (node.textContent ?? "").replace(/\s+/g, " ").trim(),
       ),
     );

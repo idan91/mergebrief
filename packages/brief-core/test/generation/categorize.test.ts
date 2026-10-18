@@ -475,7 +475,7 @@ describe("categorize, intent check validation", () => {
         },
       ],
       deviations: [],
-      claimedButUnachieved: [],
+      maskedFixes: [],
     });
     expect(brief.generationWarnings).toBeUndefined();
   });
@@ -714,7 +714,7 @@ describe("categorize, intent check validation", () => {
             acknowledged: true,
           },
           {
-            bucket: "claimedButUnachieved",
+            bucket: "maskedFixes",
             intent: "claims the loop is fixed",
             quote: "this claim appears nowhere in the sources",
             sourceUrl: ticketUrl,
@@ -733,7 +733,7 @@ describe("categorize, intent check validation", () => {
     );
     expect(brief.intentCheck?.deviations).toHaveLength(1);
     expect(brief.intentCheck?.deviations[0]?.acknowledged).toBe(true);
-    expect(brief.intentCheck?.claimedButUnachieved).toEqual([]);
+    expect(brief.intentCheck?.maskedFixes).toEqual([]);
     expect((brief.generationWarnings ?? []).join("\n")).toContain(
       "dropped (possible fabrication)",
     );

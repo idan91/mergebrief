@@ -36,11 +36,11 @@
 >   receipt, not an alarm. `acknowledged` lives on the shared item shape
 >   (which the grammar budget forces — see the wire-shape note below) and is
 >   forced-`false` outside `deviations` (dead-field precedent).
-> - **`claimedButUnachieved`** — the sources claim a fix/delivery while the
+> - **`maskedFixes`** — the sources claim a fix/delivery while the
 >   diff operates only on the problem's *signal/check path* (log demotion,
 >   catch-and-swallow, test skip/delete, threshold bump). **Routing rule**:
 >   behavior moved against the ask ⇒ `deviations`; only the signal touched ⇒
->   `claimedButUnachieved`; uncertain ⇒ `accomplished` — never a guessed
+>   `maskedFixes`; uncertain ⇒ `accomplished` — never a guessed
 >   alarm.
 >
 > Tradeoffs and partial delivery are NOT deviations (partial delivery stays
@@ -49,12 +49,12 @@
 > warn-and-keep siblings: an alarm item lacking verified both-sides grounding
 > — empty quote, zero surviving groupIds, or failed quote verification — is
 > **dropped + warned**. FE realization: static bucket order (accomplished →
-> claimedButUnachieved → unacknowledged deviations → statedButMissing →
+> maskedFixes → unacknowledged deviations → statedButMissing →
 > doneButUnstated → acknowledged deviations), one muted caution line per
 > non-empty alarm bucket, and **no yellow** — epistemic caution never borrows
 > the code-risk palette; header counts stay neutral/uncolored and grow to
 > five. The soft gate (#3) gains a second count-only line (unacknowledged
-> deviations + claimedButUnachieved), never blocking. The risk-surface link
+> deviations + maskedFixes), never blocking. The risk-surface link
 > is structural only — groupIds resolve to group cards where
 > `widens-error-handling` / `removes-validation` already render; no new risk
 > category in v1. Revisit triggers: flagrant-under-broad misses (eval

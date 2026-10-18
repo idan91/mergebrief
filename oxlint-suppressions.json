@@ -312,54 +312,6 @@
       "count": 1
     }
   },
-  "tools/categorizer/eval/cases/intent-adversarial-ticket/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/cases/intent-broad-epic/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/cases/intent-legit-demotion/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/cases/intent-masked-fix/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
-  "tools/categorizer/eval/cases/intent-none-no-ticket/expected.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/comment-run": {
-      "count": 2
-    }
-  },
-  "tools/categorizer/eval/cases/intent-precise-ticket/expected.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    }
-  },
   "tools/categorizer/eval/cases/multi-package-types/expected.ts": {
     "house/no-em-dash": {
       "count": 1

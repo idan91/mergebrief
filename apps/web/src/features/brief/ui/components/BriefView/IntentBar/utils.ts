@@ -17,7 +17,7 @@ export function isHttpUrl(value: string): boolean {
 type IntentCountField = keyof Pick<
   IntentCheck,
   | "accomplished"
-  | "claimedButUnachieved"
+  | "maskedFixes"
   | "deviations"
   | "statedButMissing"
   | "doneButUnstated"
@@ -80,9 +80,9 @@ export function partitionIntentCheck(intentCheck: IntentCheck): {
 
   const needsALook: IntentBucketSpec[] = [
     {
-      key: "claimedButUnachieved",
-      labelKey: "brief.intent.bucketClaimedButUnachieved",
-      items: intentCheck.claimedButUnachieved,
+      key: "maskedFixes",
+      labelKey: "brief.intent.bucketMaskedFixes",
+      items: intentCheck.maskedFixes,
       alarm: true,
     },
     {
