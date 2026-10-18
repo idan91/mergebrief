@@ -3,7 +3,7 @@
   "runs": 5,
   "properties": {
     "no-invented-attribute-names": 5,
-    "repo-attribute-reaches-the-brief": 4,
+    "repo-attribute-reaches-the-brief": 5,
     "repo-attribute-stays-inside-its-globs": 5,
     "scoped-file-is-chunked": 5,
     "second-repo-attribute-also-reaches": 5

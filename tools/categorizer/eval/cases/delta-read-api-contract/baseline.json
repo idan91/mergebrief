@@ -3,7 +3,7 @@
   "runs": 5,
   "properties": {
     "api-tests-are-test-concern": 5,
-    "base-sha-fold-in-reads-after-main-groups": 5,
+    "base-sha-fold-in-reads-after-main-groups": 4,
     "coherent-grouping": 5,
     "cross-service-fires-on-changed-contract": 5,
     "generated-snapshot-concern": 5,

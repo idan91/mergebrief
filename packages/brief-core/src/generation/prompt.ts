@@ -279,6 +279,7 @@ ${RISK_NOTES_RULE}
 - One group = ONE title + ONE summary + ONE dominant category. If you need two unrelated summaries, split into two groups.
 ${GROUP_TEXT_CAPS}
 - **One capability = one group, regardless of file anatomy.** An all-new feature or component is ONE group even though its parts live in separate files: its types/contract file, hook or facade, view, and styles all serve the same intent ("Add X") and are chunks of that one group — never per-file or per-layer groups. Its tests/stories and barrel exports are supporting chunks of that same group (rules below). Split a new capability only when the diff truly contains a second, separately-summarizable intent — never along file or layer boundaries.
+- **Creating a shared module and switching existing code onto it are two intents.** When the PR adds a shared module (a package, a utility, a type library) AND moves existing code in more than one package or module that already did that job its own way onto it (replacing local copies, rewiring call sites), the new module is one group and the switch-over is another. A new helper with the callers this PR writes for it stays one capability.
 - The author's commit structure is a hint, never the boundary.
 - Intent lives on the core chunk(s); supporting chunks inherit it and are not independently categorized.
 - **Every group MUST have at least one core chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
@@ -292,7 +293,7 @@ When a sensible order exists, emit \`readingOrder\`: a strict permutation of the
 
 - **Rule: follow the PR's story.** Open with the group that carries the PR's main idea, the change the lede leads with. A setup group comes before it only when the main group cannot be read without it: the main group uses types, a schema, or a pattern that the setup group introduces. A group that only sits beside the main change (a folded-in fix, a side cleanup) comes after the main idea, even when it is a schema or types change. Then the groups that build on the main change (call sites, wiring), then the independent side changes. Groups whose \`dominantCategory\` is mechanical (\`pure-move\`, \`lib-bump\`, \`dependency-update\`, or generated churn) go last unless they are the PR's main idea.
 - **\`why\`**: one line, at most ~15 words, in comprehension language — it explains why this group comes next, e.g. "the PR's main change", "introduces the schema the next group reads", or "mechanical rename — read last." **Never** importance/priority/severity words ("critical", "important", "minor") and never a score or rank number. This is not a verdict.
-- This never changes group membership, categories, or any other field — it is purely a sequence over the groups you already formed.
+- This never changes group membership, categories, or any other field — it is purely a sequence over the groups you already formed. Form the groups by the boundary rules first, then order them: the story never merges or splits a group.
 
 ## Intent check
 

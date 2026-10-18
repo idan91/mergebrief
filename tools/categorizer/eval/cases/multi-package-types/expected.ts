@@ -14,6 +14,9 @@ function packageDir(path: string): string {
   return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : path;
 }
 
+const TYPES_PACKAGE_SOURCE = "packages/types/src/lib.ts";
+const MIGRATED_CONSUMER = "apps/web/src/features/brief/types.ts";
+
 export const properties: EvalProperty[] = [
   {
     id: "spans-multiple-packages",
@@ -62,12 +65,8 @@ export const properties: EvalProperty[] = [
     description:
       "setup first where it is needed: the consumer migration never reads before the new types package it imports from (one shared group passes)",
     check: (brief) => {
-      const typesGroups = new Set(
-        groupIdsFor(brief, "packages/types/src/lib.ts"),
-      );
-      const consumerGroups = new Set(
-        groupIdsFor(brief, "apps/web/src/features/brief/types.ts"),
-      );
+      const typesGroups = new Set(groupIdsFor(brief, TYPES_PACKAGE_SOURCE));
+      const consumerGroups = new Set(groupIdsFor(brief, MIGRATED_CONSUMER));
       const bothSidesGrouped = typesGroups.size > 0 && consumerGroups.size > 0;
       if (!bothSidesGrouped) {
         return false;
@@ -77,6 +76,20 @@ export const properties: EvalProperty[] = [
         consumerGroups.has(id),
       );
       return typesIndex <= consumerIndex;
+    },
+  },
+  {
+    id: "types-package-split-from-migration",
+    description:
+      "creating the shared package and switching existing consumers onto it are two intents: no group carries both",
+    check: (brief) => {
+      const typesGroups = groupIdsFor(brief, TYPES_PACKAGE_SOURCE);
+      const consumerGroups = new Set(groupIdsFor(brief, MIGRATED_CONSUMER));
+      const packageApartFromMigration =
+        typesGroups.length > 0 &&
+        consumerGroups.size > 0 &&
+        typesGroups.every((id) => !consumerGroups.has(id));
+      return packageApartFromMigration;
     },
   },
 ];
