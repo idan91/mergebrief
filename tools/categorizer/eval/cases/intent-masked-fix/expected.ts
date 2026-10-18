@@ -22,7 +22,9 @@ export const properties: EvalProperty[] = [
       "the claimed-but-unmade redelivery fix lands in maskedFixes (the sources claim a fix; only the log level moved)",
     check: (brief) =>
       (brief.intentCheck?.maskedFixes ?? []).some((item) =>
-        /redeliver|ingest|dispatch fail/i.test(`${item.intent} ${item.quote}`),
+        /redeliver|ingest|dispatch fail|dispatch pages/i.test(
+          `${item.intent} ${item.quote}`,
+        ),
       ),
   },
   {

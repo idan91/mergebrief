@@ -10484,8 +10484,8 @@ exports[`request goldens > intent-precise-ticket sends the recorded request dige
       "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
-      "bytes": 14101,
-      "sha256": "6ba5a425ac820154e63dadbf3e5df1b3ed46e0f723d1f8363524a8cf706fec10"
+      "bytes": 14129,
+      "sha256": "b6c1d617a4a7a9adad8f4abf3e672a14b1ceb8f1d16aeb379f06ae670f2ee6ab"
     }
   }
 ]"
@@ -10504,8 +10504,8 @@ exports[`request goldens > intent-primary-plus-refs sends the recorded request d
       "sha256": "7763c33aaea155757af192db40965e6b330ba749297fcd82c68e90599ed07c8b"
     },
     "user": {
-      "bytes": 14173,
-      "sha256": "232fde59bce874923df6904707c14104b256a7dd8f0e2d9a411f4e6b7dbfe56f"
+      "bytes": 14201,
+      "sha256": "47700c1292128efb93dced6f9c9af00c8eed893b1f8e6a4cb9d399038da01f11"
     }
   }
 ]"

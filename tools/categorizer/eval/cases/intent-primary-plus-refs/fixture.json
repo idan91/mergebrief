@@ -63,7 +63,7 @@
       "tracker": "github",
       "title": "DS-42 — Copy-to-clipboard button for the design system",
       "header": "",
-      "content": "DS-42 — Copy-to-clipboard button for the design system\n\nAdd a CopyButton component:\n- Write the given text to the clipboard on click.\n- Reflect an idle -> copied/error -> idle status machine with an auto-resetting timeout.\n- Expose the component from the package barrel.\n- Document the component with a usage example on the docs site.\n"
+      "content": "DS-42 — Copy-to-clipboard button for the design system\n\nAdd a CopyButton component:\n- Write the given text to the clipboard on click.\n- Reflect an idle -> copied/error -> idle status machine with an auto-resetting timeout.\n- Expose the component from the package barrel.\n- Add a usage example for the component to the docs site at docs/components/copy-button.md.\n"
     }
   },
   "commitRange": {
