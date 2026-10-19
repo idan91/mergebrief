@@ -16,9 +16,9 @@ import {
   deleteTenantRows,
   makeBriefTarget,
   makeFixture,
-  readTestPostgresUrl,
   waitMs,
 } from "./helpers";
+import { readTestPostgresUrl } from "../src/testing";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const LEASE_MS = 120_000;

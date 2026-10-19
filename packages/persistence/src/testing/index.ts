@@ -27,6 +27,8 @@ import { createMigratedPglite } from "./pglite-snapshot";
 // before workers fork, so a cold cache is paid sequentially instead of by
 // every worker at once under coverage instrumentation.
 export { warmPgliteSnapshot } from "./pglite-snapshot";
+// The suites PGlite cannot exercise, in this package and the worker.
+export { readTestPostgresUrl, type TestPostgresUrl } from "./postgres-url";
 
 // Mirrors `job_key_mode` 'replace' and 'preserve_run_at'; parameter names match
 // the named-notation call in `ingest.ts`, and the columns carry the real

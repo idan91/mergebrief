@@ -32,40 +32,17 @@ import {
   type RepoId,
 } from "../src/types";
 
-const TEST_POSTGRES_URL_VARIABLE = "MERGEBRIEF_TEST_POSTGRES_URL";
 /** Far above any real GitHub installation id, so a fixture never meets one. */
 const SMALLEST_FIXTURE_ID = 1_000_000_000_000;
 /** The widest span `randomInt` draws from; the top stays a safe integer. */
 const FIXTURE_ID_SPAN = 2 ** 48 - 1;
 
-export type TestPostgresUrl = string | undefined;
 export type WaitOutcome = "timer";
 
 export interface TenantFixture {
   readonly tenant: InstallationId;
   readonly repoId: RepoId;
   readonly ctx: TenantContext;
-}
-
-/**
- * The real-Postgres URL for the suites PGlite cannot exercise. Unset locally
- * means skip; unset under CI throws, so a skip there cannot pass unseen.
- */
-export function readTestPostgresUrl(
-  env: Readonly<Record<string, string | undefined>>,
-): TestPostgresUrl {
-  const url = env[TEST_POSTGRES_URL_VARIABLE];
-  if (url !== undefined && url !== "") {
-    return url;
-  }
-
-  const ci = env["CI"];
-  if (ci !== undefined && ci !== "") {
-    throw new Error(
-      `${TEST_POSTGRES_URL_VARIABLE} is unset under CI; the real-Postgres suites would skip`,
-    );
-  }
-  return undefined;
 }
 
 /**

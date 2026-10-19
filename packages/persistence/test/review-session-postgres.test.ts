@@ -30,10 +30,10 @@ import {
   connectMigrated,
   deleteTenantRows,
   makeFixture,
-  readTestPostgresUrl,
   waitMs,
   type TenantFixture,
 } from "./helpers";
+import { readTestPostgresUrl } from "../src/testing";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);

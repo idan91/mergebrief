@@ -21,7 +21,7 @@ import {
   createEnvKeyProvider,
   resolveMigrateCommand,
 } from "persistence";
-import { QueueTasks, type Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { loadConfig } from "./config";
 import {
   createAppGitHubBinders,
@@ -33,22 +33,17 @@ import {
   createRecoverGenerationTask,
   type GenerateTaskDeps,
 } from "./task/generate";
-import {
-  createSweepAuditTask,
-  SWEEP_AUDIT_CRONTAB,
-  SWEEP_AUDIT_TASK,
-} from "./task/sweep-audit";
+import { createSweepAuditTask, SWEEP_AUDIT_CRONTAB } from "./task/sweep-audit";
 import {
   createSweepPullRequestsTask,
   SWEEP_PULL_REQUESTS_CRONTAB,
-  SWEEP_PULL_REQUESTS_TASK,
 } from "./task/sweep-pull-requests";
 import {
   createSweepSessionsTask,
   SWEEP_SESSIONS_CRONTAB,
-  SWEEP_SESSIONS_TASK,
 } from "./task/sweep-sessions";
 import { startWorker } from "./runner";
+import { buildTaskList } from "./task-list";
 
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
 const FAILURE_DUMP_DIR = "out";
@@ -238,15 +233,14 @@ async function main(): Promise<void> {
     // aborts an in-flight stream (job back to queue) instead of riding out the
     // kill grace into a stuck job lock. helpers.job carries the attempt counts
     // the failure events read.
-    taskList: {
-      [QueueTasks.GENERATE]: (payload, helpers) => generate(payload, helpers),
-      [QueueTasks.RECOVER_GENERATION]: (payload, helpers) =>
+    taskList: buildTaskList({
+      generate: (payload, helpers) => generate(payload, helpers),
+      recoverGeneration: (payload, helpers) =>
         recoverGeneration(payload, helpers),
-      // Scheduled jobs: instance-wide, not tenant-scoped, worker-only.
-      [SWEEP_AUDIT_TASK]: () => sweepAudit(),
-      [SWEEP_SESSIONS_TASK]: () => sweepSessions(),
-      [SWEEP_PULL_REQUESTS_TASK]: () => sweepPullRequests(),
-    },
+      sweepAudit: () => sweepAudit(),
+      sweepSessions: () => sweepSessions(),
+      sweepPullRequests: () => sweepPullRequests(),
+    }),
     // Unset retention → a retention job still runs and deletes nothing.
     crontab: [
       SWEEP_AUDIT_CRONTAB,
