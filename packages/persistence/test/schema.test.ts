@@ -537,16 +537,6 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
     );
   });
 
-  it("rejects an audit_log caller_ip that is not an address", async () => {
-    const db = await freshDb();
-    await expectCheckViolation(
-      db.execute(
-        sql`insert into audit_log (installation_id, actor_type, operation, outcome, caller_ip) values (1000, 'reviewer', 'mark-ready', 'ok', 'user@example.com')`,
-      ),
-      "audit_log_caller_ip_shape",
-    );
-  });
-
   it("accepts generation.status 'superseded' after the 0003 vocab swap", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);

@@ -468,25 +468,12 @@ and `purge-attachments`, the App's only pushes ([attachments.md](attachments.md)
 carry `target_type = repository` and the repository's id, on a denial past
 the gate as well as on success.
 
-Three knobs, all instance environment variables:
+Two knobs, both instance environment variables:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `AUDIT_RETENTION_DAYS` | unset (keep forever) | How long the daily sweep keeps rows. Minimum 30. |
 | `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way — that is not configurable. |
-| `AUDIT_CALLER_IP` | `false` | Populate `caller_ip`. Off by default: in a self-host deployment the credential identifies the caller better than an address does, and the address costs the most privacy of any field. |
-
-**`caller_ip` records the WEB TIER's address, not the visitor's.** The address
-comes from the serving adapter, and the API is reached through the web tier's
-proxy, so the socket it sees belongs to that proxy. Expect one address for
-every visitor and read the credential columns instead.
-
-**`caller_ip` is the SOCKET address, always.** This instance does not read
-`X-Forwarded-For`, because a header the client can set is not evidence, and
-deciding which proxy to trust is a separate decision nobody has made here. The
-web tier's proxy drops `X-Forwarded-For`, `X-Real-IP` and `Forwarded` rather
-than forwarding them, so adding a reverse proxy in front changes nothing about
-what lands in the column.
 
 Erasing one person's rows is a query, not a feature:
 

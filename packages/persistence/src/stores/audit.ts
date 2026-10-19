@@ -1,14 +1,12 @@
 // The `writeAudit(...)` emit: one immutable, tenant-scoped append per boundary.
 // No update/delete helpers exist; only the instance-wide retention sweep
 // removes rows. IDS, TOKENS AND NUMBERS: an entry says what was DONE, and
-// every body already lives in the row the entry points at. The only
-// identifying field is `caller_ip`, written solely under the operator PII
-// flag. `metadata` takes ANY key and CLOSED values: a token, a finite number,
-// or a boolean. The value rules are the enforcement.
+// every body already lives in the row the entry points at. `metadata` takes
+// ANY key and CLOSED values: a token, a finite number, or a boolean. The value
+// rules are the enforcement.
 import { z } from "zod/v4";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import {
-  AUDIT_CALLER_IP_PATTERN,
   AUDIT_CLIENT_PATTERN,
   AUDIT_OPERATION_PATTERN,
   AUDIT_REQUEST_ID_PATTERN,
@@ -111,9 +109,6 @@ export const AuditRequestIdSchema = z
 export const AuditClientSchema = z
   .string()
   .regex(AUDIT_CLIENT_PATTERN, "client must be a product/version token");
-const AuditCallerIpSchema = z
-  .string()
-  .regex(AUDIT_CALLER_IP_PATTERN, "callerIp must be an IP address");
 
 /** Open keys, closed value types; the schema is the runtime enforcement. */
 export type AuditMetadata = Readonly<Record<string, string | number | boolean>>;
@@ -148,8 +143,6 @@ export interface AuditEntry {
   readonly requestId?: string;
   /** User-agent-derived, forensic only; never branch on it. */
   readonly client?: string;
-  /** Socket address; supplied only under the operator PII flag. */
-  readonly callerIp?: string;
   /** Open-ended target class, e.g. `pull_request` | `brief` | `installation`. */
   readonly targetType?: string;
   /** Loose numeric ref to the target row, deliberately not an FK. */
@@ -197,7 +190,6 @@ export async function insertAudit(
       credentialId: entry.credentialId,
       requestId: parseOptional(AuditRequestIdSchema, entry.requestId),
       client: parseOptional(AuditClientSchema, entry.client),
-      callerIp: parseOptional(AuditCallerIpSchema, entry.callerIp),
       targetType,
       targetId: entry.targetId,
       metadata,

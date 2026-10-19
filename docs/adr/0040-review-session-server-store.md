@@ -148,6 +148,8 @@ agent is involved.
     opt-out is one boolean (`AUDIT_PRIVATE_WRITES`, default on, external
     writes and denials never switchable), and caller IP is off by default
     behind an operator PII flag. **No read surface in v1.**
+    *Amended 2026-10-18 (BRIEF-336): `caller_ip` and its PII flag are removed
+    (migration 0062); see ADR 0018's `audit_log` amendment.*
 11. **The surface is 34 operations** — 14 queries, 20 actions; 14 `read`, 14
     `private-write`, 6 `external-write`. The "Clear local drafts" button is
     **deleted** and gets no operation; **`reopen-risk`** ships in its place.

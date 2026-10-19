@@ -53,8 +53,7 @@ export interface AppDeps {
   readonly updateCheck?: UpdateCheck;
   /** Instance draft-PR policy; omitted = zero-config default. */
   readonly draftPolicy?: DraftPolicy;
-  /** Audit knobs from persistence config; omitted = private writes on,
-   * caller ip off. */
+  /** Audit knobs from persistence config; omitted = private writes on. */
   readonly audit?: AuditEmitConfig;
   /**
    * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`), serving only its

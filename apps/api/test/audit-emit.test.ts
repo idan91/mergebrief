@@ -55,7 +55,6 @@ interface AuditRow {
   readonly credential_id: string | null;
   readonly request_id: string | null;
   readonly client: string | null;
-  readonly caller_ip: string | null;
   readonly actor_id: string | null;
   readonly target_type: string | null;
   readonly reason: string | null;
@@ -66,7 +65,7 @@ interface AuditRow {
 async function auditRows(harness: PgliteHarness): Promise<AuditRow[]> {
   const rows = await harness.raw(
     `select operation, outcome, installation_id, classification, channel,
-            credential_id, request_id, client, caller_ip, actor_id,
+            credential_id, request_id, client, actor_id,
             target_type, metadata->>'reason' as reason
        from audit_log
       where operation <> 'issue-api-token'
@@ -82,7 +81,6 @@ async function auditRows(harness: PgliteHarness): Promise<AuditRow[]> {
     credential_id: stringOrNull(row["credential_id"]),
     request_id: stringOrNull(row["request_id"]),
     client: stringOrNull(row["client"]),
-    caller_ip: stringOrNull(row["caller_ip"]),
     actor_id: stringOrNull(row["actor_id"]),
     target_type: stringOrNull(row["target_type"]),
     reason: stringOrNull(row["reason"]),
@@ -170,8 +168,6 @@ describe("the audit choke point", () => {
       client: CLI_AGENT,
       actor_id: String(REVIEWER_ID),
       reason: null,
-      // The PII flag is off by default, so the column is honestly empty.
-      caller_ip: null,
     });
     expect(rows[0]?.credential_id).not.toBeNull();
     expect(rows[0]?.request_id).not.toBeNull();
@@ -272,7 +268,7 @@ describe("the audit choke point", () => {
   });
 
   it("suppresses private writes under the knob, and denials never", async () => {
-    const app = appWith({ privateWrites: false, callerIp: false });
+    const app = appWith({ privateWrites: false });
     const ok = await readMark(app, {
       Cookie: `__Host-mergebrief_session=${cookie}`,
     });

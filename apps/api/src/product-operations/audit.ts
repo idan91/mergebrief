@@ -13,7 +13,7 @@ import {
 // Never a read. Never a body, never free text. A row this cannot attribute to
 // a tenant is not written at all; an unauthenticated or unresolvable
 // credential leaves only its `api.access` line.
-import type { Context, MiddlewareHandler } from "hono";
+import type { MiddlewareHandler } from "hono";
 import {
   writeAudit,
   AuditActorTypes,
@@ -59,20 +59,16 @@ export const AUDIT_REASON_NO_REPO_ACCESS = "no-repo-access";
 /** Denial reason for a cookie mutation that proved no same-origin. */
 export const AUDIT_REASON_CROSS_ORIGIN = "cross-origin";
 
-/** Which audit rows this instance writes. Both knobs are instance config. */
+/** Which audit rows this instance writes; instance config. */
 export interface AuditEmitConfig {
   /** `AUDIT_PRIVATE_WRITES`; default on. External writes and denials are
    * never switchable: an instance able to post to GitHub with no record is
    * not a configuration. */
   readonly privateWrites: boolean;
-  /** `AUDIT_CALLER_IP`; default off. Socket address only; see
-   * `docs/self-host/operations.md` for the reverse-proxy caveat. */
-  readonly callerIp: boolean;
 }
 
 const DEFAULT_CONFIG: AuditEmitConfig = {
   privateWrites: true,
-  callerIp: false,
 };
 
 export interface AuditEmitDeps {
@@ -163,40 +159,6 @@ export function deriveRequestId(
     AuditRequestIdSchema.safeParse(requestId).success
     ? requestId
     : undefined;
-}
-
-/** An address as a socket reports it; anything else is dropped. */
-const IP_ADDRESS = /^[0-9a-fA-F.:]{1,45}$/;
-
-/**
- * The SOCKET address, when the serving adapter exposes one. Behind a reverse
- * proxy this is the proxy's address: `X-Forwarded-For` is client-settable, and
- * trusting it is a decision this instance has not made.
- */
-function getSocketAddress(c: Context): string | undefined {
-  const env: unknown = c.env;
-  if (typeof env !== "object" || env === null || !("incoming" in env)) {
-    return undefined;
-  }
-  const incoming: unknown = env.incoming;
-  if (
-    typeof incoming !== "object" ||
-    incoming === null ||
-    !("socket" in incoming)
-  ) {
-    return undefined;
-  }
-  const socket: unknown = incoming.socket;
-  if (
-    typeof socket !== "object" ||
-    socket === null ||
-    !("remoteAddress" in socket) ||
-    typeof socket.remoteAddress !== "string" ||
-    !IP_ADDRESS.test(socket.remoteAddress)
-  ) {
-    return undefined;
-  }
-  return socket.remoteAddress;
 }
 
 /** The acting credential, narrowed structurally off the auth layers' variable. */
@@ -307,7 +269,6 @@ export function createAuditMiddleware(
     }
     const target = c.get("auditTarget");
     const client = deriveClient(c.req.header("user-agent"));
-    const callerIp = config.callerIp ? getSocketAddress(c) : undefined;
     const requestId = deriveRequestId(c.get("requestId"));
     const reason = c.get("auditReason") ?? c.get("apiErrorCode");
     const row: Mutable<Parameters<typeof writeAudit>[1]> = {
@@ -326,9 +287,6 @@ export function createAuditMiddleware(
     }
     if (client !== undefined) {
       row.client = client;
-    }
-    if (callerIp !== undefined) {
-      row.callerIp = callerIp;
     }
     if (target !== undefined) {
       row.targetType = target.type;

@@ -17,8 +17,8 @@ import { BODILESS_METHODS, REQUEST_ID_HEADER } from "../request-id";
  * fetch addresses the internal origin, and `accept-encoding` is replaced
  * rather than dropped: fetch supplies its own if none is set, and a compressed
  * hop buys nothing on a loopback or private-network link. The three
- * caller-address claims go too: the API reads the socket, never a header, and
- * a forwarded one would be a client-settable value sitting next to it.
+ * caller-address claims go too: the API records no caller address, and a
+ * forwarded one would be a client-settable value it could start trusting.
  */
 const REQUEST_HEADERS_DROPPED = new Set([
   "accept-encoding",

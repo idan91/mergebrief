@@ -209,7 +209,7 @@ async function seedAged(
 }
 
 describe("writeAudit forensic call-shape fields", () => {
-  it("rejects a request id, client or caller IP that is not its own shape", async () => {
+  it("rejects a request id or client that is not its own shape", async () => {
     const handle = await freshDatabase();
     const base: AuditEntry = {
       installationId: TENANT,
@@ -226,9 +226,6 @@ describe("writeAudit forensic call-shape fields", () => {
     await expect(
       writeAudit(handle, { ...base, client: "user@example.com" }),
     ).rejects.toThrow(/product\/version token/);
-    await expect(
-      writeAudit(handle, { ...base, callerIp: "user@example.com" }),
-    ).rejects.toThrow(/IP address/);
 
     // Anything the Zod shapes accept must clear the DB CHECKs too: a mismatch
     // would throw inside the caller's transaction, rolling back the action the
@@ -237,7 +234,6 @@ describe("writeAudit forensic call-shape fields", () => {
       ...base,
       requestId: "r".repeat(64),
       client: "mergebrief-cli/10.20.30-rc.1",
-      callerIp: "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
     });
     expect(widest.requestId).toHaveLength(64);
 
@@ -245,13 +241,11 @@ describe("writeAudit forensic call-shape fields", () => {
       ...base,
       requestId: "01JABCDEF",
       client: "mergebrief/0.1.0",
-      callerIp: "203.0.113.7",
       channel: AuditChannels.BEARER,
       classification: AccessLevels.EXTERNAL_WRITE,
       credentialId: 42n,
     });
     expect(row.client).toBe("mergebrief/0.1.0");
-    expect(row.callerIp).toBe("203.0.113.7");
     expect(row.credentialId).toBe(42n);
   });
 });

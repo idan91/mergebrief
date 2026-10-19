@@ -29,8 +29,6 @@ export interface PersistenceConfig {
   readonly prRetentionDays: number | null;
   /** Record private writes in the audit log. Self-host: ON. */
   readonly auditPrivateWrites: boolean;
-  /** Populate `audit_log.caller_ip`. Self-host: OFF. */
-  readonly auditCallerIp: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +141,6 @@ const ConfigSchema = z.object({
   AUDIT_RETENTION_DAYS: auditRetentionDaysSchema,
   PR_RETENTION_DAYS: prRetentionDaysSchema,
   AUDIT_PRIVATE_WRITES: envBool(true),
-  AUDIT_CALLER_IP: envBool(false),
 });
 
 // ---------------------------------------------------------------------------
@@ -212,7 +209,6 @@ export function loadConfig(
       auditRetentionDays: parsed.data.AUDIT_RETENTION_DAYS,
       prRetentionDays: parsed.data.PR_RETENTION_DAYS,
       auditPrivateWrites: parsed.data.AUDIT_PRIVATE_WRITES,
-      auditCallerIp: parsed.data.AUDIT_CALLER_IP,
     },
   };
 }

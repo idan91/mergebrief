@@ -109,7 +109,6 @@ async function main(): Promise<void> {
     updateCheck,
     audit: {
       privateWrites: boot.persistence.auditPrivateWrites,
-      callerIp: boot.persistence.auditCallerIp,
     },
     serverVersion: boot.api.serverVersion,
     bindInstallationGitHub: (installationId) =>

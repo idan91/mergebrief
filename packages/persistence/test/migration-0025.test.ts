@@ -44,13 +44,6 @@ describe(
         { operation: "delete", outcome: "ok", target_type: "pull_request" },
       ]);
 
-      // Collection of the caller's address must stay a config change: every
-      // backfilled row is honestly empty rather than absent.
-      const ips = await client.query<{ n: number }>(
-        "select count(*)::int as n from audit_log where caller_ip is not null",
-      );
-      expect(ips.rows[0]?.n).toBe(0);
-
       // CHECK and `as const` map in lockstep, same shape as every other
       // DB-stored vocabulary.
       expect(

@@ -38,11 +38,10 @@ describe("config: loadConfig", () => {
     expect(config.storeDisplayNames).toBe(true);
   });
 
-  it("keeps audit history forever and collects no caller IP by default", () => {
+  it("keeps audit history forever and records private writes by default", () => {
     const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
     expect(config.auditRetentionDays).toBeNull();
     expect(config.auditPrivateWrites).toBe(true);
-    expect(config.auditCallerIp).toBe(false);
   });
 
   it("accepts an audit retention window at or above the floor", () => {
@@ -111,16 +110,11 @@ describe("config: loadConfig", () => {
     expect(error.issues.join("; ")).toMatch(reason);
   });
 
-  it("takes the audit opt-outs as boolean tokens", () => {
+  it("takes the audit opt-out as a boolean token", () => {
     const config = ok(
-      loadConfig({
-        DATABASE_URL: VALID_URL,
-        AUDIT_PRIVATE_WRITES: "off",
-        AUDIT_CALLER_IP: "yes",
-      }),
+      loadConfig({ DATABASE_URL: VALID_URL, AUDIT_PRIVATE_WRITES: "off" }),
     );
     expect(config.auditPrivateWrites).toBe(false);
-    expect(config.auditCallerIp).toBe(true);
   });
 
   it("accepts the postgresql:// scheme", () => {
@@ -158,10 +152,10 @@ describe("config: loadConfig", () => {
       const config = ok(
         loadConfig({
           DATABASE_URL: VALID_URL,
-          AUDIT_CALLER_IP: token,
+          STORE_DISPLAY_NAMES: token,
         }),
       );
-      expect(config.auditCallerIp).toBe(true);
+      expect(config.storeDisplayNames).toBe(true);
     }
   });
 
@@ -178,11 +172,11 @@ describe("config: loadConfig", () => {
     const error = err(
       loadConfig({
         DATABASE_URL: VALID_URL,
-        AUDIT_CALLER_IP: "maybe",
+        AUDIT_PRIVATE_WRITES: "maybe",
       }),
     );
     const namesTheFlag = error.issues.some((issue) =>
-      issue.startsWith("AUDIT_CALLER_IP"),
+      issue.startsWith("AUDIT_PRIVATE_WRITES"),
     );
     expect(namesTheFlag).toBe(true);
   });

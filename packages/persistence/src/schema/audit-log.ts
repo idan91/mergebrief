@@ -1,8 +1,7 @@
 // `audit_log`, the append-only compliance boundary. NO outbound FKs (audit
 // must survive the target's deletion). It holds ids, tokens and numbers only:
-// no names, no routes, no headers, no bodies. `caller_ip` is the one
-// identifying field, NULLABLE so that collecting it is a config change and
-// never a migration. Rows expire only under the operator's retention setting.
+// no names, no routes, no headers, no bodies, no addresses. Rows expire only
+// under the operator's retention setting.
 // `target_type` and `operation` are open vocabularies: `operation` is a
 // Product Operation descriptor id, owned by the api package.
 import {
@@ -37,7 +36,6 @@ export const AUDIT_OPERATION_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 export const AUDIT_TARGET_TYPE_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 export const AUDIT_REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 export const AUDIT_CLIENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,63}$/;
-export const AUDIT_CALLER_IP_PATTERN = /^[0-9a-fA-F.:]{1,45}$/;
 
 const AUDIT_ACTOR_TYPES = Object.values(AuditActorTypes);
 const AUDIT_OUTCOMES = Object.values(AuditOutcomes);
@@ -80,8 +78,6 @@ export const auditLog = pgTable(
     requestId: text("request_id"),
     /** User-agent-derived, forensic only; nothing may ever branch on it. */
     client: text("client"),
-    /** Socket address; populated only under the operator's PII flag. */
-    callerIp: text("caller_ip"),
     targetType: text("target_type"),
     /** Loose numeric ref to the target row, deliberately not an FK. */
     targetId: bigint("target_id", { mode: "bigint" }),
@@ -98,10 +94,6 @@ export const auditLog = pgTable(
       AUDIT_REQUEST_ID_PATTERN,
     );
     const clientShaped = matchesPattern(table.client, AUDIT_CLIENT_PATTERN);
-    const callerIpShaped = matchesPattern(
-      table.callerIp,
-      AUDIT_CALLER_IP_PATTERN,
-    );
     const targetTypeShaped = matchesPattern(
       table.targetType,
       AUDIT_TARGET_TYPE_PATTERN,
@@ -137,10 +129,6 @@ export const auditLog = pgTable(
       check(
         "audit_log_client_shape",
         sql`${table.client} is null or ${clientShaped}`,
-      ),
-      check(
-        "audit_log_caller_ip_shape",
-        sql`${table.callerIp} is null or ${callerIpShaped}`,
       ),
       check(
         "audit_log_target_type_shape",
