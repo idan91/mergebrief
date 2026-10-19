@@ -1,13 +1,13 @@
-// The daily generation cap's window. Pure helpers only; the enforcement point
-// (the single boundary where a run starts, before any provider call) lives in
-// `generate.ts`. UTC because the reset boundary must be ONE instant for the
-// whole instance — a local day would make the count ambiguous in the overlap.
+// The daily generation cap's window, shared by the worker's enforcement point
+// and the api's spend read. UTC because the reset boundary must be ONE instant
+// for the whole instance; a local day would make the count ambiguous in the
+// overlap.
 
 /** The half-open window `[from, to)` covering `instant`'s UTC calendar day. */
 export interface UtcDay {
   readonly from: Date;
   readonly to: Date;
-  /** `YYYY-MM-DD` — the `dayUtc` log field. */
+  /** `YYYY-MM-DD`, the `dayUtc` log field. */
   readonly label: string;
 }
 

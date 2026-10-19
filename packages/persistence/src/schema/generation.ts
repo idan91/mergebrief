@@ -74,6 +74,14 @@ export const generation = pgTable(
     runId: uuid("run_id"),
     /** The claim lapses at this database time unless its holder renews it. */
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    /**
+     * When a trigger last named this head. Status writes never move it, so
+     * it orders a PR's brief rows by the push that asked for them. A row no
+     * trigger named yet starts at the epoch, below every triggered one.
+     */
+    triggeredAt: timestamp("triggered_at", { withTimezone: true })
+      .notNull()
+      .default(sql`to_timestamp(0)`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

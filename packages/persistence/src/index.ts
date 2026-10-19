@@ -241,10 +241,13 @@ export type {
 
 // The `generation` status-projection write helpers.
 export {
+  countStartedRunsOnDay,
   createGenerationProjection,
   GenerationErrorCodes,
 } from "./stores/generation";
+export { utcDayBounds, type UtcDay } from "./stores/utc-day";
 export type {
+  BriefClaims,
   ChargeRunInput,
   ChargeRunOutcome,
   ClaimRunInput,
@@ -258,6 +261,7 @@ export type {
   GenerationTarget,
   GenerationRow,
   RunOutcome,
+  TakeoverJob,
 } from "./stores/generation";
 
 // The append-only audit emit. `AuditMetadataSchema` is the value enforcement

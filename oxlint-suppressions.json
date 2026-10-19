@@ -116,11 +116,6 @@
       "count": 1
     }
   },
-  "apps/worker/src/task/spend.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/worker/test/sweep-audit.test.ts": {
     "house/no-em-dash": {
       "count": 2

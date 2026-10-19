@@ -51,6 +51,17 @@ export interface GenerationFailureParams {
   readonly detail: string;
 }
 
+/**
+ * Where a head's takeover job stands: waiting for a lapsed claim, running, or
+ * out of graphile attempts with nothing left to take the head over.
+ */
+export const TakeoverJobStates = {
+  SCHEDULED: "scheduled",
+  RUNNING: "running",
+  SPENT: "spent",
+} as const;
+export type TakeoverJobState = ValueOf<typeof TakeoverJobStates>;
+
 /** How a generation used the prior brief: anchored to it, restarted fresh, or had none. */
 export const AnchorStates = {
   ANCHORED: "anchored",

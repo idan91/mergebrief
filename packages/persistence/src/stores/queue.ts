@@ -113,6 +113,7 @@ export interface QueueJobState {
   readonly startsLater: boolean;
   /** False once graphile spent the attempts: the job stays, unlocked, and never runs. */
   readonly hasAttemptsLeft: boolean;
+  readonly runAt: Date;
 }
 
 /** The one read of graphile's job table; `undefined` when no job holds the key. */
@@ -125,6 +126,9 @@ export async function readQueueJob(
       locked: sql<boolean>`job.locked_at is not null`,
       startsLater: sql<boolean>`job.run_at > now()`,
       hasAttemptsLeft: sql<boolean>`job.attempts < job.max_attempts`,
+      runAt: sql<Date>`job.run_at`.mapWith(
+        (value: Date | string) => new Date(value),
+      ),
     })
     .from(sql`graphile_worker.jobs as job`)
     .where(sql`job.key = ${jobKey}`)

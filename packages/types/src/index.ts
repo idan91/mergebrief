@@ -81,12 +81,14 @@ export {
   GenerationFailureCodes,
   GenerationPhases,
   GenerationStatuses,
+  TakeoverJobStates,
   type AnchorState,
   type FreshRestartReason,
   type GenerationFailureCode,
   type GenerationFailureParams,
   type GenerationPhase,
   type GenerationStatus,
+  type TakeoverJobState,
 } from "./generations";
 export {
   ChangeGroupCategories,

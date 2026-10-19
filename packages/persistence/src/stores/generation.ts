@@ -52,6 +52,7 @@ import {
 import {
   GenerationStatuses,
   QueueTasks,
+  TakeoverJobStates,
   type GenerationPhase,
   type Result,
   type ValueOf,
@@ -64,6 +65,35 @@ export interface GenerateJobTiming {
   readonly startsLater: boolean;
   readonly locked: boolean;
 }
+
+/** The newest brief-kind row of a PR, and whether its head spent the claim limit. */
+export interface BriefClaims {
+  readonly generation: GenerationRow;
+  /**
+   * `claimRun` would refuse the head as `exhausted`: not succeeded, no live
+   * lease, and `MAX_GENERATION_ATTEMPTS` claims since the last trigger.
+   */
+  readonly exhausted: boolean;
+}
+
+export interface ScheduledTakeoverJob {
+  readonly state: typeof TakeoverJobStates.SCHEDULED;
+  readonly runsAt: Date;
+}
+
+export interface RunningTakeoverJob {
+  readonly state: typeof TakeoverJobStates.RUNNING;
+}
+
+export interface SpentTakeoverJob {
+  readonly state: typeof TakeoverJobStates.SPENT;
+}
+
+/** The head's recovery job, as the Operator reads it. */
+export type TakeoverJob =
+  | ScheduledTakeoverJob
+  | RunningTakeoverJob
+  | SpentTakeoverJob;
 
 /** The graphile job key: one queued `generate` job per PR. */
 export function getGenerateJobKey(pullRequestId: PullRequestRowId): string {
@@ -381,6 +411,22 @@ export interface GenerationProjection {
   getGenerateJobTiming(
     pullRequestId: PullRequestRowId,
   ): Promise<GenerateJobTiming | undefined>;
+  /**
+   * The newest brief-kind row of one PR, ordered as
+   * `latestBriefForPullRequests` orders it, with the claim limit judged by
+   * the database clock. `undefined` for no row or a PR outside the scope.
+   */
+  readBriefClaims(
+    pullRequestId: PullRequestRowId,
+  ): Promise<BriefClaims | undefined>;
+  /**
+   * The head's `recover-generation` job; `undefined` when none is queued or
+   * the PR sits outside the scope.
+   */
+  readTakeoverJob(
+    pullRequestId: PullRequestRowId,
+    headSha: string,
+  ): Promise<TakeoverJob | undefined>;
 }
 
 // ---------------------------------------------------------------------------
@@ -406,6 +452,17 @@ async function countStartedRuns(
       ),
     );
   return rows[0]?.total ?? 0;
+}
+
+/**
+ * The instance's started runs over one UTC day, with no scope to bind: the
+ * spend read answers for the whole instance, as the cap does.
+ */
+export async function countStartedRunsOnDay(
+  handle: AppDatabase,
+  day: { readonly from: Date; readonly to: Date },
+): Promise<number> {
+  return countStartedRuns(internal(handle), day);
 }
 
 async function recordAttempt(
@@ -452,6 +509,18 @@ function isLeaseLive(): SQL {
   return sql`(${generation.runId} is not null and ${generation.leaseExpiresAt} > now())`;
 }
 
+/**
+ * The current push first among one PR's brief-kind rows: the head an accepted
+ * trigger named last, whatever its status. Not `updated_at`: an older head's
+ * run that finishes after a newer push writes a fresher one, and a sweep
+ * writes one to every stale row. A head pushed back to over its stored brief
+ * leads even when its row is superseded. id DESC tiebreaks one transaction.
+ */
+function orderNewestBriefFirst(): SQL[] {
+  const newestFirst = [desc(generation.triggeredAt), desc(generation.id)];
+  return newestFirst;
+}
+
 /** Milliseconds until the lease lapses, zero once lapsed or unset. */
 function computeLeaseRemainingMs(): SQL<number> {
   const remainingSeconds = sql`extract(epoch from (${generation.leaseExpiresAt} - now()))`;
@@ -487,7 +556,8 @@ const TERMINAL_CLEARED = {
  * increments `attempts` and clears `phase`, the error columns, `repo_config`
  * and the claim. A held row keeps every column, so a live run is never
  * clobbered and a dropped trigger is not a paid attempt; a `running` row whose
- * lease lapsed (a dead worker) is projected afresh.
+ * lease lapsed (a dead worker) is projected afresh. It never moves
+ * `triggered_at`: ingest stamps that through `stampBriefTriggered`.
  */
 export async function projectPendingGeneration(
   executor: GenerationExecutor,
@@ -541,6 +611,31 @@ export async function projectPendingGeneration(
   return { row, held };
 }
 
+/**
+ * An accepted trigger names its head as the current push. Only ingest calls
+ * this: a worker projecting its own head never moves the order. The clock is
+ * read at the write, after the trigger holds the pull request's row lock, so
+ * two triggers for one PR stamp in the order they took it, not in the order
+ * their transactions began.
+ */
+export async function stampBriefTriggered(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<void> {
+  const sameHead = and(
+    scope.matchesChild(generation.installationId, generation.pullRequestId),
+    eq(generation.pullRequestId, pullRequestId),
+    eq(generation.kind, GenerationKinds.BRIEF),
+    eq(generation.headSha, headSha),
+  );
+  await executor
+    .update(generation)
+    .set({ triggeredAt: sql`clock_timestamp()` })
+    .where(sameHead);
+}
+
 function shapeFailure(failure: GenerationFailure) {
   // An empty sanitized detail (empty message, leading newline) drops to
   // null params so readers fall back to the code, per the sanitizer's
@@ -568,6 +663,21 @@ export function createGenerationProjection(
 ): GenerationProjection {
   const db = internal(handle);
   const scope = resolveScope(ctx);
+
+  async function isPullRequestInScope(
+    pullRequestId: PullRequestRowId,
+  ): Promise<boolean> {
+    const ownRow = and(
+      scope.matchesPullRequest(),
+      eq(pullRequest.id, pullRequestId),
+    );
+    const inScope = await db
+      .select({ id: pullRequest.id })
+      .from(pullRequest)
+      .where(ownRow)
+      .limit(1);
+    return inScope[0] !== undefined;
+  }
 
   /** Full natural-key predicate; `baseline_sha` matched with IS NULL when null. */
   function keyWhere(target: GenerationTarget) {
@@ -895,11 +1005,6 @@ export function createGenerationProjection(
       if (pullRequestIds.length === 0) {
         return new Map();
       }
-      // Superseded rows sort LAST so they never shadow a live row: a swept
-      // stale row carries a FRESHER updated_at than the current head's
-      // success, so recency alone would report it as "the current push".
-      // All-superseded (e.g. a closed PR) still falls through to the newest
-      // superseded row. id DESC tiebreaks same-millisecond writes.
       const rows = await db
         .selectDistinctOn([generation.pullRequestId])
         .from(generation)
@@ -913,12 +1018,7 @@ export function createGenerationProjection(
             inArray(generation.pullRequestId, [...pullRequestIds]),
           ),
         )
-        .orderBy(
-          asc(generation.pullRequestId),
-          asc(sql`(${generation.status} = ${GenerationStatuses.SUPERSEDED})`),
-          desc(generation.updatedAt),
-          desc(generation.id),
-        );
+        .orderBy(asc(generation.pullRequestId), ...orderNewestBriefFirst());
       return new Map(rows.map((row) => [row.pullRequestId, row]));
     },
 
@@ -969,16 +1069,7 @@ export function createGenerationProjection(
     },
 
     async getGenerateJobTiming(pullRequestId) {
-      const scopedPullRequest = and(
-        scope.matchesPullRequest(),
-        eq(pullRequest.id, pullRequestId),
-      );
-      const inScope = await db
-        .select({ id: pullRequest.id })
-        .from(pullRequest)
-        .where(scopedPullRequest)
-        .limit(1);
-      if (inScope[0] === undefined) {
+      if (!(await isPullRequestInScope(pullRequestId))) {
         return undefined;
       }
 
@@ -987,6 +1078,53 @@ export function createGenerationProjection(
         return undefined;
       }
       return { startsLater: job.startsLater, locked: job.locked };
+    },
+
+    async readBriefClaims(pullRequestId) {
+      const briefRows = and(
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.pullRequestId, pullRequestId),
+      );
+      const rows = await db
+        .select({
+          row: getTableColumns(generation),
+          leaseLive: sql<boolean>`${isLeaseLive()}`,
+        })
+        .from(generation)
+        .where(briefRows)
+        .orderBy(...orderNewestBriefFirst())
+        .limit(1);
+      const found = rows[0];
+      if (found === undefined) {
+        return undefined;
+      }
+
+      const unfinished = found.row.status !== GenerationStatuses.SUCCEEDED;
+      const limitSpent = found.row.claims >= MAX_GENERATION_ATTEMPTS;
+      const exhausted = unfinished && !found.leaseLive && limitSpent;
+      return { generation: found.row, exhausted };
+    },
+
+    async readTakeoverJob(pullRequestId, headSha) {
+      if (!(await isPullRequestInScope(pullRequestId))) {
+        return undefined;
+      }
+
+      const job = await readQueueJob(
+        db,
+        getRecoveryJobKey(pullRequestId, headSha),
+      );
+      if (job === undefined) {
+        return undefined;
+      }
+      if (job.locked) {
+        return { state: TakeoverJobStates.RUNNING };
+      }
+      if (!job.hasAttemptsLeft) {
+        return { state: TakeoverJobStates.SPENT };
+      }
+      return { state: TakeoverJobStates.SCHEDULED, runsAt: job.runAt };
     },
   });
 }

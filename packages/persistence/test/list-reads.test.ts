@@ -18,7 +18,11 @@ import {
 } from "../src/types";
 import { GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { brandWith, freshDatabase, writeGenerationUpdatedAt } from "./helpers";
+import {
+  brandWith,
+  freshDatabase,
+  writeGenerationTriggeredAt,
+} from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -339,10 +343,10 @@ describe("generation.latestBriefForPullRequests", () => {
     await gen.upsertPending(secondBrief);
     await gen.upsertPending(firstBrief);
     await gen.upsertPending(delta);
-    await writeGenerationUpdatedAt(handle, firstBrief, OLDER);
-    await writeGenerationUpdatedAt(handle, secondBrief, NEWER);
+    await writeGenerationTriggeredAt(handle, firstBrief, OLDER);
+    await writeGenerationTriggeredAt(handle, secondBrief, NEWER);
     // A newer DELTA row must not shadow the brief-kind projection.
-    await writeGenerationUpdatedAt(handle, delta, NEWEST);
+    await writeGenerationTriggeredAt(handle, delta, NEWEST);
 
     const latest = await gen.latestBriefForPullRequests([pr.id]);
     const row = latest.get(pr.id);

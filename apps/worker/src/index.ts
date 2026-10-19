@@ -48,10 +48,6 @@ export type { SweepSessionsTaskDeps } from "./task/sweep-sessions";
 export { parseGeneratePayload } from "./task/payload";
 export type { ParsedGeneratePayload } from "./task/payload";
 
-// The daily generation cap's window helper; enforcement lives inside the task.
-export { utcDayBounds } from "./task/spend";
-export type { UtcDay } from "./task/spend";
-
 // The GitHub boundary: PR reads over packages/github's bindings behind a testable port.
 export {
   createAppGitHubBinders,

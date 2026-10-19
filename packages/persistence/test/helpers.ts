@@ -108,6 +108,23 @@ export async function writeGenerationUpdatedAt(
     .where(naturalKey);
 }
 
+export async function writeGenerationTriggeredAt(
+  handle: AppDatabase,
+  target: Pick<GenerationTarget, "pullRequestId" | "kind" | "headSha">,
+  at: Date,
+): Promise<void> {
+  const naturalKey = and(
+    eq(generation.pullRequestId, target.pullRequestId),
+    eq(generation.kind, target.kind),
+    eq(generation.headSha, target.headSha),
+  );
+
+  await internal(handle)
+    .update(generation)
+    .set({ triggeredAt: at })
+    .where(naturalKey);
+}
+
 /** Stamp every queued job's `run_at`, so a later trigger that moved it shows. */
 export async function writeJobRunAt(
   harness: PgliteHarness,

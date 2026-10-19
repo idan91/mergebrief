@@ -21,6 +21,10 @@ deprecation note here, removal only at a major.
   `draft`, `state`, `title` and author can change on read, and its
   `behind` can now be true. Url rows are still read first, for up to two
   seconds across both. A live read never queues a generation.
+- **Changed** `GET /api/inbox` and `GET /api/repos/:repoId/pulls/:prNumber`
+  pick a pull request's current `generation` by when a trigger last named
+  its head, not by its last status write: an older head's run that finishes
+  after a newer push no longer shows as the pull request's brief.
 
 ## dev (2026-10-12)
 

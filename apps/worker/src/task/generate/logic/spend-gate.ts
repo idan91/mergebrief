@@ -6,12 +6,11 @@ import {
   type ClaimRunInput,
   type ClaimRunOutcome,
   type RecoveryJobInput,
+  utcDayBounds,
 } from "persistence";
-import { GenerationPhases, GenerationStatuses } from "types/generations";
-import type { Mutable } from "types/utils";
+import { GenerationPhases, GenerationStatuses, type Mutable } from "types";
 import { entryCommentCappedBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
-import { utcDayBounds } from "../../spend";
 import { CLAIM_LEASE_MS } from "../consts";
 import type { RunContext, SpendCharge, SpendGateInputs } from "../types";
 import { getAfterLeaseDelaySeconds } from "./claim-recovery";

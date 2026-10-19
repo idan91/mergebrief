@@ -9,11 +9,13 @@ import { describe, expect, it } from "vitest";
 import { fromDrizzle, type AppDatabase } from "../src/db/handle";
 import {
   ClaimOutcomes,
+  countStartedRunsOnDay,
   createGenerationProjection,
   createPurgeRoutines,
   createTenantRepository,
   type GenerationTarget,
   type TenantContext,
+  utcDayBounds,
 } from "../src/index";
 import {
   isInstallationId,
@@ -22,8 +24,7 @@ import {
   type PullRequestRowId,
   type RepoId,
 } from "../src/types";
-import { GenerationPhases, GenerationStatuses } from "types/generations";
-import { PrStates } from "types/pull-requests";
+import { GenerationPhases, GenerationStatuses, PrStates } from "types";
 import { brandWith, freshPglite, makeBriefTarget } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
@@ -208,6 +209,18 @@ describe("countStartedRuns", () => {
 
     expect(purged).toBe(true);
     expect(await countDay(DAY_START, DAY_END)).toBe(1);
+  });
+});
+
+describe("countStartedRunsOnDay", () => {
+  it("counts the UTC day's runs with no scope to bind", async () => {
+    const { handle, pullRequestId, spend } = await harness();
+    await spend(makeBriefTarget(pullRequestId, "today"), INSIDE);
+    await spend(makeBriefTarget(pullRequestId, "tomorrow"), DAY_END);
+
+    const started = await countStartedRunsOnDay(handle, utcDayBounds(INSIDE));
+
+    expect(started).toBe(1);
   });
 });
 

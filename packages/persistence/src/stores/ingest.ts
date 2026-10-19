@@ -17,6 +17,7 @@ import { pullRequest } from "../schema/pull-request";
 import {
   getGenerateJobKey,
   projectPendingGeneration,
+  stampBriefTriggered,
   type GenerationRow,
 } from "./generation";
 import {
@@ -409,7 +410,11 @@ export function createIngestRoutines(
         }
         // Only an event the updated_at guard ordered may clear the head: a
         // review event carries no timestamp, so a late one says nothing new.
+        // The same holds for naming the current push: an ordered event or a
+        // live read names it, a review may carry a head the PR has left.
         const ordered = input.pullRequest.githubUpdatedAt !== undefined;
+        const namesCurrentHead =
+          ordered || input.pullRequest.liveRead !== undefined;
         let prRow = upserted.row;
         if (ordered) {
           prRow = await clearLiveHeadStamp(tx, scope, prRow, input.headSha);
@@ -428,8 +433,8 @@ export function createIngestRoutines(
 
         // 1a. A brief for the pair covers the event. Work the brief leaves
         // undone, named by the event or owed to a checkpointed reviewer, still
-        // queues a job, with no projection write: a run over a stored brief
-        // never touches the generation row.
+        // queues a job, with no projection write beyond naming the head as the
+        // one last triggered: a run over a stored brief never touches the row.
         const storedBrief = await findStoredBrief(
           tx,
           scope,
@@ -437,6 +442,9 @@ export function createIngestRoutines(
           input.headSha,
         );
         if (storedBrief !== undefined) {
+          if (namesCurrentHead) {
+            await stampBriefTriggered(tx, scope, prRow.id, input.headSha);
+          }
           const owesWork =
             namesUncoveredWork(input) ||
             (await owesCheckpointDelta(tx, scope, prRow.id, input.headSha));
@@ -492,6 +500,9 @@ export function createIngestRoutines(
             headSha: input.headSha,
             baselineSha: null,
           });
+          if (namesCurrentHead) {
+            await stampBriefTriggered(tx, scope, prRow.id, input.headSha);
+          }
           value.generation = projected.row;
           if (projected.held) {
             return value;

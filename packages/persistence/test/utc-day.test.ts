@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { utcDayBounds } from "../src/task/spend";
+import { utcDayBounds } from "../src/index";
 
 /**
  * The cap window is half-open: 23:59:59.999 and 00:00:00.000 must never land
