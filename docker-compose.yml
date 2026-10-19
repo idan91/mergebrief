@@ -109,6 +109,9 @@ services:
       dockerfile: Dockerfile
     command: web
     restart: on-failure
+    # The web tier drains for up to its longest proxied request, a review
+    # submit (150 s), so a stop never cuts one the browser waits on.
+    stop_grace_period: 160s
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
@@ -157,7 +160,7 @@ services:
       - path: .env
         required: false
     environment:
-      # Derived from the postgres credentials, same as the web service — see
+      # Derived from the postgres credentials, same as the api service, see
       # the sslmode=disable note there (required).
       DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
       # The Entry comment's deep-link base — same value the web tier uses.

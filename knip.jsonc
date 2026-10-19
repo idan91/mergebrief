@@ -35,6 +35,7 @@
       "entry": [
         "src/router.tsx",
         "src/server.ts",
+        "src/serve.ts",
         "src/start.ts",
         "src/routes/**/*.tsx",
         "src/features/*/index.tsx",

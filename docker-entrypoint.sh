@@ -23,7 +23,7 @@ case "$word" in
     ;;
   web)
     cd /app/apps/web
-    exec node node_modules/vite/bin/vite.js preview --host 0.0.0.0 --port 3000 "$@"
+    exec node --import tsx src/serve.ts "$@"
     ;;
   *)
     echo "usage: docker-entrypoint.sh api | web | worker | migrate" >&2

@@ -16,6 +16,7 @@ import { checkApiReadiness, handleHealthRequest } from "./server/health";
 import { getServerLogger } from "./server/logger";
 import { getApiTransport } from "./server/api/transport";
 import { apiUnavailable, requestApi } from "./server/api/proxy";
+import { answerInternalError } from "./server/json-answer";
 import { isRefusedPath } from "./server/refused-paths";
 import { stampRequestId } from "./server/request-id";
 
@@ -49,6 +50,27 @@ function withNoStoreForDocuments(response: Response): Response {
   });
 }
 
+async function proxyToApi(
+  stamped: Request,
+  requestId: string,
+): Promise<Response> {
+  let transport: ReturnType<typeof getApiTransport>;
+  try {
+    transport = getApiTransport();
+  } catch (error) {
+    // A misconfigured origin. Answer 503 so GitHub redelivers later; never
+    // surface the underlying reason to the caller.
+    logger.error("api transport unavailable", {
+      err: error,
+      reqId: requestId,
+    });
+    return apiUnavailable(503);
+  }
+  // The raw request straight through: the exact bytes GitHub signed reach
+  // the webhook route's HMAC check unmodified.
+  return requestApi(stamped, transport);
+}
+
 const serverEntry: ServerEntry = {
   async fetch(request, requestOpts) {
     const { pathname } = new URL(request.url);
@@ -67,26 +89,16 @@ const serverEntry: ServerEntry = {
     // one and each SSR read alike.
     const requestId = crypto.randomUUID();
     const stamped = stampRequestId(request, requestId);
-    if (isApiPath(pathname)) {
-      let transport: ReturnType<typeof getApiTransport>;
-      try {
-        transport = getApiTransport();
-      } catch (error) {
-        // A misconfigured origin. Answer 503 so GitHub redelivers later; never
-        // surface the underlying reason to the caller.
-        logger.error("api transport unavailable", {
-          err: error,
-          reqId: requestId,
-        });
-        return apiUnavailable(503);
+    try {
+      if (isApiPath(pathname)) {
+        return await proxyToApi(stamped, requestId);
       }
-      // The raw request straight through: the exact bytes GitHub signed reach
-      // the webhook route's HMAC check unmodified.
-      return requestApi(stamped, transport);
+      const page = await handleStartRequest(stamped, requestOpts);
+      return withNoStoreForDocuments(page);
+    } catch (error) {
+      logger.error("web request failed", { err: error, reqId: requestId });
+      return answerInternalError();
     }
-    return withNoStoreForDocuments(
-      await handleStartRequest(stamped, requestOpts),
-    );
   },
 };
 

@@ -94,6 +94,9 @@ services:
       dockerfile: Dockerfile
     command: web
     restart: on-failure
+    # The web tier drains for up to its longest proxied request, a review
+    # submit (150 s), so a stop never cuts one the browser waits on.
+    stop_grace_period: 160s
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

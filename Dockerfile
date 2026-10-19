@@ -34,7 +34,7 @@ RUN printf '\nsupportedArchitectures:\n  os: [linux]\n  cpu: [x64, arm64]\n  lib
   --filter worker... \
   --filter @code-review/web...
 
-# `vite build` produces dist/server/server.js and dist/client; `vite preview`
+# `vite build` produces dist/server/server.js and dist/client; `src/serve.ts`
 # serves them at runtime: the whole web tier, no CDN.
 RUN pnpm --dir apps/web build
 

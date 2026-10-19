@@ -11,21 +11,21 @@ import {
   testIsolation,
 } from "../../vitest.shared";
 
-/** The deployment's own public hostname, from PUBLIC_BASE_URL; undefined
- * (→ vite's rebinding-guard defaults) when unset or unparseable. */
-function previewAllowedHosts(): string[] | undefined {
-  const base = [process.env["PUBLIC_BASE_URL"], "http://localhost:3000"];
-
-  if (!base || base.length === 0) {
-    return undefined;
+/** The dev server's allowed hosts: localhost plus PUBLIC_BASE_URL's hostname
+ * when it parses, so the webhook dev loop clears vite's host guard through a
+ * tunnel. Production serves through `src/serve.ts`, which owns its own guard. */
+function resolveDevAllowedHosts(): string[] {
+  const hosts = ["localhost"];
+  const publicBaseUrl = process.env["PUBLIC_BASE_URL"];
+  if (publicBaseUrl === undefined || publicBaseUrl === "") {
+    return hosts;
   }
   try {
-    return base
-      .filter((url): url is string => !!url)
-      .map((url) => new URL(url).hostname);
+    hosts.push(new URL(publicBaseUrl).hostname);
   } catch {
-    return undefined;
+    // An unparseable value adds nothing; localhost stays allowed.
   }
+  return hosts;
 }
 
 export default defineConfig({
@@ -57,27 +57,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    // Same tunnel posture as `preview` below: the webhook dev loop serves
-    // the DEV server through ngrok, so the public hostname (derived from
-    // PUBLIC_BASE_URL) must clear vite's host guard here too.
-    ...(() => {
-      const hosts = previewAllowedHosts();
-      return hosts ? { allowedHosts: hosts } : {};
-    })(),
-  },
-  preview: {
-    // `vite preview` serves REAL traffic behind a tunnel or reverse proxy, so
-    // Host carries the public domain and vite's default preview allow-list of
-    // localhost and IP literals would 403 every webhook delivery and OAuth
-    // callback. Allow exactly this deployment's own public hostname, derived
-    // from PUBLIC_BASE_URL, the same env the OAuth callback origin is built
-    // from. Localhost and IP literals stay allowed regardless, so the
-    // healthcheck and local browsing are unaffected, and an unset or invalid
-    // value keeps vite's rebinding-guard defaults.
-    ...(() => {
-      const hosts = previewAllowedHosts();
-      return hosts ? { allowedHosts: hosts } : {};
-    })(),
+    allowedHosts: resolveDevAllowedHosts(),
   },
   // The token worker code-splits one chunk per grammar, so it must ship as an
   // ES module; vite's default iife worker format cannot carry a dynamic import.

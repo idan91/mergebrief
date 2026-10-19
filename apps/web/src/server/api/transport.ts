@@ -7,23 +7,13 @@ import type { ApiFetchInit } from "@web/data/apiFetch";
 import { getServerEnv } from "../env";
 import { getServerLogger } from "../logger";
 import { REQUEST_ID_HEADER } from "../request-id";
+import {
+  SUBMIT_TIMEOUT_MS,
+  UPLOAD_TIMEOUT_MS,
+  UPSTREAM_TIMEOUT_MS,
+} from "./consts";
 import { resolveApiOrigin } from "./origin";
 import { apiUnavailable, requestApi, type ApiTransportDeps } from "./proxy";
-
-/**
- * Upstream budget for one API request. Long enough for a cold read behind the
- * gate, short enough that a stuck upstream frees the web tier's socket rather
- * than holding a render open until the browser gives up.
- */
-const UPSTREAM_TIMEOUT_MS = 30_000;
-// The API posts one GitHub mutation per draft, each at least one second
-// (octokit's write pacing) plus GitHub's own latency, so a submit at the
-// 64-draft session cap runs ~66 s; the budget allows about 2 s per mutation
-// sustained.
-const SUBMIT_TIMEOUT_MS = 150_000;
-// The browser gives an upload 120 s; the hop's budget sits above it so the
-// browser's own timeout, not a proxy 504, is what the reviewer sees.
-const UPLOAD_TIMEOUT_MS = 150_000;
 
 let cached: ApiTransportDeps | undefined;
 
