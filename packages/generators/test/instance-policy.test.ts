@@ -6,7 +6,8 @@ import { loadInstancePolicy } from "../src/config/instancePolicy";
 
 /**
  * The narrow instance-policy loader: the api process
- * reads ONLY the `drafts` block out of mergebrief.config.yaml. It must
+ * reads ONLY the `drafts`, `spend` and `operators` blocks out of
+ * mergebrief.config.yaml. It must
  * succeed on files whose generator block would refuse the full loader;
  * the api never validates adapters and never needs provider keys.
  */
@@ -35,7 +36,12 @@ describe("loadInstancePolicy", () => {
     if (!result.ok) {
       return;
     }
-    expect(result.value).toEqual({ draftPolicy: DEFAULT_POLICY, source: null });
+    expect(result.value).toEqual({
+      draftPolicy: DEFAULT_POLICY,
+      spendPolicy: { maxGenerationsPerDay: null },
+      operatorIds: new Set(),
+      source: null,
+    });
   });
 
   it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd", () => {
@@ -73,7 +79,12 @@ describe("loadInstancePolicy", () => {
     if (!result.ok) {
       return;
     }
-    expect(result.value).toEqual({ draftPolicy: DEFAULT_POLICY, source: path });
+    expect(result.value).toEqual({
+      draftPolicy: DEFAULT_POLICY,
+      spendPolicy: { maxGenerationsPerDay: null },
+      operatorIds: new Set(),
+      source: path,
+    });
   });
 
   it("parses generate: off", () => {
@@ -212,5 +223,39 @@ describe("loadInstancePolicy", () => {
     }
     expect(result.error.issues.join("; ")).toContain("not valid YAML");
     expect(result.error.issues.join("; ")).not.toContain("unclosed");
+  });
+});
+
+describe("loadInstancePolicy spend and operators", () => {
+  it("reads the spend cap and the Operator ids from the same file", () => {
+    const path = configFile(
+      "spend:\n  maxGenerationsPerDay: 50\noperators:\n  - 583231\n",
+    );
+
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value.spendPolicy).toEqual({ maxGenerationsPerDay: 50 });
+    expect(result.value.operatorIds).toEqual(new Set([583231n]));
+  });
+
+  it("defaults to uncapped and no Operators without the blocks", () => {
+    const result = loadInstancePolicy({});
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value.spendPolicy).toEqual({ maxGenerationsPerDay: null });
+    expect(result.value.operatorIds).toEqual(new Set());
+  });
+
+  it("refuses boot on an invalid operators block", () => {
+    const path = configFile("operators:\n  - 0\n");
+
+    expect(loadInstancePolicy({ MERGEBRIEF_CONFIG: path }).ok).toBe(false);
   });
 });

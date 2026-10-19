@@ -76,6 +76,11 @@ generator:
 #     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
 #   - kind: github
 
+# operators: — the SIXTH root block: the GitHub user ids of the people who
+# run this instance. See "Operators" below.
+# operators:
+#   - 583231
+
 # x-*: root keys starting with "x-" are ignored (compose-style extension
 # slot); ANY other unknown key — root or inside generator:/drafts:/spend:/
 # contextSources:/trackers: — refuses boot.
@@ -169,6 +174,29 @@ not as a bill. Cost reporting is a separate, later concern.
 The window resets at 00:00 UTC. A push skipped today is not retried
 automatically when the cap resets — the PR gets its brief on its next
 settled push (or any event that re-queues it).
+
+## Operators
+
+The `operators` block lists the GitHub users who run this instance, by
+numeric user id. An Operator can read instance-wide state other users
+cannot, such as the day's started runs against the cap. Omitting the block,
+or writing an empty list (`operators: []`), means nobody is an Operator. A
+bare `operators:` with nothing under it reads as no list at all, and the api
+and worker refuse to boot.
+
+```yaml
+operators:
+  - 583231
+```
+
+List ids, not logins. GitHub frees a login when its owner renames, and
+whoever registers it next would inherit the role; an id never changes. To
+find yours, run `gh api users/<login> --jq .id`, or read the number in your
+GitHub avatar URL (`avatars.githubusercontent.com/u/<id>`).
+
+The api reads this block, together with `drafts` and `spend`, from the same
+`MERGEBRIEF_CONFIG` file as the worker. A change takes effect when the api
+restarts.
 
 ## Worker slots
 

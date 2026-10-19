@@ -98,6 +98,15 @@ generator:
 # spend:
 #   maxGenerationsPerDay: 50
 
+# --- Operators ---------------------------------------------------------------
+# The GitHub users who run this instance, by numeric user id (never a login:
+# a renamed login can be claimed by someone else). An Operator can read
+# instance-wide state such as the day's started runs. Omit the block, or write
+# `operators: []`, for nobody; a bare `operators:` with no list refuses boot.
+# Find an id with `gh api users/<login> --jq .id`.
+# operators:
+#   - 583231
+
 # --- Context sources (ticket trackers needing a credential) -----------------
 # The URL and GitHub Issues providers are built in and need no entry; this
 # block lists the providers that need a deployment credential. Omit it for the

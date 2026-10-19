@@ -5,6 +5,7 @@ import type {
   PersistenceConfig,
   SchemaCheckError,
 } from "persistence";
+import type { LoadedInstancePolicy } from "generators/instance-policy";
 import type { DraftPolicy, Result, ValueOf } from "types";
 import type { ApiConfig } from "../config";
 
@@ -23,6 +24,8 @@ export interface BootConfig {
   readonly github: GitHubConfig;
   readonly persistence: PersistenceConfig;
   readonly draftPolicy: DraftPolicy;
+  readonly spendPolicy: LoadedInstancePolicy["spendPolicy"];
+  readonly operatorIds: LoadedInstancePolicy["operatorIds"];
 }
 
 /** The two values the migrate entry loads: nothing about GitHub, sessions

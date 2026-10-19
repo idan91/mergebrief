@@ -107,6 +107,8 @@ async function main(): Promise<void> {
     webhookSecret: boot.github.webhookSecret,
     logger,
     draftPolicy: boot.draftPolicy,
+    spendPolicy: boot.spendPolicy,
+    operatorIds: boot.operatorIds,
     updateCheck,
     audit: {
       privateWrites: boot.persistence.auditPrivateWrites,

@@ -6,6 +6,7 @@ import {
   type ContextSourcesConfig,
 } from "./context-sources";
 import { validateDraftsBlock } from "./instancePolicy";
+import { validateOperatorsBlock } from "./operators";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
   DEFAULT_SPEND_POLICY,
@@ -100,6 +101,7 @@ export function loadGeneratorConfigFile(
       key === "generator" ||
       key === "drafts" ||
       key === "spend" ||
+      key === "operators" ||
       key === "contextSources" ||
       key === "trackers" ||
       key.startsWith("x-")
@@ -118,6 +120,16 @@ export function loadGeneratorConfigFile(
   const drafts = root["drafts"];
   if (drafts !== undefined) {
     const validated = validateDraftsBlock(drafts);
+    if (!validated.ok) {
+      return validated;
+    }
+  }
+
+  // The operators block is enforced by the api; a bad list refuses boot here
+  // too, so the worker never runs beside an api that refuses the file.
+  const operators = root["operators"];
+  if (operators !== undefined) {
+    const validated = validateOperatorsBlock(operators);
     if (!validated.ok) {
       return validated;
     }

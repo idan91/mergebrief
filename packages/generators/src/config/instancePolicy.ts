@@ -1,7 +1,17 @@
 import { z } from "zod/v4";
 import type { DraftPolicy, Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
+import {
+  NO_OPERATORS,
+  validateOperatorsBlock,
+  type OperatorIds,
+} from "./operators";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
+import {
+  DEFAULT_SPEND_POLICY,
+  validateSpendBlock,
+  type SpendPolicy,
+} from "./spendPolicy";
 
 /**
  * Runtime marker: the compose worker image bakes
@@ -13,12 +23,12 @@ export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
 
 /**
  * The narrow instance-policy loader: the api startup wiring reads ONLY the
- * `drafts` block out of
- * `mergebrief.config.yaml`. Deliberately tolerant of everything else in the
- * file. An invalid generator block or an unknown root key is the FULL
- * loader's (worker's) problem; the api process must boot without adapter
- * validation and without provider keys. Its own key is strict: bad drafts
- * values refuse boot here exactly as they do in the full loader.
+ * `drafts`, `spend` and `operators` blocks out of `mergebrief.config.yaml`.
+ * Deliberately tolerant of everything else in the file. An invalid generator
+ * block or an unknown root key is the FULL loader's (worker's) problem; the
+ * api process must boot without adapter validation and without provider
+ * keys. Its own keys are strict: bad values refuse boot here exactly as they
+ * do in the full loader.
  */
 
 /** The zero-config draft policy: drafts generate, no damping. Lives here
@@ -30,6 +40,8 @@ export const DEFAULT_DRAFT_POLICY: DraftPolicy = {
 
 export interface LoadedInstancePolicy {
   readonly draftPolicy: DraftPolicy;
+  readonly spendPolicy: SpendPolicy;
+  readonly operatorIds: OperatorIds;
   /** The file the policy came from; null for zero-config defaults. */
   readonly source: string | null;
 }
@@ -85,10 +97,7 @@ export function loadInstancePolicy(
 ): Result<LoadedInstancePolicy, ConfigError> {
   const path = env["MERGEBRIEF_CONFIG"];
   if (path === undefined) {
-    return {
-      ok: true,
-      value: { draftPolicy: DEFAULT_DRAFT_POLICY, source: null },
-    };
+    return { ok: true, value: { ...DEFAULT_INSTANCE_POLICY, source: null } };
   }
   // Same workspace-root anchoring as the generator loader. The api and
   // worker processes must read the SAME file for one env value.
@@ -100,19 +109,57 @@ export function loadInstancePolicy(
   if (!root.ok) {
     return root;
   }
-  const block = root.value === null ? undefined : root.value["drafts"];
-  if (block === undefined) {
-    return {
-      ok: true,
-      value: { draftPolicy: DEFAULT_DRAFT_POLICY, source: resolved.value },
-    };
+
+  const blocks = root.value ?? {};
+  const draftPolicy = readBlock(
+    blocks["drafts"],
+    validateDraftsBlock,
+    DEFAULT_DRAFT_POLICY,
+  );
+  if (!draftPolicy.ok) {
+    return draftPolicy;
   }
-  const policy = validateDraftsBlock(block);
-  if (!policy.ok) {
-    return policy;
+  const spendPolicy = readBlock(
+    blocks["spend"],
+    validateSpendBlock,
+    DEFAULT_SPEND_POLICY,
+  );
+  if (!spendPolicy.ok) {
+    return spendPolicy;
   }
+  const operatorIds = readBlock(
+    blocks["operators"],
+    validateOperatorsBlock,
+    NO_OPERATORS,
+  );
+  if (!operatorIds.ok) {
+    return operatorIds;
+  }
+
   return {
     ok: true,
-    value: { draftPolicy: policy.value, source: resolved.value },
+    value: {
+      draftPolicy: draftPolicy.value,
+      spendPolicy: spendPolicy.value,
+      operatorIds: operatorIds.value,
+      source: resolved.value,
+    },
   };
+}
+
+const DEFAULT_INSTANCE_POLICY = {
+  draftPolicy: DEFAULT_DRAFT_POLICY,
+  spendPolicy: DEFAULT_SPEND_POLICY,
+  operatorIds: NO_OPERATORS,
+} as const;
+
+function readBlock<Policy>(
+  block: unknown,
+  validate: (block: unknown) => Result<Policy, ConfigError>,
+  fallback: Policy,
+): Result<Policy, ConfigError> {
+  if (block === undefined) {
+    return { ok: true, value: fallback };
+  }
+  return validate(block);
 }

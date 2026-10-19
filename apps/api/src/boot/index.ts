@@ -73,13 +73,14 @@ export function loadBootConfig(
       configExitCode,
     );
   }
-  // Only the `drafts` block: the generator block is the worker's concern, so
-  // this process needs no adapter validation and no provider keys.
+  // The drafts, spend and operators blocks only: the generator block is the
+  // worker's concern, so this process needs no adapter validation and no
+  // provider keys.
   const instancePolicy = loadInstancePolicy(env);
   if (!instancePolicy.ok) {
     exitOnConfigError(
       logger,
-      `api composition: invalid instance draft policy: ${instancePolicy.error.issues.join("; ")}`,
+      `api composition: invalid instance policy: ${instancePolicy.error.issues.join("; ")}`,
       configExitCode,
     );
   }
@@ -89,6 +90,8 @@ export function loadBootConfig(
     github: githubConfig.value,
     persistence: persistenceConfig.value,
     draftPolicy: instancePolicy.value.draftPolicy,
+    spendPolicy: instancePolicy.value.spendPolicy,
+    operatorIds: instancePolicy.value.operatorIds,
   };
 }
 

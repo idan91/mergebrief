@@ -1,6 +1,7 @@
 // The `/api` router; composition only, no handlers. Every path inside a
 // route file is its LOCAL segment; `/api` itself exists in exactly one line
 // of app.ts.
+import type { LoadedInstancePolicy } from "generators/instance-policy";
 import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
 import type { DraftPolicy } from "types/drafts";
@@ -53,6 +54,10 @@ export interface AppDeps {
   readonly updateCheck?: UpdateCheck;
   /** Instance draft-PR policy; omitted = zero-config default. */
   readonly draftPolicy?: DraftPolicy;
+  /** The daily generation cap the spend read reports; omitted = uncapped. */
+  readonly spendPolicy?: LoadedInstancePolicy["spendPolicy"];
+  /** GitHub user ids of the Instance's Operators; omitted = nobody. */
+  readonly operatorIds?: LoadedInstancePolicy["operatorIds"];
   /** Audit knobs from persistence config; omitted = private writes on. */
   readonly audit?: AuditEmitConfig;
   /**
