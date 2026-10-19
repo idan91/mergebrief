@@ -11,11 +11,11 @@ fi
 case "$word" in
   api)
     cd /app/apps/api
-    exec node --import tsx src/main.ts "$@"
+    exec node --import tsx --import ./src/instrument.ts src/main.ts "$@"
     ;;
   worker)
     cd /app/apps/worker
-    exec node --import tsx src/main.ts "$@"
+    exec node --import tsx --import ./src/instrument.ts src/main.ts "$@"
     ;;
   migrate)
     cd /app/apps/api
@@ -23,7 +23,7 @@ case "$word" in
     ;;
   web)
     cd /app/apps/web
-    exec node --import tsx src/serve.ts "$@"
+    exec node --import tsx --import ./src/instrument.ts src/serve.ts "$@"
     ;;
   *)
     echo "usage: docker-entrypoint.sh api | web | worker | migrate" >&2

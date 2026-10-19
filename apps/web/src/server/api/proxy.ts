@@ -12,16 +12,16 @@ import "@tanstack/react-start/server-only";
 import { BODILESS_METHODS, REQUEST_ID_HEADER } from "../request-id";
 
 /**
- * Headers scoped to one hop. Forwarding them would describe the browser's
- * connection to the web tier, not the web tier's to the API. `host` goes so
- * fetch addresses the internal origin, and `accept-encoding` is replaced
- * rather than dropped: fetch supplies its own if none is set, and a compressed
- * hop buys nothing on a loopback or private-network link. The three
- * caller-address claims go too: the API records no caller address, and a
- * forwarded one would be a client-settable value it could start trusting.
+ * Headers scoped to one hop: they describe the browser's connection, not this
+ * one. `host` goes so fetch addresses the internal origin; `accept-encoding`
+ * is replaced below. The caller-address claims go because the API records no
+ * caller address and must not start trusting a client-set one. The W3C trace
+ * headers go because the outgoing call injects its own context, and a
+ * forwarded copy would arrive as a second, conflicting `traceparent`.
  */
 const REQUEST_HEADERS_DROPPED = new Set([
   "accept-encoding",
+  "baggage",
   "connection",
   "content-length",
   "forwarded",
@@ -30,6 +30,8 @@ const REQUEST_HEADERS_DROPPED = new Set([
   "proxy-authenticate",
   "proxy-authorization",
   "te",
+  "traceparent",
+  "tracestate",
   "trailer",
   "transfer-encoding",
   "upgrade",

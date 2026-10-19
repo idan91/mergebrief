@@ -159,6 +159,24 @@ describe("requestApi", () => {
     expect(headers["forwarded"]).toBeUndefined();
   });
 
+  it("drops the client's trace headers so the hop carries its own", async () => {
+    await requestApi(
+      new Request("https://public.example/api/pulls", {
+        headers: {
+          traceparent:
+            "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+          tracestate: "vendor=1",
+          baggage: "user=1",
+        },
+      }),
+      transportFor(upstream.origin),
+    );
+    const headers = upstream.recorded[0]?.headers ?? {};
+    expect(headers["traceparent"]).toBeUndefined();
+    expect(headers["tracestate"]).toBeUndefined();
+    expect(headers["baggage"]).toBeUndefined();
+  });
+
   it("keeps every Set-Cookie on its own header line", async () => {
     upstream.reply((_request, respond) =>
       respond(

@@ -1,6 +1,7 @@
 // The production web process: `docker-entrypoint.sh web` runs this file over
 // the built output in `dist/`. Its composition root: config is read here.
 import { fileURLToPath } from "node:url";
+import { stopTracing } from "logging/tracing";
 import { SUBMIT_TIMEOUT_MS } from "./server/api/consts";
 import { getServerEnv } from "./server/env";
 import { getServerLogger } from "./server/logger";
@@ -31,6 +32,7 @@ logger.info("web listening", { port: config.value.port });
 async function drainAndExit(signal: NodeJS.Signals): Promise<never> {
   logger.info("web draining", { signal });
   const outcome = await stopWebServer(server, SUBMIT_TIMEOUT_MS);
+  await stopTracing(logger);
   logger.info("web stopped", { outcome });
   process.exit(0);
 }

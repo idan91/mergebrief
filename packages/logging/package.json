@@ -6,13 +6,26 @@
   "description": "The structured-logging boundary: a minimal Logger interface + createLogger over pino. Call sites depend on this package only — pino types never leak; a later OTel/metrics addition reimplements the interface without touching call sites.",
   "exports": {
     ".": "./src/index.ts",
-    "./sanitize": "./src/sanitize.ts"
+    "./sanitize": "./src/sanitize.ts",
+    "./tracing": "./src/tracing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/context-async-hooks": "^2.12.0",
+    "@opentelemetry/core": "^2.12.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.223.0",
+    "@opentelemetry/instrumentation": "^0.223.0",
+    "@opentelemetry/instrumentation-http": "^0.223.0",
+    "@opentelemetry/instrumentation-pg": "^0.76.0",
+    "@opentelemetry/instrumentation-undici": "^0.33.0",
+    "@opentelemetry/resources": "^2.12.0",
+    "@opentelemetry/sdk-trace": "^2.12.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
+    "import-in-the-middle": "^3.5.2",
     "pino": "^10.1.0",
     "types": "workspace:*"
   },

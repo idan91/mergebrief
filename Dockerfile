@@ -76,9 +76,9 @@ COPY --from=runtime-deps --chown=node:node /app/apps/api ./apps/api
 COPY --from=runtime-deps --chown=node:node /app/apps/worker ./apps/worker
 COPY --from=runtime-deps --chown=node:node /app/apps/web/package.json /app/apps/web/tsconfig.json ./apps/web/
 COPY --from=runtime-deps --chown=node:node /app/apps/web/node_modules ./apps/web/node_modules
-# The web process runs only its entry and the server modules it imports; the
-# rest of `src/` is already in the bundle.
-COPY --from=runtime-deps --chown=node:node /app/apps/web/src/serve.ts ./apps/web/src/serve.ts
+# The web process runs only its entry, its telemetry preload and the server
+# modules they import; the rest of `src/` is already in the bundle.
+COPY --from=runtime-deps --chown=node:node /app/apps/web/src/serve.ts /app/apps/web/src/instrument.ts ./apps/web/src/
 COPY --from=runtime-deps --chown=node:node /app/apps/web/src/server ./apps/web/src/server
 COPY --from=builder --chown=node:node /app/apps/web/dist ./apps/web/dist
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

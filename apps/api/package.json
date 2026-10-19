@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "start": "tsx src/main.ts",
+    "start": "tsx --import ./src/instrument.ts src/main.ts",
     "migrate": "tsx src/migrate.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage"

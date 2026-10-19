@@ -11,6 +11,7 @@ import {
   createAppClient,
   resolveOperatorTokenOwner,
 } from "github";
+import { stopTracing } from "logging/tracing";
 import {
   closeDb,
   createDb,
@@ -149,7 +150,8 @@ async function main(): Promise<void> {
   installShutdown(server, handle, updateCheck);
 }
 
-/** SIGTERM and SIGINT stop accepting, then release the pool before exiting. */
+/** SIGTERM and SIGINT stop accepting, release the pool, then flush the last
+ * spans before exiting. */
 function installShutdown(
   server: ServerType,
   handle: AppDatabase,
@@ -164,13 +166,11 @@ function installShutdown(
     logger.info("api shutting down", { signal });
     updateCheck.stop();
     server.close(() => {
-      void closeDb(handle).then(
-        () => process.exit(ExitCodes.SUCCESS),
-        (error: unknown) => {
-          logger.warn("api shutdown: closing the pool failed", { err: error });
-          process.exit(ExitCodes.SUCCESS);
-        },
-      );
+      const poolClosed = closeDb(handle).catch((error: unknown) => {
+        logger.warn("api shutdown: closing the pool failed", { err: error });
+      });
+      const tracingStopped = poolClosed.then(() => stopTracing(logger));
+      void tracingStopped.finally(() => process.exit(ExitCodes.SUCCESS));
     });
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));

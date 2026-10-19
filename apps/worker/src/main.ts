@@ -13,8 +13,9 @@ import {
   loadConfig as loadGitHubConfig,
   resolveOperatorTokenOwner,
 } from "github";
-import { Logger as GraphileLogger } from "graphile-worker";
+import { Logger as GraphileLogger, type Runner } from "graphile-worker";
 import { createGraphileLogFactory, createLogger } from "logging";
+import { stopTracing } from "logging/tracing";
 import {
   closeDb,
   createDb,
@@ -256,20 +257,52 @@ async function main(): Promise<void> {
     `worker: listening for generate jobs; audit retention ${auditRetention}; pull request retention ${prRetention}`,
   );
 
+  installStopSignals(runner);
   try {
     // Runs until a signal stops it; graphile owns the graceful part (stop
     // claiming, abort in-flight via helpers.abortSignal, release its pool).
     await runner.promise;
   } finally {
-    await closeDb(handle);
+    try {
+      await closeDb(handle);
+    } finally {
+      await stopTracing(logger);
+    }
   }
   logger.info("worker: stopped");
 }
 
-main().catch((error: unknown) => {
-  // Boot failures are the documented exemption to the message-only rule:
-  // nothing provider-shaped reaches here, and the boundary's serializer scrubs
-  // the URL-shaped secrets a migrate failure quotes back.
-  logger.error("worker: boot failed", { err: error });
-  process.exit(1);
-});
+/**
+ * The first SIGTERM or SIGINT stops the runner gracefully, after which the
+ * pool closes and the last spans flush; a second one exits at once. graphile
+ * runs with its own handlers off, so nothing re-raises the signal mid-stop.
+ */
+function installStopSignals(runner: Runner): void {
+  let stopping = false;
+  const onSignal = (signal: NodeJS.Signals): void => {
+    if (stopping) {
+      logger.warn("worker: second stop signal, exiting now", { signal });
+      process.exit(1);
+    }
+    stopping = true;
+    logger.info("worker: stopping", { signal });
+    runner.stop().catch((error: unknown) => {
+      logger.warn("worker: stopping the runner failed", { err: error });
+    });
+  };
+  process.on("SIGTERM", onSignal);
+  process.on("SIGINT", onSignal);
+}
+
+// No argument: graphile sets its own exit code on a stop it decides, such
+// as a breaking queue migration, and a bare exit keeps it.
+main().then(
+  () => process.exit(),
+  (error: unknown) => {
+    // Boot failures are the documented exemption to the message-only rule:
+    // nothing provider-shaped reaches here, and the boundary's serializer scrubs
+    // the URL-shaped secrets a migrate failure quotes back.
+    logger.error("worker: boot failed", { err: error });
+    process.exit(1);
+  },
+);

@@ -93,6 +93,9 @@ export async function startWorker(
     concurrency: options.concurrency ?? DEFAULT_CONCURRENCY,
     taskList: options.taskList,
     crontab: options.crontab,
+    // The process owns its stop signals, so its shutdown path can close the
+    // pool and flush spans before exiting; graphile's would re-raise first.
+    noHandleSignals: true,
   };
 
   if (options.logger !== undefined) {

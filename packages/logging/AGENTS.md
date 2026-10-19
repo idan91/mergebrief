@@ -6,6 +6,8 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
+`logging/tracing` is the OTel bootstrap each app's `src/instrument.ts` preload starts (`startTracing`) and its shutdown path stops (`stopTracing`, capped at `STOP_BUDGET_MS`). Off unless an OTLP endpoint is set, and off imports no OTel package: the SDK, the exporter and the instrumentations load through the dynamic `import("./provider")`, and nothing the entry imports statically may import an OTel runtime package. `import-hook.ts` registers import-in-the-middle from this package so it is the copy `@opentelemetry/instrumentation` resolves. At span start, URLs lose their query and the user agent and client address are redacted (`span-redaction.ts`); probes, unparented outgoing calls and unparented queries open no OTel span.
+
 `logging/sanitize` is the browser-safe pure subpath; it must never import `logger.ts` or pino. `sanitizeErrorDetail` (`sanitize.ts`) sanitizes free-form error text leaving the process: first line only, URLs redacted (`file://` included), tokens redacted, 300-char cap.
 
 ## Invariants (enforced, don't weaken)
