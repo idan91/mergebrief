@@ -34,10 +34,12 @@ export { Runtimes, type Runtime } from "./runtime";
 export { AccessLevels, type AccessLevel } from "./access-levels";
 
 export type { DraftPolicy } from "./drafts";
-export type {
-  GenerateJobPayload,
-  InstallationGenerateJobPayload,
-  UrlBoxGenerateJobPayload,
+export {
+  QueueTasks,
+  type GenerateJobPayload,
+  type InstallationGenerateJobPayload,
+  type QueueTask,
+  type UrlBoxGenerateJobPayload,
 } from "./jobs";
 export {
   InboxArchivedFilters,

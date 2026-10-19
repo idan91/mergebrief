@@ -6,15 +6,7 @@ import { sql } from "drizzle-orm";
 import type { AppDrizzle } from "../db/handle";
 import type { GrantRowId, JobKeyMode } from "../types";
 import type { RowScope } from "./scope";
-import type { GenerateJobPayload } from "types";
-
-export const GENERATE_TASK_IDENTIFIER = "generate";
-
-/**
- * The job that wakes once a claimed run's lease could have lapsed: a run's
- * own job stays locked for hours after its worker dies.
- */
-export const RECOVER_GENERATION_TASK = "recover-generation";
+import { QueueTasks, type GenerateJobPayload, type QueueTask } from "types";
 
 /**
  * Paid attempts per head, between triggers: graphile's retries of one job,
@@ -26,19 +18,22 @@ type QueueExecutor = Pick<AppDrizzle, "execute">;
 type QueueReader = Pick<AppDrizzle, "select">;
 
 export interface QueueJob {
-  readonly identifier: string;
+  readonly identifier: QueueTask;
   readonly payload: GenerateJobPayload;
   readonly key: string;
   readonly delaySeconds: number;
   readonly keyMode: JobKeyMode;
 }
 
-/** One pending recovery job per head. */
+/**
+ * One pending recovery job per head. It wakes once a claimed run's lease could
+ * have lapsed: a run's own job stays locked for hours after its worker dies.
+ */
 export function getRecoveryJobKey(
   pullRequestId: bigint,
   headSha: string,
 ): string {
-  return `${RECOVER_GENERATION_TASK}:${pullRequestId}:${headSha}`;
+  return `${QueueTasks.RECOVER_GENERATION}:${pullRequestId}:${headSha}`;
 }
 
 /** The world-discriminated job payload. */

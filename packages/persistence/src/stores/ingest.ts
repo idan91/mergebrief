@@ -26,14 +26,12 @@ import type { PullRequestRow, PullRequestUpsertInput } from "./tenant";
 import {
   addQueueJob,
   buildJobPayload,
-  GENERATE_TASK_IDENTIFIER,
   getRecoveryJobKey,
   readQueueJob,
-  RECOVER_GENERATION_TASK,
 } from "./queue";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
-import type { Mutable } from "types";
+import { GenerationStatuses, PrStates, QueueTasks, type Mutable } from "types";
 import {
   GenerationKinds,
   JobKeyModes,
@@ -42,8 +40,6 @@ import {
   type PullRequestRowId,
   type UncoveredWork,
 } from "../types";
-import { GenerationStatuses } from "types/generations";
-import { PrStates } from "types/pull-requests";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
 
@@ -195,7 +191,7 @@ async function enqueueGenerateJob(
   debounceSeconds: number,
 ): Promise<void> {
   await addQueueJob(tx, {
-    identifier: GENERATE_TASK_IDENTIFIER,
+    identifier: QueueTasks.GENERATE,
     payload: buildJobPayload(
       scope,
       input.grantId,
@@ -515,7 +511,7 @@ export function createIngestRoutines(
         }
 
         await addQueueJob(tx, {
-          identifier: RECOVER_GENERATION_TASK,
+          identifier: QueueTasks.RECOVER_GENERATION,
           payload: buildJobPayload(
             scope,
             input.grantId,

@@ -19,10 +19,9 @@ import {
   closeDb,
   createDb,
   createEnvKeyProvider,
-  RECOVER_GENERATION_TASK,
   resolveMigrateCommand,
 } from "persistence";
-import type { Mutable } from "types/utils";
+import { QueueTasks, type Mutable } from "types";
 import { loadConfig } from "./config";
 import {
   createAppGitHubBinders,
@@ -240,8 +239,8 @@ async function main(): Promise<void> {
     // kill grace into a stuck job lock. helpers.job carries the attempt counts
     // the failure events read.
     taskList: {
-      generate: (payload, helpers) => generate(payload, helpers),
-      [RECOVER_GENERATION_TASK]: (payload, helpers) =>
+      [QueueTasks.GENERATE]: (payload, helpers) => generate(payload, helpers),
+      [QueueTasks.RECOVER_GENERATION]: (payload, helpers) =>
         recoverGeneration(payload, helpers),
       // Scheduled jobs: instance-wide, not tenant-scoped, worker-only.
       [SWEEP_AUDIT_TASK]: () => sweepAudit(),

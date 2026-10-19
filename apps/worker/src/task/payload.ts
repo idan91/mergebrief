@@ -58,9 +58,9 @@ const RawPayloadSchema = z.union([
 
 /**
  * Compile-time pin: every `GenerateJobPayload` (the shared enqueue-side
- * contract) must be valid INPUT to this schema. If the contract gains or
- * renames a field, this line breaks the build here, next to the parser that
- * must follow it.
+ * contract) must be valid INPUT to this schema. If the contract renames or
+ * drops a field the parser requires, this line breaks the build here, next
+ * to the parser that must follow it.
  */
 type ContractIsParseable =
   GenerateJobPayload extends z.input<typeof RawPayloadSchema> ? true : never;

@@ -37,7 +37,6 @@ import {
   getRecoveryJobKey,
   MAX_GENERATION_ATTEMPTS,
   readQueueJob,
-  RECOVER_GENERATION_TASK,
 } from "./queue";
 import { sanitizeErrorDetail } from "logging";
 import {
@@ -49,8 +48,13 @@ import {
   type GrantRowId,
   type PullRequestRowId,
 } from "../types";
-import type { Result, ValueOf } from "types/utils";
-import { GenerationStatuses, type GenerationPhase } from "types/generations";
+import {
+  GenerationStatuses,
+  QueueTasks,
+  type GenerationPhase,
+  type Result,
+  type ValueOf,
+} from "types";
 
 export type GenerationRow = typeof generation.$inferSelect;
 
@@ -62,7 +66,7 @@ export interface GenerateJobTiming {
 
 /** The graphile job key: one queued `generate` job per PR. */
 export function getGenerateJobKey(pullRequestId: PullRequestRowId): string {
-  return `generate:${pullRequestId}`;
+  return `${QueueTasks.GENERATE}:${pullRequestId}`;
 }
 
 /** The statements a store op runs on one transaction, or the plain handle. */
@@ -693,7 +697,7 @@ export function createGenerationProjection(
     await recordAttempt(executor, scope, claimed.value.id, runId);
     if (input.recovery !== undefined) {
       await addQueueJob(executor, {
-        identifier: RECOVER_GENERATION_TASK,
+        identifier: QueueTasks.RECOVER_GENERATION,
         payload: buildJobPayload(
           scope,
           input.recovery.grantId,

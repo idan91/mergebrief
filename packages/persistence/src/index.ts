@@ -284,11 +284,8 @@ export type {
 // transaction. Calls `graphile_worker.add_job` by name; no graphile-worker
 // npm dependency here.
 export { createIngestRoutines } from "./stores/ingest";
-// The recovery job's task name, which the worker registers, and the claims a head takes between triggers.
-export {
-  MAX_GENERATION_ATTEMPTS,
-  RECOVER_GENERATION_TASK,
-} from "./stores/queue";
+// The claims a head takes between triggers.
+export { MAX_GENERATION_ATTEMPTS } from "./stores/queue";
 export type {
   IngestRoutines,
   IngestOutcome,
