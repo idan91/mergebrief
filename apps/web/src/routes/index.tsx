@@ -298,7 +298,11 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
   );
 }
 
-function HomeError({ error }: { error: Error }) {
+export interface HomeErrorProps {
+  error: unknown;
+}
+
+function HomeError({ error }: HomeErrorProps) {
   const { t } = useTranslation();
   return (
     <main className="main" id="main-content" tabIndex={-1}>

@@ -3,7 +3,7 @@
 // answer a broken transport gives, which is what keeps SSR from becoming a
 // second authorization path.
 import { createServer, type Server } from "node:http";
-import { requestHandler } from "@tanstack/react-start/server";
+import { createServerEntry } from "@tanstack/react-start/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stampRequestId } from "../request-id";
 import { dispatchToApi, fetchFromApi } from "./transport";
@@ -145,7 +145,9 @@ describe("fetchFromApi", () => {
     const inbound = new Request("http://localhost/pulls/1", {
       headers: { cookie: "session=abc", "x-request-id": "client-chosen" },
     });
-    const render = requestHandler(() => fetchFromApi("/api/inbox"));
+    const { fetch: render } = createServerEntry({
+      fetch: () => fetchFromApi("/api/inbox"),
+    });
 
     await render(stampRequestId(inbound, "minted-id"), {});
 

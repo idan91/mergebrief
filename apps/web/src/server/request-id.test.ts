@@ -1,4 +1,4 @@
-import { requestHandler } from "@tanstack/react-start/server";
+import { createServerEntry } from "@tanstack/react-start/server";
 import { describe, expect, it } from "vitest";
 import {
   readRenderRequestId,
@@ -77,9 +77,11 @@ describe("stampRequestId", () => {
 describe("readRenderRequestId", () => {
   it("reads the rendered request's id and is absent outside a render", async () => {
     const seen: (string | undefined)[] = [];
-    const render = requestHandler(() => {
-      seen.push(readRenderRequestId());
-      return new Response(null);
+    const { fetch: render } = createServerEntry({
+      fetch: () => {
+        seen.push(readRenderRequestId());
+        return new Response(null);
+      },
     });
 
     const inbound = new Request("http://localhost/");

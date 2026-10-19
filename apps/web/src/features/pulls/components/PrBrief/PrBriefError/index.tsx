@@ -6,7 +6,7 @@ import { prBriefErrorDetail } from "@web/features/brief/model";
 import { prBriefErrorNeedsSignIn } from "./utils";
 
 export interface PrBriefErrorProps {
-  error: Error;
+  error: unknown;
 }
 
 export function PrBriefError({ error }: PrBriefErrorProps) {

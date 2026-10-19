@@ -3,7 +3,7 @@
 // vitest shares the app's vite config, so the plugin picks the branch per test
 // ENVIRONMENT: this file is the default node env and gets the server branch;
 // `ssrWarnSink.client.test.ts` carries the jsdom pragma and gets the client one.
-import { requestHandler } from "@tanstack/react-start/server";
+import { createServerEntry } from "@tanstack/react-start/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getServerLogger } from "../server/logger";
@@ -28,9 +28,11 @@ describe("getSsrWarnSink on the server", () => {
 
   it("binds the rendered request's id as reqId", async () => {
     const child = vi.spyOn(getServerLogger(), "child");
-    const render = requestHandler(async () => {
-      await getSsrWarnSink();
-      return new Response(null);
+    const { fetch: render } = createServerEntry({
+      fetch: async () => {
+        await getSsrWarnSink();
+        return new Response(null);
+      },
     });
 
     const inbound = new Request("http://localhost/");

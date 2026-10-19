@@ -41,14 +41,6 @@ overrides:
 # fix is to drop the line, not to widen the list.
 auditConfig:
   ignoreGhsas:
-    # TanStack Start: unauthenticated reflected XSS through the
-    # server-function transport. It needs a server function to target, and
-    # this app compiles none (the lint bans `createServerFn`), so every
-    # transport request fails its id lookup before any payload handling; the
-    # web entry also answers 404 under `/_serverFn`. The patched line
-    # (react-start 1.168.60+, router 1.170.41+) breaks routing in the browser
-    # suite; take it with the fix that line needs, then drop this entry.
-    - GHSA-qx66-fv34-fjm8
     # immutable — List 32-bit trie overflow DoS. Transitive through
     # vite > sass, i.e. compilation of our own SCSS at build time. Never
     # sees request data.
