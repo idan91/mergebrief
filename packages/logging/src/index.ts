@@ -1,4 +1,4 @@
-// ENTRY — the package's public surface (`package.json` `exports["."]`).
+// ENTRY: the package's public surface (`package.json` `exports["."]`).
 
 // The boundary: interface + factory. pino never leaks past logger.ts.
 export {
@@ -12,6 +12,13 @@ export {
   type LoggerConfig,
   type LogLevel,
 } from "./logger";
+
+// Trace context across the job queue: the enqueue's traceparent, the job's span.
+export {
+  readActiveTraceparent,
+  runInJobSpan,
+  type JobSpanOptions,
+} from "./trace-context";
 
 // Boundary sanitizer for error detail leaving the process (wire, DB).
 export { sanitizeErrorDetail } from "./sanitize";

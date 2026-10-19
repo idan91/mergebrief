@@ -222,11 +222,6 @@
       "count": 2
     }
   },
-  "packages/logging/src/index.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/logging/src/sanitize.ts": {
     "house/no-em-dash": {
       "count": 2

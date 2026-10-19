@@ -38,6 +38,7 @@ export {
   QueueTasks,
   type GenerateJobPayload,
   type InstallationGenerateJobPayload,
+  type JobTraceContext,
   type QueueTask,
   type UrlBoxGenerateJobPayload,
 } from "./jobs";

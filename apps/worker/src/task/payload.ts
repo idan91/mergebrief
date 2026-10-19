@@ -13,7 +13,7 @@ import {
   type TenantContext,
 } from "persistence";
 import { z } from "zod/v4";
-import type { GenerateJobPayload, Result } from "types";
+import type { GenerateJobPayload, JobTraceContext, Result } from "types";
 
 /** What both job shapes carry: which PR, at which head. */
 interface GeneratePayloadTarget {
@@ -146,4 +146,30 @@ export function parseGeneratePayload(
   }
 
   return parseOwnerPayload(raw.data.owner_user_id, raw.data.grant_id, target);
+}
+
+/** A W3C traceparent is 55 characters; anything longer is not one. */
+export const TRACEPARENT_MAX_LENGTH = 55;
+
+const TraceparentSchema = z.string().max(TRACEPARENT_MAX_LENGTH);
+const TraceCarrierSchema = z.object({ traceparent: TraceparentSchema });
+
+/** The same pin for the trace field, which the job parser never reads. */
+type CarrierIsParseable =
+  Required<JobTraceContext> extends z.input<typeof TraceCarrierSchema>
+    ? true
+    : never;
+const CARRIER_PIN: CarrierIsParseable = true;
+void CARRIER_PIN;
+
+/**
+ * The enqueue's `traceparent`, read apart from the job's own fields: a
+ * missing or malformed one costs the span link, never the job.
+ */
+export function readPayloadTraceparent(payload: unknown): string | undefined {
+  const carrier = TraceCarrierSchema.safeParse(payload);
+  if (!carrier.success) {
+    return undefined;
+  }
+  return carrier.data.traceparent;
 }

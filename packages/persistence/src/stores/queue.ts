@@ -3,10 +3,19 @@
 // table (graphile owns its schema; this package never imports it). Ids cross as STRINGS, since JSON cannot carry
 // bigint; the worker re-brands them through `TenantContextSchema`.
 import { sql } from "drizzle-orm";
+import { readActiveTraceparent } from "logging";
 import type { AppDrizzle } from "../db/handle";
 import type { GrantRowId, JobKeyMode } from "../types";
 import type { RowScope } from "./scope";
-import { QueueTasks, type GenerateJobPayload, type QueueTask } from "types";
+import {
+  QueueTasks,
+  type GenerateJobPayload,
+  type InstallationGenerateJobPayload,
+  type JobTraceContext,
+  type Mutable,
+  type QueueTask,
+  type UrlBoxGenerateJobPayload,
+} from "types";
 
 /**
  * Paid attempts per head, between triggers: graphile's retries of one job,
@@ -36,6 +45,17 @@ export function getRecoveryJobKey(
   return `${QueueTasks.RECOVER_GENERATION}:${pullRequestId}:${headSha}`;
 }
 
+/** The enqueue's trace, so the worker's job span can link back to it. */
+function stampTraceparent<Payload extends JobTraceContext>(
+  payload: Mutable<Payload>,
+): Payload {
+  const traceparent = readActiveTraceparent();
+  if (traceparent !== undefined) {
+    payload.traceparent = traceparent;
+  }
+  return payload;
+}
+
 /** The world-discriminated job payload. */
 export function buildJobPayload(
   scope: RowScope,
@@ -50,23 +70,23 @@ export function buildJobPayload(
       throw new Error("an owner-scoped generate job requires grantId");
     }
 
-    return {
+    return stampTraceparent<UrlBoxGenerateJobPayload>({
       owner_user_id: String(scope.ownerUserId),
       grant_id: String(grantId),
       pull_request_id: String(pullRequestId),
       head_sha: headSha,
-    } satisfies GenerateJobPayload;
+    });
   }
 
   if (scope.installationId === null) {
     throw new Error("scope carries neither world");
   }
 
-  return {
+  return stampTraceparent<InstallationGenerateJobPayload>({
     installation_id: String(scope.installationId),
     pull_request_id: String(pullRequestId),
     head_sha: headSha,
-  } satisfies GenerateJobPayload;
+  });
 }
 
 /** Named notation, so extra defaulted parameters in real graphile don't matter. */

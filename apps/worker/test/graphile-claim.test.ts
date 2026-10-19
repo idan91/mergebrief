@@ -17,6 +17,7 @@ import {
   ensureAppSchema,
   parseTenantContext,
 } from "persistence";
+import { startTestTracing } from "logging/testing";
 import { readTestPostgresUrl } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
 import { describe, expect, it } from "vitest";
@@ -107,6 +108,64 @@ describe.skipIf(databaseUrl === undefined)("graphile enqueue to claim", () => {
         value: { headSha: HEAD_1, ctx: { installationId: ctx.installationId } },
       });
     } finally {
+      await closeDb(handle);
+    }
+  });
+
+  it("links the claimed job's span to the enqueue's trace", async () => {
+    const url = databaseUrl ?? "";
+    await prepareQueue(url);
+    const handle = createDb(url);
+    const installationId = randomInt(
+      SMALLEST_FIXTURE_ID,
+      SMALLEST_FIXTURE_ID + FIXTURE_ID_SPAN,
+    );
+    const ctx = parseTenantContext({ installationId });
+    const repoId = makeRepoId(BigInt(installationId));
+    const tracing = startTestTracing();
+
+    const claimedIds: string[] = [];
+    const recordClaim: Task = (payload) => {
+      const parsed = parseGeneratePayload(payload);
+      if (parsed.ok) {
+        claimedIds.push(String(parsed.value.pullRequestId));
+      }
+    };
+    try {
+      let pullRequestId = "";
+      const enqueue = await tracing.runInSpan(async () => {
+        const triggered = await createIngestRoutines(
+          handle,
+          ctx,
+        ).triggerGeneration({
+          pullRequest: {
+            repoId,
+            prNumber: 8,
+            repoSlug: "acme/widget",
+            state: PrStates.OPEN,
+          },
+          headSha: HEAD_1,
+          debounceSeconds: 0,
+        });
+        pullRequestId = String(triggered.pullRequest.id);
+      });
+      await runOnce({
+        connectionString: url,
+        logger: SILENT_GRAPHILE_LOGGER,
+        taskList: buildRecordingTaskList(recordClaim),
+      });
+
+      const jobs = tracing
+        .readFinishedSpans()
+        .filter((span) => span.name === "process generate");
+      const ours = jobs.filter((span) =>
+        span.links.some((link) => link.traceId === enqueue.traceId),
+      );
+      expect(claimedIds).toContain(pullRequestId);
+      expect(ours).toHaveLength(1);
+      expect(ours[0]?.links).toEqual([enqueue]);
+    } finally {
+      await tracing.stop();
       await closeDb(handle);
     }
   });
