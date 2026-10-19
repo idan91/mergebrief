@@ -68,14 +68,6 @@
       "count": 2
     }
   },
-  "apps/web/src/data/ssrWarnSink.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ReplyComposer/utils.test.ts": {
     "house/no-em-dash": {
       "count": 1

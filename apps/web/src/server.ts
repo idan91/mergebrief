@@ -17,6 +17,7 @@ import { getServerLogger } from "./server/logger";
 import { getApiTransport } from "./server/api/transport";
 import { apiUnavailable, requestApi } from "./server/api/proxy";
 import { isRefusedPath } from "./server/refused-paths";
+import { stampRequestId } from "./server/request-id";
 
 const logger = getServerLogger();
 const NOT_FOUND_STATUS = 404;
@@ -62,6 +63,10 @@ const serverEntry: ServerEntry = {
     if (isRefusedPath(pathname)) {
       return new Response(null, { status: NOT_FOUND_STATUS });
     }
+    // Every request past health gets the id its API calls carry, the proxied
+    // one and each SSR read alike.
+    const requestId = crypto.randomUUID();
+    const stamped = stampRequestId(request, requestId);
     if (isApiPath(pathname)) {
       let transport: ReturnType<typeof getApiTransport>;
       try {
@@ -69,15 +74,18 @@ const serverEntry: ServerEntry = {
       } catch (error) {
         // A misconfigured origin. Answer 503 so GitHub redelivers later; never
         // surface the underlying reason to the caller.
-        logger.error("api transport unavailable", { err: error });
+        logger.error("api transport unavailable", {
+          err: error,
+          reqId: requestId,
+        });
         return apiUnavailable(503);
       }
       // The raw request straight through: the exact bytes GitHub signed reach
       // the webhook route's HMAC check unmodified.
-      return requestApi(request, transport);
+      return requestApi(stamped, transport);
     }
     return withNoStoreForDocuments(
-      await handleStartRequest(request, requestOpts),
+      await handleStartRequest(stamped, requestOpts),
     );
   },
 };

@@ -233,6 +233,33 @@ describe("requestApi", () => {
     upstream = await startUpstream();
   });
 
+  it("forwards the request id the web tier stamped", async () => {
+    await requestApi(
+      new Request("https://public.example/api/pulls", {
+        headers: { "x-request-id": "minted-1" },
+      }),
+      transportFor(upstream.origin),
+    );
+    expect(upstream.recorded[0]?.headers["x-request-id"]).toBe("minted-1");
+  });
+
+  it("logs an upstream failure with the request id", async () => {
+    const dead = upstream.origin;
+    await upstream.close();
+    const deps = transportFor(dead);
+    await requestApi(
+      new Request("https://public.example/api/pulls", {
+        headers: { "x-request-id": "minted-1" },
+      }),
+      deps,
+    );
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      "api request failed",
+      expect.objectContaining({ reqId: "minted-1" }),
+    );
+    upstream = await startUpstream();
+  });
+
   it("gives the review submit POST its own longer budget", async () => {
     upstream.reply(
       (_request, respond) =>

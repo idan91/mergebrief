@@ -204,11 +204,8 @@ const dispatch = createIsomorphicFn()
     return response;
   })
   .server(async (path: string, init?: ApiFetchInit): Promise<Response> => {
-    const [{ getRequestHeader }, { fetchFromApi }] = await Promise.all([
-      import("@tanstack/react-start/server"),
-      import("../server/api/transport"),
-    ]);
-    return fetchFromApi(path, getRequestHeader("cookie"), init);
+    const { fetchFromApi } = await import("../server/api/transport");
+    return fetchFromApi(path, init);
   });
 
 /** Fetch a read-API path (or POST a mutation) on whichever side we render. */

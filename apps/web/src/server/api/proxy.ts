@@ -9,6 +9,8 @@
 // same way the browser would be.
 import "@tanstack/react-start/server-only";
 
+import { BODILESS_METHODS, REQUEST_ID_HEADER } from "../request-id";
+
 /**
  * Headers scoped to one hop. Forwarding them would describe the browser's
  * connection to the web tier, not the web tier's to the API. `host` goes so
@@ -44,9 +46,6 @@ const RESPONSE_HEADERS_DROPPED = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
-
-/** Methods that never carry a body, so the stream is not attached. */
-const BODILESS_METHODS = new Set(["GET", "HEAD"]);
 
 export interface ApiTransportDeps {
   /** The trusted internal origin; never derived from request input. */
@@ -193,7 +192,7 @@ export async function requestApi(
     }
     // The reason can quote the internal origin, so it rides as a FIELD: the
     // logging boundary redacts URL-shaped substrings, `msg` bypasses it.
-    logUpstreamFailure(deps, error, timeout.aborted);
+    logUpstreamFailure(deps, request, error, timeout.aborted);
     return apiUnavailable(timeout.aborted ? 504 : 503);
   }
 
@@ -206,11 +205,13 @@ export async function requestApi(
 
 function logUpstreamFailure(
   deps: ApiTransportDeps,
+  request: Request,
   error: unknown,
   timedOut: boolean,
 ): void {
   const { logger } = deps;
   logger.error(timedOut ? "api request timed out" : "api request failed", {
     err: error,
+    reqId: request.headers.get(REQUEST_ID_HEADER) ?? undefined,
   });
 }

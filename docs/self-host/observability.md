@@ -69,9 +69,11 @@ routed to, and is what joins this line to the audit row that request wrote
 
 One push reads end to end in three steps:
 
-1. **Delivery**: every `/api` response echoes `X-Request-Id` (inbound value
-   accepted if well-formed, UUID minted otherwise) and every line for that
-   request carries it as `reqId`. Webhook lines additionally carry
+1. **Delivery**: the web tier mints `X-Request-Id` for every request it
+   receives, replacing any value the client sent, and sends it on the proxied
+   call and on every read a page render makes. The api echoes it on every
+   `/api` response, and every line for that request, web and api alike,
+   carries it as `reqId`. Webhook lines additionally carry
    `deliveryId` (GitHub's `x-github-delivery`), which matches the delivery
    record in your GitHub App's **Advanced → Recent Deliveries** page.
 2. **Enqueue**: when the delivery adds or replaces the PR's job, the api
