@@ -315,14 +315,19 @@ function readUsage(value: unknown): TokenUsage | null {
   const inputTokens = Reflect.get(value, "inputTokens");
   const outputTokens = Reflect.get(value, "outputTokens");
   const cacheReadTokens = Reflect.get(value, "cacheReadTokens");
+  const cacheWriteTokens = Reflect.get(value, "cacheWriteTokens");
   if (typeof inputTokens !== "number" || typeof outputTokens !== "number") {
     return null;
   }
-  return {
+  const usage: TokenUsage = {
     inputTokens,
     outputTokens,
     cacheReadTokens: typeof cacheReadTokens === "number" ? cacheReadTokens : 0,
   };
+  if (typeof cacheWriteTokens === "number") {
+    usage.cacheWriteTokens = cacheWriteTokens;
+  }
+  return usage;
 }
 
 function parseCursorLine(line: string): CursorEvent | null {

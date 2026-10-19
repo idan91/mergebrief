@@ -20,6 +20,15 @@ export {
   type JobSpanOptions,
 } from "./trace-context";
 
+export {
+  nameRequestSpan,
+  traceMethods,
+  traceStep,
+  type SpanAttributes,
+  type SpanHandle,
+  type StepSpanOptions,
+} from "./spans";
+
 // Boundary sanitizer for error detail leaving the process (wire, DB).
 export { sanitizeErrorDetail } from "./sanitize";
 

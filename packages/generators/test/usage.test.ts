@@ -41,6 +41,7 @@ interface AnthropicWireUsage {
   input_tokens: number;
   output_tokens: number;
   cache_read_input_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
 }
 
 type AnthropicUsageTurn =
@@ -70,7 +71,7 @@ function messageStartEvent(
         input_tokens: usage.input_tokens,
         output_tokens: 0,
         output_tokens_details: null,
-        cache_creation_input_tokens: null,
+        cache_creation_input_tokens: usage.cache_creation_input_tokens ?? null,
         cache_read_input_tokens: usage.cache_read_input_tokens ?? null,
         cache_creation: null,
         server_tool_use: null,
@@ -160,6 +161,7 @@ describe("anthropic usage reporting", () => {
             input_tokens: 1200,
             output_tokens: 340,
             cache_read_input_tokens: 900,
+            cache_creation_input_tokens: 300,
           },
         },
       ]),
@@ -174,7 +176,12 @@ describe("anthropic usage reporting", () => {
       onUsage: (usage) => seen.push(usage),
     });
     expect(seen).toEqual([
-      { inputTokens: 1200, outputTokens: 340, cacheReadTokens: 900 },
+      {
+        inputTokens: 1200,
+        outputTokens: 340,
+        cacheReadTokens: 900,
+        cacheWriteTokens: 300,
+      },
     ]);
   });
 
@@ -195,7 +202,12 @@ describe("anthropic usage reporting", () => {
       onUsage: (usage) => seen.push(usage),
     });
     expect(seen).toEqual([
-      { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0 },
+      {
+        inputTokens: 10,
+        outputTokens: 5,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
     ]);
   });
 
@@ -231,6 +243,7 @@ describe("anthropic usage reporting", () => {
               input_tokens: 2000,
               output_tokens: 31999,
               cache_read_input_tokens: 1500,
+              cache_creation_input_tokens: 400,
             },
           },
         },
@@ -252,8 +265,18 @@ describe("anthropic usage reporting", () => {
     // The pathological attempt (e.g. max_tokens truncation) is the expensive
     // one, its usage must not vanish from the sum.
     expect(seen).toEqual([
-      { inputTokens: 2000, outputTokens: 31999, cacheReadTokens: 1500 },
-      { inputTokens: 2000, outputTokens: 20, cacheReadTokens: 0 },
+      {
+        inputTokens: 2000,
+        outputTokens: 31999,
+        cacheReadTokens: 1500,
+        cacheWriteTokens: 400,
+      },
+      {
+        inputTokens: 2000,
+        outputTokens: 20,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
     ]);
   });
 });

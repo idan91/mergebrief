@@ -8,6 +8,7 @@
 // the Review Session's natural key keeps per-reviewer state apart. A pass on
 // the operator PAT reads only the reader's own URL rows.
 import type { Context, MiddlewareHandler } from "hono";
+import { traceStep } from "logging";
 import {
   createTenantRepository,
   isOwnerContext,
@@ -22,6 +23,7 @@ import { stampAuditScope } from "../product-operations/audit";
 import type { AuthRouteDeps } from "../routes/auth/session/types";
 import { parsePrNumberParam } from "../routes/wire-bounds";
 import { NotFound } from "../shared-errors/api-error";
+import { isServerFault } from "../shared-errors/on-error";
 import { bindPullRequestGitHub } from "./reviewer-binding";
 import { AccessFootings, type PullRequestEnv, type RepoAccess } from "./types";
 import { deriveScopeContext } from "./utils";
@@ -98,7 +100,16 @@ async function loadPullRequestAccess(
   prNumber: number,
 ): Promise<void> {
   const access = c.get("repoAccess");
-  const resolved = await resolveAccessRow(deps.handle, access, prNumber);
+  const resolved = await traceStep(
+    "pr.load",
+    {},
+    async (span) => {
+      const row = await resolveAccessRow(deps.handle, access, prNumber);
+      span.setAttributes({ "mergebrief.found": row !== undefined });
+      return row;
+    },
+    { isFailure: isServerFault },
+  );
   if (resolved === undefined) {
     throw new NotFound();
   }

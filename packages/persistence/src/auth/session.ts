@@ -5,6 +5,7 @@
 // on the `github_grant` row it references, so resolution JOINs the grant and
 // every delete orphan-cleans it in the same tx.
 import { type SQL, eq, inArray, lt, sql } from "drizzle-orm";
+import { traceStore } from "../stores/trace-store";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { githubGrant } from "../schema/github-grant";
 import { authSession } from "../schema/auth-session";
@@ -54,7 +55,7 @@ export interface SessionAuth {
 export function createSessionAuth(handle: AppDatabase): SessionAuth {
   const db = internal(handle);
 
-  return {
+  return traceStore("sessionAuth", {
     async createSession(input) {
       const rows = await db
         .insert(authSession)
@@ -106,7 +107,7 @@ export function createSessionAuth(handle: AppDatabase): SessionAuth {
         .returning({ id: authSession.id });
       return rows.length;
     },
-  };
+  });
 }
 
 /**

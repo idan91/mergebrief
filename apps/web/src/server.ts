@@ -11,6 +11,7 @@ import {
   defaultStreamHandler,
 } from "@tanstack/react-start/server";
 import type { ServerEntry } from "@tanstack/react-start/server-entry";
+import { nameRequestSpan } from "logging";
 
 import { checkApiReadiness, handleHealthRequest } from "./server/health";
 import { getServerLogger } from "./server/logger";
@@ -22,6 +23,9 @@ import { stampRequestId } from "./server/request-id";
 
 const logger = getServerLogger();
 const NOT_FOUND_STATUS = 404;
+/** The web tier's two routes in a trace; `url.path` keeps the real path. */
+const API_PROXY_ROUTE = "/api/*";
+const PAGE_ROUTE = "/*";
 
 /** Start's default page/SSR + server-function handler (the framework fallthrough). */
 const handleStartRequest = createStartHandler(defaultStreamHandler);
@@ -91,8 +95,10 @@ const serverEntry: ServerEntry = {
     const stamped = stampRequestId(request, requestId);
     try {
       if (isApiPath(pathname)) {
+        nameRequestSpan(request.method, API_PROXY_ROUTE);
         return await proxyToApi(stamped, requestId);
       }
+      nameRequestSpan(request.method, PAGE_ROUTE);
       const page = await handleStartRequest(stamped, requestOpts);
       return withNoStoreForDocuments(page);
     } catch (error) {

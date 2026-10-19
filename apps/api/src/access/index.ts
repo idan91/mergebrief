@@ -27,6 +27,7 @@ import type { Context, MiddlewareHandler, Next } from "hono";
 import { every } from "hono/combine";
 import { routePath } from "hono/route";
 import { CredentialFailureCodes } from "github";
+import { traceStep } from "logging";
 import type { RepoId } from "persistence";
 import { HttpStatuses } from "types/http";
 import {
@@ -49,6 +50,7 @@ import {
 } from "../routes/wire-bounds";
 import { BadGateway, NotFound, Unauthorized } from "../shared-errors/api-error";
 import { resolveGitHubDenialError } from "../shared-errors/github-denial";
+import { isServerFault } from "../shared-errors/on-error";
 import { DenialPostures } from "../shared-errors/github-denial/types";
 import {
   AUTHZ_CACHE_TTL_MS,
@@ -202,6 +204,55 @@ async function resolveRepoInstallation(
   throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }
 
+interface RepoGateContext {
+  readonly deps: AuthRouteDeps;
+  readonly installations: InstallationResolver;
+  readonly context: Context<AuthzEnv>;
+  readonly bound: RequestGitHub;
+}
+
+interface ProvenRepoAccess {
+  readonly access: CachedRepoAccess;
+  readonly decision: "200" | "200-url-box";
+  readonly expiresAt: number;
+}
+
+async function proveRepoAccess(
+  { deps, installations, context, bound }: RepoGateContext,
+  { repoId, requestedPr }: Omit<OperatorRungRequest, "error">,
+): Promise<ProvenRepoAccess> {
+  const repo = await bound.github.fetchRepositoryById(repoId);
+  if (!repo.ok) {
+    const refused = { repoId, requestedPr, error: repo.error };
+    const access = await resolveRefusedRepoAccess(
+      deps,
+      context,
+      bound,
+      refused,
+    );
+    const expiresAt = Date.now() + AUTHZ_CACHE_TTL_MS;
+    return { access, decision: "200-url-box", expiresAt };
+  }
+
+  const resolved = await traceStep(
+    "authz.installation",
+    {},
+    () => resolveRepoInstallation(installations, context, bound, repoId),
+    { isFailure: isServerFault },
+  );
+  const access: CachedReviewerRepoAccess = {
+    footing: AccessFootings.REVIEWER,
+    repoId,
+    repoFullName: repo.value.fullName,
+    viewerCanPush: repo.value.viewerCanPush,
+    installation: resolved.world,
+  };
+  // Capped to the world's own expiry, so the three caches never stack.
+  const ttlExpiry = Date.now() + AUTHZ_CACHE_TTL_MS;
+  const expiresAt = Math.min(ttlExpiry, resolved.expiresAt);
+  return { access, decision: "200", expiresAt };
+}
+
 /**
  * Verify the resolved session's GitHub access to `:repoId` and set the
  * `RepoAccess`. Requires `sessionLayer` to have run.
@@ -226,56 +277,27 @@ export function repoAuthzLayer(
 
     const cacheKey = buildPositiveCacheKey(session.sessionTokenHash, repoId);
     const bound = bindRequestGitHub(deps, session, c.get("logger"));
-    const cached = positiveCache.get(cacheKey);
-    if (cached !== undefined && isServedFromCache(cached, requestedPr)) {
-      await serveRepoAccess(c, next, { grant: cached, bound, decision: "200" });
-      return;
-    }
-
-    const repo = await bound.github.fetchRepositoryById(repoId);
-    if (!repo.ok) {
-      const refused = { repoId, requestedPr, error: repo.error };
-      const operatorAccess = await resolveRefusedRepoAccess(
-        deps,
-        c,
-        bound,
-        refused,
-      );
-      const expiresAt = Date.now() + AUTHZ_CACHE_TTL_MS;
-      positiveCache.set(cacheKey, operatorAccess, expiresAt);
-      await serveRepoAccess(c, next, {
-        grant: operatorAccess,
-        bound,
-        decision: "200-url-box",
-      });
-      return;
-    }
-
-    const resolved = await resolveRepoInstallation(
-      installations,
-      c,
-      bound,
-      repoId,
+    const proven = await traceStep(
+      "authz.repo",
+      {},
+      async (span) => {
+        const cached = positiveCache.get(cacheKey);
+        const cacheHit =
+          cached !== undefined && isServedFromCache(cached, requestedPr);
+        span.setAttributes({ "mergebrief.cache_hit": cacheHit });
+        if (cacheHit) {
+          return { grant: cached, decision: "200" };
+        }
+        const proof = await proveRepoAccess(
+          { deps, installations, context: c, bound },
+          { repoId, requestedPr },
+        );
+        positiveCache.set(cacheKey, proof.access, proof.expiresAt);
+        return { grant: proof.access, decision: proof.decision };
+      },
+      { isFailure: isServerFault },
     );
-    const reviewerAccess: CachedReviewerRepoAccess = {
-      footing: AccessFootings.REVIEWER,
-      repoId,
-      repoFullName: repo.value.fullName,
-      viewerCanPush: repo.value.viewerCanPush,
-      installation: resolved.world,
-    };
-    // Capped to the world's own expiry, so the three caches never stack.
-    const ttlExpiry = Date.now() + AUTHZ_CACHE_TTL_MS;
-    positiveCache.set(
-      cacheKey,
-      reviewerAccess,
-      Math.min(ttlExpiry, resolved.expiresAt),
-    );
-    await serveRepoAccess(c, next, {
-      grant: reviewerAccess,
-      bound,
-      decision: "200",
-    });
+    await serveRepoAccess(c, next, { ...proven, bound });
   };
 }
 

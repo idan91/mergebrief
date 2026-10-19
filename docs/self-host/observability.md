@@ -141,6 +141,42 @@ What a trace holds:
   values, and the text of a job's error. A failed query's span keeps
   Postgres's error message, which can quote a value.
 
+Inside a trace, named spans mark the business steps, so a trace reads as
+the flow and a monitor can key on a step. The names below are stable: a
+rename is a breaking change, the same as an `evt` name. Their attributes
+are ids, counts and decision tokens, never content.
+
+| Span | Process | What it covers | Attributes |
+| --- | --- | --- | --- |
+| `<METHOD> <route>` | api | the request, named by its matched route, `POST /api/webhooks/github` | `http.route` |
+| `<METHOD> /api/*`, `<METHOD> /*` | web | a proxied call, a page render | `http.route` |
+| `<operation id>` | api | one product operation, `read-brief`, `submit-review`, its gate and handler | `mergebrief.operation` |
+| `webhook.verify` | api | the delivery's signature check | `mergebrief.verified` |
+| `webhook.dispatch` | api | the event's writes | `mergebrief.webhook.kind`, `mergebrief.webhook.action` |
+| `generation.trigger` | api | the ingest transaction and its enqueue | `mergebrief.applied`, `mergebrief.queued`, `mergebrief.covered_by_brief`, `mergebrief.pr_id` |
+| `authz.session` | api | the cookie or token lookup | `mergebrief.credential` |
+| `authz.repo` | api | the repo access check | `mergebrief.cache_hit` |
+| `authz.installation` | api | which installation holds the repo | |
+| `pr.load` | api | the pull request row an operation reads | `mergebrief.found` |
+| `github.publish_review`, `github.publish_comment` | api | a review or comment written to GitHub | `mergebrief.drafts` |
+| `generation.open`, `generation.decide`, `generation.claim` | worker | the run's guards and first GitHub read, its decision, the daily-cap claim | `mergebrief.opened`, `mergebrief.decision`, `mergebrief.claim` |
+| `generation.inputs`, `brief.generate`, `entry.ready` | worker | the files, diff and config; the brief; the ready Entry comment | |
+| `generation.revision`, `generation.deltas`, `generation.finish` | worker | revision marks and narrative, the checkpoint deltas, the settled row | `mergebrief.deltas_written` |
+| `chat <model>` | worker | one generation, its provider retries summed | `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read.input_tokens`, `mergebrief.generation.kind`, `mergebrief.generation.effort`, `mergebrief.provider_requests` |
+| `<store>.<method>` | api, worker | one persistence store call, `reviewSessions.preview`, `briefs.listForPullRequest`, `generationProjection.claimRun`; its queries nest under it | |
+
+A store span is named for the method a caller reached and changes when
+that method is renamed, so it is outside the stable contract above: key a
+monitor on a business-step name instead.
+
+Token counts come from the provider's own accounting. The API adapters and
+the cursor CLI report them; the other CLI adapters report none. For Anthropic
+and OpenAI-compatible providers the input total counts cache reads and
+writes, as the GenAI convention defines it; cursor's counts are exported as
+it reports them. With tracing on, an OpenAI-compatible provider is asked to
+include usage in its stream; one that rejects the option is asked again
+without it and reports no usage. With tracing off the request is unchanged.
+
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset (off) | base URL; `/v1/traces` is appended |

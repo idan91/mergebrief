@@ -5,6 +5,7 @@ import {
 } from "github";
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
+import { startTestTracing, type TestTracing } from "logging/testing";
 import type { ReviewDraftCommentRow } from "persistence";
 import {
   CommentAnchorKinds,
@@ -12,7 +13,7 @@ import {
   ReviewCommentSides,
   ReviewOutcomes,
 } from "types";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PR_NUMBER,
   REPO_SLUG,
@@ -31,6 +32,13 @@ const log: Logger = {
 };
 
 const PIN = { prNumber: PR_NUMBER, commitId: "a".repeat(40) };
+
+let tracing: TestTracing | undefined;
+
+afterEach(async () => {
+  await tracing?.stop();
+  tracing = undefined;
+});
 const [REPO_OWNER = "", REPO_NAME = ""] = REPO_SLUG.split("/");
 
 const OPEN_DEADLINE = new Date(Date.now() + 60 * 60 * 1000);
@@ -171,6 +179,35 @@ describe("publishComment", () => {
         error: { code: GitHubApiErrorCodes.FORBIDDEN },
       },
     });
+  });
+});
+
+describe("publish spans", () => {
+  it("fails the comment span when GitHub refuses the post", async () => {
+    tracing = startTestTracing();
+    const fake = makeFakeWithPullRequest();
+    fake.failOn("createInlineReviewComment", FakeFailures.FORBIDDEN);
+
+    await publishComment(bindFakeRepoClient(fake), PIN, makeDraftCommentRow());
+
+    const [span] = tracing.readFinishedSpans();
+    expect(span).toMatchObject({
+      name: "github.publish_comment",
+      failed: true,
+    });
+  });
+
+  it("leaves the review span unfailed when the claim lapsed", async () => {
+    tracing = startTestTracing();
+    const fake = makeFakeWithPullRequest();
+    const lapsed = new Date(Date.now() - 1);
+    const input = makeReviewInput([makeDraftCommentRow()], lapsed);
+
+    await publishReview({ repo: bindFakeRepoClient(fake), log }, input);
+
+    const spans = tracing.readFinishedSpans();
+    const review = spans.find((span) => span.name === "github.publish_review");
+    expect(review?.failed).toBe(false);
   });
 });
 

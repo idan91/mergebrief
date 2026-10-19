@@ -23,6 +23,7 @@ export interface AnthropicStreamResponse {
     input_tokens: number;
     output_tokens: number;
     cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
   };
   content: { type: string }[];
 }
@@ -202,7 +203,12 @@ export class AnthropicGenerator implements Generator {
     // the EXPENSIVE one, and its spend must not vanish from onUsage sums.
     // Boxed because closure writes don't survive TS's flow narrowing.
     const streamUsage: {
-      current: { input: number; output: number; cacheRead: number } | null;
+      current: {
+        input: number;
+        output: number;
+        cacheRead: number;
+        cacheWrite: number;
+      } | null;
     } = { current: null };
     stream.on("streamEvent", (event) => {
       if (event.type === "message_start") {
@@ -210,6 +216,7 @@ export class AnthropicGenerator implements Generator {
           input: event.message.usage.input_tokens,
           output: event.message.usage.output_tokens,
           cacheRead: event.message.usage.cache_read_input_tokens ?? 0,
+          cacheWrite: event.message.usage.cache_creation_input_tokens ?? 0,
         };
       } else if (event.type === "message_delta") {
         // Cumulative per the API: overwrite, never add.
@@ -250,6 +257,7 @@ export class AnthropicGenerator implements Generator {
             inputTokens: streamUsage.current.input,
             outputTokens: streamUsage.current.output,
             cacheReadTokens: streamUsage.current.cacheRead,
+            cacheWriteTokens: streamUsage.current.cacheWrite,
           });
         }
         return { sdkParseFailure: error.message, raw: collected };
@@ -270,6 +278,7 @@ export class AnthropicGenerator implements Generator {
       inputTokens: u.input_tokens,
       outputTokens: u.output_tokens,
       cacheReadTokens: u.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
     });
     return { response };
   }

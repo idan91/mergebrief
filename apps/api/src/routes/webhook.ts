@@ -33,7 +33,7 @@ import {
   type ParsedWebhookEvent,
   type PullRequestAction,
 } from "github";
-import type { Logger } from "logging";
+import { traceStep, type Logger, type SpanAttributes } from "logging";
 import {
   UncoveredWorks,
   createTenantRepository,
@@ -324,9 +324,17 @@ async function triggerGeneration(
   if (uncoveredWork !== undefined) {
     input.uncoveredWork = uncoveredWork;
   }
-  const outcome = await createIngestRoutines(handle, ctx).triggerGeneration(
-    input,
-  );
+  const ingest = createIngestRoutines(handle, ctx);
+  const outcome = await traceStep("generation.trigger", {}, async (span) => {
+    const triggered = await ingest.triggerGeneration(input);
+    span.setAttributes({
+      "mergebrief.pr_id": String(triggered.pullRequest.id),
+      "mergebrief.applied": triggered.applied,
+      "mergebrief.queued": triggered.queued,
+      "mergebrief.covered_by_brief": triggered.coveredBy !== undefined,
+    });
+    return triggered;
+  });
   if (!outcome.applied) {
     logSkippedEvent(log, event);
   }
@@ -400,6 +408,15 @@ async function dispatch(
   }
 }
 
+/** The parsed event's own vocabulary only, never payload text. */
+function readEventAttributes(event: ParsedWebhookEvent): SpanAttributes {
+  const attributes: SpanAttributes = { "mergebrief.webhook.kind": event.kind };
+  if ("action" in event) {
+    attributes["mergebrief.webhook.action"] = event.action;
+  }
+  return attributes;
+}
+
 /** Mountable webhook route; deps injected so tests pass a PGlite handle. */
 export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
   const app = new Hono<RequestLogEnv>();
@@ -430,10 +447,14 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     const signature = c.req.header("x-hub-signature-256");
     const eventName = c.req.header("x-github-event") ?? "";
 
-    const verified = await verifyWebhookSignature({
-      secret: deps.webhookSecret,
-      payload: raw,
-      signature,
+    const verified = await traceStep("webhook.verify", {}, async (span) => {
+      const checked = await verifyWebhookSignature({
+        secret: deps.webhookSecret,
+        payload: raw,
+        signature,
+      });
+      span.setAttributes({ "mergebrief.verified": checked.ok });
+      return checked;
     });
     if (!verified.ok) {
       // Warn, not error, raw hits are scanner noise; a SUSTAINED rate
@@ -460,12 +481,15 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
 
     // Map the event to tenant-scoped writes. Unexpected throw → 500 with a
     // sanitized body, internals never reach the caller.
+    const event = parsed.value;
     try {
-      await dispatch(
-        deps.handle,
-        parsed.value,
-        deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
-        log,
+      await traceStep("webhook.dispatch", readEventAttributes(event), () =>
+        dispatch(
+          deps.handle,
+          event,
+          deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
+          log,
+        ),
       );
     } catch (error) {
       log.error("webhook dispatch failed", {

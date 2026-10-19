@@ -2,6 +2,7 @@
 // The parent is verified against the scope inside the transaction, and the
 // anchor is the latest brief's head read in that same transaction.
 import { and, desc, eq } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { inboxArchive } from "../schema/inbox-archive";
@@ -67,7 +68,7 @@ export function createInboxArchiveStore(
   const db = internal(handle);
   const scope = resolveScope(ctx);
 
-  return {
+  return traceStore("inboxArchive", {
     async set(pullRequestId, reviewerId) {
       return db.transaction(async (tx) => {
         if (!(await isInScope(tx, scope, pullRequestId))) {
@@ -114,5 +115,5 @@ export function createInboxArchiveStore(
         return true;
       });
     },
-  };
+  });
 }

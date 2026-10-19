@@ -10,7 +10,7 @@ import {
   type PendingReview,
   type ReviewerRepoClient,
 } from "github";
-import type { Logger } from "logging";
+import { traceStep, type Logger } from "logging";
 import { PUBLISH_CLAIM_LEASE_MS, type ClaimStamp } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { Result } from "types/utils";
@@ -65,17 +65,21 @@ function shapeMutationDenied(
  * retry-off client. A 401'd POST created nothing, so the binding's renewed
  * re-run cannot double-post.
  */
-export async function publishComment(
+export function publishComment(
   repo: ReviewerRepoClient,
   pin: CommentPin,
   draft: PublishableDraft,
 ): Promise<CommentPublishResult> {
-  const input = shapeInlineCommentInput(shapePublishComment(draft), pin);
-  const posted = await repo.createInlineReviewComment(input);
-  if (!posted.ok) {
-    return shapeMutationDenied(posted.error);
-  }
-  return posted;
+  return traceStep("github.publish_comment", {}, async (span) => {
+    const comment = shapePublishComment(draft);
+    const input = shapeInlineCommentInput(comment, pin);
+    const posted = await repo.createInlineReviewComment(input);
+    if (!posted.ok) {
+      span.markFailed();
+      return shapeMutationDenied(posted.error);
+    }
+    return posted;
+  });
 }
 
 /**
@@ -115,12 +119,38 @@ function shapeThreadsFailure(
 }
 
 /**
+ * A publish GitHub refused, or whose outcome nobody knows. A review the
+ * viewer still holds and a lapsed claim are answers, not failed calls.
+ */
+function isPublishFault(error: ReviewPublishFailure): boolean {
+  return (
+    error.kind === FailureKinds.GITHUB_DENIED ||
+    error.kind === "submit-unconfirmed"
+  );
+}
+
+/**
  * Post the held drafts as one review on the viewer's retry-off creates. A
  * thread GitHub rejects is folded into the body; any failure after the
  * pending review exists deletes it before returning, so the client's retry
  * starts clean.
  */
-export async function publishReview(
+export function publishReview(
+  deps: PublishDeps,
+  input: ReviewPublishInput,
+): Promise<ReviewPublishResult> {
+  const attributes = { "mergebrief.drafts": input.drafts.length };
+  return traceStep("github.publish_review", attributes, async (span) => {
+    const published = await postReview(deps, input);
+    const publishFailed = !published.ok && isPublishFault(published.error);
+    if (publishFailed) {
+      span.markFailed();
+    }
+    return published;
+  });
+}
+
+async function postReview(
   deps: PublishDeps,
   input: ReviewPublishInput,
 ): Promise<ReviewPublishResult> {

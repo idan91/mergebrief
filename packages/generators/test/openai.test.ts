@@ -248,6 +248,71 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
   });
 });
 
+describe("OpenAiCompatibleCore usage-option discovery", () => {
+  function makeUsageRequest() {
+    return { ...request(), onUsage: () => undefined };
+  }
+
+  it("retries without stream_options on a 400 naming it and caches the gap", async () => {
+    const { generator, recorded } = await coreWith((body) =>
+      body["stream_options"] === undefined
+        ? sse('{"ok":true}')
+        : jsonError(
+            400,
+            "Unrecognized request argument supplied: stream_options",
+          ),
+    );
+
+    const warnings: GeneratorWarning[] = [];
+    const first = generator.generate({
+      ...makeUsageRequest(),
+      onWarning: (warning) => warnings.push(warning),
+    });
+    await expect(first).resolves.toEqual({ ok: true });
+    const later = makeUsageRequest();
+    await generator.generate(later);
+
+    const sent = recorded.bodies.map((body) => body["stream_options"]);
+    expect(sent).toEqual([{ include_usage: true }, undefined, undefined]);
+    expect(warnings).toEqual([
+      {
+        kind: GeneratorWarningKinds.USAGE_REJECTED,
+        message: expect.stringContaining("gpt-test-1 rejected stream_options"),
+      },
+    ]);
+  });
+
+  it("drops both rejected parameters, one retry each", async () => {
+    const { generator, recorded } = await coreWith((body) => {
+      if (body["reasoning_effort"] !== undefined) {
+        return jsonError(400, "Unsupported parameter: 'reasoning_effort'.");
+      }
+      if (body["stream_options"] !== undefined) {
+        return jsonError(400, "Unknown parameter: stream_options");
+      }
+      return sse('{"ok":true}');
+    });
+
+    const call = generator.generate(makeUsageRequest());
+
+    await expect(call).resolves.toEqual({ ok: true });
+    expect(recorded.bodies).toHaveLength(3);
+  });
+
+  it("does not drop stream_options for an unrelated 400", async () => {
+    const { generator, recorded } = await coreWith(() =>
+      jsonError(400, "Invalid schema: something else entirely."),
+    );
+
+    const call = generator.generate(makeUsageRequest());
+
+    await expect(call).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.CONFIG,
+    });
+    expect(recorded.bodies).toHaveLength(1);
+  });
+});
+
 describe("OpenAiCompatibleCore effort-retry classification boundary", () => {
   it("classifies a transient failure on the knob-less retry", async () => {
     let calls = 0;

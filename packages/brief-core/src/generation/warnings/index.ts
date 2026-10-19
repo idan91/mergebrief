@@ -1,4 +1,4 @@
-import type { Logger } from "generators";
+import { GeneratorWarningKinds, type Logger } from "generators";
 import {
   GenerationWarningKinds,
   type GenerationWarning,
@@ -34,6 +34,11 @@ export function createWarningCollector(log: Logger): WarningCollector {
 
   return {
     recordGeneratorWarning: (warning) => {
+      // A rejected usage option touches telemetry only, and fires only when
+      // tracing records: it stays in the generator's log, never a brief.
+      if (warning.kind === GeneratorWarningKinds.USAGE_REJECTED) {
+        return;
+      }
       warnings.push(warning);
     },
     report,

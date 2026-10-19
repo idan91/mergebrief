@@ -2,6 +2,7 @@
 // spans installations. One typed column per setting; the row is created by
 // the first write.
 import { eq } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { userSettings } from "../schema/user-settings";
 import type { ReviewerId } from "../types";
@@ -18,7 +19,7 @@ export function createUserSettingsStore(
 ): UserSettingsStore {
   const db = internal(handle);
 
-  return {
+  return traceStore("userSettings", {
     async readDismissedVersion(ghUserId) {
       const rows = await db
         .select({ dismissedVersion: userSettings.dismissedVersion })
@@ -36,5 +37,5 @@ export function createUserSettingsStore(
           set: { dismissedVersion: version, updatedAt: new Date() },
         });
     },
-  };
+  });
 }

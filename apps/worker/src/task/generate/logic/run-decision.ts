@@ -14,6 +14,7 @@ import {
   buildAfterLeaseRequest,
   scheduleClaimRecovery,
 } from "./claim-recovery";
+import { listRunStops, traceRunStep } from "./step-span";
 import { applySpendGate, refuseAtCap } from "./spend-gate";
 
 /**
@@ -46,7 +47,15 @@ export async function decideRun(context: RunContext): Promise<RunDecision> {
     );
   }
   run.leaveRow = false;
-  const claim = await applySpendGate(payload, context);
+  const claim = await traceRunStep(
+    "generation.claim",
+    listRunStops(context),
+    async (span) => {
+      const claimed = await applySpendGate(payload, context);
+      span.setAttributes({ "mergebrief.claim": claimed.kind });
+      return claimed;
+    },
+  );
   if (claim.kind === ClaimOutcomes.HELD) {
     await followHolder(context, claim.leaseRemainingMs);
   }

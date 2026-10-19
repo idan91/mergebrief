@@ -14,6 +14,7 @@ import {
   lt,
   type SQL,
 } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import type { Mutable } from "types";
 import { insertAudit, type AuditEntry } from "./audit";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
@@ -127,7 +128,7 @@ export function createPurgeRoutines(
     return scope.installationId;
   }
 
-  return {
+  return traceStore("purge", {
     ctx,
 
     async purgePullRequest(prRowId, actor) {
@@ -232,7 +233,7 @@ export function createPurgeRoutines(
         return { pullRequests: purgedPrs.length };
       });
     },
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------

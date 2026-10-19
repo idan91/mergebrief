@@ -39,6 +39,7 @@ import {
   readQueueJob,
 } from "./queue";
 import { sanitizeErrorDetail } from "logging";
+import { traceStore } from "./trace-store";
 import {
   ChargeOutcomes,
   ClaimOutcomes,
@@ -743,7 +744,7 @@ export function createGenerationProjection(
     return { ok: true, value: { kind: ChargeOutcomes.CHARGED, runId } };
   }
 
-  return {
+  return traceStore("generationProjection", {
     ctx,
 
     async upsertPending(target) {
@@ -987,5 +988,5 @@ export function createGenerationProjection(
       }
       return { startsLater: job.startsLater, locked: job.locked };
     },
-  };
+  });
 }

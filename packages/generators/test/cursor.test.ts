@@ -321,10 +321,13 @@ describe("CursorGenerator envelope handling", () => {
     await expect(
       generator.generate(request({ onUsage: (usage) => usages.push(usage) })),
     ).resolves.toEqual({ ok: true });
-    // Shim envelope: inputTokens 11 / outputTokens 22 / cacheReadTokens 3
-    // (cacheWriteTokens has no TokenUsage slot and is dropped).
     expect(usages).toEqual([
-      { inputTokens: 11, outputTokens: 22, cacheReadTokens: 3 },
+      {
+        inputTokens: 11,
+        outputTokens: 22,
+        cacheReadTokens: 3,
+        cacheWriteTokens: 4,
+      },
     ]);
   });
 
@@ -426,7 +429,12 @@ describe("CursorGenerator envelope handling", () => {
       generator.generate(request({ onUsage: (usage) => usages.push(usage) })),
     );
     expect(usages).toEqual([
-      { inputTokens: 11, outputTokens: 22, cacheReadTokens: 3 },
+      {
+        inputTokens: 11,
+        outputTokens: 22,
+        cacheReadTokens: 3,
+        cacheWriteTokens: 4,
+      },
     ]);
   });
 

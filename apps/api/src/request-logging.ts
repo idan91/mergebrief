@@ -10,7 +10,8 @@
 // because `msg` bypasses the logging boundary's path-based redaction.
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
-import type { LogFields, Logger } from "logging";
+import { routePath } from "hono/route";
+import { nameRequestSpan, type LogFields, type Logger } from "logging";
 
 /** What a gate layer records for the access line: its decision + actor ids. */
 export interface AccessStamp {
@@ -83,6 +84,7 @@ export function requestLogging(
     const startedAt = Date.now();
     c.set("logger", logger.child({ reqId: c.get("requestId") }));
     await next();
+    nameRequestSpan(c.req.method, routePath(c, -1));
     const access = c.get("access");
     const operation = c.get("operation");
     const fields: LogFields = {

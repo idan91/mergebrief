@@ -155,15 +155,20 @@ describe.skipIf(databaseUrl === undefined)("graphile enqueue to claim", () => {
         taskList: buildRecordingTaskList(recordClaim),
       });
 
-      const jobs = tracing
-        .readFinishedSpans()
-        .filter((span) => span.name === "process generate");
+      const spans = tracing.readFinishedSpans();
+      const enqueued = spans.filter((span) => span.traceId === enqueue.traceId);
+      const trigger = enqueued.find(
+        (span) => span.name === "ingest.triggerGeneration",
+      );
+      const jobs = spans.filter((span) => span.name === "process generate");
       const ours = jobs.filter((span) =>
         span.links.some((link) => link.traceId === enqueue.traceId),
       );
       expect(claimedIds).toContain(pullRequestId);
       expect(ours).toHaveLength(1);
-      expect(ours[0]?.links).toEqual([enqueue]);
+      expect(ours[0]?.links).toEqual([
+        { traceId: enqueue.traceId, spanId: trigger?.spanId },
+      ]);
     } finally {
       await tracing.stop();
       await closeDb(handle);

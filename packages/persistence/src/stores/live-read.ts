@@ -2,6 +2,7 @@
 // what a read writes back, and how a row GitHub stopped showing is marked.
 // Owner scope only: installation rows are kept current by webhooks.
 import { and, asc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { pullRequest } from "../schema/pull-request";
 import { resolveScope } from "./scope";
@@ -81,7 +82,7 @@ export function createLiveReadStore(
   const db = internal(handle);
   const scope = resolveScope(ctx);
 
-  return {
+  return traceStore("liveRead", {
     ctx,
 
     async listDue({ now, staleMs, limit }) {
@@ -156,5 +157,5 @@ export function createLiveReadStore(
         .returning();
       return rows[0];
     },
-  };
+  });
 }

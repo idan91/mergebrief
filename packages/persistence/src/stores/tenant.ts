@@ -7,6 +7,7 @@
 // queried table's own columns (`matchesChild` adds the owner world's PR
 // semi-join), which is safe because writes guarantee the marks match.
 import { and, eq, sql } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { checkpoint } from "../schema/checkpoint";
 import { pullRequest } from "../schema/pull-request";
@@ -407,8 +408,8 @@ export function createTenantRepository(
 
   return {
     ctx,
-    pullRequests,
-    checkpoints,
+    pullRequests: traceStore("pullRequests", pullRequests),
+    checkpoints: traceStore("checkpoints", checkpoints),
     archives: createInboxArchiveStore(handle, ctx),
     reviewSessions: createReviewSessionRepository(db, scope),
   };

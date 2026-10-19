@@ -4,6 +4,8 @@ import { createGenerationProjection } from "persistence";
 import { GenerationStatuses } from "types/generations";
 import { parseGeneratePayload } from "../payload";
 import { shouldRecoverClaim } from "./logic/claim-recovery";
+import { traceProviderCalls } from "./logic/model-span";
+import { isRunSignal, listRunStops, traceRunStep } from "./logic/step-span";
 import { reportJobFailure } from "./logic/job-failure";
 import { postOwedReadyEntry, postReadyEntry } from "./logic/ready-entry";
 import {
@@ -201,12 +203,28 @@ async function markRunSuperseded(start: RunStart): Promise<void> {
 }
 
 async function runGeneration(start: RunStart): Promise<void> {
-  const context = await openRun(start);
+  const context = await traceRunStep(
+    "generation.open",
+    [start.shutdownSignal],
+    async (span) => {
+      const opened = await openRun(start);
+      span.setAttributes({ "mergebrief.opened": opened !== undefined });
+      return opened;
+    },
+  );
   if (context === undefined) {
     return;
   }
 
-  const decision = await decideRun(context);
+  const decision = await traceRunStep(
+    "generation.decide",
+    listRunStops(context),
+    async (span) => {
+      const decided = await decideRun(context);
+      span.setAttributes({ "mergebrief.decision": decided.kind });
+      return decided;
+    },
+  );
   if (decision.kind === RunDecisionKinds.CAPPED) {
     if (decision.storedBrief !== undefined) {
       await postOwedReadyEntry(context, decision.storedBrief.headIndex);
@@ -234,10 +252,9 @@ async function generateUnderWatch(
     shutdownSignal === undefined
       ? watch.signal
       : AbortSignal.any([watch.signal, shutdownSignal]);
-  const generator = countProviderCalls(
-    bindAbortSignal(deps.generator, generatorSignal),
-    context.run,
-  );
+  const bound = bindAbortSignal(deps.generator, generatorSignal);
+  const traced = traceProviderCalls(bound, generatorSignal);
+  const generator = countProviderCalls(traced, context.run);
   try {
     await generateArtifacts(context, decision, generator);
   } catch (error) {
@@ -265,11 +282,8 @@ function resolveWatchOutcome(
   watch: SupersessionWatch,
   error: unknown,
 ): unknown {
-  const signalled =
-    error instanceof SupersededSignal ||
-    error instanceof ClaimLostSignal ||
-    error instanceof SpendCappedSignal;
-  if (signalled || !watch.signal.aborted) {
+  const watchEndedRun = watch.signal.aborted && !isRunSignal(error);
+  if (!watchEndedRun) {
     return error;
   }
   const reason: unknown = watch.signal.reason;
@@ -284,14 +298,23 @@ async function generateArtifacts(
   decision: GeneratingRun,
   generator: Generator,
 ): Promise<void> {
-  const inputs = await prepareRunInputs(context, decision);
-  const brief = await produceBrief(context, decision, inputs, generator);
+  const stops = listRunStops(context);
+  const inputs = await traceRunStep("generation.inputs", stops, () =>
+    prepareRunInputs(context, decision),
+  );
+  const brief = await traceRunStep("brief.generate", stops, () =>
+    produceBrief(context, decision, inputs, generator),
+  );
   // The ready Entry lands before the slower revision and delta work.
-  await postReadyEntry(
-    context,
-    inputs.entryCommentAllowed,
-    brief.briefRef.headIndex,
+  await traceRunStep("entry.ready", stops, () =>
+    postReadyEntry(
+      context,
+      inputs.entryCommentAllowed,
+      brief.briefRef.headIndex,
+    ),
   );
   await writeFollowOnArtifacts(context, inputs, brief, generator);
-  await finishRun(context, brief.briefRef);
+  await traceRunStep("generation.finish", stops, () =>
+    finishRun(context, brief.briefRef),
+  );
 }

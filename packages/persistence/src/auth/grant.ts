@@ -16,6 +16,7 @@
 // do not "fix" it by dropping the FK.
 /* oxlint-enable house/comment-run */
 import { and, eq, inArray, notExists } from "drizzle-orm";
+import { traceStore } from "../stores/trace-store";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
@@ -114,7 +115,7 @@ export interface GrantAuth {
 export function createGrantAuth(handle: AppDatabase): GrantAuth {
   const db = internal(handle);
 
-  return {
+  return traceStore("grantAuth", {
     async createGrant(input) {
       const rows = await db
         .insert(githubGrant)
@@ -197,7 +198,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
     async deleteIfOrphaned(grantId) {
       return deleteOrphanedGrants(db, [grantId]);
     },
-  };
+  });
 }
 
 function compareGrantIds(left: GrantRowId, right: GrantRowId): number {

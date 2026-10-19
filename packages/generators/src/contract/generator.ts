@@ -6,14 +6,16 @@ export type Logger = (message: string) => void;
 
 /**
  * Token counts for ONE provider request, in that provider's own accounting:
- * Anthropic's `inputTokens` EXCLUDES cache reads, OpenAI-compatible ones
- * INCLUDE them, cursor-agent's are unverified.
+ * Anthropic's `inputTokens` EXCLUDES cache reads and writes, OpenAI-compatible
+ * ones INCLUDE cache reads, cursor-agent's are unverified.
  */
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
   /** 0 when unreported. */
   cacheReadTokens: number;
+  /** Absent when unreported. */
+  cacheWriteTokens?: number;
   /** Absent when unreported: a reported 0 means the effort was not honored. */
   reasoningTokens?: number;
 }

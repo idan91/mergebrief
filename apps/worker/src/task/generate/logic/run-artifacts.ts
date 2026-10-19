@@ -21,6 +21,7 @@ import {
   type RunInputs,
 } from "../types";
 import { buildAttemptFields } from "../utils";
+import { listRunStops, traceRunStep } from "./step-span";
 import { recoverStoredBrief, writeFreshBrief } from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
 import { throwOnGitHubFailure } from "./errors";
@@ -115,28 +116,37 @@ export async function writeFollowOnArtifacts(
 ): Promise<void> {
   const { deps, payload, watch, log } = context;
   const chargeSpend = createSpendCharge(context);
-  const prevSpan = await writeRevisionSpan(context, inputs, brief, {
-    generator,
-    chargeSpend,
-  });
-  const deltaCount = await generateCheckpointDeltas(payload, {
-    hugeSpanRatio: deps.hugeSpanRatio,
-    store: context.store,
-    repo: context.repo,
-    locator: inputs.locator,
-    meta: inputs.meta,
-    source: context.source,
-    priorBriefs: context.priorBriefs,
-    prevSpan,
-    generator,
-    watch,
-    chargeSpend,
-    effort: deps.effort,
-    briefHeadIndex: brief.briefRef.headIndex,
-    wholePrChangedLines: countPrChangedLines(inputs.files),
-    loadContext: inputs.loadContext,
-    log,
-  });
+  const prevSpan = await traceRunStep(
+    "generation.revision",
+    listRunStops(context),
+    () => writeRevisionSpan(context, inputs, brief, { generator, chargeSpend }),
+  );
+  const deltaCount = await traceRunStep(
+    "generation.deltas",
+    listRunStops(context),
+    async (span) => {
+      const written = await generateCheckpointDeltas(payload, {
+        hugeSpanRatio: deps.hugeSpanRatio,
+        store: context.store,
+        repo: context.repo,
+        locator: inputs.locator,
+        meta: inputs.meta,
+        source: context.source,
+        priorBriefs: context.priorBriefs,
+        prevSpan,
+        generator,
+        watch,
+        chargeSpend,
+        effort: deps.effort,
+        briefHeadIndex: brief.briefRef.headIndex,
+        wholePrChangedLines: countPrChangedLines(inputs.files),
+        loadContext: inputs.loadContext,
+        log,
+      });
+      span.setAttributes({ "mergebrief.deltas_written": written });
+      return written;
+    },
+  );
   if (deltaCount > 0) {
     await recordGenerateAudit(context, {
       targetType: "pull_request",

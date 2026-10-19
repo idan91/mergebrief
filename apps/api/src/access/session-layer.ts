@@ -6,6 +6,7 @@
 import { ApiErrorCodes } from "contract";
 import type { Context, MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
+import { traceStep, type SpanAttributes } from "logging";
 import {
   createSessionAuth,
   createTokenAuth,
@@ -39,6 +40,9 @@ import {
   TOUCH_THROTTLE_MAX_ENTRIES,
 } from "./consts";
 import type { AuthzEnv } from "./types";
+
+const BEARER_SPAN: SpanAttributes = { "mergebrief.credential": "bearer" };
+const COOKIE_SPAN: SpanAttributes = { "mergebrief.credential": "cookie" };
 
 /**
  * A cookie rides on every request the browser sends, whoever built it, so a
@@ -107,9 +111,10 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
         throw new Unauthorized();
       }
       const tokenHash = sha256Hex(bearer);
-      const resolved = await createTokenAuth(deps.handle).resolveByHash(
-        tokenHash,
-        new Date(startedAt),
+      const tokenAuth = createTokenAuth(deps.handle);
+      const checkedAt = new Date(startedAt);
+      const resolved = await traceStep("authz.session", BEARER_SPAN, () =>
+        tokenAuth.resolveByHash(tokenHash, checkedAt),
       );
       if (resolved === undefined) {
         stampAccess(c, "401", {});
@@ -149,8 +154,9 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       throw new Unauthorized(ApiErrorCodes.SIGNED_OUT);
     }
     const sessionTokenHash = sha256Hex(cookie);
-    const resolved = await createSessionAuth(deps.handle).findSession(
-      sessionTokenHash,
+    const sessionAuth = createSessionAuth(deps.handle);
+    const resolved = await traceStep("authz.session", COOKIE_SPAN, () =>
+      sessionAuth.findSession(sessionTokenHash),
     );
     if (resolved === undefined) {
       stampAccess(c, "401", {});

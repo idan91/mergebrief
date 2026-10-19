@@ -7,6 +7,7 @@
 // replace the payload head, a locked job gets its key detached and a fresh
 // job, and a head a live run holds is neither reset nor re-enqueued.
 import { and, eq, isNull, ne } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
 import { checkpoint } from "../schema/checkpoint";
@@ -349,7 +350,7 @@ export function createIngestRoutines(
   const db = internal(handle);
   const scope = resolveScope(ctx);
 
-  return {
+  return traceStore("ingest", {
     ctx,
 
     async triggerGeneration(input) {
@@ -541,5 +542,5 @@ export function createIngestRoutines(
         queued: false,
       };
     },
-  };
+  });
 }

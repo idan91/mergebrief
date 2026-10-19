@@ -1,3 +1,4 @@
+import { startTestTracing, type TestTracing } from "logging/testing";
 import { describe, expect, it } from "vitest";
 import {
   GeneratorError,
@@ -68,6 +69,37 @@ describe("generate task, observability", () => {
     expect(done?.["kind"]).toBe("brief");
     expect(done?.["outcome"]).toBe("succeeded");
     expect(typeof done?.["durationMs"]).toBe("number");
+  });
+
+  it("traces a fresh run's steps and its model call", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const tracing = startTestTracing();
+    const task = makeTask({});
+
+    let spans: ReturnType<TestTracing["readFinishedSpans"]> = [];
+    try {
+      await task(payload);
+      spans = tracing.readFinishedSpans();
+    } finally {
+      await tracing.stop();
+    }
+    const names = spans.map((span) => span.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "generation.open",
+        "generation.claim",
+        "generation.decide",
+        "generation.inputs",
+        "brief.generate",
+        "entry.ready",
+        "generation.finish",
+        "chat stub-model",
+      ]),
+    );
+    const decide = spans.find((span) => span.name === "generation.decide");
+    expect(decide?.attributes["mergebrief.decision"]).toBe("fresh");
+    const model = spans.find((span) => span.name === "chat stub-model");
+    expect(model?.attributes["mergebrief.generation.kind"]).toBe("brief");
   });
 
   it("logs generation.succeeded with the pair and the stored brief id", async () => {

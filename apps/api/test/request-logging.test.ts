@@ -4,6 +4,7 @@
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 import { createLogger, type Logger } from "logging";
+import { startTestTracing, type TestTracing } from "logging/testing";
 import { describe, expect, it } from "vitest";
 import {
   requestLogging,
@@ -55,6 +56,7 @@ function buildApp(logger: Logger): Hono<RequestLogEnv> {
     return c.json({ error: "not found" }, 404);
   });
   app.get("/api/version", (c) => c.json({ version: "1.4.0" }));
+  app.get("/api/repos/:repoId/brief", (context) => context.json({ ok: true }));
   return app;
 }
 
@@ -139,5 +141,25 @@ describe("requestLogging", () => {
     expect(line?.["status"]).toBe(404);
     expect(line?.["decision"]).toBe("404");
     expect(line?.["reviewerId"]).toBe("42");
+  });
+});
+
+describe("request span naming", () => {
+  it("names the request's span for the matched route pattern", async () => {
+    const tracing = startTestTracing();
+    const app = buildApp(captureLogger().logger);
+
+    let spans: ReturnType<TestTracing["readFinishedSpans"]> = [];
+    try {
+      await tracing.runInSpan(async () => {
+        await app.request("/api/repos/42/brief");
+      });
+      spans = tracing.readFinishedSpans();
+    } finally {
+      await tracing.stop();
+    }
+    const [request] = spans;
+    expect(request?.name).toBe("GET /api/repos/:repoId/brief");
+    expect(request?.attributes["http.route"]).toBe("/api/repos/:repoId/brief");
   });
 });

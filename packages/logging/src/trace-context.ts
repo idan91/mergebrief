@@ -14,8 +14,8 @@ import {
   type Attributes,
   type Link,
 } from "@opentelemetry/api";
+import { TRACER_NAME } from "./spans";
 
-const TRACER_NAME = "mergebrief";
 const TRACEPARENT = "traceparent";
 
 /** The active trace's W3C `traceparent`, absent outside a sampled trace. */

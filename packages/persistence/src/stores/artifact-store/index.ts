@@ -5,6 +5,7 @@
 // scope filter, the scope stamp and the in-transaction parent check; a store
 // here names only its table, its columns and its own body rules.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { traceStore } from "../trace-store";
 import { readBriefSessionFacts } from "brief-core/artifact";
 import { type AppDatabase, internal } from "../../db/handle";
 import { brief } from "../../schema/brief";
@@ -394,10 +395,10 @@ export function createArtifactStore(
 
   return {
     ctx,
-    briefs,
-    deltas,
-    revisionNarratives,
-    comparisonMarks: comparisonMarksStore,
-    hunkSpans,
+    briefs: traceStore("briefs", briefs),
+    deltas: traceStore("deltas", deltas),
+    revisionNarratives: traceStore("revisionNarratives", revisionNarratives),
+    comparisonMarks: traceStore("comparisonMarks", comparisonMarksStore),
+    hunkSpans: traceStore("hunkSpans", hunkSpans),
   };
 }

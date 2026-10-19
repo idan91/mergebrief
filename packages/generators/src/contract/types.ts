@@ -6,6 +6,7 @@ export const GeneratorWarningKinds = {
   SERVED_MODEL_UNVERIFIED: "served-model-unverified",
   SERVED_MODEL_MISMATCH: "served-model-mismatch",
   EFFORT_REJECTED: "effort-rejected",
+  USAGE_REJECTED: "usage-rejected",
   PLAN_MODE_UNVERIFIED: "plan-mode-unverified",
 } as const;
 export type GeneratorWarningKind = ValueOf<typeof GeneratorWarningKinds>;

@@ -123,6 +123,8 @@ function renderFinishReason(reason: string | null): string {
   return KNOWN_FINISH_REASONS.has(reason) ? reason : "(unrecognized)";
 }
 
+const STREAM_OPTIONS_PARAMETER = "stream_options";
+
 /** response_format.json_schema.name grammar: [a-zA-Z0-9_-]{1,64}. */
 function schemaName(label: string): string {
   const cleaned = label.replaceAll(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
@@ -140,6 +142,8 @@ export class OpenAiCompatibleCore implements Generator {
    */
   private effortSupported: boolean | null;
   private readonly knobRejectionMarker: string;
+  /** False once the provider rejected `stream_options`: usage goes unreported. */
+  private usageSupported = true;
 
   constructor(options: OpenAiCompatibleCoreOptions) {
     this.transport = options.transport;
@@ -260,8 +264,9 @@ export class OpenAiCompatibleCore implements Generator {
     return runWithSchemaFloor(floor);
   }
 
-  /** One streamed request; retries ONCE without reasoning_effort on a 400
-   * that names the parameter (then remembers the knob is absent). */
+  /** One streamed request; retries without reasoning_effort or
+   * stream_options on a 400 that names the parameter (then remembers it is
+   * absent), each at most once. */
   private async request<S extends z.ZodType>(
     req: GenerateRequest<S>,
     wireSchema: Record<string, unknown>,
@@ -289,46 +294,77 @@ export class OpenAiCompatibleCore implements Generator {
     if (this.effortSupported !== false) {
       body.reasoning_effort = req.effort;
     }
-    if (req.onUsage) {
+    const requestsUsage = req.onUsage !== undefined && this.usageSupported;
+    if (requestsUsage) {
       body.stream_options = { include_usage: true };
     }
 
-    try {
-      return await this.consume(req, body, log);
-    } catch (error) {
-      // The retry decision follows THIS request's knob usage, not the
-      // shared cache: two concurrent first requests can both send the knob
-      // and both get the 400, the second must still retry even though its
-      // sibling already flipped the cache (setting it again is idempotent).
-      if (
-        body.reasoning_effort !== undefined &&
-        isEffortKnobRejection(error, this.knobRejectionMarker)
-      ) {
-        // Discovery is INDEPENDENT of abort timing: the knob's absence is
-        // now known either way (later calls must not resend it), and an
-        // abort landing between the 400 and this catch is still an abort,
-        // never a CONFIG error built from an internal discovery response.
-        this.effortSupported = false;
-        if (req.signal?.aborted) {
-          throw new APIUserAbortError();
+    let attempt = body;
+    for (;;) {
+      try {
+        return await this.consume(req, attempt, log);
+      } catch (error) {
+        // Every attempt, retries included, classifies at this boundary: a
+        // 401/429/connection failure must not escape unclassified.
+        const retry = this.dropRejectedParameter(req, attempt, error, log);
+        if (retry === undefined) {
+          throw classifyOpenAiError(error);
         }
-        const rejectedMessage = `warning: ${this.model} rejected reasoning_effort — retrying without it; origin will record effort: null`;
-        log(rejectedMessage);
-        req.onWarning?.({
-          kind: GeneratorWarningKinds.EFFORT_REJECTED,
-          message: rejectedMessage,
-        });
-        const { reasoning_effort: _dropped, ...rest } = body;
-        try {
-          return await this.consume(req, rest, log);
-        } catch (retryError) {
-          // The retry needs its own classification boundary, a 401/429/
-          // connection failure here must not escape unclassified.
-          throw classifyOpenAiError(retryError);
-        }
+        attempt = retry;
       }
-      throw classifyOpenAiError(error);
     }
+  }
+
+  /**
+   * The body without the optional parameter this 400 rejected, or undefined
+   * when it rejected none of them. The decision follows THIS request's body,
+   * not the shared cache: two concurrent first requests can both send a
+   * parameter and both get the 400, and the second must still retry.
+   * Discovery is independent of abort timing: the gap is known either way,
+   * and an abort landing after the 400 is still an abort.
+   */
+  private dropRejectedParameter<S extends z.ZodType>(
+    req: GenerateRequest<S>,
+    body: OpenAiChatRequest,
+    error: unknown,
+    log: Logger,
+  ): OpenAiChatRequest | undefined {
+    const effortRejected =
+      body.reasoning_effort !== undefined &&
+      isParameterRejection(error, this.knobRejectionMarker);
+    if (effortRejected) {
+      this.effortSupported = false;
+      if (req.signal?.aborted) {
+        throw new APIUserAbortError();
+      }
+      const rejectedMessage = `warning: ${this.model} rejected reasoning_effort — retrying without it; origin will record effort: null`;
+      log(rejectedMessage);
+      req.onWarning?.({
+        kind: GeneratorWarningKinds.EFFORT_REJECTED,
+        message: rejectedMessage,
+      });
+      const { reasoning_effort: _dropped, ...rest } = body;
+      return rest;
+    }
+
+    const usageRejected =
+      body.stream_options !== undefined &&
+      isParameterRejection(error, STREAM_OPTIONS_PARAMETER);
+    if (usageRejected) {
+      this.usageSupported = false;
+      if (req.signal?.aborted) {
+        throw new APIUserAbortError();
+      }
+      const rejectedMessage = `warning: ${this.model} rejected stream_options, retrying without it; usage goes unreported`;
+      log(rejectedMessage);
+      req.onWarning?.({
+        kind: GeneratorWarningKinds.USAGE_REJECTED,
+        message: rejectedMessage,
+      });
+      const { stream_options: _dropped, ...rest } = body;
+      return rest;
+    }
+    return undefined;
   }
 
   /** Drive one stream to completion with heartbeat progress logging. */
@@ -439,11 +475,11 @@ export class OpenAiCompatibleCore implements Generator {
 }
 
 /**
- * Discover missing effort support from parameter-naming provider 400 text, never model output.
- * Also inspect OpenRouter metadata.raw for wrapped rejections so broken advertised knobs
- * degrade to an honest null effort instead of permanent config failure.
+ * Discover a missing optional parameter from parameter-naming provider 400 text, never model output.
+ * Also inspect OpenRouter metadata.raw for wrapped rejections so a broken advertised knob
+ * degrades instead of failing as permanent config.
  */
-function isEffortKnobRejection(error: unknown, marker: string): boolean {
+function isParameterRejection(error: unknown, marker: string): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
   }

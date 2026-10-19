@@ -34,6 +34,7 @@ import {
 import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { startTestTracing, type TestTracing } from "logging/testing";
 import { createApp, type ApiApp } from "../src/index";
 import { resetLiveReadMemory } from "../src/routes/live-read";
 import { testLogger } from "./logging";
@@ -226,6 +227,23 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       push: canPush,
     });
   }
+
+  it("meta: a repo the viewer cannot read leaves its authz span unfailed", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_A, viewerStatus: 404 });
+    const cookie = await signIn();
+    const tracing: TestTracing = startTestTracing();
+    let spans: ReturnType<TestTracing["readFinishedSpans"]> = [];
+    try {
+      const res = await get(`/api/repos/${REPO_A}/pulls/1`, cookie);
+      expect(res.status).toBe(404);
+      spans = tracing.readFinishedSpans();
+    } finally {
+      await tracing.stop();
+    }
+
+    const authz = spans.find((span) => span.name === "authz.repo");
+    expect(authz?.failed).toBe(false);
+  });
 
   it("meta: uses artifact-read 404 posture for inaccessible or unknown PRs", async () => {
     arrangeFakeGate(fake, { repoId: REPO_A, viewerStatus: 404 });

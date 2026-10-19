@@ -30,6 +30,7 @@ import {
 import type { PullRequestEnv } from "../access/types";
 import { buildErrorResponse } from "../error-response";
 import { ApiError } from "../shared-errors/api-error";
+import { traceOperation } from "./operation-span";
 import { createPolicyGate } from "./policy-gate";
 import type { ProductOperationRegistry } from "./registry";
 import type {
@@ -248,10 +249,9 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
         method: row.method,
         path,
       });
-      app.get(
-        path,
-        every(createPolicyGate(descriptor, row.classification), ...handlers),
-      );
+      const gate = createPolicyGate(descriptor, row.classification);
+      const traced = every(traceOperation(descriptor.id), gate, ...handlers);
+      app.get(path, traced);
     },
     action(descriptor, path, ...handlers) {
       assertOpen(`cannot declare action "${descriptor.id}"`);
@@ -269,7 +269,8 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
       // ONE composed handler, not a prepended one: Hono records a route-table
       // entry per handler, and a doubled entry would read as a double mount.
       const gate = createPolicyGate(descriptor, row.classification);
-      MOUNT_BY_ACTION_METHOD[row.method](app, path, [every(gate, ...handlers)]);
+      const traced = every(traceOperation(descriptor.id), gate, ...handlers);
+      MOUNT_BY_ACTION_METHOD[row.method](app, path, [traced]);
     },
     route(prefix, child) {
       assertOpen(`cannot mount "${prefix}"`);

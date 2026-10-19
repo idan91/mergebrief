@@ -15,6 +15,7 @@ import {
   lte,
   or,
 } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import {
   readBriefSessionFacts,
   type BriefSessionFacts,
@@ -2038,7 +2039,7 @@ export function createReviewSessionRepository(
     return rows[0]?.unposted ?? 0;
   }
 
-  return {
+  return traceStore("reviewSessions", {
     async get(key) {
       return snapshotFor(key);
     },
@@ -2278,5 +2279,5 @@ export function createReviewSessionRepository(
       };
       return { ok: true, value: view };
     },
-  };
+  });
 }

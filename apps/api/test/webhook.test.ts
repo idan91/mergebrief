@@ -12,6 +12,7 @@ import {
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import { startTestTracing, type TestTracing } from "logging/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
@@ -264,6 +265,34 @@ describe("POST /api/webhooks/github", () => {
     const runAt = epochMs(jobs[0]?.["run_at"]);
     expect(runAt - before).toBeGreaterThan(55_000);
     expect(runAt - before).toBeLessThan(65_000);
+  });
+
+  it("traces a delivery as verify, dispatch and trigger under its route", async () => {
+    const tracing = startTestTracing();
+    const payload = pullRequestPayload({ action: "opened" });
+
+    let spans: ReturnType<TestTracing["readFinishedSpans"]> = [];
+    try {
+      await tracing.runInSpan(async () => {
+        await deliver(app, "pull_request", payload);
+      });
+      spans = tracing.readFinishedSpans();
+    } finally {
+      await tracing.stop();
+    }
+    const byName = new Map(spans.map((span) => [span.name, span]));
+    expect(byName.get("webhook.verify")?.attributes).toMatchObject({
+      "mergebrief.verified": true,
+    });
+    expect(byName.get("webhook.dispatch")?.attributes).toMatchObject({
+      "mergebrief.webhook.kind": "pull-request",
+      "mergebrief.webhook.action": "opened",
+    });
+    expect(byName.get("generation.trigger")?.attributes).toMatchObject({
+      "mergebrief.applied": true,
+      "mergebrief.queued": true,
+    });
+    expect(byName.has("POST /api/webhooks/github")).toBe(true);
   });
 
   it("persists draft + author_login from a pull_request event", async () => {

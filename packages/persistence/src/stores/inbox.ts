@@ -15,6 +15,7 @@ import {
   type SQL,
   type SQLWrapper,
 } from "drizzle-orm";
+import { traceStore } from "./trace-store";
 import {
   InboxArchivedFilters,
   InboxAuthorFilters,
@@ -515,7 +516,7 @@ function shapeRow(row: SelectedRow): InboxRow {
 export function createInboxStore(handle: AppDatabase): InboxStore {
   const db = internal(handle);
 
-  return {
+  return traceStore("inbox", {
     async list(input) {
       const pageValid =
         Number.isInteger(input.page) && Number.isInteger(input.pageSize);
@@ -578,5 +579,5 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         repositories: shapeRepositories(grouped),
       };
     },
-  };
+  });
 }

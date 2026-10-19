@@ -5,6 +5,7 @@
 // keeps that reference so a revoked token stays listable. This surface never
 // sees token plaintext: mint takes the caller-computed `tokenHash`.
 import { and, desc, eq, isNull } from "drizzle-orm";
+import { traceStore } from "../stores/trace-store";
 import { insertAudit } from "../stores/audit";
 import { type AppDatabase, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
@@ -134,7 +135,7 @@ export interface TokenAuth {
 export function createTokenAuth(handle: AppDatabase): TokenAuth {
   const db = internal(handle);
 
-  return {
+  return traceStore("tokenAuth", {
     async mintToken(input) {
       // ONE transaction with the audit emit: an audit failure would otherwise
       // leave a live, unaudited credential behind a 500, and the caller's
@@ -234,5 +235,5 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
         .returning({ id: apiToken.id });
       return rows.length;
     },
-  };
+  });
 }

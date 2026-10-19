@@ -81,6 +81,21 @@ span, never the domain's **Span diff** or **Sibling span**.
    budget so an unreachable collector never holds a stop past
    `stop_grace_period`.
 
+> **Amended 2026-10-18 (BRIEF-336, after the first trace review).** The first
+> cut answered "where did time go" but not "which flow is this": a webhook
+> read as `POST` over a run of SQL. Finer spans now name the flow. The api
+> names each request span for its matched route (`http.route`, the resource
+> name Datadog groups by) and each product operation by its catalog id; the
+> webhook, the access checks, the PR row load and the GitHub publishes get
+> named steps, and so do the worker's run steps. Each model call is one GenAI
+> span (`chat <model>`) carrying provider, model, effort, artifact kind and
+> the token usage the API adapters report. Span code reads the no-op API
+> through `logging`'s `traceStep`, so this adds no package edge, and attributes
+> stay ids, counts and decision tokens. The names are a stable contract in
+> `docs/self-host/observability.md`. A recording model span asks an
+> OpenAI-compatible provider to include usage in its stream; an unsampled or
+> untraced call goes out unchanged.
+
 ## Consequences
 
 - The Image ships the OTel packages; a process with no endpoint loads only
