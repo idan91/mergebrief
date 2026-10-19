@@ -40,3 +40,11 @@ test("a failed sign-in says so above Sign in", async ({ page }) => {
     "Signing in didn't complete. Try again.",
   );
 });
+
+test("the server-function transport answers 404", async ({ request }) => {
+  const transport = await request.get("/_serverFn/abc");
+  const encoded = await request.get("/%5FserverFn/abc");
+
+  expect(transport.status()).toBe(404);
+  expect(encoded.status()).toBe(404);
+});

@@ -10,18 +10,29 @@ allowBuilds:
 # below): scoped to the affected major so unrelated majors keep their own
 # resolution. Drop an entry once the owning dependency's own range covers it.
 overrides:
-  # GHSA-rgw5-rvv9-x895 + GHSA-mh99-v99m-4gvg — expansion DoS in the 1.x
-  # line, both fixed in 1.1.18; reached via vite > stylus > glob > minimatch.
-  "brace-expansion@1": "1.1.18"
-  # GHSA for js-yaml !!omap quadratic CPU, fixed in 4.3.1; reached via
-  # @tanstack/react-start's build plugins.
-  "js-yaml@4": "4.3.1"
+  # GHSA-rgw5-rvv9-x895 + GHSA-mh99-v99m-4gvg (fixed in 1.1.18), then two
+  # recursion DoS advisories (fixed in 1.1.19 and 1.1.20); reached via vite >
+  # stylus > glob > minimatch.
+  "brace-expansion@1": "1.1.21"
+  # js-yaml !!omap quadratic CPU (fixed in 4.3.1) and the unbounded merge-key
+  # CPU advisory (fixed in 4.3.2); reached via @tanstack/react-start's build
+  # plugins and graphile-worker > cosmiconfig.
+  "js-yaml@4": "4.3.2"
   # Two nanoid generator-loop advisories in the 3.x line, fixed in 3.3.18;
   # reached via @tanstack/react-start > vite.
   "nanoid@3": "3.3.18"
   # Two browserslist advisories (unbounded cache growth, prototype write),
   # fixed in 4.28.7; reached via @tanstack/react-start > vite.
   "browserslist@4": "4.28.8"
+  # Quadratic-time DoS, fixed in 7.3.1; reached via vite > less.
+  "probe-image-size@7": "7.4.0"
+  # Event-loop DoS, fixed in 1.2.2; reached via vite > postcss.
+  "source-map-js@1": "1.2.2"
+  # GHSA-p6vx-979v-rg4c (fromJSON thenable assimilation, fixed in 1.6.1) and
+  # the unchecked TypedArray memory exhaustion (fixed in 1.6.3); reached via
+  # @tanstack/router-core's serializer.
+  "seroval@1": "1.6.9"
+  "seroval-plugins@1": "1.6.9"
 
 # `pnpm audit --prod --audit-level=high` is a blocking gate.
 # Every entry below is an advisory we have read and accepted, with the reason
@@ -30,6 +41,14 @@ overrides:
 # fix is to drop the line, not to widen the list.
 auditConfig:
   ignoreGhsas:
+    # TanStack Start: unauthenticated reflected XSS through the
+    # server-function transport. It needs a server function to target, and
+    # this app compiles none (the lint bans `createServerFn`), so every
+    # transport request fails its id lookup before any payload handling; the
+    # web entry also answers 404 under `/_serverFn`. The patched line
+    # (react-start 1.168.60+, router 1.170.41+) breaks routing in the browser
+    # suite; take it with the fix that line needs, then drop this entry.
+    - GHSA-qx66-fv34-fjm8
     # immutable — List 32-bit trie overflow DoS. Transitive through
     # vite > sass, i.e. compilation of our own SCSS at build time. Never
     # sees request data.

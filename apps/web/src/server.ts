@@ -1,7 +1,8 @@
 // Custom TanStack Start server entry: TanStack Start resolves `src/server.ts`
 // as the server entry. `/api/*`, the app's ONE registered namespace with OAuth
-// and auth management included, is proxied to the API process; every other
-// path falls through to Start's default page handler.
+// and auth management included, is proxied to the API process; the
+// server-function transport and malformed paths answer 404; every other path
+// falls through to Start's default page handler.
 //
 // Not `createServerFn`: that is RPC framing, whereas GitHub POSTs a raw
 // HMAC-signed body that must reach the webhook route byte-for-byte.
@@ -15,8 +16,10 @@ import { checkApiReadiness, handleHealthRequest } from "./server/health";
 import { getServerLogger } from "./server/logger";
 import { getApiTransport } from "./server/api/transport";
 import { apiUnavailable, requestApi } from "./server/api/proxy";
+import { isRefusedPath } from "./server/refused-paths";
 
 const logger = getServerLogger();
+const NOT_FOUND_STATUS = 404;
 
 /** Start's default page/SSR + server-function handler (the framework fallthrough). */
 const handleStartRequest = createStartHandler(defaultStreamHandler);
@@ -55,6 +58,9 @@ const serverEntry: ServerEntry = {
     });
     if (health !== undefined) {
       return health;
+    }
+    if (isRefusedPath(pathname)) {
+      return new Response(null, { status: NOT_FOUND_STATUS });
     }
     if (isApiPath(pathname)) {
       let transport: ReturnType<typeof getApiTransport>;
