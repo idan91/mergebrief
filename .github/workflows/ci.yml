@@ -370,8 +370,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Only the files the image is made of; a source-only PR is covered by
-      # the test matrix and never pays for a build here.
+      # The packaging files, plus the web source the image copies by name
+      # (its entry, its preload, src/server and the build config): an import
+      # there that leaves the allow-list resolves in dev and fails only in the
+      # image. Other source changes are covered by the test matrix.
       - name: Select packaging changes
         id: packaging
         env:
@@ -380,7 +382,7 @@ jobs:
           set -euo pipefail
           base="$(git merge-base "$BASE_SHA" HEAD)"
           changed="$(git diff --name-only "$base" HEAD)"
-          if grep -qE '^(Dockerfile|docker-entrypoint\.sh|\.dockerignore|docker-compose[^/]*\.yml|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|package\.json|(apps|packages|tools)/[^/]+/package\.json|\.github/workflows/(ci|release)\.yml)$' <<<"$changed"; then
+          if grep -qE '^(Dockerfile|docker-entrypoint\.sh|\.dockerignore|docker-compose[^/]*\.yml|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|package\.json|(apps|packages|tools)/[^/]+/package\.json|\.github/workflows/(ci|release)\.yml|\.github/scripts/image-boot-smoke\.sh|apps/web/src/(serve|instrument)\.ts|apps/web/src/server/.*|apps/web/vite\.config\.ts)$' <<<"$changed"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -420,6 +422,14 @@ jobs:
           printf '%s\n' "$output"
           [ "$status" -eq 1 ] || { echo "::error::expected exit 1, got $status"; exit 1; }
           grep -q "api | web | worker | migrate" <<<"$output"
+
+      # Boots the image as compose runs it: migrate, then api, web (healthz,
+      # readyz through the api, a signed-out page) and worker against a
+      # throwaway Postgres. A runtime import the prod install dropped fails
+      # here; the entrypoint smoke above cannot see one.
+      - name: Boot the image
+        if: steps.packaging.outputs.changed == 'true'
+        run: bash .github/scripts/image-boot-smoke.sh mergebrief:pr
 
   required-checks-passed:
     name: required-checks-passed
