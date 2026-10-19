@@ -1,0 +1,33 @@
+@use "functions";
+
+@layer components {
+  .skeleton {
+    display: grid;
+    gap: functions.to-rem(14px);
+  }
+
+  .line {
+    display: block;
+    block-size: functions.to-rem(14px);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+
+    &[data-size="lead"] {
+      inline-size: 55%;
+      block-size: functions.to-rem(28px);
+    }
+
+    &[data-size="bar"] {
+      block-size: 6px;
+      margin-block-end: functions.to-rem(18px);
+    }
+
+    &[data-size="text"] {
+      inline-size: 80%;
+    }
+
+    &[data-size="text-short"] {
+      inline-size: 45%;
+    }
+  }
+}

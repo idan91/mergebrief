@@ -1,5 +1,6 @@
 import { IconNames } from "@web/components/Icon/types";
 import { TokenSettings } from "@web/features/tokens";
+import { InstancePanel } from "./components/InstancePanel";
 import { SettingsTabIds, type SettingsTab } from "./types";
 
 function TokensPanel() {
@@ -13,5 +14,12 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     labelKey: "shell.settingsTabTokens",
     icon: IconNames.TERMINAL,
     Panel: TokensPanel,
+  },
+  {
+    id: SettingsTabIds.INSTANCE,
+    labelKey: "shell.settingsTabInstance",
+    icon: IconNames.SLIDERS_HORIZONTAL,
+    requiresOperator: true,
+    Panel: InstancePanel,
   },
 ];

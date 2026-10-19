@@ -1,0 +1,44 @@
+@use "functions";
+
+@layer components {
+  .block {
+    margin-block-start: functions.to-rem(48px);
+    padding-block-start: functions.to-rem(24px);
+    border-block-start: 1px solid var(--color-outline-1);
+
+    code {
+      font-family: var(--mono);
+      font-size: var(--font-size-md);
+    }
+  }
+
+  .heading {
+    margin: 0 0 functions.to-rem(8px);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+  }
+
+  .copy {
+    max-width: 62ch;
+    margin: 0 0 functions.to-rem(12px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+  }
+
+  .code {
+    margin: 0;
+    padding: functions.to-rem(12px) functions.to-rem(16px);
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-md);
+    background: var(--color-well);
+    color: var(--color-text-read);
+    font-size: var(--font-size-lg);
+    line-height: 1.6;
+    overflow-x: auto;
+
+    code {
+      font-size: var(--font-size-lg);
+    }
+  }
+}

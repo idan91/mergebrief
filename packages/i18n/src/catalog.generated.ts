@@ -268,6 +268,20 @@ export type Catalog = typeof en & {
     rowRevoked: "revoked {{when}}";
     rowActive: "expires {{expires}} · last used {{lastUsed}}";
   };
+  spend: (typeof en)["spend"] & {
+    startedOfCap_one: "This instance has started <0>{{started}} of its {{count}}</0> run today.";
+    startedOfCap_other: "This instance has started <0>{{started}} of its {{count}}</0> runs today.";
+    allUsed_one: "This instance has used <0>its {{count}}</0> run today.";
+    allUsed_other: "This instance has used <0>all {{count}}</0> of its runs today.";
+    overCap: "This instance has started <0>{{started}} runs</0> today, past its cap of {{cap}}.";
+    uncapped_one: "This instance has started <0>{{count}} run</0> today and has no daily cap.";
+    uncapped_other: "This instance has started <0>{{count}} runs</0> today and has no daily cap.";
+    resetsLocal: "The count resets at {{local}} your time ({{utc}} UTC), {{relative}}.";
+    resetsUtc: "The count resets at {{utc}} UTC, {{relative}}.";
+    ticksLabel_one: "{{started}} of {{count}} run started today";
+    ticksLabel_other: "{{started}} of {{count}} runs started today";
+    stale: "The latest refresh failed. This count was read at {{time}}.";
+  };
   shell: (typeof en)["shell"] & {
     footerRights: "© {{year}} Idan Ram. All rights reserved.";
     versionNotice: (typeof en)["shell"]["versionNotice"] & {

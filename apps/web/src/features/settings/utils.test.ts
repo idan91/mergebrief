@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "../../data/apiFetch";
 import { SettingsTabIds, type SettingsTab } from "./types";
 import {
   deriveEnabledTabs,
+  isOperatorOnlyFailure,
   parseSettingsSearch,
   resolveActiveTab,
 } from "./utils";
@@ -62,5 +64,20 @@ describe("resolveActiveTab", () => {
 
   it("falls back to the first tab when nothing is asked for", () => {
     expect(resolveActiveTab([TOKENS], undefined)).toBe(TOKENS);
+  });
+});
+
+describe("isOperatorOnlyFailure", () => {
+  it("names a refusal for a viewer who is no longer an operator", () => {
+    const refused = new ApiError("operator-only", 403, "/api/spend");
+
+    expect(isOperatorOnlyFailure(refused)).toBe(true);
+  });
+
+  it("leaves an outage and a plain error to the generic copy", () => {
+    const outage = new ApiError("internal-error", 500, "/api/spend");
+
+    expect(isOperatorOnlyFailure(outage)).toBe(false);
+    expect(isOperatorOnlyFailure(new Error("network"))).toBe(false);
   });
 });

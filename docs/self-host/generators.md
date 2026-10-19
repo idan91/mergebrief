@@ -172,7 +172,7 @@ Treat it as a ceiling on what you are willing to spend per day,
 not as a bill. Cost reporting is a separate, later concern.
 
 An Operator (see "Operators" below) reads the day's count against the cap
-with `mergebrief spend`.
+on the Instance tab of Settings, or with `mergebrief spend`.
 
 The window resets at 00:00 UTC. A push skipped today is not retried
 automatically when the cap resets — the PR gets its brief on its next

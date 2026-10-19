@@ -1,0 +1,19 @@
+@use "functions";
+
+@layer components {
+  .root {
+    display: grid;
+  }
+
+  .heading {
+    margin: 0 0 functions.to-rem(12px);
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+  }
+
+  .stale {
+    margin: functions.to-rem(8px) 0 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+  }
+}

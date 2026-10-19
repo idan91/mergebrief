@@ -1,3 +1,4 @@
+import { ApiError, ApiErrorCodes } from "../../data/apiFetch";
 import {
   SettingsTabIds,
   type SettingsSearch,
@@ -46,4 +47,11 @@ export function resolveActiveTab(
     throw new Error("settings: no tab is enabled for this viewer");
   }
   return active;
+}
+
+/** Whether the read was refused because the viewer is no longer an Operator. */
+export function isOperatorOnlyFailure(error: unknown): boolean {
+  return (
+    error instanceof ApiError && error.code === ApiErrorCodes.OPERATOR_ONLY
+  );
 }

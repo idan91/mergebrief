@@ -106,6 +106,41 @@ describe("the settings route", () => {
     expect(screen.queryByRole("tablist")).toBeNull();
   });
 
+  it("puts an Operator's Instance tab on the rail", async () => {
+    await loadSettings(
+      {
+        kind: ViewerStates.SIGNED_IN,
+        login: "octocat",
+        avatarUrl: "https://avatars.example/octocat.png",
+        operator: true,
+      },
+      "/settings?tab=instance",
+    );
+
+    const instance = await screen.findByRole("tab", { name: "Instance" });
+
+    expect(instance.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "API tokens" })).toBeTruthy();
+  });
+
+  it("hides the Instance tab from a viewer who is not an Operator", async () => {
+    await loadSettings(
+      {
+        kind: ViewerStates.SIGNED_IN,
+        login: "octocat",
+        avatarUrl: "https://avatars.example/octocat.png",
+        operator: false,
+      },
+      "/settings?tab=instance",
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /API tokens/ })).toBeTruthy();
+    });
+    expect(screen.queryByRole("tab", { name: "Instance" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Daily runs" })).toBeNull();
+  });
+
   it("treats a viewer it could not confirm as signed out", async () => {
     await loadSettings({ kind: ViewerStates.UNKNOWN });
 
