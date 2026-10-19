@@ -293,5 +293,5 @@ async function generateArtifacts(
     brief.briefRef.headIndex,
   );
   await writeFollowOnArtifacts(context, inputs, brief, generator);
-  await finishRun(context);
+  await finishRun(context, brief.briefRef);
 }

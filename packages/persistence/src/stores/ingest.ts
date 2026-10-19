@@ -271,6 +271,8 @@ export interface IngestOutcome {
    * the row, the projection and the queue were left as they were.
    */
   readonly applied: boolean;
+  /** True when this call added or replaced the PR's `generate` job. */
+  readonly queued: boolean;
   /**
    * Absent when the trigger landed on a PR whose terminal lifecycle was
    * preserved, when the event was skipped or when a stored brief covers it:
@@ -378,7 +380,7 @@ export function createIngestRoutines(
         );
         const prRow = upserted.row;
         if (!upserted.applied) {
-          return { pullRequest: prRow, applied: false };
+          return { pullRequest: prRow, applied: false, queued: false };
         }
 
         // Terminal preserved → the trigger was stale. Stop here: projecting a
@@ -389,7 +391,7 @@ export function createIngestRoutines(
           preserveTerminal &&
           (prRow.state === PrStates.CLOSED || prRow.state === PrStates.MERGED)
         ) {
-          return { pullRequest: prRow, applied: true };
+          return { pullRequest: prRow, applied: true, queued: false };
         }
 
         // 1a. A brief for the pair covers the event. Work the brief leaves
@@ -410,6 +412,7 @@ export function createIngestRoutines(
             return {
               pullRequest: prRow,
               applied: true,
+              queued: false,
               coveredBy: storedBrief,
             };
           }
@@ -448,6 +451,7 @@ export function createIngestRoutines(
         const value: Mutable<IngestOutcome> = {
           pullRequest: prRow,
           applied: true,
+          queued: false,
         };
         if (storedBrief === undefined) {
           const projected = await projectPendingGeneration(tx, scope, {
@@ -472,6 +476,7 @@ export function createIngestRoutines(
           prRow.id,
           effectiveDebounceSeconds,
         );
+        value.queued = true;
         return value;
       });
     },
@@ -534,7 +539,11 @@ export function createIngestRoutines(
         input,
         options?.reopen !== true,
       );
-      return { pullRequest: upserted.row, applied: upserted.applied };
+      return {
+        pullRequest: upserted.row,
+        applied: upserted.applied,
+        queued: false,
+      };
     },
   };
 }

@@ -330,6 +330,15 @@ async function triggerGeneration(
   if (!outcome.applied) {
     logSkippedEvent(log, event);
   }
+  if (outcome.queued) {
+    log.info("generation enqueued", {
+      evt: "generation.enqueue",
+      repoId: String(event.repoId),
+      prNumber: event.prNumber,
+      prId: String(outcome.pullRequest.id),
+      headSha: event.headSha,
+    });
+  }
   if (outcome.coveredBy !== undefined) {
     log.debug("webhook event covered by a stored brief, nothing queued", {
       repoId: String(event.repoId),

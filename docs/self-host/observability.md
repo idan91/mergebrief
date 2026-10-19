@@ -46,8 +46,10 @@ changes get a breaking-change entry in
 | `url-box-token.owner.fail` | error | api, worker | `status`, `code` | yes: GitHub refused `MERGEBRIEF_URL_BOX_TOKEN` at boot (401, a 403 that is not a rate limit, or 404), so it serves nobody until the token is replaced and the process restarts |
 | `audit.fail` | error | api | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but the instance stuck at it produces no briefs all day |
+| `generation.enqueue` | info | api | `deliveryId`, `reqId`, `repoId`, `prNumber`, `prId`, `headSha` | no: a webhook delivery added or replaced the PR's job; the line that joins a delivery to the worker's `{prId, headSha}` |
 | `generation.start` | info | worker | `prId`, `headSha`, `waitMs`, `attempt` | no: the queue-wait line; pair with generation.complete for end-to-end time |
 | `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | no — the model-call duration line; nothing else records how long a generation took |
+| `generation.succeeded` | info | worker | `prId`, `headSha`, `prNumber`, `briefId` | no: the run finished; `briefId` is the brief it served |
 | `artifact.check.fail` | warn | worker | `kind`, `issueCount`, `firstPath`, job bindings | on **sustained rate**: a generated brief, delta brief or revision narrative failed its stored-shape check and was written anyway; `kind` is `brief`, `delta` or `revision-narrative`, the same values `generation.complete` carries, and no body content rides the line |
 | `update.available` | info; warn when `security` | api | `current`, `latest`, `breaking`, `security`, `releaseNotesUrl` | warn: yes, a vulnerability fix exists. Fires once when `latest` is first newer than the running version, and once at boot if behind |
 | `update.check.fail` | info on the first failure after boot, debug after | api | `err` | no; the network blocks github.com or the release file is malformed, and `/api/version` carries no fresh `checkedAt` |
@@ -65,32 +67,31 @@ routed to, and is what joins this line to the audit row that request wrote
 
 ## Correlation
 
-Two joins carry a delivery end to end:
+One push reads end to end in three steps:
 
-1. **Web leg** — every `/api` response echoes `X-Request-Id` (inbound value
+1. **Delivery**: every `/api` response echoes `X-Request-Id` (inbound value
    accepted if well-formed, UUID minted otherwise) and every line for that
-   request carries it as `reqId`. Webhook events additionally carry
+   request carries it as `reqId`. Webhook lines additionally carry
    `deliveryId` (GitHub's `x-github-delivery`), which matches the delivery
    record in your GitHub App's **Advanced → Recent Deliveries** page.
-2. **Worker leg** — pushes coalesce into one pending job per PR, so no
-   single delivery owns a job. The durable join is `{prId, headSha}`,
-   stamped on every worker line for the job (pickup, provider call,
-   completion, failure). `prId` is the instance's **internal pull-request
-   row id, not the GitHub PR number** — resolve it once from the database
-   and then filter logs by it:
+2. **Enqueue**: when the delivery adds or replaces the PR's job, the api
+   writes one `generation.enqueue` line carrying `deliveryId`, `reqId`,
+   `repoId`, `prNumber`, `prId` and `headSha`. A delivery that queues nothing (a close, a stale
+   redelivery, a head a stored brief already covers) writes none.
+3. **Worker**: every worker line for the job (pickup, provider call,
+   completion, failure) carries the same `{prId, headSha}`, ending at
+   `generation.succeeded` with the stored `briefId`. Pushes coalesce into
+   one pending job per PR, so several deliveries can share one job: filter
+   the worker by the pair, never by a delivery. A later `generation.enqueue`
+   for the same `prId` replaces the pending job, so an earlier pair's story
+   ends at its own enqueue line.
 
-   ```sh
-   # $POSTGRES_USER / $POSTGRES_DB are set inside the container from your
-   # .env (defaults: code_review) — read them there rather than hardcoding.
-   docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-     -c "select id from pull_request where repo_slug = '"'"'owner/repo'"'"' and pr_number = 123;"'
-   ```
+`prId` is the instance's **internal pull-request row id, not the GitHub PR
+number**. The same id (as `pull_request_id`) and `headSha` sit on the queue
+row and the `generation` rows, so the log to database join is direct.
 
-   The same id (as `pull_request_id`) and `headSha` sit on the queue row
-   and the `generation` rows, so the log ↔ database join is direct.
-
-So the story of one push reads: `api.access` + webhook lines (`reqId`,
-`deliveryId`) → job lines (`prId`, `headSha`). Correlated logs are the v1
+So the story of one push reads: `deliveryId` → `generation.enqueue` →
+`{prId, headSha}` → `generation.succeeded`. Correlated logs are the v1
 trace; there is no tracing system (OTel is a deliberate non-goal for now).
 
 ## Health endpoints

@@ -1482,6 +1482,58 @@ describe("webhook event logging", () => {
     );
   });
 
+  it("an enqueue logs generation.enqueue with the delivery and its pair", async () => {
+    const { app, capture } = appWithCapture();
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+      { deliveryId: "delivery-enqueue-1" },
+    );
+
+    expect(res.status).toBe(200);
+    const [prRow] = await harness.raw("select id from pull_request");
+    const line = capture
+      .lines()
+      .find((entry) => entry["evt"] === "generation.enqueue");
+    expect(line).toMatchObject({
+      level: "info",
+      deliveryId: "delivery-enqueue-1",
+      repoId: String(REPO_ID),
+      prNumber: 2,
+      prId: String(prRow?.["id"]),
+      headSha: HEAD_SHA,
+    });
+    expect(typeof line?.["reqId"]).toBe("string");
+  });
+
+  it("a delivery that queues nothing writes no generation.enqueue line", async () => {
+    const { app, capture } = appWithCapture();
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "closed" }),
+    );
+    // A review reaches the trigger, which keeps the closed state and queues
+    // nothing: the line must follow `queued`, not `applied`.
+    const res = await deliver(
+      app,
+      "pull_request_review",
+      pullRequestReviewPayload(),
+      { deliveryId: "delivery-review-closed" },
+    );
+
+    expect(res.status).toBe(200);
+    const enqueued = capture
+      .lines()
+      .filter((entry) => entry["evt"] === "generation.enqueue");
+    expect(enqueued).toEqual([]);
+    const [job] = await harness.raw(
+      "select count(*)::int as n from graphile_worker.jobs",
+    );
+    expect(job?.["n"]).toBe(0);
+  });
+
   it("a handled delivery's api.access line carries the reqId for correlation", async () => {
     const { app, capture } = appWithCapture();
     const res = await deliver(

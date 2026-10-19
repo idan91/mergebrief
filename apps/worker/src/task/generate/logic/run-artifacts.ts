@@ -11,6 +11,7 @@ import { GenerationStatuses } from "types/generations";
 import { AUDIT_OPERATION_GENERATE } from "../consts";
 import {
   RunDecisionKinds,
+  type BriefRef,
   type FreshRun,
   type GeneratingRun,
   type PrefetchedSpan,
@@ -187,7 +188,10 @@ async function writeRevisionSpan(
  * terminal `superseded` applies as to a drained abort. A head triggered after
  * pickup is newer than this run and keeps its row.
  */
-export async function finishRun(context: RunContext): Promise<void> {
+export async function finishRun(
+  context: RunContext,
+  briefRef: BriefRef,
+): Promise<void> {
   const { payload, projection, pickedUpAt, prRow, log } = context;
   await recordRunSuccess(context);
   const swept = await projection.supersedeStaleBriefs(
@@ -198,9 +202,11 @@ export async function finishRun(context: RunContext): Promise<void> {
   if (swept > 0) {
     log.info(`generate: swept ${swept} stale pending brief projection(s)`);
   }
-  log.info(
-    `generate: succeeded for ${prRow.prNumber}@${payload.headSha.slice(0, 8)}`,
-  );
+  log.info("generation succeeded", {
+    evt: "generation.succeeded",
+    prNumber: prRow.prNumber,
+    briefId: String(briefRef.id),
+  });
   warnOnUnpaidTakeover(context);
 }
 

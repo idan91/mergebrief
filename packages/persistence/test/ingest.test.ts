@@ -151,6 +151,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(outcome.pullRequest.prNumber).toBe(7);
     expect(outcome.pullRequest.title).toBe("feat: add widgets");
     expect(outcome.pullRequest.state).toBe(PrStates.OPEN);
+    expect(outcome.queued).toBe(true);
 
     // The returned generation row: kind brief, pending, baseline null.
     const generation = expectGeneration(outcome);
@@ -298,6 +299,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       const second = await trigger();
 
       const row = expectGeneration(second);
+      expect(second.queued).toBe(false);
       expect(row.status).toBe(GenerationStatuses.RUNNING);
       expect(row.runId).not.toBeNull();
       expect(await harness.raw("select id from graphile_worker.jobs")).toEqual(
@@ -942,6 +944,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       const second = await trigger({ baseSha: BASE_SHA });
 
       expect(second.coveredBy).toBe(briefId);
+      expect(second.queued).toBe(false);
       expect(second.generation).toBeUndefined();
       expect(await readGeneration()).toEqual({
         status: GenerationStatuses.SUCCEEDED,
@@ -1077,6 +1080,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       });
 
       expect(flipped.coveredBy).toBeUndefined();
+      expect(flipped.queued).toBe(true);
       expect(flipped.generation).toBeUndefined();
       expect(await readGeneration()).toEqual({
         status: GenerationStatuses.SUCCEEDED,

@@ -70,6 +70,25 @@ describe("generate task, observability", () => {
     expect(typeof done?.["durationMs"]).toBe("number");
   });
 
+  it("logs generation.succeeded with the pair and the stored brief id", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const { logger, readLines } = captureLogger();
+    const task = makeTask({ log: logger });
+
+    await task(payload);
+
+    const [brief] = await harness.raw("select id from brief");
+    const done = readLines().find(
+      (line) => line["evt"] === "generation.succeeded",
+    );
+    expect(done).toMatchObject({
+      level: "info",
+      prId: String(pr.id),
+      headSha: HEAD_1,
+      briefId: String(brief?.["id"]),
+    });
+  });
+
   it("logs generation.complete when the model call throws", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
