@@ -1,19 +1,23 @@
 # syntax=docker/dockerfile:1
 # The one image a release ships: api, web and worker, each started by one
 # word (see docker-entrypoint.sh). Build context is the REPO ROOT: every app
-# depends on workspace packages and the api and worker run from TypeScript
-# source via tsx, so the image is a full workspace checkout with its
-# dependency closure, built once and copied into a stage per target platform.
-# The install and the web build run on the builder's own platform; the tree
-# is copied unchanged into the linux/amd64 and linux/arm64 stages, so the
-# install must carry BOTH platforms' native binaries (esbuild under tsx,
-# rolldown under vite). pnpm's supportedArchitectures does that; it is set
-# inside the builder only, so a developer's host install stays its own
-# platform's. An alpine (musl) base is part of that contract: the installed
-# bindings are the musl ones, so a glibc NODE_IMAGE would boot without them.
+# depends on workspace packages, and api, worker and the web entry run their
+# TypeScript source through tsx, a production dependency of each.
+#
+# Three stages. `builder` installs everything and builds the web bundle, which
+# is plain JS and CSS; `runtime-deps` installs the same three apps' closure
+# with `--prod` and prunes tests and Vite; the final stage copies an
+# allow-list from both, so dev tooling, test suites, tools/ and eval cases
+# never ship. Both install stages run on the builder's own platform.
+# `runtime-deps` runs once per target and installs only that target's native
+# binaries (esbuild under tsx) through pnpm's supportedArchitectures, set
+# inside the build only, with install scripts off: esbuild's postinstall
+# checks the HOST's binary, and none of the scripts matter at runtime. An
+# alpine (musl) base is part of that contract: a glibc NODE_IMAGE would boot
+# without the bindings.
 ARG NODE_IMAGE=node:24-alpine
 
-FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS builder
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS workspace
 
 # corepack pins pnpm to the workspace's `packageManager` field.
 RUN corepack enable
@@ -22,14 +26,14 @@ WORKDIR /app
 RUN chown node:node /app
 USER node
 
-# Source (filtered by .dockerignore), then the dependency closure of the
-# three apps. Deliberately NOT the lockfile-first `pnpm fetch` split: a source
-# change does invalidate this layer, but image builds are per release and a
-# plain filtered install is the proven path (pnpm fetch stalls under some
-# BuildKit/network setups).
+# Source (filtered by .dockerignore). Deliberately NOT the lockfile-first
+# `pnpm fetch` split: image builds are per release and a plain filtered
+# install is the proven path (pnpm fetch stalls under some BuildKit setups).
 COPY --chown=node:node . .
-RUN printf '\nsupportedArchitectures:\n  os: [linux]\n  cpu: [x64, arm64]\n  libc: [musl]\n' >> pnpm-workspace.yaml \
-  && pnpm install --frozen-lockfile \
+
+FROM workspace AS builder
+
+RUN pnpm install --frozen-lockfile \
   --filter api... \
   --filter worker... \
   --filter @code-review/web...
@@ -38,11 +42,48 @@ RUN printf '\nsupportedArchitectures:\n  os: [linux]\n  cpu: [x64, arm64]\n  lib
 # serves them at runtime: the whole web tier, no CDN.
 RUN pnpm --dir apps/web build
 
+FROM workspace AS runtime-deps
+ARG TARGETARCH
+
+RUN cpu="$TARGETARCH" \
+  && if [ "$cpu" = amd64 ]; then cpu=x64; fi \
+  && printf '\nsupportedArchitectures:\n  os: [linux]\n  cpu: [%s]\n  libc: [musl]\n' "$cpu" >> pnpm-workspace.yaml \
+  && pnpm install --frozen-lockfile --prod --ignore-scripts \
+  --filter api... \
+  --filter worker... \
+  --filter @code-review/web...
+
+# Vite arrives only as the TanStack build plugins' optional peer, which pnpm
+# satisfies from web's own dev dependency. Nothing at runtime imports it: the
+# web tier serves the built bundle.
+RUN rm -rf node_modules/.pnpm/vite@* \
+  && find node_modules/.pnpm -path '*/node_modules/vite' -type l -delete \
+  && find node_modules/.pnpm -path '*/.bin/vite' -delete
+
+# Test suites ride beside the source they test; none of them runs here.
+RUN rm -rf apps/*/test apps/*/e2e packages/*/test \
+  && find apps packages -type f \
+    \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.test.mts' -o -name '*.snap' \) \
+    -delete
+
 FROM ${NODE_IMAGE}
 
 WORKDIR /app
-COPY --from=builder --chown=node:node /app /app
+COPY --from=runtime-deps --chown=node:node /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=runtime-deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=runtime-deps --chown=node:node /app/packages ./packages
+COPY --from=runtime-deps --chown=node:node /app/apps/api ./apps/api
+COPY --from=runtime-deps --chown=node:node /app/apps/worker ./apps/worker
+COPY --from=runtime-deps --chown=node:node /app/apps/web/package.json /app/apps/web/tsconfig.json ./apps/web/
+COPY --from=runtime-deps --chown=node:node /app/apps/web/node_modules ./apps/web/node_modules
+# The web process runs only its entry and the server modules it imports; the
+# rest of `src/` is already in the bundle.
+COPY --from=runtime-deps --chown=node:node /app/apps/web/src/serve.ts ./apps/web/src/serve.ts
+COPY --from=runtime-deps --chown=node:node /app/apps/web/src/server ./apps/web/src/server
+COPY --from=builder --chown=node:node /app/apps/web/dist ./apps/web/dist
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+# The license travels with every redistributed copy, a published image included.
+COPY --chown=node:node LICENSE ./LICENSE
 
 # Stamped by the release workflow from the git tag; a local build says `dev`
 # and never checks for releases. After the big copy, so a re-stamp of an
@@ -50,6 +91,7 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 ARG MERGEBRIEF_VERSION=dev
 ARG MERGEBRIEF_REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/Idan91/code-review" \
+  org.opencontainers.image.licenses="FSL-1.1-ALv2" \
   org.opencontainers.image.version="${MERGEBRIEF_VERSION}" \
   org.opencontainers.image.revision="${MERGEBRIEF_REVISION}"
 ENV SERVER_VERSION=${MERGEBRIEF_VERSION}

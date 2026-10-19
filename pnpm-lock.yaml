@@ -69,6 +69,9 @@ importers:
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
       types:
         specifier: workspace:*
         version: link:../../packages/types
@@ -85,9 +88,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)
-      tsx:
-        specifier: ^4.19.0
-        version: 4.22.4
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -218,6 +218,9 @@ importers:
       srvx:
         specifier: ^0.11.16
         version: 0.11.16
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
       types:
         specifier: workspace:*
         version: link:../../packages/types
@@ -276,9 +279,6 @@ importers:
       stylelint-config-standard-scss:
         specifier: ^17.0.0
         version: 17.0.0(postcss@8.5.15)(stylelint@17.14.0(typescript@5.9.3))
-      tsx:
-        specifier: ^4.19.0
-        version: 4.22.4
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -318,6 +318,9 @@ importers:
       repo-config:
         specifier: workspace:*
         version: link:../../packages/repo-config
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
       types:
         specifier: workspace:*
         version: link:../../packages/types
@@ -331,9 +334,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)
-      tsx:
-        specifier: ^4.19.0
-        version: 4.22.4
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

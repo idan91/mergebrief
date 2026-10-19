@@ -50,12 +50,10 @@ jobs:
       # the gate costs one registry round trip instead of a full workspace
       # install.
       #
-      # `--prod` scopes to the dependency graph that ships. CAVEAT (review,
-      # #210): today's runtime images install the FULL graph, and both prod
-      # entrypoints (`vite preview`, worker's `tsx`) are devDependencies that
-      # happen to ride the audited prod graph via react-start→vite — if that
-      # edge ever drops, they exit audit scope silently. The structural fix
-      # is reclassifying them as dependencies (deploy-model decision, see PR).
+      # `--prod` scopes to the dependency graph that ships: the Image installs
+      # api, worker and web with `--prod`, and every runtime entrypoint
+      # (`tsx`, `srvx`) is a declared dependency, so the audited graph and
+      # the shipped one are the same graph.
       # `--audit-level=high` is the blocking floor. Accepted advisories live
       # in `pnpm.auditConfig.ignoreGhsas` in pnpm-workspace.yaml, each with
       # its reason.

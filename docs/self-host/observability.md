@@ -25,9 +25,10 @@ Grafana/Loki, Datadog, and CloudWatch.
   text.
 - `LOG_LEVEL` env picks the threshold (`error`/`warn`/`info`/`debug`,
   default `info`). Format is `NODE_ENV`-decided: JSON everywhere except
-  `NODE_ENV=development`, which renders human-readable pino-pretty. Need
-  pretty output against a prod deploy? Pipe stdout through the
-  `pino-pretty` CLI.
+  `NODE_ENV=development`, which renders human-readable pino-pretty. The
+  image ships no pino-pretty, so never set `NODE_ENV=development` on it: the
+  logger cannot start. Need pretty output against a prod deploy? Pipe
+  stdout through the `pino-pretty` CLI.
 
 ## Event vocabulary
 

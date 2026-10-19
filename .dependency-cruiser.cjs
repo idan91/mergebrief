@@ -275,6 +275,20 @@ module.exports = {
       to: { path: "^tools/" },
     },
     {
+      name: "runtime-source-imports-no-dev-dependency",
+      comment:
+        "The image installs production dependencies only, so a value import of a devDependency from shipped source resolves in dev and fails in the image.",
+      severity: "error",
+      from: {
+        path: "^(apps/(api|worker|web)|packages/[^/]+)/src/",
+        pathNot: "(\\.test\\.|\\.stories\\.|/test/|/testing/|/test-utils)",
+      },
+      to: {
+        dependencyTypes: ["npm-dev"],
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
       name: "no-circular",
       comment:
         "An import cycle whose edges are all runtime imports is an error. A cycle with a type-only hop erases at build and passes, the way a types.ts reads the types of its sibling schemas.ts. Depcruise checks one cycle per edge, so a runtime cycle that also has a type-only path around it can go unreported.",
