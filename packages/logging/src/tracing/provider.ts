@@ -11,39 +11,12 @@ import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { UndiciInstrumentation } from "@opentelemetry/instrumentation-undici";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import {
-  AlwaysOffSampler,
-  AlwaysOnSampler,
-  BatchSpanProcessor,
-  ParentBasedSampler,
-  TraceIdRatioBasedSampler,
-  TracerProvider,
-  type Sampler,
-} from "@opentelemetry/sdk-trace";
+import { BatchSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
 import { EXPORT_TIMEOUT_MS } from "./consts";
+import { buildSampler } from "./sampler";
 import { createSpanRedactor } from "./span-redaction";
-import {
-  TraceSamplers,
-  type SamplerConfig,
-  type StartTracingOptions,
-  type TracingConfig,
-} from "./types";
+import type { StartTracingOptions, TracingConfig } from "./types";
 import { isUntracedPath } from "./untraced-paths";
-
-function buildSampler({ name, ratio }: SamplerConfig): Sampler {
-  const samplers: Record<SamplerConfig["name"], () => Sampler> = {
-    [TraceSamplers.ALWAYS_ON]: () => new AlwaysOnSampler(),
-    [TraceSamplers.ALWAYS_OFF]: () => new AlwaysOffSampler(),
-    [TraceSamplers.TRACE_ID_RATIO]: () => new TraceIdRatioBasedSampler(ratio),
-    [TraceSamplers.PARENT_BASED_ALWAYS_ON]: () =>
-      new ParentBasedSampler({ root: new AlwaysOnSampler() }),
-    [TraceSamplers.PARENT_BASED_ALWAYS_OFF]: () =>
-      new ParentBasedSampler({ root: new AlwaysOffSampler() }),
-    [TraceSamplers.PARENT_BASED_TRACE_ID_RATIO]: () =>
-      new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(ratio) }),
-  };
-  return samplers[name]();
-}
 
 // Outgoing calls and queries open an OTel span only inside a trace, so
 // graphile's idle polling and the api's timed update check start none.
@@ -65,7 +38,10 @@ function registerFirstCutInstrumentations(
 
 export function startTracerProvider(
   config: TracingConfig,
-  options: Pick<StartTracingOptions, "exporter" | "untracedPathPrefixes">,
+  options: Pick<
+    StartTracingOptions,
+    "exporter" | "untracedPathPrefixes" | "ownsSamplingDecision"
+  >,
 ): TracerProvider {
   const resource = resourceFromAttributes({
     ...config.resourceAttributes,
@@ -81,7 +57,10 @@ export function startTracerProvider(
   const exportProcessor = new BatchSpanProcessor({ exporter });
   const provider = new TracerProvider({
     resource,
-    sampler: buildSampler(config.sampler),
+    sampler: buildSampler(
+      config.sampler,
+      options.ownsSamplingDecision ?? false,
+    ),
     spanProcessors: [createSpanRedactor(), exportProcessor],
   });
 

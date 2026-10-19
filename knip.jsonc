@@ -84,10 +84,12 @@
     "packages/github": { "entry": ["src/index.ts", "src/testing/index.ts"] },
     "packages/i18n": { "entry": ["src/index.ts"] },
     "packages/logging": {
-      "entry": ["src/index.ts"],
+      // The fixture runs in a child process the propagation test spawns.
+      "entry": ["src/index.ts", "test/tracing/fixtures/*.ts"],
       // pino-pretty is loaded by pino BY NAME (`transport.target`) in
       // development only — there is no import for knip to see.
-      "ignoreDependencies": ["pino-pretty"],
+      // tsx loads that fixture through `node --import tsx`, not an import.
+      "ignoreDependencies": ["pino-pretty", "tsx"],
     },
     "packages/persistence": {
       "entry": [

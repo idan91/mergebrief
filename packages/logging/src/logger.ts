@@ -1,5 +1,6 @@
 // The structured-logging boundary: pino is constructed here and nowhere else,
 // and no pino type or value ever appears in an exported signature.
+import { isSpanContextValid, trace } from "@opentelemetry/api";
 import { pino, stdSerializers, type LoggerOptions } from "pino";
 import type { ValueOf } from "types/utils";
 import { scrubSecrets, URL_SHAPED_LOG } from "./scrub";
@@ -146,6 +147,25 @@ function scrubbedErrSerializer(value: unknown): unknown {
   return scrubValue(serialized, new WeakSet());
 }
 
+interface TraceFields {
+  trace_id?: string;
+  span_id?: string;
+}
+
+// With tracing off the API is a no-op with no active span, so a line gains
+// nothing. Snake case is the OTel log data model's, which Datadog's Agent
+// detects on its own.
+function readTraceFields(): TraceFields {
+  const spanContext = trace.getActiveSpan()?.spanContext();
+  if (spanContext === undefined) {
+    return {};
+  }
+  if (!isSpanContextValid(spanContext)) {
+    return {};
+  }
+  return { trace_id: spanContext.traceId, span_id: spanContext.spanId };
+}
+
 /** Anything with a sonic-boom-compatible `write`, injectable for tests. */
 export interface LogDestination {
   write(line: string): void;
@@ -196,6 +216,7 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
     formatters: {
       level: (label: string) => ({ level: label }),
     },
+    mixin: readTraceFields,
   };
 
   if (base !== undefined) {

@@ -53,6 +53,9 @@ export interface StartTracingOptions {
   serviceName: string;
   /** Where export failures and SDK warnings land. */
   log: TracingLog;
+  /** The internet-facing tier: a caller's sampled flag never overrides this
+   * process's sampler, though its trace id still continues. */
+  ownsSamplingDecision?: boolean;
   /** Inbound paths that open no OTel span beyond the probes, by prefix. */
   untracedPathPrefixes?: readonly string[];
   /** Test seam: receives spans instead of the OTLP exporter. */

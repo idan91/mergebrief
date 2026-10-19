@@ -237,14 +237,6 @@
       "count": 2
     }
   },
-  "packages/logging/test/logger.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
   "packages/logging/test/sanitize.test.ts": {
     "house/no-em-dash": {
       "count": 4

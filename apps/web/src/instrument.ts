@@ -27,6 +27,7 @@ async function startWebTracing(): Promise<void> {
     serviceName: SERVICE_NAME,
     log: logger,
     untracedPathPrefixes: UNTRACED_PATH_PREFIXES,
+    ownsSamplingDecision: true,
   });
   if (!tracing.ok) {
     logger.error("web boot refused", {

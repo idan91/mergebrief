@@ -23,6 +23,11 @@ Grafana/Loki, Datadog, and CloudWatch.
   (boot/shutdown, graphile lifecycle, progress lines) is plain leveled
   logging with no `evt`; grep and alert on `evt` and levels, not on `msg`
   text.
+- `trace_id`, `span_id` — present only while tracing is on and the line is
+  written inside an OTel span: the 32- and 16-hex ids of the trace and span
+  it belongs to, the OTel log data model's names, which Datadog's Agent and
+  Grafana pick up as-is. A line outside any span, and every line with
+  tracing off, carries neither.
 - `LOG_LEVEL` env picks the threshold (`error`/`warn`/`info`/`debug`,
   default `info`). Format is `NODE_ENV`-decided: JSON everywhere except
   `NODE_ENV=development`, which renders human-readable pino-pretty. The

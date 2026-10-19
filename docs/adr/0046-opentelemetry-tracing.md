@@ -91,7 +91,11 @@ span, never the domain's **Span diff** or **Sibling span**.
 - Adding `trace_id` and `span_id` to log lines is additive to the
   documented line shape, not a breaking change.
 - An inbound `traceparent` is client-controlled until the Operator's proxy
-  strips or rewrites it. It only decides which trace a request joins and
-  grants nothing, so it is continued as is.
+  strips or rewrites it. It decides which trace a request joins and grants
+  nothing, so its trace id is continued; its sampled flag is not. The web
+  tier owns the sampling decision. Under the default always-on sampler a
+  client cannot steer it; under a ratio sampler the decision follows the
+  trace id, which the client chose, so it can push its own requests in or
+  out. That costs the Operator volume, never data.
 - Each app gains a second composition root, `src/instrument.ts`, that
   reads telemetry config only; its member `AGENTS.md` names it.

@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { context as otelContext, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { TracerProvider } from "@opentelemetry/sdk-trace";
+import { afterEach, describe, expect, it } from "vitest";
 import { createLogger, resolveLoggerConfig } from "../src/logger";
 import { captureDestination } from "./helpers";
 
@@ -103,7 +106,7 @@ describe("createLogger fields and children", () => {
 });
 
 describe("createLogger redaction", () => {
-  it("removes top-level secret keys entirely — no placeholder", () => {
+  it("removes top-level secret keys entirely, with no placeholder", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
     log.info("token exchange", { token: "ghs_abc", status: 200 });
@@ -223,7 +226,7 @@ function serializedErr(destination: ReturnType<typeof captureDestination>): {
   return { ...err };
 }
 
-describe("createLogger URL scrubbing — err serializer", () => {
+describe("createLogger URL scrubbing in the err serializer", () => {
   it("redacts a URL-shaped substring in err.message", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
@@ -252,7 +255,7 @@ describe("createLogger URL scrubbing — err serializer", () => {
     expect(stack).not.toContain("hunter2");
   });
 
-  it("redacts URLs riding a cause chain (folded into message/stack)", () => {
+  it("redacts URLs riding a cause chain folded into message and stack", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
     const cause = new Error(`migrate failed against ${LEAKY_URL}`);
@@ -261,7 +264,7 @@ describe("createLogger URL scrubbing — err serializer", () => {
     expect(destination.raw()[0]).toContain("[redacted-url]");
   });
 
-  it("redacts URLs in copied enumerable props (pg-style detail)", () => {
+  it("redacts URLs in copied enumerable props like pg's detail", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
     const err = new Error("password authentication failed");
@@ -271,7 +274,7 @@ describe("createLogger URL scrubbing — err serializer", () => {
     expect(serialized["detail"]).toBe("tried [redacted-url]");
   });
 
-  it("redacts URLs inside nested object props (octokit-style request)", () => {
+  it("redacts URLs inside nested object props like octokit's request", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
     const err = new Error("Not Found");
@@ -311,7 +314,7 @@ describe("createLogger URL scrubbing — err serializer", () => {
     expect(raw).not.toContain("hunter2");
   });
 
-  it("scrubs a non-Error err value (thrown string)", () => {
+  it("scrubs a non-Error err value such as a thrown string", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
     log.error("boom", { err: `connect ${LEAKY_URL} refused` });
@@ -412,7 +415,7 @@ describe("createLogger credential scrubbing", () => {
     expect(raw).toContain("[redacted-token]");
   });
 
-  it("leaves ordinary prose untouched — prefixes, not entropy", () => {
+  it("leaves ordinary prose untouched: prefixes, not entropy", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
     const msg =
@@ -422,7 +425,7 @@ describe("createLogger credential scrubbing", () => {
   });
 });
 
-describe("createLogger URL scrubbing — msg", () => {
+describe("createLogger URL scrubbing in msg", () => {
   it("redacts a URL-shaped substring interpolated into msg", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
@@ -450,5 +453,42 @@ describe("createLogger URL scrubbing — msg", () => {
     expect(destination.lines()[0]?.["msg"]).toBe(
       "boot: [redacted-url] unreachable",
     );
+  });
+});
+
+describe("createLogger trace fields", () => {
+  afterEach(() => {
+    trace.disable();
+    otelContext.disable();
+  });
+
+  it("adds no trace fields outside an active span", () => {
+    const destination = captureDestination();
+    createLogger({ env: {}, destination }).info("plain");
+    const [line] = destination.lines();
+    expect(line).not.toHaveProperty("trace_id");
+    expect(line).not.toHaveProperty("span_id");
+  });
+
+  it("stamps the active span's trace and span ids", () => {
+    const contextManager = new AsyncLocalStorageContextManager().enable();
+    otelContext.setGlobalContextManager(contextManager);
+    trace.setGlobalTracerProvider(new TracerProvider());
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination }).child({ prId: "p1" });
+
+    let ids = { traceId: "", spanId: "" };
+    trace.getTracer("test").startActiveSpan("job", (span) => {
+      ids = span.spanContext();
+      log.info("inside");
+      span.end();
+    });
+
+    const [line] = destination.lines();
+    expect(line).toMatchObject({
+      trace_id: ids.traceId,
+      span_id: ids.spanId,
+      prId: "p1",
+    });
   });
 });
