@@ -13,6 +13,15 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-19)
+
+- **Changed** `GET /api/inbox` and `GET /api/repos/:repoId/pulls/:prNumber`
+  read installation pull requests live too, on the viewer's token, as a
+  backstop for a webhook that never arrived: an open installation row's
+  `draft`, `state`, `title` and author can change on read, and its
+  `behind` can now be true. Url rows are still read first, for up to two
+  seconds across both. A live read never queues a generation.
+
 ## dev (2026-10-12)
 
 - **Changed** every `/api/*` request body is capped at 1 MiB: a larger one,

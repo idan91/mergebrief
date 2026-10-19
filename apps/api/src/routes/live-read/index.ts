@@ -1,7 +1,9 @@
-// The live read: before a url row is listed or opened, GitHub is asked for
-// its facts, then the row is served from the updated store. The request
-// waits up to a ceiling; past it the stored rows are served and the read
-// finishes in the background. Nothing here queues a generation.
+// The live read: before a row is listed or opened, GitHub is asked for its
+// facts, then the row is served from the updated store. A url row has no
+// other source; an installation row is read as a backstop for a webhook that
+// never arrived. The request waits up to a ceiling; past it the stored rows
+// are served and the read finishes in the background. Nothing here queues a
+// generation.
 import {
   getLiveReadKey,
   LIVE_READ_PAGE_SIZE,
@@ -10,11 +12,12 @@ import {
 } from "github";
 import {
   createLiveReadStore,
+  type LiveReadBaseline,
   type LiveReadFacts,
   type LiveReadStore,
   type PullRequestRow,
   type PullRequestRowId,
-  type ReviewerId,
+  type RepoId,
 } from "persistence";
 import {
   LIVE_READ_MAX_CHUNKS,
@@ -34,10 +37,11 @@ import { runInBatches } from "../batches";
 import { parseOwnerAndName } from "../repos/utils";
 import { deriveLifecycle } from "./logic/lifecycle";
 import type {
+  InboxReadSources,
   LiveReadDeps,
   LiveReadOutcome,
-  UrlRowRead,
-  UrlRowTarget,
+  PullRequestRead,
+  PullRequestReadTarget,
 } from "./types";
 
 const NOTHING_READ: LiveReadOutcome = {
@@ -69,6 +73,9 @@ function isCoolingDown(deps: LiveReadDeps, now: Date): boolean {
 /** The rows a read wrote, each as its write returned it. */
 type WrittenRows = ReadonlyMap<PullRequestRowId, PullRequestRow>;
 
+/** The store each row of a read is written through: its own scope's. */
+type RowStores = ReadonlyMap<PullRequestRowId, LiveReadStore>;
+
 interface FlightResult {
   readonly outcome: LiveReadOutcome;
   readonly written: WrittenRows;
@@ -76,45 +83,116 @@ interface FlightResult {
 
 const NOTHING_WRITTEN: WrittenRows = new Map();
 
-/** Read every due url row of the owner, up to the chunk cap. */
-export async function refreshUrlPullRequests(
+interface DueRow {
+  readonly row: PullRequestRow;
+  readonly store: LiveReadStore;
+}
+
+function isUrlRow(row: PullRequestRow): boolean {
+  return row.installationId === null;
+}
+
+function getRowStore(stores: RowStores, row: PullRequestRow): LiveReadStore {
+  const store = stores.get(row.id);
+  if (store === undefined) {
+    throw new Error(`live read row ${row.id} has no store`);
+  }
+  return store;
+}
+
+/** A url row has no other source, so it reads ahead of an installation row. */
+function readSourceRank(row: PullRequestRow): number {
+  if (isUrlRow(row)) {
+    return 0;
+  }
+  return 1;
+}
+
+/** Url rows first, then never-read rows, then the oldest read, then the row id. */
+function compareDue(left: DueRow, right: DueRow): number {
+  const rankGap = readSourceRank(left.row) - readSourceRank(right.row);
+  if (rankGap !== 0) {
+    return rankGap;
+  }
+  const leftReadAt = left.row.githubReadAt?.getTime() ?? -Infinity;
+  const rightReadAt = right.row.githubReadAt?.getTime() ?? -Infinity;
+  if (leftReadAt < rightReadAt) {
+    return -1;
+  }
+  if (leftReadAt > rightReadAt) {
+    return 1;
+  }
+  if (left.row.id < right.row.id) {
+    return -1;
+  }
+  return 1;
+}
+
+async function listStoreDue(
+  store: LiveReadStore,
+  now: Date,
+  limit: number,
+  repoIds?: readonly RepoId[],
+): Promise<DueRow[]> {
+  const rows = await store.listDue({
+    now,
+    staleMs: LIVE_READ_STALE_MS,
+    limit,
+    repoIds,
+  });
+  return rows.map((row) => ({ row, store }));
+}
+
+/**
+ * Read the due rows of one Inbox load, up to the chunk cap across every
+ * source: the reader's own url rows first, then each installation's rows in
+ * the repositories the reader's token can see, stalest first. One cap for
+ * the load, since the reader's GraphQL calls queue one at a time.
+ */
+export async function readInboxRowsLive(
   deps: LiveReadDeps,
-  ownerUserId: ReviewerId,
+  sources: InboxReadSources,
 ): Promise<LiveReadOutcome> {
   const now = deps.now?.() ?? new Date();
   if (isCoolingDown(deps, now)) {
     return { ...NOTHING_READ, failed: true };
   }
-  const store = createLiveReadStore(deps.handle, { ownerUserId });
   const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
-  const due = await store.listDue({
-    now,
-    staleMs: LIVE_READ_STALE_MS,
-    limit: cap + 1,
-  });
-  const deferred = due.length > cap;
+  const { ownerUserId } = sources;
+  const ownerStore = createLiveReadStore(deps.handle, { ownerUserId });
+  const listings = [listStoreDue(ownerStore, now, cap + 1)];
+  for (const [installationId, repoIds] of sources.reposByInstallation) {
+    const store = createLiveReadStore(deps.handle, { installationId });
+    listings.push(listStoreDue(store, now, cap + 1, repoIds));
+  }
+  const listed = await Promise.all(listings);
 
-  const plan = planReadTargets(due.slice(0, cap));
+  const due = listed.flat().toSorted(compareDue);
+  const chosen = due.slice(0, cap);
+  const stores = new Map(chosen.map((entry) => [entry.row.id, entry.store]));
+  const plan = planReadTargets(chosen.map((entry) => entry.row));
+  const deferred = due.length > cap;
+  const key = `inbox:${ownerUserId}`;
   const result = await readWithinCeiling(
     deps,
-    store,
+    stores,
     plan,
     now,
     deferred,
-    String(ownerUserId),
+    key,
   );
   return result.outcome;
 }
 
 /**
- * Read one url row of the owner, when it is due. The row is addressed by
- * the name the gate verified for its repository id, never the stored label,
- * which a rename plus name reuse can point elsewhere.
+ * Read one row, when it is due. The row is addressed by the name the gate
+ * verified for its repository id, never the stored label, which a rename
+ * plus name reuse can point elsewhere.
  */
-export async function refreshUrlPullRequest(
+export async function readPullRequestRowLive(
   deps: LiveReadDeps,
-  target: UrlRowTarget,
-): Promise<UrlRowRead> {
+  target: PullRequestReadTarget,
+): Promise<PullRequestRead> {
   const { row, scope } = target;
   const now = deps.now?.() ?? new Date();
   if (isCoolingDown(deps, now)) {
@@ -128,15 +206,15 @@ export async function refreshUrlPullRequest(
     return { outcome: NOTHING_READ, row };
   }
 
-  const store = createLiveReadStore(deps.handle, scope);
+  const stores = new Map([[row.id, createLiveReadStore(deps.handle, scope)]]);
   const plan = {
     targets: [{ row, ref: { ...verified, prNumber: row.prNumber } }],
     unaddressable: [],
   };
-  const flightKey = `${scope.ownerUserId}:${row.id}`;
+  const flightKey = `row:${row.id}`;
   const read = await readWithinCeiling(
     deps,
-    store,
+    stores,
     plan,
     now,
     false,
@@ -146,7 +224,7 @@ export async function refreshUrlPullRequest(
 }
 
 /**
- * Reads in flight per reader and owner or row. A read that outlives a
+ * Reads in flight per reader and Inbox load or row. A read that outlives a
  * caller's ceiling keeps running; the same reader arriving meanwhile (the
  * meta poll, a second tab) joins it instead of asking GitHub again for rows
  * still marked due. Another reader runs its own token: one token's refusal
@@ -160,11 +238,11 @@ export function resetLiveReadMemory(): void {
   cooldownUntil.clear();
 }
 
-/** The store, keeping the row each write returns in `written`. */
+/** The stores, keeping the row each write returns in `written`. */
 function keepWrittenRows(
-  store: LiveReadStore,
+  stores: RowStores,
   written: Map<PullRequestRowId, PullRequestRow>,
-): LiveReadStore {
+): RowStores {
   async function keep(
     write: Promise<PullRequestRow | undefined>,
   ): Promise<PullRequestRow | undefined> {
@@ -174,17 +252,25 @@ function keepWrittenRows(
     }
     return row;
   }
-  return {
-    ...store,
-    record: (id, facts) => keep(store.record(id, facts)),
-    stampAttempt: (id, readAt) => keep(store.stampAttempt(id, readAt)),
-    markUnreachable: (id, readAt) => keep(store.markUnreachable(id, readAt)),
-  };
+  const kept = new Map<LiveReadStore, LiveReadStore>();
+  for (const store of new Set(stores.values())) {
+    kept.set(store, {
+      ...store,
+      record: (id, facts, baseline) => keep(store.record(id, facts, baseline)),
+      stampAttempt: (id, readAt) => keep(store.stampAttempt(id, readAt)),
+      markUnreachable: (id, readAt) => keep(store.markUnreachable(id, readAt)),
+    });
+  }
+  const keeping = new Map<PullRequestRowId, LiveReadStore>();
+  for (const [rowId, store] of stores) {
+    keeping.set(rowId, kept.get(store) ?? store);
+  }
+  return keeping;
 }
 
 function startRead(
   deps: LiveReadDeps,
-  store: LiveReadStore,
+  stores: RowStores,
   plan: ReadPlan,
   now: Date,
   deferred: boolean,
@@ -192,7 +278,7 @@ function startRead(
   const written = new Map<PullRequestRowId, PullRequestRow>();
   // A throw inside the read is the same failure as a refusal: the stored
   // rows are served, and the foreground and background paths agree.
-  return readPlan(deps, keepWrittenRows(store, written), plan, now)
+  return readPlan(deps, keepWrittenRows(stores, written), plan, now)
     .then((outcome) => ({ outcome: { ...outcome, deferred }, written }))
     .catch((error: unknown) => {
       deps.log.warn("live read failed, serving stored rows", { err: error });
@@ -203,7 +289,7 @@ function startRead(
 
 async function readWithinCeiling(
   deps: LiveReadDeps,
-  store: LiveReadStore,
+  stores: RowStores,
   plan: ReadPlan,
   now: Date,
   deferred: boolean,
@@ -217,7 +303,7 @@ async function readWithinCeiling(
   const flightKey = `${readerKey(deps)}:${key}`;
   let work = inFlight.get(flightKey);
   if (work === undefined) {
-    work = startRead(deps, store, plan, now, deferred);
+    work = startRead(deps, stores, plan, now, deferred);
     inFlight.set(flightKey, work);
     void work.finally(() => inFlight.delete(flightKey));
   }
@@ -244,21 +330,16 @@ async function readWithinCeiling(
 /** The chunks read side by side, so three pages fit under one ceiling. */
 async function readPlan(
   deps: LiveReadDeps,
-  store: LiveReadStore,
+  stores: RowStores,
   plan: ReadPlan,
   now: Date,
 ): Promise<LiveReadOutcome> {
-  // A row with no usable slug is unreachable in every sense: nothing can be
-  // asked about it, and stamping it keeps it from leading every read.
-  const marked = await runInBatches(
-    plan.unaddressable,
-    LIVE_READ_WRITE_WIDTH,
-    (row) => store.markUnreachable(row.id, now),
-  );
-  const unreachable = marked.filter((row) => row !== undefined).length;
+  // A row with no usable slug: nothing can be asked about it, and stamping
+  // it keeps it from leading every read.
+  const unreachable = await settleMissingRows(stores, plan.unaddressable, now);
   const chunks = splitChunks(plan.targets, LIVE_READ_PAGE_SIZE);
   const outcomes = await Promise.all(
-    chunks.map((chunk) => readChunk(deps, store, chunk, now)),
+    chunks.map((chunk) => readChunk(deps, stores, chunk, now)),
   );
   const total = outcomes.reduce(
     (sum, outcome) => ({
@@ -277,7 +358,7 @@ async function readPlan(
 
 async function readChunk(
   deps: LiveReadDeps,
-  store: LiveReadStore,
+  stores: RowStores,
   chunk: readonly ReadTarget[],
   now: Date,
 ): Promise<LiveReadOutcome> {
@@ -291,17 +372,16 @@ async function readChunk(
     return { ...NOTHING_READ, failed: true };
   }
 
-  const recorded = await recordPage(store, chunk, page.value, now);
-  const retried = await retryUnderFallback(deps, store, recorded, now);
-  const marked = await runInBatches(
-    retried.missing,
-    LIVE_READ_WRITE_WIDTH,
-    (target) => store.markUnreachable(target.row.id, now),
+  const recorded = await recordPage(stores, chunk, page.value, now);
+  const retried = await retryUnderFallback(deps, stores, recorded, now);
+  const unreachable = await settleMissingRows(
+    stores,
+    retried.missing.map((target) => target.row),
+    now,
   );
-  const unreachable = marked.filter((row) => row !== undefined).length;
   const unanswered = retried.unanswered;
   await runInBatches(unanswered, LIVE_READ_WRITE_WIDTH, (target) =>
-    store.stampAttempt(target.row.id, now),
+    getRowStore(stores, target.row).stampAttempt(target.row.id, now),
   );
   if (unanswered.length > 0) {
     deps.log.warn("live read left rows unanswered until the next window", {
@@ -315,6 +395,32 @@ async function readChunk(
   };
 }
 
+/**
+ * Rows GitHub showed nothing for. A url row is marked unreachable; an
+ * installation row only waits the window, since a reader's token missing it
+ * says nothing about the webhooks that keep it. Returns the count marked.
+ */
+async function settleMissingRows(
+  stores: RowStores,
+  rows: readonly PullRequestRow[],
+  now: Date,
+): Promise<number> {
+  const settled = await runInBatches(
+    rows,
+    LIVE_READ_WRITE_WIDTH,
+    async (row) => {
+      const store = getRowStore(stores, row);
+      if (!isUrlRow(row)) {
+        await store.stampAttempt(row.id, now);
+        return undefined;
+      }
+      return store.markUnreachable(row.id, now);
+    },
+  );
+  const marked = settled.filter((row) => row !== undefined);
+  return marked.length;
+}
+
 interface RecordedPage {
   /** Rows the store took the facts for. */
   readonly read: number;
@@ -325,7 +431,7 @@ interface RecordedPage {
 }
 
 async function recordPage(
-  store: LiveReadStore,
+  stores: RowStores,
   targets: readonly ReadTarget[],
   page: LiveReadPage,
   now: Date,
@@ -351,25 +457,35 @@ async function recordPage(
   const recorded = await runInBatches(
     answered,
     LIVE_READ_WRITE_WIDTH,
-    ({ target, facts }) => store.record(target.row.id, shapeFacts(facts, now)),
+    ({ target, facts }) => {
+      const store = getRowStore(stores, target.row);
+      const shaped = shapeFacts(facts, now);
+      return store.record(target.row.id, shaped, shapeBaseline(target.row));
+    },
   );
   const read = recorded.filter((row) => row !== undefined).length;
   return { read, missing, unanswered };
 }
 
+function isUrlTarget(target: ReadTarget): boolean {
+  return isUrlRow(target.row);
+}
+
 /**
- * The rows the viewer's token could not see or was refused, once more on the
- * operator PAT: a brief generated through the PAT would otherwise read as
- * unreachable forever. A rejected PAT leaves the viewer's answer standing,
- * and a row the viewer was refused is never marked on the PAT's word alone.
+ * The url rows the viewer's token could not see or was refused, once more on
+ * the operator PAT: a brief generated through the PAT would otherwise read as
+ * unreachable forever. A rejected PAT leaves the viewer's answer standing, a
+ * row the viewer was refused is never marked on the PAT's word alone, and an
+ * installation row never reaches the PAT.
  */
 async function retryUnderFallback(
   deps: LiveReadDeps,
-  store: LiveReadStore,
+  stores: RowStores,
   recorded: RecordedPage,
   now: Date,
 ): Promise<RecordedPage> {
-  const targets = [...recorded.missing, ...recorded.unanswered];
+  const unseen = [...recorded.missing, ...recorded.unanswered];
+  const targets = unseen.filter(isUrlTarget);
   const standing = { ...recorded, read: 0 };
   if (targets.length === 0 || deps.operator === undefined) {
     return standing;
@@ -385,7 +501,7 @@ async function retryUnderFallback(
     return standing;
   }
 
-  const retried = await recordPage(store, targets, page.value, now);
+  const retried = await recordPage(stores, targets, page.value, now);
   const missingForViewer = new Set(
     recorded.missing.map((target) => target.row.id),
   );
@@ -395,11 +511,19 @@ async function retryUnderFallback(
   const refused = retried.missing.filter(
     (target) => !missingForViewer.has(target.row.id),
   );
+  const keptMissing = recorded.missing.filter((target) => !isUrlTarget(target));
+  const keptUnanswered = recorded.unanswered.filter(
+    (target) => !isUrlTarget(target),
+  );
   return {
     read: retried.read,
-    missing,
-    unanswered: [...retried.unanswered, ...refused],
+    missing: [...keptMissing, ...missing],
+    unanswered: [...keptUnanswered, ...retried.unanswered, ...refused],
   };
+}
+
+function shapeBaseline(row: PullRequestRow): LiveReadBaseline {
+  return { rowVersion: row.rowVersion };
 }
 
 function shapeFacts(facts: PullRequestFacts, now: Date): LiveReadFacts {

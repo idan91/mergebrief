@@ -1,4 +1,4 @@
-/** The Inbox's whole live ceiling: the url rows read first, the open lists get what is left. */
+/** The Inbox's whole live ceiling: the due rows read first, the open lists get what is left. */
 export const INBOX_LIVE_BUDGET_MS = 2_500;
 /** Open lists read at once; the rest queue behind the first to finish. */
 export const INBOX_STACKS_CONCURRENCY = 3;

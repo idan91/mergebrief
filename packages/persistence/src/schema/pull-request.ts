@@ -71,9 +71,10 @@ export const pullRequest = pgTable(
      */
     githubUpdatedAt: timestamp("github_updated_at", { withTimezone: true }),
     /**
-     * The live read, for url rows only: when GitHub last answered for this
-     * row, the head it reported, and when it first stopped showing the row
-     * to the owner. All null for installation rows and before the first read.
+     * The live read: when GitHub last answered for this row and the head it
+     * reported, which a newer push webhook clears, and, for a url row, when
+     * GitHub first stopped showing it to the owner. Null before the first
+     * read; an installation row is never marked unreachable.
      */
     githubReadAt: timestamp("github_read_at", { withTimezone: true }),
     githubHeadSha: text("github_head_sha"),
@@ -89,6 +90,12 @@ export const pullRequest = pgTable(
     stackReadAt: timestamp("stack_read_at", { withTimezone: true }),
     /** NULL while open; the retention sweep's one input once closed. */
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    /**
+     * Bumped by every update, so a reader can tell whether the row changed
+     * since it loaded it: a live read takes a stored GitHub time as its own
+     * only while this still holds the value the read was planned against.
+     */
+    rowVersion: integer("row_version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -16,17 +16,18 @@ export interface BehindNoticeProps {
   queuedNotice?: string | undefined;
   /** The last refusal's curated line; absent until one. */
   failure?: string | undefined;
-  /** Absent while the repository name is unknown, so no pull request URL can be built. */
+  /** Absent on an installation row, and while the repository name is unknown. */
   onRegenerate?: (() => void) | undefined;
 }
 
 /**
  * GitHub has commits the latest brief does not cover. Unlike the stale
  * chip, which points at a newer brief that already exists, this one offers
- * to make it: Regenerate goes through the paste path and the button stays
- * where focus left it, saying queued once a generation is on its way. The
- * notice leaves once the new brief lands, and hands focus to the main
- * landmark if it still held it.
+ * a url row to make it: Regenerate goes through the paste path and the
+ * button stays where focus left it, saying queued once a generation is on
+ * its way. An installation row shows the chip alone. The notice leaves once
+ * the new brief lands, and hands focus to the main landmark if it still
+ * held it.
  */
 export function BehindNotice({
   queued,

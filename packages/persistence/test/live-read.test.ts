@@ -1,14 +1,18 @@
-// The live read's storage side: which url rows are due, what a read writes
-// back, and how an unreachable row is marked. Owner-scoped throughout.
+// The live read's storage side: which rows are due, what a read writes
+// back, and how an unreachable row is marked.
 import { describe, expect, it } from "vitest";
 import {
+  createIngestRoutines,
   createLiveReadStore,
   createTenantRepository,
   type AppDatabase,
   type LiveReadFacts,
   type OwnerContext,
+  type ScopeContext,
+  type TenantContext,
 } from "../src/index";
 import {
+  isInstallationId,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
@@ -24,6 +28,10 @@ const OWNER_B: ReviewerId = brandWith(isReviewerId, 502n);
 const REPO: RepoId = brandWith(isRepoId, 777n);
 const CTX_A: OwnerContext = { ownerUserId: OWNER_A };
 const CTX_B: OwnerContext = { ownerUserId: OWNER_B };
+const OTHER_REPO: RepoId = brandWith(isRepoId, 778n);
+const TENANT: TenantContext = {
+  installationId: brandWith(isInstallationId, 9001n),
+};
 
 const NOW = new Date("2026-09-20T12:00:00Z");
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -55,11 +63,12 @@ function stubFacts(overrides?: Partial<LiveReadFacts>): LiveReadFacts {
 
 async function seedOpen(
   handle: AppDatabase,
-  ctx: OwnerContext,
+  ctx: ScopeContext,
   prNumber: number,
+  repoId: RepoId = REPO,
 ): Promise<PullRequestRowId> {
   const row = await createTenantRepository(handle, ctx).pullRequests.upsert({
-    repoId: REPO,
+    repoId,
     prNumber,
     repoSlug: "acme/widgets",
     state: PrStates.OPEN,
@@ -134,6 +143,51 @@ describe("createLiveReadStore.listDue", () => {
     expect(due.map((row) => row.id)).toEqual([closed]);
   });
 
+  it("lists an installation's rows in the given repositories only", async () => {
+    const handle = await freshDatabase();
+    const store = createLiveReadStore(handle, TENANT);
+    const readable = await seedOpen(handle, TENANT, 1);
+    await seedOpen(handle, TENANT, 2, OTHER_REPO);
+    await seedOpen(handle, CTX_A, 3);
+
+    const due = await store.listDue({
+      now: NOW,
+      staleMs: FIVE_MINUTES_MS,
+      limit: 10,
+      repoIds: [REPO],
+    });
+    const none = await store.listDue({
+      now: NOW,
+      staleMs: FIVE_MINUTES_MS,
+      limit: 10,
+      repoIds: [],
+    });
+
+    expect(due.map((row) => row.id)).toEqual([readable]);
+    expect(none).toEqual([]);
+  });
+
+  it("lists an installation's open rows only", async () => {
+    const handle = await freshDatabase();
+    const open = await seedOpen(handle, TENANT, 1);
+    await createIngestRoutines(handle, TENANT).recordState({
+      repoId: REPO,
+      prNumber: 2,
+      repoSlug: "acme/widgets",
+      state: PrStates.CLOSED,
+      closedAt: minutesAgo(5),
+    });
+
+    const due = await createLiveReadStore(handle, TENANT).listDue({
+      now: NOW,
+      staleMs: FIVE_MINUTES_MS,
+      limit: 10,
+      repoIds: [REPO],
+    });
+
+    expect(due.map((row) => row.id)).toEqual([open]);
+  });
+
   it("sees the owner's rows only", async () => {
     const handle = await freshDatabase();
     await seedOpen(handle, CTX_A, 1);
@@ -165,12 +219,14 @@ describe("createLiveReadStore.record", () => {
     );
     unwrap(await store.markUnreachable(id, minutesAgo(3)));
 
-    const row = unwrap(
-      await store.record(
-        id,
-        stubFacts({ title: "reopened", draft: true, headSha: "b".repeat(40) }),
-      ),
-    );
+    const reopenedAt = minutesAgo(-1);
+    const reopened = stubFacts({
+      title: "reopened",
+      draft: true,
+      headSha: "b".repeat(40),
+      githubUpdatedAt: reopenedAt,
+    });
+    const row = unwrap(await store.record(id, reopened));
 
     expect(row.state).toBe(PrStates.OPEN);
     expect(row.closedAt).toBeNull();
@@ -178,7 +234,7 @@ describe("createLiveReadStore.record", () => {
     expect(row.draft).toBe(true);
     expect(row.githubHeadSha).toBe("b".repeat(40));
     expect(row.githubReadAt).toEqual(NOW);
-    expect(row.githubUpdatedAt).toEqual(NOW);
+    expect(row.githubUpdatedAt).toEqual(reopenedAt);
     expect(row.githubUnreachableAt).toBeNull();
   });
 
@@ -194,6 +250,234 @@ describe("createLiveReadStore.record", () => {
 
     expect(named.authorLogin).toBe("octocat");
     expect(gone.authorLogin).toBe("octocat");
+  });
+
+  it("keeps a newer webhook's facts and takes only the read stamp", async () => {
+    const handle = await freshDatabase();
+    const store = createLiveReadStore(handle, TENANT);
+    const id = await seedOpen(handle, TENANT, 1);
+    await createTenantRepository(handle, TENANT).pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      draft: false,
+      githubUpdatedAt: NOW,
+    });
+
+    const laterRead = minutesAgo(-1);
+    const olderSnapshot = minutesAgo(10);
+    const staleFacts = stubFacts({
+      draft: true,
+      readAt: laterRead,
+      githubUpdatedAt: olderSnapshot,
+    });
+    const stale = unwrap(await store.record(id, staleFacts));
+
+    expect(stale.draft).toBe(false);
+    expect(stale.githubUpdatedAt).toEqual(NOW);
+    expect(stale.githubReadAt).toEqual(laterRead);
+  });
+
+  it("keeps a later read's facts against an earlier read landing last", async () => {
+    const handle = await freshDatabase();
+    const store = createLiveReadStore(handle, TENANT);
+    const id = await seedOpen(handle, TENANT, 1);
+    const laterRead = stubFacts({ draft: false, readAt: minutesAgo(-1) });
+    unwrap(await store.record(id, laterRead));
+
+    const earlierRead = stubFacts({ draft: true, readAt: minutesAgo(1) });
+    const row = unwrap(await store.record(id, earlierRead));
+
+    expect(row.draft).toBe(false);
+    expect(row.githubReadAt).toEqual(minutesAgo(-1));
+  });
+
+  it("never writes an installation row's github_updated_at", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, TENANT, 1);
+    const store = createLiveReadStore(handle, TENANT);
+    const facts = stubFacts({ draft: true });
+
+    const row = unwrap(await store.record(id, facts));
+
+    expect(row.draft).toBe(true);
+    expect(row.githubUpdatedAt).toBeNull();
+  });
+
+  it("reopens a closed row only on a strictly newer read", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, TENANT, 1);
+    const closedAt = minutesAgo(1);
+    const ingest = createIngestRoutines(handle, TENANT);
+    await ingest.recordState({
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.CLOSED,
+      closedAt,
+      githubUpdatedAt: NOW,
+    });
+    const store = createLiveReadStore(handle, TENANT);
+
+    const sameSecondOpen = stubFacts();
+    const sameSecond = unwrap(await store.record(id, sameSecondOpen));
+    const laterOpen = stubFacts({ githubUpdatedAt: minutesAgo(-1) });
+    const reopened = unwrap(await store.record(id, laterOpen));
+
+    expect(sameSecond.state).toBe(PrStates.CLOSED);
+    expect(sameSecond.closedAt).toEqual(closedAt);
+    expect(reopened.state).toBe(PrStates.OPEN);
+  });
+
+  it("keeps a merged row against an equal-timestamp open snapshot", async () => {
+    const handle = await freshDatabase();
+    const store = createLiveReadStore(handle, TENANT);
+    const id = await seedOpen(handle, TENANT, 1);
+    const closedAt = minutesAgo(1);
+    const merged = stubFacts({
+      lifecycle: { state: PrStates.MERGED, closedAt },
+    });
+    unwrap(await store.record(id, merged));
+
+    const laterRead = minutesAgo(-1);
+    const openSnapshot = stubFacts({ readAt: laterRead });
+    const row = unwrap(await store.record(id, openSnapshot));
+
+    expect(row.state).toBe(PrStates.MERGED);
+    expect(row.closedAt).toEqual(closedAt);
+    expect(row.githubReadAt).toEqual(laterRead);
+  });
+
+  it("keeps a webhook merge against an equal-timestamp open live read", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, TENANT, 1);
+    const closedAt = minutesAgo(1);
+    const ingest = createIngestRoutines(handle, TENANT);
+    await ingest.recordState({
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.MERGED,
+      closedAt,
+      githubUpdatedAt: NOW,
+    });
+    const store = createLiveReadStore(handle, TENANT);
+
+    const delayedOpen = stubFacts({ readAt: minutesAgo(-1) });
+    const row = unwrap(await store.record(id, delayedOpen));
+
+    expect(row.state).toBe(PrStates.MERGED);
+    expect(row.closedAt).toEqual(closedAt);
+  });
+
+  it("keeps a webhook's facts against a same-second read that raced it", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, TENANT, 1);
+    const store = createLiveReadStore(handle, TENANT);
+    const earlierSnapshot = stubFacts({
+      draft: true,
+      readAt: minutesAgo(5),
+      githubUpdatedAt: minutesAgo(5),
+    });
+    const planned = unwrap(await store.record(id, earlierSnapshot));
+    const ingest = createIngestRoutines(handle, TENANT);
+    await ingest.recordState({
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      draft: false,
+      githubUpdatedAt: NOW,
+    });
+
+    const racedRead = stubFacts({ draft: true, readAt: minutesAgo(-1) });
+    const row = unwrap(await store.record(id, racedRead, planned));
+
+    expect(row.draft).toBe(false);
+    expect(row.githubReadAt).toEqual(minutesAgo(-1));
+  });
+
+  it("keeps a webhook's facts when the planned row already held its time", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, TENANT, 1);
+    const ingest = createIngestRoutines(handle, TENANT);
+    const webhookState = {
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      githubUpdatedAt: NOW,
+    };
+    const first = await ingest.recordState({ ...webhookState, draft: true });
+    const planned = first.pullRequest;
+    await ingest.recordState({ ...webhookState, draft: false });
+    const store = createLiveReadStore(handle, TENANT);
+
+    const heldRead = stubFacts({ draft: true, readAt: minutesAgo(-1) });
+    const row = unwrap(await store.record(id, heldRead, planned));
+
+    expect(row.draft).toBe(false);
+    expect(row.githubHeadSha).toBeNull();
+  });
+
+  it("moves row_version on every live-read write", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, CTX_A, 1);
+    const store = createLiveReadStore(handle, CTX_A);
+    const facts = stubFacts();
+    const nextRead = minutesAgo(-1);
+    const lastRead = minutesAgo(-2);
+
+    const recorded = await store.record(id, facts);
+    const attempted = await store.stampAttempt(id, nextRead);
+    const unreachable = await store.markUnreachable(id, lastRead);
+    const versions = [recorded, attempted, unreachable];
+
+    expect(versions.map((row) => row?.rowVersion)).toEqual([1, 2, 3]);
+  });
+
+  it("repairs a row whose time the worker advanced without its facts", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, TENANT, 1);
+    const ingest = createIngestRoutines(handle, TENANT);
+    await ingest.recordState({
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      draft: true,
+      githubUpdatedAt: minutesAgo(5),
+    });
+    const { pullRequests } = createTenantRepository(handle, TENANT);
+    const planned = unwrap(await pullRequests.advanceGithubUpdatedAt(id, NOW));
+    const store = createLiveReadStore(handle, TENANT);
+
+    const sameVersion = stubFacts({ readAt: minutesAgo(-1) });
+    const row = unwrap(await store.record(id, sameVersion, planned));
+
+    expect(row.draft).toBe(false);
+    expect(row.githubHeadSha).toBe(HEAD);
+  });
+
+  it("writes an installation row's facts from a strictly newer read", async () => {
+    const handle = await freshDatabase();
+    const id = await seedOpen(handle, TENANT, 1);
+    const ingest = createIngestRoutines(handle, TENANT);
+    await ingest.recordState({
+      repoId: REPO,
+      prNumber: 1,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      draft: true,
+      githubUpdatedAt: NOW,
+    });
+    const store = createLiveReadStore(handle, TENANT);
+
+    const newerRead = stubFacts({ githubUpdatedAt: minutesAgo(-1) });
+    const row = unwrap(await store.record(id, newerRead));
+
+    expect(row.draft).toBe(false);
   });
 
   it("refuses another owner's row", async () => {

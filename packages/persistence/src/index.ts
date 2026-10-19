@@ -149,6 +149,7 @@ export type {
 } from "./stores/inbox";
 export { createLiveReadStore } from "./stores/live-read";
 export type {
+  LiveReadBaseline,
   LiveReadDueInput,
   LiveReadFacts,
   LiveReadStamp,

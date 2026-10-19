@@ -372,12 +372,13 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     fake.updatePullRequest({ owner, repo, prNumber }, { headSha });
   }
 
-  async function writeOwnerBrief(
+  async function writeHeadBrief(
     pullRequestId: PullRequestRowId,
     headSha: string,
     headIndex: number,
+    ctx: ScopeContext = OWNER_CTX,
   ): Promise<void> {
-    await createArtifactStore(harness.handle, OWNER_CTX).briefs.write({
+    await createArtifactStore(harness.handle, ctx).briefs.write({
       pullRequestId,
       baseSha: "base-1",
       headSha,
@@ -391,8 +392,8 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   }
 
-  async function readBehind(cookie: string): Promise<unknown> {
-    const res = await get(`/api/repos/${REPO_A}/pulls/8`, cookie);
+  async function readBehind(cookie: string, prNumber = 8): Promise<unknown> {
+    const res = await get(`/api/repos/${REPO_A}/pulls/${prNumber}`, cookie);
     expect(res.status).toBe(200);
     return ((await res.json()) as Record<string, unknown>)["behind"];
   }
@@ -406,25 +407,84 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       repoId: REPO_A,
       prNumber: 8,
     });
-    await writeOwnerBrief(pr.id, "head-1", 1);
+    await writeHeadBrief(pr.id, "head-1", 1);
 
     expect(await readBehind(cookie)).toBe(true);
 
-    await writeOwnerBrief(pr.id, "head-2", 2);
+    await writeHeadBrief(pr.id, "head-2", 2);
     expect(await readBehind(cookie)).toBe(false);
   });
 
-  it("meta: reads the PR row once per poll", async () => {
+  it("meta: an installation row is behind a push no webhook reported", async () => {
+    resetLiveReadMemory();
+    stubGate();
+    arrangeLiveHead(9, "head-2");
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 9 });
+    await writeHeadBrief(pr.id, "head-1", 1, CTX);
+
+    expect(await readBehind(cookie, 9)).toBe(true);
+  });
+
+  it("meta: an installation row is behind a push only the worker saw", async () => {
+    resetLiveReadMemory();
+    stubGate();
+    arrangeLiveHead(9, "head-2");
+    const pushedAt = new Date("2026-10-01T10:00:00Z");
+    const [owner = "", repo = ""] = VERIFIED_SLUG.split("/");
+    fake.updatePullRequest(
+      { owner, repo, prNumber: 9 },
+      { updatedAt: pushedAt },
+    );
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 9 });
+    await writeHeadBrief(pr.id, "head-1", 1, CTX);
+    const { pullRequests } = createTenantRepository(harness.handle, CTX);
+    await pullRequests.advanceGithubUpdatedAt(pr.id, pushedAt);
+
+    expect(await readBehind(cookie, 9)).toBe(true);
+  });
+
+  it("meta: an installation row is current after a push and its brief", async () => {
+    resetLiveReadMemory();
+    stubGate();
+    arrangeLiveHead(9, "head-1");
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 9 });
+    await writeHeadBrief(pr.id, "head-1", 1, CTX);
+    const liveBefore = await readBehind(cookie, 9);
+
+    await createIngestRoutines(harness.handle, CTX).triggerGeneration({
+      pullRequest: {
+        repoId: brand(isRepoId, REPO_A),
+        prNumber: 9,
+        state: PrStates.OPEN,
+        githubUpdatedAt: new Date(),
+      },
+      headSha: "head-2",
+    });
+    await writeHeadBrief(pr.id, "head-2", 2, CTX);
+
+    expect(liveBefore).toBe(false);
+    expect(await readBehind(cookie, 9)).toBe(false);
+    expect(fake.listCalls("readPullRequestFacts")).toHaveLength(1);
+  });
+
+  it("meta: reads the PR row once per poll and GitHub once per window", async () => {
     stubGate();
     const cookie = await signIn();
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const lookups = spyPullRequestLookups(harness);
 
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    const rowReads = lookups.count();
+    const pastGate = listCallsPastGate(fake).map((call) => call.operation);
+    await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
 
     expect(res.status).toBe(200);
-    expect(lookups.count()).toBe(1);
-    expect(listCallsPastGate(fake)).toEqual([]);
+    expect(rowReads).toBe(1);
+    expect(pastGate).toEqual(["readPullRequestFacts"]);
+    expect(fake.listCalls("readPullRequestFacts")).toHaveLength(1);
   });
 
   it("meta: a url row read live costs one row read and serves the write", async () => {
@@ -500,7 +560,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       repoId: REPO_A,
       prNumber: 8,
     });
-    await writeOwnerBrief(pr.id, "head-1", 1);
+    await writeHeadBrief(pr.id, "head-1", 1);
 
     expect(await readBehind(cookie)).toBe(false);
   });

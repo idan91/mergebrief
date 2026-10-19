@@ -1,10 +1,10 @@
 import type { InboxResponse } from "contract";
 import type { RepositoryRef } from "github";
-import type { InboxFilters, RepoId } from "persistence";
+import type { InboxFilters, InstallationId, RepoId } from "persistence";
 import type { Mutable, Result } from "types/utils";
 import type { RequestGitHub } from "../../access/reviewer-binding";
 import type { AllowedRepo } from "../installation-resolver";
-import { refreshUrlPullRequests } from "../live-read";
+import { readInboxRowsLive } from "../live-read";
 import { INBOX_LIVE_BUDGET_MS } from "./consts";
 import { readInboxPage } from "./logic/inbox-page";
 import { readLiveStacks } from "./logic/live-stacks";
@@ -21,6 +21,19 @@ function collectAdminRepoIds(
     }
   }
   return admin;
+}
+
+/** The viewer's readable repositories, grouped by the installation holding each. */
+function groupReposByInstallation(
+  allowed: ReadonlyMap<RepoId, AllowedRepo>,
+): ReadonlyMap<InstallationId, RepoId[]> {
+  const grouped = new Map<InstallationId, RepoId[]>();
+  for (const [repoId, repo] of allowed) {
+    const repoIds = grouped.get(repo.installationId) ?? [];
+    repoIds.push(repoId);
+    grouped.set(repo.installationId, repoIds);
+  }
+  return grouped;
 }
 
 /** What the live read left of the Inbox's ceiling for the open lists. */
@@ -70,16 +83,18 @@ export async function listInbox(
   }
   const session = allowed.value.session;
 
-  // The viewer's own url rows are read live first, under the ceiling; the
-  // rows are theirs, so the operator may answer for a brief generated
-  // through it. A failure serves the stored rows.
+  // Rows are read live first, under the ceiling: the viewer's own url rows,
+  // where the operator may answer for a brief generated through it, and each
+  // installation's rows in the repositories the viewer can read, a backstop
+  // for a missed webhook. A failure serves the stored rows.
   const { handle } = deps;
   const { github } = request;
   const readerId = session.reviewerId;
   const startedAt = Date.now();
-  await refreshUrlPullRequests(
+  const reposByInstallation = groupReposByInstallation(allowed.value.allowed);
+  await readInboxRowsLive(
     { handle, github, readerId, operator: deps.operator, log: deps.log },
-    readerId,
+    { ownerUserId: readerId, reposByInstallation },
   );
 
   const stacksDeps = {

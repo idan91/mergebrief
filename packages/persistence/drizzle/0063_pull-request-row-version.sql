@@ -1,0 +1,1 @@
+ALTER TABLE "pull_request" ADD COLUMN "row_version" integer DEFAULT 0 NOT NULL;

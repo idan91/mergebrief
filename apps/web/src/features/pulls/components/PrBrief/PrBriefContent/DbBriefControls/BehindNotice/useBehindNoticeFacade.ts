@@ -28,10 +28,11 @@ function isGenerationUnderway(meta: PrSummary): boolean {
 }
 
 /**
- * Regenerate goes through the paste path with the pull request's own URL;
- * every outcome, the arrival of the brief it asked for included, lands in
- * a region that outlives the notice, and the meta re-reads once the request
- * settles so the queued generation shows.
+ * Regenerate goes through the paste path with the pull request's own URL, so
+ * only a url row offers it; an installation row shows the notice alone. Every
+ * outcome, the arrival of the brief it asked for included, lands in a region
+ * that outlives the notice, and the meta re-reads once the request settles so
+ * the queued generation shows.
  */
 export function useBehindNoticeFacade(
   meta: PrSummary,
@@ -82,7 +83,8 @@ export function useBehindNoticeFacade(
     notice.failure = briefErrorDetail(t, regenerate.error);
   }
   const url = buildGithubPullUrl(meta.repoSlug, prNumber);
-  if (url !== undefined) {
+  const canRegenerate = url !== undefined && !meta.appInstalled;
+  if (canRegenerate) {
     notice.onRegenerate = () => regenerate.mutate(url);
   }
   state.notice = notice;

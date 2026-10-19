@@ -32,7 +32,7 @@ function makeMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
-    appInstalled: true,
+    appInstalled: false,
     updatedAt: "2026-09-20T10:00:00.000Z",
     behind: true,
     ...overrides,
@@ -166,6 +166,13 @@ describe("useBehindNoticeFacade", () => {
       "15 minutes",
     );
     expect(otherViewer.result.current.notice?.queuedNotice).toBeUndefined();
+  });
+
+  it("shows an installation row's notice without a button", () => {
+    const { result } = renderNotice(makeMeta({ appInstalled: true }));
+
+    expect(result.current.notice).toBeDefined();
+    expect(result.current.notice?.onRegenerate).toBeUndefined();
   });
 
   it("offers no button while the repository name is unknown", () => {

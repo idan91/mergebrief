@@ -10,6 +10,7 @@ import type {
 import { createIngestRoutines } from "../src/stores/ingest";
 import { createArtifactStore } from "../src/stores/artifact-store";
 import { createGenerationProjection } from "../src/stores/generation";
+import { createLiveReadStore } from "../src/stores/live-read";
 import type { PullRequestUpsertInput } from "../src/stores/tenant";
 import type { Mutable } from "types/utils";
 import { createTenantRepository } from "../src/stores/tenant";
@@ -92,6 +93,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     refreshRunAt?: boolean;
     baseSha?: string;
     headSha?: string;
+    githubUpdatedAt?: Date;
     uncoveredWork?: UncoveredWork;
   }): Promise<IngestOutcome> {
     const pullRequest: Mutable<PullRequestUpsertInput> = {
@@ -104,6 +106,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     if (overrides?.baseSha !== undefined) {
       pullRequest.baseSha = overrides.baseSha;
+    }
+    if (overrides?.githubUpdatedAt !== undefined) {
+      pullRequest.githubUpdatedAt = overrides.githubUpdatedAt;
     }
 
     const input: Mutable<TriggerGenerationInput> = {
@@ -241,6 +246,123 @@ describe("createIngestRoutines.triggerGeneration", () => {
       pull_request_id: String(first.pullRequest.id),
       head_sha: "b".repeat(40),
     });
+  });
+
+  it("clears a live-read head stamp a newer push moved past", async () => {
+    const first = await trigger({ headSha: "a".repeat(40) });
+    await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
+      repoId: REPO_ID,
+      prNumber: 7,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      liveRead: { readAt: new Date(), headSha: "a".repeat(40) },
+    });
+
+    const pushed = await trigger({
+      headSha: "b".repeat(40),
+      githubUpdatedAt: new Date(),
+    });
+
+    expect(first.pullRequest.githubHeadSha).toBeNull();
+    expect(pushed.pullRequest.githubHeadSha).toBeNull();
+  });
+
+  it("never writes an older push's head over a newer stamp", async () => {
+    await trigger({ headSha: "a".repeat(40) });
+    await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
+      repoId: REPO_ID,
+      prNumber: 7,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      liveRead: { readAt: new Date(), headSha: "c".repeat(40) },
+    });
+
+    const latePush = await trigger({
+      headSha: "b".repeat(40),
+      githubUpdatedAt: new Date(),
+    });
+
+    expect(latePush.pullRequest.githubHeadSha).not.toBe("b".repeat(40));
+  });
+
+  it("queues a delayed push after a newer live read of the row", async () => {
+    const first = await trigger({
+      headSha: "a".repeat(40),
+      githubUpdatedAt: new Date("2026-10-01T10:00:00Z"),
+    });
+    await createLiveReadStore(harness.handle, CTX).record(
+      first.pullRequest.id,
+      {
+        readAt: new Date(),
+        headSha: "b".repeat(40),
+        repoSlug: "acme/widgets",
+        title: "feat: add widgets",
+        draft: false,
+        githubUpdatedAt: new Date("2026-10-01T10:05:00Z"),
+        lifecycle: { state: PrStates.OPEN },
+      },
+    );
+
+    const delayedPush = await trigger({
+      headSha: "b".repeat(40),
+      githubUpdatedAt: new Date("2026-10-01T10:02:00Z"),
+    });
+
+    expect(delayedPush).toMatchObject({ applied: true, queued: true });
+  });
+
+  it("keeps a push's head against a read that raced it in the same second", async () => {
+    const pushedAt = new Date("2026-10-01T10:00:00Z");
+    await trigger({ headSha: "a".repeat(40) });
+    const { pullRequests } = createTenantRepository(harness.handle, CTX);
+    const planned = await pullRequests.upsert({
+      repoId: REPO_ID,
+      prNumber: 7,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      liveRead: { readAt: new Date(), headSha: "a".repeat(40) },
+    });
+    const pushed = await trigger({
+      headSha: "b".repeat(40),
+      githubUpdatedAt: pushedAt,
+    });
+    const reads = createLiveReadStore(harness.handle, CTX);
+    const heldRead = {
+      readAt: new Date(),
+      headSha: "a".repeat(40),
+      repoSlug: "acme/widgets",
+      title: "feat: add widgets",
+      draft: false,
+      githubUpdatedAt: pushedAt,
+      lifecycle: { state: PrStates.OPEN },
+    };
+
+    const row = await reads.record(pushed.pullRequest.id, heldRead, planned);
+
+    expect(row?.githubHeadSha).toBeNull();
+  });
+
+  it("keeps the head stamp for an event with no updated_at", async () => {
+    await trigger({ headSha: "b".repeat(40) });
+    await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
+      repoId: REPO_ID,
+      prNumber: 7,
+      repoSlug: "acme/widgets",
+      state: PrStates.OPEN,
+      liveRead: { readAt: new Date(), headSha: "b".repeat(40) },
+    });
+
+    const lateReview = await trigger({ headSha: "a".repeat(40) });
+
+    expect(lateReview.pullRequest.githubHeadSha).toBe("b".repeat(40));
+  });
+
+  it("leaves a row no live read stamped without a head stamp", async () => {
+    await trigger({ headSha: "a".repeat(40) });
+
+    const pushed = await trigger({ headSha: "b".repeat(40) });
+
+    expect(pushed.pullRequest.githubHeadSha).toBeNull();
   });
 
   it("refreshRunAt pulls a pending job in to the new window", async () => {

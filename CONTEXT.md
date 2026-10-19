@@ -183,7 +183,7 @@ A **Source** value (stored `url`, key `URL`): a pull request one **Reviewer** ad
 _Avoid_: pasted-URL, url-box, twin
 
 **Live read**:
-Reading a **URL** pull request's facts from GitHub at request time: at paste, on Inbox load, on Brief open. A row read within the last five minutes is not read again; a merged one never is.
+Reading a pull request's facts from GitHub at request time, on the reader's token: a **URL** one at paste, on Inbox load and on Brief open; an installation one on Inbox load and on Brief open, a backstop for a webhook that never arrived. A row read within the last five minutes is not read again; a merged one never is. A read never queues a generation.
 _Avoid_: refresh (means token refresh), sync (GitHub's push action), status check (GitHub's CI term)
 
 **Unreachable**:

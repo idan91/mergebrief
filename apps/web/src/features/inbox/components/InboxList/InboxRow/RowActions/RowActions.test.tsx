@@ -281,9 +281,10 @@ describe("RowActions", () => {
         headers: { "content-type": "application/json" },
       }),
     );
-    const { onAnnounce, invalidate } = await renderActions(
-      makeItem({ behind: true }),
-    );
+    const { onAnnounce, invalidate } = await renderActions({
+      ...URL_ROW,
+      behind: true,
+    });
 
     await openMenu();
     await act(async () => {
@@ -304,7 +305,7 @@ describe("RowActions", () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ code: "unauthorized" }), { status: 401 }),
     );
-    const { onAnnounce } = await renderActions(makeItem({ behind: true }));
+    const { onAnnounce } = await renderActions({ ...URL_ROW, behind: true });
     const assign = vi.fn();
     vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
 
@@ -317,6 +318,13 @@ describe("RowActions", () => {
       expect.stringContaining("sign in again"),
     );
     expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("an installation row behind GitHub has no Regenerate", async () => {
+    await renderActions(makeItem({ behind: true }));
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
   });
 
   it("a current row, or one with no repository name, has no Regenerate", async () => {

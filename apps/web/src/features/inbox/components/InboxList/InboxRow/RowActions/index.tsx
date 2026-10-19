@@ -62,7 +62,11 @@ export function RowActions({
   );
   const inArchive = archived === InboxArchivedFilters.ONLY;
   const githubUrl = buildGithubPullUrl(item.repoSlug, item.prNumber);
-  const canRegenerate = item.behind && githubUrl !== undefined;
+  // Regenerate takes the paste path, so only a url row can use it.
+  const canRegenerate =
+    item.behind &&
+    item.source === PullRequestSources.URL &&
+    githubUrl !== undefined;
   const canPurgeAttachments =
     item.viewerCanDelete && item.source === PullRequestSources.INSTALLATION;
 

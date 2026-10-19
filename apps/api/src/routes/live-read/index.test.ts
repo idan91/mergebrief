@@ -1,6 +1,6 @@
 // The live read over PGlite with GitHub served by the `github/testing` fake:
 // what is due, how it is chunked, what is written back, the operator retry
-// before an unreachable mark, and the ceiling.
+// before an unreachable mark, the ceiling, and installation rows.
 import {
   LIVE_READ_PAGE_SIZE,
   isOperatorToken,
@@ -17,6 +17,8 @@ import {
 import type { Logger } from "logging";
 import {
   createTenantRepository,
+  isInstallationId,
+  type InstallationId,
   isRepoId,
   isReviewerId,
   type PullRequestRow,
@@ -29,16 +31,17 @@ import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIVE_READ_MAX_CHUNKS } from "./consts";
 import {
-  refreshUrlPullRequest,
-  refreshUrlPullRequests,
+  readInboxRowsLive,
+  readPullRequestRowLive,
   resetLiveReadMemory,
 } from "./index";
-import type { LiveFactsReader, LiveReadDeps } from "./types";
+import type { LiveFactsReader, LiveReadDeps, LiveReadOutcome } from "./types";
 
 const VIEWER_TOKEN = "ghu_viewer";
 const OTHER_TOKEN = "ghu_other_reader";
 const OPERATOR_TOKEN = "ghp_operator";
 const NOW = new Date("2026-09-20T12:00:00Z");
+const TEN_MINUTES_AGO = new Date("2026-09-20T11:50:00Z");
 const HEAD = "a".repeat(40);
 
 function brand<T extends bigint>(
@@ -54,6 +57,9 @@ const OWNER: ReviewerId = brand(501n, isReviewerId);
 const OTHER_READER: ReviewerId = brand(502n, isReviewerId);
 const REPO: RepoId = brand(777n, isRepoId);
 const OWNER_SCOPE = { ownerUserId: OWNER };
+const UNREAD_REPO: RepoId = brand(778n, isRepoId);
+const INSTALLATION = brand(9001n, isInstallationId);
+const INSTALLATION_SCOPE = { installationId: INSTALLATION };
 
 const log: Logger = {
   error: vi.fn(),
@@ -183,6 +189,7 @@ async function readRow(prNumber: number): Promise<PullRequestRow> {
 
 interface DepsOptions {
   readonly operator?: boolean;
+  readonly now?: Date;
   readonly waitMs?: number;
   readonly reader?: ReviewerId;
   readonly token?: string;
@@ -204,7 +211,7 @@ function buildLiveDeps(options: DepsOptions = {}): LiveReadDeps {
     github,
     readerId: options.reader ?? OWNER,
     log,
-    now: () => NOW,
+    now: () => options.now ?? NOW,
   };
   if (options.operator === true && isOperatorToken(OPERATOR_TOKEN)) {
     built.operator = fake.bindOperatorGitHub(OPERATOR_TOKEN);
@@ -215,13 +222,34 @@ function buildLiveDeps(options: DepsOptions = {}): LiveReadDeps {
   return built;
 }
 
-describe("refreshUrlPullRequests", () => {
+function readOwnerRowsLive(
+  deps: LiveReadDeps,
+  ownerUserId: ReviewerId,
+): Promise<LiveReadOutcome> {
+  return readInboxRowsLive(deps, {
+    ownerUserId,
+    reposByInstallation: new Map(),
+  });
+}
+
+function readInstallationRowsLive(
+  deps: LiveReadDeps,
+  installationId: InstallationId,
+  repoIds: readonly RepoId[],
+): Promise<LiveReadOutcome> {
+  return readInboxRowsLive(deps, {
+    ownerUserId: OWNER,
+    reposByInstallation: new Map([[installationId, repoIds]]),
+  });
+}
+
+describe("readInboxRowsLive for url rows", () => {
   it("asks GitHub nothing when no row is due", async () => {
     arrangePulls(2);
     await seedRows(2);
-    await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, deferred: false });
     expect(listFactReads()).toHaveLength(1);
@@ -240,7 +268,7 @@ describe("refreshUrlPullRequests", () => {
       closedAt: new Date("2026-09-01T00:00:00Z"),
     });
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 1, unreachable: 0 });
     const updated = await readRow(1);
@@ -258,7 +286,7 @@ describe("refreshUrlPullRequests", () => {
     arrangePulls(cap + 1);
     await seedRows(cap + 1);
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(listFactReads().map(([, size]) => size)).toEqual(
       Array.from({ length: LIVE_READ_MAX_CHUNKS }, () => LIVE_READ_PAGE_SIZE),
@@ -277,7 +305,7 @@ describe("refreshUrlPullRequests", () => {
     );
     await seedRows(3);
 
-    const outcome = await refreshUrlPullRequests(
+    const outcome = await readOwnerRowsLive(
       buildLiveDeps({ operator: true }),
       OWNER,
     );
@@ -297,7 +325,7 @@ describe("refreshUrlPullRequests", () => {
   it("marks a missing row without an operator reader", async () => {
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, unreachable: 1 });
     expect((await readRow(1)).githubUnreachableAt).toEqual(NOW);
@@ -307,7 +335,7 @@ describe("refreshUrlPullRequests", () => {
     arrangePulls(1, { repoId: brand(999n, isRepoId) });
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, unreachable: 1 });
     expect((await readRow(1)).title).toBeNull();
@@ -316,7 +344,7 @@ describe("refreshUrlPullRequests", () => {
   it("a row with no usable slug is marked unreachable, not re-read", async () => {
     await seedRows(1, "not-a-slug");
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, unreachable: 1 });
     expect(listFactReads()).toHaveLength(0);
@@ -331,10 +359,7 @@ describe("refreshUrlPullRequests", () => {
       },
     };
 
-    const outcome = await refreshUrlPullRequests(
-      buildLiveDeps({ github }),
-      OWNER,
-    );
+    const outcome = await readOwnerRowsLive(buildLiveDeps({ github }), OWNER);
 
     expect(outcome).toMatchObject({ failed: true, timedOut: false });
     expect((await readRow(1)).githubReadAt).toBeNull();
@@ -346,10 +371,10 @@ describe("refreshUrlPullRequests", () => {
     if (row === undefined) {
       throw new Error("seed failed");
     }
-    await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
-    const again = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
-    const one = await refreshUrlPullRequest(buildLiveDeps(), {
+    const again = await readOwnerRowsLive(buildLiveDeps(), OWNER);
+    const one = await readPullRequestRowLive(buildLiveDeps(), {
       scope: OWNER_SCOPE,
       row,
       repoFullName: "o/r",
@@ -369,10 +394,10 @@ describe("refreshUrlPullRequests", () => {
     }
     const other = buildLiveDeps({ reader: OTHER_READER, token: OTHER_TOKEN });
     const target = { scope: OWNER_SCOPE, row, repoFullName: "o/r" };
-    await refreshUrlPullRequest(other, target);
+    await readPullRequestRowLive(other, target);
 
-    const owner = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
-    const again = await refreshUrlPullRequest(other, target);
+    const owner = await readOwnerRowsLive(buildLiveDeps(), OWNER);
+    const again = await readPullRequestRowLive(other, target);
 
     expect(owner).toMatchObject({ read: 1, failed: false });
     expect(again.outcome).toMatchObject({ failed: true });
@@ -391,7 +416,7 @@ describe("refreshUrlPullRequests", () => {
     );
     await seedRows(2);
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 1, unreachable: 0, failed: false });
     expect(listFactReads().map(([token]) => token)).toEqual([VIEWER_TOKEN]);
@@ -411,7 +436,7 @@ describe("refreshUrlPullRequests", () => {
     );
     await seedRows(2);
 
-    const outcome = await refreshUrlPullRequests(
+    const outcome = await readOwnerRowsLive(
       buildLiveDeps({ operator: true }),
       OWNER,
     );
@@ -438,7 +463,7 @@ describe("refreshUrlPullRequests", () => {
     );
     await seedRows(2);
 
-    const outcome = await refreshUrlPullRequests(
+    const outcome = await readOwnerRowsLive(
       buildLiveDeps({ operator: true }),
       OWNER,
     );
@@ -457,7 +482,7 @@ describe("refreshUrlPullRequests", () => {
     );
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(
+    const outcome = await readOwnerRowsLive(
       buildLiveDeps({ operator: true }),
       OWNER,
     );
@@ -478,7 +503,7 @@ describe("refreshUrlPullRequests", () => {
     fake.failOn("readPullRequestFacts", FakeFailures.RATE_LIMITED);
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(buildLiveDeps(), OWNER);
+    const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 
     expect(outcome).toMatchObject({ read: 0, failed: true });
     expect((await readRow(1)).githubReadAt).toBeNull();
@@ -493,7 +518,7 @@ describe("refreshUrlPullRequests", () => {
     arrangePulls(1);
     await seedRows(1);
 
-    const outcome = await refreshUrlPullRequests(
+    const outcome = await readOwnerRowsLive(
       buildLiveDeps({ waitMs: 5, hold: gate }),
       OWNER,
     );
@@ -511,11 +536,11 @@ describe("refreshUrlPullRequests", () => {
     arrangePulls(1);
     await seedRows(1);
 
-    const first = refreshUrlPullRequests(
+    const first = readOwnerRowsLive(
       buildLiveDeps({ waitMs: 5, hold: gate }),
       OWNER,
     );
-    const second = refreshUrlPullRequests(
+    const second = readOwnerRowsLive(
       buildLiveDeps({ waitMs: 5, hold: gate }),
       OWNER,
     );
@@ -534,11 +559,11 @@ describe("refreshUrlPullRequests", () => {
     arrangePulls(1);
     await seedRows(1);
 
-    const owner = refreshUrlPullRequests(
+    const owner = readOwnerRowsLive(
       buildLiveDeps({ waitMs: 5, hold: gate }),
       OWNER,
     );
-    const other = refreshUrlPullRequests(
+    const other = readOwnerRowsLive(
       buildLiveDeps({
         waitMs: 5,
         hold: gate,
@@ -560,7 +585,7 @@ describe("refreshUrlPullRequests", () => {
   });
 });
 
-describe("refreshUrlPullRequest", () => {
+describe("readPullRequestRowLive", () => {
   it("reads the one row by the verified name when it is due", async () => {
     arrangePulls(2);
     const [, row] = await seedRows(2, "stale/label");
@@ -568,12 +593,12 @@ describe("refreshUrlPullRequest", () => {
       throw new Error("seed failed");
     }
 
-    const first = await refreshUrlPullRequest(buildLiveDeps(), {
+    const first = await readPullRequestRowLive(buildLiveDeps(), {
       scope: OWNER_SCOPE,
       row,
       repoFullName: "o/r",
     });
-    const again = await refreshUrlPullRequest(buildLiveDeps(), {
+    const again = await readPullRequestRowLive(buildLiveDeps(), {
       scope: OWNER_SCOPE,
       row: first.row,
       repoFullName: "o/r",
@@ -593,7 +618,7 @@ describe("refreshUrlPullRequest", () => {
       throw new Error("seed failed");
     }
 
-    const read = await refreshUrlPullRequest(buildLiveDeps(), {
+    const read = await readPullRequestRowLive(buildLiveDeps(), {
       scope: OWNER_SCOPE,
       row,
       repoFullName: "o/r",
@@ -611,7 +636,7 @@ describe("refreshUrlPullRequest", () => {
       throw new Error("seed failed");
     }
 
-    const read = await refreshUrlPullRequest(buildLiveDeps(), {
+    const read = await readPullRequestRowLive(buildLiveDeps(), {
       scope: OWNER_SCOPE,
       row,
       repoFullName: "o/r",
@@ -619,5 +644,120 @@ describe("refreshUrlPullRequest", () => {
 
     expect(read.outcome).toMatchObject({ failed: true });
     expect(read.row).toBe(row);
+  });
+});
+
+describe("readInboxRowsLive for installation rows", () => {
+  async function seedInstallationRow(
+    repoId: RepoId,
+    prNumber: number,
+  ): Promise<PullRequestRow> {
+    return createTenantRepository(
+      harness.handle,
+      INSTALLATION_SCOPE,
+    ).pullRequests.upsert({
+      repoId,
+      prNumber,
+      repoSlug: "o/r",
+      state: PrStates.OPEN,
+      draft: true,
+    });
+  }
+
+  async function readInstallationRow(
+    repoId: RepoId,
+    prNumber: number,
+  ): Promise<PullRequestRow | undefined> {
+    return createTenantRepository(
+      harness.handle,
+      INSTALLATION_SCOPE,
+    ).pullRequests.getByNumber(repoId, prNumber);
+  }
+
+  it("corrects a draft flag a missed webhook left behind", async () => {
+    arrangePulls(1, { draft: false });
+    await seedInstallationRow(REPO, 1);
+
+    const outcome = await readInstallationRowsLive(
+      buildLiveDeps(),
+      INSTALLATION,
+      [REPO],
+    );
+
+    expect(outcome).toMatchObject({ read: 1 });
+    const row = await readInstallationRow(REPO, 1);
+    expect(row?.draft).toBe(false);
+    expect(row?.githubReadAt).toEqual(NOW);
+  });
+
+  it("reads only the repositories the reader can see", async () => {
+    arrangePulls(1);
+    await seedInstallationRow(REPO, 1);
+    await seedInstallationRow(UNREAD_REPO, 1);
+
+    await readInstallationRowsLive(buildLiveDeps(), INSTALLATION, [REPO]);
+
+    expect(listFactReads()).toEqual([[VIEWER_TOKEN, 1]]);
+    const unread = await readInstallationRow(UNREAD_REPO, 1);
+    expect(unread?.githubReadAt).toBeNull();
+  });
+
+  it("spends one chunk budget across url and installation rows", async () => {
+    const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
+    arrangePulls(cap);
+    await seedRows(cap);
+    await seedInstallationRow(REPO, 1);
+
+    const outcome = await readInstallationRowsLive(
+      buildLiveDeps(),
+      INSTALLATION,
+      [REPO],
+    );
+
+    expect(outcome).toMatchObject({ read: cap, deferred: true });
+    expect(listFactReads()).toHaveLength(LIVE_READ_MAX_CHUNKS);
+  });
+
+  it("reads url rows ahead of never-read installation rows", async () => {
+    const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
+    arrangePulls(1);
+    await seedRows(1);
+    await readOwnerRowsLive(buildLiveDeps({ now: TEN_MINUTES_AGO }), OWNER);
+    for (let prNumber = 1; prNumber <= cap; prNumber += 1) {
+      await seedInstallationRow(REPO, prNumber);
+    }
+
+    await readInstallationRowsLive(buildLiveDeps(), INSTALLATION, [REPO]);
+
+    const urlRow = await readRow(1);
+    expect(urlRow.githubReadAt).toEqual(NOW);
+  });
+
+  it("never asks the operator about an installation row", async () => {
+    await seedInstallationRow(REPO, 1);
+
+    await readInstallationRowsLive(
+      buildLiveDeps({ operator: true }),
+      INSTALLATION,
+      [REPO],
+    );
+
+    expect(listFactReads()).toEqual([[VIEWER_TOKEN, 1]]);
+  });
+
+  it("stamps a row GitHub shows nothing for and never marks it", async () => {
+    await seedInstallationRow(REPO, 1);
+
+    const outcome = await readInstallationRowsLive(
+      buildLiveDeps(),
+      INSTALLATION,
+      [REPO],
+    );
+
+    expect(outcome).toMatchObject({ read: 0, unreachable: 0 });
+    const row = await readInstallationRow(REPO, 1);
+    expect(row?.githubReadAt).toEqual(NOW);
+    expect(row?.githubUnreachableAt).toBeNull();
+    expect(row?.draft).toBe(true);
   });
 });

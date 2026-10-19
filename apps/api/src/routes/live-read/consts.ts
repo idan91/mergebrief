@@ -1,4 +1,4 @@
-/** A url row read within this window is not read again. */
+/** A row read within this window is not read again. */
 export const LIVE_READ_STALE_MS = 5 * 60 * 1000;
 
 /** Calls per read; rows past the last chunk wait for the next read. */

@@ -20,6 +20,7 @@ import {
   type GenerationRow,
 } from "./generation";
 import {
+  buildNextRowVersion,
   upsertPullRequestRow,
   type UpsertExecutor,
 } from "./pull-request-upsert";
@@ -43,6 +44,34 @@ import {
 } from "../types";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
+
+/**
+ * A head a live read stamped, cleared when this newer event reports another:
+ * the stamp no longer says what GitHub holds, and the next due read stamps
+ * the head again. A push the read did not see is still caught then, and an
+ * older push delivered late cannot write its head over a newer one.
+ */
+async function clearLiveHeadStamp(
+  executor: Pick<ReturnType<typeof internal>, "update">,
+  scope: RowScope,
+  prRow: PullRequestRow,
+  headSha: string,
+): Promise<PullRequestRow> {
+  const stamped = prRow.githubHeadSha;
+  if (stamped === null || stamped === headSha) {
+    return prRow;
+  }
+  const thisRow = and(scope.matchesPullRequest(), eq(pullRequest.id, prRow.id));
+  const clear = executor.update(pullRequest).set({
+    githubHeadSha: null,
+    rowVersion: buildNextRowVersion(),
+  });
+  const [cleared] = await clear.where(thisRow).returning();
+  if (cleared === undefined) {
+    return prRow;
+  }
+  return cleared;
+}
 
 /**
  * The stored brief for the row's base and the input's head. A row without a
@@ -375,9 +404,15 @@ export function createIngestRoutines(
           input.pullRequest,
           preserveTerminal,
         );
-        const prRow = upserted.row;
         if (!upserted.applied) {
-          return { pullRequest: prRow, applied: false, queued: false };
+          return { pullRequest: upserted.row, applied: false, queued: false };
+        }
+        // Only an event the updated_at guard ordered may clear the head: a
+        // review event carries no timestamp, so a late one says nothing new.
+        const ordered = input.pullRequest.githubUpdatedAt !== undefined;
+        let prRow = upserted.row;
+        if (ordered) {
+          prRow = await clearLiveHeadStamp(tx, scope, prRow, input.headSha);
         }
 
         // Terminal preserved → the trigger was stale. Stop here: projecting a

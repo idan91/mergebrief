@@ -145,6 +145,7 @@ interface SeedInput {
   readonly title?: string;
   readonly authorLogin?: string;
   readonly updatedAt?: Date;
+  readonly draft?: boolean;
   /** Stamp the row as read now, so the live read leaves it alone. */
   readonly fresh?: boolean;
 }
@@ -161,6 +162,9 @@ async function seedPr(handle: AppDatabase, input: SeedInput) {
   };
   if (input.fresh === true) {
     upsert.liveRead = { readAt: new Date(), headSha: HEAD };
+  }
+  if (input.draft !== undefined) {
+    upsert.draft = input.draft;
   }
   return createTenantRepository(handle, input.ctx).pullRequests.upsert(upsert);
 }
@@ -768,6 +772,27 @@ describe("GET /api/inbox", () => {
     expect(res.status).toBe(200);
     expect(listFakeCallTokens(fake)).not.toContain(OPERATOR_PAT);
     expect((await readBody(res)).items[0]).toMatchObject({ title: "PR 7" });
+  });
+
+  it("reads an installation row live, past a webhook that never came", async () => {
+    arrangeGitHub(fake, {
+      openList: [{ number: 3, head: "feature", base: "main" }],
+    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 3,
+      draft: true,
+      updatedAt: new Date("2025-12-01T00:00:00Z"),
+    });
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(200);
+    expect(countLiveReads(fake)).toBe(1);
+    const body = await readBody(res);
+    expect(body.items[0]).toMatchObject({ prNumber: 3, draft: false });
   });
 
   it("reads a stale url row live before listing it", async () => {

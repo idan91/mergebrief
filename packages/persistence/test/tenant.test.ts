@@ -43,6 +43,35 @@ function upsertInput(
   return { repoId: REPO, prNumber, repoSlug: "acme/widgets", ...lifecycle };
 }
 
+describe("createTenantRepository row_version", () => {
+  it("moves row_version on every pull_request write", async () => {
+    const handle = await freshDatabase();
+    const { pullRequests } = createTenantRepository(handle, CTX_A);
+    const readAt = new Date("2026-09-20T12:00:00Z");
+    const stack = { stack: { members: [], index: 1 }, readAt };
+
+    const inserted = await pullRequests.upsert(upsertInput(7));
+    const upserted = await pullRequests.upsert(upsertInput(7));
+    const advanced = await pullRequests.advanceGithubUpdatedAt(
+      inserted.id,
+      readAt,
+    );
+    const commented = await pullRequests.setEntryComment(inserted.id, 9001n);
+    const drafted = await pullRequests.setDraft(inserted.id, true);
+    const stacked = await pullRequests.recordStack(inserted.id, stack);
+    const versions = [
+      inserted,
+      upserted,
+      advanced,
+      commented,
+      drafted,
+      stacked,
+    ];
+
+    expect(versions.map((row) => row?.rowVersion)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+});
+
 describe("createTenantRepository tenant isolation on reads", () => {
   it("A cannot read a pull_request B wrote under the same repo and number", async () => {
     const handle = await freshDatabase();

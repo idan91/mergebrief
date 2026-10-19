@@ -24,6 +24,11 @@ import type {
  */
 export type PullRequestUpdateSet = PgUpdateSetSource<typeof pullRequest>;
 
+/** The next `row_version`: every update of a row moves it. */
+export function buildNextRowVersion(): SQL {
+  return sql`${pullRequest.rowVersion} + 1`;
+}
+
 /** The three live-read columns a stamp writes; the unreachable mark clears. */
 export function buildLiveReadColumns(stamp: LiveReadStamp): {
   githubReadAt: Date;
@@ -116,6 +121,7 @@ export async function upsertPullRequestRow(
     title: input.title,
     state: keepTerminal(pullRequest.state, lifecycle.state),
     closedAt: keepTerminal(pullRequest.closedAt, lifecycle.closedAt),
+    rowVersion: buildNextRowVersion(),
     updatedAt: new Date(),
   };
   // Omitted (review events) preserves the stored value, since an absent key is a

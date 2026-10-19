@@ -18,7 +18,7 @@ import {
 } from "persistence";
 import { GenerationStatuses } from "types/generations";
 import type { PullRequestAccess } from "../../../../access/types";
-import { refreshUrlPullRequest } from "../../../live-read";
+import { readPullRequestRowLive } from "../../../live-read";
 import { buildPrView } from "../../../pr-view";
 import {
   comparisonSpanSet,
@@ -36,25 +36,23 @@ interface MetaStores {
 }
 
 /**
- * A url row is read live before it is served, under the Inbox's window, so a
- * reader arriving from a bookmark sees the same facts. What the read wrote is
- * the write's own return, never the access step's snapshot.
+ * The row is read live before it is served, under the Inbox's window, so a
+ * reader arriving from a bookmark sees the same facts. Only a url row may
+ * fall back to the operator. What the read wrote is the write's own return,
+ * never the access step's snapshot.
  */
 async function readLiveRow(
   deps: ReadPullDeps,
   access: PullRequestAccess,
 ): Promise<PullRequestRow> {
   const scope = access.rowScope;
-  if (!isOwnerContext(scope)) {
-    return access.row;
-  }
-
-  const read = await refreshUrlPullRequest(
+  const operator = isOwnerContext(scope) ? deps.operator : undefined;
+  const read = await readPullRequestRowLive(
     {
       handle: deps.handle,
       github: access.github,
       readerId: access.session.reviewerId,
-      operator: deps.operator,
+      operator,
       log: deps.log,
     },
     { scope, row: access.row, repoFullName: access.repoFullName },

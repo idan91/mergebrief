@@ -19,7 +19,10 @@ import {
   createInboxArchiveStore,
   type InboxArchiveStore,
 } from "./inbox-archive";
-import { upsertPullRequestRow } from "./pull-request-upsert";
+import {
+  buildNextRowVersion,
+  upsertPullRequestRow,
+} from "./pull-request-upsert";
 import { resolveScope, ScopeViolationError } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
@@ -249,6 +252,7 @@ export function createTenantRepository(
         .set({
           githubUpdatedAt: sql`greatest(${pullRequest.githubUpdatedAt}, ${githubUpdatedAt})`,
           updatedAt: sql`case when ${advances} then now() else ${pullRequest.updatedAt} end`,
+          rowVersion: buildNextRowVersion(),
         })
         .where(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
@@ -260,7 +264,11 @@ export function createTenantRepository(
     async setEntryComment(pullRequestId, entryCommentId) {
       const rows = await db
         .update(pullRequest)
-        .set({ entryCommentId, updatedAt: new Date() })
+        .set({
+          entryCommentId,
+          rowVersion: buildNextRowVersion(),
+          updatedAt: new Date(),
+        })
         .where(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
@@ -271,7 +279,11 @@ export function createTenantRepository(
     async setDraft(pullRequestId, draft) {
       const rows = await db
         .update(pullRequest)
-        .set({ draft, updatedAt: new Date() })
+        .set({
+          draft,
+          rowVersion: buildNextRowVersion(),
+          updatedAt: new Date(),
+        })
         .where(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
@@ -285,6 +297,7 @@ export function createTenantRepository(
         .set({
           stack: input.stack,
           stackReadAt: input.readAt,
+          rowVersion: buildNextRowVersion(),
           updatedAt: new Date(),
         })
         .where(
