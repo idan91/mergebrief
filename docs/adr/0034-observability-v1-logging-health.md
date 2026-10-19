@@ -7,6 +7,13 @@ Cal.com, n8n, Outline, Gitea/Forgejo, PostHog, Supabase + pino/Hono/
 graphile-worker specifics). Implementation plan:
 `docs/plans/brief-51-observability-v1.md`.
 
+> **Superseded in part 2026-10-18 by ADR 0046.** #6: `GenerateJobPayload`
+> carries an optional `traceparent`; `{prId, headSha}` stays the durable
+> join. #8: OTel tracing is in, off by default; Prometheus, in-app log
+> transports and telemetry back to us stay out. The web tier now mints
+> `X-Request-Id` for every request and overwrites a client's value, so the
+> api's accepted inbound id is always web's.
+
 ## Context
 
 All three processes (web server with the mounted `/api` Hono app, worker,
