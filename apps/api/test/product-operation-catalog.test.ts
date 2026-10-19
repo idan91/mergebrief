@@ -89,6 +89,7 @@ const EXPECTED_POLICY = {
   [ProductQueryIds.READ_DELTA]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_DIFF]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_FILE_RANGE]: ["requiresStoredPullRequest"],
+  [ProductQueryIds.READ_GENERATION_CLAIMS]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_LOCAL_BRIEF]: [],
   [ProductQueryIds.READ_LOCAL_BRIEF_DIFFS]: [],
   [ProductQueryIds.READ_LOCAL_COMPARISON_MARKS]: [],

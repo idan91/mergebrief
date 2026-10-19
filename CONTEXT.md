@@ -210,6 +210,14 @@ _Avoid_: job (that is the **Job**), run (a run id names a **Claim**, not the rec
 The hold one attempt has on a **Generation**: a run id plus a 2-minute lease its holder renews while it works. Only the holder advances, finishes or releases the Generation; a lapsed lease frees it for the next attempt. A **Job** that finds the Brief already stored settles an unheld Generation as succeeded without one.
 _Avoid_: lock (graphile's lock is on the **Job**), lease (one part of the Claim)
 
+**Claim limit**:
+How many **Claims** one head of a **Generation** may take between triggers: 3. A shutdown release and a **Takeover** that made no provider call count too. A head that has taken them all, holds no live Claim and has not succeeded is exhausted: nothing claims it again until a trigger queues it afresh. Its stored failure stays as it was.
+_Avoid_: attempts (the trigger counter on the wire), retries (graphile's, one way a Claim is taken)
+
+**Takeover**:
+The job queued with each **Claim** that wakes once the Claim's lease could have lapsed and, if it did, claims the head for a new attempt. Anyone who can read the PR reads its state per head: scheduled with a start time, running, or spent (graphile ran out of attempts and nothing will take the head over).
+_Avoid_: recovery (that word belongs to **Restore**), retry job
+
 **Job**:
 The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then held by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
 _Avoid_: task, generation (the record), queued generation

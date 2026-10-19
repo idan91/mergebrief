@@ -82,7 +82,13 @@ export {
   WaitReasons,
   type GenerateBriefBody,
   type GenerateBriefResponse,
+  type GenerationClaimsResponse,
+  type GenerationClaimsView,
   type GenerationSummaryView,
+  type RunningTakeoverView,
+  type ScheduledTakeoverView,
+  type SpentTakeoverView,
+  type TakeoverView,
   type WaitReason,
 } from "./generation";
 export {

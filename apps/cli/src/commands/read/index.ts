@@ -6,6 +6,7 @@ import {
   resolveProfileTarget,
   resolveRepoTarget,
 } from "../target";
+import { runGenerationClaims } from "./generation";
 import {
   requireDeltaFlags,
   requireDiffFlags,
@@ -36,6 +37,23 @@ export function registerPrCommand(
       const prNumber = parsePrNumber(raw);
       const { client, repoId, io } = await resolveRepoTarget(context);
       await runPrMeta(client, repoId, prNumber, io);
+    });
+}
+
+export function registerGenerationCommand(
+  program: Command,
+  context: CommandContext,
+): void {
+  program
+    .command("generation")
+    .description(
+      "the PR head's generation claims, last failure and takeover job",
+    )
+    .argument("<number>", "PR number")
+    .action(async (raw: string) => {
+      const prNumber = parsePrNumber(raw);
+      const { client, repoId, io } = await resolveRepoTarget(context);
+      await runGenerationClaims(client, repoId, prNumber, io);
     });
 }
 

@@ -15,6 +15,12 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-19)
 
+- **Added** `read-generation-claims`,
+  `GET /api/repos/:repoId/pulls/:prNumber/generation`: the current head's
+  `claims` against `claimLimit`, `exhausted`, the stored `errorCode` and
+  `errorParams`, and the `takeover` job (`scheduled` with `runsAt`,
+  `running` or `spent`). No `generation` before the first brief is queued.
+
 - **Added** the wire code `operator-only` (403): an operation for the
   Instance's Operators refuses any other principal, session or API token.
 - **Added** `operator` (boolean) on `GET /api/auth/session`: whether the

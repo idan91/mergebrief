@@ -116,6 +116,9 @@
       "owner": "idan"
     }
   },
+  "read-generation-claims": {
+    "command": "mergebrief generation <number>"
+  },
   "read-local-brief": {
     "webOnly": {
       "reason": "dev file surface, no CLI",

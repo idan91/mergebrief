@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createArtifactStore,
+  createGenerationProjection,
   encryptToken,
   createTenantRepository,
   createGrantAuth,
@@ -15,6 +16,7 @@ import {
   isRepoId,
   isReviewerId,
   createTokenAuth,
+  GenerationKinds,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
@@ -304,6 +306,39 @@ describe("read commands over the real api app", () => {
     expect(tty.code).toBe(ExitCodes.OK);
     expect(tty.out).toContain("octo/hello#7");
     expect(tty.out.startsWith("{")).toBe(false);
+  });
+
+  it("generation --json is verbatim and TTY renders the claims line", async () => {
+    await seedBriefedPr(harness.handle);
+    const pr = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).pullRequests.upsert({
+      repoId: brand(isRepoId, REPO_A),
+      prNumber: 7,
+      state: PrStates.OPEN,
+    });
+    await createGenerationProjection(harness.handle, CTX).upsertPending({
+      pullRequestId: pr.id,
+      kind: GenerationKinds.BRIEF,
+      headSha: HEAD_SHA,
+      baselineSha: null,
+    });
+    await login();
+
+    const token = await seedToken();
+    const claims = await reference(token).request({
+      path: `/api/repos/${REPO_A}/pulls/7/generation`,
+    });
+    const jsonRun = await run(["generation", "7", "--json"]);
+    expect(jsonRun.code).toBe(ExitCodes.OK);
+    expect(jsonRun.out).toBe(claims.bodyText);
+
+    const tty = await run(["generation", "7"]);
+    expect(tty.code).toBe(ExitCodes.OK);
+    expect(tty.out).toBe(
+      `PR 7 · head ${HEAD_SHA.slice(0, 7)} · pending · claims 0 of 3\n`,
+    );
   });
 
   it("groups --json is the brief artifact body, verbatim", async () => {

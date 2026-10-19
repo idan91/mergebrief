@@ -46,6 +46,12 @@ export const ProductOperations = {
     method: HttpMethods.GET,
     path: "/api/repos/:repoId/pulls/:prNumber",
   },
+  [ProductQueryIds.READ_GENERATION_CLAIMS]: {
+    kind: OperationKinds.QUERY,
+    classification: AccessLevels.READ,
+    method: HttpMethods.GET,
+    path: "/api/repos/:repoId/pulls/:prNumber/generation",
+  },
   [ProductQueryIds.READ_BRIEF]: {
     kind: OperationKinds.QUERY,
     classification: AccessLevels.READ,

@@ -331,6 +331,7 @@ Commands:
   auth                                     authentication against your deployment
   repos [options]                          repositories visible to the profile's token (cached; see --refresh)
   pr [number]                              your PRs (no argument), or one PR's metadata
+  generation <number>                      the PR head's generation claims, last failure and takeover job
   groups <number>                          the PR's brief — change groups over the current span
   conversation <number>                    the PR's review conversation
   diff [options] <number>                  the PR's unified diff (its raw text IS the machine format)

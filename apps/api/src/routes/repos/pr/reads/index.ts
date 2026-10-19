@@ -42,6 +42,7 @@ import {
 } from "./read-artifact";
 import { readDiff } from "./read-diff";
 import { readFileRange } from "./read-file-range";
+import { readGenerationClaims } from "./read-generation-claims";
 import { readPull } from "./read-pull";
 import { readStack } from "./read-stack";
 import {
@@ -121,6 +122,19 @@ function createReadPullHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
     const meta: PullMetaView = await readPull(readDeps, access);
 
     return c.json(meta, HttpStatuses.OK, NO_STORE);
+  };
+}
+
+function createReadGenerationClaimsHandler(
+  handle: AppDatabase,
+): Handler<PullRequestEnv> {
+  return async (c) => {
+    const claims = await readGenerationClaims(
+      handle,
+      c.get("pullRequestAccess"),
+    );
+
+    return c.json(claims, HttpStatuses.OK, NO_STORE);
   };
 }
 
@@ -241,6 +255,18 @@ export function readsRoutes(
     },
     "/",
     createReadPullHandler(deps),
+  );
+  app.query(
+    {
+      id: ProductQueryIds.READ_GENERATION_CLAIMS,
+      browserSessionOnly: false,
+      requiresOperator: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
+    },
+    "/generation",
+    createReadGenerationClaimsHandler(deps.handle),
   );
   app.query(
     {

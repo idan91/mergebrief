@@ -32,6 +32,7 @@ import {
   registerConversationCommand,
   registerDeltaCommand,
   registerDiffCommand,
+  registerGenerationCommand,
   registerGroupsCommand,
   registerPrCommand,
 } from "./commands/read";
@@ -81,6 +82,7 @@ export function buildProgram(deps: CliDeps): Command {
   registerAuthCommands(program, context);
   registerReposCommand(program, context);
   registerPrCommand(program, context);
+  registerGenerationCommand(program, context);
   registerGroupsCommand(program, context);
   registerConversationCommand(program, context);
   registerDiffCommand(program, context);

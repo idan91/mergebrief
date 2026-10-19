@@ -4,6 +4,7 @@ import type {
   GenerationFailureParams,
   GenerationPhase,
   GenerationStatus,
+  TakeoverJobStates,
   ValueOf,
 } from "types";
 
@@ -30,6 +31,47 @@ export interface GenerationSummaryView {
    * with a queued job no worker holds. The Inbox never fills it.
    */
   readonly waitReason?: WaitReason;
+}
+
+export interface ScheduledTakeoverView {
+  readonly state: typeof TakeoverJobStates.SCHEDULED;
+  /** When the job may start, ISO 8601. */
+  readonly runsAt: string;
+}
+
+export interface RunningTakeoverView {
+  readonly state: typeof TakeoverJobStates.RUNNING;
+}
+
+export interface SpentTakeoverView {
+  readonly state: typeof TakeoverJobStates.SPENT;
+}
+
+/** The head's takeover job: waiting, running, or out of attempts. */
+export type TakeoverView =
+  | ScheduledTakeoverView
+  | RunningTakeoverView
+  | SpentTakeoverView;
+
+/** The current head's claims, as `read-generation-claims` reports them. */
+export interface GenerationClaimsView {
+  readonly headSha: string;
+  readonly status: GenerationStatus;
+  /** Claims taken since the last trigger. */
+  readonly claims: number;
+  readonly claimLimit: number;
+  /** No claim is left: not succeeded, no live claim, and the limit taken. */
+  readonly exhausted: boolean;
+  /** The stored failure, kept as is; an exhausted head may carry an earlier one. */
+  readonly errorCode?: GenerationFailureCode;
+  readonly errorParams?: GenerationFailureParams;
+  /** Absent when no takeover job is queued for the head. */
+  readonly takeover?: TakeoverView;
+}
+
+/** What `read-generation-claims` answers; no `generation` before the first brief is queued. */
+export interface GenerationClaimsResponse {
+  readonly generation?: GenerationClaimsView;
 }
 
 /** `generate-brief`: a GitHub pull request URL. */
