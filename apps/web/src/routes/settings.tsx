@@ -11,8 +11,21 @@ import {
 import type { ReactNode } from "react";
 
 import { FailureBlock } from "@web/components/FailureBlock";
+import { Icon } from "@web/components/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import { SIGN_IN_PATH } from "@web/data/sign-in";
-import { TokenSettings } from "@web/features/tokens";
+import {
+  deriveEnabledTabs,
+  parseSettingsSearch,
+  resolveActiveTab,
+  SETTINGS_TABS,
+  SettingsTabs,
+  type SettingsTabId,
+} from "@web/features/settings";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates } from "../features/account/types";
 import { appI18n } from "../i18n/I18nProvider";
@@ -20,6 +33,7 @@ import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./settings.module.scss";
 
 export const Route = createFileRoute("/settings")({
+  validateSearch: parseSettingsSearch,
   // The server render fails fast; the client's own refetch keeps the retries.
   loader: ({ context }) =>
     context.queryClient.ensureQueryData({
@@ -35,20 +49,35 @@ export const Route = createFileRoute("/settings")({
   errorComponent: SettingsUnavailable,
 });
 
-interface SettingsShellProps {
+export interface SettingsShellProps {
   children: ReactNode;
+  /** The rail needs a wider column than a lone panel. */
+  wide?: boolean;
 }
 
 /** One shell for every state, so the landmark, the breadcrumb and the heading survive a failed read. */
-function SettingsShell({ children }: SettingsShellProps) {
+function SettingsShell({ children, wide = false }: SettingsShellProps) {
+  const width = wide ? "wide" : "narrow";
   const { t } = useTranslation();
   return (
-    <main className={styles["main"]} id="main-content" tabIndex={-1}>
+    <main
+      className={styles["main"]}
+      data-width={width}
+      id="main-content"
+      tabIndex={-1}
+    >
       <nav
         aria-label={t("shell.ariaLabelBreadcrumb")}
         className={styles["breadcrumb"]}
       >
-        <Link to="/">{t("shell.backToBriefs")}</Link>
+        <Link to="/">
+          <Icon
+            name={IconNames.ARROW_UP}
+            rotation={IconRotations.THREE_QUARTERS}
+            size={IconSizes.MD}
+          />
+          {t("shell.backToBriefs")}
+        </Link>
       </nav>
       <h1>{t("shell.settingsHeading")}</h1>
       {children}
@@ -78,25 +107,40 @@ function SettingsUnavailable({ reset }: ErrorComponentProps) {
 function SettingsPage() {
   const { t } = useTranslation();
   const viewer = useSuspenseQuery(buildViewerQueryOptions()).data;
-  const signInPrompt = (
-    <p className={styles["signedOut"]}>
-      <Trans
-        components={[
-          <a href={SIGN_IN_PATH} key="signIn">
-            {t("shell.signInWithGithub")}
-          </a>,
-        ]}
-        i18nKey="shell.signInPrompt"
-      />
-    </p>
-  );
-  // Only a viewer the API confirmed reaches the form; a read that did not
-  // answer lands on the sign-in side.
-  const contentByKind: Record<typeof viewer.kind, ReactNode> = {
-    [ViewerStates.SIGNED_IN]: <TokenSettings enabled />,
-    [ViewerStates.UNKNOWN]: signInPrompt,
-    [ViewerStates.SIGNED_OUT]: signInPrompt,
-  };
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
 
-  return <SettingsShell>{contentByKind[viewer.kind]}</SettingsShell>;
+  if (viewer.kind !== ViewerStates.SIGNED_IN) {
+    // Only a viewer the API confirmed reaches the tabs; a read that did not
+    // answer lands on the sign-in side.
+    return (
+      <SettingsShell>
+        <p className={styles["signedOut"]}>
+          <Trans
+            components={[
+              <a href={SIGN_IN_PATH} key="signIn">
+                {t("shell.signInWithGithub")}
+              </a>,
+            ]}
+            i18nKey="shell.signInPrompt"
+          />
+        </p>
+      </SettingsShell>
+    );
+  }
+
+  const tabs = deriveEnabledTabs(SETTINGS_TABS, viewer.operator);
+  const active = resolveActiveTab(tabs, search.tab);
+
+  const wide = tabs.length > 1;
+
+  function selectTab(tab: SettingsTabId) {
+    void navigate({ search: { tab }, hash: true, replace: true });
+  }
+
+  return (
+    <SettingsShell wide={wide}>
+      <SettingsTabs active={active} onSelect={selectTab} tabs={tabs} />
+    </SettingsShell>
+  );
 }

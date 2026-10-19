@@ -1,8 +1,22 @@
+@use "functions";
+@use "mixins";
+
 @layer components {
   .root {
     display: flex;
     flex: 1;
     flex-direction: column;
     min-block-size: 0;
+
+    &[data-variant="rail"] {
+      display: grid;
+      grid-template-columns: functions.to-rem(184px) minmax(0, 1fr);
+      column-gap: functions.to-rem(48px);
+
+      @include mixins.for-breakpoint("mobile", max) {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: functions.to-rem(32px);
+      }
+    }
   }
 }

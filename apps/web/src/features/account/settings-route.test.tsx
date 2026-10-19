@@ -23,7 +23,10 @@ afterEach(() => {
   fetchMock.mockReset();
 });
 
-async function loadSettings(viewer?: ViewerState): Promise<void> {
+async function loadSettings(
+  viewer?: ViewerState,
+  path = "/settings",
+): Promise<void> {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -37,7 +40,7 @@ async function loadSettings(viewer?: ViewerState): Promise<void> {
   const router = createRouter({
     routeTree,
     context: { queryClient },
-    history: createMemoryHistory({ initialEntries: ["/settings"] }),
+    history: createMemoryHistory({ initialEntries: [path] }),
   });
   await router.load();
   render(
@@ -78,6 +81,31 @@ describe("the settings route", () => {
     ).toBeNull();
   });
 
+  it("leads the back link with an arrow", async () => {
+    await loadSettings({ kind: ViewerStates.SIGNED_OUT });
+
+    const back = await screen.findByRole("link", { name: "Back to briefs" });
+
+    expect(back.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("opens the first tab when the asked-for tab is not shown", async () => {
+    await loadSettings(
+      {
+        kind: ViewerStates.SIGNED_IN,
+        login: "octocat",
+        avatarUrl: "https://avatars.example/octocat.png",
+        operator: false,
+      },
+      "/settings?tab=instance",
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /API tokens/ })).toBeTruthy();
+    });
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
   it("treats a viewer it could not confirm as signed out", async () => {
     await loadSettings({ kind: ViewerStates.UNKNOWN });
 
@@ -100,6 +128,6 @@ describe("the settings route", () => {
       "Settings could not be loaded",
     );
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Back to Briefs/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Back to briefs" })).toBeTruthy();
   });
 });

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { MOBILE_BREAKPOINT_PX } from "../hooks/useMobileViewport";
 import { TABLET_BREAKPOINT_PX } from "../hooks/useViewportBoundary";
 
 // A media query in SCSS and a matchMedia query in TS must flip on the same
@@ -16,5 +17,15 @@ describe("breakpoints", () => {
     const tablet = /"tablet":\s*(\d+)px/.exec(functions)?.[1];
 
     expect(Number(tablet)).toBe(TABLET_BREAKPOINT_PX);
+  });
+
+  it("keeps the mobile breakpoint equal in SCSS and TS", async () => {
+    const functions = await readFile(
+      fileURLToPath(new URL("./_functions.scss", import.meta.url)),
+      "utf8",
+    );
+    const mobile = /"mobile":\s*(\d+)px/.exec(functions)?.[1];
+
+    expect(Number(mobile)).toBe(MOBILE_BREAKPOINT_PX);
   });
 });

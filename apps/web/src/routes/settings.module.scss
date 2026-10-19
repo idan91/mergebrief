@@ -2,7 +2,17 @@
 
 @layer components {
   .main {
+    inline-size: 100%;
     max-width: functions.to-rem(760px);
+
+    &[data-width="wide"] {
+      max-width: functions.to-rem(960px);
+
+      h1 {
+        margin-block-end: functions.to-rem(24px);
+      }
+    }
+
     margin-inline: auto;
     padding-block: functions.to-rem(32px);
     padding-inline: functions.to-rem(20px);
@@ -21,6 +31,9 @@
     font-size: var(--font-size-lg);
 
     a {
+      display: inline-flex;
+      align-items: center;
+      gap: functions.to-rem(6px);
       color: var(--color-text-2);
       text-decoration: none;
 

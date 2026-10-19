@@ -1113,6 +1113,8 @@
   },
   "shell": {
     "settingsHeading": "Settings",
+    "settingsSections": "Settings sections",
+    "settingsTabTokens": "API tokens",
     "briefListFailed": "Brief list failed to load",
     "briefFailed": "Brief failed to load",
     "ariaLabelMarkdownEditor": "Markdown editor",
@@ -1153,7 +1155,7 @@
       "failed": "The image could not be uploaded. It was not attached; try again."
     },
     "skipToContent": "Skip to content",
-    "backToBriefs": "← Back to Briefs",
+    "backToBriefs": "Back to briefs",
     "ariaLabelBreadcrumb": "Breadcrumb",
     "localBriefs": "Local briefs",
     "settingsUnavailable": "Settings could not be loaded",

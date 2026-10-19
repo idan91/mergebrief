@@ -20,8 +20,6 @@
   }
 }
 
-// Unused: existing media queries are hand-authored range-syntax. Reserved for
-// a future responsiveness pass.
 @mixin for-size($size, $limit-type: min, $size-type: width) {
   @if $size-type == width {
     @media (#{$limit-type}-width: $size) {

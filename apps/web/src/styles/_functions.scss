@@ -2,9 +2,6 @@
 @use "sass:math";
 
 $default-font-size: 16px;
-
-// Unused: current media queries are hand-authored. Reserved for a future
-// responsiveness pass.
 $breakpoints: (
   "mobile": 880px,
   "tablet": 1120px,

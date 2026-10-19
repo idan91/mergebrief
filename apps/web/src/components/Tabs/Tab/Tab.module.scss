@@ -29,5 +29,47 @@
       border-block-end-color: var(--color-accent);
       color: var(--color-text-1);
     }
+
+    &[data-variant="rail"] {
+      display: flex;
+      align-items: center;
+      gap: functions.to-rem(10px);
+      block-size: functions.to-rem(34px);
+      padding-block: 0;
+      padding-inline: functions.to-rem(10px);
+      border: 0;
+      border-radius: var(--radius-md);
+      text-align: start;
+
+      &:hover:not([aria-selected="true"]) {
+        background: var(--color-surface-2);
+      }
+
+      &[aria-selected="true"] {
+        background: var(--color-surface-3);
+      }
+
+      @include mixins.for-breakpoint("mobile", max) {
+        block-size: auto;
+        padding-block: functions.to-rem(8px) functions.to-rem(10px);
+        padding-inline: 0;
+        border-block-end: 2px solid transparent;
+        border-radius: 0;
+        font-size: var(--font-size-xl);
+
+        &:hover:not([aria-selected="true"]) {
+          background: transparent;
+        }
+
+        &[aria-selected="true"] {
+          border-block-end-color: var(--color-accent);
+          background: transparent;
+        }
+
+        svg {
+          display: none;
+        }
+      }
+    }
   }
 }

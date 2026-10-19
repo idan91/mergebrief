@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { Tabs } from ".";
+import { TabsVariants } from "./types";
 
 function renderTabs(value: string, onValueChange: (value: string) => void) {
   return render(
@@ -16,6 +19,84 @@ function renderTabs(value: string, onValueChange: (value: string) => void) {
     </Tabs>,
   );
 }
+
+function renderRail(value: string, onValueChange: (value: string) => void) {
+  return render(
+    <Tabs
+      value={value}
+      variant={TabsVariants.RAIL}
+      onValueChange={onValueChange}
+    >
+      <Tabs.List label="Sections">
+        <Tabs.Tab value="a">First</Tabs.Tab>
+        <Tabs.Tab value="b">Second</Tabs.Tab>
+        <Tabs.Tab value="c">Third</Tabs.Tab>
+      </Tabs.List>
+      <Tabs.Panel value="a">Panel A</Tabs.Panel>
+      <Tabs.Panel value="b">Panel B</Tabs.Panel>
+      <Tabs.Panel value="c">Panel C</Tabs.Panel>
+    </Tabs>,
+  );
+}
+
+describe("Tabs rail variant", () => {
+  afterEach(resetMediaQueries);
+
+  it("reads as a horizontal tablist once the rail folds into a row", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    renderRail("a", () => {});
+
+    const list = screen.getByRole("tablist", { name: "Sections" });
+    expect(list.getAttribute("aria-orientation")).toBe("horizontal");
+  });
+
+  it("lays the tablist out vertically", () => {
+    renderRail("a", () => {});
+    const list = screen.getByRole("tablist", { name: "Sections" });
+
+    expect(list.getAttribute("aria-orientation")).toBe("vertical");
+    expect(list.getAttribute("data-variant")).toBe(TabsVariants.RAIL);
+  });
+
+  it("moves with the up and down arrows", () => {
+    const onValueChange = vi.fn();
+    renderRail("b", onValueChange);
+
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Second" }), {
+      key: "ArrowDown",
+    });
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Second" }), {
+      key: "ArrowUp",
+    });
+
+    expect(onValueChange.mock.calls).toEqual([["c"], ["a"]]);
+  });
+
+  it("still moves with the side arrows when the rail collapses to a row", () => {
+    const onValueChange = vi.fn();
+    renderRail("a", onValueChange);
+
+    fireEvent.keyDown(screen.getByRole("tab", { name: "First" }), {
+      key: "ArrowRight",
+    });
+
+    expect(onValueChange).toHaveBeenCalledWith("b");
+  });
+
+  it("keeps the side arrows alone on the underline variant", () => {
+    const onValueChange = vi.fn();
+    renderTabs("a", onValueChange);
+
+    fireEvent.keyDown(screen.getByRole("tab", { name: "First" }), {
+      key: "ArrowDown",
+    });
+
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("tablist").getAttribute("aria-orientation")).toBe(
+      "horizontal",
+    );
+  });
+});
 
 describe("Tabs", () => {
   it("wires the tablist, roving tabindex, and each tab to its panel", () => {

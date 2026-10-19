@@ -6,15 +6,28 @@ export function derivePanelId(baseId: string, value: string): string {
   return `${baseId}-panel-${value}`;
 }
 
+function isNextKey(key: string, vertical: boolean): boolean {
+  const downOnRail = vertical && key === "ArrowDown";
+  const next = key === "ArrowRight" || downOnRail;
+  return next;
+}
+
+function isPreviousKey(key: string, vertical: boolean): boolean {
+  const upOnRail = vertical && key === "ArrowUp";
+  const previous = key === "ArrowLeft" || upOnRail;
+  return previous;
+}
+
 export function resolveNextIndex(
   key: string,
   index: number,
   count: number,
+  vertical = false,
 ): number {
-  if (key === "ArrowRight") {
+  if (isNextKey(key, vertical)) {
     return (index + 1) % count;
   }
-  if (key === "ArrowLeft") {
+  if (isPreviousKey(key, vertical)) {
     return (index - 1 + count) % count;
   }
   if (key === "Home") {
