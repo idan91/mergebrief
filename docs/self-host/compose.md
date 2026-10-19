@@ -46,6 +46,10 @@ One folder, no checkout of the repository and no build:
   own (on an external database, through `COMPOSE_FILE`: see below), and an
   upgrade never touches it.
 
+Tracing is off until `.env` names an OTLP endpoint; a collector or the
+Datadog Agent goes in the override file
+([observability.md](./observability.md#tracing)).
+
 **One image, three commands.** `api`, `web` and `worker` all run
 `ghcr.io/idan91/mergebrief:X.Y.Z`, each started with its own command. The
 image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one

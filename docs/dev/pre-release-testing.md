@@ -441,6 +441,29 @@ is the cheapest way to close most of the gap: it natively covers
       seen in the smokes) and confirm the "generation warnings" chip in
       the header and the note it lands on.
 
+### Tracing
+
+The trace path has no browser test; the propagation, payload-link and
+graphile tests cover its pieces. `manual-until: a compose-level trace test
+against an in-memory collector`.
+
+- [ ] Local: `docker compose -f docker-compose.tracing.yml up -d`,
+      `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318` in `.env`, then
+      `pnpm app:host`. A webhook delivery shows in Jaeger
+      (`127.0.0.1:16686`) as an api trace with its pg spans, and the
+      worker's `process generate` trace links to it. `vite dev` is
+      untraced; the web tier traces only from `src/serve.ts`.
+- [ ] Deployed, before each pre-release: the [any-OTLP
+      recipe](../self-host/observability.md#recipe-any-otlp-backend) into a
+      Grafana Cloud free stack (its OTLP endpoint and a `Basic` token). A
+      page's document request is one trace across `mergebrief-web` and
+      `mergebrief-api` (each later browser call is its own);
+      an api log line's `trace_id` finds that trace.
+- [ ] Once before the Release: the [Datadog
+      recipe](../self-host/observability.md#recipe-datadog) on a 14-day
+      trial. Traces arrive under the three service names, and a trace's
+      Logs tab lists its lines with no remapping.
+
 ### Local dev loop (quick confidence)
 
 - [ ] `pnpm app:host` (Postgres in compose; api, worker and web on the

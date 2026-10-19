@@ -4,7 +4,9 @@ Everything the instance emits is **structured JSON on stdout** — one line
 per event, no files, no telemetry back to anyone. Rotation and shipping are
 your side of the contract (12-factor); this page documents the line shape,
 the stable event vocabulary, the health endpoints, and worked recipes for
-Grafana/Loki, Datadog, and CloudWatch.
+Grafana/Loki, Datadog, and CloudWatch. Traces are optional and off by
+default: set one OTLP endpoint and every process sends them to your own
+backend ([Tracing](#tracing)).
 
 ## The log line
 
@@ -25,8 +27,8 @@ Grafana/Loki, Datadog, and CloudWatch.
   text.
 - `trace_id`, `span_id` — present only while tracing is on and the line is
   written inside an OTel span: the 32- and 16-hex ids of the trace and span
-  it belongs to, the OTel log data model's names, which Datadog's Agent and
-  Grafana pick up as-is. A line outside any span, and every line with
+  it belongs to, under the OTel log data model's names, which Datadog's log
+  pipeline detects on its own. A line outside any span, and every line with
   tracing off, carries neither.
 - `LOG_LEVEL` env picks the threshold (`error`/`warn`/`info`/`debug`,
   default `info`). Format is `NODE_ENV`-decided: JSON everywhere except
@@ -99,8 +101,84 @@ number**. The same id (as `pull_request_id`) and `headSha` sit on the queue
 row and the `generation` rows, so the log to database join is direct.
 
 So the story of one push reads: `deliveryId` → `generation.enqueue` →
-`{prId, headSha}` → `generation.succeeded`. Correlated logs are the v1
-trace; there is no tracing system (OTel is a deliberate non-goal for now).
+`{prId, headSha}` → `generation.succeeded`. With [tracing](#tracing) on,
+the same story is two linked traces: the delivery's, and the job's, which
+links back to it. Every line written inside either carries its `trace_id`.
+
+## Tracing
+
+Off by default. Set an OTLP/HTTP endpoint in `.env` and the api, the worker
+and the web tier each send OpenTelemetry traces to it, protobuf over HTTP:
+
+```sh
+# .env
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+```
+
+Run `docker compose up -d`, which recreates the services with the new
+environment (`docker compose restart` keeps the old one), and each process
+logs `tracing on` at boot. With no
+endpoint set, a process loads no OpenTelemetry SDK at all.
+
+What a trace holds:
+
+- **One trace per web request.** It starts at the web tier, continuing a
+  `traceparent` your reverse proxy sends, and follows the proxied call and
+  every page render's reads into the api, down to each Postgres query.
+- **One trace per job.** A worker job opens its own trace (`process
+  generate`, `process recover-generation`, the scheduled sweeps) and carries the
+  job's queries and its calls to GitHub and the model provider. It links to
+  the trace that queued it: a delivery, a request such as a regenerate, or
+  the job that re-queued it. The scheduled sweeps start unlinked. It is a link
+  and not a parent: a later push replaces a queued job, so the link points
+  at the latest enqueue, and one job may serve several deliveries.
+- **Not traced:** `/healthz`, `/readyz` and the web tier's static assets,
+  and background calls that run outside any request or job.
+- **Redacted:** URL query strings (the sign-in callback carries its code
+  there), and the user agent and client address the http instrumentation
+  reads from headers.
+- **Never recorded:** any other request header but the host, cookies, SQL parameter
+  values, and the text of a job's error. A failed query's span keeps
+  Postgres's error message, which can quote a value.
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset (off) | base URL; `/v1/traces` is appended |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | unset | full traces URL; wins over the base |
+| `OTEL_EXPORTER_OTLP_HEADERS` | unset | `key=value,...`, URL-encoded values; api and worker only |
+| `OTEL_RESOURCE_ATTRIBUTES` | unset | e.g. `deployment.environment=production` |
+| `OTEL_TRACES_SAMPLER` | `parentbased_always_on` | any spec sampler; `parentbased_traceidratio` keeps a share |
+| `OTEL_TRACES_SAMPLER_ARG` | `1` | the ratio, 0 to 1 |
+| `OTEL_SDK_DISABLED` | unset | `true` turns tracing off with an endpoint set |
+
+Only the `http/protobuf` protocol is supported; any other value, or an
+endpoint that is not an http(s) URL, refuses boot with the variable named.
+Leave `OTEL_SERVICE_NAME` unset: the processes name themselves
+`mergebrief-web`, `mergebrief-api` and `mergebrief-worker`.
+
+The web tier never receives the OTLP headers, so it holds no vendor key:
+point it at a collector or agent you run beside the stack (both recipes
+below do), and let that hold the key. The web tier also decides its own
+sampling: it continues a caller's trace id but ignores the caller's sampled
+flag. Under a ratio sampler that trace id still steers the decision, so a
+client can push its own requests in or out of the sample; that costs you
+volume, never data.
+
+To try it locally, `docker-compose.tracing.yml` in the repository runs a
+throwaway Jaeger, with the UI on `127.0.0.1:16686`. With the compose stack,
+set `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318` in `.env` and merge the
+file in:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.tracing.yml up -d --wait
+```
+
+With the processes on the host (`pnpm app:host`), set
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318` and run it alone:
+
+```sh
+docker compose -f docker-compose.tracing.yml up -d
+```
 
 ## Health endpoints
 
@@ -205,6 +283,110 @@ remapper (string labels, not numbers), and facet `evt`. Monitors then key
 off `@evt:job.retries.exhausted` (any occurrence),
 `@evt:provider.error @status:(401 OR 403)` (any), and a rate-based monitor
 on `@evt:webhook.verify.fail`.
+
+Traces go to the same Agent through its OTLP receiver. Run it beside the
+stack in `docker-compose.override.yml` and point every process at it; the
+Agent holds the API key, so no process needs OTLP headers:
+
+```yaml
+# docker-compose.override.yml
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    # Its own file, not .env: api and worker load .env, and the key is the
+    # Agent's alone.
+    env_file: ./.env.datadog
+    environment:
+      HOST_PROC: /proc
+      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      # Only this stack's containers, not everything else on the host.
+      DD_CONTAINER_EXCLUDE_LOGS: "name:.*"
+      DD_CONTAINER_INCLUDE_LOGS: "image:^ghcr\\.io/idan91/mergebrief"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+```
+
+```sh
+# .env.datadog
+DD_API_KEY=<your-api-key>
+DD_SITE=datadoghq.com
+
+# .env
+OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4318
+OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production
+```
+
+Datadog's log pipeline detects the OpenTelemetry `trace_id` and `span_id`
+attributes on the JSON lines without a remapper, per its log and trace
+correlation docs; the pre-release Datadog check confirms it on a live
+account. Bring the Agent up with `docker compose up -d`.
+`HOST_PROC: /proc` is not optional: without it the Agent's OTLP pipeline
+fails at start with "process does not exist" and port 4318 never opens.
+
+## Recipe: any OTLP backend
+
+Grafana Cloud, Honeycomb, a self-hosted Tempo or Jaeger, or anything else
+that accepts OTLP: run an OpenTelemetry Collector beside the stack and let
+it hold the backend's credentials.
+
+```yaml
+# docker-compose.override.yml
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.140.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # Its own file, not .env: api and worker load .env, and the backend's
+    # credentials are the collector's alone.
+    env_file: ./.env.otelcol
+    volumes:
+      - ./otelcol.yaml:/etc/otelcol/config.yaml:ro
+```
+
+```yaml
+# otelcol.yaml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  batch: {}
+exporters:
+  otlphttp:
+    endpoint: ${env:OTLP_BACKEND_ENDPOINT}
+    headers:
+      Authorization: ${env:OTLP_BACKEND_AUTH}
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp]
+```
+
+```sh
+# .env.otelcol
+OTLP_BACKEND_ENDPOINT=<your backend's OTLP/HTTP endpoint>
+OTLP_BACKEND_AUTH=<the Authorization header value it expects>
+
+# .env
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+```
+
+Then `docker compose up -d` starts the collector and recreates the services.
+
+Logs keep their own path (Loki, Datadog or CloudWatch above); every line
+written inside a trace carries `trace_id` and `span_id` for the backend to
+join on.
 
 ## Recipe: CloudWatch
 
