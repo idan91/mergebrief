@@ -218,6 +218,10 @@ _Avoid_: attempts (the trigger counter on the wire), retries (graphile's, one wa
 The job queued with each **Claim** that wakes once the Claim's lease could have lapsed and, if it did, claims the head for a new attempt. Anyone who can read the PR reads its state per head: scheduled with a start time, running, or spent (graphile ran out of attempts and nothing will take the head over).
 _Avoid_: recovery (that word belongs to **Restore**), retry job
 
+**Started run**:
+One run the Instance started on a UTC day: every paid **Claim**, graphile retries, shutdown releases and no-call **Takeovers** included, plus a **Job** with a stored **Brief** at its first provider call. The daily cap counts started runs across every repository; the **Operator** reads the day's count against it.
+_Avoid_: paid run (some started runs made no provider call), generation (the record, not one run of it)
+
 **Job**:
 The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then held by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
 _Avoid_: task, generation (the record), queued generation

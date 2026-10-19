@@ -37,6 +37,8 @@ export interface ApiProcessOptions {
   readonly publicBaseUrl: string;
   readonly githubStubOrigin: string;
   readonly serverVersion?: string;
+  /** An absolute `mergebrief.config.yaml` path the api reads as MERGEBRIEF_CONFIG. */
+  readonly configPath?: string;
   /** A PEM the App client can parse; the stub means it signs nothing real. */
   readonly githubPrivateKey: string;
 }
@@ -106,6 +108,9 @@ function buildEnv(options: ApiProcessOptions): NodeJS.ProcessEnv {
   };
   if (options.serverVersion !== undefined) {
     env["SERVER_VERSION"] = options.serverVersion;
+  }
+  if (options.configPath !== undefined) {
+    env["MERGEBRIEF_CONFIG"] = options.configPath;
   }
   return env;
 }

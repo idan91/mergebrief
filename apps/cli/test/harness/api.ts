@@ -29,6 +29,8 @@ export type FetchLike = (
 
 export interface CliApiHarnessOptions {
   readonly serverVersion?: string;
+  /** An absolute instance config path, for operators and the spend cap. */
+  readonly configPath?: string;
 }
 
 export interface CliApiHarness {
@@ -93,6 +95,9 @@ export async function startCliApiHarness(
     };
     if (options.serverVersion !== undefined) {
       processOptions.serverVersion = options.serverVersion;
+    }
+    if (options.configPath !== undefined) {
+      processOptions.configPath = options.configPath;
     }
     api = await startApiProcess(processOptions);
   } catch (error) {

@@ -155,6 +155,9 @@
   "read-review-session": {
     "command": "mergebrief session <number>"
   },
+  "read-spend": {
+    "command": "mergebrief spend"
+  },
   "read-stack": {
     "webOnly": {
       "reason": "The live stack feeds the header's neighbour links; the CLI renders no brief header to navigate from",

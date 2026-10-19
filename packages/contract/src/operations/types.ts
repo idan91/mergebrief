@@ -18,6 +18,7 @@ export const ProductQueryIds = {
   READ_CONVERSATION: "read-conversation",
   READ_PULL: "read-pull",
   READ_GENERATION_CLAIMS: "read-generation-claims",
+  READ_SPEND: "read-spend",
   READ_BRIEF: "read-brief",
   READ_BRIEF_CONTEXT: "read-brief-context",
   READ_MARKS: "read-marks",

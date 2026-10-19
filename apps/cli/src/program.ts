@@ -14,6 +14,7 @@ import {
 } from "./version";
 import { registerAuthCommands, registerReposCommand } from "./commands/auth";
 import { registerCapabilitiesCommand } from "./commands/capabilities";
+import { registerSpendCommand } from "./commands/spend";
 import {
   registerContextCommand,
   registerMarksCommand,
@@ -102,6 +103,7 @@ export function buildProgram(deps: CliDeps): Command {
   registerGenerateCommand(program, context);
   registerCollaboratorsCommand(program, context);
   registerCapabilitiesCommand(program, context);
+  registerSpendCommand(program, context);
   registerDeltaCommand(program, context);
 
   return program;

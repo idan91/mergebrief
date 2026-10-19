@@ -78,6 +78,7 @@ export {
   type Page,
   type ReachableInstallationView,
 } from "./inbox";
+export type { SpendView } from "./spend";
 export {
   WaitReasons,
   type GenerateBriefBody,

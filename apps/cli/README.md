@@ -351,6 +351,7 @@ Commands:
   generate <url>                           generate a brief for a PR URL (no confirm; your own key)
   collaborators                            the target repo's collaborator roster (push access required)
   capabilities [options]                   what this server+CLI pair can run; --require makes it a fail-closed check
+  spend                                    today's started runs against the daily cap (Operators only)
   delta [options] <number>                 what changed since your last review (union: available | not)
   help [command]                           display help for command
 ```

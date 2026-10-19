@@ -24,6 +24,7 @@ import { createTtlCache } from "./ttl-cache";
 import type { InstallationBinder } from "../access/types";
 import type { UpdateCheck, VersionSnapshot } from "../update-check";
 import { capabilitiesRoute } from "./capabilities";
+import { spendRoute } from "./spend";
 import { createInstallationResolver } from "./installation-resolver";
 import { reposRoutes } from "./repos";
 import type { UploadQuotaLimits } from "./repos/pr/attachments/types";
@@ -98,6 +99,7 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
   app.route("/version", versionRoute(versionDeps));
   app.route("/version/dismiss", versionDismissRoutes(versionDeps));
   app.route("/capabilities", capabilitiesRoute(deps));
+  app.route("/spend", spendRoute(deps));
   app.route("/repos", reposRoutes(deps, resolver));
   // Session-gated only: the pasted URL's repo is outside the installation
   // model, so the engine's viewer-token fetch is the access check.

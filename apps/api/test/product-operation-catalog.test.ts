@@ -98,6 +98,7 @@ const EXPECTED_POLICY = {
   [ProductQueryIds.READ_NARRATIVE]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_PULL]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_REVIEW_SESSION]: ["requiresStoredPullRequest"],
+  [ProductQueryIds.READ_SPEND]: ["requiresOperator"],
   [ProductQueryIds.READ_STACK]: ["requiresStoredPullRequest"],
   [ProductActionIds.REANCHOR_DRAFT_COMMENT]: [
     "browserSessionOnly",

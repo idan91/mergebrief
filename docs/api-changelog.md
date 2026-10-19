@@ -15,6 +15,10 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-19)
 
+- **Added** `read-spend`, `GET /api/spend`, for the Instance's Operators
+  (403 `operator-only` otherwise): the UTC day's `startedRuns`, the daily
+  `cap` (absent when uncapped), `dayStartedAt` and `resetsAt`.
+
 - **Added** `read-generation-claims`,
   `GET /api/repos/:repoId/pulls/:prNumber/generation`: the current head's
   `claims` against `claimLimit`, `exhausted`, the stored `errorCode` and
