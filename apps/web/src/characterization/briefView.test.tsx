@@ -34,6 +34,7 @@ const SIGNED_IN_VIEWER: ViewerState = {
   kind: ViewerStates.SIGNED_IN,
   login: "octocat",
   avatarUrl: "https://avatars.example/octocat.png",
+  operator: false,
 };
 
 const BRIEF_ID = briefSummaryFixture.id;

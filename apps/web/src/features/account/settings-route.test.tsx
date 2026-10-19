@@ -67,6 +67,7 @@ describe("the settings route", () => {
       kind: ViewerStates.SIGNED_IN,
       login: "octocat",
       avatarUrl: "https://avatars.example/octocat.png",
+      operator: false,
     });
 
     await waitFor(() => {

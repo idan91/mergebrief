@@ -345,6 +345,7 @@ export function sessionRoutes(
     {
       id: ProductQueryIds.READ_REVIEW_SESSION,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -356,6 +357,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.CREATE_DRAFT_COMMENT,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -367,6 +369,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.UPDATE_DRAFT_COMMENT,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -378,6 +381,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -389,6 +393,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.DELETE_DRAFT_COMMENT,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -400,6 +405,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.MARK_CHUNK_READ,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -411,6 +417,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.MARK_CHUNK_UNREAD,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -422,6 +429,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.RECLASSIFY_GROUP,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -437,6 +445,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.DISMISS_RISK,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -448,6 +457,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.ADDRESS_RISK,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -459,6 +469,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.REOPEN_RISK,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -470,6 +481,7 @@ export function sessionRoutes(
     {
       id: ProductActionIds.SET_REVIEW_OUTCOME,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,

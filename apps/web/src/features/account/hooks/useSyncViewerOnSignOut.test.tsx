@@ -13,6 +13,7 @@ const SIGNED_IN_VIEWER: ViewerState = {
   kind: ViewerStates.SIGNED_IN,
   login: "octocat",
   avatarUrl: "https://avatars.example.test/u/1",
+  operator: false,
 };
 const VIEWER_KEY = buildViewerQueryOptions().queryKey;
 const BRIEF_KEY = ["brief", "42"];

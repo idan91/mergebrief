@@ -104,6 +104,7 @@ export function inboxRoutes(
     {
       id: ProductQueryIds.LIST_INBOX,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -115,6 +116,7 @@ export function inboxRoutes(
     {
       id: ProductActionIds.DELETE_OWN_PULL,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,

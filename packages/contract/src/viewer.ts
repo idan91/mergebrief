@@ -7,4 +7,6 @@ export interface ViewerView {
 /** What `GET /api/auth/session` answers for a live session. */
 export interface AuthSessionResponse {
   readonly viewer: ViewerView;
+  /** The config's `operators` list names this viewer. */
+  readonly operator: boolean;
 }

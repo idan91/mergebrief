@@ -27,6 +27,7 @@ type PolicyFlag = keyof OperationPolicy;
 
 const POLICY_FLAGS = [
   "browserSessionOnly",
+  "requiresOperator",
   "requiresPushAccess",
   "requiresInstallation",
   "requiresStoredPullRequest",

@@ -173,6 +173,7 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.CREATE_INLINE_COMMENT,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -184,6 +185,7 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.REPLY_TO_COMMENT,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -195,6 +197,7 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.RESOLVE_THREAD,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -206,6 +209,7 @@ export function commentWriteRoutes(
     {
       id: ProductActionIds.UNRESOLVE_THREAD,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,

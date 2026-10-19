@@ -16,6 +16,11 @@ declare module "hono" {
      * runs it after every other check and before the handler.
      */
     loadOperationRow?: () => Promise<void>;
+    /**
+     * The GitHub user ids the config names as Operators, set once at the
+     * app root. Absent, the Operator check refuses everyone.
+     */
+    operatorIds?: ReadonlySet<bigint>;
   }
 }
 
@@ -23,6 +28,7 @@ declare module "hono" {
 interface PolicyFacts {
   readonly scope: AccessLevel | undefined;
   readonly channel: unknown;
+  readonly isOperator: boolean;
   readonly viewerCanPush: boolean;
   readonly inInstallation: boolean;
 }
@@ -45,6 +51,24 @@ function readScope(session: unknown): AccessLevel | undefined {
   return scope;
 }
 
+function readOperator(variables: unknown, session: unknown): boolean {
+  if (!hasKey(session, "reviewerId")) {
+    return false;
+  }
+  if (!hasKey(variables, "operatorIds")) {
+    return false;
+  }
+  const reviewerId: unknown = session.reviewerId;
+  const operatorIds: unknown = variables.operatorIds;
+  if (typeof reviewerId !== "bigint") {
+    return false;
+  }
+  if (!(operatorIds instanceof Set)) {
+    return false;
+  }
+  return operatorIds.has(reviewerId);
+}
+
 function readPolicyFacts(variables: unknown): PolicyFacts {
   const session = hasKey(variables, "session") ? variables.session : undefined;
   const access = hasKey(variables, "repoAccess")
@@ -56,6 +80,7 @@ function readPolicyFacts(variables: unknown): PolicyFacts {
   return {
     scope: readScope(session),
     channel: hasKey(session, "channel") ? session.channel : undefined,
+    isOperator: readOperator(variables, session),
     viewerCanPush:
       hasKey(access, "viewerCanPush") && access.viewerCanPush === true,
     inInstallation:
@@ -87,8 +112,8 @@ async function loadRow(c: Context): Promise<void> {
 }
 
 /**
- * Scope, browser session, push access, Installation, then the stored pull
- * request: the first failure answers. Only actions need the scope check, since `read` is
+ * Scope, browser session, Operator, push access, Installation, then the
+ * stored pull request: the first failure answers. Only actions need the scope check, since `read` is
  * the bottom rung. No principal where one is needed means a route mounted
  * without its gate, so it fails closed with 401.
  */
@@ -97,7 +122,9 @@ export function createPolicyGate<E extends Env>(
   classification: AccessLevel,
 ): MiddlewareHandler<E> {
   const needsPrincipal =
-    policy.browserSessionOnly || classification !== AccessLevels.READ;
+    policy.browserSessionOnly ||
+    policy.requiresOperator ||
+    classification !== AccessLevels.READ;
   return async (c, next) => {
     const facts = readPolicyFacts(c.var);
     if (needsPrincipal && facts.scope === undefined) {
@@ -111,6 +138,10 @@ export function createPolicyGate<E extends Env>(
     }
     if (policy.browserSessionOnly && facts.channel !== AuthChannels.COOKIE) {
       throw new Forbidden(ApiErrorCodes.HUMAN_ONLY);
+    }
+    const operatorRefused = policy.requiresOperator && !facts.isOperator;
+    if (operatorRefused) {
+      throw new Forbidden(ApiErrorCodes.OPERATOR_ONLY);
     }
     assertRepoPolicy(policy, facts);
     if (policy.requiresStoredPullRequest) {

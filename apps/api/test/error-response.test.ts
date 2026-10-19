@@ -30,7 +30,7 @@ describe("errorJson", () => {
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCodes);
-    expect(codes).toHaveLength(34);
+    expect(codes).toHaveLength(35);
     for (const code of codes) {
       expect(ApiErrorStatusByCode[code]).toBeGreaterThanOrEqual(400);
       expect(ApiErrorEnglishByCode[code]).toBeTruthy();
@@ -48,6 +48,7 @@ describe("errorJson", () => {
       "human-only": 403,
       "no-repo-write-access": 403,
       "repo-admin-only": 403,
+      "operator-only": 403,
       "attachments-disabled": 403,
       "attachments-admin-only": 403,
       "not-found": 404,

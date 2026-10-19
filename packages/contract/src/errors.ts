@@ -16,6 +16,7 @@ export const ApiErrorCodes = {
   HUMAN_ONLY: "human-only",
   NO_REPO_WRITE_ACCESS: "no-repo-write-access",
   REPO_ADMIN_ONLY: "repo-admin-only",
+  OPERATOR_ONLY: "operator-only",
   ATTACHMENTS_DISABLED: "attachments-disabled",
   ATTACHMENTS_ADMIN_ONLY: "attachments-admin-only",
   NOT_FOUND: "not-found",
@@ -90,6 +91,7 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.HUMAN_ONLY]: HttpStatuses.FORBIDDEN,
   [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: HttpStatuses.FORBIDDEN,
   [ApiErrorCodes.REPO_ADMIN_ONLY]: HttpStatuses.FORBIDDEN,
+  [ApiErrorCodes.OPERATOR_ONLY]: HttpStatuses.FORBIDDEN,
   [ApiErrorCodes.ATTACHMENTS_DISABLED]: HttpStatuses.FORBIDDEN,
   [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]: HttpStatuses.FORBIDDEN,
   [ApiErrorCodes.NOT_FOUND]: HttpStatuses.NOT_FOUND,
@@ -135,6 +137,8 @@ export const ApiErrorEnglishByCode = {
     "your GitHub account cannot write to this repository",
   [ApiErrorCodes.REPO_ADMIN_ONLY]:
     "only a repository admin can delete a pull request's briefs",
+  [ApiErrorCodes.OPERATOR_ONLY]:
+    "only an operator of this instance can read this",
   [ApiErrorCodes.ATTACHMENTS_DISABLED]:
     "attachments are disabled for this repository",
   [ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY]:

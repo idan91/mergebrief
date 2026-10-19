@@ -39,12 +39,14 @@ describe("buildViewerQueryOptions", () => {
   it("reads the viewer off the session route", async () => {
     answerWith(200, {
       viewer: { login: "octocat", avatarUrl: "https://a/1" },
+      operator: true,
     });
 
     await expect(readViewer()).resolves.toEqual({
       kind: ViewerStates.SIGNED_IN,
       login: "octocat",
       avatarUrl: "https://a/1",
+      operator: true,
     });
     expect(fetchMock.mock.calls[0]?.[0]).toMatch(/\/api\/auth\/session$/);
   });

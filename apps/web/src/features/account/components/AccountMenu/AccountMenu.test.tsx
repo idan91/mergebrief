@@ -67,6 +67,7 @@ const SIGNED_IN: ViewerState = {
   kind: ViewerStates.SIGNED_IN,
   login: "octocat",
   avatarUrl: "https://avatars.example/octocat.png",
+  operator: false,
 };
 
 describe("AccountMenu", () => {

@@ -38,6 +38,7 @@ export function markReadyRoute(
     {
       id: ProductActionIds.MARK_READY,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,

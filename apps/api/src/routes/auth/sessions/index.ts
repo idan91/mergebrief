@@ -21,6 +21,7 @@ export function sessionsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.REVOKE_SESSIONS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,

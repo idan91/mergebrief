@@ -46,6 +46,13 @@ export interface LoadedInstancePolicy {
   readonly source: string | null;
 }
 
+/** Zero-config: no drafts damping, no daily cap, no Operators. */
+export const DEFAULT_INSTANCE_POLICY: Omit<LoadedInstancePolicy, "source"> = {
+  draftPolicy: DEFAULT_DRAFT_POLICY,
+  spendPolicy: DEFAULT_SPEND_POLICY,
+  operatorIds: NO_OPERATORS,
+};
+
 /**
  * `generate: on|off`. YAML 1.2 parses `on`/`off` as STRINGS (the 1.1
  * boolean idiom is gone), so both the string forms and real booleans are
@@ -146,12 +153,6 @@ export function loadInstancePolicy(
     },
   };
 }
-
-const DEFAULT_INSTANCE_POLICY = {
-  draftPolicy: DEFAULT_DRAFT_POLICY,
-  spendPolicy: DEFAULT_SPEND_POLICY,
-  operatorIds: NO_OPERATORS,
-} as const;
 
 function readBlock<Policy>(
   block: unknown,

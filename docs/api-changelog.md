@@ -15,6 +15,11 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-19)
 
+- **Added** the wire code `operator-only` (403): an operation for the
+  Instance's Operators refuses any other principal, session or API token.
+- **Added** `operator` (boolean) on `GET /api/auth/session`: whether the
+  config's `operators` list names the viewer.
+
 - **Changed** `GET /api/inbox` and `GET /api/repos/:repoId/pulls/:prNumber`
   read installation pull requests live too, on the viewer's token, as a
   backstop for a webhook that never arrived: an open installation row's

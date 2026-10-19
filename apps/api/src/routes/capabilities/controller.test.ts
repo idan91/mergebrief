@@ -11,6 +11,7 @@ const OPERATIONS: readonly ProductOperationDescriptor[] = [
     classification: AccessLevels.READ,
     endpoint: "GET /api/capabilities",
     browserSessionOnly: false,
+    requiresOperator: false,
     requiresPushAccess: false,
     requiresInstallation: false,
     requiresStoredPullRequest: false,

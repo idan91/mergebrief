@@ -10,7 +10,10 @@ export const viewerSchema = dropInvalidKeys(
   ["login"],
 );
 
-export const sessionBodySchema = z.object({ viewer: viewerSchema });
+export const sessionBodySchema = z.object({
+  viewer: viewerSchema,
+  operator: z.boolean().catch(false),
+});
 
 /** The `viewer` of the session response; anything else is unknown, never a throw. */
 export function parseViewer(body: unknown): ViewerState {
@@ -18,5 +21,9 @@ export function parseViewer(body: unknown): ViewerState {
   if (!parsed.ok) {
     return { kind: ViewerStates.UNKNOWN };
   }
-  return { kind: ViewerStates.SIGNED_IN, ...parsed.value.viewer };
+  return {
+    kind: ViewerStates.SIGNED_IN,
+    ...parsed.value.viewer,
+    operator: parsed.value.operator,
+  };
 }

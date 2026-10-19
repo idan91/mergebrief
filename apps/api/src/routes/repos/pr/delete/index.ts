@@ -37,6 +37,7 @@ export function deletePullRoute(
     {
       id: ProductActionIds.DELETE_PULL,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: true,
       requiresStoredPullRequest: true,

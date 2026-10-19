@@ -1,6 +1,7 @@
 import type { Mutable } from "types/utils";
 // Dependencies are INJECTED: this module never reads `process.env` and never
 // constructs a DB.
+import { DEFAULT_INSTANCE_POLICY } from "generators/instance-policy";
 import type { Hono } from "hono";
 import { requestId } from "hono/request-id";
 import { createAuditMiddleware } from "./product-operations/audit";
@@ -26,6 +27,14 @@ export function createApp(deps: AppDeps): ApiApp {
   // its child logger from context.
   root.use(requestId());
   root.use(requestLogging(deps.logger));
+
+  // One Operator list for every request: the policy gate and the session
+  // read both answer from it.
+  const operatorIds = deps.operatorIds ?? DEFAULT_INSTANCE_POLICY.operatorIds;
+  root.use(async (c, next) => {
+    c.set("operatorIds", operatorIds);
+    await next();
+  });
 
   // Ahead of the routes so it wraps the auth gates: a denial that never
   // reached a handler is still an audited action.

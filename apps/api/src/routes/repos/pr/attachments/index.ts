@@ -220,6 +220,7 @@ export function attachmentsRoute(
     {
       id: ProductQueryIds.READ_ATTACHMENT,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -232,6 +233,7 @@ export function attachmentsRoute(
     {
       id: ProductActionIds.UPLOAD_ATTACHMENT,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: true,
       requiresStoredPullRequest: false,

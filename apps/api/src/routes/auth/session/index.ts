@@ -19,8 +19,10 @@ export function sessionRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.get("/", (c) => {
     const session = c.get("session");
+    const operatorIds = c.get("operatorIds");
     const body: AuthSessionResponse = {
       viewer: shapeViewer(session.reviewerId, session.reviewerLogin),
+      operator: operatorIds?.has(session.reviewerId) ?? false,
     };
     return c.json(body, HttpStatuses.OK, NO_STORE);
   });

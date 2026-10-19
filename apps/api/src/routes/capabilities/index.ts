@@ -21,6 +21,7 @@ export function capabilitiesRoute(
     {
       id: ProductQueryIds.READ_CAPABILITIES,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,

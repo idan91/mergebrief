@@ -60,6 +60,7 @@ export function conversationRoute(
     {
       id: ProductQueryIds.READ_CONVERSATION,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,

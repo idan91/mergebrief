@@ -46,6 +46,7 @@ export function purgeAttachmentsRoute(
     {
       id: ProductActionIds.PURGE_ATTACHMENTS,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: true,
       requiresStoredPullRequest: false,

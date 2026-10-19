@@ -26,7 +26,7 @@ The CLI relays raw values and is outside this rule. A field added in release N s
 - `src/operations/index.ts` holds the operation table (its vocabularies in `types.ts` beside it): one row per Product Operation keyed by its id, carrying kind, classification (its rung on `AccessLevels`), method and full path. It is the one place a full path is written; clients build requests from the row through `buildOperationPath` (`src/operation-path.ts`), which encodes each param and refuses a dot segment.
 - A new operation adds its id to `ProductQueryIds` or `ProductActionIds` and its row here first; a missing row or a row of the wrong kind is a compile error.
 - `apps/api` mounts each route under its row's method, composes its path mechanically and asserts every composed `METHOD /full/path` against the row at commit, so the table and the served surface cannot drift. A method change edits only the row; a path change edits the row and the route's relative path.
-- Policy beyond the classification (`browserSessionOnly`, `requiresPushAccess`, `requiresInstallation`, `requiresStoredPullRequest`) stays on the api declaration, keyed by the id.
+- Policy beyond the classification (`browserSessionOnly`, `requiresOperator`, `requiresPushAccess`, `requiresInstallation`, `requiresStoredPullRequest`) stays on the api declaration, keyed by the id.
 
 ## Adding a wire error code
 

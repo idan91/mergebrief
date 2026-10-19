@@ -47,6 +47,7 @@ export function collaboratorsRoute(
     {
       id: ProductQueryIds.LIST_COLLABORATORS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: true,
       requiresInstallation: true,
       requiresStoredPullRequest: false,

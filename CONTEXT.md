@@ -403,8 +403,8 @@ _Avoid_: script (bare), dev package
 ### Releases and upgrades
 
 **Operator**:
-The person who runs an **Instance**: installs it, upgrades it, backs up its database, reads its log. Not a role in the app; no admin exists, every signed-in user sees the **Version notice**, and the upgrade step runs on the host.
-_Avoid_: admin (no such role), self-hoster (informal only), maintainer (that is the project's)
+The person who runs an **Instance**: installs it, upgrades it, backs up its database, reads its log. In the app, a GitHub user the Instance's config lists under `operators` by numeric user id; an Operator reads instance-wide state no repository access scopes, such as the day's spend. Every other signed-in user sees the **Version notice** too, and the upgrade step runs on the host. The operator token (`MERGEBRIEF_URL_BOX_TOKEN`) belongs to whoever runs the Instance, but owning it grants nothing here: only the `operators` list makes a user an Operator.
+_Avoid_: admin (no such role; repo admin is GitHub's per-repository permission), self-hoster (informal only), maintainer (that is the project's)
 
 **Release**:
 One published version of MergeBrief, cut from one git tag: one version number, one image, one npm package, one notes file, one GitHub Release carrying the compose file and `version.json`.

@@ -14,10 +14,24 @@ const VIEWER = { login: "octocat", avatarUrl: "https://cdn.example/a.png" };
 
 describe("parseViewer", () => {
   it("reads a signed-in viewer from the session body", () => {
-    expect(parseViewer({ viewer: VIEWER })).toEqual({
+    expect(parseViewer({ viewer: VIEWER, operator: false })).toEqual({
       kind: ViewerStates.SIGNED_IN,
       login: "octocat",
       avatarUrl: "https://cdn.example/a.png",
+      operator: false,
+    });
+  });
+
+  it("reads the Operator flag the session sends", () => {
+    expect(parseViewer({ viewer: VIEWER, operator: true })).toMatchObject({
+      operator: true,
+    });
+  });
+
+  it("reads a missing or malformed Operator flag as not an Operator", () => {
+    expect(parseViewer({ viewer: VIEWER })).toMatchObject({ operator: false });
+    expect(parseViewer({ viewer: VIEWER, operator: "yes" })).toMatchObject({
+      operator: false,
     });
   });
 
@@ -25,6 +39,7 @@ describe("parseViewer", () => {
     const expected = {
       kind: ViewerStates.SIGNED_IN,
       avatarUrl: VIEWER.avatarUrl,
+      operator: false,
     };
 
     expect(

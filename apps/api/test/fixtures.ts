@@ -44,6 +44,7 @@ export const PR_NUMBER = 7;
 /** A declaration's policy with every restriction off. */
 export const OPEN_POLICY = {
   browserSessionOnly: false,
+  requiresOperator: false,
   requiresPushAccess: false,
   requiresInstallation: false,
   requiresStoredPullRequest: false,

@@ -76,6 +76,7 @@ export function reviewSubmitRoute(
     {
       id: ProductActionIds.SUBMIT_REVIEW,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,

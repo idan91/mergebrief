@@ -76,6 +76,7 @@ export function generateRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.GENERATE_BRIEF,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,

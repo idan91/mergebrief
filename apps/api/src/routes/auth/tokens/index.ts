@@ -22,6 +22,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.MINT_TOKEN,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -33,6 +34,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductQueryIds.LIST_TOKENS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -44,6 +46,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: ProductActionIds.REVOKE_TOKEN,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,

@@ -41,6 +41,7 @@ export function archivePullRoutes(
     {
       id: ProductActionIds.ARCHIVE_PULL,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -52,6 +53,7 @@ export function archivePullRoutes(
     {
       id: ProductActionIds.UNARCHIVE_PULL,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,

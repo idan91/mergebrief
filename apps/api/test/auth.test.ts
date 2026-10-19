@@ -436,8 +436,27 @@ describe("reviewer auth routes", () => {
           /^https:\/\/avatars\.githubusercontent\.com\/u\/\d+$/,
         ),
       },
+      operator: false,
     });
     expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("GET /api/auth/session marks a viewer the config lists as an Operator", async () => {
+    const { cookie: token, reviewerId } = await seedSignIn(harness.handle, kp);
+    const operatorApp = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      operatorIds: new Set([reviewerId]),
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+
+    const res = await operatorApp.request("/api/auth/session", {
+      headers: { cookie: `__Host-mergebrief_session=${token}` },
+    });
+
+    expect(await res.json()).toMatchObject({ operator: true });
   });
 
   it("refresh rotates both ciphertexts and returns the fresh access token", async () => {

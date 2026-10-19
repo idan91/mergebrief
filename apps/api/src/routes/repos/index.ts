@@ -72,6 +72,7 @@ export function reposRoutes(
     {
       id: ProductQueryIds.LIST_REPOS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,

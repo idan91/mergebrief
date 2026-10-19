@@ -27,7 +27,7 @@ export function isAccessLevel(value: unknown): value is AccessLevel {
 /**
  * What the router enforces before an operation's handler runs, in the order
  * the fields are listed after the scope check. Every declaration states all
- * four: a route added later cannot inherit a permissive default by omission.
+ * five: a route added later cannot inherit a permissive default by omission.
  */
 export interface OperationPolicy {
   /**
@@ -35,6 +35,12 @@ export interface OperationPolicy {
    * and draft decisions: an API token (CLI, agents) answers 403 `human-only`.
    */
   readonly browserSessionOnly: boolean;
+  /**
+   * Instance-wide state no repository access scopes, such as the day's
+   * spend: a principal the config's `operators` list does not name answers
+   * 403 `operator-only`, on a session or an API token alike.
+   */
+  readonly requiresOperator: boolean;
   /**
    * Replays GitHub's rule where the App's credential reads what only push
    * holders see (the collaborator list): 404 without push.

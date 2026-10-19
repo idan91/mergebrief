@@ -37,6 +37,7 @@ export function versionDismissRoutes(
     {
       id: ProductActionIds.DISMISS_VERSION_NOTICE,
       browserSessionOnly: true,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,

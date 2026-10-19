@@ -192,6 +192,7 @@ function declareLiveReads(
     {
       id: ProductQueryIds.READ_DIFF,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -203,6 +204,7 @@ function declareLiveReads(
     {
       id: ProductQueryIds.READ_FILE_RANGE,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -214,6 +216,7 @@ function declareLiveReads(
     {
       id: ProductQueryIds.READ_STACK,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -231,6 +234,7 @@ export function readsRoutes(
     {
       id: ProductQueryIds.READ_PULL,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -242,6 +246,7 @@ export function readsRoutes(
     {
       id: ProductQueryIds.READ_BRIEF,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -253,6 +258,7 @@ export function readsRoutes(
     {
       id: ProductQueryIds.READ_MARKS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -269,6 +275,7 @@ export function readsRoutes(
     {
       id: ProductQueryIds.READ_DELTA,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -285,6 +292,7 @@ export function readsRoutes(
     {
       id: ProductQueryIds.READ_NARRATIVE,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,
@@ -301,6 +309,7 @@ export function readsRoutes(
     {
       id: ProductQueryIds.READ_BRIEF_CONTEXT,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: true,

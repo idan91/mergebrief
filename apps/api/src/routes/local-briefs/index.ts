@@ -23,6 +23,7 @@ function declareLocalBriefQueries(
     {
       id: ProductQueryIds.LIST_LOCAL_BRIEFS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -34,6 +35,7 @@ function declareLocalBriefQueries(
     {
       id: ProductQueryIds.READ_LOCAL_BRIEF,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -45,6 +47,7 @@ function declareLocalBriefQueries(
     {
       id: ProductQueryIds.READ_LOCAL_BRIEF_DIFFS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -56,6 +59,7 @@ function declareLocalBriefQueries(
     {
       id: ProductQueryIds.READ_LOCAL_COMPARISON_MARKS,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
@@ -67,6 +71,7 @@ function declareLocalBriefQueries(
     {
       id: ProductQueryIds.READ_LOCAL_REVISION_NARRATIVE,
       browserSessionOnly: false,
+      requiresOperator: false,
       requiresPushAccess: false,
       requiresInstallation: false,
       requiresStoredPullRequest: false,
