@@ -15,6 +15,10 @@ import type {
   ReviewerRepoClient,
 } from "../client/types";
 import type { RepoCollaborators } from "../operations/collaborators";
+import type {
+  MentionableTeam,
+  MentionableUser,
+} from "../operations/mentions/types";
 import type { PrConversation } from "../operations/conversation";
 import type { IssueInfo, IssueRef } from "../operations/issue";
 import type {
@@ -155,6 +159,13 @@ export interface FakeGitHubArrange {
     repositories: ReadonlyMap<RepoId, InstallationRepository>,
   ): void;
   addCollaborators(repo: RepositoryRef, listing: RepoCollaborators): void;
+  /** Who GitHub says can be mentioned in the repo, in its answer order. */
+  addMentionableUsers(
+    repo: RepositoryRef,
+    users: readonly MentionableUser[],
+  ): void;
+  /** The teams an org shows the viewer. */
+  addTeams(org: string, teams: readonly MentionableTeam[]): void;
   addComment(repo: RepositoryRef, commentId: bigint, body: string): void;
   /** The comment is gone, as when someone deletes it on GitHub. */
   removeComment(repo: RepositoryRef, commentId: bigint): void;

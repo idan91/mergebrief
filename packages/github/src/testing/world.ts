@@ -2,6 +2,10 @@ import type { InstallationId, RepoId } from "persistence";
 import type { UserInstallation } from "../auth/oauth";
 import type { RepoCollaborators } from "../operations/collaborators";
 import type { PrConversation } from "../operations/conversation";
+import type {
+  MentionableTeam,
+  MentionableUser,
+} from "../operations/mentions/types";
 import type { IssueInfo, IssueRef } from "../operations/issue";
 import type {
   PullRequestFile,
@@ -47,6 +51,7 @@ export interface RepoState {
   readonly comments: Map<bigint, string>;
   readonly branches: Set<string>;
   collaborators: RepoCollaborators;
+  mentionableUsers: readonly MentionableUser[];
 }
 
 export interface InstallationState {
@@ -63,6 +68,10 @@ export interface FakeWorld extends WorldArrange {
   findRepository(repoId: RepoId): RepositoryInfo | undefined;
   findIssue(ref: IssueRef): IssueInfo | undefined;
   findInstallation(id: InstallationId): InstallationState | undefined;
+  /** `undefined` when no teams were arranged for the org. */
+  findTeams(org: string): readonly MentionableTeam[] | undefined;
+  /** The arranged account by login, any case, in its own casing. */
+  findAccountLogin(login: string): string | undefined;
   findFactsHiding(
     ref: PullRequestRef,
     credential: CredentialKind,
@@ -112,6 +121,7 @@ function createRepoState(): RepoState {
     comments: new Map(),
     branches: new Set(),
     collaborators: { collaborators: [], hasMore: false },
+    mentionableUsers: [],
   };
 }
 
@@ -134,6 +144,8 @@ interface WorldState {
   readonly issues: Map<string, IssueInfo>;
   readonly installations: Map<InstallationId, InstallationState>;
   readonly factsHidings: Map<string, FakeFactsHiding>;
+  readonly teams: Map<string, readonly MentionableTeam[]>;
+  readonly accounts: Map<string, string>;
   readonly nextIds: Record<IdKind, bigint>;
 }
 
@@ -196,6 +208,16 @@ function buildArrange(state: WorldState): WorldArrange {
     addCollaborators(repo, listing) {
       ensureRepo(state, repo).collaborators = listing;
     },
+    addMentionableUsers(repo, users) {
+      ensureRepo(state, repo).mentionableUsers = users;
+      for (const user of users) {
+        state.accounts.set(user.login.toLowerCase(), user.login);
+      }
+    },
+    addTeams(org, teams) {
+      state.teams.set(org.toLowerCase(), teams);
+      state.accounts.set(org.toLowerCase(), org);
+    },
     addComment(repo, commentId, body) {
       reserveId(state, "ISSUE_COMMENT", commentId);
       ensureRepo(state, repo).comments.set(commentId, body);
@@ -235,6 +257,12 @@ function buildLookups(state: WorldState): WorldLookups {
     findInstallation(id) {
       return state.installations.get(id);
     },
+    findTeams(org) {
+      return state.teams.get(org.toLowerCase());
+    },
+    findAccountLogin(login) {
+      return state.accounts.get(login.toLowerCase());
+    },
     findFactsHiding(ref, credential) {
       return state.factsHidings.get(getFactsHidingKey(ref, credential));
     },
@@ -257,6 +285,8 @@ export function createFakeWorld(): FakeWorld {
     issues: new Map(),
     installations: new Map(),
     factsHidings: new Map(),
+    teams: new Map(),
+    accounts: new Map(),
     nextIds: { ...FIRST_IDS },
   };
   return { ...buildArrange(state), ...buildLookups(state) };

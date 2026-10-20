@@ -172,6 +172,29 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
       side: "RIGHT",
     },
   ]),
+  searchMentionableUsers: answerGraphql({
+    repository: {
+      mentionableUsers: {
+        nodes: [
+          {
+            login: "cara",
+            name: "Cara Example",
+            avatarUrl: "https://avatars.example/cara.png",
+          },
+        ],
+      },
+    },
+  }),
+  searchMentionableTeams: answerGraphql({
+    organization: {
+      teams: { nodes: [{ combinedSlug: "acme/backend", name: "Backend" }] },
+    },
+  }),
+  resolveMentionTargets: answerGraphql({
+    u0: { login: "cara" },
+    u1: null,
+    t2: { team: { combinedSlug: "acme/backend" } },
+  }),
   createPullRequestReview: answerOk({ id: 77, node_id: "PRR_77" }),
   addPullRequestReviewThread: answerGraphql({
     addPullRequestReviewThread: { thread: { id: "PRRT_1" } },

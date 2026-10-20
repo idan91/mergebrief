@@ -16,6 +16,7 @@ import {
 import { submitPullRequestReview } from "../operations/review-submit";
 import { addPullRequestReviewThread } from "../operations/review-thread";
 import { buildRepoReader } from "./repo-reader";
+import { buildReviewerMentionReads } from "./reviewer-mentions";
 import type { ReviewerRepoClient, ReviewerRunners } from "./types";
 
 type ReviewerReads = Pick<
@@ -170,5 +171,6 @@ export function buildReviewerRepoClient(
     ...buildReviewerReads(repo, runners),
     ...buildReviewerCreates(repo, runners),
     ...buildReviewerConvergingWrites(repo, runners),
+    ...buildReviewerMentionReads(repo, runners),
   };
 }

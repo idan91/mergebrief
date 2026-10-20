@@ -13,6 +13,7 @@ import {
   listOpenPullRequests,
   readPullRequest,
 } from "./repo-reader";
+import { buildReviewerMentionReads } from "./reviewer-mentions";
 import type { FakeRunner } from "./runners";
 import type { FakeReview } from "./types";
 import {
@@ -385,5 +386,6 @@ export function buildReviewerRepoClient(
     ...buildReviewerReads(world, repo, runners.own),
     ...buildReviewerCreates(world, repo, runners.own),
     ...buildReviewerConvergingWrites(world, repo, runners.own),
+    ...buildReviewerMentionReads(world, repo, runners.own),
   };
 }

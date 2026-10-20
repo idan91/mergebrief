@@ -7,6 +7,7 @@ import type {
 } from "../../../src/client/types";
 import { ReviewCommentSides } from "types/conversation";
 import { ReviewSubjectTypes } from "../../../src/operations/review-thread";
+import { MentionTargetKinds } from "../../../src/operations/mentions/types";
 import { ReviewEvents } from "../../../src/operations/review-submit";
 import { requireInstallationId, requireRepoId } from "../helpers";
 import {
@@ -263,6 +264,32 @@ const REVIEWER_READ_CASES: readonly ContractCase<ReviewerRepoClient>[] = [
       ],
       complete: true,
     },
+  }),
+  defineCase({
+    operation: "searchMentionableUsers",
+    call: (client: ReviewerRepoClient) => client.searchMentionableUsers("ca"),
+    expected: [
+      {
+        login: "cara",
+        name: "Cara Example",
+        avatarUrl: "https://avatars.example/cara.png",
+      },
+    ],
+  }),
+  defineCase({
+    operation: "searchMentionableTeams",
+    call: (client: ReviewerRepoClient) => client.searchMentionableTeams("back"),
+    expected: [{ combinedSlug: "acme/backend", name: "Backend" }],
+  }),
+  defineCase({
+    operation: "resolveMentionTargets",
+    call: (client: ReviewerRepoClient) =>
+      client.resolveMentionTargets([
+        { kind: MentionTargetKinds.USER, login: "Cara" },
+        { kind: MentionTargetKinds.USER, login: "nobody" },
+        { kind: MentionTargetKinds.TEAM, org: "acme", slug: "backend" },
+      ]),
+    expected: { users: ["cara"], teams: ["acme/backend"] },
   }),
 ];
 

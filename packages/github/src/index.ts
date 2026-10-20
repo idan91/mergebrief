@@ -252,6 +252,19 @@ export type {
   RepoCollaborators,
 } from "./operations/collaborators";
 
+// What GitHub offers a reviewer who types `@`, on the reviewer's own token.
+export { MAX_MENTION_TARGETS } from "./operations/mentions/consts";
+export { MentionTargetKinds } from "./operations/mentions/types";
+export type {
+  MentionTarget,
+  MentionTargetKind,
+  MentionableTeam,
+  MentionableUser,
+  ResolvedMentionTargets,
+  TeamMentionTarget,
+  UserMentionTarget,
+} from "./operations/mentions/types";
+
 // The rendered image sources of a PR's bodies: a private attachment is
 // reachable only through the signed URL GitHub renders into `bodyHTML`.
 export {

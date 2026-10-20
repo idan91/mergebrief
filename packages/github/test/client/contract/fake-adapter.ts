@@ -200,6 +200,22 @@ function arrangeRepository(github: FakeGitHub, operation: GitHubOperation) {
     ],
     hasMore: false,
   });
+  github.addMentionableUsers(REPO, [
+    {
+      login: "bob",
+      name: "Bob Example",
+      avatarUrl: "https://avatars.example/bob.png",
+    },
+    {
+      login: "cara",
+      name: "Cara Example",
+      avatarUrl: "https://avatars.example/cara.png",
+    },
+  ]);
+  github.addTeams("acme", [
+    { combinedSlug: "acme/backend", name: "Backend" },
+    { combinedSlug: "acme/frontend", name: "Frontend" },
+  ]);
   if (operation !== "postEntryComment") {
     github.addComment(REPO, 1001n, "Entry");
   }

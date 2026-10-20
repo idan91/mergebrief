@@ -12,6 +12,7 @@ import {
 } from "../errors";
 import { repoIdSchema } from "../ids";
 import type { Result } from "types/utils";
+import { readPartialData } from "./partial-data";
 import type { PullRequestRef } from "./pull-request/types";
 import type { RepoId } from "persistence";
 
@@ -19,7 +20,6 @@ import type { RepoId } from "persistence";
 export const LIVE_READ_PAGE_SIZE = 100;
 
 const READ_CONTEXT = "read pull request facts";
-const GRAPHQL_NOT_FOUND = "NOT_FOUND";
 
 /** What one live read learns about a pull request. */
 export interface PullRequestFacts {
@@ -76,22 +76,6 @@ const wireRepositorySchema = z
 
 const pageResponseSchema = z.record(z.string(), wireRepositorySchema);
 
-const thrownPageSchema = z.object({
-  data: z.record(z.string(), z.unknown()),
-  errors: z.array(
-    z.object({
-      type: z.string().optional(),
-      path: z.array(z.union([z.string(), z.number()])).optional(),
-    }),
-  ),
-});
-
-interface PartialPage {
-  readonly data: Record<string, unknown>;
-  /** Aliases an error other than NOT_FOUND names; they get no entry. */
-  readonly unanswered: ReadonlySet<string>;
-}
-
 function buildQuery(count: number): string {
   const declarations: string[] = [];
   const selections: string[] = [];
@@ -134,32 +118,6 @@ function mapFacts(
     headSha: wire.headRefOid,
     authorLogin: wire.author?.login ?? null,
   };
-}
-
-/**
- * octokit throws whenever the errors array is not empty, but the throw still
- * carries the data for every alias GitHub did answer. A NOT_FOUND alias is
- * an answer (null); any other alias-level error withholds that alias only.
- * An error naming no alias, or a throw with no data, is a page failure.
- */
-function readPartialData(error: unknown): PartialPage | undefined {
-  const parsed = thrownPageSchema.safeParse(error);
-  if (!parsed.success) {
-    return undefined;
-  }
-
-  const unanswered = new Set<string>();
-  for (const entry of parsed.data.errors) {
-    if (entry.type === GRAPHQL_NOT_FOUND) {
-      continue;
-    }
-    const alias = entry.path?.[0];
-    if (typeof alias !== "string") {
-      return undefined;
-    }
-    unanswered.add(alias);
-  }
-  return { data: parsed.data.data, unanswered };
 }
 
 /**

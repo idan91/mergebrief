@@ -30,6 +30,12 @@ import type { IssueInfo, IssueRef } from "../operations/issue";
 import type { LiveReadPage } from "../operations/live-read";
 import type { MarkReadyResult } from "../operations/mark-ready";
 import type {
+  MentionTarget,
+  MentionableTeam,
+  MentionableUser,
+  ResolvedMentionTargets,
+} from "../operations/mentions/types";
+import type {
   CompareDiffRef,
   PullRequestFile,
   PullRequestInfo,
@@ -254,6 +260,13 @@ export interface ReviewerRepoClient extends RepoReader {
   deletePendingPullRequestReview(
     review: RepoScoped<DeletePendingPullRequestReviewInput>,
   ): GitHubCall<void>;
+  /** Users GitHub says can be mentioned here that match the typed text. */
+  searchMentionableUsers(query: string): GitHubCall<readonly MentionableUser[]>;
+  /** The owner org's teams the viewer sees; none when a person owns the repo. */
+  searchMentionableTeams(query: string): GitHubCall<readonly MentionableTeam[]>;
+  resolveMentionTargets(
+    targets: readonly MentionTarget[],
+  ): GitHubCall<ResolvedMentionTargets>;
 }
 
 export interface InstallationRepoClient extends RepoReader {
