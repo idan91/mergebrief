@@ -26,6 +26,7 @@ import type { AuthRouteDeps } from "../auth/session/types";
 import type { InstallationResolver } from "../installation-resolver";
 import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
+import { mentionSuggestionsRoute, mentionTargetsRoute } from "./mentions";
 import { listRepos } from "./list-repos";
 import { prRoutes } from "./pr";
 import type { UploadQuotaLimits } from "./pr/attachments/types";
@@ -86,6 +87,8 @@ export function reposRoutes(
   app.use("/:repoId/*", createAuthzMiddleware(deps, installations));
   app.route("/:repoId/attachments", purgeAttachmentsRoute(deps));
   app.route("/:repoId/collaborators", collaboratorsRoute(deps));
+  app.route("/:repoId/mention-suggestions", mentionSuggestionsRoute());
+  app.route("/:repoId/mention-targets", mentionTargetsRoute());
   app.route("/:repoId/pulls/:prNumber", prRoutes(deps));
 
   return app;

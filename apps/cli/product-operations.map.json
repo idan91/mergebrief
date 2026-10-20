@@ -176,6 +176,12 @@
   "reply-to-comment": {
     "command": "mergebrief reply <commentId>"
   },
+  "resolve-mention-targets": {
+    "webOnly": {
+      "reason": "Feeds the mention links in rendered comments; the CLI prints bodies as GitHub wrote them",
+      "owner": "idan"
+    }
+  },
   "resolve-thread": {
     "command": "mergebrief thread resolve <number>"
   },
@@ -188,6 +194,12 @@
   "revoke-token": {
     "webOnly": {
       "reason": "Revocation is cookie-only for the same reason as minting: a stolen token must not be able to revoke the owner's tokens",
+      "owner": "idan"
+    }
+  },
+  "search-mention-suggestions": {
+    "webOnly": {
+      "reason": "Feeds the @ suggestions list while typing in a composer; an agent writing a comment types the login itself",
       "owner": "idan"
     }
   },

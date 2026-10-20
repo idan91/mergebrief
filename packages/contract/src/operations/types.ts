@@ -15,6 +15,8 @@ export const ProductQueryIds = {
   LIST_REPOS: "list-repos",
   LIST_TOKENS: "list-tokens",
   LIST_COLLABORATORS: "list-collaborators",
+  SEARCH_MENTION_SUGGESTIONS: "search-mention-suggestions",
+  RESOLVE_MENTION_TARGETS: "resolve-mention-targets",
   READ_CONVERSATION: "read-conversation",
   READ_PULL: "read-pull",
   READ_GENERATION_CLAIMS: "read-generation-claims",

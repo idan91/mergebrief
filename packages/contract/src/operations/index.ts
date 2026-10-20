@@ -34,6 +34,18 @@ export const ProductOperations = {
     method: HttpMethods.GET,
     path: "/api/repos/:repoId/collaborators",
   },
+  [ProductQueryIds.SEARCH_MENTION_SUGGESTIONS]: {
+    kind: OperationKinds.QUERY,
+    classification: AccessLevels.READ,
+    method: HttpMethods.GET,
+    path: "/api/repos/:repoId/mention-suggestions",
+  },
+  [ProductQueryIds.RESOLVE_MENTION_TARGETS]: {
+    kind: OperationKinds.QUERY,
+    classification: AccessLevels.READ,
+    method: HttpMethods.GET,
+    path: "/api/repos/:repoId/mention-targets",
+  },
   [ProductQueryIds.READ_CONVERSATION]: {
     kind: OperationKinds.QUERY,
     classification: AccessLevels.READ,

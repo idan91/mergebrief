@@ -100,6 +100,8 @@ const EXPECTED_POLICY = {
   [ProductQueryIds.READ_REVIEW_SESSION]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_SPEND]: ["requiresOperator"],
   [ProductQueryIds.READ_STACK]: ["requiresStoredPullRequest"],
+  [ProductQueryIds.RESOLVE_MENTION_TARGETS]: [],
+  [ProductQueryIds.SEARCH_MENTION_SUGGESTIONS]: [],
   [ProductActionIds.REANCHOR_DRAFT_COMMENT]: [
     "browserSessionOnly",
     "requiresStoredPullRequest",

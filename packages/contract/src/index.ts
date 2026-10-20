@@ -80,6 +80,16 @@ export {
 } from "./inbox";
 export type { SpendView } from "./spend";
 export {
+  MentionBounds,
+  MentionPatterns,
+  MentionQueryKeys,
+  type MentionQueryKey,
+  type MentionSuggestionsResponse,
+  type MentionTargetsResponse,
+  type MentionTeamView,
+  type MentionUserView,
+} from "./mentions";
+export {
   WaitReasons,
   type GenerateBriefBody,
   type GenerateBriefResponse,
