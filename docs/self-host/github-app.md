@@ -7,13 +7,21 @@ This doc is the canonical setup reference for both contributors and self-hosters
 **decision** rationale lives in
 [ADR 0016](../adr/0016-github-app-auth-and-trust-tenancy-boundary.md).
 
-## Permissions (least-privilege — exactly these three)
+## Permissions (least-privilege, exactly these four)
 
 | Repository permission | Access | Why |
 |---|---|---|
 | **Contents** | Read & write | **Read** PR diffs. **Write** serves two things: GitHub's `markPullRequestReadyForReview` GraphQL mutation (the "mark ready for review" author affordance) is gated on `contents: write`, and image attachments a reviewer pastes into a comment are pushed to an orphan `mergebrief/attachments` branch ([attachments.md](attachments.md)). The App still **never writes code**: that branch holds images only, and no other branch is ever touched. |
 | **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. Also authorizes reading the primary ticket when it is a GitHub issue (`Get an issue` accepts `Pull requests: read`), so the ticket-alignment read needs no `Issues` permission — see [trackers.md](trackers.md). |
 | **Metadata** | Read-only | Mandatory baseline (auto-selected). |
+
+| Organization permission | Access | Why |
+|---|---|---|
+| **Members** | Read-only | Lists the teams a reviewer can `@mention` while writing a comment, reply or review. The read runs on the reviewer's own token, so a reviewer sees only the teams GitHub shows them. Without it, people are still suggested and a typed `@org/team` still reaches GitHub; only team suggestions are missing. |
+
+> **Adding Members to an App you already registered:** GitHub asks each installation's
+> organization owner to approve the new permission. Until they do, the installation keeps
+> working on its old permissions and team suggestions stay empty there.
 
 > **Why Contents is Read & write, not Read-only:**
 > marking a draft PR ready via GitHub's GraphQL `markPullRequestReadyForReview` mutation returns
@@ -45,17 +53,14 @@ be.** GitHub delivers those to every App automatically (install/uninstall, repos
 removed), regardless of subscription. The checkbox list only covers optional per-resource
 events. So two checkboxes is the complete set.
 
-## Reviewer OAuth (a separate axis — not on the App registration page)
+## Reviewer sign-in (no extra setup)
 
-The App's *installation* permissions above govern what the **App itself** does (in practice:
-posting the single branded comment). A reviewer's actual review + inline comments are authored
-**as the human, via their OAuth user token** — a separate grant.
-
-OAuth scopes are requested in code at login time, **not** configured on the
-registration form. The reviewer grant needs repo read access so the tool can enforce the
-per-read authorization gate and so a submitted review lands natively as the
-reviewer. Nothing to toggle here — flagged so "where do I set reviewer permissions?" has an
-answer: it's code, not this form.
+A reviewer signs in with GitHub through this same App, and their review, comments and replies
+are authored **as them**, on their own user token. That token carries no OAuth scopes: GitHub
+bounds it by the App permissions in the tables above **and** by what the reviewer can reach
+on GitHub themselves. So the tables are the whole list. A permission left off here is
+missing for reviewers too: without **Members**, nobody here can list teams to mention.
+Nothing else needs configuring for sign-in.
 
 ## Webhook
 

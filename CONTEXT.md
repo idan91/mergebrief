@@ -290,6 +290,18 @@ _Avoid_: whole-file comment, file-scoped, scope (that is Full vs Changes)
 An image a reviewer pastes or drops into a **Comment**, pushed by the App to an orphan `mergebrief/attachments` branch of the pull request's repository, one commit per file, and linked from the comment by its GitHub URL. The comment on GitHub keeps rendering it after this instance is gone; here it is served through the read gate with the viewer's token. A repository admin can delete the branch, which breaks every image it held. Read access to the repository is enough to attach; the push is the App's, so each reviewer is bounded to a set number of files and bytes per window, counted per api replica.
 _Avoid_: upload (it is a push), asset (that is GitHub's own `user-attachments` store, which has no API), screenshot (one kind of attachment)
 
+**Mention**:
+An `@login` or `@org/team` in text a person wrote about the pull request, on GitHub or here: a comment, reply or review by any **Participant**, or a reviewer's own note here, such as a **Dismissal** reason. On text that reaches GitHub, GitHub resolves it and decides who is notified; MergeBrief never notifies anyone. Shown as a link to the person or team when GitHub shows the viewer that target, and highlighted when it names the viewer; any other `@word` stays plain text.
+_Avoid_: tag, ping
+
+**Participant**:
+Someone who has written in a pull request's conversation: the **Author**, and anyone who commented, replied or reviewed there.
+_Avoid_: commenter, collaborator (that is access to the repository)
+
+**Mention suggestions**:
+The people and teams offered while a reviewer types `@` in text that reaches GitHub: matching **Participants** first, then whoever GitHub says can be mentioned in that repository, as that reviewer sees it.
+_Avoid_: mention pool, autocomplete (the mechanism), collaborators
+
 **Seed**:
 A structured, non-text hint from the agent — `{ category, location, issue-shape }` — that a stuck reviewer can expand into their own comment. Seeds are scaffolding, not drafts.
 _Avoid_: suggestion, draft, AI comment
