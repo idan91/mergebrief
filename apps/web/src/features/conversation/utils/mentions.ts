@@ -1,6 +1,28 @@
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
-import type { ConversationThread } from "../types";
+import {
+  MentionCandidateKinds,
+  type MentionUserCandidate,
+} from "@web/components/MarkdownTextarea/types";
+import type { ConversationThread, RepoCollaborator } from "../types";
 import type { Mutable } from "types/utils";
+
+/** A roster row as the list offers it: the same fields, marked a user. */
+export function shapeUserCandidate(
+  collaborator: RepoCollaborator,
+): MentionUserCandidate {
+  const candidate: Mutable<MentionUserCandidate> = {
+    kind: MentionCandidateKinds.USER,
+    login: collaborator.login,
+  };
+
+  if (collaborator.name !== undefined) {
+    candidate.name = collaborator.name;
+  }
+  if (collaborator.avatarUrl !== undefined) {
+    candidate.avatarUrl = collaborator.avatarUrl;
+  }
+
+  return candidate;
+}
 
 /**
  * Mention-autocomplete pool for a thread's reply box: the humans already in
@@ -10,13 +32,14 @@ import type { Mutable } from "types/utils";
  */
 export function mentionCandidatesFromThread(
   thread: ConversationThread,
-): readonly MentionCandidate[] {
-  const byLogin = new Map<string, MentionCandidate>();
+): readonly MentionUserCandidate[] {
+  const byLogin = new Map<string, MentionUserCandidate>();
   for (const comment of thread.comments) {
     if (comment.author.isBot || byLogin.has(comment.author.login)) {
       continue;
     }
-    const candidate: Mutable<MentionCandidate> = {
+    const candidate: Mutable<MentionUserCandidate> = {
+      kind: MentionCandidateKinds.USER,
       login: comment.author.login,
     };
 
@@ -36,9 +59,9 @@ export function mentionCandidatesFromThread(
  * name/avatar by login match, then the remaining collaborators as given.
  */
 export function mergeMentionCandidates(
-  participants: readonly MentionCandidate[],
-  collaborators: readonly MentionCandidate[],
-): readonly MentionCandidate[] {
+  participants: readonly MentionUserCandidate[],
+  collaborators: readonly MentionUserCandidate[],
+): readonly MentionUserCandidate[] {
   const byLogin = new Map(
     collaborators.map((collaborator) => [collaborator.login, collaborator]),
   );
@@ -50,7 +73,10 @@ export function mergeMentionCandidates(
     }
     const name = participant.name ?? rich.name;
     const avatarUrl = participant.avatarUrl ?? rich.avatarUrl;
-    const merged: Mutable<MentionCandidate> = { login: participant.login };
+    const merged: Mutable<MentionUserCandidate> = {
+      kind: MentionCandidateKinds.USER,
+      login: participant.login,
+    };
 
     if (name !== undefined) {
       merged.name = name;

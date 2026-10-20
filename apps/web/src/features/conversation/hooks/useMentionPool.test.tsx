@@ -57,7 +57,7 @@ describe("useMentionPool", () => {
     );
     await waitFor(() =>
       expect(result.current).toEqual([
-        { login: "alice", name: "Alice Example" },
+        { kind: "user", login: "alice", name: "Alice Example" },
       ]),
     );
   });

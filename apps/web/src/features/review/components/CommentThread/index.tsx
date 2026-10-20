@@ -11,7 +11,7 @@ import { DiffSides, DraftCommentStatuses } from "types";
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/types";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {

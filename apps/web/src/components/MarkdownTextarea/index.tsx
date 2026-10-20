@@ -22,17 +22,17 @@ import { IconButton } from "../IconButton";
 import { Markdown } from "../Markdown";
 import { ScreenReaderOnly } from "../ScreenReaderOnly";
 import { ToolbarIcons } from "./icons";
+import { MentionList } from "./MentionList";
 import { useMarkdownTextareaFacade } from "./useMarkdownTextareaFacade";
 import {
   MarkdownTextareaModes,
   type MarkdownTextareaMode,
   MarkdownTextareaFrames,
   type MarkdownTextareaFrame,
-} from "./types";
-import {
-  useMentionAutocomplete,
   type MentionCandidate,
-} from "./useMentionAutocomplete";
+  type MentionSuggestions,
+} from "./types";
+import { useMentionAutocomplete } from "./useMentionAutocomplete";
 import { hasUploadPlaceholder } from "./utils";
 import styles from "./MarkdownTextarea.module.scss";
 
@@ -66,11 +66,23 @@ export interface MarkdownTextareaProps {
   suggestionSeed?: string | undefined;
   /**
    * Candidate pool for `@`-mention autocomplete; empty/absent disables it.
-   * The pool is injected (thread participants, repo collaborators), the
-   * component never fetches. Pool order IS the ranking: the hook
-   * prefix-filters in array order and caps the list.
+   * The pool is injected, the component never fetches. Pool order IS the
+   * ranking: the hook prefix-filters in array order and caps the list.
+   * Unused when `mentionSuggestions` is present.
    */
   mentionCandidates?: readonly MentionCandidate[] | undefined;
+  /**
+   * The caller's answer to the query reported through
+   * `onMentionQueryChange`, shown as given (capped, never filtered). Its
+   * presence puts the list in the caller's hands; see `MentionSuggestions`
+   * for what `query` and `pending` promise.
+   */
+  mentionSuggestions?: MentionSuggestions | undefined;
+  /**
+   * The text typed after `@` so far, once per change; undefined once the
+   * caret leaves the mention, the surface is read-only, or on unmount.
+   */
+  onMentionQueryChange?: ((query: string | undefined) => void) | undefined;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
   renderPreview?: ((value: string) => ReactNode) | undefined;
   /**
@@ -91,6 +103,7 @@ export interface MarkdownTextareaProps {
 }
 
 const ATTACH_ACCEPT = Object.values(AttachmentMediaTypes).join(",");
+const EMPTY_CANDIDATES: readonly MentionCandidate[] = [];
 
 const MODES: MarkdownTextareaMode[] = Object.values(MarkdownTextareaModes);
 const MODE_LABEL_KEYS: Record<MarkdownTextareaMode, TranslationKey> = {
@@ -140,6 +153,8 @@ export function MarkdownTextarea({
   onEscape,
   suggestionSeed,
   mentionCandidates,
+  mentionSuggestions,
+  onMentionQueryChange,
   renderPreview,
   exposeTextarea,
   announce,
@@ -163,11 +178,16 @@ export function MarkdownTextarea({
   const mentions = useMentionAutocomplete({
     value,
     onChange,
-    candidates: mentionCandidates ?? [],
+    candidates: mentionCandidates ?? EMPTY_CANDIDATES,
+    suggestions: mentionSuggestions,
+    onQueryChange: onMentionQueryChange,
     readOnly,
     textareaRef: facade.textareaRef,
     baseId,
   });
+  // Rows already on screen speak for themselves; repeating the search per
+  // keystroke over them is noise.
+  const announceSearching = mentions.searching && mentions.options.length === 0;
   const textareaId = `${baseId}-input`;
   const tabId = (mode: MarkdownTextareaMode) => `${baseId}-tab-${mode}`;
   const panelId = (mode: MarkdownTextareaMode) => `${baseId}-panel-${mode}`;
@@ -422,54 +442,21 @@ export function MarkdownTextarea({
           }
         />
         {mentions.open ? (
-          <div
-            aria-label={t("shell.ariaLabelMentionSuggestions")}
-            className={styles["mentionPopup"]}
-            id={mentions.listId}
-            role="listbox"
-          >
-            {mentions.options.map((candidate, index) => (
-              <div
-                aria-selected={index === mentions.activeIndex}
-                className={styles["mentionOption"]}
-                data-state={
-                  index === mentions.activeIndex ? "active" : undefined
-                }
-                id={mentions.optionId(index)}
-                key={candidate.login}
-                role="option"
-                // Focus stays in the textarea (aria-activedescendant
-                // pattern); -1 satisfies focusability without a tab stop.
-                tabIndex={-1}
-                // mousedown, not click: click fires after the textarea's
-                // blur, and blur-persist consumers would race the insert.
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  mentions.select(candidate.login);
-                }}
-              >
-                {candidate.avatarUrl === undefined ? (
-                  <span aria-hidden className={styles["mentionAvatarSlot"]} />
-                ) : (
-                  // Decorative, the option text carries the identity.
-                  <img
-                    alt=""
-                    className={styles["mentionAvatar"]}
-                    src={candidate.avatarUrl}
-                  />
-                )}
-                <span className={styles["mentionLogin"]}>
-                  @{candidate.login}
-                </span>
-                {candidate.name === undefined ? null : (
-                  <span className={styles["mentionName"]}>
-                    {candidate.name}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+          <MentionList
+            activeIndex={mentions.activeIndex}
+            listId={mentions.listId}
+            optionId={mentions.optionId}
+            options={mentions.options}
+            pending={mentions.searching}
+            onSelect={mentions.select}
+          />
         ) : null}
+        <ScreenReaderOnly>
+          {/* Always mounted so the search is announced; emptied when it lands so the next one announces again. */}
+          <span aria-live="polite" role="status">
+            {announceSearching ? t("shell.mentionSearchingAnnounce") : ""}
+          </span>
+        </ScreenReaderOnly>
         <div className={styles["hint"]}>
           <span>{t("shell.markdownSupported")}</span>
           {facade.canAttach ? (

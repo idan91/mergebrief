@@ -7,8 +7,10 @@ import {
   applyMarkdownWrap,
   applyOrderedListPrefix,
   continueListOnEnter,
+  filterByHandlePrefix,
   indentListSelection,
   insertMention,
+  readMentionHandle,
   replaceSelectionWithSuggestion,
   buildUploadPlaceholders,
   hasUploadPlaceholder,
@@ -16,7 +18,11 @@ import {
   parseRetryAfterSeconds,
   replacePlaceholder,
 } from "./utils";
-import { RetryAfterRejections } from "./types";
+import {
+  MentionCandidateKinds,
+  RetryAfterRejections,
+  type MentionCandidate,
+} from "./types";
 import { createI18n } from "i18n";
 
 const t = createI18n().t;
@@ -223,6 +229,21 @@ describe("activeMentionQuery", () => {
     expect(activeMentionQuery("mail me a@b", 11)).toBeNull();
   });
 
+  it("follows a team slug after the org", () => {
+    expect(activeMentionQuery("cc @acme/core-a", 15)).toEqual({
+      start: 3,
+      query: "acme/core-a",
+    });
+    expect(activeMentionQuery("cc @acme/web.ui", 15)).toEqual({
+      start: 3,
+      query: "acme/web.ui",
+    });
+  });
+
+  it("ends the mention at a sentence dot", () => {
+    expect(activeMentionQuery("@acme/core.", 11)).toBeNull();
+  });
+
   it("declines when the caret has left the mention", () => {
     expect(activeMentionQuery("@alice done", 11)).toBeNull();
   });
@@ -252,6 +273,58 @@ describe("insertMention", () => {
       selectionStart: 7,
       selectionEnd: 7,
     });
+  });
+
+  it("consumes a team slug tail but leaves a sentence dot", () => {
+    expect(insertMention("@acme/core-team.", 0, 3, "acme/core")).toEqual({
+      text: "@acme/core .",
+      selectionStart: 11,
+      selectionEnd: 11,
+    });
+  });
+});
+
+describe("readMentionHandle", () => {
+  it("reads the login of a user and the combined slug of a team", () => {
+    expect(
+      readMentionHandle({ kind: MentionCandidateKinds.USER, login: "alice" }),
+    ).toBe("alice");
+    expect(
+      readMentionHandle({
+        kind: MentionCandidateKinds.TEAM,
+        combinedSlug: "acme/core",
+        name: "Core",
+      }),
+    ).toBe("acme/core");
+  });
+});
+
+describe("filterByHandlePrefix", () => {
+  const CANDIDATES: readonly MentionCandidate[] = [
+    { kind: MentionCandidateKinds.USER, login: "Alice" },
+    { kind: MentionCandidateKinds.USER, login: "malice" },
+    { kind: MentionCandidateKinds.USER, login: "albert" },
+    {
+      kind: MentionCandidateKinds.TEAM,
+      combinedSlug: "acme/core",
+      name: "Alpha core",
+    },
+  ];
+
+  it("keeps handles starting with the query, ignoring case, in pool order", () => {
+    expect(filterByHandlePrefix(CANDIDATES, "AL")).toEqual([
+      CANDIDATES[0],
+      CANDIDATES[2],
+    ]);
+  });
+
+  it("matches a team on its combined slug, never its name", () => {
+    expect(filterByHandlePrefix(CANDIDATES, "acme/c")).toEqual([CANDIDATES[3]]);
+    expect(filterByHandlePrefix(CANDIDATES, "alpha")).toEqual([]);
+  });
+
+  it("keeps the whole pool for an empty query", () => {
+    expect(filterByHandlePrefix(CANDIDATES, "")).toEqual(CANDIDATES);
   });
 });
 

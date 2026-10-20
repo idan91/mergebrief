@@ -15,7 +15,6 @@ import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
 
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { UNSAFE_LINKS } from "@web/test/links";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
@@ -28,13 +27,14 @@ import {
   type conversationCommentSchema,
   type conversationReviewSchema,
   type conversationThreadSchema,
-  type mentionCandidateSchema,
+  type repoCollaboratorSchema,
   type prLevelCommentSchema,
 } from "./schemas";
 import type {
   ConversationReview,
   ConversationThread,
   PrConversation,
+  RepoCollaborator,
 } from "./types";
 
 function parseConversation(value: unknown) {
@@ -390,9 +390,9 @@ const SCHEMA_PINS = {
     z.output<typeof prConversationSchema>,
     PrConversation
   >,
-  MentionCandidate: true satisfies Equals<
-    z.output<typeof mentionCandidateSchema>,
-    MentionCandidate
+  RepoCollaborator: true satisfies Equals<
+    z.output<typeof repoCollaboratorSchema>,
+    RepoCollaborator
   >,
 } as const;
 
@@ -428,7 +428,7 @@ const CONTRACT_PINS = {
     ConversationResponse
   >,
   Collaborator: true satisfies ReadsWireFields<
-    z.output<typeof mentionCandidateSchema>,
+    z.output<typeof repoCollaboratorSchema>,
     CollaboratorView
   >,
   Collaborators: true satisfies ReadsWireFields<

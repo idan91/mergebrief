@@ -13,9 +13,13 @@ import type * as ApiFetchModule from "@web/data/apiFetch";
 import { apiFetch } from "@web/data/apiFetch";
 import { AttachmentScopeProvider } from "../Markdown/context";
 import { MarkdownTextarea } from ".";
-import { MarkdownTextareaFrames } from "./types";
+import {
+  MarkdownTextareaFrames,
+  MentionCandidateKinds,
+  type MentionCandidate,
+  type MentionSuggestions,
+} from "./types";
 import { resetAttachmentUploadState } from "./useAttachmentUpload";
-import type { MentionCandidate } from "./useMentionAutocomplete";
 
 function Harness({
   initial = "",
@@ -23,6 +27,8 @@ function Harness({
   readOnly = false,
   suggestionSeed,
   mentionCandidates,
+  mentionSuggestions,
+  onMentionQueryChange,
   onEscape,
   onSubmit,
 }: {
@@ -31,6 +37,8 @@ function Harness({
   readOnly?: boolean;
   suggestionSeed?: string | undefined;
   mentionCandidates?: readonly MentionCandidate[] | undefined;
+  mentionSuggestions?: MentionSuggestions | undefined;
+  onMentionQueryChange?: ((query: string | undefined) => void) | undefined;
   onEscape?: (() => void) | undefined;
   onSubmit?: (() => void) | undefined;
 }) {
@@ -39,11 +47,13 @@ function Harness({
     <MarkdownTextarea
       label={label}
       mentionCandidates={mentionCandidates}
+      mentionSuggestions={mentionSuggestions}
       readOnly={readOnly}
       suggestionSeed={suggestionSeed}
       value={value}
       onChange={setValue}
       onEscape={onEscape}
+      onMentionQueryChange={onMentionQueryChange}
       onSubmit={onSubmit}
     />
   );
@@ -250,12 +260,22 @@ describe("MarkdownTextarea", () => {
   describe("mention autocomplete", () => {
     const CANDIDATES: readonly MentionCandidate[] = [
       {
+        kind: MentionCandidateKinds.USER,
         login: "alice",
         name: "Alice Example",
         avatarUrl: "https://avatars.example/alice.png",
       },
-      { login: "albert" },
-      { login: "bob", avatarUrl: "https://avatars.example/bob.png" },
+      { kind: MentionCandidateKinds.USER, login: "albert" },
+      {
+        kind: MentionCandidateKinds.USER,
+        login: "bob",
+        avatarUrl: "https://avatars.example/bob.png",
+      },
+      {
+        kind: MentionCandidateKinds.TEAM,
+        combinedSlug: "acme/core",
+        name: "Core maintainers",
+      },
     ];
 
     function typeMention(text: string) {
@@ -268,8 +288,8 @@ describe("MarkdownTextarea", () => {
       render(<Harness mentionCandidates={CANDIDATES} />);
       typeMention("hi @al");
       const options = screen.getAllByRole("option");
-      expect(options.map((option) => option.textContent)).toEqual([
-        "@aliceAlice Example",
+      expect(options.map((option) => option.textContent?.trim())).toEqual([
+        "@alice Alice Example",
         "@albert",
       ]);
       expect(options[0]?.getAttribute("aria-selected")).toBe("true");
@@ -289,10 +309,10 @@ describe("MarkdownTextarea", () => {
       );
       // Decorative; the option text already carries the identity.
       expect(avatar?.getAttribute("alt")).toBe("");
-      expect(alice.textContent).toBe("@aliceAlice Example");
+      expect(alice.textContent?.trim()).toBe("@alice Alice Example");
       // Login-only candidate: no img, no name, still a valid option.
       expect(albert.querySelector("img")).toBeNull();
-      expect(albert.textContent).toBe("@albert");
+      expect(albert.textContent?.trim()).toBe("@albert");
     });
 
     it("renders the avatar even when the candidate has no display name", () => {
@@ -394,12 +414,236 @@ describe("MarkdownTextarea", () => {
       expect(screen.getByRole("listbox")).toBeTruthy();
     });
 
+    it("a team row names itself a team with the slug first", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      typeMention("@ac");
+      const team = screen.getByRole("option", {
+        name: "Team @acme/core Core maintainers",
+      });
+      expect(team.querySelector("img")).toBeNull();
+      expect(team.querySelector("svg")).not.toBeNull();
+    });
+
+    it("selecting a team inserts its combined slug", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("cc @acme/co");
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(input.value).toBe("cc @acme/core ");
+    });
+
     it("Enter falls through to list continuation when the popup is closed", () => {
       render(<Harness mentionCandidates={CANDIDATES} />);
       const input = typeMention("- item");
       input.setSelectionRange(6, 6);
       fireEvent.keyDown(input, { key: "Enter" });
       expect(input.value).toBe("- item\n- ");
+    });
+  });
+
+  describe("mention suggestions from the caller", () => {
+    const BOB: MentionCandidate = {
+      kind: MentionCandidateKinds.USER,
+      login: "bob",
+    };
+    const CORE: MentionCandidate = {
+      kind: MentionCandidateKinds.TEAM,
+      combinedSlug: "acme/core",
+      name: "Core",
+    };
+    const ZED: MentionCandidate = {
+      kind: MentionCandidateKinds.USER,
+      login: "zed",
+    };
+
+    function typeMention(text: string) {
+      const input = textarea();
+      fireEvent.change(input, { target: { value: text } });
+      return input;
+    }
+
+    function readOptionNames(): string[] {
+      const options = screen.getAllByRole("option");
+      const names = options.map((option) => option.textContent?.trim() ?? "");
+      return names;
+    }
+
+    function readSearchStatus(): HTMLElement {
+      return screen.getByRole("status");
+    }
+
+    it("reports the query being typed and its end", () => {
+      const onMentionQueryChange = vi.fn();
+      render(
+        <Harness
+          mentionSuggestions={{ query: "", candidates: [], pending: false }}
+          onMentionQueryChange={onMentionQueryChange}
+        />,
+      );
+      typeMention("hi @al");
+      expect(onMentionQueryChange).toHaveBeenLastCalledWith("al");
+      typeMention("hi @al done");
+      expect(onMentionQueryChange).toHaveBeenLastCalledWith(undefined);
+    });
+
+    it("shows the caller's answer as given, without filtering", () => {
+      render(
+        <Harness
+          mentionSuggestions={{
+            query: "al",
+            candidates: [BOB, CORE],
+            pending: false,
+          }}
+        />,
+      );
+      typeMention("hi @al");
+      expect(readOptionNames()).toEqual(["@bob", "@acme/core Core"]);
+    });
+
+    it("keeps the last answer on screen while the next one is pending", () => {
+      const view = render(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: false }}
+        />,
+      );
+      typeMention("@a");
+      expect(readOptionNames()).toEqual(["@bob"]);
+      typeMention("@al");
+      expect(readOptionNames()).toEqual(["@bob"]);
+      view.rerender(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: true }}
+        />,
+      );
+      expect(readOptionNames()).toEqual(["@bob"]);
+      expect(screen.getByText("Searching…")).toBeTruthy();
+    });
+
+    it("opens with only the search state before the first answer", () => {
+      render(
+        <Harness
+          mentionSuggestions={{ query: "", candidates: [], pending: true }}
+        />,
+      );
+      typeMention("@a");
+      expect(screen.getByRole("listbox")).toBeTruthy();
+      expect(screen.queryAllByRole("option")).toEqual([]);
+      expect(screen.getByText("Searching…")).toBeTruthy();
+    });
+
+    it("stays quiet about searching while rows are on screen", () => {
+      const view = render(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: false }}
+        />,
+      );
+      typeMention("@a");
+      typeMention("@al");
+      view.rerender(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: true }}
+        />,
+      );
+      expect(readSearchStatus().textContent).toBe("");
+    });
+
+    it("arrow keys on an empty pending list keep the first row next", () => {
+      const view = render(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [], pending: true }}
+        />,
+      );
+      typeMention("@a");
+      fireEvent.keyDown(textarea(), { key: "ArrowDown" });
+      view.rerender(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: false }}
+        />,
+      );
+      fireEvent.keyDown(textarea(), { key: "Enter" });
+      expect(textarea().value).toBe("@bob ");
+    });
+
+    it("a late answer to an older query never replaces the newer one", () => {
+      const view = render(
+        <Harness
+          mentionSuggestions={{
+            query: "al",
+            candidates: [ZED],
+            pending: false,
+          }}
+        />,
+      );
+      typeMention("@al");
+      expect(readOptionNames()).toEqual(["@zed"]);
+      view.rerender(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: false }}
+        />,
+      );
+      expect(readOptionNames()).toEqual(["@zed"]);
+    });
+
+    it("the keyboard works on the list as shown while pending", () => {
+      render(
+        <Harness
+          mentionSuggestions={{
+            query: "a",
+            candidates: [BOB, ZED],
+            pending: true,
+          }}
+        />,
+      );
+      const input = typeMention("@a");
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(input.value).toBe("@zed ");
+    });
+
+    it("announces the search politely and clears when it lands", () => {
+      const view = render(
+        <Harness
+          mentionSuggestions={{ query: "", candidates: [], pending: true }}
+        />,
+      );
+      expect(readSearchStatus().getAttribute("aria-live")).toBe("polite");
+      expect(readSearchStatus().textContent).toBe("");
+      typeMention("@a");
+      expect(readSearchStatus().textContent).toBe(
+        "Searching for mention suggestions",
+      );
+      view.rerender(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: false }}
+        />,
+      );
+      expect(readSearchStatus().textContent).toBe("");
+    });
+
+    it("closes on an empty answer with nothing pending", () => {
+      render(
+        <Harness
+          mentionSuggestions={{ query: "a", candidates: [], pending: false }}
+        />,
+      );
+      typeMention("@a");
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+
+    it("stays inert while read-only", () => {
+      const onMentionQueryChange = vi.fn();
+      render(
+        <Harness
+          initial="@a"
+          mentionSuggestions={{ query: "a", candidates: [BOB], pending: false }}
+          readOnly
+          onMentionQueryChange={onMentionQueryChange}
+        />,
+      );
+      const input = textarea();
+      input.setSelectionRange(2, 2);
+      fireEvent.select(input);
+      expect(screen.queryByRole("listbox")).toBeNull();
+      expect(onMentionQueryChange).not.toHaveBeenCalledWith("a");
     });
   });
 

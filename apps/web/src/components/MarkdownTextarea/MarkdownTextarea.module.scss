@@ -113,61 +113,6 @@
     }
   }
 
-  .mentionPopup {
-    margin-block: 0 functions.to-rem(8px);
-    margin-inline: functions.to-rem(10px);
-    padding: functions.to-rem(4px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-1);
-    box-shadow: var(--shadow-elevation-md);
-    list-style: none;
-  }
-
-  .mentionOption {
-    display: flex;
-    align-items: center;
-    gap: functions.to-rem(8px);
-    padding-block: functions.to-rem(5px);
-    padding-inline: functions.to-rem(8px);
-    border-radius: var(--radius-sm);
-    color: var(--color-text-2);
-    cursor: pointer;
-    font-size: var(--font-size-md);
-
-    &[data-state="active"] {
-      background: var(--color-surface-2);
-      color: var(--color-text-1);
-    }
-  }
-
-  // Fixed slot whether or not the source carried an avatar, so login
-  // columns align across mixed (participant/collaborator) pools.
-  .mentionAvatar,
-  .mentionAvatarSlot {
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    border-radius: var(--radius-circle);
-  }
-
-  .mentionAvatarSlot {
-    background: var(--color-surface-2);
-  }
-
-  // A long display name truncates; the login never squeezes.
-  .mentionLogin {
-    flex-shrink: 0;
-  }
-
-  .mentionName {
-    overflow: hidden;
-    color: var(--color-text-3);
-    font-size: var(--font-size-sm);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .hint {
     display: flex;
     flex-direction: column;

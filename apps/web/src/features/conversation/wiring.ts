@@ -1,4 +1,4 @@
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
+import type { MentionUserCandidate } from "@web/components/MarkdownTextarea/types";
 import type { ReplyResult, ResolveThreadResult } from "./types";
 
 /** Jump to the briefed revision an outdated thread was anchored on. */
@@ -35,7 +35,7 @@ export interface ThreadComposerWiring {
   readonly post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   readonly onPosted: () => void;
   /** Merged after the thread's own participants, which rank first. */
-  readonly mentionPool?: readonly MentionCandidate[];
+  readonly mentionPool?: readonly MentionUserCandidate[];
   readonly revisionJump?: ThreadRevisionJump;
   readonly resolution?: ThreadResolutionWiring;
 }

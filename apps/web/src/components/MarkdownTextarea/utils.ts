@@ -1,5 +1,10 @@
 import type { TFunction } from "i18next";
-import { RetryAfterRejections, type RetryAfterParse } from "./types";
+import {
+  MentionCandidateKinds,
+  RetryAfterRejections,
+  type MentionCandidate,
+  type RetryAfterParse,
+} from "./types";
 
 export interface TextEdit {
   text: string;
@@ -269,7 +274,11 @@ export interface MentionQuery {
   query: string;
 }
 
-const MENTION_PATTERN = /(?:^|[\s([{])@([a-zA-Z0-9-]*)$/;
+// A login, then optionally `/` and a team slug; a slug's dot never ends it,
+// so the dot closing a sentence is prose, not part of the mention.
+const MENTION_PATTERN =
+  /(?:^|[\s([{])@([a-zA-Z0-9-]*(?:\/(?:[a-zA-Z0-9_-]|\.(?=[a-zA-Z0-9]))*)?)$/;
+const MENTION_TAIL_PATTERN = /^(?:[a-zA-Z0-9_/-]|\.(?=[a-zA-Z0-9]))*/;
 
 /**
  * The mention being typed at the caret, or null when the caret is not in
@@ -293,8 +302,28 @@ export function activeMentionQuery(
   return { start: caret - query.length - 1, query };
 }
 
+/** The text after `@` that selecting the candidate writes. */
+export function readMentionHandle(candidate: MentionCandidate): string {
+  if (candidate.kind === MentionCandidateKinds.TEAM) {
+    return candidate.combinedSlug;
+  }
+  return candidate.login;
+}
+
+export function filterByHandlePrefix(
+  candidates: readonly MentionCandidate[],
+  query: string,
+): readonly MentionCandidate[] {
+  const lowered = query.toLowerCase();
+  const matches = candidates.filter((candidate) => {
+    const handle = readMentionHandle(candidate).toLowerCase();
+    return handle.startsWith(lowered);
+  });
+  return matches;
+}
+
 /**
- * Replaces the typed `@query` with `@login ` and parks the caret after.
+ * Replaces the typed `@query` with `@handle ` and parks the caret after.
  * A mid-token accept (caret inside `@albert` after `@al`) consumes the
  * rest of the token too, `@alice bert` residue is never right.
  */
@@ -302,10 +331,10 @@ export function insertMention(
   text: string,
   mentionStart: number,
   caret: number,
-  login: string,
+  handle: string,
 ): TextEdit {
-  const tail = /^[a-zA-Z0-9-]*/.exec(text.slice(caret))?.[0] ?? "";
-  const inserted = `@${login} `;
+  const tail = MENTION_TAIL_PATTERN.exec(text.slice(caret))?.[0] ?? "";
+  const inserted = `@${handle} `;
   const position = mentionStart + inserted.length;
   return {
     text: `${text.slice(0, mentionStart)}${inserted}${text.slice(caret + tail.length)}`,

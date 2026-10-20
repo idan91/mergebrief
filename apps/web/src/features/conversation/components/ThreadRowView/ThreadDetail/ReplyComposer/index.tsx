@@ -6,7 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/types";
 import { appendQuote } from "../../../../utils/quote";
 import { useReviewActions } from "@web/features/review/session";
 import {

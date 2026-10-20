@@ -2,20 +2,20 @@
 // so autocomplete falls back to thread participants on unavailable or failed reads.
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
+import type { MentionUserCandidate } from "@web/components/MarkdownTextarea/types";
 import type {
   buildCollaboratorsQueryOptions,
   CollaboratorsResult,
 } from "../queries";
 
-const EMPTY_POOL: readonly MentionCandidate[] = [];
+const EMPTY_POOL: readonly MentionUserCandidate[] = [];
 
 // Namespaced so it can never collide with buildCollaboratorsQueryKey(repoId).
 const DISABLED_KEY: QueryKey = ["collaborators-disabled"];
 
 export function useMentionPool(
   options: ReturnType<typeof buildCollaboratorsQueryOptions> | undefined,
-): readonly MentionCandidate[] {
+): readonly MentionUserCandidate[] {
   const queryOptions = options ?? {
     queryKey: DISABLED_KEY,
     queryFn: async (): Promise<CollaboratorsResult> => ({

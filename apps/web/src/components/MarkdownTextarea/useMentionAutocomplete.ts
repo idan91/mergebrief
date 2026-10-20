@@ -1,19 +1,27 @@
-import { useEffect, useState, type KeyboardEvent, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 
-import { activeMentionQuery, insertMention } from "./utils";
+import type { MentionCandidate, MentionSuggestions } from "./types";
+import {
+  activeMentionQuery,
+  filterByHandlePrefix,
+  insertMention,
+  readMentionHandle,
+} from "./utils";
 
 const MAX_MENTION_OPTIONS = 5;
 
-/**
- * One entry of the injected candidate pool. `name`/`avatarUrl` are optional
- * so thread participants (login-only today) and collaborators (rich) ride
- * the same pool; insertion always uses the login.
- */
-export interface MentionCandidate {
-  readonly login: string;
-  /** Display name; absent when the user never set one (or the source lacks it). */
-  readonly name?: string | undefined;
-  readonly avatarUrl?: string | undefined;
+/** The newest answer taken for the mention being typed. */
+interface AdoptedSuggestions {
+  readonly query: string;
+  readonly candidates: readonly MentionCandidate[];
+  /** The answer object itself, so one answer is taken once. */
+  readonly source: MentionSuggestions;
 }
 
 export interface MentionAutocomplete {
@@ -24,6 +32,8 @@ export interface MentionAutocomplete {
   optionId: (index: number) => string;
   /** id of the highlighted option, for aria-activedescendant. */
   activeOptionId: string | undefined;
+  /** The open list is waiting on the caller's answer. */
+  searching: boolean;
   /** Report the caret position (from change/select events). */
   onCaretMove: (caret: number) => void;
   /** Close the popup when the textarea loses focus. */
@@ -33,13 +43,16 @@ export interface MentionAutocomplete {
    * callers must then skip their own keydown handling.
    */
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => boolean;
-  select: (login: string) => void;
+  select: (candidate: MentionCandidate) => void;
 }
 
 export interface MentionAutocompleteArgs {
   value: string;
   onChange: (value: string) => void;
   candidates: readonly MentionCandidate[];
+  /** Present, the caller answers the reported query and `candidates` is unused. */
+  suggestions: MentionSuggestions | undefined;
+  onQueryChange: ((query: string | undefined) => void) | undefined;
   /** A read-only surface is inert: the popup must not open or insert. */
   readOnly: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -47,14 +60,18 @@ export interface MentionAutocompleteArgs {
 }
 
 /**
- * `@`-mention autocomplete over an injected candidate pool. Filtering is
- * prefix-on-login in POOL ORDER; the caller's ordering IS the ranking.
- * Combobox-with-listbox keyboard contract; suppressed inside code fences.
+ * `@`-mention autocomplete. With a candidate pool, filtering is prefix on
+ * the handle in POOL ORDER; the caller's ordering IS the ranking. With
+ * caller suggestions, the list is the caller's answer to the reported
+ * query, shown as given. Combobox-with-listbox keyboard contract;
+ * suppressed inside code fences.
  */
 export function useMentionAutocomplete({
   value,
   onChange,
   candidates,
+  suggestions,
+  onQueryChange,
   readOnly,
   textareaRef,
   baseId,
@@ -68,24 +85,59 @@ export function useMentionAutocomplete({
   // in) clears the latch.
   const [blurred, setBlurred] = useState(false);
 
-  const mention =
-    candidates.length > 0 && !readOnly
-      ? activeMentionQuery(value, caret)
-      : null;
-  const query = mention?.query.toLowerCase() ?? "";
-  const options =
-    mention === null
-      ? []
-      : candidates
-          .filter((candidate) =>
-            candidate.login.toLowerCase().startsWith(query),
-          )
-          .slice(0, MAX_MENTION_OPTIONS);
+  const enabled =
+    !readOnly && (suggestions !== undefined || candidates.length > 0);
+  const mention = enabled ? activeMentionQuery(value, caret) : null;
+  const query = mention?.query;
+
+  // The caller learns the query once per change, through the latest
+  // callback; a new callback identity alone reports nothing.
+  const onQueryChangeRef = useRef(onQueryChange);
+  onQueryChangeRef.current = onQueryChange;
+  useEffect(() => {
+    onQueryChangeRef.current?.(query);
+  }, [query]);
+  useEffect(() => () => onQueryChangeRef.current?.(undefined), []);
+
+  // Adoption is memory of past props, so it is state adjusted during
+  // render: an answer is taken only for the query being typed now, which
+  // is what keeps a late answer to an older query out, and the last taken
+  // answer stays while the next one is pending.
+  const [adopted, setAdopted] = useState<AdoptedSuggestions | undefined>();
+  const fresh =
+    suggestions !== undefined &&
+    query !== undefined &&
+    query === suggestions.query;
+  const adoptsFreshAnswer = fresh && adopted?.source !== suggestions;
+  if (adoptsFreshAnswer) {
+    setAdopted({
+      query: suggestions.query,
+      candidates: suggestions.candidates,
+      source: suggestions,
+    });
+  }
+  const adoptionOutlivedMention = mention === null && adopted !== undefined;
+  if (adoptionOutlivedMention) {
+    setAdopted(undefined);
+  }
+
+  const answered = adopted !== undefined && adopted.query === query;
+  // The caller hears of a new query only after this render commits, so a
+  // query no answer covers yet counts as pending; otherwise the list would
+  // close for a frame on every keystroke.
+  const pending =
+    suggestions !== undefined && (suggestions.pending || !answered);
+  const shown =
+    suggestions === undefined
+      ? filterByHandlePrefix(candidates, query ?? "")
+      : (adopted?.candidates ?? []);
+  const options = mention === null ? [] : shown.slice(0, MAX_MENTION_OPTIONS);
+  const hasContent =
+    suggestions === undefined
+      ? options.length > 0
+      : pending || (answered && options.length > 0);
   const open =
-    mention !== null &&
-    options.length > 0 &&
-    !blurred &&
-    dismissedAt !== mention.start;
+    mention !== null && hasContent && !blurred && dismissedAt !== mention.start;
 
   // Highlight resets when the query narrows the list under it.
   const clampedIndex = Math.min(activeIndex, Math.max(0, options.length - 1));
@@ -104,11 +156,12 @@ export function useMentionAutocomplete({
   const listId = `${baseId}-mentions`;
   const optionId = (index: number) => `${listId}-${index}`;
 
-  const select = (login: string) => {
+  const select = (candidate: MentionCandidate) => {
     if (mention === null) {
       return;
     }
-    const next = insertMention(value, mention.start, caret, login);
+    const handle = readMentionHandle(candidate);
+    const next = insertMention(value, mention.start, caret, handle);
     onChange(next.text);
     setCaret(next.selectionStart);
     window.setTimeout(() => {
@@ -120,13 +173,18 @@ export function useMentionAutocomplete({
     }, 0);
   };
 
+  const hasActiveOption = open && options.length > 0;
+  const activeOptionId = hasActiveOption ? optionId(clampedIndex) : undefined;
+  const searching = open && pending;
+
   return {
     open,
     options,
     activeIndex: clampedIndex,
     listId,
     optionId,
-    activeOptionId: open ? optionId(clampedIndex) : undefined,
+    activeOptionId,
+    searching,
     onCaretMove: (position) => {
       setBlurred(false);
       setCaret(position);
@@ -150,6 +208,10 @@ export function useMentionAutocomplete({
         return false;
       }
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        // A list still searching has no row to move to; the caret keeps the key.
+        if (options.length === 0) {
+          return false;
+        }
         event.preventDefault();
         const delta = event.key === "ArrowDown" ? 1 : -1;
         setActiveIndex(
@@ -163,7 +225,7 @@ export function useMentionAutocomplete({
           return false;
         }
         event.preventDefault();
-        select(candidate.login);
+        select(candidate);
         return true;
       }
       if (event.key === "Escape") {

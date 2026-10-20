@@ -35,3 +35,44 @@ export type RetryAfterRejection = ValueOf<typeof RetryAfterRejections>;
 
 /** Whole seconds to wait, never negative. */
 export type RetryAfterParse = Result<number, RetryAfterRejection>;
+
+export const MentionCandidateKinds = {
+  USER: "user",
+  TEAM: "team",
+} as const;
+
+/**
+ * A person the list offers. `name` and `avatarUrl` are optional so thread
+ * participants (login-only) and GitHub's search results (rich) ride the same
+ * list; insertion always uses the login.
+ */
+export interface MentionUserCandidate {
+  readonly kind: typeof MentionCandidateKinds.USER;
+  readonly login: string;
+  /** Display name; absent when the user never set one (or the source lacks it). */
+  readonly name?: string | undefined;
+  readonly avatarUrl?: string | undefined;
+}
+
+/** A team the list offers; insertion uses the combined `org/slug`. */
+export interface MentionTeamCandidate {
+  readonly kind: typeof MentionCandidateKinds.TEAM;
+  readonly combinedSlug: `${string}/${string}`;
+  readonly name: string;
+}
+
+export type MentionCandidate = MentionUserCandidate | MentionTeamCandidate;
+
+/**
+ * The caller's answer to the query the editor reported. `query` names the
+ * query the candidates answer: the editor adopts a set only for the query
+ * being typed now, so a late answer to an older query never replaces a
+ * newer one. `pending` holds from the moment a query changes until its
+ * answer lands, debounce included; the editor keeps the last adopted set
+ * on screen through it.
+ */
+export interface MentionSuggestions {
+  readonly query: string;
+  readonly candidates: readonly MentionCandidate[];
+  readonly pending: boolean;
+}

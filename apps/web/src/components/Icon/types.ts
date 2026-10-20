@@ -47,6 +47,7 @@ export const IconNames = {
   TEXT_ITALIC: "text-italic",
   TRASH: "trash",
   USER: "user",
+  USERS: "users",
   WARNING: "warning",
   WARNING_DIAMOND: "warning-diamond",
   X: "x",

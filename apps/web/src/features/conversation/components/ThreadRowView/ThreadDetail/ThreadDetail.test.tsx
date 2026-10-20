@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Resolution uses refetches rather than optimistic state; a landed reply must never repost.
 import { appI18n } from "../../../../../i18n/I18nProvider";
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -631,11 +632,12 @@ describe("ThreadDetail, mention pool hand-off", () => {
     renderDetail({
       mentionPool: [
         {
+          kind: MentionCandidateKinds.USER,
           login: "alice",
           name: "Alice Example",
           avatarUrl: "https://avatars.example/alice.png",
         },
-        { login: "bob", name: "Bob Builder" },
+        { kind: MentionCandidateKinds.USER, login: "bob", name: "Bob Builder" },
       ],
     });
     type("@");
@@ -643,9 +645,9 @@ describe("ThreadDetail, mention pool hand-off", () => {
     // Participant alice first, ENRICHED from the roster entry; then the
     // non-participant collaborator. A dropped hand-off would render alice
     // login-only and no bob at all.
-    expect(options.map((option) => option.textContent)).toEqual([
-      "@aliceAlice Example",
-      "@bobBob Builder",
+    expect(options.map((option) => option.textContent?.trim())).toEqual([
+      "@alice Alice Example",
+      "@bob Bob Builder",
     ]);
     expect(options[0]?.querySelector("img")?.getAttribute("src")).toBe(
       "https://avatars.example/alice.png",
@@ -655,8 +657,9 @@ describe("ThreadDetail, mention pool hand-off", () => {
   it("falls back to participants-only without a pool", () => {
     renderDetail({});
     type("@");
-    expect(
-      screen.getAllByRole("option").map((option) => option.textContent),
-    ).toEqual(["@alice"]);
+    const options = screen.getAllByRole("option");
+    expect(options.map((option) => option.textContent?.trim())).toEqual([
+      "@alice",
+    ]);
   });
 });

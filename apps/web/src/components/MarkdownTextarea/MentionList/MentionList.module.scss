@@ -1,0 +1,48 @@
+@use "functions";
+
+@layer components {
+  .mentionPopup {
+    margin-block: 0 functions.to-rem(8px);
+    margin-inline: functions.to-rem(10px);
+    padding: functions.to-rem(4px);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-elevation-md);
+  }
+
+  .searching {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(5px);
+    padding-inline: functions.to-rem(8px);
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+  }
+
+  [role="listbox"]:not(:empty) + .searching {
+    margin-block-start: functions.to-rem(2px);
+    border-block-start: 1px solid var(--color-outline-1);
+  }
+
+  .spinner {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--color-outline-2);
+    border-block-start-color: var(--color-text-2);
+    border-radius: var(--radius-circle);
+    animation: mention-list-spin 0.7s linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  @keyframes mention-list-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

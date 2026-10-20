@@ -129,8 +129,12 @@ describe("buildCollaboratorsQueryOptions queryFn", () => {
     await expect(runCollaborators()).resolves.toEqual({
       kind: "ready",
       candidates: [
-        { login: "alice", name: "Alice Example" },
-        { login: "zed", avatarUrl: "https://avatars.example/zed.png" },
+        { kind: "user", login: "alice", name: "Alice Example" },
+        {
+          kind: "user",
+          login: "zed",
+          avatarUrl: "https://avatars.example/zed.png",
+        },
       ],
     });
     expect(apiFetchMock).toHaveBeenCalledWith("/api/repos/42/collaborators", {
@@ -152,7 +156,7 @@ describe("buildCollaboratorsQueryOptions queryFn", () => {
     );
     await expect(runCollaborators()).resolves.toEqual({
       kind: "ready",
-      candidates: [{ login: "mallory" }],
+      candidates: [{ kind: "user", login: "mallory" }],
     });
   });
 

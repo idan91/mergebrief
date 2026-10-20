@@ -113,7 +113,7 @@ export const prConversationSchema = z
   })
   .readonly();
 
-export const mentionCandidateSchema = dropInvalidKeys(
+export const repoCollaboratorSchema = dropInvalidKeys(
   z.object({
     login: z.string(),
     name: z.string().optional(),
@@ -124,6 +124,6 @@ export const mentionCandidateSchema = dropInvalidKeys(
 
 /** `hasMore` is required but not surfaced: a truncated pool is still a pool. */
 export const collaboratorsResponseSchema = z.object({
-  collaborators: z.array(mentionCandidateSchema).readonly(),
+  collaborators: z.array(repoCollaboratorSchema).readonly(),
   hasMore: z.boolean(),
 });

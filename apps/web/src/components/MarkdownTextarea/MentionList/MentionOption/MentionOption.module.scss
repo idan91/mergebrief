@@ -1,0 +1,38 @@
+@use "functions";
+
+@layer components {
+  .mentionOption {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(5px);
+    padding-inline: functions.to-rem(8px);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-2);
+    cursor: pointer;
+    font-size: var(--font-size-md);
+
+    &[data-state="active"] {
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+    }
+  }
+
+  .handle,
+  .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .handle {
+    flex-shrink: 1;
+  }
+
+  .name {
+    flex-shrink: 1000;
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+  }
+}

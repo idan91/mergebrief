@@ -7,7 +7,7 @@ import { useEffect, useId } from "react";
 
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/types";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   commentAnchorLabel,

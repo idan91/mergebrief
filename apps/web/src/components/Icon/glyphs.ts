@@ -45,6 +45,7 @@ import TextBGlyph from "../icons/text-b.svg?react";
 import TextItalicGlyph from "../icons/text-italic.svg?react";
 import TrashGlyph from "../icons/trash.svg?react";
 import UserGlyph from "../icons/user.svg?react";
+import UsersGlyph from "../icons/users.svg?react";
 import WarningGlyph from "../icons/warning.svg?react";
 import WarningDiamondGlyph from "../icons/warning-diamond.svg?react";
 import XGlyph from "../icons/x.svg?react";
@@ -94,6 +95,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.TEXT_ITALIC]: TextItalicGlyph,
   [IconNames.TRASH]: TrashGlyph,
   [IconNames.USER]: UserGlyph,
+  [IconNames.USERS]: UsersGlyph,
   [IconNames.WARNING]: WarningGlyph,
   [IconNames.WARNING_DIAMOND]: WarningDiamondGlyph,
   [IconNames.X]: XGlyph,

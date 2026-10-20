@@ -7,11 +7,12 @@ import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import { ProductQueryIds } from "contract";
 import { HttpStatuses } from "types/http";
 
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
+import type { MentionUserCandidate } from "@web/components/MarkdownTextarea/types";
 import { ApiError } from "../../data/apiFetch";
 import { request } from "../../data/request";
 import { collaboratorsResponseSchema, prConversationSchema } from "./schemas";
 import type { PrConversation } from "./types";
+import { shapeUserCandidate } from "./utils/mentions";
 
 export type ConversationResult =
   | { readonly kind: "ready"; readonly conversation: PrConversation }
@@ -95,7 +96,10 @@ export function buildConversationQueryOptions(
 
 export type CollaboratorsResult =
   /** Alphabetical by login: pool order is the autocomplete ranking. */
-  | { readonly kind: "ready"; readonly candidates: readonly MentionCandidate[] }
+  | {
+      readonly kind: "ready";
+      readonly candidates: readonly MentionUserCandidate[];
+    }
   /**
    * 401/404/502/503, all EXPECTED: 404 is the route's viewerCanPush denial,
    * the rest auth/upstream blips. The pool falls back to thread participants;
@@ -121,9 +125,9 @@ async function listCollaborators(repoId: string): Promise<CollaboratorsResult> {
       { params: { repoId } },
       collaboratorsResponseSchema,
     );
-    const candidates = roster.collaborators.toSorted((left, right) =>
-      left.login.localeCompare(right.login),
-    );
+    const candidates = roster.collaborators
+      .toSorted((left, right) => left.login.localeCompare(right.login))
+      .map(shapeUserCandidate);
     return { kind: "ready", candidates };
   } catch (error) {
     const failure = readExpectedFailure(error, CollaboratorsFailureByStatus);

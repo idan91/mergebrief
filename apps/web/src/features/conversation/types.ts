@@ -121,3 +121,10 @@ export type ResolveThreadResult =
   | { readonly kind: typeof ResolveThreadResultKinds.UPSTREAM }
   /** A network throw, the proxy's 504, or a body that is unreadable or echoes the other direction. */
   | { readonly kind: typeof ResolveThreadResultKinds.INDETERMINATE };
+
+/** One row of the repository's collaborator roster, as the wire sends it. */
+export interface RepoCollaborator {
+  readonly login: string;
+  readonly name?: string | undefined;
+  readonly avatarUrl?: string | undefined;
+}
