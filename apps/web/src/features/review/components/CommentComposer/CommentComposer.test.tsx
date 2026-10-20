@@ -2,17 +2,20 @@
 // The submit label's count is selected from the store inside the composer:
 // this pins the store-to-label wiring itself, not just the
 // reviewCommentSubmitLabel helper.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   cleanup,
   fireEvent,
-  render,
+  render as renderBare,
   renderHook,
   screen,
 } from "@testing-library/react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import { RequestBounds } from "contract";
 import { describe, expect, it, vi } from "vitest";
 
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
 import { type CommentAnchor } from "../../utils/comments";
@@ -80,6 +83,20 @@ const anchor: CommentAnchor = {
   rowIds: ["chunk-a-row-0"],
   selectedText: "a();",
 };
+
+export interface QueryWrapperProps {
+  children: ReactNode;
+}
+
+/** The mention search reads the query client, so every render sits under one. */
+function QueryWrapper({ children }: QueryWrapperProps) {
+  const [client] = useState(() => new QueryClient());
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
+function render(ui: ReactElement) {
+  return renderBare(ui, { wrapper: QueryWrapper });
+}
 
 function sessionWith(
   draftComments: ReviewSessionPayload["draftComments"],
@@ -276,5 +293,36 @@ describe("CommentComposer error association", () => {
     const input = screen.getByLabelText("Comment");
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("aria-describedby")).toBe(alert.id);
+  });
+});
+
+describe("CommentComposer mention source hand-off", () => {
+  it("offers the source's participants when the body starts a mention", () => {
+    render(
+      <ReviewSessionProvider
+        briefId="test-brief"
+        model={buildBriefViewModel(brief)}
+        session={sessionWith([])}
+      >
+        <ReviewFlowProvider store={makeFlowStore()}>
+          <CommentComposer
+            anchor={anchor}
+            cancel={vi.fn()}
+            mentionSource={{
+              participants: [
+                { kind: MentionCandidateKinds.USER, login: "carol" },
+              ],
+            }}
+            save={vi.fn()}
+          />
+        </ReviewFlowProvider>
+      </ReviewSessionProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "@" },
+    });
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
+    ).toEqual(["@carol"]);
   });
 });

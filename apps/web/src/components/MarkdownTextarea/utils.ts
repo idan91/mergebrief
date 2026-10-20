@@ -1,3 +1,4 @@
+import type { SizeOptions } from "@floating-ui/react";
 import type { TFunction } from "i18next";
 import {
   MentionCandidateKinds,
@@ -301,6 +302,23 @@ export function activeMentionQuery(
   const query = match[1] ?? "";
   return { start: caret - query.length - 1, query };
 }
+
+type SizeApplyState = Parameters<NonNullable<SizeOptions["apply"]>>[0];
+
+/** A floating mention list takes the textarea's width and no more height than the room left. */
+export function fitListToAnchor({
+  rects,
+  availableHeight,
+  elements,
+}: SizeApplyState): void {
+  const maxBlockSize = Math.max(availableHeight, 0);
+
+  elements.floating.style.inlineSize = `${rects.reference.width}px`;
+  elements.floating.style.maxBlockSize = `${maxBlockSize}px`;
+}
+
+/** The anchor setter for an in-flow list, which floating-ui never positions. */
+export function ignoreAnchor(): void {}
 
 /** The text after `@` that selecting the candidate writes. */
 export function readMentionHandle(candidate: MentionCandidate): string {

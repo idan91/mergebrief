@@ -470,6 +470,9 @@ function BriefViewContent(props: BriefViewProps) {
                         }
                         submitNote={liveSubmit ? submitFlow.note : null}
                         staleHead={staleHead}
+                        mentionSource={
+                          conversationWiring.conversationComposer?.mentionSource
+                        }
                       />
                     </>
                   )}

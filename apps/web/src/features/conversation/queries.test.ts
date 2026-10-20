@@ -13,8 +13,8 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 
 import { apiFetch, ApiError } from "../../data/apiFetch";
 import {
-  buildCollaboratorsQueryOptions,
   buildConversationQueryOptions,
+  buildMentionSuggestionsQueryOptions,
 } from "./queries";
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -103,8 +103,8 @@ describe("buildConversationQueryOptions queryFn", () => {
   });
 });
 
-function runCollaborators(): Promise<unknown> {
-  const options = buildCollaboratorsQueryOptions("42");
+function runMentionSearch(query: string): Promise<unknown> {
+  const options = buildMentionSuggestionsQueryOptions("42", query);
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") {
     throw new Error("expected a queryFn");
@@ -112,59 +112,58 @@ function runCollaborators(): Promise<unknown> {
   return (queryFn as () => Promise<unknown>)();
 }
 
-describe("buildCollaboratorsQueryOptions queryFn", () => {
-  it("parses a 200 into alphabetically ordered candidates as the ranking", async () => {
+describe("buildMentionSuggestionsQueryOptions queryFn", () => {
+  it("shapes users and teams as candidates for the lowercased query", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
-          collaborators: [
-            { login: "zed", avatarUrl: "https://avatars.example/zed.png" },
-            { login: "alice", name: "Alice Example" },
+          users: [
+            {
+              login: "Alice",
+              name: "Alice Example",
+              avatarUrl: "https://avatars.example/alice.png",
+            },
           ],
-          hasMore: false,
+          teams: [{ combinedSlug: "acme/al-team", name: "Al team" }],
         }),
         { status: 200 },
       ),
     );
-    await expect(runCollaborators()).resolves.toEqual({
+
+    await expect(runMentionSearch("AL")).resolves.toEqual({
       kind: "ready",
-      candidates: [
-        { kind: "user", login: "alice", name: "Alice Example" },
+      query: "al",
+      users: [
         {
           kind: "user",
-          login: "zed",
-          avatarUrl: "https://avatars.example/zed.png",
+          login: "Alice",
+          name: "Alice Example",
+          avatarUrl: "https://avatars.example/alice.png",
         },
       ],
+      teams: [{ kind: "team", combinedSlug: "acme/al-team", name: "Al team" }],
     });
-    expect(apiFetchMock).toHaveBeenCalledWith("/api/repos/42/collaborators", {
-      method: "GET",
-    });
-  });
-
-  it("drops a non-https avatarUrl but keeps the entry", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          collaborators: [
-            { login: "mallory", avatarUrl: "javascript:alert(1)" },
-          ],
-          hasMore: false,
-        }),
-        { status: 200 },
-      ),
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      "/api/repos/42/mention-suggestions?q=al",
+      { method: "GET" },
     );
-    await expect(runCollaborators()).resolves.toEqual({
-      kind: "ready",
-      candidates: [{ kind: "user", login: "mallory" }],
-    });
   });
 
-  it("maps every expected failure status to unavailable, 404 included", async () => {
+  it("keys the search by repo and the lowercased query", () => {
+    expect(buildMentionSuggestionsQueryOptions("42", "AL").queryKey).toEqual(
+      buildMentionSuggestionsQueryOptions("42", "al").queryKey,
+    );
+    expect(
+      buildMentionSuggestionsQueryOptions("42", "al").queryKey,
+    ).not.toEqual(buildMentionSuggestionsQueryOptions("43", "al").queryKey);
+  });
+
+  it("maps every expected failure status to unavailable", async () => {
     for (const status of [401, 404, 502, 503]) {
       apiFetchMock.mockResolvedValue(new Response("{}", { status }));
-      await expect(runCollaborators()).resolves.toEqual({
+      await expect(runMentionSearch("al")).resolves.toEqual({
         kind: "unavailable",
+        query: "al",
       });
     }
   });
@@ -173,12 +172,12 @@ describe("buildCollaboratorsQueryOptions queryFn", () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 200 }),
     );
-    await expect(runCollaborators()).rejects.toBeInstanceOf(ApiError);
+    await expect(runMentionSearch("al")).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("locks the refresh policy: long staleTime, no poll", () => {
-    const options = buildCollaboratorsQueryOptions("42");
-    expect(options.staleTime).toBe(5 * 60 * 1000);
+  it("keeps an answer fresh for a minute and never polls", () => {
+    const options = buildMentionSuggestionsQueryOptions("42", "al");
+    expect(options.staleTime).toBe(60_000);
     expect(
       "refetchInterval" in options && options.refetchInterval !== undefined,
     ).toBe(false);

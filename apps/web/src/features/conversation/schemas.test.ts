@@ -2,13 +2,14 @@
 // REALISTIC wire body; route tests that seed the query cache bypass the
 // parser, so this is the contract test.
 import type {
-  CollaboratorsResponse,
-  CollaboratorView,
   ConversationAuthorView,
   ConversationCommentView,
   ConversationResponse,
   ConversationReviewView,
   ConversationThreadView,
+  MentionSuggestionsResponse,
+  MentionTeamView,
+  MentionUserView,
   PrLevelCommentView,
 } from "contract";
 import { describe, expect, it } from "vitest";
@@ -21,28 +22,30 @@ import { parseWithSchema } from "@web/utils/parse-with-schema";
 import type { ReadsWireFields } from "@web/test/wire-fields";
 
 import {
-  collaboratorsResponseSchema,
+  mentionSuggestionsResponseSchema,
   prConversationSchema,
   type conversationAuthorSchema,
   type conversationCommentSchema,
   type conversationReviewSchema,
   type conversationThreadSchema,
-  type repoCollaboratorSchema,
+  type mentionSuggestionUserSchema,
+  type mentionSuggestionTeamSchema,
   type prLevelCommentSchema,
 } from "./schemas";
 import type {
   ConversationReview,
   ConversationThread,
+  GitHubMentionSuggestions,
+  MentionSuggestionUser,
   PrConversation,
-  RepoCollaborator,
 } from "./types";
 
 function parseConversation(value: unknown) {
   return parseWithSchema(prConversationSchema, value);
 }
 
-function parseCollaborators(value: unknown) {
-  return parseWithSchema(collaboratorsResponseSchema, value);
+function parseMentionSuggestions(value: unknown) {
+  return parseWithSchema(mentionSuggestionsResponseSchema, value);
 }
 
 function wireConversation(): unknown {
@@ -307,61 +310,74 @@ describe("parseConversation", () => {
   });
 });
 
-describe("parseCollaborators", () => {
-  it("reads mention candidates and keeps only https avatars", () => {
-    const parsed = parseCollaborators({
-      collaborators: [
+describe("parseMentionSuggestions", () => {
+  it("reads users and teams and keeps only https avatars", () => {
+    const parsed = parseMentionSuggestions({
+      users: [
         {
           login: "alice",
           name: "Alice",
           avatarUrl: "https://avatars.example/alice.png",
         },
         { login: "mallory", avatarUrl: "http://avatars.example/m.png" },
-        { login: "bob" },
       ],
-      hasMore: true,
+      teams: [{ combinedSlug: "acme/core", name: "Core" }],
     });
 
     expect(parsed).toEqual({
       ok: true,
       value: {
-        collaborators: [
+        users: [
           {
             login: "alice",
             name: "Alice",
             avatarUrl: "https://avatars.example/alice.png",
           },
           { login: "mallory" },
-          { login: "bob" },
         ],
-        hasMore: true,
+        teams: [{ combinedSlug: "acme/core", name: "Core" }],
       },
     });
   });
 
-  it("rejects a body without hasMore or with a malformed entry", () => {
-    expect(parseCollaborators({ collaborators: [] }).ok).toBe(false);
-    expect(
-      parseCollaborators({ collaborators: [{ name: "x" }], hasMore: false }).ok,
-    ).toBe(false);
-    expect(
-      parseCollaborators({
-        collaborators: [{ login: "alice", name: 7 }],
-        hasMore: false,
-      }).ok,
-    ).toBe(false);
-  });
-
-  it("drops an entry's non-string avatarUrl and keeps the entry", () => {
-    const parsed = parseCollaborators({
-      collaborators: [{ login: "alice", avatarUrl: 7 }],
-      hasMore: false,
+  it("drops a team with a bad slug and keeps the rest of the list", () => {
+    const parsed = parseMentionSuggestions({
+      users: [],
+      teams: [
+        { combinedSlug: "acme/core", name: "Core" },
+        { combinedSlug: "acme/core team", name: "Spaced" },
+        { combinedSlug: "no-slash", name: "Flat" },
+        { combinedSlug: "acme/web", name: "Web" },
+      ],
     });
 
     expect(parsed).toEqual({
       ok: true,
-      value: { collaborators: [{ login: "alice" }], hasMore: false },
+      value: {
+        users: [],
+        teams: [
+          { combinedSlug: "acme/core", name: "Core" },
+          { combinedSlug: "acme/web", name: "Web" },
+        ],
+      },
     });
+  });
+
+  it("drops a user without a login and keeps the others", () => {
+    const parsed = parseMentionSuggestions({
+      users: [{ name: "Nobody" }, { login: "bob" }, 7],
+      teams: [],
+    });
+
+    expect(parsed).toEqual({
+      ok: true,
+      value: { users: [{ login: "bob" }], teams: [] },
+    });
+  });
+
+  it("rejects a body without its lists", () => {
+    expect(parseMentionSuggestions({ users: [] }).ok).toBe(false);
+    expect(parseMentionSuggestions({ teams: [] }).ok).toBe(false);
   });
 });
 
@@ -390,9 +406,17 @@ const SCHEMA_PINS = {
     z.output<typeof prConversationSchema>,
     PrConversation
   >,
-  RepoCollaborator: true satisfies Equals<
-    z.output<typeof repoCollaboratorSchema>,
-    RepoCollaborator
+  MentionSuggestionUser: true satisfies Equals<
+    z.output<typeof mentionSuggestionUserSchema>,
+    MentionSuggestionUser
+  >,
+  MentionSuggestionTeam: true satisfies Equals<
+    z.output<typeof mentionSuggestionTeamSchema>,
+    MentionTeamView
+  >,
+  MentionSuggestions: true satisfies Equals<
+    z.output<typeof mentionSuggestionsResponseSchema>,
+    GitHubMentionSuggestions
   >,
 } as const;
 
@@ -427,13 +451,17 @@ const CONTRACT_PINS = {
     z.output<typeof prConversationSchema>,
     ConversationResponse
   >,
-  Collaborator: true satisfies ReadsWireFields<
-    z.output<typeof repoCollaboratorSchema>,
-    CollaboratorView
+  MentionSuggestionUser: true satisfies ReadsWireFields<
+    z.output<typeof mentionSuggestionUserSchema>,
+    MentionUserView
   >,
-  Collaborators: true satisfies ReadsWireFields<
-    z.output<typeof collaboratorsResponseSchema>,
-    CollaboratorsResponse
+  MentionSuggestionTeam: true satisfies ReadsWireFields<
+    z.output<typeof mentionSuggestionTeamSchema>,
+    MentionTeamView
+  >,
+  MentionSuggestions: true satisfies ReadsWireFields<
+    z.output<typeof mentionSuggestionsResponseSchema>,
+    MentionSuggestionsResponse
   >,
 } as const;
 

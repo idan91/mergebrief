@@ -324,6 +324,14 @@ describe("MarkdownTextarea", () => {
       );
     });
 
+    it("keeps the mention list in the editor's flow by default", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      typeMention("hi @al");
+      const popup = screen.getByRole("listbox").parentElement;
+      expect(popup?.hasAttribute("data-variant")).toBe(false);
+      expect(popup?.getAttribute("style")).toBeNull();
+    });
+
     it("stays closed with no candidate pool", () => {
       render(<Harness />);
       typeMention("hi @al");

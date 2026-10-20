@@ -2,6 +2,7 @@
 // Submitted comments are read-only records: GitHub holds the posted text and
 // a re-submit ships drafts only, so Edit/Delete must not be offered once a
 // comment has been posted.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   fireEvent,
   render as renderBare,
@@ -11,6 +12,7 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import { RequestBounds } from "contract";
 import { describe, expect, it, vi } from "vitest";
 
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import { type ReviewComment } from "../../utils/comments";
 import { createReviewFlowStore, ReviewFlowProvider } from "../../session";
@@ -35,10 +37,15 @@ function makeFlowStore() {
   );
 }
 
-/** The editor reads the flow's announcer, so every render sits under it. */
+/** The editor reads the flow's announcer and the mention search's query client. */
 function FlowWrapper({ children }: { children: ReactNode }) {
   const [store] = useState(makeFlowStore);
-  return <ReviewFlowProvider store={store}>{children}</ReviewFlowProvider>;
+  const [client] = useState(() => new QueryClient());
+  return (
+    <QueryClientProvider client={client}>
+      <ReviewFlowProvider store={store}>{children}</ReviewFlowProvider>
+    </QueryClientProvider>
+  );
 }
 
 function render(ui: ReactElement) {
@@ -476,5 +483,28 @@ describe("CommentThread", () => {
     );
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
+});
+
+describe("CommentThread mention source hand-off", () => {
+  it("offers the source's participants in the draft editor", () => {
+    render(
+      <CommentThread
+        comment={comment(DraftCommentStatuses.DRAFT)}
+        deleteComment={vi.fn()}
+        mentionSource={{
+          participants: [{ kind: MentionCandidateKinds.USER, login: "carol" }],
+        }}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Edit comment"), {
+      target: { value: "@" },
+    });
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
+    ).toEqual(["@carol"]);
   });
 });

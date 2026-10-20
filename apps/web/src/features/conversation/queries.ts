@@ -4,15 +4,21 @@
 // poll. Expected failure statuses are RESULT KINDS the section renders as its
 // error state; only a malformed 200 throws (contract violation).
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
-import { ProductQueryIds } from "contract";
+import { MentionQueryKeys, ProductQueryIds } from "contract";
 import { HttpStatuses } from "types/http";
 
-import type { MentionUserCandidate } from "@web/components/MarkdownTextarea/types";
 import { ApiError } from "../../data/apiFetch";
 import { request } from "../../data/request";
-import { collaboratorsResponseSchema, prConversationSchema } from "./schemas";
-import type { PrConversation } from "./types";
-import { shapeUserCandidate } from "./utils/mentions";
+import {
+  mentionSuggestionsResponseSchema,
+  prConversationSchema,
+} from "./schemas";
+import {
+  MentionSearchResultKinds,
+  type MentionSearchResult,
+  type PrConversation,
+} from "./types";
+import { shapeTeamCandidate, shapeUserCandidate } from "./utils/mentions";
 
 export type ConversationResult =
   | { readonly kind: "ready"; readonly conversation: PrConversation }
@@ -94,68 +100,60 @@ export function buildConversationQueryOptions(
   });
 }
 
-export type CollaboratorsResult =
-  /** Alphabetical by login: pool order is the autocomplete ranking. */
-  | {
-      readonly kind: "ready";
-      readonly candidates: readonly MentionUserCandidate[];
-    }
-  /**
-   * 401/404/502/503, all EXPECTED: 404 is the route's viewerCanPush denial,
-   * the rest auth/upstream blips. The pool falls back to thread participants;
-   * a mention pool never earns an error surface.
-   */
-  | { readonly kind: "unavailable" };
+const MENTION_SEARCH_STALE_MS = 60_000;
 
-const UNAVAILABLE_POOL = { kind: "unavailable" } as const;
-
-const CollaboratorsFailureByStatus: Readonly<
-  Partial<Record<number, typeof UNAVAILABLE_POOL>>
+const MentionSearchUnavailableStatuses: Readonly<
+  Partial<Record<number, typeof MentionSearchResultKinds.UNAVAILABLE>>
 > = {
-  [HttpStatuses.UNAUTHORIZED]: UNAVAILABLE_POOL,
-  [HttpStatuses.NOT_FOUND]: UNAVAILABLE_POOL,
-  [HttpStatuses.BAD_GATEWAY]: UNAVAILABLE_POOL,
-  [HttpStatuses.SERVICE_UNAVAILABLE]: UNAVAILABLE_POOL,
+  [HttpStatuses.UNAUTHORIZED]: MentionSearchResultKinds.UNAVAILABLE,
+  [HttpStatuses.NOT_FOUND]: MentionSearchResultKinds.UNAVAILABLE,
+  [HttpStatuses.BAD_GATEWAY]: MentionSearchResultKinds.UNAVAILABLE,
+  [HttpStatuses.SERVICE_UNAVAILABLE]: MentionSearchResultKinds.UNAVAILABLE,
 };
 
-async function listCollaborators(repoId: string): Promise<CollaboratorsResult> {
+async function searchMentionSuggestions(
+  repoId: string,
+  query: string,
+): Promise<MentionSearchResult> {
   try {
-    const roster = await request(
-      ProductQueryIds.LIST_COLLABORATORS,
-      { params: { repoId } },
-      collaboratorsResponseSchema,
+    const found = await request(
+      ProductQueryIds.SEARCH_MENTION_SUGGESTIONS,
+      { params: { repoId }, query: { [MentionQueryKeys.QUERY]: query } },
+      mentionSuggestionsResponseSchema,
     );
-    const candidates = roster.collaborators
-      .toSorted((left, right) => left.login.localeCompare(right.login))
-      .map(shapeUserCandidate);
-    return { kind: "ready", candidates };
+    const users = found.users.map(shapeUserCandidate);
+    const teams = found.teams.map(shapeTeamCandidate);
+    return { kind: MentionSearchResultKinds.READY, query, users, teams };
   } catch (error) {
-    const failure = readExpectedFailure(error, CollaboratorsFailureByStatus);
+    const failure = readExpectedFailure(
+      error,
+      MentionSearchUnavailableStatuses,
+    );
     if (failure === undefined) {
       throw error;
     }
-    return failure;
+    return { kind: failure, query };
   }
 }
 
-export function buildCollaboratorsQueryKey(repoId: string) {
-  return ["collaborators", repoId] as const;
+function buildMentionSuggestionsQueryKey(repoId: string, loweredQuery: string) {
+  return ["mention-suggestions", repoId, loweredQuery] as const;
 }
 
 /**
- * The repo's collaborator roster as mention candidates. Server-side it is
- * cached ~60s per repo on the installation token; the long client staleTime
- * reflects how slowly a roster churns: no focus-refetch, no poll.
+ * What GitHub offers for the text typed after `@`, keyed by its lowercased
+ * form since GitHub matches without case. The server caches the same answer
+ * for a minute; a retry is the next keystroke, so none runs here.
  */
-export function buildCollaboratorsQueryOptions(repoId: string) {
-  // Widened to `QueryKey` for the same contravariance reason as
-  // buildConversationQueryOptions above.
-  const queryKey: QueryKey = buildCollaboratorsQueryKey(repoId);
+export function buildMentionSuggestionsQueryOptions(
+  repoId: string,
+  query: string,
+) {
+  const lowered = query.toLowerCase();
   return queryOptions({
-    queryKey,
-    queryFn: () => listCollaborators(repoId),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    queryKey: buildMentionSuggestionsQueryKey(repoId, lowered),
+    queryFn: () => searchMentionSuggestions(repoId, lowered),
+    staleTime: MENTION_SEARCH_STALE_MS,
+    retry: false,
   });
 }

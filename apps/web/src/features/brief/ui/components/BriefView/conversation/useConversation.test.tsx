@@ -57,6 +57,7 @@ const QUERY_KEY = ["conversation", "42", 7] as const;
 function plan(
   resolution?: ConversationPlan["resolution"],
   conversation?: PrConversation,
+  mentionRepoId?: string,
 ): ConversationPlan {
   const descriptor = {
     queryKey: QUERY_KEY,
@@ -74,6 +75,9 @@ function plan(
 
   if (resolution !== undefined) {
     conversationPlan.resolution = resolution;
+  }
+  if (mentionRepoId !== undefined) {
+    conversationPlan.mentionRepoId = mentionRepoId;
   }
 
   return conversationPlan;
@@ -204,6 +208,23 @@ describe("useConversation, inline filtering", () => {
       parseConversationFilter({ reviewers: "departed-colleague" }),
     );
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("useConversation, mention source", () => {
+  it("hands inline composers the plan's repo and the participants", async () => {
+    const { result } = renderWiring(
+      plan(undefined, makeConversation(["cara", "dan"]), "42"),
+    );
+
+    await waitFor(() => {
+      const source = result.current.conversationComposer?.mentionSource;
+      expect(source?.repoId).toBe("42");
+      expect(source?.participants.map((user) => user.login)).toEqual([
+        "cara",
+        "dan",
+      ]);
+    });
   });
 });
 

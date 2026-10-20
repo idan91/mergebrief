@@ -10,7 +10,8 @@ import type {
   ThreadComposerWiring,
 } from "@web/features/conversation";
 import type { ConversationResult } from "@web/features/conversation/queries";
-import { useMentionPool } from "@web/features/conversation/hooks";
+import type { PrConversation } from "@web/features/conversation/types";
+import { buildMentionSource } from "@web/features/conversation/utils";
 import type { Mutable } from "types/utils";
 import {
   buildReplyRecordingPlan,
@@ -50,7 +51,11 @@ export function useConversation({
     submittedReviewIds: session.submittedReviewIds,
     briefGeneratedAt: conversationPlan?.briefGeneratedAt,
   });
-  const composer = useConversationComposer(conversationPlan, queryClient);
+  const composer = useConversationComposer(
+    conversationPlan,
+    conversationData,
+    queryClient,
+  );
   const groupIds = conversationGroupIds(rows.conversationByChunk, model.groups);
   const jumpToChunkFromConversation = useConversationScroll({
     scrollToTarget: session.scrollToTarget,
@@ -119,13 +124,17 @@ function useConversationQuery(conversation: ConversationPlan | undefined) {
 
 function useConversationComposer(
   conversation: ConversationPlan | undefined,
+  conversationData: PrConversation | undefined,
   queryClient: QueryClient,
 ) {
   // Slim transport (draft reads/writes and announce copy live inside
-  // ReplyComposer's session-store reads): identity stable per plan, so it
-  // never busts ChunkCard's memo. The mention pool shares the section's query
-  // key, one fetch serves both surfaces.
-  const mentionPool = useMentionPool(conversation?.collaborators);
+  // ReplyComposer's session-store reads). Its identity, and so ChunkCard's
+  // memo, changes only with the plan or a refetched conversation.
+  const mentionRepoId = conversation?.mentionRepoId;
+  const mentionSource = useMemo(
+    () => buildMentionSource(mentionRepoId, conversationData),
+    [conversationData, mentionRepoId],
+  );
 
   const conversationComposer = useMemo<ThreadComposerWiring | undefined>(() => {
     if (conversation === undefined) {
@@ -134,7 +143,7 @@ function useConversationComposer(
 
     const composer: Mutable<ThreadComposerWiring> = {
       post: conversation.postReply,
-      mentionPool,
+      mentionSource,
       onPosted: () =>
         void queryClient.invalidateQueries({
           queryKey: conversation.queryOptions.queryKey,
@@ -154,7 +163,7 @@ function useConversationComposer(
     }
 
     return composer;
-  }, [conversation, mentionPool, queryClient]);
+  }, [conversation, mentionSource, queryClient]);
 
   // A posted inline comment is a conversation write, refetch so the new
   // thread renders. The query client is app-level, not mount-level, so

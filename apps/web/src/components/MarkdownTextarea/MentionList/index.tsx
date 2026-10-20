@@ -1,6 +1,12 @@
+import { useMergeRefs } from "@floating-ui/react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { MentionCandidate } from "../types";
+import {
+  MentionListLayouts,
+  type MentionCandidate,
+  type MentionListLayout,
+} from "../types";
 import { MentionOption } from "./MentionOption";
 import styles from "./MentionList.module.scss";
 
@@ -12,6 +18,10 @@ export interface MentionListProps {
   onSelect: (candidate: MentionCandidate) => void;
   /** The caller is still answering the query being typed. */
   pending: boolean;
+  layout: MentionListLayout;
+  /** The floating layout's placement ref and style; absent in flow. */
+  positionRef?: ((node: HTMLElement | null) => void) | undefined;
+  positionStyle?: CSSProperties | undefined;
 }
 
 /**
@@ -27,11 +37,35 @@ export function MentionList({
   optionId,
   onSelect,
   pending,
+  layout,
+  positionRef,
+  positionStyle,
 }: MentionListProps) {
   const { t } = useTranslation();
+  const popupRef = useRef<HTMLDivElement | null>(null);
+  const ref = useMergeRefs([popupRef, positionRef]);
+  const layoutVariant =
+    layout === MentionListLayouts.IN_FLOW ? undefined : layout;
+  const activeOptionId = optionId(activeIndex);
+
+  // A floating list capped to the room left scrolls; the active row stays in it.
+  useEffect(() => {
+    const popup = popupRef.current;
+    const scrolls = popup !== null && popup.scrollHeight > popup.clientHeight;
+    if (scrolls) {
+      document
+        .getElementById(activeOptionId)
+        ?.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeOptionId]);
 
   return (
-    <div className={styles["mentionPopup"]}>
+    <div
+      className={styles["mentionPopup"]}
+      data-variant={layoutVariant}
+      ref={ref}
+      style={positionStyle}
+    >
       <div
         aria-label={t("shell.ariaLabelMentionSuggestions")}
         id={listId}
@@ -43,6 +77,7 @@ export function MentionList({
             candidate={candidate}
             id={optionId(index)}
             key={optionId(index)}
+            layoutVariant={layoutVariant}
             onSelect={onSelect}
           />
         ))}

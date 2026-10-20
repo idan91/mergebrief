@@ -127,8 +127,8 @@ interface RenderOptions {
   isResolved?: boolean;
   /** Absent = no resolution wiring at all (the local demo path). */
   canResolve?: boolean | undefined;
-  /** Repo-collaborator mention pool riding the composer wiring. */
-  mentionPool?: ThreadComposerWiring["mentionPool"];
+  /** The conversation's mention source riding the composer wiring. */
+  mentionSource?: ThreadComposerWiring["mentionSource"];
   reply?: ReplyResult | (() => Promise<ReplyResult>);
   resolve?: ResolveThreadResult | (() => Promise<ResolveThreadResult>);
 }
@@ -169,8 +169,8 @@ function renderDetail(options: RenderOptions = {}) {
         };
   const composer: Mutable<ThreadComposerWiring> = { post, onPosted: vi.fn() };
 
-  if (options.mentionPool !== undefined) {
-    composer.mentionPool = options.mentionPool;
+  if (options.mentionSource !== undefined) {
+    composer.mentionSource = options.mentionSource;
   }
   if (resolution !== undefined) {
     composer.resolution = resolution;
@@ -627,34 +627,25 @@ describe("ThreadDetail, Reply & resolve combo", () => {
   );
 });
 
-describe("ThreadDetail, mention pool hand-off", () => {
-  it("ranks thread participants before the composer roster", () => {
+describe("ThreadDetail, mention source hand-off", () => {
+  it("ranks thread participants before the conversation's", () => {
     renderDetail({
-      mentionPool: [
-        {
-          kind: MentionCandidateKinds.USER,
-          login: "alice",
-          name: "Alice Example",
-          avatarUrl: "https://avatars.example/alice.png",
-        },
-        { kind: MentionCandidateKinds.USER, login: "bob", name: "Bob Builder" },
-      ],
+      mentionSource: {
+        participants: [
+          { kind: MentionCandidateKinds.USER, login: "carol" },
+          { kind: MentionCandidateKinds.USER, login: "alice" },
+        ],
+      },
     });
     type("@");
-    const options = screen.getAllByRole("option");
-    // Participant alice first, ENRICHED from the roster entry; then the
-    // non-participant collaborator. A dropped hand-off would render alice
-    // login-only and no bob at all.
-    expect(options.map((option) => option.textContent?.trim())).toEqual([
-      "@alice Alice Example",
-      "@bob Bob Builder",
-    ]);
-    expect(options[0]?.querySelector("img")?.getAttribute("src")).toBe(
-      "https://avatars.example/alice.png",
-    );
+    // The thread's own author first, then the conversation's other
+    // participant, each once. A dropped hand-off would show alice alone.
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
+    ).toEqual(["@alice", "@carol"]);
   });
 
-  it("falls back to participants-only without a pool", () => {
+  it("offers the thread's participants without a conversation source", () => {
     renderDetail({});
     type("@");
     const options = screen.getAllByRole("option");

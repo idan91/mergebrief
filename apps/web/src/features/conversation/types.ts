@@ -5,6 +5,7 @@ import type {
   ConversationResponse,
   ConversationReviewView,
   ConversationThreadView,
+  MentionTeamView,
 } from "contract";
 import type {
   ReviewCommentSide,
@@ -13,6 +14,10 @@ import type {
   ValueOf,
 } from "types";
 
+import type {
+  MentionTeamCandidate,
+  MentionUserCandidate,
+} from "@web/components/MarkdownTextarea/types";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 
 import type { PostedComment } from "../../data/postedComment";
@@ -122,9 +127,46 @@ export type ResolveThreadResult =
   /** A network throw, the proxy's 504, or a body that is unreadable or echoes the other direction. */
   | { readonly kind: typeof ResolveThreadResultKinds.INDETERMINATE };
 
-/** One row of the repository's collaborator roster, as the wire sends it. */
-export interface RepoCollaborator {
+/** A person GitHub offers for a mention; a bad avatar reads as absent. */
+export interface MentionSuggestionUser {
   readonly login: string;
-  readonly name?: string | undefined;
-  readonly avatarUrl?: string | undefined;
+  readonly name?: string;
+  readonly avatarUrl?: string;
+}
+
+/** The people and teams GitHub offers the viewer for one query. */
+export interface GitHubMentionSuggestions {
+  readonly users: readonly MentionSuggestionUser[];
+  readonly teams: readonly MentionTeamView[];
+}
+
+export const MentionSearchResultKinds = {
+  READY: "ready",
+  /**
+   * 401/404/502/503, all expected: the list falls back to participants, and
+   * posting the comment is what surfaces a dead sign-in.
+   */
+  UNAVAILABLE: "unavailable",
+} as const;
+
+/** One search's answer; `query` is the lowercased text it answers. */
+export type MentionSearchResult =
+  | {
+      readonly kind: typeof MentionSearchResultKinds.READY;
+      readonly query: string;
+      readonly users: readonly MentionUserCandidate[];
+      readonly teams: readonly MentionTeamCandidate[];
+    }
+  | {
+      readonly kind: typeof MentionSearchResultKinds.UNAVAILABLE;
+      readonly query: string;
+    };
+
+/**
+ * Where a composer's mention suggestions come from. Without `repoId` (the
+ * local demo path) only the participants are offered.
+ */
+export interface MentionSource {
+  readonly repoId?: string;
+  readonly participants: readonly MentionUserCandidate[];
 }

@@ -6,11 +6,12 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/types";
 import { appendQuote } from "../../../../utils/quote";
 import { useReviewActions } from "@web/features/review/session";
+import { useMentionSuggestions } from "../../../../hooks/useMentionSuggestions";
 import {
   ReplyResultKinds,
+  type MentionSource,
   type ReplyResult,
   type ReplyResultKind,
 } from "../../../../types";
@@ -65,8 +66,8 @@ export interface ReplyComposerProps {
   threadId: number;
   post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   onPosted: () => void;
-  /** Mention-autocomplete pool: participants plus collaborators. */
-  mentionCandidates?: readonly MentionCandidate[] | undefined;
+  /** Where mention suggestions come from: this thread's participants rank first. */
+  mentionSource?: MentionSource | undefined;
   /**
    * Quote-reply prefill: a new nonce appends the (already `> `-prefixed)
    * block to the draft and focuses the box. Nonce, not text, is the
@@ -92,13 +93,14 @@ export function ReplyComposer({
   threadId,
   post,
   onPosted,
-  mentionCandidates,
+  mentionSource,
   quote,
   resolveAfterPost,
   focusResolveAction,
 }: ReplyComposerProps) {
   const { t } = useTranslation();
   const { announce, announceQuietly } = useReviewActions();
+  const mentions = useMentionSuggestions(mentionSource);
   // WHICH action is running, not just whether one is: both buttons go busy
   // together (one draft, one request), but only the clicked one wears the
   // pending label, a "Posting…" on the plain Reply button would misreport a
@@ -278,7 +280,8 @@ export function ReplyComposer({
           textareaElement.current = element;
         }}
         labelVisible
-        mentionCandidates={mentionCandidates}
+        mentionSuggestions={mentions.mentionSuggestions}
+        onMentionQueryChange={mentions.onMentionQueryChange}
         readOnly={pending || readOnlyReason !== undefined}
         value={local}
         announce={announce}

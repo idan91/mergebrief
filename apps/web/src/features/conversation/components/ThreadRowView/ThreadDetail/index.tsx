@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@web/components/Button";
 import { Markdown } from "@web/components/Markdown";
@@ -9,10 +9,7 @@ import { ThreadPlacementKinds } from "../../../utils/anchor";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { RevisionJumpAction } from "../RevisionJumpAction";
-import {
-  mentionCandidatesFromThread,
-  mergeMentionCandidates,
-} from "../../../utils/mentions";
+import { buildThreadMentionSource } from "../../../utils/mentions";
 import { NO_OWN_REVIEWS, postdatesBrief } from "../../../utils/postdate";
 import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer";
@@ -125,6 +122,10 @@ export function ThreadDetail({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+  const mentionSource = useMemo(
+    () => buildThreadMentionSource(thread, composer.mentionSource),
+    [composer.mentionSource, thread],
+  );
   // The parser guarantees a root comment; guard anyway rather than render a
   // self-opening href="".
   const rootCommentUrl = thread.comments[0]?.url;
@@ -220,10 +221,7 @@ export function ThreadDetail({
       </div>
       <ReplyComposer
         readOnlyReason={composer.readOnlyReason}
-        mentionCandidates={mergeMentionCandidates(
-          mentionCandidatesFromThread(thread),
-          composer.mentionPool ?? [],
-        )}
+        mentionSource={mentionSource}
         quote={quote}
         onPosted={composer.onPosted}
         post={composer.post}

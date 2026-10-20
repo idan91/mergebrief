@@ -10,6 +10,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
   buildInlineThreads,
@@ -1199,6 +1200,74 @@ describe("DiffTable row-level conversation threads", () => {
     const second = renderTable({}, {}, first.flowStore);
     expect(disclosure().getAttribute("aria-expanded")).toBe("true");
     second.view.unmount();
+  });
+});
+
+function makeMentionComposer(): ThreadComposerWiring {
+  return {
+    ...composer(),
+    mentionSource: {
+      participants: [{ kind: MentionCandidateKinds.USER, login: "carol" }],
+    },
+  };
+}
+
+function readOptionLabels(): (string | undefined)[] {
+  const options = screen.getAllByRole("option");
+  const labels = options.map((option) => option.textContent?.trim());
+  return labels;
+}
+
+describe("DiffTable mention source hand-off", () => {
+  it("offers the conversation's participants in the line composer", () => {
+    const { flowStore } = renderTable({
+      conversationComposer: makeMentionComposer(),
+    });
+    const anchor = createCommentAnchor(
+      "c1",
+      "src/a.ts",
+      chunk().diff ?? [],
+      [1],
+    );
+    if (anchor === null) {
+      throw new Error("expected an anchor");
+    }
+    act(() => flowStore.getState().actions.openComposer(anchor, undefined));
+
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "@" },
+    });
+    expect(readOptionLabels()).toEqual(["@carol"]);
+  });
+
+  it("offers the conversation's participants in a row draft's editor", () => {
+    const session: ReviewSessionPayload = {
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "41",
+          filePath: "src/a.ts",
+          kind: "line",
+          side: "new",
+          startLine: 10,
+          endLine: 10,
+          body: "row draft",
+          status: "draft",
+        },
+      ],
+    };
+    renderTable(
+      { conversationComposer: makeMentionComposer() },
+      {},
+      undefined,
+      session,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Edit comment"), {
+      target: { value: "@" },
+    });
+    expect(readOptionLabels()).toEqual(["@carol"]);
   });
 });
 

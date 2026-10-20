@@ -11,9 +11,10 @@ import { DiffSides, DraftCommentStatuses } from "types";
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/types";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
+import { useMentionSuggestions } from "@web/features/conversation/hooks";
+import type { MentionSource } from "@web/features/conversation/types";
 import {
   postCommentBlockedReason,
   isFileCommentAnchor,
@@ -47,8 +48,8 @@ const STATUS_LABEL_KEYS: Partial<
 export interface CommentThreadProps {
   comment: ReviewComment;
   deleteComment: (commentId: string) => void;
-  /** Mention-autocomplete pool (repo collaborators); absent on the local path. */
-  mentionCandidates?: readonly MentionCandidate[] | undefined;
+  /** Where the draft editor's mention suggestions come from; absent turns them off. */
+  mentionSource?: MentionSource | undefined;
   /**
    * Post this staged draft NOW as a standalone inline review comment against
    * the current head. Its presence is the sole gate on the Post affordance;
@@ -75,7 +76,7 @@ export interface CommentThreadProps {
 export function CommentThread({
   comment,
   deleteComment,
-  mentionCandidates,
+  mentionSource,
   post,
   posting = false,
   postBlockedExternally,
@@ -84,6 +85,7 @@ export function CommentThread({
 }: CommentThreadProps) {
   const { t } = useTranslation();
   const { announce, announceQuietly } = useReviewActions();
+  const mentions = useMentionSuggestions(mentionSource);
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(comment.body);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -191,7 +193,8 @@ export function CommentThread({
           <MarkdownTextarea
             autoFocus
             label={t("review.comment.editLabel")}
-            mentionCandidates={mentionCandidates}
+            mentionSuggestions={mentions.mentionSuggestions}
+            onMentionQueryChange={mentions.onMentionQueryChange}
             renderPreview={(previewBody) => (
               <MarkdownPreview anchor={comment.anchor} body={previewBody} />
             )}

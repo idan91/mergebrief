@@ -16,6 +16,16 @@ export const MarkdownTextareaFrames = {
 
 export type MarkdownTextareaFrame = ValueOf<typeof MarkdownTextareaFrames>;
 
+/** How the mention list sits against the editor while it is open. */
+export const MentionListLayouts = {
+  /** Under the textarea in the editor's flow: the editor grows by the list. */
+  IN_FLOW: "in-flow",
+  /** Floats under the textarea over what follows: the editor keeps its height, so a centred host never moves. */
+  FLOATING: "floating",
+} as const;
+
+export type MentionListLayout = ValueOf<typeof MentionListLayouts>;
+
 /** Why the attach control is off; undefined when an image can go up. */
 export const AttachDisabledReasons = {
   NO_SCOPE: "no-scope",

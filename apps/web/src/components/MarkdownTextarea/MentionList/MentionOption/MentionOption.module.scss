@@ -16,6 +16,10 @@
       background: var(--color-surface-2);
       color: var(--color-text-1);
     }
+
+    &[data-state="active"][data-variant="floating"] {
+      background: color-mix(in srgb, var(--color-outline-2) 40%, transparent);
+    }
   }
 
   .handle,

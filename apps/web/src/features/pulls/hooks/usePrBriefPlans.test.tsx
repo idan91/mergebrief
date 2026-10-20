@@ -294,6 +294,12 @@ describe("usePrBriefPlans", () => {
     });
   });
 
+  it("names the repo mentions search on the conversation plan", () => {
+    expect(renderPlans({}).result.current.conversationPlan.mentionRepoId).toBe(
+      "424242",
+    );
+  });
+
   describe("thread resolution", () => {
     it("carries the PR-META capability onto the conversation plan", () => {
       expect(

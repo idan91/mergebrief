@@ -5,9 +5,14 @@ import clsx from "clsx";
 
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
-import { MarkdownTextareaFrames } from "@web/components/MarkdownTextarea/types";
+import {
+  MarkdownTextareaFrames,
+  MentionListLayouts,
+} from "@web/components/MarkdownTextarea/types";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
+import { useMentionSuggestions } from "@web/features/conversation/hooks";
+import type { MentionSource } from "@web/features/conversation/types";
 import { useReviewActions } from "../../session/flow/provider";
 import { reviewOutcomeLabel } from "../../utils/state";
 import styles from "./SubmitModal.module.scss";
@@ -52,6 +57,7 @@ export interface VerdictViewProps {
   status: SubmitStatus;
   close: () => void;
   previewReceipt: () => void;
+  mentionSource?: MentionSource | undefined;
 }
 
 export function VerdictView({
@@ -66,9 +72,11 @@ export function VerdictView({
   status,
   close,
   previewReceipt,
+  mentionSource,
 }: VerdictViewProps) {
   const { t } = useTranslation();
   const { announce, announceQuietly } = useReviewActions();
+  const mentions = useMentionSuggestions(mentionSource);
   const [attachError, setAttachError] = useState<string | undefined>(undefined);
   const editComment = (comment: string) => {
     setReviewComment(comment);
@@ -116,6 +124,9 @@ export function VerdictView({
         labelVisible
         placeholder={t("review.submit.commentPlaceholder")}
         describedBy="submit-modal-comment-hint"
+        mentionSuggestions={mentions.mentionSuggestions}
+        onMentionQueryChange={mentions.onMentionQueryChange}
+        mentionListLayout={MentionListLayouts.FLOATING}
         announce={announce}
         announceQuietly={announceQuietly}
         onAttachError={setAttachError}

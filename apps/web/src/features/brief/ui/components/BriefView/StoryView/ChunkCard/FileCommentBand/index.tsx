@@ -98,7 +98,7 @@ export function FileCommentBand({
             <CommentComposer
               anchor={band.fileAnchor}
               cancel={onCancelComposer}
-              mentionCandidates={conversationComposer?.mentionPool}
+              mentionSource={conversationComposer?.mentionSource}
               save={handleSave}
               saving={band.composerSaving}
             />
@@ -108,7 +108,7 @@ export function FileCommentBand({
               comment={comment}
               deleteComment={band.deleteComment}
               key={comment.id}
-              mentionCandidates={conversationComposer?.mentionPool}
+              mentionSource={conversationComposer?.mentionSource}
               post={band.postComment}
               posting={band.postingCommentIds.includes(comment.id)}
               postBlockedExternally={band.postBlockedExternally}

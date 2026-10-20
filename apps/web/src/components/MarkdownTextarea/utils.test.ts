@@ -8,6 +8,7 @@ import {
   applyOrderedListPrefix,
   continueListOnEnter,
   filterByHandlePrefix,
+  fitListToAnchor,
   indentListSelection,
   insertMention,
   readMentionHandle,
@@ -325,6 +326,31 @@ describe("filterByHandlePrefix", () => {
 
   it("keeps the whole pool for an empty query", () => {
     expect(filterByHandlePrefix(CANDIDATES, "")).toEqual(CANDIDATES);
+  });
+});
+
+describe("fitListToAnchor", () => {
+  function fitList(referenceWidth: number, availableHeight: number) {
+    const floating = { style: {} } as HTMLElement;
+    const state = {
+      rects: { reference: { width: referenceWidth } },
+      availableHeight,
+      elements: { floating },
+    } as unknown as Parameters<typeof fitListToAnchor>[0];
+
+    fitListToAnchor(state);
+    return floating.style;
+  }
+
+  it("takes the textarea's width and caps its height to the room left", () => {
+    const style = fitList(320, 180);
+
+    expect(style.inlineSize).toBe("320px");
+    expect(style.maxBlockSize).toBe("180px");
+  });
+
+  it("caps the height at zero when no room is left", () => {
+    expect(fitList(320, -40).maxBlockSize).toBe("0px");
   });
 });
 

@@ -106,7 +106,7 @@ export function UnderRows({
             anchor={activeCommentAnchor}
             cancel={cancelComposer}
             saving={composerSaving}
-            mentionCandidates={conversationComposer?.mentionPool}
+            mentionSource={conversationComposer?.mentionSource}
             save={saveComment}
           />
         </UnderRow>
@@ -121,7 +121,7 @@ export function UnderRows({
           <CommentThread
             comment={comment}
             deleteComment={deleteComment}
-            mentionCandidates={conversationComposer?.mentionPool}
+            mentionSource={conversationComposer?.mentionSource}
             post={postReviewComment}
             posting={postingCommentIds.includes(comment.id)}
             postBlockedExternally={postBlockedExternally}

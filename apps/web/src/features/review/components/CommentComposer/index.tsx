@@ -7,8 +7,9 @@ import { useEffect, useId } from "react";
 
 import { Button } from "@web/components/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
-import type { MentionCandidate } from "@web/components/MarkdownTextarea/types";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
+import { useMentionSuggestions } from "@web/features/conversation/hooks";
+import type { MentionSource } from "@web/features/conversation/types";
 import {
   commentAnchorLabel,
   countAnchorLines,
@@ -24,8 +25,8 @@ import styles from "./CommentComposer.module.scss";
 export interface CommentComposerProps {
   anchor: CommentAnchor;
   cancel: () => void;
-  /** Mention-autocomplete pool (repo collaborators); absent on the local path. */
-  mentionCandidates?: readonly MentionCandidate[] | undefined;
+  /** Where mention suggestions come from; absent turns mentions off. */
+  mentionSource?: MentionSource | undefined;
   save: (anchor: CommentAnchor, body: string) => void;
   /** The staged-draft write is in flight; the composer closes when it lands. */
   saving?: boolean | undefined;
@@ -34,13 +35,14 @@ export interface CommentComposerProps {
 export function CommentComposer({
   anchor,
   cancel,
-  mentionCandidates,
+  mentionSource,
   save,
   saving = false,
 }: CommentComposerProps) {
   const { t } = useTranslation();
   const composer = useCommentComposerFacade(anchor, save);
   const { announce, announceQuietly } = useReviewActions();
+  const mentions = useMentionSuggestions(mentionSource);
   const errorId = useId();
   const guardId = useId();
   // The composer's text exists nowhere else until saved as a draft.
@@ -85,7 +87,8 @@ export function CommentComposer({
         autoFocus
         describedBy={composer.error !== "" ? errorId : undefined}
         label={t("review.comment.composerLabel")}
-        mentionCandidates={mentionCandidates}
+        mentionSuggestions={mentions.mentionSuggestions}
+        onMentionQueryChange={mentions.onMentionQueryChange}
         placeholder={t("conversation.composerPlaceholder")}
         renderPreview={(body) => (
           <MarkdownPreview anchor={anchor} body={body} />

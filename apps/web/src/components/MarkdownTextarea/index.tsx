@@ -9,6 +9,7 @@
 import type { TranslationKey } from "i18n";
 import { Trans, useTranslation } from "react-i18next";
 import {
+  useCallback,
   useId,
   useRef,
   useState,
@@ -30,8 +31,11 @@ import {
   MarkdownTextareaFrames,
   type MarkdownTextareaFrame,
   type MentionCandidate,
+  MentionListLayouts,
+  type MentionListLayout,
   type MentionSuggestions,
 } from "./types";
+import { useFloatingMentionList } from "./useFloatingMentionList";
 import { useMentionAutocomplete } from "./useMentionAutocomplete";
 import { hasUploadPlaceholder } from "./utils";
 import styles from "./MarkdownTextarea.module.scss";
@@ -83,6 +87,12 @@ export interface MarkdownTextareaProps {
    * caret leaves the mention, the surface is read-only, or on unmount.
    */
   onMentionQueryChange?: ((query: string | undefined) => void) | undefined;
+  /**
+   * How the open mention list sits: in the editor's flow (default), or
+   * floating under the textarea for a host that centres on its height,
+   * where a list changing rows would move the field being typed in.
+   */
+  mentionListLayout?: MentionListLayout;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
   renderPreview?: ((value: string) => ReactNode) | undefined;
   /**
@@ -155,6 +165,7 @@ export function MarkdownTextarea({
   mentionCandidates,
   mentionSuggestions,
   onMentionQueryChange,
+  mentionListLayout = MentionListLayouts.IN_FLOW,
   renderPreview,
   exposeTextarea,
   announce,
@@ -185,6 +196,21 @@ export function MarkdownTextarea({
     textareaRef: facade.textareaRef,
     baseId,
   });
+  const floatingList = useFloatingMentionList(
+    mentionListLayout === MentionListLayouts.FLOATING,
+  );
+  const { textareaRef } = facade;
+  const { setAnchor } = floatingList;
+  // A new ref callback re-attaches every commit, and the floating anchor's
+  // setter writes state, so its identity follows only what it hands the node to.
+  const attachTextarea = useCallback(
+    (element: HTMLTextAreaElement | null) => {
+      textareaRef.current = element;
+      setAnchor(element);
+      exposeTextarea?.(element);
+    },
+    [exposeTextarea, setAnchor, textareaRef],
+  );
   // Rows already on screen speak for themselves; repeating the search per
   // keystroke over them is noise.
   const announceSearching = mentions.searching && mentions.options.length === 0;
@@ -412,10 +438,7 @@ export function MarkdownTextarea({
           id={textareaId}
           placeholder={placeholder}
           readOnly={readOnly}
-          ref={(element) => {
-            facade.textareaRef.current = element;
-            exposeTextarea?.(element);
-          }}
+          ref={attachTextarea}
           suppressHydrationWarning
           value={value}
           onBlur={() => {
@@ -444,10 +467,13 @@ export function MarkdownTextarea({
         {mentions.open ? (
           <MentionList
             activeIndex={mentions.activeIndex}
+            layout={mentionListLayout}
             listId={mentions.listId}
             optionId={mentions.optionId}
             options={mentions.options}
             pending={mentions.searching}
+            positionRef={floatingList.setList}
+            positionStyle={floatingList.listStyle}
             onSelect={mentions.select}
           />
         ) : null}

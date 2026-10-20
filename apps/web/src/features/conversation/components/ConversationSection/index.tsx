@@ -25,11 +25,8 @@ import {
 } from "../../utils/filter";
 import { NO_OWN_REVIEWS, countCommentsAfterBrief } from "../../utils/postdate";
 import { reconcileOwnComments } from "../../utils/ownComments";
-import type {
-  buildCollaboratorsQueryOptions,
-  buildConversationQueryOptions,
-} from "../../queries";
-import { useMentionPool } from "../../hooks/useMentionPool";
+import type { buildConversationQueryOptions } from "../../queries";
+import { buildMentionSource } from "../../utils/mentions";
 import { Button } from "@web/components/Button";
 import { CollapsibleBar } from "@web/components/CollapsibleBar";
 import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
@@ -49,10 +46,10 @@ import styles from "./ConversationSection.module.scss";
 export interface ConversationPlan {
   readonly queryOptions: ReturnType<typeof buildConversationQueryOptions>;
   /**
-   * Collaborator roster for mention autocomplete. Absent on the local demo
-   * path; a non-ready result degrades to participants-only silently.
+   * The repository GitHub is asked for mention suggestions. Absent on the
+   * local demo path, where only the conversation's participants are offered.
    */
-  readonly collaborators?: ReturnType<typeof buildCollaboratorsQueryOptions>;
+  readonly mentionRepoId?: string;
   /** Immediate viewer-token reply to a thread's root comment. */
   readonly postReply: (
     rootCommentId: number,
@@ -131,9 +128,6 @@ export function ConversationSection({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
-  // Shared query key with the inline wiring; non-ready = empty =
-  // participants-only autocomplete.
-  const mentionPool = useMentionPool(plan.collaborators);
   const [expandedThreads, setExpandedThreads] = useState<ReadonlySet<number>>(
     new Set(),
   );
@@ -149,6 +143,10 @@ export function ConversationSection({
 
   const conversation =
     query.data?.kind === "ready" ? query.data.conversation : undefined;
+  const mentionSource = useMemo(
+    () => buildMentionSource(plan.mentionRepoId, conversation),
+    [conversation, plan.mentionRepoId],
+  );
 
   const reconciliation = useMemo(
     () =>
@@ -313,7 +311,7 @@ export function ConversationSection({
   const composer: Mutable<ThreadComposerWiring> = {
     post: plan.postReply,
     onPosted: refresh,
-    mentionPool,
+    mentionSource,
   };
 
   if (readOnlyReason !== undefined) {

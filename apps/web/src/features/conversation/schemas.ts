@@ -1,3 +1,4 @@
+import { MentionPatterns } from "contract";
 import {
   ReviewCommentSides,
   ReviewVerdictStates,
@@ -113,17 +114,49 @@ export const prConversationSchema = z
   })
   .readonly();
 
-export const repoCollaboratorSchema = dropInvalidKeys(
+/** Each item its schema rejects is dropped, so one bad row never fails the list. */
+function buildTolerantListSchema<ItemSchema extends z.ZodType>(
+  itemSchema: ItemSchema,
+) {
+  return z
+    .array(z.unknown())
+    .transform((entries) =>
+      entries.flatMap((entry) => {
+        const parsed = z.safeParse(itemSchema, entry);
+        if (!parsed.success) {
+          return [];
+        }
+        return [parsed.data];
+      }),
+    )
+    .readonly();
+}
+
+const TEAM_HANDLE_PATTERN = new RegExp(
+  `^(${MentionPatterns.LOGIN})/(${MentionPatterns.TEAM_SLUG})$`,
+);
+
+export const mentionSuggestionUserSchema = dropInvalidKeys(
   z.object({
     login: z.string(),
-    name: z.string().optional(),
-    avatarUrl: httpsUrlSchema.optional(),
+    name: z.string().exactOptional(),
+    avatarUrl: httpsUrlSchema.exactOptional(),
   }),
   ["avatarUrl"],
 ).readonly();
 
-/** `hasMore` is required but not surfaced: a truncated pool is still a pool. */
-export const collaboratorsResponseSchema = z.object({
-  collaborators: z.array(repoCollaboratorSchema).readonly(),
-  hasMore: z.boolean(),
-});
+export const mentionSuggestionTeamSchema = z
+  .object({
+    combinedSlug: z
+      .templateLiteral([z.string(), "/", z.string()])
+      .refine((handle) => TEAM_HANDLE_PATTERN.test(handle)),
+    name: z.string(),
+  })
+  .readonly();
+
+export const mentionSuggestionsResponseSchema = z
+  .object({
+    users: buildTolerantListSchema(mentionSuggestionUserSchema),
+    teams: buildTolerantListSchema(mentionSuggestionTeamSchema),
+  })
+  .readonly();

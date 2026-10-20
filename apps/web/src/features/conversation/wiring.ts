@@ -1,5 +1,4 @@
-import type { MentionUserCandidate } from "@web/components/MarkdownTextarea/types";
-import type { ReplyResult, ResolveThreadResult } from "./types";
+import type { MentionSource, ReplyResult, ResolveThreadResult } from "./types";
 
 /** Jump to the briefed revision an outdated thread was anchored on. */
 export interface ThreadRevisionJump {
@@ -34,8 +33,8 @@ export interface ThreadComposerWiring {
   readonly readOnlyReason?: string | undefined;
   readonly post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   readonly onPosted: () => void;
-  /** Merged after the thread's own participants, which rank first. */
-  readonly mentionPool?: readonly MentionUserCandidate[];
+  /** The conversation's mention source; a thread's own participants rank first. */
+  readonly mentionSource?: MentionSource;
   readonly revisionJump?: ThreadRevisionJump;
   readonly resolution?: ThreadResolutionWiring;
 }

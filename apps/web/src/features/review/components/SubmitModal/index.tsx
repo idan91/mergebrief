@@ -2,6 +2,7 @@ import type { ReviewOutcome } from "types/reviews";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Modal } from "@web/components/Modal";
+import type { MentionSource } from "@web/features/conversation/types";
 import { useReviewActions, useReviewFlow } from "../../session/flow/provider";
 import { type Receipt } from "../../utils/receipt";
 import { type UnresolvedItem } from "../../utils/state";
@@ -72,6 +73,8 @@ export interface SubmitModalProps {
    * modal is open.
    */
   staleHead?: boolean;
+  /** Where the review body's mention suggestions come from; absent turns them off. */
+  mentionSource?: MentionSource | undefined;
 }
 
 export function SubmitModal({
@@ -89,6 +92,7 @@ export function SubmitModal({
   submitError = null,
   submitNote = null,
   staleHead = false,
+  mentionSource,
 }: SubmitModalProps) {
   const outcomeGroupName = useId();
   const reviewComment = useReviewFlow((state) => state.reviewComment);
@@ -189,6 +193,7 @@ export function SubmitModal({
         status={{ blockedReason, error: submitError, note: submitNote }}
         close={close}
         previewReceipt={() => setView("receipt")}
+        mentionSource={mentionSource}
       />
     );
   } else {

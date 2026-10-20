@@ -3,8 +3,19 @@
 // preview, live blocked-reason against the store draft, and the stale-head
 // submit ack (modal-local, resets on reopen).
 import { appI18n } from "../../../../i18n/I18nProvider";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
+
+vi.mock("../../../../data/apiFetch", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, apiFetch: vi.fn() };
+});
+
+import { apiFetch } from "../../../../data/apiFetch";
 
 import {
   createReviewFlowStore,
@@ -59,17 +70,17 @@ function renderModal(
 ) {
   const submit = vi.fn();
   const props = { ...baseProps(submit), ...overrides };
-  const view = render(
-    <ReviewFlowProvider store={store}>
-      <SubmitModal {...props} />
-    </ReviewFlowProvider>,
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const wrap = (modal: ReactNode) => (
+    <QueryClientProvider client={client}>
+      <ReviewFlowProvider store={store}>{modal}</ReviewFlowProvider>
+    </QueryClientProvider>
   );
+  const view = render(wrap(<SubmitModal {...props} />));
   const rerender = (next: Partial<SubmitModalProps> = {}) => {
-    view.rerender(
-      <ReviewFlowProvider store={store}>
-        <SubmitModal {...baseProps(submit)} {...next} />
-      </ReviewFlowProvider>,
-    );
+    view.rerender(wrap(<SubmitModal {...baseProps(submit)} {...next} />));
   };
   return { view, submit, store, rerender };
 }
@@ -404,5 +415,67 @@ describe("SubmitModal stale-head ack", () => {
     );
     fireEvent.click(button);
     expect(submit).not.toHaveBeenCalled();
+  });
+});
+
+describe("SubmitModal mention suggestions", () => {
+  const participants = [
+    { kind: MentionCandidateKinds.USER, login: "alice" },
+    { kind: MentionCandidateKinds.USER, login: "bob" },
+  ] as const;
+
+  function typeComment(text: string) {
+    fireEvent.change(screen.getByRole("textbox", { name: /review comment/i }), {
+      target: { value: text },
+    });
+  }
+
+  it("offers the conversation's participants in the review body", () => {
+    renderModal({ mentionSource: { participants } });
+
+    typeComment("Thanks @b");
+
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
+    ).toEqual(["@bob"]);
+  });
+
+  it("floats the review body's list and selects from the keyboard", () => {
+    renderModal({ mentionSource: { participants } });
+    const input = screen.getByRole("textbox", { name: /review comment/i });
+
+    typeComment("Thanks @");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    expect(
+      screen.getByRole("listbox").parentElement?.getAttribute("data-variant"),
+    ).toBe("floating");
+    expect(input.getAttribute("aria-activedescendant")).toBe(
+      screen.getByRole("option", { name: "@bob" }).id,
+    );
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(input).toHaveProperty("value", "Thanks @bob ");
+  });
+
+  it("adds what GitHub offers after the participants", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          users: [{ login: "alan", avatarUrl: "https://avatars.example/a" }],
+          teams: [{ combinedSlug: "acme/api", name: "API" }],
+        }),
+        { status: 200 },
+      ),
+    );
+    renderModal({ mentionSource: { repoId: "42", participants } });
+
+    typeComment("@a");
+
+    await screen.findByRole("option", { name: /acme\/api/ });
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
+    ).toEqual(["@alice", "@alan", "@acme/api API"]);
   });
 });

@@ -30,3 +30,4 @@ export {
   reconcileOwnComments,
 } from "./ownComments";
 export { isKnownAnchor, ThreadPlacementKinds } from "./anchor";
+export { buildMentionSource } from "./mentions";

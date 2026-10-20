@@ -15,6 +15,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
   ThreadPlacementKinds,
@@ -106,6 +107,21 @@ function stubComposer(): ThreadComposerWiring {
     post: vi.fn(async () => ({ kind: "posted" as const, commentId: 1 })),
     onPosted: vi.fn(),
   };
+}
+
+function stubMentionComposer(): ThreadComposerWiring {
+  return {
+    ...stubComposer(),
+    mentionSource: {
+      participants: [{ kind: MentionCandidateKinds.USER, login: "carol" }],
+    },
+  };
+}
+
+function readOptionLabels(): (string | undefined)[] {
+  const options = screen.getAllByRole("option");
+  const labels = options.map((option) => option.textContent?.trim());
+  return labels;
 }
 
 function makeFileDraftSession(): ReviewSessionPayload {
@@ -385,5 +401,30 @@ describe("FileCommentBand", () => {
       conversationComposer: stubComposer(),
     });
     expect(screen.queryByText("github file comment")).toBeNull();
+  });
+});
+
+describe("FileCommentBand mention source hand-off", () => {
+  it("offers the conversation's participants in the file composer", () => {
+    renderCard({ conversationComposer: stubMentionComposer() });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add a comment on src/a.ts" }),
+    );
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "@" },
+    });
+    expect(readOptionLabels()).toEqual(["@carol"]);
+  });
+
+  it("offers the conversation's participants in a file draft's editor", () => {
+    renderCard({
+      conversationComposer: stubMentionComposer(),
+      session: makeFileDraftSession(),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Edit comment"), {
+      target: { value: "@" },
+    });
+    expect(readOptionLabels()).toEqual(["@carol"]);
   });
 });

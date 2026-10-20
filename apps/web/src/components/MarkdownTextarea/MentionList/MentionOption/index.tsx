@@ -1,4 +1,4 @@
-import type { MentionCandidate } from "../../types";
+import type { MentionCandidate, MentionListLayout } from "../../types";
 import { readMentionHandle } from "../../utils";
 import { MentionMark } from "./MentionMark";
 import styles from "./MentionOption.module.scss";
@@ -7,6 +7,8 @@ export interface MentionOptionProps {
   candidate: MentionCandidate;
   id: string;
   active: boolean;
+  /** The list's layout when it is not in flow; a floating list's rows take the menu's fill. */
+  layoutVariant?: MentionListLayout | undefined;
   onSelect: (candidate: MentionCandidate) => void;
 }
 
@@ -20,6 +22,7 @@ export function MentionOption({
   candidate,
   id,
   active,
+  layoutVariant,
   onSelect,
 }: MentionOptionProps) {
   const handle = readMentionHandle(candidate);
@@ -30,6 +33,7 @@ export function MentionOption({
       className={styles["mentionOption"]}
       data-kind={candidate.kind}
       data-state={active ? "active" : undefined}
+      data-variant={layoutVariant}
       id={id}
       role="option"
       tabIndex={-1}
