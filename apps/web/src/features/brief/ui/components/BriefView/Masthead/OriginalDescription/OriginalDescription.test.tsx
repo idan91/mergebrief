@@ -21,6 +21,16 @@ describe("OriginalDescription", () => {
     expect(screen.getByText("Fix the leak in parsing")).toBeTruthy();
   });
 
+  it("marks the mentions the author wrote", () => {
+    render(<OriginalDescription description="Pairs with @cara on this" />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /original description/i }),
+    );
+
+    expect(screen.getByTestId("mention").textContent).toBe("@cara");
+  });
+
   it("marks a blank description empty and says so when opened", () => {
     render(<OriginalDescription description="  " />);
 

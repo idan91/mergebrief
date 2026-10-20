@@ -61,17 +61,67 @@ export function findMentions(text: string): readonly MentionMatch[] {
   return matches;
 }
 
+// Markdown source a mention never rewrites, as the renderer skips it: a code
+// span or fence, a link or image, an autolink, and a bare URL. No branch
+// scans past the next delimiter, so text any participant writes stays linear.
+const SOURCE_VERBATIM_PATTERN =
+  /(`{1,8})[^`]*?\1|!?\[[^[\]\n]*\]\([^()\n]*\)|<[^\s<>]+>|\b(?:https?:\/\/|www\.)\S+/gi;
+
+interface TextRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+function isRangeBeforeMention(
+  range: TextRange | undefined,
+  mention: MentionMatch,
+): boolean {
+  const before = range !== undefined && range.end <= mention.start;
+  return before;
+}
+
+/**
+ * The mentions in markdown source shown as plain text, leaving out those
+ * the renderer would leave as typed.
+ */
+export function findSourceMentions(text: string): readonly MentionMatch[] {
+  const verbatim: TextRange[] = [];
+  for (const match of text.matchAll(SOURCE_VERBATIM_PATTERN)) {
+    verbatim.push({ start: match.index, end: match.index + match[0].length });
+  }
+
+  // Both lists run in text order, so one pass skips every covered mention.
+  const kept: MentionMatch[] = [];
+  let next = 0;
+  for (const mention of findMentions(text)) {
+    let range = verbatim[next];
+    while (isRangeBeforeMention(range, mention)) {
+      next += 1;
+      range = verbatim[next];
+    }
+    const covered = range !== undefined && range.start <= mention.start;
+    if (!covered) {
+      kept.push(mention);
+    }
+  }
+
+  return kept;
+}
+
 /** A run of text; `mention` is set when the run is one. */
-interface MentionTextPart {
+export interface MentionTextPart {
   readonly text: string;
   readonly mention?: MentionMatch;
 }
 
 /** The text cut into plain runs and mentions, in reading order. */
-function splitMentionText(text: string): readonly MentionTextPart[] {
+export function splitMentionText(
+  text: string,
+  mentions: readonly MentionMatch[] = findMentions(text),
+): readonly MentionTextPart[] {
   const parts: MentionTextPart[] = [];
   let cursor = 0;
-  for (const mention of findMentions(text)) {
+  for (const mention of mentions) {
     if (mention.start > cursor) {
       parts.push({ text: text.slice(cursor, mention.start) });
     }

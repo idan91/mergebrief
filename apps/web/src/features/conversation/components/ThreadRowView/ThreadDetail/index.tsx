@@ -198,6 +198,7 @@ export function ThreadDetail({
             content={comment.body}
             filePath={thread.path}
             renderHtml
+            renderMentions
             renderSuggestions
           />
         </article>

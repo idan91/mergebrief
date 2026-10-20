@@ -8,6 +8,7 @@ import type {
   ConversationReviewView,
   ConversationThreadView,
   MentionSuggestionsResponse,
+  MentionTargetsResponse,
   MentionTeamView,
   MentionUserView,
   PrLevelCommentView,
@@ -23,6 +24,7 @@ import type { ReadsWireFields } from "@web/test/wire-fields";
 
 import {
   mentionSuggestionsResponseSchema,
+  mentionTargetsResponseSchema,
   prConversationSchema,
   type conversationAuthorSchema,
   type conversationCommentSchema,
@@ -381,6 +383,38 @@ describe("parseMentionSuggestions", () => {
   });
 });
 
+describe("mentionTargetsResponseSchema", () => {
+  function parseMentionTargets(value: unknown) {
+    return parseWithSchema(mentionTargetsResponseSchema, value);
+  }
+
+  it("reads the users and teams GitHub shows the viewer", () => {
+    expect(
+      parseMentionTargets({ users: ["Cara"], teams: ["acme/backend"] }),
+    ).toEqual({
+      ok: true,
+      value: { users: ["Cara"], teams: ["acme/backend"] },
+    });
+  });
+
+  it("drops an entry that is no login or team and keeps the rest", () => {
+    const parsed = parseMentionTargets({
+      users: ["cara", "not a login", 7, "-dash"],
+      teams: ["acme/core", "flat", "acme/core team", { slug: "x" }],
+    });
+
+    expect(parsed).toEqual({
+      ok: true,
+      value: { users: ["cara"], teams: ["acme/core"] },
+    });
+  });
+
+  it("rejects a body without its lists", () => {
+    expect(parseMentionTargets({ users: [] }).ok).toBe(false);
+    expect(parseMentionTargets({ teams: [] }).ok).toBe(false);
+  });
+});
+
 const SCHEMA_PINS = {
   ConversationAuthor: true satisfies Equals<
     z.output<typeof conversationAuthorSchema>,
@@ -417,6 +451,10 @@ const SCHEMA_PINS = {
   MentionSuggestions: true satisfies Equals<
     z.output<typeof mentionSuggestionsResponseSchema>,
     GitHubMentionSuggestions
+  >,
+  MentionTargets: true satisfies Equals<
+    z.output<typeof mentionTargetsResponseSchema>,
+    MentionTargetsResponse
   >,
 } as const;
 

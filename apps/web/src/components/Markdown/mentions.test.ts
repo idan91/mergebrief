@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { findMentions } from "./mentions";
+import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
+import { findMentions, findSourceMentions, splitMentionText } from "./mentions";
 
 function listTargets(text: string): string[] {
   const targets = findMentions(text).map((match) => match.target);
@@ -47,6 +48,61 @@ describe("findMentions", () => {
     expect(findMentions(text)).toEqual([
       { start: 3, end: 8, target: "cara", kind: "user" },
       { start: 13, end: 26, target: "acme/backend", kind: "team" },
+    ]);
+  });
+});
+
+describe("splitMentionText", () => {
+  it("cuts text into its plain runs and its mentions, in order", () => {
+    expect(splitMentionText("cc @cara, @acme/core!")).toEqual([
+      { text: "cc " },
+      {
+        text: "@cara",
+        mention: {
+          start: 3,
+          end: 8,
+          target: "cara",
+          kind: MentionCandidateKinds.USER,
+        },
+      },
+      { text: ", " },
+      {
+        text: "@acme/core",
+        mention: {
+          start: 10,
+          end: 20,
+          target: "acme/core",
+          kind: MentionCandidateKinds.TEAM,
+        },
+      },
+      { text: "!" },
+    ]);
+  });
+
+  it("returns the text whole when it holds no mention", () => {
+    expect(splitMentionText("a@b.com")).toEqual([{ text: "a@b.com" }]);
+  });
+});
+
+describe("findSourceMentions", () => {
+  it.each([
+    "drop the `@Override` here",
+    "```\n@Test\n```",
+    "see [@cara](https://example.test)",
+    "![@cara](https://example.test/a.png)",
+    "<https://medium.com/@cara>",
+    "https://medium.com/@cara",
+    "www.example.test/@cara",
+  ])("leaves %j as typed", (text) => {
+    expect(findSourceMentions(text)).toEqual([]);
+  });
+
+  it("keeps the mentions outside code, links and URLs", () => {
+    const text = "`@x` then @cara, https://x.test/@y and @acme/core";
+
+    expect(findSourceMentions(text).map((match) => match.target)).toEqual([
+      "cara",
+      "acme/core",
     ]);
   });
 });

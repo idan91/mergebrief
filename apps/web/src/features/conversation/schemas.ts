@@ -145,11 +145,15 @@ export const mentionSuggestionUserSchema = dropInvalidKeys(
   ["avatarUrl"],
 ).readonly();
 
+const LOGIN_PATTERN = new RegExp(`^(?:${MentionPatterns.LOGIN})$`);
+
+const teamHandleSchema = z
+  .templateLiteral([z.string(), "/", z.string()])
+  .refine((handle) => TEAM_HANDLE_PATTERN.test(handle));
+
 export const mentionSuggestionTeamSchema = z
   .object({
-    combinedSlug: z
-      .templateLiteral([z.string(), "/", z.string()])
-      .refine((handle) => TEAM_HANDLE_PATTERN.test(handle)),
+    combinedSlug: teamHandleSchema,
     name: z.string(),
   })
   .readonly();
@@ -158,5 +162,12 @@ export const mentionSuggestionsResponseSchema = z
   .object({
     users: buildTolerantListSchema(mentionSuggestionUserSchema),
     teams: buildTolerantListSchema(mentionSuggestionTeamSchema),
+  })
+  .readonly();
+
+export const mentionTargetsResponseSchema = z
+  .object({
+    users: buildTolerantListSchema(z.string().regex(LOGIN_PATTERN)),
+    teams: buildTolerantListSchema(teamHandleSchema),
   })
   .readonly();

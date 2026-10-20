@@ -3,6 +3,7 @@ import type { PrLevelCommentView } from "contract";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { MentionTargetsScope } from "@web/components/Markdown/context";
 import { PrCommentRow } from ".";
 
 const ASSET_URL =
@@ -48,5 +49,24 @@ describe("PrCommentRow body", () => {
     expect(screen.getByRole("button").textContent).toContain(
       "suggested change",
     );
+  });
+
+  it("links a mention GitHub shows the viewer", () => {
+    const targets = {
+      isTargetShown: (target: string) => target === "cara",
+      requestTarget: vi.fn(),
+    };
+    render(
+      <MentionTargetsScope value={targets}>
+        <PrCommentRow
+          comment={makeComment("over to @cara")}
+          expanded
+          toggle={vi.fn()}
+        />
+      </MentionTargetsScope>,
+    );
+
+    const link = screen.getByRole("link", { name: "@cara" });
+    expect(link.getAttribute("href")).toBe("https://github.com/cara");
   });
 });

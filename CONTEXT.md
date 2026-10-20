@@ -291,7 +291,7 @@ An image a reviewer pastes or drops into a **Comment**, pushed by the App to an 
 _Avoid_: upload (it is a push), asset (that is GitHub's own `user-attachments` store, which has no API), screenshot (one kind of attachment)
 
 **Mention**:
-An `@login` or `@org/team` in text a person wrote about the pull request, on GitHub or here: a comment, reply or review by any **Participant**, or a reviewer's own note here, such as a **Dismissal** reason. On text that reaches GitHub, GitHub resolves it and decides who is notified; MergeBrief never notifies anyone. Shown as a link to the person or team when GitHub shows the viewer that target, and highlighted when it names the viewer; any other `@word` stays plain text.
+An `@login` or `@org/team` in text a person wrote about the pull request, on GitHub or here: its description, a comment, reply or review by any **Participant**, or a reviewer's own note here, such as a **Dismissal** reason. On text that reaches GitHub, GitHub resolves it and decides who is notified; MergeBrief never notifies anyone. Shown as a link to the person or team when GitHub shows the viewer that target, and highlighted when it names the viewer; any other `@word` stays plain text.
 _Avoid_: tag, ping
 
 **Participant**:

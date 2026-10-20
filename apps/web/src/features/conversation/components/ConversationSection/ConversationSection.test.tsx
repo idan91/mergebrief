@@ -280,6 +280,23 @@ describe("ConversationSection", () => {
     expect(screen.getByText("open")).toBeDefined();
   });
 
+  it("marks the mentions in a review body on the verdict strip", async () => {
+    const data = conversation();
+    const reviews = data.reviews.map((review) => ({
+      ...review,
+      body: "needs work, ask @bob",
+    }));
+    renderSection({
+      plan: plan([{ kind: "ready", conversation: { ...data, reviews } }]),
+    });
+
+    expect(await screen.findByText("changes requested")).toBeDefined();
+    const marked = screen
+      .getAllByTestId("mention")
+      .map((node) => node.textContent);
+    expect(marked).toEqual(["@bob"]);
+  });
+
   it("renders a review of an unknown state without a verdict chip", async () => {
     const data = conversation();
     const review = {

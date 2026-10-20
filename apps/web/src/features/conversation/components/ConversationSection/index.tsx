@@ -29,6 +29,7 @@ import type { buildConversationQueryOptions } from "../../queries";
 import { buildMentionSource } from "../../utils/mentions";
 import { Button } from "@web/components/Button";
 import { CollapsibleBar } from "@web/components/CollapsibleBar";
+import { MentionText } from "@web/components/Markdown/MentionText";
 import { BarHeadingLevels } from "@web/components/CollapsibleBar/types";
 import rowStyles from "../../rows.module.scss";
 import type { ReplyResult } from "../../types";
@@ -433,7 +434,7 @@ export function ConversationSection({
                       )}
                       {review.body.trim() !== "" ? (
                         <span className={rowStyles["rowLine"]}>
-                          {review.body}
+                          <MentionText text={review.body} />
                         </span>
                       ) : null}
                     </li>

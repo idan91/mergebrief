@@ -135,7 +135,9 @@ function PreviewPanel({ renderPreview, value }: PreviewPanelProps) {
     return renderPreview(value);
   }
   if (value.trim()) {
-    return <Markdown content={value} renderHtml renderSuggestions />;
+    return (
+      <Markdown content={value} renderHtml renderMentions renderSuggestions />
+    );
   }
   return <p className={styles["empty"]}>{t("shell.nothingToPreview")}</p>;
 }

@@ -30,6 +30,7 @@ export function AddressedDiffComment({
           content={comment.body}
           filePath={comment.file}
           renderHtml
+          renderMentions
           renderSuggestions
         />
       </div>

@@ -1,0 +1,25 @@
+@use "functions";
+
+@layer components {
+  a.mention {
+    color: var(--color-accent);
+    text-underline-offset: functions.to-rem(3px);
+
+    &:hover {
+      color: var(--color-text-1);
+    }
+  }
+
+  .mention[data-variant="viewer"] {
+    // Earned: a grey hairline, since the accent edge token reads as the focus ring.
+    --mention-viewer-edge: inset 0 0 0 1px var(--color-outline-2);
+
+    margin-inline: functions.to-rem(-2px);
+    padding-inline: functions.to-rem(2px);
+    border-radius: var(--radius-xs);
+    background: var(--color-changed-fill);
+    box-shadow: var(--mention-viewer-edge);
+    color: var(--color-text-1);
+    box-decoration-break: clone;
+  }
+}

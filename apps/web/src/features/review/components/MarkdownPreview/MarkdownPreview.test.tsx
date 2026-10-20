@@ -2,7 +2,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AttachmentScopeProvider } from "@web/components/Markdown/context";
+import {
+  AttachmentScopeProvider,
+  MentionTargetsScope,
+} from "@web/components/Markdown/context";
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import {
   ATTACHMENT_ASSET_ID,
@@ -131,6 +134,23 @@ describe("MarkdownPreview raw html images", () => {
 
     expect(container.querySelector("script")).toBeNull();
     expect(container.textContent).not.toContain("pwned");
+  });
+});
+
+describe("MarkdownPreview mentions", () => {
+  it("links a draft's mention the way the posted comment will show it", () => {
+    const targets = {
+      isTargetShown: (target: string) => target === "cara",
+      requestTarget: vi.fn(),
+    };
+    render(
+      <MentionTargetsScope value={targets}>
+        <MarkdownPreview anchor={ANCHOR} body="over to @cara" />
+      </MentionTargetsScope>,
+    );
+
+    const link = screen.getByRole("link", { name: "@cara" });
+    expect(link.getAttribute("href")).toBe("https://github.com/cara");
   });
 });
 

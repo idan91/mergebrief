@@ -38,7 +38,7 @@ export function OriginalDescription({ description }: OriginalDescriptionProps) {
       variant={BarVariants.ROW}
       onToggle={() => setOpen((current) => !current)}
     >
-      {open ? <Markdown content={content} renderHtml /> : null}
+      {open ? <Markdown content={content} renderHtml renderMentions /> : null}
     </CollapsibleBar>
   );
 }

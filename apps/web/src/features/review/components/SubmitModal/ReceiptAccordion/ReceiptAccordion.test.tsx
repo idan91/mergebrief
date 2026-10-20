@@ -138,6 +138,22 @@ describe("ReceiptAccordion", () => {
     expect(screen.getByText(/not addressed, not dismissed/)).toBeTruthy();
   });
 
+  it("marks mentions in dismiss reasons and comment lines the reviewer wrote", () => {
+    const dismissed = [
+      { id: "flag:b", attr: "perf", file: "src/list.ts", reason: "ask @cara" },
+    ];
+    const comments = receipt().comments.map((comment) => ({
+      ...comment,
+      firstLine: `${comment.firstLine} @dan`,
+    }));
+    renderAccordion({ dismissed, comments });
+
+    const marked = screen
+      .getAllByTestId("mention")
+      .map((node) => node.textContent);
+    expect(marked).toEqual(["@dan", "@dan", "@cara"]);
+  });
+
   it("keeps the frozen artifact verbatim inside the raw disclosure", () => {
     renderAccordion();
     const fold = findFold(/show raw receipt \(as posted to github\)/i);

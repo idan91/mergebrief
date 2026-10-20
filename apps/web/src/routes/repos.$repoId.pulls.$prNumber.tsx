@@ -16,6 +16,8 @@ import {
   type Span,
 } from "@web/features/pulls/utils";
 import { AttachmentScopeProvider } from "@web/components/Markdown/context";
+import { useViewerLogin } from "@web/features/account";
+import { MentionTargetsProvider } from "@web/features/conversation";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import { usePrBriefPage } from "@web/features/pulls/hooks";
 import {
@@ -220,6 +222,7 @@ function PrBriefRoute() {
     search,
     navigate,
   });
+  const viewerLogin = useViewerLogin();
 
   return (
     <AttachmentScopeProvider
@@ -227,24 +230,26 @@ function PrBriefRoute() {
       prNumber={prNumber}
       repoId={params.repoId}
     >
-      <PrBriefBody
-        meta={page.meta}
-        address={address}
-        conversationFilter={page.conversationFilter}
-        onConversationFilterChange={page.onConversationFilterChange}
-        conversationFocusThreadId={page.conversationFocusThreadId}
-        onSelectRevision={page.onSelectRevision}
-        onGoToNewest={page.onGoToNewest}
-        prNumber={prNumber}
-        readOnly={page.readOnly}
-        repoId={params.repoId}
-        revisionJump={page.revisionJump}
-        revisionPending={revisionPending}
-        searchParams={page.searchParams}
-        staleHead={page.staleHead}
-        state={page.state}
-        timeline={page.timeline}
-      />
+      <MentionTargetsProvider repoId={params.repoId} viewerLogin={viewerLogin}>
+        <PrBriefBody
+          meta={page.meta}
+          address={address}
+          conversationFilter={page.conversationFilter}
+          onConversationFilterChange={page.onConversationFilterChange}
+          conversationFocusThreadId={page.conversationFocusThreadId}
+          onSelectRevision={page.onSelectRevision}
+          onGoToNewest={page.onGoToNewest}
+          prNumber={prNumber}
+          readOnly={page.readOnly}
+          repoId={params.repoId}
+          revisionJump={page.revisionJump}
+          revisionPending={revisionPending}
+          searchParams={page.searchParams}
+          staleHead={page.staleHead}
+          state={page.state}
+          timeline={page.timeline}
+        />
+      </MentionTargetsProvider>
     </AttachmentScopeProvider>
   );
 }

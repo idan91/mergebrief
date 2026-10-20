@@ -52,6 +52,7 @@ export function ReviewComments({ comments, label }: ReviewCommentsProps) {
               content={comment.body}
               filePath={comment.file}
               renderHtml
+              renderMentions
               renderSuggestions
             />
           </div>

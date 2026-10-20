@@ -12,7 +12,12 @@ export function RiskDisposition({ receipt }: RiskDispositionProps) {
   return (
     <>
       {receiptRiskGroups(t, receipt).map((group) => (
-        <RiskGroup items={group.items} key={group.key} title={group.title} />
+        <RiskGroup
+          items={group.items}
+          key={group.key}
+          reviewerWroteDetail={group.reviewerWroteDetail}
+          title={group.title}
+        />
       ))}
     </>
   );

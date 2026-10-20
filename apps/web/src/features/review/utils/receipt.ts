@@ -279,6 +279,8 @@ export interface ReceiptRiskGroup {
   key: DispositionKind;
   title: string;
   items: ReceiptRiskRow[];
+  /** Each row's detail is text the reviewer wrote, so its mentions are marked. */
+  reviewerWroteDetail: boolean;
 }
 
 /** The disposition lists as uniform display rows, shared by every receipt
@@ -291,6 +293,7 @@ export function receiptRiskGroups(
     {
       key: DispositionKinds.ADDRESSED,
       title: t("review.summary.addressedRisks"),
+      reviewerWroteDetail: false,
       items: receipt.addressed.map((flag) => ({
         id: flag.id,
         attr: flag.attr,
@@ -301,6 +304,7 @@ export function receiptRiskGroups(
     {
       key: DispositionKinds.DISMISSED,
       title: t("review.summary.dismissedRisks"),
+      reviewerWroteDetail: true,
       items: receipt.dismissed.map((flag) => ({
         id: flag.id,
         attr: flag.attr,
@@ -311,6 +315,7 @@ export function receiptRiskGroups(
     {
       key: DispositionKinds.OPEN,
       title: t("review.summary.openRisks"),
+      reviewerWroteDetail: false,
       items: receipt.open.map((flag) => ({
         id: flag.id,
         attr: flag.attr,

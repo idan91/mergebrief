@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 
+import { MentionText } from "@web/components/Markdown/MentionText";
+
 import {
   receiptCommentLabel,
   type ReceiptComment,
@@ -25,7 +27,9 @@ export function CommentList({ comments }: CommentListProps) {
               ? ` · ${t("review.submit.receiptPostedTag")}`
               : ""}
           </span>
-          <small>{comment.firstLine}</small>
+          <small>
+            <MentionText text={comment.firstLine} />
+          </small>
         </div>
       ))}
     </div>

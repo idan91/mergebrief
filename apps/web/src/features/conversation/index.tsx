@@ -24,3 +24,7 @@ export {
   InlineThreads,
   type InlineThreadsProps,
 } from "./components/InlineThreads";
+export {
+  MentionTargetsProvider,
+  type MentionTargetsProviderProps,
+} from "./components/MentionTargetsProvider";
