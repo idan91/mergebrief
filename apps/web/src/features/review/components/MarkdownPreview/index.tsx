@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { DEMOTED_HEADING_COMPONENTS } from "@web/components/Markdown/consts";
+import { MENTION_AWARE_COMPONENTS } from "@web/components/Markdown/consts";
 import { useMarkdownRehypePlugins } from "@web/components/Markdown/useMarkdownRehypePlugins";
 import { SuggestionCard } from "@web/components/Markdown/SuggestionCard";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
@@ -28,8 +28,8 @@ export interface MarkdownPreviewProps {
  */
 export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
   const { t } = useTranslation();
-  // A draft is written for GitHub, which parses its HTML.
-  const rehypePlugins = useMarkdownRehypePlugins(true);
+  // A draft is written for GitHub, which parses its HTML and its mentions.
+  const rehypePlugins = useMarkdownRehypePlugins(true, true);
   const suggestions = parseSuggestionBlocks(body);
   const markdown = stripSuggestionBlocks(body);
   return (
@@ -37,7 +37,7 @@ export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
     <div className={styles["preview"]} dir="auto">
       {markdown ? (
         <ReactMarkdown
-          components={DEMOTED_HEADING_COMPONENTS}
+          components={MENTION_AWARE_COMPONENTS}
           rehypePlugins={rehypePlugins}
           remarkPlugins={[remarkGfm]}
         >

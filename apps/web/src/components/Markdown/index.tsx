@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { DEMOTED_HEADING_COMPONENTS } from "./consts";
+import { DEMOTED_HEADING_COMPONENTS, MENTION_AWARE_COMPONENTS } from "./consts";
 import { useMarkdownRehypePlugins } from "./useMarkdownRehypePlugins";
 import { SuggestionCard } from "./SuggestionCard";
 import {
@@ -26,6 +26,8 @@ export interface MarkdownProps {
    * shows. For text written on GitHub; the brief's own prose keeps `<T>`.
    */
   renderHtml?: boolean;
+  /** Mark `@login` and `@org/slug`: for text people wrote, never the brief's own prose. */
+  renderMentions?: boolean;
 }
 
 /** Generic GFM markdown renderer used across briefs, descriptions, and comments. */
@@ -34,8 +36,12 @@ export function Markdown({
   filePath,
   renderSuggestions = false,
   renderHtml = false,
+  renderMentions = false,
 }: MarkdownProps) {
-  const rehypePlugins = useMarkdownRehypePlugins(renderHtml);
+  const rehypePlugins = useMarkdownRehypePlugins(renderHtml, renderMentions);
+  const components = renderMentions
+    ? MENTION_AWARE_COMPONENTS
+    : DEMOTED_HEADING_COMPONENTS;
   const suggestions = renderSuggestions ? parseSuggestionBlocks(content) : [];
   const markdown =
     suggestions.length > 0 ? stripSuggestionBlocks(content) : content;
@@ -43,7 +49,7 @@ export function Markdown({
     // dir="auto": RTL-first content right-aligns, matching the composer.
     <div className={styles["markdown"]} dir="auto">
       <ReactMarkdown
-        components={DEMOTED_HEADING_COMPONENTS}
+        components={components}
         rehypePlugins={rehypePlugins}
         remarkPlugins={[remarkGfm]}
       >

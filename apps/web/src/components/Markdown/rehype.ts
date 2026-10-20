@@ -6,6 +6,7 @@ import { MARKDOWN_SANITIZE_SCHEMA } from "./consts";
 import type { AttachmentScope } from "./context";
 import { rehypeNormalizeImages, rehypeProxyAttachmentSources } from "./images";
 import { rehypePrefixFragmentLinks } from "./links";
+import { rehypeMarkMentions } from "./mentions";
 
 export type MarkdownRehypePlugins = NonNullable<
   MarkdownOptions["rehypePlugins"]
@@ -13,6 +14,8 @@ export type MarkdownRehypePlugins = NonNullable<
 
 export interface RehypePluginOptions {
   readonly renderHtml: boolean;
+  /** Mark `@login` and `@org/slug` in text people wrote. */
+  readonly renderMentions: boolean;
   /** The pull request the body belongs to; absent, attachments stay on GitHub. */
   readonly scope?: AttachmentScope | undefined;
 }
@@ -23,8 +26,11 @@ const NO_PLUGINS: MarkdownRehypePlugins = [];
 export function buildRehypePlugins(
   options: RehypePluginOptions,
 ): MarkdownRehypePlugins {
+  const mentions: MarkdownRehypePlugins = options.renderMentions
+    ? [rehypeMarkMentions]
+    : NO_PLUGINS;
   if (!options.renderHtml) {
-    return NO_PLUGINS;
+    return mentions;
   }
   return [
     rehypeRaw,
@@ -32,5 +38,6 @@ export function buildRehypePlugins(
     rehypeNormalizeImages,
     rehypePrefixFragmentLinks,
     [rehypeProxyAttachmentSources, options.scope],
+    ...mentions,
   ];
 }

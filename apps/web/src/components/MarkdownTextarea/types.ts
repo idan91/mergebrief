@@ -50,6 +50,7 @@ export const MentionCandidateKinds = {
   USER: "user",
   TEAM: "team",
 } as const;
+export type MentionCandidateKind = ValueOf<typeof MentionCandidateKinds>;
 
 /**
  * A person the list offers. `name` and `avatarUrl` are optional so thread

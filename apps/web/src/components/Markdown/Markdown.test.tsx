@@ -216,3 +216,52 @@ describe("Markdown brief prose", () => {
     expect(screen.getByText(/<img alt="Image"/)).toBeTruthy();
   });
 });
+
+describe("Markdown mentions", () => {
+  function listMarkedTargets(): string[] {
+    const markedTargets = screen
+      .queryAllByTestId("mention")
+      .map((node) => node.textContent ?? "");
+    return markedTargets;
+  }
+
+  it("marks mentions in people's text, not inside code or links", () => {
+    const { container } = render(
+      <Markdown
+        content={
+          "cc @cara and @acme/backend, `@code` [@link](https://x.example)"
+        }
+        renderMentions
+      />,
+    );
+
+    expect(listMarkedTargets()).toEqual(["@cara", "@acme/backend"]);
+    expect(container.textContent).toContain("cc @cara and @acme/backend");
+  });
+
+  it("marks mentions inside raw html a comment carries", () => {
+    render(
+      <Markdown content={"<p>ping @cara</p>"} renderHtml renderMentions />,
+    );
+
+    expect(listMarkedTargets()).toEqual(["@cara"]);
+  });
+
+  it("never lets raw html forge a mention mark", () => {
+    render(
+      <Markdown
+        content={'<span data-mention="evil" data-mention-kind="user">x</span>'}
+        renderHtml
+        renderMentions
+      />,
+    );
+
+    expect(listMarkedTargets()).toEqual([]);
+  });
+
+  it("leaves the brief's own prose unmarked without the opt-in", () => {
+    render(<Markdown content="cc @cara" />);
+
+    expect(listMarkedTargets()).toEqual([]);
+  });
+});
