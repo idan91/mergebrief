@@ -2,9 +2,7 @@
 
 Status: superseded in part by 0024
 
-> Superseded in part by ADR 0024: the mechanical **Revision changes** overlay still works as described here, but (a) generated callout summaries are no longer merely opportunistic — non-first Briefs now get a shared **Revision narrative** for `prevHead→head`; and (b) decision 5's toggle is replaced by ADR 0024's **Compare** control, which changes the default (first-time reviewers default to `Compare: Off`, not on-by-default) and the persistence model.
-
-The full **Brief** gains an on-by-default **Revision changes** overlay: a *shared*, *per-revision* (`prevHead→head`) marking of which lines are new in this revision, computed **mechanically** from a tree diff — not the per-reviewer **Delta Brief**. The marks are always available from a cheap new sidecar; a richer hover/focus callout (change-group + summary) is **opportunistic**, shown only when a shared `(prevHead, head)` Delta core already exists, and degrades to "summary unavailable" otherwise. It is additive to ADR 0019: the separate per-reviewer Delta lens is untouched.
+The full **Brief** gains an on-by-default **Revision changes** overlay: a *shared*, *per-revision* (`prevHead→head`) marking of which lines are new in this revision, computed **mechanically** from a tree diff — not the per-reviewer **Delta Brief**. The marks are always available from a cheap new sidecar; a richer hover/focus callout (change-group + summary) is **opportunistic**, shown only when a shared `(prevHead, head)` Delta core already exists, and degrades to "summary unavailable" otherwise (amended, see Amendments). It is additive to ADR 0019: the separate per-reviewer Delta lens is untouched.
 
 ## Context
 
@@ -25,9 +23,9 @@ The request originally assumed (a) the overlay would require generating "a delta
 
 1. **Revision changes** is a shared, per-revision overlay on the full **Brief**, baseline `prevHead→head` (the immediately previous briefed head). It is never reviewer-relative and is never called a "delta"; the per-reviewer **Delta Brief** lens (ADR 0019) is unchanged.
 2. **Marks are mechanical and always available.** A new sidecar emits `prevHead..head` changed-line ranges per file (a plain git tree diff, no LLM), keyed by head and shared. The Full route loads it alongside the brief. Identification joins on the **head line number** (both diffs end at head).
-3. **The callout is opportunistic.** When a shared `(prevHead, head)` Delta core (ADR 0008) already exists, the run's hover/focus/click callout surfaces its change-group title + summary; otherwise it reads "new this revision — summary unavailable for this span." No core is generated solely to feed the overlay.
+3. **The callout is opportunistic** (amended, see Amendments). When a shared `(prevHead, head)` Delta core (ADR 0008) already exists, the run's hover/focus/click callout surfaces its change-group title + summary; otherwise it reads "new this revision — summary unavailable for this span." No core is generated solely to feed the overlay.
 4. **Rendering = Option 4 hybrid**: gutter rail (focusable, one per contiguous run) + soft left-edge tint + non-color "new" tag; callout on hover + focus + click, Esc-dismiss; **jump-to-next/prev** run navigation with a run count. WCAG 2.2 AA.
-5. **Toggle** defaults **on** when revision changes exist, is persisted per user, and is **hidden on the first Brief** (no previous head).
+5. **Toggle** defaults **on** when revision changes exist, is persisted per user, and is **hidden on the first Brief** (no previous head). (Amended, see Amendments.)
 6. **Deletions.** Modifications (del+add) are covered via the added side's normal marks. Standalone deletions present at PR base get the rail (matched on the old side, accepting a non-head-line join). The between-lines caret for added-then-removed lines (no row at head) is **deferred to v2**.
 7. **Deferred:** a selectable overlay baseline (`prevHead→head` vs `checkpoint→head`), and the added-then-removed deletion caret.
 
@@ -37,10 +35,16 @@ The overlay answers a genuinely distinct, *shared* question — "what moved in t
 
 ## Consequences
 
-- **One new mechanical artifact**, not an LLM change: the categorizer emits a `prevHead..head` changed-line-range sidecar per head. Full-brief LLM generation is untouched.
-- **Read model**: the Full route now loads `{ brief, revisionChanges }`; production follows ADR 0008's fetch shape, with the sidecar as a small shared, head-keyed blob.
+- **One new mechanical artifact**, not an LLM change: the worker writes `comparison_marks` rows keyed `(baseline_sha, head_sha)` (`packages/persistence/src/schema/comparison-marks.ts`), the `prevHead..head` changed-line ranges per head. Full-brief LLM generation is untouched.
+- **Read model**: the Full route loads the marks beside the brief; production follows ADR 0008's fetch shape, with the marks as a small shared, span-keyed blob.
 - **Reuses, not extends, ADR 0008**: the opportunistic callout consumes the existing shared Delta core at `(prevHead, head)`; the per-reviewer carry-over overlay is not involved.
 - **Glossary**: `CONTEXT.md` gains the **Revision changes** term, explicitly contrasted with **Delta Brief** and reserving "delta" for the per-reviewer artifact.
 - **Local-first (ADR 0019 #8)**: the demo emits the `prevHead..head` sidecar rather than leaning on the coincidence that the demo's delta artifact spans consecutive heads — keeping the local surface faithful to the shared/per-revision production semantics.
 - **FE owns the rendering**: rail/tint/tag, the focusable per-run callout, run-jump navigation, the persisted toggle, and the head-line join; virtualization must preserve rail and run continuity.
 - **Deferred levers** (selectable baseline, deletion caret) are reversible additions that do not change this artifact model.
+
+## Amendments
+
+### 2026-07-01: Revision narrative and the Compare control
+
+Superseded in part by ADR 0024: the mechanical **Revision changes** overlay still works as described here, but (a) generated callout summaries are no longer merely opportunistic: non-first Briefs now get a shared **Revision narrative** for `prevHead→head`; and (b) decision 5's toggle is replaced by ADR 0024's **Compare** control, which changes the default (first-time reviewers default to `Compare: Off`, not on-by-default) and the persistence model.

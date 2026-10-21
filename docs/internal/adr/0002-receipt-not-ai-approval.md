@@ -4,16 +4,12 @@ Status: amended (see Amendments)
 
 The final review submitted to GitHub carries the reviewer's human approval plus a scoped tool-verification receipt — never an "AI approval" or "double approval" stamp. The receipt reports what the tool mechanically verified, what it did not check, and the disposition of every flag (addressed vs dismissed-with-reason).
 
-> **Update (2026-06-07): receipt delivery refined.** The receipt is no longer inlined into the GitHub review body. The native GitHub review reads as a normal human review; a one-line **Signature line** links to a static, tool-hosted **Review Summary** (per-submission permalink) that renders the receipt + analysis context. This preserves the receipt's auditable-transparency value for author/org while keeping the review surface clean. The core decision (receipt, not approval) is unchanged — only the delivery surface moved from inline block to linked static page.
-
-> **Update (2026-09-02): the Ticket alignment read is a read, not an approval.** The Intent check now names one primary ticket and reports how the diff relates to that ticket's goal: `aligned`, `partial`, or `misaligned`, with the goal quoted verbatim and one factual sentence about the diff. This is a fallible read shown to author and reviewer alike. It is never an approval, never a gate, and never a receipt item: nothing in the product blocks, warns, or scores on it, and `partial` is an ordinary outcome, not a defect. The reviewer's name still carries the judgment.
-
 ## Considered Options
 
 - **AI as gate / veto** — AI must approve before reviewer can submit. Rejected: kills the "human authority" wedge and reproduces the CodeRabbit power dynamic the product is positioned against.
 - **"Double approval" stamp** — "AI + human both approved" presented together. Rejected: the combined signal reads to the *author* as a stronger gold star, deepening comprehension debt downstream. Solves rubber-stamping on the reviewer side while creating a new rubber-stamp loop on the author side. Recursive.
 - **AI rates the reviewer's review** (comprehensive / shallow). Rejected: AI judging human depth is brittle and patronizing.
-- **Scoped tool-verification receipt** (chosen). The tool signs only what it mechanically verified — playbook items completed, pure-move byte integrity, lib-bump call-site coverage, risk-surface flag dispositions — and is explicit about what it did *not* check (business intent, perf, integration with other services).
+- **Scoped tool-verification receipt** (chosen). The tool signs only what it mechanically verified — playbook items completed (the playbook layer is parked, ADR 0035), pure-move byte integrity, lib-bump call-site coverage, risk-surface flag dispositions — and is explicit about what it did *not* check (business intent, perf, integration with other services).
 
 ## Why This Way
 
@@ -27,3 +23,17 @@ This also sidesteps accountability ambiguity: if "AI approved" carries weight an
 - "Not checked" items must be visible by default on the receipt, not hidden. Hiding them would re-introduce the false-certainty problem.
 - Marketing / positioning must avoid the word "approval" anywhere near the tool's output — the language is intentional.
 - Some customers will ask for an "AI approval" or "double approval" feature explicitly. The position is: explain the recursive rubber-stamp risk, hold the line. If the customer pull is overwhelming, revisit — but the default answer is no.
+
+## Amendments
+
+### 2026-06-07: Receipt delivery moved off the review body
+
+The receipt is no longer inlined into the GitHub review body. The native GitHub review reads as a normal human review; a one-line **Signature line** links to a static, tool-hosted **Review Summary** (per-submission permalink) that renders the receipt plus analysis context. This preserves the receipt's auditable-transparency value for author and org while keeping the review surface clean. The core decision (receipt, not approval) is unchanged; only the delivery surface moved from inline block to linked static page.
+
+### 2026-09-02: The Ticket alignment read is a read, not an approval
+
+The Intent check now names one primary ticket and reports how the diff relates to that ticket's goal: `aligned`, `partial`, or `misaligned`, with the goal quoted verbatim and one factual sentence about the diff. This is a fallible read shown to author and reviewer alike. It is never an approval, never a gate, and never a receipt item: nothing in the product blocks, warns, or scores on it, and `partial` is an ordinary outcome, not a defect. The reviewer's name still carries the judgment.
+
+### 2026-10-20: The Signature line carries the claims; no Review Summary page exists
+
+The tool-hosted Review Summary page and its per-submission permalink were never built. The GitHub review body is the reviewer's own comment, a rule, then one Signature line that states the mechanical claims inline: chunks read, risks addressed, dismissed, open, inline comments (`apps/web/src/features/review/utils/submit.ts`). The frozen receipt text with its visible "not checked" line renders in the web app (`apps/web/src/features/review/utils/receipt.ts`). The 2026-06-07 entry's linked page remains the intended shape, not the shipped one.

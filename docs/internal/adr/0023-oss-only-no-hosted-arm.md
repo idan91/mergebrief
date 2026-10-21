@@ -2,18 +2,15 @@
 
 Status: superseded in part by 0035, 0044
 
-> **Amended by [ADR 0044](0044-fair-source-license.md) (2026-10-03):** the license is fair
-> source (FSL-1.1-Apache-2.0), source-available rather than OSI open source. The no-hosted-arm
-> decision and everything else here stand.
-
-The project is **open-source and self-hostable only**. There is **no hosted offering and no
+The project is **open-source and self-hostable only** (amended, see Amendments). There is **no hosted offering and no
 commercial/SaaS arm** — not deferred-behind-validation as ADR 0017 framed it, but a settled
 direction. The goal is a high-quality OSS project with good word-of-mouth and credible public
 work, not a business.
 
 This **supersedes ADR 0017 in part**: 0017's "open-core, hosted *deferred not forbidden*"
-becomes "OSS-only, hosted *not pursued*". The self-host-first architecture, BYOK default, and
-static-demo funnel from 0017 all stand; only the latent hosted arm is removed.
+becomes "OSS-only, hosted *not pursued*". The self-host-first architecture and BYOK default
+from 0017 stand; the static-demo funnel never shipped (ADR 0017 Decision 1), and only the
+latent hosted arm is removed.
 
 ## Context
 
@@ -52,8 +49,8 @@ static-demo funnel from 0017 all stand; only the latent hosted arm is removed.
 2. **BYOK remains the default** and self-host remains the primary mode (per ADR 0015–0017) —
    these are OSS properties, not commercial ones, and they stand.
 3. **Compete on the OSS axes, not features.** Open, self-hostable, no per-seat cost, no
-   telemetry, hackable; plus the **stable taxonomy + community playbook commons** Atlas lacks.
-   See [`../vision.md`](../../vision.md).
+   telemetry, hackable; plus the **stable taxonomy + community playbook commons** Atlas lacks
+   (amended, see Amendments). See [`../vision.md`](../../vision.md).
 4. **Retire the commercial-strategy source material.** Moat-building, open-core split, headless-as-
    distribution, and the formal validation phases are archived (`docs/internal/archive/`), not active.
 5. **Don't chase the incumbent arms race** (semantic/code graph, generated diagrams, scale).
@@ -78,7 +75,19 @@ contribution surface (the playbook commons) that compounds with community, not w
   static demo and self-host is still fine as engineering — it's just not a go-to-market play.)
 - **The formal PMF validation track** (Phases 1–3, reviewer recruiting, kill-on-signal) is
   archived. We build because the tool is useful to peers, not gated on an experiment.
-- **No telemetry** is now a hard product property, not just a privacy nicety.
+- **No telemetry** is now a hard product property, not just a privacy nicety. It holds: ADR 0046's
+  tracing goes to the operator's own backend, off by default, and the update check is an anonymous
+  read of the release manifest that carries nothing about the instance.
 - Prioritized work shifts to: front-door polish, narrative-on-top-of-taxonomy, the playbook
   commons, then self-host backend — see [`../oss-roadmap.md`](../oss-roadmap.md).
 - ADR 0017 gets a "superseded in part by 0023" banner; its self-host substance stays valid.
+
+## Amendments
+
+### 2026-10-20: The commons is the taxonomy and risk-surface vocabulary
+
+ADR 0035 (2026-07-23) parked the playbook layer to v2 and retargeted the contribution commons to the **taxonomy + risk-surface vocabulary**, the part the engine consumes. #3's "community playbook commons" and the playbook-commons work in Why This Way and Consequences read as that vocabulary commons; a revived playbook layer is a v2 decision under ADR 0035's locked rubric identity.
+
+### 2026-10-03: The license is fair source
+
+Per [ADR 0044](0044-fair-source-license.md), the license is fair source (FSL-1.1-Apache-2.0), source-available rather than OSI open source. The no-hosted-arm decision and everything else here stand.

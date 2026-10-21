@@ -41,3 +41,9 @@ Pure grep cannot see semantic sharpness, and that sharpness is exactly the dange
 - **Adds a model knob** (triage model Haiku/Sonnet, escalate-on-doubt) that is measurable in dogfooding.
 - **Glossary** gains **Triage** and **Fast-lane**.
 - Sits atop the delta subsystem (0006–0008) and the author side (0009); the same triage governs reviewer briefs, deltas, and author self-review.
+
+## Amendments
+
+### 2026-10-20: Triage and the Fast-lane were never built and are abandoned
+
+No triage tier, Haiku pass or Fast-lane artifact exists anywhere in `apps`, `packages` or `tools`. The worker generates the full Brief on every settled push, and spend is bounded below the trigger by the debounce, the instance `drafts` policy and the daily generation cap (`apps/worker/src/task/generate/logic/spend-gate.ts`), per ADR 0020 as amended. The carry-over gate of #3 has no home either: carry-over is evaluated on read inside the Review Session ([ADR 0040](0040-review-session-server-store.md)), never a generation input. The risk-axis concern this record raised is answered by the Risk Surface attributes on every Brief, not by a cheaper experience. The oss roadmap lists the cascade as notes only; it is not planned.

@@ -2,13 +2,7 @@
 
 Status: superseded in part by 0023
 
-> **Superseded in part by [ADR 0023](0023-oss-only-no-hosted-arm.md) (2026-06-30).** The
-> **hosted offering** described below as "deferred, not forbidden" is now **not pursued** —
-> the project is OSS-only. Everything else here (OSS self-host first, static demo, BYOK
-> default, Postgres-only, per-instance App) stands. Read this ADR as: drop the "hosted" run
-> mode and the "decide packaging later" hedging; keep the self-host substance.
-
-The product ships **open-source, self-hosted first**, open-core: one codebase runs as a **static demo**, a **self-hosted instance**, or a **hosted offering** — the last deferred behind validation and legal headroom, not forbidden. This is the foundational distribution decision the rest of the architecture (ADR 0015 runtime/store, ADR 0016 trust/tenancy) is shaped around.
+The product ships **open-source, self-hosted first**, open-core: one codebase runs as a **static demo**, a **self-hosted instance**, or a **hosted offering** — the last deferred behind validation and legal headroom, not forbidden (amended, see Amendments). This is the foundational distribution decision the rest of the architecture (ADR 0015 runtime/store, ADR 0016 trust/tenancy) is shaped around.
 
 ## Context
 
@@ -25,7 +19,7 @@ The product ships **open-source, self-hosted first**, open-core: one codebase ru
 ## Decision
 
 1. **OSS self-host first, open-core.** One codebase, three run modes:
-   - **Static demo** — the FE replaying pre-generated briefs (today's `apps/web` reading `tools/categorizer/out`). No backend, no LLM calls, free. The zero-friction "see the value" funnel.
+   - **Static demo** — the FE replaying pre-generated briefs. No backend, no LLM calls, free. The zero-friction "see the value" funnel. No static demo ships: local briefs are served by the API from `MERGEBRIEF_OUT_DIR` as a dev-only route, dropped in the shipped image and under `NODE_ENV=production` (`apps/api/src/config.ts`, `apps/api/src/routes/local-briefs`).
    - **Self-host** — `docker compose up`; `instance = tenant`; **code and model keys never leave the adopter**.
    - **Hosted** — *deferred, not forbidden*; same core + multi-tenancy + central auth + BYOK key handling, built only after validation and with legal headroom.
 2. **BYOK default** — the adopter brings and pays the model key.
@@ -40,7 +34,13 @@ With no moat and no ability to run a hosted business at scale under current cons
 ## Consequences
 
 - The architecture optimizes for self-host: Postgres-only (ADR 0015), per-instance App (ADR 0016), no cloud-proprietary dependencies.
-- The **static demo** (the existing artifact-reading FE) becomes a first-class funnel artifact, not throwaway.
-- **Hosted remains available** as a future open-core arm; ADR 0016's boundaries (tenancy, audit, key-provider) are its readiness.
+- The **static demo** (the artifact-reading FE) was to become a first-class funnel artifact; it did not ship (see Decision 1).
+- **Hosted remains available** as a future open-core arm; ADR 0016's boundaries (tenancy, audit, key-provider) are its readiness. (Amended, see Amendments.)
 - Phase-1 validation ships as a **self-hostable repo + demo**, not a service.
 - Founder-constraint specifics live in project memory and are **not critical to the architecture** — the design would be identical for any solo, OSS-first author.
+
+## Amendments
+
+### 2026-06-30: The hosted offering is not pursued
+
+Superseded in part by [ADR 0023](0023-oss-only-no-hosted-arm.md). The **hosted offering** described above as "deferred, not forbidden" is **not pursued**; the project is OSS-only. Everything else here (OSS self-host first, static demo, BYOK default, Postgres-only, per-instance App) stands. Read this record as: drop the "hosted" run mode and the "decide packaging later" hedging; keep the self-host substance.

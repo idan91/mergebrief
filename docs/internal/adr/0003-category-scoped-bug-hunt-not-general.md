@@ -2,7 +2,7 @@
 
 Status: superseded in part by 0035
 
-The tool does not run a general line-level AI bug-finder. The only "missed points" surfaced are structural gaps tied to the brief's categories and risk surface — playbook items not visited, risk-surface flags not addressed, category integrity regressions (e.g., a `pure-move` chunk gaining edits since last commit). Orchestrating competitor bug-finders (CodeRabbit, Greptile) is reserved as a v1.5 add-on.
+The tool does not run a general line-level AI bug-finder. The only "missed points" surfaced are structural gaps tied to the brief's categories and risk surface — playbook items not visited (amended, see Amendments), risk-surface flags not addressed, category integrity regressions (e.g., a `pure-move` chunk gaining edits since last commit). Orchestrating competitor bug-finders (CodeRabbit, Greptile) is reserved as a v1.5 add-on.
 
 ## Considered Options
 
@@ -23,3 +23,9 @@ This also produces honest positioning. The tool is "a comprehension layer that r
 - The receipt's "not checked" section must always explicitly include "general bugs / correctness" so authors and managers know to run a bug-catcher if they want that lane.
 - v1.5 orchestration of CodeRabbit/Greptile output is a viable expansion path once the wedge has established product-market fit — but it remains additive, not central.
 - If a strong customer signal emerges that the missing bug-hunt blocks adoption regardless of positioning, revisit. Default answer remains no.
+
+## Amendments
+
+### 2026-10-20: The playbook leg of missed points is parked with the playbook layer
+
+ADR 0035 parked the per-Category playbook layer to v2 and removed every playbook mention from product code, so "playbook items not visited" no longer exists as a missed point. Missed points today are risk-surface flags without a disposition, surfaced on the receipt as open flags (`apps/web/src/features/review/utils/receipt.ts`). The general-bug-hunt refusal and the category-scoped principle stand unchanged.

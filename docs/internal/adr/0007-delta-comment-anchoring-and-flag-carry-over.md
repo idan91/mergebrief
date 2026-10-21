@@ -2,11 +2,11 @@
 
 Status: superseded in part by 0040
 
-In a Delta Brief, prior review work is re-placed against the new head **by ownership**: GitHub-native shipped **Comments** reuse GitHub's own position/outdated tracking; our **Flags**, dispositions, and unshipped drafts are anchored by us via the span's **positional line-map**, with the delta's LLM pass used only to *locate* moved items — never to override a positional result. Each prior flag is classified **New / Reopened / Settled / Dropped**, where Reopened is decided purely positionally (any change to the flagged region reopens) and every ambiguity biases to re-look.
+In a Delta Brief, prior review work is re-placed against the new head **by ownership**: GitHub-native shipped **Comments** reuse GitHub's own position/outdated tracking; our **Flags**, dispositions, and unshipped drafts are anchored by us via the span's **positional line-map**, with the delta's LLM pass used only to *locate* moved items — never to override a positional result (amended, see Amendments). Each prior flag is classified **New / Reopened / Settled / Dropped**, where Reopened is decided purely positionally (any change to the flagged region reopens) and every ambiguity biases to re-look.
 
 ## Context
 
-ADR 0006 fixed the delta generation and state model but deferred how a reviewer's prior work — shipped comments, flags, dispositions (addressed/dismissed), and Mind-Map drafts — is re-placed when head moves. These are the `movedCommentAnchors`, `orphanedCommentIds`, `reopenedRiskFlagIds`, and `stillResolvedRiskFlagIds` fields in the delta fixture.
+ADR 0006 fixed the delta generation and state model but deferred how a reviewer's prior work — shipped comments, flags, dispositions (addressed/dismissed), and Mind-Map drafts — is re-placed when head moves. The delta fixture fields this record first named for them (`movedCommentAnchors`, `orphanedCommentIds`, `reopenedRiskFlagIds`, `stillResolvedRiskFlagIds`) never reached `DeltaBriefSchema`; the vocabulary lives in `packages/types/src/dispositions.ts` and `packages/types/src/comments.ts`.
 
 The asymmetry that drives every choice here: a false **"Settled"** is a silent rubber-stamp — the exact failure the product exists to prevent — while a false **"Reopened"** costs only a glance. The design must make the dangerous error structurally hard and the cheap error the default.
 
@@ -26,7 +26,7 @@ The asymmetry that drives every choice here: a false **"Settled"** is a silent r
 ## Decision
 
 1. **Ownership split.** Shipped **Comments** → GitHub-native position + `outdated`, read not recomputed. **Flags**, dispositions, and unshipped drafts → anchored by us.
-2. **Mechanism.** The positional line-map derived from the checkpoint→head **tree diff** (already computed per ADR 0006) is the spine. The delta's LLM pass refines only by *locating* a moved item (distinguishing **moved** from **orphaned**) and by producing the "does this address the prior comment" narrative. It can never turn a positional **Reopened** into **Settled**.
+2. **Mechanism** (amended, see Amendments). The positional line-map derived from the checkpoint→head **tree diff** (already computed per ADR 0006) is the spine. The delta's LLM pass refines only by *locating* a moved item (distinguishing **moved** from **orphaned**) and by producing the "does this address the prior comment" narrative. It can never turn a positional **Reopened** into **Settled**.
 3. **Comment anchoring states** (our-owned items): **moved** (relocated to a new line) or **orphaned** (target line gone). Ambiguous → orphaned / needs re-look.
 4. **Flag carry-over statuses:** **New / Reopened / Settled / Dropped**, resolved in this order:
    - attribute no longer fires at head → **Dropped**;
@@ -35,7 +35,7 @@ The asymmetry that drives every choice here: a false **"Settled"** is a silent r
    - else → **New**.
    Reopen is **purely positional** — any touch reopens; meaningfulness is never inferred. `Dropped` wins over `Reopened` (no point reopening a flag that no longer exists), and this is not materiality inference — it is just whether the head Brief still emits the flag.
 5. **Bias rule.** Any ambiguity — can't map an anchor, can't tell if a comment was truly addressed — resolves to **Reopened** / needs-re-look, never **Settled**.
-6. **Granularity.** Dispositions are per reviewer; carry-over statuses are a **per-reviewer overlay** on the shared head **Brief**, which carries the flags themselves. The Receipt aggregates across reviewers as before.
+6. **Granularity** (amended, see Amendments). Dispositions are per reviewer; carry-over statuses are a **per-reviewer overlay** on the shared head **Brief**, which carries the flags themselves. The Receipt aggregates across reviewers as before.
 
 ## Why This Way
 
@@ -48,3 +48,13 @@ The ownership split buys free correctness for the highest-volume case — GitHub
 - **User-facing vocabulary** (`New` / `Reopened` / `Settled` / `Dropped`, and comment `moved` / `orphaned`) is added to `CONTEXT.md`; the FE may describe `Settled` as "still holds."
 - **Over-reopening on trivial edits is accepted by design** — the cost of the no-inference rule, and the cheap side of the asymmetry.
 - Together with ADR 0006 this specifies the delta subsystem (generation + state + carry-over). Line-level / sub-operation attribution remains deferred (ADR 0005).
+
+## Amendments
+
+### 2026-10-20: Carry-over is deterministic and session-owned under ADR 0040
+
+Three parts of this record changed with [ADR 0040](0040-review-session-server-store.md); the ownership split, the status vocabularies and the bias rule stand.
+
+- **No model pass.** The LLM relocation leg of #2 was never built. Carry-over is `remapThroughHops` over persisted `hunk_span` hops, pure and in memory (`packages/brief-core/src/diff/remap.ts`, `packages/persistence/src/stores/carry-over.ts`): an anchor that cannot be placed orphans, a touched region reopens, ambiguity reopens, and orphaned work is unplaced, never deleted.
+- **The span is the Review Session's**, previous Brief → this Brief, not checkpoint → head; the hop chain links consecutive Briefs.
+- **No per-reviewer overlay artifact.** Statuses are the `carry_status` column on session-owned `disposition` rows, beside `evidence_status` (`packages/persistence/src/schema/disposition.ts`); draft comments carry `anchor_status` (`moved` / `orphaned`) and read marks carry by `brief.carried_chunk_ids`. The vocabularies live in `packages/types/src/dispositions.ts` and `packages/types/src/comments.ts`.

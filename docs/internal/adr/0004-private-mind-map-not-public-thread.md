@@ -2,15 +2,6 @@
 
 Status: amended (see Amendments)
 
-> **Amended 2026-08-17 ([ADR 0040](0040-review-session-server-store.md)):**
-> the term **Mind-Map Space is retired**; this private workspace is a **Review
-> Session** — one reviewer's work on one PR, pinned to one **Session baseline**
-> (now the durable key of that session, not a transient label). The durable
-> per-(PR × reviewer) home this record demanded is a server-side row keyed
-> `(installation, brief, reviewer)`, not browser storage. Everything else here
-> stands unchanged: the discussion stays private, only finalized comments and
-> the Receipt ship to GitHub.
-
 Agent ↔ reviewer discussion — pushback, corrections, dismissals, draft thinking — happens entirely inside the tool's web app, scoped to a private (PR × reviewer) workspace. Only finalized human comments and the scoped tool verification receipt ship to the GitHub PR thread. Selective "promote to PR thread" affordance is deferred to v1.5+.
 
 ## Considered Options
@@ -33,3 +24,9 @@ The edge case worth naming: a reviewer dismisses a flag that *did* contain a rea
 - The receipt becomes the *only* externally visible artifact of agent-reviewer interaction. It must be honest about dismissals, missed playbook items, and "not checked" gaps — otherwise the privacy guarantee turns into opacity.
 - Multi-reviewer hybrid (ADR 0004 + Multi-Reviewer model): brief is shared, mind-map is private per reviewer, receipt aggregates. Reviewers do not see each other's private thinking — by design.
 - Selective promote (v1.5+) introduces UX cost: which exchange? what gets quoted? attribution to agent vs reviewer? Worth solving once the core surface is validated.
+
+## Amendments
+
+### 2026-08-17: Mind-Map Space is retired; the workspace is a Review Session
+
+Per [ADR 0040](0040-review-session-server-store.md), the term **Mind-Map Space** is retired. This private workspace is a **Review Session**: one reviewer's work on one PR, pinned to one **Session baseline**, now the durable key of that session rather than a transient label. The durable per-(PR × reviewer) home this record demanded is a server-side row keyed `(installation, brief, reviewer)`, not browser storage. The session owns draft comments, read marks, group reclassifications, dispositions and submitted review ids (`packages/persistence/src/schema/review-*.ts`, `disposition.ts`); no agent chat was built. Everything else here stands unchanged: the discussion stays private, only finalized comments and the Receipt ship to GitHub.
