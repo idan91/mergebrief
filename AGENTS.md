@@ -25,7 +25,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - One import statement per package; no star imports; no aliasing an enum-like map on import; no deep import into another package's internals.
 - Import the owner: never re-declare an existing exported type, schema, regex or fixture inline. Shared test fixtures live in test utils.
 - Re-export only from a barrel: a file named `index.ts` or `index.tsx` may re-export files inside its own folder. A path that climbs out (`../`) or names another package is not a barrel re-export, even from an `index.ts`. Everywhere else, import from the owner. Passing an imported name on in any other form counts too: an exported alias, `export default`, `export =`, `export import`, a namespace member, an `import()` type, or an empty interface that only extends it. A justified exception carries `// oxlint-disable-next-line house/no-re-export -- <why>` and is argued in the PR. `house/no-re-export` holds it at error.
-- Named exports only. Default exports exist only where a framework reads one: vite, tsup and drizzle configs, and the TanStack server entry `apps/web/src/server.ts`. Controllers and handlers are named exports.
+- Named exports only. Default exports exist only where a framework reads one: vite, vitest, tsup, drizzle and playwright configs, playwright's global setup and teardown, the oxlint plugin entry, and the TanStack server entry `apps/web/src/server.ts`. Controllers and handlers are named exports.
 - `zod` is imported as `zod/v4`; `no-restricted-imports` holds it at error.
 
 ## File shape
@@ -43,22 +43,6 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - Casing: kebab-case for every file and folder. The only exceptions are PascalCase component files and folders and camelCase `use*` hooks. Existing names are renamed on their own ticket.
 - Zod schemas live beside their owner, the route, operation, store or script that parses with them. A `schemas.ts` serves one owner; duplicated wire bounds share one module at the closest common owner (`apps/api`'s `routes/wire-bounds.ts`). `packages/brief-core/src/types.ts` is the domain contract and keeps its schemas.
 - A package entry is `src/index.ts`, a curated barrel and the `exports["."]` target. `index.tsx` feature barrels are an apps/web convention.
-- Target shape of `apps/worker/src/task`, a grouping folder whose one grown member becomes a folder:
-
-  ```
-  today                          target
-  task/                          task/
-    entry-comment.ts               entry-comment.ts
-    failure.ts                     failure.ts
-    generate.ts   (1,700 lines)    generate/
-    github-port.ts                   index.ts    createGenerateTask; orchestrates
-    issue-api.ts                     types.ts    GenerateTaskDeps, GenerateTaskHelpers
-    owner-follow-up.ts               consts.ts   the poll interval, the audit operation
-    payload.ts                       logic/      the pure steps: supersession watch,
-    repo-config.ts                               revision artifacts, delta warm
-    spend.ts                       github-port.ts
-    sweep-audit.ts                 ...
-  ```
 
 ## Types and values
 
@@ -102,10 +86,10 @@ Three of them are judgment calls instead of fixed answers: when to split support
 ## Gates
 
 - oxlint is the only linter. A convention oxlint has no native rule for lives in the house JS plugin as a selector rule; user-facing copy is gated by eslint-plugin-i18next loaded through oxlint. Every deterministic rule runs at error.
-- The two baseline files only ever lose entries, and a file a PR edits leaves none behind: `pnpm check:baselines` holds both, inside `pnpm lint`. It compares the WORKING TREE against `merge-base(<base>, HEAD)`; the base is `--base`, else `MERGEBRIEF_BASELINE_BASE`, else `main`. A base it cannot resolve fails the gate rather than passing quietly, and its report splits retired entries into fixed, retired-by-policy and file-deleted so a green run is not read as more progress than it is.
+- The baseline file, `oxlint-suppressions.json`, only ever loses entries, and a file a PR edits leaves none behind: `pnpm check:baselines` holds it, inside `pnpm lint`. It compares the WORKING TREE against `merge-base(<base>, HEAD)`; the base is `--base`, else `MERGEBRIEF_BASELINE_BASE`, else `main`. A base it cannot resolve fails the gate rather than passing quietly, and its report splits retired entries into fixed, retired-by-policy and file-deleted so a green run is not read as more progress than it is.
 - `.nvmrc` is the one node version: local shells and CI both read it, and `engines` states the range the boundary gate tolerates. A gate run on an out-of-range node fails with a message about the tool, not the requirement.
 - Judge a gate by its exit code, never by grepping output (`pnpm lint` short-circuits on `&&`; prettier reports violations as `[warn]`). Run `cmd >/dev/null 2>&1; echo $?`. In stacked work lint each branch bottom-up; a rule can pass at the tip and fail mid-stack.
-- Coverage floors ride inside `pnpm test`: every package's vitest config commits a lines threshold; 75% is the standard. A package still under it carries a temporary floor plus a catch-up ticket. Never lower a floor to absorb a drop. A `v8 ignore` comment needs a stated reason and is reviewed like a lint-disable.
+- Coverage floors ride inside each member's own `pnpm -C <member> test`; root `pnpm test` runs only `tools/categorizer`. Every tested member's vitest config (apps/web's `vite.config.ts`) commits a lines threshold; 75% is the standard. A package still under it carries a temporary floor plus a catch-up ticket. Never lower a floor to absorb a drop. A `v8 ignore` comment needs a stated reason and is reviewed like a lint-disable.
 - Generation-surface changes run the eval harness. The surface: `packages/brief-core/src/generation/prompt.ts`, the output schema, validators and salvage, the anchored plan and stitch in `packages/brief-core/src/anchoring/` with the diff parsers in `packages/brief-core/src/diff/` that decide them, repo-config injection, and output-affecting adapter defaults. Agents never invoke the harness; they prepare the case selection and its justification, and a human runs and spends. Scoped by default: one `pnpm -C tools/categorizer eval --case <id>` run per case whose properties could plausibly move, never a list, with the report in the PR body. Full suite for prompt-wide or model-bump changes. `--rebaseline` on main only when the surface legitimately moved. Convention gate, never CI. Mechanics in `tools/categorizer/eval/README.md`.
 - Never search with a glob that can match a real env file; target `.env.example` and source files explicitly. A filename-list grep still reads contents, and real env files hold live keys: `tools/categorizer/.env` holds the live Anthropic key, gitignored and agent-denied.
 

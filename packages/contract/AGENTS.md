@@ -6,8 +6,8 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Invariants (enforced, don't weaken)
 
-- **Wire shapes only.** No route handler, no middleware, no database access, no re-export of the API app. If a consumer needs it to talk to the API over HTTP it belongs here; if it only exists inside one app, it does not.
-- **Nothing runtime crosses in.** The stored vocabularies a payload field is typed by come from `types`, the same maps `persistence` types its columns by, so the wire shape and the stored value cannot drift into two spellings. `persistence` itself is not a dependency: it would drag drizzle and pg into the browser bundle through `apps/web`'s isomorphic `data/apiFetch`.
+- **Placement test.** A shape a consumer needs to talk to the API over HTTP belongs here; a shape that exists inside one app stays in that app.
+- **A payload field reuses the stored map.** It is typed by the same `types` map `persistence` types its column by, so the wire shape and the stored value share one spelling.
 - **One owner per vocabulary.** A consumer imports the map, it never re-declares one. Where a consumer's shape legitimately differs, such as `apps/web`'s parsed `LastReviewComparison` with its `kind` discriminant, the difference is pinned with `Equals` against the shape here rather than mirrored by hand.
 - **`apps/web` extends, it does not fork.** Its `ApiErrorCodes` spreads this package's map and adds the ONE web-local member, `malformed`, which never appears on the wire.
 

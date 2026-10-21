@@ -20,9 +20,8 @@ What the layout can't show:
 ## Invariants (enforced, don't weaken)
 
 - **No DB imports.** This package never imports `drizzle-orm`, `pg`, or any query surface from `persistence` at runtime. The sole exception is **type-only** imports of branded ids (e.g. `InstallationId`) — `import type { InstallationId } from "persistence"` — used to keep id types aligned across packages without pulling in the DB layer. `Result`/`ValueOf` come straight from the zero-dependency `types` package.
-- **`loadConfig(env)` takes an explicit env map** — never implicit `process.env` at import time. Composition roots (web app, worker) decide when and what to read.
-- **All external input validated with Zod** at the boundary it enters — config now; webhook payloads and API responses in later stages.
-- **Errors:** expected failures (bad/missing env) return `Result`, never throw. Error messages never carry key material, tokens, or credentials — `ConfigError.issues` lists `field: reason` only, never the offending value (the private key, webhook secret, and OAuth client secret are all credentials).
+- **`loadConfig(env)` takes an explicit env map** and returns `Result`. The composition roots, `apps/api/src/main.ts` (through its `src/boot/`) and `apps/worker/src/main.ts`, decide when and what to read.
+- **`ConfigError.issues` lists `field: reason` only**, never the offending value: the private key, webhook secret and OAuth client secret are all credentials.
 - **No hand-rolled JWT/token minting.** App-JWT signing and installation access-token minting/caching are owned by `octokit`'s `App` class (`@octokit/auth-app` under the hood) — this package configures it, it never re-implements it.
 
 ## GitHub wire facts (bitten-by; keep in mind when touching primitives)
