@@ -109,7 +109,9 @@ agent is involved.
    carried row, so an item the reviewer already fixed cannot re-open itself.
    Its wire shape carries `clearedBy` as a **list** of operation ids.
    **Clearing is human-only in v1**, guarded by one predicate in the handler
-   layer.
+   layer (today the descriptor's `browserSessionOnly` field, enforced at the
+   router's policy gate, `apps/api/src/product-operations/policy-gate.ts`;
+   ADR 0041 records the move).
 6. **Scope is a column on `api_token`**, chosen at mint, immutable. The
    ladder **is** the write classification — `read` / `private-write` /
    `external-write`, cumulative. A cookie has no scope: the browser is
@@ -138,7 +140,7 @@ agent is involved.
    outcome, body}`), moving the 100-comment cap to the session; a repeat
    naming an already-published draft is refused with `draft-already-published`
    (409). The per-tab in-flight registry in `postComment.ts` is deleted.
-   *Reversed by the amendment below.*
+   (amended, see Amendments: reversed on 2026-10-06.)
 10. **The audit trail records every action plus denials, never a read**, from
     the single router choke point. `action`'s eight values are replaced by the
     descriptor's `operation` id, alongside `classification`, `channel`,
@@ -148,12 +150,13 @@ agent is involved.
     knob (`AUDIT_RETENTION_DAYS`, unset = forever, 30-day floor when set), the
     opt-out is one boolean (`AUDIT_PRIVATE_WRITES`, default on, external
     writes and denials never switchable), and caller IP is off by default
-    behind an operator PII flag. **No read surface in v1.**
-    *Amended 2026-10-18: `caller_ip` and its PII flag are removed
-    (migration 0062); see ADR 0018's `audit_log` amendment.*
-11. **The surface is 34 operations** — 14 queries, 20 actions; 14 `read`, 14
-    `private-write`, 6 `external-write`. The "Clear local drafts" button is
-    **deleted** and gets no operation; **`reopen-risk`** ships in its place.
+    behind an operator PII flag. **No read surface in v1.** (amended, see
+    Amendments: `caller_ip` is gone.)
+11. **The surface is 34 operations** at decision time — 14 queries, 20
+    actions; 14 `read`, 14 `private-write`, 6 `external-write` (the live
+    census is the table in `packages/contract/src/operations/index.ts`). The
+    "Clear local drafts" button is **deleted** and gets no operation;
+    **`reopen-risk`** ships in its place.
 
 ## Why This Way
 
@@ -195,6 +198,13 @@ way nine hand-placed emits did.
 - **Amends ADR 0022** — the client store stops being the source of truth and
   its `sessionStorage` snapshot is deleted; the deferred region-anchored
   keying is now live, keyed through the session's Brief.
+- **Amends ADR 0006, ADR 0007 and ADR 0008** — the per-reviewer carry-over
+  those records left to a model pass (ADR 0007 permits relocating moved
+  anchors by LLM; ADR 0006 and ADR 0008 persist and fetch the Delta Brief as
+  the carrier) is the deterministic `remapThroughHops` chain over the
+  persisted `hunk_span` sidecar; the Delta Brief carries no carry-over
+  fields, and `moved`/`orphaned`, `New`/`Reopened`/`Settled`/`Dropped` are
+  derived from the Review Session instead.
 - **Amends ADR 0039** — descriptors *do* touch a request: the scope check runs
   inside `productRouter.action()`. `agentAvailable` leaves the
   descriptor, and the CLI-map gate inverts (every id must appear; `webOnly` is
@@ -224,15 +234,17 @@ way nine hand-placed emits did.
   a human from their agent; the reviewer invoked the agent, so the write is
   theirs. Separable only under a bot identity — out of scope, and the one
   parked item this decision must not paint out.
-- **Accepted, stated not hidden:** a draft-scoped token can call
+- **Accepted, stated not hidden:** a `private-write` token can call
   `generate-brief` and spend model money; a GitHub write that succeeds after
   our call times out can double-post; a tab left open across the deploy loses
   its marks; file-backed briefs carry no session until URL briefs move into the database.
-  The double post is no longer accepted: see the amendment below.
+  (amended, see Amendments: the double post is no longer accepted.)
 
-## Amendment (2026-10-06)
+## Amendments
 
-Decision 9 is reversed. A Comment reaches GitHub once.
+### 2026-10-06: A Comment reaches GitHub once
+
+Decision 9 is reversed.
 
 - **Publishing is claim, settle, release.** Post-now and Submit read the drafts
   without writing, refuse what they can before any GitHub call (an empty or
@@ -282,3 +294,10 @@ Decision 9 is reversed. A Comment reaches GitHub once.
 - **The draft cap is 64**, not 100, counted over the session's unposted drafts.
 - **A Submit GitHub refuses as forbidden answers an honest 403**
   `github-permission`; a 401 after a good token refresh stays 401.
+
+### 2026-10-18: The audit row drops the caller address
+
+`caller_ip` and its PII flag are removed from `audit_log`
+(`packages/persistence/drizzle/0062_drop-audit-caller-ip.sql`); #10's row
+holds ids, tokens and numbers only. ADR 0018 carries the matching `audit_log`
+amendment.

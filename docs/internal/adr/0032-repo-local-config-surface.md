@@ -2,10 +2,6 @@
 
 Status: amended (see Amendments)
 
-> **Renumber note (2026-07-17):** the board ticket referenced below as the **draft generation policy**
-> (draft-aware debounce + instance `drafts:` knob) was
-> renumbered by Notion's auto-increment; same ticket, same scope.
-
 Repos gain a single config namespace — the `.mergebrief/` directory — carrying **validated policy** (`policy.yaml`: custom risk attributes, display weight), **workflow settings** (`settings.yaml`), and **text instructions to generation** (`instructions.md`, the CLAUDE.md idiom for the Brief generator). Every repo-local file is read from the **default branch only**, fetched fresh per generation, capped, fenced, and stamped onto the Brief's origin record. The surface is split from instance config by one line: **instance config is the operator's (pays and runs it); repo config is the code-owner's (owns the code it describes)** — no key exists in both. Decides the shared delivery mechanics for repo-local risk policies and the repo instructions file, fixes the draft generation policy's naming collision, and closes the per-repo-YAML dangling reference left in ADR 0020 by the instance-config amendments.
 
 ## Context
@@ -37,7 +33,7 @@ Repos gain a single config namespace — the `.mergebrief/` directory — carryi
 ```
 .mergebrief/
   instructions.md    # text guidance to generation
-  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts)
+  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, tracker/trackers)
   policy.yaml        # risk policy (custom attributes, de-emphasis)
   rules/             # RESERVED — generated comment-to-rule output (v2+)
 ```
@@ -98,7 +94,7 @@ Per generation, per file: `path + blob SHA + outcome` (`applied` / `absent` / `i
 
 - Injected whole as one fenced block `<repo_instructions path="…" sha="…">` with a contract preamble. **May follow, for these purposes only:** grouping boundaries (which dirs form one unit) · domain glossary / summary terminology · noise & generated path de-emphasis · repo-specific reading conventions (foundation *relations* between dirs — structural facts feeding ADR 0025's mechanical rule, never importance) · summary phrasing preferences. **Must ignore:** anything touching the output schema, the closed label vocabulary, category assignment against diff evidence, risk attributes (that is `policy.yaml`'s validated lane), verdicts/scores/ordering weights, or text addressing the model as an agent.
 - **Prose shapes presentation and comprehension; only validated YAML creates facts.** `instructions.md` can never mint an attribute — that asymmetry is why two files exist.
-- The class list's operative source of truth is a single exported constant in the categorizer's prompt module (`REPO_INSTRUCTION_CLASSES`), unit-tested to appear in the assembled prompt, mirrored in this ADR and the authoring docs. **Changing the classes = ADR amendment + prompt change + eval-harness run.**
+- The class list's operative source of truth is a single exported constant (`REPO_INSTRUCTION_CLASSES` in `packages/brief-core/src/generation/repo-context.ts`), unit-tested to appear in the assembled prompt, mirrored in this ADR and the authoring docs. **Changing the classes = ADR amendment + prompt change + eval-harness run.**
 - v1 is **root file only**. Scoped instruction files (`.mergebrief/instructions/<scope>.md`, glob frontmatter, deterministic path-keyed injection within the 16 KB budget) are the designed-not-built extension — separate ticket, revisit on real monorepo budget pressure or cross-scope noise complaints. Nested per-package dotdirs are rejected outright (directory discovery per generation; config scattered across the tree).
 
 ### 11. `policy.yaml` semantics
@@ -128,9 +124,7 @@ Residual risk, stated honestly: a malicious maintainer can degrade *their own re
 
 ### 13. `settings.yaml` v1 and the ADR 0020 closure
 
-> **Amended 2026-09-15:** the default flipped to `entryCommentOnDrafts: true`. In practice every PR opens as a draft and the Entry is the reader's way into the brief, so an off default meant no comment until ready-for-review on most PRs. Repos that keep drafts private opt out with `false`; the gate, ready-flip and sweep semantics below are unchanged, with the sweep now firing only on an explicit `false`.
-
-v1 carries one key: **`entryCommentOnDrafts` (default `false`)**. The default implements ADR 0020 #4's documented-not-built universal rule — the branded entry comment stays off draft PRs (verified: no draft gate exists in `generate.ts` today); the comment posts when `ready_for_review` arrives (webhook already parses it). Repos that genuinely review drafts opt in with `true`. ADR 0020 #5's per-repo draft-first opt-in is **retired as absorbed**: its Entry-holding semantics ARE the universal rule, and its author-side residual shipped separately (own-draft view, mark-ready CTA). ADR 0020 is amended accordingly.
+v1 carries one key: **`entryCommentOnDrafts` (default `false`)** (amended, see Amendments: the default is `true`, and the file also binds the ticket tracker). The default implements ADR 0020 #4's documented-not-built universal rule — the branded entry comment stays off draft PRs (verified: no draft gate exists in `generate.ts` today); the comment posts when `ready_for_review` arrives (webhook already parses it). Repos that genuinely review drafts opt in with `true`. ADR 0020 #5's per-repo draft-first opt-in is **retired as absorbed**: its Entry-holding semantics ARE the universal rule, and its author-side residual shipped separately (own-draft view, mark-ready CTA). ADR 0020 is amended accordingly.
 
 ## Why This Way
 
@@ -138,25 +132,52 @@ One line — operator vs code-owner — decides every placement question this su
 
 ## Consequences
 
-- **ADR 0020** amended: #4 built as the universal default via `entryCommentOnDrafts: false`; #5's repo-YAML opt-in retired; the dangling per-repo YAML reference is resolved (the instance-config kill applied to runtime config; this ADR re-introduces repo files for policy/text/workflow under a different contract).
+- **ADR 0020** amended: #4 built as the universal default via `entryCommentOnDrafts: false` (amended, see Amendments); #5's repo-YAML opt-in retired; the dangling per-repo YAML reference is resolved (the instance-config kill applied to runtime config; this ADR re-introduces repo files for policy/text/workflow under a different contract).
 - **`risk-surface.md`** gains a per-attribute `floor` marker (initial: `touches-auth`, `removes-validation`, `relaxes-permissions`); `widens-error-handling` stays de-emphasizable. **CONTEXT.md** glossary gains the repo-config terms (de-emphasis, floor, jump-rail, repo instructions).
 - **The draft generation policy** proceeds under the settled naming: its `drafts:` knob stays instance-level; draft→ready debounce-flip semantics remain its scope.
 - New ticket filed: **scoped instruction files** (Later) with the #10 sketch + revisit triggers.
 - Implementation: risk policies and the instructions file ship as one stack.
 - The comment-to-rule loop (v2+) inherits `.mergebrief/rules/` and the default-branch trust rule for free.
 
-### Amendment (2026-07-18, two-column summary follow-up)
+## Amendments
 
-The risk-policy implementation had added a "Risk surface — attributes, not
+### 2026-07-18: The jump-rail is the one page-level risk surface
+
+The risk-policy implementation had added a "Risk surface, attributes not
 verdicts" chip lane to the Brief summary section alongside the #11 display
 surfaces. With the two-column summary it rendered directly above the
-(floor-fired, therefore open) jump-rail as a near-duplicate list. **Removed:
-the attribute jump-rail is now the single page-level risk-surface summary.**
-The #11 display decisions stand unchanged — group-header chip unions, chunk
-chips, and the rail's semantics (attribute-keyed, floor pinned, de-emphasized
-excluded, collapsed unless floor fired). Accepted consequences: de-emphasized
-attributes have no page-level surface (they remain on group/chunk chips), and
-the Changes Only view carries no page-level risk surface. Revisit trigger:
-reviewers reporting they miss quiet attributes at a glance, or a no-floor
-brief reading as "no risk surface" → reconsider a compact lane, not a
-second full list.
+(floor-fired, therefore open) jump-rail as a near-duplicate list. Removed: the
+attribute jump-rail is now the single page-level risk-surface summary. The #11
+display decisions stand unchanged: group-header chip unions, chunk chips, and
+the rail's semantics (attribute-keyed, floor pinned, de-emphasized excluded,
+collapsed unless floor fired). Accepted consequences: de-emphasized attributes
+have no page-level surface (they remain on group/chunk chips), and the Changes
+Only view carries no page-level risk surface. Revisit trigger: reviewers
+reporting they miss quiet attributes at a glance, or a no-floor brief reading
+as "no risk surface", then reconsider a compact lane, not a second full list.
+
+### 2026-09-15: Entry comments on drafts default on
+
+The #13 default flipped to `entryCommentOnDrafts: true`
+(`packages/repo-config/src/schemas.ts`). In practice every PR opens as a draft
+and the Entry is the reader's way into the brief, so an off default meant no
+comment until ready-for-review on most PRs. Repos that keep drafts private opt
+out with `false`; the gate, ready-flip and sweep semantics are unchanged, with
+the sweep now firing only on an explicit `false`. ADR 0020 #4's universal rule
+is therefore built as opt-out, not opt-in.
+
+### 2026-10-20: The repo binds its ticket tracker in settings.yaml
+
+`settings.yaml` v1 carries more than one key: `version`, `entryCommentOnDrafts`,
+and a `tracker:` block (or `trackers:` list) naming which ticket tracker the
+repo's references point at, with its key prefix
+(`packages/repo-config/src/schemas.ts`). A repo that names none takes the
+instance `trackers:` list, and the repo list replaces the instance one whole
+(`resolveEffectiveTrackers`, `packages/generators/src/config/trackers.ts`); with
+neither named, references read as GitHub Issues on the pull request's own
+repository (`packages/brief-core/src/context/trackers/github/references.ts`).
+So `trackers:` is the one key both files carry, an exception to #1: the
+operator sets a default and a code-owner may override it. The credential that
+reads a tracker (a Notion token) stays the operator's, in instance config under
+`contextSources:` (`packages/generators/src/config/context-sources.ts`). ADR
+0033 records the provider side.

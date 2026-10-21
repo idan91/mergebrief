@@ -30,22 +30,11 @@ A **Product Operation** is one authenticated domain operation. Two kinds:
   (leaves the instance: GitHub reviews, comments, thread state).
 
 Each operation carries a stable kebab-case `id` (the join key across
-manifest and CLI map) ~~and `agentAvailable`. Credential/setup flows an agent
+manifest and CLI map) and `agentAvailable`. Credential/setup flows an agent
 must never drive (token mint/revoke, installation selection surfaces that
 exist to bootstrap credentials) ship `agentAvailable: false` and are exempt
-from CLI-mapping enforcement.~~
-
-**Amended (2026-08-17,
-[ADR 0040](0040-review-session-server-store.md)):** `agentAvailable` is
-**deleted**. It enforced nothing — the real rule is the Bearer path test in
-the authz gate — and hand-typed at 23 sites it was already wrong for
-`list-tokens` and `list-installations` (both `/api/auth/*`, both 401 to every
-token, both parked as CLI gaps demanding an impossible command). The
-descriptor drops to four fields: `id`, `kind`, `classification`, `endpoint`.
-What a credential may do is its **scope** (`read` / `private-write` /
-`external-write`, cumulative) matched against the operation's existing write
-classification — the classification IS the permission, so a new operation
-cannot be added without declaring who may call it.
+from CLI-mapping enforcement. (amended, see Amendments: `agentAvailable` was
+deleted on 2026-08-17.)
 
 Not Product Operations, never registered: OAuth callbacks, logout, the
 session probe, webhook ingest, version checks, UI-only presentation state,
@@ -64,7 +53,8 @@ Route files keep the existing factory convention, but build on a
 registering its operation are ONE statement: `.query(descriptor, path,
 handler)` mounts a GET, `.action(descriptor, method, path, handler)` mounts a
 write, and there is no descriptor-less way to mount a domain route. Descriptor
-ids come from a typed vocabulary (`ids.ts`), so an unknown id or a
+ids come from a typed vocabulary (`ProductQueryIds` and `ProductActionIds` in
+`packages/contract/src/operations/types.ts`), so an unknown id or a
 kind/classification mismatch is a compile error before it is a runtime throw.
 
 Operation ↔ endpoint is 1:1: handler sub-steps never register (automatic
@@ -74,15 +64,15 @@ Each registered descriptor carries its endpoint (`METHOD /full/path`),
 assembled mechanically: `.route(prefix, child)` absorbs the child router's
 declarations under the mount prefix, and the composition root's `commit`
 stamps the accumulated full paths — including the top-level `/api` mount —
-into the registry. ~~No full path is ever written by hand,~~ **(amended
-below)** and a derived
+into the registry. No full path is ever written by hand (amended, see
+Amendments: the operation table writes each once), and a derived
 backstop test pins the composed app's route table (minus the ADR-listed
 exempt endpoints) exactly against the registry's endpoint set.
 
 Registration therefore runs at route composition (`createApp`), not module
-load: composing the app is what fills the registry~~, and the manifest
-generator composes against stub dependencies without serving~~ **(amended
-below: the manifest renders the table)**. Because tests
+load: composing the app is what fills the registry, and the manifest
+generator composes against stub dependencies without serving (amended, see
+Amendments: the manifest rendered the table, then was dropped). Because tests
 compose many apps per process, re-registering an identical descriptor
 (endpoint included) is a no-op; the same id with a different descriptor
 still throws.
@@ -92,67 +82,91 @@ kind/classification mismatch, declaring on an already-mounted router — throw
 at composition: they are programmer errors a test run surfaces immediately,
 not expected failures, so `Result` does not apply.
 
-**Amended (2026-10-12, architecture review):** each
-operation's full path IS written by hand, once, in the **operation table**:
-one row per operation in `packages/contract/src/operations/index.ts` holding its
-kind, classification, method and full path. Clients build requests from the
-row instead of retyping URLs. Composition still assembles the path
-mechanically, and `commit` now asserts the assembled `METHOD /full/path`
-equals the row, throwing at composition like the other registration-seam
-failures. A route declares only its relative path and reads its method from
-the row. The manifest becomes a pure rendering of the table, so the
-generator needs no database and no composed app. Policy beyond the
-classification (human-only, push, installation, row) stays on the api
-descriptor, keyed by the operation's id. Its fields are named for the rule
-each states: `browserSessionOnly`, `requiresPushAccess`,
-`requiresInstallation` and `requiresStoredPullRequest`.
-
 ### Manifests and CI gates
 
-- `packages/api/product-operations.manifest.json` — committed, regenerated
-  by script ~~from the registry (compose without serving)~~ **(amended
-  2026-10-12)** from the operation table, byte-compared in CI. An unregistered domain route or an edited descriptor shows up as
-  manifest drift and fails CI.
-  **Amended (2026-10-14):** the committed manifest is dropped;
-  the table is the only list, and `commit()` and the catalog test guard
-  drift.
+- A committed `product-operations.manifest.json` in the api package,
+  regenerated by script from the registry (compose without serving),
+  byte-compared in CI. An unregistered domain route or an edited descriptor
+  shows up as manifest drift and fails CI. (amended, see Amendments: the
+  manifest is dropped; the table is the only list.)
 - `apps/cli/product-operations.map.json` — operation id → `mergebrief`
-  command. A check script enforces exhaustiveness in both directions:
-  ~~every `agentAvailable` operation maps to a command~~ **(amended
-  2026-08-17)** every operation id appears in the map as exactly
-  one of `command`, a dated `gap`, or the new permanent `webOnly`
-  (`{reason, owner}`) — absence is an error for every id, where the old rule
-  *required* web-only ids to be absent — and every mapped id exists in the
-  manifest.
+  command. A check script (`apps/cli/scripts/check-operations-map.ts`)
+  enforces exhaustiveness in both directions: every `agentAvailable`
+  operation maps to a command (amended, see Amendments: every operation id
+  appears in the map as exactly one of `command`, `gap` or `webOnly`), and
+  every mapped id exists in the operation table.
 - A temporary gap is an explicit entry `{ reason, owner, ticket, expiry }`;
   a missing or expired gap fails CI. The check runs inside `pnpm lint` and
   the CI workflow; it is deterministic and spends nothing.
 
 ## Consequences
 
-> **Amended (2026-08-17,
-> [ADR 0040](0040-review-session-server-store.md)):** descriptors are no
-> longer static metadata that "never touch a request". `.action()` mounts the
-> **scope gate** itself, reading the `classification` already on the
-> declaration it receives, so a route added later is enforced whether or not
-> its author thought about it. `.query()` mounts none: the ladder is
-> cumulative and `read` is its bottom rung, so every scope reaches every
-> query. The **audit emit** rides the same
-> choke point, keyed on the descriptor's `id`. Authentication stays middleware;
-> only authorization-by-class and the audit emit move into the router.
-
 - Adding a domain route without a descriptor, or a descriptor without a CLI
   command, breaks CI instead of silently eroding the agent-complete premise.
 - The manifest becomes the machine-readable capability surface for
   downstream consumers (capability fingerprints, packaged skills) without
-  coupling them to `apps/api` internals.
-  **Amended (2026-10-12, architecture review):** the
-  catalog fingerprint is dropped. Its one consumer, `mergebrief
-  capabilities`, only warned on a mismatch it called harmless; the version
-  number is the skew signal, and `--require` checks the ids an agent needs.
+  coupling them to `apps/api` internals. (amended, see Amendments: the
+  surface is the operation table in `packages/contract` plus
+  `GET /api/capabilities`; the fingerprint is dropped.)
 - Route authors carry one new obligation: pick an id and a classification.
   Everything else (enumeration, mapping checks) is mechanical.
 - The registry is process-global and fills at route composition; a second
   `createApp` in one process re-registers identical descriptors as no-ops.
   Tests that need isolation build their own registry via
   `createProductOperationRegistry()`.
+
+## Amendments
+
+### 2026-08-17: The classification is the permission
+
+Recorded with ADR 0040. `agentAvailable` is deleted. It enforced nothing (the
+real rule is the Bearer path test in the authz gate) and hand-typed at 23
+sites it was already wrong for `list-tokens` and `list-installations` (both
+`/api/auth/*`, both 401 to every token, both parked as CLI gaps demanding an
+impossible command). The descriptor drops to four fields: `id`, `kind`,
+`classification`, `endpoint`. What a credential may do is its scope (`read` /
+`private-write` / `external-write`, cumulative) matched against the
+operation's existing write classification: the classification is the
+permission, so a new operation cannot be added without declaring who may call
+it.
+
+Descriptors are therefore no longer static metadata that "never touch a
+request". `.action()` mounts the scope gate itself, reading the
+`classification` already on the declaration it receives, so a route added
+later is enforced whether or not its author thought about it. `.query()`
+mounts none: the ladder is cumulative and `read` is its bottom rung, so every
+scope reaches every query. The audit emit rides the same choke point, keyed
+on the descriptor's `id`. Authentication stays middleware; only
+authorization-by-class and the audit emit move into the router.
+
+The CLI-map gate inverts: every operation id appears in
+`apps/cli/product-operations.map.json` as exactly one of `command`, a dated
+`gap`, or the permanent `webOnly` (`{reason, owner}`). Absence is an error for
+every id, where the old rule required web-only ids to be absent.
+
+### 2026-10-12: The operation table writes each path once
+
+Architecture review. Each operation's full path is written by hand, once, in
+the operation table: one row per operation in
+`packages/contract/src/operations/index.ts` holding its kind, classification,
+method and full path. Clients build requests from the row instead of retyping
+URLs. Composition still assembles the path mechanically, and `commit` asserts
+the assembled `METHOD /full/path` equals the row, throwing at composition like
+the other registration-seam failures. A route declares only its relative path
+and reads its method from the row. The manifest becomes a pure rendering of
+the table, so the generator needs no database and no composed app. Policy
+beyond the classification stays on the api descriptor, keyed by the
+operation's id, with fields named for the rule each states:
+`browserSessionOnly`, `requiresPushAccess`, `requiresInstallation` and
+`requiresStoredPullRequest` (`apps/api/src/product-operations/types.ts`; a
+fifth, `requiresOperator`, joined for instance-wide operator state, and every
+declaration states all five). The catalog fingerprint is dropped: its one
+consumer, `mergebrief capabilities`, only warned on a mismatch it called
+harmless; the version number is the skew signal, and `--require` checks the
+ids an agent needs.
+
+### 2026-10-14: The committed manifest is dropped
+
+The table is the only list. `commit()` and the catalog test
+(`apps/api/test/product-operation-catalog.test.ts`) guard drift, and the
+CLI-map check runs against the table.

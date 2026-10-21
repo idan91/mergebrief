@@ -9,13 +9,6 @@ cohort survey (Plausible,
 Cal.com, n8n, Outline, Gitea/Forgejo, PostHog, Supabase + pino/Hono/
 graphile-worker specifics).
 
-> **Superseded in part 2026-10-18 by ADR 0046.** #6: `GenerateJobPayload`
-> carries an optional `traceparent`; `{prId, headSha}` stays the durable
-> join. #8: OTel tracing is in, off by default; Prometheus, in-app log
-> transports and telemetry back to us stay out. The web tier now mints
-> `X-Request-Id` for every request and overwrites a client's value, so the
-> api's accepted inbound id is always web's.
-
 ## Context
 
 All three processes (web server with the mounted `/api` Hono app, worker,
@@ -74,36 +67,26 @@ OTel are off-by-default or absent in every default self-host deploy.
    `headers.authorization`, `headers.cookie`,
    `headers["x-hub-signature-256"]`, and {`token`, `accessToken`,
    `refreshToken`, `secret`, `webhookSecret`, `privateKey`, `clientSecret`,
-   `connectionString`, `databaseUrl`} at top level + one wildcard depth.
-   Error serialization: pino's stock `err` serializer.
-5. **Event taxonomy** — dot-namespaced `evt` names; the canonical table:
+   `connectionString`, `databaseUrl`} at top level, one wildcard depth, and
+   under `params` at both (`REDACT_PATHS` in
+   `packages/logging/src/logger.ts`).
+   Error serialization: pino's stock `err` serializer (amended, see
+   Amendments: a content scrub wraps it).
+5. **Event taxonomy** — dot-namespaced `evt` names; the canonical table
+   (amended, see Amendments: `docs/self-host/observability.md` owns the live
+   table):
 
    | `evt` | level | key fields | alert-worthy |
    |---|---|---|---|
    | `webhook.verify.fail` | warn | `deliveryId`, `reqId` | yes (sustained rate — raw hits are scanner noise) |
    | `webhook.dispatch.fail` | error | `deliveryId`, `reqId` | yes |
    | `job.fail` | error | `prId`, `headSha`, `permanent`, `attempt`, `maxAttempts` | yes |
-   | `job.retries.exhausted` | error | `prId`, `headSha`, `attempt` | yes (THE worker alert; minted by the task at `attempt === maxAttempts` — graphile has no distinct event) |
+   | `job.retries.exhausted` | error | `prId`, `headSha`, `attempt` | yes (THE worker alert; minted by the task when the queue gives up on the job or the head spends its claims, `apps/worker/src/task/generate/logic/job-failure.ts` and `run-decision.ts` — graphile has no distinct event) |
    | `provider.error` | error | `provider`, `status`, ambient job bindings | yes (401/403 = config broken, alert now; sustained 429/5xx = degraded) |
-   | `token.refresh.fail` | error | `reqId` or job bindings | yes |
+   | `token.refresh.fail` | error | `reqId`, `reviewerId` | yes |
    | `audit.fail` | error | `reqId`, artifact ids | yes (posted to GitHub, our audit write failed — data integrity) |
    | `spend.cap.trip` | warn | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | yes (sustained rate — a capped instance is silently producing no briefs) |
    | `api.access` | info | D9 fields (`method`, `path`, `status`, `durationMs`, `decision`, …) + `reqId` + `operation` | no |
-
-   **Amendment (2026-08-17,
-   [ADR 0040](0040-review-session-server-store.md)):** `api.access` gains
-   the Product Operation `operation` id. The log and the `audit_log` table
-   stay **separate and both** — transport vs intent — joined on `reqId`: the
-   log answers "what crossed the wire", the table answers "what was done", it
-   records actions and denials only, and it carries no HTTP status.
-
-   **Amendment (2026-08-03):** `spend.cap.trip` goes live at
-   **`warn`, not the reserved `error`** — a tripped cap is the guardrail
-   working as configured, not an operator-actionable fault; it earns `error`
-   nowhere in the level standard below. It is alertable on sustained rate
-   (the operator wants to know their instance stopped briefing). Emitted by
-   the worker's generation gate on EVERY capped skip; `prId` rides the job's
-   child bindings.
 
    `api.access` renames the D9 `evt: "read"` (pre-OSS-cutover, zero
    adopters — the rename is free now; breaking-change entry + D9 doc
@@ -126,7 +109,7 @@ OTel are off-by-default or absent in every default self-host deploy.
    job log — deliveries COALESCE into one pending job
    (`job_key = generate:{pr_id}`, `job_key_mode: replace`), so no single
    delivery owns a job and `GenerateJobPayload` grows NO correlation
-   fields; `{prId, headSha}` appears on both sides of the queue and is the
+   fields (amended, see Amendments); `{prId, headSha}` appears on both sides of the queue and is the
    durable join. graphile's `jobId`/`workerId`/`taskIdentifier` ride free
    via the injected logger adapter. Field names camelCase. Correlated logs
    ARE the v1 trace; no tracing system (see #8).
@@ -137,7 +120,9 @@ OTel are off-by-default or absent in every default self-host deploy.
    carve-out. `/healthz`: static 200, zero dependencies — alive even while
    Hono-app composition is failing. `/readyz`: `getWebhookApp()` resolves
    + `SELECT 1` through its db handle; 200/503 with constant tiny JSON
-   (leaks nothing). NOT checked: migration state (worker migrates at boot;
+   (leaks nothing). NOT checked: migration state (api and worker both
+   migrate at boot by default, `MERGEBRIEF_AUTO_MIGRATE=false` makes a boot
+   check-only, `apps/api/src/boot/migrate.ts`;
    the unmigrated window is seconds and self-heals — revisit trigger: a
    real deploy burned by the window ⇒ add a drizzle journal-vs-table
    check), GitHub reachability (external; must not pull us from the LB),
@@ -152,7 +137,8 @@ OTel are off-by-default or absent in every default self-host deploy.
    demand-triggered; correlation ids map onto trace ids there), in-app log
    transports (stdout is the integration point; Datadog/Loki/CloudWatch
    are docs recipes), and any telemetry back to us (vision.md non-goal —
-   observability is strictly adopter-local).
+   observability is strictly adopter-local). (amended, see Amendments: OTel
+   tracing is in, off by default, per ADR 0046.)
 
 ## Why This Way
 
@@ -180,28 +166,82 @@ LOG_FORMAT, structured-logger adoption) a contained, non-breaking upgrade.
 - Root AGENTS.md becomes the canonical repo-standards file (CLAUDE.md a
   symlink to it) and carries the log-level judgment standard.
 
-## Update, 2026-09-08
+## Amendments
+
+### 2026-08-03: The spend cap trips at warn
+
+`spend.cap.trip` goes live at `warn`, not the reserved `error`: a tripped cap
+is the guardrail working as configured, not an operator-actionable fault; it
+earns `error` nowhere in the level standard. It is alertable on sustained
+rate (the operator wants to know their instance stopped briefing). Emitted by
+the worker's generation gate on every capped skip; `prId` rides the job's
+child bindings.
+
+### 2026-08-17: The access line names the operation
+
+Recorded with ADR 0040. `api.access` gains the Product Operation `operation`
+id. The log and the `audit_log` table stay separate and both, transport vs
+intent, joined on `reqId`: the log answers "what crossed the wire", the table
+answers "what was done", it records actions and denials only, and it carries
+no HTTP status.
+
+### 2026-09-08: Health moves with the API process
 
 The health endpoints kept their semantics; what changed is which process
 answers them, on the ticket that gave the API its own process.
 
-- `/healthz` and `/readyz` now exist on BOTH `apps/api` and `apps/web`, ahead
+- `/healthz` and `/readyz` now exist on both `apps/api` and `apps/web`, ahead
   of each entry's own routing. The API's `/readyz` still resolves its handle
   and runs `SELECT 1`; the web tier's calls the API origin's `/readyz`
-  directly, not through `/api/*`, with a 2s budget, because a web tier that cannot reach the API is not
-  ready even when its own process is fine.
-- `getWebhookApp()` is gone with `apps/web/src/server/webhookApp.ts`. The
-  API's composition root is `apps/api/src/main.ts`, and it validates config,
-  resolves the session key and migrates BEFORE it listens, so the
-  "unmigrated window" this ADR accepted no longer exists for the API.
+  directly, not through `/api/*`, with a 2s budget, because a web tier that
+  cannot reach the API is not ready even when its own process is fine.
+- `getWebhookApp()` is gone with the web server's webhook app. The API's
+  composition root is `apps/api/src/main.ts`, and it validates config,
+  resolves the session key and migrates before it listens, so the
+  "unmigrated window" #7 accepted no longer exists for the API.
 - The compose healthcheck still probes `/healthz` only, on both services, for
-  the reason recorded above: an upstream blip must not restart the web tier.
-- **Why health still sits ahead of the routing, now that the original reason
-  is spent.** This ADR justified the position by saying health must answer
-  while the Hono app fails to compose. In the API's own process, composition
-  completes before `serve()` runs, so that no longer applies. The position is
-  kept for a different reason: `createApp` mounts request-id, the `api.access`
+  the reason recorded in #7: an upstream blip must not restart the web tier.
+- Health still sits ahead of the routing, for a new reason. #7 justified the
+  position by saying health must answer while the Hono app fails to compose;
+  in the API's own process composition completes before `serve()` runs. The
+  position is kept because `createApp` mounts request-id, the `api.access`
   line and the audit middleware at `*`, so health answered as an ordinary
   route would be logged and audited on every probe. At a 15s healthcheck that
   is thousands of access lines a day for a static 200. Converting these to
   routes is not the cleanup it looks like.
+
+### 2026-10-18: Tracing joins, superseded in part by ADR 0046
+
+#6: `GenerateJobPayload` carries an optional `traceparent`; `{prId, headSha}`
+stays the durable join. #8: OTel tracing is in, off by default; Prometheus,
+in-app log transports and telemetry back to us stay out. The web tier now
+mints `X-Request-Id` for every request and overwrites a client's value
+(`apps/web/src/server/request-id.ts`), so the api's accepted inbound id is
+always web's.
+
+### 2026-10-20: A content scrub sits beside key-path redaction
+
+#4's key-path redaction is one of two mechanisms. The log boundary also scrubs
+content: every `msg` and every string field of a serialized `err` or `error`
+passes `scrubSecrets` (`packages/logging/src/logger.ts`, patterns in
+`packages/logging/src/scrub.ts`), replacing URL-shaped substrings with
+`[redacted-url]` (`file://` exempt, for ESM stack frames) and issuer-prefixed
+tokens (`sk-`, `ghp_`, `github_pat_`, `xox`, `mergebrief_`, `AKIA` and kin)
+with `[redacted-token]`. Prefix matching, never entropy; no disable knob. The
+two cover different threats: redaction protects secrets we hold and name,
+the scrub protects secrets embedded in prose we do not control, such as a
+provider's error text quoting the key it rejected. `sanitizeErrorDetail`
+consumes the same vocabulary, so a credential closed on one exit cannot leak
+through the other. Narrowing either scrub needs an amendment here.
+
+### 2026-10-20: The event table lives in the self-host docs
+
+#5's table is no longer the canonical list. `docs/self-host/observability.md`
+owns the `evt` taxonomy: first-class names come only from its table (root
+`AGENTS.md`), additions land there under #5's non-breaking rule, and it now
+names lifecycle lines this record left unnamed (`generation.enqueue`,
+`generation.start`, `generation.complete`, `generation.succeeded`) plus the
+events later work added (`url-box-token.owner.fail`, `artifact.check.fail`,
+`update.available`, `update.check.fail`, `db.version.upgrade`,
+`db.version.ahead`). The table above is the decision-time snapshot; read the
+docs for the live contract.

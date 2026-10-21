@@ -34,7 +34,8 @@ installation, and every gated route resolved its world from that column.
   the person can reach, the same as a GitHub classic token.
 - **The stored columns go unread, then go.** `auth_session.installation_id`,
   `user_settings.default_installation_id` and `api_token.installation_id`
-  stop being read; a later migration drops them.
+  stop being read; a later migration drops them
+  (`packages/persistence/drizzle/0042_drop-installation-columns.sql`).
 
 ## Rejected
 
@@ -51,9 +52,9 @@ under a sign-in that changed before the save.
 - The org switcher leaves the header; the Inbox installation filter does its
   visible job.
 - Audit rows key on the world the request acted in, the `ctx` the gate
-  resolved: the installation holding the repository, or the url-box world
-  for a request that names no repository or one in no reachable
-  installation.
+  resolved: the installation holding the repository, or the owner of the
+  **URL** pull request (ADR 0047) for a request that names no repository or
+  one in no reachable installation.
 - Uninstalling the App from an organization removes that installation's rows
   only. Sessions and API tokens stay, because neither holds an installation
   and GitHub stops confirming the access.

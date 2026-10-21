@@ -21,7 +21,7 @@ Group order today is raw LLM emission order — the prompt gives no ordering ins
 
 - The **Story view adopts the Reading order as its group order** when present; the why-line renders as a step caption on the group header. No user-facing sort toggle. Absent/invalid order → today's structural order.
 - **Read-through = existing focus mode + sequence awareness**: enter at step 1, focused group shows its why-line and position (n of N); `J`/`K` remain chunk-level; `Shift+J`/`Shift+K` step groups along the Reading order. No mode-dependent key semantics.
-- **Concern view is untouched** (order-irrelevant attention router). Changes Only views inherit the order only via their full-Brief group headers.
+- **Concern view is untouched** (order-irrelevant attention router; the Concern pivot has since been reduced to the Masthead's Concern shares, `apps/web/src/features/brief/ui/components/BriefView/Masthead`, which take no order either). Changes Only views inherit the order only via their full-Brief group headers.
 - Scope: full **Brief** only. The Delta Brief's `changedGroups` never get their own Reading order.
 
 ## Consequences

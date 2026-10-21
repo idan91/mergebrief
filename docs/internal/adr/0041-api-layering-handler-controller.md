@@ -3,12 +3,12 @@
 Status: amended (see Amendments)
 Date: 2026-08-23
 
-Amended 2026-10-11: the handler and
-controller pair is optional and the operation module is the unit (see
-Amendment). Decided on a wayfinder map (six decision tickets +
-closing act).
+Decided on a wayfinder map (six decision tickets + closing act). The handler
+and controller pair became optional on 2026-10-11 and the operation module is
+the unit (see Amendments).
 
-Every Product Operation in `apps/api` (35 ops: 15 queries / 20 actions)
+Every Product Operation in `apps/api` (35 ops at decision time: 15 queries /
+20 actions; the live census is `packages/contract/src/operations/index.ts`)
 adopts one layering convention: a Hono-free **controller** returning
 `Result<T, XxxFailure>`, an HTTP **handler** that parses input, judges
 security posture, and throws `ApiError` subclasses, and **persistence's
@@ -30,7 +30,7 @@ third style — evolved past its response-smuggling.
 
 ## Decision
 
-### Three layers
+### Three layers (amended, see Amendments: the pair is optional)
 
 - **Controller**: Hono-free. Returns `Result<T, XxxFailure>` for failures
   the handler must judge; throws for terminal, posture-free failures. No
@@ -44,22 +44,26 @@ third style — evolved past its response-smuggling.
 
 ### Error classes
 
-Abstract base `ApiError(code~~, params?~~)` **(amended 2026-10-12:
-no code carries params; the error body is `{ error, code }`)**
-plus exactly one subclass per HTTP status in `API_ERROR_STATUS` (`ApiErrorStatusByCode`): `BadRequest` 400, `Unauthorized` 401,
+Abstract base `ApiError(code, params?)` (amended, see Amendments: no code
+carries params)
+plus exactly one subclass per HTTP status in `ApiErrorStatusByCode`
+(`packages/contract/src/errors.ts`): `BadRequest` 400, `Unauthorized` 401,
 `Forbidden` 403, `NotFound` 404, `Conflict` 409, `PayloadTooLarge` 413,
-`InternalError` 500, `BadGateway` 502, `ServiceUnavailable` 503. No
+`TooManyRequests` 429, `InternalError` 500, `BadGateway` 502
+(`apps/api/src/shared-errors/api-error.ts`; no 503 class exists because no
+wire code carries that status). No
 speculative classes. Class = HTTP vocabulary; the `ApiErrorCode` product code
-rides inside. A `CodeFor<status>` mapped type over `API_ERROR_STATUS`
-(`ApiErrorStatusByCode`) constrains each class to codes of its status — class,
-status, and code can never disagree; `API_ERROR_STATUS` (`ApiErrorStatusByCode`)
+rides inside. A `CodeFor<status>` mapped type over `ApiErrorStatusByCode`
+constrains each class to codes of its status — class,
+status, and code can never disagree; `ApiErrorStatusByCode`
 stays the single source of truth.
 
 ### `app.onError` is the sole wire-error producer
 
 No route or middleware calls `errorJson` directly — everything throws;
-`errorJson` survives only inside `onError` (status map, i18n line,
-`no-store`, `apiErrorCode` audit stamp). Non-`ApiError` throws stay
+`onError` renders through `buildErrorResponse` (status map, i18n line,
+`no-store`, `apiErrorCode` audit stamp; `apps/api/src/error-response.ts`),
+and `errorJson` survives only for the wire suite that pins the shape. Non-`ApiError` throws stay
 sanitized 500s (internals to the log, never the response). The webhook
 route's early exits (invalid HMAC 401, parse 400) convert mechanically to
 throws — its trust-boundary internals are otherwise not re-layered — so the
@@ -112,7 +116,7 @@ a single exported `xxxController` object; op functions stay module-private,
 verb-first, 1:1 with handlers. Per-domain `schemas.ts` is sanctioned — the
 repo-wide ban targets cross-owner grab-bags only.
 
-### Controller dependencies
+### Controller dependencies (amended, see Amendments)
 
 Per-domain `XxxControllerDeps` in the domain's `types.ts` — narrow slices
 only, never full `AppDeps`. The handler derives the tenant and passes
@@ -169,24 +173,27 @@ single number, lines-only.
   headers (`no-store`), GitHub call count/order, DB writes — or it does not
   merge.
 
-## Update 2026-09-06
+## Amendments
+
+### 2026-09-06: Named exports only
 
 Controllers and handlers are named exports: `handler.ts` exports
 `createXxxHandlers`, `controller.ts` exports `xxxController`. The
 default-export carve-out this record granted is withdrawn; the root rule
 (named exports only, default exports where a framework reads one) applies
-to `apps/api` without exception. The 14 files still default-exporting keep
-a scoped lint override until their migration ticket lands.
+to `apps/api` without exception. The migration is complete: nothing under
+`apps/api/src` default-exports.
 
-## Amendment (2026-10-11)
+### 2026-10-11: The operation module is the unit
 
 Amended, not reversed (decided 2026-10-04). The handler and
 controller pair becomes optional; the operation module is the unit. The
 shape below is the target a grill settled on 2026-10-10. Domains
 convert one at a time, so the old shape and this one coexist until the last
-domain lands.
+domain lands; five domains (`auth/sessions`, `auth/tokens`, `capabilities`,
+`local-briefs`, `version`) still keep the pair.
 
-### The operation module
+#### The operation module
 
 An operation module takes the database handle or a narrow deps slice, a
 resolved access value and a parsed input, and returns a `Result`. The access
@@ -222,20 +229,23 @@ and its adapters), one `<operation>.ts` per operation named for it
 operation module sits at root as the domain's entry point; the steps it
 calls stay in `logic/`.
 
-### Policy on the descriptor
+#### Policy on the descriptor
 
-The Product Operation descriptor carries four policy fields the router
-enforces before the adapter runs: `humanOnly`, `installationOnly`,
-`pushRequired` and `rowRequired`. Every operation under a PR loads the row
-unless `rowRequired` opts it out. A human-only op is a descriptor field,
-not a controller throw. Checks run in this order, and the first failure
+The Product Operation descriptor carries policy fields the router enforces
+before the adapter runs, named for the rule each states
+(`apps/api/src/product-operations/types.ts`): `browserSessionOnly`,
+`requiresOperator`, `requiresPushAccess`, `requiresInstallation` and
+`requiresStoredPullRequest`. Every declaration states all five; the row loads
+only where `requiresStoredPullRequest` asks. A human-only op is a descriptor
+field, not a controller throw. Checks run in this order
+(`apps/api/src/product-operations/policy-gate.ts`), and the first failure
 answers:
 
 1. 401: no session.
 2. 403: cross-origin cookie write.
 3. 404: the repo gate (malformed repo id or PR number, no access).
-4. Descriptor checks: 403 `scope-exceeded`, then 403 human-only, then 404
-   push-required, then 404 installation-only.
+4. Descriptor checks: 403 `scope-exceeded`, then 403 `human-only`, then 403
+   `operator-only`, then 404 push-required, then 404 installation-only.
 5. 404: the row is missing.
 6. 400: the input does not parse.
 7. The operation.
@@ -243,7 +253,7 @@ answers:
 These are middleware throws at the router seam, posture-final as "Posture
 ownership" already allows.
 
-### One denial mapper
+#### One denial mapper
 
 A GitHub failure becomes its `ApiError` through one mapper in
 `apps/api/src/shared-errors/github-denial/`. A domain answers its own codes
@@ -262,7 +272,7 @@ handler-owned posture judgment in "Posture ownership" and the inline-first
 failure-to-error mapping in "Failure vocabulary". The adapter names the
 posture per call and the mapper applies it.
 
-### What stands
+#### What stands
 
 - Throwing `ApiError` at the HTTP layer is a deliberate contract, with
   exactly one class per status and `CodeFor<status>` keeping class, status
@@ -273,3 +283,9 @@ posture per call and the mapper applies it.
 - Persistence's tenant-scoped stores stay the only repository; the test
   tiers, the audit choreography and the 2026-09-06 named-export update are
   unchanged.
+
+### 2026-10-12: No wire error carries params
+
+`ApiError` takes a code alone; the error body is `{ error, code }`. A code
+that would need a parameter is two codes, or a sentence a translator writes
+without data (`packages/contract/src/errors.ts`).

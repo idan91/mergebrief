@@ -2,12 +2,10 @@
 
 Status: amended (see Amendments)
 
-> **Amended 2026-09-02: unparked.** The first two providers ship — GitHub Issues and Notion — to fetch the Intent check's primary ticket, and today's URL fetch migrates onto the contract as the URL provider. The contract as built differs from the text below in four places: ticket references sit inside the metadata tier, not a tier of their own; citations stay URL-keyed (the `ctx-N` id is carried, not cited), so the validator's set-membership rules hold unchanged; the untrusted tier carries two fences, `<linked_context url>` for URL snippets and `<primary_ticket url key tracker>` for the one primary, instead of a single `<external_context>`, with the breakout strip centralized over both; and an absent `contextSources:` block yields the URL and GitHub Issues providers, not an empty list. Snippets feed the brief call and ride into the delta and narrative prompts as before. Residuals resolved by the build: boundary location (`packages/brief-core/src/context/`), a one-ticket budget, cite-or-drop validation, origin display (the Ticket alignment card).
-
 The `ContextSource` boundary (ADR 0014 #5) got its design pass (wayfinder map,
 2026-07-17/18): the **provider contract, trust posture, and enrichment scope are locked**
 so that any future provider is an implementation, not a redesign — and **no provider
-ships in v1**. The local/git retrieval provider was killed by its own gating spike
+ships in v1** (amended, see Amendments: the first providers shipped on 2026-09-02). The local/git retrieval provider was killed by its own gating spike
 (no story improvement attributable to retrieval); external context managers
 are deferred to v2 by scope discipline, not evidence — v1 can't ship everything.
 Today's `<linked_context>` fetch and the `.mergebrief/` repo-config surface are
@@ -123,3 +121,38 @@ story actually improves.
   thin PR hygiene (this repo was a worst-case test bed: rich descriptions, documented
   code); external context managers — post-launch demand (unchanged); structure enrichment — ≥2 real
   repos with grouping wrong *because* of missing external context.
+
+## Amendments
+
+### 2026-09-02: Unparked, the first providers ship
+
+The first two providers ship, GitHub Issues and Notion, to fetch the Intent
+check's primary ticket, and the URL fetch migrates onto the contract as the URL
+provider (`packages/brief-core/src/context/`). The contract as built differs
+from #1 in four places: ticket references sit inside the metadata tier, not a
+tier of their own; citations stay URL-keyed (the `ctx-N` id is carried, not
+cited), so the validator's set-membership rules hold unchanged; the untrusted
+tier carries two fences, `<linked_context url>` for URL snippets and
+`<primary_ticket url key tracker>` for the one primary, instead of a single
+`<external_context>`, with the breakout strip centralized over both
+(`packages/brief-core/src/generation/fences.ts`); and an absent
+`contextSources:` block yields the URL and GitHub Issues providers, not an
+empty list. Snippets feed the brief call and ride into the delta and narrative
+prompts as before. Residuals from #5 resolved by the build: boundary location,
+a one-ticket budget, cite-or-drop validation, origin display (the Ticket
+alignment card). #3 and #4 stay as recorded for the local/git provider and for
+context managers beyond the ticket read.
+
+### 2026-10-20: Which tracker a repo uses is repo config
+
+#1's registration rule covers provider credentials only. Which ticket tracker a
+repository's references point at is bound in that repo's
+`.mergebrief/settings.yaml` (`tracker:` or `trackers:`,
+`packages/repo-config/src/schemas.ts`). A repo that names none takes the
+instance `trackers:` list (`resolveEffectiveTrackers`,
+`packages/generators/src/config/trackers.ts`), and with neither named the
+references read as GitHub Issues on the pull request's own repository. The
+instance `contextSources:` block carries only the Notion credential
+(`packages/generators/src/config/context-sources.ts`): the operator holds the
+key and may set a default tracker list, the code-owner may override it. ADR
+0032 carries the matching amendment.

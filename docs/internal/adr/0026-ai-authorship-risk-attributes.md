@@ -2,23 +2,13 @@
 
 Status: amended (see Amendments)
 
-> **Amended 2026-07-04 — positioning clause withdrawn.** Writing the README copy showed the
-> AI-failure-mode framing doesn't survive scrutiny: every failure mode the trio targets
-> (needless dependency, premature abstraction, born-false comments) is authorship-independent,
-> so the copy either over-claimed or immediately conceded its own headline. Positioning is now
-> **authorship-neutral**: a clearer, story-first review experience for author and reviewer,
-> fewer review iterations. Decision points 1–4 and 6 stand unchanged; point 5's product half
-> (authorship-agnostic attributes, no in-product AI grouping) stands and is now simpler — no
-> copy asserts what the product refuses to assert. Only "the lens lives in README/demo copy"
-> is dropped.
-
 The AI-authored-code review lens ships in v1 as **three model-observed Risk-Surface
 attributes** — `new-dependency`, `new-abstraction`, `comment-contradicts-code` — emitted by
 the existing categorization pass, with mechanical validator confirmation for
 `new-dependency`. It ships **without** a deterministic detector tier, **without**
 `unresolved-import`, and **without** any in-product "AI signals" grouping: the attributes are
 authorship-agnostic facts in the brief; the AI-failure-mode framing lives in positioning copy
-(README, demo) only. `diverges-from-sibling-pattern` and the narrower `unresolved-reference`
+(README, demo) only (amended, see Amendments). `diverges-from-sibling-pattern` and the narrower `unresolved-reference`
 are parked behind the `ContextSource` boundary (ADR 0014).
 
 ## Context
@@ -33,8 +23,9 @@ decisions:
 
 - **Only 2 of 5 proposed attributes were actually deterministic**, and one of those
   (`unresolved-import`) needs repo-tree access the pipeline doesn't have — inputs are PR diff
-  + metadata + linked context via `gh`, no checkout ("a brief must still be producible from
-  the diff alone", now in `packages/brief-core/src/context/fan-out.ts`).
+  + metadata + linked context (then fetched via `gh`, now read through the worker's tracker
+  transports in `packages/brief-core/src/context/trackers/`), no checkout ("a brief must
+  still be producible from the diff alone", now in `packages/brief-core/src/context/fan-out.ts`).
 - **`unresolved-import` is redundant where it matters.** In typed repos with CI — exactly the
   repos of the self-hosting audience — `tsc` / `import/no-unresolved` fails the build before
   a human reviews. Re-flagging it re-implements the compiler and violates the
@@ -92,8 +83,8 @@ badge "because it's the differentiator") get answered by this ADR instead of re-
 
 ## Consequences
 
-- Implementation surface: categorization prompt + `types.ts` enum + validator + labeling
-  schema + FE attribute chips. No new inputs, no API probes, no detector pass.
+- Implementation surface: categorization prompt + the `RiskSurfaceAttributes` map in
+  `packages/brief-core/src/types.ts` + validator + labeling schema + FE attribute chips. No new inputs, no API probes, no detector pass.
 - `comment-contradicts-code` carries the FP risk of logic-reading; the citation requirement
   (cite both sides or stay silent) and the deprecation rule (drop if noisy across 10+ PRs)
   bound it.
@@ -105,3 +96,15 @@ badge "because it's the differentiator") get answered by this ADR instead of re-
   FP-framing pass before promotion.
 - Reaffirms ADR 0003 (category-scoped, no general bug hunt) and ADR 0014 (cited facts only,
   deferred enrichment).
+
+## Amendments
+
+### 2026-07-04: Positioning clause withdrawn
+
+Writing the README copy showed the AI-failure-mode framing does not survive scrutiny:
+every failure mode the trio targets (needless dependency, premature abstraction,
+born-false comments) is authorship-independent, so the copy either over-claimed or
+conceded its own headline. Positioning is now authorship-neutral: a clearer, story-first
+review experience for author and reviewer, fewer review iterations. Decision points 1 to 4
+and 6 stand; point 5's product half (authorship-agnostic attributes, no in-product AI
+grouping) stands. Only "the lens lives in README/demo copy" is dropped.

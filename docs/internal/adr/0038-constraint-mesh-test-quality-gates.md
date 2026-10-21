@@ -38,7 +38,10 @@ Standing rules fixed at charting:
 
 ### 1. Test pyramid (adopted shape)
 
-Unit + hermetic integration (persistence/api/web-server, PGlite) + API band
+Unit + hermetic integration (persistence/api/web-server, PGlite; a
+real-Postgres tier for lock and queue behaviour reads
+`MERGEBRIEF_TEST_POSTGRES_URL`, `packages/persistence/src/testing/postgres-url.ts`,
+and CI runs it against a service container) + API band
 (= the existing `apps/api` suite, declared as such) + browser E2E
 (below) + eval harness (live-spend, convention-gated). **No tier-labeling
 taxonomy** — package boundary is the tier boundary; a test earns
@@ -85,7 +88,10 @@ fake generator adapter, which does not exist yet) parked with trigger:
 first webhook-spine regression the piecewise integration tests miss.
 Chromium only, single worker, runs on fork PRs (fully hermetic). Recorded
 caveat: the fixture path diverges from the DB loader path — v1 proves the
-rendering/interaction layer only.
+rendering/interaction layer only. v2 has shipped: `apps/web/playwright.config.ts`
+runs the seeded-database suite over the repo route against a disposable
+Postgres container, with GitHub stubbed inside the server process; the v1
+dummy-brief suite and its caveat are history.
 
 ### 5. Mutation testing (Stryker)
 
@@ -96,10 +102,7 @@ packages only (brief-core validators/salvage, repo-config, categorizer
 domain). No kill-rate number — the survivor list is the deliverable; each
 survivor becomes a test fix or a recorded acceptable. One-shot audit at
 implementation, then a pre-release convention step. Never per-PR CI.
-
-_Amended 2026-10-05._ Deferred post-v1, as the v1 release gate
-below already says: no Stryker run or pre-release step exists yet, and
-nothing in the repo describes one as live.
+(amended, see Amendments: deferred post-v1.)
 
 ### 6. Property-based testing (fast-check)
 
@@ -110,10 +113,7 @@ its output always passes the validator), repo-config parsing (arbitrary
 input → `Result`, defaults applied). Lives inside the existing vitest
 suites — no new tier, `numRuns: 100`, failures print a reproducing seed
 (compatible with the no-flake policy). Not applied to I/O packages or UI.
-
-_Amended 2026-10-05._ Deferred post-v1, as the v1 release gate
-below already says: fast-check is not a dependency and none of the three
-surfaces carries a property test yet.
+(amended, see Amendments: deferred post-v1.)
 
 ### 7. Static constraints
 
@@ -123,30 +123,20 @@ named-exports-only, no-cycle, no-`any`, logging boundary as path-scoped
 non-type-aware, zero custom plugins — 0/9 cohort write in-house rules)
 carrying only what oxlint cannot express: `no-restricted-syntax` banning
 `TSEnumDeclaration`, `import/extensions: never`, naming-convention for
-exported const-map casing. **knip** adopted (dead exports / unused deps —
+exported const-map casing (amended, see Amendments: oxlint is the only
+linter and the house plugin carries these). **knip** adopted (dead exports / unused deps —
 mechanizes the barrel policy); madge skipped (no-cycle covered);
 publint parked (trigger: first npm publish). TS strictness:
 `noImplicitOverride` + `noImplicitReturns` + `noFallthroughCasesInSwitch`
 adopted now; `noUncheckedIndexedAccess` measured at implementation and
-adopted if fallout is manageable; `exactOptionalPropertyTypes` skipped.
+adopted if fallout is manageable; `exactOptionalPropertyTypes` skipped
+(amended, see Amendments: it is on).
 **Prettier goes whole-repo**; stylelint stays web-only. **zizmor +
 actionlint** adopted on workflows. **Generated-artifact freshness gate**
 adopted (regenerate `routeTree.gen.ts` + drizzle state in CI, fail on
 porcelain diff). Result-not-throw, entry-barrel policy, and
-types-owner-first remain text — no tool expresses them honestly.
-
-_Amended 2026-08-02 (implementation)._ Two verdicts moved on
-contact with the tree: (a) the sliver ships the enum ban and the
-extensionless-import rule only — exported const-map casing has no
-non-type-aware expression that can tell a vocabulary map from a config
-record or a fixture bundle (measured: 8 reports, 8 false positives, 0 true),
-so it joins the text rules; (b) `noUncheckedIndexedAccess` needed no
-adoption decision — it was already `true` in all twelve package tsconfigs,
-measured at 0 errors, and the rest of the strictness trio cost two
-`noImplicitReturns` fixes. Prettier's whole-repo move covers code and
-config only: markdown is excluded, because the markdown printer rewrote
-emphasis spans around inline code in this ADR set — meaning changed, not
-just layout.
+types-owner-first remain text — no tool expresses them honestly (amended,
+see Amendments: the barrel policy and the types-package shape are linted).
 
 ### 8. CI structure
 
@@ -162,13 +152,16 @@ version comments, `pull_request_target` banned for build/test. Fork PRs
 run the full hermetic wall (lint, typecheck, all suites); the eval harness
 never runs on forks. Test artifacts upload on failure only (7-day
 retention). **Everything CI-side lands with the CI billing ticket** —
-designed now, live then.
+designed now, live then. It is live: `.github/workflows/ci.yml` ends in
+`required-checks-passed`, beside `audit.yml`, `weekly.yml`,
+`workflow-lint.yml` (actionlint + zizmor), `freshness.yml` and
+`eval-presence.yml`.
 
 ### 9. Supply chain
 
 `pnpm audit --prod --audit-level=high`, **blocking**, scoped to
 lockfile-touching PRs plus a weekly scheduled run; noise pinned via
-`pnpm.auditConfig.ignoreCves` with per-entry comments. (Survey honesty:
+`pnpm.auditConfig.ignoreGhsas` (`pnpm-workspace.yaml`) with per-entry comments. (Survey honesty:
 0/9 cohort gate on audit; adopted per the charting decision, scoped to
 keep noise near zero.) Renovate parked — solo-scale norm is
 freeze-and-pin; trigger: OSS cutover / regular external contributors.
@@ -200,7 +193,8 @@ user surface). Bundle-size gates parked (trigger: measurable page-load
 complaint or a published client package). Type-coverage % rejected
 outright. Commit-message/PR-title lint parked (trigger: contributor commit
 noise hurting history use). **lychee link-check on `docs/**` adopted**
-(weekly + docs-touching PRs); `typos` skipped.
+(weekly + docs-touching PRs) (amended, see Amendments: deferred post-v1);
+`typos` skipped.
 
 ## v1 release gate
 
@@ -222,6 +216,51 @@ post-v1 = everything that deepens test quality.
   gates-index + residual walkthrough; the eval-harness convention becomes
   mechanically enforced.
 - New standing costs: ESLint sliver + knip + lychee + zizmor maintenance
-  (all config-only), Playwright infra, weekly cron minutes.
+  (all config-only), Playwright infra, weekly cron minutes. (amended, see
+  Amendments: no ESLint, no lychee; the house plugin and the baselines gate
+  instead.)
 - Every park in this ADR carries a revisit trigger; re-litigating a verdict
   without its trigger firing needs new evidence.
+
+## Amendments
+
+### 2026-08-02: Two static-constraint verdicts moved at implementation
+
+Two verdicts moved on contact with the tree: (a) the sliver ships the enum ban
+and the extensionless-import rule only; exported const-map casing has no
+non-type-aware expression that can tell a vocabulary map from a config record
+or a fixture bundle (measured: 8 reports, 8 false positives, 0 true), so it
+joins the text rules; (b) `noUncheckedIndexedAccess` needed no adoption
+decision, it was already `true` in all twelve package tsconfigs, measured at 0
+errors, and the rest of the strictness trio cost two `noImplicitReturns`
+fixes. Prettier's whole-repo move covers code and config only: markdown is
+excluded, because the markdown printer rewrote emphasis spans around inline
+code in this ADR set, changing meaning, not just layout.
+
+### 2026-10-05: Mutation and property testing deferred past v1
+
+§5 and §6 are deferred post-v1, as the v1 release gate already says: no
+Stryker run or pre-release step exists, nothing in the repo describes one as
+live, fast-check is not a dependency, and none of the three surfaces carries
+a property test.
+
+### 2026-10-20: oxlint is the only linter, and the baselines only shrink
+
+The ESLint sliver is gone: oxlint is the only linter, and what oxlint's stock
+rules cannot express lives in the house plugin, `tools/oxlint-plugin-house`,
+as selector rules loaded by `.oxlintrc.json` (`house/no-enum`,
+`house/extensionless-import`, `house/no-re-export` for the entry-barrel
+policy, `house/types-const-maps` for the types-package shape, and kin), each
+at error. The "zero custom plugins" verdict is reversed on the evidence that
+the rules this repo needs are cheap as selectors and expensive as review.
+`exactOptionalPropertyTypes` is on in every app and package tsconfig
+(`apps/api/tsconfig.json` and siblings) and the root rules rely on it.
+dependency-cruiser is a lint gate (ADR 0042), so the "madge skipped" line
+reads as covered twice. Two baseline files (`oxlint-suppressions.json` for
+the comment-run, comment-density, test-title and em-dash rules, and the
+dependency-cruiser known-violations file, now deleted) only ever lose
+entries: `pnpm check:baselines` (`tools/baselines`, inside `pnpm lint`)
+compares the working tree against the merge base and fails when a file a PR
+edits still carries entries. The lychee link check in §12 is deferred
+post-v1 like §5 and §6: no workflow runs it. Root `AGENTS.md` ("Gates") owns
+the live wording.

@@ -43,6 +43,7 @@ part of the same module, never a lateral import surface.
   existing tools only — stylelint in apps/web, oxlint at root (chosen)** —
   a second linter is a permanent tax for a handful of rules, and what the
   existing tools can't express can be a guard test or honest text.
+  (amended, see Amendments)
 - **Typed CSS modules:** build-time d.ts codegen · **editor-only
   `typescript-plugin-css-modules` (chosen)** — codegen adds a build step and
   churn for a bug class the data-attr + plugin combination already narrows.
@@ -56,35 +57,8 @@ part of the same module, never a lateral import surface.
 No pages layer. Route files are glue only: data loading + composition,
 nothing else. `features/<domain>/` is the domain layer; the global layer is
 `src/components/`, `src/hooks/`, `src/utils/` (renamed from `lib/`), and
-`src/styles/`.
-
-_Amended 2026-07-26 (owner ruling — repo-wide, supersedes flat-by-default
-wherever the two conflict)._ Every folder must answer at a glance: (1) what
-is the MAIN entry point/component, and (2) everything else must be VISIBLY a
-support category (subcomponents, `utils/`, `hooks/`, `server/`, `types.ts`,
-…). A file sitting loose without an obvious category is a defect.
-Concretely, a feature's entry is **`index.tsx` at the feature root** — the
-entry component's actual JSX when it carries no co-located support files
-(brief's `BriefPage`), otherwise a curated re-export of the entry
-component(s). Inside `components/`, every component folder nests under its
-owning component, at the nearest common ancestor of its consumers — the
-subtree ownership of decision 2 made visible in the tree, not just implied
-by imports. The ownership rule itself (descendants import ancestors,
-lateral forbidden, NCA promotion, dependency cap) is unchanged.
-
-**Barrels are entry-level only** (this narrowly reverses the prior
-no-barrels stance): the feature `index.tsx`, plus a folder `index.ts`
-where it clarifies outside imports (`utils/`). No per-component barrels.
-Entry barrels are CURATED and follow two hard rules: (a) they never
-re-export anything that touches `server/` — a server edge through the
-barrel puts server-only code on the client graph and fails the
-import-protection build (brief's `queries.ts` stays out of the barrels for
-exactly this reason); (b) they exist for OUTSIDE consumers only — files
-inside the feature import their targets directly, never their own feature's
-index (`import/no-cycle` would flag the loop). Cross-feature component
-imports go through the target feature's entry (`@web/features/review`,
-`@web/features/brief/model`); logic modules and `session/`-style state stay
-direct file imports.
+`src/styles/`. (amended, see Amendments: the entry-point and barrel rules
+were added on 2026-07-26, and placement is now owned by the rules files.)
 
 ### 2. Subtree ownership — one rule, four surfaces
 
@@ -116,12 +90,13 @@ derivations — extracts to a co-located `<Component>/utils.ts` so it is
 unit-testable directly, without rendering. Global utils live in
 `src/utils/<type>.ts` per-type files (string, number, …); a new type file
 must start with **2+ functions serving 2+ consumers** — no speculative
-single-function files.
+single-function files. (amended, see Amendments: global utils are named by
+mechanism now.)
 
 ### 4. Feature-root organization
 
-_Rewritten 2026-07-26 (owner ruling, superseding the original
-flat-by-default text)._ A feature root holds the entry (`index.tsx`),
+(rewritten 2026-07-26, see Amendments; placement is now owned by the rules
+files.) A feature root holds the entry (`index.tsx`),
 `types.ts`, and visible support categories — `components/` (all UI below
 the entry), `hooks/`, `utils/` (derivations, parsers, fixtures —
 `validation` and `fixtures` are utils), `server/` (server functions +
@@ -137,19 +112,7 @@ fold it into a category.
 
 **Zero raw values in `.module.scss` for colors, font-sizes, border-radii,
 and box-shadows** — every such value goes through `var(...)` or a mixin.
-
-_Amended 2026-07-26 (owner call, during implementation)._ The original
-two-phase plan (faithful value-named tokens first, semantic collapse later)
-was superseded: value-named tokens (`--font-size-13`, `--radius-8`,
-`--color-surface-01`) are banned as scaffolding waste. Tokens exist only for
-the deliberate design-system scale:
-
-- **Type:** semantic steps (`--font-size-xs` … `--font-size-4xl`, `md` =
-  body) plus em steps for parent-relative contexts.
-- **Radius / shadow:** small semantic sets (`--radius-xs/sm/md/lg/pill/
-circle`; `--shadow-elevation-sm/md/lg` + special cases).
-- **Color:** small numbered families (`--color-surface-N`, `--color-text-N`,
-  `--color-outline-N`) plus role tokens (accent, warning, negative, …).
+(amended, see Amendments: the scale is semantic-only, decided 2026-07-26.)
 
 Values that do not fit the scale stay as **raw values at the use site**
 with a line-scoped stylelint disable and a `TODO` consolidation
@@ -165,7 +128,8 @@ don't duplicate.
 The semantic `--color-*` family is canonical. Legacy short names (`--bg`,
 `--line`, …) become aliases of the canonical tokens and retire file-by-file
 as the sweep touches each module — no big-bang rename, no dual-source
-drift (aliases point at canon, never carry their own values).
+drift (aliases point at canon, never carry their own values). The retirement
+is complete: no legacy alias is defined or used in tracked scss.
 
 ### 7. Data attributes
 
@@ -179,7 +143,7 @@ drift (aliases point at canon, never carry their own values).
 ### 8. Enforcement — existing tools, honestly scoped
 
 Extend existing tools only (stylelint in apps/web, oxlint at root — no
-ESLint, no Biome):
+ESLint, no Biome) (amended, see Amendments):
 
 - **stylelint** `declaration-property-value-allowed-list` enforces the token
   bar per value family (colors, font-sizes, radii, shadows).
@@ -203,13 +167,14 @@ What lint cannot express stays text, listed honestly: the subtree
 ownership/promotion procedure (2), the inline-vs-utils split (3), the
 topic-folder threshold (4), earned-oddity justifications (5), and data-attr
 adoption at birth (7). These live in this ADR and, compressed, in
-`apps/web/AGENTS.md`. Two more joined the list when the rules were built
-(oxlint 1.72): the **plain-`enum` ban** — oxlint ships neither a `no-enum`
-rule nor `no-restricted-syntax`, so only `const enum` is caught — and the
+`apps/web/AGENTS.md`. Two more joined the list when the rules were built:
+the **plain-`enum` ban** — oxlint shipped neither a `no-enum`
+rule nor `no-restricted-syntax`, so only `const enum` was caught — and the
 **lateral-import restriction**, which needs a per-file _relative_ path
 predicate (`no lateral import outside MY subtree`); oxlint's overrides only
 select which rules apply to a file, and `import/no-restricted-paths` does not
-exist, so the rule cannot be stated. Both remain text + review.
+exist, so the rule cannot be stated. Both remained text + review (amended,
+see Amendments: both are machine-checked now).
 
 ### 9. Path alias
 
@@ -277,52 +242,18 @@ listed as text, never assumed to be enforced when they aren't.
   `useLatestRef` promotes to `src/hooks/` (owner call: a feature-agnostic
   generic React utility with no feature knowledge — the dependency cap is
   vacuously satisfied, and generic hooks live global); `useChunkScroller` stays with the reading-session
-  hook (single consumer — co-location holds).
+  hook (single consumer — co-location holds). This is history: today
+  `BriefPage` is the feature entry in `apps/web/src/features/brief/index.tsx`,
+  `BriefView` lives under `apps/web/src/features/brief/ui/components/BriefView`,
+  no `BriefScreen` or `useChunkScroller` exists, and `useLatestRef` holds in
+  `apps/web/src/hooks/`.
 - The px→rem conversion executes after the token sweeps, against token
-  definitions only.
-
-_Amended 2026-07-31: decision 1's entry-point rule extends to
-`packages/*` trees — package entry is `src/index.ts` (a curated barrel,
-renamed from the historical `lib.ts`; ecosystem-convention survey in the
-package-entry ticket), `types.ts` stays flat by convention, and a package root
-conforms with ≤ ~5 domain-cued loose files. `index.tsx` feature barrels and
-everything else in this ADR remain apps/web-scoped. Rule recorded in the
-repo-wide `AGENTS.md`._
-
-_Amended 2026-08-03 (px-to-rem, owner-expanded scope)._ The unit taxonomy
-is decided and enforced; "the px→rem conversion runs against token definitions only" is
-superseded. **rem** (always via `functions.to-rem(<px>)` — the px design
-value stays readable in source; compile-time exact at the 16px root):
-`font-size`; all spacing rhythm (`margin*`/`padding*`/`gap` — stylelint
-now bans raw px on these); text-coupled sizing (touch-target min-heights,
-text/panel measure caps, menu/dialog widths, line-number gutters); and
-spacing-like insets (dropdown gap offsets, `text-indent`,
-`text-underline-offset`). **px** (chrome, never scales): border widths
-and hairlines, `outline`, radii, shadows, blur, icon boxes and decorative
-geometry (dots/bars/rails/toggles/avatars/spinners), the runtime-measured
-`--top-bar-h` cluster, grid scaffold tracks, transforms, and
-media/container-query breakpoints (a possible later em pass is its own
-decision, noted on the ticket). Sizing stays a judgment call — no lint;
-ambiguity resolves to px._
-
-_Amended 2026-09-25: decision 1's entry rule extends to every
-component folder. A folder's entry is `index.tsx`, never a file named after
-the folder (`Menu/index.tsx`, not `Menu/Menu.tsx`); the test and the
-stylesheet keep the component name (`Menu.test.tsx`, `Menu.module.scss`),
-and support stays `types.ts` / `consts.ts` / `utils.ts`, imported one segment
-below the folder (`components/Menu/types`). The `Folder/Folder.tsx` shape,
-which made every import spell the name twice, is retired. "No per-component
-barrels" still holds: the entry is the component's own file, not a re-export
-of it; a curated re-export entry exists only at a feature root. Non-React
-folders follow the same rule: a file named after its folder is either that
-folder's `index.ts` or takes a name for what it owns (`diff/file-diff.ts`,
-`comparison/runs.ts`); tests keep mirroring the file they test._
+  definitions only. (amended, see Amendments: the 2026-08-03 unit taxonomy.)
 
 ## Revisit Triggers
 
-- ~~**Topic-folder threshold** (≥4 files) — reassess after the first
-  structural PR.~~ Superseded 2026-07-26: the threshold was
-  replaced by decision 4's "a category earns a folder when it clarifies".
+- **Topic-folder threshold** (≥4 files) — reassess after the first
+  structural PR. (superseded 2026-07-26, see Amendments)
 - **Spacing token scale** — when a spacing-related bug or a design pass
   warrants it; not before.
 - **Build-enforced typed CSS modules** — a wrong-classname bug shipping past
@@ -331,3 +262,137 @@ folder's `index.ts` or takes a name for what it owns (`diff/file-diff.ts`,
 - **Machine-checked heading levels** (decision 10) — a linter shipping a
   heading-level rule the existing toolchain can express, or a level regression
   reaching production past review.
+
+## Amendments
+
+### 2026-07-26: Every folder shows its entry and its support categories
+
+Owner ruling, repo-wide, superseding flat-by-default wherever the two
+conflict. Every folder must answer at a glance: (1) what is the main entry
+point or component, and (2) everything else must be visibly a support
+category (subcomponents, `utils/`, `hooks/`, `types.ts` and kin). A file
+sitting loose without an obvious category is a defect. A feature's entry is
+`index.tsx` at the feature root: the entry component's own JSX when it carries
+no co-located support files, otherwise a curated re-export of the entry
+component(s). Inside `components/`, every component folder nests under its
+owning component, at the nearest common ancestor of its consumers, the
+subtree ownership of decision 2 made visible in the tree. The ownership rule
+itself (descendants import ancestors, lateral forbidden, NCA promotion,
+dependency cap) is unchanged. Decision 4 was rewritten to this shape, and the
+≥4-files topic-folder threshold gave way to "a category earns a folder when it
+clarifies".
+
+Barrels are entry-level only, which narrowly reverses the prior no-barrels
+stance: the feature `index.tsx`, plus a folder `index.ts` where it clarifies
+outside imports (`utils/`). No per-component barrels. Entry barrels are
+curated and follow two hard rules: (a) they never re-export anything that
+touches server-only code, because a server edge through the barrel puts
+server-only code on the client graph and fails the import-protection build
+(brief's `queries.ts` stays out of the barrels for that reason); (b) they
+exist for outside consumers only, so files inside the feature import their
+targets directly, never their own feature's index (`import/no-cycle` would
+flag the loop). Cross-feature component imports go through the target
+feature's entry; logic modules and `session/`-style state stayed direct file
+imports (tightened on 2026-10-20, below).
+
+### 2026-07-26: The token scale is semantic only
+
+Owner call during implementation. The original two-phase plan (faithful
+value-named tokens first, semantic collapse later) is superseded: value-named
+tokens (`--font-size-13`, `--radius-8`, `--color-surface-01`) are banned as
+scaffolding waste. Tokens exist only for the deliberate design-system scale
+(`apps/web/src/styles/tokens.scss`): semantic type steps (`--font-size-xs`
+through `--font-size-4xl` plus `display`, `md` = body); small semantic radius
+and shadow sets (`--radius-xs/sm/chip/md/panel/lg/pill/circle`;
+`--shadow-elevation-md/lg` plus named special cases); small numbered color
+families (`--color-surface-N`, `--color-text-N`, `--color-outline-N`) plus
+role tokens (accent, warning, negative and kin).
+
+### 2026-07-31: The entry rule reaches packages
+
+Decision 1's entry-point rule extends to `packages/*` trees: a package entry
+is `src/index.ts`, a curated barrel renamed from the historical `lib.ts`
+(ecosystem-convention survey in the package-entry ticket), and `types.ts`
+stays flat by convention. `index.tsx` feature barrels and everything else in
+this record remain apps/web-scoped. The rule is recorded in the repo-wide
+`AGENTS.md`, which owns it; the "≤ ~5 domain-cued loose files" cap this
+amendment first carried is not part of that rule and was never enforced
+(`packages/contract/src` holds twenty loose files today).
+
+### 2026-08-03: Units, rem for text and px for chrome
+
+Owner-expanded px-to-rem scope. The unit taxonomy is decided and enforced;
+"the px→rem conversion runs against token definitions only" is superseded.
+rem, always via `functions.to-rem(<px>)` so the px design value stays
+readable in source and compiles exact at the 16px root: `font-size`; all
+spacing rhythm (`margin*`, `padding*`, `gap`; stylelint bans raw px on these);
+text-coupled sizing (touch-target min-heights, text and panel measure caps,
+menu and dialog widths, line-number gutters); and spacing-like insets
+(dropdown gap offsets, `text-indent`, `text-underline-offset`). px, chrome
+that never scales: border widths and hairlines, `outline`, radii, shadows,
+blur, icon boxes and decorative geometry (dots, bars, rails, toggles, avatars,
+spinners), the runtime-measured `--top-bar-h` cluster, grid scaffold tracks,
+transforms, and media and container-query breakpoints (a possible later em
+pass is its own decision). Sizing stays a judgment call, no lint; ambiguity
+resolves to px.
+
+### 2026-09-25: A component folder's entry is index.tsx
+
+Decision 1's entry rule extends to every component folder. A folder's entry is
+`index.tsx`, never a file named after the folder (`Menu/index.tsx`, not
+`Menu/Menu.tsx`); the test and the stylesheet keep the component name
+(`Menu.test.tsx`, `Menu.module.scss`), and support stays `types.ts` /
+`consts.ts` / `utils.ts`, imported one segment below the folder
+(`components/Menu/types`). The `Folder/Folder.tsx` shape, which made every
+import spell the name twice, is retired. "No per-component barrels" still
+holds: the entry is the component's own file, not a re-export of it; a curated
+re-export entry exists only at a feature root. Non-React folders follow the
+same rule: a file named after its folder is either that folder's `index.ts` or
+takes a name for what it owns (`diff/file-diff.ts`, `comparison/runs.ts`);
+tests keep mirroring the file they test.
+
+### 2026-10-20: The rules files own placement; this record keeps the FE-only decisions
+
+Placement, support-file names, casing, the folder-name ban, package entries
+and the feature import depth are owned by root `AGENTS.md` ("File shape",
+"Imports and exports") and `apps/web/AGENTS.md` ("Placement and styling").
+Read them for the live rules; the placement half of this record (decisions 1
+to 4, 9, and the 2026-07-26, 2026-07-31 and 2026-09-25 entries) is history
+where the two differ. Three of those differences are decisions in their own
+right: a cross-feature import reaches a feature only through its index or one
+segment below it, `session/`-style state included
+(`WEB_FEATURE_PUBLIC_SHAPES` in `.dependency-cruiser.cjs`); the Brief feature
+is two layers, `model/` and `ui/`, with `test-utils/` as a feature-root
+category, each edge gated by a `web-*` dependency-cruiser rule; and flat
+feature-root files (`queries.ts`, `schemas.ts`, domain-named modules) and
+mechanism-named global utils (`apps/web/src/utils/`) are the default, so
+decision 3's per-type `src/utils/<type>.ts` rule and its 2+2 threshold no
+longer apply. What stays unique to this record: the token bar and vocabulary
+(5, 6), data attributes (7), heading levels (10), the unit taxonomy, and the
+subtree ownership procedure (2) as the rationale behind the gated edges.
+
+### 2026-10-20: No feature server folder
+
+apps/web runs no server functions for data. `createServerFn` is banned in
+`apps/web/src` (`no-restricted-imports` in `.oxlintrc.json`), no feature
+carries a `server/` folder, and `apps/web/src/server/` is app-wide
+infrastructure only (env, logger, API transport, health). A read or write the
+app needs is an `apps/api` route reached through `data/request`. Decision 4's
+`server/` category and the barrel rule's `server/` edge describe a surface
+that no longer exists; the barrel rule's substance (nothing server-only on
+the client graph) stands.
+
+### 2026-10-20: Enforcement grew past the existing tools
+
+The "extend existing tools only" verdict and decision 8's honest list are out
+of date. Two gating tools joined: dependency-cruiser (`.dependency-cruiser.cjs`,
+inside `pnpm lint`, unsuppressed) and the house oxlint plugin
+(`tools/oxlint-plugin-house`, loaded by `.oxlintrc.json`). With them the
+plain-`enum` ban is `house/no-enum` at error, the cross-feature and
+global-never-imports-features edges are the `web-*` dependency-cruiser rules,
+and the barrel policy is `house/no-re-export`. The ESLint and Biome rejection
+stands (ADR 0038 records oxlint as the only linter). Still text and review:
+per-component lateral imports inside one feature, the inline-vs-utils split,
+earned-oddity justifications, data-attr adoption at birth, and heading
+levels. Off-scale raw values carry a stylelint disable with a
+`-- <reason>` suffix; a ticket id in a `TODO` is banned in tracked files.

@@ -10,7 +10,8 @@ One git tag `vX.Y.Z` is the version of everything a release ships: the
 image on ghcr, the `mergebrief` package on npm, the GitHub Release and its
 `version.json`. Every release keeps the previous release running beside
 it: a schema change that drops, renames or tightens splits into an Expand
-step in one release and a Contract step in the next, majors included.
+step in one release and a Contract step in the next, majors included
+(amended, see Amendments: not before the first release).
 
 ## Context
 
@@ -54,7 +55,8 @@ step in one release and a Contract step in the next, majors included.
   A drop, rename or tightening ships as a Contract step one release after
   its Expand step. The default is never a rename: add the column, read
   with a fallback, drop next release. `pnpm check:migrations` holds the
-  rule: a destructive statement needs a first line `-- contracts <release>`.
+  rule: a destructive statement needs a first line `-- contracts <release>`
+  (amended, see Amendments: two exemptions).
 - `breaking` and `security` are set by hand in the release's notes file.
   `breaking` means the three-line upgrade step is not enough: a new or
   removed required env key, a Postgres major, a suspended expand and
@@ -67,9 +69,34 @@ step in one release and a Contract step in the next, majors included.
 
 - A candidate is not a release: neither version parser accepts the `-rc`
   suffix, so an instance or a CLI running a candidate gets no notice, no
-  nag and no skew line until it runs a stable version again.
+  nag and no skew line until it runs a stable version again. A
+  `vX.Y.Z-rc.N` tag still publishes (`.github/workflows/release.yml`): the
+  image to ghcr and the package under npm's `next` dist-tag, or
+  `superseded` when a newer tag exists.
 - A Postgres major bump is always a breaking release with a dump, down,
   remove volume, up, restore sequence; the floor stays at 16.
 - Two version sources are a defect: anything that reads a version reads
   the stamped one, and the repo's `0.0.0` sentinel is what the gates check
   for.
+
+## Amendments
+
+### 2026-10-20: Before the first release, expand and contract collapse
+
+No release tag exists yet, so there is no release N-1 to keep running. Until
+the first release a schema change that drops, renames or tightens ships as one
+migration that moves the data in the same step, and no reader keeps code for
+the older shape (root `AGENTS.md`, "Until release, a stored shape only moves
+forward"; `packages/persistence/AGENTS.md`). Such a migration opens with
+`-- contracts 0.1.0`, naming the first release as the one it contracts into,
+so `pnpm check:migrations` stays green; seven migrations carry it, for example
+`packages/persistence/drizzle/0058_drop-diff-snapshot.sql`. The two-release
+split applies from the first release on.
+
+The gate carries two exemptions the Decision does not name
+(`packages/persistence/scripts/migration-contracts.ts`): a constraint drop
+needs no contracts line when the file carries `-- widens <name>` and re-adds
+a CHECK under that name, with review judging that the new CHECK widens
+(`0052_generation-claims.sql`); and the seventeen migrations that predate the
+rule are grandfathered by name, held exact by the test suite, and never
+retro-fixed.

@@ -86,8 +86,9 @@ a mode.
      MergeBrief role model, no new authz semantics.
    - **Post-ready, the affordances vanish.** The author sees exactly what
      any reviewer sees — same view, same machinery. Chunk read-tracking
-     and all reviewer tooling stay available in every state (local session
-     state, role-free).
+     and all reviewer tooling stay available in every state (Review Session
+     state since ADR 0040, role-free). (amended, see Amendments: the state
+     also carries a per-draft Post affordance.)
 3. **Role-neutrality below the FE is reaffirmed as an invariant.** The
    author surface introduces no role concept into the API, persistence, or
    CLI — "author-ness" is derived per request from data both sides already
@@ -153,24 +154,40 @@ gating real behavior.
 - **Kill ticket (now, FE-only):** delete `ReviewMode`, the `DemoControls`
   radio, the copy swaps, the `liveSubmit` author gate, `?mode=author`.
   Pure deletion.
-- **Author-affordances ticket (parked, author-side arc):** own-draft
-  detection + visible labeling, soft gate reusing the pre-submit modal,
-  the mark-ready mutation, receipt/submit hidden in-state. Unscheduled;
-  travels with draft-first activation.
+- **Author-affordances ticket (author-side arc):** own-draft detection +
+  visible labeling, soft gate reusing the pre-submit modal, the mark-ready
+  mutation, receipt/submit hidden in-state. Built: the own-draft state
+  (`apps/web/src/features/brief/ui/components/BriefView/types.ts`,
+  `OwnDraftPlan`), the `SelfReviewChip`, and the mark-ready route
+  (`apps/api/src/routes/repos/pr/ready/mark-ready.ts`).
 - The invisible-mode-gates rule graduates from FE feedback to a design
   invariant with an ADR to cite.
 
-### Amendment (2026-07-15, live testing)
+## Amendments
+
+### 2026-07-15: Mark-ready needs the App's contents write permission
 
 The mark-ready affordance runs GitHub's `markPullRequestReadyForReview`
-GraphQL mutation, which GitHub gates on the App holding **`contents: write`**
-— discovered in live testing. The self-host GitHub App therefore now requests
-Contents at **Read & write** (see
-[`../self-host/github-app.md`](../../self-host/github-app.md)). This is a GitHub
-permission-granularity quirk, **not** a MergeBrief write path (the App still
-pushes no code) and **not** a new authz semantic: the "GitHub itself enforces
-author/maintainer, no MergeBrief role model" decision stands unchanged. It is
-an App *installation* permission, not a MergeBrief role. When the permission
-is missing, the mark-ready route surfaces a distinct `403 github-permission`
-(never the existence-hiding 404 collapse used for revoked repo access), and
-the FE tells the author to grant the permission and retry.
+GraphQL mutation, which GitHub gates on the App holding `contents: write`,
+discovered in live testing. The self-host GitHub App therefore requests
+Contents at Read & write (`docs/self-host/github-app.md`). This is a GitHub
+permission-granularity quirk, not a new authz semantic: the "GitHub itself
+enforces author/maintainer, no MergeBrief role model" decision stands. It is an
+App installation permission, not a MergeBrief role, and the App still pushes
+no code (the permission has since also carried image attachments to an orphan
+`mergebrief/attachments` branch, images only). When the permission is missing,
+the mark-ready route surfaces a distinct `403 github-permission` (never the
+existence-hiding 404 collapse used for revoked repo access), and the FE tells
+the author to grant the permission and retry.
+
+### 2026-10-20: The own-draft state carries a Post affordance
+
+The locked contract lists mark-ready as the own-draft state's only terminal
+action. The built state also lets the author post one draft Comment to GitHub
+at once as a new thread, on their own token, without a Submit:
+`OwnDraftPlan.postComment` in
+`apps/web/src/features/brief/ui/components/BriefView/types.ts`, driven by
+`drafts/useOwnDraftFlow.ts`, over
+`apps/api/src/routes/repos/pr/comments/post-now.ts`. ADR 0027 records the
+same change on the conversation side. Receipt and submit stay hidden; no role
+concept enters the API, which authorizes the post as any Comment write.

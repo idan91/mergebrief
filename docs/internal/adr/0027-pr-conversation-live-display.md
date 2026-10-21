@@ -20,11 +20,11 @@ The fetch is **one GraphQL query** (`reviewThreads` + `reviews` + PR-level
 `comments`) behind a single deep primitive in `packages/github`
 (`fetchPullRequestConversation`), using the **installation token** for reads
 (the authz gate already proves the viewer's repo access; a shared token
-gives one rate budget and one cache entry per PR). Writes — follow-up
+gives one rate budget and one cache entry per PR) (amended, see Amendments). Writes — follow-up
 replies — use the **viewer's token** (ADR 0016 #4: authorship stays the
 reviewer's). Replies post immediately and only as replies: GitHub's
 create-review API cannot batch replies into a formal review, and new threads
-stay in the mind-map → submit flow (one authoring model).
+stay in the mind-map → submit flow (one authoring model) (amended, see Amendments).
 
 ## Relationship to ADR 0012 and ADR 0011
 
@@ -89,3 +89,25 @@ local concept; aliasing them would misattribute whose state it is.
   timeline (ADR 0019); until then the digest offers the GitHub
   permalink.
 
+## Amendments
+
+### 2026-10-20: A draft can be posted now as a new thread
+
+The one-authoring-model rule above no longer holds as written. In the own-draft
+state (ADR 0031) a reviewer can post a single draft Comment to GitHub at once as
+a new thread, on the viewer's token, without a Submit:
+`POST /api/repos/:repoId/pulls/:prNumber/comments` runs
+`apps/api/src/routes/repos/pr/comments/post-now.ts`, offered by
+`apps/web/src/features/brief/ui/components/BriefView/drafts/useOwnDraftFlow.ts`
+through `OwnDraftPlan.postComment`. The draft is claimed in the Review Session
+before the GitHub call under ADR 0040's claim, settle, release rule. Submit stays
+the path for every other state; replies are unchanged.
+
+### 2026-10-20: A URL pull request reads on the viewer's binding
+
+The installation-token read holds for Installation rows only. A pull request
+with Source **URL** (ADR 0047) has no Installation, so its conversation reads on
+the viewer's binding, falling back to the operator token for the granted PR
+alone (`apps/api/src/routes/repos/pr/conversation/read-conversation.ts`,
+`ConversationCredentials.VIEWER`). The cache stays keyed per PR; writes stay on
+the viewer's token.

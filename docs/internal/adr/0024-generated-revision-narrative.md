@@ -41,7 +41,7 @@ The Revision narrative is its own lean artifact and prompt, not the existing Del
 - With `Compare: Your last review`, `Changes Only` renders the existing Delta Brief.
 - `Changes Only` requires an active comparison. If the user enters `Changes Only` while comparison is off, the UI selects the product default comparison; if no comparison exists, `Changes Only` is unavailable.
 - User-facing UI uses two controls: **View** (`Full Brief`, `Changes Only`) chooses rendering density; **Compare** (`Your last review`, `Previous Brief`, `Off`) chooses whether an extra comparison is applied in full view. "Delta Brief" remains an internal/domain artifact name, not the visible label for the changed-only view.
-- Defaults are product-aware: first-time reviewers default to `Full Brief + Off`; returning reviewers with an older Checkpoint default to **Your last review**. **Previous Brief** remains directly selectable whenever available.
+- Defaults are product-aware: first-time reviewers default to `Full Brief + Off`; returning reviewers with an older Checkpoint default to `Changes Only` + **Your last review** (`apps/web/src/features/brief/model/comparison/compare-state.ts`). **Previous Brief** remains directly selectable whenever available.
 - Highlighting is mechanical and deterministic; generated narratives only supply summaries/callouts and never decide which lines are marked.
 
 ## Consequences

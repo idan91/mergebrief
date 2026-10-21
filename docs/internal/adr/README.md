@@ -50,3 +50,4 @@ Numbered, append-only records of the decisions behind MergeBrief. Each carries a
 | [0044](0044-fair-source-license.md) | Fair source license (FSL-1.1-Apache-2.0) | accepted |
 | [0045](0045-one-version-number-and-expand-and-contract.md) | One version number, and expand and contract on every release | amended (see Amendments) |
 | [0046](0046-opentelemetry-tracing.md) | OpenTelemetry tracing, off by default | amended (see Amendments) |
+| [0047](0047-url-pull-requests-belong-to-their-reviewer.md) | A URL pull request belongs to the reviewer who pasted it | accepted |
