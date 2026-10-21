@@ -39,7 +39,9 @@ Every session command (`session`, `context`, `draft *`, `chunk-read`,
 `risk *`, `reclassify`, `outcome`, `submit`) requires
 `--base <baseSha> --head <headSha>`, the pair `pr <n>` reports; exit 2
 without it. You write against the brief you read, not the newest one. A push
-mid-review freezes the old session server-side (409): re-read `pr <n>`,
+mid-review does not freeze your session: it stays writable until the first
+write to the newer brief's session (from any client) carries your work
+over, and from then the old one answers 409. On a 409, re-read `pr <n>`,
 then the new session, and re-target. `marks` and `narrative` take
 comparison spans from `pr <n>`'s revisions instead; their `--help` names
 the flags.
@@ -62,7 +64,8 @@ dismiss|address|reopen`, `draft reanchor`, and `draft delete` refuse a
 token, relaying the server's 403 as exit 5 by design. Surface the item to
 the user instead of retrying. `capabilities --require` cannot see this
 gate, or the token's scope: it checks that an operation exists on both
-sides, not what the credential may do. Publishing with `submit` needs a
+sides, not what the credential may do. `submit`, `reply`, `thread
+resolve|unresolve`, `ready` and `draft attach` write to GitHub and need a
 token minted with external-write scope.
 
 `risk dismiss|address|reopen` take `-F` with a `flags` array naming each
