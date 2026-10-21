@@ -1,17 +1,10 @@
-# Code Review Tool — Context
+# MergeBrief context
 
-Comprehension scaffolding for human reviewers of pull requests. Not another reviewer bot. The tool's job is to restore *engagement* and *comprehension* to code review in an AI-authored world, by re-unitizing the diff from "lines" to "categorized chunks with playbooks", and by separating AI assistance from AI authorship.
+Comprehension scaffolding for human reviewers of pull requests, not another reviewer bot: the diff is re-unitized from lines into categorized chunks, and AI assistance is kept apart from AI authorship.
 
-> This file defines the *meaning* of each term. For the authoritative closed list of valid labeling **tokens** (the current Category / Concern / Role / Risk-Surface values + quick rules), see `docs/vocabulary/labeling-schema.md` — the controlled vocabulary. A token is not valid unless registered there.
+> This file defines the meaning of each term. The closed list of built-in labeling tokens (the Category, Concern, Role and Risk Surface values with their quick rules) is `docs/vocabulary/labeling-schema.md`; a repository's `policy.yaml` may add **Custom attributes** to the Risk Surface set.
 
-> **Reading notes.** This file describes vocabulary, not priority — for the
-> current product weighting see `docs/internal/mvp/center-of-gravity.md` (story +
-> risk-surface + delta). The project is **OSS-only**: no hosted arm, no moat.
-> Entries still carrying hosted/headless/multi-reviewer phrasing (**Trigger**,
-> **Delta Brief**, agent-via-API consumption) are design concepts that survive,
-> not a go-to-market plan. The **Playbook** layer is parked to v2 — no product
-> code consumes it, and entries mentioning playbooks describe the parked
-> design, not v1 behavior.
+> Vocabulary, not priority: product weighting is in `docs/vision.md`. The **Playbook** layer is parked; no product code consumes it, and entries that mention playbooks describe the parked design.
 
 ## Language
 
@@ -20,15 +13,15 @@ The comprehension artifact the tool produces for a PR — summary, multi-tag cat
 _Avoid_: report, analysis, AI summary, brief number (for index)
 
 **Delta Brief**:
-The comprehension artifact for re-review — what changed for THIS reviewer's mental model since they last looked: new chunks tagged, flag resolution status, comment-target tracking, playbook delta, net receipt diff. Computed as a diff between two states (the reviewer's **Checkpoint** tree and the current head tree), not a replay of commits — so it is well-defined across rebases and force-pushes. Exists only when the reviewer has a Checkpoint (a prior submitted review); a first-time reviewer gets the full **Brief**, no Delta.
+The comprehension artifact for re-review: what changed between a **Checkpoint** tree and the current head tree, computed as a diff between two states rather than a replay of commits, so it holds across rebases and force-pushes. It carries a summary, the changed groups, the changed chunks with the shipped **Comments** each one addresses, and the whole-PR impact. Stored once per PR, Checkpoint SHA and head SHA and shared by every reviewer at that Checkpoint; per-reviewer carry-over state lives on the **Review Session**, never here. A reviewer with no Checkpoint gets the full **Brief**, no Delta.
 _Avoid_: incremental brief, diff-of-diff (informal only), update
 
 **Checkpoint**:
-The commit SHA at which a given reviewer last *submitted* a review. The baseline from which that reviewer's **Delta Brief** is computed (Checkpoint → current head). Advances on review submission, never on mere viewing; distinct per reviewer, so two reviewers can hold different Checkpoints on the same PR and therefore receive different Delta Briefs.
+The commit SHA at which a given reviewer last *submitted* a review. The baseline from which that reviewer's **Delta Brief** is computed (Checkpoint → current head). Advances on review submission, never on mere viewing; distinct per reviewer, so two reviewers can hold different Checkpoints on the same PR and therefore receive different Delta Briefs. On screen and in code it is the "last review" **Comparison baseline**.
 _Avoid_: baseline (informal), last-seen, watermark
 
 **Session baseline**:
-The SHA a reviewer is *currently viewing* in an in-progress review, before they submit. A follow-up commit that lands mid-review is shown **in-tool** relative to this session baseline ("what changed since you opened") via the same delta machinery — **not** relative to the durable **Checkpoint**, which advances only on submit. It is the **durable key of a Review Session** — the reviewer's unfinished work is stored against the **Brief** at this SHA, so a new Brief starts a new Review Session and the previous one becomes read-only. The **Fast-lane** or full **Delta Brief** of a mid-review follow-up anchors here, and carry-over runs against the reviewer's *draft* comments rather than Settled flags.
+The SHA a reviewer is currently viewing in an in-progress review, before they submit. It is the key of a **Review Session**: the reviewer's unfinished work is stored against the **Brief** at this SHA, so a new Brief starts a new Review Session, which takes over at its first write: that write carries the previous session's work over and freezes it. Until then the previous session stays writable. The durable **Checkpoint** advances only on submit.
 _Avoid_: working SHA (informal), draft checkpoint
 
 **Comparison baseline**:
@@ -60,11 +53,11 @@ The experience of following the **Reading order**: stepping through **Change-gro
 _Avoid_: walkthrough (CodeRabbit's term), tour (onboarding connotation), guided review
 
 **Carry-over status**:
-How a prior **Flag** is classified in a **Delta Brief** relative to this reviewer's **Checkpoint**. One of: **New** (not present at the Checkpoint); **Reopened** (the reviewer had addressed or dismissed it and its region was touched in the span — so the prior decision must be re-made); **Settled** (addressed/dismissed and its region untouched — the prior decision still holds; FE may describe as "still holds"); **Dropped** (the attribute no longer fires at head — the risk condition is gone, independent of any reviewer action). Decision order: Dropped → Reopened → Settled → New. Reopen is purely positional — *any* change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, classify as Reopened, never Settled.
+How a prior **Disposition** lands when a new **Review Session** materializes from the previous one onto a new **Brief**, stamped on the Disposition. One of: **New** (no prior decision); **Reopened** (addressed or dismissed and its region was touched since, so the decision must be re-made); **Settled** (addressed or dismissed and its region untouched, so the decision still holds); **Dropped** (the attribute no longer fires at head, independent of any reviewer action). Decision order: Dropped, Reopened, Settled, New. Reopen is purely positional: any change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, Reopened, never Settled.
 _Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
 
 **Comment anchoring**:
-How a prior comment is placed in a **Delta Brief** once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped **Line comment** draft (**Review Session**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped. A **File comment** has no line: GitHub never marks it outdated; a draft follows the path, not a line-map.
+How a prior comment is placed once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped **Line comment** draft (**Review Session**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped. A **File comment** has no line: GitHub never marks it outdated; a draft follows the path, not a line-map.
 _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comments)
 
 **Chunk**:
@@ -83,7 +76,7 @@ A cluster of chunks that together accomplish one coherent piece of work (e.g., "
 _Avoid_: chapter (Linear's narrative-only term), story, cluster, section
 
 **Unattributed remainder**:
-The set of changed lines no attributed **Chunk** claimed. It is a **Change-group** of unattributed chunks — the one exception to the intent boundary: no Summary, no Categorization, never split, never merged into an intent group. Its name and one-line note are fixed system copy, not model output; its chunks carry no Concern, Role or Risk Surface. In the **Concern view** it is one last segment of the Split, beside the Concerns, never a Concern itself.
+The set of changed lines no attributed **Chunk** claimed. Stored on the **Brief** as per-file line ranges; the page shows them as remainder chunks in one last **Change-group**, the one exception to the intent boundary: no Summary, no Categorization, never split, never merged into an intent group. Its name and one-line note are fixed system copy, not model output; its chunks carry no Concern, Role or Risk Surface. In the **Split** it is one last segment beside the Concerns, never a Concern itself.
 _Avoid_: coverage gap, orphan lines, residue, unattributed (bare noun)
 
 **Category**:
@@ -99,20 +92,24 @@ The single Category surfaced as primary when a Change-group's Categorization con
 _Avoid_: main tag, primary type, main label
 
 **Concern**:
-The artifact a chunk touches: `implementation`, `test`, `doc`, `spec`, `config`, `generated`. Independent of Category. Mostly derivable from file path. The Concern view pivots the brief by Concern to route attention — how much of the PR is real implementation vs supporting scaffolding. Default resolution of the overloaded "spec": `spec` = specification document (distinct from `doc`); `.spec.ts`/`.test.ts` files map to `test`.
+The artifact a chunk touches: `implementation`, `test`, `doc`, `spec`, `config`, `generated`. Independent of Category. Mostly derivable from file path. The **Split** shows the brief's share per Concern to route attention: how much of the PR is real implementation versus supporting scaffolding. Default resolution of the overloaded "spec": `spec` = specification document (distinct from `doc`); `.spec.ts`/`.test.ts` files map to `test`.
 _Avoid_: production (env-restrictive), file-type, type, bucket
+
+**Split**:
+The **Brief** page's share of changed lines per **Concern**, one segmented meter with a legend on the masthead. The **Unattributed remainder** is its last segment, never a Concern.
+_Avoid_: Concern view (the former pivot), breakdown, distribution, Split view (the diff rendering)
 
 **Role**:
 Whether a chunk holds its Change-group intent (`core`) or serves it (`supporting`). Default: `implementation` concern → core; `test`/`doc`/`spec`/`config` → supporting. Flippable when a supporting artifact is itself the purpose (e.g., a flaky-test fix makes the test chunk the core chunk, and it then takes the group's intent).
 _Avoid_: primary/secondary (collides with Dominant/secondary Category), main, lead
 
 **Summary**:
-The descriptive sentence(s) of what a Change-group changed. Lives on the group. Descriptive *what*, never narrative *why* — the why belongs in the PR description and the linked issue. Narrative drift collapses the wedge into Linear Diffs' lane.
+The descriptive sentence(s) of what a Change-group changed. Lives on the group. Descriptive *what*, never narrative *why*: the why belongs in the PR description and the linked issue.
 _Avoid_: description, explanation, story, narrative
 
 **LoC**:
-Added/deleted line counts. Shown non-prominently (corner) per Category in the Story view and per Concern bucket in the Concern view. An attention-routing *distribution* — never a headline size verdict. "Where is the real change", not "how big is this". The displayed value is **adjusted LoC**, not raw git: `pure-move` lines show as a `moved N` badge (excluded from +added/−deleted, since net logic change is zero); the `generated` Concern is a separate collapsed bucket excluded from the implementation/test/doc split by default. Adjusted numbers carry a visible badge marking them as adjusted; the raw **git LoC** is revealed on click. The two will not match GitHub's header at a glance — intentional, and the click reconciles it. The name is **adjusted** (not "weighted") deliberately: it excludes only *mechanically detectable* lines — moves and generated — never hand-judged significance, so two labelers and the Phase 2 categorizer reproduce it identically. A future **signal LoC** could additionally exclude blank/punctuation/import lines, but only by a deterministic rule, never by judgment.
-_Avoid_: diff size, churn, lines-changed-as-quality-metric, raw LoC (as the default display)
+Added and deleted line counts, shown non-prominently per **Change-group** and per **Concern** in the **Split**. An attention-routing distribution, never a size verdict: "where is the real change", not "how big is this". Any adjustment excludes only mechanically detectable lines (moves, `generated`), never hand-judged significance, so two labelers and the categorizer reproduce it identically.
+_Avoid_: diff size, churn, lines-changed-as-quality-metric, weighted LoC
 
 **Playbook**:
 A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses — known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated." **Parked to v2:** no v1 surface renders or consumes playbooks; if revived, the identity is a *coverage rubric* — post-hoc measurement of a finished review (check-off frozen into Receipts, or grading an agent's review), never prompt material for reviewers or agents.
@@ -123,7 +120,7 @@ The set of factual attributes attached to a chunk. Attributes only — never ver
 _Avoid_: critical area, hot spot, risky code, severity tag
 
 **Flag**:
-A single AI-surfaced item from the brief that requires reviewer attention. In v1 this means a risk-surface attribute on a specific hunk; unvisited-playbook-item flags are parked with the playbook layer.
+A single AI-surfaced item from the brief that requires reviewer attention: a **Risk Surface** attribute firing on a specific **Chunk**. The code, the operations and the **Signature line** call it a risk (`dismiss-risk`, `address-risk`, `reopen-risk`, "risks addressed"); unvisited-playbook-item flags are parked with the playbook layer.
 _Avoid_: issue, warning, finding
 
 **Risk note**:
@@ -131,44 +128,56 @@ Chunk-specific factual evidence for why a **Risk Surface** attribute fired on th
 _Avoid_: description (ambiguous with the catalog implication), reason (collides with Dismissal)
 
 **Disposition**:
-A reviewer's recorded decision on a **Flag** — either *addressed* (a **Comment** now targets it) or *dismissed* (with a reason). Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries forward across re-reviews. The **Receipt** shows it as it stands at **Submit**; nothing freezes it, so the reviewer can still change it afterwards and a later Submit shows the change.
+A reviewer's recorded decision on a **Flag**: *addressed*, backed by **Evidence**, or *dismissed*, with a reason. Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries onto the next **Review Session** with a **Carry-over status**. The **Receipt** shows it as it stands at **Submit**; nothing freezes it, so the reviewer can still change it afterwards and a later Submit shows the change.
 _Avoid_: resolution (informal), flag status, decision (bare)
+
+**Evidence**:
+What an addressed **Disposition** points at: a linked draft **Comment**, a reviewed **Chunk**, or a manual note. When the thing it points at is gone, the Disposition is marked missing-evidence and lands on the **Attention list**.
+_Avoid_: proof, justification (a **Dismissal** carries a reason instead)
 
 **Dismissal**:
 The *dismissed* value of a **Disposition** — a reviewer's recorded decision **not** to act on a Flag, accompanied by a reason. Dismissals appear on the **Receipt** with the reason verbatim. (The other value is *addressed*.)
 _Avoid_: ignore, skip, override
 
 **Uncertain**:
-The AI's explicit label on categorization or flag output when its confidence is below threshold. Forces human judgment exactly where AI is weakest.
+The model's explicit mark on a **Change-group** when its confidence in the **Dominant Category** is below threshold, naming the categories in tension. Chunks and Flags carry no uncertainty mark.
 _Avoid_: low confidence (informal only), unknown, maybe
 
 **Receipt**:
-The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, the disposition of flags (addressed vs dismissed with reason), and the **Generation origin** of the analysis. A view of the **Dispositions** as they stand at **Submit**, not a copy kept apart from them. Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
+The scoped tool-verification content: mechanical claims (chunks read, flags addressed, dismissed and open, comments), the **Dispositions** as they stand at **Submit**, and the **Generation origin** of the analysis. A view of the Dispositions, not a copy kept apart from them. Never an "approval". Shown in the submit flow; its counts ride on the **Signature line**.
 _Avoid_: AI approval, stamp, attestation
 
 **Generation origin**:
-Which provider, model, and effort produced a **Brief** or **Delta Brief** — recorded on the artifact and surfaced on the **Receipt** (and as an understated header label), so the reader always knows what generated the analysis and never mistakes it for a verdict. Becomes critical once the provider can vary (BYOK / multiple SDKs).
+Which provider, model and effort produced a **Brief** or **Delta Brief**, recorded on the artifact and shown on the **Receipt** and as an understated header label, so the reader knows what generated the analysis and never mistakes it for a verdict.
 _Avoid_: model tag, attribution, watermark, AI signature (collides with Signature line)
 
 **Signature line**:
-A single line appended to the native GitHub review ("Reviewed with [tool] — summary") linking to the static **Review Summary**. The only tool footprint on the GitHub review itself; the review otherwise reads as a normal human review.
+The one line MergeBrief appends to the GitHub review body: "Reviewed with MergeBrief" followed by the **Receipt**'s mechanical counts (chunks read, risks addressed, dismissed, open, inline comments), fenced off from the reviewer's own words by a rule. The only tool footprint on the GitHub review, which otherwise reads as a normal human review; it links nowhere.
 _Avoid_: tool signature (informal), banner, badge
 
-**Review Summary**:
-A static, tool-hosted snapshot page produced when a reviewer submits, linked from the **Signature line**. Renders the **Receipt** plus the review's analysis context (which Change-groups, what was verified, dismissals with reasons). Static = frozen at submit time, per-submission permalink. The public face of the private **Review Session**'s output — the audit trail the author and org can open.
-_Avoid_: report, dashboard, public review session
-
 **Analysis Layer**:
-The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1); the same analysis could later be consumed by an org's own AI agent through a clean internal API (engineering, not a go-to-market lever). The product core. Defensibility is **not** the game (the project is OSS-only — see `docs/vision.md`): taxonomy + playbooks are deliberately open and reproducible, distributed as a community markdown commons rather than guarded as a moat.
+The reviewer-agnostic core: Change-groups, Categorization, Risk Surface, the Concern **Split**, LoC. Consumed through the **Engagement Layer**.
 _Avoid_: engine, backend, core (informal)
 
 **Engagement Layer**:
-The human-reviewer workflow built on the **Analysis Layer**: no-AI-authored-text rule, Seeds, private Review Session, human-written Comments, Approval + Receipt. Human-only — does not apply to AI-agent reviewers. The v1 product surface.
+The human-reviewer workflow built on the **Analysis Layer**: no AI-authored text, the private **Review Session**, human-written **Comments**, **Approval** plus **Receipt**.
 _Avoid_: UI layer, frontend, workflow (informal)
 
 **Review Session**:
-The private (per reviewer × PR) workspace where the reviewer thinks, drafts, asks the agent questions, dismisses flags, and refines comments — without that work being visible on the PR thread. It is one reviewer's work on one PR, pinned to one **Session baseline** and stored on our own server: draft **Comments** and replies, per-**Chunk** read marks, **Change-group** reclassifications, **Dispositions**, and the chosen outcome. A new **Brief** starts a new Review Session and prior work is carried onto it; the previous session becomes read-only.
-_Avoid_: Mind-Map Space (retired 2026-08-17), workspace, scratchpad, draft space
+The private (per reviewer × PR) workspace where the reviewer thinks, drafts, dismisses flags and refines comments, without that work being visible on the PR thread. It is one reviewer's work on one PR, pinned to one **Session baseline** and stored on the **Instance**: draft **Comments** and replies, **Read marks**, **Reclassifications**, **Dispositions** and the chosen outcome. A new **Brief** starts a new Review Session; reads preview the carried work, and the first write to it carries prior work over and freezes the previous session. A new Brief alone freezes nothing.
+_Avoid_: Mind-Map Space (retired), workspace, scratchpad, draft space
+
+**Read mark**:
+A reviewer's mark that one **Chunk** is read, stored on the **Review Session**; presence is the mark, there is no unread row. Carried onto a new **Brief** only for chunks **Anchored generation** carried unchanged. The **Receipt** counts them as chunks read.
+_Avoid_: viewed, seen, visited
+
+**Reclassification**:
+A reviewer's override of a **Change-group**'s **Dominant Category**, stored on the **Review Session**. Overrides only: an absent row means as generated. Carried onto a new **Brief** only while every Brief in between descended its group ids.
+_Avoid_: recategorize, relabel
+
+**Attention list**:
+The **Brief** page's list of carried work that needs a decision: an orphaned draft anchor, a reopened **Disposition**, an addressed Flag whose **Evidence** is missing. Each item names the operations that clear it; once it is empty the carry-over row becomes a one-line receipt.
+_Avoid_: todo list, warnings, carry-over list
 
 **Installation**:
 One install of the MergeBrief GitHub App on one GitHub organization or user account. A repository belongs to exactly one Installation. A **Reviewer** can reach several; every request finds its Installation from the repository it names, and no credential holds a current one. As a **Source** value (stored `installation`, key `INSTALLATION`): a pull request reported by the App's webhooks, belonging to an Installation.
@@ -179,8 +188,12 @@ Which way a pull request entered MergeBrief: **Installation** or **URL**. Column
 _Avoid_: world, door, origin (collides with **Generation origin**)
 
 **URL**:
-A **Source** value (stored `url`, key `URL`): a pull request one **Reviewer** added by pasting its URL. It belongs to that reviewer and no webhook reports on it. "Box" names a spot on the screen, not a concept; the input on Home gets no term.
-_Avoid_: pasted-URL, url-box, twin
+A **Source** value (stored `url`, key `URL`): a pull request one **Reviewer** added by pasting its URL. It belongs to that reviewer, no webhook reports on it, and its jobs read GitHub through the reviewer's **Grant**. Ownership is not exclusive: any reviewer GitHub lets read the repository opens its stored **Brief**; only the **Inbox** list is owner-only. "Box" names a spot on the screen, not a concept; the input on Home gets no term.
+_Avoid_: pasted-URL, url-box (survives only in identifiers such as `UrlBoxGenerateJobPayload` and `MERGEBRIEF_URL_BOX_TOKEN`), twin
+
+**Grant**:
+One GitHub user-to-server authorization: the one row holding a reviewer's encrypted GitHub token pair. Sessions and API tokens reference it rather than copy it, and it dies with its last referent. A **URL** pull request's job carries a grant reference, never token material.
+_Avoid_: credential (the pair inside it), token (one half of it)
 
 **Live read**:
 Reading a pull request's facts from GitHub at request time, on the reader's token: a **URL** one at paste, on Inbox load and on Brief open; an installation one on Inbox load and on Brief open, a backstop for a webhook that never arrived. A row read within the last five minutes is not read again; a merged one never is. A read never queues a generation.
@@ -191,19 +204,15 @@ A **URL** pull request GitHub no longer shows to this reviewer. The row and its 
 _Avoid_: stale (means newer commits exist)
 
 **Trigger**:
-What causes a **Brief** to compute: eager-on-push, debounced (~60s from the first push, which fixes the start time; later pushes only swap the head), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute.
+What causes a **Brief** to compute: every push, PR open included, debounced about 60s from the first push, which fixes the start time; later pushes only swap the head. A draft computes too unless the **Instance config** sets `drafts.generate: off`, in which case its first Brief waits for `ready_for_review`; `drafts.debounceSeconds` lengthens the window for a draft's regenerations once it has one successful Brief. A ready flip and a URL paste take a 10s window. A submitted review also queues a run, which builds the reviewer's **Delta Brief** from their **Checkpoint**. No compute-on-first-click gate: spend is bounded by the debounce and the **Daily cap**, not by withholding compute.
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
 
 **Entry**:
-How a human reaches a computed **Brief**: one branded PR comment carrying a deep-link, delete+reposted per debounced generation, one ping per settled head. The reviewer-facing Entry posts only when the PR is non-draft (ready). The deep-link click is navigation, never a compute **Trigger**.
-_Avoid_: activation (as "the click"), deep-link gate
-
-**Draft-first**:
-A per-repo opt-in (repo YAML; org default + per-repo override; off by default) that holds the reviewer-facing **Entry** until the author marks `ready_for_review`, turning the draft window into the author's self-review pass. It does **not** change the **Trigger** — the **Brief** still computes on every push during draft; draft-first only gates *when reviewers are notified*. Native-draft only (never a custom lock), so a generation failure leaves a normal GitHub draft the author controls.
-_Avoid_: activation (as "turning the tool on"), draft mode, draft gate
+How a human reaches a computed **Brief**: one branded PR comment carrying a deep-link, reposted per generation, one ping per settled head. It posts on drafts too unless the repository's `settings.yaml` sets `entryCommentOnDrafts: false`, which holds it until `ready_for_review` and removes a lingering one; an unreadable `settings.yaml` holds it as well. A **URL** pull request never gets one. The deep-link click is navigation, never a compute **Trigger**.
+_Avoid_: activation (as "the click"), deep-link gate, draft-first (the former name for the opt-out, which was described as an opt-in)
 
 **Generation**:
-The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped). Each paid try at it, graphile retries included, is one attempt, and attempts are what the daily cap counts. A running Generation is held by its **Claim**. Never a queue. A **Job** that runs with a stored Brief is not a Generation: it produces no Brief and adds no attempt.
+The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped). Each paid try at it, graphile retries included, is one attempt, and attempts are what the **Daily cap** counts. A running Generation is held by its **Claim**. Never a queue. A **Job** that runs with a stored Brief takes no Claim, but when it pays a provider call it still adds one attempt.
 _Avoid_: job (that is the **Job**), run (a run id names a **Claim**, not the record), generation job
 
 **Claim**:
@@ -212,15 +221,19 @@ _Avoid_: lock (graphile's lock is on the **Job**), lease (one part of the Claim)
 
 **Claim limit**:
 How many **Claims** one head of a **Generation** may take between triggers: 3. A shutdown release and a **Takeover** that made no provider call count too. A head that has taken them all, holds no live Claim and has not succeeded is exhausted: nothing claims it again until a trigger queues it afresh. Its stored failure stays as it was.
-_Avoid_: attempts (the trigger counter on the wire), retries (graphile's, one way a Claim is taken)
+_Avoid_: attempts (the code's name for the counter, `MAX_GENERATION_ATTEMPTS`, and the trigger counter on the wire), retries (graphile's, one way a Claim is taken)
 
 **Takeover**:
 The job queued with each **Claim** that wakes once the Claim's lease could have lapsed and, if it did, claims the head for a new attempt. Anyone who can read the PR reads its state per head: scheduled with a start time, running, or spent (graphile ran out of attempts and nothing will take the head over).
-_Avoid_: recovery (that word belongs to **Restore**), retry job
+_Avoid_: recovery (the task id `recover-generation` keeps it; in prose that word belongs to **Restore**), retry job
 
 **Started run**:
-One run the Instance started on a UTC day: every paid **Claim**, graphile retries, shutdown releases and no-call **Takeovers** included, plus a **Job** with a stored **Brief** at its first provider call. The daily cap counts started runs across every repository; the **Operator** reads the day's count against it.
+One run the Instance started on a UTC day: every paid **Claim**, graphile retries, shutdown releases and no-call **Takeovers** included, plus a **Job** with a stored **Brief** at its first provider call. The **Daily cap** counts started runs across every repository; the **Operator** reads the day's count against it.
 _Avoid_: paid run (some started runs made no provider call), generation (the record, not one run of it)
+
+**Daily cap**:
+The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs** the **Instance** starts on one UTC day across every repository; absent means uncapped. At the cap the worker skips the generation, the PR shows the capped **Not-ready screen** with the reset time, an existing **Entry** is updated to say so, and the head runs on its next push after the reset at 00:00 UTC.
+_Avoid_: budget, quota, rate limit (GitHub's)
 
 **Job**:
 The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then held by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
@@ -238,20 +251,28 @@ _Avoid_: queued generation, pending job
 Why a pending **Generation** has not started, read off its **Queued** **Job**: `debouncing` while the Job's start time is still ahead, `waiting-for-slot` once it is due and no **Slot** has claimed it. The server computes it on the PR meta only; an absent reason means the generic pending line, and a Generation that is not pending never carries one.
 _Avoid_: queue status, pending reason, delay reason
 
-**Triage**:
-The cheap cascade run on every PR (and every follow-up) *before* any expensive generation, deciding both the *experience* and the *spend*: a free deterministic floor (dependency/migration/auth-config paths + size) → a small-model (**Haiku**) pass that judges trivial-vs-escalate and, when trivial, emits the **Fast-lane** view. Escalation produces the full **Brief** / **Delta Brief** (Opus); otherwise the fast-lane is shown with a manual upgrade. **Risk decides escalation, size decides spend**; for follow-ups, touching a reviewer's prior **Flag** or **Comment** (carry-over) is itself an escalation. Never a verdict, never a gate — the human can always upgrade.
-_Avoid_: gate, pre-filter (informal), severity score
+**Anchored generation**:
+Generating a new revision's **Brief** against the previous one: groups the push did not touch are carried frozen and only touched groups get a re-look, with group and chunk ids descended through the push. A base SHA move (rebase), a missing span diff or a non-fast-forward push sends every group to re-look; a file two previous groups shared, or an ambiguous range remap, sends only the groups that own it. The stored anchor state is `anchored`, `fresh-restart` (the generator config's `full-regeneration` fired on a model swap) or `none` (a first Brief). Distinct from **Comment anchoring**, which places a draft on a moved line.
+_Avoid_: incremental generation, partial regeneration, anchoring (bare)
 
-**Fast-lane**:
-The compact, cheap view shown for a triaged-trivial PR or follow-up — a short summary (from the **Triage** model) over the diff, without the full **Brief** / **Delta Brief**, always upgradeable to the full brief on demand. The "daily mode" that keeps tiny low-surface changes from feeling like homework.
-_Avoid_: lite brief, mini brief, summary-only (informal)
+**Stitch**:
+The merge step of **Anchored generation**: carry frozen groups verbatim, judge the model's claims about re-look groups, descend ids and re-point the model's references to them. Merge only; validation, rollups and the **Unattributed remainder** come after, over the merged brief.
+_Avoid_: merge (bare), splice, assemble
+
+**Schema floor**:
+The guarantee every generator adapter runs output through: validate against the output schema, salvage droppable enum slips, retry once with feedback, then dump the raw output and throw `schema-floor`, which the worker stores as the `output-invalid` failure. Native provider schema enforcement is a bonus layer, never the mechanism. Distinct from **Floor**, the three risk attributes a repository cannot quiet.
+_Avoid_: validation (one step of it), floor (bare; that is the display **Floor**), output guard
+
+**Eval harness**:
+The regression net over generation quality in `tools/categorizer/eval/`: labeled real-PR cases and revision pair cases, each run several times against a provider:model-keyed record of which mechanical properties pass; `pnpm -C tools/categorizer eval`. A convention gate for generation-surface changes that a human runs and pays for, never CI. Its recorded property classes are the eval baseline, which is neither a **Comparison baseline** nor a **Checkpoint**.
+_Avoid_: benchmark, test suite, baseline (bare; qualify it as the eval baseline)
 
 **Intent check**:
-A secondary section of the **Brief** comparing the change's *stated intent* — the PR title, the PR description, and the **Primary ticket** when one is read — against what the diff actually does. When the sources are *precise*, it reports five factual buckets: **accomplished**, **stated-but-missing**, **done-but-unstated**, **deviations**, **masked fixes** (a claimed fix where the diff only silences the problem's signal); the last two carry an alarm register and drop unless grounded on both sides. When the sources are *broad* (an epic/parent) or *absent*, it reports that the check is unavailable rather than guessing. It also carries the **Ticket alignment** read. Deliberately de-emphasized — the **Change-groups** carry the story; the intent check is the AI's fallible read, shown to both author and reviewer, never a verdict or focal point.
-_Avoid_: requirements check, spec compliance, intent verdict
+A secondary section of the **Brief** comparing the change's stated intent (the PR title, the PR description, and the **Primary ticket** when one is read) against what the diff actually does. When the sources are *precise*, it reports five factual buckets: **accomplished**, **stated-but-missing**, **done-but-unstated**, **deviations**, **masked fixes** (a claimed fix where the diff only silences the problem's signal), stored camelCase (`statedButMissing`, `doneButUnstated`, `maskedFixes`); the last two carry an alarm register and drop unless grounded on both sides. When the sources are *broad* (an epic or parent) or *none*, it reports that the check is unavailable rather than guessing. It also carries the **Ticket alignment** read. Deliberately de-emphasized: the **Change-groups** carry the story; the intent check is the AI's fallible read, shown to both author and reviewer, never a verdict or focal point.
+_Avoid_: requirements check, spec compliance, intent verdict, absent (the specificity value is `none`)
 
 **Ticket alignment**:
-The **Intent check**'s read of how the diff relates to the **Primary ticket**'s goal: `aligned` (delivers the goal), `partial` (serves it, one slice — an ordinary outcome), or `misaligned` (does not serve it, or reaches it by a way the ticket rules out). Carries the ticket's goal quoted verbatim and one factual sentence about the diff. Absent when there is no primary ticket, the ticket could not be read, or the sources are broad or absent. Never a gate.
+The **Intent check**'s read of how the diff relates to the **Primary ticket**'s goal: `aligned` (delivers the goal), `partial` (serves it, one slice, an ordinary outcome), or `misaligned` (does not serve it, or reaches it by a way the ticket rules out). Carries the ticket's goal quoted verbatim and one factual sentence about the diff. Absent when there is no primary ticket, the ticket could not be read, or the sources are broad or none. Never a gate.
 _Avoid_: alignment score, ticket verdict, compliance
 
 **Ticket reference**:
@@ -263,20 +284,28 @@ The one **Ticket reference** the brief treats as the ticket this PR is about, ch
 _Avoid_: main ticket, parent ticket, epic
 
 **Ticket key**:
-A tracker's short identifier for a ticket, `PREFIX-N`, recognized only when the prefix matches the repo's configured tracker.
+A tracker's short identifier for a ticket, `PREFIX-N`, recognized only when the prefix matches a configured **Ticket tracker**.
 _Avoid_: ticket id, issue key
+
+**Ticket tracker**:
+Where a repository's tickets live, declared under `trackers` in the **Repo config**'s `settings.yaml` or, for boards every repository shares, in the **Instance config**: `github` (issues, optionally in another repository) or `notion` (a database behind a **Ticket key** prefix). A repository file that names any tracker replaces the instance list whole.
+_Avoid_: issue tracker (GitHub's is one kind), board (the Notion side of one)
 
 **Linked context**:
 Text the harness fetched from URLs in the PR description and fenced as untrusted reference data for the model. The **Primary ticket** is fenced separately from it.
 _Avoid_: external context (that is the wider ADR concept), attachments
 
-**Soft gate**:
-A transient, non-blocking nudge shown to the **Author** at the ready-for-review handoff, surfacing unaddressed **Risk Surface** flags (primary, factual) and — only when the **Intent check** source is precise — stated-but-missing intent gaps (secondary). The author may fix or authorize; it never blocks and leaves no persistent author state (the author side has no **Dismissal** or **Receipt** of its own).
-_Avoid_: pre-submit gate, block, author approval
+**Mark-ready gate**:
+The non-blocking modal shown to the **Author** when they mark a draft ready: every **Flag** on the current head's **Brief**, each a jump, plus a reminder of unposted draft **Comments** with a checkbox to post them before the flip. Opens only when there is a flag or an unposted draft. The author may fix or proceed; it never blocks and records nothing, so the author side has no **Dismissal** or **Receipt** of its own.
+_Avoid_: soft gate (the former name), pre-submit gate, block, author approval
 
 **Comment**:
-Reviewer-authored text that ships to the PR. Either a **Line comment** or a **File comment** — same object, same **Review Session** lifecycle (draft, edit, publish with the rest of the review); only the anchor shape differs. Never AI-authored — the agent provides structure (seeds) and post-hoc validation, but the reviewer writes the sentence.
+Reviewer-authored text that ships to the PR. Either a **Line comment** or a **File comment**: same object, same **Review Session** lifecycle (draft, edit, then reach GitHub by **Submit**, by **Post now**, or with the **Mark-ready gate**); only the anchor shape differs. Never AI-authored: the reviewer writes the sentence.
 _Avoid_: review comment, feedback (informal only), scope (that is Full vs Changes)
+
+**Post now**:
+Sending one held draft **Comment** to GitHub as a single review comment, outside **Submit**.
+_Avoid_: publish (the code's word for both ways to GitHub), send, ship (informal only)
 
 **Line comment**:
 A **Comment** anchored to a line or a line range on a file. One line and a range are the same shape. GitHub `subject_type: line`.
@@ -302,37 +331,49 @@ _Avoid_: commenter, collaborator (that is access to the repository)
 The people and teams offered while a reviewer types `@` in text that reaches GitHub: matching **Participants** first, then whoever GitHub says can be mentioned in that repository, as that reviewer sees it.
 _Avoid_: mention pool, autocomplete (the mechanism), collaborators
 
-**Seed**:
-A structured, non-text hint from the agent — `{ category, location, issue-shape }` — that a stuck reviewer can expand into their own comment. Seeds are scaffolding, not drafts.
-_Avoid_: suggestion, draft, AI comment
-
 **Approval**:
 The reviewer's human judgment ("approve / request changes / comment") submitted to GitHub. Only humans approve. The tool issues a receipt, not an approval.
 _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 
 **Submit**:
-A reviewer finalizing their review on GitHub (the **Approval** plus any **Comments**). The only event that advances the reviewer's **Checkpoint** and produces the static **Review Summary**, whose **Receipt** shows the **Dispositions** as they stand at that moment; mere viewing never does. Each **Comment** it carries reaches GitHub once.
+A reviewer finalizing their review on GitHub (the **Approval** plus any **Comments**). The only event that advances the reviewer's **Checkpoint**; the review body carries the **Signature line** with the **Receipt**'s counts as the **Dispositions** stand at that moment, and mere viewing never does any of this. Each **Comment** it carries reaches GitHub once.
 _Avoid_: send, post, finish (informal)
 
+**Instance config**:
+`mergebrief.config.yaml`, the file the **Operator** points `MERGEBRIEF_CONFIG` at: the generator (provider, model, effort, `full-regeneration`), the `drafts` policy, the `spend` cap, the `operators` list and shared `trackers`. No file means the zero-config defaults: drafts generate with the normal debounce, no cap, no Operators.
+_Avoid_: config (bare), settings (that is the repository's `settings.yaml`), env (the keys are named in the file, never held by it)
+
+**Repo config**:
+The `.mergebrief/` directory a repository commits, read from its default branch: `instructions.md` (**Repo instructions**), `settings.yaml` (workflow: `entryCommentOnDrafts`, `trackers`) and `policy.yaml` (**Custom attributes** and **De-emphasis**). A file that fails to fetch closes what it governs rather than guessing.
+_Avoid_: repo YAML, repo settings (one file of it), project config
+
 **Repo instructions**:
-The `.mergebrief/instructions.md` file — repo-committed text guidance to generation, read from the default branch only, honored strictly within the enumerated instruction classes (grouping boundaries, glossary/terminology, noise paths, reading conventions, summary phrasing). Semi-trusted: text shapes presentation and comprehension; only validated `policy.yaml` creates facts — instructions can never mint a risk attribute, change a vocabulary, or alter the schema.
+The `.mergebrief/instructions.md` file of the **Repo config**: text guidance to generation, honored strictly within the enumerated instruction classes (grouping boundaries, glossary and terminology, noise paths, reading conventions, summary phrasing). Semi-trusted: text shapes presentation and comprehension; only validated `policy.yaml` creates facts, so instructions can never mint a risk attribute, change a vocabulary or alter the schema.
 _Avoid_: repo prompt, custom prompt, system prompt (it is data, never system-level)
 
+**Custom attribute**:
+A **Risk Surface** attribute a repository declares under `attributes` in `policy.yaml`: a kebab-case name, model-evaluated criteria, an optional implication, and optional path globs that pre-filter which chunks it is judged on. At most 20; flat facts with no tier, severity or weight; a name that collides with a built-in is ignored and disclosed. Extends the token set per generation.
+_Avoid_: custom risk, repo rule, policy attribute
+
 **De-emphasis**:
-Display-weight tuning from `.mergebrief/policy.yaml`: a non-floor risk attribute renders quiet (hue-shifted, excluded from the jump-rail, labeled "de-emphasized by repo policy") — detection always runs and every attribute still lands in the artifact and Receipt. Never suppression; applied from the generation-time policy snapshot stored with the artifact.
+Display-weight tuning from `policy.yaml`: a `deEmphasize` rule names a non-floor risk attribute and, optionally, the paths it applies to, and a matching firing renders quiet (hue-shifted, excluded from the **Jump-rail**, labeled "de-emphasized by repo policy"). Detection always runs and every attribute still lands in the artifact and **Receipt**. Never suppression; applied from the generation-time policy snapshot stored with the artifact.
 _Avoid_: hide, suppress, mute (nothing is removed)
 
 **Floor**:
-The three risk attributes that can never be de-emphasized — `touches-auth`, `removes-validation`, `relaxes-permissions` (declared in `docs/vocabulary/risk-surface.md`). A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted: the combination is the signal.
-_Avoid_: severity tier, critical attributes (the floor is a display guarantee, not a score)
+The three risk attributes that can never be de-emphasized: `touches-auth`, `removes-validation`, `relaxes-permissions` (declared in `docs/vocabulary/risk-surface.md`). A `deEmphasize` rule naming one invalidates the whole policy file. A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted: the combination is the signal. A display guarantee, not the **Schema floor** (a generation guarantee) and not a test coverage floor.
+_Avoid_: severity tier, critical attributes (the floor is a display guarantee, not a score), floor (bare, where the Schema floor could be meant)
 
 **Jump-rail**:
-The attribute-keyed navigation row beside the group TOC: fired attribute names with carrying-group counts; clicking cycles through the carrying groups in story order. Attribute-keyed, never group-ranked — a "high-risk groups" rail would be the banned ordering verdict rebuilt as navigation. Floor attributes pin first; de-emphasized firings are excluded; collapsed unless a floor attribute fired.
-_Avoid_: risk ranking, hotspot list
+The attribute-keyed disclosure in the reading toolbar, labeled "Risk attrs" with a count: fired attribute names with carrying-group counts; a chip cycles through the carrying groups in story order. Attribute-keyed, never group-ranked. Floor attributes pin first; de-emphasized firings are excluded; a floor firing dots the trigger without opening it. In code `RiskAttrsDisclosure`, fed by `AttributeRail`.
+_Avoid_: risk ranking, hotspot list, risk attrs (the on-screen label)
 
 **Operation table**:
-The one list, in the shared wire contract, of every Product Operation the API serves. Each row names one operation: whether it reads or writes, the access level it needs (the same ladder a token's scope is chosen from), and its method and full path. Clients build their requests from it and the API checks its own routes against it, so a path exists in one place. Who may call beyond the scope (human only, push access) is not in the table: the API holds that, keyed by the operation's id.
-_Avoid_: catalog or manifest (for the table itself), registry (the API's runtime store), route table
+The one list, in the shared wire contract, of every Product Operation the API serves. Each row names one operation: whether it reads or writes, the **Access level** it needs, and its method and full path. Clients build their requests from it and the API checks its own routes against it, so a path exists in one place. Who may call beyond that level (human only, push access) is not in the table: the API holds that, keyed by the operation's id.
+_Avoid_: catalog (the code comment's own word; say table), manifest, registry (the API's runtime store), route table
+
+**Access level**:
+The cumulative ladder `read` < `private-write` < `external-write`, shared by a Product Operation's row in the **Operation table** and by an API token, whose level is chosen in Settings. A token may call an operation whose level it meets.
+_Avoid_: scope (reserved for Full vs Changes; the token column keeps the word), permission (GitHub's)
 
 **Wire error code**:
 The stable kebab-case identifier a non-2xx API response carries, alongside optional typed params and a composed English error line. A public, additive-only vocabulary: one code per distinct meaning — same code unless a translator would write a different sentence or a user would take a different action — never one per call site or per HTTP status. Distinct from the internal error vocabularies (GitHub, port, and auth codes), which never ride the wire and are translated to wire codes at the response boundary. Consumers render a wire code through the shared string catalog, falling back to the English error line when the code is unknown.
@@ -354,24 +395,32 @@ _Avoid_: landing page, picker, front door, dashboard
 The list on **Home**: every pull request the **Reviewer** reaches, across every **Installation** plus the ones they pasted, each row carrying their review state, folded so the rows that still need them come first, with filters, a sort and numbered pages. Inbox is the term in code and here; the label on screen is "Briefs".
 _Avoid_: briefs list, your briefs, queue (collides with the job queue), docket
 
+**Archive**:
+A reviewer putting a pull request out of their own **Inbox**, anchored on the latest **Brief**'s head: a Brief at a new head brings it back, a retarget at the same head does not. Per reviewer, never shared, never a GitHub action.
+_Avoid_: hide, dismiss (that is a **Flag**), close (GitHub's)
+
+**PR stack**:
+The chain of pull requests a PR belongs to, as GitHub links them: linear (each member has at most one open child, with the PR's 1-based index) or a fork (a parent and children). The **Brief** stores its snapshot from generation time; the **Header** shows the live one as a chip and says when the two differ.
+_Avoid_: stacked diffs, train, dependency chain
+
 **Header**:
 The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the comparison row (View and Compare, the revision notices, and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
 _Avoid_: top chrome, top bar (the CSS variable's name, not the concept), navbar
 
 **Account menu**:
 The person-anchored menu at the end of every **Header**, holding what is about the signed-in user and never about the PR: identity, Settings, Language, Keyboard shortcuts, Sign out. Trigger is the GitHub avatar when signed in, a generic person icon while the viewer is unknown, and signed out the slot holds a Sign in button instead of a menu. No placeholder rows for what is not built. Distinct from the PR-scoped overflow menu (about this PR) and the **Sidebar** (about reading this PR).
-_Avoid_: user menu, profile menu, app menu, top-chrome menu (charting-era word)
+_Avoid_: user menu, profile menu, app menu, top-chrome menu
 
 **Sidebar**:
 The Brief page's permanent right-edge column, PR-contextual only, always present on wide screens. Two states: **collapsed** — the group-TOC lines (hover reveals the group name, the current group is marked) plus the expand control and the page's small utilities at its foot — and **expanded**, where it widens to show one **Tab** beside those same lines, narrowing the reading column rather than covering it. Nothing on the sidebar competes with change groups and chunks for attention: no counts on the collapsed sidebar, at most a presence dot. Hidden wherever the group TOC is hidden (**Focus mode**, Changes **Scope**). Below the tablet breakpoint the same two states render differently: collapsed is a bar on the bottom edge (group lines as a position indicator between previous/next arrows, plus the same small utilities), expanded is a sheet rising from it that covers the page while open, so a jump collapses it.
-_Avoid_: rail (that is the **Jump-rail**), panel, drawer, shell (charting-era word), tenant (the API's multi-tenancy noun)
+_Avoid_: rail (that is the **Jump-rail**), panel, drawer, shell, tenant (the API's multi-tenancy noun)
 
 **Tab**:
 One surface housed in the expanded **Sidebar**, shown one at a time via a tabs row that lists only the tabs that exist. "This PR" — the group list — is the first, then "Revisions", the PR's revisions newest first, which is where a reader moves between them; Activity and Repo chat are candidates, each earning its place through its own ticket. Conversation is not a tab: it stays in the reading flow.
 _Avoid_: tenant, inhabitant, view (that is the URL scope param), pane
 
 **Not-ready screen**:
-What the Brief page shows in place of a **Brief** while there is none to read: waiting, generating, failed, capped, empty, superseded, or an error. One concept with seven states.
+What the Brief page shows in place of a **Brief** while there is none to read: waiting, generating, failed, capped, empty, superseded, or an error. One concept with seven states; in code one card per state under `PrBrief` (`WaitCard`, `FailedCard`, `CappedCard`, `EmptyCard`, `SupersededCard`, `PrBriefError`).
 _Avoid_: state card, error card, placeholder
 
 **Focus mode**:
@@ -379,11 +428,11 @@ The reading mode that strips the Brief page to one chunk at a time on a wide col
 _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mode is for reading)
 
 **Context panel**:
-The dismissible panel on the right edge in **Focus mode**: the focused **Change-group** (title, summary, categories, core line total), the group's chunk strip with the reader's place marked, and the current chunk's file facts and risks. Non-modal, so the diff beside it stays readable and usable. It opens on each new group; hiding it holds until the reader leaves that group.
+The dismissible panel on the right edge in **Focus mode**: the focused **Change-group** (title, summary, categories, core line total), the group's chunk strip with the reader's place marked, and the current chunk's file facts and risks. Non-modal, so the diff beside it stays readable and usable. It opens on each new group; hiding it holds until the reader leaves that group. In code `FocusPanel`.
 _Avoid_: rail (that is the **Jump-rail**), sidebar (that is the **Sidebar**), drawer, overlay (that is the **Comparison overlay**)
 
 **Change-group card**:
-The card beside each **Change-group** in the **Story view** outside **Focus mode**: the group's title, summary and categories, the reader's choice of **Dominant Category**, the group's chunk list with the reader's place marked, and its **Risk Surface**. It describes a group in the same words as the **Context panel**; only the Change-group card lets the reader reclassify a group or triage its flags.
+The card beside each **Change-group** in the **Story view** outside **Focus mode**: the group's title, summary and categories, the reader's choice of **Dominant Category**, the group's chunk list with the reader's place marked, and its **Risk Surface**. It describes a group in the same words as the **Context panel**; only the Change-group card lets the reader record a **Reclassification** or a **Disposition** on its flags. In code `GroupCard`.
 _Avoid_: group header, panel (that is the **Context panel**), rail (that is the **Jump-rail**)
 
 **Scope** (Full vs Changes):
@@ -392,7 +441,7 @@ _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar*
 
 **Scroll to target**:
 Putting the reader on a chunk, group, row, rail or section target, once, with the page settled: the card opened, the viewport scrolled, focus placed, the target flashed. One scroll to target at a time; a new **Brief** cancels the one in flight. In code, names built on `Scroll` name the whole mechanism (`useScrollToTarget`, `ParkedScroll`); one viewport move inside it is a scroll action (`ScrollActionKinds`).
-_Avoid_: landing (the former name), jump (the gesture that asks for one), deep link (the URL that asks for one)
+_Avoid_: landing, jump (the gesture that asks for one), deep link (the URL that asks for one)
 
 **Address**:
 What the URL's `l` and `focus` params say, as a pure function of reading state: the selected lines, else the **Focus mode** chunk, else nothing. State writes the Address; the Address never writes state.
@@ -408,7 +457,7 @@ _Avoid_: inline view, single view, list view
 
 **Split view**:
 The paired diff rendering: each hunk's removed and added lines positioned side by side, one row per pair. Same per-viewer preference and same `diff` param as **Unified view**; needs a viewport wide enough for two halves.
-_Avoid_: side-by-side (informal only), two-up, dual pane
+_Avoid_: side-by-side (informal only), two-up, dual pane, bare split (that is the Concern **Split**)
 
 ### Workspace
 
@@ -480,48 +529,41 @@ _Avoid_: banner (the skin, not the concept), update prompt, nag (that is the CLI
 - A **Brief**'s **index** is a PR-global ordinal over the briefs generated for the PR, retargets included (shared, not per-reviewer); a **Delta Brief** spans the gap between two briefed head SHAs.
 - A **Brief** contains many **Chunks**, clustered into **Change-groups**. A chunk is a contiguous run of changed lines sharing one Concern and one Change-group; a git hunk may be split into multiple chunks, and one file's chunks may span multiple Change-groups. Changed lines no attributed chunk claimed are the **Unattributed remainder**, one last Change-group of unattributed chunks.
 - A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one core chunk plus zero or more supporting chunks. The **Unattributed remainder** is the exception: no Categorization, no Summary, no Playbook.
-- A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (core/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
-- The brief is read through two pivots over the same chunk set: the **Story view** (by Change-group) and the **Concern view** (by Concern). LoC rolls up under both; the **Unattributed remainder** is the last group in one and the last Split segment in the other, so both totals cover the whole diff.
-- A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans the *reviewer's* last-reviewed SHA → current head, so two reviewers at different checkpoints receive different Delta Briefs over different commit spans. The full Brief is the shared, per-SHA artifact; the Delta Brief is selected per reviewer by their baseline. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
-- A **Comparison overlay** applies one **Comparison baseline** to the current **Brief**; **Previous Brief** uses shared **Revision changes** + **Revision narrative**, while **Checkpoint** uses the reviewer's personal **Delta Brief** and matching changed-line marks.
+- A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (core/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (added and deleted).
+- The brief is read by **Change-group** in **Reading order**; the **Split** shows the same chunk set by Concern. LoC rolls up under both; the **Unattributed remainder** is the last group in one and the last Split segment in the other, so both totals cover the whole diff.
+- A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans a **Checkpoint** SHA to the current head and is shared by every reviewer at that Checkpoint, so two reviewers at different checkpoints read different Delta Briefs over different commit spans. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
+- A **Comparison overlay** applies one **Comparison baseline** to the current **Brief**; **Previous Brief** uses shared **Revision changes** + **Revision narrative**, while **Checkpoint** uses the reviewer's **Delta Brief** and matching changed-line marks.
 - **Revision changes** and a **Revision narrative** both span the shared **Previous Brief** → current-head revision; the former marks lines mechanically, while the latter explains those marked changes.
-- Each (PR × Reviewer) pairing has one private **Review Session**.
-- A **Comment** belongs to a reviewer and ships to the PR. It is a **Line comment** or a **File comment**; a **Chunk** does not own it. A **Seed** belongs to a chunk in the brief and never ships.
-- A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**. A Flag may carry a **Risk note**.
-- On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
-- A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires eagerly on every push; the reviewer **Entry** comment posts only when the PR is ready. **Draft-first** changes only the Entry timing, never the Trigger.
-- The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-text rule and Review Session are human-mode only and do not apply to agent-mode.
+- Each (PR × Reviewer) pairing has one private **Review Session** per **Brief**; the first write to a newer Brief's session materializes it from the last, stamping each **Disposition** with a **Carry-over status** and listing what it could not place on the **Attention list**.
+- A **Comment** belongs to a reviewer and ships to the PR. It is a **Line comment** or a **File comment**; a **Chunk** does not own it.
+- A reviewer records a **Disposition** on a **Flag**: **addressed** (with **Evidence**) or **dismissed** (with reason). The **Receipt** shows the Dispositions as they stand at **Submit**. A Flag may carry a **Risk note**.
+- On submit, the review lands natively on GitHub (comments plus approve, request changes or comment) authored by the reviewer; the **Signature line** carries the **Receipt**'s counts. The review otherwise reads as a normal human review.
+- A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires on every push, drafts included unless the **Instance config** turns drafts off; the **Entry** comment posts on drafts too unless the **Repo config** opts out, and then waits for ready.
+- The **Analysis Layer** is reviewer-agnostic; a human reviewer consumes it through the **Engagement Layer**.
 
 ## Example dialogue
 
 > **PM:** "When the reviewer dismisses a **Flag**, does the **Author** see the agent's original reasoning?"
-> **Eng:** "No — only the **Dismissal** + the reviewer's stated reason show on the **Receipt**. The agent's challenge stays inside the **Review Session**. The receipt is the public surface, the Review Session is the private one."
+> **Eng:** "No. Only the **Dismissal** and the reviewer's stated reason show on the **Receipt**; the receipt is the public surface and the **Review Session** is the private one."
 
-> **PM:** "What if the **AI** is wrong about the **Category** for a chunk?"
-> **Eng:** "Reviewer reclassifies it in one click. The **Playbook** swaps automatically. The receipt notes 'N chunks reclassified by reviewer' — the tool stays honest about what it got and what the human corrected."
+> **PM:** "What if the **AI** is wrong about the **Category** for a group?"
+> **Eng:** "The reviewer records a **Reclassification** in one click on the **Change-group card**. The Brief keeps its generated Category; the override lives on the Review Session."
 
-## Flagged ambiguities
+## Retired terms
 
-- **"Critical area"** was rejected as terminology. It bundled *verdict* into what should be *attributes*. Resolved: split into **Risk Surface** (factual per-chunk attributes) and **Flag** (a specific item needing attention or dismissal).
-- **"Risk category"** was used for a Risk Surface attribute. **Category** is the Change-group's intent (`bugfix`, `lib-bump`). Resolved: say **attribute**. The catalog implication is what the attribute means; a **Risk note** is why it fired on this Chunk.
-- **"Approval"** was used ambiguously to mean reviewer judgment AND AI verification. Resolved: only humans **Approve**. The tool issues a **Receipt**, scoped to mechanical claims.
-- **"Dismissal" vs "Disposition"** — *Dismissal* was used for the whole flag-decision concept. Resolved: **Disposition** is the umbrella (*addressed* or *dismissed*); **Dismissal** is only the *dismissed* value.
-- **"User"** in early scope was ambiguous (author vs reviewer). Resolved: **Reviewer** is the primary v1 surface; the **Author** self-review surface is a *secondary* v1 surface (see `center-of-gravity.md`), consuming the same shared **Brief** plus the **Intent check** and **Soft gate**. Both are named explicitly when referenced.
-- **"Critical code areas might mislead reviewer"** — the original concern was anchoring bias. Resolved by Risk Surface + Playbook + no-verdict model. Anchoring is the design's chief enemy at the brief layer.
-- **"Pure AI code review comments"** was an informal phrase. Resolved as a strict product rule: the agent never authors text that ships as a **Comment**. Seeds and validation only.
-- **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own.
-- **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
-- **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
-- **"A file with multiple changes/concerns"**: resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case, deferred to a sub-operation tree.
-- **"Scope" for line vs file** was proposed for a Comment's extent. Rejected: **Scope** is Full vs Changes on the Brief page. Resolved: a Comment is a **Line comment** or a **File comment** — same object, different anchor shape; a Chunk does not own it.
-- **"Leftover lines as a coverage disclosure, not a group"** was the pre-feature shape (`UnattributedBanner` + header stat). Resolved: they are the **Unattributed remainder** — a last **Change-group** of unattributed **Chunks**, same product language as any other group, with the caveat that the model made no intent claim. Concern, Role, and Risk Surface on those chunks are not implied here.
-- **"production" rejected** as the core-concern name — bakes in a deployment assumption. Resolved: `implementation`.
-- **"Activation"** was one word for three independent things — *what fires compute*, *how a human reaches the brief*, and *turning draft-first on*. The old definition (compute-on-first-click) also contradicted the eager-on-push generation model. Resolved into **Trigger** (eager-on-push compute), **Entry** (the branded deep-link comment, posts on ready), and **Draft-first** (per-repo opt-in that gates Entry until `ready_for_review`, never the Trigger). "Activation" is retired.
-- **"AI-authorship signals" as an in-product grouping** was considered for the
-  AI-authored-code review lens and rejected: Risk-Surface attributes are
-  authorship-agnostic facts (a human can add a needless dependency or write a lying comment
-  too), and a visible "AI-ish" grouping is verdict-adjacent — it implicitly asserts
-  authorship the tool cannot know. The lens attributes (`new-dependency`, `new-abstraction`,
-  `comment-contradicts-code`) ship as ordinary Risk-Surface attributes; the AI-failure-mode
-  framing lives in positioning copy only.
-- **"Consume an AI context manager (Unblocked) to flag cross-context issues"** was proposed as a brief feature. Rejected: a tool asserting AI-hypothesized "potential issues" is the **bug-bot the product is positioned against** (no-verdict rule; `center-of-gravity.md` "no bug-bot noise"; category-scoped, not general). Resolved into three data-flows: (1) external context may **enrich the Intent check and Risk Surface with *cited* facts only** — cite-or-stay-silent, never a verdict; (2) AI *review* of the code is the **headless dual-consumer lane** — the org hooks its own agent to consume our **Brief**, and that agent owns its verdicts, not us (preserves no-verdict because we are the analysis substrate, not the reviewer); (3) the **comment-to-rule loop** is the inverse arrow (we *produce* repo-local agent context). Only (1) is a consume-side build, and it is deferred.
+- **"Critical area"**: bundled verdict into attributes. Split into **Risk Surface** (factual per-chunk attributes) and **Flag** (one item needing attention or dismissal).
+- **"Risk category"**: **Category** is the Change-group's intent. Say **attribute**; the catalog implication is what it means, a **Risk note** is why it fired here.
+- **"Approval"** for AI verification: only humans **Approve**; the tool issues a **Receipt**, scoped to mechanical claims.
+- **"Dismissal"** for the whole decision: **Disposition** is the umbrella (*addressed* or *dismissed*); **Dismissal** is only the *dismissed* value.
+- **"User"**: ambiguous between author and reviewer. Say **Reviewer** or **Author**; the Author surface is the same shared **Brief** plus the **Intent check** and the **Mark-ready gate**.
+- **"Pure AI code review comments"**: the agent never authors text that ships as a **Comment**.
+- **Intent on the chunk**: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role** and **LoC**.
+- **`test-only` / `config-only` / `generated-code` as Categories**: artifact, not intent. They are **Concern** values.
+- **"spec"**: the `spec` Concern is a specification document; `.spec.ts` and `.test.ts` files are `test`.
+- **"A file with multiple changes"**: the **Chunk**, not the file, is the atomic unit and is sub-file. Interleaved multiplicity within one inseparable span is the one unhandled case.
+- **"Scope" for a Comment's extent**: **Scope** is Full vs Changes. A Comment is a **Line comment** or a **File comment**.
+- **"Coverage disclosure"** for leftover lines: they are the **Unattributed remainder**, a last **Change-group** of unattributed **Chunks**.
+- **"production"** as the core Concern: bakes in a deployment assumption. It is `implementation`.
+- **"Activation"**: one word for what fires compute and how a human reaches the brief. Split into **Trigger** and **Entry**; the draft opt-out is a `settings.yaml` key, not a third concept.
+- **"AI-authorship signals"** as a grouping: Risk Surface attributes are authorship-agnostic facts, and an "AI-ish" grouping asserts authorship the tool cannot know. `new-dependency`, `new-abstraction` and `comment-contradicts-code` ship as ordinary attributes.
+- **"Potential issues" from an external context manager**: a tool asserting AI-hypothesized issues is the bug-bot the product is positioned against. External context may enrich the **Intent check** and **Risk Surface** with cited facts only, never a verdict.
