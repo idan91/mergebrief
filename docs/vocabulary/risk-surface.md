@@ -2,11 +2,11 @@
 
 Factual attributes attached to a chunk during categorization. Attributes only — never verdicts. Severity (when needed) emerges from the *combination* of attributes (e.g., `touches-auth` + `no-tests` + `widely-imported` together = deep-review signal) without any verdict applied.
 
-This file is the source of truth for Phase 1 hand-labeling. Per-PR briefs reference attribute names from here.
+This file is the source of truth for the Risk Surface vocabulary. The Brief schema's attribute enum mirrors it, and every brief names its attributes from here.
 
-**Structure: three buckets.** Hand-labeler asks one question per bucket per chunk.
+**Structure: three buckets.** Each bucket asks one question per chunk.
 
-**Status:** initial starter set. Expand opportunistically as labeling hits gaps.
+**Status:** starter set. Expand when real PRs show a gap (see "When to Add a New Attribute").
 
 **Floor attributes.** Three attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions` — marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
 
@@ -137,7 +137,7 @@ The diff is near (but not in) a schema definition, migration, or persistence lay
 
 ### `hot-path`
 The chunk lives on a demonstrably high-traffic or latency-critical path — not every request handler qualifies.
-- **Detect:** the chunk is in (or directly called by) a serving loop, per-request middleware, hot loop, or path annotated `// hot-path` / per-team designation. (Hand-labeler judgment required when no annotation exists; a routine request handler with no traffic/latency evidence does not fire.)
+- **Detect:** the chunk is in (or directly called by) a serving loop, per-request middleware, hot loop, or path annotated `// hot-path` / per-team designation. (Judgment required when no annotation exists; a routine request handler with no traffic/latency evidence does not fire.)
 - **Reviewer implication:** performance regressions amplify. Reviewer must verify no new allocations, sync I/O, or unbounded loops on this path.
 
 ### `widely-imported`
@@ -166,13 +166,13 @@ The brief shows attributes as a flat list per chunk; the reviewer reads the comb
 
 ## Parked candidates (do not label with these)
 
-Registered here so labelers don't reinvent them; not valid tokens until unblocked.
+Registered here so nobody reinvents them; not valid tokens until unblocked.
 
 - **`unresolved-reference`** — a string-keyed reference (feature-flag name, env var,
   translation key, route string, queue name) that doesn't resolve against the repo's
   registries. The genuinely un-linted hallucinated surface: compilers catch unresolved
   *imports* pre-review, nothing catches these. Needs per-repo registry knowledge + repo
-  context — parked until the `ContextSource` interface exists. Note: plain
+  context — parked until a context source can read the repo's registries (today's sources read tickets and PR-linked pages, not repo files). Note: plain
   `unresolved-import` was **rejected**, not parked — compilers/CI own that lane.
 - **`diverges-from-sibling-pattern`** — solves the task unlike sibling files do. Needs
   sibling *selection* (a judgment with bad FP shape: accusing the author of inconsistency
@@ -184,7 +184,7 @@ Registered here so labelers don't reinvent them; not valid tokens until unblocke
 
 ## When to Add a New Attribute
 
-During Phase 1 labeling, add an attribute to the library when:
+Add an attribute to the library when:
 1. The same observable pattern appears in ≥2 PRs.
 2. The pattern is not already covered by an existing attribute.
 3. The pattern has a clear reviewer implication — adding the attribute would change what a reviewer should do.

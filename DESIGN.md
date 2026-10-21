@@ -59,7 +59,7 @@ rounded:
   panel: "10px"
   lg: "12px"
   pill: "999px"
-  round: "50%"
+  circle: "50%"
 spacing:
   "1": "2px"
   "2": "4px"
@@ -121,7 +121,7 @@ components:
   avatar:
     backgroundColor: "{colors.accent}"
     textColor: "{colors.accent-ink}"
-    rounded: "{rounded.round}"
+    rounded: "{rounded.circle}"
     size: "26px"
 ---
 
@@ -163,7 +163,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 - **Text 1** (#ececee): titles that need the reviewer (new, updated since your review, in progress), headings.
 - **Text Read** (#cacad1): titles that do not (reviewed, or the viewer's own), chip text.
 - **Text 2** (#9a9aa3): the second line of a row, labels, quiet icons.
-- **Text 3** (#8d8d94): placeholder text and unreachable rows. The floor for readable text, lifted from the hold's #8a8a93 so it clears 5:1 on Surface 3.
+- **Text 3** (#8d8d94): placeholder text and unreachable rows. The floor for readable text, set so it clears 5:1 on Surface 3.
 - **Line, Line Strong** (#1f1f24, #2b2b32): row dividers and the list edge, then control borders.
 
 ### State (fixed meaning, hue may be tuned)
@@ -231,7 +231,7 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 
 ## Shapes
 
-Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for controls, 10px for the list, the URL box and menus, 12px for the shortcuts dialog. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (5px), `--radius-md` (8px), `--radius-panel` (10px) and `--radius-lg` (12px). Four are named by size and two by the role that wears the odd value, so a chip and a panel never borrow a neighbour's step. Round is kept for people: the avatar is a circle and the account trigger a pill. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are drawings from the icon set on its 16px grid: a filled circle (new), a filled half circle (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
+Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for controls, 10px for the list, the URL box and menus, 12px for the shortcuts dialog. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (5px), `--radius-md` (8px), `--radius-panel` (10px) and `--radius-lg` (12px). Four are named by size and two by the role that wears the odd value, so a chip and a panel never borrow a neighbour's step. Round is kept for people, on two more tokens: the avatar is a circle (`--radius-circle`, 50%) and the account trigger a pill (`--radius-pill`, 999px). Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are drawings from the icon set on its 16px grid: a filled circle (new), a filled half circle (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
 
 ## Icons
 
@@ -295,7 +295,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 ### Motion
 
-Durations 120, 180 and 320ms, the shared Callout's 140ms entrance, and a 350ms rest before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement; a plain colour or opacity change may keep the `ease` keyword. Both pages read the same three tokens and two curves; nothing states a duration of its own except the spinners. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate. Reduced motion keeps opacity changes only.
+Durations 120, 180 and 320ms, the shared Callout's 140ms entrance, and a 350ms rest before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement; a plain colour or opacity change may keep the `ease` keyword. Both pages read the same three duration tokens and two curves. A third curve, `--ease-drawer` (`cubic-bezier(0.32, 0.72, 0, 1)`), slides the Brief page's focus panel, and the Brief header's collapse runs on its own `--header-collapse-ease` (160ms `ease`). Some Brief-page transitions still state their own durations (the focus panel's 220 and 260ms, the story step's 260ms, the 1.4s conversation flash), as do the spinners. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate. Reduced motion keeps opacity changes only.
 
 ## Do's and Don'ts
 

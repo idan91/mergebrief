@@ -1,11 +1,11 @@
 # Contributing
 
-The most valuable thing you can contribute to Brief is not code. It's review vocabulary.
+The most valuable thing you can contribute to MergeBrief is not code. It's review vocabulary.
 
-Brief's taxonomy is the shared, versioned vocabulary of *what kinds of change exist*
+MergeBrief's taxonomy is the shared, versioned vocabulary of *what kinds of change exist*
 (Categories, Concerns) and *what factual attributes make a chunk worth attention*
-(Risk Surface). The engine's prompt and output schema are generated from it: every token
-you register shapes what the tool can recognize in every PR anyone reviews with it. That
+(Risk Surface). The engine's prompt and output schema are built from code maps that mirror
+it: every token you register shapes what the tool can recognize in every PR anyone reviews with it. That
 vocabulary lives in plain markdown in this repo, and sharpening it is the main
 contribution surface.
 
@@ -45,7 +45,7 @@ Three axes, three attach points. (Full glossary in [`CONTEXT.md`](./CONTEXT.md).
   when it matters, emerges from combinations, and the reviewer makes that call.
 
 All three vocabularies are **closed sets**. The engine's prompt and output schema are
-generated from them, so an unregistered token cannot appear in a Brief. That closedness is
+built from code maps that mirror them, so an unregistered token cannot appear in a Brief. That closedness is
 the point: it's what makes the same kind of change recognizable across every PR. Expansion
 is deliberate, never casual.
 
@@ -101,19 +101,30 @@ index and the deep file together.
 The markdown is the source of truth; the code mirrors it. A PR that changes *tokens* (adds,
 renames, or removes one) must update the mirrors in the same PR:
 
-- `packages/brief-core/src/types.ts` — the closed enums the output schema validates against.
-- `packages/brief-core/src/generation/prompt.ts` — the description maps interpolated into the prompt.
-- `apps/web/src/features/brief/model/types.ts` — the FE copy of the vocabularies.
+- `packages/brief-core/src/types.ts`: the closed Concern, Role and Risk Surface maps the
+  output schema validates against.
+- `packages/types/src/reviews.ts`: the closed Category map. A database CHECK in
+  `packages/persistence` reads it, so a Category change also needs a migration.
+- `packages/brief-core/src/generation/prompt.ts`: the description maps interpolated into the prompt.
+- `packages/i18n/src/locales/en.json`: the `brief.category.*` and `brief.risk.*` labels the web
+  app shows. Its label maps are keyed by the code maps, so a missing label fails typecheck.
+- `packages/repo-config/src/constants.ts`: `FLOOR_ATTRIBUTES` and `PARKED_ATTRIBUTE_CANDIDATES`,
+  when the token is a floor attribute or a parked candidate.
 
 Token changes touch the generation surface, so the eval harness applies
 (`pnpm -C tools/categorizer eval` — see `tools/categorizer/eval/README.md`).
-Verification for code-touching PRs:
+Verification for code-touching PRs, on the Node version in `.nvmrc`:
 
 ```bash
-pnpm --dir tools/categorizer typecheck && pnpm --dir tools/categorizer test
-pnpm --dir apps/web typecheck && pnpm --dir apps/web test
+pnpm -C <member> typecheck && pnpm -C <member> test   # each app, package or tool you touched
 pnpm lint
 ```
+
+Every member has its own suite, and the root `pnpm test` runs only `tools/categorizer`'s, so
+run each touched member's suite. `pnpm test` in a member enforces its coverage floor (75% of
+lines; `apps/api` holds 85%, `tools/categorizer` 60%), and a drop below it fails. `pnpm lint`
+runs oxlint, dependency-cruiser, knip, prettier, the web stylesheet lint and the repo's
+`check:*` gates in one chain; its exit code is the result.
 
 Docs-only PRs need no build step. Yes, the mirror step is manual for now; generating the
 code from the markdown is a welcome future contribution.

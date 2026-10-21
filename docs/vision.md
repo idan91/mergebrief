@@ -6,9 +6,8 @@
 
 A **source-available, self-hostable comprehension layer for code review.** It turns a pull
 request from a flat file-list into a **Brief**: changes re-unitized into categorized
-**Change-groups**, each with a plain-language summary, a per-category **playbook** (the
-known checklist for that kind of change), risk-surface attributes, and — across pushes — a
-**delta** of what moved. It restores *engagement and comprehension* to review in a world
+**Change-groups**, each with a plain-language summary and risk-surface attributes, and,
+across pushes, a **delta** of what moved. It restores *engagement and comprehension* to review in a world
 where most code is AI-authored, without becoming another bug-bot.
 
 It separates **AI assistance from AI authorship**: the tool provides structure and post-hoc
@@ -29,13 +28,14 @@ It is well-built and funded. We do not win by out-featuring it. We win on the ax
 funded SaaS structurally cannot occupy:
 
 - **Open & self-hostable.** One core, `docker compose up`, your infrastructure, your data.
-- **BYOK, no per-seat cost, no telemetry.** Your model key, your spend, nothing phones home.
-- **Hackable and forkable.** The taxonomy and playbooks are plain markdown you can read,
-  extend, and contribute to — an ESLint-rules-style commons, not a black box.
+- **BYOK, no per-seat cost, no telemetry.** Your model key, your spend. The one call home is
+  the update check: an outbound fetch of a public release file that identifies nothing about
+  the instance, off with `MERGEBRIEF_UPDATE_CHECK=false`.
+- **Hackable and forkable.** The taxonomy is plain markdown you can read, extend, and
+  contribute to: an ESLint-rules-style commons, not a black box.
 - **Stable cross-PR taxonomy under the narrative.** Atlas's cohorts are PR-local. Ours sit on
   a **stable category taxonomy** (`pure-move`, `schema-change`, `lib-bump`…) that is
-  queryable across PRs and *anchors a playbook* — narrative-on-top-of-taxonomy, the layer
-  they don't have.
+  queryable across PRs: narrative-on-top-of-taxonomy, the layer they don't have.
 - **No-verdict, receipt-not-approval values.** A point of view about trust, stated in the open.
 
 The goal is **a quality self-hosted project with good word-of-mouth** — something good engineers use
@@ -49,12 +49,11 @@ in the open, and a credible piece of public work. Mindshare for the thesis, not 
 - **No telemetry.** Self-hosted instances produce no analytics back to us, by design.
 - **Not chasing the arms race.** No competing with Atlas on semantic/code-graph depth,
   generated diagrams, or LanceDB-scale search. Win on first-run experience, clarity, taste.
-- **Not a bug-bot.** No AI-hypothesized "potential issues" presented as verdicts. Facts and
-  checklists, never opinions dressed as findings.
+- **Not a bug-bot.** No AI-hypothesized "potential issues" presented as verdicts. Facts, never
+  opinions dressed as findings.
 - **Not an AI ghost-writer for review comments.** The agent seeds and verifies; the human writes.
 
 ## What stays true from before
 
-The domain model (`CONTEXT.md`), the labeling schema, the playbook library, the no-verdict /
-receipt design, and the self-host architecture (Postgres-only; per-instance GitHub App) all
+The domain model (`CONTEXT.md`), the labeling schema, the no-verdict / receipt design, and the self-host architecture (Postgres-only; per-instance GitHub App) all
 carry forward unchanged. What's gone is the *commercial scaffolding* built around them.

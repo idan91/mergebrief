@@ -16,7 +16,7 @@ tagged where it sits.
 ## When to run
 
 - **Before a release** — one pass over every adapter you ship.
-- **After a CLI version upgrade** (`claude`, `codex`) — the envelope shapes
+- **After a CLI version upgrade** (`claude`, `codex`, `cursor-agent`) — the envelope shapes
   are documented-but-unpromised (capabilities note); a bump can drift them.
 - **After touching an adapter** — transport/envelope/classification changes.
 
@@ -35,6 +35,7 @@ pnpm -C packages/generators smoke -- --adapter openrouter --model anthropic/clau
 # Harness-CLI adapters (need the CLI logged in on THIS machine):
 pnpm -C packages/generators smoke -- --adapter claude-code
 pnpm -C packages/generators smoke -- --adapter codex
+pnpm -C packages/generators smoke -- --adapter cursor   # `cursor-agent login`, or CURSOR_API_KEY
 
 # Or validate + smoke an actual instance config (paths resolve relative
 # to packages/generators because of -C — hence the ../..):
@@ -65,17 +66,20 @@ cannot fake — a REAL CLI's process tree, grandchildren included:
    backend out of reach (drop the network, or `kill -STOP` the CLI process
    to fake a wedge).
 2. Expect: the inactivity watchdog fires (default 3 min — configure
-   `timeouts.inactivityMs` lower in a scratch config for a faster check),
+   `timeouts.inactivityMs` lower in a scratch config for a faster check;
+   cursor's stream is silent until exit, so its watchdog defaults to the
+   15-minute wall-clock `hardMs` unless you set `inactivityMs`),
    the run exits nonzero with a `timeout`-kind message carrying a redacted
    stderr tail, and **no orphan processes remain** (`pgrep -f claude` /
-   `pgrep -f codex` is clean — the process-group SIGKILL got the tree).
+   `pgrep -f codex` / `pgrep -f cursor-agent` is clean — the process-group SIGKILL got the tree).
 3. `kill -CONT` (if you used SIGSTOP) and clean up.
 
 ## What this covers that CI cannot
 
-- Envelope fidelity: the shims mirror `docs/internal/dev/harness-cli-capabilities.md`;
+- Envelope fidelity: the shims mirror each CLI's envelope as last verified;
   a CLI upgrade can drift the real envelopes without failing any test.
-- Auth reality: keychain/OAuth (claude), `auth.json` (codex) — CI never has
+- Auth reality: keychain/OAuth (claude), `auth.json` (codex), `cursor-agent login` or
+  `CURSOR_API_KEY` (cursor) — CI never has
   them; the boot probes only prove the SHIM's contract there.
 - Provider enforcement: real `--json-schema` / `--output-schema` /
   `response_format` behavior at the providers, including their retry limits.

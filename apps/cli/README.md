@@ -56,7 +56,7 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
 
 - **exit 0 ⇒ stdout is documented JSON** (or the raw unified diff, for
   `diff`), or empty for an operation whose success carries no body
-  (`draft update|reanchor|delete`, `reclassify`). **exit ≠ 0 ⇒ stdout is
+  (`draft update|reanchor|delete`, `reclassify`, `chunk-read`, `ready`). **exit ≠ 0 ⇒ stdout is
   empty** and stderr carries exactly one
   line — for server responses it relays the error text + HTTP status;
   client-side usage and network/proxy failures explain themselves without
@@ -107,7 +107,8 @@ No argument: the first page of your Inbox, verbatim (`{"items":[...],
 the pull requests you pasted. With a number: the
 PR's metadata. Critical fields: **`baseSha`/`headSha`** — the brief span
 your `submit` must name (never auto-fetched); `briefAvailable` — generation is
-webhook-driven, poll with backoff, nothing client-side triggers it;
+webhook-driven for an installed repo (`generate <url>` queues a pasted PR);
+poll with backoff;
 `comparisons.lastReview` — what `delta` resolves.
 
 ```json
@@ -169,7 +170,7 @@ required (exit 2).
 The brief's repo-config snapshot (`{"repoConfig":…}`), verbatim. Same span
 rule as `session`.
 
-### `draft create|update|reanchor|delete <n> [draftId]`
+### `draft create|update|reanchor|delete|attach <n> [draftId]`
 
 Draft inline comments in your session — they post at `submit`. Every draft
 command names the brief span (`--base/--head`, exit 2 without them).
@@ -190,6 +191,12 @@ mutually exclusive (exit 2):
   Prints nothing on success.
 - `delete <n> <draftId>` — no payload. Same signed-in-reviewer gate. Prints
   nothing on success.
+- `attach <n> <file>`: upload a png, jpg, gif or webp image to the
+  repository's attachments branch and print `{"url":"…"}` for a comment to
+  carry. No span unless `--draft <draftId>` also appends the image to that
+  held draft, which needs `--base` and `--head` (exit 2 without them). This
+  one pushes to the repository, so a token needs external-write scope; an
+  upload over the instance's quota is 429 (exit 7).
 
 ### `chunk-read <n> <chunkId>`
 
@@ -233,10 +240,25 @@ key, mirroring the web URL box). The server queues the run and answers
 where the brief will render: `{"repoId":"42001","prNumber":7}`. Poll
 `pr <n>` for progress.
 
+### `generation <n>`
+
+The PR head's generation claims, verbatim: `{"generation":{"headSha":…,
+"status":…,"claims":1,"claimLimit":…,"exhausted":false,…}}`, with the stored
+failure (`errorCode`, `errorParams`) and the queued takeover job when there
+is one. No `generation` key before the first brief is queued. Use it to
+see why a head has no brief.
+
 ### `collaborators`
 
 The target repo's collaborator roster, verbatim (`-R`/origin addressing).
 Requires push access — a read-only viewer gets the 404 posture.
+
+### `spend`
+
+Today's started generation runs against the instance's daily cap, verbatim:
+`{"startedRuns":3,"cap":50,"dayStartedAt":"…","resetsAt":"…"}` (no `cap` on
+an uncapped instance; the day is UTC). Operators only: anyone else gets 403
+`operator-only` (exit 5). No repo targeting.
 
 ### `conversation <n>`
 
@@ -250,8 +272,7 @@ Receipt verbatim: `{"commentId":990011}`.
 ### `submit <n>`
 
 Submit a review of the brief span you name; the comments are the drafts
-the server holds for it (drafting them has no CLI command yet, so a
-CLI-only submit posts a body-only review today). Payload via `-F <file>` /
+the server holds for it (`draft create` adds them). Payload via `-F <file>` /
 `-F -` (stdin), or the
 convenience flags (`--outcome comment|approve|request-changes`, `--body`)
 — the two forms are mutually exclusive. **`--base` and `--head` are

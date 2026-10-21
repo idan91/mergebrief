@@ -7,8 +7,9 @@ The delivery mechanics (trust rule, caps, failure semantics) are in
 ## `instructions.md` — teach the generator your repo
 
 Write free-form text. The generator honors it for these purposes **only** (the
-operative list lives in code — `REPO_INSTRUCTION_CLASSES` in the categorizer
-prompt module — and changing it requires an ADR amendment plus an eval run):
+operative list lives in code — `REPO_INSTRUCTION_CLASSES` in
+`packages/brief-core/src/generation/repo-context.ts` — and changing it requires
+an amended decision record plus an eval run):
 
 **May follow**
 
@@ -54,5 +55,6 @@ risk-surface vocabulary for your repo's briefs:
 
 ## `settings.yaml` — workflow taste
 
-One knob in v1: `entryCommentOnDrafts` (default `true`) — see
-`docs/self-host/repo-config.md`.
+Version 1 (`version: 1` is required) takes `entryCommentOnDrafts` (default
+`true`) and the ticket tracker, as `tracker:` or a `trackers:` list. See
+`docs/self-host/repo-config.md` and `docs/self-host/trackers.md`.

@@ -175,9 +175,13 @@ Dockerfile's source label, the default update-check URL as
 download commands in `docs/self-host/compose.md`, the upgrade and rollback
 download commands in `docs/self-host/operations.md`, the README's clone
 and release links, and the release-notes links the api and the CLI
-print. `git grep -l 'Idan91/code-review'` lists all of them; the move is
-done when it lists nothing, and the public installation instructions are
-then the first thing to run against the public repository. The npm
+print. `git grep -l 'Idan91/code-review'` lists all of them, plus data
+that names the repository only as a PR locator: the eval fixtures under
+`tools/categorizer/eval/` and the categorizer's pipeline snapshot. That
+data stays, since changing a fixture changes what its baseline measured.
+The move is done when the list holds only that data, and the public
+installation instructions are then the first thing to run against the
+public repository. The npm
 Trusted Publisher record below is registered on that repository, never on
 this one: npm keeps one such record per package, and it names the
 repository and the workflow file. The ghcr image name depends on the

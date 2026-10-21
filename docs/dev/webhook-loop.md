@@ -2,8 +2,8 @@
 
 How to run the webhook receiver end-to-end on your machine and watch a real GitHub
 `pull_request` event turn into a `pull_request` row + a queued `generate` job. This is also
-the **fixture-capture** step: the real payloads you replay here are the ones PR A re-verifies
-its parser against, so grab a few while you have the tunnel open.
+the **fixture-capture** step: the real payloads you replay here are what the webhook parser's
+test shapes are checked against, so grab a few while you have the tunnel open.
 
 > Prereq: a **dev** GitHub App registered and installed on a test repo — see
 > [`../self-host/github-app.md`](../self-host/github-app.md). Use the App's dev credentials
@@ -22,7 +22,7 @@ This brings up the loopback-only Postgres from `docker-compose.yml`
 
 The credentials belong to the API process, not the web tier. Copy
 `apps/api/.env.example` to `apps/api/.env` and fill in the dev-App values. **Placeholders
-below — never commit real values.** Idan's live dev credentials live in 1Password, not here.
+below — never commit real values.**
 
 ```sh
 # Database (matches docker-compose.yml)
@@ -37,6 +37,11 @@ GITHUB_WEBHOOK_SECRET=replace-with-openssl-rand-hex-32
 GITHUB_OAUTH_CLIENT_ID=Iv1.replace-me
 GITHUB_OAUTH_CLIENT_SECRET=replace-me
 GITHUB_APP_SLUG=your-app-slug
+
+# The public origin: your ngrok URL once the tunnel is up (step 4)
+PUBLIC_BASE_URL=http://localhost:3000
+# openssl rand -base64 32
+SESSION_KEY_V1=<your-base64-32-byte-key>
 ```
 
 The API's composition root (`apps/api/src/main.ts`) reads these at BOOT, not on the first
@@ -45,10 +50,11 @@ listens. A missing or invalid var stops the process with a `field: reason` line 
 serving a broken webhook — so if `pnpm dev` shows the api pane exiting immediately, that
 line is why.
 
-The web tier needs none of this. It reads `MERGEBRIEF_API_ORIGIN` and `LOG_LEVEL` from
-`apps/web/.env`. `PUBLIC_BASE_URL` is NOT one of them: vite reads it from the ambient
-environment when the dev server boots, so export it in the shell rather than putting it in
-that file.
+The web tier needs none of this. Under `vite dev` it reads `MERGEBRIEF_API_ORIGIN` and
+`LOG_LEVEL` from `apps/web/.env`. `PUBLIC_BASE_URL` matters there only to vite's host guard,
+which reads it from the ambient environment when the dev server boots, before that file
+loads: export it in the shell. (The production web server, `src/serve.ts`, does read it from
+the file.)
 The dev-only `MERGEBRIEF_OUT_DIR` in `apps/api/.env` serves local briefs only to a signed-in
 session, so the tunnel does not expose it to a cookieless visitor; leave it unset and Home
 lists rows alone.
@@ -112,6 +118,6 @@ webhook-only debugging.
 
 ngrok's local inspector at **http://127.0.0.1:4040** shows every delivery and lets you
 **replay** one — re-fire the exact same signed payload at your handler while debugging, instead
-of opening PRs repeatedly. This is where you **save real payloads as fixtures** for PR A's
-re-verification (the parser tests deliberately don't import these, but capturing them keeps the
+of opening PRs repeatedly. This is where you **save real payloads as fixtures** for re-verifying the
+webhook parser (the parser tests deliberately don't import these, but capturing them keeps the
 inline test shapes honest against what GitHub actually sends).

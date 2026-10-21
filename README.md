@@ -1,11 +1,11 @@
-# Brief / review
+# MergeBrief
 
 A source-available, self-hostable **comprehension layer for code review.** It turns a pull request
 from a flat file-list into a **Brief**: changes re-unitized into categorized **Change-groups**,
-each with a plain-language summary, a per-category **Playbook** (the known checklist for that
-kind of change), and **Risk Surface** attributes — facts worth a closer look, never a verdict.
+each with a plain-language summary and **Risk Surface** attributes: facts worth a closer look,
+never a verdict.
 
-Brief doesn't try to spot bugs. It organizes the review itself: the author hands over a change
+MergeBrief doesn't try to spot bugs. It organizes the review itself: the author hands over a change
 with its story already told, the reviewer follows that story instead of reconstructing it from
 the diff, attention lands where it's needed, and it takes fewer review iterations to reach a
 confident merge.
@@ -13,18 +13,21 @@ confident merge.
 ## Why this, and not [CodeRabbit](https://www.coderabbit.ai/) or another AI review bot?
 
 Most AI review tools treat a PR generically: summarize it, maybe flag a few "potential issues."
-Brief is built around a different idea — **a stable, cross-PR taxonomy is more valuable than a
+MergeBrief is built around a different idea — **a stable, cross-PR taxonomy is more valuable than a
 one-off summary.** Every Change-group gets a Category from a fixed vocabulary
 (`pure-move`, `schema-change`, `lib-bump`, `logic-refactor`, …), so the same kind of change is
-recognizable across every PR you ever review, and a Playbook can attach to it reliably.
+recognizable across every PR you ever review.
 
 - **Open and self-hostable.** One core, `docker compose up`, your infrastructure, your data.
 - **BYOK, no per-seat cost, no telemetry.** Your model key, your spend. Self-hosted instances
-  send nothing back to us, by design. Beyond the GitHub API and your model provider, the one
-  outbound request is an hourly fetch of a public release file from GitHub that carries nothing
-  about your instance; `MERGEBRIEF_UPDATE_CHECK=false` turns it off.
-- **Hackable.** The taxonomy and Playbooks are plain markdown — read them, extend them,
-  contribute to them. An ESLint-rules-style commons, not a black box.
+  send nothing back to us, by design. Beyond the GitHub API and your model provider, the
+  outbound requests are the update check, the links a PR cites and any ticket tracker you
+  configure. The update check is an hourly fetch of a public release file from GitHub that
+  carries nothing about your instance; `MERGEBRIEF_UPDATE_CHECK=false` turns it off. For
+  context, the worker reads up to five public links from a PR's description, and a tracker
+  such as Notion when you configure one.
+- **Hackable.** The taxonomy is documented in plain markdown: read it, extend it, propose
+  to it. An ESLint-rules-style commons, not a black box.
 - **Facts, never verdicts.** Risk Surface attributes are factual observations a reviewer can
   check in seconds (`no-tests`, `mutates-state`, `external-io`, …), mechanically confirmed
   against the diff where that's possible. The tool never scores, approves, or rejects —
@@ -53,33 +56,36 @@ hardening before you expose it):
 migrations, and backup/restore:
 [`docs/self-host/operations.md`](./docs/self-host/operations.md).
 
-## Quickstart (local dev loop, no Docker)
+## Quickstart (local dev loop)
 
-Requires Node 20.6+, [`pnpm`](https://pnpm.io), and an authenticated [`gh`](https://cli.github.com)
-CLI (used to fetch PR diffs — no separate GitHub token setup).
+Requires Node 22, 24 or 26+ (`.nvmrc` pins the version CI uses), [`pnpm`](https://pnpm.io),
+and Docker for Postgres. The api, worker and web processes run on your machine; only Postgres
+runs in a container.
 
 ```bash
 git clone https://github.com/Idan91/code-review.git
 cd code-review
 pnpm install
 
-# The API process holds the credentials; the web tier holds none.
-cp apps/api/.env.example apps/api/.env
-# edit apps/api/.env: the GitHub App and OAuth values, and SESSION_KEY_V1
+cp .env.example .env
+# edit .env: the GitHub App and OAuth values, SESSION_KEY_V1, ANTHROPIC_API_KEY,
+# and a host DSN for the compose Postgres:
+#   DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review
 
-# Anthropic API key — get one (and credits) from https://console.anthropic.com
-# It belongs to the worker, which is what generates. `pnpm dev` runs api + web
-# only; add it to the root .env when you run the worker or docker compose.
-
-pnpm dev
+pnpm app:host
 ```
 
-Open the printed local URL, paste a public GitHub PR URL into the picker, and click **Generate**.
-The Brief is generated once per head SHA and cached under `tools/categorizer/out/`; reopening the
-same PR reuses it at no extra cost.
+`pnpm app:host` starts the compose Postgres, then runs the api, the worker and the web app on
+the host with `.env` loaded. Open http://localhost:3000, sign in with GitHub, paste a pull
+request URL on Home and click **Generate brief**. The worker generates the brief and stores it
+in Postgres; reopening the PR reads the stored brief at no extra cost. A pasted pull request gets
+no webhook, so after a new push it shows **New commits** with a **Regenerate** button; a
+repository with the GitHub App installed regenerates on every push.
 
-Prefer the terminal? `tools/categorizer` exposes the same engine as a CLI —
-see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
+`pnpm dev` runs only the api and the web app, with no worker, so nothing generates under it.
+
+Prefer the terminal? `tools/categorizer` runs the same engine (`packages/brief-core`) from dev
+CLIs that write artifacts to `tools/categorizer/out/`; see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
 
 ## Generation backends (pick your model — or your subscription)
 
@@ -89,8 +95,8 @@ API** (the zero-config default; `claude-sonnet-5` is the documented cost
 knob), **OpenAI API**, **OpenRouter** (any slug with structured outputs),
 or — for the local dev loop — the **Claude Code**, **Codex** and **Cursor
 CLIs**, which generate on the subscription you already pay for. One optional
-`mergebrief.config.yaml` selects the backend for the worker, the web app,
-and the categorizer CLIs alike (the `mergebrief` HTTP client below never
+`mergebrief.config.yaml` selects the backend for the worker and the
+categorizer CLIs alike (the `mergebrief` HTTP client below never
 constructs a generator).
 
 **The CLI backends are local-only in v1, deliberately.** A container never
@@ -113,7 +119,7 @@ every brief: [`docs/self-host/repo-config.md`](./docs/self-host/repo-config.md).
 The same review loop, scriptable: **`mergebrief`** ([apps/cli](apps/cli/README.md))
 drives `pr` → `groups` → `diff --group` → `submit` over your deployment's API with an
 opaque token minted in the web app. `--json` output is a stability-promised contract
-(passthrough server shapes, additive-only, a 6-code exit table), which makes it safe to
+(passthrough server shapes, additive-only, an 8-code exit table), which makes it safe to
 hand to an AI agent unattended — install the packaged skill with
 `npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>`
 ([skills/mergebrief](skills/mergebrief/SKILL.md)).
@@ -123,25 +129,42 @@ Deploy-side setup: [docs/self-host/cli.md](docs/self-host/cli.md).
 
 | | |
 |---|---|
-| **Story view** | The Brief grouped by Change-group: what changed, why, and the Playbook for that category |
-| **Concern view** | The same diff pivoted by artifact (implementation vs test vs doc vs config) — how much of the PR is real change vs scaffolding |
+| **Story view** | The Brief grouped by Change-group: what changed and why, step by step |
+| **Concern split** | How the PR's attention divides by artifact (implementation, test, doc, spec, config, generated): how much is real change and how much is scaffolding |
+| **Changes only** | On a later push, only what changed between two revisions of the PR |
 | **Risk Surface** | Factual attributes per chunk (`no-tests`, `touches-auth`, `comment-contradicts-code`, …), each checkable in seconds — never a severity score |
 | **Receipt** | What the tool verified and what it didn't, plus the disposition of every flag (addressed / dismissed with reason). Never an approval |
 
 ## Project layout
 
 ```
-apps/web/             the web app (picker, Brief renderer, review session)
-tools/categorizer/    the engine: PR diff → categorized Brief (CLI + library)
-packages/persistence/ the self-host backend's data layer (Postgres, in progress)
-docs/                 vision, ADRs, domain model (CONTEXT.md), roadmap
+apps/web/                     the web app (Inbox, Brief renderer, review session); holds no credentials
+apps/api/                     the HTTP API: webhooks, GitHub sign-in, reviewer reads and writes
+apps/worker/                  the generation worker: drains the Postgres job queue, writes briefs
+apps/cli/                     `mergebrief`, the HTTP client for humans and agents
+packages/brief-core/          the engine: Brief schema, vocabulary, prompt, delta and anchoring
+packages/generators/          the model backends behind one generator port
+packages/contract/            the HTTP contract the API, web app and CLI share
+packages/persistence/         the Postgres data layer and job queue
+packages/github/              the GitHub App client: auth, webhooks, PR and diff reads
+packages/repo-config/         the `.mergebrief/` repo config: schemas and budgets
+packages/i18n/                the user-facing copy catalog
+packages/logging/             the structured-logging boundary
+packages/types/               shared type helpers and closed vocabularies
+tools/categorizer/            dev CLIs over the engine, plus the eval harness
+tools/release/                the release tool behind the release workflow
+tools/baselines/              the lint-baseline gate
+tools/oxlint-plugin-house/    the repo's own lint rules
+tools/ingest-briefs/          one-shot import of CLI brief artifacts into the database
+skills/mergebrief/            the agent skill for the CLI
+docs/                         vision, vocabulary, self-host and contributor docs
 ```
 
 ## Your data (what's stored, and how forgetting works)
 
-The self-host backend (in progress) keeps everything in **your own Postgres, on your own
+The self-host backend keeps everything in **your own Postgres, on your own
 infrastructure, with your own API key**. Beyond the GitHub API, your model provider and
-the hourly update check described above, nothing leaves your network, and there is no
+the outbound reads described above, nothing leaves your network, and there is no
 telemetry. What it stores is deliberately minimal:
 
 - **Stored:** generated Briefs and revision summaries (descriptions *of* your code), review
@@ -164,9 +187,8 @@ domain model is documented in [`CONTEXT.md`](./CONTEXT.md).
 
 ## Contributing
 
-The taxonomy and Playbooks are the contribution surface — an ESLint-rules-style commons of
-review knowledge, kept in plain markdown. Adding a failure mode to a Playbook or proposing a
-Risk-Surface attribute needs no code at all. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+The taxonomy is the contribution surface: an ESLint-rules-style commons of review knowledge,
+kept in plain markdown. Proposing a Category or a Risk-Surface attribute starts as a docs change. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## License
 

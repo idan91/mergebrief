@@ -9,21 +9,21 @@ Turns a real pull-request diff into a structured review **brief** — a *story* 
 > output naming in `src/artifacts/`) and the eval harness (`eval/`,
 > `pnpm eval`).
 
-This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/internal/mvp/center-of-gravity.md`.
+The CLIs run the production engine locally against a real PR, for development and dogfooding, and write their artifacts to disk instead of Postgres.
 
 ## How it works
 
 ```
-PR URL ──▶ gh pr diff + gh pr view ──▶ Opus 4.8 (messages.parse + Zod schema) ──▶ brief JSON
+PR URL ──▶ gh pr diff + gh pr view ──▶ the configured generator (Zod schema floor) ──▶ brief JSON
 ```
 
 - **Diff source:** the `gh` CLI (`gh pr diff` + `gh pr view --json`). No GitHub token setup — uses your existing `gh` auth.
-- **Model:** `claude-opus-4-8`, adaptive thinking, with the taxonomy system prompt prompt-cached.
-- **Output contract:** the model must return JSON matching the Zod `BriefSchema` (`src/types.ts`), whose enums mirror the closed vocabulary in `docs/vocabulary/labeling-schema.md` and the 16 attributes in `docs/vocabulary/risk-surface.md`.
+- **Model:** the generator `--config <mergebrief.config.yaml>` selects (see `docs/self-host/generators.md`). Without `--config` it is the zero-config default: the Anthropic adapter on `claude-opus-4-8`, adaptive thinking, with the taxonomy system prompt prompt-cached. The CLIs ignore an ambient `MERGEBRIEF_CONFIG`.
+- **Output contract:** the model must return JSON matching the Zod `BriefSchema` (`packages/brief-core/src/types.ts`), whose enums mirror the closed vocabulary in `docs/vocabulary/labeling-schema.md` and the 19 attributes in `docs/vocabulary/risk-surface.md`.
 
 ## Setup
 
-Requires Node 20.6+ (for `process.loadEnvFile`), [`pnpm`](https://pnpm.io), and an authenticated [`gh`](https://cli.github.com) CLI.
+Requires Node 22, 24 or 26+ (the repo's `engines`; `.nvmrc` pins the CI version), [`pnpm`](https://pnpm.io), and an authenticated [`gh`](https://cli.github.com) CLI.
 
 ```bash
 cd tools/categorizer
@@ -39,8 +39,8 @@ cp .env.example .env
 ## Usage
 
 ```bash
-pnpm categorize <pr-url> [<pr-url> …]              # whole PR at current head
-pnpm categorize <pr-url> <base-sha> <head-sha>     # brief over an explicit span
+pnpm categorize [--config <file>] [--out <dir>] <pr-url> [<pr-url> …]           # whole PR at current head
+pnpm categorize [--config <file>] [--out <dir>] <pr-url> <base-sha> <head-sha>  # brief over an explicit span
 ```
 
 Example:
@@ -49,7 +49,7 @@ Example:
 pnpm categorize https://github.com/medusajs/medusa/pull/15605
 ```
 
-For each brief it writes three files under `out/`, versioned by a PR-global **index** and the head SHA so successive briefs of one PR coexist:
+For each brief it writes three files under `out/` (or the `--out` directory; point it at `MERGEBRIEF_OUT_DIR` to open the result in the dev brief viewer), versioned by a PR-global **index** and the head SHA so successive briefs of one PR coexist:
 
 - `out/<owner>-<repo>-<num>_<index>_<head8>.brief.json` — the brief (now carrying `index` + `commitRange`)
 - `…_<index>_<head8>.diffs.json` — per-file diffs sidecar
@@ -76,10 +76,10 @@ Only `url` and `content` are required. The file replaces the fetch for the prima
 ### Delta (re-review reload)
 
 ```bash
-pnpm delta <pr-url> <baseline-sha> <head-sha>
+pnpm delta [--config <file>] [--context <ticket.json>] <pr-url> <baseline-sha> <head-sha>
 ```
 
-Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar and a `.delta.comments.json` comments sidecar (same shapes as the brief's sidecars). Note: comment `outdated` is GitHub's flag relative to the PR's *current* head, not the delta's head (documented in `github.ts`).
+Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar and a `.delta.comments.json` comments sidecar (same shapes as the brief's sidecars). Note: comment `outdated` is GitHub's flag relative to the PR's *current* head, not the delta's head (documented in `src/github/comments.ts`).
 
 Each delta chunk belongs to exactly one change-group (a file appears in multiple groups only via different chunks), so no line is shown to the reviewer twice.
 
@@ -112,7 +112,7 @@ pnpm typecheck   # tsc --noEmit (strict)
 pnpm test        # vitest run
 ```
 
-Tests cover the pure logic: `gh` output parsing (`src/github/`), output filename + summary rendering (`src/artifacts/output.ts`), and CLI flag and `--context` file parsing (`src/cli/`). PR-URL parsing and brief-schema vocabulary enforcement are tested in brief-core. The network/LLM paths are exercised by the manual gold check.
+Tests cover the pure logic: `gh` output parsing (`src/github/`), output filename + summary rendering (`src/artifacts/output.ts`), and CLI flag and `--context` file parsing (`src/cli/`). PR-URL parsing and brief-schema vocabulary enforcement are tested in brief-core. The network and model paths are exercised by manual runs.
 
 ### Files
 

@@ -10,7 +10,7 @@ Individual engineers and small teams who want a self-hosted code-review comprehe
 
 ## Product Purpose
 
-Brief / review turns a flat pull-request file list into a Brief: categorized Change-groups, summaries, playbooks, Risk Surface attributes, revision changes, and a Receipt. Success means the reviewer understands what changed, where attention belongs, and what they verified, without the tool pretending to approve, reject, or author comments for them.
+MergeBrief turns a flat pull-request file list into a Brief: categorized Change-groups, summaries, Risk Surface attributes, revision changes, and a Receipt. Success means the reviewer understands what changed, where attention belongs, and what they verified, without the tool pretending to approve, reject, or author comments for them.
 
 ## Brand Personality
 

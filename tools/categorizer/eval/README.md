@@ -42,8 +42,8 @@ case whose properties could plausibly move — the flag takes a single
 id (a repeated `--case` silently keeps only the last), and each
 invocation overwrites `out/eval-report.{json,md}`, so capture the
 report between runs. Justify the selection in the PR body — e.g. an
-intent-check-only change is honestly gated by the six `intent-*` cases
-(six runs). Run the full suite for prompt-wide changes (shared prompt
+intent-check-only change is honestly gated by the seven `intent-*` cases
+(seven runs). Run the full suite for prompt-wide changes (shared prompt
 sections, output schema, salvage) and model bumps, where any property
 could move. An honestly-scoped run beats the real alternative at
 full-suite prices: not gating at all.
@@ -53,15 +53,11 @@ full-suite prices: not gating at all.
 Every case report carries a length-compliance note when any run's
 artifact stamps `lengthViolations` (the warn-only text-length floor); silence
 means every run fit the caps. Pair cases report base/revised sides
-separately. For a cross-model length check, the harness refuses
-cross-key runs before spend — use the one-off spot script instead
-(length numbers only, no property verdicts):
+separately. For a cross-model length check, the harness refuses a
+cross-key comparison before spend, so run the other key with
+`--config <file> --no-baseline`: scores and the length note, no verdicts.
 
-```sh
-pnpm -C tools/categorizer exec tsx eval/spot-brief148.ts <config.yaml> <caseId> <runs>
-```
-
-## Verdict rules (decision 4)
+## Verdict rules
 
 Baseline classes per property: stable-pass (5/5) · flaky (1–4/5) ·
 stable-fail (0/5). Branch verdicts: stable-pass failing ≥2/5 =
@@ -111,7 +107,8 @@ case before believing a demotion.
 checked-in diff must be publishable. No third-party diffs without a
 license decision.
 
-Seed sources: `copybutton-new-export` (BRIEF-55 cross-service FP) ·
+Seed sources: `copybutton-new-export` (a `cross-service` false-positive
+probe) ·
 `button-under-split` (sub-file intent splitting; its diff also carries
 the dormant `unresolved-reference` probe — App.tsx switches
 `variant="primary"` to `type="primary"`, an invalid value that the
@@ -119,21 +116,26 @@ the dormant `unresolved-reference` probe — App.tsx switches
 silently stops being passed) · `pure-move-persistence` ·
 `multi-package-types` · `schema-change-provenance`.
 
-Added post-seed: `delta-read-api-contract` (BRIEF-66 positive
-cross-service probe — modified EXISTING wire contracts from
-code-review#45; baselined at 1/5, the measured post-BRIEF-55 under-fire
-that a future description re-tune targets); the four `intent-*` cases
-(BRIEF-54 intent check — precise/broad/none specificity boundaries plus
-the adversarial ticket-injection posture; diffs reuse the published
-components#7/#10 fixtures, ticket texts are authored data on
-tasks.example URLs; all baselined stable-pass 5/5).
+Added post-seed: `delta-read-api-contract` (a positive `cross-service`
+probe: modified EXISTING wire contracts from a real PR in this repo;
+baselined at 1/5, the under-fire measured after the false-positive fix,
+which a future description re-tune targets); the first four `intent-*`
+cases (the intent check: precise/broad/none specificity boundaries plus
+the adversarial ticket-injection posture; diffs reuse two published
+own-repo component PRs, ticket texts are authored data on tasks.example
+URLs; all baselined stable-pass 5/5); `intent-primary-plus-refs` (the
+precise-ticket case with two unfetched references beside the primary:
+the alignment read must quote the primary alone);
+`repo-policy-scoped-attribute` (the repo-config injection path, which no
+other case exercises: an instruction block and two path-scoped custom
+attributes over the CopyButton diff).
 
-BRIEF-85 (alarm buckets) added a **twin pair**: `intent-masked-fix` and
+The alarm buckets added a **twin pair**: `intent-masked-fix` and
 `intent-legit-demotion` share ONE diff byte-identically and differ in their
 surrounding sources (ticket text plus PR title/body framing), so a model that
 fires on the diff *shape* rather than the sources passes one and fails the
 other. They are also the source set's first
-**authored diff** — hand-written over this repo's own `packages/api` webhook
+**authored diff** — hand-written over this repo's own `apps/api` webhook
 route, because no real own-repo PR carries a fake-fix shape and that shape is
 the point of the case (own-repo files, so the source rule holds by
 construction; PR locators are placeholders). The same change extended
@@ -144,14 +146,14 @@ preserve nothing when the input does. Re-recorded later (all seven
 properties 5/5; the hardening changed no original verdict); origin info
 in its `expected.ts` header.
 
-## Cost (decision 7)
+## Cost
 
 The default route has no per-generation price; it draws on the
 subscription's usage limits instead. The dollar figures below are the
 API route's, kept for a `--config` run against `anthropic`.
 
 Budgeting: measured 2026-07-25 on `anthropic:claude-opus-4-8`, the
-12-case suite cost **$9.70** over 60 generations (tokens in 536,885 /
+suite, then 12 cases, cost **$9.70** over 60 generations (tokens in 536,885 /
 out 267,230 / cache_read 659,692) — ~$0.16 per generation. Estimate a
 run as the pre-flight generation count × a recent measured
 per-generation cost; never trust a previously quoted suite total — the
@@ -184,9 +186,10 @@ the source set would be apportionment, not measurement.
 
 Shown, never capped. Pre-flight prints the generation count; the report
 prints token totals (via the generators' `onUsage`) and dollars only if
-`eval/prices.json` has a row for the active `provider:model` — copy
-`prices.example.json` and fill CURRENT rates (prices are deliberately
-not hardcoded). CLI adapters (claude-code/codex) render as "billed to
+`eval/prices.json` (committed; `--prices <json>` swaps it) has a row for
+the active `provider:model`. Keep its rows at CURRENT rates, adding one
+from `prices.example.json` for a new key; prices are deliberately not
+hardcoded. CLI adapters (claude-code/codex) render as "billed to
 the CLI's authenticated account" — never $0, and never "subscription"
 as a claim of fact, since the harness cannot verify which account the
 CLI authenticated with.
@@ -231,9 +234,9 @@ anchored stamp) are pipeline guarantees — any failure is a pipeline bug;
 model-judged rows (description updates, verdict transitions, summary
 stability) ride the stable-pass/flaky discipline.
 
-**No baselines are committed yet** — the source set landed dry.
-A pair case without `baseline.json` reports scores with verdicts withheld.
-Recording the first baselines is a deliberate, reviewed step:
+Every pair case has a committed `baseline.json`. A pair case without one
+reports scores with verdicts withheld. Recording a baseline, first or
+re-recorded, is a deliberate, reviewed step:
 
 1. **Vacuous-pass check first.** The shared property
    builders are already shown to FAIL against broken pairs in
@@ -264,7 +267,7 @@ summary parsing and spec pair 3's summary rows are only partially pinned
 `pair-subtractive`'s group-death property rather than a chunk-level one.
 
 Cost expectation: ~$0.16/generation on `anthropic:claude-opus-4-8`
-(2026-07-25 measurement) → a full 11-pair × 5-run recording ≈ 110
-generations ≈ **$17–18** on top of the single-case suite; a scoped
+(2026-07-25 measurement) → a full 12-pair × 5-run recording ≈ 120
+generations ≈ **$19** on top of the single-case suite; a scoped
 `--case` pair recording ≈ 10 generations ≈ **$1.60**. Measure, don't
 trust cached totals.

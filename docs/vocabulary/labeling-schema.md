@@ -5,7 +5,6 @@
 Division of labor:
 - **This file** — the authoritative *index* of valid tokens across every axis + quick rules.
 - `CONTEXT.md` — the *meaning* of each concept (glossary).
-- `playbooks.md` — the per-**Category** review checklists + per-**Concern** checks (deep content).
 - `risk-surface.md` — the per-attribute detail for **Risk Surface** (deep content).
 
 ## What attaches where
@@ -25,18 +24,18 @@ A **Chunk** = a contiguous run of changed lines sharing one Concern and one Chan
 
 ## 1. Category — intent (attaches to Change-group)
 
-Closed set; expand deliberately. "Playbook" = status in `playbooks.md` (layer **parked to v2**; column kept as the seed index).
+Closed set; expand deliberately. The per-Category checklist layer (playbooks) is parked to v2 and ships no content.
 
-| Token | One-line description | Playbook |
-|---|---|---|
-| `bugfix` | correct a defect in existing behavior | ✓ |
-| `logic-refactor` | behavior-preserving restructure of logic | ✓ |
-| `move-with-edits` | relocation of code with edits inside the move | ✓ |
-| `lib-bump` | dependency version change *with* API/behavior impact | ✓ |
-| `pure-move` | relocation only, bytes identical, no edits | ✓ |
-| `new-feature` | adds a new capability | ✓ |
-| `dependency-update` | dep version bump with no API/behavior impact | ✓ |
-| `schema-change` | data-model / migration change | ✓ |
+| Token | One-line description |
+|---|---|
+| `bugfix` | correct a defect in existing behavior |
+| `logic-refactor` | behavior-preserving restructure of logic |
+| `move-with-edits` | relocation of code with edits inside the move |
+| `lib-bump` | dependency version change *with* API/behavior impact |
+| `pure-move` | relocation only, bytes identical, no edits |
+| `new-feature` | adds a new capability |
+| `dependency-update` | dep version bump with no API/behavior impact |
+| `schema-change` | data-model / migration change |
 
 Not Categories (common mistakes): `test-only`, `config-only`, `generated-code` → these are **Concerns**, not intents.
 
@@ -159,6 +158,5 @@ Quick rules:
 
 - Stable axes: Concern, Role, Risk Surface (starter set), LoC rules, boundary rule.
 - Intent-check buckets: five registered (three neutral, two alarm).
-- Category: all 8 have playbooks (layer parked to v2).
-- Concern checks: all 5 supporting Concerns covered (`test`, `doc`, `spec`, `config`, `generated`).
+- Category: eight registered; the playbook layer is parked to v2.
 - Contribution rules for tokens and risk attributes: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).

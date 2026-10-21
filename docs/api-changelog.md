@@ -9,9 +9,20 @@ what a skewed client can actually see. (Within this monorepo, pre-release
 "versions" are the `SERVER_VERSION` the operator sets; `dev` means an
 untagged build — key such entries to the merge date instead.)
 
-The contract discipline (ADR 0029): response shapes change additively
+The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
+
+## dev (2026-10-20)
+
+- **Added** `search-mention-suggestions`,
+  `GET /api/repos/:repoId/mention-suggestions?q=<text>`: the users and teams
+  the viewer can mention in the repository, as `{users:[{login, name?,
+  avatarUrl}], teams:[{combinedSlug, name}]}`. `q` is at most 140 characters.
+- **Added** `resolve-mention-targets`,
+  `GET /api/repos/:repoId/mention-targets?targets=<login,org/slug,...>`: which
+  of up to 50 targets GitHub shows the viewer, as `{users:[login],
+  teams:[org/slug]}` in GitHub's casing.
 
 ## dev (2026-10-19)
 
@@ -405,7 +416,7 @@ deprecation note here, removal only at a major.
 - **Added** wire error codes `file-not-found` (404), `file-too-large` (413)
   and `file-not-text` (400).
 
-## dev (2026-08-21 — BRIEF-198)
+## dev (2026-08-21)
 
 - **Added** `GET /api/capabilities` → `{operations:[{id, kind,
   classification, endpoint}], catalogFingerprint}` — the registered
@@ -413,20 +424,19 @@ deprecation note here, removal only at a major.
   session-gated on both presentation channels). `catalogFingerprint` is the
   sha256 hex of the committed `product-operations.manifest.json` bytes, so
   a client can detect catalog skew without diffing descriptor lists. Backs
-  the `mergebrief capabilities` fail-closed compatibility check (ADR 0029
-  as amended: exit 6).
+  the `mergebrief capabilities` fail-closed compatibility check (exit 6).
 
-## dev (2026-08-16 — BRIEF-196)
+## dev (2026-08-16)
 
 - **BREAKING** — the installation-switch endpoint renamed
   `POST /api/auth/installation` → `POST /api/auth/installations`, so both
   multi-org operations share one prefix (`GET /api/auth/installations` is
   unchanged). The request body, response shape, status codes, and
   cookie-only presentation rule are all unchanged — only the path moved.
-  The old singular path now 404s. Pre-OSS-cutover with zero adopters, so it
-  ships as a straight rename rather than expand/contract.
+  The old singular path now 404s. Before the first release, with no
+  adopters, so it ships as a straight rename rather than expand/contract.
 
-## dev (2026-08-03 — BRIEF-20)
+## dev (2026-08-03)
 
 - **Added** `capped` to `generation.status` on the PR-view/list responses
   (`generation.status`): the repo hit the instance's daily generation cap
@@ -436,13 +446,13 @@ deprecation note here, removal only at a major.
   branch on `succeeded`/`failed` see it as "neither", which is correct.
 - **Added** the worker log event `evt: "spend.cap.trip"` (level `warn`,
   fields `repo`, `prId`, `headSha`, `cap`, `dayUtc`) — one line per capped
-  skip. Flips the name ADR 0034 reserved; the level is `warn`, not the
-  reserved `error`.
+  skip. The event name was reserved by the logging design; it ships at
+  `warn`, not the reserved `error`.
 
-## dev (2026-07-21 — BRIEF-51)
+## dev (2026-07-21)
 
-- **BREAKING** — the D9 access-log line renamed `evt: "read"` →
-  `evt: "api.access"` (ADR 0034; pre-OSS-cutover, zero adopters). The line
+- **BREAKING** — the per-request access-log line renamed `evt: "read"` →
+  `evt: "api.access"` (before the first release, with no adopters). The line
   also gains `reqId` and a `msg` field, and levels render as string labels
   (`"level":"info"`). Anything scripted against `evt:"read"` must move to
   `evt:"api.access"`.
@@ -451,15 +461,12 @@ deprecation note here, removal only at a major.
   documented health endpoint is now `/healthz`.
 - **Added** `GET /healthz` (static liveness) and `GET /readyz` (readiness:
   app composition + `SELECT 1`) — bare top-level paths outside `/api`,
-  unauthenticated, constant `{"ok":bool}` JSON (ADR 0034 #7). `/readyz`
+  unauthenticated, constant `{"ok":bool}` JSON. `/readyz`
   answers 503 when the database is unreachable; compose and orchestrators
   must probe `/healthz`, never `/readyz`.
 - **Added** `X-Request-Id` handling on `/api/*`: a valid inbound id
   (charset/length-guarded) is accepted and echoed on the response; a UUID is
   minted and echoed otherwise.
-
-## dev (2026-07-21 — BRIEF-18)
-
 - **BREAKING** — all `/auth/*` routes moved under `/api/auth/*` so the app
   registers ONE external path namespace: `/auth/github` →
   `/api/auth/github`, `/auth/github/callback` → `/api/auth/github/callback`,
@@ -468,11 +475,10 @@ deprecation note here, removal only at a major.
   `/api/auth/installation[s]`. Old paths now 404 (SSR page router).
   **Every registered GitHub App must update its OAuth callback URL** to
   `<PUBLIC_BASE_URL>/api/auth/github/callback`.
-- Bearer presentation rule adjusted with the move (ADR 0016 #4 as
-  amended): Bearer is accepted on `/api/*` **except `/api/auth/*`** —
+- Bearer presentation rule adjusted with the move: Bearer is accepted on `/api/*` **except `/api/auth/*`** —
   auth management stays cookie-only, as before.
 
-## dev (2026-07-09 — BRIEF-17)
+## dev (2026-07-09)
 
 - **Added** `GET /api/version` → `{version}` (session-gated, both
   presentation channels).
@@ -481,6 +487,6 @@ deprecation note here, removal only at a major.
   GitHub failure is a 401/502, never a DB-derived listing.
 - **Added** Bearer-token presentation on `/api/*`
   (`Authorization: Bearer mergebrief_...`) — second channel over the same
-  session machinery (ADR 0016 #4 as amended). `/auth/*` stays browser-only.
+  session machinery. `/auth/*` stays browser-only.
 - **Added** `POST /auth/tokens`, `GET /auth/tokens`, and
   `DELETE /auth/tokens/:id` (browser-only token management).

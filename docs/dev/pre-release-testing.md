@@ -279,8 +279,7 @@ release`.
 
 ### Reviewer surface
 
-- [ ] GitHub OAuth login, picker rows with status pills, the org switcher
-      (remembered default binding; a bogus installation POST answers 403).
+- [ ] GitHub OAuth login, and Inbox rows with status pills.
       `manual-forever: a real user-to-server OAuth consent against a real
       GitHub App; no hermetic surface can mint one.`
 - [ ] A deep link in a fresh private window: auth redirect, then the brief;
@@ -398,7 +397,7 @@ permanently`.
 | `anthropic`   | `ANTHROPIC_API_KEY`                                        | the deploy default; already required by the compose walkthrough                                                  |
 | `claude-code` | Claude subscription + `claude /login`                      | interactive OAuth keychain; no API key                                                                           |
 | `codex`       | ChatGPT subscription + `codex login`                       | interactive; subject to the plan's usage limits                                                                  |
-| `cursor`      | Cursor subscription + `cursor-agent login` (or `CURSOR_API_KEY`) | the origin stamp records the configured model; the recipe has no `cursor` arm yet, run the generic smoke command |
+| `cursor`      | Cursor subscription + `cursor-agent login` (or `CURSOR_API_KEY`) | the origin stamp records the configured model; the recipe's `--adapter cursor` arm                              |
 | `openai`      | OpenAI **API** key (platform.openai.com, prepaid)          | a ChatGPT subscription does NOT cover it; a smoke costs cents                                                    |
 | `openrouter`  | OpenRouter account + small prepaid credit (about $5 min)   | one key smokes both the structured-outputs slug and the refusal arm                                              |
 
