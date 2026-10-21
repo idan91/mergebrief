@@ -183,7 +183,8 @@ something was erased without retaining *what*.
 ## Status
 
 This is an early-stage, actively developed self-hosted project, not a finished product. The
-domain model is documented in [`CONTEXT.md`](./CONTEXT.md).
+domain model is documented in [`CONTEXT.md`](./CONTEXT.md), and how the pieces fit together
+in [`docs/architecture.md`](docs/architecture.md).
 
 ## Contributing
 
