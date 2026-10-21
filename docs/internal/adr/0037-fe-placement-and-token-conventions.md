@@ -1,15 +1,17 @@
-# 0037 — FE placement and token conventions (apps/web)
+# 0037: FE placement and token conventions (apps/web)
 
-Status: accepted (2026-07-26). Decided in the BRIEF-44 grill (research
-subpage: full apps/web audit + five owner-direction sections); implementation
-plan: `docs/plans/brief-44-fe-conventions.md`. Scope: `apps/web` source only —
+Status: amended (see Amendments)
+Date: 2026-07-26
+
+Decided in a grill (research
+subpage: full apps/web audit + five owner-direction sections). Scope: `apps/web` source only —
 `data/`, `server/`, `test/`, and `characterization/` are untouched by this
 ADR. Repo-wide TS rules stay in the root `CLAUDE.md`; this ADR is the FE
 layer on top.
 
 ## Context
 
-apps/web grew feature-by-feature (BRIEF-19 through BRIEF-85) with no written
+apps/web grew feature-by-feature with no written
 placement convention. The audit found the predictable symptoms: `BriefPage`
 as a monolith carrying flow logic that belongs in facade hooks; `src/lib/` as
 an unsorted catch-all; 89 triple-deep relative imports (`../../../`); 92 raw
@@ -81,7 +83,7 @@ exactly this reason); (b) they exist for OUTSIDE consumers only — files
 inside the feature import their targets directly, never their own feature's
 index (`import/no-cycle` would flag the loop). Cross-feature component
 imports go through the target feature's entry (`@web/features/review`,
-`@web/features/brief/utils`); logic modules and `session/`-style state stay
+`@web/features/brief/model`); logic modules and `session/`-style state stay
 direct file imports.
 
 ### 2. Subtree ownership — one rule, four surfaces
@@ -150,12 +152,12 @@ circle`; `--shadow-elevation-sm/md/lg` + special cases).
   `--color-outline-N`) plus role tokens (accent, warning, negative, …).
 
 Values that do not fit the scale stay as **raw values at the use site**
-with a line-scoped stylelint disable and a `TODO(BRIEF-44)` consolidation
+with a line-scoped stylelint disable and a `TODO` consolidation
 note — unless they earn locality: a component-local token with a one-line
 justification comment, never a global addition. The global scale stays a
 decision surface, not a dumping ground. Scale changes are visual decisions
 and get owner screenshot review. Spacing is out of scope for now (revisit
-trigger below); rem-vs-px unit policy is BRIEF-84's scope — coordinate,
+trigger below); rem-vs-px unit policy is the px-to-rem ticket's scope — coordinate,
 don't duplicate.
 
 ### 6. Token vocabulary
@@ -188,7 +190,7 @@ ESLint, no Biome):
   with the framework config/entry files carved out per path),
   `oxc/no-const-enum`, `no-console` re-tightened to ALL levels over ADR
   0034's server paths, and `import/no-cycle`.
-  Landed in BRIEF-44 PR 6; each rule was verified red on a violation probe
+  Landed in the build stack; each rule was verified red on a violation probe
   before landing.
 - **Test-as-enforcement:** a guard test parses every `var(--x)` usage in
   `.module.scss` and asserts the token is defined in `tokens.scss` or
@@ -217,7 +219,7 @@ paths churn once.
 
 ### 10. Heading levels
 
-Added 2026-08-29 (BRIEF-208). The type scale decides how big a heading is;
+Added 2026-08-29. The type scale decides how big a heading is;
 this decides which heading it is. The two were tangled: five modals reached
 for `h3` because the Modal shell sized a bare `h3` selector, which is a tag
 selector doing size work.
@@ -265,9 +267,9 @@ listed as text, never assumed to be enforced when they aren't.
 - `apps/web/AGENTS.md` gains a lean placement entry (the non-inferable
   rules + pointer here); lint-enforced rules stay out of the text there.
 - `src/lib/` → `src/utils/`; `@web/` alias lands with the structure-motion
-  PR; `features/brief/comparison/` becomes the first topic folder.
+  PR; `features/brief/model/comparison/` becomes the first topic folder.
 - stylelint config, oxlint rules, and the var-defined guard test land per
-  the BRIEF-44 PR spine; the sweep precedes the BriefPage split so extracted
+  the build stack's PR spine; the sweep precedes the BriefPage split so extracted
   components are born under the token/lint regime.
 - The BriefPage split (plan decision 11) executes under these rules:
   `BriefPage/` (route wrapper) · `BriefView/` (data plumbing) ·
@@ -276,19 +278,19 @@ listed as text, never assumed to be enforced when they aren't.
   generic React utility with no feature knowledge — the dependency cap is
   vacuously satisfied, and generic hooks live global); `useChunkScroller` stays with the reading-session
   hook (single consumer — co-location holds).
-- BRIEF-84 (px→rem) executes after the token sweeps, against token
+- The px→rem conversion executes after the token sweeps, against token
   definitions only.
 
-_Amended 2026-07-31 (BRIEF-90): decision 1's entry-point rule extends to
+_Amended 2026-07-31: decision 1's entry-point rule extends to
 `packages/*` trees — package entry is `src/index.ts` (a curated barrel,
 renamed from the historical `lib.ts`; ecosystem-convention survey in the
-BRIEF-90 ticket), `types.ts` stays flat by convention, and a package root
+package-entry ticket), `types.ts` stays flat by convention, and a package root
 conforms with ≤ ~5 domain-cued loose files. `index.tsx` feature barrels and
 everything else in this ADR remain apps/web-scoped. Rule recorded in the
 repo-wide `AGENTS.md`._
 
-_Amended 2026-08-03 (BRIEF-84, owner-expanded scope)._ The unit taxonomy
-is decided and enforced; "BRIEF-84 runs against token definitions only" is
+_Amended 2026-08-03 (px-to-rem, owner-expanded scope)._ The unit taxonomy
+is decided and enforced; "the px→rem conversion runs against token definitions only" is
 superseded. **rem** (always via `functions.to-rem(<px>)` — the px design
 value stays readable in source; compile-time exact at the 16px root):
 `font-size`; all spacing rhythm (`margin*`/`padding*`/`gap` — stylelint
@@ -301,10 +303,9 @@ geometry (dots/bars/rails/toggles/avatars/spinners), the runtime-measured
 `--top-bar-h` cluster, grid scaffold tracks, transforms, and
 media/container-query breakpoints (a possible later em pass is its own
 decision, noted on the ticket). Sizing stays a judgment call — no lint;
-ambiguity resolves to px. Full taxonomy with per-category reasoning:
-`docs/plans/brief-84-px-to-rem.md`._
+ambiguity resolves to px._
 
-_Amended 2026-09-25 (BRIEF-302): decision 1's entry rule extends to every
+_Amended 2026-09-25: decision 1's entry rule extends to every
 component folder. A folder's entry is `index.tsx`, never a file named after
 the folder (`Menu/index.tsx`, not `Menu/Menu.tsx`); the test and the
 stylesheet keep the component name (`Menu.test.tsx`, `Menu.module.scss`),
@@ -320,7 +321,7 @@ folder's `index.ts` or takes a name for what it owns (`diff/file-diff.ts`,
 ## Revisit Triggers
 
 - ~~**Topic-folder threshold** (≥4 files) — reassess after the first
-  structural PR (BRIEF-44 PR 4).~~ Superseded 2026-07-26: the threshold was
+  structural PR.~~ Superseded 2026-07-26: the threshold was
   replaced by decision 4's "a category earns a folder when it clarifies".
 - **Spacing token scale** — when a spacing-related bug or a design pass
   warrants it; not before.

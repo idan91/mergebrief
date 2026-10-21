@@ -1,9 +1,10 @@
-# 0040 — Review Session: server-backed store, carry-over, and credential scope
+# 0040: Review Session: server-backed store, carry-over, and credential scope
 
-Status: accepted (2026-08-17). Decided on BRIEF-197 (wayfinder map: ten
-tickets, nine decisions). Specification:
-`docs/plans/brief-197-review-session-spec.md`; build plan:
-`docs/plans/brief-197-review-session-implementation.md`.
+Status: amended (see Amendments)
+Date: 2026-08-17
+
+Decided on a wayfinder map (ten
+tickets, nine decisions).
 
 A reviewer's unfinished work — draft comments and replies, per-Chunk read
 marks, Change-group reclassifications, Flag **Dispositions**, the chosen
@@ -40,7 +41,7 @@ Delta Brief carries none of ADR 0007's carry-over fields. Meanwhile
 `remapRanges` — deterministic, hunk-header-only, demoting rather than guessing
 — was already built and tested.
 
-**BRIEF-122 assumed an authority model that the server cannot see.** It
+**The catalog decisions (ADR 0039) assumed an authority model that the server cannot see.** It
 specified "Begin records granted scope (read/draft/submit)". But a Bearer
 token is minted by a human in the browser, and an agent presenting it is
 indistinguishable from that human at a terminal; the server never learns an
@@ -137,7 +138,7 @@ agent is involved.
    outcome, body}`), moving the 100-comment cap to the session; a repeat
    naming an already-published draft is refused with `draft-already-published`
    (409). The per-tab in-flight registry in `postComment.ts` is deleted.
-   *Reversed by the amendment below (BRIEF-327 D3, BRIEF-331).*
+   *Reversed by the amendment below.*
 10. **The audit trail records every action plus denials, never a read**, from
     the single router choke point. `action`'s eight values are replaced by the
     descriptor's `operation` id, alongside `classification`, `channel`,
@@ -148,7 +149,7 @@ agent is involved.
     opt-out is one boolean (`AUDIT_PRIVATE_WRITES`, default on, external
     writes and denials never switchable), and caller IP is off by default
     behind an operator PII flag. **No read surface in v1.**
-    *Amended 2026-10-18 (BRIEF-336): `caller_ip` and its PII flag are removed
+    *Amended 2026-10-18: `caller_ip` and its PII flag are removed
     (migration 0062); see ADR 0018's `audit_log` amendment.*
 11. **The surface is 34 operations** — 14 queries, 20 actions; 14 `read`, 14
     `private-write`, 6 `external-write`. The "Clear local drafts" button is
@@ -226,10 +227,10 @@ way nine hand-placed emits did.
 - **Accepted, stated not hidden:** a draft-scoped token can call
   `generate-brief` and spend model money; a GitHub write that succeeds after
   our call times out can double-post; a tab left open across the deploy loses
-  its marks; file-backed briefs carry no session until BRIEF-98 ingests them.
+  its marks; file-backed briefs carry no session until URL briefs move into the database.
   The double post is no longer accepted: see the amendment below.
 
-## Amendment (2026-10-06, BRIEF-327 D3, D4, D12; BRIEF-331)
+## Amendment (2026-10-06)
 
 Decision 9 is reversed. A Comment reaches GitHub once.
 
@@ -273,11 +274,11 @@ Decision 9 is reversed. A Comment reaches GitHub once.
   draft's folded block, its bolded anchor line then its body, line endings
   aside, which is what a fold writes. None: the claim is released and the
   draft is posted. One, or a review list that cannot be read:
-  `draft-publish-in-doubt`, the claim stays, and the reviewer decides (D4).
+  `draft-publish-in-doubt`, the claim stays, and the reviewer decides.
   No hidden marker rides in the Comment body.
 - **A Submit holding an in-doubt draft is refused** with
   `draft-publish-in-doubt`. The reviewer resolves the draft by posting it on
   its own, which runs the check, or by deleting it.
 - **The draft cap is 64**, not 100, counted over the session's unposted drafts.
 - **A Submit GitHub refuses as forbidden answers an honest 403**
-  `github-permission` (D12); a 401 after a good token refresh stays 401.
+  `github-permission`; a 401 after a good token refresh stays 401.

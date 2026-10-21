@@ -1,4 +1,6 @@
-# Comparison Baselines and Generated Revision Narratives
+# 0024: Comparison Baselines and Generated Revision Narratives
+
+Status: accepted
 
 The Brief page now has an explicit **Compare** model: the user can view a full **Brief** with no comparison, compare it against the shared **Previous Brief**, or compare it against their personal last-review **Checkpoint**. When a comparison is selected, the same baseline drives both FE line highlights and the changed-only narrative, so users do not have to learn two unrelated concepts ("global revision lines" versus "personal delta brief").
 

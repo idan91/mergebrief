@@ -1,4 +1,6 @@
-# Brief & Delta: Persistence Model and Fetching
+# 0008: Brief & Delta: Persistence Model and Fetching
+
+Status: superseded in part by 0040
 
 The delta subsystem persists into a **single relational DB for v1**: relational rows for Checkpoints and Dispositions, and large immutable artifacts (Brief, Delta, DiffSnapshot) as `TEXT` served **passthrough** (parsed only by the generation worker, never on the read path). Dispositions are **anchored** by `(file, attribute, region@SHA)`, not by any brief-local id. The FE fetches the **Brief whole** (a metadata-only index) and then **diffs lazily per file**, caching by file, slicing by chunk range, ordering by group client-side, and prefetching ahead of scroll. Object storage, response streaming, and the concrete compute/DB stack are deferred — none are needed for v1 and all are reversible.
 
@@ -53,7 +55,7 @@ One store keeps v1 operationally trivial while the content-addressed boundary ke
 ## Consequences
 
 - **FE owns real work:** per-file caching, range-slicing, group-order prefetch, and virtualization of both skeleton and hunks. The brief is an index; the view is assembled client-side.
-- **The categorizer prompt is prescriptive** about splitting a file's lines into per-intent chunks across groups (`tools/categorizer/src/prompt.ts`); `CONTEXT.md`'s Chunk term matches.
+- **The categorizer prompt is prescriptive** about splitting a file's lines into per-intent chunks across groups (`packages/brief-core/src/generation/prompt.ts`); `CONTEXT.md`'s Chunk term matches.
 - **Deferred + reversible:** object storage, response streaming, the compute model (Lambda/ECS/SSE), and the DB vendor. This ADR commits only to the logical model. **(Compute model + DB vendor now resolved: long-lived worker + vanilla Postgres as the single stateful dependency — ADR 0015.)**
 - **Cross-PR taxonomy querying** (a future engine capability noted in `CONTEXT.md`) would extract fields into real columns/tables rather than change this artifact model.
 - Completes the delta subsystem design alongside ADR 0006 (generation/state) and ADR 0007 (anchoring/carry-over).

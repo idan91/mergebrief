@@ -1,10 +1,12 @@
-# Delta: Comments-Addressed + Per-Chunk Summary
+# 0011: Delta: Comments-Addressed + Per-Chunk Summary
+
+Status: superseded in part by 0012, 0027
 
 The delta gains a **comments dimension** and **per-chunk summaries**. At the delta level, a `commentsAddressed` summary describes how the follow-up answers the prior review. Per chunk, a short `summary` (what this chunk changed) plus an optional `addressesComments` link to the review comment(s) that chunk resolves. The comment source for the stateless CLI is **GitHub review comments**; the per-reviewer version is the carry-over overlay (ADR 0007). Replies are **displayed, human-authored** — never AI-written in v1.
 
 ## Context
 
-Dogfooding the delta showed it can describe "addresses prior review" only as text buried in `wholePrImpact`. To make re-review actually faster, that needs to be **structured and navigable**: a reviewer returning to a PR wants to see, per chunk, *what changed here* and *which of my comments this answers*, and to read the resulting comment thread in-tool — comment → reply → the change that resolved it — without bouncing to GitHub. The FE already models a `ReviewComment` (`apps/web/src/features/review/comments.ts`) anchored to a chunk (`CommentAnchor.chunkId`) with a `draft | submitted` status, so the resolution link maps onto an existing model.
+Dogfooding the delta showed it can describe "addresses prior review" only as text buried in `wholePrImpact`. To make re-review actually faster, that needs to be **structured and navigable**: a reviewer returning to a PR wants to see, per chunk, *what changed here* and *which of my comments this answers*, and to read the resulting comment thread in-tool — comment → reply → the change that resolved it — without bouncing to GitHub. The FE already models a `ReviewComment` (`apps/web/src/features/review/utils/comments.ts`) anchored to a chunk (`CommentAnchor.chunkId`) with a `draft | submitted` status, so the resolution link maps onto an existing model.
 
 ## Decision
 

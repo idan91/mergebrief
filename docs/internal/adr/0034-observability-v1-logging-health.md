@@ -1,11 +1,13 @@
-# 0034 — Observability v1: structured logging, health surface, adopter hooks
+# 0034: Observability v1: structured logging, health surface, adopter hooks
 
-Status: accepted (2026-07-21). Decided on the BRIEF-51 wayfinder map
-(five grill tickets, all closed 2026-07-21); grounded in the primary-source
-cohort survey `docs/plans/brief-51-observability-survey.md` (Plausible,
+Status: superseded in part by 0046
+Date: 2026-07-21
+
+Decided on a wayfinder map
+(five grill tickets, all closed 2026-07-21); grounded in a primary-source
+cohort survey (Plausible,
 Cal.com, n8n, Outline, Gitea/Forgejo, PostHog, Supabase + pino/Hono/
-graphile-worker specifics). Implementation plan:
-`docs/plans/brief-51-observability-v1.md`.
+graphile-worker specifics).
 
 > **Superseded in part 2026-10-18 by ADR 0046.** #6: `GenerateJobPayload`
 > carries an optional `traceparent`; `{prId, headSha}` stays the durable
@@ -19,7 +21,7 @@ graphile-worker specifics). Implementation plan:
 All three processes (web server with the mounted `/api` Hono app, worker,
 and the CLI-facing API inside the web tier) log via bare `console.*` — no
 levels, no shared structure, no correlation ids. The one exception is the
-D9 access-log contract (`logAccess` in `packages/api/src/routes/authz.ts`),
+D9 access-log contract (`logAccess` in the api package's `routes/authz.ts`, since replaced by `apps/api/src/request-logging.ts`),
 which already emits structured JSON. Compose health is a web check probing
 `/` (full SSR render) and worker process-liveness. An adopter cannot hook
 alerting into anything except raw stdout text. The survey establishes the
@@ -51,7 +53,7 @@ OTel are off-by-default or absent in every default self-host deploy.
    serialization + redaction for one small dep), winston (heavier, no
    stronger fit).
 2. **Hono request-logging middleware is hand-rolled (~30 lines) in
-   `packages/api`**, emitting a per-request child logger and the
+   `apps/api`**, emitting a per-request child logger and the
    D9-shaped request line. Rejected: hono-pino (security-only maintenance
    mode), `@hono/structured-logger` (official Hono org and pino-docs
    endorsed, but v0.1.0 single release — revisit at a healthy 1.x; the swap
@@ -88,14 +90,14 @@ OTel are off-by-default or absent in every default self-host deploy.
    | `spend.cap.trip` | warn | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | yes (sustained rate — a capped instance is silently producing no briefs) |
    | `api.access` | info | D9 fields (`method`, `path`, `status`, `durationMs`, `decision`, …) + `reqId` + `operation` | no |
 
-   **Amendment (2026-08-17, BRIEF-197 →
+   **Amendment (2026-08-17,
    [ADR 0040](0040-review-session-server-store.md)):** `api.access` gains
    the Product Operation `operation` id. The log and the `audit_log` table
    stay **separate and both** — transport vs intent — joined on `reqId`: the
    log answers "what crossed the wire", the table answers "what was done", it
    records actions and denials only, and it carries no HTTP status.
 
-   **Amendment (2026-08-03, BRIEF-20):** `spend.cap.trip` goes live at
+   **Amendment (2026-08-03):** `spend.cap.trip` goes live at
    **`warn`, not the reserved `error`** — a tripped cap is the guardrail
    working as configured, not an operator-actionable fault; it earns `error`
    nowhere in the level standard below. It is alertable on sustained rate
@@ -131,7 +133,7 @@ OTel are off-by-default or absent in every default self-host deploy.
 7. **Health surface:** `/healthz` + `/readyz`, answered in the TanStack
    server entry BEFORE the Hono branch and the page router — bare
    top-level paths deliberately outside `/api`, unauthenticated (cohort
-   norm), zero interaction with session middleware or the BRIEF-18 Bearer
+   norm), zero interaction with session middleware or the Bearer
    carve-out. `/healthz`: static 200, zero dependencies — alive even while
    Hono-app composition is failing. `/readyz`: `getWebhookApp()` resolves
    + `SELECT 1` through its db handle; 200/503 with constant tiny JSON

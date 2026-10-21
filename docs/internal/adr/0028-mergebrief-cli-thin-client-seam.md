@@ -1,4 +1,6 @@
-# MergeBrief CLI — Thin-Client Seam over the Public HTTP API
+# 0028: MergeBrief CLI — Thin-Client Seam over the Public HTTP API
+
+Status: superseded in part by 0045
 
 > **Amended 2026-10-03: one version number.** #6's "the CLI versions
 > independently of the server" is superseded. One git tag stamps the server
@@ -48,7 +50,7 @@ sharpest use: a coding agent drives the same review loop a human does, over
    bare npm package `mergebrief` IS the CLI (bin `mergebrief`; `@mergebrief/*`
    scope reserved, empty in v1). npm-only single-file bundle,
    `engines: node >=20`; standalone binary deferred. v1 is unpublished:
-   `packages/cli` in this monorepo, `private: true`, publishable-shaped,
+   `apps/cli` in this monorepo, `private: true`, publishable-shaped,
    dogfooded via `pnpm link --global`. Publishing happens at OSS launch from
    the fresh curated public repo (launch mechanics out of scope). Install
    story at launch: humans `npm i -g mergebrief`, agents/CI

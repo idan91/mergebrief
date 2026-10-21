@@ -1,4 +1,6 @@
-# Revision-Changes Overlay on the Full Brief
+# 0021: Revision-Changes Overlay on the Full Brief
+
+Status: superseded in part by 0024
 
 > Superseded in part by ADR 0024: the mechanical **Revision changes** overlay still works as described here, but (a) generated callout summaries are no longer merely opportunistic — non-first Briefs now get a shared **Revision narrative** for `prevHead→head`; and (b) decision 5's toggle is replaced by ADR 0024's **Compare** control, which changes the default (first-time reviewers default to `Compare: Off`, not on-by-default) and the persistence model.
 

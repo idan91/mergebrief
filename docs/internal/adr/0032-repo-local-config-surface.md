@@ -1,18 +1,20 @@
-# Repo-Local Configuration Surface (`.mergebrief/`)
+# 0032: Repo-Local Configuration Surface (`.mergebrief/`)
 
-> **Renumber note (2026-07-17):** the board ticket referenced below as **BRIEF-53**
-> (draft generation policy: draft-aware debounce + instance `drafts:` knob) was
-> renumbered to **BRIEF-64** by Notion's auto-increment; same ticket, same scope.
+Status: amended (see Amendments)
 
-Repos gain a single config namespace — the `.mergebrief/` directory — carrying **validated policy** (`policy.yaml`: custom risk attributes, display weight), **workflow settings** (`settings.yaml`), and **text instructions to generation** (`instructions.md`, the CLAUDE.md idiom for the Brief generator). Every repo-local file is read from the **default branch only**, fetched fresh per generation, capped, fenced, and stamped onto the Brief's origin record. The surface is split from instance config by one line: **instance config is the operator's (pays and runs it); repo config is the code-owner's (owns the code it describes)** — no key exists in both. Decides the shared delivery mechanics for BRIEF-52 + BRIEF-58, fixes BRIEF-53's naming collision, and closes the per-repo-YAML dangling reference left in ADR 0020 by the BRIEF-11 amendments.
+> **Renumber note (2026-07-17):** the board ticket referenced below as the **draft generation policy**
+> (draft-aware debounce + instance `drafts:` knob) was
+> renumbered by Notion's auto-increment; same ticket, same scope.
+
+Repos gain a single config namespace — the `.mergebrief/` directory — carrying **validated policy** (`policy.yaml`: custom risk attributes, display weight), **workflow settings** (`settings.yaml`), and **text instructions to generation** (`instructions.md`, the CLAUDE.md idiom for the Brief generator). Every repo-local file is read from the **default branch only**, fetched fresh per generation, capped, fenced, and stamped onto the Brief's origin record. The surface is split from instance config by one line: **instance config is the operator's (pays and runs it); repo config is the code-owner's (owns the code it describes)** — no key exists in both. Decides the shared delivery mechanics for repo-local risk policies and the repo instructions file, fixes the draft generation policy's naming collision, and closes the per-repo-YAML dangling reference left in ADR 0020 by the instance-config amendments.
 
 ## Context
 
-- **BRIEF-52** (repo-local risk policies) and **BRIEF-58** (repo instructions file) both need repo-committed files; they were filed as two artifacts on one config surface (YAML = validated policy, MD = text context) with one joint grill for the delivery mechanics — this ADR is that grill's output (2026-07-16).
-- **BRIEF-11 (2026-07-12)** killed per-repo *runtime* YAML entirely (ADR 0006 #3 / ADR 0013 #6 as amended): provider, model, debounce, spend all live in one instance-level `mergebrief.config.yaml`. But ADR 0020 #5 still described draft-first as "per-repo opt-in (repo YAML)" — never amended, and nothing reads any repo file today (no `getContent` anywhere in `packages/github`). This ADR resolves the contradiction rather than extending it.
-- **BRIEF-53** noted a naming collision: its instance knob file is `mergebrief.config.yaml` while BRIEF-52's ticket used a "mergebrief.config idiom" for a *repo* file.
+- **Repo-local risk policies** and the **repo instructions file** both need repo-committed files; they were filed as two artifacts on one config surface (YAML = validated policy, MD = text context) with one joint grill for the delivery mechanics — this ADR is that grill's output (2026-07-16).
+- **The instance-config decision (2026-07-12)** killed per-repo *runtime* YAML entirely (ADR 0006 #3 / ADR 0013 #6 as amended): provider, model, debounce, spend all live in one instance-level `mergebrief.config.yaml`. But ADR 0020 #5 still described draft-first as "per-repo opt-in (repo YAML)" — never amended, and nothing reads any repo file today (no `getContent` anywhere in `packages/github`). This ADR resolves the contradiction rather than extending it.
+- **The draft generation policy** noted a naming collision: its instance knob file is `mergebrief.config.yaml` while the risk-policies ticket used a "mergebrief.config idiom" for a *repo* file.
 - Prior art: Unblocked's risk policies (2026-07) — user-defined YAML (name + tier + ≤4k-char natural-language criteria) feeding a PR-level risk score with auto-approve at low tiers. Same bottleneck thesis, opposite conclusion. We take the criteria field and the default-branch trust rule; we refuse the tier, the score, and the auto-approve (ADR 0002).
-- Verified at grill time: generation is a **single structured call with no tools** (engine = the categorizer package, reused behind the `Generator` port by `packages/worker/src/task/generate.ts`; adapters in `packages/generators`); `<linked_context>` / `<review_comment>` are fenced as untrusted, zero instruction-following; output schema + closed vocabulary are enforced server-side at the port (`packages/generators/src/validation/enforceSchema.ts`), adapter-agnostic.
+- Verified at grill time: generation is a **single structured call with no tools** (engine = the categorizer package, reused behind the `Generator` port by `apps/worker/src/task/generate/index.ts`; adapters in `packages/generators`); `<linked_context>` / `<review_comment>` are fenced as untrusted, zero instruction-following; output schema + closed vocabulary are enforced server-side at the port (`packages/generators/src/validation/enforceSchema.ts`), adapter-agnostic.
 
 ## Considered Options
 
@@ -26,7 +28,7 @@ Repos gain a single config namespace — the `.mergebrief/` directory — carryi
 
 ### 1. The operator / code-owner line
 
-- **Instance config** (`mergebrief.config.yaml`, env-located, never in the repo) = decisions of whoever pays and operates: provider, model, effort, API-key names, debounce, spend knobs (incl. BRIEF-53's `drafts: on|off`, generation-for-drafts **defaulted on**, documented so operators can turn it off). Invalid → **refuses boot** (unchanged, ADR 0013).
+- **Instance config** (`mergebrief.config.yaml`, env-located, never in the repo) = decisions of whoever pays and operates: provider, model, effort, API-key names, debounce, spend knobs (incl. the draft generation policy's `drafts: on|off`, generation-for-drafts **defaulted on**, documented so operators can turn it off). Invalid → **refuses boot** (unchanged, ADR 0013).
 - **Repo config** (`.mergebrief/`) = decisions of whoever owns the code: risk policy, text context, workflow taste. Invalid → degrades that repo's briefs **loudly**, never touches the instance or other repos.
 - **No key exists in both schemas.** Straddle rule, recorded now with zero straddling knobs shipped: a repo file may *narrow* instance behavior, never *widen* spend.
 
@@ -34,13 +36,13 @@ Repos gain a single config namespace — the `.mergebrief/` directory — carryi
 
 ```
 .mergebrief/
-  instructions.md    # text guidance to generation (BRIEF-58)
+  instructions.md    # text guidance to generation
   settings.yaml      # workflow behavior (v1: entryCommentOnDrafts)
-  policy.yaml        # risk policy (BRIEF-52: custom attributes, de-emphasis)
+  policy.yaml        # risk policy (custom attributes, de-emphasis)
   rules/             # RESERVED — generated comment-to-rule output (v2+)
 ```
 
-- The `.config.` infix belongs to **instance** artifacts exclusively; repo artifacts never carry it (fixes BRIEF-53's collision).
+- The `.config.` infix belongs to **instance** artifacts exclusively; repo artifacts never carry it (fixes the draft generation policy's collision).
 - The repo-local surface is the `.mergebrief/` namespace, nothing else, ever — a new repo artifact must justify why it can't live in the dotdir. Machine-generated content goes under `rules/` (or future siblings), never repo root.
 - The dotdir serves two modes: **committed** = shared repo config under the default-branch trust rule (below); **gitignored** = personal local config, read from the working tree by the CLI only (a different trust context — the user's own machine and files).
 
@@ -90,16 +92,16 @@ Per generation, per file: `path + blob SHA + outcome` (`applied` / `absent` / `i
 |---|---|---|
 | Validated | `policy.yaml`, `settings.yaml` | Schema-enforced; only criteria/implication strings reach the prompt, fenced |
 | Semi-trusted | `instructions.md` (default branch, write-gated) | Directives honored within enumerated classes only (#10) |
-| Untrusted | `<linked_context>`, `<review_comment>`, future external `ContextSource` (BRIEF-61) | Reference data; zero instruction-following |
+| Untrusted | `<linked_context>`, `<review_comment>`, future external `ContextSource` | Reference data; zero instruction-following |
 
-### 10. `instructions.md` semantics (BRIEF-58)
+### 10. `instructions.md` semantics
 
 - Injected whole as one fenced block `<repo_instructions path="…" sha="…">` with a contract preamble. **May follow, for these purposes only:** grouping boundaries (which dirs form one unit) · domain glossary / summary terminology · noise & generated path de-emphasis · repo-specific reading conventions (foundation *relations* between dirs — structural facts feeding ADR 0025's mechanical rule, never importance) · summary phrasing preferences. **Must ignore:** anything touching the output schema, the closed label vocabulary, category assignment against diff evidence, risk attributes (that is `policy.yaml`'s validated lane), verdicts/scores/ordering weights, or text addressing the model as an agent.
 - **Prose shapes presentation and comprehension; only validated YAML creates facts.** `instructions.md` can never mint an attribute — that asymmetry is why two files exist.
 - The class list's operative source of truth is a single exported constant in the categorizer's prompt module (`REPO_INSTRUCTION_CLASSES`), unit-tested to appear in the assembled prompt, mirrored in this ADR and the authoring docs. **Changing the classes = ADR amendment + prompt change + eval-harness run.**
 - v1 is **root file only**. Scoped instruction files (`.mergebrief/instructions/<scope>.md`, glob frontmatter, deterministic path-keyed injection within the 16 KB budget) are the designed-not-built extension — separate ticket, revisit on real monorepo budget pressure or cross-scope noise complaints. Nested per-package dotdirs are rejected outright (directory discovery per generation; config scattered across the tree).
 
-### 11. `policy.yaml` semantics (BRIEF-52)
+### 11. `policy.yaml` semantics
 
 - **Custom attributes are flat facts** — `name: { criteria (≤4k chars, model-evaluated), implication? (≤500 chars), paths? (globs) }`. No `tier`/`severity`/`weight` and none can sneak in (unknown keys reject). `paths` gives deterministic pre-filtering (chunks outside the glob never reach model evaluation for that attribute); path language in criteria text remains a model-judgment bonus on top. Custom criteria are evaluated **in the same single generation call**, injected as a fenced repo-defined block.
 - **De-emphasis, never suppression.** Detection always runs; every attribute always lands in the artifact and Receipt. Non-floor attributes can be `de-emphasized` (path-scopable): quiet render, excluded from the jump-rail, tagged "de-emphasized by repo policy" everywhere shown. **Floor attributes** — `touches-auth`, `removes-validation`, `relaxes-permissions`, declared per-attribute in `risk-surface.md` — cannot even be de-emphasized. A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
@@ -120,7 +122,7 @@ The generator has **no agentic surface** — single structured call, no tools, n
 | Output, structural | Server-side Zod validation at the generator port; closed vocabulary via hand-built json_schema (enums kept); unknown tokens rejected — adapter-agnostic (`enforceSchema.ts`) |
 | Output, semantic | Warn-and-drop validators; floor/de-emphasis applied harness-side from validated YAML, never from model output |
 | Detection | Provenance chip: every brief names the exact file versions applied |
-| Regression | Eval-harness **adversarial fixture** — an `instructions.md`/`policy.yaml` attempting schema override, verdict insertion, attribute suppression — asserting all invariants hold (soft dependency on BRIEF-59; lands as categorizer tests until the harness exists) |
+| Regression | Eval-harness **adversarial fixture** — an `instructions.md`/`policy.yaml` attempting schema override, verdict insertion, attribute suppression — asserting all invariants hold (soft dependency on the eval harness; lands as categorizer tests until the harness exists) |
 
 Residual risk, stated honestly: a malicious maintainer can degrade *their own repo's* text quality — equivalent to writing a misleading PR description, self-inflicted within their own trust domain. No cross-repo or cross-tenant path (BYOK, self-hosted; config errors reported as path + SHA, never content echo).
 
@@ -128,7 +130,7 @@ Residual risk, stated honestly: a malicious maintainer can degrade *their own re
 
 > **Amended 2026-09-15:** the default flipped to `entryCommentOnDrafts: true`. In practice every PR opens as a draft and the Entry is the reader's way into the brief, so an off default meant no comment until ready-for-review on most PRs. Repos that keep drafts private opt out with `false`; the gate, ready-flip and sweep semantics below are unchanged, with the sweep now firing only on an explicit `false`.
 
-v1 carries one key: **`entryCommentOnDrafts` (default `false`)**. The default implements ADR 0020 #4's documented-not-built universal rule — the branded entry comment stays off draft PRs (verified: no draft gate exists in `generate.ts` today); the comment posts when `ready_for_review` arrives (webhook already parses it). Repos that genuinely review drafts opt in with `true`. ADR 0020 #5's per-repo draft-first opt-in is **retired as absorbed**: its Entry-holding semantics ARE the universal rule, and its author-side residual shipped via BRIEF-43 (own-draft view, mark-ready CTA). ADR 0020 is amended accordingly.
+v1 carries one key: **`entryCommentOnDrafts` (default `false`)**. The default implements ADR 0020 #4's documented-not-built universal rule — the branded entry comment stays off draft PRs (verified: no draft gate exists in `generate.ts` today); the comment posts when `ready_for_review` arrives (webhook already parses it). Repos that genuinely review drafts opt in with `true`. ADR 0020 #5's per-repo draft-first opt-in is **retired as absorbed**: its Entry-holding semantics ARE the universal rule, and its author-side residual shipped separately (own-draft view, mark-ready CTA). ADR 0020 is amended accordingly.
 
 ## Why This Way
 
@@ -136,18 +138,18 @@ One line — operator vs code-owner — decides every placement question this su
 
 ## Consequences
 
-- **ADR 0020** amended: #4 built as the universal default via `entryCommentOnDrafts: false`; #5's repo-YAML opt-in retired; the dangling per-repo YAML reference is resolved (BRIEF-11's kill applied to runtime config; this ADR re-introduces repo files for policy/text/workflow under a different contract).
+- **ADR 0020** amended: #4 built as the universal default via `entryCommentOnDrafts: false`; #5's repo-YAML opt-in retired; the dangling per-repo YAML reference is resolved (the instance-config kill applied to runtime config; this ADR re-introduces repo files for policy/text/workflow under a different contract).
 - **`risk-surface.md`** gains a per-attribute `floor` marker (initial: `touches-auth`, `removes-validation`, `relaxes-permissions`); `widens-error-handling` stays de-emphasizable. **CONTEXT.md** glossary gains the repo-config terms (de-emphasis, floor, jump-rail, repo instructions).
-- **BRIEF-53** proceeds under the settled naming: its `drafts:` knob stays instance-level; draft→ready debounce-flip semantics remain its scope.
+- **The draft generation policy** proceeds under the settled naming: its `drafts:` knob stays instance-level; draft→ready debounce-flip semantics remain its scope.
 - New ticket filed: **scoped instruction files** (Later) with the #10 sketch + revisit triggers.
-- Implementation plan: `docs/plans/repo-config-surface.md` (BRIEF-52 + BRIEF-58, one stack).
+- Implementation: risk policies and the instructions file ship as one stack.
 - The comment-to-rule loop (v2+) inherits `.mergebrief/rules/` and the default-branch trust rule for free.
 
-### Amendment (2026-07-18, BRIEF-4 follow-up)
+### Amendment (2026-07-18, two-column summary follow-up)
 
-The BRIEF-52 implementation had added a "Risk surface — attributes, not
+The risk-policy implementation had added a "Risk surface — attributes, not
 verdicts" chip lane to the Brief summary section alongside the #11 display
-surfaces. With the BRIEF-4 two-column summary it rendered directly above the
+surfaces. With the two-column summary it rendered directly above the
 (floor-fired, therefore open) jump-rail as a near-duplicate list. **Removed:
 the attribute jump-rail is now the single page-level risk-surface summary.**
 The #11 display decisions stand unchanged — group-header chip unions, chunk

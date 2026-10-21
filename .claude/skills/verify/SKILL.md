@@ -33,7 +33,7 @@ Gotchas:
   path only needs values that PARSE (auth happens via the viewer's `gh` token):
   a fresh `SESSION_KEY_V1`, a throwaway RSA PEM for the GitHub App key, and
   placeholder App/OAuth ids. Export those and skip the `source` line entirely
-  (verified working, BRIEF-24 smoke 2026-07-08). Never print real `.env` contents.
+  (verified working, smoke 2026-07-08). Never print real `.env` contents.
 - The API validates every config block and migrates AT BOOT, so a bad env kills
   the process instead of failing the first request. If the api pane exits
   immediately, read its last line: it is `field: reason`.
@@ -82,7 +82,7 @@ Then tenant-scoped deletes only (the dev DB may hold real webhook-loop data),
 then `docker compose stop postgres` if it was down before. Blanket
 `DELETE FROM` is hook-blocked.
 
-## Seed-script gotchas (BRIEF-52 pass, 2026-07-17)
+## Seed-script gotchas (2026-07-17 pass)
 
 - `createDb(databaseUrl)` and `migrateApp(databaseUrl)` take the URL STRING,
   not an options object; `encryptToken(provider, keyRef, plaintext)` — provider

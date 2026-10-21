@@ -1,6 +1,9 @@
 # 0045: One version number, and expand and contract on every release
 
-Status: accepted (2026-10-02). Amends ADR 0028 #6 and ADR 0029 #8
+Status: amended (see Amendments)
+Date: 2026-10-02
+
+Amends ADR 0028 #6 and ADR 0029 #8
 (both carry their amendment notes).
 
 One git tag `vX.Y.Z` is the version of everything a release ships: the

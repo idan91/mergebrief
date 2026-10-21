@@ -1,6 +1,8 @@
-# Private Mind-Map Space, Not a Public PR Thread
+# 0004: Private Mind-Map Space, Not a Public PR Thread
 
-> **Amended 2026-08-17 (BRIEF-197 → [ADR 0040](0040-review-session-server-store.md)):**
+Status: amended (see Amendments)
+
+> **Amended 2026-08-17 ([ADR 0040](0040-review-session-server-store.md)):**
 > the term **Mind-Map Space is retired**; this private workspace is a **Review
 > Session** — one reviewer's work on one PR, pinned to one **Session baseline**
 > (now the durable key of that session, not a transient label). The durable

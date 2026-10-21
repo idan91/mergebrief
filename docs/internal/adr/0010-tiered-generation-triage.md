@@ -1,4 +1,6 @@
-# Tiered Generation: a Cheap Triage Decides Experience and Spend
+# 0010: Tiered Generation: a Cheap Triage Decides Experience and Spend
+
+Status: deprecated
 
 Every PR — and every follow-up — passes through a cheap **triage** cascade before any expensive generation: a free deterministic floor, then a small-model (**Haiku**) pass. The triage decides whether to spend the full Opus **Brief**/**Delta Brief** or show a cheap **Fast-lane**. **Risk decides escalation; size decides spend.** For follow-ups, touching a reviewer's prior flag/comment (carry-over) is itself an escalation. The human can always upgrade manually.
 

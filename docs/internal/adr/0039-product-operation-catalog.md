@@ -1,9 +1,11 @@
-# 0039 — Product Operation catalog, route registration, CI drift gates
+# 0039: Product Operation catalog, route registration, CI drift gates
 
-Status: accepted (2026-08-15). Decided on BRIEF-122 (locked decisions plus
-the 2026-08-15 round-2 settlement) and scoped by BRIEF-196; implementation
-plan: `docs/plans/brief-196-product-operation-catalog.md`. BRIEF-197 registers
-the Review Session actions through the same seam; BRIEF-198+ consume the
+Status: amended (see Amendments)
+Date: 2026-08-15
+
+Decided on a ticket's locked decisions plus
+the 2026-08-15 settlement, and scoped by a follow-up ticket. ADR 0040 registers
+the Review Session actions through the same seam; later work consumes the
 manifest.
 
 ## Context
@@ -11,7 +13,7 @@ manifest.
 The product promise is agent-complete: every authenticated domain operation a
 human can perform in the web app has a CLI equivalent an agent can drive.
 Nothing enforces that premise. Routes register ad hoc in
-`packages/api/src/app.ts`, the CLI grows commands by convention, and the only
+`apps/api/src/app.ts`, the CLI grows commands by convention, and the only
 way to know whether an operation is missing from either surface is to read
 both by hand. As the surface grows (Review Session alone adds ~17 actions),
 that audit stops being performable.
@@ -33,7 +35,7 @@ must never drive (token mint/revoke, installation selection surfaces that
 exist to bootstrap credentials) ship `agentAvailable: false` and are exempt
 from CLI-mapping enforcement.~~
 
-**Amended (2026-08-17, BRIEF-197 →
+**Amended (2026-08-17,
 [ADR 0040](0040-review-session-server-store.md)):** `agentAvailable` is
 **deleted**. It enforced nothing — the real rule is the Bearer path test in
 the authz gate — and hand-typed at 23 sites it was already wrong for
@@ -54,7 +56,7 @@ compositions are not.
 
 ### Registration seam
 
-`packages/api/src/product-operations/` owns the catalog (backend owns the
+`apps/api/src/product-operations/` owns the catalog (backend owns the
 vocabulary; consumers read a generated manifest, never import route code).
 
 Route files keep the existing factory convention, but build on a
@@ -90,9 +92,9 @@ kind/classification mismatch, declaring on an already-mounted router — throw
 at composition: they are programmer errors a test run surfaces immediately,
 not expected failures, so `Result` does not apply.
 
-**Amended (2026-10-12, BRIEF-333, architecture review decision 16):** each
+**Amended (2026-10-12, architecture review):** each
 operation's full path IS written by hand, once, in the **operation table**:
-one row per operation in `packages/contract/src/operations.ts` holding its
+one row per operation in `packages/contract/src/operations/index.ts` holding its
 kind, classification, method and full path. Clients build requests from the
 row instead of retyping URLs. Composition still assembles the path
 mechanically, and `commit` now asserts the assembled `METHOD /full/path`
@@ -109,15 +111,15 @@ each states: `browserSessionOnly`, `requiresPushAccess`,
 
 - `packages/api/product-operations.manifest.json` — committed, regenerated
   by script ~~from the registry (compose without serving)~~ **(amended
-  2026-10-12, BRIEF-333)** from the operation table, byte-compared in CI. An unregistered domain route or an edited descriptor shows up as
+  2026-10-12)** from the operation table, byte-compared in CI. An unregistered domain route or an edited descriptor shows up as
   manifest drift and fails CI.
-  **Amended (2026-10-14, BRIEF-333):** the committed manifest is dropped;
+  **Amended (2026-10-14):** the committed manifest is dropped;
   the table is the only list, and `commit()` and the catalog test guard
   drift.
-- `packages/cli/product-operations.map.json` — operation id → `mergebrief`
+- `apps/cli/product-operations.map.json` — operation id → `mergebrief`
   command. A check script enforces exhaustiveness in both directions:
   ~~every `agentAvailable` operation maps to a command~~ **(amended
-  2026-08-17, BRIEF-197)** every operation id appears in the map as exactly
+  2026-08-17)** every operation id appears in the map as exactly
   one of `command`, a dated `gap`, or the new permanent `webOnly`
   (`{reason, owner}`) — absence is an error for every id, where the old rule
   *required* web-only ids to be absent — and every mapped id exists in the
@@ -128,7 +130,7 @@ each states: `browserSessionOnly`, `requiresPushAccess`,
 
 ## Consequences
 
-> **Amended (2026-08-17, BRIEF-197 →
+> **Amended (2026-08-17,
 > [ADR 0040](0040-review-session-server-store.md)):** descriptors are no
 > longer static metadata that "never touch a request". `.action()` mounts the
 > **scope gate** itself, reading the `classification` already on the
@@ -143,8 +145,8 @@ each states: `browserSessionOnly`, `requiresPushAccess`,
   command, breaks CI instead of silently eroding the agent-complete premise.
 - The manifest becomes the machine-readable capability surface for
   downstream consumers (capability fingerprints, packaged skills) without
-  coupling them to `packages/api` internals.
-  **Amended (2026-10-12, BRIEF-333, architecture review decision 15):** the
+  coupling them to `apps/api` internals.
+  **Amended (2026-10-12, architecture review):** the
   catalog fingerprint is dropped. Its one consumer, `mergebrief
   capabilities`, only warned on a mismatch it called harmless; the version
   number is the skew signal, and `--require` checks the ids an agent needs.

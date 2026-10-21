@@ -1,4 +1,6 @@
-# OSS Self-Host-First Distribution (Open-Core)
+# 0017: OSS Self-Host-First Distribution (Open-Core)
+
+Status: superseded in part by 0023
 
 > **Superseded in part by [ADR 0023](0023-oss-only-no-hosted-arm.md) (2026-06-30).** The
 > **hosted offering** described below as "deferred, not forbidden" is now **not pursued** —

@@ -1,11 +1,12 @@
-# PR Conversation Display in the Product Runtime — Live Fetch over GraphQL
+# 0027: PR Conversation Display in the Product Runtime — Live Fetch over GraphQL
+
+Status: amended (see Amendments)
 
 The DB-backed Brief gains a **conversation surface**: other reviewers' and
 bots' review threads (with replies), review verdicts, and PR-level comments,
 rendered inside the Brief — organized as a **digest by the Brief's own
 structure** (threads grouped by chunk in reading order, verdict strip on
-top), with reply-from-the-Brief under the reviewer's own identity
-(BRIEF-25).
+top), with reply-from-the-Brief under the reviewer's own identity.
 
 Conversation data is **fetched live from GitHub on demand and never
 persisted** — the same posture as diffs-on-demand (ADR 0006). Placement is a
@@ -81,11 +82,10 @@ local concept; aliasing them would misattribute whose state it is.
 - Conversation reads join the 60s-positive-TTL cache family; every
   conversation write (reply; review submit) evicts the PR's cache key.
 - The reviewer's own submitted comments become server-backed once fetched
-  (joined by review id), closing BRIEF-23's accepted sessionStorage
+  (joined by review id), closing an earlier accepted sessionStorage
   residual: the local "submitted" flip stops being critical after the
   first refetch.
 - Outdated-thread "view on its revision" navigation is deferred to the
-  timeline (ADR 0019 / BRIEF-24); until then the digest offers the GitHub
+  timeline (ADR 0019); until then the digest offers the GitHub
   permalink.
 
-Implementation plan: `docs/plans/brief-25-conversation-display.md`.

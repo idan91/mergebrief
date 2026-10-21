@@ -1,6 +1,8 @@
-# Mind-Map Session Store (Client Runtime of the Mind-Map Space)
+# 0022: Mind-Map Session Store (Client Runtime of the Mind-Map Space)
 
-> **Amended 2026-08-17 (BRIEF-197 → [ADR 0040](0040-review-session-server-store.md)):**
+Status: superseded in part by 0035, 0040
+
+> **Amended 2026-08-17 ([ADR 0040](0040-review-session-server-store.md)):**
 > the store stops being the source of truth. Review state lives on the server
 > in a **Review Session** row keyed `(installation, brief, reviewer)`; the
 > store keeps an optimistic local copy, writes one operation per user action,

@@ -1,6 +1,8 @@
-# Playbook Layer Parked to v2; Rubric Identity Locked
+# 0035: Playbook Layer Parked to v2; Rubric Identity Locked
 
-The per-Category Playbook / per-Concern check layer is **parked to v2** (BRIEF-6 grill,
+Status: accepted
+
+The per-Category Playbook / per-Concern check layer is **parked to v2** (grill,
 2026-07-23). All product-code mentions are removed; the markdown library
 (`docs/internal/mvp/playbooks.md`) is kept in place as the v2 seed. The contribution commons
 retargets to the **taxonomy + risk-surface vocabulary** — the part the engine actually
@@ -66,10 +68,10 @@ bad-`CLAUDE.md` failure mode rather than mitigating it.
 
 ### 4. Governance retarget
 
-BRIEF-6's WHO-DECIDES question survives the park and gets *sharper*: token changes
+The parking grill's WHO-DECIDES question survives the park and gets *sharper*: token changes
 (Category / Concern / Risk-Surface) rewrite the generation prompt and output schema —
 higher stakes than any doc item. Governance for the **taxonomy commons** remains
-launch-blocking (before OSS cutover, BRIEF-38); the eval harness (BRIEF-59) is the
+launch-blocking (before OSS cutover); the eval harness is the
 candidate review gate for token PRs. Successor ticket carries this.
 
 ## Revisit triggers (any one fires → unpark grill)

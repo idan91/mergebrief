@@ -113,7 +113,7 @@ best-distributed pure-play. What it shows:
    description (both they and we collapse). Prompt change ⇒ **eval-harness gate**
    (scoped `--case` runs).
 8. **Promote the intent check in the UI** — deviation-from-stated-ticket surface
-   (BRIEF-85) is a differentiator nobody in the field has; currently under-sold.
+   is a differentiator nobody in the field has; currently under-sold.
 9. **Consider later:** unified activity timeline (theirs is good; ours is split
    revision-timeline + conversation).
 
@@ -191,7 +191,7 @@ v2 at best), bundled linter/SAST breadth, Code Peek-style host-search navigation
 2. **Intent: they claim it, we ship it.** The intent blog runs our thesis verbatim
    ("Code is no longer the bottleneck. Understanding is.") and gestures at "did the
    system build what we intended?" — but no ticket-vs-diff mechanism exists in the
-   product. BRIEF-54 is concrete; the promote-intent-check ticket just got more
+   product. Our Intent check is concrete; the promote-intent-check ticket just got more
    urgent, and external copy should stake this ground before their marketing does.
 3. **No-verdict stays structural.** Their surface is severity labels + verdicts +
    auto-generated review text — everything the noise complaint (§3) is about. Our
@@ -235,7 +235,7 @@ Our CLI already covers most of it (`--json`, `groups`/`conversation`/`delta`, th
    agent-addressed markdown. Cheap, and matches how AI-authored-PR teams actually work.
 4. **Typed human comments** (note/suggestion/issue/praise) — metadata on
    human-authored comments (authorship stays human, on-thesis); feeds the future
-   comment-to-rule surface (BRIEF-48); vocabulary restrictable via repo config.
+   comment-to-rule surface; vocabulary restrictable via repo config.
 5. **Mark-reviewed folds the chunk** — small UI pattern on our existing
    reviewed-chunk state.
 

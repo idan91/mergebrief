@@ -68,7 +68,7 @@ strategy.
 
 *Implication:* cheap, clarifying, unblocks honest decisions downstream.
 
-### P1 — Nail the front door (brand surface)  ·  status: [x] done (2026-07-01, PR #13)
+### P1 — Nail the front door (brand surface)  ·  status: [x] done (2026-07-01)
 
 **Needs grilling:** No — design iteration, not a decision-tree (use the `frontend-design` / `impeccable` skills + the flexer reference). · **Docs:** `plans/p1-front-door.md` (**detailed scope + design/a11y checklist + deferred-with-triggers**) · [`vision.md`](../vision.md) · `plans/web-generate-from-url.md` (the paste-URL flow)
 
@@ -92,7 +92,7 @@ more than the backend.
 daemon nobody has discovered. Deferred design/a11y items (mobile header, header declutter, SR
 pass, touch targets…) each carry an explicit *when-to-do* trigger in the plan doc.
 
-### P2 — Narrative-on-top-of-taxonomy (marquee comprehension feature)  ·  status: [x] done (2026-07-02, PR #16)
+### P2 — Narrative-on-top-of-taxonomy (marquee comprehension feature)  ·  status: [x] done (2026-07-02)
 
 **Needs grilling:** Yes — the ordering rule, terminology vs Atlas's "layers/cohorts", and how narrative relates to Change-groups all touch the domain model. · **Docs:** [`../CONTEXT.md`](../../CONTEXT.md) (Change-group / Summary / Category) · [ADR 0005](adr/0005-intent-on-change-group-two-view-projection.md) · [`competitive-analysis.md`](competitive-analysis.md) (narrative vs taxonomic axes) · [`next-steps.md`](next-steps.md) (deferred narrative note)
 
@@ -192,11 +192,11 @@ Intent check vocabulary in `CONTEXT.md`, possibly a new ADR) before any code.
 
 The OSS-native hook CodeRabbit structurally can't match (closed).
 
-> **Update (2026-07-23, BRIEF-6 — ADR 0035):** the playbook *layer* is parked to v2
+> **Update (2026-07-23, ADR 0035):** the playbook *layer* is parked to v2
 > (nothing consumed it; junior case rejected; prompt-side agent consumption ruled out
 > as bias risk). The commons retargets to the **taxonomy + risk-surface vocabulary**
 > the engine consumes; `CONTRIBUTING.md` rewritten accordingly. Governance grill
-> retargeted to token changes (successor ticket), still launch-blocking before BRIEF-38.
+> retargeted to token changes (successor ticket), still launch-blocking before the OSS cutover.
 
 - Document the **taxonomy + playbook schema**; add a `CONTRIBUTING` for playbooks with
   examples; frame it as the contribution surface ("ESLint-rules for code-review comprehension").
@@ -204,7 +204,7 @@ The OSS-native hook CodeRabbit structurally can't match (closed).
 *Implication:* identity + community; turns "another review tool" into "the open taxonomy /
 playbook standard."
 
-### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [x] done (WS1–WS3 shipped; BRIEF-3 PRs in review)
+### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [x] done (WS1–WS3 shipped; WS3 PRs in review)
 
 **Needs grilling:** No — the decisions are already locked in ADRs; this is execution (drop only the hosted/multi-tenant scope per ADR 0023). · **Docs:** [ADR 0015](adr/0015-self-hosted-runtime-postgres-single-dependency.md) · [ADR 0016](adr/0016-github-app-auth-and-trust-tenancy-boundary.md) · [ADR 0018](adr/0018-m1-postgres-schema.md) · [ADR 0020](adr/0020-brief-trigger-and-activation-model.md) (also 0006/0008/0013)
 
@@ -254,19 +254,19 @@ The v1 product is what exists today: the Brief (story + risk + delta + conversat
 author affordances, repo-config (`.mergebrief/`), the generator adapter family, CLI,
 self-host compose. Remaining v1 work is hardening and launch mechanics, not features:
 
-- **Quality/correctness:** eval harness (BRIEF-59) · categorizer precision misfires
-  (BRIEF-55) · comment box UX (BRIEF-56) · multi-column summary (BRIEF-4).
-- **Operational trust:** restore CI + backfill verification (BRIEF-37) ·
-  self-host hardening (BRIEF-20) · observability hooks (BRIEF-51) ·
-  pre-release manual testing pass (BRIEF-36).
-- **Constraint mesh v1 gate** ([ADR 0038](adr/0038-constraint-mesh-test-quality-gates.md),
-  BRIEF-82): coverage floors · static-constraints bundle · CI overhaul incl.
-  fork safety (prereq BRIEF-37; absorbs BRIEF-26) · E2E v1 dummy-brief suite ·
+- **Quality/correctness:** eval harness · categorizer precision misfires ·
+  comment box UX · multi-column summary.
+- **Operational trust:** restore CI + backfill verification ·
+  self-host hardening · observability hooks ·
+  pre-release manual testing pass.
+- **Constraint mesh v1 gate** ([ADR 0038](adr/0038-constraint-mesh-test-quality-gates.md)):
+  coverage floors · static-constraints bundle · CI overhaul incl.
+  fork safety (prereq: restore CI) · E2E v1 dummy-brief suite ·
   PGlite flake fix + QA-doc triage. Post-v1 ratchets (fast-check, mutation
   one-shot, lychee, E2E v2) deliberately NOT gating.
-- **Launch tail (Later, pulled in at cutover time):** OSS launch cutover (BRIEF-38) ·
-  release engineering (BRIEF-49) · ghcr images (BRIEF-47) · GH App manifest flow
-  (BRIEF-60) · M1 system-design doc (BRIEF-39) · playbook governance grill (BRIEF-6).
+- **Launch tail (Later, pulled in at cutover time):** OSS launch cutover ·
+  release engineering · ghcr images · GH App manifest flow ·
+  M1 system-design doc · playbook governance grill.
 
 ### V2 — post-launch, demand/evidence-triggered
 
@@ -274,18 +274,16 @@ Parked deliberately — v1 doesn't ship everything. Each item keeps its trigger;
 should start without it firing:
 
 - **Context enrichment** ([ADR 0033](adr/0033-contextsource-contract-providers-parked.md)
-  — contract locked, providers parked): local/git retrieval provider (BRIEF-13;
-  trigger: briefs visibly starving on thin-PR-hygiene repos — killed by its gating
-  spike on this repo) · external context managers as MCP-client providers (BRIEF-61;
-  trigger: post-launch demand) · the ADR 0026 parked attributes ride whichever
+  — contract locked, providers parked): local/git retrieval provider (trigger: briefs visibly starving on thin-PR-hygiene repos — killed by its gating
+  spike on this repo) · external context managers as MCP-client providers (trigger:
+  post-launch demand) · the ADR 0026 parked attributes ride whichever
   provider revives.
-- **Agent-lane surfaces:** MCP server over the Analysis Layer (BRIEF-45) ·
-  comment-to-rule loop (BRIEF-48) · headless dual-consumer lane (ADR 0014 #3).
-- **Product depth:** Intent check (BRIEF-54) · cross-PR / temporal awareness
-  (BRIEF-12) · triage cascade + carry-over overlay (BRIEF-9/10) · scoped instruction
-  files (BRIEF-63).
-- **Operations at scale:** settings UI (BRIEF-62) · generation throughput (BRIEF-65) ·
-  deployed harness-CLI mode (BRIEF-32) · zero-install try path (BRIEF-46).
+- **Agent-lane surfaces:** MCP server over the Analysis Layer ·
+  comment-to-rule loop · headless dual-consumer lane (ADR 0014 #3).
+- **Product depth:** Intent check · cross-PR / temporal awareness ·
+  triage cascade + carry-over overlay · scoped instruction files.
+- **Operations at scale:** settings UI · generation throughput ·
+  deployed harness-CLI mode · zero-install try path.
 
 ---
 
@@ -308,11 +306,11 @@ should start without it firing:
   P1/P2; grill before building) and **cross-PR / temporal awareness** (future, gated on the P4
   backend). "Ripoff" concern resolved → OSS "open alternative to X" is a respected positioning;
   own the comparison.
-- 2026-07-01 — **P1 done** (PR #13, `feature/p1-front-door`). Front-door polish +
+- 2026-07-01 — **P1 done** (`feature/p1-front-door`). Front-door polish +
   in-scope a11y fixes landed, including keyboard nav (`J`/`K`/`Z`/`?`). Mobile brief
   header stays deferred with its pull-forward trigger (scope record in
   `plans/p1-front-door.md`).
-- 2026-07-02 — **Comparison overlay + Revision narrative shipped** (PR #14, ADR 0024;
+- 2026-07-02 — **Comparison overlay + Revision narrative shipped** (ADR 0024;
   not a roadmap P-item — grew out of ADR 0021's overlay). Timeline + View/Compare
   model replaces the Full/Delta lens; non-first Briefs get a generated shared
   Revision narrative; mechanical marks drive highlights for both baselines. Legal
@@ -321,8 +319,8 @@ should start without it firing:
   `plans/comparison-overlay-and-revision-narrative.md`
   (Delta-path huge-span wiring, incremental diffs sidecar, YAML config loader).
   Pre-existing duplicate-key bug in the summary preview found during the browser
-  pass → PR #15.
-- 2026-07-02 — **P2 done** (PR #16, `feature/reading-order`; ADR 0025, plan in
+  pass → fixed in its own PR.
+- 2026-07-02 — **P2 done** (`feature/reading-order`; ADR 0025, plan in
   `plans/reading-order.md`). Every full Brief can carry a
   **Reading order** — a strict, foundation-first permutation over its Change-groups with
   no-verdict why-lines — emitted in the Brief's own call, validated warn-and-drop on both
@@ -340,13 +338,13 @@ should start without it firing:
   `unresolved-import` rejected, sibling-pattern + `unresolved-reference` parked behind
   ContextSource (ADR 0014). Tokens registered in `labeling-schema.md` / `risk-surface.md`;
   CONTEXT.md ambiguity recorded. **Next: implement the trio (small PR), then P3.**
-- 2026-07-03 — **Read-through follow-ups + lint tooling merged.** PR #17: the six PR #16
+- 2026-07-03 — **Read-through follow-ups + lint tooling merged.** First PR: the six P2
   browser-pass items (shortcuts-dead-after-commenting, focus banner overlap, composer
   clipping, scrollable rail, segmented progress, auto-advance — the last generalized to any
-  focus mode, `readThroughActive` removed). PR #18: oxlint (type-aware, `react-hooks`
+  focus mode, `readThroughActive` removed). Second PR: oxlint (type-aware, `react-hooks`
   rules) across `apps/web` + `tools/categorizer`, wired into CI as parallel matrix jobs.
   **Next: grill the AI-authored-code review lens** (P1/P2 gate now open), then P3.
-- 2026-07-04 — **ADR 0026 trio shipped** (PR #19, `feature/risk-attr-trio`; plan in
+- 2026-07-04 — **ADR 0026 trio shipped** (`feature/risk-attr-trio`; plan in
   `plans/ai-authorship-attributes.md`). The three
   model-observed attributes land end to end: schema + prompt discipline + warn-and-drop
   validation (`comment-contradicts-code` citation gate, `new-dependency` section-aware +
@@ -354,13 +352,13 @@ should start without it firing:
   a live FP) and FE rendering (bounded header chips with a floating-ui Callout, riskNotes
   evidence lines in the rail, risk-name summary under the changelog). Review-driven
   follow-ups landed in-PR; a diff-viewport composer clipping bug got fixed en route.
-  Regenerating PR #19's own brief then surfaced that Anthropic structured output doesn't
-  enforce `enum` server-side (SDK demotes it to description text) → **PR #20**: salvage
+  Regenerating the trio PR's own brief then surfaced that Anthropic structured output doesn't
+  enforce `enum` server-side (SDK demotes it to description text) → **a follow-up PR**: salvage
   (warn-and-drop for supplementary enum arrays) + one feedback retry + raw-output failure
   dumps. Live BYOK regen verified: trio fires, `new-dependency` confirmed on the
   floating-ui manifest chunk, `removes-validation` FP dropped at generation time.
   **Next: ADR 0026 positioning copy pass (README/demo — the lens is positioning-only by
-  design, so it's invisible until the copy stakes it), then P3.** Follow-up filed in PR #20:
+  design, so it's invisible until the copy stakes it), then P3.** Follow-up filed in that PR:
   spike hand-built `json_schema` with `enum` intact for server-side enforcement.
 - 2026-07-04 — **Positioning copy pass done — and the AI-authorship angle killed.**
   Drafting the README section surfaced that the framing doesn't hold: every failure mode
@@ -386,33 +384,33 @@ should start without it firing:
   `labeling-schema.md` statuses. README gained a Contributing section. Text kept
   authorship-neutral per the 2026-07-04 positioning lock. Leftover (code, trivial): stale
   "16 factual attributes" comment in `packages/brief-core/src/types.ts` header (actual: 19).
-  **Next: P4 (self-host backend) or the PR #20 `json_schema` enum spike.**
-- 2026-07-05 — **P4 WS1 done (BRIEF-1, PR #23).** `packages/persistence`: the 11-table M1
+  **Next: P4 (self-host backend) or the `json_schema` enum spike.**
+- 2026-07-05 — **P4 WS1 done.** `packages/persistence`: the 11-table M1
   schema (ADR 0018 as amended 2026-07-04 — `activated_at` dropped per ADR 0020;
   `revision_narrative` + `comparison_marks` added per ADR 0024), tenant repo behind an opaque
   handle (D2b), ArtifactStore with idempotent span writes, generation projection, audit emit
   (shaped `target_type` + closed metadata value types), purge/retention routines, session-token
   crypto, docker-compose Postgres. 85 PGlite tests against the checked-in migrations; review
   hardening added vocab/shape CHECK constraints (vocab additions now need code + migration in
-  lockstep). Work tracked as BRIEF-x tickets. README gained the "Your data" section. Known gap (CI not
-  covering `packages/persistence`) closed by PR #24. **Next: BRIEF-2 (GitHub App + webhooks, WS2).**
-- 2026-07-05 — **P4 WS2 done (BRIEF-2, PRs #25/#26/#27).** GitHub App + webhook ingest + reviewer
+  lockstep). Work tracked as board tickets. README gained the "Your data" section. Known gap (CI not
+  covering `packages/persistence`) closed by a follow-up PR. **Next: GitHub App + webhooks (WS2).**
+- 2026-07-05 — **P4 WS2 done (three PRs).** GitHub App + webhook ingest + reviewer
   read path land end to end: `packages/github` (App auth, webhook verify + event parsing, comment +
-  fetch ops, unsafe-integer id guards, rate-limit 403 classification, added to CI matrix — PR #25);
+  fetch ops, unsafe-integer id guards, rate-limit 403 classification, added to CI matrix);
   webhook trust boundary as a Hono route with transactional enqueue, mounted on the web origin,
   body-size cap, terminal-PR state preserved against stale generation triggers, no phantom rows
-  from reviews, migration 0003 (`entry_comment_id`, refresh token, superseded) — PR #26; reviewer
+  from reviews, migration 0003 (`entry_comment_id`, refresh token, superseded); reviewer
   OAuth login + serialized token refresh + authz gate + reviewer read API (brief/marks/narrative/
   diff), session-expiry enforcement, eager key validation, verified repo name, 406→413, recheck
-  reviewer repo access — PR #27. Retry-policy discovery from PR #27 review carried onto the BRIEF-3
+  reviewer repo access. Retry-policy discovery from the reviewer-read-path review carried onto the WS3
   card (add 406 to octokit `doNotRetry` — permanent oversized-diff condition, retrying is waste).
-- 2026-07-05 — **Shared types package (PR #28, pre-BRIEF-3 cleanup).** `@code-review/types`:
+- 2026-07-05 — **Shared types package (pre-WS3 cleanup).** `@code-review/types`:
   types-only, zero runtime/deps; deduplicated `ValueOf`/`Result`/`Brand` across the monorepo,
   closed remaining duplicate `Result` shapes, silenced `no-await-in-loop` false positives in the
-  stream reader. **Next: BRIEF-3 (background worker + one-command docker-compose, WS3) — last of
+  stream reader. **Next: background worker + one-command docker-compose (WS3) — last of
   P4/M1.**
-- 2026-07-06 — **P4 WS3 done (BRIEF-3, PRs #29 + #30, merged 2026-07-06).** `apps/worker`: the
-  long-lived graphile-worker runner draining the BRIEF-2 queue — payload contract pinned via
+- 2026-07-06 — **P4 WS3 done (merged 2026-07-06).** `apps/worker`: the
+  long-lived graphile-worker runner draining the WS2 queue — payload contract pinned via
   the shared `GenerateJobPayload` type, brief + marks + revision narrative + delta cores
   pre-warmed per distinct checkpoint SHA (huge-span skip), projection transitions
   queued→running→succeeded/failed/superseded, cooperative mid-call cancellation (AbortSignal
@@ -422,8 +420,8 @@ should start without it firing:
   beside Postgres, idempotent boot migrations in both composition roots, `.env.example`,
   `docs/self-host/compose.md`. Compose smoke verified boot→seed→drain→projection against real
   Postgres/graphile with structural creds; real-key end-to-end pending Idan's `.env`. **P4/M1
-  complete — self-hosting is real: `docker compose up` → webhook → brief in Postgres — verified end-to-end with live credentials (Idan91/flexer#65).**
-- 2026-07-06 — **BRIEF-19 done (PRs #31–#41 stack + #42 smoke fix, merged 2026-07-06).** FE over
+  complete — self-hosting is real: `docker compose up` → webhook → brief in Postgres — verified end-to-end with live credentials.**
+- 2026-07-06 — **Reviewer FE done (stack + smoke fix, merged 2026-07-06).** FE over
   the read API — a reviewer logs in, picks a PR, and reads the DB-backed Brief in the real UI.
   Read path hardened: 60s positive authz cache reinstated, gate split into session + repo-authz
   layers, list + PR-meta discovery endpoints. Multi-org sessions: `user_settings` (ADR 0018 D14),
@@ -432,9 +430,9 @@ should start without it firing:
   single authz path), loader-prefetched brief route, client-side diff slicing, diff-first wait UX
   with generation-status poll, previous-brief comparison over the read API. Smoke-tested per
   `docs/internal/dev/post-merge-smoke.md` (org-switcher case parked — needs a second installation). Delta
-  view + timeline navigation split to BRIEF-21 (must follow ticket 23 — consumes its checkpoints).
-  **Next: ticket 22 (wire Entry comment posting) → 23 (review submit, reviewer's token — grill
-  first) → 21.**
+  view + timeline navigation split to its own ticket (must follow review submit — consumes its checkpoints).
+  **Next: wire Entry comment posting → review submit (reviewer's token — grill
+  first) → delta view.**
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
@@ -444,7 +442,7 @@ should start without it firing:
   finding into **In-P1 / Deferred-with-triggers / Won't-do**; full record in
   `plans/p1-front-door.md`. **Resolved:** keyboard nav (`J`/`K`/`Z`/`?`)
   folded into P1; mobile brief header deferred (demo is desktop-framed) with a pull-forward trigger.
-- 2026-07-07 — **BRIEF-21 smoke finding → BRIEF-24 candidate: raw span diff affordance.** Full
+- 2026-07-07 — **Delta-view smoke finding → span-views candidate: raw span diff affordance.** Full
   Brief renders the whole-PR diff; last-review highlights can only mark rows that survive in it.
   A change that nets out within the PR (line added by an earlier push, removed since the
   reviewer's checkpoint) leaves NO row to highlight — GitHub's compare view would show it, ours
@@ -452,20 +450,20 @@ should start without it firing:
   "view raw span diff" affordance in the Changes Only pane rendering
   `GET /diff?base=<checkpoint-sha>&head=<head>` (the live proxy already serves arbitrary spans
   behind the same gate) — exactly the GitHub-compare view for the personal span. Slotted to
-  BRIEF-24 (span navigation/views); BRIEF-21 shipped without it. Also add to the
-  BRIEF-24 ticket (agent write was permission-blocked).
-- 2026-07-18 — **BRIEF-13 design pass done → ADR 0033; providers parked; v1/v2 split
+  the span navigation/views ticket; the delta view shipped without it. Also add to
+  that ticket (agent write was permission-blocked).
+- 2026-07-18 — **ContextSource design pass done → ADR 0033; providers parked; v1/v2 split
   added above.** The ContextSource wayfinder map locked the provider contract (query
   tiers, cited snippets, fail-open fan-out, registry) and the enrichment scope
   (structure configuration-shaped never evidence-shaped; brief call only; every-brief
   gate superseding ADR 0014 #5's escalation tier). The local/git retrieval provider was
   **killed by its gating spike** — 12 briefs across 3 real PRs + a baseline variance
   check showed every apparent improvement was run-to-run variance, not retrieval.
-  Context managers (BRIEF-61) deferred to v2 by scope. Board: BRIEF-13 Next → Backlog.
-  *(Log gap note: BRIEF-17 CLI, BRIEF-11 generator adapters, BRIEF-43 author
-  affordances, BRIEF-52/58 repo-config, BRIEF-64 draft policy all landed 2026-07-08 →
+  Context managers deferred to v2 by scope. Board: the retrieval ticket Next → Backlog.
+  *(Log gap note: CLI, generator adapters, author
+  affordances, repo-config, draft policy all landed 2026-07-08 →
   07-17 via board tickets — the board carried the log; see memory/ticket trail.)*
-- 2026-07-07 — **BRIEF-21 done (PRs #45 + #46, merged 2026-07-07).** Delta view over the read
+- 2026-07-07 — **Delta view done (merged 2026-07-07).** Delta view over the read
   API: delta GET endpoint (same gate/404/no-store posture as the sibling artifact reads),
   PR-meta `comparisons.lastReview` union derived per-reviewer from the session's checkpoint
   (available w/ `deltaAvailable` flag · pending · baseline-unavailable · absent), and the FE
@@ -477,5 +475,5 @@ should start without it firing:
   on pending. Manual smoke caught what tests+codex missed: tooltip painted under sticky
   sections (z-index), delta body parsed with the WRONG validator (parseBrief vs parseDeltaBrief
   — route tests seeding the query cache bypass parsers; queryFn-level tests added), stray focus
-  ring on the main region. **Next: BRIEF-23 (review submit — writes the checkpoints that make
+  ring on the main region. **Next: review submit (writes the checkpoints that make
   lastReview real in production; grill first).**

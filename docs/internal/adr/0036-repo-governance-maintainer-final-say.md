@@ -1,7 +1,9 @@
-# Repo Governance: Maintainer Final Say, With Receipts
+# 0036: Repo Governance: Maintainer Final Say, With Receipts
+
+Status: accepted
 
 Governance for the whole repository — code, vocabulary, direction — is settled ahead of
-the OSS cutover (BRIEF-38) so the rules exist before contributors arrive (BRIEF-81
+the OSS cutover so the rules exist before contributors arrive (governance
 grill, 2026-07-23). The model is deliberately minimal: **the maintainer has final say on
 everything, and every substantive decision leaves a written reason.** Loosening is a
 future decision with recorded triggers, not a launch feature.
@@ -13,10 +15,10 @@ future decision with recorded triggers, not a launch feature.
   in governance docs is where contributor disputes start.
 - Vocabulary changes carry the highest stakes: Category / Concern / Risk-Surface tokens
   are closed sets wired into the engine's prompt and output schema — accepting a token
-  changes every Brief for every user. (BRIEF-6 / ADR 0035 retargeted the governance
+  changes every Brief for every user. (ADR 0035 retargeted the governance
   question here after parking the playbook layer.)
 - A bot-gated model was considered and is structurally impossible for outside PRs: the
-  eval harness (BRIEF-59) costs live API spend and needs the maintainer's key, which
+  eval harness costs live API spend and needs the maintainer's key, which
   fork PRs never receive. The harness is the maintainer's instrument, not an
   autonomous gate.
 - Evidence bars already exist in the docs and stay as the published yardsticks:
@@ -46,7 +48,7 @@ the `labeling-schema.md` status column are the record.
 
 Token changes are generation-surface changes by definition: they are merged only after
 a **maintainer-run** eval harness pass, with the report in the PR body (existing
-BRIEF-59 convention gate). Contributors are told explicitly that this step is
+eval-harness convention gate). Contributors are told explicitly that this step is
 maintainer-side — acceptance waits on it, and they cannot run it themselves.
 
 ### 4. Disputes

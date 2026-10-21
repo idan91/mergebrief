@@ -1,4 +1,6 @@
-# Category-Scoped Checks Only, No General Bug Hunt
+# 0003: Category-Scoped Checks Only, No General Bug Hunt
+
+Status: superseded in part by 0035
 
 The tool does not run a general line-level AI bug-finder. The only "missed points" surfaced are structural gaps tied to the brief's categories and risk surface — playbook items not visited, risk-surface flags not addressed, category integrity regressions (e.g., a `pure-move` chunk gaining edits since last commit). Orchestrating competitor bug-finders (CodeRabbit, Greptile) is reserved as a v1.5 add-on.
 

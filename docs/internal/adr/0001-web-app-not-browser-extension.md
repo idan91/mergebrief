@@ -1,4 +1,6 @@
-# Web App + GitHub App Bridge, Not a Browser Extension
+# 0001: Web App + GitHub App Bridge, Not a Browser Extension
+
+Status: accepted
 
 The reviewer-side product is a standalone web app authenticated via GitHub OAuth, paired with a GitHub App that posts a deep-link button on each PR. We considered a browser extension that overlays github.com (intuitively the "UI layer on top" of GH) and explicitly rejected it.
 

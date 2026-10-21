@@ -1,7 +1,6 @@
-# BRIEF-43 author-state affordances — explicit walkthrough
+# Author-state affordances — explicit walkthrough
 
-One continuous end-to-end pass over the merged BRIEF-43 stack (#101 → #102 →
-#103 → #104 → #106), exercising the own-draft self-review surface: the
+One continuous end-to-end pass over the merged author-state stack, exercising the own-draft self-review surface: the
 state-derived affordances (ADR 0031), the mark-ready handoff, the soft gate,
 and per-comment post-now. Run it top to bottom; each step names the exact
 URL/action, what you must see, and where to look when it doesn't.
@@ -40,7 +39,7 @@ git checkout -b brief-43-manual
 echo "// scratch" >> some-file.ts
 git commit -am "wip: brief-43 manual test"
 git push -u origin brief-43-manual
-gh pr create --draft --title "BRIEF-43 manual test" --fill
+gh pr create --draft --title "author-state manual test" --fill
 ```
 
 - [ ] Webhook 200 → one debounced generate job → Brief renders (pending →
@@ -51,10 +50,10 @@ gh pr create --draft --title "BRIEF-43 manual test" --fill
         -c "select pr_number, draft, author_login from pull_request order by created_at desc limit 3;"
       ```
       `draft = t`, `author_login = <AUTHOR login>`. (These are populated by the
-      webhook — PR #101. If `author_login` is null the payload had `user: null`;
+      webhook. If `author_login` is null the payload had `user: null`;
       only real deleted-author events do that.)
 
-## 2. Own-draft state renders (PR #103)
+## 2. Own-draft state renders
 
 Open the Brief as `AUTHOR` (deep-link or via the picker).
 
@@ -76,7 +75,7 @@ Open the Brief as `AUTHOR` (deep-link or via the picker).
       stat renders as a plain count ("flags 5"), not "0/5".
 - [ ] **Terminal slot holds "Mark ready for review"** where Submit used to be.
 
-## 3. Non-author sees the plain reviewer view (PR #101/#103)
+## 3. Non-author sees the plain reviewer view
 
 In the `OTHER` browser, open the **same** PR's Brief.
 
@@ -91,7 +90,7 @@ In the `OTHER` browser, open the **same** PR's Brief.
       The response carries the PR author's login as `authorLogin`, never the
       viewer's: authorship reaches the FE only as `viewerIsAuthor`.
 
-## 4. Soft gate (PR #104)
+## 4. Soft gate
 
 Back as `AUTHOR`. The gate only fronts the CTA when the **current head's**
 Brief carries risk flags.
@@ -114,7 +113,7 @@ Brief carries risk flags.
       closes on `Escape` (first `Escape` spends the chip tooltip's claim if it
       was open, second closes the modal).
 
-## 5. Mark-ready round-trip (PR #102)
+## 5. Mark-ready round-trip
 
 With the modal open (or directly if zero flags), click through to mark ready.
 
@@ -139,7 +138,7 @@ With the modal open (or directly if zero flags), click through to mark ready.
       webhook races the in-request flip, the surface converges to reviewer view
       cleanly (no error toast, no stuck spinner).
 
-## 6. Per-comment post-now (PR #106)
+## 6. Per-comment post-now
 
 Back in own-draft state (convert to draft again if you marked ready). Draft an
 inline comment on a chunk as `AUTHOR`.
@@ -152,7 +151,7 @@ inline comment on a chunk as `AUTHOR`.
       pinned to the current head. On GitHub it renders as a review comment
       authored by you.
 - [ ] Back in the Brief, the draft **flips to a posted thread** with the
-      **"yours"** tag (identity-derived, BRIEF-25 path). The draft is cleared;
+      **"yours"** tag (identity-derived, the live-conversation path). The draft is cleared;
       the soft gate's "unposted draft comments" count drops by one.
 - [ ] **Post is blocked** (with a visible reason, no silent no-op) while: the
       inline editor holds unsaved text ("save your edit first"); a post is
@@ -182,6 +181,6 @@ mark-ready:
 
 Every affordance appears and disappears strictly with the visible state
 (`draft && you-are-the-author && current-head`), the reviewer flow is
-byte-identical to pre-BRIEF-43, no "mode" wording exists anywhere, and no
+byte-identical to before this stack, no "mode" wording exists anywhere, and no
 post-now path can double-post a comment or re-ship an already-posted one on
 Submit. Any defect becomes its own fix-forward PR (`main` convention).

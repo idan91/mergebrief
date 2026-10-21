@@ -1,4 +1,6 @@
-# Self-Hosted Runtime: One Long-Lived Worker + Postgres as the Single Stateful Dependency
+# 0015: Self-Hosted Runtime: One Long-Lived Worker + Postgres as the Single Stateful Dependency
+
+Status: amended (see Amendments)
 
 The product backend runs as a **long-lived worker process** (not serverless functions) beside a serverless-compatible web/API tier, with **one Postgres** as the *only* stateful dependency — relational store, job queue (`graphile-worker`), and single-flight lock in one. No external broker (SQS / Redis / RabbitMQ / Kafka), no swappable datastore. This closes epic-plan gating decisions #1 (datastore) and #2 (runtime) together, under the OSS-self-host-first distribution model (`docs/internal/system-overview.md` §1).
 

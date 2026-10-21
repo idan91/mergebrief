@@ -72,7 +72,7 @@ set, no `setup-token` flow, and — notably — **no credential stripping at all
 zero references to `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` /
 `CLAUDE_CODE_OAUTH_TOKEN` anywhere in `apps/server/src` (verified by grep at the
 pinned commit). A stray `ANTHROPIC_API_KEY` in the server's environment would
-silently rebill their users to the API — the exact hole BRIEF-140 closed for us.
+silently rebill their users to the API — the exact hole our env credential strip closed for us.
 Their README's setup instruction is `claude auth login` (README.md, Installation).
 
 Instead of enforcing the billing route, they **display** it: a capability probe
@@ -261,7 +261,7 @@ than we are:
 
 - Same auth substrate: inherited keychain OAuth login (`claude auth login`,
   README.md), no token injection, no `setup-token`.
-- **No env credential strip** — the BRIEF-140 hole is open in their codebase; a
+- **No env credential strip** — the hole our strip closed is open in their codebase; a
   stray `ANTHROPIC_API_KEY` reroutes their billing silently.
 - Their one-shots add `--dangerously-skip-permissions` and leave tools on —
   irrelevant to billing, worse for safety.
@@ -284,7 +284,7 @@ possible answer to the residual `apiKeyHelper` hole (`run.ts:390-392`).
 | # | Difference | Verdict |
 | --- | --- | --- |
 | 1 | Persistent SDK session / stream-json input | Ignore for the adapter (conflicts with one-shot + kill-ladder + abort invariants); investigate `--resume` only for the feedback retry's cache reuse |
-| 2 | No credential strip; UI-surfaced billing route | Keep BRIEF-140 strip; investigate init-time account read for positive billing-route verification; adopt `CLAUDE_CONFIG_DIR` doc note |
+| 2 | No credential strip; UI-surfaced billing route | Keep our env credential strip; investigate init-time account read for positive billing-route verification; adopt `CLAUDE_CONFIG_DIR` doc note |
 | 3 | `--effort` on `claude -p` | **Adopt after one smoke verification** — restores the effort lever our adapter documents as impossible |
 | 3 | Tools-on + `--dangerously-skip-permissions` one-shots | Ignore (regression for pure generation) |
 | 4 | Single-attempt schema handling | Ignore (our floor is the product guarantee) |

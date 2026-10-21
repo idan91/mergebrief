@@ -1,7 +1,7 @@
-# BRIEF-19 post-merge smoke — explicit walkthrough
+# Reviewer FE post-merge smoke — explicit walkthrough
 
 One continuous end-to-end pass over merged `main`, exercising everything the
-BRIEF-19 stack (#31–#41) shipped. Run it top to bottom; each step names the
+reviewer FE stack shipped. Run it top to bottom; each step names the
 exact URL/command, what you must see, and where to look when it doesn't.
 
 Estimated time: ~30–40 min including two generation waits.
@@ -23,7 +23,7 @@ than the logic.
 on, and an ngrok tunnel — none of it reproducible hermetically.`
 
 - Dev GitHub App registered (`docs/self-host/github-app.md`), with OAuth
-  client id/secret — the same App you used for the BRIEF-2/3 loops.
+  client id/secret — the same App you used for the webhook and worker loops.
 - A **test repository** where that App is installed, with an open PR you can
   push commits to (call it `TESTREPO`, PR `#N`).
 - Repo-root `.env` filled per `docs/self-host/compose.md` — including
@@ -107,7 +107,7 @@ installed for your user?).
 
 ## 4. Picker list
 
-`manual-until: BRIEF-118` (E2E v2 seeded-session slice).
+`manual-until: the E2E v2 seeded-session slice`.
 
 On `/` while signed in, **expect per row**: PR title (new rows only —
 pre-migration rows say `PR #N` until their next webhook refreshes the title),
@@ -152,14 +152,14 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 
 ## 6. Deep link + SSR
 
-`manual-until: BRIEF-118`. The seeded E2E suite covers first paint and
+`manual-until: the E2E v2 seeded-session slice`. The seeded E2E suite covers first paint and
 View/Compare params that are unrecognized or unavailable on the DB-backed
 `/repos/<repoId>/pulls/<N>` route; the auth redirect arm stays manual.
 
-1. Entry comment posting ships in BRIEF-22 (PR #43): after a settled push,
+1. Entry comment posting ships with the entry-comment change: after a settled push,
    **expect exactly one** branded App comment at the bottom of the PR thread,
    deep-linking the exact span — use it as the deep link for this step. (For
-   a brief generated before #43, build the link by hand: copy the pinned
+   a brief generated before that change, build the link by hand: copy the pinned
    brief URL.) Open it in a **fresh private window** (no session): **expect**
    an immediate redirect to GitHub login (`/api/auth/github`), and after auth,
    the brief.
@@ -175,23 +175,23 @@ View/Compare params that are unrecognized or unavailable on the DB-backed
 
 ## 7. Second revision → previous-brief comparison
 
-`manual-until: BRIEF-118` (E2E v2 compare-bar slice).
+`manual-until: the E2E v2 compare-bar slice`.
 
 1. Push another commit to the same PR; wait for the new brief (step 5 repeats).
-   With BRIEF-22 merged, also **expect** the Entry comment REPLACED (old one
+   With entry-comment posting merged, also **expect** the Entry comment REPLACED (old one
    deleted, new one at the bottom of the thread, linking the new head) —
    never two comments.
 2. On the new brief, **expect** the compare bar under the banner area:
    `Full Brief / Changes Only` + `Your last review / Previous Brief`.
    - `Previous Brief` **enabled** (the old head's marks exist),
    - `Your last review` disabled with tooltip "No submitted review checkpoint
-     yet" (BRIEF-21).
+     yet".
 3. Click **Previous Brief**: URL gains `&compare=previous-brief`; highlights
    paint on changed chunks. Network tab shows
    `GET /api/repos/.../marks?baseline=<oldHead>&head=<newHead>` → 200 and,
    if the narrative generated, `GET .../narrative?...` → 200.
    **A "malformed" error state here would implicate the D13 parse synthesis
-   (#41) — grab the response body.**
+   — grab the response body.**
 4. While the second brief generates, keep the FIRST brief's pinned URL open:
    **expect** the head-advance banner ("This pull request has new commits…")
    with a button that navigates to the new span — the page must never swap

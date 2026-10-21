@@ -1,11 +1,14 @@
-# 0041 — packages/api layering: handler, controller, thrown-error family
+# 0041: apps/api layering: handler, controller, thrown-error family
 
-Status: accepted (2026-08-23), amended 2026-10-11: the handler and
+Status: amended (see Amendments)
+Date: 2026-08-23
+
+Amended 2026-10-11: the handler and
 controller pair is optional and the operation module is the unit (see
-Amendment). Decided on BRIEF-202 (wayfinder map: six decision tickets +
-closing act). Build plan: `docs/plans/brief-202-api-layering.md`.
+Amendment). Decided on a wayfinder map (six decision tickets +
+closing act).
 
-Every Product Operation in `packages/api` (35 ops: 15 queries / 20 actions)
+Every Product Operation in `apps/api` (35 ops: 15 queries / 20 actions)
 adopts one layering convention: a Hono-free **controller** returning
 `Result<T, XxxFailure>`, an HTTP **handler** that parses input, judges
 security posture, and throws `ApiError` subclasses, and **persistence's
@@ -41,8 +44,8 @@ third style — evolved past its response-smuggling.
 
 ### Error classes
 
-Abstract base `ApiError(code~~, params?~~)` **(amended 2026-10-12,
-BRIEF-333: no code carries params; the error body is `{ error, code }`)**
+Abstract base `ApiError(code~~, params?~~)` **(amended 2026-10-12:
+no code carries params; the error body is `{ error, code }`)**
 plus exactly one subclass per HTTP status in `API_ERROR_STATUS` (`ApiErrorStatusByCode`): `BadRequest` 400, `Unauthorized` 401,
 `Forbidden` 403, `NotFound` 404, `Conflict` 409, `PayloadTooLarge` 413,
 `InternalError` 500, `BadGateway` 502, `ServiceUnavailable` 503. No
@@ -150,7 +153,7 @@ single number, lines-only.
   into `Result<string>`); a future streaming surface must buffer or own its
   error rendering — `onError` cannot rescue a half-written stream.
 - Webhook internals (beyond the mechanical throw conversion), worker-side
-  persistence access, `ApiError` adoption outside `packages/api`, rate
+  persistence access, `ApiError` adoption outside `apps/api`, rate
   limiting.
 
 ## Consequences
@@ -175,11 +178,11 @@ default-export carve-out this record granted is withdrawn; the root rule
 to `apps/api` without exception. The 14 files still default-exporting keep
 a scoped lint override until their migration ticket lands.
 
-## Amendment (2026-10-11, BRIEF-327 D11; BRIEF-330)
+## Amendment (2026-10-11)
 
-Amended, not reversed (BRIEF-327 decision 11, 2026-10-04). The handler and
+Amended, not reversed (decided 2026-10-04). The handler and
 controller pair becomes optional; the operation module is the unit. The
-shape below is the target BRIEF-330's grill settled on 2026-10-10. Domains
+shape below is the target a grill settled on 2026-10-10. Domains
 convert one at a time, so the old shape and this one coexist until the last
 domain lands.
 

@@ -1,4 +1,6 @@
-# AI-Authorship Risk Attributes — Model-Observed, Positioning-Only
+# 0026: AI-Authorship Risk Attributes — Model-Observed, Positioning-Only
+
+Status: amended (see Amendments)
 
 > **Amended 2026-07-04 — positioning clause withdrawn.** Writing the README copy showed the
 > AI-failure-mode framing doesn't survive scrutiny: every failure mode the trio targets
@@ -32,7 +34,7 @@ decisions:
 - **Only 2 of 5 proposed attributes were actually deterministic**, and one of those
   (`unresolved-import`) needs repo-tree access the pipeline doesn't have — inputs are PR diff
   + metadata + linked context via `gh`, no checkout ("a brief must still be producible from
-  the diff alone", `github.ts`).
+  the diff alone", now in `packages/brief-core/src/context/fan-out.ts`).
 - **`unresolved-import` is redundant where it matters.** In typed repos with CI — exactly the
   repos of the self-hosting audience — `tsc` / `import/no-unresolved` fails the build before
   a human reviews. Re-flagging it re-implements the compiler and violates the

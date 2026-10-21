@@ -1,4 +1,6 @@
-# Single Brief View — Author Surface as State-Derived Affordances
+# 0031: Single Brief View — Author Surface as State-Derived Affordances
+
+Status: amended (see Amendments)
 
 The author/reviewer **view toggle is killed**. There is one Brief view for
 every viewer. The author-side experience (ADR 0009) is realized as
@@ -18,7 +20,7 @@ the radio silently disabled the live GitHub submit (`liveSubmit` required
 reviewer mode) and replaced it with a mock toast. Zero author-specific
 content existed — no intent check, no real ready-for-review action. Demo
 scaffolding had leaked into a live product path and was gating real
-behavior on a self-declared label (BRIEF-30: "doesn't make any sense").
+behavior on a self-declared label (the grill's verdict: "doesn't make any sense").
 
 This is the standing invisible-mode-gates rule applied at design level:
 behavior must follow visible state, not a self-selected mode. A viewer
@@ -27,18 +29,18 @@ button; a real reviewer could flip it and lose the real submit.
 
 Meanwhile the entire stack below the web FE is deliberately role-neutral —
 the API has no role concept, the CLI resolved role-neutral (ADRs
-0028/0029), ADR 0009 is same-artifact — and BRIEF-25 had already
+0028/0029), ADR 0009 is same-artifact — and the conversation display (ADR 0027) had already
 established the working pattern for viewer-specific behavior:
 **identity-derived affordances** (own-comment reconciliation, the "yours"
 tag) inside the single view, keyed on who the viewer verifiably is, not on
 a mode.
 
-## Decision tree walked (BRIEF-30 grill, 2026-07-13)
+## Decision tree walked (grill, 2026-07-13)
 
 1. **The author-exclusive job is pre-ready self-review + the handoff.**
    Reading the own Brief during the draft window, confronting risk flags,
    then marking the PR ready for review. Responding-to-review stays
-   identity-driven affordances in the shared view (BRIEF-25 pattern; full
+   identity-driven affordances in the shared view (the ADR 0027 pattern; full
    post-review flow deferred to v2 per ADR 0009). Intent narration stays
    dead (ADR 0009 — intent is machine-assessed from ticket/description,
    never authored).
@@ -115,7 +117,7 @@ a mode.
 
 ## Why This Way
 
-The BRIEF-25 precedent proved the pattern: viewer-specific behavior keyed
+The ADR 0027 precedent proved the pattern: viewer-specific behavior keyed
 on verifiable identity/state works, ships incrementally, and never
 confuses — while the one shipped mode toggle produced a fake button and a
 silently-killed real one. Deriving author-ness keeps the role-neutral

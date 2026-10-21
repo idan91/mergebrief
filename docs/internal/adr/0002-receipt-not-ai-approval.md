@@ -1,4 +1,6 @@
-# Tool Issues a Receipt, Not an AI Approval
+# 0002: Tool Issues a Receipt, Not an AI Approval
+
+Status: amended (see Amendments)
 
 The final review submitted to GitHub carries the reviewer's human approval plus a scoped tool-verification receipt — never an "AI approval" or "double approval" stamp. The receipt reports what the tool mechanically verified, what it did not check, and the disposition of every flag (addressed vs dismissed-with-reason).
 

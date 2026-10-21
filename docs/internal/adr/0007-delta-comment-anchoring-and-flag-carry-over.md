@@ -1,4 +1,6 @@
-# Delta Brief: Comment Anchoring and Flag Carry-Over
+# 0007: Delta Brief: Comment Anchoring and Flag Carry-Over
+
+Status: superseded in part by 0040
 
 In a Delta Brief, prior review work is re-placed against the new head **by ownership**: GitHub-native shipped **Comments** reuse GitHub's own position/outdated tracking; our **Flags**, dispositions, and unshipped drafts are anchored by us via the span's **positional line-map**, with the delta's LLM pass used only to *locate* moved items — never to override a positional result. Each prior flag is classified **New / Reopened / Settled / Dropped**, where Reopened is decided purely positionally (any change to the flagged region reopens) and every ambiguity biases to re-look.
 

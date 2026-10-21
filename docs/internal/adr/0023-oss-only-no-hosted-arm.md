@@ -1,4 +1,6 @@
-# OSS-Only — No Hosted or Commercial Arm
+# 0023: OSS-Only — No Hosted or Commercial Arm
+
+Status: superseded in part by 0035, 0044
 
 > **Amended by [ADR 0044](0044-fair-source-license.md) (2026-10-03):** the license is fair
 > source (FSL-1.1-Apache-2.0), source-available rather than OSI open source. The no-hosted-arm

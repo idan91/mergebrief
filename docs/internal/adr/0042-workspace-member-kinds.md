@@ -1,6 +1,9 @@
-# 0042 — Workspace member kinds: apps, packages, tools
+# 0042: Workspace member kinds: apps, packages, tools
 
-Status: accepted (2026-09-06). Decided on BRIEF-256 (wayfinder map: Standards
+Status: amended (see Amendments)
+Date: 2026-09-06
+
+Decided on a wayfinder map (Standards
 and lint baseline, apps ticket).
 
 The workspace sorts every member by one test. `apps/` holds members that run
@@ -65,7 +68,7 @@ history from here on.
 
 ## Update, 2026-10-05
 
-BRIEF-337 narrows the Tool definition to what holds. A tool is never deployed
+This update narrows the Tool definition to what holds. A tool is never deployed
 and never imported by app or package source; it runs by hand or by CI and lint
 (`tools/release` runs in the release workflow, the house plugin in `pnpm
 lint`). `no-source-imports-a-tool` holds the import ban at error. Its scope is

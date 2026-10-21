@@ -1,4 +1,4 @@
-# i18n mechanism research (BRIEF-175)
+# i18n mechanism research
 
 Primary-source survey of how comparable OSS TS/React apps ship i18n, and a
 candidate comparison for this repo's constraints: a shared catalog package

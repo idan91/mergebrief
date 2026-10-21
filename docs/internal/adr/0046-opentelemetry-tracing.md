@@ -1,6 +1,9 @@
 # 0046: OpenTelemetry tracing, off by default
 
-Status: accepted (2026-10-18). Supersedes ADR 0034 #6 in part (the job
+Status: amended (see Amendments)
+Date: 2026-10-18
+
+Supersedes ADR 0034 #6 in part (the job
 payload now carries one optional correlation field) and #8 in part (OTel
 tracing is no longer out of scope; Prometheus, in-app log transports and
 telemetry back to us still are).
@@ -16,7 +19,7 @@ span, never the domain's **Span diff** or **Sibling span**.
 - ADR 0034 made correlated logs the v1 trace and parked OTel as
   "adopter-local, off-by-default, demand-triggered", citing Forgejo's OTel
   work reverted two days after it landed.
-- The owner decided, in the BRIEF-336 grill, that a self-hoster must be
+- The owner decided, in the operability grill, that a self-hoster must be
   able to plug in an existing backend, Datadog first, before the first
   Release. Logs already reach any backend through container stdout;
   traces had no path.
@@ -81,7 +84,7 @@ span, never the domain's **Span diff** or **Sibling span**.
    budget so an unreachable collector never holds a stop past
    `stop_grace_period`.
 
-> **Amended 2026-10-18 (BRIEF-336, after the first trace review).** The first
+> **Amended 2026-10-18 (after the first trace review).** The first
 > cut answered "where did time go" but not "which flow is this": a webhook
 > read as `POST` over a run of SQL. Finer spans now name the flow. The api
 > names each request span for its matched route (`http.route`, the resource

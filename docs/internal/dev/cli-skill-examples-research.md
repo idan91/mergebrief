@@ -1,4 +1,4 @@
-# BRIEF-122 research: agent skills that operate CLIs
+# Research: agent skills that operate CLIs
 
 Primary-source research retrieved 2026-08-15. The question is not merely
 whether these skills are popular; it is what their actual `SKILL.md` files teach

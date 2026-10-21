@@ -1,4 +1,6 @@
-# External Context and the AI-Review Boundary
+# 0014: External Context and the AI-Review Boundary
+
+Status: superseded in part by 0033
 
 > **Amended 2026-08-21.** The headless lane in #3 gains an **explicit-authority
 > submit lane**: an agent driving the CLI may publish a review (`submit-review`
@@ -12,7 +14,7 @@
 > **Amended 2026-07-18 ([ADR 0033](0033-contextsource-contract-providers-parked.md)).**
 > The `ContextSource` boundary in #5 now has a **locked contract** (query tiers, cited
 > snippets, fail-open fan-out, provider registry) — but **all providers are parked to
-> v2**: the local/git provider killed by its gating spike, context managers (BRIEF-61)
+> v2**: the local/git provider killed by its gating spike, context managers
 > deferred by scope. #5's escalation-tier sequencing is superseded: when enrichment
 > ships, it runs on **every brief when providers are configured** (one capped fan-out
 > per generation), not per-change-group escalation. Decisions 1–4 stand unchanged.

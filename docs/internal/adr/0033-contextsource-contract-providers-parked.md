@@ -1,12 +1,14 @@
-# ContextSource Contract Locked; All Providers Parked to v2
+# 0033: ContextSource Contract Locked; All Providers Parked to v2
+
+Status: amended (see Amendments)
 
 > **Amended 2026-09-02: unparked.** The first two providers ship — GitHub Issues and Notion — to fetch the Intent check's primary ticket, and today's URL fetch migrates onto the contract as the URL provider. The contract as built differs from the text below in four places: ticket references sit inside the metadata tier, not a tier of their own; citations stay URL-keyed (the `ctx-N` id is carried, not cited), so the validator's set-membership rules hold unchanged; the untrusted tier carries two fences, `<linked_context url>` for URL snippets and `<primary_ticket url key tracker>` for the one primary, instead of a single `<external_context>`, with the breakout strip centralized over both; and an absent `contextSources:` block yields the URL and GitHub Issues providers, not an empty list. Snippets feed the brief call and ride into the delta and narrative prompts as before. Residuals resolved by the build: boundary location (`packages/brief-core/src/context/`), a one-ticket budget, cite-or-drop validation, origin display (the Ticket alignment card).
 
-The `ContextSource` boundary (ADR 0014 #5) got its design pass (BRIEF-13 wayfinder map,
+The `ContextSource` boundary (ADR 0014 #5) got its design pass (wayfinder map,
 2026-07-17/18): the **provider contract, trust posture, and enrichment scope are locked**
 so that any future provider is an implementation, not a redesign — and **no provider
 ships in v1**. The local/git retrieval provider was killed by its own gating spike
-(no story improvement attributable to retrieval); external context managers (BRIEF-61)
+(no story improvement attributable to retrieval); external context managers
 are deferred to v2 by scope discipline, not evidence — v1 can't ship everything.
 Today's `<linked_context>` fetch and the `.mergebrief/` repo-config surface are
 untouched and remain v1's only generation context beyond the PR itself.
@@ -15,8 +17,8 @@ untouched and remain v1's only generation context beyond the PR itself.
 
 - The 2026-07 reprioritization reframed the boundary story-first: the known comprehension
   gaps are repo-reading gaps (a summary can't see a changed call site's callee outside
-  the diff), not missing risk detectors. BRIEF-13 was bumped to design the boundary with
-  BRIEF-61 inheriting the contract.
+  the diff), not missing risk detectors. The boundary ticket was bumped to design the boundary with
+  external context managers inheriting the contract.
 - Hard constraint carried in: the generator is a **single structured call with no
   tools** (ADR 0032 #12's injection posture rests on it; re-verified against the
   ADR 0030 harness adapters). Retrieval is harness-side and deterministic, never
@@ -37,7 +39,7 @@ untouched and remain v1's only generation context beyond the PR itself.
   **metadata** (title/body/paths/ticket refs) and **content** (changed ranges +
   identifiers); each provider type declares its tier; **external providers get
   metadata-only by default**, content by explicit per-provider instance opt-in
-  (BRIEF-61's data-egress consent = one registration field).
+  (external context managers' data-egress consent = one registration field).
 - **Result shape:** flat `ContextSnippet` list — stable per-generation `id` (`ctx-N`),
   `providerId`, resolvable `source` locator, `text`. Citations are **snippet-id based**
   (mechanically checkable); **no provider relevance scores or rankings** (a score is a
@@ -54,7 +56,7 @@ untouched and remain v1's only generation context beyond the PR itself.
   untrusted tier; the breakout-strip is **centralized** over the union of all known
   fence tags (extends `stripForgedRepoFences`). `fetchLinkedContext` is structurally
   the first ContextSource (ADR 0014 #5); its migration into a provider is
-  designed-not-built, trigger = BRIEF-61 landing.
+  designed-not-built, trigger = external context managers landing.
 
 ### 2. Enrichment scope (locked)
 
@@ -87,7 +89,7 @@ every observed improvement → the pre-agreed kill criterion fired. The **defaul
 posture died with it** (it was explicitly gated on the spike). Spike findings live on
 the wayfinder ticket ("Retrieval heuristics — local/git provider").
 
-### 4. External context managers (BRIEF-61): v2 by scope
+### 4. External context managers: v2 by scope
 
 No adverse evidence — the value case (tickets/docs carry intent the diff can't show) is
 the *stronger* one and `<linked_context>` already validates the lane. Deferred because
@@ -96,14 +98,14 @@ v1 doesn't ship everything: the contract above is its insurance policy.
 ### 5. Undesigned residuals (v2 revival work, deliberately not pre-designed)
 
 Boundary location/package; budget model + caps; cite-or-stay-silent validator mechanics +
-origin display; eval-hook spec (BRIEF-59 fixtures for context value); parked
+origin display; eval-hook spec (eval-harness fixtures for context value); parked
 attributes' promotion (`unresolved-reference`, `diverges-from-sibling-pattern` — stay
 parked per ADR 0026, names stay reserved in `PARKED_ATTRIBUTE_CANDIDATES`).
 
 ## Why This Way
 
 The contract is cheap to lock and expensive to retrofit — it is exactly the part
-BRIEF-61 would otherwise re-litigate. The provider builds are the opposite: expensive
+external context managers would otherwise re-litigate. The provider builds are the opposite: expensive
 to build, cheap to defer, and the spike showed the flagship v1 provider had no
 demonstrated value on well-documented repos. Killing it on its own pre-agreed criterion
 (rather than softening to "maybe later, on by default") keeps the budget where v1's
@@ -115,9 +117,9 @@ story actually improves.
   #5's escalation-tier gate is superseded by every-brief-when-configured.
 - **ADR 0026** unchanged: the parked pair stays parked; collision vocabulary keeps
   reserving their names.
-- **Roadmap:** `oss-roadmap.md` gains the v1/v2 split (2026-07-18); BRIEF-13 moves
-  Next → Backlog (v2), BRIEF-61 stays Backlog (v2). Wayfinder map closed.
+- **Roadmap:** `oss-roadmap.md` gains the v1/v2 split (2026-07-18); the boundary ticket moves
+  Next → Backlog (v2), external context managers stay Backlog (v2). Wayfinder map closed.
 - **Revisit triggers:** local/git provider — briefs visibly starving on repos with
   thin PR hygiene (this repo was a worst-case test bed: rich descriptions, documented
-  code); BRIEF-61 — post-launch demand (unchanged); structure enrichment — ≥2 real
+  code); external context managers — post-launch demand (unchanged); structure enrichment — ≥2 real
   repos with grouping wrong *because* of missing external context.

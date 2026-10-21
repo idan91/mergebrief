@@ -1,6 +1,9 @@
 # 0043: No credential holds a current installation
 
-Status: accepted (2026-09-19). Decided on BRIEF-210 (wayfinder map: Home and
+Status: accepted
+Date: 2026-09-19
+
+Decided on a wayfinder map (Home and
 the Inbox, access-model answer page).
 
 Every request finds its Installation from the repository it names, among the

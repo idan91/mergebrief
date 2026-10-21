@@ -1,4 +1,6 @@
-# CLI Output Contract — Passthrough, Additive-Only, Exit-Code Invariant
+# 0029: CLI Output Contract — Passthrough, Additive-Only, Exit-Code Invariant
+
+Status: amended (see Amendments)
 
 > **Amended 2026-10-05: rate limiting.** Exit code **7 = RATE_LIMITED** is
 > appended to the table for a 429, which exit 5 would have told a
@@ -49,7 +51,7 @@ what is promised, and how the contract evolves without breaking consumers
    `catalogFingerprint`~~) merged with what only the binary knows —
    `cliVersion`, its committed command map~~, its baked fingerprint~~. Server
    fields pass through verbatim inside it; the join is additive-only like
-   every synthesized shape. **(amended 2026-10-12, BRIEF-333)** The catalog
+   every synthesized shape. **(amended 2026-10-12)** The catalog
    fingerprint is gone on both sides: `capabilities` joins the server's
    operations with `cliVersion` and the binary's command map. Any other
    command inventing its own shape is a boundary violation.
@@ -58,10 +60,10 @@ what is promised, and how the contract evolves without breaking consumers
    release; consumers tolerant-read. Holds explicitly even pre-1.0. The
    accepted consequence: API response shapes become a public contract — a
    discipline that is de facto required once any external client exists.
-   **Amended (2026-10-12, BRIEF-333):** the promise starts at the first
+   **Amended (2026-10-12):** the promise starts at the first
    public release, not before it. While nothing has shipped there is no
    external client to protect, so pre-release removals and renames are
-   allowed; each one is listed in `docs/api-changelog.md`. BRIEF-333 used
+   allowed; each one is listed in `docs/api-changelog.md`. The HTTP-contract work used
    this window to drop `{ok:true}` bodies, echo bodies and the catalog
    fingerprint before rc.1. A 204 success prints nothing (exit 0 stays the
    signal).
@@ -99,7 +101,7 @@ what is promised, and how the contract evolves without breaking consumers
    **fail-closed compatibility check** — required operations either all pass
    or the command exits 6 before anything runs — never a negotiation~~, and a
    catalog-fingerprint mismatch alone is one stderr warning line, never a
-   gate~~. **(amended 2026-10-12, BRIEF-333)** The catalog fingerprint and its
+   gate~~. **(amended 2026-10-12)** The catalog fingerprint and its
    mismatch warning are gone; the server version is the skew signal.
 
 ## Considered Options

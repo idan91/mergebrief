@@ -1,4 +1,6 @@
-# Harness-CLI Generator Adapters (Local-Only)
+# 0030: Harness-CLI Generator Adapters (Local-Only)
+
+Status: amended (see Amendments)
 
 Agent-harness CLIs become first-class `Generator` providers behind the port
 from ADR 0013: **`claude -p`** and **`codex exec`** in v1 ~~(cursor-agent and
@@ -9,7 +11,7 @@ CLI in, never in a deployed worker — and the structured-output floor (ADR
 0013 #3) is enforced by the adapter's own validate→salvage→retry pipeline on
 every CLI, with native schema flags as a bonus layer, never a replacement.
 
-**Amended (2026-10-06, BRIEF-332):** `cursor-agent` shipped as the third harness adapter; opencode stays deferred. All three CLI adapters, and their startup checks, spawn in a fresh empty temp directory removed after the run, so no CLI ever reads the worker's or CLI's own checkout as its workspace. Generation runs also skip the operator's user-level CLI config: claude runs `--setting-sources "" --strict-mcp-config --disable-slash-commands`, codex `--ignore-user-config --ignore-rules -c features.hooks=false`. A live smoke run showed a user-level hook rewriting generated output and a session logger copying the run to a notes vault; cursor-agent has no such switch.
+**Amended (2026-10-06):** `cursor-agent` shipped as the third harness adapter; opencode stays deferred. All three CLI adapters, and their startup checks, spawn in a fresh empty temp directory removed after the run, so no CLI ever reads the worker's or CLI's own checkout as its workspace. Generation runs also skip the operator's user-level CLI config: claude runs `--setting-sources "" --strict-mcp-config --disable-slash-commands`, codex `--ignore-user-config --ignore-rules -c features.hooks=false`. A live smoke run showed a user-level hook rewriting generated output and a session logger copying the run to a notes vault; cursor-agent has no such switch.
 
 ## Context
 

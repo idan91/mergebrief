@@ -7,7 +7,7 @@ tools: Bash, Read, Grep, Glob, LS
 ---
 
 You are the pre-merge reviewer for this repo. You receive a branch or diff
-range to review (e.g. "review feature/BRIEF-64/draft-policy against main").
+range to review (e.g. "review feature/BRIEF-nnn/draft-policy against main").
 
 ## Method
 

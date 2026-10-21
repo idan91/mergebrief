@@ -1,6 +1,8 @@
-# Author-Side Self-Review (v1, Secondary Surface)
+# 0009: Author-Side Self-Review (v1, Secondary Surface)
 
-> **Amended 2026-07-13 (BRIEF-30 grill → [ADR 0031](0031-single-brief-view-author-affordances.md)):**
+Status: superseded in part by 0020
+
+> **Amended 2026-07-13 ([ADR 0031](0031-single-brief-view-author-affordances.md)):**
 > the FE realization is pinned down — there is **no separate author view or
 > mode**; the author surface is state-derived affordances (`viewer == PR
 > author && PR draft`, visibly labeled) inside the single Brief view, with
@@ -9,7 +11,7 @@
 > the viewer's token. The shipped author/reviewer toggle is killed. This
 > ADR's analysis and decisions otherwise stand.
 
-> **Amended 2026-07-24 (BRIEF-54 grill):** #2's intent-source **fallback chain**
+> **Amended 2026-07-24:** #2's intent-source **fallback chain**
 > (linked ticket → PR description → none) is superseded by **composite intent
 > sources**: PR title + description + all ticket-like linked blocks are judged
 > *together*; the model resolves sources in-prompt and cites per-claim
@@ -21,10 +23,9 @@
 > **intent bar**: an always-visible neutral-counts header row stacked with the
 > attribute jump-rail, body collapsed by default and never auto-expanded, with
 > fallible framing; the soft gate (#3) carries a count-only secondary line
-> (precise source + gaps only), never opening the gate by itself. See
-> `docs/plans/brief-54-intent-check.md`.
+> (precise source + gaps only), never opening the gate by itself.
 
-> **Amended 2026-07-25 (BRIEF-85 grill — second amendment to #2):** the
+> **Amended 2026-07-25 (second amendment to #2):** the
 > *precise* bucket grammar grows from three to **five factual buckets**; the
 > two additions are alarm-class:
 >
@@ -58,13 +59,12 @@
 > is structural only — groupIds resolve to group cards where
 > `widens-error-handling` / `removes-validation` already render; no new risk
 > category in v1. Revisit triggers: flagrant-under-broad misses (eval
-> evidence) and a test-deletion risk attribute (labeling hits the gap). See
-> `docs/plans/brief-85-intent-deviations.md`.
+> evidence) and a test-deletion risk attribute (labeling hits the gap).
 >
 > **Wire-shape constraint (measured 2026-07-25).** Five bucket arrays cannot
 > be *generated*: Anthropic's structured-output grammar inlines the shared
 > item shape at every `$ref` site, so cost is (arrays × fields per item) —
-> not the count of distinct object shapes BRIEF-54's note assumed. Four
+> not the count of distinct object shapes the first amendment assumed. Four
 > arrays × four fields compiles; five arrays, or four plus a fifth field,
 > both `400 "The compiled grammar is too large"`, and neither a newer model
 > nor disabling thinking moves the limit. Generation therefore emits **one

@@ -1,4 +1,6 @@
-# Reading Order on Change-Groups
+# 0025: Reading Order on Change-Groups
+
+Status: accepted
 
 Every **Brief** may carry a **Reading order**: a strict permutation of its **Change-groups** — each group exactly once, no revisits — with a one-line *why-this-next* rationale per step. The rule is **foundation-first** (groups other groups build on come first: schema/types → core logic → call sites/wiring), falling back to **context-first, churn-last** for independent groups, keyed on Category (mechanically low-signal Categories like `pure-move`, `lib-bump`, `dependency-update` sink to the end). The order is emitted by the model **in the same generation call as the Brief**, as an optional `readingOrder` field, mechanically validated as a permutation of the emitted group IDs; invalid or absent degrades to the current structural order. The **Read-through** is the FE experience of following it.
 

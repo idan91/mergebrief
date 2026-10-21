@@ -1,8 +1,6 @@
----
-status: accepted
----
+# 0018: M1 Postgres Schema
 
-# M1 Postgres Schema
+Status: superseded in part by 0040, 0043
 
 ADR 0008's logical persistence model realized as the physical M1 schema on vanilla Postgres + Drizzle (ADR 0015), with GitHub-native numeric identity, mandatory `(installation_id, repo_id)` tenant scoping on every row (ADR 0016), and large artifacts as content-addressed `TEXT`. This ADR records the physical schema decisions; it is filled in incrementally as the schema grill resolves each entity.
 
@@ -13,20 +11,20 @@ Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping
 > (`revision_narrative`) and **D13** (`comparison_marks`) added for the artifacts ADR 0024
 > introduced after this schema was grilled.
 >
-> **Amended 2026-07-05** (BRIEF-2 pre-build grill): D5 gains `entry_comment_id`; D10's
+> **Amended 2026-07-05**: D5 gains `entry_comment_id`; D10's
 > per-kind job keys superseded by one `generate:{pr}` job (bundle model) + a `superseded`
 > generation status; D11 gains `gh_refresh_token_ciphertext` (expiring user tokens + rotating
-> refresh via `@octokit/oauth-app`). All three land as BRIEF-2 migrations.
+> refresh via `@octokit/oauth-app`). All three land as migrations.
 >
-> **Amended 2026-07-06** (BRIEF-19 grill): **D14** (`user_settings`) added — the first
+> **Amended 2026-07-06**: **D14** (`user_settings`) added — the first
 > deliberately NON-tenant-scoped row kind besides `audit_log`, keyed by GitHub user id, so a
-> reviewer's default installation survives across sessions. Lands as a BRIEF-19 migration.
+> reviewer's default installation survives across sessions. Lands as a migration.
 >
-> **Amended 2026-07-23** (BRIEF-40 grill): **D15** (`github_grant`) added — the GitHub
+> **Amended 2026-07-23**: **D15** (`github_grant`) added — the GitHub
 > credential pair moves out of `reviewer_session`/`api_token` into one grant row per
 > authorization, referenced by FK, making the token-refresh divergence unrepresentable
-> (ADR 0016 #4 as amended). The inventory also now records `api_token` (BRIEF-17), which
-> this ADR had missed. Lands as a BRIEF-40 migration.
+> (ADR 0016 #4 as amended). The inventory also now records `api_token`, which
+> this ADR had missed. Lands as a migration.
 
 ## Decisions
 
@@ -81,7 +79,7 @@ Two diffs, two lifetimes — this is how "no raw code in the DB" (ADR 0016 #10) 
 - **DiffSnapshot** keyed `(installation_id, repo_id, pr_number, sha)` where `sha` = a **checkpoint** SHA; TEXT passthrough; written **only at submit**, never per-push, never for head-side diffs. M1 retention is coarse (retain for PR life, sweep on close + grace — ADR 0015 #5); no ref-counting, so the snapshot survives the PR without pinning logic.
 - **No commit-list snapshot.** The delta is a **tree diff, not commit replay** (ADR 0006 #5) — commit SHAs lie on a pure rebase (all-new SHAs, identical tree → a false delta). Force-push *detection* uses the webhook `before`/`after` ancestry (free, per-event); commit count/range for display is ADR 0012's `commitRange`.
 
-  **Amended 2026-10-17 (BRIEF-335).** The baseline snapshot was never built: no code wrote or read `diff_snapshot`, and `PERSIST_BASELINE_SNAPSHOT` gated nothing. Both are removed (migration 0058), so every instance runs the OFF posture above: a checkpoint span GitHub can no longer serve gets no delta, and the view falls back to the full Brief. Nothing code-bearing is stored. Building the snapshot later is a new table and a new decision. The text above stays as history.
+  **Amended 2026-10-17.** The baseline snapshot was never built: no code wrote or read `diff_snapshot`, and `PERSIST_BASELINE_SNAPSHOT` gated nothing. Both are removed (migration 0058), so every instance runs the OFF posture above: a checkpoint span GitHub can no longer serve gets no delta, and the view falls back to the full Brief. Nothing code-bearing is stored. Building the snapshot later is a new table and a new decision. The text above stays as history.
 
 ### D5 — `pull_request` aggregate root
 
@@ -95,7 +93,7 @@ pull_request
   pr_number       int    not null
   repo_slug       text              -- purgeable display (D1), refreshed on webhook
   title           text              -- purgeable display (D1), refreshed on webhook
-                                    --   (2026-07-06, BRIEF-19: the picker list's label;
+                                    --   (2026-07-06: the picker list's label;
                                     --   nullable — pre-column rows backfill on next event)
   state           text not null     -- open | closed | merged
   entry_comment_id bigint           -- branded Entry comment id (2026-07-05; delete+repost per
@@ -112,7 +110,7 @@ pull_request
 - **Deletion boundary (ADR 0015 #6 / 0016 #11):** per-PR children FK `pull_request.id` **`ON DELETE CASCADE`**. Purge by PR = delete one row; by repo / installation = scoped predicate-delete on `pull_request` (cascades) + explicit deletes for the non-PR tables (reviewer sessions; audit retained — numeric-only). The DB guarantees erasure completeness (no forgotten child table). **No `installation→repo→pull_request` hierarchy in M1** — `instance = tenant` means one installation, so the small explicit purge routine is cheaper than a hierarchy we don't use.
 - **Retention:** `purge_after` is **nullable** — null while the PR is open *and* when retention is disabled / set to "never" (the row is never swept). Set to `closed_at + grace` at close per config. Sweep = `WHERE purge_after IS NOT NULL AND purge_after < now()`, backed by a partial index on `purge_after`.
 
-  **Amended 2026-10-17 (BRIEF-335).** Retention is opt-in through `PR_RETENTION_DAYS`; unset keeps every pull request forever. A daily, instance-wide worker job deletes the rows whose `closed_at` is older than the window at run time, so a row closed before retention was enabled is covered too, with no per-row deadline to backfill. `purge_after`, its partial index and its CHECK are retired (migration 0057); a partial index on `closed_at` (`WHERE closed_at IS NOT NULL`) backs the sweep, and the CHECK becomes `state <> 'open' OR closed_at IS NULL`. The text above stays as history.
+  **Amended 2026-10-17.** Retention is opt-in through `PR_RETENTION_DAYS`; unset keeps every pull request forever. A daily, instance-wide worker job deletes the rows whose `closed_at` is older than the window at run time, so a row closed before retention was enabled is covered too, with no per-row deadline to backfill. `purge_after`, its partial index and its CHECK are retired (migration 0057); a partial index on `closed_at` (`WHERE closed_at IS NOT NULL`) backs the sweep, and the CHECK becomes `state <> 'open' OR closed_at IS NULL`. The text above stays as history.
 - ~~`activated_at` gates compute (Activation).~~ **Dropped (2026-07-04, ADR 0020):** the lazy compute-on-first-click gate is retired — Trigger is eager-on-push, the deep-link click is pure Entry, so there is no gating state to store. Re-adding a `first_entered_at` later (e.g. if ADR 0020's `on-first-view` escape hatch is ever exercised) is an additive migration; first-entry *analytics* belong in the purgeable web access log (D9), never here.
 
 ### D6 — Artifact storage: inline `TEXT` + a code-level `ArtifactStore` boundary
@@ -196,16 +194,16 @@ audit_log
 - **No outbound FKs.** Audit must survive the target's deletion (you log a *delete*, then the target is gone); `installation_id` / `target_id` are loose numeric refs. This is what makes it a durable ledger.
 - **Numeric-only (D1) and never purged (D5).** No names, no transport detail — **no route/method/headers/IP** (headers + IP are PII/secrets in an un-erasable table). An immutable trail including "tenant X offboarded" is the SOC2 value.
 
-  **Amended (2026-08-17, BRIEF-197 → [ADR 0040](0040-review-session-server-store.md)).** Three changes and one restated rationale.
+  **Amended (2026-08-17, [ADR 0040](0040-review-session-server-store.md)).** Three changes and one restated rationale.
   1. **Columns.** `action`'s eight-value vocabulary is replaced by **`operation`** (the Product Operation descriptor id), joined by `classification`, `channel`, `credential_id`, `outcome`, `request_id`, `client`, and a **nullable `caller_ip`**. The row no longer carries an HTTP status.
   2. **Coverage.** Every **action** plus **denials**, never a read, emitted from the single `productRouter.action()` choke point rather than hand-placed sites.
   3. **Metadata rule inverts** to **open keys, closed values** (token, number, boolean). No bodies, no free text, no truncation — the value rules were always the protection; the closed key list only made every new emit a code change.
   4. **Retention.** "Never purged" becomes a policy knob: `AUDIT_RETENTION_DAYS` (unset = keep forever = default, 30-day floor when set), swept by the system's first scheduled worker job. So the numeric-only rule no longer rests on un-erasability. It rests on **self-host grounds**: adopters will run the "never" setting, and `docs/self-host/operations.md` tells every adopter to `pg_dump` the volume it says holds this table — so anything stored here lands in every backup copy they keep. `AUDIT_PRIVATE_WRITES` (default on) can drop private writes; external writes and denials are never switchable. `caller_ip` is populated only under an operator PII flag, default off.
 
-  **Amended 2026-10-18 (BRIEF-336).** `caller_ip` and `AUDIT_CALLER_IP` are removed (migration 0062), column and CHECK together. The api is reached only through the web tier's proxy, so the socket address it recorded was the web container's for every caller, never the visitor's. The row holds no address of any kind. The text above stays as history.
+  **Amended 2026-10-18.** `caller_ip` and `AUDIT_CALLER_IP` are removed (migration 0062), column and CHECK together. The api is reached only through the web tier's proxy, so the socket address it recorded was the web container's for every caller, never the visitor's. The row holds no address of any kind. The text above stays as history.
 - **`jsonb` metadata** (vs artifact bodies' `TEXT`, D6): audit detail is small + queried, so a queryable type fits.
 - **Append-only by convention in M1**; DB `REVOKE UPDATE/DELETE` from the app role is the hosted hardening step.
-- **M1 emits = the low-volume boundaries** — `generate` (worker write), `delete` (purge — ADR 0016 #11), `config`, and **auth *denials***. The **high-volume firehoses** (every-request auth-success, every-fetch `view`) are **excluded** — they'd make a never-purged table the largest one and never shrink; they belong in the **purgeable web access log** (route/method/status/latency — since BRIEF-51 the structured stdout `evt: "api.access"` line, renamed from `evt: "read"`; see [ADR 0034](0034-observability-v1-logging-health.md)), which is also the better debugging tool. View sampling + retention revisited in the hosted program.
+- **M1 emits = the low-volume boundaries** — `generate` (worker write), `delete` (purge — ADR 0016 #11), `config`, and **auth *denials***. The **high-volume firehoses** (every-request auth-success, every-fetch `view`) are **excluded** — they'd make a never-purged table the largest one and never shrink; they belong in the **purgeable web access log** (route/method/status/latency — since observability v1 the structured stdout `evt: "api.access"` line, renamed from `evt: "read"`; see [ADR 0034](0034-observability-v1-logging-health.md)), which is also the better debugging tool. View sampling + retention revisited in the hosted program.
 
 ### D10 — graphile-worker boundary + the `generation` status projection
 
@@ -231,11 +229,11 @@ generation
 - Justified because graphile **deletes succeeded jobs** (so "job gone" can't mean "done") and is internal/untenanted. The web tier polls `generation`: `succeeded` → fetch the immutable artifact; `failed` → error + retry; `running`+`phase` → determinate progress (ADR 0006 #10). Mutable process state; the `brief`/`delta` rows stay immutable results.
 - **No new locks, no DLQ.** Single-flight + the global concurrency cap live in graphile (`job_key` + advisory lock + worker `concurrency`); retries + the de-facto dead-letter are graphile's persisted failed jobs (`last_error`). `generation` only *reflects* — using it as a lock would be a second source of truth.
 
-  **Amended 2026-10-05 (BRIEF-332).** The row may act as a lock. graphile's job lock outlives a killed worker by hours and cannot stop a second job for the same head, so a run now **claims** its `generation` row: `run_id` (uuid) plus `lease_expires_at`, a 2-minute lease on the database clock the holder renews. Only the holder advances, finishes or releases the row; a live lease keeps ingest from re-projecting it, a lapsed one frees it. Each paid claim also writes one `generation_attempt` row (`run_id` unique, `generation_id` with no FK, `started_at`), and the daily cap counts those by `started_at`: `attempts`, the row's `created_at` window and its status missed graphile retries, re-queued rows' earlier runs and later-day re-runs. A paid run that takes no claim, one over a stored brief, writes its `generation_attempt` row at its first provider call under the same cap lock. The `generate` job's graphile `max_attempts` is 3, since every retry is paid, and the row's `claims` column holds a head to 3 claims between triggers across every job that claims it. A claim also queues a per-head `recover-generation` job for after the lease in the same transaction, so a claim whose worker died is taken over once the lease lapses rather than when graphile frees the dead job's lock, which may never happen: an `add_job` on its key detaches it with its attempts spent.
+  **Amended 2026-10-05.** The row may act as a lock. graphile's job lock outlives a killed worker by hours and cannot stop a second job for the same head, so a run now **claims** its `generation` row: `run_id` (uuid) plus `lease_expires_at`, a 2-minute lease on the database clock the holder renews. Only the holder advances, finishes or releases the row; a live lease keeps ingest from re-projecting it, a lapsed one frees it. Each paid claim also writes one `generation_attempt` row (`run_id` unique, `generation_id` with no FK, `started_at`), and the daily cap counts those by `started_at`: `attempts`, the row's `created_at` window and its status missed graphile retries, re-queued rows' earlier runs and later-day re-runs. A paid run that takes no claim, one over a stored brief, writes its `generation_attempt` row at its first provider call under the same cap lock. The `generate` job's graphile `max_attempts` is 3, since every retry is paid, and the row's `claims` column holds a head to 3 claims between triggers across every job that claims it. A claim also queues a per-head `recover-generation` job for after the lease in the same transaction, so a claim whose worker died is taken over once the lease lapses rather than when graphile frees the dead job's lock, which may never happen: an `add_job` on its key detaches it with its attempts spent.
 
-  **Amended 2026-10-19 (BRIEF-340).** `triggered_at` (timestamptz) records when an accepted trigger last named a row's head. Ingest stamps it with `clock_timestamp()`, after the trigger holds the pull request's row lock, on an event GitHub ordered (`updated_at`) or a live read, held rows and triggers a stored brief covers included; a review event, which may carry a head the PR has left, stamps nothing. The worker's own projection never moves it, and a row the worker creates before any trigger named its head starts at the epoch. A PR's current brief row is the newest `triggered_at`, whatever its status, never the newest `updated_at`: an older head's run that finishes after a newer push writes a fresher `updated_at`, and a head pushed back to over its stored brief may sit superseded. Migration 0064 backfills live rows from `updated_at` and superseded rows below them.
+  **Amended 2026-10-19.** `triggered_at` (timestamptz) records when an accepted trigger last named a row's head. Ingest stamps it with `clock_timestamp()`, after the trigger holds the pull request's row lock, on an event GitHub ordered (`updated_at`) or a live read, held rows and triggers a stored brief covers included; a review event, which may carry a head the PR has left, stamps nothing. The worker's own projection never moves it, and a row the worker creates before any trigger named its head starts at the epoch. A PR's current brief row is the newest `triggered_at`, whatever its status, never the newest `updated_at`: an older head's run that finishes after a newer push writes a fresher `updated_at`, and a head pushed back to over its stored brief may sit superseded. Migration 0064 backfills live rows from `updated_at` and superseded rows below them.
 
-**Concurrency policy:** ~~Brief = one in-flight **per PR** (shared artifact; `job_key = pull_request_id`); Delta = one **per `(PR, reviewer)`** (`job_key = delta:{pr}:{reviewer}`)~~ **Superseded (2026-07-05, BRIEF-2 grill):** there is **one job kind, `generate`, `job_key = generate:{pull_request_id}`** — every generation-relevant webhook event enqueues it (with `run_at = now + debounce`; job-key replacement of the pending job IS the trailing debounce), and the **worker derives the artifact bundle from state at execution time** (brief + marks + narrative + one delta core per distinct checkpoint SHA, huge-span rule per span). Per-kind delta job keys predate the core/overlay hardening and are retired. A **global cap** (graphile `concurrency` + a provider rate-limit budget) still bounds total parallel generations; single-flight per PR enforced by `job_key`, **not** `generation`. `generation.status` gains a terminal **`superseded`** value (mid-call abort on head advance — ADR 0006 #6 as amended); web enqueue writes the one row it can know (`kind: brief`, queued), the worker upserts rows for the artifacts it derives.
+**Concurrency policy:** ~~Brief = one in-flight **per PR** (shared artifact; `job_key = pull_request_id`); Delta = one **per `(PR, reviewer)`** (`job_key = delta:{pr}:{reviewer}`)~~ **Superseded (2026-07-05):** there is **one job kind, `generate`, `job_key = generate:{pull_request_id}`** — every generation-relevant webhook event enqueues it (with `run_at = now + debounce`; job-key replacement of the pending job IS the trailing debounce), and the **worker derives the artifact bundle from state at execution time** (brief + marks + narrative + one delta core per distinct checkpoint SHA, huge-span rule per span). Per-kind delta job keys predate the core/overlay hardening and are retired. A **global cap** (graphile `concurrency` + a provider rate-limit budget) still bounds total parallel generations; single-flight per PR enforced by `job_key`, **not** `generation`. `generation.status` gains a terminal **`superseded`** value (mid-call abort on head advance — ADR 0006 #6 as amended); web enqueue writes the one row it can know (`kind: brief`, queued), the worker upserts rows for the artifacts it derives.
 
 ### D11 — Reviewer auth: GitHub OAuth via a library, behind an identity-provider boundary
 
@@ -256,7 +254,7 @@ reviewer_session   -- the self-host default adapter; the ONE secret-bearing tabl
   INDEX (installation_id, reviewer_id)
 ```
 
-> **Amended 2026-07-05 (BRIEF-2 grill) — library + token model resolved.** Library =
+> **Amended 2026-07-05 — library + token model resolved.** Library =
 > **`@octokit/oauth-app`** (GitHub-official; we are GitHub-only, so its native handling of
 > **expiring user access tokens (~8h) + rotating refresh tokens (~6mo)** beats a generic
 > OAuth lib; Arctic stays the fallback, Better Auth rejected — wants to own session tables).
@@ -342,7 +340,7 @@ comparison_marks
   `checkpoint→head` marks are shareable by any reviewer at the same checkpoint, mirroring the
   delta-core/overlay split (D8).
 
-### D14 — `user_settings` (added 2026-07-06, from BRIEF-19 grill)
+### D14 — `user_settings` (added 2026-07-06)
 
 > **Amended 2026-09-21** ([ADR 0043](0043-no-credential-holds-a-current-installation.md)):
 > `default_installation_id` is dropped by migration 0042, with `auth_session.installation_id`
@@ -352,7 +350,7 @@ comparison_marks
 
 Per-GitHub-user settings that must survive across sessions and installations. First (and so
 far only) column: `default_installation_id` — the installation a multi-org reviewer's login
-binds to when it is still in their accessible set (BRIEF-19; ADR 0016 #4 as amended).
+binds to when it is still in their accessible set (ADR 0016 #4 as amended).
 
 ```
 user_settings
@@ -375,13 +373,13 @@ user_settings
   `default_installation_id` — harmless by construction, and overwritten on next switch.
 - No FK to any tenant table (same isolation rationale as `audit_log`'s no-FK rule).
 
-### D15 — `github_grant` (added 2026-07-23, from BRIEF-40 grill)
+### D15 — `github_grant` (added 2026-07-23)
 
 One row per GitHub user-to-server authorization; the ONLY holder of the encrypted GitHub
 token pair. `reviewer_session` and `api_token` drop `gh_token_ciphertext` /
 `gh_refresh_token_ciphertext` / `key_ref` and gain `grant_id` (FK, not null). Exists because
 GitHub refresh tokens are single-use: two rows carrying copies of one pair race each other's
-refresh and the loser is stranded (BRIEF-40); one physical copy makes that impossible.
+refresh and the loser is stranded; one physical copy makes that impossible.
 
 ```
 github_grant
@@ -403,7 +401,7 @@ github_grant
   last referencing session/token row — no orphan sweeper. Refresh failure keeps per-channel
   postures (cookie deletes the session; a token row is never auto-deleted), so a dead grant
   may linger behind a dead-but-unrevoked token — inert ciphertext, harmless. The converse
-  also holds (noted 2026-07-23, BRIEF-40 review): a soft-REVOKED token keeps its `grant_id`
+  also holds (noted 2026-07-23): a soft-REVOKED token keeps its `grant_id`
   (NOT NULL FK; the row stays listable), so revocation retains the — possibly still-live —
   encrypted pair until installation purge. Accepted: MergeBrief-side revoke severs access
   through this instance; actually invalidating/releasing the GitHub credential is the
@@ -425,17 +423,17 @@ github_grant
 | `revision_narrative` | immutable artifact (inline `body`) | 1:1-optional with a `brief` row (FK, cascades); key `(…, prev_head_sha, head_sha)` (D12) |
 | `comparison_marks` | immutable artifact (inline `body`) | mechanical, coordinates-only, no origin; key `(…, baseline_sha, head_sha)` (D13) |
 | `checkpoint` | per-reviewer position | `last_submitted_sha`; webhook-driven |
-| `disposition` | anchored decision | table in M1, **rows written M2**; amended 2026-08-17 (BRIEF-197): session-linked, `decided_at_sha`/`pull_request_id`/`reviewer_id` dropped, carry-status columns added |
+| `disposition` | anchored decision | table in M1, **rows written M2**; amended 2026-08-17: session-linked, `decided_at_sha`/`pull_request_id`/`reviewer_id` dropped, carry-status columns added |
 | `generation` | mutable CQRS status projection | poll target; not a domain entity |
 | `audit_log` | append-only boundary | numeric-only, no FKs, never purged |
 | `user_settings` | per-user settings | NON-tenant-scoped (D14); keyed `gh_user_id`; typed columns only |
 | `reviewer_session` | session (cookie channel) | credential via `grant_id` FK (D15) |
-| `api_token` | user-managed credential (Bearer channel) | ADR 0016 #4 as amended (BRIEF-17); hash-resolved, mint-chosen expiry, soft-revoke; credential via `grant_id` FK (D15) |
+| `api_token` | user-managed credential (Bearer channel) | ADR 0016 #4 as amended; hash-resolved, mint-chosen expiry, soft-revoke; credential via `grant_id` FK (D15) |
 | `github_grant` | secret-bearing | the ONE encrypted-token table (D15); NON-tenant-scoped; dies with last referent |
 
 `graphile_worker.*` is owned and migrated by graphile-worker — not ours.
 
-**Added 2026-08-17 (BRIEF-197 → [ADR 0040](0040-review-session-server-store.md)):**
+**Added 2026-08-17 ([ADR 0040](0040-review-session-server-store.md)):**
 
 | Table | Kind | Notes |
 |---|---|---|
@@ -452,7 +450,7 @@ computes); `api_token` gains `scope` (`read` / `private-write` /
 `reviewer_session` renames to `auth_session`, clearing the collision with the
 product term.
 
-**Added 2026-09-25 (BRIEF-300):**
+**Added 2026-09-25:**
 
 | Table | Kind | Notes |
 |---|---|---|

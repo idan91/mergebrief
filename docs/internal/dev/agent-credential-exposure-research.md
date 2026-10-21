@@ -340,7 +340,7 @@ and test that no server starts. Its interactive `full-access` default and its
 Claude text-generation permission bypass are not suitable precedents for
 MergeBrief's pure generator contract.
 
-## BRIEF-194 prompt-injection and exfiltration threat inventory
+## Prompt-injection and exfiltration threat inventory
 
 Prompt text saying “treat this as data” is useful defense in depth, but it is
 not a security boundary. The enforceable boundary is the runtime authority
@@ -354,7 +354,7 @@ instructions, and tells the model those surfaces are data.
 Those controls reduce instruction confusion but cannot compensate for an agent
 that can read credentials or call ambient tools.
 
-| Threat path | Current evidence and status | Required BRIEF-194 coverage |
+| Threat path | Current evidence and status | Required coverage |
 | --- | --- | --- |
 | PR title, description, file paths, unified/incremental diffs, and review comments | **Confirmed input:** all enter model context; comment/linked-context tags are explicitly labeled untrusted, while title, description, file names, and diff are structurally delimited but remain adversary-controlled text. ([full prompt assembly](../../../packages/brief-core/src/generation/categorize.ts#L179-L208), [delta assembly](../../../packages/brief-core/src/generation/categorize.ts#L443-L461)) | Test injections in every field independently and in combinations. Success means valid structured output and zero observable tool/MCP/hook activity—not merely that the model refuses the instruction. Strip or neutralize forged section tags across every untrusted field, not only when repo context happens to be present. |
 | Repository instructions and custom policy text | **Confirmed semi-trusted input:** default-branch instructions and custom-attribute criteria are inserted into the prompt with bounded influence and fence stripping. ([repo-context policy](../../../packages/brief-core/src/generation/prompt.ts#L109-L136), [assembly](../../../packages/brief-core/src/generation/categorize.ts#L130-L176)) | Treat a compromised default branch as an attacker. Test directives that request file/env reads, schema changes, tool use, or secret disclosure. Keep policy validation authoritative and ensure textual criteria cannot create executable/tool authority. |
@@ -372,7 +372,7 @@ that can read credentials or call ambient tools.
 | CLI stdout/stderr, application logs, telemetry, and traces | **Confirmed mixed posture:** normal error messages avoid free-form provider text and timeout tails are pattern-redacted, but regex redaction is incomplete by construction and comments indicate diagnostic detail may be retained. ([redaction boundary](../../../packages/generators/src/harness/redact.ts#L9-L31), [redaction patterns](../../../packages/generators/src/harness/redact.ts#L32-L80)) | Apply structured allowlists before logging; never log prompts, tool results, raw output, full environment, command arguments containing secrets, or auth/config files. Verify OpenTelemetry exporters and crash reporting cannot capture those fields. Add canaries with unfamiliar formats so tests do not merely mirror the regex list. |
 | Output consumed by UI, GitHub, Notion, or another agent | **Inference/second-order path:** schema validation constrains shape, not the meaning of free-text fields. A hostile summary or quote can carry instructions into a later human/agent/system context. | Contextually escape output, keep provenance, and never auto-execute links/commands or pass generated prose to another agent as instructions. Test that stored/generated text remains data when rendered, posted, exported, or used in later generation. |
 
-The common exploit chain to break in BRIEF-194 is:
+The common exploit chain to break is:
 
 1. Attacker-controlled PR or retrieved content supplies an instruction.
 2. The model follows it despite textual data-boundary warnings.

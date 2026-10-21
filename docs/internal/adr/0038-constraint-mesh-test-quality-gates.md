@@ -1,8 +1,11 @@
-# 0038 — Constraint mesh: automated test & quality gate policy
+# 0038: Constraint mesh: automated test & quality gate policy
 
-Status: accepted (2026-08-02). Decided on the BRIEF-82 wayfinder map
-(eleven decision tickets, all closed 2026-08-02); grounded in the
-primary-source cohort survey `docs/plans/brief-82-constraint-mesh-survey.md`
+Status: amended (see Amendments)
+Date: 2026-08-02
+
+Decided on a wayfinder map
+(eleven decision tickets, all closed 2026-08-02); grounded in a
+primary-source cohort survey
 (tRPC, Zod, Hono, Vitest, Astro + esbuild, ripgrep, ruff, FastAPI — every
 claim cited at pinned SHAs). Implementation lands via the board tickets
 filed at close-out; per-ticket plan docs follow the init-plan checklist at
@@ -17,7 +20,7 @@ ADR the mesh was: vitest suites per package (hermetic — PGlite in-memory,
 including api route-level tests against the real Hono app), oxlint
 type-aware with most repo conventions already mechanized, prettier/stylelint
 on apps/web only, hand-rolled path-filtered CI (dependents NOT run on
-dependency changes — the BRIEF-23 incident class), and a live-spend eval
+dependency changes — a known incident class), and a live-spend eval
 harness convention-gated outside CI. No coverage, no E2E, no mutation, no
 BDD, no flake policy beyond text.
 
@@ -36,7 +39,7 @@ Standing rules fixed at charting:
 ### 1. Test pyramid (adopted shape)
 
 Unit + hermetic integration (persistence/api/web-server, PGlite) + API band
-(= the existing `packages/api` suite, declared as such) + browser E2E
+(= the existing `apps/api` suite, declared as such) + browser E2E
 (below) + eval harness (live-spend, convention-gated). **No tier-labeling
 taxonomy** — package boundary is the tier boundary; a test earns
 segregation only when it needs different runtime handling. **Gherkin/BDD:
@@ -94,7 +97,7 @@ domain). No kill-rate number — the survivor list is the deliverable; each
 survivor becomes a test fix or a recorded acceptable. One-shot audit at
 implementation, then a pre-release convention step. Never per-PR CI.
 
-_Amended 2026-10-05 (BRIEF-337)._ Deferred post-v1, as the v1 release gate
+_Amended 2026-10-05._ Deferred post-v1, as the v1 release gate
 below already says: no Stryker run or pre-release step exists yet, and
 nothing in the repo describes one as live.
 
@@ -108,7 +111,7 @@ input → `Result`, defaults applied). Lives inside the existing vitest
 suites — no new tier, `numRuns: 100`, failures print a reproducing seed
 (compatible with the no-flake policy). Not applied to I/O packages or UI.
 
-_Amended 2026-10-05 (BRIEF-337)._ Deferred post-v1, as the v1 release gate
+_Amended 2026-10-05._ Deferred post-v1, as the v1 release gate
 below already says: fast-check is not a dependency and none of the three
 surfaces carries a property test yet.
 
@@ -121,7 +124,7 @@ non-type-aware, zero custom plugins — 0/9 cohort write in-house rules)
 carrying only what oxlint cannot express: `no-restricted-syntax` banning
 `TSEnumDeclaration`, `import/extensions: never`, naming-convention for
 exported const-map casing. **knip** adopted (dead exports / unused deps —
-mechanizes the BRIEF-90 barrel policy); madge skipped (no-cycle covered);
+mechanizes the barrel policy); madge skipped (no-cycle covered);
 publint parked (trigger: first npm publish). TS strictness:
 `noImplicitOverride` + `noImplicitReturns` + `noFallthroughCasesInSwitch`
 adopted now; `noUncheckedIndexedAccess` measured at implementation and
@@ -132,7 +135,7 @@ adopted (regenerate `routeTree.gen.ts` + drizzle state in CI, fail on
 porcelain diff). Result-not-throw, entry-barrel policy, and
 types-owner-first remain text — no tool expresses them honestly.
 
-_Amended 2026-08-02 (BRIEF-111 implementation)._ Two verdicts moved on
+_Amended 2026-08-02 (implementation)._ Two verdicts moved on
 contact with the tree: (a) the sliver ships the enum ban and the
 extensionless-import rule only — exported const-map casing has no
 non-type-aware expression that can tell a vocabulary map from a config
@@ -149,7 +152,7 @@ just layout.
 
 **pnpm-native affected filters** (`--filter "...[origin/main]"`) replace
 the hand-rolled grep filters — changed packages plus all dependents run,
-from the real workspace graph. This **absorbs BRIEF-26**. Turbo rejected
+from the real workspace graph. This **absorbs the separate CI-filter ticket**. Turbo rejected
 (we need the graph, not the build cache). Workflow-file and lockfile
 changes trigger the full suite. A single **`required-checks-passed`
 aggregation job** becomes the sole branch-protection check. **Fork-safety
@@ -158,7 +161,7 @@ bundle**: `permissions: {}` workflow-level with minimal per-job grants,
 version comments, `pull_request_target` banned for build/test. Fork PRs
 run the full hermetic wall (lint, typecheck, all suites); the eval harness
 never runs on forks. Test artifacts upload on failure only (7-day
-retention). **Everything CI-side lands with BRIEF-37** (CI billing) —
+retention). **Everything CI-side lands with the CI billing ticket** —
 designed now, live then.
 
 ### 9. Supply chain
@@ -188,7 +191,7 @@ Every step in `pre-release-testing.md`, `brief-19-smoke.md`,
 (deleted from the manual pass), `manual-until: <ticket/trigger>`, or
 `manual-forever: <reason>`. The pre-release doc becomes a gates-index plus
 a residual manual walkthrough that shrinks as triggers fire. Feeds
-BRIEF-36 without forking the release-gate definition.
+the pre-release manual testing pass without forking the release-gate definition.
 
 ### 12. Long-tail verdicts
 
@@ -204,7 +207,7 @@ noise hurting history use). **lychee link-check on `docs/**` adopted**
 Blocking v1 (mesh in place before OSS contributors): coverage floors ·
 static-constraints bundle · CI overhaul (incl. fork safety, audit,
 zizmor/actionlint, freshness gates, weekly cron, eval presence check;
-prereq BRIEF-37) · E2E v1 dummy-brief suite · PGlite flake fix + QA-doc
+prereq CI billing) · E2E v1 dummy-brief suite · PGlite flake fix + QA-doc
 triage. Post-v1 ratchets: fast-check surfaces · mutation one-shot +
 pre-release step · lychee · E2E v2 (trigger-gated).
 
@@ -215,7 +218,7 @@ post-v1 = everything that deepens test quality.
 
 - `pnpm test` gets slower (~10–20%) and stricter everywhere; the same wall
   applies to agents, maintainer, CI, and forks — no split-brain gates.
-- BRIEF-26 closes as absorbed; BRIEF-36's manual pass shrinks to the
+- The CI-filter ticket closes as absorbed; the pre-release manual pass shrinks to the
   gates-index + residual walkthrough; the eval-harness convention becomes
   mechanically enforced.
 - New standing costs: ESLint sliver + knip + lychee + zizmor maintenance

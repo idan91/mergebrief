@@ -1,4 +1,4 @@
-# BRIEF-40 research: GitHub App user-to-server token grant semantics
+# Research: GitHub App user-to-server token grant semantics
 
 Primary-source research against docs.github.com only. Retrieved 2026-07-23.
 Context: token-refresh divergence — a minted API token copies the browser
@@ -274,7 +274,7 @@ unless noted:
   the user/sender, not a token identifier).
   (<https://docs.github.com/en/webhooks/webhook-events-and-payloads#github_app_authorization>)
 
-## Implications for BRIEF-40
+## Implications for the token grant
 
 **Option (a): cross-patch two DB rows sharing one grant's token pair.**
 

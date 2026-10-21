@@ -1,4 +1,6 @@
-# Intent Lives on the Change-Group; Brief Is a Two-View Projection
+# 0005: Intent Lives on the Change-Group; Brief Is a Two-View Projection
+
+Status: amended (see Amendments)
 
 Intent (Category + Summary) attaches to a **Change-group** — a cluster of chunks accomplishing one coherent piece of work — not to individual chunks. Each **Chunk** carries a **Concern** (`implementation`/`test`/`doc`/`spec`/`config`/`generated`), a **Role** (`carrier`/`supporting`), and its own **LoC**. The brief is read through two pivots over the same chunk set: a **Story view** (by Change-group) and a **Concern view** (by Concern).
 
