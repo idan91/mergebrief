@@ -62,7 +62,7 @@ ticket.
 | --- | --- | --- |
 | Worker (App installation) | the installation token already minted for the job | every repository the installation covers |
 | Worker (URL-box job) | the viewer's token, or the operator PAT fallback when the job's owner owns `MERGEBRIEF_URL_BOX_TOKEN` | whatever that token can read |
-| `mergebrief` CLIs | `gh` — `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
+| `categorize` and `delta` dev CLIs | `gh` — `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
 
 **No permission change.** GitHub authorizes `Get an issue` under
 `Issues: read` **or** `Pull requests: read`, and the App already holds
@@ -159,7 +159,7 @@ the config with `--config`; see [cli.md](cli.md).
 version: 1
 tracker:
   kind: notion
-  keyPrefix: BRIEF # keys match only this prefix
+  keyPrefix: ACME # keys match only this prefix
   databaseId: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9 # data source id or database id
 ```
 
@@ -175,7 +175,7 @@ with several data sources resolves to the one whose schema carries
 found and asks for the data source id instead.
 
 `keyPrefix` is the prefix of the board's **ID** property (the unique-id
-property Notion numbers rows with). A key like `BRIEF-12` matches only when
+property Notion numbers rows with). A key like `ACME-12` matches only when
 the prefix equals a listed `keyPrefix`; without one keys never match. A
 Notion page URL in the PR needs no board: it resolves whenever a Notion token
 is configured.

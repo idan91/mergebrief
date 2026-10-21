@@ -11,7 +11,7 @@ backend ([Tracing](#tracing)).
 ## The log line
 
 ```json
-{"level":"info","time":1784667468255,"pid":42,"hostname":"web-1","reqId":"7f0b…","evt":"api.access","method":"GET","path":"/api/inbox","status":200,"durationMs":12,"decision":"200","msg":"request"}
+{"level":"info","time":1784667468255,"pid":42,"hostname":"3f9c2a1b7d4e","reqId":"7f0b…","evt":"api.access","method":"GET","path":"/api/inbox","status":200,"durationMs":12,"decision":"200","msg":"request"}
 ```
 
 - `level` — string label: `error`, `warn`, `info`, `debug`.
@@ -52,7 +52,7 @@ changes get a breaking-change entry in
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | api | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
 | `url-box-token.owner.fail` | error | api, worker | `status`, `code` | yes: GitHub refused `MERGEBRIEF_URL_BOX_TOKEN` at boot (401, a 403 that is not a rate limit, or 404), so it serves nobody until the token is replaced and the process restarts |
-| `audit.fail` | error | api | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
+| `audit.fail` | error | api | `reqId`, `operation`, `err` | yes — the action completed but its audit row never landed (data integrity) |
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but the instance stuck at it produces no briefs all day |
 | `generation.enqueue` | info | api | `deliveryId`, `reqId`, `repoId`, `prNumber`, `prId`, `headSha` | no: a webhook delivery added or replaced the PR's job; the line that joins a delivery to the worker's `{prId, headSha}` |
 | `generation.start` | info | worker | `prId`, `headSha`, `waitMs`, `attempt` | no: the queue-wait line; pair with generation.complete for end-to-end time |
@@ -274,11 +274,11 @@ scrape_configs:
 Useful LogQL over the `evt` contract:
 
 ```logql
-# every first-class event, parsed
-{service=~"web|worker"} | json | evt != ``
+# every first-class event, parsed (api and worker emit them; web emits none)
+{service=~"api|worker"} | json | evt != ``
 
 # the access log, slow requests only
-{service="web"} | json | evt = `api.access` | durationMs > 1000
+{service="api"} | json | evt = `api.access` | durationMs > 1000
 
 # one PR's whole worker-leg story (prId = the INTERNAL row id — see
 # "Correlation" above for the one-line lookup; it is not the PR number)
@@ -299,10 +299,10 @@ groups:
         labels: { severity: critical }
       - alert: WebhookVerifyFailSustained
         # sustained rate, not raw hits — scanners will trip a >0 rule daily
-        expr: sum(rate({service="web"} | json | evt = `webhook.verify.fail` [30m])) > 0.05
+        expr: sum(rate({service="api"} | json | evt = `webhook.verify.fail` [30m])) > 0.05
         labels: { severity: warning }
       - alert: AuditWriteFailed
-        expr: sum(count_over_time({service="web"} | json | evt = `audit.fail` [15m])) > 0
+        expr: sum(count_over_time({service="api"} | json | evt = `audit.fail` [15m])) > 0
         labels: { severity: critical }
       - alert: SpendCapSustained
         # only if you set a cap (spend.maxGenerationsPerDay) — an instance

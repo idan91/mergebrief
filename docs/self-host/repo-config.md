@@ -59,11 +59,11 @@ fetched the comment stays off drafts for that run and nothing is removed.
 version: 1
 trackers:
   - kind: notion
-    keyPrefix: BRIEF        # notion: required; keys never match without it
+    keyPrefix: ACME         # notion: required; keys never match without it
     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9   # notion: required; database or data source id, dashes optional
   - kind: notion
     keyPrefix: DS           # a second board: its own prefix, its own database
-    databaseId: 4935e9400eeb80b0ad46000b1ce17b37
+    databaseId: 0000000000004000a000000000000000
   - kind: github
     issuesRepo: owner/name  # optional: where a bare #N resolves
 ```
@@ -82,7 +82,7 @@ instance's.
 version: 1
 tracker:
   kind: notion
-  keyPrefix: BRIEF
+  keyPrefix: ACME
   databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
 ```
 
@@ -102,7 +102,7 @@ trackers the repo uses:
   always another pull request and stays text. A bare `#N` resolves against
   `issuesRepo` when set, else the PR's own repo.
 - When a PR names several references, ones on a listed tracker come
-  first: in a Notion repo, `[BRIEF-12]` in the title outranks `#467`
+  first: in a Notion repo, `[ACME-12]` in the title outranks `#467`
   in the description, which is usually a pull request. Within that pool a
   closing keyword wins, then reading order, across boards alike.
 - An invalid block rejects the whole file, like any other key.

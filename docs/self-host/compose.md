@@ -105,8 +105,9 @@ Postgres section below.)
 
 Compose loads `.env` into `api` and `worker` (`env_file`) and uses it for
 `${...}` interpolation everywhere. `web` gets no `env_file`: it is the
-internet-facing tier, and the only two variables it reads are set on it
-directly. Leave a variable OUT entirely (don't set it empty) when it
+internet-facing tier and holds no credentials, so compose sets what it reads
+on it directly: `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN` and the tracing
+`OTEL_*` variables except the OTLP headers. Leave a variable OUT entirely (don't set it empty) when it
 doesn't apply — several loaders distinguish unset from empty.
 
 | var | needed by | notes |
@@ -122,7 +123,7 @@ doesn't apply — several loaders distinguish unset from empty.
 | `MERGEBRIEF_WEB_HOST` / `_PORT` | web | optional; where the web process listens, default `0.0.0.0` and `3000`. The web service reads no `.env`, so set them under its `environment:`, and move its port mapping and healthcheck with the port |
 | `SERVER_VERSION` | api, worker | set by the image; unset or empty means `dev`. An override must be printable ASCII without spaces, or api and worker refuse boot |
 | `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend; the zero-config default) |
-| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:` block (draft-PR policy) via a narrow loader — no provider keys needed there |
+| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:`, `spend:` and `operators:` blocks through a narrow loader, so it needs no provider keys. The image carries no config file: mount it into `api` and `worker` from `docker-compose.override.yml` ([generators.md](./generators.md#the-config-file)) |
 | `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1. What a slot costs depends on the provider class, see [generators.md](./generators.md#worker-slots) |
 | `REVISION_NARRATIVE_ENABLED` | worker | optional, default `true`; `false` skips the revision narrative. A token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
 | `HUGE_SPAN_RATIO` | worker | optional, default `0.65`; the share of a PR's changed lines at which an incremental span falls back to the full brief. Above 0 and at most 1, or boot is refused |
@@ -295,7 +296,9 @@ where old and new containers serve side by side, must take
 
 1. GitHub delivers `pull_request` → `web` proxies it to `api`, which verifies
    the HMAC over the exact bytes GitHub signed, upserts the PR, and enqueues
-   ONE debounced `generate` job (~60s trailing — rapid pushes coalesce).
+   ONE debounced `generate` job. The first push fixes when the job runs,
+   about 60s later; a push inside that window only moves the job to the
+   newer head, so rapid pushes coalesce into one run.
 2. `worker` picks the job up: fetches the PR via your App installation,
    generates the shared Brief (plus comparison marks / revision narrative
    against the previous briefed head, and pre-warmed re-review deltas per
@@ -322,7 +325,7 @@ docker compose ps                     # api + web healthy, worker running
 docker compose logs -f worker        # job pickup, generation progress
 docker compose exec postgres \
   sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  -c "select kind, status, phase, error from generation order by updated_at desc limit 5;"'
+  -c "select kind, status, phase, error_code from generation order by updated_at desc limit 5;"'
 ```
 
 - `generation.status` walks `pending → running → succeeded` (or `superseded`
@@ -414,12 +417,13 @@ Two things follow from terminating TLS elsewhere:
   Reviewer login works over `https://` (or `http://localhost` during
   development) and silently will not persist over plain `http://` on a real
   hostname.
-- **Host-header validation is pinned to `PUBLIC_BASE_URL`**
-  (`apps/web/vite.config.ts` derives the allow-list from it; localhost and
-  IP literals stay allowed). A Host the instance doesn't recognize is 403'd,
-  so keep the value accurate — including the scheme and any non-default
-  port. The app grants nothing based on Host either way; this is
-  defense-in-depth, not the auth boundary.
+- **Host-header validation is pinned to `PUBLIC_BASE_URL`'s hostname.**
+  The web server allows that hostname, `localhost` and `*.localhost`, and
+  bare IP addresses, and answers any other Host with a 403. Only the
+  hostname is compared: the scheme and port play no part in this check
+  (the `Origin` check above is the one that compares them). The app grants
+  nothing based on Host either way; this is defense-in-depth, not the auth
+  boundary.
 
 Any proxy works — nginx, Traefik, a cloud load balancer. Forward the
 original Host, and don't strip `X-Request-Id` if you correlate logs
@@ -440,8 +444,10 @@ So the secret IS the perimeter for that route:
   lets anyone on the internet enqueue generation jobs against your provider
   key — this is the one setting where weakness costs money.
 - Use a DIFFERENT secret per instance (dev, staging, production), and rotate
-  by changing it in GitHub's App settings and `.env` together, then
-  restarting `web`. Deliveries signed with the old secret start failing
+  by changing it in GitHub's App settings and `.env` together, then running
+  `docker compose up -d`, which recreates `api` with the new value (`api`
+  verifies deliveries; `web` never sees the secret, and
+  `docker compose restart` keeps the old environment). Deliveries signed with the old secret start failing
   immediately — a sustained `webhook.verify.fail` rate after a rotation
   means one side didn't move.
 - Never put it in the config YAML or a command line; `.env` (or your secret

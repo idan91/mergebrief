@@ -36,7 +36,7 @@ This doc is the canonical setup reference for both contributors and self-hosters
   but for a pull request that endpoint is authorized by `Pull requests: write`, so `Issues` is
   redundant.
 - **Checks** — posting brief status as a Check Run is deferred. Un-parking it
-  would need `Checks: write` and is an ADR amendment, not a config toggle.
+  would need `Checks: write` and is a design change, not a config toggle.
 - Any other write scope.
 
 ## Events to subscribe to
@@ -51,14 +51,20 @@ be.** GitHub delivers those to every App automatically (install/uninstall, repos
 removed), regardless of subscription. The checkbox list only covers optional per-resource
 events. So two checkboxes is the complete set.
 
-## Reviewer sign-in (no extra setup)
+## Reviewer sign-in
 
 A reviewer signs in with GitHub through this same App, and their review, comments and replies
 are authored **as them**, on their own user token. That token carries no OAuth scopes: GitHub
 bounds it by the App permissions in the tables above **and** by what the reviewer can reach
 on GitHub themselves. So the tables are the whole list. A permission left off here is
 missing for reviewers too: without **Members**, nobody here can list teams to mention.
-Nothing else needs configuring for sign-in.
+
+Sign-in needs one App setting: **Expire user authorization tokens** (under
+"Identifying and authorizing users") must stay checked. GitHub checks it by
+default. With it off, GitHub issues no refresh token and every sign-in
+fails. The api logs that failure only at `debug`, as `sign-in refused:
+GitHub rejected the code`, so check this setting first when sign-in fails
+for everyone.
 
 ## Webhook
 

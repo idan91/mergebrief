@@ -6,8 +6,7 @@ Two facts carry the whole page:
 - **Migrations apply themselves at boot.** There is no migrate step, no
   maintenance window, and no command to remember.
 - **Postgres is the only stateful dependency.** Back it up and
-  you have backed up the instance. The one exception is the local-brief
-  directory, below.
+  you have backed up the instance.
 
 ## Upgrading to a new version
 

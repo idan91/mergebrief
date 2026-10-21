@@ -18,8 +18,9 @@ provider (~5x cheaper input/output than Opus at very good Brief quality).
 
 ## The config file
 
-One optional YAML file selects the backend for the **worker, the web app,
-and the categorizer CLIs** alike. A ready-to-copy annotated template ships
+One optional YAML file selects the backend for the **worker and the
+categorizer CLIs** alike; the api reads its `drafts`, `spend` and
+`operators` blocks from the same file. A ready-to-copy annotated template ships
 at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.example.yaml)
 (copy to `mergebrief.config.yaml` — gitignored — same convention as
 `.env.example`).
@@ -27,7 +28,7 @@ at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.exa
 ```yaml
 # mergebrief.config.yaml — next to your compose file
 generator:
-  provider: anthropic          # anthropic | claude-code | codex | openai | openrouter
+  provider: anthropic          # anthropic | claude-code | codex | cursor | openai | openrouter
   model: claude-sonnet-5       # optional here; REQUIRED for openai/openrouter
   # effort: medium             # low | medium | high — reasoning effort for every
   #                            # generation (default medium); see the effort-knob
@@ -47,8 +48,8 @@ generator:
 
 # drafts: — the OTHER root block: draft-PR generation policy
 # (generate: on|off + optional draft regeneration debounceSeconds). Spend
-# knobs, read by the web/api process — see self-host/repo-config.md's
-# instance-block section for semantics.
+# knobs, enforced by the api process and validated by the worker too; see
+# self-host/repo-config.md's instance-block section for semantics.
 # drafts:
 #   generate: on
 #   debounceSeconds: 900
@@ -72,7 +73,7 @@ generator:
 # shape as the repo file; see self-host/repo-config.md.
 # trackers:
 #   - kind: notion
-#     keyPrefix: BRIEF
+#     keyPrefix: ACME
 #     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
 #   - kind: github
 
@@ -91,21 +92,35 @@ How processes find it:
 
 | Surface | Mechanism |
 |---|---|
-| worker + web | `MERGEBRIEF_CONFIG=mergebrief.config.yaml` — relative resolves against the workspace root (see path-form note); absolute also fine (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
-| categorizer CLIs | explicit `--config <path>` only — they never read `MERGEBRIEF_CONFIG` (`pnpm categorize --config ./mergebrief.config.yaml <pr-url>` also doubles as a fast config validator) |
+| worker + api | `MERGEBRIEF_CONFIG=mergebrief.config.yaml` — relative resolves against the workspace root (see path-form note); absolute also fine (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
+| categorizer CLIs | explicit `--config <path>` only — they never read `MERGEBRIEF_CONFIG` (`pnpm -C tools/categorizer categorize --config ../../mergebrief.config.yaml <pr-url>` also doubles as a fast config validator; the path is relative to `tools/categorizer`) |
 
 **Path form**: a relative `MERGEBRIEF_CONFIG` is resolved
 against the **workspace root** — the nearest ancestor of the process
 working directory containing `pnpm-workspace.yaml` — never against bare
-cwd (the worker runs from `apps/worker`, the web app from `apps/web`;
+cwd (the worker runs from `apps/worker`, the api from `apps/api`;
 cwd-relative would let one env value silently name different files). So
 `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env` means the repo-root
 file everywhere, local and dockerized alike: the docker image is a full
 workspace checkout, so the anchor holds there too. Absolute paths pass
 through unchanged. No workspace root above cwd refuses boot and points at
-absolute paths. The image carries no config file, so dockerized services
-need the config mount in `docker-compose.yml` (api and worker) whenever
-`MERGEBRIEF_CONFIG` names one; edits then apply on restart.
+absolute paths. The image carries no config file, so whenever
+`MERGEBRIEF_CONFIG` names one, mount it into `api` and `worker` from
+`docker-compose.override.yml`. Leave `docker-compose.yml` alone: an
+upgrade replaces it ([compose.md](./compose.md#what-the-host-holds)).
+
+```yaml
+# docker-compose.override.yml
+services:
+  api:
+    volumes:
+      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+  worker:
+    volumes:
+      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+```
+
+Edits to the file then apply when `api` and `worker` restart.
 
 > **Packaged distributions (future)**: workspace-root anchoring assumes the
 > process runs inside a repo checkout. If MergeBrief ever ships as an
@@ -143,7 +158,7 @@ At the cap the worker **skips** the generation before any provider call:
 - an Entry comment that **already exists** on the PR is updated to say so;
   no comment is created for a capped PR;
 - the worker logs `evt: spend.cap.trip` at `warn` with `repo`, `prId`,
-  `prId`, `headSha`, `cap`, `dayUtc` (see
+  `headSha`, `cap`, `dayUtc` (see
   [observability.md](./observability.md));
 - nothing is queued for later.
 
@@ -223,8 +238,8 @@ What a slot costs depends on the provider class:
   for the length of a generation. Size the host so that
   `slots x child RSS + worker baseline` fits. Peak child RSS per provider,
   measured on the host from a real generation (`/usr/bin/time -l` on macOS,
-  `/usr/bin/time -v` on Linux, around `pnpm categorize --config
-  ./mergebrief.config.yaml <pr-url>` with that provider configured; a
+  `/usr/bin/time -v` on Linux, around `pnpm -C tools/categorizer categorize
+  --config ../../mergebrief.config.yaml <pr-url>` with that provider configured; a
   one-word prompt measures the idle floor, not the peak):
 
   | provider | peak child RSS |
@@ -269,8 +284,8 @@ know when a typo gets caught:
 | `cursor` | **run `cursor-agent --list-models`** — the list lives in your installed CLI (~200 ids, moves with CLI updates; [CLI reference](https://cursor.com/docs/cli/reference/parameters)); copy the id VERBATIM, effort variant included (`gpt-5.2-high`, `cursor-grok-4.6-low`) — `--model` accepts nothing outside this list, bracket overrides included. Omit `model:` to use the CLI's default (`cursor-agent about --format json` shows which; the stamp then reads `cursor-default`) | a bracketed id **refuses boot** (config check); a bad id fails the **first generation** (`Cannot use this model` → config error) — the stamp records what you configured, unverified |
 
 Fast pre-check for any provider without spending a webhook:
-`pnpm categorize --config ./mergebrief.config.yaml <pr-url>` boots the same
-generator the worker would and fails fast on the same checks.
+`pnpm -C tools/categorizer categorize --config ../../mergebrief.config.yaml <pr-url>`
+boots the same generator the worker would and fails fast on the same checks.
 
 ## Harness CLIs are HOST-PROCESS-ONLY in v1 — deliberately
 
@@ -297,8 +312,9 @@ one operator, one login, one machine, with no credential shared and no
 generation run on anyone else's behalf.
 
 What the CLIs *are* for: host-side processes in the dev loop
-(`pnpm categorize`, the web app run with `pnpm dev` — not its docker
-image) where your existing subscription does the generating.
+(`pnpm -C tools/categorizer categorize`, or the worker run on the host with
+`pnpm app:host`, not its docker image) where your existing subscription
+does the generating.
 
 The boundary is enforced, not just documented: the image bakes
 `MERGEBRIEF_RUNTIME=compose-worker` for every service it starts, and a
@@ -307,8 +323,8 @@ instead of a confusing missing-binary error. This matters because ONE config fil
 runtimes — a `provider: codex` switch made for your local loop would
 otherwise take down the deployed worker. If you want a CLI provider
 locally AND a running compose worker, give the worker its own config: a
-worker-only `environment:` entry pointing `MERGEBRIEF_CONFIG` at a
-separate file (with its own mount) — an empty YAML file is a valid
+worker-only `environment:` entry in `docker-compose.override.yml` pointing
+`MERGEBRIEF_CONFIG` at a separate file (with its own mount) — an empty YAML file is a valid
 zero-config choice and gets you the anthropic default. (Note a compose
 `environment:` entry can override but never *unset* a var from `.env`,
 and set-but-empty is refused by design — a separate file is the
@@ -353,7 +369,8 @@ whole point — but a few facts keep the guarantee honest:
   account. MergeBrief removes the known credential and billing-redirect
   vars (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
   `CLAUDE_CODE_USE_BEDROCK`/`_VERTEX`, `CODEX_API_KEY`,
-  `CODEX_ACCESS_TOKEN`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`) from the
+  `CODEX_ACCESS_TOKEN`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`,
+  `CURSOR_API_ENDPOINT`) from the
   spawned CLI's environment — generation and startup check alike — so the
   configured provider means what it says. `CLAUDE_CODE_OAUTH_TOKEN`
   survives deliberately: it IS the subscription route. Residual hole the
@@ -402,7 +419,7 @@ re-verify after CLI upgrades if attribution matters to you.
 Re-verify in two minutes:
 
 1. Note your Console prepaid balance and turn extra usage OFF.
-2. Run one generation (`pnpm categorize` against any PR).
+2. Run one generation (`pnpm -C tools/categorizer categorize` against any PR).
 3. Wait a few minutes for attribution to settle.
 4. Confirm the balance did not move and the run shows on your claude.ai
    usage page.

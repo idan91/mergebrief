@@ -14,7 +14,8 @@ Bearer token. Three things must be true:
 2. **`/api/*` accepts `Authorization: Bearer mergebrief_...`** end to end.
    The server side already does; the catch is usually in front of it (next
    section).
-3. **A token exists** — minted in the web app, per user, per organization.
+3. **A token exists**, minted in the web app, per user, with the scope you
+   chose for it.
 
 ## IdP / SSO proxies: exempt `/api/*`
 
@@ -29,7 +30,7 @@ detects this and says so (a redirect/HTML answer produces an explicit
 This is the SAME exemption the GitHub webhook needs
 (`/api/webhooks/github`), so most deployments already have half of it. The
 application enforces its own auth on every `/api/*` request (hint-free 401s;
-tokens are hashed at rest and installation-bound) — the IdP adds nothing on
+tokens are hashed at rest and limited to the scope chosen at mint) — the IdP adds nothing on
 this path but breakage. `/api/auth/*` (login, token minting) stays
 browser-only — Bearer tokens are ignored there — so if you want your IdP in
 front of auth management, scope the IdP exemption to exclude `/api/auth/*`
@@ -53,11 +54,26 @@ per-profile `headers` in the CLI config are the escape hatch:
 ## Minting a token (operator walkthrough)
 
 1. Sign in to the web app with GitHub, open **`/settings`**.
-2. Name the token (e.g. `ci-reviewer`), pick the **organization** it binds
-   to (a token is bound to exactly one installation — the tenancy boundary),
-   choose an expiry (90 days default; "no expiry" is allowed — for self-host
+2. Name the token (e.g. `ci-reviewer`), pick its **scope**, and choose an
+   expiry (90 days default; "no expiry" is allowed — for self-host
    CI that trade-off is yours; the wrapped GitHub credential still dies
-   after ~6 months idle either way).
+   after ~6 months idle either way). A token binds no organization or
+   installation: it acts as you, on your GitHub sign-in, so it reaches the
+   repositories you reach in the web app.
+
+   The scope is required and fixed for the token's life; a narrower or
+   wider one is a new token. Each level includes the one before it:
+
+   | Scope | In the form | Allows |
+   | --- | --- | --- |
+   | `read` | Read only | every read command |
+   | `private-write` | Read and review in MergeBrief | review state kept in MergeBrief: `draft create` and `update`, `chunk-read`, `reclassify`, `outcome`, `generate` |
+   | `external-write` | Read, review, and post to GitHub | anything that writes to GitHub: `submit`, `reply`, `thread resolve` and `thread unresolve`, `ready`, `draft attach` |
+
+   A command above its token's scope answers `403 scope-exceeded`. Pick the
+   least a token needs. No scope reaches `draft reanchor`, `draft delete` or
+   `risk dismiss|address|reopen`: they need the signed-in browser session and
+   answer `403 human-only` to any token.
 3. Copy the token — it is shown **once**. Revoke and re-mint freely from
    the same page; `last_used_at` in the list tells you which tokens are
    live.
@@ -71,10 +87,10 @@ per-profile `headers` in the CLI config are the escape hatch:
 reachability, whether the token authenticates, and the server version in
 one shape ([Versions](#versions) lists the version fields).
 
-## Profiles (multiple deployments / organizations)
+## Profiles (multiple deployments)
 
-One profile per (deployment, organization) pair; a token binds one
-organization, so spanning orgs means one profile each:
+One profile per deployment. A token is not tied to an organization, so one
+profile covers every organization you reach on that deployment:
 
 ```sh
 echo "$WORK_TOKEN" | mergebrief auth login --base-url https://mb.work.example --profile work
@@ -221,11 +237,13 @@ is available. Details in `tools/categorizer/README.md`.
 
 ## Attaching an image to a draft
 
-`mergebrief draft attach <number> <file> --draft <id>` pushes a PNG, JPEG,
-GIF or WebP file to the repository's `mergebrief/attachments` branch on the
-App's token and appends the image to the named draft comment
-([attachments.md](attachments.md)). It needs an `external-write` token, and
-the App installed on the repository.
+`mergebrief draft attach <number> <file>` pushes a PNG, JPEG, GIF or WebP
+file to the repository's `mergebrief/attachments` branch on the App's token
+and prints its URL ([attachments.md](attachments.md)). Add
+`--draft <id> --base <sha> --head <sha>` to also append the image to that
+held draft comment; `--draft` without the brief span's `--base` and
+`--head` exits 2. It needs an `external-write` token, and the App installed
+on the repository.
 
 Deleting that branch has no CLI command on purpose: it breaks images in
 comments already on GitHub, so the API takes the confirmation from a browser
