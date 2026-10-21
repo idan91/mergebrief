@@ -9,11 +9,11 @@ unread, never guessed.
 
 Two halves of configuration:
 
-- **Instance side** — `mergebrief.config.yaml`'s `trackers:` list names
+- **Instance side**: `mergebrief.config.yaml`'s `trackers:` list names
   the boards every repo on the instance reads by default, and its
   `contextSources:` block lists the trackers that need a deployment
   credential, by env-var NAME. See [generators.md](generators.md).
-- **Repo side** — `.mergebrief/settings.yaml`'s `trackers:` list (or
+- **Repo side**: `.mergebrief/settings.yaml`'s `trackers:` list (or
   `tracker:` for one) replaces the instance list for that repo. Non-secret,
   committed with the repo. See [repo-config.md](repo-config.md).
 
@@ -62,7 +62,7 @@ ticket.
 | --- | --- | --- |
 | Worker (App installation) | the installation token already minted for the job | every repository the installation covers |
 | Worker (URL-box job) | the viewer's token, or the operator PAT fallback when the job's owner owns `MERGEBRIEF_URL_BOX_TOKEN` | whatever that token can read |
-| `categorize` and `delta` dev CLIs | `gh` — `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
+| `categorize` and `delta` dev CLIs | `gh`: `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
 
 **No permission change.** GitHub authorizes `Get an issue` under
 `Issues: read` **or** `Pull requests: read`, and the App already holds
@@ -74,11 +74,11 @@ Installation reach, in practice:
 - A ticket in a **sibling repository** of the same installation
   (`owner/repo#N`, an issue URL, or `tracker.issuesRepo`) reads fine.
 - A ticket in a **private repository outside** the installation is
-  `not-found` — GitHub answers 404, not 403, so the brief cannot tell
+  `not-found`: GitHub answers 404, not 403, so the brief cannot tell
   "does not exist" from "cannot see".
 - A ticket in a **public repository outside** the installation: GitHub's
   documented behaviour is that an installation token can read public
-  repositories' issues. **Unverified** on this deployment — no live call has
+  repositories' issues. **Unverified** on this deployment: no live call has
   been made to confirm it. Treat a `not-found` on a public repo as
   something to check, not a bug in the read.
 

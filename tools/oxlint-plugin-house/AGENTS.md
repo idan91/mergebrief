@@ -1,4 +1,4 @@
-# tools/oxlint-plugin-house — agent notes
+# tools/oxlint-plugin-house: agent notes
 
 The house oxlint plugin. Every repo convention oxlint has no native rule for lives here as a selector rule; `.oxlintrc.json` loads it through `jsPlugins` and turns each rule on by id (`house/<rule>`).
 

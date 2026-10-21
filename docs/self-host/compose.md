@@ -20,7 +20,7 @@ Replace `v1.6.0` with the release you want; the
 > the role during its FIRST initialization only: after that the credential
 > is baked into the `postgres_data` volume, and changing `.env` alone leaves
 > the old password in place (the services then fail to connect). Fixing it
-> later means an `ALTER ROLE` inside the container — or deleting the volume,
+> later means an `ALTER ROLE` inside the container, or deleting the volume,
 > which destroys every brief you have generated. The defaults
 > (`code_review`/`code_review`) exist so `docker compose up` works with zero
 > configuration on a loopback-only dev box; they are not a production
@@ -29,7 +29,7 @@ Replace `v1.6.0` with the release you want; the
 Then install your GitHub App on a repo (see [`github-app.md`](./github-app.md)),
 point its webhook at your public URL, and open http://localhost:3000. From
 here on, every push to an open PR gets its Brief generated automatically in
-the background — push code, Brief appears, reviewer opens it.
+the background: push code, Brief appears, reviewer opens it.
 
 ## What the host holds
 
@@ -78,14 +78,14 @@ not for upgrading an instance: a source build reports its version as
 | `postgres` | store + job queue + locks, in one vanilla Postgres 17 | 127.0.0.1:5432 |
 | `api` | the Hono API (webhooks, OAuth, reviewer reads); holds the credentials and the database | in-network only |
 | `web` | TanStack Start SSR; proxies `/api/*` to `api` and holds no credentials | 127.0.0.1:3000 |
-| `worker` | long-lived graphile-worker runner draining `generate` jobs | — |
+| `worker` | long-lived graphile-worker runner draining `generate` jobs | none |
 
-All published ports bind **loopback-only** — put a reverse proxy (or a
+All published ports bind **loopback-only**. Put a reverse proxy (or a
 tunnel, for the dev loop) in front for anything internet-facing.
 
 The `worker` restarts only on nonzero exits (`restart: on-failure`): a
 config error logs its reason and exits 0, staying down instead of
-restart-looping — see [generators.md](./generators.md)'s "When something
+restart-looping; see [generators.md](./generators.md)'s "When something
 degrades" for the triage.
 
 The `api` port is deliberately unpublished: it is reachable on the compose
@@ -96,9 +96,9 @@ name covers every api replica, so one `web` can front several apis
 ([Running more than one api](./operations.md#running-more-than-one-api)).
 
 Migrations (app schema + graphile queue schema) run **idempotently at boot**
-in both `api` and `worker` — whoever starts first applies them, the other
+in both `api` and `worker`: whoever starts first applies them, the other
 no-ops. There is no separate migrate step. (Exception: restricted database
-roles can opt out with `MERGEBRIEF_AUTO_MIGRATE=false` — see the external
+roles can opt out with `MERGEBRIEF_AUTO_MIGRATE=false`; see the external
 Postgres section below.)
 
 ## Environment (`.env` beside `docker-compose.yml`)
@@ -108,7 +108,7 @@ Compose loads `.env` into `api` and `worker` (`env_file`) and uses it for
 internet-facing tier and holds no credentials, so compose sets what it reads
 on it directly: `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN` and the tracing
 `OTEL_*` variables except the OTLP headers. Leave a variable OUT entirely (don't set it empty) when it
-doesn't apply — several loaders distinguish unset from empty.
+doesn't apply: several loaders distinguish unset from empty.
 
 | var | needed by | notes |
 |---|---|---|
@@ -122,14 +122,14 @@ doesn't apply — several loaders distinguish unset from empty.
 | `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it. An absolute http(s) URL with no credentials in it, or api and worker refuse boot |
 | `MERGEBRIEF_WEB_HOST` / `_PORT` | web | optional; where the web process listens, default `0.0.0.0` and `3000`. The web service reads no `.env`, so set them under its `environment:`, and move its port mapping and healthcheck with the port |
 | `SERVER_VERSION` | api, worker | set by the image; unset or empty means `dev`. An override must be printable ASCII without spaces, or api and worker refuse boot |
-| `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend; the zero-config default) |
-| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:`, `spend:` and `operators:` blocks through a narrow loader, so it needs no provider keys. The image carries no config file: mount it into `api` and `worker` from `docker-compose.override.yml` ([generators.md](./generators.md#the-config-file)) |
+| `ANTHROPIC_API_KEY` | worker | your model key (BYOK: your spend; the zero-config default) |
+| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model; see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:`, `spend:` and `operators:` blocks through a narrow loader, so it needs no provider keys. The image carries no config file: mount it into `api` and `worker` from `docker-compose.override.yml` ([generators.md](./generators.md#the-config-file)) |
 | `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1. What a slot costs depends on the provider class, see [generators.md](./generators.md#worker-slots) |
 | `REVISION_NARRATIVE_ENABLED` | worker | optional, default `true`; `false` skips the revision narrative. A token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
 | `HUGE_SPAN_RATIO` | worker | optional, default `0.65`; the share of a PR's changed lines at which an incremental span falls back to the full brief. Above 0 and at most 1, or boot is refused |
 | `WORKER_COUNT` | compose | optional; worker containers compose starts, default 1. Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`; `docker compose up --scale worker=N` wins for that run |
 | `API_COUNT` | compose | optional; api containers compose starts, default 1. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api); `docker compose up --scale api=N` wins for that run |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned — the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24` — the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned: the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24`, since the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
 | `DATABASE_URL` | none | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input when the database is external ([below](#external-postgres-managed-database)). Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
 | `DATABASE_URL_FILE` | api, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
 | `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
@@ -189,27 +189,27 @@ replaces it.
 is the reference; anything a current managed provider offers is in range.
 Older versions may work but are unsupported. One caveat on test coverage:
 the automated suites run against PGlite (an embedded Postgres build), so
-provider-specific behavior — TLS handshakes, pooled proxies, permission
-models — is exactly what the suites cannot see; the smoke checklist below
+provider-specific behavior (TLS handshakes, pooled proxies, permission
+models) is exactly what the suites cannot see; the smoke checklist below
 is how a provider setup is actually proven.
 
 ### TLS: you must choose (`sslmode` in the DSN)
 
 A `DATABASE_URL` whose host is not loopback **refuses boot unless the DSN
-carries an explicit `sslmode`**. There is no separate TLS config — the DSN
+carries an explicit `sslmode`**. There is no separate TLS config: the DSN
 is the whole decision:
 
 | DSN parameter | meaning |
 |---|---|
-| `sslmode=verify-full&sslrootcert=/path/ca.pem` | TLS, certificate verified against that CA, hostname checked — **the recommended posture** |
-| `sslmode=verify-full` | TLS, verified against Node's bundled trust roots (the Mozilla CA set — NOT the OS store, so mounting a CA into `/etc/ssl/certs` alone changes nothing; that mount only feeds `sslrootcert`) — works when the provider's chain ends in a publicly trusted CA. Check your provider: some (e.g. Supabase's dedicated-instance certificates) issue from a provider CA you must download and pin via `sslrootcert` |
-| `sslmode=require` | see the trap below — write `verify-full` if you mean verification |
-| `sslmode=disable` | plaintext — private networks / VPC peering only |
+| `sslmode=verify-full&sslrootcert=/path/ca.pem` | TLS, certificate verified against that CA, hostname checked: **the recommended posture** |
+| `sslmode=verify-full` | TLS, verified against Node's bundled trust roots (the Mozilla CA set, NOT the OS store, so mounting a CA into `/etc/ssl/certs` alone changes nothing; that mount only feeds `sslrootcert`). Works when the provider's chain ends in a publicly trusted CA. Check your provider: some (e.g. Supabase's dedicated-instance certificates) issue from a provider CA you must download and pin via `sslrootcert` |
+| `sslmode=require` | see the trap below; write `verify-full` if you mean verification |
+| `sslmode=disable` | plaintext, for private networks / VPC peering only |
 
 **The `sslmode=require` trap.** libpq (psql and most tooling) treats
 `require` as "encrypt but do NOT verify the certificate". node-postgres
 (the driver this product uses, pg 8.x) currently treats `require`,
-`prefer`, and `verify-ca` as *aliases for `verify-full`* — it verifies,
+`prefer`, and `verify-ca` as *aliases for `verify-full`*: it verifies,
 and prints a security warning saying so. pg v9 will switch to the libpq
 semantics, where `require` stops verifying. So: a DSN copied from a
 provider dashboard with `sslmode=require` behaves differently here than in
@@ -234,7 +234,7 @@ A missing/unreadable `sslrootcert` file refuses boot naming the path.
 An env var is visible in `docker inspect` and every env dump; a compose
 `secrets:` mount is not. `DATABASE_URL_FILE` points at a file holding the
 DSN (surrounding whitespace trimmed, so the usual trailing newline of a
-secret file is harmless — the official postgres image convention):
+secret file is harmless, per the official postgres image convention):
 
 1. put the DSN in `./secrets/database-url`, and keep the `secrets/` folder
    out of anything you commit or share,
@@ -311,7 +311,7 @@ the model stream** (stopping token spend), records the run as `superseded`
 
 ## Verifying / troubleshooting
 
-Both HTTP services probe `GET /healthz` (static liveness — deliberately not
+Both HTTP services probe `GET /healthz` (static liveness, deliberately not
 `/readyz`, so a database blip degrades reads instead of restart-churning the
 tier). The two `/readyz` endpoints differ: `api`'s is one `SELECT 1`, and
 `web`'s is `api`'s answer, so an unreachable API and an unreachable database
@@ -330,7 +330,7 @@ docker compose exec postgres \
 
 - `generation.status` walks `pending → running → succeeded` (or `superseded`
   after a superseding push; `failed` carries a sanitized reason; `capped`
-  means the instance hit its daily generation cap and the run was skipped — see
+  means the instance hit its daily generation cap and the run was skipped; see
   [generators.md](./generators.md#daily-generation-cap)).
 - Misconfiguration fails loudly at boot in the **api** and the **worker**
   alike (`docker compose logs api` or `logs worker` names the rejected env
@@ -366,7 +366,7 @@ The file path is not limited: any file at one of those commits is readable.
 ### 1. Postgres credentials
 
 Set `POSTGRES_PASSWORD` (and optionally `POSTGRES_USER`/`POSTGRES_DB`) in
-`.env` **before the first boot** — see the callout at the top of this page
+`.env` **before the first boot**. See the callout at the top of this page
 for why "before" is critical. Both services' `DATABASE_URL` derives from
 these values automatically.
 
@@ -377,7 +377,7 @@ openssl rand -hex 24        # use the output verbatim
 Hex, verbatim, is the recommendation for a reason: the value is written to
 the Postgres role EXACTLY as you give it, and is separately interpolated
 into a connection string that gets percent-DECODED when parsed. So a
-password containing `@ : / ? #` — or a percent-encoded one — authenticates
+password containing `@ : / ? #`, or a percent-encoded one, authenticates
 as a different string than the role was created with, and both services
 fail to connect on first boot. That is the unrecoverable path (the role
 already exists in the volume), so do not hand-craft the value.
@@ -389,7 +389,7 @@ it; nothing in the product needs the port from outside the compose network.
 
 Nothing in the stack speaks TLS. Put a proxy in front and let it own the
 certificate; `web` keeps listening on `127.0.0.1:3000`. Caddy is the
-smallest complete example — a two-line `Caddyfile` gets you automatic
+smallest complete example: a two-line `Caddyfile` gets you automatic
 Let's Encrypt certificates and renewal:
 
 ```caddyfile
@@ -425,7 +425,7 @@ Two things follow from terminating TLS elsewhere:
   nothing based on Host either way; this is defense-in-depth, not the auth
   boundary.
 
-Any proxy works — nginx, Traefik, a cloud load balancer. Forward the
+Any proxy works: nginx, Traefik, a cloud load balancer. Forward the
 original Host, and don't strip `X-Request-Id` if you correlate logs
 ([observability.md](./observability.md)).
 
@@ -442,13 +442,13 @@ So the secret IS the perimeter for that route:
 
 - Generate it, never invent it: `openssl rand -hex 32`. A guessable secret
   lets anyone on the internet enqueue generation jobs against your provider
-  key — this is the one setting where weakness costs money.
+  key. This is the one setting where weakness costs money.
 - Use a DIFFERENT secret per instance (dev, staging, production), and rotate
   by changing it in GitHub's App settings and `.env` together, then running
   `docker compose up -d`, which recreates `api` with the new value (`api`
   verifies deliveries; `web` never sees the secret, and
   `docker compose restart` keeps the old environment). Deliveries signed with the old secret start failing
-  immediately — a sustained `webhook.verify.fail` rate after a rotation
+  immediately; a sustained `webhook.verify.fail` rate after a rotation
   means one side didn't move.
 - Never put it in the config YAML or a command line; `.env` (or your secret
   store) only.
@@ -459,12 +459,12 @@ While ngrok (or any tunnel) is up, the instance is internet-reachable with
 whatever secrets it currently has. Kill tunnels when not testing, and prefer
 a fixed domain plus the proxy above over a long-lived tunnel.
 
-Day-two operations — upgrading, what migrations do at boot, and Postgres
-backup/restore — live in [`operations.md`](./operations.md).
+Day-two operations (upgrading, what migrations do at boot, and Postgres
+backup/restore) live in [`operations.md`](./operations.md).
 
 ## Dev loop against compose
 
 The [ngrok webhook loop](../dev/webhook-loop.md) works unchanged with
 compose: point the tunnel at `http://localhost:3000` and use the same dev
-App. One difference: the queued job no longer sits in the queue — the
+App. One difference: the queued job no longer sits in the queue: the
 worker drains it and the artifacts appear in Postgres.

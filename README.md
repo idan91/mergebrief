@@ -13,7 +13,7 @@ confident merge.
 ## Why this, and not [CodeRabbit](https://www.coderabbit.ai/) or another AI review bot?
 
 Most AI review tools treat a PR generically: summarize it, maybe flag a few "potential issues."
-MergeBrief is built around a different idea — **a stable, cross-PR taxonomy is more valuable than a
+MergeBrief is built around a different idea: **a stable, cross-PR taxonomy is more valuable than a
 one-off summary.** Every Change-group gets a Category from a fixed vocabulary
 (`pure-move`, `schema-change`, `lib-bump`, `logic-refactor`, …), so the same kind of change is
 recognizable across every PR you ever review.
@@ -30,8 +30,8 @@ recognizable across every PR you ever review.
   to it. An ESLint-rules-style commons, not a black box.
 - **Facts, never verdicts.** Risk Surface attributes are factual observations a reviewer can
   check in seconds (`no-tests`, `mutates-state`, `external-io`, …), mechanically confirmed
-  against the diff where that's possible. The tool never scores, approves, or rejects —
-  it produces a **Receipt** of what it checked, and the human makes the call.
+  against the diff where that's possible. The tool never scores, approves, or rejects.
+  It produces a **Receipt** of what it checked, and the human makes the call.
 
 See [`docs/vision.md`](./docs/vision.md) for the full charter, including what this project
 deliberately refuses to be (no hosted SaaS, no moat-building, no AI-authored review comments).
@@ -49,8 +49,8 @@ docker compose up -d
 
 That's the whole product running: Postgres, the web app on
 http://localhost:3000, and a background worker that generates a Brief for
-**every push to every PR** on the repos your GitHub App is installed on —
-no manual step. Setup details (App registration, env table, verification,
+**every push to every PR** on the repos your GitHub App is installed on,
+with no manual step. Setup details (App registration, env table, verification,
 hardening before you expose it):
 [`docs/self-host/compose.md`](./docs/self-host/compose.md). Upgrades,
 migrations, and backup/restore:
@@ -87,13 +87,13 @@ repository with the GitHub App installed regenerates on every push.
 Prefer the terminal? `tools/categorizer` runs the same engine (`packages/brief-core`) from dev
 CLIs that write artifacts to `tools/categorizer/out/`; see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
 
-## Generation backends (pick your model — or your subscription)
+## Generation backends (pick your model, or your subscription)
 
 Briefs generate through one of six interchangeable backends, all held to
 the same hard floor (schema-valid output or a loud failure): **Anthropic
 API** (the zero-config default; `claude-sonnet-5` is the documented cost
 knob), **OpenAI API**, **OpenRouter** (any slug with structured outputs),
-or — for the local dev loop — the **Claude Code**, **Codex** and **Cursor
+or, for the local dev loop, the **Claude Code**, **Codex** and **Cursor
 CLIs**, which generate on the subscription you already pay for. One optional
 `mergebrief.config.yaml` selects the backend for the worker and the
 categorizer CLIs alike (the `mergebrief` HTTP client below never
@@ -101,7 +101,7 @@ constructs a generator).
 
 **The CLI backends are local-only in v1, deliberately.** A container never
 sees your installed CLI or your login, and API-key mode erases the cost
-advantage that makes CLI backends attractive — so the deployed worker stays
+advantage that makes CLI backends attractive, so the deployed worker stays
 on API backends. Running the vendor's own CLI against your own subscription
 on your own machine is documented by both vendors as supported; the caveats
 worth knowing before you rely on it are in the generators doc.
@@ -109,7 +109,7 @@ Full config surface, per-provider notes, and the boundary reasoning:
 [`docs/self-host/generators.md`](./docs/self-host/generators.md).
 
 **Repos can shape their own briefs** by committing a `.mergebrief/`
-directory — custom risk attributes and display tuning (`policy.yaml`),
+directory: custom risk attributes and display tuning (`policy.yaml`),
 text guidance to generation (`instructions.md`), and workflow settings
 (`settings.yaml`), all read from the default branch with full origin tracking on
 every brief: [`docs/self-host/repo-config.md`](./docs/self-host/repo-config.md).
@@ -120,7 +120,7 @@ The same review loop, scriptable: **`mergebrief`** ([apps/cli](apps/cli/README.m
 drives `pr` → `groups` → `diff --group` → `submit` over your deployment's API with an
 opaque token minted in the web app. `--json` output is a stability-promised contract
 (passthrough server shapes, additive-only, an 8-code exit table), which makes it safe to
-hand to an AI agent unattended — install the packaged skill with
+hand to an AI agent unattended. Install the packaged skill with
 `npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>`
 ([skills/mergebrief](skills/mergebrief/SKILL.md)).
 Deploy-side setup: [docs/self-host/cli.md](docs/self-host/cli.md).
@@ -132,7 +132,7 @@ Deploy-side setup: [docs/self-host/cli.md](docs/self-host/cli.md).
 | **Story view** | The Brief grouped by Change-group: what changed and why, step by step |
 | **Concern split** | How the PR's attention divides by artifact (implementation, test, doc, spec, config, generated): how much is real change and how much is scaffolding |
 | **Changes only** | On a later push, only what changed between two revisions of the PR |
-| **Risk Surface** | Factual attributes per chunk (`no-tests`, `touches-auth`, `comment-contradicts-code`, …), each checkable in seconds — never a severity score |
+| **Risk Surface** | Factual attributes per chunk (`no-tests`, `touches-auth`, `comment-contradicts-code`, …), each checkable in seconds, never a severity score |
 | **Receipt** | What the tool verified and what it didn't, plus the disposition of every flag (addressed / dismissed with reason). Never an approval |
 
 ## Project layout
@@ -176,7 +176,7 @@ telemetry. What it stores is deliberately minimal:
 so stored artifacts are safe to expire: set `PR_RETENTION_DAYS` and a daily sweep deletes every
 pull request closed longer ago than that, with its artifacts; leave it unset and nothing expires.
 Uninstalling the GitHub App erases the installation's data completely. Erasure is enforced by
-the database itself (every artifact cascades from its PR — no forgotten table), and each
+the database itself (every artifact cascades from its PR, so no table is forgotten), and each
 deletion appends one anonymous, numbers-only entry to an audit ledger, so you can prove *that*
 something was erased without retaining *what*.
 

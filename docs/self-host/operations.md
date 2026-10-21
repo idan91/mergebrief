@@ -327,7 +327,7 @@ Postgres 16 or newer.
 
 ## Backup
 
-**External database?** The provider owns backup and restore — use its
+**External database?** The provider owns backup and restore. Use its
 point-in-time recovery / snapshot tooling instead of this section (the
 `docker compose exec postgres` commands below assume the bundled service
 and have nothing to exec into). The `.env`/config caveat below still
@@ -343,7 +343,7 @@ docker compose exec -T postgres \
 
 `--format=custom` is compressed and restores selectively; plain
 `--format=plain` SQL also works if you would rather read the file. Run it
-from a cron entry or a systemd timer and keep the dumps off the machine —
+from a cron entry or a systemd timer and keep the dumps off the machine:
 a snapshot living only on the host protects against nothing.
 
 What that dump contains: every PR, brief, delta, comparison mark, revision
@@ -352,7 +352,7 @@ other words, everything a reviewer can see in the web app.
 
 What it does NOT contain:
 
-- **`.env` and `mergebrief.config.yaml`** — your credentials and instance
+- **`.env` and `mergebrief.config.yaml`**: your credentials and instance
   config. Keep them wherever you keep secrets; they are not in the volume.
 
 Backing up the `postgres_data` Docker volume by copying files is NOT a
@@ -361,7 +361,7 @@ consistent snapshot. Use `pg_dump`, or stop the container first.
 
 ## Restore
 
-Into a fresh instance (the usual case — new host, or after a bad upgrade):
+Into a fresh instance (the usual case: new host, or after a bad upgrade):
 
 ```sh
 docker compose down                       # stop api + web + worker + postgres
@@ -412,7 +412,7 @@ brief and confirm it renders.
 ## Retention (what grows, and what does not prune itself)
 
 Briefs and their sidecars accumulate per PR revision, so the database grows
-with review volume — and **by default nothing prunes them.** Closing or
+with review volume, and **by default nothing prunes them.** Closing or
 merging a PR records the close time and nothing else. Set
 `PR_RETENTION_DAYS` (minimum 1) and the worker's daily sweep erases every
 pull request closed or merged longer ago than that, across every
@@ -430,22 +430,22 @@ from Home, or a reviewer deletes a pull request they pasted themselves.
 That delete takes the same set; the purge's audit row names the reviewer
 who asked for it.
 
-The audit log is the one exception. It is append-only — nothing edits a row —
+The audit log is the one exception. It is append-only (nothing edits a row),
 and its only removal is the retention sweep, which the worker runs once a day
 across every installation. The sweep keeps everything unless you set
 `AUDIT_RETENTION_DAYS` (minimum 30). Set it longer than your longest open PR:
 audit has to outlive a review session, and no floor can guarantee that for you.
-Nothing on the web tier can trigger the sweep — it exists only inside the
+Nothing on the web tier can trigger the sweep: it exists only inside the
 worker process.
 
 ## The audit log
 
-Every action a credential takes is recorded — and every refusal of one. Reads
+Every action a credential takes is recorded, and so is every refusal of one. Reads
 are not: they fire on every render, they already produce an `api.access` line,
 and recording them would bury the actions. The consequence is worth stating
 plainly: the log answers *what was done*, never *what was seen*.
 
-A row holds ids, tokens and numbers — never a request body, never free text.
+A row holds ids, tokens and numbers, never a request body, never free text.
 The operation is the same id the API's operation manifest lists, so a row and
 a request log line join on `request_id`.
 
@@ -472,7 +472,7 @@ Two knobs, both instance environment variables:
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `AUDIT_RETENTION_DAYS` | unset (keep forever) | How long the daily sweep keeps rows. Minimum 30. |
-| `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way — that is not configurable. |
+| `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way; that is not configurable. |
 
 Erasing one person's rows is a query, not a feature:
 
@@ -493,7 +493,7 @@ docker compose exec postgres \
     order by occurred_at desc limit 50;"'
 ```
 
-If disk becomes a concern, `brief` and `delta` are the tables to look at —
+If disk becomes a concern, `brief` and `delta` are the tables to look at:
 they hold the generated JSON:
 
 ```sh
@@ -588,11 +588,11 @@ If your network blocks github.com, the check fails quietly: one `update.check.fa
 
 ## See also
 
-- [compose.md](./compose.md) — services, environment, hardening before
+- [compose.md](./compose.md): services, environment, hardening before
   exposure (TLS, the webhook secret, Postgres credentials).
-- [observability.md](./observability.md) — the log event contract, health
+- [observability.md](./observability.md): the log event contract, health
   endpoints, and alert recipes; `/healthz` vs `/readyz` semantics.
-- [generators.md](./generators.md) — provider/model config and the daily
+- [generators.md](./generators.md): provider/model config and the daily
   generation cap.
-- [attachments.md](./attachments.md) — the one push the App makes, and how
+- [attachments.md](./attachments.md): the one push the App makes, and how
   an admin deletes it.

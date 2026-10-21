@@ -1,4 +1,4 @@
-# tools/release — agent notes
+# tools/release: agent notes
 
 The release tool behind `release.yml`: reads the per-release notes files, refuses a tag without one, cuts the next tag from the published ones, stamps the tag's version into the shipped manifests, and writes the Release body and `version.json` the workflow uploads. `pnpm check:releases` is its gate inside `pnpm lint`; the other commands run on the workflow's checkout only.
 

@@ -1,14 +1,14 @@
-# Authoring `.mergebrief/` — a guide for code owners
+# Authoring `.mergebrief/`: a guide for code owners
 
 What to put in each file, and what the generator will and won't do with it.
 The delivery mechanics (trust rule, caps, failure semantics) are in
 `docs/self-host/repo-config.md`.
 
-## `instructions.md` — teach the generator your repo
+## `instructions.md`: teach the generator your repo
 
 Write free-form text. The generator honors it for these purposes **only** (the
-operative list lives in code — `REPO_INSTRUCTION_CLASSES` in
-`packages/brief-core/src/generation/repo-context.ts` — and changing it requires
+operative list lives in code, `REPO_INSTRUCTION_CLASSES` in
+`packages/brief-core/src/generation/repo-context.ts`, and changing it requires
 an amended decision record plus an eval run):
 
 **May follow**
@@ -31,29 +31,29 @@ an amended decision record plus an eval run):
 Rules of thumb:
 
 - **Text shapes presentation; only `policy.yaml` creates facts.** If you
-  want a new risk attribute, it goes in `policy.yaml` — instructions cannot
+  want a new risk attribute, it goes in `policy.yaml`; instructions cannot
   mint one.
 - Keep it under the 16 KB budget (the origin chip shows usage; ≥ 80%
-  warns). One root file in v1 — per-scope files are a designed-not-built
+  warns). One root file in v1; per-scope files are a designed-not-built
   extension.
 - Start from `docs/repo-config/instructions-template.md`.
 
-## `policy.yaml` — define what "risky" means HERE
+## `policy.yaml`: define what "risky" means HERE
 
 Custom attributes are model-evaluated **facts**, joining the built-in
 risk-surface vocabulary for your repo's briefs:
 
-- `criteria` is the whole contract — write it like you'd brief a new
+- `criteria` is the whole contract: write it like you'd brief a new
   reviewer: concrete, observable, about the change or the code it touches.
 - `implication` (optional) is the one-liner a reviewer sees in the chip
-  expansion — what to *do* about it.
+  expansion: what to *do* about it.
 - `paths` (optional) is a hard scope: chunks outside the globs never fire
   the attribute.
 - De-emphasis quiets display; it never removes anything from the artifact
   or Receipt, and the floor (`touches-auth`, `removes-validation`,
   `relaxes-permissions`) is never quiet.
 
-## `settings.yaml` — workflow taste
+## `settings.yaml`: workflow taste
 
 Version 1 (`version: 1` is required) takes `entryCommentOnDrafts` (default
 `true`) and the ticket tracker, as `tracker:` or a `trackers:` list. See

@@ -1,9 +1,9 @@
 # Categorizer
 
-Turns a real pull-request diff into a structured review **brief** — a *story* (what the PR does), *change groups* with an intent category, and per-chunk *concern* + *role* + *risk-surface* flags. The brief is meant to help a reviewer decide where to look; it never approves, rejects, or scores.
+Turns a real pull-request diff into a structured review **brief**: a *story* (what the PR does), *change groups* with an intent category, and per-chunk *concern* + *role* + *risk-surface* flags. The brief is meant to help a reviewer decide where to look; it never approves, rejects, or scores.
 
 > **Layout**: the domain core (schema, prompt, categorize engine,
-> repo-context, delta/comparison — everything production consumes) lives in
+> repo-context, delta/comparison: everything production consumes) lives in
 > `packages/brief-core`; this directory keeps the dev CLIs (`pnpm categorize`,
 > `pnpm delta` in `src/cli/`, with their `gh` fetchers in `src/github/` and
 > output naming in `src/artifacts/`) and the eval harness (`eval/`,
@@ -17,7 +17,7 @@ The CLIs run the production engine locally against a real PR, for development an
 PR URL ──▶ gh pr diff + gh pr view ──▶ the configured generator (Zod schema floor) ──▶ brief JSON
 ```
 
-- **Diff source:** the `gh` CLI (`gh pr diff` + `gh pr view --json`). No GitHub token setup — uses your existing `gh` auth.
+- **Diff source:** the `gh` CLI (`gh pr diff` + `gh pr view --json`). No GitHub token setup; it uses your existing `gh` auth.
 - **Model:** the generator `--config <mergebrief.config.yaml>` selects (see `docs/self-host/generators.md`). Without `--config` it is the zero-config default: the Anthropic adapter on `claude-opus-4-8`, adaptive thinking, with the taxonomy system prompt prompt-cached. The CLIs ignore an ambient `MERGEBRIEF_CONFIG`.
 - **Output contract:** the model must return JSON matching the Zod `BriefSchema` (`packages/brief-core/src/types.ts`), whose enums mirror the closed vocabulary in `docs/vocabulary/labeling-schema.md` and the 19 attributes in `docs/vocabulary/risk-surface.md`.
 
@@ -29,7 +29,7 @@ Requires Node 22, 24 or 26+ (the repo's `engines`; `.nvmrc` pins the CI version)
 cd tools/categorizer
 pnpm install
 
-# Anthropic API key — get one (and credits) from https://console.anthropic.com
+# Anthropic API key: get one (and credits) from https://console.anthropic.com
 cp .env.example .env
 # edit .env and set ANTHROPIC_API_KEY=sk-ant-...
 ```
@@ -51,13 +51,13 @@ pnpm categorize https://github.com/medusajs/medusa/pull/15605
 
 For each brief it writes three files under `out/` (or the `--out` directory; point it at `MERGEBRIEF_OUT_DIR` to open the result in the dev brief viewer), versioned by a PR-global **index** and the head SHA so successive briefs of one PR coexist:
 
-- `out/<owner>-<repo>-<num>_<index>_<head8>.brief.json` — the brief (now carrying `index` + `commitRange`)
-- `…_<index>_<head8>.diffs.json` — per-file diffs sidecar
-- `…_<index>_<head8>.comments.json` — review comments (all reviewers, threaded, each with GitHub-native `outdated`) for GitHub-style display
+- `out/<owner>-<repo>-<num>_<index>_<head8>.brief.json`: the brief (now carrying `index` + `commitRange`)
+- `…_<index>_<head8>.diffs.json`: per-file diffs sidecar
+- `…_<index>_<head8>.comments.json`: review comments (all reviewers, threaded, each with GitHub-native `outdated`) for GitHub-style display
 
 The index is assigned from a per-PR manifest `out/<owner>-<repo>-<num>.briefs.json` (head SHA → ordinal, first-seen; re-running a known SHA reuses its index). Multiple PRs run in parallel; one bad URL doesn't abort the batch.
 
-By default the brief covers the **whole PR at the current head** (range read from `gh pr view`). Passing an explicit `<base-sha> <head-sha>` (mirroring `delta`) briefs that span instead — useful for dogfooding the full flow on a real PR with comments: generate `_1` at an earlier head, then a `delta`, then `_2` at the later head.
+By default the brief covers the **whole PR at the current head** (range read from `gh pr view`). Passing an explicit `<base-sha> <head-sha>` (mirroring `delta`) briefs that span instead, useful for dogfooding the full flow on a real PR with comments: generate `_1` at an earlier head, then a `delta`, then `_2` at the later head.
 
 ### Primary ticket (`--context <file>`)
 
@@ -79,11 +79,11 @@ Only `url` and `content` are required. The file replaces the fetch for the prima
 pnpm delta [--config <file>] [--context <ticket.json>] <pr-url> <baseline-sha> <head-sha>
 ```
 
-Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar and a `.delta.comments.json` comments sidecar (same shapes as the brief's sidecars). Note: comment `outdated` is GitHub's flag relative to the PR's *current* head, not the delta's head (documented in `src/github/comments.ts`).
+Generates the **delta core**, "what changed since the baseline", for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics, exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar and a `.delta.comments.json` comments sidecar (same shapes as the brief's sidecars). Note: comment `outdated` is GitHub's flag relative to the PR's *current* head, not the delta's head (documented in `src/github/comments.ts`).
 
 Each delta chunk belongs to exactly one change-group (a file appears in multiple groups only via different chunks), so no line is shown to the reviewer twice.
 
-This is the delta **core** only — the per-reviewer **carry-over overlay** (reopened/settled flags, moved/orphaned comments) needs reviewer state and is out of scope for the stateless CLI. SHAs must be hex commit-ishes (7–40 chars).
+This is the delta **core** only. The per-reviewer **carry-over overlay** (reopened/settled flags, moved/orphaned comments) needs reviewer state and is out of scope for the stateless CLI. SHAs must be hex commit-ishes (7–40 chars).
 
 ### Output
 
@@ -118,7 +118,7 @@ Tests cover the pure logic: `gh` output parsing (`src/github/`), output filename
 
 | File | Purpose |
 |---|---|
-| `packages/brief-core/src/types.ts` | Zod brief + delta schemas — the closed vocabulary, the heart |
+| `packages/brief-core/src/types.ts` | Zod brief + delta schemas: the closed vocabulary, the heart |
 | `src/github/` | `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
 | `packages/brief-core/src/generation/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
 | `packages/brief-core/src/generation/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |

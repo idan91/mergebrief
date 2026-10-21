@@ -1,4 +1,4 @@
-# packages/brief-core — agent notes
+# packages/brief-core: agent notes
 
 The Brief domain core. Everything production consumes to generate a Brief: the output schema + closed label vocabulary, the taxonomy prompt, the categorize engine (behind the `generators` port), repo-context (`.mergebrief/` semantics), delta/revision/comparison logic, the anchored-generation plan and stitch, and the huge-span guard.
 

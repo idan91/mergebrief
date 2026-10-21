@@ -1,7 +1,7 @@
 # `.mergebrief/instructions.md` template
 
 Copy into `.mergebrief/instructions.md` on your default branch and edit.
-Every section is optional — delete what you don't need. The generator
+Every section is optional; delete what you don't need. The generator
 honors these classes only (see `docs/repo-config/authoring.md`):
 
 - grouping boundaries — which directories or files form one review unit
@@ -13,13 +13,13 @@ honors these classes only (see `docs/repo-config/authoring.md`):
 ```markdown
 ## Grouping
 
-- Treat `apps/api` and `apps/api-client` as one review unit — they
+- Treat `apps/api` and `apps/api-client` as one review unit; they
   always change together.
 - `infra/**` changes are their own group even when a feature PR touches them.
 
 ## Glossary
 
-- "The ledger" = `services/billing/ledger` — never call it the database.
+- "The ledger" = `services/billing/ledger`; never call it the database.
 - A "tenant" here is an *installation*, not a user.
 
 ## Noise

@@ -1,4 +1,4 @@
-# tools/baselines — agent notes
+# tools/baselines: agent notes
 
 The gate behind the repo's baseline promise: `oxlint-suppressions.json` only ever loses entries, a file a branch edits clears its own entries, and the retired `.dependency-cruiser-known-violations.json` stays gone. `pnpm check:baselines` is its entry point, and it runs inside `pnpm lint`. `src/main.ts` is the composition root, the one reader of `process.env` (`MERGEBRIEF_BASELINE_BASE`) and `argv`.
 

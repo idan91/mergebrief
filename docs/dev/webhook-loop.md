@@ -5,7 +5,7 @@ How to run the webhook receiver end-to-end on your machine and watch a real GitH
 the **fixture-capture** step: the real payloads you replay here are what the webhook parser's
 test shapes are checked against, so grab a few while you have the tunnel open.
 
-> Prereq: a **dev** GitHub App registered and installed on a test repo — see
+> Prereq: a **dev** GitHub App registered and installed on a test repo; see
 > [`../self-host/github-app.md`](../self-host/github-app.md). Use the App's dev credentials
 > here; never paste production secrets into a local `.env`.
 
@@ -22,7 +22,7 @@ This brings up the loopback-only Postgres from `docker-compose.yml`
 
 The credentials belong to the API process, not the web tier. Copy
 `apps/api/.env.example` to `apps/api/.env` and fill in the dev-App values. **Placeholders
-below — never commit real values.**
+below; never commit real values.**
 
 ```sh
 # Database (matches docker-compose.yml)
@@ -30,7 +30,7 @@ DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review
 
 # GitHub App (dev registration)
 GITHUB_APP_ID=123456
-# Exactly ONE of the next two — the inline PEM, or a path to the .pem file:
+# Exactly ONE of the next two: the inline PEM, or a path to the .pem file:
 GITHUB_APP_PRIVATE_KEY_PATH=./secrets/dev-app.private-key.pem
 # GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 GITHUB_WEBHOOK_SECRET=replace-with-openssl-rand-hex-32
@@ -47,7 +47,7 @@ SESSION_KEY_V1=<your-base64-32-byte-key>
 The API's composition root (`apps/api/src/main.ts`) reads these at BOOT, not on the first
 request: it parses every config block, resolves the session key, migrates, and only then
 listens. A missing or invalid var stops the process with a `field: reason` line instead of
-serving a broken webhook — so if `pnpm dev` shows the api pane exiting immediately, that
+serving a broken webhook, so if `pnpm dev` shows the api pane exiting immediately, that
 line is why.
 
 The web tier needs none of this. Under `vite dev` it reads `MERGEBRIEF_API_ORIGIN` and
@@ -78,7 +78,7 @@ ngrok http 3000
 
 GitHub rejects `localhost`, so it must reach you through a public URL. ngrok (not
 `gh webhook forward`) is the recommended tunnel because the app also needs the OAuth callback
-publicly reachable — one tunnel serves both. See the rationale in
+publicly reachable, and one tunnel serves both. See the rationale in
 [`../self-host/github-app.md`](../self-host/github-app.md#webhook).
 
 Set the dev App's **Webhook URL** to:
@@ -87,14 +87,14 @@ Set the dev App's **Webhook URL** to:
 https://<your-ngrok-subdomain>.ngrok-free.app/api/webhooks/github
 ```
 
-(Free ngrok URLs change on restart — expect to re-paste. The **Webhook secret** in the App
+(Free ngrok URLs change on restart; expect to re-paste. The **Webhook secret** in the App
 settings must equal `GITHUB_WEBHOOK_SECRET`, or every delivery fails the HMAC check with 401.)
 
 ## 5. Fire an event
 
 Open, push to, reopen, or mark-ready a PR on the installed repo. GitHub sends a
 `pull_request` delivery; the handler verifies the HMAC over the raw body, upserts the PR, and
-enqueues one debounced `generate` job — all fast, before returning 200.
+enqueues one debounced `generate` job, all fast, before returning 200.
 
 ## 6. Verify the write path
 
@@ -108,16 +108,16 @@ Expect a `pull_request` row for your PR and a `graphile_worker.jobs` row with
 `task_identifier = generate` and `key = generate:<pull_request_id>`.
 
 The queue also **drains**: run the worker (`pnpm -C apps/worker start`
-with the same env, or the compose `worker` service — see
+with the same env, or the compose `worker` service; see
 [`../self-host/compose.md`](../self-host/compose.md)) and the job disappears after the
 debounce, the `generation` row walks `pending → running → succeeded`, and the Brief lands in
-the `brief` table. Without a worker running, the row sits in the queue — still correct for
+the `brief` table. Without a worker running, the row sits in the queue, which is still correct for
 webhook-only debugging.
 
 ## 7. Inspect / replay deliveries
 
 ngrok's local inspector at **http://127.0.0.1:4040** shows every delivery and lets you
-**replay** one — re-fire the exact same signed payload at your handler while debugging, instead
+**replay** one: re-fire the exact same signed payload at your handler while debugging, instead
 of opening PRs repeatedly. This is where you **save real payloads as fixtures** for re-verifying the
 webhook parser (the parser tests deliberately don't import these, but capturing them keeps the
 inline test shapes honest against what GitHub actually sends).

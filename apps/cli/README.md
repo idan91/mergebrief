@@ -1,6 +1,6 @@
 # mergebrief
 
-The MergeBrief CLI — the Brief review loop for humans and AI agents, over
+The MergeBrief CLI: the Brief review loop for humans and AI agents, over
 your deployment's HTTP API. One binary-shaped npm package; the web app stays
 the interactive surface.
 
@@ -14,7 +14,7 @@ but never required for compatibility.
 
 1. **Mint a token** in the web app: sign in, open `/settings`, name the
    token, pick the organization it is bound to, and choose an expiry.
-   The token is shown **exactly once** — treat it like a password. The CLI
+   The token is shown **exactly once**; treat it like a password. The CLI
    stores it **in plaintext** in a `chmod 600` file under
    `~/.config/mergebrief/`; anyone with the token can act as you in that
    organization.
@@ -24,7 +24,7 @@ but never required for compatibility.
    mergebrief auth login --base-url https://mergebrief.your-org.example
    ```
 
-3. **Check the wiring** — config level and server level in one shape:
+3. **Check the wiring**: config level and server level in one shape:
 
    ```sh
    mergebrief auth status --json
@@ -34,7 +34,7 @@ but never required for compatibility.
    {"profile":"default","baseUrl":"https://mergebrief.your-org.example","tokenConfigured":true,"cli":{"version":"1.2.0"},"server":{"reachable":true,"authenticated":true,"version":"1.4.0","latest":"1.6.0","releaseNotesUrl":"https://github.com/Idan91/code-review/releases/tag/v1.6.0","checkedAt":"2026-10-03T10:00:00.000Z","breaking":false,"security":false}}
    ```
 
-4. **First read** — your Inbox, every installation you reach (no repo
+4. **First read**: your Inbox, every installation you reach (no repo
    targeting needed):
 
    ```sh
@@ -45,7 +45,7 @@ but never required for compatibility.
    repo from the clone's `origin` remote; `-R owner/name` overrides.
 
 Driving an agent? Install the `mergebrief` skill
-([skills/mergebrief](../../skills/mergebrief/SKILL.md)) — the review
+([skills/mergebrief](../../skills/mergebrief/SKILL.md)): the review
 workflow, the authority policy, and the wire contract:
 
 ```sh
@@ -58,11 +58,11 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
   `diff`), or empty for an operation whose success carries no body
   (`draft update|reanchor|delete`, `reclassify`, `chunk-read`, `ready`). **exit ≠ 0 ⇒ stdout is
   empty** and stderr carries exactly one
-  line — for server responses it relays the error text + HTTP status;
+  line. For server responses it relays the error text + HTTP status;
   client-side usage and network/proxy failures explain themselves without
   one.
 - **Passthrough by default:** most commands emit the server response
-  verbatim — one canonical shape across web, API, and CLI. Exactly three
+  verbatim: one canonical shape across web, API, and CLI. Exactly three
   shapes are CLI-synthesized: the `delta` union, `auth status`, and
   `capabilities`.
 - **Additive within a major, once released:** fields are never removed,
@@ -76,13 +76,13 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
 
 | Code | Meaning |
 |---|---|
-| 0 | Success — including modeled unavailability (`delta`'s `available:false` arm) |
+| 0 | Success, including modeled unavailability (`delta`'s `available:false` arm) |
 | 1 | Generic/unexpected: network, 5xx, version skew |
 | 2 | Usage error caught client-side (bad flags, `--group` with a custom span, malformed submit JSON shape) |
-| 3 | Auth (401) — re-mint the token |
+| 3 | Auth (401); re-mint the token |
 | 4 | Not found (repo/PR/group/span; incl. an unmodeled delta 404) |
-| 5 | Server rejected the payload (4xx validation) — fix and retry; agent submit loops self-correct on this code |
-| 6 | Incompatible: a `--require`d operation is not runnable on this server+CLI pair — do not drive it |
+| 5 | Server rejected the payload (4xx validation). Fix and retry; agent submit loops self-correct on this code |
+| 6 | Incompatible: a `--require`d operation is not runnable on this server+CLI pair; do not drive it |
 | 7 | Rate limited (429): the error line names the wait as `retry after <n>s` when the server sent one; wait that long, then retry |
 
 ## Commands
@@ -91,7 +91,7 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
 
 The repositories your token can see (the installation ∩ your-access
 intersection), cached per profile at `~/.cache/mergebrief/<profile>/` with
-**no TTL** — the cache directory is always safe to delete. Renames self-heal
+**no TTL**: the cache directory is always safe to delete. Renames self-heal
 when a PR-addressed command resolves the new `owner/name` (one automatic
 refresh on a slug miss); the `repos` listing itself needs `--refresh` to
 show a rename.
@@ -105,11 +105,11 @@ show a rename.
 No argument: the first page of your Inbox, verbatim (`{"items":[...],
 "page":1,"pageSize":25,"total":n,...}`), every installation you reach plus
 the pull requests you pasted. With a number: the
-PR's metadata. Critical fields: **`baseSha`/`headSha`** — the brief span
-your `submit` must name (never auto-fetched); `briefAvailable` — generation is
+PR's metadata. Critical fields: **`baseSha`/`headSha`**, the brief span
+your `submit` must name (never auto-fetched); `briefAvailable`: generation is
 webhook-driven for an installed repo (`generate <url>` queues a pasted PR);
 poll with backoff;
-`comparisons.lastReview` — what `delta` resolves.
+`comparisons.lastReview`, what `delta` resolves.
 
 ```json
 {"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant boundary","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"error":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}
@@ -117,25 +117,25 @@ poll with backoff;
 
 ### `groups <n>`
 
-The Brief artifact body, verbatim: `changeGroups` (each with an `id` —
+The Brief artifact body, verbatim: `changeGroups` (each with an `id`;
 `diff --group` takes it), `chunks` (per-file line ranges joining groups to
 the diff), risk-surface attributes.
 
 ### `diff <n>`
 
 The raw unified diff of the PR's brief span (or `--base <sha> --head <sha>`
-together). The raw output **is** the machine format — `--json` is rejected
+together). The raw output **is** the machine format: `--json` is rejected
 (exit 2). On a TTY it pipes through `$PAGER`.
 
 `--group <id>` filters to one change group's **whole hunks** (the output is
-itself a valid diff — `git apply --check` clean). Brief-span only: combining
+itself a valid diff, `git apply --check` clean). Brief-span only: combining
 with `--base/--head` is exit 2. If the brief's files disagree with the live
 diff the command fails loud (exit 1) rather than silently under-showing.
 
 ### `delta <n>`
 
 What changed since **your** last review. One of the CLI-synthesized
-shapes — a discriminated union, both arms exit 0:
+shapes: a discriminated union, both arms exit 0:
 
 ```json
 {"available":true,"baselineSha":"77aa…","headSha":"4c0a…","artifact":{"summary":"…","changedGroups":[],"chunks":[]}}
@@ -152,7 +152,7 @@ resolution; an artifact missing for an explicit span is exit 4.
 ### `session <n> --base <sha> --head <sha>`
 
 Your review session on the brief span you name, verbatim. The span is
-required and never auto-fetched (exit 2 without it) — the same
+required and never auto-fetched (exit 2 without it): the same
 `baseSha`/`headSha` pair `pr <n>` reports.
 
 ### `marks <n> --baseline <sha> --head <sha>`
@@ -172,9 +172,9 @@ rule as `session`.
 
 ### `draft create|update|reanchor|delete|attach <n> [draftId]`
 
-Draft inline comments in your session — they post at `submit`. Every draft
+Draft inline comments in your session; they post at `submit`. Every draft
 command names the brief span (`--base/--head`, exit 2 without them).
-Payload via `-F <file>` / `-F -` (stdin), or the convenience flags —
+Payload via `-F <file>` / `-F -` (stdin), or the convenience flags,
 mutually exclusive (exit 2):
 
 - `create <n> --file <path> --start <line> --end <line> --body <text>`
@@ -182,14 +182,14 @@ mutually exclusive (exit 2):
   `--file` without `--start`/`--end` is a File comment. Mixing `--file`
   with only one of `--start`/`--end` is exit 2. `--file` without a span
   cannot take `--side` or `--start-side` (exit 2). Receipt: `{"draftId":"41"}`.
-- `update <n> <draftId> --body <text>` — edit a held draft's body. Prints
+- `update <n> <draftId> --body <text>`: edit a held draft's body. Prints
   nothing on success.
-- `reanchor <n> <draftId> --file --start --end [--side]` — move a held
+- `reanchor <n> <draftId> --file --start --end [--side]`: move a held
   draft's anchor. `--file` without a span converts it to a File comment.
   `--file` without a span cannot take `--side` or `--start-side` (exit 2).
   Server-gated to signed-in reviewers (a token gets the relayed 403 → exit 5).
   Prints nothing on success.
-- `delete <n> <draftId>` — no payload. Same signed-in-reviewer gate. Prints
+- `delete <n> <draftId>`: no payload. Same signed-in-reviewer gate. Prints
   nothing on success.
 - `attach <n> <file>`: upload a png, jpg, gif or webp image to the
   repository's attachments branch and print `{"url":"…"}` for a comment to
@@ -205,7 +205,7 @@ exclusive). Span required. Prints nothing on success.
 
 ### `risk dismiss|address|reopen <n> -F <file>`
 
-Disposition the brief's risk flags. `-F` is **required** — the payload's
+Disposition the brief's risk flags. `-F` is **required**: the payload's
 `flags` array names each flag by anchor (`filePath`, `attribute`,
 `regionStart`, `regionEnd`), copied through from `session --json`.
 `dismiss` adds `--reason <text>` as a convenience, mutually exclusive with
@@ -220,7 +220,7 @@ Prints nothing on success.
 
 ### `outcome <n> <comment|approve|request-changes>`
 
-Set your session's review intent — `submit` is what publishes. Span
+Set your session's review intent; `submit` is what publishes. Span
 required. Receipt: `{"outcome":"approve"}`.
 
 ### `thread resolve|unresolve <n> <commentId>`
@@ -235,7 +235,7 @@ Prints nothing on success.
 
 ### `generate <url>`
 
-Generate a brief for a PR URL on demand — no confirm prompt (your own
+Generate a brief for a PR URL on demand, with no confirm prompt (your own
 key, mirroring the web URL box). The server queues the run and answers
 where the brief will render: `{"repoId":"42001","prNumber":7}`. Poll
 `pr <n>` for progress.
@@ -251,7 +251,7 @@ see why a head has no brief.
 ### `collaborators`
 
 The target repo's collaborator roster, verbatim (`-R`/origin addressing).
-Requires push access — a read-only viewer gets the 404 posture.
+Requires push access: a read-only viewer gets the 404 posture.
 
 ### `spend`
 
@@ -274,8 +274,8 @@ Receipt verbatim: `{"commentId":990011}`.
 Submit a review of the brief span you name; the comments are the drafts
 the server holds for it (`draft create` adds them). Payload via `-F <file>` /
 `-F -` (stdin), or the
-convenience flags (`--outcome comment|approve|request-changes`, `--body`)
-— the two forms are mutually exclusive. **`--base` and `--head` are
+convenience flags (`--outcome comment|approve|request-changes`, `--body`);
+the two forms are mutually exclusive. **`--base` and `--head` are
 required and never auto-fetched** (exit 2 without them): carry the span
 through from `pr <n>`. Receipt verbatim:
 
@@ -285,16 +285,16 @@ through from `pr <n>`. Receipt verbatim:
 
 `commentsFolded` counts the comments GitHub refused to anchor out of
 `commentsTotal`; those were folded into the review body, the rest landed
-as threads — the review **did** post (a stderr warning fires in both
+as threads. The review **did** post (a stderr warning fires in both
 output modes when the count is above zero; do not re-submit).
 `commentsDegraded` mirrors `commentsFolded > 0` for one release. GitHub
-rejects `approve`/`request-changes` on your own PR (`comment` passes) —
+rejects `approve`/`request-changes` on your own PR (`comment` passes);
 that relays as a server error; don't retry-loop it.
 
 ### `capabilities`
 
 The server's operation catalog joined with this binary's committed command
-map — the third CLI-synthesized shape. Each server operation gains a `cli`
+map, the third CLI-synthesized shape. Each server operation gains a `cli`
 arm: `{command}` (runnable here), `{gap}` (no command yet), `{webOnly}`
 (browser-only by design), or `{unknownToCli: true}` (the server is newer).
 The shape also carries `cliVersion`.
@@ -307,17 +307,17 @@ failure. Agents run this before driving a workflow.
 ### `auth login` / `auth status`
 
 `auth login` reads the token from stdin (paste prompt on a TTY), stores it
-per profile, and verifies it immediately — its output is the `auth status`
+per profile, and verifies it immediately; its output is the `auth status`
 shape. `auth status` is three-level: config (profile, base URL, token
 present), the CLI's own version, and server (reachable, authenticated,
-**server version** — the API changelog is keyed to it — plus the newest
+**server version** (the API changelog is keyed to it), plus the newest
 release the server knows of, when its update check has an answer). Dead
 token and unreachable server are data (exit 0), so scripts can diagnose
 without special-casing failures.
 
 ## Profiles
 
-`~/.config/mergebrief/config.json` (0600) holds named profiles — base URL,
+`~/.config/mergebrief/config.json` (0600) holds named profiles: base URL,
 token, optional `owners: ["acme"]` mapping and extra static `headers` (the
 IdP escape hatch). Resolution order: `--profile` / `MERGEBRIEF_PROFILE` →
 `owners:` match on the git-remote owner → the default profile.

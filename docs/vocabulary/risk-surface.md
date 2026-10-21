@@ -1,6 +1,6 @@
 # Risk Surface Library
 
-Factual attributes attached to a chunk during categorization. Attributes only — never verdicts. Severity (when needed) emerges from the *combination* of attributes (e.g., `touches-auth` + `no-tests` + `widely-imported` together = deep-review signal) without any verdict applied.
+Factual attributes attached to a chunk during categorization. Attributes only, never verdicts. Severity (when needed) emerges from the *combination* of attributes (e.g., `touches-auth` + `no-tests` + `widely-imported` together = deep-review signal) without any verdict applied.
 
 This file is the source of truth for the Risk Surface vocabulary. The Brief schema's attribute enum mirrors it, and every brief names its attributes from here.
 
@@ -8,11 +8,11 @@ This file is the source of truth for the Risk Surface vocabulary. The Brief sche
 
 **Status:** starter set. Expand when real PRs show a gap (see "When to Add a New Attribute").
 
-**Floor attributes.** Three attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions` — marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
+**Floor attributes.** Three attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions`, marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
 
 ---
 
-## Bucket 1 — About the CODE
+## Bucket 1: About the CODE
 
 Properties of the code that exists in the file/chunk being changed (independent of what the diff does).
 
@@ -27,7 +27,7 @@ The changed code lacks type annotations or is heavily `any`-typed (TypeScript) /
 - **Reviewer implication:** reviewer must reason about types in their head; verify runtime safety claims explicitly.
 
 ### `legacy-area`
-The file/module carries a marker indicating legacy status — TODO/FIXME comments, `@deprecated` annotations, deprecation notices in CODEOWNERS, or a dedicated `legacy/` directory.
+The file/module carries a marker indicating legacy status: TODO/FIXME comments, `@deprecated` annotations, deprecation notices in CODEOWNERS, or a dedicated `legacy/` directory.
 - **Detect:** grep for `@deprecated`, `TODO:`, `FIXME:`, `legacy/` paths.
 - **Reviewer implication:** changes here may be inconsistent with current patterns; reviewer should verify the change doesn't entrench the legacy pattern further.
 
@@ -38,35 +38,35 @@ The chunk has high branching factor (deep nesting, multiple conditions per line,
 
 ---
 
-## Bucket 2 — About the CHANGE
+## Bucket 2: About the CHANGE
 
 Properties of what this specific diff does (independent of where it sits in the codebase).
 
 ### `touches-auth`
-**Floor: yes** — cannot be de-emphasized by repo policy.
+**Floor: yes**. Cannot be de-emphasized by repo policy.
 
 The diff modifies authentication, authorization, session, or identity code.
 - **Detect:** imports/calls into auth modules (`@auth/*`, `passport`, `next-auth`, `clerk`, `withAuth`, JWT libraries), session middleware, identity-token handling.
 - **Reviewer implication:** auth changes invalidate prior security assumptions. Reviewer must verify the new code doesn't widen access, leak tokens, or skip checks under any input.
 
 ### `mutates-state`
-The diff modifies code that writes to persistent state — DB writes, file writes, mutations to globals, cache invalidations.
+The diff modifies code that writes to persistent state: DB writes, file writes, mutations to globals, cache invalidations.
 - **Detect:** `insert`/`update`/`delete`/`upsert` calls, `fs.write*`, mutations to module-level variables, cache.set / invalidation calls.
 - **Reviewer implication:** state mutations affect callers/observers downstream. Reviewer must verify ordering, idempotency, concurrency, and rollback semantics.
 
 ### `removes-validation`
-**Floor: yes** — cannot be de-emphasized by repo policy.
+**Floor: yes**. Cannot be de-emphasized by repo policy.
 
 The diff weakens a check, guard, type narrowing, schema validator, or assertion.
 - **Detect:** lines deleted that contained `if (!...)`, `throw`, `assert`, `zod`/`yup` schema constraints, type guards, range checks.
   Mechanically gated (warn-and-drop): the validator drops the attribute when the chunk deletes
-  no lines — a purely additive chunk (e.g. a parser accepting a new optional field) is not
+  no lines; a purely additive chunk (e.g. a parser accepting a new optional field) is not
   weakened validation. Deliberate trade: an added early-return can weaken a guard without
   deleting lines; that rare shape is sacrificed to kill the observed false-positive class.
 - **Reviewer implication:** weakening a check requires explicit justification. Reviewer must confirm the input space that was previously rejected is now safe to accept (or is rejected elsewhere).
 
 ### `relaxes-permissions`
-**Floor: yes** — cannot be de-emphasized by repo policy.
+**Floor: yes**. Cannot be de-emphasized by repo policy.
 
 The diff broadens an access check, role check, scope, or permission boundary.
 - **Detect:** changes from `admin-only` → `member-or-admin`, role list additions, scope additions, ACL widening.
@@ -87,36 +87,36 @@ The diff adds a new **direct** dependency to a package manifest.
 - **Detect:** a manifest diff (`package.json` dependencies/devDependencies, `requirements.txt`,
   `Cargo.toml`, `go.mod`, …) gains a package that was not there before. Version-only bumps do
   **not** fire (those are the `lib-bump` / `dependency-update` Categories). Mechanically
-  confirmable from the diff — the validator drops the attribute (warn-and-drop) if no manifest
+  confirmable from the diff: the validator drops the attribute (warn-and-drop) if no manifest
   line actually adds a new package.
-- **Reviewer implication:** reviewer verifies the dependency earns its place — stdlib or an
+- **Reviewer implication:** reviewer verifies the dependency earns its place: stdlib or an
   existing dep couldn't do the job; license, maintenance, and footprint acceptable. Most
   informative when the group's Dominant Category is *not* dep-related: a package appearing
   incidentally inside a `new-feature`/`bugfix` group is the attention signal (combination
-  reading, as always — no verdict).
+  reading, as always, with no verdict).
 
 ### `new-abstraction`
-The diff introduces a new named abstraction — class, interface, service, wrapper, layer of
-indirection — that did not exist before.
-- **Detect:** new abstraction definitions in the diff (not relocations — `pure-move` /
+The diff introduces a new named abstraction (class, interface, service, wrapper, layer of
+indirection) that did not exist before.
+- **Detect:** new abstraction definitions in the diff (not relocations: `pure-move` /
   `move-with-edits` groups don't fire this). Observational only: fires on *existence*, never
   judges whether the abstraction is warranted.
-- **Reviewer implication:** reviewer asks whether the abstraction earns its place — does an
+- **Reviewer implication:** reviewer asks whether the abstraction earns its place: does an
   existing pattern or utility already cover it; is one call site enough to justify a layer.
 
 ### `comment-contradicts-code`
 A comment or docstring in the diff appears to disagree with what the adjacent code does.
-- **Detect:** model-observed — compare docstrings/comments against the implementation in the
+- **Detect:** model-observed. Compare docstrings/comments against the implementation in the
   same chunk; when firing, cite both sides (the comment line and the code line). If either
   side is outside the diff's visible context, stay silent. Expected to carry `uncertain` more
   often than other attributes; first-to-drop under the deprecation rule if it proves noisy.
-- **Reviewer implication:** reviewer reads both and resolves which side is right — fix the
+- **Reviewer implication:** reviewer reads both and resolves which side is right: fix the
   code or fix the comment. Checkable in seconds; the flag routes attention, never asserts
   which side is wrong.
 
 ---
 
-## Bucket 3 — About the BLAST RADIUS
+## Bucket 3: About the BLAST RADIUS
 
 Properties of what depends on the changed code (independent of what the change is).
 
@@ -126,7 +126,7 @@ The diff calls external services, network endpoints, filesystem, OS, or third-pa
 - **Reviewer implication:** external calls add failure modes (network errors, timeouts, partial state). Reviewer must verify retry/timeout/idempotency and what happens on outage.
 
 ### `cross-service`
-The chunk changes a contract another service or deployable consumes — API request/response bodies, RPC/message-queue payloads, shared DB schemas, a lib's published exported surface. Sibling services in the same repo count only when they are separate deployables sharing a schema or HTTP API — compile-time imports between packages are NOT services (that is `widely-imported` territory). Modifying an existing consumed contract fires even when the change is additive; a wholly NEW endpoint/export has no consumers yet and is NOT cross-service ("exported public API surface" alone is not this attribute).
+The chunk changes a contract another service or deployable consumes: API request/response bodies, RPC/message-queue payloads, shared DB schemas, a lib's published exported surface. Sibling services in the same repo count only when they are separate deployables sharing a schema or HTTP API; compile-time imports between packages are NOT services (that is `widely-imported` territory). Modifying an existing consumed contract fires even when the change is additive; a wholly NEW endpoint/export has no consumers yet and is NOT cross-service ("exported public API surface" alone is not this attribute).
 - **Detect:** changes to OpenAPI/GraphQL schema files, gRPC `.proto`, message-queue payload shapes, an already-consumed route body or shared table, or an already-published API surface consumed by other repos.
 - **Reviewer implication:** change is consumed elsewhere. Reviewer must verify backward compatibility, version negotiation, and consumer-side migration plan.
 
@@ -136,7 +136,7 @@ The diff is near (but not in) a schema definition, migration, or persistence lay
 - **Reviewer implication:** even if the diff itself doesn't change a schema, behavior may depend on schema invariants. Reviewer must confirm the change is consistent with the schema's intent.
 
 ### `hot-path`
-The chunk lives on a demonstrably high-traffic or latency-critical path — not every request handler qualifies.
+The chunk lives on a demonstrably high-traffic or latency-critical path; not every request handler qualifies.
 - **Detect:** the chunk is in (or directly called by) a serving loop, per-request middleware, hot loop, or path annotated `// hot-path` / per-team designation. (Judgment required when no annotation exists; a routine request handler with no traffic/latency evidence does not fire.)
 - **Reviewer implication:** performance regressions amplify. Reviewer must verify no new allocations, sync I/O, or unbounded loops on this path.
 
@@ -168,13 +168,13 @@ The brief shows attributes as a flat list per chunk; the reviewer reads the comb
 
 Registered here so nobody reinvents them; not valid tokens until unblocked.
 
-- **`unresolved-reference`** — a string-keyed reference (feature-flag name, env var,
+- **`unresolved-reference`**: a string-keyed reference (feature-flag name, env var,
   translation key, route string, queue name) that doesn't resolve against the repo's
   registries. The genuinely un-linted hallucinated surface: compilers catch unresolved
   *imports* pre-review, nothing catches these. Needs per-repo registry knowledge + repo
-  context — parked until a context source can read the repo's registries (today's sources read tickets and PR-linked pages, not repo files). Note: plain
-  `unresolved-import` was **rejected**, not parked — compilers/CI own that lane.
-- **`diverges-from-sibling-pattern`** — solves the task unlike sibling files do. Needs
+  context, so it is parked until a context source can read the repo's registries (today's sources read tickets and PR-linked pages, not repo files). Note: plain
+  `unresolved-import` was **rejected**, not parked: compilers/CI own that lane.
+- **`diverges-from-sibling-pattern`**: solves the task unlike sibling files do. Needs
   sibling *selection* (a judgment with bad FP shape: accusing the author of inconsistency
   based on our sampling choice) plus repo file fetching (`ContextSource`, escalation-tier),
   and intentional divergence is routine in refactors. Deferred on evidence + FP-shape
@@ -187,6 +187,6 @@ Registered here so nobody reinvents them; not valid tokens until unblocked.
 Add an attribute to the library when:
 1. The same observable pattern appears in ≥2 PRs.
 2. The pattern is not already covered by an existing attribute.
-3. The pattern has a clear reviewer implication — adding the attribute would change what a reviewer should do.
+3. The pattern has a clear reviewer implication: adding the attribute would change what a reviewer should do.
 
 Drop an attribute if it never fires across 10+ PRs, or if it always co-fires with another attribute (redundant).

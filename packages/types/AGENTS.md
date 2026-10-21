@@ -1,4 +1,4 @@
-# packages/types — agent notes
+# packages/types: agent notes
 
 Repo-wide conventions apply (root AGENTS.md states this package's surface and its runtime rule); refinements below.
 

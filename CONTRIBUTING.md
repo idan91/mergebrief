@@ -9,8 +9,8 @@ it: every token you register shapes what the tool can recognize in every PR anyo
 vocabulary lives in plain markdown in this repo, and sharpening it is the main
 contribution surface.
 
-If you have reviewed enough PRs to know that a factual pattern — `removes-validation`,
-`widens-trust-boundary` — reliably deserves a second look, you already have something to
+If you have reviewed enough PRs to know that a factual pattern such as `removes-validation`
+or `widens-trust-boundary` reliably deserves a second look, you already have something to
 contribute here.
 
 > **Where did the Playbooks go?** The per-Category checklist layer is **parked to v2**.
@@ -25,8 +25,8 @@ The vocabulary is split across files with a strict division of labor:
 | File | Role |
 |---|---|
 | [`docs/vocabulary/labeling-schema.md`](docs/vocabulary/labeling-schema.md) | The authoritative **index** of valid tokens on every axis. A token not registered here is not valid, full stop. |
-| [`CONTEXT.md`](./CONTEXT.md) | The **glossary** — what each concept means, what terms are deliberately avoided. |
-| [`docs/vocabulary/risk-surface.md`](docs/vocabulary/risk-surface.md) | The per-attribute detail for **Risk Surface** — detection notes and reviewer implications. |
+| [`CONTEXT.md`](./CONTEXT.md) | The **glossary**: what each concept means, what terms are deliberately avoided. |
+| [`docs/vocabulary/risk-surface.md`](docs/vocabulary/risk-surface.md) | The per-attribute detail for **Risk Surface**: detection notes and reviewer implications. |
 
 Always edit in that order: register the token in the index first, then write the deep
 content. Never invent a token inline anywhere else.
@@ -35,13 +35,13 @@ content. Never invent a token inline anywhere else.
 
 Three axes, three attach points. (Full glossary in [`CONTEXT.md`](./CONTEXT.md).)
 
-- **Category** — the *intent* of a Change-group (`bugfix`, `lib-bump`, `schema-change`, …).
+- **Category**: the *intent* of a Change-group (`bugfix`, `lib-bump`, `schema-change`, …).
   One dominant per group, optional secondaries.
-- **Concern** — the *artifact* a chunk touches (`implementation`, `test`, `doc`, `spec`,
+- **Concern**: the *artifact* a chunk touches (`implementation`, `test`, `doc`, `spec`,
   `config`, `generated`). Independent of Category.
-- **Risk Surface** — zero or more *factual attributes* on a chunk (`no-tests`,
+- **Risk Surface**: zero or more *factual attributes* on a chunk (`no-tests`,
   `mutates-state`, `new-dependency`, …), in three buckets: about the code, about the change,
-  about the blast radius. Facts a reviewer can check in seconds. Never verdicts — severity,
+  about the blast radius. Facts a reviewer can check in seconds. Never verdicts. Severity,
   when it matters, emerges from combinations, and the reviewer makes that call.
 
 All three vocabularies are **closed sets**. The engine's prompt and output schema are
@@ -53,10 +53,10 @@ is deliberate, never casual.
 
 Each attribute entry in `risk-surface.md` carries:
 
-- a **name** (kebab-case, factual, no severity words — `touches-auth`, never `dangerous-auth`),
+- a **name** (kebab-case, factual, no severity words: `touches-auth`, never `dangerous-auth`),
 - its **bucket** (code / change / blast radius),
-- a **Detect** note — how a labeler or the engine recognizes it, as mechanically as possible,
-- a **Reviewer implication** — what a reviewer should do differently because the attribute
+- a **Detect** note: how a labeler or the engine recognizes it, as mechanically as possible,
+- a **Reviewer implication**: what a reviewer should do differently because the attribute
   fires. If firing wouldn't change reviewer behavior, the attribute carries no information.
 
 ## How to contribute
@@ -65,25 +65,25 @@ Each attribute entry in `risk-surface.md` carries:
 
 The bar (from `risk-surface.md`, "When to Add a New Attribute"):
 
-1. The same observable pattern appears in **at least two real PRs** — cite them in your PR
+1. The same observable pattern appears in **at least two real PRs**; cite them in your PR
    description.
 2. No existing attribute already covers it.
-3. It has a clear reviewer implication — the attribute would change what a reviewer does.
+3. It has a clear reviewer implication: the attribute would change what a reviewer does.
 
 Then: register the token in `labeling-schema.md` (correct bucket), write the full entry in
 `risk-surface.md`, and keep the name factual. If detection needs repo context the engine
-doesn't have (registries, sibling files), expect it to be **parked** rather than accepted —
+doesn't have (registries, sibling files), expect it to be **parked** rather than accepted;
 see the "Parked candidates" section of `risk-surface.md` for two worked examples of that
 outcome and why.
 
 ### Sharpen an existing entry
 
 Better detection notes, a sharper reviewer implication, or evidence that an attribute is
-dead weight — all welcome, same evidence bar.
+dead weight: all welcome, same evidence bar.
 
 ### Add a Category
 
-The rarest change, and the highest bar — every Category dilutes the recognizability of the
+The rarest change, and the highest bar, because every Category dilutes the recognizability of the
 others. Be ready to show that real Change-groups exist whose intent no current Category
 expresses (and that the gap isn't actually a Concern, the classic mistake: `test-only` and
 `config-only` looked like Categories and were not). Register in `labeling-schema.md` and
@@ -112,7 +112,7 @@ renames, or removes one) must update the mirrors in the same PR:
   when the token is a floor attribute or a parked candidate.
 
 Token changes touch the generation surface, so the eval harness applies
-(`pnpm -C tools/categorizer eval` — see `tools/categorizer/eval/README.md`).
+(`pnpm -C tools/categorizer eval`; see `tools/categorizer/eval/README.md`).
 Verification for code-touching PRs, on the Node version in `.nvmrc`:
 
 ```bash
@@ -143,36 +143,36 @@ code from the markdown is a welcome future contribution.
 
 ## Governance
 
-One maintainer, stated plainly: **final call on every contribution — vocabulary, code,
-docs — rests with the maintainer.** What you can rely on in exchange:
+One maintainer, stated plainly: **final call on every contribution (vocabulary, code,
+docs) rests with the maintainer.** What you can rely on in exchange:
 
 - **Reasons, always.** Every accept, reject, or park gets a short written reason in the
   PR thread, tied to the published bars above (evidence rule, deprecation rule, the
   Concern-vs-Category check). No silent closes.
 - **"Parked" is a real outcome.** Good ideas that need something the project doesn't
   have yet (usually repo context the engine can't see) are parked with the reason
-  recorded, not rejected — see the worked examples in `risk-surface.md`.
+  recorded, not rejected; see the worked examples in `risk-surface.md`.
 - **Token changes wait on a maintainer-run check.** Vocabulary PRs touch the generation
   surface, so they merge only after the maintainer runs the eval harness (it needs API
   spend and keys that fork PRs can't have). That step is on the maintainer, not you.
 
 There are no auto-accept windows, votes, or response-time promises. Disputes are argued
-in the PR or issue — convincing the maintainer is the process. This model has recorded
+in the PR or issue: convincing the maintainer is the process. This model has recorded
 loosening triggers and will be revisited when the project earns a second maintainer.
 
 ## Translations
 
 The UI ships English-only today; every other locale is community-contributed. A locale
-PR touches two files — `packages/i18n/src/locales/<id>.json` plus one registry row — and the
+PR touches two files, `packages/i18n/src/locales/<id>.json` plus one registry row, and the
 package's test suite is the review bar (mechanical checks hard-fail; completeness only
 reports, so partial locales ship and fall back to English). The full walkthrough lives in
 [`packages/i18n/README.md`](./packages/i18n/README.md). Machine translation is fine as a
-declared, human-reviewed starting point. Right-to-left locales are not yet supported —
+declared, human-reviewed starting point. Right-to-left locales are not yet supported, so
 open an issue before starting one.
 
 ## Code contributions
 
-Bug fixes and features are welcome through ordinary PRs — run the verification commands
+Bug fixes and features are welcome through ordinary PRs. Run the verification commands
 above before opening one. For anything architectural, open an issue to discuss first; several tempting features
 (severity scores, AI-authored review comments, general-purpose bug hunting) are non-goals
 listed in [`docs/vision.md`](docs/vision.md), and a PR won't change that.

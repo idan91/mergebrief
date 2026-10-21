@@ -1,4 +1,4 @@
-# packages/contract — agent notes
+# packages/contract: agent notes
 
 The HTTP agreement between apps that run as separate processes: what an API response carries, what a client sends, and the closed vocabularies both sides answer to. `apps/api` produces these shapes; `apps/web` and the CLI read them.
 

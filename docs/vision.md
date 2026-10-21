@@ -15,14 +15,14 @@ verification (a **Receipt**, never an approval); the human writes the comment an
 
 ## Who it's for
 
-The **individual engineer or team that wants to self-host a good review tool** — run it on
+The **individual engineer or team that wants to self-host a good review tool**: run it on
 their own infrastructure, with their own model key (**BYOK**), with code and keys never
 leaving their control. Not a procurement buyer. Not an org being sold a seat. The adopter is
 a peer who tries it because it's genuinely useful and open.
 
 ## Why it's different from CodeRabbit (and the rest)
 
-CodeRabbit's **Atlas** ("CodeRabbit Review") shipped the same core idea — semantic
+CodeRabbit's **Atlas** ("CodeRabbit Review") shipped the same core idea: semantic
 **cohorts**, dependency-ordered **layers**, per-range AI summaries, no prescriptive verdict.
 It is well-built and funded. We do not win by out-featuring it. We win on the axes a closed,
 funded SaaS structurally cannot occupy:
@@ -38,7 +38,7 @@ funded SaaS structurally cannot occupy:
   queryable across PRs: narrative-on-top-of-taxonomy, the layer they don't have.
 - **No-verdict, receipt-not-approval values.** A point of view about trust, stated in the open.
 
-The goal is **a quality self-hosted project with good word-of-mouth** — something good engineers use
+The goal is **a quality self-hosted project with good word-of-mouth**: something good engineers use
 in the open, and a credible piece of public work. Mindshare for the thesis, not market share.
 
 ## Non-goals (what this project refuses to be)

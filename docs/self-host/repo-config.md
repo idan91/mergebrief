@@ -1,7 +1,7 @@
 # Repo-local configuration: the `.mergebrief/` directory
 
 A repository can commit a `.mergebrief/` directory to shape its own briefs.
-This is the **code-owner's** surface — distinct from the
+This is the **code-owner's** surface, distinct from the
 operator's instance config (`mergebrief.config.yaml`, env-located, never in
 the repo): instance config decides provider/model/spend and refuses boot when
 invalid; repo config decides policy/text/workflow and degrades **that
@@ -12,11 +12,11 @@ repo's** briefs loudly when invalid, never the instance.
   instructions.md    # text guidance to generation (semi-trusted, bounded)
   settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, trackers)
   policy.yaml        # risk policy: custom attributes + display de-emphasis
-  rules/             # RESERVED for future generated output — leave empty
+  rules/             # RESERVED for future generated output; leave empty
 ```
 
 Every file is read from the **default branch only**, fetched fresh per
-generation — a PR can never weaken its own scrutiny by editing config on its
+generation, so a PR can never weaken its own scrutiny by editing config on its
 head. A PR that changes a config file is analyzed like any other diff; the
 change applies after merge.
 
@@ -24,17 +24,17 @@ Every brief records exactly which config shaped it: per-file
 `path + blob SHA + outcome` (`applied` / `absent` / `invalid` /
 `over-budget` / `fetch-failed`) on the generation record and the brief, an
 understated "repo config @ sha" chip in the header (warning state on any
-error — visible to author and reviewer), and a permanent copy on the
+error, visible to author and reviewer), and a permanent copy on the
 Receipt.
 
 ## `instructions.md` (16 KB budget)
 
 Free-form text the generator may follow **only** within the enumerated
-instruction classes — see the authoring guide
+instruction classes; see the authoring guide
 (`docs/repo-config/authoring.md`) and the template
 (`docs/repo-config/instructions-template.md`). Text shapes presentation and
 comprehension; it can never mint a risk attribute, change a label
-vocabulary, or alter the output schema — that asymmetry is why `policy.yaml`
+vocabulary, or alter the output schema. That asymmetry is why `policy.yaml`
 exists separately. Over 16 KB the file is rejected whole (loudly), never
 truncated.
 
@@ -45,7 +45,7 @@ version: 1
 entryCommentOnDrafts: true   # default
 ```
 
-`entryCommentOnDrafts` — the branded Entry comment posts on draft PRs by
+`entryCommentOnDrafts`: the branded Entry comment posts on draft PRs by
 default, the same as on ready ones. A repo that keeps drafts private opts
 out with `false`; the comment then posts when the PR flips to
 ready-for-review, and an existing draft Entry is removed on the next run.
@@ -53,7 +53,7 @@ Generation itself always runs for drafts (subject to the instance `drafts:`
 knob below); this gates the comment only. When the settings file cannot be
 fetched the comment stays off drafts for that run and nothing is removed.
 
-### `trackers:` — where this repo's tickets live
+### `trackers:`, where this repo's tickets live
 
 ```yaml
 version: 1
@@ -118,21 +118,21 @@ attributes:
     implication: needs a finance-aware reviewer   # optional, ≤ 500 chars
     paths:                         # optional glob scope (deterministic pre-filter)
       - services/billing/**
-deEmphasize:                       # optional display tuning — quiet, never suppress
+deEmphasize:                       # optional display tuning: quiet, never suppress
   - attribute: widens-error-handling
   - attribute: no-tests
     paths: [generated/**]
 ```
 
-- Custom attributes are **flat facts** — no tier, severity, or weight can
+- Custom attributes are **flat facts**: no tier, severity, or weight can
   exist (unknown keys reject the whole file).
 - Names colliding with a built-in, parked candidate, or reserved word are
-  ignored with a disclosure chip — **built-in wins**, identically day-one or
+  ignored with a disclosure chip: **built-in wins**, identically day-one or
   after an upgrade.
 - **De-emphasis, never suppression**: detection always runs and every
   attribute lands in the artifact and Receipt; de-emphasis only quiets the
-  render and drops the attribute from the jump-rail. The floor —
-  `touches-auth`, `removes-validation`, `relaxes-permissions` — cannot be
+  render and drops the attribute from the jump-rail. The floor attributes,
+  `touches-auth`, `removes-validation`, `relaxes-permissions`, cannot be
   de-emphasized, and a quiet attribute co-firing with a floor attribute
   renders loud.
 - Glob scope language: `**` spans directories, `*` within a segment, `?`
@@ -146,7 +146,7 @@ proceeds without it and the error shows on the origin chip to both
 author and reviewer. A GitHub fetch failure fails **open**: the brief
 generates without repo config, recorded loudly as `fetch-failed`.
 
-## Local-only mode (CLI) — first slice built
+## Local-only mode (CLI): first slice built
 
 The dotdir also serves a second mode: the `categorize` and `delta` CLIs
 read `.mergebrief/settings.yaml` from the **working tree** they run in
@@ -157,12 +157,12 @@ and policy still come only from the server's default-branch fetch.
 
 ## Related instance block: `drafts:` (operator-side)
 
-`mergebrief.config.yaml` (instance config) carries a `drafts` block — the
+`mergebrief.config.yaml` (instance config) carries a `drafts` block, the
 operator's draft-PR spend knobs:
 
 ```yaml
 drafts:
-  generate: on        # on|off — whether drafts generate at all (default on)
+  generate: on        # on|off: whether drafts generate at all (default on)
   debounceSeconds: 900  # optional draft REgeneration window; unset = normal 60s
 ```
 
@@ -171,8 +171,8 @@ depends on draft generations existing. Under `generate: off` a draft PR is
 state-tracked only and gets its **first** brief when marked ready (the
 `ready_for_review` trigger); the web view still shows PR conversation and
 meta meanwhile. **Precedence:** `generate: off` makes the repo-level
-default-on `entryCommentOnDrafts` above moot until ready — no generation means
-no entry comment, automatically. Spend knobs are instance config — a repo
+default-on `entryCommentOnDrafts` above moot until ready: no generation means
+no entry comment, automatically. Spend knobs are instance config; a repo
 file may narrow instance behavior, never widen spend.
 
 `debounceSeconds` damps WIP push-storm spend: a draft's first push in a

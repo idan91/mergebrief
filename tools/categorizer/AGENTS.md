@@ -1,4 +1,4 @@
-# tools/categorizer — agent notes
+# tools/categorizer: agent notes
 
 The dev CLIs (`pnpm categorize`, `pnpm delta`) and the generation-quality eval harness, on top of brief-core. Nothing outside `tools/` imports this member.
 

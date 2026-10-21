@@ -1,16 +1,16 @@
 # API changelog
 
-Consumer-visible changes to the public HTTP surfaces — `/api/*`, including
-the browser-managed `/api/auth/*` management routes — keyed to the
+Consumer-visible changes to the public HTTP surfaces, `/api/*` including
+the browser-managed `/api/auth/*` management routes, keyed to the
 **server version** (`GET /api/version`; surfaced by
-`mergebrief auth status`). Entries name the version that shipped them —
+`mergebrief auth status`). Entries name the version that shipped them,
 NOT a git SHA: releases are what adopters deploy, and the version string is
 what a skewed client can actually see. (Within this monorepo, pre-release
 "versions" are the `SERVER_VERSION` the operator sets; `dev` means an
-untagged build — key such entries to the merge date instead.)
+untagged build; key such entries to the merge date instead.)
 
 The contract discipline: response shapes change additively
-within a major; removals/renames ship expand/contract — new field first,
+within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
 ## dev (2026-10-20)
@@ -419,7 +419,7 @@ deprecation note here, removal only at a major.
 ## dev (2026-08-21)
 
 - **Added** `GET /api/capabilities` → `{operations:[{id, kind,
-  classification, endpoint}], catalogFingerprint}` — the registered
+  classification, endpoint}], catalogFingerprint}`: the registered
   product-operation catalog served as data (id-sorted, `no-store`,
   session-gated on both presentation channels). `catalogFingerprint` is the
   sha256 hex of the committed `product-operations.manifest.json` bytes, so
@@ -428,11 +428,11 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-08-16)
 
-- **BREAKING** — the installation-switch endpoint renamed
+- **BREAKING**: the installation-switch endpoint renamed
   `POST /api/auth/installation` → `POST /api/auth/installations`, so both
   multi-org operations share one prefix (`GET /api/auth/installations` is
   unchanged). The request body, response shape, status codes, and
-  cookie-only presentation rule are all unchanged — only the path moved.
+  cookie-only presentation rule are all unchanged; only the path moved.
   The old singular path now 404s. Before the first release, with no
   adopters, so it ships as a straight rename rather than expand/contract.
 
@@ -441,33 +441,33 @@ deprecation note here, removal only at a major.
 - **Added** `capped` to `generation.status` on the PR-view/list responses
   (`generation.status`): the repo hit the instance's daily generation cap
   (`spend.dailyGenerationCap`) and the run was skipped. Terminal, and NOT a
-  failure — `error` is null and no attempt is consumed. Clients that treat
+  failure: `error` is null and no attempt is consumed. Clients that treat
   the status set as closed must accept the new value; clients that only
   branch on `succeeded`/`failed` see it as "neither", which is correct.
 - **Added** the worker log event `evt: "spend.cap.trip"` (level `warn`,
-  fields `repo`, `prId`, `headSha`, `cap`, `dayUtc`) — one line per capped
+  fields `repo`, `prId`, `headSha`, `cap`, `dayUtc`), one line per capped
   skip. The event name was reserved by the logging design; it ships at
   `warn`, not the reserved `error`.
 
 ## dev (2026-07-21)
 
-- **BREAKING** — the per-request access-log line renamed `evt: "read"` →
+- **BREAKING**: the per-request access-log line renamed `evt: "read"` →
   `evt: "api.access"` (before the first release, with no adopters). The line
   also gains `reqId` and a `msg` field, and levels render as string labels
   (`"level":"info"`). Anything scripted against `evt:"read"` must move to
   `evt:"api.access"`.
-- **BREAKING** — the compose web healthcheck moved `/` → `/healthz`.
+- **BREAKING**: the compose web healthcheck moved `/` → `/healthz`.
   Operator probes pointed at `/` still work (it serves the app) but the
   documented health endpoint is now `/healthz`.
 - **Added** `GET /healthz` (static liveness) and `GET /readyz` (readiness:
-  app composition + `SELECT 1`) — bare top-level paths outside `/api`,
+  app composition + `SELECT 1`), bare top-level paths outside `/api`,
   unauthenticated, constant `{"ok":bool}` JSON. `/readyz`
   answers 503 when the database is unreachable; compose and orchestrators
   must probe `/healthz`, never `/readyz`.
 - **Added** `X-Request-Id` handling on `/api/*`: a valid inbound id
   (charset/length-guarded) is accepted and echoed on the response; a UUID is
   minted and echoed otherwise.
-- **BREAKING** — all `/auth/*` routes moved under `/api/auth/*` so the app
+- **BREAKING**: all `/auth/*` routes moved under `/api/auth/*` so the app
   registers ONE external path namespace: `/auth/github` →
   `/api/auth/github`, `/auth/github/callback` → `/api/auth/github/callback`,
   `/auth/logout` → `/api/auth/logout`, `/auth/tokens[/:id]` →
@@ -475,18 +475,18 @@ deprecation note here, removal only at a major.
   `/api/auth/installation[s]`. Old paths now 404 (SSR page router).
   **Every registered GitHub App must update its OAuth callback URL** to
   `<PUBLIC_BASE_URL>/api/auth/github/callback`.
-- Bearer presentation rule adjusted with the move: Bearer is accepted on `/api/*` **except `/api/auth/*`** —
+- Bearer presentation rule adjusted with the move: Bearer is accepted on `/api/*` **except `/api/auth/*`**;
   auth management stays cookie-only, as before.
 
 ## dev (2026-07-09)
 
 - **Added** `GET /api/version` → `{version}` (session-gated, both
   presentation channels).
-- **Added** `GET /api/repos` → `{repos:[{repoId, fullName}]}` — the
+- **Added** `GET /api/repos` → `{repos:[{repoId, fullName}]}`: the
   installation ∩ user-access intersection; flat, unpaginated, `no-store`;
   GitHub failure is a 401/502, never a DB-derived listing.
 - **Added** Bearer-token presentation on `/api/*`
-  (`Authorization: Bearer mergebrief_...`) — second channel over the same
+  (`Authorization: Bearer mergebrief_...`), a second channel over the same
   session machinery. `/auth/*` stays browser-only.
 - **Added** `POST /auth/tokens`, `GET /auth/tokens`, and
   `DELETE /auth/tokens/:id` (browser-only token management).

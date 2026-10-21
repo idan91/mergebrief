@@ -9,7 +9,7 @@ Comprehension scaffolding for human reviewers of pull requests, not another revi
 ## Language
 
 **Brief**:
-The comprehension artifact the tool produces for a PR — summary, multi-tag categorization per chunk, per-category playbooks, risk-surface attributes. Computed eagerly on push (see **Trigger**), cached by commit SHA. Each Brief carries a PR-global **index** (the Nth brief for this PR, retargets included — shared across reviewers, never per-reviewer; the `rev` a brief URL names) and the **commit range** it covers (the whole PR, base→head). A Brief also surfaces the PR's shipped **Comments** (from all reviewers) with their GitHub-native **outdated** status, for display only — *which change resolved which comment* is the **Delta Brief**'s job, not the Brief's.
+The comprehension artifact the tool produces for a PR: summary, multi-tag categorization per chunk, per-category playbooks, risk-surface attributes. Computed eagerly on push (see **Trigger**), cached by commit SHA. Each Brief carries a PR-global **index** (the Nth brief for this PR, retargets included, shared across reviewers, never per-reviewer; the `rev` a brief URL names) and the **commit range** it covers (the whole PR, base→head). A Brief also surfaces the PR's shipped **Comments** (from all reviewers) with their GitHub-native **outdated** status, for display only: *which change resolved which comment* is the **Delta Brief**'s job, not the Brief's.
 _Avoid_: report, analysis, AI summary, brief number (for index)
 
 **Delta Brief**:
@@ -37,7 +37,7 @@ The immediately preceding full **Brief** for the same PR, used as the shared **C
 _Avoid_: prior run, last brief (ambiguous with personal last review)
 
 **Revision changes**:
-The shared, per-revision **Comparison overlay** on a full **Brief** that highlights which lines changed versus the **Previous Brief** (prevHead→head). Computed mechanically from the two head trees — never the per-reviewer **Delta Brief**, never reviewer-relative: every reviewer of a given head sees the same marking. Answers "what moved in this push" — distinct from the **Delta Brief**'s "what changed since *I* last looked", and absent on the first **Brief** (no previous head).
+The shared, per-revision **Comparison overlay** on a full **Brief** that highlights which lines changed versus the **Previous Brief** (prevHead→head). Computed mechanically from the two head trees, never the per-reviewer **Delta Brief**, never reviewer-relative: every reviewer of a given head sees the same marking. Answers "what moved in this push", distinct from the **Delta Brief**'s "what changed since *I* last looked", and absent on the first **Brief** (no previous head).
 _Avoid_: delta (reserved for the per-reviewer artifact), delta overlay, blue diff, revision delta
 
 **Revision narrative**:
@@ -45,11 +45,11 @@ The shared, generated explanation of what changed between a **Brief** and the im
 _Avoid_: Delta Brief, reviewer delta, update summary
 
 **Reading order**:
-The reasoned sequence over a **Brief**'s **Change-groups** — a strict permutation (each group appears exactly once, no revisits), each step carrying a one-line *why-this-next* rationale. The rule: **foundation-first** (groups whose changes other groups build on come first: schema/types → core logic → call sites/wiring), falling back to **context-first, churn-last** for independent groups (dominant-intent groups first; mechanically-known low-signal Categories such as `pure-move`, `lib-bump`, `dependency-update` last — keyed on Category, never a free-floating importance judgment). Orders the *existing* groups; it is never a new grouping and never exposes a score or rank label (no-verdict holds). Within-group order stays structural (core → supporting, Concern order). The **Unattributed remainder** is always the final step, placed there mechanically outside the reasoned permutation, with no rationale — it is leftover lines, not a decision about what to read next.
+The reasoned sequence over a **Brief**'s **Change-groups**: a strict permutation (each group appears exactly once, no revisits), each step carrying a one-line *why-this-next* rationale. The rule: **foundation-first** (groups whose changes other groups build on come first: schema/types → core logic → call sites/wiring), falling back to **context-first, churn-last** for independent groups (dominant-intent groups first; mechanically-known low-signal Categories such as `pure-move`, `lib-bump`, `dependency-update` last, keyed on Category, never a free-floating importance judgment). Orders the *existing* groups; it is never a new grouping and never exposes a score or rank label (no-verdict holds). Within-group order stays structural (core → supporting, Concern order). The **Unattributed remainder** is always the final step, placed there mechanically outside the reasoned permutation, with no rationale: it is leftover lines, not a decision about what to read next.
 _Avoid_: narrative (reserved for generated text), story, layers/cohorts (Atlas's terms), walkthrough (CodeRabbit's term), importance/priority/severity (verdict language)
 
 **Read-through**:
-The experience of following the **Reading order**: stepping through **Change-groups** in sequence (keyboard next/prev, focus on the current group), end to end, once. The theatre sense — a first sequential pass through the whole piece. The Read-through follows the Reading order; it never reorders or filters it.
+The experience of following the **Reading order**: stepping through **Change-groups** in sequence (keyboard next/prev, focus on the current group), end to end, once. The theatre sense: a first sequential pass through the whole piece. The Read-through follows the Reading order; it never reorders or filters it.
 _Avoid_: walkthrough (CodeRabbit's term), tour (onboarding connotation), guided review
 
 **Carry-over status**:
@@ -57,11 +57,11 @@ How a prior **Disposition** lands when a new **Review Session** materializes fro
 _Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
 
 **Comment anchoring**:
-How a prior comment is placed once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped **Line comment** draft (**Review Session**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped. A **File comment** has no line: GitHub never marks it outdated; a draft follows the path, not a line-map.
+How a prior comment is placed once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking: we read it, not recompute it. A **Flag** or an unshipped **Line comment** draft (**Review Session**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped. A **File comment** has no line: GitHub never marks it outdated; a draft follows the path, not a line-map.
 _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comments)
 
 **Chunk**:
-A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC. Lines in the **Unattributed remainder** are still chunks: they belong to that group and carry no Concern, no Role, no Risk Surface and no inherited Categorization — only their file, ranges and LoC.
+A contiguous run of changed lines sharing **one Concern and one Change-group**, the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC. Lines in the **Unattributed remainder** are still chunks: they belong to that group and carry no Concern, no Role, no Risk Surface and no inherited Categorization: only their file, ranges and LoC.
 _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
 _Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree; until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
@@ -70,9 +70,9 @@ A contiguous stretch of expanded rows that belongs to another chunk of the same 
 _Avoid_: borrowed lines, foreign hunk
 
 **Change-group**:
-A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more core chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
+A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent*: it carries the Categorization and the summary. Spans files and Concerns: one or more core chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
 **Boundary rule:** one group = the largest chunk set expressible as ONE Summary + ONE Dominant Category. If a set needs two unrelated summaries, split it. Author commit structure is a *hint* for understanding intent, never the boundary itself. A single-intent PR is one group; a grab-bag PR (fix + lib bump + README typo) is several.
-**Exception:** the **Unattributed remainder** is a Change-group with no Summary and no Categorization — leftover lines, not an intent. Never split, never merged into an intent group.
+**Exception:** the **Unattributed remainder** is a Change-group with no Summary and no Categorization: leftover lines, not an intent. Never split, never merged into an intent group.
 _Avoid_: chapter (Linear's narrative-only term), story, cluster, section
 
 **Unattributed remainder**:
@@ -80,11 +80,11 @@ The set of changed lines no attributed **Chunk** claimed. Stored on the **Brief*
 _Avoid_: coverage gap, orphan lines, residue, unattributed (bare noun)
 
 **Category**:
-A taxonomy entry describing the *intent* of a Change-group, not opinion about it. Examples: `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `dependency-update`. Category answers "what kind of change"; Concern answers "what kind of artifact" — they are independent axes.
-_Avoid_: type, classification, label, tag, kind. ("Label" and "tag" are not used in product or UX language — Category is the single word.) Also: `test-only`, `config-only`, `generated-code` are NOT Categories — they were artifact-concerns masquerading as intent; they are now Concern values.
+A taxonomy entry describing the *intent* of a Change-group, not opinion about it. Examples: `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `dependency-update`. Category answers "what kind of change"; Concern answers "what kind of artifact". They are independent axes.
+_Avoid_: type, classification, label, tag, kind. ("Label" and "tag" are not used in product or UX language: Category is the single word.) Also: `test-only`, `config-only`, `generated-code` are NOT Categories: they were artifact-concerns masquerading as intent; they are now Concern values.
 
 **Categorization**:
-The result of categorizing a Change-group: one or more Categories attached to that group, exactly one of which is the Dominant Category. A group has one Categorization; a Categorization contains one or more Categories. A group that is "mostly a bugfix but includes a move" has `{ dominant: bugfix, secondary: [pure-move] }` — this expresses sub-operations without a formal sub-chunk tree.
+The result of categorizing a Change-group: one or more Categories attached to that group, exactly one of which is the Dominant Category. A group has one Categorization; a Categorization contains one or more Categories. A group that is "mostly a bugfix but includes a move" has `{ dominant: bugfix, secondary: [pure-move] }`. This expresses sub-operations without a formal sub-chunk tree.
 _Avoid_: tags, labels (plural informal usage), classification
 
 **Dominant Category**:
@@ -112,11 +112,11 @@ Added and deleted line counts, shown non-prominently per **Change-group** and pe
 _Avoid_: diff size, churn, lines-changed-as-quality-metric, weighted LoC
 
 **Playbook**:
-A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses — known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated." **Parked to v2:** no v1 surface renders or consumes playbooks; if revived, the identity is a *coverage rubric* — post-hoc measurement of a finished review (check-off frozen into Receipts, or grading an agent's review), never prompt material for reviewers or agents.
+A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses: known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated." **Parked to v2:** no v1 surface renders or consumes playbooks; if revived, the identity is a *coverage rubric*: post-hoc measurement of a finished review (check-off frozen into Receipts, or grading an agent's review), never prompt material for reviewers or agents.
 _Avoid_: checklist, rules, review template
 
 **Risk Surface**:
-The set of factual attributes attached to a chunk. Attributes only — never verdicts. Severity (when needed) emerges from the *combination* of attributes, never from a graded prefix on any single attribute. Three-bucket structure: **about the code** (e.g., `no-tests`, `legacy-area`), **about the change** (e.g., `touches-auth`, `mutates-state`, `removes-validation`), **about the blast radius** (e.g., `external-io`, `widely-imported`, `cross-service`). Full library in `docs/vocabulary/risk-surface.md`.
+The set of factual attributes attached to a chunk. Attributes only, never verdicts. Severity (when needed) emerges from the *combination* of attributes, never from a graded prefix on any single attribute. Three-bucket structure: **about the code** (e.g., `no-tests`, `legacy-area`), **about the change** (e.g., `touches-auth`, `mutates-state`, `removes-validation`), **about the blast radius** (e.g., `external-io`, `widely-imported`, `cross-service`). Full library in `docs/vocabulary/risk-surface.md`.
 _Avoid_: critical area, hot spot, risky code, severity tag
 
 **Flag**:
@@ -136,7 +136,7 @@ What an addressed **Disposition** points at: a linked draft **Comment**, a revie
 _Avoid_: proof, justification (a **Dismissal** carries a reason instead)
 
 **Dismissal**:
-The *dismissed* value of a **Disposition** — a reviewer's recorded decision **not** to act on a Flag, accompanied by a reason. Dismissals appear on the **Receipt** with the reason verbatim. (The other value is *addressed*.)
+The *dismissed* value of a **Disposition**: a reviewer's recorded decision **not** to act on a Flag, accompanied by a reason. Dismissals appear on the **Receipt** with the reason verbatim. (The other value is *addressed*.)
 _Avoid_: ignore, skip, override
 
 **Uncertain**:
@@ -376,15 +376,15 @@ The cumulative ladder `read` < `private-write` < `external-write`, shared by a P
 _Avoid_: scope (reserved for Full vs Changes; the token column keeps the word), permission (GitHub's)
 
 **Wire error code**:
-The stable kebab-case identifier a non-2xx API response carries, alongside optional typed params and a composed English error line. A public, additive-only vocabulary: one code per distinct meaning — same code unless a translator would write a different sentence or a user would take a different action — never one per call site or per HTTP status. Distinct from the internal error vocabularies (GitHub, port, and auth codes), which never ride the wire and are translated to wire codes at the response boundary. Consumers render a wire code through the shared string catalog, falling back to the English error line when the code is unknown.
+The stable kebab-case identifier a non-2xx API response carries, alongside optional typed params and a composed English error line. A public, additive-only vocabulary: one code per distinct meaning, never one per call site or per HTTP status. Same code unless a translator would write a different sentence or a user would take a different action. Distinct from the internal error vocabularies (GitHub, port, and auth codes), which never ride the wire and are translated to wire codes at the response boundary. Consumers render a wire code through the shared string catalog, falling back to the English error line when the code is unknown.
 _Avoid_: error kind, error message (for the identifier), status-derived kind
 
 **Failure** (vs **Error**):
-A failure is an expected outcome a caller must judge — it rides the failure side of a `Result` and is named `XxxFailure`. An error is thrown — programmer/infra faults and, at the HTTP layer, the `ApiError` classes — and is named `XxxError`. The suffix carries the contract: a `Failure` type in a signature means the caller unwraps and judges; an `Error` type means it propagates to a boundary handler.
+A failure is an expected outcome a caller must judge: it rides the failure side of a `Result` and is named `XxxFailure`. An error is thrown and is named `XxxError`: programmer/infra faults and, at the HTTP layer, the `ApiError` classes. The suffix carries the contract: a `Failure` type in a signature means the caller unwraps and judges; an `Error` type means it propagates to a boundary handler.
 _Avoid_: using the two words interchangeably; Error-suffixed types on the Result side (in new code)
 
 **Reviewer GitHub binding** (vs **Installation GitHub binding**):
-The two GitHub identities the API acts under. The installation binding is the app's own channel — the App's installation token, bound per request to the Installation the repository resolves into, one rate budget shared across viewers. The reviewer binding is the signed-in reviewer's channel: their OAuth token behind the request's one session credential, bound once per request (by the repo gate, or by a session-only route) and shared by every call in it, the gate's own repo read included. On a token-expired failure the credential refreshes at most once per request and the call re-runs. Behind an operator pass it may retry a denied read on the operator token, never a write. Which identity a call runs under decides whose permissions and whose rate budget apply.
+The two GitHub identities the API acts under. The installation binding is the app's own channel: the App's installation token, bound per request to the Installation the repository resolves into, one rate budget shared across viewers. The reviewer binding is the signed-in reviewer's channel: their OAuth token behind the request's one session credential, bound once per request (by the repo gate, or by a session-only route) and shared by every call in it, the gate's own repo read included. On a token-expired failure the credential refreshes at most once per request and the call re-runs. Behind an operator pass it may retry a denied read on the operator token, never a write. Which identity a call runs under decides whose permissions and whose rate budget apply.
 _Avoid_: reviewer GitHub client (the per-request client the binding replaced), viewer token (say reviewer), refresh budget (say refreshed at most once per request)
 
 **Home**:
@@ -412,11 +412,11 @@ The person-anchored menu at the end of every **Header**, holding what is about t
 _Avoid_: user menu, profile menu, app menu, top-chrome menu
 
 **Sidebar**:
-The Brief page's permanent right-edge column, PR-contextual only, always present on wide screens. Two states: **collapsed** — the group-TOC lines (hover reveals the group name, the current group is marked) plus the expand control and the page's small utilities at its foot — and **expanded**, where it widens to show one **Tab** beside those same lines, narrowing the reading column rather than covering it. Nothing on the sidebar competes with change groups and chunks for attention: no counts on the collapsed sidebar, at most a presence dot. Hidden wherever the group TOC is hidden (**Focus mode**, Changes **Scope**). Below the tablet breakpoint the same two states render differently: collapsed is a bar on the bottom edge (group lines as a position indicator between previous/next arrows, plus the same small utilities), expanded is a sheet rising from it that covers the page while open, so a jump collapses it.
+The Brief page's permanent right-edge column, PR-contextual only, always present on wide screens. Two states: **collapsed**, the group-TOC lines (hover reveals the group name, the current group is marked) plus the expand control and the page's small utilities at its foot, and **expanded**, where it widens to show one **Tab** beside those same lines, narrowing the reading column rather than covering it. Nothing on the sidebar competes with change groups and chunks for attention: no counts on the collapsed sidebar, at most a presence dot. Hidden wherever the group TOC is hidden (**Focus mode**, Changes **Scope**). Below the tablet breakpoint the same two states render differently: collapsed is a bar on the bottom edge (group lines as a position indicator between previous/next arrows, plus the same small utilities), expanded is a sheet rising from it that covers the page while open, so a jump collapses it.
 _Avoid_: rail (that is the **Jump-rail**), panel, drawer, shell, tenant (the API's multi-tenancy noun)
 
 **Tab**:
-One surface housed in the expanded **Sidebar**, shown one at a time via a tabs row that lists only the tabs that exist. "This PR" — the group list — is the first, then "Revisions", the PR's revisions newest first, which is where a reader moves between them; Activity and Repo chat are candidates, each earning its place through its own ticket. Conversation is not a tab: it stays in the reading flow.
+One surface housed in the expanded **Sidebar**, shown one at a time via a tabs row that lists only the tabs that exist. "This PR", the group list, is the first, then "Revisions", the PR's revisions newest first, which is where a reader moves between them; Activity and Repo chat are candidates, each earning its place through its own ticket. Conversation is not a tab: it stays in the reading flow.
 _Avoid_: tenant, inhabitant, view (that is the URL scope param), pane
 
 **Not-ready screen**:

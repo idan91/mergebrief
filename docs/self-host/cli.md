@@ -9,7 +9,7 @@ Assumes the compose stack ([compose.md](compose.md)) and the GitHub App
 The CLI is a thin client over the public HTTP API (`/api/*`) with an opaque
 Bearer token. Three things must be true:
 
-1. **The API is reachable** at the base URL you give `auth login` — the same
+1. **The API is reachable** at the base URL you give `auth login`, the same
    origin the web app serves.
 2. **`/api/*` accepts `Authorization: Bearer mergebrief_...`** end to end.
    The server side already does; the catch is usually in front of it (next
@@ -23,16 +23,16 @@ If your deployment sits behind an identity-aware proxy (Cloudflare Access,
 oauth2-proxy, Authelia, Pomerium, …), browser sessions work but the CLI's
 Bearer requests get answered with a login redirect or an HTML page. The CLI
 detects this and says so (a redirect/HTML answer produces an explicit
-"identity-provider proxy" error) — the fix is one rule:
+"identity-provider proxy" error). The fix is one rule:
 
 > **Exempt the `/api/*` path prefix from the IdP.**
 
 This is the SAME exemption the GitHub webhook needs
 (`/api/webhooks/github`), so most deployments already have half of it. The
 application enforces its own auth on every `/api/*` request (hint-free 401s;
-tokens are hashed at rest and limited to the scope chosen at mint) — the IdP adds nothing on
+tokens are hashed at rest and limited to the scope chosen at mint), so the IdP adds nothing on
 this path but breakage. `/api/auth/*` (login, token minting) stays
-browser-only — Bearer tokens are ignored there — so if you want your IdP in
+browser-only (Bearer tokens are ignored there), so if you want your IdP in
 front of auth management, scope the IdP exemption to exclude `/api/auth/*`
 rather than exempting all of `/api/*`.
 
@@ -55,7 +55,7 @@ per-profile `headers` in the CLI config are the escape hatch:
 
 1. Sign in to the web app with GitHub, open **`/settings`**.
 2. Name the token (e.g. `ci-reviewer`), pick its **scope**, and choose an
-   expiry (90 days default; "no expiry" is allowed — for self-host
+   expiry (90 days default; "no expiry" is allowed; for self-host
    CI that trade-off is yours; the wrapped GitHub credential still dies
    after ~6 months idle either way). A token binds no organization or
    installation: it acts as you, on your GitHub sign-in, so it reaches the
@@ -74,7 +74,7 @@ per-profile `headers` in the CLI config are the escape hatch:
    least a token needs. No scope reaches `draft reanchor`, `draft delete` or
    `risk dismiss|address|reopen`: they need the signed-in browser session and
    answer `403 human-only` to any token.
-3. Copy the token — it is shown **once**. Revoke and re-mint freely from
+3. Copy the token: it is shown **once**. Revoke and re-mint freely from
    the same page; `last_used_at` in the list tells you which tokens are
    live.
 4. On the machine that runs the CLI:
@@ -101,7 +101,7 @@ Resolution order per invocation: `--profile` / `MERGEBRIEF_PROFILE` → an
 `owners:` match on the current repo's origin owner (add
 `"owners": ["acme"]` to a profile to route `acme/*` clones automatically) →
 the default profile (the first one you logged into). `MERGEBRIEF_TOKEN`
-overrides the resolved profile's stored token — handy in CI where the token
+overrides the resolved profile's stored token, handy in CI where the token
 lives in a secret store, not on disk.
 
 ## Versions
