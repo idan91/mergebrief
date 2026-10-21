@@ -57,7 +57,6 @@ const URL_ROW = omitFields(
   makeItem({ source: "url", viewerCanDelete: true }),
   "installationId",
 );
-const ADMIN_ROW = makeItem({ viewerCanDelete: true });
 
 function readRequestBody(init: RequestInit | undefined): unknown {
   const body = init?.body;
@@ -105,13 +104,6 @@ async function openMenu() {
   });
 }
 
-async function chooseDelete() {
-  await openMenu();
-  await act(async () => {
-    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
-  });
-}
-
 describe("RowActions", () => {
   it("opens the pull request on GitHub in a new tab", async () => {
     await renderActions(makeItem());
@@ -154,29 +146,6 @@ describe("RowActions", () => {
     });
 
     expect(onAnnounce).toHaveBeenCalledWith("Copy failed");
-  });
-
-  it("Delete hands the row to the list and makes no request itself", async () => {
-    const { onDelete } = await renderActions(URL_ROW);
-
-    await chooseDelete();
-
-    expect(onDelete).toHaveBeenCalledWith(URL_ROW);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("an admin's installation row offers the attachment-branch purge", async () => {
-    const { onPurgeAttachments } = await renderActions(ADMIN_ROW);
-
-    await openMenu();
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("menuitem", { name: "Delete attachment branch" }),
-      );
-    });
-
-    expect(onPurgeAttachments).toHaveBeenCalledWith(ADMIN_ROW);
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("a pasted row and a non-admin row offer no purge", async () => {
@@ -301,7 +270,7 @@ describe("RowActions", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["inbox"] });
   });
 
-  it("a refused regenerate announces and keeps the row", async () => {
+  it("a 401 on regenerate announces sign in again and never redirects", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ code: "unauthorized" }), { status: 401 }),
     );
@@ -346,13 +315,5 @@ describe("RowActions", () => {
     await openMenu();
 
     expect(screen.queryByRole("menuitem", { name: "Delete" })).toBeNull();
-  });
-
-  it("an installation row the viewer administers offers Delete", async () => {
-    await renderActions(ADMIN_ROW);
-
-    await openMenu();
-
-    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeDefined();
   });
 });

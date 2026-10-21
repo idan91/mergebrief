@@ -30,13 +30,11 @@ function occupyApiPort(): Promise<void> {
 describe("startApiServer", () => {
   it("refuses a port another process already holds", async () => {
     await occupyApiPort();
-    await expect(startApiServer()).rejects.toThrow(
+    const refusal = startApiServer();
+
+    await expect(refusal).rejects.toThrow(
       `e2e api port ${String(E2E_API_PORT)} is already in use`,
     );
-  });
-
-  it("names the override in the refusal", async () => {
-    await occupyApiPort();
-    await expect(startApiServer()).rejects.toThrow("MERGEBRIEF_E2E_API_PORT");
+    await expect(refusal).rejects.toThrow("MERGEBRIEF_E2E_API_PORT");
   });
 });

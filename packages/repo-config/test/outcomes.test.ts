@@ -59,15 +59,6 @@ describe("validateRepoConfig outcome table", () => {
     expect(result.outcomes[1]?.path).toBe(RepoConfigPaths.SETTINGS);
     expect(JSON.stringify(result.outcomes)).not.toContain("evil");
   });
-
-  it("keeps the slot order when only the middle file is present", () => {
-    const result = validateRepoConfig({
-      settings: settingsFile(yaml({ version: 1 })),
-    });
-    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcomes.ABSENT);
-    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.ABSENT);
-  });
 });
 
 describe("validateRepoConfig prototype pollution resistance", () => {

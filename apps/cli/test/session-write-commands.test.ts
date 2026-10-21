@@ -1,7 +1,7 @@
-// Session-write command tests against the REAL api app: draft CRUD and
-// chunk-read, payload plumbing with convenience flags XOR -F, the span
-// requirement firing before target resolution, receipt passthrough, and the
-// relay posture on refusals the server owns.
+// Session-write command tests: the flag-form drafts and chunk-read against
+// the REAL api app, the payload builders as units, the refusals decided
+// before any request over the offline runner, and the -F relay plus the
+// human-only refusals over a scripted api.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -33,13 +33,17 @@ import {
   buildCreateDraftPayload,
   buildReanchorPayload,
 } from "../src/commands/session-write/utils";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
+import {
+  expectRefusedBeforeRequest,
+  expectRelayedRequest,
+  HUMAN_ONLY_REFUSAL,
+  OFFLINE_REPO_ID,
+  OFFLINE_REPOS_ROUTE,
+  runCliOffline,
+} from "./harness/offline";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
 
@@ -49,6 +53,18 @@ const REPO_A = 42001;
 const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const SPAN = ["--base", BASE_SHA, "--head", HEAD_SHA];
+const SPAN_QUERY = `base=${BASE_SHA}&head=${HEAD_SHA}`;
+const COMMENTS_PATH = `/api/repos/${OFFLINE_REPO_ID}/pulls/7/session/comments`;
+const CREATE_FLAGS = [
+  "--file",
+  "src/a.ts",
+  "--start",
+  "10",
+  "--end",
+  "12",
+  "--body",
+  "tighten this",
+];
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -238,37 +254,10 @@ describe("session write commands over the real api app", () => {
     expect(code).toBe(ExitCodes.OK);
   }
 
-  const CREATE_FLAGS = [
-    "--file",
-    "src/a.ts",
-    "--start",
-    "10",
-    "--end",
-    "12",
-    "--body",
-    "tighten this",
-  ];
-
-  it("draft create with flags posts with side new and a verbatim receipt", async () => {
+  it("draft create --start-side and bare --file land as the session echoes", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    const result = await run([
-      "draft",
-      "create",
-      "7",
-      ...CREATE_FLAGS,
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(draftIdOf(result.out)).toMatch(/^\d+$/);
-  });
-
-  it("draft create --start-side crosses sides; the session echoes it", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
+    const crossing = await run([
       "draft",
       "create",
       "7",
@@ -285,23 +274,99 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
+    expect(crossing.err).toEqual([]);
+    expect(crossing.code).toBe(ExitCodes.OK);
+    const onFile = await run([
+      "draft",
+      "create",
+      "7",
+      "--file",
+      "src/b.ts",
+      "--body",
+      "on the file",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(onFile.err).toEqual([]);
+    expect(onFile.code).toBe(ExitCodes.OK);
+
     const session = await run(["session", "7", ...SPAN, "--json"]);
     expect(session.out).toContain('"startSide":"old"');
+    expect(session.out).toContain('"kind":"file"');
+    expect(session.out).toContain('"filePath":"src/b.ts"');
+    expect(session.out).toContain('"body":"on the file"');
+    expect(session.out).not.toContain('"filePath":"src/b.ts","startLine"');
   });
 
-  it("draft create rejects -F mixed with --start-side, exit 2", async () => {
+  it("draft create with flags answers a draft id; update edits it silently", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    const result = await run(
-      ["draft", "create", "7", "-F", "-", "--start-side", "old", ...SPAN],
-      JSON.stringify({}),
+    const created = await run([
+      "draft",
+      "create",
+      "7",
+      ...CREATE_FLAGS,
+      ...SPAN,
+      "--json",
+    ]);
+    expect(created.err).toEqual([]);
+    expect(created.code).toBe(ExitCodes.OK);
+    const draftId = draftIdOf(created.out);
+    expect(draftId).toMatch(/^\d+$/);
+
+    const flagged = await run([
+      "draft",
+      "update",
+      "7",
+      draftId,
+      "--body",
+      "sharper wording",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(flagged.err).toEqual([]);
+    expect(flagged.code).toBe(ExitCodes.OK);
+    expect(flagged.out).toBe("");
+
+    const filed = await run(
+      ["draft", "update", "7", draftId, "-F", "-", ...SPAN],
+      JSON.stringify({ body: "even sharper" }),
     );
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.err.join("")).toContain("mutually exclusive");
+    expect(filed.err).toEqual([]);
+    expect(filed.code).toBe(ExitCodes.OK);
+    expect(filed.out).toBe("");
+
+    const session = await run(["session", "7", ...SPAN, "--json"]);
+    expect(session.out).toContain('"body":"even sharper"');
   });
 
+  it("chunk-read marks read by default and --unread flips it", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const marked = await run(["chunk-read", "7", "chunk-1", ...SPAN, "--json"]);
+    expect(marked.err).toEqual([]);
+    expect(marked.code).toBe(ExitCodes.OK);
+    expect(marked.out).toBe("");
+    const afterMark = await run(["session", "7", ...SPAN, "--json"]);
+    expect(JSON.parse(afterMark.out).readMarks).toEqual(["chunk-1"]);
+
+    const cleared = await run([
+      "chunk-read",
+      "7",
+      "chunk-1",
+      "--unread",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(cleared.err).toEqual([]);
+    expect(cleared.code).toBe(ExitCodes.OK);
+    expect(cleared.out).toBe("");
+    const afterClear = await run(["session", "7", ...SPAN, "--json"]);
+    expect(JSON.parse(afterClear.out).readMarks).toEqual([]);
+  });
+});
+
+describe("session write payload builders", () => {
   it("buildReanchorPayload carries --start-side for a human-only reanchor", () => {
     expect(
       buildReanchorPayload({
@@ -340,7 +405,12 @@ describe("session write commands over the real api app", () => {
         start: "10",
         body: "on the file",
       }),
-    ).toThrow(/only one of --start\/--end/);
+    ).toThrow(
+      expect.objectContaining({
+        code: ExitCodes.USAGE,
+        message: expect.stringMatching(/only one of --start\/--end/),
+      }),
+    );
   });
 
   it("buildCreateDraftPayload rejects --file mixed with only --end", () => {
@@ -350,7 +420,12 @@ describe("session write commands over the real api app", () => {
         end: "12",
         body: "on the file",
       }),
-    ).toThrow(/only one of --start\/--end/);
+    ).toThrow(
+      expect.objectContaining({
+        code: ExitCodes.USAGE,
+        message: expect.stringMatching(/only one of --start\/--end/),
+      }),
+    );
   });
 
   it("buildCreateDraftPayload rejects --file mixed with --side", () => {
@@ -360,7 +435,12 @@ describe("session write commands over the real api app", () => {
         side: "new",
         body: "on the file",
       }),
-    ).toThrow(/cannot take --side or --start-side/);
+    ).toThrow(
+      expect.objectContaining({
+        code: ExitCodes.USAGE,
+        message: expect.stringMatching(/cannot take --side or --start-side/),
+      }),
+    );
   });
 
   it("buildReanchorPayload converts a Line comment onto a file", () => {
@@ -369,92 +449,21 @@ describe("session write commands over the real api app", () => {
       filePath: "src/a.ts",
     });
   });
+});
 
-  it("draft create -F - takes the full payload from stdin", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const payload = JSON.stringify({
-      filePath: "src/a.ts",
-      side: "old",
-      startLine: 3,
-      endLine: 4,
-      body: "why was this removed?",
-    });
-    const result = await run(
-      ["draft", "create", "7", "-F", "-", ...SPAN, "--json"],
-      payload,
-    );
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(draftIdOf(result.out)).toMatch(/^\d+$/);
-  });
-
-  it("a -F payload reaches the server untouched, no side default injected", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const payload = JSON.stringify({
-      filePath: "src/a.ts",
-      side: "old",
-      startLine: 3,
-      endLine: 4,
-      body: "why was this removed?",
-    });
-    const created = await run(
-      ["draft", "create", "7", "-F", "-", ...SPAN, "--json"],
-      payload,
-    );
-    expect(created.code).toBe(ExitCodes.OK);
-    const session = await run(["session", "7", ...SPAN, "--json"]);
-    expect(session.code).toBe(ExitCodes.OK);
-    expect(session.out).toContain('"side":"old"');
-    expect(session.out).not.toContain('"side":"new"');
-  });
-
-  it("draft create -F relays a File comment for the server", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const payload = JSON.stringify({
-      kind: CommentAnchorKinds.FILE,
-      filePath: "src/a.ts",
-      body: "on the file",
-    });
-    const result = await run(
-      ["draft", "create", "7", "-F", "-", ...SPAN, "--json"],
-      payload,
-    );
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    const session = await run(["session", "7", ...SPAN, "--json"]);
-    expect(session.out).toContain('"kind":"file"');
-  });
-
-  it("draft reanchor rejects -F mixed with anchor flags, exit 2", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run(
-      [
-        "draft",
-        "reanchor",
-        "7",
-        "1",
-        "-F",
-        "-",
-        "--start",
-        "5",
-        ...SPAN,
-        "--json",
-      ],
-      "{}",
-    );
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err[0]).toContain("mutually exclusive");
+describe("session write refusals before any request", () => {
+  it.each([
+    [["draft", "create", "7", "-F", "-", "--start-side", "old"]],
+    [["draft", "create", "7", "-F", "-", "--body", "x"]],
+    [["draft", "reanchor", "7", "1", "-F", "-", "--start", "5"]],
+    [["draft", "update", "7", "1", "-F", "-", "--body", "x"]],
+  ])("%j rejects -F mixed with flags, exit 2", async (argv) => {
+    const result = await runCliOffline([...argv, ...SPAN], { stdin: "{}" });
+    expectRefusedBeforeRequest(result, "mutually exclusive");
   });
 
   it("draft create --start 0 exits 2, positive integers only", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
+    const result = await runCliOffline([
       "draft",
       "create",
       "7",
@@ -469,335 +478,22 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err[0]).toContain("--start");
-  });
-
-  it("draft create --file without a span stores a File comment", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--body",
-      "on the file",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    const session = await run(["session", "7", ...SPAN, "--json"]);
-    expect(session.out).toContain('"kind":"file"');
-    expect(session.out).toContain('"filePath":"src/a.ts"');
-    expect(session.out).not.toContain('"startLine"');
-  });
-
-  it("draft create --file with only --start exits 2 before HTTP", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--start",
-      "10",
-      "--body",
-      "on the file",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err[0]).toContain("only one of --start/--end");
-  });
-
-  it("draft create --file with only --end exits 2 before HTTP", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--end",
-      "12",
-      "--body",
-      "on the file",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err[0]).toContain("only one of --start/--end");
-  });
-
-  it("draft create --file with --side and no span exits 2", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--side",
-      "new",
-      "--body",
-      "on the file",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err[0]).toContain("cannot take --side or --start-side");
-  });
-
-  it("draft create rejects -F mixed with convenience flags, exit 2", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run(
-      ["draft", "create", "7", "-F", "-", "--body", "x", ...SPAN, "--json"],
-      "{}",
-    );
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("mutually exclusive");
+    expectRefusedBeforeRequest(result, "--start");
   });
 
   it("draft create without the span exits 2 before any target resolution", async () => {
-    await login();
-    const token = await seedToken();
-    const requested: string[] = [];
-    const out: string[] = [];
-    const err: string[] = [];
-    const recordingFetch: CliDeps["fetch"] = async (input, init) => {
-      requested.push(input);
-      return appFetch(input, init);
-    };
-    const code = await runCli(
-      ["draft", "create", "7", ...CREATE_FLAGS, "--json"],
-      {
-        fetch: recordingFetch,
-        env: { MERGEBRIEF_TOKEN: token },
-        configDir,
-        cacheDir,
-        stdout: (t) => out.push(t),
-        stderr: (l) => err.push(l),
-        readStdin: async () => {
-          throw new Error("stdin not expected");
-        },
-        gitOriginUrl: () => "git@github.com:nobody/nothing.git",
-      },
-    );
-    expect(code).toBe(ExitCodes.USAGE);
-    expect(out.join("")).toBe("");
-    expect(err).toHaveLength(1);
-    expect(err[0]).toContain("--base and --head");
-    expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
-  });
-
-  it("draft create with a non-integer --start exits 2", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--start",
-      "ten",
-      "--end",
-      "12",
-      "--body",
-      "x",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-  });
-
-  it("a server validation rejection relays as a self-correcting exit 5", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    // Flags without a body → createDraftSchema 400s deterministically.
-    const result = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--start",
-      "10",
-      "--end",
-      "12",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-  });
-
-  it("draft update --body edits a held draft and prints nothing", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const created = await run([
+    const result = await runCliOffline([
       "draft",
       "create",
       "7",
       ...CREATE_FLAGS,
-      ...SPAN,
       "--json",
     ]);
-    const draftId = draftIdOf(created.out);
-
-    const flagged = await run([
-      "draft",
-      "update",
-      "7",
-      draftId,
-      "--body",
-      "sharper wording",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(flagged.err).toEqual([]);
-    expect(flagged.code).toBe(ExitCodes.OK);
-    expect(flagged.out).toBe("");
-
-    const filed = await run(
-      ["draft", "update", "7", draftId, "-F", "-", ...SPAN],
-      JSON.stringify({ body: "even sharper" }),
-    );
-    expect(filed.err).toEqual([]);
-    expect(filed.code).toBe(ExitCodes.OK);
-    expect(filed.out).toBe("");
-
-    const session = await run(["session", "7", ...SPAN, "--json"]);
-    expect(session.out).toContain('"body":"even sharper"');
-  });
-
-  it("draft update rejects -F mixed with --body, exit 2", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run(
-      [
-        "draft",
-        "update",
-        "7",
-        "1",
-        "-F",
-        "-",
-        "--body",
-        "x",
-        ...SPAN,
-        "--json",
-      ],
-      "{}",
-    );
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err[0]).toContain("mutually exclusive");
-  });
-
-  it("draft reanchor relays the server's human-only refusal as exit 5", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const created = await run([
-      "draft",
-      "create",
-      "7",
-      ...CREATE_FLAGS,
-      ...SPAN,
-      "--json",
-    ]);
-    const draftId = draftIdOf(created.out);
-    const result = await run([
-      "draft",
-      "reanchor",
-      "7",
-      draftId,
-      "--file",
-      "src/a.ts",
-      "--start",
-      "20",
-      "--end",
-      "22",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("403");
-  });
-
-  it("draft delete relays the server's human-only refusal as exit 5", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const created = await run([
-      "draft",
-      "create",
-      "7",
-      ...CREATE_FLAGS,
-      ...SPAN,
-      "--json",
-    ]);
-    const draftId = draftIdOf(created.out);
-    const result = await run([
-      "draft",
-      "delete",
-      "7",
-      draftId,
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("403");
-  });
-
-  it("chunk-read marks read by default and --unread flips it", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const marked = await run(["chunk-read", "7", "chunk-1", ...SPAN, "--json"]);
-    expect(marked.err).toEqual([]);
-    expect(marked.code).toBe(ExitCodes.OK);
-    expect(marked.out).toBe("");
-    const afterMark = await run(["session", "7", ...SPAN, "--json"]);
-    expect(JSON.parse(afterMark.out).readMarks).toEqual(["chunk-1"]);
-
-    const cleared = await run([
-      "chunk-read",
-      "7",
-      "chunk-1",
-      "--unread",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(cleared.err).toEqual([]);
-    expect(cleared.code).toBe(ExitCodes.OK);
-    expect(cleared.out).toBe("");
-    const afterClear = await run(["session", "7", ...SPAN, "--json"]);
-    expect(JSON.parse(afterClear.out).readMarks).toEqual([]);
+    expectRefusedBeforeRequest(result, "--base and --head");
   });
 
   it("chunk-read rejects --read with --unread, exit 2", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
+    const result = await runCliOffline([
       "chunk-read",
       "7",
       "chunk-1",
@@ -806,38 +502,91 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
+    expectRefusedBeforeRequest(result, "--read and --unread");
+  });
+});
+
+describe("session write relays over a scripted api", () => {
+  it("a -F payload reaches the server untouched, no side default injected", async () => {
+    const payload = JSON.stringify({
+      filePath: "src/a.ts",
+      side: "old",
+      startLine: 3,
+      endLine: 4,
+      body: "why was this removed?",
+    });
+    const receipt = JSON.stringify({ draftId: "1" });
+    const create = {
+      method: "POST",
+      path: `${COMMENTS_PATH}?${SPAN_QUERY}`,
+      status: 201,
+      body: receipt,
+    };
+    const result = await runCliOffline(
+      ["draft", "create", "7", "-F", "-", ...SPAN, "--json"],
+      { stdin: payload, routes: [OFFLINE_REPOS_ROUTE, create] },
+    );
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(receipt);
+    expectRelayedRequest(result, create, payload);
   });
 
-  it("an invalid PR number exits 2 on every session write", async () => {
-    await login();
-    for (const argv of [
-      ["draft", "create", "x", ...CREATE_FLAGS, ...SPAN, "--json"],
-      ["draft", "update", "x", "1", "--body", "b", ...SPAN, "--json"],
+  it("draft reanchor relays the server's human-only refusal as exit 5", async () => {
+    const reanchor = {
+      method: "PUT",
+      path: `${COMMENTS_PATH}/9/anchor?${SPAN_QUERY}`,
+      status: 403,
+      body: HUMAN_ONLY_REFUSAL,
+    };
+    const result = await runCliOffline(
       [
         "draft",
         "reanchor",
-        "x",
-        "1",
+        "7",
+        "9",
         "--file",
-        "f",
+        "src/a.ts",
         "--start",
-        "1",
+        "20",
         "--end",
-        "2",
+        "22",
         ...SPAN,
         "--json",
       ],
-      ["draft", "delete", "x", "1", ...SPAN, "--json"],
-      ["chunk-read", "x", "chunk-1", ...SPAN, "--json"],
-    ]) {
-      const result = await run(argv);
-      expect(result.code).toBe(ExitCodes.USAGE);
-      expect(result.out).toBe("");
-      expect(result.err).toHaveLength(1);
-      expect(result.err[0]).toContain("PR number");
-    }
+      { routes: [OFFLINE_REPOS_ROUTE, reanchor] },
+    );
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
+    expect(result.out).toBe("");
+    expect(result.err).toHaveLength(1);
+    expect(result.err[0]).toContain("403");
+    expectRelayedRequest(
+      result,
+      reanchor,
+      JSON.stringify({
+        side: "new",
+        filePath: "src/a.ts",
+        startLine: 20,
+        endLine: 22,
+      }),
+    );
+  });
+
+  it("draft delete relays the server's human-only refusal as exit 5", async () => {
+    const remove = {
+      method: "DELETE",
+      path: `${COMMENTS_PATH}/9?${SPAN_QUERY}`,
+      status: 403,
+      body: HUMAN_ONLY_REFUSAL,
+    };
+    const result = await runCliOffline(
+      ["draft", "delete", "7", "9", ...SPAN, "--json"],
+      { routes: [OFFLINE_REPOS_ROUTE, remove] },
+    );
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
+    expect(result.out).toBe("");
+    expect(result.err).toHaveLength(1);
+    expect(result.err[0]).toContain("403");
+    expectRelayedRequest(result, remove, undefined);
   });
 });

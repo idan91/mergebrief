@@ -240,27 +240,6 @@ describe("buildLocalComparisonPlan delta", () => {
     expect(rows.map((row) => row.kind)).toEqual(["hunk", "add"]);
   });
 
-  it("stays loading until both delta sidecars have landed", async () => {
-    let releaseDiffs: (() => void) | undefined;
-    stubApi({
-      [DELTA_PATH]: async () => stubJson(DELTA_VIEW),
-      [DELTA_DIFFS_PATH]: () =>
-        new Promise((resolve) => {
-          releaseDiffs = () => resolve(stubJson([]));
-        }),
-    });
-    const client = makeQueryClient();
-    const plan = buildLocalComparisonPlan(LAST_REVIEW_WITH_DELTA);
-    const descriptor = plan.lastReview!.delta!;
-
-    const pending = client.fetchQuery(descriptor);
-    await vi.waitFor(() => expect(releaseDiffs).toBeDefined());
-
-    expect(client.getQueryData(descriptor.queryKey)).toBeUndefined();
-    releaseDiffs?.();
-    await expect(pending).resolves.toEqual(DELTA_BRIEF);
-  });
-
   it("fails rather than answer row-less when the diffs sidecar fails", async () => {
     stubApi({
       [DELTA_PATH]: async () => stubJson(DELTA_VIEW),

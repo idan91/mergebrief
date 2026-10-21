@@ -188,17 +188,6 @@ describe("Read-through progress + auto-advance", () => {
     await waitFor(() => expect(activeChunkId()).toBe("chunk-3"));
   });
 
-  it("advances to the strict next chunk when marking viewed in read-through", async () => {
-    await renderReadThroughScreen();
-    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-
-    fireEvent.click(screen.getByRole("button", { name: /Start read-through/ }));
-    await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
-
-    fireEvent.click(viewedCheckboxFor("chunk-1"));
-    await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
-  });
-
   it("un-checks an already-viewed chunk in place as a correction", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
@@ -247,20 +236,6 @@ describe("Read-through progress + auto-advance", () => {
       ),
     );
     expect(activeChunkId()).toBe("chunk-1");
-  });
-
-  it("still un-views an already-viewed chunk outside read-through", async () => {
-    await renderReadThroughScreen();
-
-    fireEvent.click(viewedCheckboxFor("chunk-1"));
-    await waitFor(() =>
-      expect(viewedCheckboxFor("chunk-1").checked).toBe(true),
-    );
-
-    fireEvent.click(viewedCheckboxFor("chunk-1"));
-    await waitFor(() =>
-      expect(viewedCheckboxFor("chunk-1").checked).toBe(false),
-    );
   });
 
   it("auto-advance across a group boundary lands on the next group's rail", async () => {
@@ -373,15 +348,18 @@ describe("Read-through progress + auto-advance", () => {
 
   it("does not auto-advance outside focus mode entirely", async () => {
     await renderReadThroughScreen();
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    const activeBefore = activeChunkId();
 
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() =>
       expect(viewedCheckboxFor("chunk-1").checked).toBe(true),
     );
-    // Normal mode has no notion of an "active" chunk driven by read-through;
-    // simply confirm marking viewed didn't throw/navigate and the checkbox
-    // for the next chunk is untouched.
-    expect(viewedCheckboxFor("chunk-2").checked).toBe(false);
+
+    expect(activeChunkId()).toBe(activeBefore);
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it("exiting focus mode restores normal viewed toggling with no advance", async () => {

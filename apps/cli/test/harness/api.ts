@@ -13,14 +13,12 @@ import {
   type ApiProcess,
   type ApiProcessOptions,
 } from "./api-process";
+import { BASE_URL } from "./consts";
 import { serveTestDatabase, type ServedDatabase } from "./database";
 import { startGitHubStub, type GitHubStub } from "./github-stub";
 
 /** The env var name the reviewer session tokens seal under. */
 export const KEY_REF = "SESSION_KEY_V1";
-
-/** The base URL the CLI is configured with; the harness maps it to the API. */
-export const BASE_URL = "https://mb.example";
 
 export type FetchLike = (
   input: string | URL | Request,

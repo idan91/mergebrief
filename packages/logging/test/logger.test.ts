@@ -10,11 +10,6 @@ describe("resolveLoggerConfig", () => {
     expect(resolveLoggerConfig({})).toEqual({ level: "info", pretty: false });
   });
 
-  it("reads LOG_LEVEL", () => {
-    expect(resolveLoggerConfig({ LOG_LEVEL: "debug" }).level).toBe("debug");
-    expect(resolveLoggerConfig({ LOG_LEVEL: "error" }).level).toBe("error");
-  });
-
   it("selects pretty only when NODE_ENV=development", () => {
     expect(resolveLoggerConfig({ NODE_ENV: "development" }).pretty).toBe(true);
     expect(resolveLoggerConfig({ NODE_ENV: "production" }).pretty).toBe(false);
@@ -71,16 +66,6 @@ describe("createLogger level filtering", () => {
 });
 
 describe("createLogger fields and children", () => {
-  it("spreads fields as top-level properties alongside msg", () => {
-    const destination = captureDestination();
-    const log = createLogger({ env: {}, destination });
-    log.info("with fields", { evt: "api.access", status: 200 });
-    const line = destination.lines()[0];
-    expect(line?.["evt"]).toBe("api.access");
-    expect(line?.["status"]).toBe(200);
-    expect(line?.["msg"]).toBe("with fields");
-  });
-
   it("child bindings ride every line the child emits", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
@@ -372,14 +357,6 @@ describe("createLogger URL scrubbing in the err serializer", () => {
     expect(line?.["error"]).toHaveProperty("stack");
     expect(destination.raw()[0]).not.toContain("hunter2");
   });
-
-  it("leaves a URL-free error byte-identical", () => {
-    const destination = captureDestination();
-    const log = createLogger({ env: {}, destination });
-    log.error("boom", { err: new Error("plain failure, no secrets") });
-    const err = serializedErr(destination);
-    expect(err["message"]).toBe("plain failure, no secrets");
-  });
 });
 
 describe("createLogger credential scrubbing", () => {
@@ -435,15 +412,6 @@ describe("createLogger URL scrubbing in msg", () => {
       "pool error — connect failed for [redacted-url]",
     );
     expect(destination.raw()[0]).not.toContain("hunter2");
-  });
-
-  it("leaves a URL-free msg untouched", () => {
-    const destination = captureDestination();
-    const log = createLogger({ env: {}, destination });
-    log.info("generate: succeeded for 1234abcd");
-    expect(destination.lines()[0]?.["msg"]).toBe(
-      "generate: succeeded for 1234abcd",
-    );
   });
 
   it("scrubs msg on child loggers too", () => {

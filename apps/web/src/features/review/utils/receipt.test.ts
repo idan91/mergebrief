@@ -6,13 +6,8 @@ import {
   DraftCommentStatuses,
 } from "types/comments";
 
-import { Roles } from "brief-core/types";
 import { briefFixture } from "@web/features/brief/test-utils";
-import {
-  buildBriefViewModel,
-  GroupViewKinds,
-  type Brief,
-} from "@web/features/brief/model";
+import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
 import type { SessionSnapshot } from "../session";
 import { buildReceipt } from "./receipt";
 
@@ -66,6 +61,15 @@ describe("buildReceipt", () => {
       chunkTotal: 2,
       flagTotal: 2,
     });
+  });
+
+  it("counts the remainder group's chunks in chunkTotal", () => {
+    const brief = remainderBrief();
+    const remainderModel = buildBriefViewModel(brief);
+
+    const receipt = buildReceipt(t, snapshot(), brief, remainderModel);
+
+    expect(receipt.progress.chunkTotal).toBe(3);
   });
 
   it("counts dispositions and lists an open flag by default", () => {
@@ -319,30 +323,6 @@ describe("receipt de-emphasis count dedupes path-scoped rules", () => {
     });
     expect(receipt.repoConfig?.deEmphasisLine).toBe(
       "1 attribute de-emphasized by repo policy @ p1p2p3p",
-    );
-  });
-
-  it("includes remainder chunks in chunkTotal, so it may exceed core", () => {
-    const brief = remainderBrief();
-    const remainderModel = buildBriefViewModel(brief);
-    const remainderGroup = remainderModel.groups.find(
-      (group) => group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
-    );
-    expect(remainderGroup?.chunks).toHaveLength(1);
-
-    const receipt = buildReceipt(t, snapshot(), brief, remainderModel);
-    const coreCount = brief.chunks.filter(
-      (chunk) => chunk.role === Roles.CORE,
-    ).length;
-    const supportingCount = brief.chunks.filter(
-      (chunk) => chunk.role === Roles.SUPPORTING,
-    ).length;
-
-    expect(brief.chunks.length).toBe(2);
-    expect(receipt.progress.chunkTotal).toBe(3);
-    expect(coreCount + supportingCount).toBe(2);
-    expect(receipt.progress.chunkTotal).toBeGreaterThan(
-      coreCount + supportingCount,
     );
   });
 });

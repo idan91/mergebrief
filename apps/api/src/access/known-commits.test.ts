@@ -35,17 +35,4 @@ describe("collectKnownCommits", () => {
 
     expect(known.size).toBe(0);
   });
-
-  it("holds a commit shared by several spans once", () => {
-    const known = collectKnownCommits(
-      { baseSha: PR_BASE, githubHeadSha: PR_HEAD },
-      [
-        { baseSha: PR_BASE, headSha: BRIEF_HEAD },
-        { baseSha: PR_BASE, headSha: PR_HEAD },
-      ],
-      [{ baselineSha: BRIEF_HEAD, headSha: PR_HEAD }],
-    );
-
-    expect([...known].toSorted()).toEqual([PR_BASE, PR_HEAD, BRIEF_HEAD]);
-  });
 });

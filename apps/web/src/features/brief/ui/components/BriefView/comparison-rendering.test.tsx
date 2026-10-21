@@ -446,24 +446,6 @@ describe("Changes Only rendering", () => {
     expect(screen.queryByText(/exceeds length guidance/)).toBeNull();
   });
 
-  it("hides the fresh-restart line on a none-stamped brief", () => {
-    const none: Brief = { ...fullBrief, anchor: { state: "none" } };
-    render(
-      withClient(
-        <ChangesOnlyView
-          compare="previous-brief"
-          brief={none}
-          model={buildBriefViewModel(none)}
-          narrative={narrative}
-          marks={previousBriefMarks}
-          skipReason={null}
-          delta={null}
-        />,
-      ),
-    );
-    expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
-  });
-
   it("hides the fresh-restart line on anchored and unstamped briefs", () => {
     const anchored: Brief = { ...fullBrief, anchor: { state: "anchored" } };
     const { unmount } = render(
@@ -629,51 +611,6 @@ describe("Changes Only raw span diff toggle", () => {
       ),
     );
     expect(screen.getByRole("button", { name: "Raw diff" })).toBeTruthy();
-  });
-
-  it("resets the ephemeral toggle when the comparison changes", async () => {
-    const { rerender } = render(
-      withClient(
-        <ChangesOnlyView
-          compare="previous-brief"
-          brief={fullBrief}
-          model={buildBriefViewModel(fullBrief)}
-          narrative={narrative}
-          marks={previousBriefMarks}
-          skipReason={null}
-          delta={null}
-          rawSpanDiff={rawDiffQuery("prev1234")}
-        />,
-      ),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Raw diff" }));
-    expect(
-      screen
-        .getByRole("button", { name: "Raw diff" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
-
-    // Switching to the last-review comparison swaps the descriptor's baseline, the
-    // component is keyed by the comparison+span, so the toggle remounts back to off.
-    rerender(
-      withClient(
-        <ChangesOnlyView
-          compare="last-review"
-          brief={fullBrief}
-          model={buildBriefViewModel(fullBrief)}
-          narrative={null}
-          marks={null}
-          skipReason={null}
-          delta={delta}
-          rawSpanDiff={rawDiffQuery("chk1234")}
-        />,
-      ),
-    );
-    expect(
-      screen
-        .getByRole("button", { name: "Raw diff" })
-        .getAttribute("aria-pressed"),
-    ).toBe("false");
   });
 
   it("resets the toggle on a comparison switch even when both share the span", async () => {

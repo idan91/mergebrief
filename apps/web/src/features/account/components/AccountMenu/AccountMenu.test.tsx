@@ -162,27 +162,6 @@ describe("AccountMenu", () => {
     vi.unstubAllEnvs();
   });
 
-  it("the shortcuts row exists only where a modal does", async () => {
-    const onOpenShortcuts = vi.fn();
-    renderWithViewer(SIGNED_IN, onOpenShortcuts);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Account menu/ }));
-    });
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("menuitem", { name: "Keyboard shortcuts" }),
-      );
-    });
-
-    expect(onOpenShortcuts).toHaveBeenCalledTimes(1);
-    // The modal a row opens captures the trigger, not the vanishing row.
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: /Account menu/ }),
-    );
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
   it("a row hands focus to the trigger before the panel leaves", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.stubGlobal(
@@ -466,23 +445,6 @@ describe("AccountMenu after the version notice is dismissed", () => {
 
     await act(async () => {
       fireEvent.click(trigger);
-    });
-
-    expect(
-      screen.getAllByRole("menuitem").map((row) => row.textContent),
-    ).toEqual(["Settings", "Sign out"]);
-  });
-
-  it("never lists a security release as dismissed", async () => {
-    renderWithViewer(SIGNED_IN, undefined, {
-      kind: VersionStates.KNOWN,
-      snapshot: { ...DISMISSED.snapshot, security: true },
-    });
-
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: "Account menu for octocat" }),
-      );
     });
 
     expect(

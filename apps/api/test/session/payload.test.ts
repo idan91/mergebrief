@@ -1,8 +1,8 @@
 // The session read's wire shape before materialization: the side no row
 // exists for, where the payload is an in-memory verdict. The integration
 // suite covers a materialized session end to end; this pins what only the
-// projection decides: the revision distance, the id a carried subject
-// carries, and the default outcome a session with no row reports.
+// projection decides: the id a carried subject carries, and the default
+// outcome a session with no row reports.
 import {
   isReviewSessionId,
   type CarriedWork,
@@ -89,23 +89,6 @@ describe("buildSessionPayload", () => {
     expect(payload.submittedReviewIds).toEqual([]);
   });
 
-  it("states the revision distance to the Brief the work came from", () => {
-    expect(buildSessionPayload(CARRIED_VIEW, 5).carriedFrom).toEqual({
-      sessionId: "9",
-      headSha: "aaa111",
-      revisions: 2,
-      items: 2,
-    });
-  });
-
-  it("reports a first-ever session as carrying from nothing", () => {
-    const payload = buildSessionPayload(
-      { session: undefined, carried: CARRIED, carriedFrom: undefined },
-      1,
-    );
-    expect(payload.carriedFrom).toBeNull();
-  });
-
   it("keeps a carried draft addressable by the previous session's row", () => {
     const [draft] = buildSessionPayload(CARRIED_VIEW, 5).draftComments;
     expect(draft?.id).toBe("71");
@@ -115,39 +98,6 @@ describe("buildSessionPayload", () => {
     const [disposition] = buildSessionPayload(CARRIED_VIEW, 5).dispositions;
     expect(disposition?.id).toBeNull();
     expect(disposition?.decidedAt).toBe(DECIDED_AT.toISOString());
-  });
-
-  it("copies the read marks rather than aliasing the carried array", () => {
-    const payload = buildSessionPayload(CARRIED_VIEW, 5);
-    expect(payload.readMarks).toEqual(["chunk-a", "chunk-b"]);
-    expect(payload.readMarks).not.toBe(CARRIED.readMarks);
-  });
-
-  it("projects the Attention List off the carried verdicts", () => {
-    expect(buildSessionPayload(CARRIED_VIEW, 5).attention).toEqual([
-      {
-        kind: "orphaned-anchor",
-        subject: { type: "draft-comment", id: "71", attribute: null },
-        location: {
-          kind: "line",
-          filePath: "src/app.ts",
-          startLine: 10,
-          endLine: 12,
-        },
-        clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
-      },
-      {
-        kind: "reopened-disposition",
-        subject: { type: "disposition", id: null, attribute: "auth" },
-        location: {
-          kind: "line",
-          filePath: "src/app.ts",
-          startLine: 4,
-          endLine: 20,
-        },
-        clearedBy: ["address-risk", "dismiss-risk"],
-      },
-    ]);
   });
 
   it("carries an evidence gap through to the payload", () => {

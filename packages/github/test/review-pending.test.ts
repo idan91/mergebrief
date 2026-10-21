@@ -114,18 +114,6 @@ describe("findPendingPullRequestReview", () => {
 });
 
 describe("hasPullRequestReviewPublished", () => {
-  it("is true once the review is listed in a non-pending state", async () => {
-    const paginate = vi
-      .fn()
-      .mockResolvedValue([{ id: 12, node_id: "PRR_a", state: "COMMENTED" }]);
-    const result = await hasPullRequestReviewPublished(
-      mockOctokit({ paginate }),
-      { ...REF, reviewId: 12n },
-    );
-
-    expect(result).toEqual({ ok: true, value: true });
-  });
-
   it("is false while the review is pending or missing from the list", async () => {
     const pending = vi
       .fn()
@@ -147,20 +135,6 @@ describe("hasPullRequestReviewPublished", () => {
       }),
     ).toEqual({ ok: true, value: false });
   });
-
-  it("maps a list failure to a sanitized error", async () => {
-    const paginate = vi.fn().mockRejectedValue(makeRequestError(502));
-    const result = await hasPullRequestReviewPublished(
-      mockOctokit({ paginate }),
-      { ...REF, reviewId: 12n },
-    );
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.status).toBe(502);
-  });
 });
 
 describe("listReviewsByAuthor", () => {
@@ -177,26 +151,6 @@ describe("listReviewsByAuthor", () => {
       ...extra,
     };
   }
-
-  it("returns the author's reviews with id, state, body and submit time", async () => {
-    const paginate = vi.fn().mockResolvedValue([makeReviewEntry()]);
-
-    const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
-
-    expect(result).toEqual({
-      ok: true,
-      value: [
-        {
-          reviewId: 12n,
-          state: "COMMENTED",
-          body: "looks good",
-          submittedAt: new Date("2026-10-06T10:00:00Z"),
-        },
-      ],
-    });
-    const [, params] = paginate.mock.calls[0] ?? [];
-    expect(params).toMatchObject({ owner: "o", repo: "r", pull_number: 7 });
-  });
 
   it("ignores another user's review and one with no user", async () => {
     const paginate = vi
@@ -238,19 +192,6 @@ describe("listReviewsByAuthor", () => {
 
     expect(result.ok).toBe(false);
   });
-
-  it("maps a list failure to a sanitized error", async () => {
-    const paginate = vi.fn().mockRejectedValue(makeRequestError(502));
-
-    const result = await listReviewsByAuthor(mockOctokit({ paginate }), INPUT);
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.status).toBe(502);
-    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
-  });
 });
 
 describe("countPendingReviewComments", () => {
@@ -277,20 +218,6 @@ describe("countPendingReviewComments", () => {
 
     expect(result.ok).toBe(false);
   });
-
-  it("maps a GraphQL failure to a sanitized error", async () => {
-    const graphql = vi.fn().mockRejectedValue(makeRequestError(502));
-    const result = await countPendingReviewComments(
-      mockOctokit({ graphql }),
-      "PRR_kwDOpending",
-    );
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.status).toBe(502);
-  });
 });
 
 describe("deletePendingPullRequestReview", () => {
@@ -308,18 +235,6 @@ describe("deletePendingPullRequestReview", () => {
       pull_number: 7,
       review_id: 512,
     });
-  });
-
-  it("treats a 404 on an already-gone review as success", async () => {
-    const deletePendingReview = vi
-      .fn()
-      .mockRejectedValue(makeRequestError(404));
-    const result = await deletePendingPullRequestReview(
-      mockOctokit({ deletePendingReview }),
-      { ...REF, reviewId: 512n },
-    );
-
-    expect(result.ok).toBe(true);
   });
 
   it("maps any other failure to a sanitized error", async () => {

@@ -23,25 +23,6 @@ describe("trackers", () => {
     }
   });
 
-  it("every tracker builds its read from the shared deps plus its own slot", () => {
-    const bare = { env: {}, contextSources: [] };
-    expect(getTracker("github").createRead(bare, undefined).ok).toBe(false);
-    expect(getTracker("notion").createRead(bare, undefined).ok).toBe(false);
-
-    const github = getTracker("github").createRead(bare, GITHUB_STUB);
-    expect(github.ok && github.value.kind).toBe("github");
-
-    const listsNotion = {
-      env: { NOTION_TOKEN: "ntn_x" },
-      contextSources: [{ type: "notion" as const }],
-    };
-    const notion = getTracker("notion").createRead(
-      listsNotion,
-      NotionTransports.HTTP.create(),
-    );
-    expect(notion.ok && notion.value.kind).toBe("notion");
-  });
-
   it("resolveTrackerReads builds one read per bound slot: no slot, no read", () => {
     const root = {
       env: { NOTION_TOKEN: "ntn_x" },

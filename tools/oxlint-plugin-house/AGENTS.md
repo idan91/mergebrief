@@ -7,7 +7,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 ## Map
 
 - `src/index.mjs` is the plugin (`meta.name: "house"`); `src/rules/` holds one file per rule, peers with no barrel.
-- `test/fixtures/<rule>/` holds one `bad` and one `good` file per rule, plus an `ignored` file where the rule has ignore options, and the fixture config; a rule whose verdict depends on the filename adds a folder per shape (`no-re-export/bad-barrel/index.ts`). `test/rules.test.ts` spawns the pinned oxlint over them and asserts rule id and line, one rule per fixture.
+- `test/fixtures/<rule>/` holds one `bad` and one `good` file per rule, plus an `ignored` file where the rule has ignore options, and the fixture config; a rule whose verdict depends on the filename adds a folder per shape (`no-re-export/bad-barrel/index.ts`). `test/in-process.test.ts` runs each rule over its fixtures through oxlint's `RuleTester`, asserting each reported line and message id. `test/rules.test.ts` spawns the pinned oxlint for the one thing `RuleTester` cannot do, disable directives.
 
 ## Invariants
 
@@ -17,4 +17,4 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - Fixture configs carry their own rule options, chosen to exercise the rule rather than to mirror the repo's setting: `comment-run` runs at four content lines here and eight at the root.
 - A rule reads syntax only. Anything needing type information stays prose in the root rules.
 - The oxlint version pinned here matches the root; the plugin API is alpha and a bump reruns the fixtures. `dependency-cruiser` is pinned the same way: the config contracts must run the binary `pnpm lint` runs.
-- `test/root-config.test.ts` and `test/package-layers.test.ts` run the real root configuration over throwaway trees, and `pnpm test:config` is the gate's entry point. A negative assertion pairs with a positive in the same run, so an empty diagnostic list can never mean the run never happened, and every reported rule carries its severity, so a rule demoted to `warn` fails the contract instead of passing it.
+- `test/root-config.test.ts` and `test/package-layers.test.ts` run the real root configuration over throwaway trees, and `pnpm test:config` is their only entry point: the member `test` script excludes them, since they cover no `src/` line. `package-layers` cruises one tree holding every case, so a new case adds files to it, never another run. A negative assertion pairs with a positive in the same run, so an empty diagnostic list can never mean the run never happened, and every reported rule carries its severity, so a rule demoted to `warn` fails the contract instead of passing it.

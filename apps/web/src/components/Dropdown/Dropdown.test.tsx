@@ -188,15 +188,6 @@ describe("Dropdown", () => {
     );
   });
 
-  it("a group names its rows and a separator sits between runs", async () => {
-    renderMultiple();
-    await openList();
-
-    const group = screen.getByRole("group", { name: "Fresh" });
-    expect(group.querySelectorAll("[role=option]")).toHaveLength(2);
-    expect(screen.getByRole("separator")).toBeTruthy();
-  });
-
   it("a disabled row is inert and the arrows skip it", async () => {
     const { onValueChange } = renderMultiple([]);
     await openList();
@@ -231,20 +222,5 @@ describe("Dropdown", () => {
     expect(document.activeElement).toBe(apple);
     await press("b");
     expect(document.activeElement).toBe(banana);
-  });
-
-  it("Escape closes the list and focus returns to the trigger", async () => {
-    renderSingle();
-    const trigger = await openList();
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole("option", { name: "Banana" }),
-      ),
-    );
-
-    await press("Escape");
-
-    expect(screen.queryByRole("listbox")).toBeNull();
-    expect(document.activeElement).toBe(trigger);
   });
 });

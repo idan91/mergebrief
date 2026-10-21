@@ -3,10 +3,8 @@ import {
   commentsName,
   deltaCommentsName,
   deltaDiffsName,
-  deltaSummaryLines,
   diffsName,
   outName,
-  summaryLines,
 } from "../../src/artifacts/output";
 import type { Brief, DeltaBrief } from "brief-core/types";
 
@@ -121,51 +119,6 @@ describe("delta sidecar names", () => {
   it("builds the matching .delta.comments.json sidecar", () => {
     expect(deltaCommentsName(delta)).toBe(
       "Idan91-components-4-35788079..a01bcf1d.delta.comments.json",
-    );
-  });
-});
-
-describe("summaryLines", () => {
-  const text = summaryLines(brief).join("\n");
-
-  it("surfaces the uncertainty between categories", () => {
-    expect(text).toContain("uncertain: new-feature vs bugfix");
-  });
-
-  it("shows the brief index and commit range", () => {
-    expect(text).toContain("brief _2 | base1234..abc12300, 5 commit(s)");
-  });
-
-  it("shows generation origin", () => {
-    expect(text).toContain("via anthropic/claude-opus-4-8 · effort medium");
-  });
-
-  it("lists only chunks that carry risk-surface flags", () => {
-    expect(text).toContain(
-      "c1 src/module.ts [core]: widely-imported, no-tests",
-    );
-    expect(text).toContain("flags (1/2 chunks)");
-    expect(text).not.toContain("c2 src/module.test.ts");
-  });
-});
-
-describe("deltaSummaryLines", () => {
-  it("labels endpoints by brief index when both ends were briefed", () => {
-    const text = deltaSummaryLines(delta).join("\n");
-    expect(text).toContain("_1 (35788079) → _2 (a01bcf1d)");
-  });
-
-  it("falls back to the SHA when an endpoint was never briefed", () => {
-    const text = deltaSummaryLines({
-      ...delta,
-      baselineIndex: null,
-    }).join("\n");
-    expect(text).toContain("35788079 → _2 (a01bcf1d)");
-  });
-
-  it("shows generation origin", () => {
-    expect(deltaSummaryLines(delta).join("\n")).toContain(
-      "via anthropic/claude-opus-4-8 · effort medium",
     );
   });
 });

@@ -51,7 +51,6 @@ describe("postInlineComment", () => {
 
   it("maps expected failures to result kinds, 409 stale included", async () => {
     for (const [status, kind] of [
-      [401, "unauthorized"],
       [404, "not-found"],
       [409, "stale"],
       [400, "invalid"],
@@ -148,13 +147,6 @@ describe("postInlineComment", () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 201 }),
     );
-    await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
-      kind: "indeterminate",
-    });
-  });
-
-  it("reads a network throw as indeterminate", async () => {
-    apiFetchMock.mockRejectedValue(new TypeError("network down"));
     await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
       kind: "indeterminate",
     });

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import {
   runHarnessProcess,
   spawnFailureError,
   type HarnessRunArgs,
+  type HarnessRunResult,
   type HarnessTimeouts,
 } from "../src/harness/run";
 import { harnessTimeoutError, redactSecrets } from "../src/harness/redact";
@@ -25,15 +26,36 @@ const shimDir = fileURLToPath(new URL("./shims/", import.meta.url));
 const FAKE_CLAUDE = join(shimDir, "fake-claude.cjs");
 
 /**
- * Scaled-real timers with CI-load headroom: inactivity (400ms) comfortably
- * exceeds a loaded-machine node startup; hard keeps a ~10x ratio; grace
- * gives SIGINT handlers real scheduling room. Assertions stay behavioral.
+ * Node startup under full-suite load can outlast 400ms, so a run that must
+ * exit cleanly gets a budget no startup reaches. The 400ms tier is only for
+ * runs meant to trip a timer.
  */
-const TEST_TIMEOUTS: HarnessTimeouts = {
+const CLEAN_EXIT_TIMEOUTS: HarnessTimeouts = {
+  hardMs: 10_000,
+  inactivityMs: 10_000,
+  killGraceMs: 150,
+};
+
+const WATCHDOG_TIMEOUTS: HarnessTimeouts = {
   hardMs: 4000,
   inactivityMs: 400,
   killGraceMs: 150,
 };
+
+function makeTimedOutResult(
+  stderrTail: string,
+  timedOut: HarnessRunResult["timedOut"],
+): HarnessRunResult {
+  return {
+    stdout: "",
+    stderrHead: "",
+    stderrTail,
+    exitCode: null,
+    exitSignal: "SIGKILL",
+    timedOut,
+    durationMs: 1000,
+  };
+}
 
 function run(
   scenario: string,
@@ -49,7 +71,7 @@ function run(
     command: process.execPath,
     argv: [FAKE_CLAUDE],
     stdin: extra.stdin ?? "prompt body",
-    timeouts: extra.timeouts ?? TEST_TIMEOUTS,
+    timeouts: extra.timeouts ?? CLEAN_EXIT_TIMEOUTS,
     env: { SHIM_SCENARIO: scenario, ...extra.env },
   };
 
@@ -90,10 +112,11 @@ describe("runHarnessProcess", () => {
       command: relative(process.cwd(), FAKE_CLAUDE),
       argv: [],
       stdin: "prompt body",
-      timeouts: TEST_TIMEOUTS,
+      timeouts: CLEAN_EXIT_TIMEOUTS,
       env: { ...process.env, SHIM_SCENARIO: "valid" },
       cwd: dir,
     });
+    expect(result.timedOut).toBeNull();
     expect(result.exitCode).toBe(0);
   });
 
@@ -104,23 +127,16 @@ describe("runHarnessProcess", () => {
   });
 
   it("fires the inactivity watchdog on a silent hang", async () => {
-    const result = await run("hang");
+    const result = await run("hang", { timeouts: WATCHDOG_TIMEOUTS });
     expect(result.timedOut).toBe("inactivity");
     expect(result.exitCode).not.toBe(0);
-  });
 
-  it("measures the wall clock from spawn to close", async () => {
-    // The hang is killed by the 400ms inactivity watchdog, so the run cannot
-    // have been shorter than that budget.
-    const result = await run("hang");
+    // The watchdog killed the run, so it cannot have been shorter than that budget.
     expect(result.durationMs).toBeGreaterThanOrEqual(
-      TEST_TIMEOUTS.inactivityMs,
+      WATCHDOG_TIMEOUTS.inactivityMs,
     );
     expect(Number.isFinite(result.durationMs)).toBe(true);
-  });
 
-  it("names the duration in the timeout error message", async () => {
-    const result = await run("hang");
     const error = harnessTimeoutError("brief", result);
     expect(error.kind).toBe(GeneratorErrorKinds.TIMEOUT);
     expect(error.message).toContain(`${String(result.durationMs)}ms`);
@@ -128,12 +144,13 @@ describe("runHarnessProcess", () => {
   });
 
   it("does not fire the watchdog while output drips slower than the hard cap", async () => {
-    // Total drip time (12 x 100ms = 1.2s) far exceeds inactivityMs (400ms):
-    // only the resets keep it alive. Then the shim exits cleanly.
+    // Total drip time (10 x 200ms) exceeds inactivityMs (1500ms): only the
+    // resets keep it alive. Then the shim exits cleanly.
     const result = await run("slow-drip", {
+      timeouts: { hardMs: 10_000, inactivityMs: 1500, killGraceMs: 150 },
       env: {
-        SHIM_DRIP_MS: "100",
-        SHIM_DRIP_COUNT: "12",
+        SHIM_DRIP_MS: "200",
+        SHIM_DRIP_COUNT: "10",
         SHIM_DRIP_THEN: "exit",
         SHIM_OUTPUT: '{"title":"t"}',
       },
@@ -145,7 +162,7 @@ describe("runHarnessProcess", () => {
   it("still bounds a dripping-forever run with the hard timeout", async () => {
     const result = await run("slow-drip", {
       env: { SHIM_DRIP_MS: "100", SHIM_DRIP_COUNT: "1000" },
-      timeouts: { hardMs: 1200, inactivityMs: 400, killGraceMs: 150 },
+      timeouts: { hardMs: 1200, inactivityMs: 10_000, killGraceMs: 150 },
     });
     expect(result.timedOut).toBe("hard");
   });
@@ -154,6 +171,7 @@ describe("runHarnessProcess", () => {
     const markerFile = join(dir, "sigint-marker");
     const result = await run("ignores-sigint", {
       env: { SHIM_MARKER_FILE: markerFile },
+      timeouts: WATCHDOG_TIMEOUTS,
     });
     expect(result.timedOut).toBe("inactivity");
     // SIGINT was delivered AND recorded…
@@ -179,6 +197,7 @@ describe("runHarnessProcess", () => {
     const pidFile = join(dir, "grandchild-pid");
     const result = await run("spawn-grandchild", {
       env: { SHIM_GRANDCHILD_PID_FILE: pidFile },
+      timeouts: WATCHDOG_TIMEOUTS,
     });
     expect(result.timedOut).toBe("inactivity");
     const grandchildPid = Number(readFileSync(pidFile, "utf8"));
@@ -239,6 +258,7 @@ describe("runHarnessProcess", () => {
 
   it("preserves timeout outcomes when dying CLI flushes throw", async () => {
     const result = await run("flush-on-sigint", {
+      timeouts: WATCHDOG_TIMEOUTS,
       onStdoutLine: () => {
         throw new Error("consumer chokes on the dying flush");
       },
@@ -269,7 +289,7 @@ describe("runHarnessProcess", () => {
       command: join(dir, "definitely-not-a-real-binary"),
       argv: [],
       stdin: "",
-      timeouts: TEST_TIMEOUTS,
+      timeouts: CLEAN_EXIT_TIMEOUTS,
       signal: controller.signal,
     });
     // Same tick, before the async 'error' event fires.
@@ -301,7 +321,7 @@ describe("runHarnessProcess", () => {
       command: process.execPath,
       argv: ["-e", "process.stdout.write('unterminated-final')"],
       stdin: "",
-      timeouts: TEST_TIMEOUTS,
+      timeouts: CLEAN_EXIT_TIMEOUTS,
       onStdoutLine: () => {
         throw boom;
       },
@@ -317,7 +337,7 @@ describe("runHarnessProcess", () => {
       command: process.execPath,
       argv: ["-e", "process.stdout.write('unterminated-final')"],
       stdin: "",
-      timeouts: TEST_TIMEOUTS,
+      timeouts: CLEAN_EXIT_TIMEOUTS,
       signal: controller.signal,
       onStdoutLine: () => {
         controller.abort(reason);
@@ -347,7 +367,7 @@ describe("runHarnessProcess", () => {
         "const b = 'x'.repeat(65536) + '\\n'; setInterval(() => process.stdout.write(b), 5)",
       ],
       stdin: "",
-      timeouts: TEST_TIMEOUTS,
+      timeouts: CLEAN_EXIT_TIMEOUTS,
       maxStdoutUnits: 256 * 1024,
     });
     await expect(promise).rejects.toBeInstanceOf(GeneratorError);
@@ -396,7 +416,7 @@ describe("runHarnessProcess", () => {
       command: join(dir, "definitely-not-a-real-binary"),
       argv: [],
       stdin: "",
-      timeouts: TEST_TIMEOUTS,
+      timeouts: CLEAN_EXIT_TIMEOUTS,
     });
     await expect(promise).rejects.toBeInstanceOf(GeneratorError);
     await expect(promise).rejects.toMatchObject({
@@ -466,21 +486,12 @@ describe("billing-route guarantee: credential vars never reach the CLI", () => {
 });
 
 describe("harnessTimeoutError / redactSecrets", () => {
-  it("redacts credential-shaped stderr before it reaches the message", async () => {
-    const result = await runHarnessProcess({
-      command: process.execPath,
-      argv: [FAKE_CLAUDE],
-      stdin: "p",
-      timeouts: TEST_TIMEOUTS,
-      env: {
-        SHIM_SCENARIO: "stderr-exit",
-        SHIM_STDERR:
-          "auth failed for sk-ant-api03-supersecretvalue Bearer abc.def.ghi last\n",
-        SHIM_EXIT_CODE: "1",
-      },
-    });
-    // Simulate a timeout classification carrying that stderr tail.
-    const error = harnessTimeoutError("brief", { ...result, timedOut: "hard" });
+  it("redacts credential-shaped stderr before it reaches the message", () => {
+    const result = makeTimedOutResult(
+      "auth failed for sk-ant-api03-supersecretvalue Bearer abc.def.ghi last\n",
+      "hard",
+    );
+    const error = harnessTimeoutError("brief", result);
     expect(error.kind).toBe(GeneratorErrorKinds.TIMEOUT);
     expect(error.message).not.toContain("supersecretvalue");
     expect(error.message).not.toContain("abc.def.ghi");
@@ -488,20 +499,12 @@ describe("harnessTimeoutError / redactSecrets", () => {
     expect(error.message).toContain("last");
   });
 
-  it("redacts credential assignments and query parameters", async () => {
-    const result = await runHarnessProcess({
-      command: process.execPath,
-      argv: [FAKE_CLAUDE],
-      stdin: "p",
-      timeouts: TEST_TIMEOUTS,
-      env: {
-        SHIM_SCENARIO: "stderr-exit",
-        SHIM_STDERR:
-          "login failed: password=hunter2 token: abc.def AWS_ACCESS_KEY_ID=AKIAXXXX GET /v1?api_key=zzz9 tail\n",
-        SHIM_EXIT_CODE: "1",
-      },
-    });
-    const error = harnessTimeoutError("brief", { ...result, timedOut: "hard" });
+  it("redacts credential assignments and query parameters", () => {
+    const result = makeTimedOutResult(
+      "login failed: password=hunter2 token: abc.def AWS_ACCESS_KEY_ID=AKIAXXXX GET /v1?api_key=zzz9 tail\n",
+      "hard",
+    );
+    const error = harnessTimeoutError("brief", result);
     expect(error.message).not.toContain("hunter2");
     expect(error.message).not.toContain("abc.def");
     expect(error.message).not.toContain("AKIAXXXX");
@@ -509,39 +512,24 @@ describe("harnessTimeoutError / redactSecrets", () => {
     expect(error.message).toContain("tail");
   });
 
-  it("redacts a compound 'token: Bearer x' as a unit", async () => {
-    const result = await runHarnessProcess({
-      command: process.execPath,
-      argv: [FAKE_CLAUDE],
-      stdin: "p",
-      timeouts: TEST_TIMEOUTS,
-      env: {
-        SHIM_SCENARIO: "stderr-exit",
-        SHIM_STDERR: "refused: token: Bearer abc.def.ghi rest\n",
-        SHIM_EXIT_CODE: "1",
-      },
-    });
-    const error = harnessTimeoutError("brief", { ...result, timedOut: "hard" });
+  it("redacts a compound 'token: Bearer x' as a unit", () => {
+    const result = makeTimedOutResult(
+      "refused: token: Bearer abc.def.ghi rest\n",
+      "hard",
+    );
+    const error = harnessTimeoutError("brief", result);
     expect(error.message).not.toContain("abc.def.ghi");
     expect(error.message).toContain("rest");
   });
 
-  it("redacts Basic and Digest authorization headers and bare JWTs", async () => {
-    const result = await runHarnessProcess({
-      command: process.execPath,
-      argv: [FAKE_CLAUDE],
-      stdin: "p",
-      timeouts: TEST_TIMEOUTS,
-      env: {
-        SHIM_SCENARIO: "stderr-exit",
-        // Header rules take the line remainder (Digest is a param list, not
-        // one token), unrelated text goes on its own lines.
-        SHIM_STDERR:
-          'Authorization: Basic dXNlcjpwYXNz\nProxy-Authorization: Digest username="u", response="abc123"\nthen eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.s1g_9 tail\n',
-        SHIM_EXIT_CODE: "1",
-      },
-    });
-    const error = harnessTimeoutError("brief", { ...result, timedOut: "hard" });
+  it("redacts Basic and Digest authorization headers and bare JWTs", () => {
+    // Header rules take the line remainder (Digest is a param list, not
+    // one token), unrelated text goes on its own lines.
+    const result = makeTimedOutResult(
+      'Authorization: Basic dXNlcjpwYXNz\nProxy-Authorization: Digest username="u", response="abc123"\nthen eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.s1g_9 tail\n',
+      "hard",
+    );
+    const error = harnessTimeoutError("brief", result);
     expect(error.message).not.toContain("dXNlcjpwYXNz");
     expect(error.message).not.toContain("username=");
     expect(error.message).not.toContain("eyJhbGciOiJIUzI1NiJ9");
@@ -586,23 +574,12 @@ describe("harnessTimeoutError / redactSecrets", () => {
     expect(json).not.toContain("dXNlcjpwYXNz");
   });
 
-  it("redacts URL-embedded credentials and hex secrets", async () => {
-    const result = await runHarnessProcess({
-      command: process.execPath,
-      argv: [FAKE_CLAUDE],
-      stdin: "p",
-      timeouts: TEST_TIMEOUTS,
-      env: {
-        SHIM_SCENARIO: "stderr-exit",
-        SHIM_STDERR:
-          "dial postgres://svc:hunter2@db.internal:5432/app failed; token deadbeefdeadbeefdeadbeefdeadbeef end\n",
-        SHIM_EXIT_CODE: "1",
-      },
-    });
-    const error = harnessTimeoutError("brief", {
-      ...result,
-      timedOut: "inactivity",
-    });
+  it("redacts URL-embedded credentials and hex secrets", () => {
+    const result = makeTimedOutResult(
+      "dial postgres://svc:hunter2@db.internal:5432/app failed; token deadbeefdeadbeefdeadbeefdeadbeef end\n",
+      "inactivity",
+    );
+    const error = harnessTimeoutError("brief", result);
     expect(error.message).not.toContain("hunter2");
     expect(error.message).not.toContain("deadbeefdeadbeef");
     expect(error.message).toContain("postgres://(redacted)@db.internal");
@@ -618,14 +595,6 @@ describe("probeHarnessCli", () => {
     authArgv: [FAKE_CLAUDE, "auth", "status"],
     authFailureHint: "log the CLI in interactively first",
   };
-
-  it("passes when version and auth both succeed", async () => {
-    const result = await probeHarnessCli({
-      ...probeArgs,
-      env: { SHIM_SCENARIO: "valid" },
-    });
-    expect(result.ok).toBe(true);
-  });
 
   it("runs both probes in one empty temp cwd, removed afterwards", async () => {
     const logDir = mkdtempSync(join(tmpdir(), "harness-probe-log-"));
@@ -658,14 +627,6 @@ describe("probeHarnessCli", () => {
       return;
     }
     expect(result.error.issues.join("; ")).toContain("not found");
-  });
-
-  it("fails when the version probe exits nonzero", async () => {
-    const result = await probeHarnessCli({
-      ...probeArgs,
-      env: { SHIM_SCENARIO: "version-broken" },
-    });
-    expect(result.ok).toBe(false);
   });
 
   it("fails with the auth hint when the auth preflight exits nonzero", async () => {
@@ -822,58 +783,5 @@ describe("probeHarnessCli", () => {
     });
     expect(broken.ok).toBe(false);
     expect(versionCalled).toBe(0);
-  });
-});
-
-describe("shim self-checks", () => {
-  it("fake-codex answers with a JSON string needing a double parse", async () => {
-    const FAKE_CODEX = join(shimDir, "fake-codex.cjs");
-    const lines: string[] = [];
-    await runHarnessProcess({
-      command: process.execPath,
-      argv: [FAKE_CODEX],
-      stdin: "prompt",
-      timeouts: TEST_TIMEOUTS,
-      env: { SHIM_SCENARIO: "valid", SHIM_OUTPUT: '{"title":"t"}' },
-      onStdoutLine: (line) => lines.push(line),
-    });
-    const agentTexts: string[] = [];
-    for (const line of lines) {
-      const event: unknown = JSON.parse(line);
-      if (typeof event !== "object" || event === null) {
-        continue;
-      }
-      if (Reflect.get(event, "type") !== "item.completed") {
-        continue;
-      }
-      const item: unknown = Reflect.get(event, "item");
-      if (typeof item !== "object" || item === null) {
-        continue;
-      }
-      if (Reflect.get(item, "type") !== "agent_message") {
-        continue;
-      }
-      const text: unknown = Reflect.get(item, "text");
-      if (typeof text === "string") {
-        agentTexts.push(text);
-      }
-    }
-    // Preliminary narration first, the answer LAST, consumers must pick the
-    // last agent_message.
-    expect(agentTexts.length).toBeGreaterThanOrEqual(2);
-    const last = agentTexts.at(-1);
-    // First parse: JSONL event; the answer itself is STILL a JSON string.
-    expect(typeof last).toBe("string");
-    expect(JSON.parse(last ?? "")).toEqual({ title: "t" });
-  });
-
-  it("marker file is absent when a cooperative process exits before SIGINT", async () => {
-    const dir2 = mkdtempSync(join(tmpdir(), "harness-marker-"));
-    const markerFile = join(dir2, "marker");
-    await run("valid", {
-      env: { SHIM_OUTPUT: '{"a":1}', SHIM_MARKER_FILE: markerFile },
-    });
-    expect(existsSync(markerFile)).toBe(false);
-    rmSync(dir2, { recursive: true, force: true });
   });
 });

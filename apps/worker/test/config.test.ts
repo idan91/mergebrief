@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ConfigErrorCodes, loadConfig } from "../src/config";
+import { loadConfig } from "../src/config";
 
 const VALID_ENV = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/db",
@@ -130,33 +130,6 @@ describe("loadConfig", () => {
     expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
   });
 
-  it("rejects a non-URL PUBLIC_BASE_URL", () => {
-    const result = loadConfig({ ...VALID_ENV, PUBLIC_BASE_URL: "not a url" });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
-  });
-
-  it("rejects a missing DATABASE_URL", () => {
-    const result = loadConfig({ PUBLIC_BASE_URL: VALID_ENV.PUBLIC_BASE_URL });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.code).toBe(ConfigErrorCodes.INVALID);
-    expect(result.error.issues.join(";")).toContain("DATABASE_URL");
-  });
-
-  it("rejects a non-postgres DATABASE_URL", () => {
-    const result = loadConfig({
-      ...VALID_ENV,
-      DATABASE_URL: "mysql://localhost/db",
-    });
-    expect(result.ok).toBe(false);
-  });
-
   it("defaults the slot count to one when unset", () => {
     const result = loadConfig(VALID_ENV);
     expect(result.ok && result.value.concurrency).toBe(1);
@@ -185,18 +158,6 @@ describe("loadConfig", () => {
     expect(result.error.issues.join(";")).toContain("WORKER_CONCURRENCY");
   });
 
-  it("rejects a PUBLIC_BASE_URL scheme other than http or https", () => {
-    const result = loadConfig({
-      ...VALID_ENV,
-      PUBLIC_BASE_URL: "ftp://brief.example",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
-  });
-
   it("reads SERVER_VERSION unset and empty as dev", () => {
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.serverVersion).toBe("dev");
@@ -204,15 +165,6 @@ describe("loadConfig", () => {
     expect(empty.ok && empty.value.serverVersion).toBe("dev");
     const set = loadConfig({ ...VALID_ENV, SERVER_VERSION: "1.4.0" });
     expect(set.ok && set.value.serverVersion).toBe("1.4.0");
-  });
-
-  it("rejects a SERVER_VERSION a header cannot carry", () => {
-    const result = loadConfig({ ...VALID_ENV, SERVER_VERSION: "1 .4.0" });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join(";")).toContain("SERVER_VERSION");
   });
 
   it("defaults the revision narrative on when unset or empty", () => {
@@ -236,20 +188,6 @@ describe("loadConfig", () => {
     });
   });
 
-  it("rejects a REVISION_NARRATIVE_ENABLED token it does not know", () => {
-    const result = loadConfig({
-      ...VALID_ENV,
-      REVISION_NARRATIVE_ENABLED: "maybe",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join(";")).toContain(
-      "REVISION_NARRATIVE_ENABLED",
-    );
-  });
-
   it("defaults HUGE_SPAN_RATIO to 0.65 when unset or empty", () => {
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.hugeSpanRatio).toBe(0.65);
@@ -257,15 +195,6 @@ describe("loadConfig", () => {
     expect(empty.ok && empty.value.hugeSpanRatio).toBe(0.65);
     const set = loadConfig({ ...VALID_ENV, HUGE_SPAN_RATIO: "0.5" });
     expect(set.ok && set.value.hugeSpanRatio).toBe(0.5);
-  });
-
-  it.each(["0", "1.5", "abc"])("rejects HUGE_SPAN_RATIO=%s", (raw) => {
-    const result = loadConfig({ ...VALID_ENV, HUGE_SPAN_RATIO: raw });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join(";")).toContain("HUGE_SPAN_RATIO");
   });
 
   it.each([

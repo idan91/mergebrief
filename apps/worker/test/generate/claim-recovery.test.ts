@@ -221,6 +221,7 @@ describe("generate task, claim recovery", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_1),
     );
+    expect(row?.status).toBe(GenerationStatuses.RUNNING);
     expect(row?.runId).toBe(OTHER_RUN_ID);
     const queued = await readQueuedGenerateJobs();
     expect(queued).toHaveLength(1);

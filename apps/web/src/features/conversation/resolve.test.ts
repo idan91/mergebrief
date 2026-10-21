@@ -126,13 +126,6 @@ describe("setThreadResolution", () => {
     }
   });
 
-  it("reads a non-JSON 200 as indeterminate", async () => {
-    apiFetchMock.mockResolvedValue(new Response("not json", { status: 200 }));
-    await expect(setThreadResolution("42", 7, 9001, true)).resolves.toEqual({
-      kind: "indeterminate",
-    });
-  });
-
   it("reads an echo of the other direction as indeterminate", async () => {
     // The route echoes the direction it applied; a mismatch means the FE would
     // render a state the server never set.

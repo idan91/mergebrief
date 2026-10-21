@@ -11,8 +11,7 @@ import {
   createTokenAuth,
   type KeyProvider,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createApp,
   derivePrincipalFromApiToken,
@@ -34,8 +33,10 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { seedPullRequest } from "./session/fixtures";
 import { ACCESS_TOKEN, REFRESH_TOKEN, seedSignIn } from "./sign-in";
 import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -134,12 +135,11 @@ function stubGitHub(opts: StubOptions): ReturnType<typeof vi.fn> {
 // ---------------------------------------------------------------------------
 
 describe("reviewer auth routes", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -150,16 +150,12 @@ describe("reviewer auth routes", () => {
     });
   });
 
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
-  });
-
   it("lists nothing for a session that reaches no installation", async () => {
     const fetchFn = stubGitHub({
       token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [],
     });
+    await seedPullRequest(harness.handle);
     const { cookie: token } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/inbox", {
@@ -735,7 +731,7 @@ function epochMs(cell: unknown): number {
 }
 
 async function countRows(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   table: string,
 ): Promise<number> {
   const rows = await harness.raw(`select count(*)::int as n from ${table}`);

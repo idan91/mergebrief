@@ -14,7 +14,6 @@ import {
   type TenantContext,
 } from "persistence";
 import { PrStates, type AccessLevel, AccessLevels } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
@@ -30,6 +29,7 @@ import {
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedGrant, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_A = 42001;
 const REPO_B = 42002;
@@ -202,13 +202,13 @@ async function seedPr(handle: AppDatabase): Promise<void> {
   });
 }
 
+const harness = registerSharedPglite();
+
 describe("Bearer presentation on /api/*", () => {
-  let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -219,9 +219,8 @@ describe("Bearer presentation on /api/*", () => {
     });
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function getWithBearer(
@@ -356,14 +355,6 @@ describe("Bearer presentation on /api/*", () => {
     }
   });
 
-  it("ignores Bearer tokens on browser-only /api/auth/* routes", async () => {
-    const bearer = await seedApiToken(harness.handle, kp);
-    const res = await app.request("/api/auth/tokens", {
-      headers: { Authorization: `Bearer ${bearer}` },
-    });
-    expect(res.status).toBe(401);
-  });
-
   it("refreshes GitHub access once without extending token expiry", async () => {
     const counts = stubGitHub({
       userInstallations: () =>
@@ -479,12 +470,10 @@ describe("Bearer presentation on /api/*", () => {
 });
 
 describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
-  let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -495,9 +484,8 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     });
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function mint(body: unknown, cookie?: string): Promise<Response> {

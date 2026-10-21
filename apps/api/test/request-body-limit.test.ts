@@ -3,14 +3,14 @@
 import { randomBytes } from "node:crypto";
 import { ProductActionIds } from "contract";
 import { createEnvKeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { MAX_REQUEST_BODY_BYTES } from "../src/routes/wire-bounds";
 import { testLogger } from "./logging";
 import { KEY_REF, buildAuthDeps } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import { registerSharedPglite } from "./shared-pglite";
 
 const JSON_HEADERS = { "content-type": "application/json" };
 const OVERSIZED = JSON.stringify({ body: "x".repeat(MAX_REQUEST_BODY_BYTES) });
@@ -43,11 +43,10 @@ function streamBytes(total: number): ReadableStream<Uint8Array> {
 }
 
 describe("request body cap", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     const keys = createEnvKeyProvider({
       [KEY_REF]: randomBytes(32).toString("base64"),
     });
@@ -58,10 +57,6 @@ describe("request body cap", () => {
       auth: buildAuthDeps(keys),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   it("refuses a declared body over the cap with request-too-large", async () => {

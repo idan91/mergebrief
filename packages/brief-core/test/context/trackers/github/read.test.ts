@@ -133,20 +133,15 @@ describe("createGitHubRead", () => {
     });
   });
 
-  it.each([
-    TicketUnreadReasons.NOT_FOUND,
-    TicketUnreadReasons.NO_CREDENTIAL,
-    TicketUnreadReasons.RATE_LIMITED,
-    TicketUnreadReasons.TIMEOUT,
-  ])(
-    "passes a %s refusal from the reader through unchanged",
-    async (reason) => {
-      const failure = { reason, detail: `reader said ${reason}` };
-      const provider = readWith(stubReaderReturning(failure));
-      const result = await provider.readPrimary(REFERENCE, stubDeps());
-      expect(result).toEqual({ ok: false, error: failure });
-    },
-  );
+  it("passes a refusal from the reader through unchanged", async () => {
+    const failure = {
+      reason: TicketUnreadReasons.RATE_LIMITED,
+      detail: "reader said rate-limited",
+    };
+    const provider = readWith(stubReaderReturning(failure));
+    const result = await provider.readPrimary(REFERENCE, stubDeps());
+    expect(result).toEqual({ ok: false, error: failure });
+  });
 
   it("reports an aborted read as a timeout", async () => {
     const controller = new AbortController();
@@ -203,10 +198,6 @@ describe("renderIssueHeader", () => {
     [
       { ...ISSUE, state: "closed", stateReason: "not_planned", labels: [] },
       "closed (not_planned) · v1.2",
-    ],
-    [
-      { ...ISSUE, state: "closed", stateReason: "completed" },
-      "closed (completed) · bug, p1 · v1.2",
     ],
     [{ ...ISSUE, stateReason: "reopened" }, "open · bug, p1 · v1.2"],
   ])("renders %j as %s", (record, expected) => {

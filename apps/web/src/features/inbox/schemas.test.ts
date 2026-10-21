@@ -152,19 +152,6 @@ describe("parseInboxResponse", () => {
     }
     expect(parsed.value.items[0]?.reviewState).toBe(UnknownValues.UNKNOWN);
   });
-
-  it("keeps every row when one carries a vocabulary value it predates", () => {
-    const parsed = parseInboxResponse({
-      ...WIRE_PAGE,
-      items: [ITEM, { ...ITEM, prNumber: 8, state: "reopened" }],
-      total: 2,
-    });
-
-    if (!parsed.ok) {
-      throw new Error(parsed.error);
-    }
-    expect(parsed.value.items.map((item) => item.prNumber)).toEqual([7, 8]);
-  });
 });
 
 const SCHEMA_PINS = {
@@ -198,6 +185,8 @@ const SCHEMA_PINS = {
     InboxPage
   >,
 } as const;
+
+void SCHEMA_PINS;
 
 const CONTRACT_PINS = {
   InboxGeneration: true satisfies ReadsWireFields<
@@ -234,14 +223,4 @@ const CONTRACT_PINS = {
   >,
 } as const;
 
-describe("inbox schemas match their interfaces", () => {
-  it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
-
-describe("inbox schemas read only what the contract sends", () => {
-  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void CONTRACT_PINS;

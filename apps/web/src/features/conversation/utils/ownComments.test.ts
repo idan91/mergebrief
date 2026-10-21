@@ -245,16 +245,6 @@ describe("reconcileOwnComments", () => {
     expect(result.resurrectedDraftIds).toEqual([]);
     expect(result.pointers.has("still-draft")).toBe(false);
   });
-
-  it("returns empty results when no review ids were recorded", () => {
-    const result = reconcileOwnComments(
-      [localComment({ id: "local-1" })],
-      [serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW })],
-      [],
-    );
-    expect(result.ownThreadIds.size).toBe(0);
-    expect(result.pointers.size).toBe(0);
-  });
 });
 
 describe("demotedSubmittedCommentIds display half", () => {
@@ -284,20 +274,6 @@ describe("demotedSubmittedCommentIds display half", () => {
           }),
         ],
         [serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW })],
-      ),
-    ).toEqual(new Set());
-  });
-
-  it("demotes nothing before own threads load", () => {
-    expect(
-      demotedSubmittedCommentIds(
-        [
-          localComment({
-            id: "local-1",
-            status: DraftCommentStatuses.SUBMITTED,
-          }),
-        ],
-        [],
       ),
     ).toEqual(new Set());
   });

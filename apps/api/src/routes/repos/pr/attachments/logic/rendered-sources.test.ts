@@ -95,16 +95,6 @@ describe("resolveRenderedSource", () => {
     store.cache.set(CACHE_KEY, { sources, fetchedAt }, Date.now() + AN_HOUR_MS);
   }
 
-  it("serves a second asset from the cached sources", async () => {
-    arrangeSources(fake, [SIGNED_URL, PUBLIC_URL]);
-
-    await resolve(ASSET);
-    const second = await resolve(OTHER_ASSET);
-
-    expect(second).toEqual({ ok: true, value: PUBLIC_URL });
-    expect(fake.listCalls("fetchRenderedImageSources")).toHaveLength(1);
-  });
-
   it("refetches the sources when an old entry lacks the asset", async () => {
     arrangeSources(fake, [SIGNED_URL]);
     cacheSources([], Date.now() - 60_000);

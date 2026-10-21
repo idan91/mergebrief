@@ -53,12 +53,6 @@ function measureGrammarBytes(grammar: GrammarName): number {
 }
 
 describe("GRAMMAR_GZIP_BYTES", () => {
-  it("names every grammar we ship a loader for", () => {
-    expect(Object.keys(GRAMMAR_GZIP_BYTES).toSorted()).toEqual(
-      Object.values(GrammarNames).toSorted(),
-    );
-  });
-
   it.each(Object.values(GrammarNames))(
     "matches the installed %s closure",
     (grammar) => {

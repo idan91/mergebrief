@@ -142,11 +142,6 @@ function renderComposer(draftComments: ReviewSessionPayload["draftComments"]) {
 }
 
 describe("CommentComposer store-backed submit label", () => {
-  it('reads "Start review" from an empty store', () => {
-    renderComposer([]);
-    expect(screen.getByRole("button", { name: "Start review" })).toBeTruthy();
-  });
-
   it('reads "Add review comment" once the store holds a comment', () => {
     renderComposer([
       {

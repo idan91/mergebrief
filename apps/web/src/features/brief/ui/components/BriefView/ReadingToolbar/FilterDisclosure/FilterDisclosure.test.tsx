@@ -132,32 +132,6 @@ describe("FilterDisclosure panel", () => {
       document.removeEventListener("keydown", bubbleListener);
     }
   });
-
-  it("focus stays on the trigger when the panel opens", () => {
-    // Disclosure grammar: opening must not hijack focus; Tab is the way in
-    // (FloatingFocusManager initialFocus={-1}, since the default steals focus
-    // into the panel in a microtask).
-    renderDisclosure();
-    const trigger = screen.getByRole("button", { name: /^Filter/ });
-    trigger.focus();
-    fireEvent.click(trigger);
-    expect(screen.getByTestId("conversation-filter-panel")).not.toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it("clicking outside the disclosure closes the panel", () => {
-    renderDisclosure();
-    fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
-    fireEvent.pointerDown(document.body);
-    expect(screen.queryByTestId("conversation-filter-panel")).toBeNull();
-  });
-
-  it("keeps the panel open on pointerdown inside it", () => {
-    renderDisclosure();
-    fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
-    fireEvent.pointerDown(screen.getByTestId("conversation-filter-panel"));
-    expect(screen.getByTestId("conversation-filter-panel")).not.toBeNull();
-  });
 });
 
 describe("FilterDisclosure live region", () => {

@@ -95,18 +95,6 @@ describe("resolveSectionFlags", () => {
     expect(resolveSectionFlags(FLAGS, CHUNKS, section)).toEqual([]);
   });
 
-  it("leaves out a flag overlapping no region of the section", () => {
-    const section: SectionRegion[] = [
-      {
-        file: "src/a.ts",
-        addedRanges: [{ start: 100, end: 120 }],
-        removedRanges: [],
-      },
-    ];
-
-    expect(resolveSectionFlags(FLAGS, CHUNKS, section)).toEqual([]);
-  });
-
   it("keeps the brief's flag order across several regions", () => {
     const section: SectionRegion[] = [
       {

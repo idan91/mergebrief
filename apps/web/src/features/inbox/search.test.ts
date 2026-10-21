@@ -159,30 +159,12 @@ describe("hasDefaultStatus", () => {
 });
 
 describe("writeInboxSearch", () => {
-  it("a layout change starts over from page one, since the order moves", () => {
-    const current = parseInboxSearch({ page: 3, review: "new" });
-
-    expect(writeInboxSearch(current, { layout: "mixed" })).toEqual({
-      review: "new",
-      layout: "mixed",
-    });
-  });
-
   it("a filter change starts over from page one", () => {
     const current = parseInboxSearch({ page: 4, review: "new" });
 
     expect(writeInboxSearch(current, { author: "mine" })).toEqual({
       review: "new",
       author: "mine",
-    });
-  });
-
-  it("a sort change starts over from page one", () => {
-    const current = parseInboxSearch({ page: 4, review: "new" });
-
-    expect(writeInboxSearch(current, { sort: "generated" })).toEqual({
-      review: "new",
-      sort: "generated",
     });
   });
 

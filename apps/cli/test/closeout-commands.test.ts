@@ -1,6 +1,6 @@
-// Surface-closeout tests: `generate` (URL-box generation over an injected
-// engine stub) and `collaborators` (push-gated roster passthrough) against
-// the REAL api app.
+// Surface-closeout tests: `generate` (URL-box generation, no confirm prompt)
+// and `collaborators` (push-gated roster passthrough) against the REAL api
+// app, in one world.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,12 +16,8 @@ import {
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
 import { AccessLevels } from "types/access-levels";
@@ -217,40 +213,25 @@ describe("generate + collaborators over the real api app", () => {
     expect(code).toBe(ExitCodes.OK);
   }
 
-  it("generate <url> runs with no confirm prompt; receipt verbatim", async () => {
+  it("generate and collaborators relay their receipts verbatim", async () => {
     await login();
-    const result = await run([
+    const generated = await run([
       "generate",
       "https://github.com/octo/hello/pull/7",
       "--json",
     ]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    const parsed: unknown = JSON.parse(result.out);
+    expect(generated.err).toEqual([]);
+    expect(generated.code).toBe(ExitCodes.OK);
+    const parsed: unknown = JSON.parse(generated.out);
     if (typeof parsed !== "object" || parsed === null) {
-      throw new Error(`unexpected receipt: ${result.out}`);
+      throw new Error(`unexpected receipt: ${generated.out}`);
     }
     expect(typeof Reflect.get(parsed, "repoId")).toBe("string");
     expect(typeof Reflect.get(parsed, "prNumber")).toBe("number");
-  });
 
-  it("generate with a non-PR URL relays the 400 as exit 5", async () => {
-    await login();
-    const result = await run([
-      "generate",
-      "https://example.com/not-a-pr",
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-  });
-
-  it("collaborators --json is the roster verbatim", async () => {
-    await login();
-    const result = await run(["collaborators", "--json"]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(result.out)).toEqual(ROSTER);
+    const roster = await run(["collaborators", "--json"]);
+    expect(roster.err).toEqual([]);
+    expect(roster.code).toBe(ExitCodes.OK);
+    expect(JSON.parse(roster.out)).toEqual(ROSTER);
   });
 });

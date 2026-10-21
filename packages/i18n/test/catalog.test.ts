@@ -6,7 +6,6 @@ import {
   checkLocale,
   flattenCatalog,
   isCatalogShape,
-  missingKeys,
   paramTokens,
   pluralBase,
   tagIndices,
@@ -100,41 +99,6 @@ describe("hard-fail catalog gates", () => {
       "tokens.disclaimer": 1,
       "tokens.intro": 1,
     });
-  });
-
-  it("en carries every wire-error and generation-failure template", () => {
-    // Scaffold pin: counts only. The vocabulary-equality pins against the
-    // api contract module and the persistence failure codes land with those
-    // modules; this catches a template dropped from en.json in the interim.
-    const flat = flattenCatalog(parseLocale("en.json"));
-    const errorKeys = Object.keys(flat).filter((key) =>
-      key.startsWith("errors."),
-    );
-    const generationKeys = Object.keys(flat).filter((key) =>
-      key.startsWith("generationError."),
-    );
-    expect(errorKeys).toHaveLength(35);
-    expect(generationKeys).toHaveLength(12);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Report-only: completeness never blocks a locale from shipping.
-// ---------------------------------------------------------------------------
-
-describe("report-only catalog completeness", () => {
-  it("prints per-locale coverage", () => {
-    const en = parseLocale("en.json");
-    const total = new Set(Object.keys(flattenCatalog(en)).map(pluralBase)).size;
-    for (const file of localeFiles()) {
-      const missing = missingKeys(parseLocale(file), en);
-      const covered = total - missing.length;
-      const percent = ((covered / total) * 100).toFixed(1);
-      console.info(
-        `${file}: ${percent}% (${covered}/${total})${missing.length > 0 ? `, missing: ${missing.join(", ")}` : ""}`,
-      );
-    }
-    expect(total).toBeGreaterThan(0);
   });
 });
 

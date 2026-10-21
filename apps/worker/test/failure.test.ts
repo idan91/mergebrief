@@ -6,7 +6,6 @@ import {
   PermanentJobError,
   TransientJobError,
 } from "../src/task/failure";
-import { makeConnectionError } from "./generate/helpers";
 
 describe("classifyFailure", () => {
   it("an explicit stamp wins over every probe", () => {
@@ -94,12 +93,6 @@ describe("classifyFailure", () => {
         new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, "529"),
       ),
     ).toEqual({ code: GenerationFailureCodes.PROVIDER_UNAVAILABLE });
-  });
-
-  it("maps a wrapped connection failure to provider-unavailable", () => {
-    expect(classifyFailure(makeConnectionError())).toEqual({
-      code: GenerationFailureCodes.PROVIDER_UNAVAILABLE,
-    });
   });
 
   it.each([

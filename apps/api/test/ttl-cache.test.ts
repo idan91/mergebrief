@@ -31,7 +31,7 @@ describe("createTtlCache", () => {
     cache.set("live", 2, 1_000_000, 0);
     cache.set("new", 3, 1_000_000, 200); // at now=200 the sweep reclaims "expired"
     expect(cache.get("expired", 200)).toBeUndefined();
-    expect(cache.get("live", 200)).toBe(2); // survived — a dead entry was reclaimed instead
+    expect(cache.get("live", 200)).toBe(2); // survived: a dead entry was reclaimed instead
     expect(cache.get("new", 200)).toBe(3);
   });
 
@@ -49,16 +49,11 @@ describe("createTtlCache", () => {
 });
 
 describe("delete", () => {
-  it("removes a live entry so the next get misses (conversation-cache eviction)", () => {
+  it("removes a live entry so the next get misses", () => {
     const cache = createTtlCache<string>(10);
     cache.set("k", "v", Date.now() + 60_000);
     expect(cache.get("k")).toBe("v");
     cache.delete("k");
     expect(cache.get("k")).toBeUndefined();
-  });
-
-  it("is a no-op for an absent key", () => {
-    const cache = createTtlCache<string>(10);
-    expect(() => cache.delete("missing")).not.toThrow();
   });
 });

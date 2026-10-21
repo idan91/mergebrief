@@ -9,8 +9,7 @@ import {
   type FakeGitHub,
 } from "github/testing";
 import type { KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { SECRET, brandReviewerId, createKeyProvider } from "./fixtures";
 import { testLogger } from "./logging";
@@ -20,6 +19,7 @@ import {
   buildFakeInstallationDeps,
 } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -59,13 +59,12 @@ function listMentionCalls(fake: FakeGitHub) {
 }
 
 describe("mention routes", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     arrangeFakeGate(fake, { repoId: REPO_ID, push: false, admin: false });
@@ -81,12 +80,6 @@ describe("mention routes", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...buildFakeInstallationDeps(fake),
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
   });
 
   describe("GET mention-suggestions", () => {
@@ -147,14 +140,16 @@ describe("mention routes", () => {
       expect(listMentionCalls(fake)).toHaveLength(2);
     });
 
-    it("answers no users when GitHub refuses the user search", async () => {
+    it("answers no users on a failed search, then asks GitHub again", async () => {
       fake.failOn("searchMentionableUsers", FakeFailures.SERVER_ERROR);
       const { cookie } = await seedSignIn(harness.handle, kp);
 
       const res = await getWithCookie(app, cookie, `${SUGGESTIONS_PATH}?q=car`);
+      await getWithCookie(app, cookie, `${SUGGESTIONS_PATH}?q=car`);
 
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ users: [], teams: [] });
+      expect(listMentionCalls(fake)).toHaveLength(2);
     });
 
     it("skips the user search once the text holds a slash", async () => {
@@ -189,16 +184,6 @@ describe("mention routes", () => {
 
       expect(await res.json()).toEqual({ users: [], teams: [] });
       expect(listMentionCalls(fake)).toEqual([]);
-    });
-
-    it("asks GitHub again after a failed search", async () => {
-      fake.failOn("searchMentionableUsers", FakeFailures.SERVER_ERROR);
-      const { cookie } = await seedSignIn(harness.handle, kp);
-
-      await getWithCookie(app, cookie, `${SUGGESTIONS_PATH}?q=car`);
-      await getWithCookie(app, cookie, `${SUGGESTIONS_PATH}?q=car`);
-
-      expect(listMentionCalls(fake)).toHaveLength(2);
     });
 
     it("answers 401 when GitHub refuses the viewer token", async () => {
@@ -324,16 +309,6 @@ describe("mention routes", () => {
       });
     });
 
-    it("asks GitHub again after a failed lookup", async () => {
-      fake.failOn("resolveMentionTargets", FakeFailures.SERVER_ERROR);
-      const { cookie } = await seedSignIn(harness.handle, kp);
-
-      await getWithCookie(app, cookie, `${TARGETS_PATH}?targets=cara`);
-      await getWithCookie(app, cookie, `${TARGETS_PATH}?targets=cara`);
-
-      expect(listMentionCalls(fake)).toHaveLength(2);
-    });
-
     it("answers 401 when GitHub refuses the viewer token", async () => {
       fake.failOn("resolveMentionTargets", FakeFailures.UNAUTHORIZED);
       const { cookie } = await seedSignIn(harness.handle, kp);
@@ -347,7 +322,7 @@ describe("mention routes", () => {
       expect(res.status).toBe(401);
     });
 
-    it("answers nothing resolved when GitHub fails the lookup", async () => {
+    it("answers nothing resolved on a failed lookup, then asks again", async () => {
       fake.failOn("resolveMentionTargets", FakeFailures.SERVER_ERROR);
       const { cookie } = await seedSignIn(harness.handle, kp);
 
@@ -356,9 +331,11 @@ describe("mention routes", () => {
         cookie,
         `${TARGETS_PATH}?targets=cara`,
       );
+      await getWithCookie(app, cookie, `${TARGETS_PATH}?targets=cara`);
 
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ users: [], teams: [] });
+      expect(listMentionCalls(fake)).toHaveLength(2);
     });
   });
 });

@@ -49,18 +49,6 @@ describe("useFocusTrap", () => {
     );
   });
 
-  it("wraps Tab from the last control to the first", () => {
-    render(<Trap />);
-    const last = screen.getByRole("button", { name: "last" });
-    last.focus();
-
-    fireEvent.keyDown(last, { key: "Tab" });
-
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "first" }),
-    );
-  });
-
   it("wraps Shift+Tab from the first control or the container to the last", () => {
     render(<Trap />);
     const first = screen.getByRole("button", { name: "first" });
@@ -96,11 +84,11 @@ describe("useFocusTrap", () => {
 
   it("ignores other keys", () => {
     render(<Trap />);
-    const first = screen.getByRole("button", { name: "first" });
-    first.focus();
+    const last = screen.getByRole("button", { name: "last" });
+    last.focus();
 
-    fireEvent.keyDown(first, { key: "Enter" });
+    fireEvent.keyDown(last, { key: "Enter" });
 
-    expect(document.activeElement).toBe(first);
+    expect(document.activeElement).toBe(last);
   });
 });

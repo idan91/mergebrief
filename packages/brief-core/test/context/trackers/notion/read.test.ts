@@ -832,10 +832,8 @@ describe("createNotionRead", () => {
   });
 
   it("refuses a key reference that names no board", async () => {
-    const { result, calls } = await readThroughProvider(KEY_ROUTES, {
-      ...makeKeyReference(),
-      databaseId: undefined,
-    });
+    const { databaseId: _board, ...noBoard } = makeKeyReference();
+    const { result, calls } = await readThroughProvider(KEY_ROUTES, noBoard);
     expect(result).toMatchObject({
       ok: false,
       error: { reason: TicketUnreadReasons.UNSUPPORTED },

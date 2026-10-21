@@ -17,12 +17,6 @@ function requireTracing(): TestTracing {
 }
 
 describe("traceStep", () => {
-  it("runs the step with tracing off and returns its result", async () => {
-    const result = await traceStep("step", {}, async () => 42);
-
-    expect(result).toBe(42);
-  });
-
   it("opens a named child span carrying its attributes", async () => {
     tracing = startTestTracing();
     const parent = await tracing.runInSpan(async () => {

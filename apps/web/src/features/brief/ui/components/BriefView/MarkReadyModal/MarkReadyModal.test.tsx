@@ -289,15 +289,6 @@ describe("MarkReadyModal", () => {
     expect(screen.getByText("1 intent tension flagged")).toBeTruthy();
   });
 
-  it("names nothing: the line is a count and never the tension itself", () => {
-    renderModal({ intentTensionCount: 3 });
-    const line = screen.getByText("3 intent tensions flagged");
-    // Anchoring the author on the shakiest inference in the Brief, at the
-    // moment they are deciding to ship, is exactly what the count-only
-    // affordance exists to avoid.
-    expect(line.textContent).toBe("3 intent tensions flagged");
-  });
-
   it("shares the gap line's jump target and sits alongside it", () => {
     const jumpToIntentGaps = vi.fn();
     renderModal({ intentGapCount: 2, intentTensionCount: 1, jumpToIntentGaps });

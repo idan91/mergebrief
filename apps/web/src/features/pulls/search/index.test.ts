@@ -102,12 +102,6 @@ describe("parsePrSearch", () => {
 });
 
 describe("buildPrSearch", () => {
-  it("round-trips every param through parse", () => {
-    expect(parsePrSearch({ ...buildPrSearch(EVERY_PARAM, {}) })).toEqual(
-      EVERY_PARAM,
-    );
-  });
-
   it("writes each param so parse reads it back", () => {
     const writes: PrSearchChange[] = [
       { rev: 3 },

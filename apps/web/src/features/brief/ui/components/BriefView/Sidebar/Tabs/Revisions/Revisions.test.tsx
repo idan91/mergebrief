@@ -82,20 +82,4 @@ describe("Revisions", () => {
     expect(plan.selectRevision).not.toHaveBeenCalled();
     expect(afterActivate).toHaveBeenCalledOnce();
   });
-
-  it("renders a single revision as one current, newest row", () => {
-    renderRevisions([
-      {
-        key: "1",
-        ordinal: 1,
-        shortSha: "9e21f4d",
-        current: true,
-        newest: true,
-      },
-    ]);
-    const [only] = rowButtons();
-    expect(rowButtons()).toHaveLength(1);
-    expect(only?.getAttribute("aria-current")).toBe("true");
-    expect(only?.textContent).toContain("Latest");
-  });
 });

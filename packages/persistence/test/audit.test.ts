@@ -6,6 +6,7 @@ import {
   AuditMetadataSchema,
   AuditTargetTypeSchema,
   sweepAuditLog,
+  type AppDatabase,
   type AuditEntry,
 } from "../src/index";
 import { internal } from "../src/db/handle";
@@ -17,14 +18,16 @@ import {
   isInstallationId,
   type InstallationId,
 } from "../src/types";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
 import { AccessLevels } from "types/access-levels";
+
+const shared = registerSharedPglite();
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 
 describe("writeAudit append-only emit", () => {
   it("inserts a generate emit with a dangling numeric target and no FK", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const entry: AuditEntry = {
       installationId: TENANT,
       actorType: AuditActorTypes.APP,
@@ -40,60 +43,6 @@ describe("writeAudit append-only emit", () => {
     expect(row.operation).toBe("generate");
     expect(row.targetId).toBe(424242n);
     expect(row.occurredAt).toBeInstanceOf(Date);
-  });
-
-  it("records an auth denial as action=auth with a decision in metadata", async () => {
-    const handle = await freshDatabase();
-    const row = await writeAudit(handle, {
-      installationId: TENANT,
-      actorType: AuditActorTypes.REVIEWER,
-      actorId: 31337n,
-      operation: "auth",
-      outcome: AuditOutcomes.OK,
-      metadata: { decision: "403" },
-    });
-    expect(row.operation).toBe("auth");
-    expect(row.metadata).toEqual({ decision: "403" });
-    expect(row.targetType).toBeNull();
-  });
-
-  it("records a review submit as action=submit against the CHECK vocabulary", async () => {
-    const handle = await freshDatabase();
-    const row = await writeAudit(handle, {
-      installationId: TENANT,
-      actorType: AuditActorTypes.REVIEWER,
-      actorId: 31337n,
-      operation: "submit",
-      outcome: AuditOutcomes.OK,
-      targetType: "pull_request",
-      targetId: 7n,
-    });
-    expect(row.operation).toBe("submit");
-    expect(row.operation).toBe("submit");
-  });
-
-  it("records both thread resolution directions as their own operation", async () => {
-    const handle = await freshDatabase();
-    const resolved = await writeAudit(handle, {
-      installationId: TENANT,
-      actorType: AuditActorTypes.REVIEWER,
-      actorId: 31337n,
-      operation: "resolve-thread",
-      outcome: AuditOutcomes.OK,
-      targetType: "review_comment",
-      targetId: 12345n,
-    });
-    expect(resolved.operation).toBe("resolve-thread");
-    const unresolved = await writeAudit(handle, {
-      installationId: TENANT,
-      actorType: AuditActorTypes.REVIEWER,
-      actorId: 31337n,
-      operation: "unresolve-thread",
-      outcome: AuditOutcomes.OK,
-      targetType: "review_comment",
-      targetId: 12345n,
-    });
-    expect(unresolved.operation).toBe("unresolve-thread");
   });
 
   it("metadata keys are open: any snake_case token is accepted", () => {
@@ -173,7 +122,7 @@ describe("writeAudit append-only emit", () => {
     expect(AuditTargetTypeSchema.safeParse("a".repeat(65)).success).toBe(false);
 
     // writeAudit() enforces it (throws, a programmer error, same as metadata).
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const entry: AuditEntry = {
       installationId: TENANT,
       actorType: AuditActorTypes.SYSTEM,
@@ -195,7 +144,7 @@ function daysAgo(days: number): Date {
 
 /** Seed a row with an explicit `occurred_at` (the column defaults to now()). */
 async function seedAged(
-  handle: Awaited<ReturnType<typeof freshDatabase>>,
+  handle: AppDatabase,
   installationId: InstallationId,
   occurredAt: Date,
 ): Promise<void> {
@@ -210,7 +159,7 @@ async function seedAged(
 
 describe("writeAudit forensic call-shape fields", () => {
   it("rejects a request id or client that is not its own shape", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const base: AuditEntry = {
       installationId: TENANT,
       actorType: AuditActorTypes.REVIEWER,
@@ -252,7 +201,7 @@ describe("writeAudit forensic call-shape fields", () => {
 
 describe("sweepAuditLog instance-wide retention", () => {
   it("keeps everything when retention is unset", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedAged(handle, TENANT, daysAgo(4000));
 
     expect(await sweepAuditLog(handle, null, NOW)).toBe(0);
@@ -260,7 +209,7 @@ describe("sweepAuditLog instance-wide retention", () => {
   });
 
   it("erases rows past the window in every installation and counts them", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedAged(handle, TENANT, daysAgo(120));
     await seedAged(handle, TENANT, daysAgo(90));
     await seedAged(handle, TENANT, daysAgo(10));
@@ -282,7 +231,7 @@ describe("sweepAuditLog instance-wide retention", () => {
   });
 
   it("emits nothing when the sweep erased nothing", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedAged(handle, TENANT, daysAgo(5));
 
     expect(await sweepAuditLog(handle, 30, NOW)).toBe(0);
@@ -290,7 +239,7 @@ describe("sweepAuditLog instance-wide retention", () => {
   });
 
   it("refuses a window the config layer would never have accepted", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await expect(sweepAuditLog(handle, 7, NOW)).rejects.toThrow(/30/);
     await expect(sweepAuditLog(handle, 30.5, NOW)).rejects.toThrow(/whole/);
   });

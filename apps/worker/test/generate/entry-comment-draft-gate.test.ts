@@ -271,17 +271,4 @@ describe("generate task, entry-comment draft gate", () => {
       listCommentCalls(github).filter((call) => call === "post").length,
     ).toBe(postsBefore);
   });
-
-  it("posts non-draft Entries without extra config reads on skips", async () => {
-    const { payload } = await trigger(HEAD_1);
-    const github = makeGitHub(HEAD_1);
-    const task = makeTask({ github });
-    await task(payload);
-    const fetchesAfterFirst = listRepoFilePaths(github).length;
-    expect(github.readComments(REPO).size).toBe(1);
-
-    const again = await trigger(HEAD_1);
-    await task(again.payload); // skip drain, non-draft: no config fetch
-    expect(listRepoFilePaths(github).length).toBe(fetchesAfterFirst);
-  });
 });

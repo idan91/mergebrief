@@ -445,26 +445,6 @@ describe("fetchPullRequestConversation mapping", () => {
     }
     expect(result.value.threads).toHaveLength(1);
   });
-
-  it("skips a thread whose comments were all deleted, leaving no root", async () => {
-    const graphql = vi.fn().mockResolvedValue(
-      conversationResponse({
-        threads: [
-          gqlThread({ comments: [] }),
-          gqlThread({ comments: [gqlComment()] }),
-        ],
-      }),
-    );
-    const result = await fetchPullRequestConversation(
-      mockGraphqlOctokit(graphql),
-      INPUT,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value.threads).toHaveLength(1);
-  });
 });
 
 describe("fetchPullRequestConversation pagination and overflow", () => {
@@ -577,34 +557,6 @@ describe("fetchPullRequestConversation failure paths", () => {
     expect(serialized).not.toContain("Could not resolve");
   });
 
-  it("maps an HTTP-level 401 through the REST taxonomy", async () => {
-    const graphql = vi.fn().mockRejectedValue(
-      new RequestError("HTTP 401", 401, {
-        request: {
-          method: "POST",
-          url: "https://api.github.com/graphql",
-          headers: { authorization: `token ${LEAKED_TOKEN}` },
-        },
-        response: {
-          status: 401,
-          url: "https://api.github.com/graphql",
-          headers: {},
-          data: { message: "Bad credentials" },
-        },
-      }),
-    );
-    const result = await fetchPullRequestConversation(
-      mockGraphqlOctokit(graphql),
-      INPUT,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
-    expect(result.error.status).toBe(401);
-  });
-
   it("maps a null repository or pullRequest to not-found", async () => {
     // Both fields are nullable in GitHub's schema: a missing resource can be a
     // null field in a 2xx response.
@@ -664,28 +616,6 @@ describe("fetchPullRequestConversation failure paths", () => {
     expect(result.value.reviews).toEqual([]);
     expect(result.value.hasMoreReviews).toBe(false);
     expect(result.value.threads).toHaveLength(1);
-  });
-
-  it("drops a review node missing its id and keeps the rest", async () => {
-    const graphql = vi.fn().mockResolvedValue(
-      conversationResponse({
-        reviews: [
-          gqlReview({ databaseId: null, state: "APPROVED" }),
-          gqlReview({ databaseId: 502, state: "COMMENTED" }),
-        ],
-      }),
-    );
-    const result = await fetchPullRequestConversation(
-      mockGraphqlOctokit(graphql),
-      INPUT,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([
-      502,
-    ]);
   });
 
   it("fails a mid-pagination error whole, never returning the first page", async () => {

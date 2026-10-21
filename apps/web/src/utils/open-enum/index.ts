@@ -7,7 +7,7 @@ export type OpenEnumSchema<Members extends Vocabulary> = z.ZodPreprocess<
   z.ZodUnion<readonly [z.ZodEnum<Members>, z.ZodLiteral<UnknownValue>]>
 >;
 
-export function readVocabularyMember(
+function readVocabularyMember(
   members: ReadonlySet<string>,
   value: unknown,
 ): unknown {

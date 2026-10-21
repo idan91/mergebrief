@@ -280,18 +280,6 @@ describe("usePrBriefPlans", () => {
         });
       },
     );
-
-    it("an unavailable checkpoint surfaces its honest reason, not a plan", () => {
-      const { result } = renderPlans({
-        meta: meta({
-          comparisons: {
-            lastReview: { kind: "unavailable", reason: "pending" },
-          },
-        }),
-      });
-      expect(result.current.availability.lastReview).toBe(false);
-      expect(result.current.lastReviewDisabledReason).toBeDefined();
-    });
   });
 
   it("names the repo mentions search on the conversation plan", () => {

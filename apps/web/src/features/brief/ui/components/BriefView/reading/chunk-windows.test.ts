@@ -25,10 +25,6 @@ describe("chunk window registry", () => {
     expect(registry.scrollToChunk("missing")).toBe(false);
   });
 
-  it("returns false with no registrations at all", () => {
-    expect(createChunkWindowRegistry().scrollToChunk("c1")).toBe(false);
-  });
-
   it("deregistration removes exactly the returned registration", () => {
     const registry = createChunkWindowRegistry();
     const first = vi.fn(() => true);

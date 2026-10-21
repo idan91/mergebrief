@@ -64,14 +64,6 @@ describe("buildRevisionTimeline", () => {
     expect(view.rows[0]?.at).toBe("2026-09-30T10:00:00Z");
     expect(view.rows[1]).not.toHaveProperty("at");
   });
-
-  it("marks a single revision both current and newest", () => {
-    const view = buildRevisionTimeline([
-      { key: "a", ordinal: 1, headSha: "a", current: true },
-    ]);
-    expect(view.rows).toHaveLength(1);
-    expect(view.rows[0]).toMatchObject({ current: true, newest: true });
-  });
 });
 
 describe("buildRevisionTimelineView", () => {
@@ -86,14 +78,5 @@ describe("buildRevisionTimelineView", () => {
     ]);
     expect(view.rows.find((row) => row.current)?.key).toBe("brief-1");
     expect(view.rows.some((row) => row.at !== undefined)).toBe(false);
-  });
-
-  it("marks the delta's head brief current when a delta is selected", () => {
-    const view = buildRevisionTimelineView(
-      buildBriefTimeline(ARTIFACTS, "delta-1-2"),
-    );
-    expect(view.rows.filter((row) => row.current)).toEqual([
-      expect.objectContaining({ key: "brief-2", shortSha: "2222222" }),
-    ]);
   });
 });

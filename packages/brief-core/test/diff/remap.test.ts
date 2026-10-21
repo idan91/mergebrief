@@ -255,17 +255,6 @@ describe("remapThroughHops", () => {
       ranges: [{ start: 29, end: 34 }],
     },
     {
-      name: "a hop with no entry for the anchor's file passes through",
-      hops: [[otherFile], [growsBefore]],
-      expected: RemapOutcomes.REMAPPED,
-      ranges: [{ start: 23, end: 28 }],
-    },
-    {
-      name: "demotion in the first hop short-circuits the chain",
-      hops: [[overlapsAnchor], [growsBefore]],
-      expected: RemapOutcomes.DEMOTED,
-    },
-    {
       name: "demotion in the last hop demotes the chain",
       hops: [[growsBefore], [overlapsShiftedAnchor]],
       expected: RemapOutcomes.DEMOTED,

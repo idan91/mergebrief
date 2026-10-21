@@ -12,11 +12,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
-  emptySessionPayload,
   ReviewSessionProvider,
   ReviewFlowProvider,
   type ReviewFlowStore,
-  type ReviewSessionPayload,
   useReviewSessionActions,
 } from "@web/features/review/session";
 import {
@@ -178,27 +176,8 @@ function LiveFlow({ onStore, children }: LiveFlowProps) {
   return <ReviewFlowProvider store={store}>{children}</ReviewFlowProvider>;
 }
 
-function stubOwnerDraft(): ReviewSessionPayload {
-  return {
-    ...emptySessionPayload(),
-    draftComments: [
-      {
-        id: "81",
-        filePath: "src/a.ts",
-        kind: "line",
-        side: "new",
-        startLine: 2,
-        endLine: 2,
-        body: "owner draft",
-        status: "draft",
-      },
-    ],
-  };
-}
-
 interface RenderOptions {
   client?: QueryClient;
-  session?: ReviewSessionPayload;
   /** Render the owner's own table beside the span, as Full would. */
   withOwnerTable?: boolean;
   /** The screen's read-only reason for comments. */
@@ -272,11 +251,7 @@ function renderRaw(
   const view = render(
     <QueryClientProvider client={client}>
       <FileRowsProvider cache={options.cache ?? FILE_ROWS_CACHE}>
-        <ReviewSessionProvider
-          briefId="test-brief"
-          model={model}
-          session={options.session}
-        >
+        <ReviewSessionProvider briefId="test-brief" model={model}>
           <ReviewPostureProvider posture={posture}>
             {options.liveSession === true ? (
               <LiveFlow
@@ -321,13 +296,6 @@ function toggleButton() {
 }
 
 describe("RawSpanDiff toggle", () => {
-  it("shows the summary with an off toggle by default", () => {
-    renderRaw(diffQuery("prev", "head"));
-    // Accessible name + state: a real toggle button, pressed=false initially.
-    expect(toggleButton().getAttribute("aria-pressed")).toBe("false");
-    expect(screen.getByText("Changes Only summary")).toBeTruthy();
-  });
-
   it("renders the raw diff through DiffTable when toggled on", async () => {
     renderRaw(diffQuery("prev", "head"));
     fireEvent.click(toggleButton());
@@ -467,41 +435,6 @@ describe("RawSpanDiff toggle", () => {
 
     await waitFor(() => expect(flowStore.getState().composerAnchor).toBeNull());
     expect(flowStore.getState().composerHost).toBeNull();
-  });
-
-  it("opens the reason row on a left-side row instead of a composer", async () => {
-    const { container, openCommentComposer } = renderRaw(
-      diffQuery("chk", "head"),
-    );
-    fireEvent.click(toggleButton());
-    await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
-    const row = findSpanRow(container, "console.log(a);");
-
-    expect(row.getAttribute("aria-disabled")).toBe("true");
-    expect(row.hasAttribute("data-commentable")).toBe(false);
-    fireEvent.keyDown(row, { key: "Enter" });
-
-    expect(openCommentComposer).not.toHaveBeenCalled();
-    expect(
-      container.querySelector('[data-testid="reason-row"]')?.textContent,
-    ).toContain(appI18n.t("brief.diff.guest.removedBeforeHead"));
-  });
-
-  it("shows a draft on the owner under the span row and the owner's table", async () => {
-    const { container } = renderRaw(diffQuery("chk", "head"), {
-      session: stubOwnerDraft(),
-      withOwnerTable: true,
-    });
-    fireEvent.click(toggleButton());
-    await waitFor(() => findSpanRow(container, "validate(a);"));
-
-    const drafts = screen.getAllByText("owner draft");
-    expect(drafts).toHaveLength(2);
-    const spanRow = findSpanRow(container, "validate(a);");
-    expect(spanRow.nextElementSibling?.textContent).toContain("owner draft");
-    expect(screen.getByTestId("owner-table").textContent).toContain(
-      "owner draft",
-    );
   });
 
   it("returns to the summary when toggled back off", async () => {

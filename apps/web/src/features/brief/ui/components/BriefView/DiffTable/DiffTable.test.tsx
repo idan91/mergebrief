@@ -34,6 +34,7 @@ import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
 import type { DiffTableProps } from "./types";
 import { createCommentAnchor } from "@web/features/review/utils";
+import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import {
   ReviewPostureProvider,
   type ReviewPosture,
@@ -864,28 +865,6 @@ describe("DiffTable line selection", () => {
     });
   });
 
-  it("a sign click inside the selection opens the composer on all of it", () => {
-    const {
-      view: { container },
-      openCommentComposer,
-    } = renderTable();
-    const [first, second] = commentableRows(container);
-    if (!first || !second) {
-      throw new Error("expected two diff rows");
-    }
-    fireEvent.mouseDown(findNumberCell(first));
-    fireEvent.mouseEnter(second);
-    fireEvent.mouseUp(second);
-    fireEvent.mouseDown(findSignSpan(second));
-    fireEvent.mouseUp(findSignSpan(second));
-
-    expect(openCommentComposer).toHaveBeenCalledTimes(1);
-    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
-      startLine: 9,
-      endLine: 10,
-    });
-  });
-
   it("a sign click outside the selection anchors that row alone", () => {
     const {
       view: { container },
@@ -1437,17 +1416,6 @@ describe("DiffTable split selection", () => {
     });
   });
 
-  it("opens the composer under the side the anchor names", () => {
-    const {
-      view: { container },
-    } = renderTable({ chunk: splitChunk(), view: "split" });
-    const left = sideCells(container, "left", "del");
-    fireEvent.mouseDown(left.sign);
-    fireEvent.mouseUp(left.sign);
-
-    expect(container.querySelector('tr[data-placement="left"]')).not.toBeNull();
-  });
-
   it("gives a context row one stop, on the right, and hops with the arrows", () => {
     const {
       view: { container },
@@ -1713,22 +1681,57 @@ describe("DiffTable split selection", () => {
     );
     expect(container.querySelector('tbody[data-view="split"]')).toBeNull();
   });
+});
 
-  it("reads unified for a chunk with no additions", () => {
-    const deletionsOnly = {
-      ...chunk(),
-      diff: [
-        { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
-        { kind: "del", content: "gone", oldLine: 10 },
-      ],
-    } as BriefChunk;
-    const {
-      view: { container },
-    } = renderTable({ chunk: deletionsOnly, view: "split" });
+function makePairChunk(): BriefChunk {
+  return {
+    ...chunk(),
+    loc: { added: 1, deleted: 1 },
+    diff: [
+      { kind: "del", content: "const a = 1;", oldLine: 10 },
+      { kind: "add", content: "const a = 2;", newLine: 10 },
+    ],
+  } as BriefChunk;
+}
 
-    expect(container.querySelector("table")?.getAttribute("data-view")).toBe(
+function stubTokens(...texts: string[]) {
+  return texts.map((text) => ({ text, classId: 0 }));
+}
+
+const PAIR_TOKENS_BY_ROW: RowTokenMap = new Map([
+  [0, stubTokens("const", " ", "a", " = ", "1", ";")],
+  [1, stubTokens("const", " ", "a", " = ", "2", ";")],
+]);
+
+function renderPair(view: NonNullable<DiffTableProps["view"]>) {
+  return renderTable({
+    chunk: makePairChunk(),
+    conversationThreadsByRow: new Map(),
+    tokensByRow: PAIR_TOKENS_BY_ROW,
+    view,
+  }).view;
+}
+
+describe("DiffTable intra-line emphasis", () => {
+  it("marks the changed characters of a del/add pair in unified view", () => {
+    const view = renderPair("unified");
+    const marks = view.container.querySelectorAll("mark");
+
+    expect(view.container.querySelector("table")?.dataset["view"]).toBe(
       "unified",
     );
-    expect(container.querySelector('tbody[data-view="split"]')).toBeNull();
+    expect([...marks].map((mark) => mark.textContent)).toEqual(["1", "2"]);
+  });
+
+  it("marks the same characters inside the split cells", () => {
+    const view = renderPair("split");
+    const left = view.container.querySelector('td[data-side="left"] mark');
+    const right = view.container.querySelector('td[data-side="right"] mark');
+
+    expect(view.container.querySelector("table")?.dataset["view"]).toBe(
+      "split",
+    );
+    expect(left?.textContent).toBe("1");
+    expect(right?.textContent).toBe("2");
   });
 });

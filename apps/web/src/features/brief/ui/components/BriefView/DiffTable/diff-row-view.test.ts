@@ -46,20 +46,6 @@ function stubParams(line: DiffLine): DiffRowViewParams {
 }
 
 describe("getDiffRowView", () => {
-  it("refuses comments on a row read from the file, not the diff", () => {
-    const view = getDiffRowView(
-      stubParams({
-        kind: DiffLineKinds.CTX,
-        origin: DiffRowOrigins.EXPANDED,
-        content: "const a = 1;",
-        oldLine: 9,
-        newLine: 9,
-      }),
-    );
-
-    expect(view.isCommentable).toBe(false);
-  });
-
   it("keeps a diff context row commentable", () => {
     const view = getDiffRowView(
       stubParams({

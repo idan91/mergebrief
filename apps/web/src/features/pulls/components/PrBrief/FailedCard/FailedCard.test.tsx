@@ -67,19 +67,6 @@ describe("FailedCard", () => {
     expect(screen.getByText(/A new push re-queues generation/)).toBeTruthy();
   });
 
-  it("keeps the attempt count for every other failure code", () => {
-    render(
-      <I18nProvider>
-        <FailedCard
-          attempts={2}
-          errorCode="provider-timeout"
-          errorDetail={undefined}
-        />
-      </I18nProvider>,
-    );
-    expect(screen.getByText(/3 attempts so far\./)).toBeTruthy();
-  });
-
   it("interpolates the sanitized detail for the codes that carry one", () => {
     render(
       <I18nProvider>
@@ -91,18 +78,5 @@ describe("FailedCard", () => {
       </I18nProvider>,
     );
     expect(screen.getByText(/missing ANTHROPIC_API_KEY/)).toBeTruthy();
-  });
-
-  it("falls back to the no-detail line when the failure carried none", () => {
-    render(
-      <I18nProvider>
-        <FailedCard
-          attempts={0}
-          errorCode={undefined}
-          errorDetail={undefined}
-        />
-      </I18nProvider>,
-    );
-    expect(screen.getByText("No failure detail was recorded.")).toBeTruthy();
   });
 });

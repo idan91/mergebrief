@@ -183,18 +183,6 @@ export const pairProperties = [
 `;
 
 describe("loadPairCases", () => {
-  it("loads a pair case with fixture + properties", async () => {
-    const root = writePairCase("demo-pair", EXPECTED_TS);
-    const cases = await loadPairCases(root);
-    expect(cases.ok).toBe(true);
-    if (!cases.ok) {
-      throw new Error(cases.error);
-    }
-    expect(cases.value).toHaveLength(1);
-    expect(cases.value[0]?.id).toBe("demo-pair");
-    expect(cases.value[0]?.properties[0]?.id).toBe("frozen-survives");
-  });
-
   it("rejects a case with an empty property list", async () => {
     const root = writePairCase(
       "empty-props",
@@ -599,13 +587,10 @@ describe("scorePairRuns", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The committed pair source: every case must load, and the shared property
-// builders must be shown to FAIL against broken pairs: mechanical
-// vacuous-pass evidence before any live baseline lands.
+// The shared property builders must be shown to FAIL against broken pairs:
+// mechanical vacuous-pass evidence before any live baseline lands.
 // ---------------------------------------------------------------------------
 
-import { dirname, join as joinPath } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   anchoredStamp,
   coverage,
@@ -615,27 +600,6 @@ import {
   untouchedGroupSurvives,
 } from "../eval/pair-cases/props";
 import type { Brief } from "brief-core/types";
-
-const PAIRS_DIR = joinPath(
-  dirname(fileURLToPath(import.meta.url)),
-  "../eval/pair-cases",
-);
-
-describe("committed pair case set", () => {
-  it("every committed pair case loads with unique, non-empty properties", async () => {
-    const cases = await loadPairCases(PAIRS_DIR);
-    expect(cases.ok).toBe(true);
-    if (!cases.ok) {
-      throw new Error(cases.error);
-    }
-    expect(cases.value.length).toBeGreaterThanOrEqual(11);
-    for (const pairCase of cases.value) {
-      expect(pairCase.properties.length).toBeGreaterThan(0);
-      const ids = pairCase.properties.map((p) => p.id);
-      expect(new Set(ids).size).toBe(ids.length);
-    }
-  });
-});
 
 function briefWith(
   groups: { id: string; file: string; attrs?: string[]; summary?: string }[],

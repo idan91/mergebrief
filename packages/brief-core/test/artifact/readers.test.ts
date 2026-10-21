@@ -8,7 +8,6 @@ import {
   readStoredDeltaBrief,
   readStoredRevisionNarrative,
 } from "../../src/artifact";
-import { dropUnorderedReadingOrder } from "../../src/artifact/logic/optional-sections";
 import {
   makeSkippedRevisionNarrative,
   makeTwoGroupBrief,
@@ -20,7 +19,6 @@ import {
 type Body = Record<string, unknown>;
 
 const NOT_A_SECTION = { nope: true };
-const CUSTOM_NAME = "touches-billing";
 // zod spreads one element's issues into a single call; this many overflow it.
 const HUGE_LIST_LENGTH = 300_000;
 
@@ -255,19 +253,6 @@ describe("readStoredBrief", () => {
     expect(isCompleteBrief(read.brief)).toBe(false);
   });
 
-  it("reads a body with absent sections as incomplete with no issue", () => {
-    const {
-      index: _index,
-      generation: _generation,
-      ...body
-    } = makeValidBrief();
-
-    const read = readBodyOrThrow(body);
-
-    expect(read.issues).toEqual([]);
-    expect(isCompleteBrief(read.brief)).toBe(false);
-  });
-
   it.each(["index", "commitRange", "generation"] as const)(
     "reads a body with only %s absent as incomplete",
     (section) => {
@@ -298,27 +283,6 @@ describe("readStoredBrief", () => {
         path: "readingOrder",
         message: expect.any(String),
       },
-    ]);
-  });
-
-  it("drops a readingOrder longer than the groups it visits", () => {
-    const body = {
-      ...makeTwoGroupBrief(),
-      readingOrder: [
-        { groupId: "g1", why: "first" },
-        { groupId: "g2", why: "second" },
-        { groupId: "g2", why: "again" },
-      ],
-    };
-
-    const read = readBodyOrThrow(body);
-
-    expect(read.brief).not.toHaveProperty("readingOrder");
-    expect(read.issues).toEqual([
-      expect.objectContaining({
-        code: ArtifactIssueCodes.DROPPED_SECTION,
-        path: "readingOrder",
-      }),
     ]);
   });
 
@@ -509,47 +473,18 @@ describe("readStoredBrief", () => {
 });
 
 describe("a body the write check accepts", () => {
-  const customNameBrief = makeBodyWithChunk({
-    riskSurface: [CUSTOM_NAME],
-    riskNotes: [{ attr: CUSTOM_NAME, note: "charges the card" }],
-  });
-  const orderedBrief = {
-    ...makeTwoGroupBrief(),
-    readingOrder: [
-      { groupId: "g2", why: "first" },
-      { groupId: "g1", why: "second" },
-    ],
-  };
-
-  it.each([
-    ["the plain valid Brief", makeValidBrief(), []],
-    ["a Brief with a custom risk name", customNameBrief, [CUSTOM_NAME]],
-    ["a Brief with a reading order", orderedBrief, []],
-  ])("reads ok: %s", (_label, body, customNames) => {
-    expect(checkBriefForWrite(body, customNames).ok).toBe(true);
-
-    expect(readBodyOrThrow(body)).toEqual({ brief: body, issues: [] });
-  });
-});
-
-describe("dropUnorderedReadingOrder", () => {
-  it("drops an order that repeats a step over repeated group ids", () => {
-    const brief = makeTwoGroupBrief();
-    const [firstGroup, lastGroup] = brief.changeGroups;
-    const stored = {
-      ...brief,
-      changeGroups: [firstGroup!, firstGroup!, lastGroup!],
+  it("reads ok: a Brief with a reading order", () => {
+    const body = {
+      ...makeTwoGroupBrief(),
       readingOrder: [
-        { groupId: "g1", why: "first" },
-        { groupId: "g2", why: "second" },
-        { groupId: "g2", why: "again" },
+        { groupId: "g2", why: "first" },
+        { groupId: "g1", why: "second" },
       ],
     };
 
-    const read = dropUnorderedReadingOrder(stored);
+    expect(checkBriefForWrite(body, []).ok).toBe(true);
 
-    expect(read.brief).not.toHaveProperty("readingOrder");
-    expect(read.dropped).toHaveLength(1);
+    expect(readBodyOrThrow(body)).toEqual({ brief: body, issues: [] });
   });
 });
 

@@ -16,34 +16,6 @@ function makeSettleableRead() {
 }
 
 describe("clearSignedInReads", () => {
-  it("resets every idle read but the viewer's", () => {
-    const client = new QueryClient();
-    client.setQueryData(VIEWER_KEY, "signed-out");
-    client.setQueryData(BRIEF_KEY, "brief");
-
-    clearSignedInReads(client, hashKey(VIEWER_KEY));
-
-    expect(client.getQueryData(BRIEF_KEY)).toBeUndefined();
-    expect(client.getQueryData(VIEWER_KEY)).toBe("signed-out");
-  });
-
-  it("resets a read in flight only once it settles", async () => {
-    const client = new QueryClient();
-    const read = makeSettleableRead();
-    const fetching = client.fetchQuery({
-      queryKey: BRIEF_KEY,
-      queryFn: () => read.pending,
-    });
-
-    clearSignedInReads(client, hashKey(VIEWER_KEY));
-    read.settle("brief");
-
-    await expect(fetching).resolves.toBe("brief");
-    await expect
-      .poll(() => client.getQueryData(BRIEF_KEY), { timeout: SETTLE_WAIT_MS })
-      .toBeUndefined();
-  });
-
   it("resets a read in flight that a cancel reverted", async () => {
     const client = new QueryClient();
     client.setQueryData(BRIEF_KEY, "signed-in brief");

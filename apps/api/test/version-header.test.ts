@@ -2,24 +2,23 @@
 // resolved a principal, absent on a 401, a login redirect and a webhook, so a
 // stranger learns nothing the gated /api/version did not already say.
 import type { KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { buildAuthDeps, createKeyProvider } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedApiToken } from "./sign-in";
 import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite } from "./shared-pglite";
 
 const HEADER = "MergeBrief-Version";
 
 describe("MergeBrief-Version response header", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -29,10 +28,6 @@ describe("MergeBrief-Version response header", () => {
       ...UNUSED_INSTALLATION_DEPS,
       serverVersion: "1.4.0",
     });
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   function mintBearer(): Promise<string> {
@@ -59,13 +54,6 @@ describe("MergeBrief-Version response header", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get(HEADER)).toBe("1.4.0");
-  });
-
-  it("leaves a 401 without the header", async () => {
-    const res = await app.request("/api/version");
-
-    expect(res.status).toBe(401);
-    expect(res.headers.get(HEADER)).toBeNull();
   });
 
   it("leaves the login redirect without the header", async () => {

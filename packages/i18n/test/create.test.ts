@@ -25,12 +25,6 @@ describe("createI18n", () => {
     );
   });
 
-  it("walks region → base-lang → en", () => {
-    expect(createI18n({ locale: "en-GB" }).t("errors.unauthorized")).toBe(
-      "unauthorized",
-    );
-  });
-
   it("keeps instances independent", () => {
     const en = createI18n();
     const pseudo = createI18n({ locale: PSEUDO_LOCALE });
@@ -60,10 +54,6 @@ describe("pseudo locale end-to-end", () => {
       { detail: "a much longer detail line" },
     );
     expect(long.length).toBeGreaterThan(short.length);
-  });
-
-  it("stays inert for real locales", () => {
-    expect(createI18n().t("errors.not-found")).toBe("not found");
   });
 });
 

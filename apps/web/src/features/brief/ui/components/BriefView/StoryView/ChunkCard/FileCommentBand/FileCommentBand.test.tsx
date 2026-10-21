@@ -223,13 +223,6 @@ function renderCard(options: RenderOptions = {}) {
 }
 
 describe("FileCommentBand", () => {
-  it("names the header control with the file path", () => {
-    renderCard({ open: false });
-    expect(
-      screen.getByRole("button", { name: "Add a comment on src/a.ts" }),
-    ).toBeTruthy();
-  });
-
   it("shows Comment on file in the callout, not the path", () => {
     renderCard({ open: false });
     const control = screen.getByRole("button", {

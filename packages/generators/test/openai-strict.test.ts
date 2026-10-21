@@ -57,7 +57,7 @@ describe("withAllRequired", () => {
     const branches = anyOf as Record<string, unknown>[];
     expect(branches).toHaveLength(2);
     expect(branches[1]).toEqual({ type: "null" });
-    // The enum survives inside the non-null branch — the closed vocabulary
+    // The enum survives inside the non-null branch: the closed vocabulary
     // must stay server-enforced, not be widened away.
     expect(objectAt(branches[0], "items")["enum"]).toEqual([
       "race",
@@ -131,16 +131,6 @@ describe("stripInjectedNulls", () => {
       chunks: [],
       line: null,
     });
-  });
-
-  it("round-trips through the domain Zod schema", () => {
-    const stripped = stripInjectedNulls(schema, {
-      chunks: [{ title: "a", riskNotes: null }],
-      line: null,
-      summary: null,
-    });
-    const parsed = NestedSchema.safeParse(stripped);
-    expect(parsed.success).toBe(true);
   });
 
   it("resolves $refs when stripping shared object shapes", () => {

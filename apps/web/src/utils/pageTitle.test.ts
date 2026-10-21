@@ -56,12 +56,6 @@ describe("buildPrPageTitle", () => {
 });
 
 describe("buildPageTitle", () => {
-  it("puts the product name after the page name", () => {
-    expect(buildPageTitle(translate, ["Settings"])).toBe(
-      "Settings · MergeBrief",
-    );
-  });
-
   it("reads as the product name alone with no segments", () => {
     expect(buildPageTitle(translate, [])).toBe("MergeBrief");
   });

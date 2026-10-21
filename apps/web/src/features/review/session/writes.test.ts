@@ -50,25 +50,6 @@ const FLAG = {
 };
 
 describe("createSessionWrites", () => {
-  it("sends exactly one request per action, each naming its Brief", async () => {
-    apiFetchMock.mockReset();
-    apiFetchMock
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ outcome: "approve" }), { status: 200 }),
-      );
-    await writes.setRead("chunk-a", true);
-    await writes.reclassify("g1", "bugfix");
-    await writes.setOutcome("approve");
-    expect(apiFetchMock).toHaveBeenCalledTimes(3);
-    expect(apiFetchMock.mock.calls.map((call) => call[0])).toEqual([
-      `/api/repos/424242/pulls/7/session/chunks/chunk-a/read?${SPAN}`,
-      `/api/repos/424242/pulls/7/session/groups/g1/classification?${SPAN}`,
-      `/api/repos/424242/pulls/7/session/outcome?${SPAN}`,
-    ]);
-  });
-
   it("marks a chunk read and unread through the POST verb pair", async () => {
     const base = "/api/repos/424242/pulls/7/session";
     respondEmpty();

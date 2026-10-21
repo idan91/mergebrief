@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { enumPreservingOutputFormat, toStrictJsonSchema } from "generators";
-import { BriefGenerationSchema, RiskSurfaceAttributes } from "../src/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -190,14 +189,5 @@ describe("enumPreservingOutputFormat: parse", () => {
     expect(message).toMatch(/\.\.\. and 2 more issue\(s\)/);
     // Exactly 5 issue bullets before the truncation suffix.
     expect(message.match(/^ {2}- /gm)?.length).toBe(5);
-  });
-});
-
-describe("enumPreservingOutputFormat: production schema", () => {
-  it("round-trips BriefGenerationSchema and keeps the risk-surface enum", () => {
-    const { schema } = enumPreservingOutputFormat(BriefGenerationSchema);
-    expect(allEnums(schema)).toContainEqual(
-      Object.values(RiskSurfaceAttributes),
-    );
   });
 });

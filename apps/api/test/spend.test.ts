@@ -7,13 +7,9 @@ import {
   type KeyProvider,
   type TenantContext,
 } from "persistence";
-import {
-  claimTestRun,
-  createPgliteHarness,
-  type PgliteHarness,
-} from "persistence/testing";
+import { claimTestRun } from "persistence/testing";
 import { AccessLevels, PrStates } from "types";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
@@ -27,6 +23,7 @@ import {
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedApiToken, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const PATH = "/api/spend";
 const DAILY_CAP = 50;
@@ -43,16 +40,11 @@ interface AppOptions {
 }
 
 describe("GET /api/spend", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   function buildApp(options: AppOptions): ApiApp {

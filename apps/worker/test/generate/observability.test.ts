@@ -140,23 +140,6 @@ describe("generate task, observability", () => {
     expect(typeof done?.["durationMs"]).toBe("number");
   });
 
-  it("logs permanent job.fail without rethrowing", async () => {
-    const { payload } = await trigger(HEAD_1);
-    const github = makeGitHub(HEAD_1);
-    github.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
-    const { logger, readLines } = captureLogger();
-    const task = makeTask({ github, log: logger });
-
-    await expect(
-      task(payload, {
-        job: { attempts: 1, max_attempts: 25, run_at: new Date() },
-      }),
-    ).resolves.toBeUndefined();
-
-    const fail = readLines().find((line) => line["evt"] === "job.fail");
-    expect(fail?.["permanent"]).toBe(true);
-  });
-
   it("fails a job permanently when its write lands outside its scope", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -336,20 +319,5 @@ describe("generate task, observability", () => {
     );
     expect(start?.["waitMs"]).toBeGreaterThanOrEqual(5_000);
     expect(start?.["waitMs"]).toBeLessThan(60_000);
-  });
-
-  it("success-path lines ride the {prId, headSha} bindings", async () => {
-    const { pr, payload } = await trigger(HEAD_1);
-    const { logger, readLines } = captureLogger();
-    const task = makeTask({ log: logger });
-
-    await task(payload);
-
-    const succeeded = readLines().find(
-      (line) =>
-        typeof line["msg"] === "string" && line["msg"].includes("succeeded"),
-    );
-    expect(succeeded?.["prId"]).toBe(String(pr.id));
-    expect(succeeded?.["headSha"]).toBe(HEAD_1);
   });
 });

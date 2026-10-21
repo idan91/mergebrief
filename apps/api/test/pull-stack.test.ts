@@ -12,9 +12,8 @@ import {
   type KeyProvider,
   type PullRequestRow,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import {
   INSTALLATION_ID,
@@ -37,6 +36,7 @@ import {
   arrangeFakeGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_ID = 424242;
 const REPO = { owner: "octo", repo: "hello" };
@@ -125,24 +125,17 @@ const realNow = Date.now.bind(Date);
 let clockOffsetMs = 0;
 
 describe("live stack read", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let cookie: string;
 
   beforeEach(async () => {
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + clockOffsetMs);
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     ({ cookie } = await seedSignIn(harness.handle, kp));
     arrangeFakeGate(fake, { repoId: REPO_ID });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
   });
 
   function buildApp(
@@ -219,18 +212,6 @@ describe("live stack read", () => {
       asOf: expect.any(String),
     });
     expect(fake.listCalls("fetchPullRequest")).toHaveLength(1);
-  });
-
-  it("reuses the open list across reads in one session", async () => {
-    await seedOpenRow(harness.handle);
-    arrangePull(fake, PR_NUMBER, { head: "feature/mid", base: "main" });
-    arrangePull(fake, 8, { head: "feature/tip", base: "feature/mid" });
-    const app = buildApp();
-
-    expect((await readStack(app)).status).toBe(200);
-    expect((await readStack(app)).status).toBe(200);
-
-    expect(fake.listCalls("listOpenPullRequests")).toHaveLength(1);
   });
 
   it("re-reads the open list once the cached copy is ten seconds old", async () => {

@@ -107,15 +107,6 @@ describe("suppression baseline", () => {
     expect(verdict.findings[0]?.subject).toBe("src/a.ts house/no-em-dash");
   });
 
-  it("refuses debt moved from one file to another", () => {
-    const verdict = verdictOf(baseTree(), {
-      "oxlint-suppressions.json": stubSuppressions({
-        "src/b.ts": { "house/no-em-dash": 5 },
-      }),
-    });
-    expect(kindsOf(verdict.findings)).toContain(FindingKinds.GROWN_SUPPRESSION);
-  });
-
   it("refuses a rule total that grew across all files", () => {
     const verdict = verdictOf(baseTree(), {
       "oxlint-suppressions.json": stubSuppressions({

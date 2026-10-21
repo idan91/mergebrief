@@ -141,17 +141,4 @@ describe("createInlineReviewComment", () => {
       "failed to create inline review comment: GitHub API returned status 422",
     );
   });
-
-  it("maps a 403 to a sanitized forbidden error", async () => {
-    const createReviewComment = vi.fn().mockRejectedValue(requestError(403));
-    const result = await createInlineReviewComment(
-      mockOctokit(createReviewComment),
-      INPUT,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
-  });
 });

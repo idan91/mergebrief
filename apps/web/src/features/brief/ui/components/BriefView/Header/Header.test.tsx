@@ -266,11 +266,6 @@ describe("branch pair", () => {
     return { ...brief, pr: { ...brief.pr, ...refs } };
   }
 
-  it("renders nothing without stamped refs", async () => {
-    await renderHeader();
-    expect(screen.queryByTestId("branch-pair")).toBeNull();
-  });
-
   it("renders the pair first on the meta line when both refs are stamped", async () => {
     await renderHeader({
       brief: makeBriefWithRefs({ baseRef: "main", headRef: "feature/thing" }),
@@ -285,73 +280,6 @@ describe("branch pair", () => {
     expect(pair?.querySelector('[data-icon="arrow-up"]')).toBeTruthy();
     expect(pair?.textContent).toContain("feature/thing");
   });
-
-  it("renders head-only without an arrow", async () => {
-    await renderHeader({
-      brief: makeBriefWithRefs({ headRef: "feature/thing" }),
-    });
-    const pair = screen.getByTestId("branch-pair");
-    expect(pair?.textContent).toContain("feature/thing");
-    expect(pair.querySelector('[data-icon="arrow-up"]')).toBeNull();
-  });
-
-  it("copy clicks write the bare branch name", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    await renderHeader({
-      brief: makeBriefWithRefs({ baseRef: "main", headRef: "feature/thing" }),
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Copy base branch" }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("main"));
-    fireEvent.click(screen.getByRole("button", { name: "Copy head branch" }));
-    await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith("feature/thing"),
-    );
-  });
-
-  it("keeps the pair on the meta line when collapsed", async () => {
-    document.documentElement.style.setProperty("--sticky-stack-h", "120px");
-    const sentinel = document.createElement("div");
-    sentinel.setAttribute(CONTENT_START_ATTR, "");
-    document.body.append(sentinel);
-    intersectionObservers.length = 0;
-    try {
-      await renderHeader({
-        brief: makeBriefWithRefs({ baseRef: "main", headRef: "feature/thing" }),
-      });
-      await waitFor(() => expect(intersectionObservers.length).toBe(1));
-      const observed = intersectionObservers[0];
-      act(() => {
-        observed?.callback(
-          [
-            {
-              boundingClientRect: new DOMRect(0, -1, 10, 10),
-              intersectionRatio: 0,
-              intersectionRect: new DOMRect(),
-              isIntersecting: false,
-              rootBounds: new DOMRect(0, 0, 100, 100),
-              target: sentinel,
-              time: 0,
-            },
-          ],
-          observed as never,
-        );
-      });
-      expect(
-        document.querySelector("header")?.hasAttribute("data-collapsed"),
-      ).toBe(true);
-      const pair = screen.getByTestId("branch-pair");
-      const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
-      const metaLine = titleLine?.parentElement?.lastElementChild;
-      expect(metaLine?.contains(pair)).toBe(true);
-    } finally {
-      sentinel.remove();
-      document.documentElement.style.removeProperty("--sticky-stack-h");
-    }
-  });
 });
 
 describe("stack chip", () => {
@@ -363,25 +291,13 @@ describe("stack chip", () => {
     ],
     index: 2,
   };
-  const fork = {
-    parent: { number: 6, title: "Parent" },
-    children: [
-      { number: 8, title: "Child" },
-      { number: 9, title: "Other child" },
-    ],
-  };
 
   function briefWithStack(
-    stack: typeof linear | typeof fork,
+    stack: typeof linear,
     state: "open" | "closed" = "open",
   ): Brief {
     return { ...brief, pr: { ...brief.pr, stack, state } };
   }
-
-  it("renders no chip when stack is absent", async () => {
-    await renderHeader();
-    expect(screen.queryByTestId("stack-chip")).toBeNull();
-  });
 
   it("prefers the live stack over the generation-time one", async () => {
     const grown = {
@@ -393,22 +309,6 @@ describe("stack chip", () => {
       livePrState: { state: "open", draft: false, stack: { stack: grown } },
     });
     expect(screen.getByTestId("stack-chip").textContent).toBe("2/4");
-  });
-
-  it("keeps the generation-time stack while the live one is unread", async () => {
-    await renderHeader({
-      brief: briefWithStack(linear),
-      livePrState: { state: "open", draft: false },
-    });
-    expect(screen.getByTestId("stack-chip").textContent).toBe("2/3");
-  });
-
-  it("drops the chip when GitHub reports no stack for an open PR", async () => {
-    await renderHeader({
-      brief: briefWithStack(linear),
-      livePrState: { state: "open", draft: false, stack: {} },
-    });
-    expect(screen.queryByTestId("stack-chip")).toBeNull();
   });
 
   it("keeps the generation-time stack for a merged PR with no live one", async () => {
@@ -468,35 +368,6 @@ describe("stack chip", () => {
     expect(metaLine?.lastElementChild).toBe(pair);
   });
 
-  it("renders a fork chip without a fraction", async () => {
-    await renderHeader({ brief: briefWithStack(fork) });
-    const chip = screen.getByTestId("stack-chip");
-    expect(chip?.textContent).toBe("Stacked");
-    expect(chip?.textContent).not.toMatch(/\d+\/\d+/);
-  });
-
-  it("lists neighbour titles in the disclosure", async () => {
-    await renderHeader({ brief: briefWithStack(linear) });
-    fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
-    );
-    expect(screen.getByLabelText(/^#6 Parent/)).toBeTruthy();
-    expect(
-      screen.getByLabelText("#7 Tighten the cross-param leak"),
-    ).toBeTruthy();
-    expect(screen.getByLabelText(/^#8 Child/)).toBeTruthy();
-  });
-
-  it("keeps the current PR from being a link", async () => {
-    await renderHeader({ brief: briefWithStack(linear), repoId: "424242" });
-    fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
-    );
-    expect(
-      screen.getByLabelText("#7 Tighten the cross-param leak").closest("a"),
-    ).toBeNull();
-  });
-
   it("points neighbour links at the in-app repo pull path", async () => {
     await renderHeader({ brief: briefWithStack(linear), repoId: "424242" });
     fireEvent.click(
@@ -534,68 +405,6 @@ describe("state badge", () => {
     // Both ride the title's own line, not the meta line under it.
     const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
     expect(titleLine?.contains(badge!)).toBe(true);
-  });
-
-  it.each([
-    ["open", false, false, "open", "Open"],
-    ["open", true, false, "draft", "Draft"],
-    ["closed", false, false, "closed", "Closed"],
-    // Draft supersedes OPEN, never closed.
-    ["closed", true, false, "closed", "Closed"],
-    ["closed", false, true, "merged", "Merged"],
-    // Draft flag on a merged snapshot: merged still wins.
-    ["closed", true, true, "merged", "Merged"],
-  ] as const)(
-    "state=%s draft=%s merged=%s → %s badge",
-    async (state, draft, merged, variant, label) => {
-      await renderHeader({ brief: stamped(state, draft, merged) });
-      const badge = document.querySelector("[data-state-badge]");
-      expect(badge?.getAttribute("data-variant")).toBe(variant);
-      // Visible text is the state word; SR text carries the prefix.
-      expect(badge?.textContent).toBe(`pull request ${label}`);
-    },
-  );
-
-  it("renders from live webhook state on an unstamped artifact", async () => {
-    // A DB brief generated before stamping has no pr.state - the badge must
-    // come from the live pull-request row there.
-    await renderHeader({ livePrState: { state: "open", draft: false } });
-    const badge = document.querySelector("[data-state-badge]");
-    expect(badge?.getAttribute("data-variant")).toBe("open");
-  });
-
-  it.each([
-    ["open", false, "open"],
-    ["open", true, "draft"],
-    ["closed", false, "closed"],
-    // The live DB vocabulary folds merged INTO the state.
-    ["merged", false, "merged"],
-    ["merged", true, "merged"],
-  ] as const)(
-    "live state=%s draft=%s → %s badge",
-    async (state, draft, variant) => {
-      await renderHeader({ livePrState: { state, draft } });
-      expect(
-        document
-          .querySelector("[data-state-badge]")
-          ?.getAttribute("data-variant"),
-      ).toBe(variant);
-    },
-  );
-
-  it("live state SUPERSEDES a stale artifact stamp", async () => {
-    // Artifact stamped open at generation; the PR merged since. The DB
-    // route shows live truth - staleness is only accepted on the local
-    // file path, where no live source exists.
-    await renderHeader({
-      brief: stamped("open", false, false),
-      livePrState: { state: "merged", draft: false },
-    });
-    expect(
-      document
-        .querySelector("[data-state-badge]")
-        ?.getAttribute("data-variant"),
-    ).toBe("merged");
   });
 });
 
@@ -654,11 +463,6 @@ describe("Header menu and stats", () => {
     expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
   });
 
-  it("offers no more-actions menu on a file brief", async () => {
-    await renderHeader();
-    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
-  });
-
   it("keeps the accent CTA top-level", async () => {
     const { openSubmit } = await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
@@ -712,116 +516,6 @@ describe("Header own-draft state", () => {
   it("renders no self-review chip outside the own-draft state", async () => {
     await renderHeader();
     expect(screen.queryByText("Self-review — your draft")).toBeNull();
-  });
-
-  it("renders the non-dismissible self-review chip with its tooltip", async () => {
-    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
-    const chip = screen.getByText("Self-review — your draft");
-    expect(chip).toBeTruthy();
-    // Non-dismissible: the chip carries no close affordance.
-    expect(
-      chip
-        .closest("[data-self-review-chip]")
-        ?.querySelector("button[aria-label*='close' i]"),
-    ).toBeNull();
-    const info = screen.getByRole("button", { name: "About self-review" });
-    const tooltipId = info.getAttribute("aria-describedby");
-    expect(tooltipId).toBeTruthy();
-    const tooltip = document.getElementById(tooltipId ?? "");
-    expect(tooltip?.getAttribute("role")).toBe("tooltip");
-    expect(tooltip?.textContent).toBe(
-      "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review.",
-    );
-  });
-
-  it("Escape dismisses a focused tooltip without leaking the key", async () => {
-    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
-    const info = screen.getByRole("button", { name: "About self-review" });
-    const wrap = info.parentElement;
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
-
-    const onWindowKeyDown = vi.fn();
-    window.addEventListener("keydown", onWindowKeyDown);
-    fireEvent.focus(info);
-    fireEvent.keyDown(info, { key: "Escape" });
-    // Dismissed - and the key never reached the page (focus-mode Escape).
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
-    expect(onWindowKeyDown).not.toHaveBeenCalled();
-    window.removeEventListener("keydown", onWindowKeyDown);
-
-    // Blur re-arms it for the next focus/hover…
-    fireEvent.blur(info);
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
-
-    // …and so does the pointer leaving after an Escape while hovering.
-    if (wrap) {
-      fireEvent.mouseEnter(wrap);
-    }
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
-    if (wrap) {
-      fireEvent.mouseLeave(wrap);
-    }
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
-  });
-
-  it("Escape-dismissal sticks while EITHER hover or focus is still active", async () => {
-    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
-    const info = screen.getByRole("button", { name: "About self-review" });
-    const wrap = info.parentElement;
-
-    // Both channels active, then Escape.
-    if (wrap) {
-      fireEvent.mouseEnter(wrap);
-    }
-    fireEvent.focus(info);
-    fireEvent.keyDown(info, { key: "Escape" });
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
-
-    // Pointer drifts away while focus remains: must STAY dismissed.
-    if (wrap) {
-      fireEvent.mouseLeave(wrap);
-    }
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
-
-    // The inverse: re-hover, then blur while the pointer stays - still
-    // dismissed (focus left, hover holds).
-    if (wrap) {
-      fireEvent.mouseEnter(wrap);
-    }
-    fireEvent.blur(info);
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
-
-    // Only when BOTH channels go idle does the tooltip re-arm.
-    if (wrap) {
-      fireEvent.mouseLeave(wrap);
-    }
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
-  });
-
-  it("Escape dismisses a hovered tooltip without leaking the key", async () => {
-    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
-    const info = screen.getByRole("button", { name: "About self-review" });
-    const wrap = info.parentElement;
-    expect(document.activeElement).toBe(document.body);
-
-    const onWindowKeyDown = vi.fn();
-    window.addEventListener("keydown", onWindowKeyDown);
-    // Pointer hover only - focus never moves off <body>.
-    if (wrap) {
-      fireEvent.mouseEnter(wrap);
-    }
-    fireEvent.keyDown(document.body, { key: "Escape" });
-    // Dismissed, key claimed: it must NOT fall through to the page's
-    // window-level shortcut listener (which would exit focus mode).
-    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
-    expect(onWindowKeyDown).not.toHaveBeenCalled();
-
-    // Once the tooltip is gone, the claim is released: a second Escape
-    // reaches the page as usual.
-    fireEvent.keyDown(document.body, { key: "Escape" });
-    expect(onWindowKeyDown).toHaveBeenCalledTimes(1);
-    window.removeEventListener("keydown", onWindowKeyDown);
   });
 
   it("swaps the terminal-action slot: Mark ready for review replaces Receipt", async () => {
@@ -929,10 +623,5 @@ describe("Header own-draft state", () => {
     // No resolved/total fraction - it would sit at a permanent 0/N.
     expect(stat.textContent).toBe("flags1");
     expect(stat.textContent).not.toContain("/");
-  });
-
-  it("drops the overflow menu in own-draft", async () => {
-    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
-    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 });

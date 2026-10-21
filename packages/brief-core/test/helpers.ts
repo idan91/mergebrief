@@ -1,6 +1,15 @@
+import type { z } from "zod/v4";
+import type {
+  Effort,
+  GenerateRequest,
+  Generation,
+  Generator,
+} from "generators";
 import {
   RevisionNarrativeSkipReasons,
   type Brief,
+  type ChangeGroup,
+  type Chunk,
   type DeltaBrief,
   type RevisionNarrative,
   type RevisionNarrativeSkipped,
@@ -21,7 +30,7 @@ const generation = {
   effort: "medium",
 } as const;
 
-const changeGroup = {
+const changeGroup: ChangeGroup = {
   id: "g1",
   title: "g title",
   summary: "g",
@@ -29,9 +38,9 @@ const changeGroup = {
   secondaryCategories: [],
   uncertain: false,
   uncertainBetween: [],
-} as const;
+};
 
-const chunk = {
+const chunk: Chunk = {
   id: "c1",
   changeGroupId: "g1",
   file: "a.ts",
@@ -41,7 +50,7 @@ const chunk = {
   addedRanges: [{ start: 5, end: 5 }],
   removedRanges: [],
   riskSurface: ["mutates-state"],
-} as const;
+};
 
 export function makeValidBrief(): Brief {
   return structuredClone({
@@ -53,7 +62,7 @@ export function makeValidBrief(): Brief {
     changeGroups: [changeGroup],
     chunks: [chunk],
     concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
-  }) as Brief;
+  });
 }
 
 const secondChunk = { ...chunk, id: "c2", changeGroupId: "g2", file: "b.ts" };
@@ -63,7 +72,7 @@ export function makeTwoGroupBrief(): Brief {
     ...makeValidBrief(),
     changeGroups: [structuredClone(changeGroup), { ...changeGroup, id: "g2" }],
     chunks: [structuredClone(chunk), structuredClone(secondChunk)],
-  } as Brief;
+  };
 }
 
 export function makeValidDeltaBrief(): DeltaBrief {
@@ -85,7 +94,7 @@ export function makeValidDeltaBrief(): DeltaBrief {
       },
     ],
     wholePrImpact: "completes the original intent",
-  }) as DeltaBrief;
+  });
 }
 
 export function makeValidRevisionNarrative(): RevisionNarrative {
@@ -108,7 +117,7 @@ export function makeValidRevisionNarrative(): RevisionNarrative {
         summary: "wraps the call in a guard",
       },
     ],
-  }) as RevisionNarrative;
+  });
 }
 
 export function makeSkippedRevisionNarrative(): RevisionNarrativeSkipped {
@@ -121,4 +130,53 @@ export function makeSkippedRevisionNarrative(): RevisionNarrativeSkipped {
     headIndex: 2,
     skipped: RevisionNarrativeSkipReasons.SPAN_TOO_LARGE,
   };
+}
+
+/** One request a `FakeGenerator` received, in call order. */
+export interface RecordedRequest {
+  label: string;
+  system: string;
+  user: string;
+  effort: Effort;
+  schema: z.ZodType;
+  salvageFields: readonly string[];
+}
+
+/** Picks the raw model answer for the request at `index` (0-based). */
+export type FakeAnswer = (request: RecordedRequest, index: number) => unknown;
+
+/**
+ * Mocked Generator (no API key, no network): records each request and parses
+ * the answer through the request's own schema, so a fixture that drifts from
+ * the schema fails loudly.
+ */
+export class FakeGenerator implements Generator {
+  readonly requests: RecordedRequest[] = [];
+
+  constructor(private readonly answer: FakeAnswer) {}
+
+  origin(effort: Effort): Generation {
+    return { provider: "fake", model: "fake-model", effort };
+  }
+
+  async generate<S extends z.ZodType>(
+    req: GenerateRequest<S>,
+  ): Promise<z.infer<S>> {
+    const request: RecordedRequest = {
+      label: req.label,
+      system: req.system,
+      user: req.user,
+      effort: req.effort,
+      schema: req.schema,
+      salvageFields: req.salvageFields ?? [],
+    };
+    const index = this.requests.push(request) - 1;
+
+    return req.schema.parse(this.answer(request, index));
+  }
+}
+
+/** A `FakeGenerator` that answers every request with the same fixture. */
+export function makeFakeGenerator(fixture: unknown): FakeGenerator {
+  return new FakeGenerator(() => fixture);
 }

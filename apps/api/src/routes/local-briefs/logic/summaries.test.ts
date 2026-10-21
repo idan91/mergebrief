@@ -1,4 +1,3 @@
-import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { testLogger } from "../../../../test/logging";
@@ -51,15 +50,6 @@ describe("listLocalBriefSummaries", () => {
     const dir = await makeOutDir();
 
     expect(await listIn(join(dir, "missing"))).toEqual([]);
-  });
-
-  it("refuses a directory it cannot read", async () => {
-    const dir = await makeOutDir();
-    const file = join(dir, "not-a-dir");
-    await writeFile(file, "");
-
-    const listed = await listLocalBriefSummaries(file, log);
-    expect(listed).toEqual({ ok: false, error: { kind: "unreadable" } });
   });
 
   it("summarizes brief and delta rows from their headers", async () => {

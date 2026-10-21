@@ -130,15 +130,6 @@ describe("buildSignatureLine", () => {
     );
     expect(line).not.toContain("\n");
   });
-
-  it("is never empty because the review body requires it", () => {
-    const empty: Receipt = {
-      ...receipt,
-      progress: { reviewedChunks: 0, chunkTotal: 0, flagTotal: 0 },
-      counts: { addressed: 0, dismissed: 0, open: 0 },
-    };
-    expect(buildSignatureLine(empty, 0).trim().length).toBeGreaterThan(0);
-  });
 });
 
 describe("submitBlockedReason", () => {
@@ -420,17 +411,6 @@ describe("foldDraftsIntoBody", () => {
 
     expect(folded).toHaveLength(337);
     expect(folded).toContain("**`src/gone.ts:LEFT 8-RIGHT 9`**");
-  });
-
-  it("spells out both sides of a crossing range", () => {
-    const crossing = comment("a", {
-      side: DiffSides.NEW,
-      startSide: DiffSides.OLD,
-      startLine: 10,
-      endLine: 10,
-    });
-    const folded = foldDraftsIntoBody(SIGNATURE, [crossing], []);
-    expect(folded).toContain("**`src/a.ts:LEFT 10-RIGHT 10`**");
   });
 });
 

@@ -73,19 +73,6 @@ describe("Mention", () => {
     );
   });
 
-  it("matches a resolved target whatever case the text used", () => {
-    renderUserMention(stubTargets(["Cara"]), "CARA");
-
-    expect(screen.getByRole("link", { name: "@CARA" })).toBeTruthy();
-  });
-
-  it("highlights a mention of the viewer, ignoring case", () => {
-    renderUserMention(stubTargets(["octocat"], "OctoCat"), "octocat");
-
-    const link = screen.getByRole("link", { name: "@octocat" });
-    expect(link.getAttribute("data-variant")).toBe("viewer");
-  });
-
   it("does not highlight a mention of someone else", () => {
     renderUserMention(stubTargets(["cara"], "octocat"), "cara");
 

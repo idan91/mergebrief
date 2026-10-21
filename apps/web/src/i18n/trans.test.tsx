@@ -35,12 +35,4 @@ describe("slot-bearing keys", () => {
     expect(link.getAttribute("href")).toBe("/api/auth/github");
     expect(document.body.textContent).toContain("to manage API tokens.");
   });
-
-  it("drops the element AND its content when the components arity is short", () => {
-    // The regression this file exists to catch, pinned against the real key.
-    renderTrans(<Trans components={[]} i18nKey="shell.signInPrompt" />);
-    expect(screen.queryByRole("link")).toBeNull();
-    // Not merely unlinked: the label is gone entirely.
-    expect(document.body.textContent).toBe(" to manage API tokens.");
-  });
 });

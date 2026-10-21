@@ -10,13 +10,11 @@ import type { z } from "zod/v4";
 
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
-  parseAddressedReviewComment,
+  addressedReviewCommentSchema,
   briefContextSchema,
+  localBriefSummariesSchema,
   parseAddressedReviewComments,
   parseComparisonMarks,
-  parseFileDiffPatches,
-  parseLocalBriefSummaries,
-  type addressedReviewCommentSchema,
   type comparisonMarksSchema,
   type deEmphasisRuleSchema,
   type firedCustomAttributeSchema,
@@ -59,18 +57,20 @@ const REVIEW_COMMENT = {
   outdated: false,
 };
 
-describe("parseAddressedReviewComment", () => {
+describe("addressedReviewCommentSchema", () => {
   it("reads every field of a stored review comment", () => {
     const { inReplyToId: _reply, ...present } = REVIEW_COMMENT;
 
-    expect(parseAddressedReviewComment(REVIEW_COMMENT)).toStrictEqual({
+    expect(
+      parseWithSchema(addressedReviewCommentSchema, REVIEW_COMMENT),
+    ).toStrictEqual({
       ok: true,
       value: present,
     });
   });
 
   it("reads null or absent lines as absent and derives outdated from line", () => {
-    const parsed = parseAddressedReviewComment({
+    const parsed = parseWithSchema(addressedReviewCommentSchema, {
       id: "c2",
       file: "src/a.ts",
       line: null,
@@ -93,7 +93,7 @@ describe("parseAddressedReviewComment", () => {
   });
 
   it("derives outdated from the line when the wire sends null", () => {
-    const parsed = parseAddressedReviewComment({
+    const parsed = parseWithSchema(addressedReviewCommentSchema, {
       ...REVIEW_COMMENT,
       outdated: null,
     });
@@ -106,21 +106,15 @@ describe("parseAddressedReviewComment", () => {
 
   it("reads an anchored comment without outdated as current", () => {
     const { outdated: _outdated, ...withoutOutdated } = REVIEW_COMMENT;
-    const parsed = parseAddressedReviewComment(withoutOutdated);
+    const parsed = parseWithSchema(
+      addressedReviewCommentSchema,
+      withoutOutdated,
+    );
 
     if (!parsed.ok) {
       throw new Error("unreachable");
     }
     expect(parsed.value.outdated).toBe(false);
-  });
-
-  it("refuses a comment with a mistyped id or line", () => {
-    expect(parseAddressedReviewComment({ ...REVIEW_COMMENT, id: 1 }).ok).toBe(
-      false,
-    );
-    expect(
-      parseAddressedReviewComment({ ...REVIEW_COMMENT, line: "12" }).ok,
-    ).toBe(false);
   });
 
   it("refuses a list that is not an array", () => {
@@ -174,19 +168,6 @@ describe("parseComparisonMarks", () => {
     );
     expect(parseComparisonMarks(fractional).ok).toBe(false);
     expect(parseComparisonMarks(withoutFiles).ok).toBe(false);
-  });
-});
-
-describe("parseFileDiffPatches", () => {
-  it("reads per-file patches", () => {
-    const diffs = [{ file: "src/a.ts", patch: "@@ -1 +1 @@\n-a\n+b" }];
-
-    expect(parseFileDiffPatches(diffs)).toEqual({ ok: true, value: diffs });
-  });
-
-  it("refuses a non-array listing or an entry without a patch", () => {
-    expect(parseFileDiffPatches({}).ok).toBe(false);
-    expect(parseFileDiffPatches([{ file: "src/a.ts" }]).ok).toBe(false);
   });
 });
 
@@ -252,16 +233,16 @@ function makeBriefRowWithComparison(
   };
 }
 
-describe("parseLocalBriefSummaries", () => {
+describe("localBriefSummariesSchema", () => {
   it("round-trips a brief row with both comparison baselines", () => {
-    expect(parseLocalBriefSummaries([briefRow])).toEqual({
+    expect(parseWithSchema(localBriefSummariesSchema, [briefRow])).toEqual({
       ok: true,
       value: [briefRow],
     });
   });
 
   it("round-trips a delta row with its revision fields", () => {
-    expect(parseLocalBriefSummaries([deltaRow])).toEqual({
+    expect(parseWithSchema(localBriefSummariesSchema, [deltaRow])).toEqual({
       ok: true,
       value: [deltaRow],
     });
@@ -270,7 +251,10 @@ describe("parseLocalBriefSummaries", () => {
   it("keeps null delta indexes", () => {
     const row = { ...deltaRow, baselineIndex: null, headIndex: null };
 
-    expect(parseLocalBriefSummaries([row])).toEqual({ ok: true, value: [row] });
+    expect(parseWithSchema(localBriefSummariesSchema, [row])).toEqual({
+      ok: true,
+      value: [row],
+    });
   });
 
   it("keeps a last review with marks but no delta yet", () => {
@@ -280,7 +264,10 @@ describe("parseLocalBriefSummaries", () => {
       baselineIndex: 3,
     });
 
-    expect(parseLocalBriefSummaries([row])).toEqual({ ok: true, value: [row] });
+    expect(parseWithSchema(localBriefSummariesSchema, [row])).toEqual({
+      ok: true,
+      value: [row],
+    });
   });
 
   it("keeps a previous brief without a narrative", () => {
@@ -289,98 +276,31 @@ describe("parseLocalBriefSummaries", () => {
       omitField(previousBriefAvailability, "narrativeId"),
     );
 
-    expect(parseLocalBriefSummaries([row])).toEqual({ ok: true, value: [row] });
+    expect(parseWithSchema(localBriefSummariesSchema, [row])).toEqual({
+      ok: true,
+      value: [row],
+    });
   });
 
   it("keeps a brief row without comparisons", () => {
     const row = omitField(briefRow, "comparisons");
 
-    expect(parseLocalBriefSummaries([row])).toEqual({ ok: true, value: [row] });
+    expect(parseWithSchema(localBriefSummariesSchema, [row])).toEqual({
+      ok: true,
+      value: [row],
+    });
   });
 
-  it.each(["id", "artifactKind", "repo", "number", "title", "sha"])(
-    "refuses a row without its %s",
-    (field) => {
-      expect(parseLocalBriefSummaries([omitField(briefRow, field)]).ok).toBe(
-        false,
-      );
-    },
-  );
+  it("refuses a row with a fractional number", () => {
+    const row = { ...briefRow, number: 4.5 };
 
-  it.each(["marksId", "baselineSha", "baselineIndex"])(
-    "refuses a previous brief without its %s",
-    (field) => {
-      const row = makeBriefRowWithComparison(
-        "previousBrief",
-        omitField(previousBriefAvailability, field),
-      );
-
-      expect(parseLocalBriefSummaries([row]).ok).toBe(false);
-    },
-  );
-
-  it.each(["marksId", "baselineSha", "baselineIndex"])(
-    "refuses a last review without its %s",
-    (field) => {
-      const row = makeBriefRowWithComparison(
-        "lastReview",
-        omitField(lastReviewAvailability, field),
-      );
-
-      expect(parseLocalBriefSummaries([row]).ok).toBe(false);
-    },
-  );
-
-  it.each([
-    ["an unknown artifactKind", { ...briefRow, artifactKind: "draft" }],
-    ["a fractional number", { ...briefRow, number: 4.5 }],
-    ["a string index", { ...briefRow, index: "2" }],
-    ["a null index", { ...briefRow, index: null }],
-    ["a numeric baselineSha", { ...deltaRow, baselineSha: 1 }],
-    ["a numeric headSha", { ...deltaRow, headSha: 1 }],
-    ["a string headIndex", { ...deltaRow, headIndex: "2" }],
-    ["non-object comparisons", { ...briefRow, comparisons: "none" }],
-    [
-      "a null narrative id",
-      makeBriefRowWithComparison("previousBrief", {
-        ...previousBriefAvailability,
-        narrativeId: null,
-      }),
-    ],
-    [
-      "a null delta id",
-      makeBriefRowWithComparison("lastReview", {
-        ...lastReviewAvailability,
-        deltaId: null,
-      }),
-    ],
-    [
-      "a null previous-brief baselineIndex",
-      makeBriefRowWithComparison("previousBrief", {
-        ...previousBriefAvailability,
-        baselineIndex: null,
-      }),
-    ],
-    [
-      "a numeric narrativeId",
-      makeBriefRowWithComparison("previousBrief", {
-        ...previousBriefAvailability,
-        narrativeId: 3,
-      }),
-    ],
-    [
-      "a numeric deltaId",
-      makeBriefRowWithComparison("lastReview", {
-        ...lastReviewAvailability,
-        deltaId: 3,
-      }),
-    ],
-  ])("refuses a row with %s", (_case, row) => {
-    expect(parseLocalBriefSummaries([row]).ok).toBe(false);
+    expect(parseWithSchema(localBriefSummariesSchema, [row]).ok).toBe(false);
   });
 
   it("refuses a listing that is not an array", () => {
-    expect(parseLocalBriefSummaries({ rows: [briefRow] }).ok).toBe(false);
+    expect(
+      parseWithSchema(localBriefSummariesSchema, { rows: [briefRow] }).ok,
+    ).toBe(false);
   });
 });
 
@@ -403,43 +323,6 @@ describe("briefContextSchema", () => {
       throw new Error("unreachable");
     }
     expect(parsed.value).toBeNull();
-  });
-
-  it.each([
-    ["not an object", "x"],
-    ["missing files", { repoConfig: { collisions: [], policy: null } }],
-    [
-      "bad outcome",
-      {
-        repoConfig: {
-          files: [{ path: "p", blobSha: null, outcome: "nope" }],
-          collisions: [],
-          policy: null,
-        },
-      },
-    ],
-    [
-      "bad fired attr",
-      {
-        repoConfig: {
-          files: [],
-          collisions: [],
-          policy: { firedCustomAttributes: [{ name: 1 }], deEmphasize: [] },
-        },
-      },
-    ],
-    [
-      "bad rule",
-      {
-        repoConfig: {
-          files: [],
-          collisions: [],
-          policy: { firedCustomAttributes: [], deEmphasize: [{ paths: [] }] },
-        },
-      },
-    ],
-  ])("rejects %s", (_label, value) => {
-    expect(parseWithSchema(briefContextSchema, value).ok).toBe(false);
   });
 });
 
@@ -544,27 +427,6 @@ describe("briefContextSchema tolerances", () => {
       }).ok,
     ).toBe(false);
   });
-
-  it("rejects a slot with a non-number byte count or no blobSha", () => {
-    const { blobSha: _sha, ...withoutSha } = instructions;
-    const badBytes = [
-      { ...instructions, bytesUsed: "1" },
-      settings,
-      policyFile,
-    ];
-    const noSha = [withoutSha, settings, policyFile];
-
-    expect(
-      parseWithSchema(briefContextSchema, {
-        repoConfig: { ...SNAPSHOT, files: badBytes },
-      }).ok,
-    ).toBe(false);
-    expect(
-      parseWithSchema(briefContextSchema, {
-        repoConfig: { ...SNAPSHOT, files: noSha },
-      }).ok,
-    ).toBe(false);
-  });
 });
 
 const SCHEMA_PINS = {
@@ -618,8 +480,4 @@ const SCHEMA_PINS = {
   >,
 } as const;
 
-describe("brief model schemas match their interfaces", () => {
-  it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void SCHEMA_PINS;

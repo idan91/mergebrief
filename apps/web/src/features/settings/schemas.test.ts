@@ -30,7 +30,7 @@ describe("spendViewSchema", () => {
 
     const parsed = parseWithSchema(spendViewSchema, uncapped);
 
-    expect(parsed.ok && "cap" in parsed.value).toBe(false);
+    expect(parsed).toEqual({ ok: true, value: uncapped });
   });
 
   it("rejects a body without the count", () => {
@@ -51,8 +51,4 @@ const PINS = {
   >,
 } as const;
 
-describe("the spend schema is pinned", () => {
-  it.each(Object.entries(PINS))("%s", (_pin, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void PINS;

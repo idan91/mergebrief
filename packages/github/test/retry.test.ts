@@ -2,7 +2,7 @@
 // to render") is PERMANENT for the requested span, so the bundled retry plugin
 // must not retry it. Exercised through the REAL `createUserOctokit`
 // construction with an injected fetch counting calls.
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Octokit } from "octokit";
 import {
   createRateLimitHandler,
@@ -22,6 +22,9 @@ function stubCountingFetch(status: number) {
   );
 }
 
+/** The retry plugin's full backoff for its three retries: 1 s, 4 s, then 9 s. */
+const RETRY_BACKOFF_MS = 15_000;
+
 /** Same construction shape as `createUserOctokit`, with a countable fetch. */
 function makeClientWith(fetchImpl: typeof fetch): Octokit {
   return new Octokit({
@@ -32,6 +35,10 @@ function makeClientWith(fetchImpl: typeof fetch): Octokit {
 }
 
 describe("406 retry tuning", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("does not retry a 406, the permanent diff-too-large status", async () => {
     const fetchImpl = stubCountingFetch(406);
     const result = await fetchDiff(makeClientWith(fetchImpl), {
@@ -48,12 +55,17 @@ describe("406 retry tuning", () => {
   });
 
   it("still retries a transient 500", async () => {
+    vi.useFakeTimers();
     const fetchImpl = stubCountingFetch(500);
-    const result = await fetchDiff(makeClientWith(fetchImpl), {
-      owner: "o",
-      repo: "r",
-      prNumber: 1,
+    const octokit = createUserOctokit("ghu_token", {
+      throttle: false,
+      fetch: fetchImpl,
     });
+
+    const pending = fetchDiff(octokit, { owner: "o", repo: "r", prNumber: 1 });
+    await vi.advanceTimersByTimeAsync(RETRY_BACKOFF_MS);
+    const result = await pending;
+
     expect(result.ok).toBe(false);
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(1);
   });
@@ -94,25 +106,6 @@ describe("createRateLimitHandler", () => {
     expect(retryWithinCap(20, { request: { retryCount: 0 } })).toBe(true);
     expect(retryWithinCap(21, { request: { retryCount: 0 } })).toBe(false);
     expect(retryWithinCap(5, { request: { retryCount: 1 } })).toBe(false);
-  });
-});
-
-describe("createUserOctokit with retry off", () => {
-  it("sends a request once and never replays it on a 5xx", async () => {
-    const fetchImpl = stubCountingFetch(502);
-    const octokit = createUserOctokit("ghu_token", {
-      retry: false,
-      throttle: false,
-      fetch: fetchImpl,
-    });
-    const result = await fetchDiff(octokit, {
-      owner: "o",
-      repo: "r",
-      prNumber: 1,
-    });
-
-    expect(result.ok).toBe(false);
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
 

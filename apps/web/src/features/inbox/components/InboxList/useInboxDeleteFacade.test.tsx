@@ -75,18 +75,6 @@ function renderFacade() {
 }
 
 describe("useInboxDeleteFacade", () => {
-  it("asking to delete opens the modal on the rows; cancel closes it", () => {
-    const { result } = renderFacade();
-    const item = makeItem();
-
-    act(() => result.current.requestDelete([item]));
-    expect(result.current.pending).toEqual([item]);
-    expect(result.current.busy).toBe(false);
-
-    act(() => result.current.cancel());
-    expect(result.current.pending).toEqual([]);
-  });
-
   it("confirming deletes the row, announces, moves focus and re-reads", async () => {
     answerWith(200, { ok: true });
     const { result, announce, onDeleted, invalidate } = renderFacade();

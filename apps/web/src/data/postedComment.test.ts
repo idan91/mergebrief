@@ -13,13 +13,10 @@ function parsePostedComment(value: unknown): PostedComment | undefined {
   return comment;
 }
 
-const postedCommentPin = true satisfies Equals<
-  z.output<typeof postedCommentSchema>,
-  PostedComment
->;
+true satisfies Equals<z.output<typeof postedCommentSchema>, PostedComment>;
 
 /** Every field the parser reads is one the contract sends. */
-const readsWireFieldsPin = true satisfies Equals<
+true satisfies Equals<
   Exclude<
     keyof z.input<typeof postedCommentSchema>,
     keyof PostedCommentResponse
@@ -50,13 +47,5 @@ describe("parsePostedComment", () => {
     expect(
       parsePostedComment({ commentId: 9, reviewId: 9007199254740992 }),
     ).toBeUndefined();
-  });
-
-  it("pins the schema to the PostedComment interface", () => {
-    expect(postedCommentPin).toBe(true);
-  });
-
-  it("reads only the fields the contract sends", () => {
-    expect(readsWireFieldsPin).toBe(true);
   });
 });

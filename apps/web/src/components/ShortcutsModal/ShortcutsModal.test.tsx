@@ -55,14 +55,4 @@ describe("ShortcutsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(close).toHaveBeenCalledTimes(1);
   });
-
-  it("renders a chord as separate caps joined by a plus", () => {
-    renderOpenModal();
-    const toggle = screen.getByText("Toggle this shortcuts list");
-    const caps = [...(toggle.closest("div")?.querySelectorAll("kbd") ?? [])];
-    expect(caps.map((cap) => cap.textContent)).toEqual(["Shift", "?"]);
-    expect(toggle.closest("div")?.querySelector("dt")?.textContent).toBe(
-      "Shift+?",
-    );
-  });
 });

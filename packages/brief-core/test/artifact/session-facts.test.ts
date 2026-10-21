@@ -76,12 +76,6 @@ describe("readBriefSessionFacts", () => {
     ]);
   });
 
-  it("ignores unknown keys rather than failing on them", () => {
-    const facts = readFactsOrThrow({ ...BODY, narrative: "x", version: 3 });
-
-    expect(facts.groupIds).toEqual(["group-a", "group-b"]);
-  });
-
   it("spans every range on both sides of the diff", () => {
     const facts = readFactsOrThrow({
       changeGroups: [],

@@ -218,8 +218,7 @@ describe("planAnchoredGeneration", () => {
     expect(plan.reLook.map((r) => r.id)).toEqual(["g1"]);
   });
 
-  it("carries remapped ranges through hunks in a shared file scenario", () => {
-    // g1 (a.ts only) frozen; its ranges pass through untouched a.ts → identity.
+  it("keeps a frozen group's ranges when its file is untouched", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
       incrementalDiff: DIFF_B,
@@ -731,23 +730,6 @@ describe("stitchBrief", () => {
     expect(
       merged.changeGroups.find((g) => g.title === "alpha and gamma mashed"),
     ).toBeUndefined();
-  });
-
-  it("reassigns colliding generated chunk ids while carried chunk ids win", () => {
-    const generated = brief(
-      [group("tmpB", "beta v2")],
-      // Model reused the carried chunk's id "c1".
-      [chunk("c1", "tmpB", "b.ts", 1, 3)],
-    );
-    const result = stitchBrief({
-      generated,
-      plan: planFor(),
-      prFiles: ["a.ts", "b.ts"],
-    });
-    const ids = result.brief.chunks.map((c) => c.id);
-    expect(new Set(ids).size).toBe(2);
-    const carried = result.brief.chunks.find((c) => c.file === "a.ts");
-    expect(carried?.id).toBe("c1");
   });
 });
 

@@ -72,13 +72,6 @@ describe("moveRovingIndex", () => {
 });
 
 describe("deriveMarkName", () => {
-  it("names the file, line and place", () => {
-    const mark = { id: "c", basename: "params.ts", line: 40, position: 2 };
-    expect(deriveMarkName(appI18n.t, mark, 5)).toBe(
-      "params.ts line 40, chunk 2 of 5",
-    );
-  });
-
   it("drops the line when the chunk has none", () => {
     const mark = {
       id: "c",

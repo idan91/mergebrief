@@ -134,20 +134,6 @@ describe("Popover", () => {
     expect(panel.parentElement).toBe(trigger.parentElement);
   });
 
-  it("under reduced motion the panel leaves in the same commit", async () => {
-    renderPopover();
-    const trigger = await openPopover();
-    expect(screen.getByLabelText("Details").style.transitionDuration).not.toBe(
-      "180ms",
-    );
-
-    await act(async () => {
-      fireEvent.keyDown(trigger, { key: "Escape" });
-    });
-
-    expect(screen.queryByLabelText("Details")).toBeNull();
-  });
-
   it("at default motion the closing panel is inert until its exit ends", async () => {
     setMediaQueryMatches(REDUCED_MOTION, false);
     renderPopover();

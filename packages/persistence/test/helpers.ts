@@ -3,13 +3,16 @@
 // (`src/testing/pglite-snapshot`) and wraps it as the opaque `AppDatabase` the
 // repository consumes; the real-Postgres suites share the tenant fixture below.
 import { randomInt } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { and, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
-import { expect, onTestFinished } from "vitest";
+import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  expect,
+  onTestFinished,
+} from "vitest";
 import { type AppDatabase, fromDrizzle, internal } from "../src/db/handle";
 import {
   closeDb,
@@ -19,7 +22,11 @@ import {
   type TenantContext,
 } from "../src/index";
 import { createMigratedPglite } from "../src/testing/pglite-snapshot";
-import type { PgliteHarness } from "../src/testing";
+import {
+  createPgliteHarness,
+  type PgliteHarness,
+  resetPgliteHarness,
+} from "../src/testing";
 import { generation } from "../src/schema/generation";
 import { generationAttempt } from "../src/schema/generation-attempt";
 import { pullRequest } from "../src/schema/pull-request";
@@ -158,6 +165,58 @@ export async function freshDatabase(): Promise<AppDatabase> {
   return fromDrizzle(drizzle(await freshPglite()));
 }
 
+export interface SharedPglite {
+  /** The file's one instance, at its post-migration state when a test starts. */
+  readonly client: PGlite;
+  readonly handle: AppDatabase;
+  readonly harness: PgliteHarness;
+  /** A drizzle over the same instance, for raw reads the handle hides. */
+  readonly db: PgliteDatabase;
+}
+
+/**
+ * One migrated PGlite for the whole file, graphile stub included: opened and
+ * its baseline recorded before the first test, reset before each, closed
+ * after the last. Register at module scope or inside a describe; the fields
+ * resolve only inside a test.
+ */
+export function registerSharedPglite(): SharedPglite {
+  let harness: PgliteHarness | undefined;
+  function requireHarness(): PgliteHarness {
+    if (harness === undefined) {
+      throw new Error("the shared PGlite is open only while a test runs");
+    }
+    return harness;
+  }
+
+  beforeAll(async () => {
+    harness = await createPgliteHarness();
+    await resetPgliteHarness(harness);
+  });
+  beforeEach(async () => {
+    await resetPgliteHarness(requireHarness());
+  });
+  afterAll(async () => {
+    await harness?.close();
+    harness = undefined;
+  });
+
+  return {
+    get client() {
+      return requireHarness().database;
+    },
+    get handle() {
+      return requireHarness().handle;
+    },
+    get harness() {
+      return requireHarness();
+    },
+    get db() {
+      return drizzle(requireHarness().database);
+    },
+  };
+}
+
 export interface QueryLog {
   readonly handle: AppDatabase;
   /** Every statement drizzle ran; `begin`, `commit` and `rollback` mark each transaction. */
@@ -269,23 +328,6 @@ export async function readCheckValues(
   return [...def.matchAll(/'([^']*)'/g)].map((match) => match[1] ?? "");
 }
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
-
-/** Every checked-in migration file, in journal order. */
-export function listMigrationFiles(): string[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((name) => name.endsWith(".sql"))
-    .toSorted((a, b) => a.localeCompare(b));
-}
-
-/** Apply one migration file raw; the statement-breakpoint markers are comments. */
-export async function applyMigrationFile(
-  client: PGlite,
-  name: string,
-): Promise<void> {
-  await client.exec(readFileSync(join(MIGRATIONS_DIR, name), "utf8"));
-}
-
 /** A virgin PGlite, NO migrations applied, no drizzle ledger; closes with the test. */
 export async function virginPglite(): Promise<PGlite> {
   const client = new PGlite();
@@ -299,26 +341,3 @@ export async function virginPglite(): Promise<PGlite> {
 
 /** A test that replays the migrations itself outgrows the 5 s default under a parallel run. */
 export const MIGRATION_REPLAY_TIMEOUT_MS = 30_000;
-
-/**
- * A PGlite migrated up to, not including, the migration whose file name
- * starts with `prefix`; the data test then seeds pre-migration rows and
- * applies the target itself.
- */
-export async function pgliteBefore(
-  prefix: string,
-): Promise<{ client: PGlite; target: string }> {
-  const client = await virginPglite();
-  const files = listMigrationFiles();
-  const target = files.find((name) => name.startsWith(prefix));
-  if (target === undefined) {
-    throw new Error(`${prefix} migration file not found`);
-  }
-  for (const name of files) {
-    if (name === target) {
-      break;
-    }
-    await applyMigrationFile(client, name);
-  }
-  return { client, target };
-}

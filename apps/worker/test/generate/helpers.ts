@@ -1,6 +1,6 @@
 // Use migrated PGlite, a graphile queue stub, a stub model and github/testing's fake GitHub.
 import { randomBytes } from "node:crypto";
-import { beforeEach } from "vitest";
+import { beforeAll, beforeEach } from "vitest";
 import {
   createEnvKeyProvider,
   createGrantAuth,
@@ -498,6 +498,16 @@ export const ctx = parseTenantContext({ installationId: 42 });
 /** Gives every test in the calling file a fresh migrated PGlite `harness`. */
 export function setUpHarness(): void {
   beforeEach(async () => {
+    harness = await createPgliteHarness();
+    return async () => {
+      await harness.close();
+    };
+  });
+}
+
+/** One migrated PGlite `harness` for the calling file: its tests must share no rows. */
+export function setUpFileHarness(): void {
+  beforeAll(async () => {
     harness = await createPgliteHarness();
     return async () => {
       await harness.close();

@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { UPGRADE_CHAIN_PLACEHOLDER } from "../src/consts";
 import { buildReleaseBody } from "../src/logic/release-body";
 import { readReleaseNotes } from "../src/logic/notes";
 import type { ReleaseNotes } from "../src/types";
@@ -40,20 +39,9 @@ describe("the Release body", () => {
     );
 
     const documented = readDocumentedChain().replaceAll("v1.6.0", "v0.2.0");
+    expect(documented).toContain("releases/download/v0.2.0/docker-compose.yml");
     expect(body.startsWith("## Upgrade to 0.2.0\n")).toBe(true);
     expect(body).toContain(`\`\`\`sh\n${documented}\n\`\`\``);
-  });
-
-  it("keeps the chain in step with operations.md", () => {
-    const documented = readDocumentedChain();
-
-    expect(documented).toContain(`releases/download/v1.6.0/docker-compose.yml`);
-    expect(documented.replaceAll("v1.6.0", UPGRADE_CHAIN_PLACEHOLDER)).toBe(
-      buildReleaseBody(readNotes("1.6.0.md", makeNotesFile({}, BODY)))
-        .split("```sh\n")[1]
-        ?.split("\n```")[0]
-        ?.replaceAll("v1.6.0", UPGRADE_CHAIN_PLACEHOLDER),
-    );
   });
 
   it("links the backup and upgrade docs, then carries the notes verbatim", () => {

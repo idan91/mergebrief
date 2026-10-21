@@ -3,6 +3,7 @@ import { fetchContextSnippets } from "../../src/context/fan-out";
 import {
   ContextProviderTypes,
   type ContextProvider,
+  type ContextQuery,
   type ProviderSnippet,
 } from "../../src/context/types";
 import { TicketUnreadReasons } from "../../src/types";
@@ -19,11 +20,12 @@ function makeSnippet(source: string): ProviderSnippet {
   };
 }
 
-const query = {
+const query: ContextQuery = {
   title: "t",
   body: "see https://a.example/x",
   headRef: "",
   repo: { owner: "o", repo: "r" },
+  trackers: [],
   references: [],
 };
 
@@ -143,9 +145,5 @@ describe("fetchContextSnippets", () => {
     });
 
     expect(links.map((s) => s.source)).toEqual(["https://done.example"]);
-  });
-
-  it("returns an empty list with no providers", async () => {
-    expect(await fetchContextSnippets(query, [])).toEqual({ links: [] });
   });
 });

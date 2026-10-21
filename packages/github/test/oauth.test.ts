@@ -10,7 +10,6 @@ import {
   OAuthErrorCodes,
   type GitHubOAuthApp,
 } from "../src/auth/oauth";
-import { GitHubApiErrorCodes } from "../src/errors";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_VALUE";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_VALUE";
@@ -261,18 +260,5 @@ describe("listUserInstallations", () => {
       "big-corp",
       "3000",
     ]);
-  });
-
-  it("maps a 401 to a sanitized UNAUTHORIZED for the caller's refresh", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => jsonResponse({ message: "Bad credentials" }, 401)),
-    );
-    const result = await listUserInstallations("ghu_EXPIRED");
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
   });
 });

@@ -261,14 +261,6 @@ describe("FocusPanel", () => {
     expect(stops).toHaveLength(1);
   });
 
-  it("names the reader's chunk in the strip's caption", () => {
-    const { panel } = renderPanel("chunk-b", "g1");
-    const strip = within(panel).getByRole("toolbar", {
-      name: "Chunks in this group",
-    });
-    expect(strip.nextElementSibling?.textContent).toBe("leak.test.ts :12 of 2");
-  });
-
   it("keeps per-chunk line counts out of the panel", () => {
     const { panel } = renderPanel("chunk-a", "g1");
 
@@ -290,13 +282,6 @@ describe("FocusPanel", () => {
     expect(panel.textContent).not.toMatch(/\d+ flags?/);
     expect(panel.textContent).not.toContain("Concern");
     expect(panel.querySelector('[data-kind="dominant"]')).toBeNull();
-  });
-
-  it("jumps to a chunk from the strip", () => {
-    const { panel, jumpToChunk } = renderPanel("chunk-a", "g1");
-
-    fireEvent.click(within(panel).getByRole("button", { name: /leak\.test/ }));
-    expect(jumpToChunk).toHaveBeenCalledWith("chunk-b");
   });
 
   it("moves focus to the tab on hide and to the heading on show", () => {

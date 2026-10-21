@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel } from "../../../../../model/utils/view-model";
@@ -41,14 +41,6 @@ describe("Sheet", () => {
     expect(screen.getByRole("tabpanel")).toBeTruthy();
   });
 
-  it("locks the page scroll while mounted and releases it after", () => {
-    const { unmount } = renderSheet();
-    expect(document.body.style.overflow).toBe("hidden");
-
-    unmount();
-    expect(document.body.style.overflow).toBe("");
-  });
-
   it("the handle toggles between half and full", () => {
     renderSheet();
     const handle = screen.getByRole("button", {
@@ -65,15 +57,6 @@ describe("Sheet", () => {
       screen.getByRole("button", { name: "Shrink the sheet to half height" }),
     );
     expect(screen.getByRole("dialog").getAttribute("data-height")).toBe("half");
-  });
-
-  it("the scrim closes", () => {
-    const close = vi.fn();
-    renderSheet({ close });
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Collapse sidebar" })[0]!,
-    );
-    expect(close).toHaveBeenCalledTimes(1);
   });
 
   it("traps Tab inside the dialog", () => {

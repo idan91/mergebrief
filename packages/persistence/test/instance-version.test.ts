@@ -8,7 +8,9 @@ import {
   recordInstanceVersionWith,
   type VersionQueryExecutor,
 } from "../src/db/instance-version";
-import { freshPglite } from "./helpers";
+import { registerSharedPglite } from "./helpers";
+
+const shared = registerSharedPglite();
 
 interface CapturedLine {
   [key: string]: unknown;
@@ -42,8 +44,8 @@ function stubLogging(): Logging {
   };
 }
 
-async function makeExecutor(): Promise<VersionQueryExecutor> {
-  const client = await freshPglite();
+function makeExecutor(): VersionQueryExecutor {
+  const client = shared.client;
   return async (sql, params) =>
     (await client.query<Record<string, unknown>>(sql, [...params])).rows;
 }
@@ -55,7 +57,7 @@ async function readRow(executor: VersionQueryExecutor) {
 
 describe("recordInstanceVersion", () => {
   it("writes the running version on first boot", async () => {
-    const executor = await makeExecutor();
+    const executor = makeExecutor();
     const { log, lines } = stubLogging();
 
     await recordInstanceVersionWith(executor, "1.4.0", log);
@@ -65,7 +67,7 @@ describe("recordInstanceVersion", () => {
   });
 
   it("logs db.version.upgrade when a newer version boots", async () => {
-    const executor = await makeExecutor();
+    const executor = makeExecutor();
     const { log, lines } = stubLogging();
     await recordInstanceVersionWith(executor, "1.4.0", log);
 
@@ -83,7 +85,7 @@ describe("recordInstanceVersion", () => {
   });
 
   it("warns db.version.ahead and still records when an older version boots", async () => {
-    const executor = await makeExecutor();
+    const executor = makeExecutor();
     const { log, lines } = stubLogging();
     await recordInstanceVersionWith(executor, "1.5.0", log);
 
@@ -101,7 +103,7 @@ describe("recordInstanceVersion", () => {
   });
 
   it("stays silent when the version is unchanged", async () => {
-    const executor = await makeExecutor();
+    const executor = makeExecutor();
     const { log, lines } = stubLogging();
     await recordInstanceVersionWith(executor, "1.4.0", log);
 
@@ -111,7 +113,7 @@ describe("recordInstanceVersion", () => {
   });
 
   it("keeps a real version when a dev build boots in between", async () => {
-    const executor = await makeExecutor();
+    const executor = makeExecutor();
     const { log, lines } = stubLogging();
     await recordInstanceVersionWith(executor, "1.4.0", log);
 
@@ -133,7 +135,7 @@ describe("recordInstanceVersion", () => {
   });
 
   it("records a dev build on an empty row and over another dev build", async () => {
-    const executor = await makeExecutor();
+    const executor = makeExecutor();
     const { log, lines } = stubLogging();
 
     await recordInstanceVersionWith(executor, "dev", log);
@@ -164,7 +166,7 @@ describe("recordInstanceVersion", () => {
   });
 
   it("keeps a single row under the id check", async () => {
-    const executor = await makeExecutor();
+    const executor = makeExecutor();
     const { log } = stubLogging();
     await recordInstanceVersionWith(executor, "1.4.0", log);
 

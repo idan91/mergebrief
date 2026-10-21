@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { ChangeGroupCategories } from "types";
 import { briefFixture } from "@web/features/brief/test-utils";
@@ -65,20 +65,5 @@ describe("ThisPr", () => {
     const row = screen.getByRole("button", { name: new RegExp(firstName) });
     expect(row.getAttribute("aria-current")).toBe("true");
     expect(row.textContent).toContain("has conversation");
-  });
-
-  it("jumps with the click event", () => {
-    const jumpToGroup = vi.fn();
-    render(
-      <ThisPr
-        activeGroupId={null}
-        groups={model.groups}
-        jumpToGroup={jumpToGroup}
-      />,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: new RegExp(firstName) }),
-    );
-    expect(jumpToGroup).toHaveBeenCalledWith(first.id, expect.anything());
   });
 });

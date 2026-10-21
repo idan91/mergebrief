@@ -1,7 +1,6 @@
-// Session-read command tests over the REAL api app: passthrough byte-fidelity
-// for the four Review Session reads, each span flag's usage error firing before
-// target resolution, and 404 relays. This file owns the session seeding harness
-// the later session-write suites reuse.
+// Session-read command tests: passthrough byte-fidelity for the four Review
+// Session reads over the REAL api app, and each span flag's usage error
+// firing before any request over the offline runner.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,13 +24,10 @@ import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
+import { expectRefusedBeforeRequest, runCliOffline } from "./harness/offline";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
 
@@ -42,6 +38,7 @@ const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const PREV_HEAD_SHA = "e".repeat(40);
 const SPAN = ["--base", BASE_SHA, "--head", HEAD_SHA];
+const SPAN_QUERY = `base=${BASE_SHA}&head=${HEAD_SHA}`;
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -242,178 +239,49 @@ describe("session read commands over the real api app", () => {
     return response.bodyText;
   }
 
-  it("session --json is verbatim passthrough; TTY prints the body", async () => {
+  it("the four session reads are verbatim passthrough; TTY adds a newline", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    const wire = await referenceBody(
-      `/api/repos/${REPO_A}/pulls/7/session?base=${BASE_SHA}&head=${HEAD_SHA}`,
-    );
-    const result = await run(["session", "7", ...SPAN, "--json"]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(result.out).toBe(wire);
+    const pull = `/api/repos/${REPO_A}/pulls/7`;
+    const reads: [string[], string][] = [
+      [["session", "7", ...SPAN], `${pull}/session?${SPAN_QUERY}`],
+      [
+        ["marks", "7", "--baseline", PREV_HEAD_SHA, "--head", HEAD_SHA],
+        `${pull}/marks?baseline=${PREV_HEAD_SHA}&head=${HEAD_SHA}`,
+      ],
+      [
+        ["narrative", "7", "--prev-head", PREV_HEAD_SHA, "--head", HEAD_SHA],
+        `${pull}/narrative?prevHead=${PREV_HEAD_SHA}&head=${HEAD_SHA}`,
+      ],
+      [["context", "7", ...SPAN], `${pull}/brief-context?${SPAN_QUERY}`],
+    ];
+    for (const [argv, path] of reads) {
+      const wire = await referenceBody(path);
+      const result = await run([...argv, "--json"]);
+      expect(result.err).toEqual([]);
+      expect(result.code).toBe(ExitCodes.OK);
+      expect(result.out).toBe(wire);
+    }
 
+    const context = await run(["context", "7", ...SPAN, "--json"]);
+    expect(context.out).toContain('"repoConfig"');
     const tty = await run(["session", "7", ...SPAN]);
     expect(tty.code).toBe(ExitCodes.OK);
-    expect(tty.out).toBe(`${wire}\n`);
+    const sessionWire = await referenceBody(`${pull}/session?${SPAN_QUERY}`);
+    expect(tty.out).toBe(`${sessionWire}\n`);
   });
+});
 
-  it("session without the span exits 2 before any target resolution", async () => {
-    await login();
-    const token = await seedToken();
-    const requested: string[] = [];
-    const out: string[] = [];
-    const err: string[] = [];
-    const recordingFetch: CliDeps["fetch"] = async (input, init) => {
-      requested.push(input);
-      return appFetch(input, init);
-    };
-    const code = await runCli(["session", "7", "--json"], {
-      fetch: recordingFetch,
-      env: { MERGEBRIEF_TOKEN: token },
-      configDir,
-      cacheDir,
-      stdout: (t) => out.push(t),
-      stderr: (l) => err.push(l),
-      readStdin: async () => {
-        throw new Error("stdin not expected");
-      },
-      gitOriginUrl: () => "git@github.com:nobody/nothing.git",
-    });
-    expect(code).toBe(ExitCodes.USAGE);
-    expect(out.join("")).toBe("");
-    expect(err).toHaveLength(1);
-    expect(err[0]).toContain("--base and --head");
-    expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
-  });
-
-  it("marks --json is verbatim passthrough for a baseline and head span", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const wire = await referenceBody(
-      `/api/repos/${REPO_A}/pulls/7/marks?baseline=${PREV_HEAD_SHA}&head=${HEAD_SHA}`,
-    );
-    const result = await run([
-      "marks",
-      "7",
-      "--baseline",
-      PREV_HEAD_SHA,
-      "--head",
-      HEAD_SHA,
-      "--json",
-    ]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(result.out).toBe(wire);
-  });
-
-  it("marks without --baseline/--head exits 2 with one line", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run(["marks", "7", "--head", HEAD_SHA, "--json"]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("--baseline and --head");
-  });
-
-  it("marks for an unknown span relays the 404 as exit 4", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "marks",
-      "7",
-      "--baseline",
-      "f".repeat(40),
-      "--head",
-      HEAD_SHA,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.NOT_FOUND);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-  });
-
-  it("narrative --json is verbatim passthrough for a prevHead span", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const wire = await referenceBody(
-      `/api/repos/${REPO_A}/pulls/7/narrative?prevHead=${PREV_HEAD_SHA}&head=${HEAD_SHA}`,
-    );
-    const result = await run([
-      "narrative",
-      "7",
-      "--prev-head",
-      PREV_HEAD_SHA,
-      "--head",
-      HEAD_SHA,
-      "--json",
-    ]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(result.out).toBe(wire);
-  });
-
-  it("narrative without --prev-head/--head exits 2 with one line", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "narrative",
-      "7",
-      "--prev-head",
-      PREV_HEAD_SHA,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("--prev-head and --head");
-  });
-
-  it("context --json is verbatim passthrough of the repo-config envelope", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const wire = await referenceBody(
-      `/api/repos/${REPO_A}/pulls/7/brief-context?base=${BASE_SHA}&head=${HEAD_SHA}`,
-    );
-    const result = await run(["context", "7", ...SPAN, "--json"]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(result.out).toBe(wire);
-    expect(result.out).toContain('"repoConfig"');
-  });
-
-  it("context without the span exits 2 with one line", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run(["context", "7", "--json"]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("--base and --head");
-  });
-
-  it("an invalid PR number exits 2 on every session read", async () => {
-    await login();
-    for (const argv of [
-      ["session", "x", ...SPAN, "--json"],
-      ["marks", "x", "--baseline", PREV_HEAD_SHA, "--head", HEAD_SHA, "--json"],
-      [
-        "narrative",
-        "x",
-        "--prev-head",
-        PREV_HEAD_SHA,
-        "--head",
-        HEAD_SHA,
-        "--json",
-      ],
-      ["context", "x", ...SPAN, "--json"],
-    ]) {
-      const result = await run(argv);
-      expect(result.code).toBe(ExitCodes.USAGE);
-      expect(result.out).toBe("");
-      expect(result.err).toHaveLength(1);
-      expect(result.err[0]).toContain("PR number");
-    }
+describe("session read span refusals before any request", () => {
+  it.each([
+    [["marks", "7", "--head", HEAD_SHA], "--baseline and --head"],
+    [
+      ["narrative", "7", "--prev-head", PREV_HEAD_SHA],
+      "--prev-head and --head",
+    ],
+    [["context", "7"], "--base and --head"],
+  ])("%j exits 2 with one line naming %s", async (argv, flags) => {
+    const result = await runCliOffline([...argv, "--json"]);
+    expectRefusedBeforeRequest(result, flags);
   });
 });

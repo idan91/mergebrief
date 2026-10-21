@@ -6,7 +6,7 @@
 // already-rotated case pins the loser's observable behavior, and the live
 // interleaving is exercised against real Postgres.
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createGrantAuth,
   GrantAuthErrorCodes,
@@ -14,11 +14,13 @@ import {
   type GrantRefreshRejection,
 } from "../src/auth/grant";
 import { createSessionAuth } from "../src/auth/session";
-import { internal, type AppDatabase } from "../src/db/handle";
+import { internal } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import { isReviewerId, type ReviewerId } from "../src/types";
 import type { Result } from "types/utils";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const REVIEWER: ReviewerId = brandWith(isReviewerId, 777n);
 const FUTURE = new Date("2027-01-01T00:00:00Z");
@@ -40,13 +42,10 @@ const NEVER_CALLED = (): Promise<
 };
 
 describe("createGrantAuth.createGrant / refreshGrant", () => {
-  let handle: AppDatabase;
-  beforeEach(async () => {
-    handle = await freshDatabase();
-  });
-
   it("creates a grant row holding the sealed pair", async () => {
-    const grant = await createGrantAuth(handle).createGrant(createInput());
+    const grant = await createGrantAuth(shared.handle).createGrant(
+      createInput(),
+    );
     expect(grant.ghTokenCiphertext).toBe("v1.enc-access");
     expect(grant.ghRefreshTokenCiphertext).toBe("v1.enc-refresh");
     expect(grant.keyRef).toBe("SESSION_KEY_V1");
@@ -54,7 +53,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
   });
 
   it("applies the patch and returns the updated row when stale", async () => {
-    const auth = createGrantAuth(handle);
+    const auth = createGrantAuth(shared.handle);
     const grant = await auth.createGrant(createInput());
     const patch: GrantRefreshPatch = {
       ghTokenCiphertext: "v1.rotated-access",
@@ -79,7 +78,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     expect(result.value.refreshExpiresAt).toEqual(ROTATED_EXPIRY);
 
     // Persisted, not just returned.
-    const rows = await internal(handle)
+    const rows = await internal(shared.handle)
       .select()
       .from(githubGrant)
       .where(eq(githubGrant.id, grant.id));
@@ -88,7 +87,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
   });
 
   it("skips the callback when the pair was already rotated under the lock", async () => {
-    const auth = createGrantAuth(handle);
+    const auth = createGrantAuth(shared.handle);
     const grant = await auth.createGrant(createInput());
 
     const result = await auth.refreshGrant(
@@ -106,7 +105,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
   });
 
   it("leaves the row untouched and returns REFRESH_REJECTED on rejection", async () => {
-    const auth = createGrantAuth(handle);
+    const auth = createGrantAuth(shared.handle);
     const grant = await auth.createGrant(createInput());
     const refresh = vi.fn().mockResolvedValue({
       ok: false,
@@ -120,7 +119,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     }
     expect(result.error.code).toBe(GrantAuthErrorCodes.REFRESH_REJECTED);
 
-    const rows = await internal(handle)
+    const rows = await internal(shared.handle)
       .select()
       .from(githubGrant)
       .where(eq(githubGrant.id, grant.id));
@@ -128,7 +127,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
   });
 
   it("returns NOT_FOUND for an absent grant id", async () => {
-    const auth = createGrantAuth(handle);
+    const auth = createGrantAuth(shared.handle);
     const grant = await auth.createGrant(createInput());
     await auth.deleteIfOrphaned(grant.id);
     const result = await auth.refreshGrant(
@@ -145,13 +144,8 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
 });
 
 describe("grant lifecycle: deleteIfOrphaned", () => {
-  let handle: AppDatabase;
-  beforeEach(async () => {
-    handle = await freshDatabase();
-  });
-
   it("deletes an unreferenced grant on the login compensation path", async () => {
-    const auth = createGrantAuth(handle);
+    const auth = createGrantAuth(shared.handle);
     const grant = await auth.createGrant(createInput());
     expect(await auth.deleteIfOrphaned(grant.id)).toBe(1);
     // Idempotent: an already-gone id is a clean 0.
@@ -159,9 +153,9 @@ describe("grant lifecycle: deleteIfOrphaned", () => {
   });
 
   it("is a no-op on a grant that still has a referent", async () => {
-    const auth = createGrantAuth(handle);
+    const auth = createGrantAuth(shared.handle);
     const grant = await auth.createGrant(createInput());
-    await createSessionAuth(handle).createSession({
+    await createSessionAuth(shared.handle).createSession({
       sessionTokenHash: "a".repeat(64),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
@@ -170,7 +164,7 @@ describe("grant lifecycle: deleteIfOrphaned", () => {
     });
     expect(await auth.deleteIfOrphaned(grant.id)).toBe(0);
     // The referent still resolves with its grant.
-    const resolved = await createSessionAuth(handle).findSession(
+    const resolved = await createSessionAuth(shared.handle).findSession(
       "a".repeat(64),
     );
     expect(resolved?.grant.id).toBe(grant.id);
@@ -179,7 +173,7 @@ describe("grant lifecycle: deleteIfOrphaned", () => {
 
 describe("createGrantAuth.getGrant", () => {
   it("reads a grant by id; absence is a normal undefined", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
 

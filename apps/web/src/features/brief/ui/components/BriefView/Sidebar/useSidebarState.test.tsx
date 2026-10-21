@@ -44,9 +44,9 @@ describe("useSidebarState at narrow width", () => {
     );
     const { result } = renderHook(() => useSidebarState("narrow", true));
 
-    act(() => result.current.selectTab("this-pr"));
+    act(() => result.current.selectTab("revisions"));
 
-    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+    expect(stored()).toEqual({ expanded: true, tab: "revisions" });
   });
 
   it("crossing to narrow closes the sheet, crossing back restores the choice", () => {
@@ -155,9 +155,9 @@ describe("useSidebarState", () => {
     const { result } = renderHook(() => useSidebarState("desktop", true));
 
     act(() => result.current.expand());
-    act(() => result.current.selectTab("this-pr"));
+    act(() => result.current.selectTab("revisions"));
 
-    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+    expect(stored()).toEqual({ expanded: true, tab: "revisions" });
   });
 
   it("keeps working when storage is denied", () => {

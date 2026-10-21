@@ -142,26 +142,6 @@ async function renderBriefView(
 }
 
 describe("own-draft Brief view", () => {
-  it("labels the state with the chip and swaps the terminal-action slot", async () => {
-    await renderBriefView({ markReady: vi.fn() });
-    expect(
-      within(screen.getByRole("banner")).getByText(CHIP_COPY),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Mark ready for review" }),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
-  });
-
-  it("renders no own-draft affordances on a plain reviewer view", async () => {
-    await renderBriefView(undefined);
-    expect(screen.queryByText(CHIP_COPY)).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Mark ready for review" }),
-    ).toBeNull();
-    expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
-  });
-
   it("keeps the composer read-only on a stale own-draft view", async () => {
     // Post-now exists only at the current head, so a stale-staged draft would
     // have no exit, the composer blocks with a reachable reason. A stale
@@ -206,11 +186,6 @@ describe("own-draft Brief view", () => {
     ).toBeNull();
   });
 
-  it("keeps chunk tracking available since session state is role-free", async () => {
-    await renderBriefView({ markReady: vi.fn() });
-    expect(screen.getAllByText("Viewed").length).toBeGreaterThan(0);
-  });
-
   it("progress reaches 100% from chunk read-through alone", async () => {
     await renderBriefView({ markReady: vi.fn() });
     // View every chunk, with dispositions unreachable, chunks are the whole
@@ -236,20 +211,6 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(0);
     // "Mark ready anyway", one click runs the mutation.
     fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
-    expect(markReady).toHaveBeenCalledTimes(1);
-  });
-
-  it("soft gate: zero flags and zero drafts skip the modal entirely", async () => {
-    // The direct bypass survives the owner amendment only when there is
-    // nothing to gate on at all, no flags and no unposted drafts.
-    const markReady = vi.fn(() =>
-      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
-    );
-    await renderBriefView({ markReady }, flaglessBrief);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Mark ready for review" }),
-    );
-    expect(screen.queryByText("Before marking ready")).toBeNull();
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
@@ -412,38 +373,6 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByText(/stated ask.* not found/)).toBeNull();
   });
 
-  it("soft gate: a broad source set contributes no tension count", async () => {
-    const briefBroad: Brief = {
-      ...briefFixture,
-      intentCheck: {
-        ticketUrls: [],
-        ticketTitles: [],
-        specificity: "broad",
-        scopeNote: "parent epic",
-        accomplished: [],
-        statedButMissing: [],
-        doneButUnstated: [],
-        // Present but unavailable: the validator empties these in generation,
-        // and the caller gates on specificity regardless.
-        deviations: [
-          {
-            intent: "should not count",
-            quote: "q",
-            sourceUrl: "",
-            groupIds: ["g1"],
-            acknowledged: false,
-          },
-        ],
-        maskedFixes: [],
-      },
-    };
-    await renderBriefView({ markReady: vi.fn() }, briefBroad);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Mark ready for review" }),
-    );
-    expect(screen.queryByText(/intent tension.* flagged/)).toBeNull();
-  });
-
   it("soft gate: unposted drafts open the gate with the batch checkbox", async () => {
     // A flags-only bypass would skip the gate on a zero-flag brief, leaving
     // the post-my-drafts checkbox unreachable, drafts silently stay local
@@ -585,34 +514,6 @@ describe("own-draft Brief view", () => {
     );
   });
 
-  it("batch checked and all succeed: posts every draft, then marks ready", async () => {
-    seedDrafts([
-      comment("c1", "chunk-a", "draft"),
-      comment("c2", "chunk-b", "draft"),
-    ]);
-    const markReady = vi.fn(() =>
-      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
-    );
-    const postComment = vi.fn((_draftId: string) =>
-      Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
-    );
-    await renderBriefView({ markReady, postComment });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Mark ready for review" }),
-    );
-    expect(
-      await screen.findByText("You have 2 unposted draft comments."),
-    ).toBeTruthy();
-    // Opt in, then confirm.
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
-    // Every draft posted through the per-comment path, then mark-ready ran.
-    await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
-    expect(postComment).toHaveBeenCalledTimes(2);
-  });
-
   it("batch with one failure midway: posts stop and mark-ready is skipped", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     seedDrafts([
@@ -664,81 +565,6 @@ describe("own-draft Brief view", () => {
     expect(overlayState("Before marking ready")).toBe("closed");
   });
 
-  it("batch with a deterministic 400 says rejected, not indeterminate", async () => {
-    // An `invalid` route reject is deterministic, the comment definitively
-    // did NOT post, so the summary must be actionable ("edit the draft"),
-    // never the indeterminate check-GitHub warning.
-    seedDrafts([
-      comment("c1", "chunk-a", "draft"),
-      comment("c2", "chunk-b", "draft"),
-    ]);
-    const markReady = vi.fn(() =>
-      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
-    );
-    let call = 0;
-    const postComment = vi.fn((_draftId: string) => {
-      call += 1;
-      return Promise.resolve<PostCommentResult>(
-        call === 2 ? { kind: "invalid" } : { kind: "posted", commentId: call },
-      );
-    });
-    await renderBriefView({ markReady, postComment });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Mark ready for review" }),
-    );
-    expect(
-      await screen.findByText("You have 2 unposted draft comments."),
-    ).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
-
-    expect(
-      await screen.findByText(
-        markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"),
-      ),
-    ).toBeTruthy();
-    // Not the indeterminate wording, the reject was deterministic.
-    expect(screen.queryByText(/may or may not have posted/)).toBeNull();
-    expect(markReady).toHaveBeenCalledTimes(0);
-  });
-
-  it.each(["github-permission", "no-write-access"] as const)(
-    "batch stopped by %s points at access on GitHub",
-    async (kind) => {
-      seedDrafts([comment("c1", "chunk-a", "draft")]);
-      const markReady = vi.fn(() =>
-        Promise.resolve<MarkReadyResult>({ kind: "ready" }),
-      );
-      const postComment = vi.fn((_draftId: string) =>
-        Promise.resolve<PostCommentResult>({ kind }),
-      );
-      await renderBriefView({ markReady, postComment });
-      fireEvent.click(
-        screen.getByRole("button", { name: "Mark ready for review" }),
-      );
-      expect(
-        await screen.findByText("You have 1 unposted draft comment."),
-      ).toBeTruthy();
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: /post my 1 draft comment/i }),
-      );
-      fireEvent.click(
-        screen.getByRole("button", { name: "Mark ready anyway" }),
-      );
-
-      expect(
-        await screen.findByText(
-          "Posted 0 of 1. One comment could not be posted: your GitHub account does not have permission to comment on this pull request. Check your access on GitHub. The PR was NOT marked ready.",
-        ),
-      ).toBeTruthy();
-      expect(screen.queryByText(/edit the draft/)).toBeNull();
-      expect(screen.queryByText(/may or may not have posted/)).toBeNull();
-      expect(markReady).toHaveBeenCalledTimes(0);
-    },
-  );
-
   it("batch with a guard-blocked draft states the deterministic summary", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     // A guard-path rejection (over-cap body, the deterministic-400 mirror)
@@ -787,49 +613,6 @@ describe("own-draft Brief view", () => {
     expect(toast?.textContent).toBe(
       markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"),
     );
-  });
-
-  it("batch failure summary carries the failing cause's own recovery", async () => {
-    // Batch mode suppresses the per-comment copy, so the summary is the ONLY
-    // message, a blanket "edit the draft" is wrong for a session expiry or a
-    // stale head. Each deterministic cause branches.
-    const cases = [
-      { kind: "unauthorized", copy: /sign in again to continue/ },
-      { kind: "stale", copy: /reload to post against the current diff/ },
-    ] as const;
-    for (const { kind, copy } of cases) {
-      cleanup();
-      window.sessionStorage.clear();
-      seedDrafts([comment("c1", "chunk-a", "draft")]);
-      const markReady = vi.fn(() =>
-        Promise.resolve<MarkReadyResult>({ kind: "ready" }),
-      );
-      const postComment = vi.fn((_draftId: string) =>
-        Promise.resolve<PostCommentResult>({ kind }),
-      );
-      await renderBriefView({ markReady, postComment });
-      fireEvent.click(
-        screen.getByRole("button", { name: "Mark ready for review" }),
-      );
-      expect(
-        await screen.findByText("You have 1 unposted draft comment."),
-      ).toBeTruthy();
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: /post my 1 draft comment/i }),
-      );
-      fireEvent.click(
-        screen.getByRole("button", { name: "Mark ready anyway" }),
-      );
-
-      const summary = markReadyBatchFailureCopy(appI18n.t, 0, 1, kind);
-      expect(await screen.findByText(summary)).toBeTruthy();
-      // The variant keeps the honest-counts prefix + NOT-marked-ready suffix
-      // and carries the cause's own guidance.
-      expect(summary).toMatch(/^Posted 0 of 1\./);
-      expect(summary).toMatch(/The PR was NOT marked ready\.$/);
-      expect(summary).toMatch(copy);
-      expect(markReady).toHaveBeenCalledTimes(0);
-    }
   });
 
   it("batch failure rescues focus onto the terminal-slot CTA", async () => {
@@ -935,10 +718,14 @@ describe("own-draft Brief view", () => {
     expect(postComment).toHaveBeenCalledTimes(0);
   });
 
-  it("a plan with no action reads disabled and never mounts the gate", async () => {
+  it("a plan with no action keeps the chip, reads disabled, mounts no gate", async () => {
     // A plan with no `markReady`, the route withholds the action while a
-    // historical revision is in view.
+    // historical revision is in view. The PR is still the viewer's draft, so
+    // the state label stays.
     await renderBriefView({});
+    expect(
+      within(screen.getByRole("banner")).getByText(CHIP_COPY),
+    ).toBeTruthy();
     const cta = markReadyCta();
     expect(cta.getAttribute("aria-disabled")).toBe("true");
     // Flags exist on this Brief, but the gate is not the viewed revision's

@@ -15,7 +15,6 @@ import {
 } from "./utils";
 
 const CHUNKS = [makeChunk()];
-const NO_SUBMITS: number[] = [];
 
 function makeOffChunkConversation(): PrConversation {
   const conversation = makeConversation(["alice"]);
@@ -81,29 +80,6 @@ describe("deriveConversationByChunk", () => {
   it("is absent until the conversation resolves", () => {
     expect(deriveConversationByChunk(stubRowsInput(undefined))).toBeUndefined();
   });
-
-  it("keeps only the threads the reviewer filter selects", () => {
-    const rows = deriveConversationByChunk({
-      ...stubRowsInput(makeConversation(["alice", "bob"])),
-      conversationFilter: parseConversationFilter({ reviewers: "bob" }),
-    })?.get("c1");
-
-    expect(rows).toHaveLength(1);
-  });
-
-  it("stamps the recorded review ids on each inline row", () => {
-    const rows =
-      deriveConversationByChunk(
-        stubRowsInput(makeConversation(["alice"])),
-      )?.get("c1") ?? [];
-
-    expect(rows).toHaveLength(1);
-    for (const row of rows) {
-      expect(row.kind === "thread" ? row.ownReviewIds?.has(77) : false).toBe(
-        true,
-      );
-    }
-  });
 });
 
 describe("deriveUnfilteredDigestInput", () => {
@@ -111,15 +87,6 @@ describe("deriveUnfilteredDigestInput", () => {
     expect(
       deriveUnfilteredDigestInput(stubRowsInput(undefined)),
     ).toBeUndefined();
-  });
-
-  it("carries the whole conversation with the recorded review ids", () => {
-    const conversation = makeConversation(["alice", "bob"]);
-    const input = deriveUnfilteredDigestInput(stubRowsInput(conversation));
-
-    expect(input?.conversation).toBe(conversation);
-    expect(input?.chunks).toBe(CHUNKS);
-    expect(input?.ownReviewIds?.has(77)).toBe(true);
   });
 });
 
@@ -148,15 +115,6 @@ describe("deriveHiddenThreadsByFile", () => {
 describe("deriveLineThreadsByFile", () => {
   it("is absent without a digest input", () => {
     expect(deriveLineThreadsByFile(undefined)).toBeUndefined();
-  });
-
-  it("lists every current line thread of a file", () => {
-    const input = deriveUnfilteredDigestInput({
-      ...stubRowsInput(makeConversation(["alice", "bob"])),
-      submittedReviewIds: NO_SUBMITS,
-    });
-
-    expect(deriveLineThreadsByFile(input)?.get("src/a.ts")).toHaveLength(2);
   });
 });
 

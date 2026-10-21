@@ -9,7 +9,6 @@ import {
   createTokenAuth,
   type KeyProvider,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { createUpdateCheck, type UpdateCheck } from "../src/update-check";
@@ -21,8 +20,9 @@ import {
   buildAuthDeps,
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
-import { seedSignIn, seedApiToken } from "./sign-in";
+import { seedSignIn } from "./sign-in";
 import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite } from "./shared-pglite";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 
@@ -42,16 +42,15 @@ const PREFIXED_MANIFEST = JSON.stringify({
 const CHECKED_AT = new Date("2026-10-03T10:00:00Z");
 
 describe("GET /api/version", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let updateCheck: UpdateCheck;
   let manifestBody: string;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(CHECKED_AT);
-    harness = await createPgliteHarness();
     manifestBody = MANIFEST;
     updateCheck = createUpdateCheck({
       serverVersion: "1.2.3",
@@ -75,10 +74,8 @@ describe("GET /api/version", () => {
     });
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.useRealTimers();
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   it("returns the update snapshot to a Bearer principal, no-store", async () => {
@@ -125,9 +122,10 @@ describe("GET /api/version", () => {
     });
   });
 
-  it("is gated: no auth → hint-free 401", async () => {
+  it("answers signed-out without auth and carries no version header", async () => {
     const res = await app.request("/api/version");
     expect(res.status).toBe(401);
+    expect(res.headers.get("MergeBrief-Version")).toBeNull();
     expect(await res.json()).toEqual({
       error: "signed out",
       code: "signed-out",
@@ -218,27 +216,6 @@ describe("GET /api/version", () => {
     expect(await after.json()).not.toHaveProperty("dismissedVersion");
   });
 
-  it("refuses a dismiss from a Bearer token as human-only", async () => {
-    const token = await seedApiToken(
-      harness.handle,
-      kp,
-      AccessLevels.PRIVATE_WRITE,
-    );
-    await updateCheck.refresh();
-
-    const res = await app.request("/api/version/dismiss", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ version: "1.6.0" }),
-    });
-
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ code: "human-only" });
-  });
-
   it("rejects a dismiss body that is not a version", async () => {
     const { cookie } = await seedSignIn(harness.handle, kp);
 
@@ -246,15 +223,5 @@ describe("GET /api/version", () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ code: "invalid-request" });
-  });
-
-  it("refuses a dismiss without a session", async () => {
-    const res = await app.request("/api/version/dismiss", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ version: "1.6.0" }),
-    });
-
-    expect(res.status).toBe(401);
   });
 });

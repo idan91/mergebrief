@@ -9,11 +9,7 @@ import {
 } from "../consts";
 import { type FrontMatter, FrontMatterSchema } from "../schemas";
 import type { NotesError, ReleaseNotes, ReleaseVersion } from "../types";
-import {
-  compareReleaseVersions,
-  parseReleaseVersion,
-  resolveChannel,
-} from "./version";
+import { compareReleaseVersions, parseReleaseVersion } from "./version";
 
 const FILENAME_REASON = `filename is not <X.Y.Z>${NOTES_EXTENSION} or <X.Y.Z-rc.N>${NOTES_EXTENSION}`;
 const FENCE_REASON = `front matter must open with ${FRONT_MATTER_FENCE} on the first line and close with ${FRONT_MATTER_FENCE}`;
@@ -92,7 +88,6 @@ export function parseReleaseNotes(
     ok: true,
     value: {
       version,
-      channel: resolveChannel(version),
       date: frontMatter.date,
       breaking: frontMatter.breaking,
       security: frontMatter.security,

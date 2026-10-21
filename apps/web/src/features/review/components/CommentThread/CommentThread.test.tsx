@@ -83,12 +83,6 @@ function renderThread(status: ReviewComment["status"]) {
 }
 
 describe("CommentThread", () => {
-  it("offers Edit and Delete on a draft", () => {
-    renderThread(DraftCommentStatuses.DRAFT);
-    expect(screen.getByRole("button", { name: "Edit" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "Delete" })).toBeDefined();
-  });
-
   it("moves focus into the editor when Edit opens it", () => {
     renderThread(DraftCommentStatuses.DRAFT);
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
@@ -218,13 +212,6 @@ describe("CommentThread", () => {
     expect(screen.getByText(/posted to GitHub/i)).toBeDefined();
   });
 
-  // The Post affordance exists ONLY when the own-draft route injected the
-  // `post` action. Its absence keeps the reviewer state untouched.
-  it("shows no Post button when the post action is absent", () => {
-    renderThread(DraftCommentStatuses.DRAFT);
-    expect(screen.queryByRole("button", { name: "Post" })).toBeNull();
-  });
-
   it("offers Post on a draft when the post action is injected, and calls it", () => {
     const post = vi.fn();
     const draft = comment(DraftCommentStatuses.DRAFT);
@@ -240,32 +227,6 @@ describe("CommentThread", () => {
     const button = screen.getByRole("button", { name: "Post" });
     button.click();
     expect(post).toHaveBeenCalledWith(draft);
-  });
-
-  it("renders Post as the accent CTA anchored in the draft card footer", () => {
-    // Asserted via the footer container + data attribute, never hashed
-    // class names.
-    const post = vi.fn();
-    render(
-      <CommentThread
-        comment={comment(DraftCommentStatuses.DRAFT)}
-        deleteComment={vi.fn()}
-        post={post}
-        toggle={vi.fn()}
-        update={vi.fn()}
-      />,
-    );
-    const button = screen.getByRole("button", { name: "Post" });
-    // Primary-styled and tagged as the post CTA.
-    expect(button.getAttribute("data-variant")).toBe("accent");
-    expect(button.hasAttribute("data-post-cta")).toBe(true);
-    // Lives inside the thread footer (the CTA slot), not loose in the DOM.
-    const footer = button.closest("[data-thread-footer]");
-    expect(footer).not.toBeNull();
-    // The secondary text actions (Edit/Collapse/Delete) share that footer.
-    expect(footer?.contains(screen.getByRole("button", { name: "Edit" }))).toBe(
-      true,
-    );
   });
 
   it("disables Post/Edit/Delete with a pending label while posting", () => {

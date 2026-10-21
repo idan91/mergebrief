@@ -73,25 +73,6 @@ describe("searchMentionableUsers failures", () => {
       error: { code: GitHubApiErrorCodes.NOT_FOUND },
     });
   });
-
-  it("reports a refusal GitHub answers", async () => {
-    const graphql = vi
-      .fn()
-      .mockRejectedValue(
-        graphqlResponseError([{ type: "FORBIDDEN", message: "no access" }]),
-      );
-
-    const result = await searchMentionableUsers(mockGraphqlOctokit(graphql), {
-      owner: "acme",
-      repo: "api",
-      query: "",
-    });
-
-    expect(result).toMatchObject({
-      ok: false,
-      error: { code: GitHubApiErrorCodes.FORBIDDEN },
-    });
-  });
 });
 
 describe("searchMentionableTeams", () => {

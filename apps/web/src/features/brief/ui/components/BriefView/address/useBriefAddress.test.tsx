@@ -33,14 +33,6 @@ function readSoleNavigation(
 }
 
 describe("useBriefAddress", () => {
-  it("hands the link param through as the URL carries it", () => {
-    const { result } = renderHook(() =>
-      useBriefAddress({ l: "c1.R4" }, stubNavigate()),
-    );
-
-    expect(result.current.link).toBe("c1.R4");
-  });
-
   it("replaces the link and keeps the scroll and every other param", () => {
     const navigate = stubNavigate();
     const { result } = renderHook(() => useBriefAddress(PREVIOUS, navigate));

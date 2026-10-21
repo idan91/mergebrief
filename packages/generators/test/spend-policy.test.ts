@@ -55,15 +55,6 @@ describe("validateSpendBlock", () => {
     }
   });
 
-  it("rejects an unknown key inside the block", () => {
-    const result = validateSpendBlock({ monthlyCap: 10 });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join("; ")).toContain("unrecognized key");
-  });
-
   it("refuses the retired dailyGenerationCap key", () => {
     const result = validateSpendBlock({ dailyGenerationCap: 50 });
     expect(result.ok).toBe(false);

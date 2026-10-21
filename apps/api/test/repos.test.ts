@@ -13,8 +13,7 @@ import {
   type TenantContext,
 } from "persistence";
 import { PrStates, AccessLevels } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { INSTALLATION_ID, SECRET, createKeyProvider } from "./fixtures";
@@ -24,6 +23,7 @@ import {
   stubNoNetwork,
 } from "./reviewer-github";
 import { seedSignIn, seedApiToken } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_A = 42001;
 const REPO_B = 42002;
@@ -65,13 +65,12 @@ function countWalks(fake: FakeGitHub): number {
 }
 
 describe("GET /api/repos", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     stubNoNetwork();
@@ -82,11 +81,6 @@ describe("GET /api/repos", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function getRepos(headers: Record<string, string>): Promise<Response> {

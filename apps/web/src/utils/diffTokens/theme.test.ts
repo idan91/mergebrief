@@ -66,18 +66,10 @@ beforeAll(async () => {
 });
 
 describe("mergebrief dark theme", () => {
-  it("carries our own name", () => {
-    expect(MERGEBRIEF_DARK.name).toBe(MERGEBRIEF_THEME_NAME);
-  });
-
   it("resolves every foreground it can emit to a palette class", () => {
     for (const hex of listThemeForegrounds(MERGEBRIEF_DARK)) {
       expect(SYNTAX_PALETTE[resolveClassId(hex)]?.hex).toBe(hex);
     }
-  });
-
-  it("drops the github-dark comment grey the palette replaced", () => {
-    expect(listThemeForegrounds(MERGEBRIEF_DARK)).not.toContain("#6a737d");
   });
 
   it("colours a comment with the AA-corrected grey", () => {

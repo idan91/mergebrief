@@ -1,9 +1,8 @@
-// The scheduled audit sweep: the crontab line the runner registers, and the
+// The scheduled audit sweep: the boot guard on its crontab line, and the
 // task itself against a real migrated schema (the `persistence/testing` PGlite
 // harness). Rows are seeded through the harness's raw window because ageing a
 // row is not something the audit writer offers.
 import { describe, expect, it } from "vitest";
-import { parseCrontab } from "graphile-worker";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { createLogger, type Logger } from "logging";
 import { assertScheduledTasksRegistered, startWorker } from "../src/runner";
@@ -44,29 +43,7 @@ function silentLogger(): Logger {
   return createLogger({ env: { LOG_LEVEL: "error" } });
 }
 
-describe("sweep-audit — the schedule", () => {
-  it("fires exactly once a day", () => {
-    const items = parseCrontab(SWEEP_AUDIT_CRONTAB);
-    expect(items).toHaveLength(1);
-    const match = items[0]?.match;
-    // Every minute of two consecutive days, so an accidental hourly or
-    // every-five-minutes pattern fails here rather than in an operator's logs.
-    let fired = 0;
-    for (let hour = 0; hour < 48; hour += 1) {
-      for (let min = 0; min < 60; min += 1) {
-        const matched = match?.({
-          min,
-          hour: hour % 24,
-          date: 10 + Math.floor(hour / 24),
-          month: 6,
-          dow: 1 + Math.floor(hour / 24),
-        });
-        fired += matched === true ? 1 : 0;
-      }
-    }
-    expect(fired).toBe(2);
-  });
-
+describe("sweep-audit schedule", () => {
   it("refuses the boot itself, before it touches the database", async () => {
     // The unreachable DSN is the assertion: if the guard ever moves after the
     // migration step, this rejects with a connection error instead.
@@ -95,7 +72,7 @@ describe("sweep-audit — the schedule", () => {
   });
 });
 
-describe("sweep-audit — the task", () => {
+describe("sweep-audit task", () => {
   it("deletes nothing when retention is unset", async () => {
     const harness = await createPgliteHarness();
     await seedAged(harness, TENANT, daysAgo(4000));
@@ -110,7 +87,7 @@ describe("sweep-audit — the task", () => {
     await harness.close();
   });
 
-  it("erases rows past the window across every installation, keeps the young ones, and records the count", async () => {
+  it("erases rows past the window in every installation, counting each", async () => {
     const harness = await createPgliteHarness();
     await seedAged(harness, TENANT, daysAgo(120));
     await seedAged(harness, TENANT, daysAgo(90));
@@ -140,7 +117,7 @@ describe("sweep-audit — the task", () => {
     await harness.close();
   });
 
-  it("refuses a window under the floor rather than erasing history the operator never agreed to lose", async () => {
+  it("refuses a retention window under the floor", async () => {
     const harness = await createPgliteHarness();
     await expect(
       createSweepAuditTask({

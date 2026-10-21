@@ -53,23 +53,6 @@ function passesOf(brief: Brief, ids: readonly string[]) {
 }
 
 describe("the repo-policy case", () => {
-  it("loads with its fixture's repo context attached", async () => {
-    const found = await properties();
-    expect(
-      found.fixture.repoContext?.customAttributes.map((a) => a.name),
-    ).toEqual(["prop-surface", "style-token-drift"]);
-    expect(found.fixture.repoContext?.instructions?.path).toBe(
-      ".mergebrief/instructions.md",
-    );
-    expect(found.properties.map((property) => property.id)).toEqual([
-      "scoped-file-is-chunked",
-      "repo-attribute-reaches-the-brief",
-      "second-repo-attribute-also-reaches",
-      "repo-attribute-stays-inside-its-globs",
-      "no-invented-attribute-names",
-    ]);
-  });
-
   it("passes a brief that injects the attribute inside its globs", async () => {
     const brief = briefWith([
       chunk(TYPES_FILE, ["prop-surface"]),

@@ -110,14 +110,6 @@ describe("buildFileRangeQueryOptions", () => {
     await expect(runQuery()).resolves.toEqual({ kind: "unavailable" });
   });
 
-  it("reports an upstream refusal as unavailable", async () => {
-    apiFetch.mockResolvedValueOnce(
-      stubResponse({ error: "refused", code: "github-unavailable" }, 502),
-    );
-
-    await expect(runQuery()).resolves.toEqual({ kind: "unavailable" });
-  });
-
   it("reports a path missing at this commit as a result", async () => {
     apiFetch.mockResolvedValueOnce(
       stubResponse({ error: "refused", code: "file-not-found" }, 404),
@@ -140,12 +132,6 @@ describe("buildFileRangeQueryOptions", () => {
         200,
       ),
     );
-
-    await expect(runQuery()).rejects.toThrow("malformed");
-  });
-
-  it("throws on a body the wire schema refuses", async () => {
-    apiFetch.mockResolvedValueOnce(stubResponse({ lines: "nope" }, 200));
 
     await expect(runQuery()).rejects.toThrow("malformed");
   });

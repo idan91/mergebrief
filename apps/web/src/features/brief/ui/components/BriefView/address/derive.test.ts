@@ -286,25 +286,6 @@ describe("deriveAddress", () => {
     expect(outcome.writtenLink).toBeUndefined();
   });
 
-  it("Line link lands", () => {
-    const landed = deriveAddress(
-      makeState({
-        lineSelection: SELECTION,
-        url: { link: SELECTION_LINK, focus: false },
-      }),
-    );
-    const cleared = deriveAddress(
-      makeState({
-        url: { link: SELECTION_LINK, focus: false },
-        writtenLink: landed.writtenLink,
-      }),
-    );
-
-    expect(landed.address.link).toBe(SELECTION_LINK);
-    expect(landed.writtenLink).toBe(SELECTION_LINK);
-    expect(cleared.address.link).toBeUndefined();
-  });
-
   it("rewrites a landed line link in its canonical spelling", () => {
     const outcome = deriveAddress(
       makeState({
@@ -315,15 +296,6 @@ describe("deriveAddress", () => {
 
     expect(outcome.address.link).toBe("c1.R10");
     expect(outcome.writtenLink).toBe("c1.R10");
-  });
-
-  it("Brief switches", () => {
-    const arrived = deriveAddress(
-      makeState({ url: { link: SELECTION_LINK, focus: false } }),
-    );
-
-    expect(arrived.address.link).toBe(SELECTION_LINK);
-    expect(arrived.writtenLink).toBeUndefined();
   });
 
   it("neither writes nor adopts an unparseable URL link", () => {

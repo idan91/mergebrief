@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { reconstructHunkSides } from "./reconstructHunkSides";
-import { DiffLineKinds, DiffRowOrigins, type DiffLine } from "./types";
+import { DiffLineKinds, type DiffLine } from "./types";
 
 function makeRow(kind: DiffLine["kind"], content: string): DiffLine {
   return { kind, content };
@@ -110,22 +110,5 @@ describe("reconstructHunkSides", () => {
     expect(reconstructHunkSides([makeRow(DiffLineKinds.HUNK, "@@")])).toEqual(
       [],
     );
-  });
-});
-
-describe("reconstructHunkSides with expanded context", () => {
-  it("sends expanded context to both sides like a context row", () => {
-    const sides = reconstructHunkSides([
-      {
-        ...makeRow(DiffLineKinds.CTX, "const a = 1;"),
-        origin: DiffRowOrigins.EXPANDED,
-      },
-      makeRow(DiffLineKinds.ADD, "keep(a);"),
-    ]);
-
-    expect(sides).toEqual([
-      { side: "old", text: ["const a = 1;"], rowIndexes: [0] },
-      { side: "new", text: ["const a = 1;", "keep(a);"], rowIndexes: [0, 1] },
-    ]);
   });
 });

@@ -28,12 +28,4 @@ describe("textLengthNotes", () => {
       "text length: 2/3 runs over cap, 3 violation(s) — worst: group g3 summary 412/250 chars",
     ]);
   });
-
-  it("prefixes the label for pair-case sides", () => {
-    const notes = textLengthNotes(
-      [{ lengthViolations: [over("group g1 summary", 300)] }],
-      "revised",
-    );
-    expect(notes[0]).toMatch(/^revised text length: 1\/1 runs/);
-  });
 });

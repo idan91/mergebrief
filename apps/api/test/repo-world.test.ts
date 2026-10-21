@@ -11,7 +11,6 @@ import {
   type KeyProvider,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { AUTHZ_CACHE_TTL_MS } from "../src/access/consts";
@@ -38,6 +37,7 @@ import {
   type GateGitHub,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_ID = 424242;
 
@@ -65,20 +65,15 @@ async function seedPullRequest(
   });
 }
 
+const harness = registerSharedPglite();
+
 describe("the per-repo gate's repo world", () => {
-  let harness: PgliteHarness;
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function buildApp(): ApiApp {
@@ -256,20 +251,16 @@ function arrangeTwoInstallations(
 }
 
 describe("the per-repo gate across two installations", () => {
-  let harness: PgliteHarness;
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.useRealTimers();
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function buildApp(): ApiApp {

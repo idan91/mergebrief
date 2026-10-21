@@ -41,18 +41,6 @@ describe("buildComparisonMarks", () => {
     });
   });
 
-  it("supports a checkpoint baseline label with a null baseline index", () => {
-    const marks = buildComparisonMarks(
-      "head123",
-      "checkpoint000",
-      "checkpoint",
-      null,
-      sample,
-    );
-    expect(marks.baselineLabel).toBe("checkpoint");
-    expect(marks.baselineIndex).toBeNull();
-  });
-
   it("accepts already-split per-file patches with the same marks as raw", () => {
     const fromString = buildComparisonMarks(
       "head123",

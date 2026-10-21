@@ -1,7 +1,6 @@
-// Repos command + cache tests over the REAL api app behind the injected
-// fetch, plus CONTROLLED bodies for the trigger table. Includes the
-// stream/exit invariant pin (exit ≠ 0 ⇒ empty stdout, ONE stderr line), the
-// revoked-token arm drives the repos command.
+// Repos command + cache tests: the no-TTL disk cache over the REAL api app
+// behind the injected fetch, and the self-healing trigger table over
+// CONTROLLED bodies.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,12 +18,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { resolveRepoId, type RepoCacheDeps } from "../src/profile/repos";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
 import { AccessLevels } from "types/access-levels";
@@ -199,88 +194,71 @@ describe("mergebrief repos command + cache", () => {
     );
     expect(apiRepoHits).toBe(2);
   });
+});
 
-  it("a revoked token exits 3 with empty stdout and one stderr line", async () => {
-    stubGitHub(world, () => []);
-    const token = await seedToken();
-    await login(token);
-    const rows = await harness.raw(
-      "update api_token set revoked_at = now() returning id",
-    );
-    expect(rows).toHaveLength(1);
+describe("resolveRepoId self-healing triggers", () => {
+  // The triggers are CLI-side logic, so drive them with a CONTROLLED
+  // /api/repos fetch and an exact server body each time. Against the real app
+  // the server's own 60s allowed-set cache masks a rename within its TTL, and
+  // that boundary belongs to the api suite.
+  function makeControlledCache(
+    bodies: () => { repos: { repoId: string; fullName: string }[] },
+  ): {
+    d: RepoCacheDeps;
+    hits: () => number;
+  } {
+    let count = 0;
+    const fetchStub: CliDeps["fetch"] = async () => {
+      count += 1;
+      return jsonResponse(bodies());
+    };
+    return {
+      d: {
+        client: createApiClient({
+          fetch: fetchStub,
+          baseUrl: BASE_URL,
+          token: "mergebrief_x",
+        }),
+        cacheDir: mkdtempSync(join(tmpdir(), "mb-cache-")),
+        profileName: "default",
+      },
+      hits: () => count,
+    };
+  }
 
-    const { deps: d, io } = deps();
-    const code = await runCli(["repos", "--refresh", "--json"], d);
-    expect(code).toBe(ExitCodes.AUTH);
-    expect(io.out).toEqual([]);
-    expect(io.err).toHaveLength(1);
-    expect(io.err[0]).toContain("401");
+  it("cache miss → refresh once → resolve; a hit is disk-only", async () => {
+    const { d, hits } = makeControlledCache(() => ({
+      repos: [{ repoId: String(REPO_A), fullName: "octo/hello" }],
+    }));
+    expect(await resolveRepoId(d, "octo/hello")).toBe(String(REPO_A));
+    expect(hits()).toBe(1);
+    expect(await resolveRepoId(d, "octo/hello")).toBe(String(REPO_A));
+    expect(hits()).toBe(1);
   });
 
-  describe("resolveRepoId self-healing triggers", () => {
-    // The triggers are CLI-side logic, so drive them with a CONTROLLED
-    // /api/repos fetch and an exact server body each time. Against the real app
-    // the server's own 60s allowed-set cache masks a rename within its TTL, and
-    // that boundary belongs to the api suite.
-    function controlled(
-      bodies: () => { repos: { repoId: string; fullName: string }[] },
-    ): {
-      d: RepoCacheDeps;
-      hits: () => number;
-    } {
-      let count = 0;
-      const fetchStub: CliDeps["fetch"] = async () => {
-        count += 1;
-        return jsonResponse(bodies());
-      };
-      return {
-        d: {
-          client: createApiClient({
-            fetch: fetchStub,
-            baseUrl: BASE_URL,
-            token: "mergebrief_x",
-          }),
-          cacheDir,
-          profileName: "default",
+  it("a renamed slug refreshes once and self-heals", async () => {
+    let renamed = false;
+    const { d, hits } = makeControlledCache(() => ({
+      repos: [
+        {
+          repoId: String(REPO_A),
+          fullName: renamed ? "octo/renamed" : "octo/hello",
         },
-        hits: () => count,
-      };
-    }
+      ],
+    }));
+    expect(await resolveRepoId(d, "octo/hello")).toBe(String(REPO_A));
+    renamed = true;
+    expect(await resolveRepoId(d, "octo/renamed")).toBe(String(REPO_A));
+    expect(hits()).toBe(2);
+  });
 
-    it("cache miss → refresh once → resolve; a hit is disk-only", async () => {
-      const { d, hits } = controlled(() => ({
-        repos: [{ repoId: String(REPO_A), fullName: "octo/hello" }],
-      }));
-      expect(await resolveRepoId(d, "octo/hello")).toBe(String(REPO_A));
-      expect(hits()).toBe(1);
-      expect(await resolveRepoId(d, "octo/hello")).toBe(String(REPO_A));
-      expect(hits()).toBe(1);
-    });
-
-    it("a renamed slug refreshes once and self-heals", async () => {
-      let renamed = false;
-      const { d, hits } = controlled(() => ({
-        repos: [
-          {
-            repoId: String(REPO_A),
-            fullName: renamed ? "octo/renamed" : "octo/hello",
-          },
-        ],
-      }));
-      expect(await resolveRepoId(d, "octo/hello")).toBe(String(REPO_A));
-      renamed = true;
-      expect(await resolveRepoId(d, "octo/renamed")).toBe(String(REPO_A));
-      expect(hits()).toBe(2);
-    });
-
-    it("not-found AFTER refresh is the distinct exit naming the profile", async () => {
-      const { d } = controlled(() => ({
-        repos: [{ repoId: String(REPO_A), fullName: "octo/hello" }],
-      }));
-      await expect(resolveRepoId(d, "octo/gone")).rejects.toMatchObject({
-        code: ExitCodes.NOT_FOUND,
-        message: expect.stringContaining('profile "default"'),
-      });
+  it("not-found AFTER refresh is the distinct exit naming the profile", async () => {
+    const { d } = makeControlledCache(() => ({
+      repos: [{ repoId: String(REPO_A), fullName: "octo/hello" }],
+    }));
+    await expect(resolveRepoId(d, "octo/gone")).rejects.toMatchObject({
+      code: ExitCodes.NOT_FOUND,
+      message: expect.stringContaining('profile "default"'),
     });
   });
 });

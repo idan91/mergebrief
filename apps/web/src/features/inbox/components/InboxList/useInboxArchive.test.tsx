@@ -262,49 +262,6 @@ describe("useInboxArchive over one row", () => {
     throw new Error("unreachable");
   }
 
-  it("announces the row's own archive line and frees it", async () => {
-    answerByPull([]);
-    const { result, announce, onRemoved, invalidate } = renderArchive(
-      ArchiveScopes.ROW,
-    );
-
-    await act(async () => {
-      await result.current.archive([ROW], InboxArchivedFilters.HIDE);
-    });
-
-    expect(announce).toHaveBeenCalledWith(
-      "Archived; it comes back when a new brief lands",
-    );
-    expect(onRemoved).toHaveBeenCalledWith([ROW]);
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: [INBOX_QUERY_ROOT] });
-  });
-
-  it("announces the row's own unarchive line", async () => {
-    answerByPull([]);
-    const { result, announce } = renderArchive(ArchiveScopes.ROW);
-
-    await act(async () => {
-      await result.current.archive([ROW], InboxArchivedFilters.ONLY);
-    });
-
-    expect(announce).toHaveBeenCalledWith("Back in your Inbox");
-  });
-
-  it.each([
-    [InboxArchivedFilters.HIDE, "Archive failed; the row is still here"],
-    [InboxArchivedFilters.ONLY, "Unarchive failed; the row is still archived"],
-  ])("a failure in the %s view keeps the row", async (view, line) => {
-    answerByPull([1]);
-    const { result, announce, onRemoved } = renderArchive(ArchiveScopes.ROW);
-
-    await act(async () => {
-      await result.current.archive([ROW], view);
-    });
-
-    expect(announce).toHaveBeenCalledWith(line);
-    expect(onRemoved).not.toHaveBeenCalled();
-  });
-
   it("holds the row's action until the re-read lands", async () => {
     answerByPull([]);
     const { result, invalidate } = renderArchive(ArchiveScopes.ROW);

@@ -67,11 +67,6 @@ describe("NarrowBar", () => {
     expect(jumpToGroup).toHaveBeenLastCalledWith(first.id);
   });
 
-  it("lines are not tap targets", () => {
-    renderBar();
-    expect(screen.getAllByRole("button")).toHaveLength(5);
-  });
-
   it("wires the chevron, scroll-to-top and shortcuts", () => {
     const toggle = vi.fn();
     const scrollToTop = vi.fn();

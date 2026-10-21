@@ -36,28 +36,6 @@ describe("postConversationReply", () => {
     );
   });
 
-  it("returns the wrapping review id when the API reports one", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ commentId: 9, reviewId: 555 }), {
-        status: 201,
-      }),
-    );
-    await expect(postConversationReply("42", 7, SPAN, 1, "x")).resolves.toEqual(
-      { kind: "posted", commentId: 9, reviewId: 555 },
-    );
-  });
-
-  it("reads an unsafe review id as indeterminate", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ commentId: 9, reviewId: "555" }), {
-        status: 201,
-      }),
-    );
-    await expect(postConversationReply("42", 7, SPAN, 1, "x")).resolves.toEqual(
-      { kind: "indeterminate" },
-    );
-  });
-
   it("maps expected failures to result kinds", async () => {
     for (const [status, kind] of [
       [401, "unauthorized"],

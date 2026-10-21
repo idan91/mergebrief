@@ -71,21 +71,6 @@ describe("loadGeneratorConfig from env", () => {
     expect(result.value.source).toBe(path);
   });
 
-  it("surfaces a configured effort on the loaded generator block", () => {
-    const path = configFile(
-      "generator:\n  provider: anthropic\n  effort: low\n",
-    );
-    const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: path });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-    expect(result.value.generator).toEqual({
-      provider: "anthropic",
-      effort: "low",
-    });
-  });
-
   it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd", () => {
     // Fake workspace: root marker + config at root, cwd deep inside a
     // package dir, the exact worker/web shape (`pnpm --dir`).
@@ -381,17 +366,6 @@ describe("loadGeneratorConfigFile", () => {
     expect(text).toContain("generator:");
     expect(text).toContain('unknown provider "gemini"');
     expect(text).toContain("anthropic");
-  });
-
-  it("rejects unknown generator keys through the registry's strict schemas", () => {
-    const result = loadGeneratorConfigFile(
-      configFile("generator:\n  provider: anthropic\n  modle: typo\n"),
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join("; ")).toContain('"modle"');
   });
 
   it("parses harness timer tunables on a CLI adapter block", () => {

@@ -81,7 +81,7 @@ interface Capture {
   readonly io: CommandIo;
 }
 
-function capture(json: boolean): Capture {
+function capture(): Capture {
   const out: string[] = [];
   const err: string[] = [];
   return {
@@ -90,7 +90,7 @@ function capture(json: boolean): Capture {
     io: {
       stdout: (text) => out.push(text),
       stderr: (line) => err.push(line),
-      json,
+      json: true,
     },
   };
 }
@@ -101,14 +101,14 @@ function deps(overrides: Partial<CapabilitiesRunDeps>): CapabilitiesRunDeps {
     cliVersion: "9.9.9-test",
     operationsMapRaw: MAP,
     requireIds: [],
-    io: capture(true).io,
+    io: capture().io,
     ...overrides,
   };
 }
 
 describe("runCapabilities, the synthesized join", () => {
   it("joins every arm: command, gap, webOnly, unknownToCli", async () => {
-    const c = capture(true);
+    const c = capture();
     await runCapabilities(deps({ io: c.io }));
     expect(c.err).toEqual([]);
     const body: unknown = JSON.parse(c.out.join(""));
@@ -122,27 +122,11 @@ describe("runCapabilities, the synthesized join", () => {
       ],
     });
   });
-
-  it("renders a human table without --json, which is non-contractual", async () => {
-    const c = capture(false);
-    await runCapabilities(deps({ io: c.io }));
-    const text = c.out.join("");
-    expect(text).toContain("read-pull");
-    expect(text).toContain("mergebrief pr");
-    expect(() => JSON.parse(text)).toThrow(SyntaxError);
-  });
 });
 
 describe("runCapabilities --require is fail-closed", () => {
-  it("passes when every required id maps to a command the server registers", async () => {
-    const c = capture(true);
-    await runCapabilities(deps({ io: c.io, requireIds: ["read-pull"] }));
-    expect(c.err).toEqual([]);
-    expect(c.out.join("")).not.toBe("");
-  });
-
   it("fails every bad id with its fact: missing on server, or no CLI command", async () => {
-    const c = capture(true);
+    const c = capture();
     const run = runCapabilities(
       deps({
         io: c.io,

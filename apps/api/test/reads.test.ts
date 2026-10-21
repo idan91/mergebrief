@@ -19,8 +19,7 @@ import {
   type BriefWriteInput,
 } from "persistence";
 import { PrStates, AccessLevels } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { spyPullRequestLookups } from "./pull-request-lookups";
@@ -48,6 +47,7 @@ import {
   type GateGitHubOptions,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -190,14 +190,13 @@ const realNow = Date.now.bind(Date);
 let clockOffsetMs = 0;
 
 describe("reviewer read API + authz gate", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + clockOffsetMs);
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -207,12 +206,6 @@ describe("reviewer read API + authz gate", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
   });
 
   it("401s absent session cookies without calling GitHub", async () => {

@@ -38,7 +38,9 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const ACME: InstallationId = brandWith(isInstallationId, 10n);
 const OCTO: InstallationId = brandWith(isInstallationId, 20n);
@@ -177,7 +179,7 @@ async function listNumbers(
 
 describe("createInboxStore.list, review state", () => {
   it("derives every state against the latest brief", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const fresh = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -349,7 +351,7 @@ describe("createInboxStore.list, review state", () => {
   });
 
   it("marks a row behind when GitHub reports a head past the brief", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const behind = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -382,7 +384,7 @@ describe("createInboxStore.list, review state", () => {
 
 describe("createInboxStore.list, the latest brief", () => {
   it("is the newest head even when an older head was written last", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -409,7 +411,7 @@ describe("createInboxStore.list, the latest brief", () => {
   });
 
   it("archives at the newest head even when an older one was written last", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -487,7 +489,7 @@ describe("createInboxStore.list, fold and sort", () => {
   }
 
   it("puts rows that need the viewer first, then the rest, by update", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFoldFixture(handle);
 
     expect(await listNumbers(handle, { sort: InboxSorts.UPDATED })).toEqual([
@@ -496,7 +498,7 @@ describe("createInboxStore.list, fold and sort", () => {
   });
 
   it("the mixed layout is one list in the sort's order", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFoldFixture(handle);
 
     expect(
@@ -508,7 +510,7 @@ describe("createInboxStore.list, fold and sort", () => {
   });
 
   it("keeps the fold under the generated sort", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFoldFixture(handle);
 
     expect(await listNumbers(handle, { sort: InboxSorts.GENERATED })).toEqual([
@@ -517,7 +519,7 @@ describe("createInboxStore.list, fold and sort", () => {
   });
 
   it("a draft or a merged row sits below the fold whatever its state", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFoldFixture(handle);
     await seedRow(handle, {
       ctx: CTX_ACME,
@@ -551,7 +553,7 @@ describe("createInboxStore.list, fold and sort", () => {
 
 describe("createInboxStore.list, visibility", () => {
   it("hides an installation row in a repository the viewer cannot read", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 1 });
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_B, prNumber: 2 });
     await seedRow(handle, { ctx: CTX_OWNER, repoId: REPO_B, prNumber: 2 });
@@ -573,7 +575,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("an archived row leaves the page, counts, total and repositories", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const archived = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -595,7 +597,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("a newer brief lifts the archive", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -618,7 +620,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("the archived view lists only archived rows and totals them", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const archived = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -640,7 +642,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("a brief at the same head, a retarget, keeps the archive", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -662,7 +664,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("the counts never include an archived row, in either view", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const archived = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -685,7 +687,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("the archived total ignores the other filters", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const open = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -717,7 +719,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("another reviewer's archive does not touch the viewer's list", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, {
       ctx: CTX_ACME,
       repoId: REPO_A,
@@ -730,7 +732,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("hides a url row shadowed by a visible installation row", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 1 });
     await seedRow(handle, { ctx: CTX_OWNER, repoId: REPO_A, prNumber: 1 });
     await seedRow(handle, { ctx: CTX_OWNER, repoId: REPO_B, prNumber: 2 });
@@ -761,7 +763,7 @@ describe("createInboxStore.list, visibility", () => {
   });
 
   it("shows another owner's url rows to nobody else", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedRow(handle, {
       ctx: { ownerUserId: OTHER },
       repoId: REPO_A,
@@ -821,7 +823,7 @@ describe("createInboxStore.list, filters", () => {
   }
 
   it("a row with no author is nobody's own and shows under others", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 1 });
     await internal(handle).execute(
       sql`update pull_request set author_login = null`,
@@ -837,7 +839,7 @@ describe("createInboxStore.list, filters", () => {
   });
 
   it("status defaults to open and draft; merged and closed opt in", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFilterFixture(handle);
 
     // The open new row leads; the reviewed one, the viewer's own and the draft sink.
@@ -858,7 +860,7 @@ describe("createInboxStore.list, filters", () => {
   });
 
   it("narrows by repository, review state, author and installation", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFilterFixture(handle);
     const filtered = (filters: Partial<InboxFilters>) =>
       listNumbers(handle, { filters: { ...DEFAULT_FILTERS, ...filters } });
@@ -875,7 +877,7 @@ describe("createInboxStore.list, filters", () => {
   });
 
   it("counts open rows that are not drafts, whatever the filters", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFilterFixture(handle);
 
     const page = await createInboxStore(handle).list(
@@ -892,7 +894,7 @@ describe("createInboxStore.list, filters", () => {
   });
 
   it("names every viewable repository once, whatever the filters", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFilterFixture(handle);
 
     const page = await createInboxStore(handle).list(
@@ -906,7 +908,7 @@ describe("createInboxStore.list, filters", () => {
   });
 
   it("a repository named by one row and not another keeps its name", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedFilterFixture(handle);
     await createTenantRepository(handle, CTX_ACME).pullRequests.upsert({
       repoId: REPO_A,
@@ -925,7 +927,7 @@ describe("createInboxStore.list, filters", () => {
 
 describe("createInboxStore.list, pages", () => {
   it("refuses a page or page size that is not a whole number of at least 1", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createInboxStore(handle);
 
     await expect(store.list(makeListInput({ page: 0 }))).rejects.toThrow(
@@ -940,7 +942,7 @@ describe("createInboxStore.list, pages", () => {
   });
 
   it("narrowing to an installation keeps the viewer's own url rows", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 1 });
     await seedRow(handle, { ctx: CTX_OCTO, repoId: REPO_B, prNumber: 2 });
     await seedRow(handle, { ctx: CTX_OWNER, repoId: REPO_B, prNumber: 3 });
@@ -953,7 +955,7 @@ describe("createInboxStore.list, pages", () => {
   });
 
   it("a page past the end is empty and carries the true total", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     for (const prNumber of [1, 2, 3]) {
       await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber });
     }
@@ -976,7 +978,7 @@ describe("createInboxStore.list, pages", () => {
 const SORTS: readonly InboxSort[] = Object.values(InboxSorts);
 describe("createInboxStore.list, an empty reach", () => {
   it.each(SORTS)("lists only the viewer's url rows under %s", async (sort) => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 1 });
     await seedRow(handle, { ctx: CTX_OWNER, repoId: REPO_B, prNumber: 2 });
 

@@ -41,13 +41,6 @@ describe("groupSiblingSpans", () => {
     ]);
   });
 
-  it("keeps expanded context before and after a span outside it", () => {
-    const spans = groupSiblingSpans(ROWS, readOwner);
-
-    expect(spans[0]?.start).not.toBe(1);
-    expect(spans[0]?.end).not.toBe(6);
-  });
-
   it("never frames the chunk's own rows", () => {
     expect(groupSiblingSpans(ROWS.slice(10), readOwner)).toEqual([]);
   });

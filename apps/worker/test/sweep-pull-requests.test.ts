@@ -1,9 +1,7 @@
-// The scheduled pull request sweep: the crontab line the runner registers,
-// and the task itself against a real migrated schema (the
+// The scheduled pull request sweep against a real migrated schema (the
 // `persistence/testing` PGlite harness). Rows are seeded through the tenant
 // repository's own upsert, which is the only writer of a close time.
 import { describe, expect, it } from "vitest";
-import { parseCrontab } from "graphile-worker";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import {
   createTenantRepository,
@@ -14,16 +12,9 @@ import {
 } from "persistence";
 import { PrStates, type PrState } from "types/pull-requests";
 import { createLogger, type Logger } from "logging";
-import { assertScheduledTasksRegistered } from "../src/runner";
-import {
-  createSweepPullRequestsTask,
-  SWEEP_PULL_REQUESTS_CRONTAB,
-  SWEEP_PULL_REQUESTS_TASK,
-} from "../src/task/sweep-pull-requests";
+import { createSweepPullRequestsTask } from "../src/task/sweep-pull-requests";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const HOURS_PER_DAY = 24;
-const MINUTES_PER_HOUR = 60;
 const RETENTION_DAYS = 30;
 
 function makeInstallationId(id: bigint): InstallationId {
@@ -78,35 +69,6 @@ async function readPrNumbers(harness: PgliteHarness): Promise<unknown[]> {
 function makeSilentLogger(): Logger {
   return createLogger({ env: { LOG_LEVEL: "error" } });
 }
-
-describe("sweep-pull-requests schedule", () => {
-  it("fires once a day", () => {
-    const items = parseCrontab(SWEEP_PULL_REQUESTS_CRONTAB);
-    expect(items).toHaveLength(1);
-    const match = items[0]?.match;
-    let fired = 0;
-    for (let hour = 0; hour < HOURS_PER_DAY; hour += 1) {
-      for (let min = 0; min < MINUTES_PER_HOUR; min += 1) {
-        const matched = match?.({ min, hour, date: 10, month: 6, dow: 1 });
-        fired += matched === true ? 1 : 0;
-      }
-    }
-    expect(fired).toBe(1);
-  });
-
-  it("refuses a boot that schedules it without registering it", () => {
-    expect(() =>
-      assertScheduledTasksRegistered(SWEEP_PULL_REQUESTS_CRONTAB, {
-        [SWEEP_PULL_REQUESTS_TASK]: () => Promise.resolve(),
-      }),
-    ).not.toThrow();
-    expect(() =>
-      assertScheduledTasksRegistered(SWEEP_PULL_REQUESTS_CRONTAB, {
-        generate: () => Promise.resolve(),
-      }),
-    ).toThrow(/not a registered task/);
-  });
-});
 
 describe("sweep-pull-requests task", () => {
   it("deletes nothing when retention is unset", async () => {

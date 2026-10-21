@@ -7,11 +7,7 @@
  * - the failure carries the context-source message, not the generator's
  */
 import { describe, expect, it } from "vitest";
-import {
-  ContextSourcesConfigSchema,
-  buildContextSourcesConfigError,
-  validateContextSourcesBlock,
-} from "../src/config/context-sources";
+import { validateContextSourcesBlock } from "../src/config/context-sources";
 
 describe("validateContextSourcesBlock", () => {
   it("accepts an empty list and a notion entry with or without tokenEnv", () => {
@@ -108,19 +104,5 @@ describe("validateContextSourcesBlock", () => {
     expect(text).toContain('"token"');
     expect(text).toContain("(redacted)");
     expect(text).not.toContain("ntn_abc");
-  });
-
-  it("exposes the schema and the error shape for the registry", () => {
-    expect(
-      ContextSourcesConfigSchema.safeParse([{ type: "notion" }]).success,
-    ).toBe(true);
-    expect(buildContextSourcesConfigError(["NOTION_TOKEN: not set"])).toEqual({
-      ok: false,
-      error: {
-        code: "invalid",
-        message: "invalid context source configuration",
-        issues: ["NOTION_TOKEN: not set"],
-      },
-    });
   });
 });

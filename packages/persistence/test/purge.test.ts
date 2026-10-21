@@ -4,9 +4,9 @@
 // retention sweep reads only the close time. Seeds go through a RAW drizzle
 // handle over the same PGlite.
 import { and, eq, sql } from "drizzle-orm";
-import { type PgliteDatabase, drizzle } from "drizzle-orm/pglite";
+import type { PgliteDatabase } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { type AppDatabase, fromDrizzle } from "../src/db/handle";
+import type { AppDatabase } from "../src/db/handle";
 import {
   apiToken,
   auditLog,
@@ -54,7 +54,9 @@ import {
   PullRequestSources,
   AccessLevels,
 } from "types";
-import { brandWith, freshPglite } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
+
+const shared = registerSharedPglite();
 
 /** Seed one grant row so secret-bearing referents can link it. */
 async function insertGrant(db: Db): Promise<GrantRowId> {
@@ -81,9 +83,8 @@ interface Pair {
   readonly handle: AppDatabase;
 }
 
-async function freshPair(): Promise<Pair> {
-  const raw = drizzle(await freshPglite());
-  return { raw, handle: fromDrizzle(raw) };
+function makePair(): Pair {
+  return { raw: shared.db, handle: shared.handle };
 }
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
@@ -353,7 +354,7 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
   let prId: PullRequestRowId;
 
   beforeEach(async () => {
-    pair = await freshPair();
+    pair = makePair();
     prId = await insertPr(pair.raw, { installationId: TENANT_A });
     await seedFullGraph(pair.raw, TENANT_A, prId);
   });
@@ -438,7 +439,7 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
 
 describe("createPurgeRoutines.purgeRepos, set-based multi-repo purge", () => {
   it("purges every named repo in one tx with one audit entry per repo", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     const a1 = await insertPr(raw, {
       installationId: TENANT_A,
       repoId: REPO,
@@ -481,7 +482,7 @@ describe("createPurgeRoutines.purgeRepos, set-based multi-repo purge", () => {
   });
 
   it("empty repo list is a no-op with no transaction and no audit", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     const count = await createPurgeRoutines(handle, CTX_A).purgeRepos([]);
     expect(count).toBe(0);
     expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);
@@ -490,7 +491,7 @@ describe("createPurgeRoutines.purgeRepos, set-based multi-repo purge", () => {
 
 describe("createPurgeRoutines.purgeInstallation, tenant-isolated offboarding", () => {
   it("removes tenant A's rows only, leaving tenant B and audit_log intact", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     const aPr = await insertPr(raw, { installationId: TENANT_A, prNumber: 1 });
     const bPr = await insertPr(raw, { installationId: TENANT_B, prNumber: 1 });
     await seedFullGraph(raw, TENANT_A, aPr);
@@ -601,30 +602,8 @@ async function readSweepAudits(db: Db) {
 }
 
 describe("sweepClosedPullRequests, instance-wide retention", () => {
-  it("deletes a pull request closed before the window with its children", async () => {
-    const { raw, handle } = await freshPair();
-    const swept = await insertPr(raw, {
-      installationId: TENANT_A,
-      prNumber: 1,
-      closedAt: PAST_WINDOW,
-    });
-    await seedFullGraph(raw, TENANT_A, swept);
-    expect(await countChildTables(raw, swept)).toBe(7);
-
-    expect(
-      await sweepClosedPullRequests(handle, RETENTION_DAYS, SWEEP_NOW),
-    ).toBe(1);
-
-    expect(await readPrNumbers(raw)).toEqual([]);
-    expect(await countChildTables(raw, swept)).toBe(0);
-    expect(await countSessionTables(raw, TENANT_A)).toBe(0);
-    expect(
-      await raw.select({ id: authSession.id }).from(authSession),
-    ).toHaveLength(1);
-  });
-
   it("keeps an open row, a row inside the window, and sweeps a merged one", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     await insertPr(raw, { installationId: TENANT_A, prNumber: 1 });
     await insertPr(raw, {
       installationId: TENANT_A,
@@ -646,7 +625,7 @@ describe("sweepClosedPullRequests, instance-wide retention", () => {
   });
 
   it("sweeps url-box owner rows past the window too", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     await insertOwnerPr(raw, {
       ownerUserId: OWNER,
       prNumber: 1,
@@ -666,7 +645,7 @@ describe("sweepClosedPullRequests, instance-wide retention", () => {
   });
 
   it("records one system delete entry per installation and per owner swept", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     await insertPr(raw, {
       installationId: TENANT_A,
       prNumber: 1,
@@ -733,7 +712,7 @@ describe("sweepClosedPullRequests, instance-wide retention", () => {
   });
 
   it("writes no audit entry when nothing is past the window", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     await insertPr(raw, {
       installationId: TENANT_A,
       prNumber: 1,
@@ -749,7 +728,7 @@ describe("sweepClosedPullRequests, instance-wide retention", () => {
   });
 
   it("deletes nothing when retention is unset", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     await insertPr(raw, {
       installationId: TENANT_A,
       prNumber: 1,
@@ -763,7 +742,7 @@ describe("sweepClosedPullRequests, instance-wide retention", () => {
   });
 
   it("refuses a window under the floor without deleting", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     await insertPr(raw, {
       installationId: TENANT_A,
       prNumber: 1,
@@ -781,7 +760,7 @@ describe("sweepClosedPullRequests, instance-wide retention", () => {
   });
 
   it("sweeps a backlog larger than one batch in a single call", async () => {
-    const { raw, handle } = await freshPair();
+    const { raw, handle } = makePair();
     await raw.execute(
       sql`insert into pull_request (installation_id, repo_id, pr_number, state, closed_at)
           select ${TENANT_A}, ${REPO}, n, 'closed', ${PAST_WINDOW}

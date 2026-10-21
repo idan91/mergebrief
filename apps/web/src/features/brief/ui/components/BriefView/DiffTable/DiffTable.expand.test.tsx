@@ -726,7 +726,7 @@ describe("DiffTable sibling spans", () => {
     };
   }
 
-  it("frames each owner's expanded changed rows under a header naming it", async () => {
+  it("frames each owner's span and keeps the context around it outside", async () => {
     const { view } = await expandIntoSiblings("unified");
     const headers = view.container.querySelectorAll(
       '[data-testid="sibling-span"]',
@@ -746,14 +746,21 @@ describe("DiffTable sibling spans", () => {
     expect(headers[0]?.nextElementSibling?.getAttribute("data-line-kind")).toBe(
       "del",
     );
-  });
 
-  it("keeps the expanded context around a span outside the frame", async () => {
-    const { view } = await expandIntoSiblings("unified");
     const rows = expandedRows(view.container);
-
     expect(rows[0]?.querySelector("td[data-span]")).toBeNull();
     expect(rows[4]?.querySelector("td[data-span]")).toBeNull();
+    const context = findSpanRow(view.container, "13");
+    expect(context.getAttribute("aria-disabled")).toBe("true");
+    const reason = document.getElementById(
+      context.getAttribute("aria-describedby") ?? "",
+    );
+    expect(reason?.textContent).toBe(
+      "Outside this chunk's diff; comments need one of its lines or a sibling span's.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Show all 9 hidden lines above" }),
+    ).toBeTruthy();
   });
 
   it("links to the owning chunk and scrolls to it in the app on click", async () => {
@@ -813,14 +820,6 @@ describe("DiffTable sibling spans", () => {
     expect(pair?.querySelectorAll('td[data-line-kind="del"]')).toHaveLength(2);
     expect(pair?.querySelectorAll('td[data-line-kind="add"]')).toHaveLength(2);
     expect(pair?.querySelector("td[data-span]")).not.toBeNull();
-  });
-
-  it("offers the arrow past a sibling's lines instead of a dead end", async () => {
-    await expandIntoSiblings("unified");
-
-    expect(
-      screen.getByRole("button", { name: "Show all 9 hidden lines above" }),
-    ).toBeTruthy();
   });
 
   it("never frames a line the chunk's own ranges hold", async () => {
@@ -968,18 +967,7 @@ describe("DiffTable sibling spans", () => {
     });
     expect(openCommentComposer.mock.calls[0]?.[2]).toBe("c1");
     expect(row.nextElementSibling?.querySelector("textarea")).not.toBeNull();
-  });
-
-  it("keeps a composer row inside a span in the frame", async () => {
-    const { view } = await expandIntoSiblings("unified");
-    const row = findSpanRow(view.container, "11");
-    const sign = row.querySelector("[data-comment-anchor]")!;
-    fireEvent.mouseDown(sign);
-    fireEvent.mouseUp(sign);
-
-    const composerRow = row.nextElementSibling!;
-    expect(composerRow.querySelector("textarea")).not.toBeNull();
-    expect(composerRow.hasAttribute("data-span")).toBe(true);
+    expect(row.nextElementSibling?.hasAttribute("data-span")).toBe(true);
   });
 
   it("anchors a deletion picked inside a span on the old side", async () => {
@@ -1072,19 +1060,6 @@ describe("DiffTable sibling spans", () => {
       endLine: 13,
       rowIds: ["c2:2", "c2:3", "c2:4"],
     });
-  });
-
-  it("keeps an expanded context row uncommentable", async () => {
-    const { view } = await expandIntoSiblings("unified");
-    const row = findSpanRow(view.container, "13");
-
-    expect(row.getAttribute("aria-disabled")).toBe("true");
-    const reason = document.getElementById(
-      row.getAttribute("aria-describedby") ?? "",
-    );
-    expect(reason?.textContent).toBe(
-      "Outside this chunk's diff; comments need one of its lines or a sibling span's.",
-    );
   });
 
   it("shows the owner's draft in the span and in the owner card", async () => {
@@ -1245,20 +1220,22 @@ describe("DiffTable expansion click", () => {
     scrollBy.mockRestore();
   });
 
-  it("focuses the first new line when a spent arrow leaves its header", async () => {
+  it("focuses the first new line when a spent arrow leaves its row standing", async () => {
     const { view, queryClient } = renderHarness({
-      chunk: stubShortChunk(),
+      chunk: stubChunk(),
       view: "unified",
     });
-    seedRange(queryClient, 1, 4, 80);
+    seedRange(queryClient, 33, 52, 52);
     const arrow = screen.getByRole("button", {
-      name: "Show all 4 hidden lines above",
+      name: "Show 20 more lines below",
     });
+    const arrowRow = arrow.closest("tr");
     arrow.focus();
     fireEvent.click(arrow);
 
-    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(4));
-    expect(screen.queryByRole("button", { name: /lines above/ })).toBeNull();
+    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(20));
+    expect(screen.queryByRole("button", { name: /lines below/ })).toBeNull();
+    expect(arrowRow?.isConnected).toBe(true);
     expect(document.activeElement).toBe(expandedRows(view.container)[0]);
   });
 

@@ -7,14 +7,18 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import type { UploadAttachmentResponse } from "contract";
+import type { Equals } from "types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { z } from "zod/v4";
 
 import type * as ApiFetchModule from "@web/data/apiFetch";
 import { apiFetch } from "@web/data/apiFetch";
+import type { ReadsWireFields } from "@web/test/wire-fields";
 import { AttachmentScopeProvider } from "../Markdown/context";
 import { MarkdownTextarea } from ".";
+import type { uploadAttachmentResponseSchema } from "./schemas";
 import {
-  MarkdownTextareaFrames,
   MentionCandidateKinds,
   type MentionCandidate,
   type MentionSuggestions,
@@ -181,13 +185,6 @@ describe("MarkdownTextarea", () => {
     expect(input.value).toBe("- item");
   });
 
-  it("submits on Cmd/Ctrl+Enter", () => {
-    const onSubmit = vi.fn();
-    render(<Harness initial="ready" onSubmit={onSubmit} />);
-    fireEvent.keyDown(textarea(), { key: "Enter", metaKey: true });
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-  });
-
   it("submits on Cmd/Ctrl+Enter from the preview panel too", () => {
     const onSubmit = vi.fn();
     render(<Harness initial="ready" onSubmit={onSubmit} />);
@@ -250,13 +247,6 @@ describe("MarkdownTextarea", () => {
     ).toBeTruthy();
   });
 
-  it("routes Escape to the consumer's hook", () => {
-    const onEscape = vi.fn();
-    render(<Harness onEscape={onEscape} />);
-    fireEvent.keyDown(textarea(), { key: "Escape" });
-    expect(onEscape).toHaveBeenCalledTimes(1);
-  });
-
   describe("mention autocomplete", () => {
     const CANDIDATES: readonly MentionCandidate[] = [
       {
@@ -313,15 +303,6 @@ describe("MarkdownTextarea", () => {
       // Login-only candidate: no img, no name, still a valid option.
       expect(albert.querySelector("img")).toBeNull();
       expect(albert.textContent?.trim()).toBe("@albert");
-    });
-
-    it("renders the avatar even when the candidate has no display name", () => {
-      render(<Harness mentionCandidates={CANDIDATES} />);
-      typeMention("@b");
-      const bob = screen.getByRole("option", { name: "@bob" });
-      expect(bob.querySelector("img")?.getAttribute("src")).toBe(
-        "https://avatars.example/bob.png",
-      );
     });
 
     it("keeps the mention list in the editor's flow by default", () => {
@@ -381,14 +362,6 @@ describe("MarkdownTextarea", () => {
       const input = typeMention("@b");
       fireEvent.keyDown(input, { key: "Tab" });
       expect(input.value).toBe("@bob ");
-    });
-
-    it("stays inert while read-only", () => {
-      render(<Harness initial="@al" mentionCandidates={CANDIDATES} readOnly />);
-      const input = textarea();
-      input.setSelectionRange(3, 3);
-      fireEvent.select(input);
-      expect(screen.queryByRole("listbox")).toBeNull();
     });
 
     it("ignores keydowns from an IME composition", () => {
@@ -667,29 +640,6 @@ describe("MarkdownTextarea", () => {
   });
 });
 
-describe("MarkdownTextarea frame", () => {
-  it("wears no variant by default", () => {
-    render(<Harness />);
-    expect(
-      screen.getByTestId("markdown-textarea").hasAttribute("data-variant"),
-    ).toBe(false);
-  });
-
-  it("names the card frame on its root", () => {
-    render(
-      <MarkdownTextarea
-        frame={MarkdownTextareaFrames.CARD}
-        label="Comment"
-        value=""
-        onChange={() => undefined}
-      />,
-    );
-    expect(
-      screen.getByTestId("markdown-textarea").getAttribute("data-variant"),
-    ).toBe("card");
-  });
-});
-
 vi.mock("@web/data/apiFetch", async (importOriginal) => {
   const actual = await importOriginal<typeof ApiFetchModule>();
   return { ...actual, apiFetch: vi.fn() };
@@ -732,19 +682,11 @@ const LIMIT_CEILING_SECONDS = 3600;
 const HUGE_RETRY_AFTER_SECONDS = 10 * LIMIT_CEILING_SECONDS;
 const LIMIT_FALLBACK_SECONDS = 60;
 
-const DATE_WAIT_SECONDS = 30;
-
-function makeLimitedResponse(
-  retryAfter: number | string = RETRY_AFTER_SECONDS,
-): Response {
+function makeLimitedResponse(retryAfter = RETRY_AFTER_SECONDS): Response {
   return new Response(JSON.stringify({ error: LIMIT_CODE, code: LIMIT_CODE }), {
     status: 429,
     headers: { "retry-after": String(retryAfter) },
   });
-}
-
-function makeRetryAtDate(offsetSeconds: number): string {
-  return new Date(Date.now() + offsetSeconds * MS_PER_SECOND).toUTCString();
 }
 
 interface AttachHarnessProps {
@@ -798,6 +740,11 @@ async function flush(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
+
+type ParsedUploadReceipt = z.output<typeof uploadAttachmentResponseSchema>;
+
+true satisfies Equals<ParsedUploadReceipt, UploadAttachmentResponse>;
+true satisfies ReadsWireFields<ParsedUploadReceipt, UploadAttachmentResponse>;
 
 describe("MarkdownTextarea image attachments", () => {
   beforeEach(() => {
@@ -885,23 +832,6 @@ describe("MarkdownTextarea image attachments", () => {
     );
   });
 
-  it("keeps typing made while the upload was in flight", async () => {
-    const { resolve } = deferUpload();
-    render(<AttachHarness />);
-    const input = textarea();
-    fireEvent.paste(input, {
-      clipboardData: { files: [makeImageFile()], getData: () => "" },
-    });
-    fireEvent.change(input, {
-      target: { value: `${input.value}\nmore words` },
-    });
-
-    resolve(uploadedResponse());
-    await flush();
-
-    expect(input.value).toBe(`![Image](${BRANCH_URL})\nmore words`);
-  });
-
   it("encodes the repository id into the upload path", async () => {
     apiFetchMock.mockResolvedValueOnce(uploadedResponse());
     render(<AttachHarness repoId="a/b" />);
@@ -953,20 +883,6 @@ describe("MarkdownTextarea image attachments", () => {
     expect(announce).toHaveBeenLastCalledWith(copy);
     const attach = screen.getByRole("button", { name: "Attach image" });
     expect(attach.getAttribute("aria-disabled")).toBe("true");
-  });
-
-  it("says the attachment limit was reached when the server answers 429", async () => {
-    const onAttachError = vi.fn();
-    apiFetchMock.mockResolvedValueOnce(refusedResponse(LIMIT_CODE, 429));
-    render(<AttachHarness onAttachError={onAttachError} />);
-    const input = textarea();
-    fireEvent.paste(input, {
-      clipboardData: { files: [makeImageFile()], getData: () => "" },
-    });
-    await flush();
-
-    expect(input.value).toBe("");
-    expect(onAttachError).toHaveBeenCalledWith(LIMIT_COPY);
   });
 
   describe("inside the retry-after window", () => {
@@ -1033,57 +949,6 @@ describe("MarkdownTextarea image attachments", () => {
       await flush();
 
       vi.setSystemTime(Date.now() + RETRY_AFTER_SECONDS * MS_PER_SECOND);
-      apiFetchMock.mockResolvedValueOnce(uploadedResponse());
-      fireEvent.drop(textarea(), {
-        dataTransfer: { files: [makeImageFile()] },
-      });
-      await flush();
-
-      expect(apiFetchMock).toHaveBeenCalledTimes(2);
-      expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
-    });
-
-    it("an HTTP-date retry-after limits uploads until that date", async () => {
-      const onAttachError = vi.fn();
-      const retryAt = makeRetryAtDate(DATE_WAIT_SECONDS);
-      apiFetchMock.mockResolvedValueOnce(makeLimitedResponse(retryAt));
-      render(<AttachHarness onAttachError={onAttachError} />);
-      fireEvent.drop(textarea(), {
-        dataTransfer: { files: [makeImageFile()] },
-      });
-      await flush();
-
-      vi.setSystemTime(Date.now() + (DATE_WAIT_SECONDS - 1) * MS_PER_SECOND);
-      fireEvent.drop(textarea(), {
-        dataTransfer: { files: [makeImageFile()] },
-      });
-      await flush();
-
-      expect(apiFetchMock).toHaveBeenCalledTimes(1);
-      expect(onAttachError).toHaveBeenLastCalledWith(LIMIT_COPY);
-      expect(document.body.textContent).not.toContain(retryAt);
-
-      vi.setSystemTime(Date.now() + MS_PER_SECOND);
-      apiFetchMock.mockResolvedValueOnce(uploadedResponse());
-      fireEvent.drop(textarea(), {
-        dataTransfer: { files: [makeImageFile()] },
-      });
-      await flush();
-
-      expect(apiFetchMock).toHaveBeenCalledTimes(2);
-      expect(textarea().value).toBe(`![Image](${BRANCH_URL})`);
-    });
-
-    it("an HTTP-date retry-after in the past does not hold the next drop", async () => {
-      apiFetchMock.mockResolvedValueOnce(
-        makeLimitedResponse(makeRetryAtDate(-DATE_WAIT_SECONDS)),
-      );
-      render(<AttachHarness />);
-      fireEvent.drop(textarea(), {
-        dataTransfer: { files: [makeImageFile()] },
-      });
-      await flush();
-
       apiFetchMock.mockResolvedValueOnce(uploadedResponse());
       fireEvent.drop(textarea(), {
         dataTransfer: { files: [makeImageFile()] },

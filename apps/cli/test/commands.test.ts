@@ -1,8 +1,7 @@
-// Command tests over the REAL API, running as its own process against a
-// migrated database this file seeds: true integration, no network, no mock
-// drift. Assertions live on the contract surface, meaning captured stdout and
-// stderr, exit code, passthrough byte-fidelity, and the repos cache's
-// self-healing triggers.
+// Auth command tests. Login and status run over the REAL API, as its own
+// process against a migrated database this file seeds. The paste check and
+// the profile selection run over the offline runner and a scripted api,
+// where the bearer the login verifies with is read off the request itself.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,12 +17,9 @@ import {
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
+import { expectRefusedBeforeRequest, runCliOffline } from "./harness/offline";
 import { CLI_VERSION } from "../src/client";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
@@ -184,17 +180,6 @@ describe("mergebrief commands over the real api", () => {
     expect(readFileSync(configPath, "utf8")).toContain(token);
   });
 
-  it("auth login rejects a non-mergebrief paste as exit 2 with empty stdout", async () => {
-    const { deps: d, io } = deps({ readStdin: async () => "ghp_not_ours\n" });
-    const code = await runCli(
-      ["auth", "login", "--base-url", BASE_URL, "--json"],
-      d,
-    );
-    expect(code).toBe(ExitCodes.USAGE);
-    expect(io.out).toEqual([]);
-    expect(io.err).toHaveLength(1);
-  });
-
   it("auth status models a dead token as data with exit 0", async () => {
     stubGitHub(world, () => []);
     await login(await seedToken());
@@ -215,102 +200,67 @@ describe("mergebrief commands over the real api", () => {
       version: null,
     });
   });
+});
+
+const LOGIN = ["auth", "login", "--base-url", BASE_URL, "--json"];
+const VERSION_ROUTE = {
+  method: "GET",
+  path: "/api/version",
+  body: JSON.stringify({ version: "test-version" }),
+};
+
+describe("auth login before any request", () => {
+  it("rejects a non-mergebrief paste as exit 2 with empty stdout", async () => {
+    const result = await runCliOffline(LOGIN, { stdin: "ghp_not_ours\n" });
+    expectRefusedBeforeRequest(result, "mergebrief_");
+  });
 
   it("an unknown flag is a usage error with exit 2", async () => {
-    const { deps: d } = deps();
-    expect(await runCli(["repos", "--bogus"], d)).toBe(ExitCodes.USAGE);
+    const result = await runCliOffline(["repos", "--bogus"]);
+    expectRefusedBeforeRequest(result);
   });
 });
 
-function freshIo(): { out: string[]; err: string[] } {
-  return { out: [], err: [] };
-}
-
 describe("auth login profile selection and verification", () => {
-  let world: CliApiHarness;
-  let harness: PgliteHarness;
-  let kp: KeyProvider;
-  let appFetch: CliDeps["fetch"];
-  let configDir: string;
-  let cacheDir: string;
-
-  beforeEach(async () => {
-    world = await startCliApiHarness({ serverVersion: "test-version" });
-    harness = world.harness;
-    kp = world.keyProvider;
-    appFetch = world.fetch;
-    configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
-    cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
-  });
-
-  afterEach(async () => {
-    await world.close();
-  });
-
   it("MERGEBRIEF_PROFILE selects the login target like --profile", async () => {
-    const captured = freshIo();
-    const code = await runCli(
-      ["auth", "login", "--base-url", BASE_URL, "--json"],
-      {
-        fetch: appFetch,
-        env: { MERGEBRIEF_PROFILE: "work" },
-        configDir,
-        cacheDir,
-        stdout: (t) => captured.out.push(t),
-        stderr: (l) => captured.err.push(l),
-        readStdin: async () => "mergebrief_pasted\n",
-        gitOriginUrl: () => undefined,
-      },
-    );
-    expect(code).toBe(ExitCodes.OK);
-    const config = readFileSync(join(configDir, "config.json"), "utf8");
+    const result = await runCliOffline(LOGIN, {
+      env: { MERGEBRIEF_PROFILE: "work" },
+      stdin: "mergebrief_pasted\n",
+      routes: [VERSION_ROUTE],
+    });
+    expect(result.code).toBe(ExitCodes.OK);
+    const config = readFileSync(join(result.configDir, "config.json"), "utf8");
     expect(config).toContain('"work"');
-    const status = JSON.parse(captured.out.join("")) as { profile: string };
+    const status = JSON.parse(result.out) as { profile: string };
     expect(status.profile).toBe("work");
+    expect(result.requests).toHaveLength(1);
+    expect(result.requests[0]).toMatchObject({
+      path: VERSION_ROUTE.path,
+      headers: { authorization: "Bearer mergebrief_pasted" },
+    });
   });
 
   it("login verifies the PASTED token, not the MERGEBRIEF_TOKEN override", async () => {
-    // A live env token must not make an invalid paste look authenticated.
-    const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-    const hash = createHash("sha256").update(plaintext).digest("hex");
-    const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
-    const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
-      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    const result = await runCliOffline(LOGIN, {
+      env: { MERGEBRIEF_TOKEN: "mergebrief_live" },
+      stdin: "mergebrief_bogus_paste\n",
+      routes: [
+        {
+          ...VERSION_ROUTE,
+          status: 401,
+          body: JSON.stringify({ error: "unauthorized" }),
+        },
+      ],
     });
-    await createTokenAuth(harness.handle).mintToken({
-      scope: AccessLevels.EXTERNAL_WRITE,
-      userId: REVIEWER,
-      name: "live",
-      tokenHash: hash,
-      grantId: grant.id,
-      expiresAt: null,
-    });
-
-    const captured = freshIo();
-    const code = await runCli(
-      ["auth", "login", "--base-url", BASE_URL, "--json"],
-      {
-        fetch: appFetch,
-        env: { MERGEBRIEF_TOKEN: plaintext }, // live token in the env...
-        configDir,
-        cacheDir,
-        stdout: (t) => captured.out.push(t),
-        stderr: (l) => captured.err.push(l),
-        readStdin: async () => "mergebrief_bogus_paste\n", // ...bogus paste
-        gitOriginUrl: () => undefined,
-      },
-    );
-    expect(code).toBe(ExitCodes.OK);
-    const status = JSON.parse(captured.out.join("")) as {
+    expect(result.code).toBe(ExitCodes.OK);
+    const status = JSON.parse(result.out) as {
       server: { authenticated: boolean | null };
     };
     expect(status.server.authenticated).toBe(false);
+    expect(result.requests).toHaveLength(1);
+    expect(result.requests[0]).toMatchObject({
+      path: VERSION_ROUTE.path,
+      headers: { authorization: "Bearer mergebrief_bogus_paste" },
+    });
   });
 });

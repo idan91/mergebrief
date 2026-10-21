@@ -225,21 +225,9 @@ function serializeGolden(value: unknown): string {
   return JSON.stringify(sortKeys(value), null, JSON_INDENT);
 }
 
-function hasCustomAttributes(fixture: EvalFixture): boolean {
-  return (fixture.repoContext?.customAttributes.length ?? 0) > 0;
-}
-
 const singleCases = await loadSingleCases();
 const pairCases = await loadPairs();
 const caseIds = [...singleCases, ...pairCases].map((found) => found.id);
-const customAttributeCaseIds = [
-  ...singleCases.filter((found) => hasCustomAttributes(found.fixture)),
-  ...pairCases.filter(
-    (found) =>
-      hasCustomAttributes(found.fixture.base) ||
-      hasCustomAttributes(found.fixture.revised),
-  ),
-].map((found) => found.id);
 const pairCaseIds = pairCases.map((found) => found.id);
 const runs = new Map<string, GoldenRun>();
 const adversarialRuns = new Map<string, AdversarialRun>();
@@ -330,20 +318,6 @@ describe("anchoring goldens", () => {
     expect(
       serializeGolden({ caseId: minting.pairCase.id, chained }),
     ).toMatchSnapshot();
-  });
-});
-
-describe("wire schema goldens", () => {
-  it("covers every fixture that declares custom attributes", () => {
-    expect(customAttributeCaseIds).not.toHaveLength(0);
-  });
-
-  it.each(customAttributeCaseIds)("%s sends the recorded schema", (caseId) => {
-    for (const request of requireRun(caseId).requests) {
-      const schema = JSON.stringify(request.wireSchema, null, JSON_INDENT);
-
-      expect(schema).toMatchSnapshot();
-    }
   });
 });
 

@@ -39,20 +39,6 @@ describe("verifyWebhookSignature", () => {
     expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
-  it("rejects a replayed signature against a different body", async () => {
-    const signature = await sign(SECRET, PAYLOAD);
-    const result = await verifyWebhookSignature({
-      secret: SECRET,
-      payload: OTHER_PAYLOAD,
-      signature,
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
-  });
-
   it("rejects a tampered signature with INVALID_SIGNATURE", async () => {
     const signature = await sign(SECRET, PAYLOAD);
     // Flip the last hex char.

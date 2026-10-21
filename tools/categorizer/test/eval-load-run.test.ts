@@ -1,3 +1,5 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -208,5 +210,17 @@ describe("prices", () => {
   it("returns null for a missing prices file and errors on a malformed one", () => {
     const missing = loadPrices(join(FIXTURES, "no-prices.json"));
     expect(missing).toEqual({ ok: true, value: null });
+
+    const dir = mkdtempSync(join(tmpdir(), "eval-prices-"));
+    try {
+      const path = join(dir, "prices.json");
+      writeFileSync(path, JSON.stringify({ "fake:m": { inputPerMTok: "5" } }));
+      expect(loadPrices(path)).toEqual({
+        ok: false,
+        error: `malformed prices file at ${path}`,
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

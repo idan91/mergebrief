@@ -50,7 +50,7 @@ describe("in-place brief switch through the screen", () => {
     expect((after as HTMLInputElement).checked).toBe(false);
   });
 
-  it("drops focus mode and the shortcuts overlay on a brief switch", async () => {
+  it("closes the shortcuts overlay on a brief switch", async () => {
     const view = await mountBriefView({ briefId: "brief-a" });
     fireEvent.keyDown(window, { key: "?" });
     const shortcuts = document.querySelector(

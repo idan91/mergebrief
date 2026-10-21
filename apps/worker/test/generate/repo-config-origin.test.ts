@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createArtifactStore, createGenerationProjection } from "persistence";
 import { GenerationStatuses } from "types/generations";
-import { RepoConfigPaths, repoConfigOriginSchema } from "repo-config";
+import {
+  RepoConfigPaths,
+  repoConfigArtifactSchema,
+  repoConfigOriginSchema,
+} from "repo-config";
 import {
   BASE,
   ctx,
@@ -73,5 +77,15 @@ describe("generate task, repo-config origin on the generation record", () => {
     );
     expect(origin.files.every((file) => file.outcome === "absent")).toBe(true);
     expect(origin.collisions).toEqual([]);
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    const artifact = repoConfigArtifactSchema.parse(
+      JSON.parse(brief?.repoConfig ?? "null"),
+    );
+    expect(artifact.files).toEqual(origin.files);
+    expect(artifact.collisions).toEqual([]);
   });
 });

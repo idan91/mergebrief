@@ -48,10 +48,6 @@ describe("resolvePrStack", () => {
     );
   });
 
-  it("returns undefined when the parent is gone and there are no children", () => {
-    expect(resolvePrStack(MIDDLE, [MIDDLE])).toBe(undefined);
-  });
-
   it("returns a fork of parent plus every child without numbers", () => {
     const stack = resolvePrStack(MIDDLE, [ROOT, MIDDLE, TIP, SIBLING]);
     expect(stack).toEqual({
@@ -62,16 +58,6 @@ describe("resolvePrStack", () => {
       ],
     });
     expect(stack !== undefined && isLinearPrStack(stack)).toBe(false);
-  });
-
-  it("does not duplicate self when it also appears in the open list", () => {
-    const stack = resolvePrStack(MIDDLE, [ROOT, MIDDLE, TIP]);
-    expect(stack !== undefined && isLinearPrStack(stack)).toBe(true);
-    if (stack === undefined || !isLinearPrStack(stack)) {
-      return;
-    }
-    const numbers = stack.members.map((member) => member.number);
-    expect(numbers).toEqual([12, 13, 14]);
   });
 
   it("indexes a parent-only chain as 2 of 2", () => {
@@ -143,7 +129,7 @@ describe("PrStackSelf without a baseRef", () => {
 
 describe("attachPrStack", () => {
   it("assigns stack when the open list connects this PR", () => {
-    const meta = {
+    const meta: Parameters<typeof attachPrStack>[0] = {
       title: MIDDLE.title,
       headRef: MIDDLE.headRef,
       baseRef: MIDDLE.baseRef,
@@ -217,11 +203,14 @@ describe("mergeStackHistory", () => {
     const lostTip = { members: three.members.slice(0, 2), index: 2 };
     expect(mergeStackHistory(three, lostTip)).toEqual(lostTip);
     const swapped = {
-      members: [three.members[1], three.members[0], three.members[2]],
+      members: [three.members[1]!, three.members[0]!, three.members[2]!],
       index: 1,
     };
     expect(mergeStackHistory(three, swapped)).toEqual(swapped);
-    const gapped = { members: [three.members[0], three.members[2]], index: 1 };
+    const gapped = {
+      members: [three.members[0]!, three.members[2]!],
+      index: 1,
+    };
     expect(mergeStackHistory(three, gapped)).toEqual(gapped);
     const other = {
       members: [

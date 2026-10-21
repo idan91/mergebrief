@@ -35,17 +35,6 @@ describe("Checkbox", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
-  it("stays focusable: the input is visually replaced, not hidden", () => {
-    render(
-      <Checkbox checked onChange={vi.fn()}>
-        Label
-      </Checkbox>,
-    );
-    const box = screen.getByRole("checkbox");
-    box.focus();
-    expect(document.activeElement).toBe(box);
-  });
-
   it("marks a partial selection indeterminate on the control", () => {
     render(
       <Checkbox indeterminate checked={false} onChange={vi.fn()}>

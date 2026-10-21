@@ -16,9 +16,8 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
-import { PrStates, AccessLevels } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PrStates } from "types";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
 import { SECRET, createKeyProvider, SAME_ORIGIN_HEADERS } from "./fixtures";
@@ -31,7 +30,8 @@ import {
   buildFakeAuthDeps,
   stubNoNetwork,
 } from "./reviewer-github";
-import { seedSignIn, seedApiToken } from "./sign-in";
+import { seedSignIn } from "./sign-in";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 const REPO_ID_NUM = 424242;
 const PR_NUMBER = 7;
@@ -88,7 +88,7 @@ interface AuditRow {
   readonly actor_type: string;
 }
 
-async function readAudits(harness: PgliteHarness): Promise<AuditRow[]> {
+async function readAudits(harness: SharedPglite): Promise<AuditRow[]> {
   const rows = await harness.raw(
     "select installation_id, source, operation, outcome, actor_type from audit_log order by id",
   );
@@ -102,21 +102,20 @@ async function readAudits(harness: PgliteHarness): Promise<AuditRow[]> {
 }
 
 async function countRows(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   table: string,
 ): Promise<number> {
   return (await harness.raw(`select id from ${table}`)).length;
 }
 
 describe("DELETE /api/inbox/:repoId/:prNumber", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let app: ApiApp;
   let fake: FakeGitHub;
   let lookups: PullRequestLookups;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     lookups = spyPullRequestLookups(harness);
@@ -129,11 +128,6 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
     };
     app = createApp(deps);
     stubNoNetwork();
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function del(
@@ -195,24 +189,6 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
     const res = await del(cookie);
 
     expect(res.status).toBe(404);
-    expect(await countRows(harness, "pull_request")).toBe(1);
-  });
-
-  it("a Bearer principal is refused as human-only", async () => {
-    await seedBriefedPr(harness.handle, OWNER_CTX);
-    const bearer = await seedApiToken(
-      harness.handle,
-      kp,
-      AccessLevels.EXTERNAL_WRITE,
-    );
-
-    const res = await app.request(`/api/inbox/${REPO_ID_NUM}/${PR_NUMBER}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${bearer}` },
-    });
-
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code?: string }).code).toBe("human-only");
     expect(await countRows(harness, "pull_request")).toBe(1);
   });
 

@@ -274,7 +274,8 @@ describe("TicketAlignment", () => {
       />,
     );
 
-    expect(screen.queryByText(/Status: In progress/)).toBeNull();
+    const foundIn = screen.getByText("referenced in the PR description");
+    expect(foundIn.parentElement?.children).toHaveLength(1);
   });
 
   it("renders the key as plain text for a non-http ticket URL", () => {

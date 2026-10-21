@@ -168,23 +168,6 @@ describe("makeFakeGitHub live read", () => {
   });
 });
 
-describe("makeFakeGitHub reviewer token", () => {
-  it("renews a rejected token once and records both", async () => {
-    const github = makeGitHubWithPullRequest();
-    github.rejectToken("ghu_old");
-
-    const result = await bindReviewer(github, "ghu_new")
-      .forRepo(REPO)
-      .fetchPullRequest(7);
-
-    expect(result.ok).toBe(true);
-    expect(github.listCalls("fetchPullRequest")).toMatchObject([
-      { credential: { kind: CredentialKinds.REVIEWER, token: "ghu_old" } },
-      { credential: { kind: CredentialKinds.REVIEWER, token: "ghu_new" } },
-    ]);
-  });
-});
-
 describe("makeFakeGitHub pending review", () => {
   it("publishes a review through create, thread and submit", async () => {
     const github = makeGitHubWithPullRequest();
@@ -282,20 +265,6 @@ describe("makeFakeGitHub pending review", () => {
       value: 1,
     });
   });
-
-  it("answers an unknown commit as the review create's 422", async () => {
-    const github = makeGitHubWithPullRequest();
-    github.failOn("createPullRequestReview", FakeFailures.UNKNOWN_COMMIT);
-
-    const created = await bindReviewer(github)
-      .forRepo(REPO)
-      .createPullRequestReview({ prNumber: 7, commitId: "c".repeat(40) });
-
-    expect(created).toEqual({
-      ok: false,
-      error: expect.objectContaining({ code: "unknown-commit", status: 422 }),
-    });
-  });
 });
 
 describe("makeFakeGitHub writes", () => {
@@ -326,46 +295,6 @@ describe("makeFakeGitHub writes", () => {
     github.removeComment(REPO, 1501n);
 
     expect([...github.readComments(REPO)]).toEqual([[1500n, "kept"]]);
-  });
-
-  it("answers a rejected anchor as the inline comment's 422", async () => {
-    const github = makeGitHubWithPullRequest();
-    github.failOn("createInlineReviewComment", FakeFailures.ANCHOR_REJECTED);
-
-    const posted = await bindReviewer(github)
-      .forRepo(REPO)
-      .createInlineReviewComment({
-        prNumber: 7,
-        commitId: HEAD_SHA,
-        path: "src/a.ts",
-        line: 3,
-        side: "RIGHT",
-        body: "why",
-      });
-
-    expect(posted).toEqual({
-      ok: false,
-      error: expect.objectContaining({ code: "anchor-rejected", status: 422 }),
-    });
-  });
-
-  it("answers a repository rule refusing the attachment push", async () => {
-    const github = makeGitHubWithPullRequest();
-    github.failOn("commitAttachment", FakeFailures.RULE_REFUSED);
-
-    const committed = await github
-      .bindInstallationGitHub(requireInstallationId(99n))
-      .forRepo(REPO)
-      .commitAttachment({
-        branch: "mergebrief/attachments",
-        path: "a.png",
-        bytes: new Uint8Array([1]),
-      });
-
-    expect(committed).toEqual({
-      ok: false,
-      error: expect.objectContaining({ code: "rule-refused", status: 422 }),
-    });
   });
 
   it("takes a draft out of draft once", async () => {

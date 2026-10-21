@@ -3,25 +3,24 @@
 // `unauthorized`.
 import { randomBytes } from "node:crypto";
 import { createEnvKeyProvider, type KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { SESSION_COOKIE } from "../src/routes/auth/session/consts";
 import { KEY_REF, buildAuthDeps } from "./fixtures";
 import { testLogger } from "./logging";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const SESSION_ONLY_PATH = "/api/capabilities";
 const PAST_EXPIRY_MS = 1000;
 
 describe("sessionLayer refusals", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createEnvKeyProvider({
       [KEY_REF]: randomBytes(32).toString("base64"),
     });
@@ -32,10 +31,6 @@ describe("sessionLayer refusals", () => {
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   async function requestWithCookie(cookie: string): Promise<Response> {

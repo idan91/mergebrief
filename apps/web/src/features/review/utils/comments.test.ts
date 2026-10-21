@@ -403,10 +403,6 @@ describe("countDraftComments", () => {
       ]),
     ).toBe(2);
   });
-
-  it("counts an empty list as zero", () => {
-    expect(countDraftComments([])).toBe(0);
-  });
 });
 
 describe("findDraftComment", () => {

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isRepoId, type RepoId } from "persistence";
-import {
-  buildDiffCacheKey,
-  buildFileBlobCacheKey,
-  composeBriefContextBody,
-} from "./keys";
+import { buildDiffCacheKey, buildFileBlobCacheKey } from "./keys";
 
 function mintRepoId(value: bigint): RepoId {
   if (!isRepoId(value)) {
@@ -23,16 +19,6 @@ describe("buildDiffCacheKey", () => {
       head: "b2",
     });
     expect(key).toBe("hash:7:42:a1:b2");
-  });
-});
-
-describe("composeBriefContextBody", () => {
-  it("wraps stored JSON verbatim", () => {
-    expect(composeBriefContextBody('{"x":1}')).toBe('{"repoConfig":{"x":1}}');
-  });
-
-  it("renders null for rows without a snapshot", () => {
-    expect(composeBriefContextBody(null)).toBe('{"repoConfig":null}');
   });
 });
 

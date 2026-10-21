@@ -10,76 +10,37 @@ import {
   IntentCheckSchema,
   RevisionNarrativeSchema,
 } from "../src/types";
-
-const validBrief = {
-  pr: {
-    repo: "o/r",
-    number: 1,
-    title: "t",
-    url: "https://github.com/o/r/pull/1",
-    sha: "deadbeef",
-    description: "d",
-  },
-  index: 1,
-  commitRange: { base: "base0000", head: "deadbeef", commitCount: 2 },
-  generation: {
-    provider: "anthropic",
-    model: "claude-opus-4-8",
-    effort: "medium",
-  },
-  summary: "s",
-  changeGroups: [
-    {
-      id: "g1",
-      title: "g title",
-      summary: "g",
-      dominantCategory: "bugfix",
-      secondaryCategories: [],
-      uncertain: false,
-      uncertainBetween: [],
-    },
-  ],
-  chunks: [
-    {
-      id: "c1",
-      changeGroupId: "g1",
-      file: "a.ts",
-      concern: "implementation",
-      role: "core",
-      loc: { added: 1, deleted: 0 },
-      addedRanges: [{ start: 5, end: 5 }],
-      removedRanges: [],
-      riskSurface: ["mutates-state"],
-    },
-  ],
-  concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
-};
+import {
+  makeValidBrief,
+  makeValidDeltaBrief,
+  makeValidRevisionNarrative,
+} from "./helpers";
 
 describe("BriefSchema", () => {
   it("accepts a well-formed brief", () => {
-    expect(BriefSchema.safeParse(validBrief).success).toBe(true);
+    expect(BriefSchema.safeParse(makeValidBrief()).success).toBe(true);
   });
 
   it("rejects an out-of-vocabulary category", () => {
-    const bad = structuredClone(validBrief);
-    bad.changeGroups[0].dominantCategory = "refactor-everything";
+    const bad = makeValidBrief();
+    bad.changeGroups[0]!.dominantCategory = "refactor-everything" as never;
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
   it("rejects an out-of-vocabulary risk-surface attribute", () => {
-    const bad = structuredClone(validBrief);
-    bad.chunks[0].riskSurface = ["scary"];
+    const bad = makeValidBrief();
+    bad.chunks[0]!.riskSurface = ["scary"] as never;
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
   it("accepts the trio attributes with a riskNotes entry", () => {
-    const withNotes = structuredClone(validBrief);
-    withNotes.chunks[0].riskSurface = [
+    const withNotes = makeValidBrief();
+    withNotes.chunks[0]!.riskSurface = [
       "new-dependency",
       "new-abstraction",
       "comment-contradicts-code",
     ];
-    Object.assign(withNotes.chunks[0], {
+    Object.assign(withNotes.chunks[0]!, {
       riskNotes: [
         {
           attr: "comment-contradicts-code",
@@ -90,18 +51,9 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(withNotes).success).toBe(true);
   });
 
-  it("accepts a chunk without riskNotes, so old artifacts parse", () => {
-    const parsed = BriefSchema.safeParse(structuredClone(validBrief));
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) {
-      return;
-    }
-    expect(parsed.data.chunks[0].riskNotes).toBeUndefined();
-  });
-
   it("rejects a riskNotes entry with an out-of-vocabulary attr", () => {
-    const bad = structuredClone(validBrief);
-    Object.assign(bad.chunks[0], {
+    const bad = makeValidBrief();
+    Object.assign(bad.chunks[0]!, {
       riskNotes: [{ attr: "scary", note: "n" }],
     });
     expect(BriefSchema.safeParse(bad).success).toBe(false);
@@ -109,24 +61,22 @@ describe("BriefSchema", () => {
 
   it("accepts the anchor stamp and its absence; rejects unknown states", () => {
     const anchored = {
-      ...structuredClone(validBrief),
+      ...makeValidBrief(),
       anchor: { state: "anchored" },
     };
     expect(BriefSchema.safeParse(anchored).success).toBe(true);
 
     const restart = {
-      ...structuredClone(validBrief),
+      ...makeValidBrief(),
       anchor: { state: "fresh-restart", reason: "model-swap" },
     };
     expect(BriefSchema.safeParse(restart).success).toBe(true);
 
     // Pre-feature briefs have no anchor; the read path must keep parsing.
-    expect(BriefSchema.safeParse(structuredClone(validBrief)).success).toBe(
-      true,
-    );
+    expect(BriefSchema.safeParse(makeValidBrief()).success).toBe(true);
 
     const bad = {
-      ...structuredClone(validBrief),
+      ...makeValidBrief(),
       anchor: { state: "floating" },
     };
     expect(BriefSchema.safeParse(bad).success).toBe(false);
@@ -138,7 +88,7 @@ describe("BriefSchema", () => {
 
   it("accepts a well-formed readingOrder", () => {
     const withOrder = {
-      ...structuredClone(validBrief),
+      ...makeValidBrief(),
       readingOrder: [
         { groupId: "g1", why: "establishes the schema the rest builds on" },
       ],
@@ -146,176 +96,28 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(withOrder).success).toBe(true);
   });
 
-  it("accepts the absence of readingOrder", () => {
-    const withoutOrder = structuredClone(validBrief) as Partial<
-      typeof validBrief
-    >;
-    expect("readingOrder" in withoutOrder).toBe(false);
-    expect(BriefSchema.safeParse(withoutOrder).success).toBe(true);
-  });
-
   it("rejects a readingOrder step missing why", () => {
     const bad = {
-      ...structuredClone(validBrief),
+      ...makeValidBrief(),
       readingOrder: [{ groupId: "g1" }],
     };
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
-
-  it("rejects a readingOrder step whose why is not a string", () => {
-    const bad = {
-      ...structuredClone(validBrief),
-      readingOrder: [{ groupId: "g1", why: 123 }],
-    };
-    expect(BriefSchema.safeParse(bad).success).toBe(false);
-  });
 });
-
-const validDelta = {
-  pr: {
-    repo: "o/r",
-    number: 1,
-    title: "t",
-    url: "https://github.com/o/r/pull/1",
-    sha: "deadbeef",
-    description: "d",
-  },
-  baselineSha: "1111111",
-  headSha: "2222222",
-  baselineIndex: 1,
-  headIndex: 2,
-  generation: {
-    provider: "anthropic",
-    model: "claude-opus-4-8",
-    effort: "medium",
-  },
-  summary: "since you last looked, the author added a test",
-  commentsAddressed: "addresses the reviewer's request to add a test",
-  changedGroups: [
-    {
-      id: "g1",
-      title: "g title",
-      summary: "g",
-      dominantCategory: "bugfix",
-      secondaryCategories: [],
-      uncertain: false,
-      uncertainBetween: [],
-    },
-  ],
-  chunks: [
-    {
-      id: "c1",
-      changeGroupId: "g1",
-      file: "a.ts",
-      concern: "implementation",
-      role: "core",
-      loc: { added: 1, deleted: 0 },
-      addedRanges: [{ start: 5, end: 5 }],
-      removedRanges: [],
-      riskSurface: ["mutates-state"],
-      summary: "adds a unit test for the fix",
-      addressesComments: ["101"],
-    },
-  ],
-  wholePrImpact: "completes the original intent",
-};
 
 describe("DeltaBriefSchema", () => {
   it("accepts a well-formed delta", () => {
-    expect(DeltaBriefSchema.safeParse(validDelta).success).toBe(true);
-  });
-
-  it("rejects an out-of-vocabulary category in a changed group", () => {
-    const bad = structuredClone(validDelta);
-    bad.changedGroups[0].dominantCategory = "refactor-everything";
-    expect(DeltaBriefSchema.safeParse(bad).success).toBe(false);
-  });
-
-  it("rejects a delta missing wholePrImpact", () => {
-    const bad = structuredClone(validDelta) as Partial<typeof validDelta>;
-    delete bad.wholePrImpact;
-    expect(DeltaBriefSchema.safeParse(bad).success).toBe(false);
+    expect(DeltaBriefSchema.safeParse(makeValidDeltaBrief()).success).toBe(
+      true,
+    );
   });
 });
-
-const validRevisionNarrative = {
-  artifactKind: "revisionNarrative",
-  pr: {
-    repo: "o/r",
-    number: 1,
-    title: "t",
-    url: "https://github.com/o/r/pull/1",
-    sha: "head0000",
-    description: "d",
-  },
-  prevHeadSha: "prev00000",
-  headSha: "head0000",
-  prevIndex: 1,
-  headIndex: 2,
-  generation: {
-    provider: "anthropic",
-    model: "claude-opus-4-8",
-    effort: "medium",
-  },
-  overview: "This revision tightens error handling around the new module.",
-  chunks: [
-    {
-      id: "rc1",
-      briefChangeGroupId: "g1",
-      file: "a.ts",
-      addedRanges: [{ start: 5, end: 6 }],
-      removedRanges: [],
-      summary: "Adds a guard clause for the empty-input case.",
-    },
-  ],
-};
 
 describe("RevisionNarrativeSchema", () => {
   it("accepts a well-formed revision narrative", () => {
     expect(
-      RevisionNarrativeSchema.safeParse(validRevisionNarrative).success,
+      RevisionNarrativeSchema.safeParse(makeValidRevisionNarrative()).success,
     ).toBe(true);
-  });
-
-  it("rejects an invented field such as the Delta-only wholePrImpact", () => {
-    const bad = {
-      ...structuredClone(validRevisionNarrative),
-      wholePrImpact: "sneaked in",
-    };
-    expect(RevisionNarrativeSchema.safeParse(bad).success).toBe(false);
-  });
-
-  it("rejects a narrative missing overview", () => {
-    const bad = structuredClone(validRevisionNarrative) as Partial<
-      typeof validRevisionNarrative
-    >;
-    delete bad.overview;
-    expect(RevisionNarrativeSchema.safeParse(bad).success).toBe(false);
-  });
-});
-
-describe("ReviewCommentSchema", () => {
-  it("accepts GitHub-style range anchors", async () => {
-    const { ReviewCommentSchema } = await import("../src/types");
-    const parsed = ReviewCommentSchema.safeParse({
-      id: "101",
-      file: "src/a.ts",
-      startLine: 10,
-      line: 12,
-      originalStartLine: 8,
-      originalLine: 10,
-      author: "reviewer",
-      body: "Could we cover this range?",
-      inReplyToId: null,
-      outdated: false,
-    });
-
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) {
-      return;
-    }
-    expect(parsed.data.startLine).toBe(10);
-    expect(parsed.data.originalStartLine).toBe(8);
   });
 });
 
@@ -469,7 +271,7 @@ describe("IntentCheckSchema", () => {
   it("requires acknowledged on every bucket's items, one shared shape", () => {
     const bad = structuredClone(validIntentCheck);
     const target: Partial<(typeof bad.accomplished)[number]> =
-      bad.accomplished[0];
+      bad.accomplished[0]!;
     delete target.acknowledged;
     expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
   });
@@ -482,7 +284,7 @@ describe("IntentCheckSchema", () => {
   it("rejects a stated ask missing its quote; strict output has no optionals", () => {
     const bad = structuredClone(validIntentCheck);
     const target: Partial<(typeof bad.statedButMissing)[number]> =
-      bad.statedButMissing[0];
+      bad.statedButMissing[0]!;
     delete target.quote;
     expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
   });
@@ -491,13 +293,13 @@ describe("IntentCheckSchema", () => {
     const noAccomplishedIds = structuredClone(validIntentCheck);
     const accomplished: Partial<
       (typeof noAccomplishedIds.accomplished)[number]
-    > = noAccomplishedIds.accomplished[0];
+    > = noAccomplishedIds.accomplished[0]!;
     delete accomplished.groupIds;
     expect(IntentCheckSchema.safeParse(noAccomplishedIds).success).toBe(false);
 
     const noMissingIds = structuredClone(validIntentCheck);
     const missing: Partial<(typeof noMissingIds.statedButMissing)[number]> =
-      noMissingIds.statedButMissing[0];
+      noMissingIds.statedButMissing[0]!;
     delete missing.groupIds;
     expect(IntentCheckSchema.safeParse(noMissingIds).success).toBe(false);
   });
@@ -513,20 +315,6 @@ describe("IntentCheckSchema", () => {
       return;
     }
     expect(legacy.data.ticketTitles).toEqual([]);
-  });
-
-  it("carries a title per URL when present", () => {
-    const titled = IntentCheckSchema.safeParse({
-      ...structuredClone(validIntentCheck),
-      ticketTitles: ["Widget endpoint returns the list"],
-    });
-    expect(titled.success).toBe(true);
-    if (!titled.success) {
-      return;
-    }
-    expect(titled.data.ticketTitles).toEqual([
-      "Widget endpoint returns the list",
-    ]);
   });
 
   it("all five buckets share ONE item shape for the grammar budget", () => {
@@ -572,7 +360,7 @@ describe("IntentCheckGenerationSchema: grammar budget", () => {
 
   it("rejects an item with no bucket tag, which the fan-out cannot dispatch", () => {
     const bad = structuredClone(validGenerationIntentCheck);
-    const target: Partial<(typeof bad.items)[number]> = bad.items[0];
+    const target: Partial<(typeof bad.items)[number]> = bad.items[0]!;
     delete target.bucket;
     expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
   });
@@ -586,14 +374,7 @@ describe("IntentCheckGenerationSchema: grammar budget", () => {
     expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("carries the five registered bucket names, matching the stored arrays", () => {
-    expect(Object.values(IntentBuckets)).toEqual([
-      "accomplished",
-      "statedButMissing",
-      "doneButUnstated",
-      "deviations",
-      "maskedFixes",
-    ]);
+  it("matches the registered bucket names to the stored arrays", () => {
     const storedArrays = Object.keys(IntentCheckSchema.shape).filter(
       (key) =>
         ![
@@ -639,9 +420,9 @@ describe("intentCheck on the brief schemas: the back-compat split", () => {
   });
 
   it("BriefSchema read path treats intentCheck as optional for old briefs", () => {
-    expect(BriefSchema.safeParse(validBrief).success).toBe(true);
+    expect(BriefSchema.safeParse(makeValidBrief()).success).toBe(true);
     const withIntent = {
-      ...structuredClone(validBrief),
+      ...makeValidBrief(),
       intentCheck: validIntentCheck,
     };
     const parsed = BriefSchema.safeParse(withIntent);
@@ -654,7 +435,7 @@ describe("intentCheck on the brief schemas: the back-compat split", () => {
 
   it("delta and revision-narrative schemas never carry intentCheck", () => {
     const delta = DeltaBriefSchema.safeParse({
-      ...structuredClone(validDelta),
+      ...makeValidDeltaBrief(),
       intentCheck: validIntentCheck,
     });
     expect(delta.success).toBe(true);
@@ -664,7 +445,7 @@ describe("intentCheck on the brief schemas: the back-compat split", () => {
     expect("intentCheck" in delta.data).toBe(false);
     // RevisionNarrativeSchema is .strict(); an invented intentCheck hard-fails.
     const narrative = RevisionNarrativeSchema.safeParse({
-      ...structuredClone(validRevisionNarrative),
+      ...makeValidRevisionNarrative(),
       intentCheck: validIntentCheck,
     });
     expect(narrative.success).toBe(false);

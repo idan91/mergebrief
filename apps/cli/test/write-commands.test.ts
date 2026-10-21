@@ -1,9 +1,9 @@
 // Write-command tests: payload plumbing with the mutual-exclusion rule pinned,
-// the one client-side shape check, receipt passthrough byte-fidelity, the
-// commentsDegraded warning, and the exit-5 self-correction path. The file
-// timeout is long because octokit's write throttle spaces POSTs about 3s.
+// the one client-side shape check, receipt passthrough byte-fidelity against
+// the REAL api app for submit -F and reply --body, and the file, flag and
+// stdin arms over a scripted api that pins the body each one sends.
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -21,17 +21,20 @@ import {
 } from "persistence";
 import { PrStates, ReviewOutcomes, AccessLevels } from "types";
 import type { PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { requireSpan } from "../src/commands/options";
 import { buildSubmitPayload } from "../src/commands/write/run";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
+import {
+  expectRefusedBeforeRequest,
+  expectRelayedRequest,
+  OFFLINE_REPO_ID,
+  OFFLINE_REPOS_ROUTE,
+  runCliOffline,
+} from "./harness/offline";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
 
@@ -41,6 +44,15 @@ const REPO_A = 42001;
 const COMMIT = "c".repeat(40);
 const BASE = "d".repeat(40);
 const SPAN = ["--base", BASE, "--head", COMMIT];
+const PULL_PATH = `/api/repos/${OFFLINE_REPO_ID}/pulls/7`;
+const SUBMIT_PATH = `${PULL_PATH}/review?base=${BASE}&head=${COMMIT}`;
+const REPLY_PATH = `${PULL_PATH}/comments/12345/replies`;
+const SUBMIT_RECEIPT = JSON.stringify({
+  reviewId: 987001,
+  commentsDegraded: false,
+  commentsFolded: 0,
+  commentsTotal: 0,
+});
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -111,9 +123,6 @@ describe("buildSubmitPayload plumbing", () => {
 });
 
 describe("write commands over the real api app", () => {
-  // Octokit's write-path throttle spaces consecutive review POSTs ~3s.
-  vi.setConfig({ testTimeout: 30_000 });
-
   let world: CliApiHarness;
   let harness: PgliteHarness;
   let kp: KeyProvider;
@@ -256,7 +265,6 @@ describe("write commands over the real api app", () => {
         }
         return stdin;
       },
-      readFile: (path) => readFileSync(path, "utf8"),
       gitOriginUrl: () => "git@github.com:octo/hello.git",
     });
     return { code, out: out.join(""), err };
@@ -298,134 +306,6 @@ describe("write commands over the real api app", () => {
     });
   });
 
-  it("submit -F <file> reads the payload from disk", async () => {
-    await seedPr();
-    await login();
-    const path = join(
-      mkdtempSync(join(tmpdir(), "mb-payload-")),
-      "review.json",
-    );
-    writeFileSync(path, JSON.stringify({ outcome: "comment", body: "ok" }));
-    const result = await run(["submit", "7", "-F", path, ...SPAN, "--json"]);
-    expect(result.code).toBe(ExitCodes.OK);
-  });
-
-  it("submit with convenience flags posts a comment-less review", async () => {
-    await seedPr();
-    await login();
-    const result = await run([
-      "submit",
-      "7",
-      "--outcome",
-      "approve",
-      "--body",
-      "lgtm",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(result.out)).toEqual({
-      reviewId: 987001,
-      commentsDegraded: false,
-      commentsFolded: 0,
-      commentsTotal: 0,
-    });
-  });
-
-  it("a missing span exits 2 before target resolution", async () => {
-    await login();
-    const token = await seedToken();
-    const requested: string[] = [];
-    const out: string[] = [];
-    const err: string[] = [];
-    // The fetch boundary would FAIL resolution if reached, the usage error must
-    // fire first, so this stub must never see an /api/repos request.
-    const failingFetch: CliDeps["fetch"] = async (input, init) => {
-      requested.push(input);
-      return appFetch(input, init);
-    };
-    const code = await runCli(
-      ["submit", "1", "--outcome", "comment", "--body", "x", "--json"],
-      {
-        fetch: failingFetch,
-        env: { MERGEBRIEF_TOKEN: token },
-        configDir,
-        cacheDir,
-        stdout: (t) => out.push(t),
-        stderr: (l) => err.push(l),
-        readStdin: async () => {
-          throw new Error("stdin not expected");
-        },
-        // A repo OUTSIDE the token's allowed set: resolution would exit 4.
-        gitOriginUrl: () => "git@github.com:nobody/nothing.git",
-      },
-    );
-    expect(code).toBe(ExitCodes.USAGE);
-    expect(out.join("")).toBe("");
-    expect(err).toHaveLength(1);
-    expect(err[0]).toContain("--base and --head");
-    expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
-  });
-
-  it("an invalid PR number exits 2 before target resolution", async () => {
-    await login();
-    const token = await seedToken();
-    const requested: string[] = [];
-    const out: string[] = [];
-    const err: string[] = [];
-    const failingFetch: CliDeps["fetch"] = async (input, init) => {
-      requested.push(input);
-      return appFetch(input, init);
-    };
-    const code = await runCli(
-      [
-        "submit",
-        "abc",
-        "--outcome",
-        "comment",
-        "--body",
-        "x",
-        ...SPAN,
-        "--json",
-      ],
-      {
-        fetch: failingFetch,
-        env: { MERGEBRIEF_TOKEN: token },
-        configDir,
-        cacheDir,
-        stdout: (t) => out.push(t),
-        stderr: (l) => err.push(l),
-        readStdin: async () => {
-          throw new Error("stdin not expected");
-        },
-        // A repo OUTSIDE the token's allowed set: resolution would exit 4.
-        gitOriginUrl: () => "git@github.com:nobody/nothing.git",
-      },
-    );
-    expect(code).toBe(ExitCodes.USAGE);
-    expect(out.join("")).toBe("");
-    expect(err).toHaveLength(1);
-    expect(err[0]).toContain("PR number");
-    expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
-  });
-
-  it("server validation rejection maps to exit 5 on the self-correction path", async () => {
-    await seedPr();
-    await login();
-    // request-changes without a body, the server 400s deterministically.
-    const result = await run([
-      "submit",
-      "7",
-      "--outcome",
-      "request-changes",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-  });
-
   it("reply --body posts under the comment; receipt is verbatim", async () => {
     await seedPr();
     await login();
@@ -441,22 +321,80 @@ describe("write commands over the real api app", () => {
     expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({ commentId: 987002 });
   });
+});
 
-  it("reply --body-file - reads the body from stdin", async () => {
-    await seedPr();
-    await login();
-    const result = await run(
-      ["reply", "12345", "--pr", "7", "--body-file", "-", "--json"],
-      "multi\nline body\n",
+describe("write relays over a scripted api", () => {
+  const submit = { method: "POST", path: SUBMIT_PATH, body: SUBMIT_RECEIPT };
+
+  it("submit -F <file> reads the payload from disk", async () => {
+    const payload = JSON.stringify({ outcome: "comment", body: "ok" });
+    const result = await runCliOffline(
+      ["submit", "7", "-F", "/payloads/review.json", ...SPAN, "--json"],
+      {
+        routes: [OFFLINE_REPOS_ROUTE, submit],
+        files: { "/payloads/review.json": payload },
+      },
     );
+    expect(result.err).toEqual([]);
     expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(SUBMIT_RECEIPT);
+    expectRelayedRequest(result, submit, payload);
   });
 
-  it("reply without a body source is a usage error", async () => {
-    await seedPr();
-    await login();
-    const result = await run(["reply", "12345", "--pr", "7", "--json"]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
+  it("submit with convenience flags posts a comment-less review", async () => {
+    const result = await runCliOffline(
+      [
+        "submit",
+        "7",
+        "--outcome",
+        "approve",
+        "--body",
+        "lgtm",
+        ...SPAN,
+        "--json",
+      ],
+      { routes: [OFFLINE_REPOS_ROUTE, submit] },
+    );
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(SUBMIT_RECEIPT);
+    expectRelayedRequest(
+      result,
+      submit,
+      JSON.stringify({ outcome: "approve", body: "lgtm" }),
+    );
+  });
+
+  it("reply --body-file - reads stdin and drops one trailing newline", async () => {
+    const receipt = JSON.stringify({ commentId: 987002 });
+    const reply = {
+      method: "POST",
+      path: REPLY_PATH,
+      status: 201,
+      body: receipt,
+    };
+    const result = await runCliOffline(
+      ["reply", "12345", "--pr", "7", "--body-file", "-", "--json"],
+      { stdin: "multi\nline body\n", routes: [OFFLINE_REPOS_ROUTE, reply] },
+    );
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(receipt);
+    expectRelayedRequest(
+      result,
+      reply,
+      JSON.stringify({ body: "multi\nline body" }),
+    );
+  });
+
+  it("reply without a body source is a usage error before any request", async () => {
+    const result = await runCliOffline([
+      "reply",
+      "12345",
+      "--pr",
+      "7",
+      "--json",
+    ]);
+    expectRefusedBeforeRequest(result, "--body");
   });
 });

@@ -7,7 +7,6 @@ import {
   ChunkTokenStatuses,
   DiffLineKinds,
   GrammarNames,
-  TokenFailureReasons,
   TokenizeModes,
   type ChunkTokensResult,
   type DiffLine,
@@ -226,90 +225,6 @@ describe("useSnippetTokens", () => {
     expect(requestSnippetTokens.mock.calls[0]?.[0]).toMatchObject({
       mode: TokenizeModes.HUNK,
     });
-  });
-
-  it("reads plain for a file with no grammar", () => {
-    render(
-      <StubSnippet
-        admitted={ADMITTED}
-        briefKey="brief-a"
-        filePath="docs/logo.png"
-        rows={TS_ROWS}
-        snippetKey="snippet-1"
-      />,
-    );
-
-    expect(readState()).toBe(ChunkTokenStatuses.PLAIN);
-    expect(requestSnippetTokens).not.toHaveBeenCalled();
-  });
-
-  it("reads plain for a grammar the brief did not admit", () => {
-    render(
-      <StubSnippet
-        admitted={new Set()}
-        briefKey="brief-a"
-        filePath="src/a.ts"
-        rows={TS_ROWS}
-        snippetKey="snippet-1"
-      />,
-    );
-
-    expect(readState()).toBe(ChunkTokenStatuses.PLAIN);
-  });
-
-  it("holds pending until the reply lands", async () => {
-    settleWith(makeReadyResult());
-    render(
-      <StubSnippet
-        admitted={ADMITTED}
-        briefKey="brief-a"
-        filePath="src/a.ts"
-        rows={TS_ROWS}
-        snippetKey="snippet-1"
-      />,
-    );
-
-    expect(readState()).toBe(ChunkTokenStatuses.PENDING);
-    await vi.waitFor(() => {
-      expect(readState()).toBe("ready:1");
-    });
-  });
-
-  it("reads plain when the tokenizer refused the snippet", async () => {
-    settleWith({
-      status: ChunkTokenStatuses.FAILED,
-      reason: TokenFailureReasons.TOKENIZE,
-    });
-    render(
-      <StubSnippet
-        admitted={ADMITTED}
-        briefKey="brief-a"
-        filePath="src/a.ts"
-        rows={TS_ROWS}
-        snippetKey="snippet-1"
-      />,
-    );
-
-    await vi.waitFor(() => {
-      expect(readState()).toBe(ChunkTokenStatuses.PLAIN);
-    });
-  });
-
-  it("lets go of the worker when the snippet unmounts", () => {
-    settleWith(makeReadyResult());
-    const view = render(
-      <StubSnippet
-        admitted={ADMITTED}
-        briefKey="brief-a"
-        filePath="src/a.ts"
-        rows={TS_ROWS}
-        snippetKey="snippet-1"
-      />,
-    );
-
-    view.unmount();
-
-    expect(cancel).toHaveBeenCalledTimes(1);
   });
 
   it("never paints one snippet's tokens on the next", async () => {

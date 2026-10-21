@@ -62,17 +62,6 @@ function planWith(marks: ComparisonMarks): BriefComparisonPlan {
 const FULL_COMPARE_OFF: BriefSearchParams = { view: "full", compare: "off" };
 
 describe("per-group changed-since marker", () => {
-  it("shows the changed-file count and checkpoint shortsha with Compare OFF", async () => {
-    await mountBriefView({
-      comparisonPlan: planWith(checkpointMarks()),
-      searchParams: FULL_COMPARE_OFF,
-    });
-    // src/leak.ts changed, src/leak.test.ts did not → 1 distinct file.
-    expect(
-      await screen.findByText(/1 file changed since chk1234/i),
-    ).toBeTruthy();
-  });
-
   it("says unchanged when no member file moved since the checkpoint", async () => {
     await mountBriefView({
       comparisonPlan: planWith(checkpointMarks([])),

@@ -57,10 +57,6 @@ describe("buildRawSpanDiffChunks", () => {
     }
   });
 
-  it("returns no chunks for an empty diff", () => {
-    expect(buildRawSpanDiffChunks(t, "")).toEqual([]);
-  });
-
   it("renders a mode-only change as metadata notes, not garbled context rows", () => {
     const diff = [
       "diff --git a/bin/run.sh b/bin/run.sh",

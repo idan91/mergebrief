@@ -3,7 +3,12 @@
 // reviewer binding; the repo gate and the OAuth refresh still answer over
 // `fetch`.
 import type { PrConversation } from "github";
-import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
@@ -11,10 +16,9 @@ import {
   type ScopeContext,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
-import { testLogger, testLogging } from "./logging";
+import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
   PR_NUMBER,
@@ -42,6 +46,7 @@ import {
   listCallsPastGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 // Every case drives a full request over the PGlite harness; the slowest
 // measures 3.0s, cold snapshot cache included.
@@ -99,7 +104,7 @@ async function seedPr(
 }
 
 async function auditCount(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   action: string,
 ): Promise<number> {
   const rows = await harness.raw(
@@ -132,7 +137,7 @@ async function post(
 }
 
 describe("thread resolve and unresolve routes", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
@@ -174,17 +179,10 @@ describe("thread resolve and unresolve routes", () => {
     return res.status;
   }
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = buildApp();
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
   });
 
   it("401 without a session cookie and no GitHub call", async () => {
@@ -311,50 +309,6 @@ describe("thread resolve and unresolve routes", () => {
     expect(countConversationReads()).toBe(2);
   });
 
-  it("200 converges on the unresolve direction", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeThread(false);
-    await seedPr(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await post(app, cookie, UNRESOLVE_PATH);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
-      resolved: false,
-      alreadyInTargetState: true,
-    });
-    expect(await auditCount(harness, "unresolve-thread")).toBe(1);
-  });
-
-  it("keeps the landed flip and logs audit.fail when the audit write fails", async () => {
-    const capture = testLogging();
-    const captureApp = createApp({
-      logger: capture.logger,
-      handle: harness.handle,
-      webhookSecret: SECRET,
-      auth: buildFakeAuthDeps(kp, fake),
-      ...buildFakeInstallationDeps(fake),
-    });
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeThread(false);
-    await seedPr(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    // The GitHub flip has committed by the time the audit insert runs, so
-    // the response stays a 200: an error would invite a retry of a done action.
-    await harness.raw("alter table audit_log rename to audit_log_poisoned");
-
-    const res = await post(captureApp, cookie, RESOLVE_PATH);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
-      resolved: true,
-      alreadyInTargetState: false,
-    });
-    const line = capture.lines().find((l) => l["evt"] === "audit.fail");
-    expect(line?.["level"]).toBe("error");
-    expect(line?.["operation"]).toBe("resolve-thread");
-    expect(line?.["err"]).toBeDefined();
-  });
-
   it("404 when no thread has the comment as its root", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false, 777_777);
@@ -433,17 +387,21 @@ describe("thread resolve and unresolve routes", () => {
     ]);
   });
 
-  it("401 when a second rejection lands after the one renewal", async () => {
+  it("401 when the flip still 401s after a good refresh", async () => {
     const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeThread(false);
-    fake.rejectToken(ACCESS_TOKEN);
-    fake.rejectToken(ROTATED_ACCESS_TOKEN);
+    fake.failOn(
+      "setReviewThreadResolution",
+      FakeFailures.UNAUTHORIZED,
+      CredentialKinds.REVIEWER,
+    );
     await seedPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(401);
     expect(gate.tokenRefreshes()).toBe(1);
+    expect(countResolutions()).toBe(2);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
 

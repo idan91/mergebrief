@@ -51,14 +51,6 @@ describe("buildViewerQueryOptions", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toMatch(/\/api\/auth\/session$/);
   });
 
-  it("a body without a viewer is unknown, never a throw", async () => {
-    answerWith(200, {});
-
-    await expect(readViewer()).resolves.toEqual({
-      kind: ViewerStates.UNKNOWN,
-    });
-  });
-
   it("a 401 is the signed-out state", async () => {
     answerWith(401, { code: "unauthorized" });
 

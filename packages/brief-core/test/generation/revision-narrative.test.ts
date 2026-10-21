@@ -1,17 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { z } from "zod/v4";
 import {
   categorizeDelta,
   categorizeRevisionNarrative,
 } from "../../src/generation/categorize";
-import type {
-  Effort,
-  GenerateRequest,
-  Generation,
-  Generator,
-} from "generators";
 import { BriefSchema, type Brief } from "../../src/types";
 import type { PrMetadata } from "../../src/github/types";
+import { FakeGenerator } from "../helpers";
 
 // --- Fixtures ---------------------------------------------------------------
 
@@ -146,33 +140,22 @@ const deltaGen = {
   wholePrImpact: "completes the original intent",
 };
 
-/**
- * Mocked Generator (no API key, no network): routes on the request label and
- * parses the fixture through the request's own schema, so a fixture that
- * drifts from the schema fails loudly.
- */
-class FakeGenerator implements Generator {
-  /** Effort of each request, in call order. */
-  readonly efforts: (Effort | undefined)[] = [];
+const LABEL_FIXTURES: Record<string, unknown> = {
+  delta: deltaGen,
+  "revision narrative": narrativeGen,
+};
 
-  origin(effort: Effort): Generation {
-    return { provider: "fake", model: "fake-model", effort };
-  }
-
-  async generate<S extends z.ZodType>(
-    req: GenerateRequest<S>,
-  ): Promise<z.infer<S>> {
-    this.efforts.push(req.effort);
-    const fixtures: Record<string, unknown> = {
-      delta: deltaGen,
-      "revision narrative": narrativeGen,
-    };
-    const fixture = fixtures[req.label];
+/** Routes on the request label; an override replaces that label's fixture. */
+function makeLabelRoutedGenerator(
+  overrides: Record<string, unknown> = {},
+): FakeGenerator {
+  return new FakeGenerator((request) => {
+    const fixture = overrides[request.label] ?? LABEL_FIXTURES[request.label];
     if (fixture === undefined) {
-      throw new Error(`no fixture for label "${req.label}"`);
+      throw new Error(`no fixture for label "${request.label}"`);
     }
-    return req.schema.parse(fixture);
-  }
+    return fixture;
+  });
 }
 
 // --- categorizeRevisionNarrative ---------------------------------------------
@@ -206,7 +189,7 @@ describe("categorizeRevisionNarrative", () => {
   it("fills CLI-owned metadata and generation origin", async () => {
     const narrative = await categorizeRevisionNarrative(
       input,
-      new FakeGenerator(),
+      makeLabelRoutedGenerator(),
     );
     expect(narrative.artifactKind).toBe("revisionNarrative");
     expect(narrative.pr.repo).toBe("o/r");
@@ -223,17 +206,7 @@ describe("categorizeRevisionNarrative", () => {
   });
 
   it("names the fresh-restart discontinuity in the prompt; silent otherwise", async () => {
-    class RecordingGenerator extends FakeGenerator {
-      users: string[] = [];
-      override async generate<S extends z.ZodType>(
-        req: GenerateRequest<S>,
-      ): Promise<z.infer<S>> {
-        this.users.push(req.user);
-        return super.generate(req);
-      }
-    }
-
-    const restarted = new RecordingGenerator();
+    const restarted = makeLabelRoutedGenerator();
     await categorizeRevisionNarrative(
       {
         ...input,
@@ -244,10 +217,10 @@ describe("categorizeRevisionNarrative", () => {
       },
       restarted,
     );
-    expect(restarted.users[0]).toContain("regenerated fresh");
-    expect(restarted.users[0]).toContain("model change");
+    expect(restarted.requests[0]?.user).toContain("regenerated fresh");
+    expect(restarted.requests[0]?.user).toContain("model change");
 
-    const anchored = new RecordingGenerator();
+    const anchored = makeLabelRoutedGenerator();
     await categorizeRevisionNarrative(
       {
         ...input,
@@ -255,11 +228,11 @@ describe("categorizeRevisionNarrative", () => {
       },
       anchored,
     );
-    expect(anchored.users[0]).not.toContain("regenerated fresh");
+    expect(anchored.requests[0]?.user).not.toContain("regenerated fresh");
 
-    const unstamped = new RecordingGenerator();
+    const unstamped = makeLabelRoutedGenerator();
     await categorizeRevisionNarrative(input, unstamped);
-    expect(unstamped.users[0]).not.toContain("regenerated fresh");
+    expect(unstamped.requests[0]?.user).not.toContain("regenerated fresh");
   });
 
   it("warns without throwing on an unknown briefChangeGroupId reference", async () => {
@@ -267,7 +240,7 @@ describe("categorizeRevisionNarrative", () => {
     const logs: string[] = [];
     const narrative = await categorizeRevisionNarrative(
       { ...input, brief },
-      new FakeGenerator(),
+      makeLabelRoutedGenerator(),
       (msg) => logs.push(msg),
     );
     expect(narrative.chunks).toHaveLength(1);
@@ -300,7 +273,7 @@ describe("categorizeRevisionNarrative", () => {
           },
         ],
       },
-      new FakeGenerator(),
+      makeLabelRoutedGenerator(),
     );
     const warnings = narrative.generationWarnings ?? [];
     expect(
@@ -326,7 +299,7 @@ describe("categorizeRevisionNarrative", () => {
           },
         ],
       },
-      new FakeGenerator(),
+      makeLabelRoutedGenerator(),
     );
     expect("generationWarnings" in narrative).toBe(false);
   });
@@ -369,28 +342,34 @@ describe("effort threading, delta + narrative", () => {
   };
 
   it("delta defaults to medium in request and origin, pinned byte-identical", async () => {
-    const generator = new FakeGenerator();
+    const generator = makeLabelRoutedGenerator();
     const delta = await categorizeDelta(deltaInput, generator);
-    expect(generator.efforts).toEqual(["medium"]);
+    expect(generator.requests.map((request) => request.effort)).toEqual([
+      "medium",
+    ]);
     expect(delta.generation.effort).toBe("medium");
   });
 
   it("delta threads an explicit effort into request AND origin", async () => {
-    const generator = new FakeGenerator();
+    const generator = makeLabelRoutedGenerator();
     const delta = await categorizeDelta(deltaInput, generator, () => {}, "low");
-    expect(generator.efforts).toEqual(["low"]);
+    expect(generator.requests.map((request) => request.effort)).toEqual([
+      "low",
+    ]);
     expect(delta.generation.effort).toBe("low");
   });
 
   it("narrative threads an explicit effort into request AND origin", async () => {
-    const generator = new FakeGenerator();
+    const generator = makeLabelRoutedGenerator();
     const narrative = await categorizeRevisionNarrative(
       narrativeInput,
       generator,
       () => {},
       "high",
     );
-    expect(generator.efforts).toEqual(["high"]);
+    expect(generator.requests.map((request) => request.effort)).toEqual([
+      "high",
+    ]);
     expect(narrative.generation.effort).toBe("high");
   });
 });
@@ -398,23 +377,6 @@ describe("effort threading, delta + narrative", () => {
 // --- text length floor, delta + narrative pipelines -----------------------
 
 describe("text length floor, delta + narrative pipelines", () => {
-  /** FakeGenerator with per-label fixture overrides for over-cap text. */
-  class OverridingGenerator extends FakeGenerator {
-    constructor(private readonly overrides: Record<string, unknown>) {
-      super();
-    }
-
-    override async generate<S extends z.ZodType>(
-      req: GenerateRequest<S>,
-    ): Promise<z.infer<S>> {
-      const fixture = this.overrides[req.label];
-      if (fixture !== undefined) {
-        return req.schema.parse(fixture);
-      }
-      return super.generate(req);
-    }
-  }
-
   const deltaInput = {
     locator: { owner: "o", repo: "r", number: 1 },
     meta: makeMeta(HEAD_2),
@@ -456,7 +418,7 @@ describe("text length floor, delta + narrative pipelines", () => {
     };
     const delta = await categorizeDelta(
       deltaInput,
-      new OverridingGenerator({ delta: verboseDelta }),
+      makeLabelRoutedGenerator({ delta: verboseDelta }),
     );
     expect(delta.lengthViolations).toEqual([
       {
@@ -478,7 +440,7 @@ describe("text length floor, delta + narrative pipelines", () => {
     };
     const narrative = await categorizeRevisionNarrative(
       narrativeInput,
-      new OverridingGenerator({ "revision narrative": verboseNarrative }),
+      makeLabelRoutedGenerator({ "revision narrative": verboseNarrative }),
     );
     expect(narrative.lengthViolations).toEqual([
       {
@@ -494,11 +456,11 @@ describe("text length floor, delta + narrative pipelines", () => {
   });
 
   it("delta + narrative: omit the stamp when everything fits", async () => {
-    const delta = await categorizeDelta(deltaInput, new FakeGenerator());
+    const delta = await categorizeDelta(deltaInput, makeLabelRoutedGenerator());
     expect("lengthViolations" in delta).toBe(false);
     const narrative = await categorizeRevisionNarrative(
       narrativeInput,
-      new FakeGenerator(),
+      makeLabelRoutedGenerator(),
     );
     expect("lengthViolations" in narrative).toBe(false);
   });

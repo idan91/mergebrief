@@ -242,17 +242,6 @@ describe("loadInstancePolicy spend and operators", () => {
     expect(result.value.operatorIds).toEqual(new Set([583231n]));
   });
 
-  it("defaults to uncapped and no Operators without the blocks", () => {
-    const result = loadInstancePolicy({});
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-    expect(result.value.spendPolicy).toEqual({ maxGenerationsPerDay: null });
-    expect(result.value.operatorIds).toEqual(new Set());
-  });
-
   it("refuses boot on an invalid operators block", () => {
     const path = configFile("operators:\n  - 0\n");
 

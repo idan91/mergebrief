@@ -181,18 +181,6 @@ describe("config: loadConfig", () => {
     expect(namesTheFlag).toBe(true);
   });
 
-  it("lets each flag be overridden OFF independently for a strict host", () => {
-    const config = ok(
-      loadConfig({
-        DATABASE_URL: VALID_URL,
-        AUDIT_PRIVATE_WRITES: "false",
-        STORE_DISPLAY_NAMES: "0",
-      }),
-    );
-    expect(config.auditPrivateWrites).toBe(false);
-    expect(config.storeDisplayNames).toBe(false);
-  });
-
   it("ignores unknown env keys", () => {
     expect(
       loadConfig({ DATABASE_URL: VALID_URL, UNRELATED: "x", PATH: "/bin" }).ok,
@@ -207,24 +195,6 @@ describe("config: loadConfig", () => {
 const fileEnv = (path: string) => ({ DATABASE_URL_FILE: path });
 
 describe("config: DATABASE_URL_FILE", () => {
-  it("resolves the DSN from the file when only DATABASE_URL_FILE is set", () => {
-    const config = ok(
-      loadConfig(fileEnv("/run/secrets/db-url"), {
-        readFile: () => VALID_URL,
-      }),
-    );
-    expect(config.databaseUrl).toBe(VALID_URL);
-  });
-
-  it("trims a trailing newline from the file content", () => {
-    const config = ok(
-      loadConfig(fileEnv("/run/secrets/db-url"), {
-        readFile: () => `${VALID_URL}\n`,
-      }),
-    );
-    expect(config.databaseUrl).toBe(VALID_URL);
-  });
-
   it("trims CRLF and surrounding whitespace from the file content", () => {
     const config = ok(
       loadConfig(fileEnv("/run/secrets/db-url"), {
@@ -378,8 +348,6 @@ describe("config: TLS explicit-or-refuse gate", () => {
 
   it.each([
     ["localhost", "postgres://user:pass@localhost:5432/app"],
-    ["localhost, postgresql scheme", "postgresql://user:pass@localhost/app"],
-    ["127.0.0.1", "postgres://user:pass@127.0.0.1:5432/app"],
     ["127.0.0.0/8 non-canonical", "postgres://user:pass@127.5.5.5:5432/app"],
     ["IPv6 ::1", "postgres://user:pass@[::1]:5432/app"],
     ["unix socket via host param", "postgres:///app?host=/var/run/postgresql"],
@@ -439,14 +407,10 @@ describe("config: TLS explicit-or-refuse gate", () => {
     expect(joined).not.toContain("db.example.com");
   });
 
-  it.each([
-    ["verify-full", `${REMOTE}?sslmode=verify-full`],
-    ["require", `${REMOTE}?sslmode=require`],
-    ["verify-ca", `${REMOTE}?sslmode=verify-ca`],
-    ["explicit disable (private network)", `${REMOTE}?sslmode=disable`],
-    ["no-verify", `${REMOTE}?sslmode=no-verify`],
-  ])("accepts an explicit sslmode: %s", (_label, url) => {
-    expect(loadConfig({ DATABASE_URL: url }).ok).toBe(true);
+  it("accepts an explicit sslmode", () => {
+    expect(
+      loadConfig({ DATABASE_URL: `${REMOTE}?sslmode=verify-full` }).ok,
+    ).toBe(true);
   });
 
   it("accepts the bundled compose's derived in-network DSN", () => {

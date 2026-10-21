@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RepoFileKinds } from "github";
-import { classifyRepoFile, sliceFileRange, splitFileLines } from "./file-range";
+import { sliceFileRange, splitFileLines } from "./file-range";
 
 function makeFileContent(lineCount: number): string {
   return Array.from(
@@ -63,45 +62,5 @@ describe("sliceFileRange", () => {
       const view = sliceFileRange(makeLines(3), { ...REQUEST, ...window });
       expect(view.lines).toHaveLength(view.to - view.from + 1);
     }
-  });
-});
-
-describe("classifyRepoFile", () => {
-  it("passes text through", () => {
-    expect(
-      classifyRepoFile({
-        kind: RepoFileKinds.FILE,
-        content: "a\nb",
-        blobSha: "sha",
-        size: 3,
-      }),
-    ).toBeUndefined();
-  });
-
-  it("refuses a blob carrying a NUL byte", () => {
-    expect(
-      classifyRepoFile({
-        kind: RepoFileKinds.FILE,
-        content: "a\u0000b",
-        blobSha: "sha",
-        size: 3,
-      }),
-    ).toEqual({ kind: "file-not-text" });
-  });
-
-  it("reports an absent path", () => {
-    expect(classifyRepoFile({ kind: RepoFileKinds.ABSENT })).toEqual({
-      kind: "file-absent",
-    });
-  });
-
-  it("reports a blob over the byte cap", () => {
-    expect(
-      classifyRepoFile({
-        kind: RepoFileKinds.TOO_LARGE,
-        blobSha: "sha",
-        size: 9_000_000,
-      }),
-    ).toEqual({ kind: "file-too-large" });
   });
 });

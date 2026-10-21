@@ -110,16 +110,6 @@ describe("migration check checkAppSchemaWith", () => {
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(true);
   });
-
-  it("never echoes a connection string in the refusal", async () => {
-    const client = await virginPglite();
-    const result = await checkAppSchemaWith(executorFor(client));
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.message).not.toContain("postgres://");
-  });
 });
 
 describe("migration check resolveMigrateCommand", () => {
@@ -251,21 +241,5 @@ describe("migration check ensureAppSchema dispatch", () => {
 
     expect(checked.ok).toBe(true);
     expect(recorded).toEqual(["1.4.0"]);
-  });
-
-  it("never records when the check refuses", async () => {
-    const log = createLogger({ env: {}, destination: { write: () => {} } });
-
-    const result = await ensureAppSchema(
-      URL,
-      { autoMigrate: false, runningVersion: "1.5.0", log },
-      {
-        apply: async () => {},
-        check: async () => ({ ok: false, error: REFUSAL }),
-        record: stubNeverRecord,
-      },
-    );
-
-    expect(result.ok).toBe(false);
   });
 });

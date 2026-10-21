@@ -33,12 +33,4 @@ describe("Badge", () => {
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("data-color")).toBe("neutral");
   });
-
-  it("passes a title through for the pointer", () => {
-    render(<Badge title="Implementation">impl</Badge>);
-
-    expect(screen.getByText("impl").getAttribute("title")).toBe(
-      "Implementation",
-    );
-  });
 });

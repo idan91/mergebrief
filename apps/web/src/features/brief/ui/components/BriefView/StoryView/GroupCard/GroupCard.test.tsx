@@ -57,7 +57,7 @@ interface Tap {
   dispositionKind: (flagId: string) => string | undefined;
 }
 
-function renderCard(writes: SessionWrites, flagsReadOnly = false) {
+function renderCard(writes: SessionWrites) {
   const group = model.groups[0];
   if (group === undefined) {
     throw new Error("fixture has no groups");
@@ -87,7 +87,7 @@ function renderCard(writes: SessionWrites, flagsReadOnly = false) {
   render(
     <ReviewSessionProvider briefId="test-brief" model={model} writes={writes}>
       <ReviewFlowProvider store={flowStore}>
-        <ReviewPostureProvider posture={makeReviewPosture({ flagsReadOnly })}>
+        <ReviewPostureProvider posture={makeReviewPosture()}>
           <ReadingPositionProvider store={createReadingPositionStore()}>
             <StoreTap />
             <GroupCard
@@ -112,27 +112,6 @@ function dismiss(tap: Tap, flagId: string) {
     });
   });
 }
-
-describe("GroupCard Flag list chooser", () => {
-  it("shows Risk surface counts and hides the header union", () => {
-    renderCard(writesSpy());
-    expect(screen.getByRole("heading", { name: "Risk surface" })).toBeTruthy();
-    expect(screen.getByText("1 file")).toBeTruthy();
-    expect(screen.getByText("2 flags")).toBeTruthy();
-    expect(screen.queryByText(/attributes, not verdicts/)).toBeNull();
-    expect(screen.queryByTestId("group-risk-union")).toBeNull();
-  });
-
-  it("own-draft keeps the list and strips disposition controls", () => {
-    renderCard(writesSpy(), true);
-    expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Address selected" }),
-    ).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Reopen the/ })).toBeNull();
-    expect(screen.getByRole("heading", { name: "Risk surface" })).toBeTruthy();
-  });
-});
 
 describe("GroupCard header", () => {
   it("speaks the Context panel's words: position, kinds, no step", () => {
@@ -163,11 +142,6 @@ describe("GroupCard header", () => {
 });
 
 describe("GroupCard reopen a dismissed risk", () => {
-  it("offers no Reopen while the risk is open", () => {
-    renderCard(writesSpy());
-    expect(screen.queryByRole("button", { name: /^Reopen the/ })).toBeNull();
-  });
-
   it("reopens through the wire: reopen-risk carries the flag's anchor", async () => {
     const writes = writesSpy();
     const { flagId, flowStore, tap } = renderCard(writes);

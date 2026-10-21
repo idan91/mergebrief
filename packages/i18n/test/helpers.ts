@@ -16,7 +16,7 @@ export function isCatalogShape(value: unknown): value is object {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Dotted leaf map. Throws on a non-string, non-object leaf — bad shape. */
+/** Dotted leaf map. Throws on a non-string, non-object leaf. */
 export function flattenCatalog(tree: object, prefix = ""): FlatCatalog {
   const flat: FlatCatalog = {};
   for (const [key, value] of Object.entries(tree)) {
@@ -87,7 +87,7 @@ function enSlotSource(flat: FlatCatalog, key: string, base: string): string {
 export function paramTokens(template: string): Set<string> {
   const tokens = new Set<string>();
   for (const match of template.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)) {
-    // `{{val, number}}` — the format tail is not part of the param name.
+    // `{{val, number}}`: the format tail is not part of the param name.
     tokens.add((match[1] ?? "").split(",")[0]?.trim() ?? "");
   }
   return tokens;
@@ -109,7 +109,7 @@ function baseParamTokens(flat: FlatCatalog, base: string): Set<string> {
 /**
  * The mechanical review bar for a locale file, against en:
  * no invented/stale keys, `{{param}}` and slot sets untouched, plural suffixes
- * valid, no markup beyond positional slots. Fluency stays community-owned —
+ * valid, no markup beyond positional slots. Fluency stays community-owned:
  * nothing here reads the prose.
  */
 export function checkLocale(locale: object, en: object): CatalogIssue[] {
@@ -130,7 +130,7 @@ export function checkLocale(locale: object, en: object): CatalogIssue[] {
       continue;
     }
     if (base !== key && !enPluralBases.has(base)) {
-      // i18next only consults suffixed keys when `count` rides the call —
+      // i18next only consults suffixed keys when `count` rides the call, so
       // a plural variant of a non-plural en key is silently dead.
       issues.push({ key, problem: "en.json key is not pluralized" });
       continue;
@@ -176,7 +176,7 @@ export function checkLocale(locale: object, en: object): CatalogIssue[] {
       [...actualSlots].some((index) => !enForms.has(index)) ||
       [...enForms.keys()].some((index) => !actualSlots.has(index));
     if (slotsDrifted) {
-      // Dropping a slot silently loses whatever it wrapped — a link becomes
+      // Dropping a slot silently loses whatever it wrapped: a link becomes
       // prose with nothing to click.
       issues.push({
         key,
@@ -185,7 +185,7 @@ export function checkLocale(locale: object, en: object): CatalogIssue[] {
     }
     // Turning `<0/>` into `<0>…</0>` makes Trans render the value's text
     // INSTEAD of the call site's children, so a translation could replace a
-    // link's label with its own — and the index set alone cannot see it.
+    // link's label with its own, and the index set alone cannot see it.
     for (const slot of parsed) {
       const enForm = enForms.get(slot.index);
       if (enForm !== undefined && enForm !== slot.form) {
@@ -197,13 +197,4 @@ export function checkLocale(locale: object, en: object): CatalogIssue[] {
     }
   }
   return issues;
-}
-
-/** Report-only: base keys present in en but absent from the locale. */
-export function missingKeys(locale: object, en: object): string[] {
-  const localeBases = new Set(
-    Object.keys(flattenCatalog(locale)).map(pluralBase),
-  );
-  const enBases = new Set(Object.keys(flattenCatalog(en)).map(pluralBase));
-  return [...enBases].filter((base) => !localeBases.has(base)).toSorted();
 }

@@ -288,28 +288,6 @@ describe("parseConversation", () => {
 
     expect(parseConversation(body).ok).toBe(false);
   });
-
-  it("rejects a non-object body", () => {
-    expect(parseConversation("nope").ok).toBe(false);
-    expect(parseConversation(null).ok).toBe(false);
-  });
-
-  it("drops an author's non-string avatarUrl and keeps the author", () => {
-    const body = wireConversation();
-    const reviews = (body as { reviews: Array<Record<string, unknown>> })
-      .reviews;
-    if (reviews[0]) {
-      reviews[0]["author"] = { login: "alice", isBot: false, avatarUrl: 7 };
-    }
-    const parsed = parseConversation(body);
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value.reviews[0]?.author).toEqual({
-      login: "alice",
-      isBot: false,
-    });
-  });
 });
 
 describe("parseMentionSuggestions", () => {
@@ -458,11 +436,7 @@ const SCHEMA_PINS = {
   >,
 } as const;
 
-describe("conversation schemas match their interfaces", () => {
-  it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void SCHEMA_PINS;
 
 const CONTRACT_PINS = {
   ConversationAuthor: true satisfies ReadsWireFields<
@@ -503,8 +477,4 @@ const CONTRACT_PINS = {
   >,
 } as const;
 
-describe("conversation schemas read only what the contract sends", () => {
-  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void CONTRACT_PINS;

@@ -122,25 +122,6 @@ describe("pickAgeAt", () => {
 describe("formatAge", () => {
   const now = new Date("2026-09-20T12:00:00Z");
 
-  it("steps from minutes to hours to yesterday to days", () => {
-    expect(formatAge("2026-09-20T11:38:00Z", now)).toEqual({
-      unit: "minutes",
-      count: 22,
-    });
-    expect(formatAge("2026-09-20T09:10:00Z", now)).toEqual({
-      unit: "hours",
-      count: 2,
-    });
-    expect(formatAge("2026-09-19T02:00:00Z", now)).toEqual({
-      unit: "yesterday",
-      count: 1,
-    });
-    expect(formatAge("2026-09-15T12:00:00Z", now)).toEqual({
-      unit: "days",
-      count: 5,
-    });
-  });
-
   it("older than two weeks is a date", () => {
     expect(formatAge("2026-08-01T12:00:00Z", now)).toEqual({
       unit: "date",

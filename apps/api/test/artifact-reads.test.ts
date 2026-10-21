@@ -12,11 +12,10 @@ import {
   type PullRequestRow,
   type ScopeContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
 import type { Mutable } from "types/utils";
 import type { BriefWriteInput } from "persistence";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import {
   INSTALLATION_ID,
@@ -38,6 +37,7 @@ import {
   listCallsPastGate,
 } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_ID = 424242;
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
@@ -95,14 +95,13 @@ async function seedBrief(
 }
 
 describe("stored artifact reads", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
   let cookie: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -113,11 +112,6 @@ describe("stored artifact reads", () => {
       ...UNUSED_INSTALLATION_DEPS,
     });
     ({ cookie } = await seedSignIn(harness.handle, kp));
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function get(path: string): Promise<Response> {
@@ -289,13 +283,5 @@ describe("stored artifact reads", () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('{"world":"owner"}');
     expect(lookups.count()).toBe(1);
-  });
-
-  it("404s an unknown PR before reading any artifact", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-
-    const res = await get("/delta?baseline=cp-1&head=head-2");
-
-    expect(res.status).toBe(404);
   });
 });

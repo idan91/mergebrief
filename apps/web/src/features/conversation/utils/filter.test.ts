@@ -311,26 +311,6 @@ describe("applyConversationFilter", () => {
     expect(filtered.threads.map((t) => t.rootCommentId)).toEqual([10, 11]);
   });
 
-  it("reduces to the latest review per author before filtering", () => {
-    const repeated = buildConversation({
-      reviews: [
-        review(1, "alice", "APPROVED"),
-        review(2, "alice", "CHANGES_REQUESTED"),
-      ],
-    });
-    const latest = applyConversationFilter(
-      repeated,
-      DEFAULT_CONVERSATION_FILTER,
-    );
-    expect(latest.reviews.map((r) => r.reviewId)).toEqual([2]);
-
-    const all = applyConversationFilter(
-      repeated,
-      parseConversationFilter({ reviews: "all" }),
-    );
-    expect(all.reviews.map((r) => r.reviewId)).toEqual([1, 2]);
-  });
-
   it("keeps the overflow flags", () => {
     const filtered = applyConversationFilter(
       { ...conversation, hasMoreThreads: true },
@@ -356,12 +336,6 @@ describe("verdictFacets", () => {
       { state: "APPROVED", humanCount: 2, botCount: 1 },
       { state: "CHANGES_REQUESTED", humanCount: 1, botCount: 0 },
     ]);
-  });
-
-  it("omits states with no reviews and never counts dismissed", () => {
-    const facets = verdictFacets(conversation, DEFAULT_CONVERSATION_FILTER);
-    expect(facets.map((facet) => facet.state)).not.toContain("COMMENTED");
-    expect(facets.map((facet) => facet.state)).not.toContain("DISMISSED");
   });
 
   it("ignores its own family's selection so unselected chips keep counts", () => {

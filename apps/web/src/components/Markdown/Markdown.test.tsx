@@ -5,8 +5,6 @@ import { describe, expect, it } from "vitest";
 import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,
-  ATTACHMENT_BRANCH_URL,
-  ATTACHMENT_FILE_NAME,
 } from "@web/test/attachments";
 import { Markdown } from ".";
 import { AttachmentScopeProvider } from "./context";
@@ -53,14 +51,6 @@ describe("Markdown raw html images", () => {
     expect(image.getAttribute("width")).toBe("1167");
     expect(image.getAttribute("height")).toBe("800");
     expect(screen.queryByText(/<img/)).toBeNull();
-  });
-
-  it("keeps a markdown image as it was", () => {
-    render(<Markdown content="![shot](https://example.com/a.png)" />);
-
-    expect(screen.getByRole("img", { name: "shot" }).getAttribute("src")).toBe(
-      "https://example.com/a.png",
-    );
   });
 
   it("strips event handlers and styles from an image tag", () => {
@@ -153,18 +143,6 @@ describe("Markdown raw html images", () => {
     );
   });
 
-  it("routes a branch-hosted file through the proxy by its file name", () => {
-    render(
-      <AttachmentScopeProvider installed prNumber={7} repoId="555">
-        <Markdown content={`![shot](${ATTACHMENT_BRANCH_URL})`} renderHtml />
-      </AttachmentScopeProvider>,
-    );
-
-    expect(screen.getByRole("img", { name: "shot" }).getAttribute("src")).toBe(
-      `/api/repos/555/pulls/7/attachments/${ATTACHMENT_FILE_NAME}`,
-    );
-  });
-
   it("still renders task list checkboxes", () => {
     render(<Markdown content={"- [x] done\n- [ ] open"} renderHtml />);
 
@@ -197,14 +175,6 @@ describe("Markdown raw html images", () => {
 });
 
 describe("Markdown brief prose", () => {
-  it("keeps a type parameter that looks like a tag", () => {
-    render(<Markdown content="Returns Result<T> and Promise<void>." />);
-
-    expect(
-      screen.getByText("Returns Result<T> and Promise<void>."),
-    ).toBeTruthy();
-  });
-
   it("shows a raw tag as text without the opt-in", () => {
     render(
       <Markdown

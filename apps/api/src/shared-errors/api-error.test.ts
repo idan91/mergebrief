@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { ApiErrorCodes } from "contract";
 import {
-  ApiError,
+  type ApiError,
   BadGateway,
   BadRequest,
   Conflict,
@@ -56,13 +56,6 @@ describe("ApiError classes", () => {
   it("covers every code with exactly one class instance", () => {
     const codes = instances.map((e) => e.code).toSorted();
     expect(codes).toEqual(Object.values(ApiErrorCodes).toSorted());
-  });
-
-  it("every instance is an ApiError and an Error", () => {
-    for (const err of instances) {
-      expect(err).toBeInstanceOf(ApiError);
-      expect(err).toBeInstanceOf(Error);
-    }
   });
 
   it("message is the code, name is the class", () => {

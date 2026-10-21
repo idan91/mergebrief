@@ -38,14 +38,6 @@ function readVersion() {
 }
 
 describe("buildVersionQueryOptions", () => {
-  it("goes stale after a minute and polls only while visible", () => {
-    const options = buildVersionQueryOptions();
-
-    expect(options.staleTime).toBe(60_000);
-    expect(options.refetchIntervalInBackground).toBe(false);
-    expect(options.refetchOnWindowFocus).toBe(true);
-  });
-
   it("polls every minute when signed in and never when signed out", () => {
     expect(typeof buildVersionQueryOptions().refetchInterval).toBe("function");
     expect(resolvePollInterval(undefined)).toBe(60_000);

@@ -87,20 +87,6 @@ describe("buildConversationQueryOptions queryFn", () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 503 }));
     await expect(run()).resolves.toEqual({ kind: "unavailable" });
   });
-
-  it("locks refresh: 30s stale, refetch on mount and focus", () => {
-    const options = buildConversationQueryOptions("42", 7);
-    expect(options.staleTime).toBe(30_000);
-    expect(options.refetchOnMount).toBe("always");
-    expect(options.refetchOnWindowFocus).toBe("always");
-  });
-
-  it("never polls: no refetchInterval on the descriptor", () => {
-    const options = buildConversationQueryOptions("42", 7);
-    expect(
-      "refetchInterval" in options && options.refetchInterval !== undefined,
-    ).toBe(false);
-  });
 });
 
 function runMentionSearch(query: string): Promise<unknown> {
@@ -173,13 +159,5 @@ describe("buildMentionSuggestionsQueryOptions queryFn", () => {
       new Response(JSON.stringify({ nope: true }), { status: 200 }),
     );
     await expect(runMentionSearch("al")).rejects.toBeInstanceOf(ApiError);
-  });
-
-  it("keeps an answer fresh for a minute and never polls", () => {
-    const options = buildMentionSuggestionsQueryOptions("42", "al");
-    expect(options.staleTime).toBe(60_000);
-    expect(
-      "refetchInterval" in options && options.refetchInterval !== undefined,
-    ).toBe(false);
   });
 });

@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const CRUISE_TIMEOUT_MS = 15_000;
@@ -21,23 +21,157 @@ const CRUISER_BIN = fileURLToPath(
   ),
 );
 
-function writeMember(
-  root: string,
-  name: string,
-  dependencies: Record<string, string>,
-) {
+const VALUE = "export const value = 1;\n";
+const TYPE_FROM_GITHUB = 'export type { Contract } from "github/contract";\n';
+const TYPE_FROM_TYPES = 'export type { Contract } from "types/contract";\n';
+
+/** Workspace packages with a manifest, keyed by name, valued by declared deps. */
+const MEMBERS: Readonly<Record<string, readonly string[]>> = {
+  types: ["logging"],
+  logging: ["github", "types"],
+  i18n: ["github", "types"],
+  generators: ["github", "types"],
+  github: [],
+  "brief-core": ["github"],
+  persistence: [],
+};
+
+/** Every source file in the one tree; each importer holds only its own case. */
+const FILES: Readonly<Record<string, string>> = {
+  "packages/types/src/index.ts": 'export { value } from "logging";\n',
+  "packages/logging/src/peer.ts": TYPE_FROM_GITHUB,
+  "packages/logging/src/types-subpath.ts": TYPE_FROM_TYPES,
+  "packages/i18n/src/peer.ts": TYPE_FROM_GITHUB,
+  "packages/i18n/src/types-subpath.ts": TYPE_FROM_TYPES,
+  "packages/generators/src/peer.ts": TYPE_FROM_GITHUB,
+  "packages/generators/src/types-subpath.ts": TYPE_FROM_TYPES,
+  "packages/brief-core/src/undeclared.ts":
+    'export { value } from "persistence";\n',
+  "packages/brief-core/src/declared.ts": 'export { value } from "github";\n',
+
+  "apps/web/src/imports-worker.ts":
+    'export { value } from "../../worker/src/value";\n',
+  "apps/worker/src/value.ts": VALUE,
+  "packages/brief-core/src/imports-app.ts":
+    'export { value } from "../../../apps/api/src/value";\n',
+  "apps/api/src/value.ts": VALUE,
+  "apps/api/src/imports-tool.ts":
+    'export { value } from "../../../tools/release/src/value";\n',
+  "packages/brief-core/src/imports-tool.ts":
+    'export { value } from "../../../tools/release/src/value";\n',
+  "tools/release/src/value.ts": VALUE,
+  "tools/release/src/imports-package.ts":
+    'export { value } from "../../../packages/types/src/value";\n',
+  "packages/types/src/value.ts": VALUE,
+
+  "apps/web/src/features/inbox/imports-deep.ts":
+    'export { value } from "../brief/utils/deep/inner";\n',
+  "apps/web/src/features/brief/utils/deep/inner.ts": VALUE,
+  "apps/web/src/features/inbox/imports-segment.ts":
+    'export { value } from "../brief/utils";\n',
+  "apps/web/src/features/brief/utils.ts": VALUE,
+  "apps/web/src/components/imports-feature.ts":
+    'export { value } from "../features/brief";\n',
+
+  "apps/web/src/features/brief/index.tsx":
+    'export { value } from "../pulls";\n',
+  "apps/web/src/features/pulls/index.ts": VALUE,
+  "apps/web/src/features/brief/model/imports-review.ts":
+    'export type { Value } from "../../review/session";\n',
+  "apps/web/src/features/review/session/index.ts":
+    "export type Value = number;\n",
+  "apps/web/src/features/brief/model/imports-ui.ts":
+    'export { value } from "../ui/utils";\n',
+  "apps/web/src/features/brief/ui/utils.ts": VALUE,
+  "apps/web/src/features/brief/model/imports-queries.ts":
+    'export { value } from "../queries";\n',
+  "apps/web/src/features/brief/queries.ts":
+    'export { value } from "./ui/utils";\n',
+  "apps/web/src/features/review/imports-ui.ts":
+    'export { value } from "../brief/ui";\n',
+  "apps/web/src/features/brief/ui/index.ts": VALUE,
+  "apps/web/src/features/review/imports-model.ts":
+    'export { value } from "../brief/model";\n',
+  "apps/web/src/features/brief/model/index.ts": VALUE,
+  "apps/web/src/features/pulls/imports-ui.ts":
+    'export { value } from "../brief/ui";\n',
+  "apps/web/src/features/pulls/imports-entry.ts":
+    'export { value } from "../brief";\n',
+  "apps/web/src/features/brief/ui/imports-pulls.ts":
+    'export { value } from "../../pulls";\n',
+  "apps/web/src/features/review/imports-test-utils.test.ts":
+    'export { value } from "../brief/test-utils";\n',
+  "apps/web/src/features/brief/test-utils/index.ts":
+    'export { value } from "./fixtures";\n',
+  "apps/web/src/features/brief/test-utils/fixtures.ts":
+    'export { value } from "../ui/utils";\n',
+  "apps/web/src/features/pulls/imports-brief.test.ts": [
+    'export { value as model } from "../brief/model";',
+    'export { value as queries } from "../brief/queries";',
+    'export { value as fixtures } from "../brief/test-utils";',
+    "",
+  ].join("\n"),
+
+  "apps/web/src/features/brief/ui/imports-render.ts":
+    'export { value } from "../test-utils/render";\n',
+  "apps/web/src/features/brief/test-utils/render.tsx": VALUE,
+  "apps/web/src/features/review/imports-test-utils.ts":
+    'export { value } from "../brief/test-utils";\n',
+  "apps/web/src/features/brief/model/imports-test-utils.test.ts":
+    'export { value } from "../test-utils";\n',
+  "apps/web/src/features/brief/model/imports-fixtures.test.ts":
+    'export { value } from "../test-utils/fixtures";\n',
+  "apps/web/src/characterization/imports-test-utils.test.tsx":
+    'export { value } from "../features/brief/test-utils";\n',
+};
+
+interface CruiseRule {
+  readonly name: string;
+  readonly severity: string;
+}
+
+interface CruiseDependency {
+  readonly resolved: string;
+  readonly rules?: readonly CruiseRule[];
+}
+
+interface CruiseModule {
+  readonly source: string;
+  readonly dependencies: readonly CruiseDependency[];
+}
+
+interface CruiseReport {
+  readonly modules: readonly CruiseModule[];
+  readonly summary: {
+    readonly error: number;
+    readonly violations: readonly unknown[];
+  };
+}
+
+interface CruiseResult {
+  readonly status: number | null;
+  readonly report: CruiseReport;
+}
+
+/** Each resolved target the module imports, mapped to its `rule@severity` list. */
+type EdgeRules = Record<string, readonly string[]>;
+
+function writeMember(root: string, name: string, dependencies: string[]) {
   const member = join(root, "packages", name);
   mkdirSync(join(member, "src"), { recursive: true });
+  const declared = Object.fromEntries(
+    dependencies.map((dependency) => [dependency, "workspace:*"]),
+  );
   writeFileSync(
     join(member, "package.json"),
     JSON.stringify({
       name,
       type: "module",
       exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
-      dependencies,
+      dependencies: declared,
     }),
   );
-  writeFileSync(join(member, "src/index.ts"), "export const value = 1;\n");
+  writeFileSync(join(member, "src/index.ts"), VALUE);
   writeFileSync(
     join(member, "src/contract.ts"),
     "export interface Contract { value: string }\n",
@@ -45,405 +179,347 @@ function writeMember(
   symlinkSync(member, join(root, "node_modules", name), "dir");
 }
 
-interface EdgeOptions {
-  readonly typeOnly?: boolean;
-  /** False writes the import without the manifest dependency that permits it. */
-  readonly declared?: boolean;
+function writeTree(root: string) {
+  for (const directory of ["apps", "packages", "tools", "node_modules"]) {
+    mkdirSync(join(root, directory));
+  }
+  for (const config of [
+    ".dependency-cruiser.cjs",
+    ".dependency-cruiser.alias.cjs",
+  ]) {
+    copyFileSync(join(REPO_ROOT, config), join(root, config));
+  }
+  for (const [name, dependencies] of Object.entries(MEMBERS)) {
+    writeMember(root, name, [...dependencies]);
+  }
+  for (const [path, content] of Object.entries(FILES)) {
+    const file = join(root, path);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, content);
+  }
 }
 
-function cruiseEdge(source: string, target: string, options: EdgeOptions = {}) {
-  const { typeOnly = false, declared = true } = options;
+function runCruiser(root: string, reporter: readonly string[]) {
+  const run = spawnSync(
+    process.execPath,
+    [
+      CRUISER_BIN,
+      "--config",
+      ".dependency-cruiser.cjs",
+      ...reporter,
+      "apps",
+      "packages",
+      "tools",
+    ],
+    { cwd: root, encoding: "utf8", timeout: CRUISE_TIMEOUT_MS },
+  );
+  if (run.error) {
+    throw run.error;
+  }
+  return run;
+}
+
+/**
+ * The JSON report carries every edge's rules but always exits 0, so the
+ * default reporter `pnpm lint` runs cruises the same tree for the exit code.
+ */
+function cruiseTree(): CruiseResult {
   const root = mkdtempSync(join(tmpdir(), "package-layers-"));
   try {
-    for (const directory of ["apps", "packages", "tools", "node_modules"]) {
-      mkdirSync(join(root, directory));
-    }
-    for (const config of [
-      ".dependency-cruiser.cjs",
-      ".dependency-cruiser.alias.cjs",
-    ]) {
-      copyFileSync(join(REPO_ROOT, config), join(root, config));
-    }
-    writeMember(root, source, declared ? { [target]: "workspace:*" } : {});
-    writeMember(root, target, {});
-    const file = join(root, "packages", source, "src/index.ts");
-    const content = typeOnly
-      ? `export type { Contract } from "${target}/contract";\n`
-      : `export { value } from "${target}";\n`;
-    writeFileSync(file, content);
-    const run = spawnSync(
-      process.execPath,
-      [CRUISER_BIN, "--config", ".dependency-cruiser.cjs", "packages"],
-      {
-        cwd: root,
-        encoding: "utf8",
-        timeout: CRUISE_TIMEOUT_MS,
-      },
-    );
-    if (run.error) {
-      throw run.error;
-    }
-    return run;
+    writeTree(root);
+    const json = runCruiser(root, ["--output-type", "json"]);
+    const gate = runCruiser(root, []);
+    const report = JSON.parse(json.stdout) as CruiseReport;
+    return { status: gate.status, report };
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 }
 
-/** A cruise over a hand-written tree of relative imports, no manifests needed. */
-function cruiseFiles(files: Readonly<Record<string, string>>) {
-  const root = mkdtempSync(join(tmpdir(), "boundary-"));
-  try {
-    for (const directory of ["apps", "packages", "tools", "node_modules"]) {
-      mkdirSync(join(root, directory));
-    }
-    for (const config of [
-      ".dependency-cruiser.cjs",
-      ".dependency-cruiser.alias.cjs",
-    ]) {
-      copyFileSync(join(REPO_ROOT, config), join(root, config));
-    }
-    const targets = new Set<string>();
-    for (const [path, content] of Object.entries(files)) {
-      const file = join(root, path);
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, content);
-      targets.add(path.split("/")[0] ?? path);
-    }
-    const run = spawnSync(
-      process.execPath,
-      [CRUISER_BIN, "--config", ".dependency-cruiser.cjs", ...targets],
-      { cwd: root, encoding: "utf8", timeout: CRUISE_TIMEOUT_MS },
-    );
-    if (run.error) {
-      throw run.error;
-    }
-    return run;
-  } finally {
-    rmSync(root, { recursive: true, force: true });
+let cruise: CruiseResult;
+
+beforeAll(() => {
+  cruise = cruiseTree();
+});
+
+function readEdges(source: string): EdgeRules {
+  const module = cruise.report.modules.find(
+    (candidate) => candidate.source === source,
+  );
+  if (module === undefined) {
+    throw new Error(`the cruise saw no module ${source}`);
   }
+  const edges: EdgeRules = {};
+  for (const dependency of module.dependencies) {
+    const rules = dependency.rules ?? [];
+    edges[dependency.resolved] = rules.map(
+      (rule) => `${rule.name}@${rule.severity}`,
+    );
+  }
+  return edges;
 }
+
+describe("the shared cruise", () => {
+  it("exits the gate with one error per reported violation", () => {
+    const { status, report } = cruise;
+    expect(report.summary.violations.length).toBeGreaterThan(0);
+    expect(report.summary.error).toBe(report.summary.violations.length);
+    expect(status).toBe(report.summary.error);
+  });
+});
 
 describe("fixed package layers", () => {
   it("rejects a declared dependency from types to logging", () => {
-    const run = cruiseEdge("types", "logging");
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("types-has-no-workspace-dependencies");
-    expect(run.stdout).not.toContain("declared-edges:types");
+    expect(readEdges("packages/types/src/index.ts")).toEqual({
+      "packages/logging/src/index.ts": [
+        "types-has-no-workspace-dependencies@error",
+      ],
+    });
   });
 
   it.each(["logging", "i18n", "generators"])(
     "rejects %s importing a declared peer",
     (source) => {
-      const run = cruiseEdge(source, "github", { typeOnly: true });
-      expect(run.status).toBe(1);
-      expect(run.stdout).toContain("foundation-packages-import-only-types");
-      expect(run.stdout).not.toContain(`declared-edges:${source}`);
+      expect(readEdges(`packages/${source}/src/peer.ts`)).toEqual({
+        "packages/github/src/contract.ts": [
+          "foundation-packages-import-only-types@error",
+        ],
+      });
     },
   );
 
   it.each(["logging", "i18n", "generators"])(
     "allows %s to import the types subpath",
     (source) => {
-      const run = cruiseEdge(source, "types", { typeOnly: true });
-      expect(run.status).toBe(0);
-      expect(run.stdout).toContain("no dependency violations found");
-      expect(run.stdout).toContain("1 dependencies cruised");
+      expect(readEdges(`packages/${source}/src/types-subpath.ts`)).toEqual({
+        "packages/types/src/contract.ts": [],
+      });
     },
   );
 });
 
 describe("declared edges", () => {
   it("rejects an import the importer's manifest does not declare", () => {
-    const run = cruiseEdge("brief-core", "github", { declared: false });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("declared-edges:brief-core");
+    expect(readEdges("packages/brief-core/src/undeclared.ts")).toEqual({
+      "packages/persistence/src/index.ts": ["declared-edges:brief-core@error"],
+    });
   });
 
-  it("allows the same import once the manifest declares it", () => {
-    const run = cruiseEdge("brief-core", "github");
-    expect(run.status).toBe(0);
-    expect(run.stdout).toContain("no dependency violations found");
-    expect(run.stdout).toContain("1 dependencies cruised");
+  it("allows the same importer a package its manifest declares", () => {
+    expect(readEdges("packages/brief-core/src/declared.ts")).toEqual({
+      "packages/github/src/index.ts": [],
+    });
   });
 });
 
 describe("workspace kinds", () => {
   it("rejects one app importing another", () => {
-    const run = cruiseFiles({
-      "apps/web/src/a.ts": 'export { value } from "../../worker/src/b";\n',
-      "apps/worker/src/b.ts": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/imports-worker.ts")).toEqual({
+      "apps/worker/src/value.ts": ["no-app-imports-another-app@error"],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("no-app-imports-another-app");
   });
 
   it("rejects a package importing an app", () => {
-    const run = cruiseFiles({
-      "packages/brief-core/src/a.ts":
-        'export { value } from "../../../apps/api/src/b";\n',
-      "apps/api/src/b.ts": "export const value = 1;\n",
+    expect(readEdges("packages/brief-core/src/imports-app.ts")).toEqual({
+      "apps/api/src/value.ts": ["no-package-imports-an-app@error"],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("no-package-imports-an-app");
   });
 
   it("rejects app and package source importing a tool", () => {
-    const run = cruiseFiles({
-      "apps/api/src/a.ts":
-        'export { value } from "../../../tools/release/src/b";\n',
-      "packages/brief-core/src/c.ts":
-        'export { value } from "../../../tools/release/src/b";\n',
-      "tools/release/src/b.ts": "export const value = 1;\n",
-    });
-    expect(run.status).toBe(2);
-    expect(run.stdout).toContain("no-source-imports-a-tool");
-    expect(run.stdout).toContain("apps/api/src/a.ts");
-    expect(run.stdout).toContain("packages/brief-core/src/c.ts");
+    const expected = {
+      "tools/release/src/value.ts": ["no-source-imports-a-tool@error"],
+    };
+    expect(readEdges("apps/api/src/imports-tool.ts")).toEqual(expected);
+    expect(readEdges("packages/brief-core/src/imports-tool.ts")).toEqual(
+      expected,
+    );
   });
 
   it("allows a tool to import package source", () => {
-    const run = cruiseFiles({
-      "tools/release/src/a.ts":
-        'export { value } from "../../../packages/types/src/b";\n',
-      "packages/types/src/b.ts": "export const value = 1;\n",
+    expect(readEdges("tools/release/src/imports-package.ts")).toEqual({
+      "packages/types/src/value.ts": [],
     });
-    expect(run.status).toBe(0);
-    expect(run.stdout).toContain("no dependency violations found");
   });
 });
 
 describe("apps/web feature boundaries", () => {
   it("rejects reaching past another feature's public shapes", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/inbox/a.ts":
-        'export { value } from "../brief/utils/deep/inner";\n',
-      "apps/web/src/features/brief/utils/deep/inner.ts":
-        "export const value = 1;\n",
+    expect(readEdges("apps/web/src/features/inbox/imports-deep.ts")).toEqual({
+      "apps/web/src/features/brief/utils/deep/inner.ts": [
+        "web-feature-imports-through-index@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-feature-imports-through-index");
   });
 
   it("allows one segment below another feature's root", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/inbox/a.ts":
-        'export { value } from "../brief/utils";\n',
-      "apps/web/src/features/brief/utils.ts": "export const value = 1;\n",
-    });
-    expect(run.status).toBe(0);
-    expect(run.stdout).toContain("no dependency violations found");
-    expect(run.stdout).toContain("1 dependencies cruised");
+    expect(readEdges("apps/web/src/features/inbox/imports-segment.ts")).toEqual(
+      { "apps/web/src/features/brief/utils.ts": [] },
+    );
   });
 
   it("rejects a global folder importing a feature", () => {
-    const run = cruiseFiles({
-      "apps/web/src/components/a.ts":
-        'export { value } from "../features/brief";\n',
-      "apps/web/src/features/brief/index.ts": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/components/imports-feature.ts")).toEqual({
+      "apps/web/src/features/brief/index.tsx": [
+        "web-global-never-imports-features@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-global-never-imports-features");
   });
 });
 
 describe("apps/web Brief layers", () => {
   it("rejects the Brief model importing another feature", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/model/a.ts":
-        'export type { Value } from "../../review/session";\n',
-      "apps/web/src/features/review/session/index.ts":
-        "export type Value = number;\n",
+    expect(
+      readEdges("apps/web/src/features/brief/model/imports-review.ts"),
+    ).toEqual({
+      "apps/web/src/features/review/session/index.ts": [
+        "web-brief-model-imports-no-feature@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-brief-model-imports-no-feature");
   });
 
   it("rejects the Brief model importing the Brief ui", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/model/a.ts":
-        'export { value } from "../ui/utils";\n',
-      "apps/web/src/features/brief/ui/utils.ts": "export const value = 1;\n",
+    expect(
+      readEdges("apps/web/src/features/brief/model/imports-ui.ts"),
+    ).toEqual({
+      "apps/web/src/features/brief/ui/utils.ts": [
+        "web-brief-model-imports-no-feature@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-brief-model-imports-no-feature");
   });
 
   it("allows the Brief model to import the Brief queries", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/model/a.ts":
-        'export { value } from "../queries";\n',
-      "apps/web/src/features/brief/queries.ts": "export const value = 1;\n",
-    });
-    expect(run.status).toBe(0);
+    expect(
+      readEdges("apps/web/src/features/brief/model/imports-queries.ts"),
+    ).toEqual({ "apps/web/src/features/brief/queries.ts": [] });
   });
 
   it("rejects review importing the Brief ui", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/review/a.ts":
-        'export { value } from "../brief/ui";\n',
-      "apps/web/src/features/brief/ui/index.ts": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/features/review/imports-ui.ts")).toEqual({
+      "apps/web/src/features/brief/ui/index.ts": [
+        "web-review-imports-brief-model-only@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-review-imports-brief-model-only");
   });
 
   it("allows review to import the Brief model index", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/review/a.ts":
-        'export { value } from "../brief/model";\n',
-      "apps/web/src/features/brief/model/index.ts": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/features/review/imports-model.ts")).toEqual({
+      "apps/web/src/features/brief/model/index.ts": [],
     });
-    expect(run.status).toBe(0);
   });
 
   it("rejects pulls importing the Brief ui past its entry", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/pulls/a.ts":
-        'export { value } from "../brief/ui";\n',
-      "apps/web/src/features/brief/ui/index.ts": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/features/pulls/imports-ui.ts")).toEqual({
+      "apps/web/src/features/brief/ui/index.ts": [
+        "web-pulls-imports-brief-entries-only@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-pulls-imports-brief-entries-only");
   });
 
   it("allows pulls to import the Brief entry", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/pulls/a.ts": 'export { value } from "../brief";\n',
-      "apps/web/src/features/brief/index.tsx": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/features/pulls/imports-entry.ts")).toEqual({
+      "apps/web/src/features/brief/index.tsx": [],
     });
-    expect(run.status).toBe(0);
   });
 
   it("rejects the Brief ui importing pulls", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/ui/a.ts":
-        'export { value } from "../../pulls";\n',
-      "apps/web/src/features/pulls/index.ts": "export const value = 1;\n",
+    expect(
+      readEdges("apps/web/src/features/brief/ui/imports-pulls.ts"),
+    ).toEqual({
+      "apps/web/src/features/pulls/index.ts": [
+        "web-brief-never-imports-pulls@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-brief-never-imports-pulls");
   });
 
   it("rejects the Brief queries importing the Brief ui", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/queries.ts":
-        'export { value } from "./ui/utils";\n',
-      "apps/web/src/features/brief/ui/utils.ts": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/features/brief/queries.ts")).toEqual({
+      "apps/web/src/features/brief/ui/utils.ts": [
+        "web-brief-model-imports-no-feature@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-brief-model-imports-no-feature");
   });
 
   it("allows review tests to import the Brief test-utils index", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/review/a.test.ts":
-        'export { value } from "../brief/test-utils";\n',
-      "apps/web/src/features/brief/test-utils/index.ts":
-        "export const value = 1;\n",
-    });
-    expect(run.status).toBe(0);
+    expect(
+      readEdges("apps/web/src/features/review/imports-test-utils.test.ts"),
+    ).toEqual({ "apps/web/src/features/brief/test-utils/index.ts": [] });
   });
 
   it("allows pulls tests to import the Brief model, queries and test-utils", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/pulls/a.test.ts": [
-        'export { model } from "../brief/model";',
-        'export { queries } from "../brief/queries";',
-        'export { fixtures } from "../brief/test-utils";',
-        "",
-      ].join("\n"),
-      "apps/web/src/features/brief/model/index.ts": "export const model = 1;\n",
-      "apps/web/src/features/brief/queries.ts": "export const queries = 1;\n",
-      "apps/web/src/features/brief/test-utils/index.ts":
-        "export const fixtures = 1;\n",
+    expect(
+      readEdges("apps/web/src/features/pulls/imports-brief.test.ts"),
+    ).toEqual({
+      "apps/web/src/features/brief/model/index.ts": [],
+      "apps/web/src/features/brief/queries.ts": [],
+      "apps/web/src/features/brief/test-utils/index.ts": [],
     });
-    expect(run.status).toBe(0);
   });
 
   it("rejects the Brief entry importing pulls", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/index.tsx":
-        'export { value } from "../pulls";\n',
-      "apps/web/src/features/pulls/index.ts": "export const value = 1;\n",
+    expect(readEdges("apps/web/src/features/brief/index.tsx")).toEqual({
+      "apps/web/src/features/pulls/index.ts": [
+        "web-brief-never-imports-pulls@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-brief-never-imports-pulls");
   });
 });
 
 describe("apps/web test-utils modules", () => {
   it("rejects a production file importing test-utils", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/ui/a.ts":
-        'export { value } from "../test-utils/render";\n',
-      "apps/web/src/features/brief/test-utils/render.tsx":
-        "export const value = 1;\n",
+    expect(
+      readEdges("apps/web/src/features/brief/ui/imports-render.ts"),
+    ).toEqual({
+      "apps/web/src/features/brief/test-utils/render.tsx": [
+        "web-test-utils-only-in-tests@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-test-utils-only-in-tests");
   });
 
   it("rejects another feature's source importing the Brief test-utils", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/review/a.ts":
-        'export { value } from "../brief/test-utils";\n',
-      "apps/web/src/features/brief/test-utils/index.ts":
-        "export const value = 1;\n",
+    expect(
+      readEdges("apps/web/src/features/review/imports-test-utils.ts"),
+    ).toEqual({
+      "apps/web/src/features/brief/test-utils/index.ts": [
+        "web-test-utils-only-in-tests@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-test-utils-only-in-tests");
   });
 
   it("rejects a model test importing the test-utils index", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/model/a.test.ts":
-        'export { value } from "../test-utils";\n',
-      "apps/web/src/features/brief/test-utils/index.ts":
-        "export const value = 1;\n",
+    expect(
+      readEdges("apps/web/src/features/brief/model/imports-test-utils.test.ts"),
+    ).toEqual({
+      "apps/web/src/features/brief/test-utils/index.ts": [
+        "web-brief-model-imports-no-feature@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-brief-model-imports-no-feature");
   });
 
   it("allows a model test to import the Brief fixtures", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/model/a.test.ts":
-        'export { value } from "../test-utils/fixtures";\n',
-      "apps/web/src/features/brief/test-utils/fixtures.ts":
-        "export const value = 1;\n",
-    });
-    expect(run.status).toBe(0);
-    expect(run.stdout).toContain("no dependency violations found");
+    expect(
+      readEdges("apps/web/src/features/brief/model/imports-fixtures.test.ts"),
+    ).toEqual({ "apps/web/src/features/brief/test-utils/fixtures.ts": [] });
   });
 
   it("rejects the Brief fixtures importing the Brief ui", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/test-utils/fixtures.ts":
-        'export { value } from "../ui/utils";\n',
-      "apps/web/src/features/brief/ui/utils.ts": "export const value = 1;\n",
+    expect(
+      readEdges("apps/web/src/features/brief/test-utils/fixtures.ts"),
+    ).toEqual({
+      "apps/web/src/features/brief/ui/utils.ts": [
+        "web-brief-model-imports-no-feature@error",
+      ],
     });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("web-brief-model-imports-no-feature");
   });
 
   it("allows the test-utils index to import its members", () => {
-    const run = cruiseFiles({
-      "apps/web/src/features/brief/test-utils/index.ts":
-        'export { value } from "./fixtures";\n',
-      "apps/web/src/features/brief/test-utils/fixtures.ts":
-        "export const value = 1;\n",
-    });
-    expect(run.status).toBe(0);
+    expect(
+      readEdges("apps/web/src/features/brief/test-utils/index.ts"),
+    ).toEqual({ "apps/web/src/features/brief/test-utils/fixtures.ts": [] });
   });
 
   it("allows a test outside the features to import a feature's test-utils", () => {
-    const run = cruiseFiles({
-      "apps/web/src/characterization/a.test.tsx":
-        'export { value } from "../features/brief/test-utils";\n',
-      "apps/web/src/features/brief/test-utils/index.ts":
-        "export const value = 1;\n",
-    });
-    expect(run.status).toBe(0);
-    expect(run.stdout).toContain("no dependency violations found");
+    expect(
+      readEdges("apps/web/src/characterization/imports-test-utils.test.tsx"),
+    ).toEqual({ "apps/web/src/features/brief/test-utils/index.ts": [] });
   });
 });

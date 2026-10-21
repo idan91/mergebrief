@@ -79,14 +79,11 @@ describe("startTracing", () => {
 
   it("starts once even when called twice", async () => {
     const exporter = makeRecordingExporter();
-    const options = {
-      env: ON_ENV,
-      serviceName: "svc",
-      log: stubLog(),
-      exporter,
-    };
+    const log = stubLog();
+    const options = { env: ON_ENV, serviceName: "svc", log, exporter };
     await startTracing(options);
     expect(await startTracing(options)).toEqual({ ok: true, value: "on" });
+    expect(log.warn).not.toHaveBeenCalled();
   });
 });
 

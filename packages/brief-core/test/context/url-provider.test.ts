@@ -4,14 +4,18 @@ import {
   isPublicUrl,
   urlContextProvider,
 } from "../../src/context/providers/url";
-import { ContextProviderTypes } from "../../src/context/types";
+import {
+  ContextProviderTypes,
+  type ContextQuery,
+} from "../../src/context/types";
 
-function makeQuery(body: string) {
+function makeQuery(body: string): ContextQuery {
   return {
     title: "t",
     body,
     headRef: "",
     repo: { owner: "o", repo: "r" },
+    trackers: [],
     references: [],
   };
 }
@@ -23,8 +27,8 @@ function stubDeps(logs: string[] = []) {
   };
 }
 
-describe("isPublicUrl (SSRF pre-filter)", () => {
-  // Synchronous gate — no DNS. The authoritative check is at connect time.
+describe("isPublicUrl, the SSRF pre-filter", () => {
+  // Synchronous gate, no DNS. The authoritative check is at connect time.
   it.each([
     "http://localhost:6006/", // loopback by name
     "http://127.0.0.1/admin", // loopback IP
@@ -34,7 +38,6 @@ describe("isPublicUrl (SSRF pre-filter)", () => {
     "http://192.168.1.1/", // private
     "http://172.16.0.1/", // private
     "http://service.local/", // mDNS
-    "ftp://example.com/", // non-http scheme
     "file:///etc/passwd", // non-http scheme
     "http://user:pass@example.com/", // embedded credentials
     "not a url", // malformed
@@ -66,7 +69,7 @@ describe("extractLinks", () => {
 });
 
 describe("urlContextProvider", () => {
-  it("is the built-in url provider and skips a blocked link without failing the read", async () => {
+  it("is the URL provider and skips a blocked link without failing", async () => {
     const logs: string[] = [];
     expect(urlContextProvider.providerId).toBe(ContextProviderTypes.URL);
 

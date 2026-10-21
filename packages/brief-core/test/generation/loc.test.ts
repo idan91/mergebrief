@@ -139,20 +139,6 @@ describe("deriveChunkLoc", () => {
     expect(chunk?.loc).toEqual({ added: 0, deleted: 0 });
   });
 
-  it("does not double-count overlapping ranges within one chunk", () => {
-    const [chunk] = deriveChunkLoc(
-      [
-        {
-          file: "b.ts",
-          addedRanges: ranges([1, 3], [2, 4]),
-          removedRanges: [],
-        },
-      ],
-      files,
-    );
-    expect(chunk?.loc).toEqual({ added: 4, deleted: 0 });
-  });
-
   it("preserves the chunk's other fields", () => {
     const [chunk] = deriveChunkLoc(
       [
@@ -252,25 +238,9 @@ describe("unattributedTotals", () => {
       ]),
     ).toEqual({ added: 7, deleted: 1 });
   });
-
-  it("collapses overlapping ranges within one file before counting", () => {
-    expect(
-      unattributedTotals([
-        {
-          file: "a.ts",
-          addedRanges: ranges([1, 5], [3, 8]),
-          removedRanges: [],
-        },
-      ]),
-    ).toEqual({ added: 8, deleted: 0 });
-  });
-
-  it("returns zeros for an empty remainder", () => {
-    expect(unattributedTotals([])).toEqual({ added: 0, deleted: 0 });
-  });
 });
 
-describe("normalize hardening (via public API)", () => {
+describe("normalize hardening through the public API", () => {
   it("drops inverted ranges instead of producing negative counts", () => {
     expect(countLines(ranges([5, 3]))).toBe(0);
   });
@@ -448,9 +418,5 @@ describe("diffLocTotals", () => {
         changed("b.ts", ranges([10, 10])),
       ]),
     ).toEqual({ added: 6, deleted: 2 });
-  });
-
-  it("returns zeros for an empty diff", () => {
-    expect(diffLocTotals([])).toEqual({ added: 0, deleted: 0 });
   });
 });

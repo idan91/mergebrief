@@ -67,14 +67,6 @@ describe("StackArrows", () => {
     expect(previous.hasAttribute("aria-disabled")).toBe(false);
   });
 
-  it("flanks the chip, previous before and next after", async () => {
-    await renderArrows(LINEAR, 13, "42");
-    const order = [...screen.getByTestId("stack-arrows").children].map(
-      (child) => child.getAttribute("data-testid"),
-    );
-    expect(order).toEqual(["stack-previous", "chip", "stack-next"]);
-  });
-
   it("follows the app route when the repo is known", async () => {
     const { router } = await renderArrows(LINEAR, 13, "42");
     fireEvent.click(screen.getByTestId("stack-next"));

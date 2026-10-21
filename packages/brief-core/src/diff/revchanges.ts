@@ -99,12 +99,3 @@ export function countChangedLines(diff: string): number {
     0,
   );
 }
-
-export function buildRevisionChanges(
-  headSha: string,
-  prevHeadSha: string,
-  prevIndex: number,
-  diff: string,
-): RevisionChanges {
-  return { headSha, prevHeadSha, prevIndex, files: parseChangedRanges(diff) };
-}

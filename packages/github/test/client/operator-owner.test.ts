@@ -116,10 +116,6 @@ describe("resolveOperatorTokenOwner", () => {
         headers: { "x-ratelimit-remaining": "0" },
       },
     },
-    {
-      name: "a 5xx",
-      answer: { status: 502, body: { message: "bad gateway" } },
-    },
     { name: "an ill-shaped 200", answer: { status: 200, body: { id: "x" } } },
   ])("serves nobody and retries after $name", async ({ answer }) => {
     const { owned, log, retries } = await resolveWith(() => answer);

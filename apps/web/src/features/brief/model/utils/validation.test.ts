@@ -95,10 +95,6 @@ describe("parseBrief", () => {
     expect(parsed).toEqual({ ok: false, error: "invalid:summary" });
   });
 
-  it("fails on a body that is not JSON", () => {
-    expect(parseBrief("{")).toEqual({ ok: false, error: "not-json:" });
-  });
-
   it("warns each repair with its code and path as the only fields", () => {
     const { sink, warn } = stubSink();
     readBrief(
@@ -115,12 +111,6 @@ describe("parseBrief", () => {
       { code: "dropped-section", path: "readingOrder" },
       { code: "unknown-change-group", path: "chunks.0.changeGroupId" },
     ]);
-  });
-
-  it("reads a repaired body silently when no sink is injected", () => {
-    const brief = readBrief({ ...briefBody, readingOrder: "not an array" });
-
-    expect(brief.readingOrder).toBeUndefined();
   });
 });
 

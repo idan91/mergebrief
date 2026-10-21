@@ -1,11 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
-import type { z } from "zod/v4";
-import type {
-  Effort,
-  GenerateRequest,
-  Generation,
-  Generator,
-} from "generators";
+import { describe, expect, it } from "vitest";
 import type { CompareFiles } from "../../src/anchoring/types";
 import { generateBrief } from "../../src/generation/brief";
 import type {
@@ -17,27 +10,15 @@ import type { RepoContext } from "../../src/generation/repo-context";
 import type { GenerationWarning } from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github/types";
 import type { Brief } from "../../src/types";
+import { FakeGenerator } from "../helpers";
 
 const OVER_CAP_SUMMARY = "s".repeat(300);
 const BILLING_ATTRIBUTE = "touches-billing";
 const LEDGER_ATTRIBUTE = "touches-ledger";
 
-/** Answers each request with the next queued output, recording the request. */
-class QueuedGenerator implements Generator {
-  readonly requests: { system: string; user: string }[] = [];
-  constructor(private readonly outputs: unknown[]) {}
-
-  origin(effort: Effort): Generation {
-    return { provider: "fake", model: "fake-model", effort };
-  }
-
-  async generate<S extends z.ZodType>(
-    req: GenerateRequest<S>,
-  ): Promise<z.infer<S>> {
-    this.requests.push({ system: req.system, user: req.user });
-    const output = this.outputs[this.requests.length - 1];
-    return req.schema.parse(output);
-  }
+/** Answers each request with the next queued output. */
+function makeQueuedGenerator(outputs: unknown[]): FakeGenerator {
+  return new FakeGenerator((_request, index) => outputs[index]);
 }
 
 const wholeDiff = [
@@ -165,7 +146,7 @@ async function makePreviousBrief(
     pr,
     headIndex: 1,
     commitRange,
-    generator: new QueuedGenerator([output]),
+    generator: makeQueuedGenerator([output]),
     repoContext,
   };
 
@@ -185,7 +166,7 @@ async function runAnchored(
     pr,
     headIndex: 2,
     commitRange,
-    generator: new QueuedGenerator([output]),
+    generator: makeQueuedGenerator([output]),
     previous: makePrevious(previousBrief ?? (await makePreviousBrief())),
     ...overrides,
   });
@@ -213,7 +194,7 @@ describe("generateBrief, a fresh run", () => {
       pr,
       headIndex: 1,
       commitRange,
-      generator: new QueuedGenerator([baseOutput]),
+      generator: makeQueuedGenerator([baseOutput]),
     });
 
     expect(listChecks(result.warnings)).toContain("text length");
@@ -237,7 +218,7 @@ describe("generateBrief, a fresh run", () => {
       pr,
       headIndex: 1,
       commitRange,
-      generator: new QueuedGenerator([ghostOutput]),
+      generator: makeQueuedGenerator([ghostOutput]),
     });
 
     expect(result.brief.chunks.map((chunk) => chunk.id)).toEqual(["c1", "c2"]);
@@ -272,24 +253,18 @@ describe("generateBrief, a fresh run", () => {
       pr: withBinary,
       headIndex: 1,
       commitRange,
-      generator: new QueuedGenerator([baseOutput]),
+      generator: makeQueuedGenerator([baseOutput]),
     });
 
     expect(findIssues(result.warnings, "loc coverage")).toContainEqual(
       expect.stringContaining("file(s) in no group — logo.png"),
     );
   });
-
-  it("takes the generator as a required option", () => {
-    expectTypeOf<
-      GenerateBriefOptions["generator"]
-    >().toEqualTypeOf<Generator>();
-  });
 });
 
 describe("generateBrief, an anchored run", () => {
   it("carries the frozen group and returns its chunk ids", async () => {
-    const generator = new QueuedGenerator([revisedOutput]);
+    const generator = makeQueuedGenerator([revisedOutput]);
 
     const result = await generateBrief({
       pr,
@@ -318,7 +293,7 @@ describe("generateBrief, an anchored run", () => {
   });
 
   it("hands the plan to the hook before the model call", async () => {
-    const generator = new QueuedGenerator([revisedOutput]);
+    const generator = makeQueuedGenerator([revisedOutput]);
     const seen: { frozen: number; requests: number }[] = [];
 
     await generateBrief({

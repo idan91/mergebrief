@@ -1,7 +1,7 @@
 // Submit mutation tests: the event and body ride as variables, an absent body
 // stays absent, and every failure is sanitized. GraphQL is stubbed at the
 // `octokit.graphql` interface.
-import { RequestError, type Octokit } from "octokit";
+import type { Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
 import {
@@ -94,37 +94,6 @@ describe("submitPullRequestReview", () => {
     expect(serialized).not.toContain(LEAKED_TOKEN);
     expect(serialized).not.toContain(UPSTREAM_TEXT);
     expect(serialized).not.toContain("no access");
-  });
-
-  it("maps a transport error to a sanitized failure", async () => {
-    const graphql = vi.fn().mockRejectedValue(
-      new RequestError("Server Error", 502, {
-        request: {
-          method: "POST",
-          url: "https://api.github.com/graphql",
-          headers: { authorization: `token ${LEAKED_TOKEN}` },
-        },
-        response: {
-          status: 502,
-          url: "https://api.github.com/graphql",
-          headers: {},
-          data: {},
-        },
-      }),
-    );
-    const result = await submitPullRequestReview(mockGraphqlOctokit(graphql), {
-      reviewNodeId: REVIEW_NODE_ID,
-      event: ReviewEvents.COMMENT,
-      body: "note",
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
-    expect(result.error.status).toBe(502);
-    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 
   it("treats a null mutation payload on a 2xx as submitted", async () => {

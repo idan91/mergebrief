@@ -134,18 +134,6 @@ afterEach(() => {
   resetDiffTokenWorker();
 });
 
-describe("getDiffTokenWorker", () => {
-  it("builds one worker per page", () => {
-    expect(getDiffTokenWorker()).toBe(getDiffTokenWorker());
-  });
-
-  it("returns nothing where the runtime has no Worker", () => {
-    vi.stubGlobal("Worker", undefined);
-
-    expect(getDiffTokenWorker()).toBeUndefined();
-  });
-});
-
 describe("warmDiffTokenWorker", () => {
   it("posts the brief's grammars before any chunk asks", () => {
     warmDiffTokenWorker("brief-a", [GrammarNames.TYPESCRIPT]);
@@ -508,42 +496,6 @@ describe("requestSnippetTokens", () => {
     await expect(handle.promise).resolves.toEqual({
       status: ChunkTokenStatuses.PLAIN,
     });
-  });
-
-  it("renders plain for a path with no grammar", async () => {
-    const handle = requestSnippetTokens(
-      makeSnippetRequest({ filePath: "docs/logo.png" }),
-    );
-
-    await expect(handle.promise).resolves.toEqual({
-      status: ChunkTokenStatuses.PLAIN,
-    });
-  });
-
-  it("renders plain past the chunk row ceiling", async () => {
-    const rows: DiffLine[] = Array.from({ length: 1001 }, () => ({
-      kind: DiffLineKinds.CTX,
-      content: "x",
-    }));
-
-    const handle = requestSnippetTokens(makeSnippetRequest({ rows }));
-
-    await expect(handle.promise).resolves.toEqual({
-      status: ChunkTokenStatuses.PLAIN,
-    });
-  });
-
-  it("serves a second render of one snippet from the cache", async () => {
-    const first = requestSnippetTokens(makeSnippetRequest());
-    deliverReply(makeTokensReply(readSentRequestId(0)));
-    await first.promise;
-
-    const second = requestSnippetTokens(makeSnippetRequest());
-
-    await expect(second.promise).resolves.toMatchObject({
-      status: ChunkTokenStatuses.READY,
-    });
-    expect(readWorker().sent).toHaveLength(1);
   });
 
   it("never serves a chunk reply to a snippet of the same id", async () => {

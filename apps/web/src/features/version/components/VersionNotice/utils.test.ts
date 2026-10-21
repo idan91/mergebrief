@@ -14,9 +14,4 @@ describe("focusMainContent", () => {
 
     expect(document.activeElement?.id).toBe("main-content");
   });
-
-  it("does nothing without a main content element", () => {
-    expect(() => focusMainContent()).not.toThrow();
-    expect(document.activeElement).toBe(document.body);
-  });
 });

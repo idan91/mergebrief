@@ -33,13 +33,6 @@ describe("estimateChunkCardHeight", () => {
       CHUNK_CARD_OVERHEAD_PX + EMPTY_DIFF_NOTE_PX,
     );
   });
-
-  it("gives the same number for the same input, so SSR and client agree", () => {
-    const input = { diffRowCount: 27, open: true };
-    expect(estimateChunkCardHeight(input)).toBe(
-      estimateChunkCardHeight({ ...input }),
-    );
-  });
 });
 
 describe("estimateNarrativeCardHeight", () => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/test-utils";
 import { GroupViewKinds } from "../../../../../model/utils/remainder";
@@ -40,19 +40,6 @@ describe("GroupLines", () => {
       name: `${firstName} — has conversation`,
     });
     expect(line.getAttribute("aria-current")).toBe("true");
-  });
-
-  it("jumps with the click event", () => {
-    const jumpToGroup = vi.fn();
-    render(
-      <GroupLines
-        activeGroupId={null}
-        groups={model.groups}
-        jumpToGroup={jumpToGroup}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: firstName }));
-    expect(jumpToGroup).toHaveBeenCalledWith(first.id, expect.anything());
   });
 
   it("names the group in a callout on hover and drops it on blur", () => {

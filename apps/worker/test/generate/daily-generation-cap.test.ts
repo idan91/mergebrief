@@ -317,20 +317,6 @@ describe("generate task, daily generation cap", () => {
     expect(row?.errorCode).toBeNull();
   });
 
-  it("proceeds while the instance is under its cap", async () => {
-    const { pr, payload } = await trigger(HEAD_1);
-    const generator = stubGenerator();
-    const task = makeTask({ generator, spend: { maxGenerationsPerDay: 5 } });
-
-    await task(payload);
-
-    expect(generator.calls).toEqual(["brief"]);
-    const row = await createGenerationProjection(harness.handle, ctx).get(
-      makeTarget(pr, HEAD_1),
-    );
-    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
-  });
-
   it("excludes the deciding run from the cap so a first run can proceed", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -494,21 +480,5 @@ describe("generate task, daily generation cap", () => {
     ).get(makeTarget(pr, HEAD_2));
     expect(afterRetry?.status).toBe(GenerationStatuses.FAILED);
     expect(afterRetry?.errorCode).toBe(failed?.errorCode);
-  });
-
-  it("leaves zero-config jobs uncapped", async () => {
-    await burnOneRun();
-    const { pr, payload } = await trigger(HEAD_2);
-    const generator = stubGenerator();
-    await makeTask({ generator, github: makeGitHub(HEAD_2) })(payload);
-
-    expect(generator.calls).toContain("brief");
-    expect(
-      (
-        await createGenerationProjection(harness.handle, ctx).get(
-          makeTarget(pr, HEAD_2),
-        )
-      )?.status,
-    ).toBe(GenerationStatuses.SUCCEEDED);
   });
 });

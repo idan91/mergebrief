@@ -176,19 +176,4 @@ describe("in-place brief switch", () => {
     });
     expect(result.current.unplacedDrafts).toEqual([]);
   });
-
-  it("writes nothing to sessionStorage", () => {
-    const { result, switchTo } = renderSession();
-    act(() => {
-      result.current.actions.reviewChunk("c1");
-    });
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-    switchTo("brief-b");
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-    expect(window.sessionStorage.length).toBe(0);
-  });
 });

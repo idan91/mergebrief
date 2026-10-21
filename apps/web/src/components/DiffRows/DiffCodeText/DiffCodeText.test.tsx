@@ -2,7 +2,6 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { SYNTAX_PALETTE } from "@web/utils/diffTokens/palette";
 import { DiffCodeText } from ".";
 import { resolveSyntaxClass } from "./utils";
 
@@ -97,21 +96,9 @@ describe("DiffCodeText emphasis", () => {
     expect(view.container.querySelector("mark")?.textContent).toBe("1");
     expect(view.container.textContent).toBe("a = 1");
   });
-
-  it("renders no mark for an empty emphasis list", () => {
-    const view = render(<DiffCodeText content="a" emphasis={[]} />);
-
-    expect(view.container.querySelector("mark")).toBeNull();
-  });
 });
 
 describe("resolveSyntaxClass", () => {
-  it("names a class for every palette entry", () => {
-    SYNTAX_PALETTE.forEach((entry, index) => {
-      expect(resolveSyntaxClass(index)).toBe(`syn-${entry.token}`);
-    });
-  });
-
   it("falls back to the text class for an unknown index", () => {
     expect(resolveSyntaxClass(999)).toBe("syn-text");
   });

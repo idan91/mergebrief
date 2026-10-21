@@ -1,9 +1,5 @@
 export type { Disposition } from "./disposition";
-export {
-  createReviewSessionStore,
-  deriveInitialState,
-  type ReviewSessionActions,
-} from "./store";
+export type { ReviewSessionActions } from "./store";
 export { serializeSnapshot, type SessionSnapshot } from "./snapshot";
 export { getChunkRegions } from "./anchors";
 export { parseReviewSessionPayload } from "./schemas";

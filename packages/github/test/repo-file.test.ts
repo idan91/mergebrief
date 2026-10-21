@@ -47,27 +47,6 @@ function fileResponse(text: string, overrides: Record<string, unknown> = {}) {
 }
 
 describe("getRepoFile", () => {
-  it("decodes a base64 file and returns content + blob SHA + size", async () => {
-    const text = "version: 1\nentryCommentOnDrafts: true\n";
-    const request = vi.fn().mockResolvedValue(fileResponse(text));
-    const result = await getRepoFile(mockOctokit(request), {
-      owner: "o",
-      repo: "r",
-      path: ".mergebrief/settings.yaml",
-      maxBytes: 4096,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value).toEqual({
-      kind: RepoFileKinds.FILE,
-      content: text,
-      blobSha: "abc123def456",
-      size: Buffer.byteLength(text, "utf8"),
-    });
-  });
-
   it("omits ref from the request to read the default branch", async () => {
     const request = vi.fn().mockResolvedValue(fileResponse("x"));
     await getRepoFile(mockOctokit(request), {

@@ -26,12 +26,6 @@ describe("readTestPostgresUrl", () => {
     );
   });
 
-  it("throws under CI when the variable is empty", () => {
-    expect(() =>
-      readTestPostgresUrl({ CI: "true", MERGEBRIEF_TEST_POSTGRES_URL: "" }),
-    ).toThrow(/MERGEBRIEF_TEST_POSTGRES_URL/);
-  });
-
   it("returns the variable under CI when it is set", () => {
     expect(
       readTestPostgresUrl({

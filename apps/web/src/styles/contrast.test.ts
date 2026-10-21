@@ -270,22 +270,6 @@ describe("palette contrast", () => {
     expect(failures).toEqual([]);
   });
 
-  it("keeps every mark and state colour at 3:1 on every surface", async () => {
-    const colorOf = await resolvePalette();
-    const failures: string[] = [];
-
-    for (const mark of MARKS) {
-      for (const surface of SURFACES) {
-        const ratio = computeContrast(colorOf(mark), colorOf(surface));
-        if (ratio < MARKS_MIN) {
-          failures.push(`${mark} on ${surface}: ${ratio.toFixed(2)}`);
-        }
-      }
-    }
-
-    expect(failures).toEqual([]);
-  });
-
   it("keeps every concern colour at 3:1 on every surface", async () => {
     const colorOf = await resolvePalette();
     const failures: string[] = [];

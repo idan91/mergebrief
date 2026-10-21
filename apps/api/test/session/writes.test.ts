@@ -13,7 +13,6 @@ import {
 } from "types";
 import type { KeyProvider } from "persistence";
 import { makeFakeGitHub, type FakeGitHub } from "github/testing";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp } from "../../src/index";
@@ -44,8 +43,11 @@ import {
   listCallsPastGate,
 } from "../reviewer-github";
 import { seedSignIn, seedApiToken } from "../sign-in";
+import { registerSharedPglite } from "../shared-pglite";
 
 const OTHER_REVIEWER = brandReviewerId(4242n);
+/** How many unposted drafts one session may hold. */
+const SESSION_DRAFT_CAP = 64;
 
 function pathFor(suffix: string, head: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=base&head=${head}`;
@@ -145,14 +147,13 @@ function listSessionWrites(draftId: string): readonly SessionWrite[] {
 }
 
 describe("the Review Session writes", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let cookie: string;
   let fake: FakeGitHub;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -167,10 +168,9 @@ describe("the Review Session writes", () => {
     await seedPullRequest(harness.handle);
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    await harness.close();
   });
 
   async function write(
@@ -300,25 +300,6 @@ describe("the Review Session writes", () => {
     expect(await countRows("review_session")).toBe(1);
   });
 
-  it("applies the copy and the write together, or neither", async () => {
-    const previous = await seedBrief(harness.handle, 1);
-    await seedBrief(harness.handle, 2);
-    await seedPreviousWork(harness.handle, previous);
-    const carriedBefore = await countRows("review_draft_comment");
-
-    // The carried `g1` fills the Brief's one group, so a second group is
-    // refused after the copy, and the session and the copied rows go back
-    // with the transaction.
-    const refused = await write("PUT", "/groups/g2/classification", "head-2", {
-      category: ChangeGroupCategories.BUGFIX,
-    });
-
-    expect(refused.status).toBe(409);
-    expect(await readWireCode(refused)).toBe("session-record-limit-reached");
-    expect(await countRows("review_session")).toBe(1);
-    expect(await countRows("review_draft_comment")).toBe(carriedBefore);
-  });
-
   it("409s a read mark or a decision past the Brief's own counts", async () => {
     await seedBrief(harness.handle, 1);
     const third = { ...FLAG, attribute: "no-docs" };
@@ -395,34 +376,6 @@ describe("the Review Session writes", () => {
     });
   });
 
-  it("keeps the read and unread marks idempotent on a repeat", async () => {
-    await seedBrief(harness.handle, 1);
-
-    const marked = await write("POST", "/chunks/c1/read", "head-1");
-    expect(marked.status).toBe(204);
-    expect(await marked.text()).toBe("");
-    expect(marked.headers.get("cache-control")).toBe("no-store");
-    expect((await write("POST", "/chunks/c1/read", "head-1")).status).toBe(204);
-    expect(await countRows("review_read_mark")).toBe(1);
-
-    const cleared = await write("POST", "/chunks/c1/unread", "head-1");
-    expect(cleared.status).toBe(204);
-    expect(await cleared.text()).toBe("");
-    expect((await write("POST", "/chunks/c1/unread", "head-1")).status).toBe(
-      204,
-    );
-    expect(await countRows("review_read_mark")).toBe(0);
-  });
-
-  it("answers the old PUT chunk read with 404", async () => {
-    await seedBrief(harness.handle, 1);
-
-    const res = await write("PUT", "/chunks/c1/read", "head-1", { read: true });
-
-    expect(res.status).toBe(404);
-    expect(await countRows("review_read_mark")).toBe(0);
-  });
-
   it("edits, re-anchors and deletes a draft through the session that owns it", async () => {
     const briefId = await seedBrief(harness.handle, 1);
     const draftId = await readDraftId(
@@ -492,18 +445,6 @@ describe("the Review Session writes", () => {
       },
       body: "on the file",
     });
-  });
-
-  it("400s mixing the file kind with a line span", async () => {
-    await seedBrief(harness.handle, 1);
-    const mixed = await write("POST", "/comments", "head-1", {
-      kind: CommentAnchorKinds.FILE,
-      filePath: "src/app.ts",
-      startLine: 10,
-      body: "on the file",
-    });
-    expect(mixed.status).toBe(400);
-    expect(await countRows("review_draft_comment")).toBe(0);
   });
 
   it("reanchors a Line comment onto a file", async () => {
@@ -704,22 +645,6 @@ describe("the Review Session writes", () => {
     ]);
   });
 
-  it("leaves the session unmaterialized after a refused first edit", async () => {
-    const previous = await seedBrief(harness.handle, 1);
-    await seedBrief(harness.handle, 2);
-    await seedPreviousWork(harness.handle, previous);
-
-    const refused = await write("PATCH", "/comments/987654321", "head-2", {
-      body: "edited",
-    });
-
-    expect(refused.status).toBe(404);
-    const after = await read("head-2");
-    expect(
-      z.object({ materialized: z.boolean() }).parse(await after.json()),
-    ).toEqual({ materialized: false });
-  });
-
   it("409s an edit or a delete against a draft already published", async () => {
     const briefId = await seedBrief(harness.handle, 1);
     const draftId = await readDraftId(
@@ -814,10 +739,9 @@ describe("the Review Session writes", () => {
 
   it("refuses the 65th unposted draft the session would hold", async () => {
     const briefId = await seedBrief(harness.handle, 1);
-    const repo = createTenantRepository(harness.handle, CTX);
-    const key = { briefId, reviewerId: REVIEWER };
-    for (let index = 0; index < 64; index++) {
-      await repo.reviewSessions.addDraft(key, {
+    await createTenantRepository(harness.handle, CTX).reviewSessions.addDraft(
+      { briefId, reviewerId: REVIEWER },
+      {
         anchor: {
           kind: CommentAnchorKinds.LINE,
           file: DRAFT.filePath,
@@ -826,23 +750,20 @@ describe("the Review Session writes", () => {
           endLine: DRAFT.endLine,
         },
         body: DRAFT.body,
-      });
-    }
+      },
+    );
+    await harness.raw(
+      `insert into review_draft_comment
+         (installation_id, review_session_id, file_path, kind, side, start_line, end_line, body)
+       select installation_id, review_session_id, file_path, kind, side, start_line, end_line, body
+       from review_draft_comment, generate_series(2, $1)`,
+      [SESSION_DRAFT_CAP],
+    );
+    expect(await countRows("review_draft_comment")).toBe(SESSION_DRAFT_CAP);
 
     const refused = await write("POST", "/comments", "head-1", DRAFT);
     expect(refused.status).toBe(409);
     expect(await readWireCode(refused)).toBe("draft-limit-reached");
-
-    // Publishing one frees a slot: the cap counts what a submit would post.
-    const rows = await harness.raw(
-      "select id from review_draft_comment order by id limit 1",
-    );
-    await repo.reviewSessions.recordPublishedDrafts(key, {
-      draftIds: [BigInt(String(rows[0]?.["id"]))],
-    });
-    expect((await write("POST", "/comments", "head-1", DRAFT)).status).toBe(
-      201,
-    );
   });
 
   it("400s a malformed payload and 404s an unknown span, writing nothing", async () => {

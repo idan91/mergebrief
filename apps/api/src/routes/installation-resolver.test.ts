@@ -14,16 +14,7 @@ import {
   isReviewerId,
   type InstallationId,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KEY_REF, createKeyProvider } from "../../test/fixtures";
 import { buildFakeAuthDeps } from "../../test/reviewer-github";
 import {
@@ -35,6 +26,7 @@ import { AuthChannels, type ViewerPrincipal } from "./auth/session/types";
 import { AUTHZ_CACHE_TTL_MS } from "../access/consts";
 import { createInstallationResolver } from "./installation-resolver";
 import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite } from "../../test/shared-pglite";
 
 const keyProvider = createKeyProvider();
 
@@ -79,14 +71,8 @@ const UPSTREAM_DOWN: GitHubApiError = {
   message: "down",
 };
 
-let harness: PgliteHarness;
+const harness = registerSharedPglite();
 let fake: FakeGitHub;
-beforeAll(async () => {
-  harness = await createPgliteHarness();
-});
-afterAll(async () => {
-  await harness.close();
-});
 
 async function stubPrincipal(): Promise<ViewerPrincipal> {
   const sealed = await encryptToken(keyProvider, KEY_REF, "ghu_TOKEN");

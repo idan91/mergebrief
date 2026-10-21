@@ -61,10 +61,10 @@ describe("partitionGroups", () => {
     expect(findVerdict(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
   });
 
-  it("a compare entry without hunks (binary / mode-only) still re-looks its group", () => {
+  it("a hunkless compare entry, binary or mode-only, re-looks its group", () => {
     const result = partitionGroups(
       input({
-        // No parsed ranges — the raw diff shows nothing for a binary blob.
+        // No parsed ranges: the raw diff shows nothing for a binary blob.
         compareFiles: [{ file: "src/a.ts", status: "modified" }],
       }),
     );
@@ -95,8 +95,9 @@ describe("partitionGroups", () => {
     expect(findVerdict(result, "g2")).toBe(GroupVerdicts.FROZEN);
   });
 
-  it("missing compare metadata re-looks everything (nothing is confirmable)", () => {
-    const result = partitionGroups(input({ compareFiles: undefined }));
+  it("missing compare metadata re-looks everything, nothing is confirmable", () => {
+    const { compareFiles: _absent, ...noCompareFiles } = input({});
+    const result = partitionGroups(noCompareFiles);
     expect(findVerdict(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
     expect(findVerdict(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
   });
@@ -107,7 +108,7 @@ describe("partitionGroups", () => {
     expect(findVerdict(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
   });
 
-  it("an unrecognized compare status is conservative — touched", () => {
+  it("an unrecognized compare status is conservative: touched", () => {
     const result = partitionGroups(
       input({
         compareFiles: [{ file: "src/c.ts", status: "quantum-entangled" }],

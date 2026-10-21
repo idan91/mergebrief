@@ -7,7 +7,6 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import pkg from "../package.json" with { type: "json" };
 import { CLI_VERSION, createApiClient } from "../src/client";
-import { runCli } from "../src/program";
 import {
   fullNameFromOriginUrl,
   ownerFromOriginUrl,
@@ -16,6 +15,7 @@ import {
   type CliConfig,
 } from "../src/profile/config";
 import { CliError, ExitCodes, exitCodeForStatus } from "../src/exit";
+import { expectRefusedBeforeRequest, runCliOffline } from "./harness/offline";
 
 describe("exit-code mapping, the contract table", () => {
   it.each([
@@ -342,64 +342,33 @@ describe("saveConfig permissions", () => {
 
 describe("mergebrief --version", () => {
   it("prints the build-time version and exits 0", async () => {
-    const out: string[] = [];
-    const err: string[] = [];
+    const { code, out, err, requests } = await runCliOffline(["--version"]);
 
-    const code = await runCli(["--version"], {
-      fetch: async () => {
-        throw new Error("no request expected");
-      },
-      env: {},
-      configDir: "/nonexistent/config",
-      cacheDir: "/nonexistent/cache",
-      stdout: (text) => out.push(text),
-      stderr: (line) => err.push(line),
-      readStdin: async () => "",
-      gitOriginUrl: () => undefined,
-    });
-
-    expect(code).toBe(0);
-    expect(out.join("")).toBe(`${pkg.version}\n`);
+    expect(code).toBe(ExitCodes.OK);
+    expect(out).toBe(`${pkg.version}\n`);
     expect(err).toEqual([]);
-  });
-
-  it("the repo holds the 0.0.0 dev sentinel", () => {
-    expect(pkg.version).toBe("0.0.0");
+    expect(requests).toEqual([]);
   });
 });
 
 describe("usage validation before network work", () => {
-  function runOffline(argv: readonly string[]): Promise<{
-    code: number;
-    out: string[];
-    requests: string[];
-  }> {
-    const tempRoot = tmpdir();
-    const configDir = mkdtempSync(join(tempRoot, "mb-order-config-"));
-    const cacheDir = mkdtempSync(join(tempRoot, "mb-order-cache-"));
-    saveConfig(configDir, {
-      defaultProfile: "default",
-      profiles: {
-        default: { baseUrl: "https://mergebrief.example.com", token: "t" },
-      },
-    });
-    const out: string[] = [];
-    const requests: string[] = [];
+  const SPAN = ["--base", "a", "--head", "b"];
+  const ANCHOR_FLAGS = ["--file", "f", "--start", "1", "--end", "2"];
+  const CREATE_FLAGS = [...ANCHOR_FLAGS, "--body", "b"];
 
-    return runCli(argv, {
-      fetch: async (url) => {
-        requests.push(url);
-        throw new Error("no request expected");
-      },
-      env: {},
-      configDir,
-      cacheDir,
-      stdout: (text) => out.push(text),
-      stderr: () => {},
-      readStdin: async () => "",
-      gitOriginUrl: () => "git@github.com:acme/widgets.git",
-    }).then((code) => ({ code, out, requests }));
-  }
+  it.each([
+    [["diff", "7", "--json"]],
+    [["diff", "7", "--base", "a"]],
+    [["diff", "7", "--group", "g", "--base", "a"]],
+    [["diff", "7", "--group", "g", "--base", "a", "--head", "b"]],
+    [["delta", "7", "--baseline", "a"]],
+    [["session", "7"]],
+    [["submit", "7", "--outcome", "comment", "--body", "b"]],
+    [["draft", "delete", "7", "d1"]],
+    [["risk", "address", "7"]],
+  ])("%j exits 2 without a request", async (argv) => {
+    expectRefusedBeforeRequest(await runCliOffline(argv));
+  });
 
   it.each([
     [["pr", "x"]],
@@ -407,21 +376,24 @@ describe("usage validation before network work", () => {
     [["conversation", "x"]],
     [["diff", "x"]],
     [["delta", "x"]],
-    [["diff", "7", "--base", "a"]],
-    [["diff", "7", "--group", "g", "--base", "a", "--head", "b"]],
-    [["delta", "7", "--baseline", "a"]],
     [["reply", "c1", "--pr", "x", "--body", "hi"]],
     [["thread", "resolve", "x", "c1"]],
     [["ready", "x"]],
-    [["session", "7"]],
-    [["submit", "7", "--outcome", "comment", "--body", "b"]],
-    [["draft", "delete", "7", "d1"]],
-    [["risk", "address", "7"]],
-  ])("%j exits 2 without a request", async (argv) => {
-    const { code, out, requests } = await runOffline(argv);
-
-    expect(code).toBe(ExitCodes.USAGE);
-    expect(out).toEqual([]);
-    expect(requests).toEqual([]);
+    [["session", "x", ...SPAN]],
+    [["marks", "x", "--baseline", "a", "--head", "b"]],
+    [["narrative", "x", "--prev-head", "a", "--head", "b"]],
+    [["context", "x", ...SPAN]],
+    [["submit", "abc", "--outcome", "comment", "--body", "x", ...SPAN]],
+    [["draft", "create", "x", ...CREATE_FLAGS, ...SPAN]],
+    [["draft", "update", "x", "1", "--body", "b", ...SPAN]],
+    [["draft", "reanchor", "x", "1", ...ANCHOR_FLAGS, ...SPAN]],
+    [["draft", "delete", "x", "1", ...SPAN]],
+    [["chunk-read", "x", "chunk-1", ...SPAN]],
+    [["risk", "dismiss", "x", "-F", "-", ...SPAN]],
+    [["reclassify", "x", "grp-1", "--category", "bugfix", ...SPAN]],
+    [["outcome", "x", "comment", ...SPAN]],
+  ])("%j exits 2 naming the PR number, without a request", async (argv) => {
+    const result = await runCliOffline(argv, { stdin: '{"flags":[]}' });
+    expectRefusedBeforeRequest(result, "PR number");
   });
 });

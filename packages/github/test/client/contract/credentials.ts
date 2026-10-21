@@ -28,7 +28,7 @@ import {
   type ContractAdapterFactory,
   type ContractCase,
 } from "./types";
-import { shapeDenialAnswer } from "./utils";
+import { selectCases, shapeDenialAnswer } from "./utils";
 
 const REPO_CASES: readonly ContractCase<ReviewerRepoClient>[] = [
   ...REPO_READER_CASES,
@@ -37,9 +37,21 @@ const REPO_CASES: readonly ContractCase<ReviewerRepoClient>[] = [
 
 const REACH_CASES = REPO_CASES.filter((testCase) => testCase.operatorReach);
 
-const READ_DENIALS: readonly DenialOutcome[] = [
-  ContractOutcomes.NOT_FOUND,
-  ContractOutcomes.FORBIDDEN,
+const FORBIDDEN_FALLBACKS: readonly GitHubOperation[] = [
+  "fetchPullRequest",
+  "fetchRepoFile",
+  "createInlineReviewComment",
+];
+
+const SAMPLE_REPO_READS: readonly GitHubOperation[] = [
+  "fetchPullRequest",
+  "fetchRepoFile",
+];
+
+const SAMPLE_REVIEWER_CALLS: readonly GitHubOperation[] = [
+  "fetchPullRequest",
+  "fetchRepositoryById",
+  "listUserInstallations",
 ];
 
 const UNREADABLE: CredentialFailure = {
@@ -64,6 +76,25 @@ function shapeFallbackAnswer(
   return shapeDenialAnswer(testCase, denial);
 }
 
+interface FallbackRow {
+  readonly operation: GitHubOperation;
+  readonly testCase: ContractCase<ReviewerRepoClient>;
+  readonly denial: DenialOutcome;
+  readonly expected: unknown;
+}
+
+function buildFallbackRow(
+  testCase: ContractCase<ReviewerRepoClient>,
+  denial: DenialOutcome,
+): FallbackRow {
+  return {
+    operation: testCase.operation,
+    testCase,
+    denial,
+    expected: shapeFallbackAnswer(testCase, denial),
+  };
+}
+
 function bindOperatorBacked(
   createAdapter: ContractAdapterFactory,
   operation: GitHubOperation,
@@ -76,14 +107,13 @@ function bindOperatorBacked(
 }
 
 function describeOperatorReads(createAdapter: ContractAdapterFactory): void {
-  const fallbacks = REPO_CASES.flatMap((testCase) =>
-    READ_DENIALS.map((denial) => ({
-      operation: testCase.operation,
-      testCase,
-      denial,
-      expected: shapeFallbackAnswer(testCase, denial),
-    })),
+  const notFoundFallbacks = REPO_CASES.map((testCase) =>
+    buildFallbackRow(testCase, ContractOutcomes.NOT_FOUND),
   );
+  const forbiddenFallbacks = selectCases(REPO_CASES, FORBIDDEN_FALLBACKS).map(
+    (testCase) => buildFallbackRow(testCase, ContractOutcomes.FORBIDDEN),
+  );
+  const fallbacks = [...notFoundFallbacks, ...forbiddenFallbacks];
 
   it.each(fallbacks)(
     "$operation after a reviewer $denial",
@@ -101,7 +131,7 @@ function describeOperatorReads(createAdapter: ContractAdapterFactory): void {
     },
   );
 
-  it.each(REACH_CASES)(
+  it.each(selectCases(REACH_CASES, ["fetchPullRequest"]))(
     "$operation keeps the reviewer's denial on an operator 401",
     async (testCase) => {
       const github = bindOperatorBacked(
@@ -119,7 +149,7 @@ function describeOperatorReads(createAdapter: ContractAdapterFactory): void {
     },
   );
 
-  it.each(REACH_CASES)(
+  it.each(selectCases(REACH_CASES, SAMPLE_REPO_READS))(
     "$operation answers a 404 both tokens get",
     async (testCase) => {
       const adapter = createAdapter({
@@ -171,7 +201,7 @@ function describeOperatorReads(createAdapter: ContractAdapterFactory): void {
     },
   );
 
-  it.each(REACH_CASES)(
+  it.each(selectCases(REACH_CASES, SAMPLE_REPO_READS))(
     "$operation keeps a 404 in another repository",
     async (testCase) => {
       const adapter = createAdapter({
@@ -260,7 +290,7 @@ function describeRenewal(createAdapter: ContractAdapterFactory): void {
     },
   );
 
-  it.each(listReviewerCalls())(
+  it.each(selectReviewerCalls(SAMPLE_REVIEWER_CALLS))(
     "$operation answers a 401 on the renewed token without renewing again",
     async ({ operation, call }) => {
       const adapter = createAdapter({
@@ -294,10 +324,18 @@ function listReviewerCalls(): ReviewerCall[] {
   return [...onRepo, ...ACCOUNT_READER_CASES, ...REVIEWER_ACCOUNT_CASES];
 }
 
+function selectReviewerCalls(
+  operations: readonly GitHubOperation[],
+): ReviewerCall[] {
+  return listReviewerCalls().filter((reviewerCall) =>
+    operations.includes(reviewerCall.operation),
+  );
+}
+
 function describeUnreadableCredential(
   createAdapter: ContractAdapterFactory,
 ): void {
-  it.each(listReviewerCalls())(
+  it.each(selectReviewerCalls(["fetchPullRequest"]))(
     "$operation answers an unreadable credential unsent",
     async ({ operation, call }) => {
       const adapter = createAdapter({

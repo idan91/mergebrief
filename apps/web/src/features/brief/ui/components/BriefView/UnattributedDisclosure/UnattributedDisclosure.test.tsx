@@ -65,7 +65,6 @@ describe("UnattributedDisclosure", () => {
         name: appI18n.t("brief.unattributed.jumpToGroup"),
       }),
     ).toBeTruthy();
-    expect(screen.queryByText("src/orphan.ts")).toBeNull();
     const panelId = trigger.getAttribute("aria-controls");
     expect(panelId).toBeTruthy();
     expect(trigger.getAttribute("aria-describedby")).toBeNull();

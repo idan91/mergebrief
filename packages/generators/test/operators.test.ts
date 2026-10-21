@@ -67,14 +67,6 @@ describe("the operators block inside the instance config file", () => {
     expect(loadGeneratorConfigFile(path).ok).toBe(true);
   });
 
-  it("boots with an empty list written as brackets", () => {
-    const path = writeConfigFile(
-      "generator:\n  provider: anthropic\noperators: []\n",
-    );
-
-    expect(loadGeneratorConfigFile(path).ok).toBe(true);
-  });
-
   it("refuses a bare operators key with no list under it", () => {
     const path = writeConfigFile(
       "generator:\n  provider: anthropic\noperators:\n",

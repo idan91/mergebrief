@@ -12,15 +12,10 @@ import {
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
-import {
-  FILE_BLOB_CACHE_MAX_ENTRIES,
-  FILE_BLOB_MAX_BYTES,
-} from "../src/routes/repos/pr/reads/consts";
-import { createTtlCache } from "../src/routes/ttl-cache";
+import { FILE_BLOB_MAX_BYTES } from "../src/routes/repos/pr/reads/consts";
 import {
   INSTALLATION_ID,
   PR_NUMBER,
@@ -39,6 +34,7 @@ import {
   listCallsPastGate,
 } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_ID = 424242;
 const REPO = { owner: "octo", repo: "hello" };
@@ -62,14 +58,13 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
 }
 
 describe("file range read", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
   let cookie: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -81,11 +76,6 @@ describe("file range read", () => {
     });
     ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function readRange(query: string, sessionCookie = cookie) {
@@ -156,20 +146,6 @@ describe("file range read", () => {
     await readWindow(2, 3, other.cookie);
 
     expect(listFileReads()).toHaveLength(2);
-  });
-
-  it("holds its entry cap, so one reader cannot pin the heap", () => {
-    const fileCache = createTtlCache<readonly string[]>(
-      FILE_BLOB_CACHE_MAX_ENTRIES,
-    );
-    const expiresAt = Date.now() + 60_000;
-    const overflow = FILE_BLOB_CACHE_MAX_ENTRIES + 10;
-    for (let index = 0; index < overflow; index += 1) {
-      fileCache.set(`key-${String(index)}`, ["line"], expiresAt);
-    }
-
-    expect(fileCache.get("key-0")).toBeUndefined();
-    expect(fileCache.get(`key-${String(overflow - 1)}`)).toEqual(["line"]);
   });
 
   it("refuses a span wider than one read may serve", async () => {

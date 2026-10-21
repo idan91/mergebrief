@@ -14,7 +14,7 @@ const FIXTURES_DIR = join(TEST_DIR, "fixtures");
 // and re-enable every house rule over the fixtures under the root config.
 const FIXTURE_CONFIG = join(TEST_DIR, "fixture-config.json");
 
-export interface Diagnostic {
+interface Diagnostic {
   readonly rule: string;
   readonly line: number;
 }

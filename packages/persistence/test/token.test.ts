@@ -3,23 +3,23 @@
 // hash-only-storage assertion is structural: the exact column set is pinned
 // so a plaintext or ciphertext column cannot be added silently.
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { apiToken } from "../src/schema/api-token";
+import { auditLog } from "../src/schema/audit-log";
 
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import { createTokenAuth, type TokenMintInput } from "../src/auth/token";
 import { isReviewerId, type ReviewerId } from "../src/types";
-import type { AppDatabase } from "../src/db/handle";
-import { brandWith, freshDatabase, freshPglite } from "./helpers";
+import { internal, type AppDatabase } from "../src/db/handle";
+import {
+  brandWith,
+  expectCheckViolation,
+  freshDatabase,
+  registerSharedPglite,
+} from "./helpers";
 import { AccessLevels } from "types/access-levels";
 
-type Db = ReturnType<typeof drizzle>;
-
-/** Raw pglite drizzle handle for information_schema introspection. */
-async function freshDb(): Promise<Db> {
-  return drizzle(await freshPglite());
-}
+const shared = registerSharedPglite();
 
 /** The full column inventory, hash + grant FK, NO plaintext or ciphertext. */
 const API_TOKEN_COLUMNS = [
@@ -37,12 +37,8 @@ const API_TOKEN_COLUMNS = [
 ] as const;
 
 describe("api_token schema", () => {
-  let db: Db;
-  beforeEach(async () => {
-    db = await freshDb();
-  });
-
   it("stores only the token hash, no credential column exists", async () => {
+    const db = shared.db;
     const result = await db.execute(
       sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'api_token' order by column_name`,
     );
@@ -53,6 +49,7 @@ describe("api_token schema", () => {
   });
 
   it("rejects two rows with the same token_hash", async () => {
+    const db = shared.db;
     const tokenHash = "a".repeat(64); // shape of a sha256 hex digest
     await db.execute(sql`
       insert into github_grant (gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref, refresh_expires_at)
@@ -85,6 +82,7 @@ describe("api_token schema", () => {
   });
 
   it("carries one FK, the grant reference, and none to pull_request", async () => {
+    const db = shared.db;
     const result = await db.execute(sql`
       select ccu.table_name as target from information_schema.table_constraints tc
       join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name
@@ -138,7 +136,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
   let handle: AppDatabase;
   let grant: GithubGrantRow;
   beforeEach(async () => {
-    handle = await freshDatabase();
+    handle = shared.handle;
     grant = await seedGrant(handle);
   });
 
@@ -220,7 +218,7 @@ describe("createTokenAuth list / revoke", () => {
   let handle: AppDatabase;
   let grant: GithubGrantRow;
   beforeEach(async () => {
-    handle = await freshDatabase();
+    handle = shared.handle;
     grant = await seedGrant(handle);
   });
 
@@ -285,12 +283,10 @@ describe("createTokenAuth list / revoke", () => {
 });
 
 describe("createTokenAuth.mintToken audit atomicity", () => {
-  it("mint emits its issuance audit row in the same transaction", async () => {
-    const handle = await freshDatabase();
+  it("mint emits its issuance audit row with the token's metadata", async () => {
+    const handle = shared.handle;
     const grant = await seedGrant(handle);
     await createTokenAuth(handle).mintToken(mintInput(grant));
-    const { internal } = await import("../src/db/handle");
-    const { auditLog } = await import("../src/schema/audit-log");
     const rows = await internal(handle).select().from(auditLog);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.operation).toBe("issue-api-token");
@@ -300,5 +296,23 @@ describe("createTokenAuth.mintToken audit atomicity", () => {
     expect(rows[0]?.installationId).toBeNull();
     expect(rows[0]?.source).toBe("url");
     expect(String(rows[0]?.actorId)).toBe(String(USER));
+  });
+
+  it("mint rolls the token back when its audit row fails", async () => {
+    const handle = await freshDatabase();
+    const grant = await seedGrant(handle);
+    await internal(handle).execute(
+      sql`alter table audit_log add constraint refuse_issuance check (operation <> 'issue-api-token')`,
+    );
+
+    await expectCheckViolation(
+      createTokenAuth(handle).mintToken(mintInput(grant)),
+      "refuse_issuance",
+    );
+
+    const tokens = await internal(handle)
+      .select({ id: apiToken.id })
+      .from(apiToken);
+    expect(tokens).toEqual([]);
   });
 });

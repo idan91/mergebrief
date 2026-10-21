@@ -148,15 +148,10 @@ describe("ConversationFilterPanel", () => {
     ).not.toBeNull();
   });
 
-  it("labels each row, so the two chip runs line up and say what they filter", () => {
-    renderPanel();
-    expect(screen.getByText("Verdict")).not.toBeNull();
-    expect(screen.getByText("Reviewer")).not.toBeNull();
-  });
-
   it("drops the chip list entirely when it has no chips", () => {
     renderPanel({ verdicts: [] });
     expect(screen.queryByRole("button", { name: /^approved/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /@alice/ })).not.toBeNull();
     // The global toggle survives: it is not a verdict control.
     expect(
       screen.getByRole("checkbox", { name: /only each reviewer's latest/i }),
@@ -200,11 +195,5 @@ describe("ConversationFilterPanel", () => {
     expect(clear.hasAttribute("disabled")).toBe(false);
     fireEvent.click(clear);
     expect(onChange).not.toHaveBeenCalled();
-  });
-
-  it("renders no verdict row when nothing was stated", () => {
-    renderPanel({ verdicts: [] });
-    expect(screen.queryByRole("button", { name: /approved/ })).toBeNull();
-    expect(screen.getByRole("button", { name: /@alice/ })).not.toBeNull();
   });
 });

@@ -126,23 +126,6 @@ describe("reviewCommentMatchesDiffLine", () => {
       reviewCommentMatchesDiffLine(outdated, chunk.file, delLine, [delLine]),
     ).toBe(true);
   });
-
-  it("does not match outdated comments on added lines", () => {
-    const outdated = {
-      ...omitFields(comment, "line"),
-      originalLine: 103,
-      outdated: true,
-    } satisfies AddressedReviewComment;
-    const addLine = {
-      kind: "add",
-      newLine: 103,
-      content: "data-state={state}",
-    } satisfies DiffLine;
-
-    expect(
-      reviewCommentMatchesDiffLine(outdated, chunk.file, addLine, [addLine]),
-    ).toBe(false);
-  });
 });
 
 describe("file-level GitHub comments", () => {

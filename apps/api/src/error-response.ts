@@ -1,7 +1,6 @@
 // The one producer of error-response bodies, so `{ error, code }`, the
 // code's status and `no-store` cannot drift per route. A code here is
 // already the public posture: security collapses happen in the handlers.
-// `errorJson` survives only for the wire suite that pins the shape.
 import {
   ApiErrorEnglishByCode,
   ApiErrorStatusByCode,
@@ -19,10 +18,6 @@ declare module "hono" {
 }
 
 const NO_STORE = { "cache-control": "no-store" } as const;
-
-export function errorJson(c: Context, code: ApiErrorCode): Response {
-  return buildErrorResponse(c, code);
-}
 
 /** The seam `app.onError` calls; an `ApiError` class already proved the code's status. */
 export function buildErrorResponse(c: Context, code: ApiErrorCode): Response {

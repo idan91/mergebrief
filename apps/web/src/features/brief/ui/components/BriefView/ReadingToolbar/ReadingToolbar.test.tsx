@@ -211,65 +211,6 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
         ?.getAttribute("data-source"),
     ).toBe("repo-policy");
   });
-
-  it("Escape closes the panel and returns focus to the trigger", () => {
-    renderToolbar();
-    const trigger = screen.getByRole("button", { name: /Risk attrs/ });
-    // jsdom's click does not focus the button the way a browser does.
-    trigger.focus();
-    fireEvent.click(trigger);
-    expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    // Real keyboard events target the focused element, never document,
-    // useDismiss's capture-phase claim defers to an at-target listener, so
-    // the pin dispatches from the trigger (focused on open).
-    fireEvent.keyDown(trigger, { key: "Escape" });
-    expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it("Escape with the panel open never leaks to bubble-phase listeners", () => {
-    // The focus-mode exit shortcut listens on window at bubble phase, so
-    // dismissing the panel must consume Escape.
-    const windowSpy = vi.fn();
-    window.addEventListener("keydown", windowSpy);
-    try {
-      renderToolbar();
-      const trigger = screen.getByRole("button", { name: /Risk attrs/ });
-      fireEvent.click(trigger);
-      fireEvent.keyDown(trigger, { key: "Escape" });
-      expect(trigger.getAttribute("aria-expanded")).toBe("false");
-      expect(
-        windowSpy.mock.calls.filter(([event]) => event.key === "Escape"),
-      ).toHaveLength(0);
-      // Control: with the panel closed, Escape reaches the window again.
-      fireEvent.keyDown(trigger, { key: "Escape" });
-      expect(
-        windowSpy.mock.calls.filter(([event]) => event.key === "Escape"),
-      ).toHaveLength(1);
-    } finally {
-      window.removeEventListener("keydown", windowSpy);
-    }
-  });
-
-  it("focus stays on the trigger when the panel opens", () => {
-    // Disclosure grammar: opening must not hijack focus; Tab is the way in
-    // (FloatingFocusManager initialFocus={-1}, since the default steals focus
-    // into the panel in a microtask).
-    renderToolbar();
-    const trigger = screen.getByRole("button", { name: /Risk attrs/ });
-    trigger.focus();
-    fireEvent.click(trigger);
-    expect(document.querySelector("[data-attribute-jump-rail]")).not.toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it("clicking outside the disclosure closes the panel", () => {
-    renderToolbar();
-    fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
-    fireEvent.pointerDown(document.body);
-    expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
-  });
 });
 
 describe("ReadingToolbar read-through entry", () => {

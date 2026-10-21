@@ -324,17 +324,4 @@ describe("useRevisionNavigation", () => {
     jump(() => result.current.jumpNext());
     expect(scrollTowardChunk).toHaveBeenLastCalledWith("c3");
   });
-
-  it("does nothing when the model has no targets", () => {
-    document.body.innerHTML = "<main></main>";
-    const scrollTowardChunk = vi.fn(() => true);
-    const { result } = renderNavigation(scrollTowardChunk, vi.fn(), {
-      chunks: [],
-      marks: null,
-    });
-    expect(() => {
-      jump(() => result.current.jumpNext());
-    }).not.toThrow();
-    expect(scrollTowardChunk).not.toHaveBeenCalled();
-  });
 });

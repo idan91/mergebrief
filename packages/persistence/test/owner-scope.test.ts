@@ -34,13 +34,14 @@ import { auditLog } from "../src/schema/audit-log";
 import { pullRequest } from "../src/schema/pull-request";
 import {
   brandWith,
-  expectCheckViolation,
-  freshDatabase,
-  freshPglite,
   createQueryLog,
+  expectCheckViolation,
   readCheckValues,
   recordStatements,
+  registerSharedPglite,
 } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 const OWNER_A: ReviewerId = brandWith(isReviewerId, 501n);
@@ -61,7 +62,7 @@ const ORIGIN = { provider: "anthropic", model: "m", effort: "high" } as const;
 
 describe("owner-scoped pull_request rows", () => {
   it("stamps owner_user_id, source url, and a NULL installation_id", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const row = await a.pullRequests.upsert(upsertInput(7));
@@ -71,7 +72,7 @@ describe("owner-scoped pull_request rows", () => {
   });
 
   it("installation upserts stamp source installation and no owner", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const t = createTenantRepository(handle, TENANT_CTX);
 
     const row = await t.pullRequests.upsert(upsertInput(7));
@@ -81,7 +82,7 @@ describe("owner-scoped pull_request rows", () => {
   });
 
   it("owner upsert is idempotent: one row per owner, repo and number", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const first = await a.pullRequests.upsert(upsertInput(7));
@@ -94,7 +95,7 @@ describe("owner-scoped pull_request rows", () => {
   });
 
   it("two owners and a tenant hold independent rows for one repo and number", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const t = createTenantRepository(handle, TENANT_CTX);
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -111,7 +112,7 @@ describe("owner-scoped pull_request rows", () => {
   });
 
   it("an owner cannot read another owner's row by id", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -122,7 +123,7 @@ describe("owner-scoped pull_request rows", () => {
 
 describe("owner-scoped child writes verify the parent across worlds", () => {
   it("rejects a checkpoint attached to another owner's pull_request", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -138,7 +139,7 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
   });
 
   it("rejects an owner checkpoint attached to a tenant pull_request", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const t = createTenantRepository(handle, TENANT_CTX);
     const a = createTenantRepository(handle, CTX_A);
 
@@ -153,7 +154,7 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
   });
 
   it("accepts and re-reads a checkpoint on the owner's own pull_request", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
@@ -169,7 +170,7 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
 
 describe("owner-scoped artifact store", () => {
   it("writes and re-reads a brief under owner scope; upsert is idempotent", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
 
@@ -194,7 +195,7 @@ describe("owner-scoped artifact store", () => {
   });
 
   it("another owner cannot read or write against the first owner's PR", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const storeA = createArtifactStore(handle, CTX_A);
     const storeB = createArtifactStore(handle, CTX_B);
@@ -222,7 +223,7 @@ describe("owner-scoped artifact store", () => {
   });
 
   it("the installation tenant cannot see an owner's artifacts", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const storeA = createArtifactStore(handle, CTX_A);
     const storeT = createArtifactStore(handle, TENANT_CTX);
@@ -293,7 +294,7 @@ describe("owner-scoped span artifacts", () => {
   }
 
   it("another owner reads none of the first owner's span artifacts", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert(
       upsertInput(7),
     );
@@ -337,7 +338,7 @@ describe("owner-scoped span artifacts", () => {
   });
 
   it("another owner cannot write span artifacts onto the first owner's PR", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert(
       upsertInput(7),
     );
@@ -391,7 +392,7 @@ describe("owner-scoped span artifacts", () => {
   });
 
   it("a narrative anchored to another owner's brief is refused", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prA = await createTenantRepository(handle, CTX_A).pullRequests.upsert(
       upsertInput(7),
     );
@@ -583,7 +584,7 @@ describe("owner-scoped span artifact query shape", () => {
 
 describe("owner-scoped generation projection", () => {
   it("projects pending → running → succeeded for an owner PR", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const projection = createGenerationProjection(handle, CTX_A);
 
@@ -600,7 +601,7 @@ describe("owner-scoped generation projection", () => {
   });
 
   it("spend counting is one shared instance pool across worlds", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const projA = createGenerationProjection(handle, CTX_A);
     const projT = createGenerationProjection(handle, TENANT_CTX);
@@ -631,7 +632,7 @@ describe("owner-scoped generation projection", () => {
   });
 
   it("an owner cannot enqueue against another owner's PR", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const projB = createGenerationProjection(handle, CTX_B);
 
@@ -648,7 +649,7 @@ describe("owner-scoped generation projection", () => {
 
 describe("owner-scoped purge, the owner-delete operation's backing", () => {
   it("purges the owner's PR, cascades children, audits with source url-box", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
     const purge = createPurgeRoutines(handle, CTX_A);
@@ -679,7 +680,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
   });
 
   it("cannot purge another owner's PR", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const purgeB = createPurgeRoutines(handle, CTX_B);
 
@@ -690,7 +691,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
   });
 
   it("cannot purge a tenant PR from an owner scope", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const t = createTenantRepository(handle, TENANT_CTX);
     const purgeA = createPurgeRoutines(handle, CTX_A);
 
@@ -704,7 +705,7 @@ describe("pull_request owner-shape CHECK", () => {
   it.each(["pull_request_owner_shape", "audit_log_source_shape"])(
     "%s accepts exactly the source map",
     async (name) => {
-      const client = await freshPglite();
+      const client = shared.client;
       expect((await readCheckValues(client, name)).toSorted()).toEqual(
         Object.values(PullRequestSources).toSorted(),
       );
@@ -712,7 +713,7 @@ describe("pull_request owner-shape CHECK", () => {
   );
 
   it("rejects a row claiming both worlds", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await expectCheckViolation(
       internal(handle).insert(pullRequest).values({
         installationId: TENANT,
@@ -727,7 +728,7 @@ describe("pull_request owner-shape CHECK", () => {
   });
 
   it("rejects a row claiming neither world", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await expectCheckViolation(
       internal(handle).insert(pullRequest).values({
         installationId: null,
@@ -741,7 +742,7 @@ describe("pull_request owner-shape CHECK", () => {
   });
 
   it("rejects a source that disagrees with the world", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await expectCheckViolation(
       internal(handle).insert(pullRequest).values({
         installationId: TENANT,
@@ -784,7 +785,7 @@ describe("parseScopeContext boundary validation", () => {
 
 describe("owner-scoped review sessions", () => {
   it("another owner cannot read or write a session on the owner's brief", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
     const t = createTenantRepository(handle, TENANT_CTX);
@@ -826,7 +827,7 @@ describe("owner-scoped review sessions", () => {
 
 describe("url-box instance visibility", () => {
   it("returns the preferred owner's row first, then the oldest", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     // B pastes first, A second: age alone would pick B.
     await createTenantRepository(handle, CTX_B).pullRequests.upsert(
       upsertInput(9),
@@ -843,7 +844,7 @@ describe("url-box instance visibility", () => {
   });
 
   it("never reaches an installation row", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await createTenantRepository(handle, TENANT_CTX).pullRequests.upsert(
       upsertInput(11),
     );

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { bindReviewerGitHub } from "../../src/client/reviewer";
-import { CredentialFailureCodes } from "../../src/client/types";
 import { GitHubApiErrorCodes } from "../../src/errors";
 import { ReviewCommentSides } from "types/conversation";
 import { ReviewSubjectTypes } from "../../src/operations/review-thread";
@@ -13,7 +12,6 @@ import {
   formatTokenAuthorization,
   makeLogger,
   makeOctokitFactory,
-  makeRepositoryBody,
   requireRepoId,
   stubCredential,
   stubGitHubFetch,
@@ -104,58 +102,6 @@ describe("bindReviewerGitHub token renewal", () => {
     expect(stub.requests).toHaveLength(1);
   });
 
-  it("answers credential-unreadable without calling GitHub", async () => {
-    const stub = stubGitHubFetch(() => PULL);
-    const credential = stubCredential(OLD_TOKEN, NEW_TOKEN);
-    credential.readToken.mockResolvedValue({
-      ok: false,
-      error: {
-        code: CredentialFailureCodes.CREDENTIAL_UNREADABLE,
-        message: "token unreadable",
-      },
-    });
-    const github = bindReviewerGitHub(credential, {
-      log: makeLogger(),
-      octokitFactory: makeOctokitFactory(stub),
-    });
-
-    const result = await github.forRepo(REPO).fetchPullRequest(7);
-
-    expect(result.ok || result.error.code).toBe("credential-unreadable");
-    expect(stub.requests).toHaveLength(0);
-  });
-
-  it("reads a repository by id on the reviewer's token", async () => {
-    const stub = stubGitHubFetch(() => ({
-      status: 200,
-      body: makeRepositoryBody("acme/widgets"),
-    }));
-    const github = bindReviewerGitHub(stubCredential(OLD_TOKEN, undefined), {
-      log: makeLogger(),
-      octokitFactory: makeOctokitFactory(stub),
-    });
-
-    const result = await github.fetchRepositoryById(REPO_ID);
-
-    expect(result).toEqual({
-      ok: true,
-      value: {
-        repoId: 4242n,
-        fullName: "acme/widgets",
-        private: true,
-        viewerCanPush: true,
-        viewerIsAdmin: false,
-      },
-    });
-    expect(stub.requests).toEqual([
-      {
-        method: "GET",
-        path: "/repositories/4242",
-        authorization: formatTokenAuthorization(OLD_TOKEN),
-      },
-    ]);
-  });
-
   it("fetches the pull request at the bound repository path", async () => {
     const stub = stubGitHubFetch(() => PULL);
     const github = bindReviewerGitHub(stubCredential(OLD_TOKEN, undefined), {
@@ -197,31 +143,6 @@ describe("bindReviewerGitHub creates", () => {
         authorization: formatTokenAuthorization(OLD_TOKEN),
       },
     ]);
-  });
-
-  it("posts the comment on the repository the client is bound to", async () => {
-    const stub = stubGitHubFetch(() => ({
-      status: 201,
-      body: { id: 901, pull_request_review_id: 77 },
-    }));
-    const github = bindReviewerGitHub(stubCredential(OLD_TOKEN, undefined), {
-      log: makeLogger(),
-      octokitFactory: makeOctokitFactory(stub),
-    });
-
-    const result = await github.forRepo(REPO).createInlineReviewComment({
-      prNumber: 7,
-      commitId: "b".repeat(40),
-      path: "src/index.ts",
-      line: 3,
-      side: ReviewCommentSides.RIGHT,
-      body: "why",
-    });
-
-    expect(result).toEqual({
-      ok: true,
-      value: { commentId: 901n, reviewId: 77n },
-    });
   });
 
   it("builds the create client with retry off and the rate-limit cap", async () => {

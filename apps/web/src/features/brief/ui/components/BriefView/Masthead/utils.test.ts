@@ -96,16 +96,6 @@ describe("computeConcernShares", () => {
 });
 
 describe("computeCardMinHeight", () => {
-  it("holds the summary, the gap and the collapsed stack", () => {
-    expect(
-      computeCardMinHeight({
-        summaryHeight: 300,
-        rowGap: 24,
-        collapsedStackHeight: 104,
-      }),
-    ).toBe(428);
-  });
-
   it("ends the card with the summary when the stack is empty", () => {
     expect(
       computeCardMinHeight({

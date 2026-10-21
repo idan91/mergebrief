@@ -35,12 +35,4 @@ describe("wire json schemas are byte-pinned", () => {
       serializeWireSchema(RevisionNarrativeGenerationSchema),
     ).toMatchSnapshot();
   });
-
-  it("brief with no custom attributes sends the static brief schema", () => {
-    const withNoCustomNames = serializeWireSchema(
-      briefGenerationSchemaWith([]),
-    );
-
-    expect(withNoCustomNames).toBe(serializeWireSchema(BriefGenerationSchema));
-  });
 });

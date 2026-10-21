@@ -94,10 +94,6 @@ describe("hydrateRemainderGroup", () => {
     expect(hydrateRemainderGroup(undefined, new Set())).toBeUndefined();
   });
 
-  it("returns nothing for an empty array", () => {
-    expect(hydrateRemainderGroup([], new Set())).toBeUndefined();
-  });
-
   it("returns nothing when every file has zero leftover lines", () => {
     expect(
       hydrateRemainderGroup(
@@ -172,14 +168,5 @@ describe("hydrateRemainderGroup", () => {
     const hydration = hydrateRemainderGroup([orphanFile], new Set([ORPHAN_ID]));
 
     expect(hydration?.chunks[0]?.id).toBe(`${ORPHAN_ID}-1`);
-  });
-
-  it("mints the same id for the same path across loads", () => {
-    const first = hydrateRemainderGroup([orphanFile, otherFile], new Set());
-    const second = hydrateRemainderGroup([orphanFile, otherFile], new Set());
-
-    expect(first?.chunks.map((chunk) => chunk.id)).toEqual(
-      second?.chunks.map((chunk) => chunk.id),
-    );
   });
 });

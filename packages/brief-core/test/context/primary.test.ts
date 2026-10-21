@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchContextSnippets } from "../../src/context/fan-out";
 import { toPrimaryTicket } from "../../src/context/primary";
+import type { TrackerReads } from "../../src/context/trackers";
 import type {
   PrimaryRead,
   TicketReference,
-  TrackerReads,
 } from "../../src/context/trackers/types";
 import {
   ContextProviderTypes,
   type ContextProvider,
+  type ContextQuery,
   type PrimarySnippet,
 } from "../../src/context/types";
 import { TicketUnreadReasons } from "../../src/types";
@@ -35,11 +36,12 @@ const snippet: PrimarySnippet = {
   foundIn: "description",
 };
 
-const query = {
+const query: ContextQuery = {
   title: "t",
   body: "fixes #7",
   headRef: "",
   repo: { owner: "o", repo: "r" },
+  trackers: [],
   primary: reference,
   references: [reference],
 };

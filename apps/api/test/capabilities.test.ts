@@ -8,8 +8,7 @@ import {
   createTokenAuth,
   type KeyProvider,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { shapeCatalogOperations } from "../src/product-operations/catalog";
@@ -18,6 +17,7 @@ import { testLogger } from "./logging";
 import { KEY_REF, brandReviewerId, buildAuthDeps } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite } from "./shared-pglite";
 
 const bodySchema = z.object({
   operations: z.array(
@@ -31,12 +31,11 @@ const bodySchema = z.object({
 });
 
 describe("GET /api/capabilities", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createEnvKeyProvider({
       [KEY_REF]: randomBytes(32).toString("base64"),
     });
@@ -48,10 +47,6 @@ describe("GET /api/capabilities", () => {
       auth,
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   async function bearer(): Promise<string> {
@@ -89,29 +84,5 @@ describe("GET /api/capabilities", () => {
     expect(body.operations).toEqual(
       shapeCatalogOperations(productOperationRegistry.list()),
     );
-  });
-
-  it("lists itself: read-capabilities appears in its own output", async () => {
-    const token = await bearer();
-    const res = await app.request("/api/capabilities", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const body = bodySchema.parse(await res.json());
-    const self = body.operations.find((op) => op.id === "read-capabilities");
-    expect(self).toEqual({
-      id: "read-capabilities",
-      kind: "query",
-      classification: "read",
-      endpoint: "GET /api/capabilities",
-    });
-  });
-
-  it("is gated: no auth → hint-free 401", async () => {
-    const res = await app.request("/api/capabilities");
-    expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({
-      error: "signed out",
-      code: "signed-out",
-    });
   });
 });

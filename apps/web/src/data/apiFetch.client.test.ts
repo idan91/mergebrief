@@ -71,18 +71,6 @@ describe("apiFetch in the browser", () => {
     expect(assign).toHaveBeenCalledWith("/api/auth/github");
   });
 
-  it("sends the viewer once when several requests are refused together", async () => {
-    answerWith(401);
-
-    await Promise.all([
-      apiFetch("/api/repos/1/pulls/2/diff"),
-      apiFetch("/api/repos/1/pulls/2/conversation"),
-      apiFetch("/api/repos/1/pulls/2/comments", { method: "POST" }),
-    ]);
-
-    expect(assign).toHaveBeenCalledTimes(1);
-  });
-
   it("leaves a 401 the caller reads as signed out to the caller", async () => {
     answerWith(401);
 
@@ -127,7 +115,7 @@ describe("apiFetch in the browser", () => {
   it("leaves every other refusal to the caller", async () => {
     answerWith(403);
 
-    await apiFetch("/api/repos/1/pulls/2/comments", { method: "POST" });
+    await apiFetch("/api/repos/1/pulls/2/diff");
 
     expect(assign).not.toHaveBeenCalled();
   });

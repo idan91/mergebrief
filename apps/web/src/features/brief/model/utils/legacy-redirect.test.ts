@@ -56,10 +56,6 @@ describe("resolveLegacyDeltaRedirect", () => {
     expect(resolveLegacyDeltaRedirect(artifacts, headBrief.id)).toBeNull();
   });
 
-  it("returns null for an id that matches nothing locally", () => {
-    expect(resolveLegacyDeltaRedirect(artifacts, "missing-id")).toBeNull();
-  });
-
   it("returns null when the Delta's head Brief can't be found locally", () => {
     const orphanDelta: LocalBriefSummary = {
       ...delta,

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../../../i18n/I18nProvider";
@@ -24,12 +24,6 @@ describe("ReanchorBanner", () => {
     const banner = screen.getByRole("region", { name: "Re-anchor mode" });
     expect(banner.textContent).toContain("src/leak.ts:+10");
     expect(banner.querySelector("kbd")?.textContent).toBe("Esc");
-  });
-
-  it("cancels from its button", () => {
-    const { cancel } = renderBanner();
-    fireEvent.click(screen.getByRole("button", { name: "Cancel re-anchor" }));
-    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("is not a live region, the store announces arm and cancel", () => {

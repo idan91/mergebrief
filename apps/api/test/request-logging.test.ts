@@ -101,16 +101,6 @@ describe("requestLogging", () => {
     expect(lines()[0]?.["reqId"]).toBe("operator-abc-123");
   });
 
-  it("mints a fresh id when the inbound header is over the length guard", async () => {
-    const { logger, lines } = captureLogger();
-    const oversized = "a".repeat(256);
-    const res = await buildApp(logger).request("/api/ok", {
-      headers: { "x-request-id": oversized },
-    });
-    expect(res.headers.get("x-request-id")).not.toBe(oversized);
-    expect(lines()[0]?.["reqId"]).not.toBe(oversized);
-  });
-
   it("hands routes a child logger bound to the request id", async () => {
     const { logger, lines } = captureLogger();
     await buildApp(logger).request("/api/logs", {

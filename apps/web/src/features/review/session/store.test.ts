@@ -439,14 +439,6 @@ describe("per-action writes", () => {
     expect(store.getState().reviewedChunks.has("c1")).toBe(false);
     expect(store.getState().writeError).toBe("review.writeError.frozen");
   });
-
-  it("keeps every action local when no writes are wired", async () => {
-    const store = freshStore();
-    store.getState().actions.reviewChunk("c1");
-    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
-    store.getState().actions.setOutcome("approve");
-    expect(store.getState().reviewOutcome).toBe("approve");
-  });
 });
 
 function makeHeldGatewayStore() {
@@ -513,12 +505,6 @@ describe("reads the store owns", () => {
     store.startRead();
 
     expect(store.applyRead(deriveReadWithChunks("c1", "c2"))).toBe(true);
-    expect(store.getState().reviewedChunks.has("c2")).toBe(true);
-  });
-
-  it("applies a read when no write was made at all", () => {
-    const store = freshStore();
-    expect(store.applyRead(deriveReadWithChunks("c2"))).toBe(true);
     expect(store.getState().reviewedChunks.has("c2")).toBe(true);
   });
 

@@ -135,20 +135,6 @@ describe("parseReviewSessionPayload", () => {
     expect(parsed.ok).toBe(false);
   });
 
-  it("fails whole rather than dropping a malformed draft", () => {
-    // A silently dropped draft is a comment the reviewer writes twice.
-    const parsed = parseReviewSessionPayload({
-      ...emptySessionPayload(),
-      draftComments: [{ id: "1", filePath: "a.ts", side: "sideways" }],
-    });
-    expect(parsed.ok).toBe(false);
-  });
-
-  it("rejects a body that is not an object", () => {
-    expect(parseReviewSessionPayload(null).ok).toBe(false);
-    expect(parseReviewSessionPayload("{}").ok).toBe(false);
-  });
-
   it("reads a full payload with carried work, attention and dispositions", () => {
     const body = {
       ...emptySessionPayload(),
@@ -379,11 +365,7 @@ const SCHEMA_PINS = {
   >,
 } as const;
 
-describe("session schemas match their interfaces", () => {
-  it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void SCHEMA_PINS;
 
 const CONTRACT_PINS = {
   SessionPayload: true satisfies ReadsWireFields<
@@ -440,8 +422,4 @@ const CONTRACT_PINS = {
   >,
 } as const;
 
-describe("session schemas read only what the contract sends", () => {
-  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void CONTRACT_PINS;

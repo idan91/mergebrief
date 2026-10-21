@@ -119,7 +119,7 @@ describe("listMatchingRows", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("a page that fails or will not parse ends the read with the rows so far", async () => {
+  it("a page that fails ends the read with the rows so far", async () => {
     answerPages({ "1": makeWirePage(1, [1, 2], 4) });
 
     const rows = await listMatchingRows(makeClient(), {

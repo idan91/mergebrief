@@ -1,8 +1,7 @@
 // Repo-config display-weight resolution and the lockstep pins. The mirrored
 // floor list must never drift from its source, which is imported here at dev
-// time only. The path matcher is no longer mirrored; the screen calls its owner.
+// time only.
 import { describe, expect, it } from "vitest";
-import { matchesGlob } from "brief-core/path-matching";
 import {
   FLOOR_ATTRIBUTES as SOURCE_FLOOR_ATTRIBUTES,
   RepoConfigPaths,
@@ -117,26 +116,5 @@ describe("lockstep pins on the values this screen copies", () => {
       RepoConfigPaths.SETTINGS,
       RepoConfigPaths.POLICY,
     ]);
-  });
-
-  // The matcher now has one owner, so a lockstep comparison would compare a
-  // function with itself. These are the same cases with literal results: what
-  // this screen shows when a repo policy scopes an attribute by path.
-  it.each([
-    ["src/**", "src/a/b.ts", true],
-    ["src/**", "other/x.ts", false],
-    ["**/*.sql", "db/m/0001.sql", true],
-    ["**/*.sql", "x.sql", true],
-    ["*.md", "docs/README.md", false],
-    ["src/**/fixtures/*.json", "src/notfixtures/x.json", false],
-    ["src/**/fixtures/*.json", "src/a/fixtures/x.json", true],
-    ["a/**/z", "a/bz", false],
-    ["a?c/x.ts", "abc/x.ts", true],
-    ["services/*/handlers/**", "services/auth/handlers/login.ts", true],
-    ["exact/path.ts", "exact/path.ts", true],
-    ["a+b/(x)/f.ts", "a+b/(x)/f.ts", true],
-    ["***z", "bbbbz", true],
-  ])("matches %s against %s", (pattern, file, expected) => {
-    expect(matchesGlob(pattern, file)).toBe(expected);
   });
 });

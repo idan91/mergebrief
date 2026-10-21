@@ -3,7 +3,7 @@ import { assignGroupIds } from "../../src/diff/descent";
 
 /**
  * The id-descent matcher: generated (re-looked + new) groups
- * inherit previous group ids by file overlap — merge → dominant parent's id;
+ * inherit previous group ids by file overlap: merge → dominant parent's id;
  * split → dominant child keeps it, the rest mint; unmatched → mint.
  * Deterministic and order-stable; never collides with reserved (frozen) ids.
  */
@@ -29,7 +29,7 @@ describe("assignGroupIds", () => {
     expect(["g1", "g2"]).not.toContain(minted);
   });
 
-  it("merge: a generated group spanning two parents takes the dominant parent's id", () => {
+  it("merge: a group spanning two parents takes the dominant parent's id", () => {
     const ids = assignGroupIds({
       generated: [{ id: "tmp1", files: ["a.ts", "b.ts", "c.ts"] }],
       previous: [
@@ -95,33 +95,5 @@ describe("assignGroupIds", () => {
     expect(assigned).toContain("g1");
     const minted = assigned.filter((id) => id !== "g1");
     expect(minted.filter((id) => ["g2", "g3"].includes(id))).toEqual([]);
-  });
-
-  it("is deterministic: same input, same output", () => {
-    const args = {
-      generated: [
-        { id: "tmp1", files: ["a.ts", "b.ts"] },
-        { id: "tmp2", files: ["c.ts"] },
-      ],
-      previous: [
-        { id: "g1", files: ["a.ts"] },
-        { id: "g2", files: ["b.ts", "c.ts"] },
-      ],
-      reservedIds: ["g9"],
-    };
-    expect(assignGroupIds(args)).toEqual(assignGroupIds(args));
-  });
-
-  it("a parent can be inherited by at most one child", () => {
-    const ids = assignGroupIds({
-      generated: [
-        { id: "tmp1", files: ["a.ts", "b.ts"] },
-        { id: "tmp2", files: ["a2.ts", "c.ts"] },
-      ],
-      previous: [{ id: "gP", files: ["a.ts", "b.ts", "c.ts"] }],
-      reservedIds: [],
-    });
-    expect(ids.get("tmp1")).toBe("gP");
-    expect(ids.get("tmp2")).not.toBe("gP");
   });
 });

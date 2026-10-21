@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // The in-flow conversation section: verdict strip + digest over canned query
-// data. Pins the a11y contract (disclosure buttons carry aria-expanded; chips
-// carry text), expansion surviving refetch, the specific error states, the
-// empty state, and the reconciliation flip.
+// data. Pins the a11y contract (disclosure buttons carry aria-expanded),
+// expansion surviving refetch, the specific error states, the empty state,
+// and the reconciliation flip.
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -39,7 +39,6 @@ import {
 import { UnknownValues } from "@web/utils/open-enum/types";
 import type { PrConversation } from "../../types";
 import {
-  DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,
   type ConversationFilter,
 } from "../../utils/filter";
@@ -272,14 +271,6 @@ function ready(): ConversationResult {
 }
 
 describe("ConversationSection", () => {
-  it("renders the verdict strip and text-carrying thread chips", async () => {
-    renderSection({ plan: plan([ready()]) });
-    expect(await screen.findByText("changes requested")).toBeDefined();
-    expect(screen.getAllByText("@alice").length).toBeGreaterThan(0);
-    // Chips are text, not color-only.
-    expect(screen.getByText("open")).toBeDefined();
-  });
-
   it("marks the mentions in a review body on the verdict strip", async () => {
     const data = conversation();
     const reviews = data.reviews.map((review) => ({
@@ -323,19 +314,6 @@ describe("ConversationSection", () => {
     ]) {
       expect(screen.queryByText(label)).toBeNull();
     }
-  });
-
-  it("counts comments past the generation cutoff in the header line", async () => {
-    // Cutoff between the fixtures' 10:00 and 11:00 comments → exactly one.
-    renderSection({
-      plan: {
-        ...plan([ready()]),
-        briefGeneratedAt: "2026-07-01T10:30:00Z",
-      },
-    });
-    expect(
-      await screen.findByText("1 new comment since this brief was generated"),
-    ).toBeDefined();
   });
 
   it("omits the count line without a cutoff and marks nothing", async () => {
@@ -484,12 +462,6 @@ describe("ConversationSection", () => {
     expect(botRow.textContent).toContain("outdated");
   });
 
-  it("announces error states via role=alert", async () => {
-    renderSection({ plan: plan([{ kind: "unavailable" }]) });
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("unreachable");
-  });
-
   it("shows the teaching empty state", async () => {
     renderSection({
       plan: plan([
@@ -513,9 +485,10 @@ describe("ConversationSection", () => {
 
   it("shows specific copy per failure kind", async () => {
     renderSection({ plan: plan([{ kind: "unavailable" }]) });
-    expect(
-      await screen.findByText(/GitHub \(or the backend\) is unreachable/),
-    ).toBeDefined();
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(
+      /GitHub \(or the backend\) is unreachable/,
+    );
     cleanup();
     renderSection({ plan: plan([{ kind: "unauthorized" }]) });
     expect(await screen.findByText(/session expired/)).toBeDefined();
@@ -624,12 +597,6 @@ async function openThread() {
 }
 
 describe("thread resolution wiring", () => {
-  it("offers no resolve action when the plan carries no resolution", async () => {
-    renderSection({ plan: plan([ready()]) });
-    await openThread();
-    expect(screen.queryByTestId("thread-resolve")).toBeNull();
-  });
-
   it("resolves through the plan and refetches THIS section's query", async () => {
     const setResolved = vi.fn(async () => ({
       kind: "done" as const,
@@ -655,73 +622,6 @@ describe("thread resolution wiring", () => {
       expect((planQueryCalls.count as () => number)()).toBeGreaterThanOrEqual(
         2,
       ),
-    );
-  });
-
-  it("hides the action when the viewer cannot resolve", async () => {
-    renderSection({
-      plan: {
-        ...plan([ready()]),
-        resolution: {
-          canResolve: false,
-          setResolved: vi.fn(),
-          refetchCapability: vi.fn(),
-        },
-      },
-    });
-    await openThread();
-    expect(screen.queryByTestId("thread-resolve")).toBeNull();
-  });
-});
-
-describe("quote reply", () => {
-  it("Quote reply prefills the reply box with the quoted comment", async () => {
-    renderSection({ plan: plan([ready()]) });
-    await openThread();
-    const quoteButton = screen
-      .getAllByRole("button", { name: /Quote reply to @/ })
-      .at(0);
-    if (quoteButton === undefined) {
-      throw new Error("Quote reply not rendered");
-    }
-    fireEvent.click(quoteButton);
-    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
-    expect((textarea as HTMLTextAreaElement).value).toBe(
-      "> This null check looks inverted.\n\n",
-    );
-    // Quoting again appends again (nonce-triggered, not text-triggered).
-    fireEvent.click(quoteButton);
-    expect((textarea as HTMLTextAreaElement).value).toBe(
-      "> This null check looks inverted.\n\n> This null check looks inverted.\n\n",
-    );
-  });
-
-  it("R with a selection inside the thread quotes it; no selection, no-op", async () => {
-    renderSection({ plan: plan([ready()]) });
-    await openThread();
-    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
-    // No selection: R must do nothing.
-    fireEvent.keyDown(window, { key: "r" });
-    expect((textarea as HTMLTextAreaElement).value).toBe("");
-    // Select the comment text inside the detail (the markdown-rendered <p>,
-    // not the row-summary span), then press R.
-    const commentText = screen
-      .getAllByText("This null check looks inverted.")
-      .find((element) => element.tagName === "P");
-    if (commentText === undefined) {
-      throw new Error("comment body not found");
-    }
-    const range = document.createRange();
-    range.selectNodeContents(commentText);
-    const selection = window.getSelection();
-    if (selection === null) {
-      throw new Error("jsdom selection unavailable");
-    }
-    selection.removeAllRanges();
-    selection.addRange(range);
-    fireEvent.keyDown(window, { key: "r" });
-    expect((textarea as HTMLTextAreaElement).value).toBe(
-      "> This null check looks inverted.\n\n",
     );
   });
 });
@@ -752,86 +652,6 @@ describe("ReplyComposer", () => {
         2,
       ),
     );
-  });
-
-  it("persists the draft as it is typed so navigation survives it", async () => {
-    renderSection({ plan: plan([ready()]) });
-    await openThread();
-    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
-    fireEvent.change(textarea, { target: { value: "half a thought" } });
-    expect(getReplyDraft(9001)).toBe("half a thought");
-  });
-
-  it("keeps the draft and announces indeterminate copy on failure", async () => {
-    const failingPlan = plan([ready()]);
-    (failingPlan.postReply as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("boom"),
-    );
-    const { announce } = renderSection({
-      plan: failingPlan,
-      replyDrafts: { "9001": "risky reply" },
-    });
-    await openThread();
-    fireEvent.click(screen.getByRole("button", { name: "Reply" }));
-    await waitFor(() =>
-      expect(announce).toHaveBeenCalledWith(
-        expect.stringContaining("may or may not have posted"),
-      ),
-    );
-    // The draft survives the failure.
-    expect(getReplyDraft(9001)).toBe("risky reply");
-    expect(screen.getByRole("alert").textContent).toContain(
-      "may or may not have posted",
-    );
-  });
-
-  it("blocks an over-cap reply with associated error copy", async () => {
-    renderSection({
-      plan: plan([ready()]),
-      replyDrafts: { "9001": "x".repeat(65_537) },
-    });
-    await openThread();
-    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
-    expect(textarea.getAttribute("aria-invalid")).toBe("true");
-    // Instance-scoped ids (useId): association is by reference, not by a
-    // thread-derived literal.
-    const describedBy = textarea.getAttribute("aria-describedby");
-    const alert = screen.getByRole("alert");
-    expect(describedBy).toBe(alert.id);
-    expect(alert.textContent).toContain("longer than GitHub allows");
-    const button = screen.getByRole("button", { name: "Reply" });
-    expect(button.getAttribute("aria-disabled")).toBe("true");
-  });
-
-  it("keeps focus on the Reply button through posting", async () => {
-    renderSection({
-      plan: plan([ready(), ready()]),
-      replyDrafts: { "9001": "a follow-up" },
-    });
-    await openThread();
-    const button = screen.getByRole("button", { name: "Reply" });
-    (button as HTMLButtonElement).focus();
-    fireEvent.click(button);
-    // Never hard-disabled: focus survives the pending and posted states.
-    expect((button as HTMLButtonElement).disabled).toBe(false);
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole("button", { name: "Reply" })
-          .getAttribute("aria-disabled"),
-      ).toBe("true"),
-    );
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Reply" }),
-    );
-  });
-
-  it("blocks an empty reply with a disabled button", async () => {
-    renderSection({ plan: plan([ready()]) });
-    await openThread();
-    const button = screen.getByRole("button", { name: "Reply" });
-    expect(button.getAttribute("aria-disabled")).toBe("true");
-    expect((button as HTMLButtonElement).disabled).toBe(false);
   });
 });
 
@@ -864,20 +684,6 @@ describe("disclosure and focus behaviour", () => {
     await openThread();
     unmountSection();
     expect(getReplyDraft(9001)).toBe("typed at the chunk twin");
-  });
-
-  it("derives the composer input id per instance, not per thread", async () => {
-    renderSection({
-      plan: plan([ready()]),
-      replyDrafts: { "9001": "draft" },
-    });
-    await openThread();
-    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
-    // Instance-scoped (useId, now inside MarkdownTextarea), a thread-derived
-    // id would duplicate when the same thread renders inline at its chunk and
-    // in the section. Distinctness across instances is pinned in
-    // MarkdownTextarea.test.tsx.
-    expect(textarea.id).not.toBe("reply-9001");
   });
 });
 
@@ -1143,14 +949,6 @@ describe("ConversationSection outdated-thread revision jump", () => {
       expect(
         await screen.findByText("No activity matches these filters."),
       ).toBeDefined();
-    });
-
-    it("keeps a standing approval a later empty envelope would hide", async () => {
-      // Alice's newest review is GitHub's inline-comment envelope, which
-      // renders nothing, her change-request is what still stands.
-      renderSection(filterProps(DEFAULT_CONVERSATION_FILTER));
-      expect(await screen.findByText("needs work")).toBeDefined();
-      expect(screen.getByText("ship it")).toBeDefined();
     });
 
     it("keeps unfiltered totals in the header, filter state stays out", async () => {

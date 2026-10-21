@@ -52,14 +52,6 @@ describe("useHomeShortcuts", () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  it("opens and closes from the menu row", () => {
-    const { result } = renderHook(() => useHomeShortcuts(true));
-    act(() => result.current.open());
-    expect(result.current.isOpen).toBe(true);
-    act(() => result.current.close());
-    expect(result.current.isOpen).toBe(false);
-  });
-
   it("disabled, it listens to nothing and leaves the key alone", () => {
     const { result } = renderHook(() => useHomeShortcuts(false));
     let swallowed = true;

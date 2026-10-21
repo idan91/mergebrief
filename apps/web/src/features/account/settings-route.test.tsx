@@ -81,14 +81,6 @@ describe("the settings route", () => {
     ).toBeNull();
   });
 
-  it("leads the back link with an arrow", async () => {
-    await loadSettings({ kind: ViewerStates.SIGNED_OUT });
-
-    const back = await screen.findByRole("link", { name: "Back to briefs" });
-
-    expect(back.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
-  });
-
   it("opens the first tab when the asked-for tab is not shown", async () => {
     await loadSettings(
       {
@@ -104,6 +96,7 @@ describe("the settings route", () => {
       expect(screen.getByRole("heading", { name: /API tokens/ })).toBeTruthy();
     });
     expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Daily runs" })).toBeNull();
   });
 
   it("puts an Operator's Instance tab on the rail", async () => {
@@ -121,24 +114,6 @@ describe("the settings route", () => {
 
     expect(instance.getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: "API tokens" })).toBeTruthy();
-  });
-
-  it("hides the Instance tab from a viewer who is not an Operator", async () => {
-    await loadSettings(
-      {
-        kind: ViewerStates.SIGNED_IN,
-        login: "octocat",
-        avatarUrl: "https://avatars.example/octocat.png",
-        operator: false,
-      },
-      "/settings?tab=instance",
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /API tokens/ })).toBeTruthy();
-    });
-    expect(screen.queryByRole("tab", { name: "Instance" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Daily runs" })).toBeNull();
   });
 
   it("treats a viewer it could not confirm as signed out", async () => {

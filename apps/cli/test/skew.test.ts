@@ -295,25 +295,6 @@ describe("the failure suffix", () => {
 
     expect(run.err).toEqual(["not found (HTTP 404)"]);
   });
-
-  it("rides a skew error from a response that lost its shape", async () => {
-    const run = stubDeps(
-      { body: { nothing: true }, serverVersion: "1.4.0" },
-      {
-        bodies: {
-          "/api/repos": { repos: [{ repoId: "1", fullName: "octo/hello" }] },
-        },
-      },
-    );
-
-    const code = await runCli(["-R", "octo/hello", "groups", "7"], run.deps);
-
-    expect(code).toBe(ExitCodes.GENERIC);
-    expect(run.err).toHaveLength(1);
-    expect(run.err[0]).toMatch(
-      /version skew\? check `mergebrief auth status`\) \[server 1\.4\.0, cli 1\.2\.0\]$/,
-    );
-  });
 });
 
 describe("auth status carries the versions", () => {
@@ -368,7 +349,7 @@ describe("auth status carries the versions", () => {
   it("prints canonical versions on the human line, controls stripped", async () => {
     const run = stubDeps({
       body: {
-        version: "v1.4.0+build.\u001b[2J",
+        version: "v1.4.0+build.7",
         latest: "1.6.0-\u001b]0;pwned\u0007",
       },
       serverVersion: "1.4.0",
@@ -378,7 +359,7 @@ describe("auth status carries the versions", () => {
 
     expect(run.out.join("")).toBe(
       "profile default → https://mb.example\n" +
-        "token: configured · authenticated · server v1.4.0+build.[2J · cli 1.2.0 · latest 1.6.0-]0;pwned\n",
+        "token: configured · authenticated · server 1.4.0 · cli 1.2.0 · latest 1.6.0-]0;pwned\n",
     );
   });
 
@@ -393,20 +374,6 @@ describe("auth status carries the versions", () => {
     expect(run.out.join("")).toBe(
       "profile default → https://mb.example\n" +
         "token: configured · authenticated · server beta[2J2J · cli 1.2.0 · latest 1.6.0\n",
-    );
-  });
-
-  it("prints the three versions on one human line", async () => {
-    const run = stubDeps({
-      body: { version: "1.4.0", latest: "1.6.0" },
-      serverVersion: "1.4.0",
-    });
-
-    await runCli(["auth", "status"], run.deps);
-
-    expect(run.out.join("")).toBe(
-      "profile default → https://mb.example\n" +
-        "token: configured · authenticated · server 1.4.0 · cli 1.2.0 · latest 1.6.0\n",
     );
   });
 });

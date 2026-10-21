@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { readReleaseNotes } from "../src/logic/notes";
-import { ReleaseChannels } from "../src/types";
 import { makeNotesDir, makeNotesFile } from "./helpers";
 
 const BODY = "## Highlights\n\nThe first release.\n";
@@ -28,21 +27,12 @@ describe("reading the release notes files", () => {
     expect(result.value).toHaveLength(1);
     expect(result.value[0]).toMatchObject({
       version: { major: 0, minor: 1, patch: 0 },
-      channel: ReleaseChannels.STABLE,
       date: "2026-10-03",
       breaking: false,
       security: false,
       body: BODY,
     });
     expect(result.value[0]?.path.endsWith("0.1.0.md")).toBe(true);
-  });
-
-  it("reads a candidate file on the rc channel", () => {
-    const dir = makeNotesDir({ "0.2.0-rc.1.md": makeNotesFile({}, BODY) });
-
-    const result = readReleaseNotes(dir);
-
-    expect(result.ok && result.value[0]?.channel).toBe(ReleaseChannels.RC);
   });
 
   it("sorts newest first", () => {

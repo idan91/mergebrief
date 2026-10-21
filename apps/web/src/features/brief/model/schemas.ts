@@ -1,9 +1,5 @@
 import { LineRangeSchema } from "brief-core/types";
-import {
-  LocalBriefKinds,
-  type GenerateBriefResponse,
-  type LocalBriefSummary,
-} from "contract";
+import { LocalBriefKinds, type GenerateBriefResponse } from "contract";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
   ATTRIBUTE_NAME_PATTERN,
@@ -72,12 +68,6 @@ export const comparisonMarksSchema = dropNullKeys(
   }),
   ["baselineIndex"],
 );
-
-export function parseAddressedReviewComment(
-  value: unknown,
-): Result<AddressedReviewComment, string> {
-  return parseWithSchema(addressedReviewCommentSchema, value);
-}
 
 export function parseAddressedReviewComments(
   value: unknown,
@@ -148,12 +138,6 @@ export function parseFileDiffPatches(
 
 /** `GET /api/local-briefs`: the dev file surface's listing rows. */
 export const localBriefSummariesSchema = z.array(localBriefSummarySchema);
-
-export function parseLocalBriefSummaries(
-  value: unknown,
-): Result<LocalBriefSummary[], string> {
-  return parseWithSchema(localBriefSummariesSchema, value);
-}
 
 export const generateBriefResponseSchema = z
   .object({ repoId: z.string(), prNumber: z.number() })

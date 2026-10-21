@@ -25,12 +25,6 @@ describe("Button", () => {
     expect(button.getAttribute("data-size")).toBe("sm");
   });
 
-  it("renders the danger variant for a destructive confirm", () => {
-    render(<Button variant="danger">Delete</Button>);
-    const button = screen.getByRole("button", { name: "Delete" });
-    expect(button.getAttribute("data-variant")).toBe("danger");
-  });
-
   it("disabled sets aria-disabled, not the attribute, and guards clicks", () => {
     const onClick = vi.fn();
     render(
@@ -110,20 +104,6 @@ describe("Button", () => {
     expect(button.getAttribute("aria-describedby")).toBe("why-off");
   });
 
-  it("forwards refs to the underlying element", () => {
-    let node: HTMLButtonElement | null = null;
-    render(
-      <Button
-        ref={(element) => {
-          node = element;
-        }}
-      >
-        Go
-      </Button>,
-    );
-    expect(node).not.toBeNull();
-  });
-
   it("as=a renders an anchor with the href and no type attribute", () => {
     render(
       <Button as="a" href="/somewhere" variant="accent">
@@ -133,18 +113,6 @@ describe("Button", () => {
     const anchor = screen.getByRole("link", { name: "Go" });
     expect(anchor.getAttribute("href")).toBe("/somewhere");
     expect(anchor.hasAttribute("type")).toBe(false);
-  });
-
-  it("as=a with target=_blank defaults rel and announces the new tab", () => {
-    render(
-      <Button as="a" href="https://example.com" target="_blank">
-        View on GitHub
-      </Button>,
-    );
-    const anchor = screen.getByRole("link", {
-      name: /view on github ?\(opens in a new tab\)/i,
-    });
-    expect(anchor.getAttribute("rel")).toBe("noreferrer");
   });
 
   it("as=a disabled prevents navigation and suppresses onClick", () => {

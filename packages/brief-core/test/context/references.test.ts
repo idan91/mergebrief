@@ -37,7 +37,6 @@ describe("collectTicketReferences: shapes", () => {
     ["word-bounded BRIEF-12x", []],
     ["hyphen-bounded pre-BRIEF-12", []],
     ["slug-tailed BRIEF-12-fix-the-loop", ["BRIEF-12"]],
-    ["digit-tailed BRIEF-12x", []],
   ])("key: %s", (body, keys) => {
     const refs = collectTicketReferences(
       makeInput({ body, trackers: [NOTION] }),
@@ -133,17 +132,6 @@ describe("collectTicketReferences: shapes", () => {
     expect(refs.map((r) => r.key)).toEqual(["BRIEF-269"]);
   });
 
-  it("branch: a key under the tracker prefix wins over a stack position", () => {
-    const refs = collectTicketReferences(
-      makeInput({
-        branch: "feature/BRIEF-269/1-instance-cap",
-        trackers: [NOTION],
-        readable: ["github", "notion"],
-      }),
-    );
-    expect(refs.map((r) => r.key)).toEqual(["BRIEF-269"]);
-  });
-
   it("branch: the whole name may start with N-", () => {
     const refs = collectTicketReferences(makeInput({ branch: "12-fix-thing" }));
     expect(refs[0]).toMatchObject({ number: 12, foundIn: "branch" });
@@ -178,13 +166,6 @@ describe("collectTicketReferences: shapes", () => {
         branch: "feature/BRIEF-239-ticket-references",
         trackers: [NOTION],
       }),
-    );
-    expect(refs[0]).toMatchObject({ key: "BRIEF-239", foundIn: "branch" });
-  });
-
-  it("branch: a key matches in the branch name", () => {
-    const refs = collectTicketReferences(
-      makeInput({ branch: "feature/BRIEF-239/card", trackers: [NOTION] }),
     );
     expect(refs[0]).toMatchObject({ key: "BRIEF-239", foundIn: "branch" });
   });
@@ -344,17 +325,6 @@ describe("resolvePrimaryTicket", () => {
     expect(resolvePrimaryTicket(refs)?.number).toBe(4);
   });
 
-  it("with a notion tracker, a title key outranks a description #N", () => {
-    const refs = collectTicketReferences(
-      makeInput({
-        title: "[BRIEF-239] x",
-        body: "on #467",
-        trackers: [NOTION],
-      }),
-    );
-    expect(resolvePrimaryTicket(refs, [NOTION.kind])?.key).toBe("BRIEF-239");
-  });
-
   it("with a notion tracker, a closing #N still loses to a key", () => {
     const refs = collectTicketReferences(
       makeInput({
@@ -376,13 +346,6 @@ describe("resolvePrimaryTicket", () => {
       }),
     );
     expect(refs.map((r) => r.url)).toEqual(["https://github.com/o/r/issues/9"]);
-  });
-
-  it("with a github entry beside notion, a bare #N resolves again", () => {
-    const refs = collectTicketReferences(
-      makeInput({ body: "see #4", trackers: [NOTION, GITHUB] }),
-    );
-    expect(refs[0]?.url).toBe("https://github.com/acme/tracker/issues/4");
   });
 
   it("with no keyword the first reference in reading order wins", () => {

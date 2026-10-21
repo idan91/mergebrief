@@ -6,9 +6,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-  EXPAND_STEP,
   findExpansionGaps,
-  formatExpansionKey,
   resolveExpansionRange,
   spliceAllExpandedRows,
   spliceExpandedRows,
@@ -331,17 +329,6 @@ describe("spliceAllExpandedRows on a gap whose run below opens on deletions", ()
   });
 });
 
-describe("formatExpansionKey", () => {
-  it("keys an edge by chunk, row and direction", () => {
-    const key = formatExpansionKey("chunk-1", {
-      rowIndex: 4,
-      direction: ExpansionDirections.UP,
-    });
-
-    expect(key).toBe("chunk-1:4:up");
-  });
-});
-
 describe("resolveExpansionRange", () => {
   const gap: ExpansionGap = {
     edge: { rowIndex: 3, direction: ExpansionDirections.DOWN },
@@ -401,10 +388,6 @@ describe("resolveExpansionRange", () => {
     expect(
       resolveExpansionRange({ gap: short, expanded: { start: 10, end: 12 } }),
     ).toBeUndefined();
-  });
-
-  it("caps a step at twenty lines", () => {
-    expect(EXPAND_STEP).toBe(20);
   });
 });
 

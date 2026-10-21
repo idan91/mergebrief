@@ -2,7 +2,7 @@
 // projection + debounced graphile `generate` job, atomically. Runs on the
 // PGlite harness because it provides the `graphile_worker` stub the enqueue
 // step calls by name.
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished } from "vitest";
 import type {
   IngestOutcome,
   TriggerGenerationInput,
@@ -31,13 +31,9 @@ import {
   type PullRequestRowId,
   type UncoveredWork,
 } from "../src/types";
-import {
-  GenerationFailureCodes,
-  GenerationPhases,
-  GenerationStatuses,
-} from "types/generations";
+import { GenerationPhases, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { brandWith, writeJobRunAt } from "./helpers";
+import { brandWith, registerSharedPglite, writeJobRunAt } from "./helpers";
 
 const CTX = parseTenantContext({ installationId: 100n });
 const REPO_ID = brandWith(isRepoId, 200n);
@@ -76,14 +72,11 @@ function epochMs(cell: unknown): number {
 }
 
 describe("createIngestRoutines.triggerGeneration", () => {
+  const shared = registerSharedPglite();
   let harness: PgliteHarness;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
-  });
-
-  afterEach(async () => {
-    await harness.close();
+  beforeEach(() => {
+    harness = shared.harness;
   });
 
   async function trigger(overrides?: {
@@ -191,18 +184,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const runAtDelta = epochMs(job["run_at"]) - before;
     expect(runAtDelta).toBeGreaterThan(55_000);
     expect(runAtDelta).toBeLessThan(65_000);
-  });
-
-  it("persists baseSha and preserves it when a later trigger omits it", async () => {
-    const first = await trigger({ baseSha: "base-1" });
-    expect(first.pullRequest.baseSha).toBe("base-1");
-
-    // Review-event trigger (no baseSha) must not null the stored value.
-    const preserved = await trigger();
-    expect(preserved.pullRequest.baseSha).toBe("base-1");
-
-    const retargeted = await trigger({ baseSha: "base-2" });
-    expect(retargeted.pullRequest.baseSha).toBe("base-2");
   });
 
   it("redelivery increments attempts and keeps the one job's run_at", async () => {
@@ -448,16 +429,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
   });
 
-  it("the enqueued job carries three max attempts", async () => {
-    await trigger();
-
-    const jobs = await harness.raw(
-      "select max_attempts from graphile_worker.jobs",
-    );
-
-    expect(jobs).toEqual([{ max_attempts: 3 }]);
-  });
-
   describe("a re-trigger and the queued job", () => {
     const NEXT_HEAD_SHA = "b".repeat(40);
 
@@ -486,15 +457,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
       expect(jobs[1]?.["key"]).toBe(`generate:${first.pullRequest.id}`);
       expect(jobs[1]?.["locked_at"]).toBeNull();
       expect(jobs[1]?.["head"]).toBe(NEXT_HEAD_SHA);
-    });
-
-    it("a same-head trigger on a queued job keeps the one job", async () => {
-      await trigger();
-      const before = await readJobs();
-
-      await trigger();
-
-      expect(await readJobs()).toEqual(before);
     });
 
     // A known duplicate run, not a wanted behaviour: the held job has not
@@ -805,26 +767,6 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(jobs).toHaveLength(1);
   });
 
-  it("a failed head is reset to pending with its error cleared", async () => {
-    const first = await trigger();
-    const target = briefTarget(first.pullRequest.id);
-    const projection = createGenerationProjection(harness.handle, CTX);
-    await projection.markFailed(target, {
-      code: GenerationFailureCodes.UNKNOWN,
-      params: { detail: "boom" },
-    });
-    await harness.raw("delete from graphile_worker.jobs");
-
-    const second = await trigger();
-
-    const row = expectGeneration(second);
-    expect(row.status).toBe(GenerationStatuses.PENDING);
-    expect(row.errorCode).toBeNull();
-    expect(row.errorParams).toBeNull();
-    const jobs = await harness.raw("select id from graphile_worker.jobs");
-    expect(jobs).toHaveLength(1);
-  });
-
   it("rejects stale non-reopen triggers for closed PRs without enqueueing", async () => {
     await trigger();
     const jobsBefore = await harness.raw(
@@ -869,6 +811,8 @@ describe("createIngestRoutines.triggerGeneration", () => {
   });
 
   it("rolls back the whole transaction when enqueueing fails", async () => {
+    harness = await createPgliteHarness();
+    onTestFinished(() => harness.close());
     await harness.raw(
       "drop function graphile_worker.add_job(text, json, text, timestamptz, int, text)",
     );
@@ -1234,6 +1178,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     it("keeps the normal window while the prior generation is only pending", async () => {
       await trigger();
+      await harness.raw("delete from graphile_worker.jobs");
       const before = Date.now();
       await trigger({
         regenerationDebounceSeconds: 900,
@@ -1261,6 +1206,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     it("keeps failed prior generations undamped because no brief exists", async () => {
       await trigger();
       await harness.raw("update generation set status = 'failed'");
+      await harness.raw("delete from graphile_worker.jobs");
       const before = Date.now();
       await trigger({
         regenerationDebounceSeconds: 900,

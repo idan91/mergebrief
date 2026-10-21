@@ -654,3 +654,133 @@ describe("ThreadDetail, mention source hand-off", () => {
     ]);
   });
 });
+
+function getReplyDraft(threadId: number): string | null {
+  return sessionStorage.getItem(`mergebrief.replyDraft.${threadId}`);
+}
+
+function getReplyTextarea(): HTMLTextAreaElement {
+  const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+  if (!(textarea instanceof HTMLTextAreaElement)) {
+    throw new Error("reply box is not a textarea");
+  }
+  return textarea;
+}
+
+describe("ThreadDetail, quote reply", () => {
+  it("Quote reply prefills the reply box with the quoted comment", () => {
+    renderDetail();
+    const quoteButton = screen
+      .getAllByRole("button", { name: /Quote reply to @/ })
+      .at(0);
+    if (quoteButton === undefined) {
+      throw new Error("Quote reply not rendered");
+    }
+    fireEvent.click(quoteButton);
+    expect(getReplyTextarea().value).toBe(
+      "> This null check looks inverted.\n\n",
+    );
+    // Quoting again appends again (nonce-triggered, not text-triggered).
+    fireEvent.click(quoteButton);
+    expect(getReplyTextarea().value).toBe(
+      "> This null check looks inverted.\n\n> This null check looks inverted.\n\n",
+    );
+  });
+
+  it("R with a selection inside the thread quotes it; no selection, no-op", () => {
+    renderDetail();
+    fireEvent.keyDown(window, { key: "r" });
+    expect(getReplyTextarea().value).toBe("");
+
+    const commentText = screen
+      .getAllByText("This null check looks inverted.")
+      .find((element) => element.tagName === "P");
+    if (commentText === undefined) {
+      throw new Error("comment body not found");
+    }
+    const range = document.createRange();
+    range.selectNodeContents(commentText);
+    const selection = window.getSelection();
+    if (selection === null) {
+      throw new Error("jsdom selection unavailable");
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+    fireEvent.keyDown(window, { key: "r" });
+    expect(getReplyTextarea().value).toBe(
+      "> This null check looks inverted.\n\n",
+    );
+  });
+});
+
+describe("ThreadDetail, reply composer", () => {
+  it("persists the draft as it is typed so navigation survives it", () => {
+    renderDetail();
+    type("half a thought");
+    expect(getReplyDraft(THREAD_ID)).toBe("half a thought");
+  });
+
+  it("keeps the draft and announces indeterminate copy on failure", async () => {
+    const h = renderDetail({
+      reply: () => Promise.reject(new Error("boom")),
+    });
+    type("risky reply");
+    fireEvent.click(screen.getByRole("button", { name: "Reply" }));
+    await waitFor(() =>
+      expect(h.announce).toHaveBeenCalledWith(
+        expect.stringContaining("may or may not have posted"),
+      ),
+    );
+    expect(getReplyDraft(THREAD_ID)).toBe("risky reply");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "may or may not have posted",
+    );
+  });
+
+  it("blocks an over-cap reply with associated error copy", () => {
+    renderDetail();
+    type("x".repeat(65_537));
+    const textarea = getReplyTextarea();
+    expect(textarea.getAttribute("aria-invalid")).toBe("true");
+    // Instance-scoped ids (useId): association is by reference, not by a
+    // thread-derived literal.
+    const alert = screen.getByRole("alert");
+    expect(textarea.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(alert.textContent).toContain("longer than GitHub allows");
+    expect(
+      screen
+        .getByRole("button", { name: "Reply" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("keeps focus on the Reply button through posting", async () => {
+    renderDetail();
+    type("a follow-up");
+    const button = screen.getByRole("button", { name: "Reply" });
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error("Reply is not a button");
+    }
+    button.focus();
+    fireEvent.click(button);
+    // Never hard-disabled: focus survives the pending and posted states.
+    expect(button.disabled).toBe(false);
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: "Reply" })
+          .getAttribute("aria-disabled"),
+      ).toBe("true"),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Reply" }),
+    );
+  });
+
+  it("blocks an empty reply with a disabled button", () => {
+    renderDetail();
+    const button = screen.getByRole("button", { name: "Reply" });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.hasAttribute("disabled")).toBe(false);
+  });
+});

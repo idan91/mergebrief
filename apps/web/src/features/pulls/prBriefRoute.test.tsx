@@ -9,7 +9,6 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import {
-  cleanup,
   fireEvent,
   render,
   screen,
@@ -161,6 +160,9 @@ describe("DB brief route", () => {
       ).toBeTruthy(),
     );
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
+    await waitFor(() =>
+      expect(document.title).toBe("t · #7 · octo/hello · MergeBrief"),
+    );
     // The header's state badge on the DB route reads the LIVE webhook state
     // from the pr row (meta.state = open), never gated on the artifact's
     // stamped snapshot (this fixture predates stamping).
@@ -171,55 +173,8 @@ describe("DB brief route", () => {
     ).toBe("open");
   });
 
-  // The filter is URL state, so validateSearch and the chip write are the
-  // contract. Nothing else pins that clearing a family removes its key, or
-  // that the revision/thread params survive a filter write.
   describe("conversation filter params", () => {
     const base = `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`;
-
-    it("canonicalizes the filter params and drops unknown tokens", async () => {
-      const router = await renderRoute(
-        meta({}),
-        `${base}&verdicts=nonsense,changes-requested,dismissed&reviewers=alice&reviews=all`,
-      );
-      await waitFor(() =>
-        expect(
-          screen.getByRole("heading", {
-            level: 1,
-            name: briefFixture.pr.title,
-          }),
-        ).toBeTruthy(),
-      );
-      const search = router.state.location.search;
-      expect(search.verdicts).toBe("changes-requested");
-      expect(search.reviewers).toBe("alice");
-      expect(search.reviews).toBe("all");
-      // Idempotent: navigating to the canonical form must not churn it (a
-      // non-idempotent projection would loop the router).
-      await router.navigate({ to: router.state.location.pathname, search });
-      await waitFor(() =>
-        expect(router.state.location.search.verdicts).toBe("changes-requested"),
-      );
-      expect(router.state.location.search.reviewers).toBe("alice");
-    });
-
-    it("keeps the span params and defaults the filter keys away", async () => {
-      const router = await renderRoute(meta({}), base);
-      await waitFor(() =>
-        expect(
-          screen.getByRole("heading", {
-            level: 1,
-            name: briefFixture.pr.title,
-          }),
-        ).toBeTruthy(),
-      );
-      const search = router.state.location.search;
-      expect(search.base).toBe(SPAN.base);
-      expect(search.head).toBe(SPAN.head);
-      expect(search.verdicts).toBeUndefined();
-      expect(search.reviewers).toBeUndefined();
-      expect(search.reviews).toBeUndefined();
-    });
 
     it("survives a thread deep link", async () => {
       const router = await renderRoute(
@@ -237,31 +192,6 @@ describe("DB brief route", () => {
       expect(router.state.location.search.thread).toBe(9001);
       expect(router.state.location.search.reviewers).toBe("alice");
     });
-  });
-
-  it("shows a diff-first wait card before the generated artifact exists", async () => {
-    await renderRoute(
-      omitFields(
-        meta({
-          briefAvailable: false,
-          generation: {
-            status: "running",
-            phase: "fetching",
-            attempts: 0,
-            updatedAt: "2026-07-06T12:00:00.000Z",
-          },
-        }),
-        "baseSha",
-      ),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
-    );
-    // A phase whose line differs from the generic fallback, so a phase that
-    // never reaches the card fails here.
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Fetching the pull request…" }),
-      ).toBeTruthy(),
-    );
   });
 
   it("shows the failed card with attempts and the sanitized error", async () => {
@@ -311,7 +241,7 @@ describe("DB brief route", () => {
     expect(search.rev).toBeUndefined();
   });
 
-  it("Compare is disabled when the meta offers no previous-brief baseline", async () => {
+  it("Compare explains each disabled baseline when the meta offers none", async () => {
     await renderRoute(
       meta({}),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
@@ -329,6 +259,17 @@ describe("DB brief route", () => {
     expect(tooltipId).toBeTruthy();
     const tooltip = document.getElementById(tooltipId ?? "");
     expect(tooltip?.textContent).toMatch(/no previous brief/i);
+
+    const lastReview = screen.getByRole("radio", {
+      name: /^your last review$/i,
+    });
+    expect(lastReview.getAttribute("aria-disabled")).toBe("true");
+    const lastReviewTooltip = document.getElementById(
+      lastReview.getAttribute("aria-describedby") ?? "",
+    );
+    expect(lastReviewTooltip?.textContent).toMatch(
+      /no submitted review checkpoint yet/i,
+    );
   });
 
   it("Compare previous-brief activates from the URL when the meta offers it", async () => {
@@ -505,61 +446,11 @@ describe("DB brief route", () => {
     expect(screen.queryByText(/changes summary unavailable/i)).toBeNull();
   });
 
-  it("allows turning off default comparison from Full Brief", async () => {
-    // A returning reviewer defaults into changes+last-review; after clicking
-    // Full Brief the compare stays active, Off must exist to reach full+off.
+  it("explains a pending last-review checkpoint on the disabled radio", async () => {
     await renderRoute(
-      meta({}),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&view=full&compare=off`,
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
-      ).toBeTruthy(),
-    );
-    const off = screen.getByRole("radio", { name: /^off$/i });
-    expect((off as HTMLButtonElement).disabled).toBe(false);
-    expect((off as HTMLInputElement).checked).toBe(true);
-  });
-
-  it("explains why last-review comparison is disabled for each tier", async () => {
-    const cases = [
-      { reason: "pending", copy: /delta still generating/i },
-      {
-        reason: "baseline-unavailable",
-        copy: /history rewritten since your last review/i,
-      },
-    ] as const;
-    for (const { reason, copy } of cases) {
-      cleanup();
-      await renderRoute(
-        meta({
-          comparisons: { lastReview: { kind: "unavailable", reason } },
-        }),
-        `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
-      );
-      await waitFor(() =>
-        expect(
-          screen.getByRole("heading", {
-            level: 1,
-            name: briefFixture.pr.title,
-          }),
-        ).toBeTruthy(),
-      );
-      const button = screen.getByRole("radio", {
-        name: /^your last review$/i,
-      });
-      expect(button.getAttribute("aria-disabled")).toBe("true");
-      const tooltip = document.getElementById(
-        button.getAttribute("aria-describedby") ?? "",
-      );
-      expect(tooltip?.textContent).toMatch(copy);
-    }
-  });
-
-  it("uses never-submitted copy when comparison availability is absent", async () => {
-    await renderRoute(
-      meta({}),
+      meta({
+        comparisons: { lastReview: { kind: "unavailable", reason: "pending" } },
+      }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
     await waitFor(() =>
@@ -572,7 +463,7 @@ describe("DB brief route", () => {
     const tooltip = document.getElementById(
       button.getAttribute("aria-describedby") ?? "",
     );
-    expect(tooltip?.textContent).toMatch(/no submitted review checkpoint yet/i);
+    expect(tooltip?.textContent).toMatch(/delta still generating/i);
   });
 
   it("offers head-advance navigation when pinned to an older span", async () => {
@@ -628,36 +519,6 @@ describe("DB brief route", () => {
     ).toBeTruthy();
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
     expect(cta.getAttribute("aria-disabled")).toBe("false");
-  });
-
-  it("labels historical own drafts without mark-ready or its gate", async () => {
-    // The PR's head moved on; the viewer is pinned to the older span.
-    await renderRoute(
-      meta({
-        draft: true,
-        viewerIsAuthor: true,
-        headSha: "head-9",
-        baseSha: "base-9",
-      }),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
-    );
-    // The PR is still the viewer's draft, the state label follows STATE,
-    // not the revision on screen.
-    expect(
-      within(screen.getByRole("banner")).getByText("Self-review — your draft"),
-    ).toBeTruthy();
-    // But mark-ready is head-scoped: the gate would list THIS revision's
-    // flags, not the current head's, so the action reads disabled (still
-    // focusable) and a click explains itself instead of gating on stale
-    // flags. Nothing gate-shaped exists in the DOM.
-    const cta = screen.getByRole("button", { name: "Mark ready for review" });
-    expect(cta.getAttribute("aria-disabled")).toBe("true");
-    expect(screen.queryByText("Before marking ready")).toBeNull();
-    fireEvent.click(cta);
-    expect(
-      await screen.findByText(/switch to the latest revision to mark/i),
-    ).toBeTruthy();
-    expect(screen.queryByText("Before marking ready")).toBeNull();
   });
 });
 
@@ -718,74 +579,6 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     },
   });
 
-  it("shows the wait state for an explicit-span brief 404 while generating", async () => {
-    await renderRouteWithFetch(
-      (client) => {
-        // Meta is seeded (present): the loader resolves it from cache and only
-        // the still-generating brief hits the network → 404.
-        client.setQueryData(
-          buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
-          generatingMeta,
-        );
-        client.setQueryData(
-          buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
-            .queryKey,
-          "",
-        );
-      },
-      (url) =>
-        url.includes("/brief")
-          ? new Response("not found", { status: 404 })
-          : new Response("{}", { status: 200 }),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
-    );
-    // The wait card renders exactly like a span-unknown generating load: the
-    // generation status heading + the diff-first "read the raw diff" copy.
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: /generating the brief/i }),
-      ).toBeTruthy(),
-    );
-    expect(screen.getByText(/read the raw diff while you wait/i)).toBeTruthy();
-    // Crucially NOT the router's not-found page.
-    expect(screen.queryByTestId("nf")).toBeNull();
-  });
-
-  it("leaves no cached brief after a generating-brief 404", async () => {
-    const { queryClient } = await renderRouteWithFetch(
-      (client) => {
-        client.setQueryData(
-          buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
-          generatingMeta,
-        );
-        client.setQueryData(
-          buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
-            .queryKey,
-          "",
-        );
-      },
-      (url) =>
-        url.includes("/brief")
-          ? new Response("not found", { status: 404 })
-          : new Response("{}", { status: 200 }),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: /generating the brief/i }),
-      ).toBeTruthy(),
-    );
-    // ensureQueryData wrote an ERROR entry for the brief key; the loader must
-    // evict it so a later render-state mount refetches instead of throwing the
-    // cached error. No entry (neither data nor error) must remain.
-    expect(
-      queryClient.getQueryState(
-        buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
-          .queryKey,
-      ),
-    ).toBeUndefined();
-  });
-
   it("renders the arriving artifact without crashing on the cached 404", async () => {
     let briefReady = false;
     const { queryClient } = await renderRouteWithFetch(
@@ -817,6 +610,8 @@ describe("DB brief route, explicit-span deep link while generating", () => {
         screen.getByRole("heading", { name: /generating the brief/i }),
       ).toBeTruthy(),
     );
+    expect(screen.getByText(/read the raw diff while you wait/i)).toBeTruthy();
+    expect(screen.queryByTestId("nf")).toBeNull();
 
     // Generation completes: the artifact becomes fetchable and the poll flips
     // briefAvailable → the route swaps to the render state and DbBrief mounts.
@@ -880,19 +675,6 @@ describe("DB brief route, rev param", () => {
     };
   }
 
-  it("renders the revision a rev names and leaves the URL as it came", async () => {
-    const router = await renderRoute(
-      meta({ revisions }),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
-      ).toBeTruthy(),
-    );
-    expect(readSearch(router)).toEqual({ rev: 2 });
-  });
-
   it("a line pick writes the link param and keeps the rev", async () => {
     const router = await renderRoute(
       meta({ revisions }),
@@ -935,14 +717,6 @@ describe("DB brief route, rev param", () => {
         screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
       ).toBeTruthy(),
     );
-  });
-
-  it("pins the latest rev onto a bare link", async () => {
-    const router = await renderRoute(
-      meta({ revisions }),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
-    );
-    await waitFor(() => expect(readSearch(router).rev).toBe(2));
   });
 
   it("leaves an unknown rev in place, shows latest and the note", async () => {

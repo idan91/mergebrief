@@ -46,13 +46,19 @@ type StubTurn =
 interface StubClient {
   client: AnthropicStreamingClient;
   requests: { messages: { role: string; content: unknown }[] }[];
+  streamOptions: ({ signal?: AbortSignal } | undefined)[];
 }
 
 function stubClient(turns: readonly StubTurn[]): StubClient {
   const requests: { messages: { role: string; content: unknown }[] }[] = [];
+  const streamOptions: ({ signal?: AbortSignal } | undefined)[] = [];
   const client = {
     messages: {
-      stream(body: Parameters<Anthropic["messages"]["stream"]>[0]) {
+      stream(
+        body: Parameters<Anthropic["messages"]["stream"]>[0],
+        options?: { signal?: AbortSignal },
+      ) {
+        streamOptions.push(options);
         requests.push({
           messages: body.messages.map((m) => ({
             role: m.role,
@@ -110,7 +116,7 @@ function stubClient(turns: readonly StubTurn[]): StubClient {
       },
     },
   } satisfies AnthropicStreamingClient;
-  return { client, requests };
+  return { client, requests, streamOptions };
 }
 
 function makeHandle(
@@ -287,5 +293,49 @@ describe("AnthropicGenerator SDK eager-parse rejection from SDK 0.101 on", () =>
     // The retry's feedback echoes the truncated raw the deltas carried.
     const retryMessages = stub.requests[1]?.messages ?? [];
     expect(String(retryMessages[1]?.content)).toBe(truncated);
+  });
+});
+
+describe("AnthropicGenerator request shape", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "anthropic-request-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("threads the request signal into the SDK stream options", async () => {
+    const stub = stubClient([{ raw: contractPayloads.valid }]);
+    const controller = new AbortController();
+    const generator = new AnthropicGenerator(stub.client, dir);
+    await generator.generate({
+      schema: ContractSchema,
+      system: "sys",
+      user: "usr",
+      effort: "medium",
+      label: "signal",
+      signal: controller.signal,
+    });
+    expect(stub.streamOptions[0]?.signal).toBe(controller.signal);
+  });
+
+  it("replays the failed output as the assistant turn on retry", async () => {
+    const stub = stubClient([
+      { raw: contractPayloads.invalid },
+      { raw: contractPayloads.valid },
+    ]);
+    const generator = new AnthropicGenerator(stub.client, dir);
+    await generator.generate({
+      schema: ContractSchema,
+      system: "sys",
+      user: "usr",
+      effort: "medium",
+      label: "retry",
+    });
+    expect(stub.requests[1]?.messages[1]).toEqual({
+      role: "assistant",
+      content: contractPayloads.invalid,
+    });
   });
 });

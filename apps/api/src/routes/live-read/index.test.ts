@@ -26,9 +26,8 @@ import {
   type ReviewerId,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Mutable } from "types/utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIVE_READ_MAX_CHUNKS } from "./consts";
 import {
   readInboxRowsLive,
@@ -36,6 +35,7 @@ import {
   resetLiveReadMemory,
 } from "./index";
 import type { LiveFactsReader, LiveReadDeps, LiveReadOutcome } from "./types";
+import { registerSharedPglite } from "../../../test/shared-pglite";
 
 const VIEWER_TOKEN = "ghu_viewer";
 const OTHER_TOKEN = "ghu_other_reader";
@@ -143,18 +143,13 @@ function openGate(): { gate: Promise<void>; release: () => void } {
   return { gate, release };
 }
 
-let harness: PgliteHarness;
+const harness = registerSharedPglite();
 let fake: FakeGitHub;
 
-beforeEach(async () => {
-  harness = await createPgliteHarness();
+beforeEach(() => {
   fake = makeFakeGitHub();
   vi.mocked(log.warn).mockReset();
   resetLiveReadMemory();
-});
-
-afterEach(async () => {
-  await harness.close();
 });
 
 async function seedRows(
@@ -174,6 +169,18 @@ async function seedRows(
     );
   }
   return rows;
+}
+
+/** `o/r#1..count` like `seedRows`, the copies past the first in one statement. */
+async function seedRowsInBulk(count: number): Promise<void> {
+  await seedRows(1);
+  await harness.raw(
+    `insert into pull_request
+       (installation_id, owner_user_id, source, repo_id, pr_number, repo_slug, state)
+     select installation_id, owner_user_id, source, repo_id, number, repo_slug, state
+     from pull_request, generate_series(2, $1) as number`,
+    [count],
+  );
 }
 
 async function readRow(prNumber: number): Promise<PullRequestRow> {
@@ -284,7 +291,7 @@ describe("readInboxRowsLive for url rows", () => {
   it("reads in chunks of the page size and defers past the chunk cap", async () => {
     const cap = LIVE_READ_PAGE_SIZE * LIVE_READ_MAX_CHUNKS;
     arrangePulls(cap + 1);
-    await seedRows(cap + 1);
+    await seedRowsInBulk(cap + 1);
 
     const outcome = await readOwnerRowsLive(buildLiveDeps(), OWNER);
 

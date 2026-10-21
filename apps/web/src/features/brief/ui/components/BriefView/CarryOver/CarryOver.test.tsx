@@ -1,14 +1,25 @@
 // @vitest-environment jsdom
-// The carry-over row's four states, the span it always states, and the
-// attention list's clearing affordances, driven through the real screen,
-// because the list is what replaces the row and both are one region.
-import { act, fireEvent, screen, within } from "@testing-library/react";
+// The carry-over receipt mounts the row alone. The attention list's
+// clearing affordances drive the real screen, because the list is what
+// replaces the row and both are one region.
+import { appI18n } from "@web/i18n/I18nProvider";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { ReviewSessionPayload } from "@web/features/review/session";
+import {
+  createReviewFlowStore,
+  ReviewFlowProvider,
+  ReviewSessionProvider,
+  type ReviewSessionPayload,
+  type SessionReadSource,
+} from "@web/features/review/session";
 import { makeSessionReadDriver } from "@web/features/review/utils";
 import { briefFixture, mountBriefView } from "@web/features/brief/test-utils";
+import { buildBriefViewModel } from "@web/features/brief/model/utils/view-model";
 import { omitFields } from "@web/test/fields";
+import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
+import { makeReviewPosture } from "../../../utils/review-posture";
+import { CarryOver } from ".";
 
 const FLAG_ATTRIBUTE = "no-tests";
 const FLAG_FILE = "src/leak.ts";
@@ -101,6 +112,43 @@ function buildCarriedDisposition(
   });
 }
 
+const model = buildBriefViewModel(briefFixture);
+
+/** The row alone, under only the providers useCarryOver reads. */
+function mountCarryOver(
+  session: ReviewSessionPayload,
+  reads?: SessionReadSource,
+) {
+  const flowStore = createReviewFlowStore(
+    {
+      saveComment: () => Promise.resolve(true),
+      updateComment: () => undefined,
+      deleteComment: () => undefined,
+      toggleComment: () => undefined,
+      reanchorComment: () => true,
+    },
+    appI18n.t,
+  );
+  render(
+    <ReviewSessionProvider
+      briefId="test-brief"
+      model={model}
+      reads={reads}
+      session={session}
+    >
+      <ReviewFlowProvider store={flowStore}>
+        <ReviewPostureProvider posture={makeReviewPosture()}>
+          <CarryOver
+            headSha={briefFixture.pr.sha}
+            jumpToItem={() => undefined}
+            model={model}
+          />
+        </ReviewPostureProvider>
+      </ReviewFlowProvider>
+    </ReviewSessionProvider>,
+  );
+}
+
 /** The item's re-anchor control, re-read after every state change. */
 function getReanchorControl(): HTMLElement {
   return screen.getByTestId("attention-action-reanchor-draft-comment");
@@ -114,20 +162,15 @@ function getRowStatus(): HTMLElement {
   return within(screen.getByTestId("carry-over-row")).getByRole("status");
 }
 
-describe("carry-over row", () => {
-  it("renders no row at all on a first-ever session", async () => {
-    await mountBriefView({
-      session: omitFields(buildPayload({}), "carriedFrom"),
-    });
+describe("carry-over receipt", () => {
+  it("renders no row at all on a first-ever session", () => {
+    mountCarryOver(omitFields(buildPayload({}), "carriedFrom"));
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
   });
 
-  it("renders the row from a session read that lands later", async () => {
+  it("renders the row from a session read that lands later", () => {
     const reads = makeSessionReadDriver();
-    await mountBriefView({
-      session: omitFields(buildPayload({}), "carriedFrom"),
-      sessionReads: reads.source,
-    });
+    mountCarryOver(omitFields(buildPayload({}), "carriedFrom"), reads.source);
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
 
     act(() => {
@@ -138,9 +181,9 @@ describe("carry-over row", () => {
     expect(getRowText()).toContain("Your review carried forward · 4 items");
   });
 
-  it("renders no row when a previous session carried nothing", async () => {
-    await mountBriefView({
-      session: buildPayload({
+  it("renders no row when a previous session carried nothing", () => {
+    mountCarryOver(
+      buildPayload({
         carriedFrom: {
           sessionId: "9",
           headSha: "a84c1de0000",
@@ -148,21 +191,13 @@ describe("carry-over row", () => {
           items: 0,
         },
       }),
-    });
+    );
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
   });
 
-  it("states the receipt work, count, span, and nothing to re-look at", async () => {
-    await mountBriefView({ session: buildPayload({}) });
-    expect(getRowText()).toContain("Your review carried forward · 4 items");
-    expect(getRowText()).toContain("a84c1de → abcdef1");
-    expect(getRowText()).toContain("nothing needs a re-look");
-    expect(screen.queryByTestId("attention-item")).toBeNull();
-  });
-
-  it("counts the revisions when more than one push happened", async () => {
-    await mountBriefView({
-      session: buildPayload({
+  it("states the receipt work, count, span, and nothing to re-look at", () => {
+    mountCarryOver(
+      buildPayload({
         carriedFrom: {
           sessionId: "9",
           headSha: "a84c1de0000",
@@ -170,34 +205,19 @@ describe("carry-over row", () => {
           items: 4,
         },
       }),
-    });
-    expect(getRowText()).toContain("a84c1de → abcdef1 · 3 revisions");
-  });
-
-  it("suppresses the count when both span ends are the same SHA", async () => {
-    await mountBriefView({
-      session: buildPayload({
-        carriedFrom: {
-          sessionId: "9",
-          headSha: briefFixture.pr.sha,
-          revisions: 4,
-          items: 4,
-        },
-      }),
-    });
-    expect(getRowText()).toContain("abcdef1 → abcdef1");
-    expect(getRowText()).not.toContain("revisions");
-  });
-
-  it("states the clean receipt as the box's single visible line", async () => {
-    await mountBriefView({ session: buildPayload({}) });
+    );
     const row = screen.getByTestId("carry-over-row");
-    const status = getRowStatus();
+    expect(getRowText()).toContain("Your review carried forward · 4 items");
+    expect(getRowText()).toContain("a84c1de → abcdef1 · 3 revisions");
+    expect(getRowText()).toContain("nothing needs a re-look");
+    expect(screen.queryByTestId("attention-item")).toBeNull();
     expect(row.querySelectorAll("p")).toHaveLength(1);
     expect(row.getAttribute("data-state")).toBe("clean");
-    expect(status.textContent).toContain("Your review carried forward");
+    expect(getRowStatus().textContent).toContain("Your review carried forward");
   });
+});
 
+describe("carry-over row", () => {
   it("heads the pending list with its verdict", async () => {
     await mountBriefView({ session: buildOrphanedDraft() });
     const status = getRowStatus();

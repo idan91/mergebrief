@@ -6,7 +6,6 @@ import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import { createTenantRepository, type KeyProvider } from "persistence";
 import { AnchorStatuses } from "types/comments";
 import { ReviewOutcomes } from "types/reviews";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../../src/index";
 import { testLogging, type TestLogging } from "../logging";
@@ -28,6 +27,7 @@ import {
   listCallsPastGate,
 } from "../reviewer-github";
 import { seedSignIn } from "../sign-in";
+import { registerSharedPglite } from "../shared-pglite";
 
 /** The payload's shape as the assertions read it: the test-side boundary. */
 interface SessionBody {
@@ -59,7 +59,7 @@ function sessionPath(head: string): string {
 }
 
 describe("read-review-session", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let cookie: string;
@@ -67,7 +67,6 @@ describe("read-review-session", () => {
   let logging: TestLogging;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     logging = testLogging();
@@ -83,10 +82,9 @@ describe("read-review-session", () => {
     await seedPullRequest(harness.handle);
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    await harness.close();
   });
 
   async function sessionRows(): Promise<number> {

@@ -12,12 +12,6 @@ import {
 } from "./reading-position";
 
 describe("createReadingPositionStore", () => {
-  it("starts with no active position", () => {
-    const store = createReadingPositionStore();
-    expect(store.getState().activeChunkId).toBeNull();
-    expect(store.getState().activeGroupId).toBeNull();
-  });
-
   it("setActive writes both halves together", () => {
     const store = createReadingPositionStore();
     store.getState().actions.setActive("c2", "g1");

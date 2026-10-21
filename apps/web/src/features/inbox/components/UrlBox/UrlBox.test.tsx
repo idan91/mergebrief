@@ -63,9 +63,9 @@ describe("UrlBox", () => {
     });
 
     expect(screen.getByRole("alert").textContent).not.toBe("");
-    expect(
-      screen.getByRole("textbox", { name: "Pull request URL" }),
-    ).toBeTruthy();
+    expect((field as HTMLInputElement).readOnly).toBe(false);
+    expect((field as HTMLInputElement).value).toBe("https://example.com/x");
+    expect(document.activeElement).toBe(field);
   });
 
   it("refuses a URL past the server's bound before sending it", async () => {

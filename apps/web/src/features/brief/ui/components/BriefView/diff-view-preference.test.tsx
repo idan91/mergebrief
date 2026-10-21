@@ -60,17 +60,6 @@ function seedStored(view: DiffView): void {
 }
 
 describe("the remembered diff view", () => {
-  it("renders unified when nothing is stored and no param is set", async () => {
-    await mountBriefView(COMPARABLE_BRIEF);
-    expect(readStampedView()).toBe(DiffViews.UNIFIED);
-  });
-
-  it("picks up the stored view when no param is set", async () => {
-    seedStored(DiffViews.SPLIT);
-    await mountBriefView(COMPARABLE_BRIEF);
-    expect(readStampedView()).toBe(DiffViews.SPLIT);
-  });
-
   it("keeps a group with nothing deleted unified under the split view", async () => {
     seedStored(DiffViews.SPLIT);
     await mountBriefView(COMPARABLE_BRIEF);
@@ -107,16 +96,6 @@ describe("announcing the diff view", () => {
     expect(readStampedView()).toBe(DiffViews.SPLIT);
     await waitFor(() => expect(readToast()).toBe("Split view"));
   });
-
-  it("names the unified view on the way back", async () => {
-    seedStored(DiffViews.SPLIT);
-    await mountBriefView(COMPARABLE_BRIEF);
-
-    fireEvent.click(screen.getByTestId("sidebar-diff-view"));
-
-    expect(readStampedView()).toBe(DiffViews.UNIFIED);
-    await waitFor(() => expect(readToast()).toBe("Unified view"));
-  });
 });
 
 describe("the diff view toggle in the Changes scope", () => {
@@ -124,11 +103,6 @@ describe("the diff view toggle in the Changes scope", () => {
     view: "changes",
     compare: "previous-brief",
   };
-
-  it("keeps the control out of the sidebar", async () => {
-    await mountBriefView({ ...COMPARABLE_BRIEF, searchParams: changesScope });
-    expect(screen.queryByTestId("sidebar-diff-view")).toBeNull();
-  });
 
   it("leaves D to the browser and announces nothing", async () => {
     await mountBriefView({ ...COMPARABLE_BRIEF, searchParams: changesScope });

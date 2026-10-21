@@ -65,14 +65,6 @@ describe("useScrollSpy", () => {
     vi.useRealTimers();
   });
 
-  it("does not fire while nothing crosses the line", () => {
-    const el = mountCrossing("c1");
-    el.getBoundingClientRect = () => rectAt(900, 1000);
-    const onActive = vi.fn();
-    renderHook(() => useScrollSpy(["c1"], onActive));
-    expect(onActive).not.toHaveBeenCalled();
-  });
-
   it("re-initialises when resetKey changes even though ids are identical", () => {
     vi.useFakeTimers();
     const el = mountCrossing("c1");

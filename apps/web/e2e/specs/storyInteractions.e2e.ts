@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 
 import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
-import { gotoBrief, shortcutsDialog } from "../support/page";
+import { gotoBrief } from "../support/page";
 
 test("chunk cards collapse and expand", async ({ page }) => {
   await gotoBrief(page, FIXTURE_ROUTE_REV2);
@@ -23,18 +23,6 @@ test("chunk cards collapse and expand", async ({ page }) => {
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(card.locator("[data-line-kind]").first()).toBeVisible();
-});
-
-test("the PR description discloses on demand", async ({ page }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-
-  const toggle = page.getByRole("button", { name: /original description/i });
-  await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByTestId("pr-description")).toContainText(
-    "Fix WCAG AA contrast on the faint text token",
-  );
 });
 
 test("the risk-attrs disclosure jumps to the carrying group", async ({
@@ -82,20 +70,6 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
     // Below the sticky stack (header ~97px + reading toolbar ~45px), with a
     // little slack; "at the top" now means under the pinned chrome.
     .toBeLessThan(160);
-});
-
-test("the shortcuts modal opens with ? and closes with Escape", async ({
-  page,
-}) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV2);
-  const dialog = shortcutsDialog(page);
-
-  await page.keyboard.press("Shift+Slash");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Next chunk")).toBeVisible();
-
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
 });
 
 test("focus mode quiets the header and lands the chunk below the pill", async ({

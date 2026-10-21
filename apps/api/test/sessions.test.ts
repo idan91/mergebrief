@@ -13,8 +13,7 @@ import {
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import {
   KEY_REF,
@@ -29,6 +28,7 @@ import {
 import { testLogger } from "./logging";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 const OTHER_REVIEWER_ID = 777;
 const REVOKE_PATH = "/api/auth/sessions";
@@ -66,7 +66,7 @@ async function seedSessionFor(
 }
 
 async function countRows(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   table: string,
 ): Promise<number> {
   const rows = await harness.raw(`select count(*)::int as n from ${table}`);
@@ -78,14 +78,13 @@ async function countRows(
 }
 
 describe("DELETE /api/auth/sessions", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let app: ApiApp;
   const reviewer = brandReviewerId(BigInt(REVIEWER_ID));
   const otherReviewer = brandReviewerId(BigInt(OTHER_REVIEWER_ID));
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -94,10 +93,6 @@ describe("DELETE /api/auth/sessions", () => {
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   function revokeAll(cookie: string, headers: Record<string, string> = {}) {

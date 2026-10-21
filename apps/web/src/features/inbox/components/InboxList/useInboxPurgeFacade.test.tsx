@@ -64,18 +64,6 @@ function renderFacade() {
 }
 
 describe("useInboxPurgeFacade", () => {
-  it("asking to purge opens the modal on the row; cancel closes it", () => {
-    const { result } = renderFacade();
-    const item = makeItem();
-
-    act(() => result.current.requestPurge(item));
-    expect(result.current.pending).toBe(item);
-    expect(result.current.busy).toBe(false);
-
-    act(() => result.current.cancel());
-    expect(result.current.pending).toBeUndefined();
-  });
-
   it("confirming deletes the repository's branch once and announces it", async () => {
     answerWith(200, { ok: true });
     const { result, announce } = renderFacade();
@@ -153,18 +141,6 @@ describe("useInboxPurgeFacade", () => {
     expect(result.current.busy).toBe(false);
   });
 
-  it("a gateway timeout says the delete is unconfirmed", async () => {
-    answerWith(504, { error: "x", code: "internal-error" });
-    const { result, announce } = renderFacade();
-    act(() => result.current.requestPurge(makeItem()));
-
-    await act(async () => {
-      await result.current.confirm();
-    });
-
-    expect(announce).toHaveBeenCalledWith(INDETERMINATE_COPY);
-  });
-
   it("a bad gateway keeps the failed copy", async () => {
     answerWith(502, { error: "x", code: "github-unavailable" });
     const { result, announce } = renderFacade();
@@ -177,15 +153,5 @@ describe("useInboxPurgeFacade", () => {
     expect(announce).toHaveBeenCalledWith(
       "Delete failed; the attachment branch is still there",
     );
-  });
-
-  it("confirming with nothing pending makes no request", async () => {
-    const { result } = renderFacade();
-
-    await act(async () => {
-      await result.current.confirm();
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

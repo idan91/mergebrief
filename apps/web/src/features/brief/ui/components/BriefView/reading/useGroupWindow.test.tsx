@@ -72,15 +72,6 @@ describe("useGroupWindow", () => {
     expect(current().totalSize).toBe(KEYS.length * 600);
   });
 
-  it("computes identical windows for identical inputs", () => {
-    const first = renderHarness();
-    const second = renderHarness();
-    expect(first.current().items.map((item) => item.key)).toEqual(
-      second.current().items.map((item) => item.key),
-    );
-    expect(first.current().totalSize).toBe(second.current().totalSize);
-  });
-
   it("server markup and the client's first render agree on the window", () => {
     // Hydration-parity leg: renderToString runs no effects, so it renders
     // exactly what the server would; the client's FIRST render (captured

@@ -484,9 +484,9 @@ describe("comparison state matrix characterization", () => {
     ).toBe(true);
   });
 
-  it("keyboard-reachable View and Compare controls update the route state", async () => {
+  it("choosing Changes only writes view=changes into the route search", async () => {
     const { router } = await renderAt(
-      "/briefs/head-brief-2?view=full&compare=off",
+      "/briefs/head-brief-2?view=full&compare=previous-brief",
     );
     await waitFor(() =>
       expect(
@@ -494,25 +494,7 @@ describe("comparison state matrix characterization", () => {
       ).toBeTruthy(),
     );
 
-    const viewGroup = screen.getByRole("group", { name: "Scope" });
-    const compareGroup = screen.getByRole("group", { name: "Compare" });
-    expect(viewGroup).toBeTruthy();
-    expect(compareGroup).toBeTruthy();
-
-    const changesButton = screen.getByRole("radio", { name: "Changes only" });
-    // Native radios are focusable by default.
-    changesButton.focus();
-    expect(document.activeElement).toBe(changesButton);
-
-    const previousBriefButton = screen.getByRole("radio", {
-      name: "Previous brief",
-    });
-    fireEvent.click(previousBriefButton);
-    await waitFor(() =>
-      expect((previousBriefButton as HTMLInputElement).checked).toBe(true),
-    );
-
-    fireEvent.click(changesButton);
+    fireEvent.click(screen.getByRole("radio", { name: "Changes only" }));
 
     await waitFor(() =>
       expect(router.state.location.search).toMatchObject({

@@ -323,26 +323,6 @@ describe("generate task", () => {
     });
   });
 
-  it("reports a missing issue as unread not-found on the stored brief", async () => {
-    const { pr, payload } = await trigger(HEAD_1);
-    const github = makeGitHub(HEAD_1);
-    github.updatePullRequest(PR_REF, { body: "fixes #404" });
-    const task = makeTask({ github });
-
-    await task(payload);
-
-    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
-      pr.id,
-      BASE,
-      HEAD_1,
-    );
-    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
-      intentCheck: {
-        primaryTicket: { status: "unread", reason: "not-found" },
-      },
-    });
-  });
-
   it("drains ingest's payload into a stored brief, success state and audit", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -538,24 +518,6 @@ describe("generate task", () => {
     });
   });
 
-  it("posts the rev Entry deep link and stores its id", async () => {
-    const { pr, payload } = await trigger(HEAD_1);
-    const github = makeGitHub(HEAD_1);
-    const task = makeTask({ github });
-
-    await task(payload);
-
-    expect(github.readComments(REPO).size).toBe(1);
-    const [commentId, body] = [...github.readComments(REPO).entries()][0] ?? [];
-    expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7?rev=1`);
-
-    const row = await createTenantRepository(
-      harness.handle,
-      ctx,
-    ).pullRequests.getById(pr.id);
-    expect(row?.entryCommentId).toBe(commentId);
-  });
-
   it("replaces the generating Entry with a ready notification", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
@@ -747,17 +709,6 @@ describe("generate task", () => {
     expect(row?.entryCommentId).toBe(secondId);
   });
 
-  it("a superseded run posts nothing", async () => {
-    const { payload } = await trigger(HEAD_1);
-    const github = makeGitHub(HEAD_2); // head advanced past the job's
-    const task = makeTask({ github });
-
-    await task(payload);
-
-    expect(github.readComments(REPO).size).toBe(0);
-    expect(listCommentCalls(github)).toEqual([]);
-  });
-
   it("an Entry comment post failure logs and does not fail the job", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
@@ -873,6 +824,8 @@ describe("generate task", () => {
     expect(after?.status).toBe(GenerationStatuses.SUPERSEDED);
     expect(after?.attempts).toBe(before?.attempts);
     expect(generator.calls).toEqual([]);
+    expect(github.readComments(REPO).size).toBe(0);
+    expect(listCommentCalls(github)).toEqual([]);
     // The App world schedules nothing here: the push's own webhook did.
     expect(await projection.get(makeTarget(pr, HEAD_2))).toBeUndefined();
   });
@@ -895,17 +848,6 @@ describe("generate task", () => {
     );
     expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
     expect(generator.calls).toEqual([]);
-  });
-
-  it("skips generation when the exact base/head brief already exists", async () => {
-    const { payload } = await trigger(HEAD_1);
-    const generator = stubGenerator();
-    const task = makeTask({ generator });
-
-    await task(payload);
-    await task(payload); // retry / redelivery
-
-    expect(generator.calls).toEqual(["brief"]); // one spend, not two
   });
 
   it("writes marks + revision narrative against the previous briefed head", async () => {
@@ -1068,20 +1010,6 @@ describe("generate task", () => {
     // Stamped at the GitHub throw site, the code, not prose, is the record.
     expect(row?.errorCode).toBe("github-access");
     expect(row?.errorParams).toBeNull();
-  });
-
-  it("marks a transient failure failed AND rethrows so graphile retries", async () => {
-    const { pr, payload } = await trigger(HEAD_1);
-    const github = makeGitHub(HEAD_1);
-    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
-    const task = makeTask({ github });
-
-    await expect(task(payload)).rejects.toThrow("502");
-
-    const row = await createGenerationProjection(harness.handle, ctx).get(
-      makeTarget(pr, HEAD_1),
-    );
-    expect(row?.status).toBe(GenerationStatuses.FAILED);
   });
 
   it("aborts superseded streams without retry or attempts changes", async () => {

@@ -2,7 +2,6 @@
 // block) and the anchored system-prompt section, plus generateBrief threading
 // both only when a previous brief is passed.
 import { describe, expect, it } from "vitest";
-import type { z } from "zod/v4";
 import type { CompareFiles } from "../../src/anchoring/types";
 import { generateBrief } from "../../src/generation/brief";
 import type { PreviousBriefInput } from "../../src/generation/brief/types";
@@ -11,14 +10,9 @@ import {
   renderAnchorView,
   type AnchorViewInput,
 } from "../../src/generation/prompt";
-import type {
-  Effort,
-  GenerateRequest,
-  Generation,
-  Generator,
-} from "generators";
 import type { Brief } from "../../src/types";
 import type { FetchedPr } from "../../src/github/types";
+import { makeFakeGenerator } from "../helpers";
 
 function chunk(
   id: string,
@@ -221,22 +215,6 @@ describe("anchored system prompt", () => {
 // generateBrief threading.
 // ---------------------------------------------------------------------------
 
-class RecordingGenerator implements Generator {
-  requests: { system: string; user: string }[] = [];
-  constructor(private readonly fixture: unknown) {}
-
-  origin(effort: Effort): Generation {
-    return { provider: "fake", model: "fake-model", effort };
-  }
-
-  async generate<S extends z.ZodType>(
-    req: GenerateRequest<S>,
-  ): Promise<z.infer<S>> {
-    this.requests.push({ system: req.system, user: req.user });
-    return req.schema.parse(this.fixture);
-  }
-}
-
 const pr: FetchedPr = {
   locator: { owner: "o", repo: "r", number: 1 },
   meta: {
@@ -302,7 +280,7 @@ const minimalGen = {
 
 describe("generateBrief anchored threading", () => {
   it("includes the anchor view and anchored section when an anchor is passed", async () => {
-    const generator = new RecordingGenerator(minimalGen);
+    const generator = makeFakeGenerator(minimalGen);
     await generateBrief({ pr, headIndex: 2, commitRange, generator, previous });
     const request = generator.requests[0];
     expect(request?.system.toLowerCase()).toContain("anchored regeneration");
@@ -338,7 +316,7 @@ describe("generateBrief anchored threading", () => {
         alignment: { read: "", goal: "", response: "" },
       },
     };
-    const generator = new RecordingGenerator(fixture);
+    const generator = makeFakeGenerator(fixture);
     const { brief } = await generateBrief({
       pr,
       headIndex: 2,
@@ -374,14 +352,14 @@ describe("generateBrief anchored threading", () => {
       pr,
       headIndex: 2,
       commitRange,
-      generator: new RecordingGenerator(fixture),
+      generator: makeFakeGenerator(fixture),
       previous,
     });
     const fresh = await generateBrief({
       pr,
       headIndex: 1,
       commitRange,
-      generator: new RecordingGenerator(fixture),
+      generator: makeFakeGenerator(fixture),
     });
 
     const anchoredChunk = anchored.brief.chunks.find(
@@ -395,7 +373,7 @@ describe("generateBrief anchored threading", () => {
   });
 
   it("keeps the fresh path byte-free of anchoring when no anchor is passed", async () => {
-    const generator = new RecordingGenerator(minimalGen);
+    const generator = makeFakeGenerator(minimalGen);
     await generateBrief({ pr, headIndex: 1, commitRange, generator });
     const request = generator.requests[0];
     expect(request?.system.toLowerCase()).not.toContain(

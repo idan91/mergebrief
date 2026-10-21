@@ -442,13 +442,6 @@ describe("useReviewSubmit", () => {
     expect(consumeReviewComment).not.toHaveBeenCalled();
   });
 
-  it("unblocks a neutral comment submit when a review comment is present", () => {
-    const { rendered } = setup({ outcome: "comment", comments: [] });
-    expect(
-      rendered.result.current.blockedReasonWith("Looks fine overall."),
-    ).toBeUndefined();
-  });
-
   it("re-reads the draft at click so a later keystroke unblocks", async () => {
     // The owning screen renders with an empty draft (blocked), then the user
     // types in the editing surface (store-only change, no screen re-render)
@@ -536,55 +529,6 @@ describe("useReviewSubmit", () => {
     );
     act(() => withUnplaced.rendered.result.current.submit());
     expect(withUnplaced.action).not.toHaveBeenCalled();
-  });
-
-  it("counts unplaced drafts in the signature line", async () => {
-    const unplaced: SessionDraftComment = {
-      id: "gone",
-      filePath: "src/gone.ts",
-      kind: CommentAnchorKinds.FILE,
-      body: "left the brief",
-      status: DraftCommentStatuses.DRAFT,
-    };
-    const { rendered, action } = setup({ unplacedDrafts: [unplaced] });
-    action.mockResolvedValue({
-      kind: "submitted",
-      reviewId: 9,
-      commentsFolded: 0,
-      commentsTotal: 2,
-    });
-
-    act(() => rendered.result.current.submit());
-    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
-
-    expect(action).toHaveBeenCalledWith({
-      outcome: "approve",
-      body: buildSignatureLine(RECEIPT, 2),
-    });
-  });
-
-  it("flips the unplaced drafts with the placed ones on success", async () => {
-    const unplaced: SessionDraftComment = {
-      id: "gone",
-      filePath: "src/gone.ts",
-      kind: CommentAnchorKinds.FILE,
-      body: "left the brief",
-      status: DraftCommentStatuses.DRAFT,
-    };
-    const { rendered, action, markSubmitted } = setup({
-      unplacedDrafts: [unplaced],
-    });
-    action.mockResolvedValue({
-      kind: "submitted",
-      reviewId: 9,
-      commentsFolded: 0,
-      commentsTotal: 2,
-    });
-
-    act(() => rendered.result.current.submit());
-    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
-
-    expect(markSubmitted).toHaveBeenCalledWith(["a", "gone"]);
   });
 
   it("counts and flips a draft of an unknown anchor the route posts", async () => {

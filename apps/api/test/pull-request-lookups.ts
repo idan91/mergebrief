@@ -1,7 +1,7 @@
 // Counts the pull request row reads by coordinates (`pullRequests.getByNumber`)
 // a request makes, off the SQL the harness database receives.
-import type { PgliteHarness } from "persistence/testing";
 import { vi } from "vitest";
+import type { SharedPglite } from "./shared-pglite";
 
 const LOOKUP_BY_NUMBER =
   /from "pull_request" where .*"pull_request"\."pr_number" = \$\d+\)? limit/;
@@ -11,7 +11,7 @@ export interface PullRequestLookups {
 }
 
 export function spyPullRequestLookups(
-  harness: PgliteHarness,
+  harness: SharedPglite,
 ): PullRequestLookups {
   const query = vi.spyOn(harness.database, "query");
   return {

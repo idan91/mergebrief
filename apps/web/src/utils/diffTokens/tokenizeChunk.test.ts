@@ -139,16 +139,6 @@ describe("tokenizeChunkRows", () => {
     expect([...byRow.keys()].toSorted((a, b) => a - b)).toEqual([1, 2, 3, 4]);
   });
 
-  it("skips the hunk header row", () => {
-    const byRow = tokenizeChunkRows(
-      highlighter,
-      MID_TAG_ROWS,
-      GrammarNames.TSX,
-    );
-
-    expect(byRow.has(0)).toBe(false);
-  });
-
   it("keeps code after a line gap out of the comment opened before it", () => {
     const byRow = tokenizeChunkRows(
       highlighter,

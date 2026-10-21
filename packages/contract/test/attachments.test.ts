@@ -94,13 +94,6 @@ describe("parseAttachmentSource", () => {
     });
   });
 
-  it("gives the same asset id for both shapes", () => {
-    expect(parseAttachmentAssetId(BRANCH_URL)).toEqual({
-      ok: true,
-      value: ASSET_ID,
-    });
-  });
-
   it("reads an enterprise-managed owner with its underscore", () => {
     const url = `https://github.com/jdoe_acme/app/blob/mergebrief/attachments/${ASSET_ID}.png?raw=true`;
     const parsed = parseAttachmentSource(url);

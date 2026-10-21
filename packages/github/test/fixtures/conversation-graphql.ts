@@ -13,7 +13,6 @@ interface GqlCommentOverrides {
   readonly body?: string;
   readonly reviewDatabaseId?: number | null;
   readonly noReview?: boolean;
-  readonly oid?: string | null;
 }
 
 function fullId(
@@ -50,15 +49,13 @@ export function gqlComment(overrides: GqlCommentOverrides = {}) {
       : {
           fullDatabaseId: fullId(overrides.reviewDatabaseId, undefined, 500),
         },
-    originalCommit:
-      overrides.oid === null ? null : { oid: overrides.oid ?? "a".repeat(40) },
+    originalCommit: { oid: "a".repeat(40) },
   };
 }
 
 interface GqlThreadOverrides {
   readonly isResolved?: boolean;
   readonly isOutdated?: boolean;
-  readonly path?: string;
   readonly line?: number | null;
   readonly startLine?: number | null;
   readonly diffSide?: "LEFT" | "RIGHT";
@@ -74,7 +71,7 @@ export function gqlThread(overrides: GqlThreadOverrides = {}) {
   return {
     isResolved: overrides.isResolved ?? false,
     isOutdated: overrides.isOutdated ?? false,
-    path: overrides.path ?? "src/a.ts",
+    path: "src/a.ts",
     line: overrides.line === undefined ? 12 : overrides.line,
     startLine: overrides.startLine === undefined ? null : overrides.startLine,
     diffSide: overrides.diffSide ?? "RIGHT",
@@ -91,7 +88,6 @@ interface GqlReviewOverrides {
   readonly databaseId?: number | null;
   readonly rawFullDatabaseId?: string | null;
   readonly login?: string;
-  readonly typename?: string;
   readonly state?: string;
   readonly body?: string;
   readonly submittedAt?: string | null;
@@ -106,7 +102,7 @@ export function gqlReview(overrides: GqlReviewOverrides = {}) {
     ),
     author: {
       login: overrides.login ?? "alice",
-      __typename: overrides.typename ?? "User",
+      __typename: "User",
       avatarUrl: `https://avatars.example/${overrides.login ?? "alice"}.png`,
     },
     state: overrides.state ?? "COMMENTED",
@@ -121,8 +117,6 @@ export function gqlReview(overrides: GqlReviewOverrides = {}) {
 
 interface GqlIssueCommentOverrides {
   readonly databaseId?: number;
-  readonly login?: string;
-  readonly typename?: string;
   readonly body?: string;
 }
 
@@ -130,9 +124,9 @@ export function gqlIssueComment(overrides: GqlIssueCommentOverrides = {}) {
   return {
     fullDatabaseId: String(overrides.databaseId ?? 9001),
     author: {
-      login: overrides.login ?? "carol",
-      __typename: overrides.typename ?? "User",
-      avatarUrl: `https://avatars.example/${overrides.login ?? "carol"}.png`,
+      login: "carol",
+      __typename: "User",
+      avatarUrl: "https://avatars.example/carol.png",
     },
     body: overrides.body ?? "a PR-level remark",
     createdAt: "2026-07-02T09:00:00Z",

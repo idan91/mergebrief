@@ -135,7 +135,7 @@ describe("IntentBar", () => {
     expect(zero).toEqual(["0 masked fixes", "0 deviations"]);
   });
 
-  it("starts collapsed and never auto-expands, even with a missing ask", () => {
+  it("starts collapsed, never auto-expands, and turns the twist on open", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     const toggle = screen.getByRole("button", { name: /intent check/i });
     expect(toggle).toHaveProperty("ariaExpanded", "false");
@@ -145,19 +145,10 @@ describe("IntentBar", () => {
     expect(
       screen.getByText("add the widget endpoint").closest("[hidden]"),
     ).not.toBeNull();
-  });
 
-  it("opens in full, the twist is the only disclosure, no inner height cap", () => {
-    render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
-    const toggle = screen.getByRole("button", { name: /intent check/i });
     fireEvent.click(toggle);
-    const twist = toggle.querySelector('[data-icon="caret-down"]');
-    expect(twist?.hasAttribute("data-rotation")).toBe(false);
-    // No second expand layer: the per-bucket clamp owns overflow instead.
-    expect(
-      screen.queryByRole("button", { name: /show full intent check/i }),
-    ).toBeNull();
-    expect(screen.queryByTestId("intent-text")).toBeNull();
+    const openTwist = toggle.querySelector('[data-icon="caret-down"]');
+    expect(openTwist?.hasAttribute("data-rotation")).toBe(false);
   });
 
   it("expands on click with no framing line, the scope note leads the panel", () => {
@@ -197,22 +188,6 @@ describe("IntentBar", () => {
     expect(body.indexOf("Ticket alignment")).toBeLessThan(
       body.indexOf("add the widget endpoint"),
     );
-  });
-
-  it("keeps the card with a no-read row when a read ticket has no alignment", () => {
-    render(
-      <IntentBar
-        intentCheck={{ ...PRECISE_NO_TICKET, primaryTicket: PRIMARY }}
-        jumpToGroup={() => {}}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    expect(screen.getByTestId("ticket-alignment")).toBeTruthy();
-    // Precise, so the row must not blame the ticket's scope.
-    expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "no read \u2014 the ticket states no goal to check this PR against",
-    );
-    expect(screen.queryByTestId("ticket-alignment-read")).toBeNull();
   });
 
   it("renders the unread notice inside the card and still the buckets", () => {

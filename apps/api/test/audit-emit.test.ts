@@ -4,9 +4,8 @@
 // private-writes knob switches the one class it is allowed to switch.
 import { AuditClientSchema } from "persistence";
 import type { KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductActionIds } from "contract";
 import {
   createAuditMiddleware,
@@ -43,6 +42,7 @@ import {
   arrangeFakeGate,
   buildFakeAuthDeps,
 } from "./reviewer-github";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -62,7 +62,7 @@ interface AuditRow {
 
 /** The choke point's rows. Seeding a Bearer token writes its own issuance row
  * inside the mint transaction, not a request, so not this suite's subject. */
-async function auditRows(harness: PgliteHarness): Promise<AuditRow[]> {
+async function auditRows(harness: SharedPglite): Promise<AuditRow[]> {
   const rows = await harness.raw(
     `select operation, outcome, installation_id, classification, channel,
             credential_id, request_id, client, actor_id,
@@ -111,7 +111,7 @@ async function readMark(
 }
 
 describe("the audit choke point", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let cookie: string;
   let fake: FakeGitHub;
@@ -133,19 +133,12 @@ describe("the audit choke point", () => {
   }
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     arrangeFakeGate(fake, { repoId: REPO_ID });
     ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, 1);
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
   });
 
   it("writes exactly one row per action, keyed on the descriptor id", async () => {
@@ -317,16 +310,7 @@ interface StubGateEnv {
 }
 
 describe("the ledger's tenant", () => {
-  let harness: PgliteHarness;
-
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
-  });
-
-  afterEach(async () => {
-    await harness.close();
-  });
-
+  const harness = registerSharedPglite();
   it("follows the stamped audit scope over the credential's stored one", async () => {
     const registry = createProductOperationRegistry();
     const root = productRouter<RequestLogEnv>();

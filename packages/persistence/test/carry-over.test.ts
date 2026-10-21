@@ -1,10 +1,8 @@
 // Exercise carry through the tenant-bound store. A wrong anchor can look valid,
 // so include negative cases where a re-minted chunk merely reused an id.
 import type { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
 import { CommentAnchorKinds, type Mutable } from "types";
 import { describe, expect, it } from "vitest";
-import { fromDrizzle } from "../src/db/handle";
 import {
   createArtifactStore,
   createTenantRepository,
@@ -37,7 +35,7 @@ import {
 import { ChangeGroupCategories, ReviewOutcomes } from "types/reviews";
 import { DispositionDecisions } from "types/dispositions";
 import { DiffSides, type DiffSide } from "types/comments";
-import { brandWith, freshPglite } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 const REPO: RepoId = brandWith(isRepoId, 777n);
@@ -61,9 +59,10 @@ interface World {
   readonly pullRequestId: PullRequestRowId;
 }
 
-async function freshWorld(): Promise<World> {
-  const client = await freshPglite();
-  const handle = fromDrizzle(drizzle(client));
+const shared = registerSharedPglite();
+
+async function makeWorld(): Promise<World> {
+  const { client, handle } = shared;
   const pr = await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: REPO,
     prNumber: 7,
@@ -302,7 +301,7 @@ async function seedPreviousFileComment(
 
 describe("preview, the read-side evaluation creates nothing", () => {
   it("carries nothing when the reviewer has no earlier session", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const briefId = await seedBrief(world, 1);
 
     const view = await unwrapPreview(
@@ -319,7 +318,7 @@ describe("preview, the read-side evaluation creates nothing", () => {
   });
 
   it("moves a draft comment through one hop without writing a row", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -349,7 +348,7 @@ describe("preview, the read-side evaluation creates nothing", () => {
   });
 
   it("ignores another reviewer's earlier session", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -368,7 +367,7 @@ describe("preview, the read-side evaluation creates nothing", () => {
 
 describe("preview, a File comment follows the path not a line-map", () => {
   it("attaches a File comment whose path is still in the Brief", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -395,7 +394,7 @@ describe("preview, a File comment follows the path not a line-map", () => {
   });
 
   it("orphans a File comment whose path left the Brief", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -419,32 +418,11 @@ describe("preview, a File comment follows the path not a line-map", () => {
       }),
     ]);
   });
-
-  it("does not mark a File comment moved when hops would shift lines", async () => {
-    const world = await freshWorld();
-    const previous = await seedBrief(world, 1);
-    const current = await seedBrief(world, 2);
-    await seedHop(world, 1, 2);
-    await seedPreviousFileComment(world, previous);
-
-    await seedBriefFacts(world, current, [], [], ["src/app.ts"]);
-    const view = await unwrapPreview(
-      createTenantRepository(world.handle, CTX).reviewSessions.preview({
-        briefId: current,
-        reviewerId: REVIEWER,
-      }),
-    );
-
-    expect(view.carried.draftComments[0]?.anchorStatus).toBeNull();
-    expect(view.carried.draftComments[0]?.anchor.kind).toBe(
-      CommentAnchorKinds.FILE,
-    );
-  });
 });
 
 describe("preview, several pushes are ONE evaluation", () => {
   it("composes 7 → 8 → 9 → 10 into a single remap", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 7);
     for (const index of [8, 9, 10]) {
       await seedBrief(world, index);
@@ -474,7 +452,7 @@ describe("preview, several pushes are ONE evaluation", () => {
   });
 
   it("orphans every anchor when one hop of the chain is missing", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 7);
     for (const index of [8, 9]) {
       await seedBrief(world, index);
@@ -502,7 +480,7 @@ describe("preview, several pushes are ONE evaluation", () => {
   });
 
   it("never links hops by insertion order", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 7);
     await seedBrief(world, 8);
     await seedBrief(world, 9);
@@ -614,7 +592,7 @@ describe("preview, what carries, per subject", () => {
     carriedChunkIds: readonly string[],
     previousChunkIds: readonly string[] = ["c5"],
   ): Promise<{ world: World; previous: BriefRowId; current: BriefRowId }> {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, carriedChunkIds);
     await seedHop(world, 1, 2);
@@ -622,7 +600,7 @@ describe("preview, what carries, per subject", () => {
     return { world, previous, current };
   }
 
-  it("carries a read mark whose chunk id is in the new Brief's carried set", async () => {
+  it("carries a read mark, a surviving group and a draft, not a posted one", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 
     await seedBriefFacts(world, current, ["g1"], FIRING);
@@ -634,6 +612,12 @@ describe("preview, what carries, per subject", () => {
     );
 
     expect(view.carried.readMarks).toEqual(["c5"]);
+    expect(
+      view.carried.reclassifications.map((row) => row.changeGroupId),
+    ).toEqual(["g1"]);
+    expect(view.carried.draftComments.map((row) => row.body)).toEqual([
+      "draft",
+    ]);
   });
 
   it("refuses read marks on re-minted chunks that merely reuse ids", async () => {
@@ -653,27 +637,11 @@ describe("preview, what carries, per subject", () => {
     expect(view.carried.readMarks).toEqual([]);
   });
 
-  it("carries a reclassification only where the group id survived descent", async () => {
-    const { world, current } = await twoBriefs(["c5"]);
-
-    await seedBriefFacts(world, current, ["g1"], FIRING);
-    const view = await unwrapPreview(
-      createTenantRepository(world.handle, CTX).reviewSessions.preview({
-        briefId: current,
-        reviewerId: REVIEWER,
-      }),
-    );
-
-    expect(
-      view.carried.reclassifications.map((row) => row.changeGroupId),
-    ).toEqual(["g1"]);
-  });
-
   it("does NOT carry a reclassification across a fresh-restart brief", async () => {
     // The current Brief re-derived its groups from scratch: `g1` being
     // present again is numbering coincidence, not the group the reviewer
     // judged, the override must drop, exactly as a read mark would.
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, [], "base", "fresh-restart");
     await seedHop(world, 1, 2);
@@ -693,7 +661,7 @@ describe("preview, what carries, per subject", () => {
   it("does NOT carry a reclassification across a brief with no anchor stamp", async () => {
     // NULL anchor state (a row predating the stamp) is not proof of descent,
     // ambiguity biases to dropping.
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, [], "base", null);
     await seedHop(world, 1, 2);
@@ -713,7 +681,7 @@ describe("preview, what carries, per subject", () => {
   it("does NOT carry a reclassification when the restart sits mid-chain", async () => {
     // Brief 2 re-derived from scratch; brief 3 descending from IT proves
     // nothing about brief 1's groups, the whole span must have descended.
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     await seedBrief(world, 2, [], "base", "fresh-restart");
     const current = await seedBrief(world, 3);
@@ -735,7 +703,7 @@ describe("preview, what carries, per subject", () => {
   it("carries when only the previous session's OWN brief was a restart", async () => {
     // That brief's stamp describes the hop BEFORE the carried span, the
     // reviewer judged its groups directly, so it must not gate the carry.
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1, [], "base", "fresh-restart");
     const current = await seedBrief(world, 2, []);
     await seedHop(world, 1, 2);
@@ -758,7 +726,7 @@ describe("preview, what carries, per subject", () => {
     // A base retarget re-briefs the same head: the generation anchors to the
     // nearest DIFFERENT head, skipping the chain-adjacent brief, so its
     // `anchored` stamp says nothing about the groups the reviewer judged.
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(
       world,
@@ -781,23 +749,7 @@ describe("preview, what carries, per subject", () => {
     expect(view.carried.reclassifications).toEqual([]);
   });
 
-  it("carries a draft but never a submitted comment", async () => {
-    const { world, current } = await twoBriefs(["c5"]);
-
-    await seedBriefFacts(world, current, ["g1"], FIRING);
-    const view = await unwrapPreview(
-      createTenantRepository(world.handle, CTX).reviewSessions.preview({
-        briefId: current,
-        reviewerId: REVIEWER,
-      }),
-    );
-
-    expect(view.carried.draftComments.map((row) => row.body)).toEqual([
-      "draft",
-    ]);
-  });
-
-  it("settles an untouched disposition and reopens a touched one", async () => {
+  it("settles a disposition no hop touched", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 
     await seedBriefFacts(world, current, [], FIRING);
@@ -814,9 +766,10 @@ describe("preview, what carries, per subject", () => {
         regionEnd: 35,
       }),
     ]);
+  });
 
-    // A hop landing inside the flagged region: any touch reopens.
-    const touched = await freshWorld();
+  it("reopens a disposition a hop landed inside", async () => {
+    const touched = await makeWorld();
     const previous = await seedBrief(touched, 1);
     const currentTouched = await seedBrief(touched, 2);
     await seedHop(touched, 1, 2, [
@@ -847,7 +800,7 @@ describe("preview, what carries, per subject", () => {
     // ONE attribute, TWO regions, one decision each. The new Brief still fires
     // it over the first region only: conflating the two would keep the removed
     // occurrence's decision alive and settle it under the survivor.
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -986,7 +939,7 @@ describe("preview, what carries, per subject", () => {
 
 describe("preview, the rules a multi-push chain must not loosen", () => {
   it("does NOT carry a read mark that any step of the chain dropped", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 7);
     // Brief 8 still carries c5; Brief 9 re-mints it for unrelated content and
     // Brief 10 carries THAT one forward. Reading only the newest Brief's
@@ -1012,7 +965,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it("carries a read mark that survived every step", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 7);
     for (const index of [8, 9, 10]) {
       await seedBrief(world, index, ["c5"]);
@@ -1035,7 +988,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it("orphans an old-side draft when the chain cannot be trusted", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     // No hop row: nothing places anything, whichever side it sits on.
@@ -1063,7 +1016,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it("merges two decisions that remap onto one anchor, keeping the re-look", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     // The hunk covers 30-32 (reopened, stays put) and shifts 50-52 back onto
@@ -1108,7 +1061,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it("returns the session and no carry-over once one exists", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, ["c5"]);
     await seedHop(world, 1, 2);
@@ -1133,7 +1086,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it("reports no source for a materialized first-ever session", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const only = await seedBrief(world, 1);
     const repo = createTenantRepository(world.handle, CTX);
     const createdId = await openSession(world, only);
@@ -1150,7 +1103,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it("needs no readable body when there is nothing to evaluate", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const first = await seedBrief(world, 1);
     await seedBriefBody(world, first, UNREADABLE_BODY);
     const repo = createTenantRepository(world.handle, CTX);
@@ -1172,7 +1125,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it("needs no readable body once the session holds its carry-over", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1201,7 +1154,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     ["a body that is not JSON", UNREADABLE_BODY],
     ["a body missing the carry lists", '{"summary":"the brief"}'],
   ])("refuses a pending carry-over over %s", async (_label, body) => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1249,7 +1202,7 @@ describe("old-side drafts against the PR base", () => {
   }
 
   it("keeps an old-side draft exact while the base holds still", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1275,7 +1228,7 @@ describe("old-side drafts against the PR base", () => {
   });
 
   it("orphans an old-side draft when the PR is retargeted", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     // A retarget: the head chain still links, but the coordinates the draft
     // was written against belong to a base that is no longer the PR's.
@@ -1332,7 +1285,7 @@ describe("two-side drafts, both legs or orphan", () => {
   }
 
   it("moves only the new leg through an old-to-new hop", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1359,7 +1312,7 @@ describe("two-side drafts, both legs or orphan", () => {
   });
 
   it("moves only the new leg through a new-to-old hop", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1385,7 +1338,7 @@ describe("two-side drafts, both legs or orphan", () => {
   });
 
   it("keeps a two-side draft exact when the push touched another file", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2, [
@@ -1416,7 +1369,7 @@ describe("two-side drafts, both legs or orphan", () => {
   });
 
   it("orphans the whole draft when the push rewrote the new leg's line", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     // The hunk overlaps line 12 itself: the new leg demotes, and the intact
@@ -1449,7 +1402,7 @@ describe("two-side drafts, both legs or orphan", () => {
   });
 
   it("orphans the whole draft on a retarget, even with the hop intact", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, [], "other-base");
     await seedHop(world, 1, 2);
@@ -1476,7 +1429,7 @@ describe("two-side drafts, both legs or orphan", () => {
   });
 
   it("orphans the whole draft when the hop chain cannot be linked", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     // No hop row at all.
@@ -1498,7 +1451,7 @@ describe("two-side drafts, both legs or orphan", () => {
 describe("the first write, one transaction", () => {
   /** Brief 1 carries work; brief 2 is where the reviewer writes next. */
   async function pending(): Promise<{ world: World; current: BriefRowId }> {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, ["c5"]);
     await seedHop(world, 1, 2);
@@ -1705,7 +1658,7 @@ describe("the first write, one transaction", () => {
   });
 
   it("keeps an orphaned draft's last known coordinates", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, ["c5"]);
     // No hop row at all: the chain is untrustworthy, so every anchor orphans.
@@ -1738,7 +1691,7 @@ describe("the first write, one transaction", () => {
 describe("publish claims across a carry-over", () => {
   /** A claimed draft on brief 1, then the reviewer's first write on brief 2. */
   async function claimedThenCarried() {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1791,7 +1744,7 @@ describe("publish claims across a carry-over", () => {
   });
 
   it("settles both rows through the frozen source session", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1826,7 +1779,7 @@ describe("publish claims across a carry-over", () => {
   });
 
   it("releases both rows through the frozen source session", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1854,7 +1807,7 @@ describe("publish claims across a carry-over", () => {
   });
 
   it("leaves another reviewer's rows alone on settle", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const sessions = createTenantRepository(world.handle, CTX).reviewSessions;
     const mine = { briefId: previous, reviewerId: REVIEWER };
@@ -1888,7 +1841,7 @@ describe("publish claims across a carry-over", () => {
 
 describe("freeze, a session freezes only when a newer one is materialized", () => {
   it("accepts a write while a newer Brief merely exists", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const first = await seedBrief(world, 1);
     await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1905,7 +1858,7 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
   });
 
   it("refuses every review work operation on a frozen session", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const first = await seedBrief(world, 1);
     const second = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1946,7 +1899,7 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
   });
 
   it("refuses every draft operation on a frozen session", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const first = await seedBrief(world, 1);
     const second = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1974,7 +1927,7 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
   });
 
   it("a refused first write leaves no session row", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const first = await seedBrief(world, 1);
     const second = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -1993,7 +1946,7 @@ describe("freeze, a session freezes only when a newer one is materialized", () =
   });
 
   it("leaves another reviewer's newer session out of it", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const first = await seedBrief(world, 1);
     const second = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
@@ -2018,7 +1971,7 @@ describe("the risk operations on a session", () => {
   };
 
   it("records a disposition with no carry verdict", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const briefId = await seedBrief(world, 1);
     await seedBriefFacts(world, briefId, [], FIRING);
     const repo = createTenantRepository(world.handle, CTX);
@@ -2045,7 +1998,7 @@ describe("the risk operations on a session", () => {
   });
 
   it("clears the carried status when the reviewer decides again", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, ["c5"]);
     await seedHop(world, 1, 2);
@@ -2081,7 +2034,7 @@ describe("the risk operations on a session", () => {
   });
 
   it("reopens a disposition by its anchor, and says so when none was held", async () => {
-    const world = await freshWorld();
+    const world = await makeWorld();
     const briefId = await seedBrief(world, 1);
     await seedBriefFacts(world, briefId, [], FIRING);
     const repo = createTenantRepository(world.handle, CTX);

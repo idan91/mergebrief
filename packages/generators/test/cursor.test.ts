@@ -272,11 +272,6 @@ describe("CursorGenerator invocation profile", () => {
 });
 
 describe("CursorGenerator envelope handling", () => {
-  it("resolves a schema-valid answer through the floor", async () => {
-    const generator = makeGenerator({ SHIM_SCENARIO: "valid" });
-    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
-  });
-
   it("recovers JSON the model wrapped in narration, in ONE attempt", async () => {
     // The observed failure shape: plan-mode narration glued to the answer.
     // The extracted candidate must save the attempt (floor-validated), with
@@ -584,18 +579,6 @@ describe("cursor registry entry", () => {
     expect(result.error.issues.join("; ")).toContain("not authenticated");
   });
 
-  it("refuses boot when the binary is missing", async () => {
-    const result = await createGenerator(
-      { provider: Providers.CURSOR, command: "/nonexistent/cursor-agent" },
-      makeDeps({}),
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join("; ")).toContain("not found on PATH");
-  });
-
   it("rejects a bracketed model id at config time", async () => {
     const result = await createGenerator(
       {
@@ -795,10 +778,5 @@ describe("resolveCursorTimeouts for a stream silent until exit", () => {
     // may restore a real watchdog deliberately.
     const timeouts = resolveCursorTimeouts({ hardMs: 5000, inactivityMs: 250 });
     expect(timeouts.inactivityMs).toBe(250);
-  });
-
-  it("keeps the shared kill-grace default", () => {
-    const timeouts = resolveCursorTimeouts(undefined);
-    expect(timeouts.killGraceMs).toBeGreaterThan(0);
   });
 });

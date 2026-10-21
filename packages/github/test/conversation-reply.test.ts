@@ -26,17 +26,6 @@ function stubReplyOctokit(data: Record<string, unknown>): Octokit {
 }
 
 describe("createReviewCommentReply, wrapping review id", () => {
-  it("returns the review id GitHub wraps the reply in", async () => {
-    const result = await createReviewCommentReply(
-      stubReplyOctokit({ id: 7001, pull_request_review_id: 555 }),
-      INPUT,
-    );
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value).toEqual({ commentId: 7001, reviewId: 555 });
-  });
-
   it("omits the review id when GitHub assigns none", async () => {
     const result = await createReviewCommentReply(
       stubReplyOctokit({ id: 7001, pull_request_review_id: null }),

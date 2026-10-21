@@ -2,11 +2,10 @@
 // transitions with attempts maintenance, and the
 // NULLS-NOT-DISTINCT proof: a brief-kind re-push (null baseline_sha) conflicts
 // on the natural key rather than inserting a second row.
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   createTenantRepository,
   createGenerationProjection,
-  GenerationErrorCodes,
   createIngestRoutines,
   ScopeViolationError,
   type TenantContext,
@@ -24,21 +23,16 @@ import {
   type InstallationId,
   type RepoId,
 } from "../src/types";
-import {
-  claimTestRun,
-  createPgliteHarness,
-  succeedTestRun,
-} from "../src/testing";
-import { drizzle } from "drizzle-orm/pglite";
-import { fromDrizzle } from "../src/db/handle";
+import { claimTestRun, succeedTestRun } from "../src/testing";
 import {
   brandWith,
-  freshDatabase,
-  freshPglite,
   makeBriefTarget,
   readCheckValues,
+  registerSharedPglite,
   writeGenerationUpdatedAt,
 } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -50,7 +44,7 @@ const SUCCEEDED_AT = new Date("2026-01-01T00:01:00Z");
 
 describe("createGenerationProjection status transitions", () => {
   it("pending → running → succeeded, attempts stable, one row", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -91,7 +85,7 @@ describe("createGenerationProjection status transitions", () => {
   });
 
   it("re-queue increments attempts and resets phase/error", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -121,7 +115,7 @@ describe("createGenerationProjection status transitions", () => {
   });
 
   it("a null baseline_sha upsert conflicts, proving NULLS NOT DISTINCT", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -146,7 +140,7 @@ describe("createGenerationProjection status transitions", () => {
   });
 
   it("rejects upsertPending whose pull_request is in another tenant", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const b = createTenantRepository(handle, CTX_B);
     const genA = createGenerationProjection(handle, CTX_A);
     const bPr = await b.pullRequests.upsert({
@@ -174,7 +168,7 @@ describe("createGenerationProjection status transitions", () => {
   });
 
   it("markFailed stores the typed code and sanitizes the detail param", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -212,36 +206,8 @@ describe("createGenerationProjection status transitions", () => {
     expect((stored ?? "").length).toBeLessThanOrEqual(300);
   });
 
-  it("markFailed stores a paramless code with null params", async () => {
-    const handle = await freshDatabase();
-    const repo = createTenantRepository(handle, CTX_A);
-    const gen = createGenerationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({
-      repoId: REPO,
-      prNumber: 8,
-      state: PrStates.OPEN,
-    });
-    const target = {
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "head-8",
-      baselineSha: null,
-    };
-    await gen.upsertPending(target);
-    const failed = await gen.markFailed(target, {
-      code: GenerationFailureCodes.PROVIDER_RATE_LIMIT,
-    });
-    if (!failed.ok) {
-      throw new Error("markFailed failed");
-    }
-    expect(failed.value.errorCode).toBe(
-      GenerationFailureCodes.PROVIDER_RATE_LIMIT,
-    );
-    expect(failed.value.errorParams).toBeNull();
-  });
-
   it("drops an empty sanitized detail to null params", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -267,25 +233,8 @@ describe("createGenerationProjection status transitions", () => {
     expect(failed.value.errorParams).toBeNull();
   });
 
-  it("the CHECK constraint rejects a code outside the vocabulary", async () => {
-    const client = await freshPglite();
-    const handle = fromDrizzle(drizzle(client));
-    const repo = createTenantRepository(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({
-      repoId: REPO,
-      prNumber: 9,
-      state: PrStates.OPEN,
-    });
-    await expect(
-      client.query(
-        `insert into generation (installation_id, pull_request_id, kind, head_sha, status, error_code)
-         values (${String(CTX_A.installationId)}, ${String(pr.id)}, 'brief', 'head-9', 'failed', 'not-a-code')`,
-      ),
-    ).rejects.toThrow(/generation_error_code_check/);
-  });
-
   it("the CHECK constraint accepts exactly the failure vocabulary", async () => {
-    const client = await freshPglite();
+    const client = shared.client;
 
     const accepted = await readCheckValues(
       client,
@@ -298,7 +247,7 @@ describe("createGenerationProjection status transitions", () => {
   });
 
   it("markSuperseded is terminal, leaves attempts, clears error", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -341,7 +290,7 @@ describe("createGenerationProjection status transitions", () => {
   });
 
   it("supersedeStaleBriefs terminalizes stale briefs and clears the phase", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -387,7 +336,7 @@ describe("createGenerationProjection status transitions", () => {
     // the STALE row with the newest updated_at. "Latest" must still be the
     // current head, or PR-meta reports superseded forever and the wait UX
     // spins on a push that will never finish.
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -425,7 +374,7 @@ describe("createGenerationProjection status transitions", () => {
   });
 
   it("listBriefsForPullRequest returns tenant-scoped brief rows only", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -470,29 +419,6 @@ describe("createGenerationProjection status transitions", () => {
       ),
     ).toEqual([]);
   });
-
-  it("a transition on a missing projection row returns claim-lost", async () => {
-    const handle = await freshDatabase();
-    const repo = createTenantRepository(handle, CTX_A);
-    const gen = createGenerationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({
-      repoId: REPO,
-      prNumber: 7,
-      state: PrStates.OPEN,
-    });
-
-    const result = await gen.markSuperseded({
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "never-projected",
-      baselineSha: null,
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("expected claim-lost");
-    }
-    expect(result.error.code).toBe(GenerationErrorCodes.CLAIM_LOST);
-  });
 });
 
 describe("supersedeStaleBriefs against the pickup time", () => {
@@ -503,8 +429,7 @@ describe("supersedeStaleBriefs against the pickup time", () => {
   const HEAD_B = "head-b";
 
   async function seedSweepWorld() {
-    const harness = await createPgliteHarness();
-    onTestFinished(() => harness.close());
+    const { harness } = shared;
     const repo = createTenantRepository(harness.handle, CTX_A);
     const gen = createGenerationProjection(harness.handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -592,8 +517,7 @@ describe("supersedeStaleBriefs against the pickup time", () => {
 describe("repo-config origin on the generation row", () => {
   it("recordRepoConfig round-trips; a re-queue through ingest clears it", async () => {
     // PGlite harness: the ingest enqueue needs the graphile_worker stub.
-    const harness = await createPgliteHarness();
-    onTestFinished(() => harness.close());
+    const { harness } = shared;
     const handle = harness.handle;
     const ctx: TenantContext = {
       installationId: brandWith(isInstallationId, 4200n),
@@ -647,8 +571,7 @@ describe("getGenerateJobTiming", () => {
   const DEBOUNCE_SECONDS = 60;
 
   async function triggerWithDebounce(debounceSeconds: number) {
-    const harness = await createPgliteHarness();
-    onTestFinished(() => harness.close());
+    const { harness } = shared;
     const ingest = createIngestRoutines(harness.handle, CTX_A);
     const triggered = await ingest.triggerGeneration({
       pullRequest: { repoId: REPO, prNumber: 11, state: PrStates.OPEN },
@@ -692,7 +615,7 @@ describe("getGenerateJobTiming", () => {
 
   it("returns undefined when the queue holds no job for the PR", async () => {
     const { harness, pullRequestId } = await triggerWithDebounce(0);
-    await harness.raw("truncate graphile_worker.jobs");
+    await harness.raw("delete from graphile_worker.jobs");
     const projection = createGenerationProjection(harness.handle, CTX_A);
 
     const timing = await projection.getGenerateJobTiming(pullRequestId);

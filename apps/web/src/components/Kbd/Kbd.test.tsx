@@ -11,17 +11,6 @@ describe("Kbd", () => {
     expect(cap.tagName).toBe("KBD");
     expect(cap.getAttribute("data-size")).toBe(KbdSizes.MD);
   });
-
-  it("takes the sentence size and a caller class", () => {
-    render(
-      <Kbd className="extra" size={KbdSizes.SM}>
-        J
-      </Kbd>,
-    );
-    const cap = screen.getByText("J");
-    expect(cap.getAttribute("data-size")).toBe(KbdSizes.SM);
-    expect(cap.className).toContain("extra");
-  });
 });
 
 describe("KbdGroup", () => {

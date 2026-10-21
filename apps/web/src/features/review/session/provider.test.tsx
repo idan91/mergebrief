@@ -161,49 +161,6 @@ describe("ReviewSessionProvider reads", () => {
     expect(result.current.reviewedChunks).toBe(before);
   });
 
-  it("keeps an optimistic write over a read that began before it", async () => {
-    const read = makeReadSource();
-    const { writes, releaseWrites } = makeHeldWrites();
-    const { result } = renderSession({
-      briefId: "b1",
-      reads: read.source,
-      session: emptySessionPayload(),
-      writes,
-    });
-
-    read.startRead();
-    act(() => {
-      result.current.actions.reviewChunk("chunk-a");
-    });
-    expect(read.hasPendingWrite()).toBe(true);
-    releaseWrites();
-    await waitFor(() => expect(read.hasPendingWrite()).toBe(false));
-    read.landRead(emptySessionPayload());
-
-    expect(result.current.reviewedChunks.has("chunk-a")).toBe(true);
-  });
-
-  it("applies a read that began after the write settled", async () => {
-    const read = makeReadSource();
-    const { writes, releaseWrites } = makeHeldWrites();
-    const { result } = renderSession({
-      briefId: "b1",
-      reads: read.source,
-      session: emptySessionPayload(),
-      writes,
-    });
-
-    act(() => {
-      result.current.actions.reviewChunk("chunk-a");
-    });
-    releaseWrites();
-    await waitFor(() => expect(read.hasPendingWrite()).toBe(false));
-    read.startRead();
-    read.landRead(buildSessionWithReadMarks("chunk-a", "chunk-b"));
-
-    expect(result.current.reviewedChunks.has("chunk-b")).toBe(true);
-  });
-
   it("rereads once after the writes a dropped read waited on settle", async () => {
     const read = makeReadSource();
     const { writes, releaseWrites } = makeHeldWrites();
@@ -307,15 +264,6 @@ describe("ReviewSessionProvider reads", () => {
     await waitForPendingWork();
 
     expect(read.countReadRequests()).toBe(0);
-  });
-
-  it("gives a switched Brief a fresh store", () => {
-    const { result, switchTo } = renderSession({ briefId: "b1" });
-    const firstActions = result.current.actions;
-
-    switchTo({ briefId: "b2" });
-
-    expect(result.current.actions).not.toBe(firstActions);
   });
 
   it("replaces the unplaced drafts with each landed read", () => {

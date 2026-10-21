@@ -197,14 +197,4 @@ describe("Filter", () => {
     expect(onChoose).toHaveBeenCalledWith("updated");
     expect(screen.queryByRole("listbox")).toBeNull();
   });
-
-  it("the panel opens from its start corner by default", async () => {
-    render(<Filter filter={makeFilter()} />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    });
-
-    expect(screen.getByRole("listbox").style.transformOrigin).toBe("top left");
-  });
 });

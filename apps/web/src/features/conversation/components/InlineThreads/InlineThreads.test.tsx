@@ -167,7 +167,9 @@ describe("InlineThreads", () => {
     fireEvent.click(row);
     expect(row.getAttribute("aria-expanded")).toBe("true");
     // The detail sits at its chunk already: no jump control.
-    expect(screen.queryByRole("button", { name: "Jump to chunk" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Jump to comment" }),
+    ).toBeNull();
     // The composer is present (replies from the chunk).
     expect(screen.getByLabelText(/Reply \(posts to GitHub/)).toBeDefined();
   });

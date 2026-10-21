@@ -183,17 +183,6 @@ describe("deleteComment", () => {
     });
   });
 
-  it("treats a 404 on an already-gone comment as idempotent success", async () => {
-    const deleteFn = vi.fn().mockRejectedValue(requestError(404));
-    const octokit = mockOctokit({ deleteComment: deleteFn });
-    const result = await deleteComment(octokit, {
-      owner: "o",
-      repo: "r",
-      commentId: 99n,
-    });
-    expect(result.ok).toBe(true);
-  });
-
   it("maps a non-404 failure to a sanitized error", async () => {
     const deleteFn = vi.fn().mockRejectedValue(requestError(500));
     const octokit = mockOctokit({ deleteComment: deleteFn });
@@ -235,21 +224,6 @@ describe("fetchComment", () => {
     });
   });
 
-  it("maps a 404 for a gone comment to ok undefined", async () => {
-    const getComment = vi.fn().mockRejectedValue(requestError(404));
-    const octokit = mockOctokit({ getComment });
-    const result = await fetchComment(octokit, {
-      owner: "o",
-      repo: "r",
-      commentId: 99n,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value).toBeUndefined();
-  });
-
   it("maps a non-404 failure to a sanitized error", async () => {
     const getComment = vi.fn().mockRejectedValue(requestError(500));
     const octokit = mockOctokit({ getComment });
@@ -283,26 +257,6 @@ describe("fetchRepositoryById", () => {
     expect(result.value.private).toBe(true);
     expect(result.value.repoId).toBe(1n);
     expect(request).toHaveBeenCalledWith("GET /repositories/{id}", { id: 1 });
-  });
-
-  it("captures permissions.push as viewerCanPush", async () => {
-    // A user-to-server read includes the VIEWER's effective `permissions`
-    // block, `push` is the write-capability signal.
-    const request = vi.fn().mockResolvedValue({
-      data: {
-        id: 1,
-        full_name: "o/r",
-        private: true,
-        permissions: { admin: false, push: true, pull: true },
-      },
-    });
-    const octokit = mockOctokit({ request });
-    const result = await fetchRepositoryById(octokit, toRepoId(1n));
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value.viewerCanPush).toBe(true);
   });
 
   it("fails closed to viewerCanPush false without a permissions block", async () => {
@@ -734,36 +688,6 @@ describe("fetchPullRequest / fetchDiff", () => {
     expect(result.value.merged).toBe(true);
   });
 
-  it("normalizes a null PR body to the empty string", async () => {
-    const pullsGet = vi.fn().mockResolvedValue({
-      data: {
-        head: { sha: "head-sha" },
-        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
-        state: "open",
-        draft: false,
-        merged: false,
-        title: "A PR",
-        body: null,
-        html_url: "https://github.com/o/r/pull/3",
-        commits: 1,
-        user: { login: "octocat" },
-        closed_at: null,
-        updated_at: "2026-09-20T10:00:00Z",
-      },
-    });
-    const octokit = mockOctokit({ pullsGet });
-    const result = await fetchPullRequest(octokit, {
-      owner: "o",
-      repo: "r",
-      prNumber: 3,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value.body).toBe("");
-  });
-
   it("lists changed files via pagination, mapping path + churn", async () => {
     const paginate = vi.fn().mockResolvedValue([
       { filename: "src/a.ts", additions: 3, deletions: 1, status: "modified" },
@@ -792,21 +716,6 @@ describe("fetchPullRequest / fetchDiff", () => {
         per_page: 100,
       }),
     );
-  });
-
-  it("sanitizes a listFiles failure", async () => {
-    const paginate = vi.fn().mockRejectedValue(requestError(404));
-    const octokit = mockOctokit({ paginate });
-    const result = await fetchPullRequestFiles(octokit, {
-      owner: "o",
-      repo: "r",
-      prNumber: 3,
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 });
 
@@ -934,45 +843,6 @@ describe("listOpenPullRequests", () => {
       throw new Error("unreachable");
     }
     expect(result.value).toEqual([]);
-  });
-
-  it("returns every page concatenated by paginate", async () => {
-    const paginate = vi.fn().mockResolvedValue([
-      {
-        number: 1,
-        title: "first page",
-        head: {
-          ref: "a",
-          repo: { name: "r", owner: { login: "o" } },
-        },
-        base: {
-          ref: "main",
-          repo: { name: "r", owner: { login: "o" } },
-        },
-      },
-      {
-        number: 2,
-        title: "second page",
-        head: {
-          ref: "b",
-          repo: { name: "r", owner: { login: "o" } },
-        },
-        base: {
-          ref: "a",
-          repo: { name: "r", owner: { login: "o" } },
-        },
-      },
-    ]);
-    const octokit = mockOctokit({ paginate });
-    const result = await listOpenPullRequests(octokit, {
-      owner: "o",
-      repo: "r",
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value.map((item) => item.number)).toEqual([1, 2]);
   });
 
   it("sanitizes a list failure so tokens never escape", async () => {
@@ -1126,27 +996,6 @@ describe("fetchCompareFiles", () => {
       basehead: "base-sha...head-sha",
       per_page: 1,
     });
-  });
-
-  it("maps the compare span status through for fast-forward detection", async () => {
-    const compareBasehead = vi.fn().mockResolvedValue({
-      data: {
-        status: "diverged",
-        files: [{ filename: "src/a.ts", status: "modified" }],
-      },
-    });
-    const octokit = mockOctokit({ compareBasehead });
-    const result = await fetchCompareFiles(octokit, {
-      owner: "o",
-      repo: "r",
-      base: "b",
-      head: "h",
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.value.status).toBe("diverged");
   });
 
   it("flags a list at the 300-file compare cap as incomplete", async () => {

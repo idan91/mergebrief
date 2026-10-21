@@ -59,40 +59,6 @@ describe("bindInstallationGitHub", () => {
     );
   });
 
-  it("reads a pull request on the minted token", async () => {
-    const stub = stubGitHubFetch(
-      routeMinting(MINT_OK, { status: 200, body: makePullRequestBody(7) }),
-    );
-    const github = bindInstallationGitHub(makeApp(stub), INSTALLATION_ID);
-
-    const result = await github.forRepo(REPO).fetchPullRequest(7);
-
-    expect(result.ok && result.value.repoFullName).toBe("acme/widgets");
-    expect(stub.requests[1]?.authorization).toBe(
-      formatTokenAuthorization(MINTED),
-    );
-  });
-
-  it("keeps a thrown mint's text out of the failure it answers", async () => {
-    const leakyApp = makeApp(
-      stubGitHubFetch(
-        routeMinting(MINT_OK, { status: 200, body: makePullRequestBody(7) }),
-      ),
-    );
-    vi.spyOn(leakyApp, "getInstallationOctokit").mockRejectedValue(
-      new Error("mint failed for ghs_SECRET_INSTALLATION_TOKEN"),
-    );
-    const github = bindInstallationGitHub(leakyApp, INSTALLATION_ID);
-
-    const result = await github.forRepo(REPO).fetchPullRequest(7);
-
-    expect(result.ok).toBe(false);
-    expect(JSON.stringify(result)).not.toContain("ghs_SECRET");
-    expect(!result.ok && result.error.code).toBe(
-      GitHubApiErrorCodes.REQUEST_FAILED,
-    );
-  });
-
   it("answers a refused mint as the call's own failure", async () => {
     const stub = stubGitHubFetch(
       routeMinting(

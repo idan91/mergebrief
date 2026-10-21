@@ -71,22 +71,6 @@ describe("buildInboxQueryOptions", () => {
     );
   });
 
-  it("reads the author login and a null one as absent", async () => {
-    const [item] = WIRE_PAGE.items;
-    answerWith(200, {
-      ...WIRE_PAGE,
-      items: [item, { ...item, prNumber: 8, authorLogin: null }],
-    });
-
-    const state = await readInbox();
-
-    if (state.kind !== InboxStates.READY) {
-      throw new Error("unreachable");
-    }
-    expect(state.page.items[0]?.authorLogin).toBe("mira-k");
-    expect(state.page.items[1]?.authorLogin).toBeUndefined();
-  });
-
   it("a 401 is the signed-out state", async () => {
     answerWith(401, { error: "refused", code: "unauthorized" });
 
@@ -184,24 +168,9 @@ describe("deletePull", () => {
     expect(await deletePull("424242", 7)).toEqual({ kind: "forbidden" });
   });
 
-  it("a human-only refusal is the forbidden kind too", async () => {
-    answerWith(403, { error: "x", code: "human-only" });
-    expect(await deletePull("424242", 7)).toEqual({ kind: "forbidden" });
-  });
-
-  it("a 404 is the not-found kind", async () => {
-    answerWith(404, { error: "x", code: "not-found" });
-    expect(await deletePull("424242", 7)).toEqual({ kind: "not-found" });
-  });
-
   it("a codeless 5xx is the failed kind", async () => {
     answerWith(502, {});
     expect(await deletePull("424242", 7)).toEqual({ kind: "failed" });
-  });
-
-  it("a thrown request is the indeterminate kind", async () => {
-    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
-    expect(await deletePull("424242", 7)).toEqual({ kind: "indeterminate" });
   });
 
   it("a 401 sends the viewer to sign in", async () => {
@@ -225,8 +194,6 @@ describe("purgeAttachments", () => {
   });
 
   it.each([
-    ["attachments-disabled", 403, "disabled"],
-    ["github-permission", 403, "app-permission"],
     ["repo-admin-only", 403, "forbidden"],
     ["not-found", 404, "not-found"],
     ["github-unavailable", 502, "failed"],

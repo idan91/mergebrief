@@ -565,9 +565,17 @@ describe("openrouter registry entry", () => {
   it("requires model in the options", async () => {
     const result = await createGenerator(
       { provider: Providers.OPENROUTER },
-      { env: { ...process.env }, failureDir: tempDir("openrouter-nomodel-") },
+      {
+        env: { ...process.env, OPENROUTER_API_KEY: "sk-or-test" },
+        failureDir: tempDir("openrouter-nomodel-"),
+      },
     );
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues).toHaveLength(1);
+    expect(result.error.issues[0]).toMatch(/^model: /);
   });
 });
 

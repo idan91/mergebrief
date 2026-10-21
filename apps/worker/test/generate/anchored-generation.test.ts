@@ -466,20 +466,13 @@ describe("generate task, anchored generation", () => {
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
 
-  it("writes an empty carried set when nothing anchors", async () => {
+  it("always mode keeps fresh ids and stamps anchoring none", async () => {
     const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("none");
     expect(row?.carriedChunkIds).toEqual([]);
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
-  });
-
-  it("always mode keeps fresh ids and stamps anchoring none", async () => {
-    const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
-    const store = createArtifactStore(harness.handle, ctx);
-    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
-    expect(row?.anchorState).toBe("none");
     const body = JSON.parse(row?.body ?? "{}") as {
       anchor?: unknown;
       anchoring?: unknown;
@@ -546,20 +539,6 @@ describe("generate task, anchored generation", () => {
     expect(body.changeGroups?.find((group) => group.id === "gA")?.title).toBe(
       "alpha rewritten",
     );
-  });
-
-  it("threads the anchor view and anchored prompt into the model call", async () => {
-    const { generator } = await runTwoRevisions({});
-    const briefRequests = generator.requests.filter(
-      (request) => request.label === "brief",
-    );
-    expect(briefRequests).toHaveLength(2);
-    expect(briefRequests[0]?.system).not.toContain("Anchored regeneration");
-    expect(briefRequests[0]?.user).not.toContain("<anchor_brief");
-    expect(briefRequests[1]?.system).toContain("Anchored regeneration");
-    expect(briefRequests[1]?.user).toContain("<anchor_brief");
-    // The frozen index names the untouched group; the summary rides verbatim.
-    expect(briefRequests[1]?.user).toContain("gA");
   });
 
   it("degrades to a full re-look when compare files cannot be fetched", async () => {

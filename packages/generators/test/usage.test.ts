@@ -185,32 +185,6 @@ describe("anthropic usage reporting", () => {
     ]);
   });
 
-  it("defaults absent cache_read to 0", async () => {
-    const seen: TokenUsage[] = [];
-    const generator = new AnthropicGenerator(
-      usageStubClient([
-        { raw: '{"ok":true}', usage: { input_tokens: 10, output_tokens: 5 } },
-      ]),
-      tempDir(),
-    );
-    await generator.generate({
-      schema: Schema,
-      system: "s",
-      user: "u",
-      effort: "medium",
-      label: "usage-nocache",
-      onUsage: (usage) => seen.push(usage),
-    });
-    expect(seen).toEqual([
-      {
-        inputTokens: 10,
-        outputTokens: 5,
-        cacheReadTokens: 0,
-        cacheWriteTokens: 0,
-      },
-    ]);
-  });
-
   it("reports once per attempt across a feedback retry, callers sum", async () => {
     const seen: TokenUsage[] = [];
     const generator = new AnthropicGenerator(

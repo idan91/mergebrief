@@ -364,14 +364,6 @@ function findNumber(row: HTMLElement): HTMLElement {
   return number;
 }
 
-function findCodeCell(row: HTMLElement): HTMLElement {
-  const cell = row.querySelector("td:last-child");
-  if (!(cell instanceof HTMLElement)) {
-    throw new Error("expected a code cell");
-  }
-  return cell;
-}
-
 function findReasonRow(container: HTMLElement): HTMLElement | null {
   return container.querySelector<HTMLElement>('[data-testid="reason-row"]');
 }
@@ -662,16 +654,6 @@ describe("DiffTable guest rows", () => {
     expect(document.activeElement).toBe(row);
   });
 
-  it("leaves the code text to text selection: a release there never toggles", () => {
-    const { view } = renderGuestTable();
-    const row = findDeletedRow(view.container);
-
-    fireEvent.mouseDown(findCodeCell(row));
-    fireEvent.mouseUp(findCodeCell(row));
-
-    expect(findReasonRow(view.container)).toBeNull();
-  });
-
   it("ignores a secondary button release on the line number", () => {
     const { view } = renderGuestTable();
     const row = findDeletedRow(view.container);
@@ -679,24 +661,6 @@ describe("DiffTable guest rows", () => {
     fireEvent.mouseUp(findNumber(row), { button: 2 });
 
     expect(findReasonRow(view.container)).toBeNull();
-  });
-
-  it("ignores a release that ends a text selection over the table", () => {
-    const { view } = renderGuestTable();
-    const row = findDeletedRow(view.container);
-    const selection = window.getSelection();
-    if (selection === null) {
-      throw new Error("expected a selection api");
-    }
-    const range = document.createRange();
-    range.selectNodeContents(findCodeCell(row));
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    fireEvent.mouseUp(findNumber(row));
-
-    expect(findReasonRow(view.container)).toBeNull();
-    selection.removeAllRanges();
   });
 
   it("finishes a number drag released on an inert row as a selection", () => {

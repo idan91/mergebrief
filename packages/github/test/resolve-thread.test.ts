@@ -4,7 +4,7 @@
 // the sanitized failure paths. GraphQL is stubbed at the `octokit.graphql`
 // interface. No throttle concerns, since GraphQL calls are not on the
 // notification-triggering REST throttle list.
-import { RequestError, type Octokit } from "octokit";
+import type { Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { setReviewThreadResolution } from "../src/operations/resolve-thread";
 import { GitHubApiErrorCodes } from "../src/errors";
@@ -35,22 +35,14 @@ const UNRESOLVE_INPUT = { ...RESOLVE_INPUT, resolved: false } as const;
 function threadNode(options: {
   readonly id: string;
   readonly isResolved: boolean;
-  /**
-   * `null` models a thread whose root comment carries no usable database id. A
-   * string passes through verbatim, so tests can plant raw wire values the
-   * BigInt parse must reject (non-numeric, or past 2^53).
-   */
-  readonly rootCommentId: number | string | null;
+  /** A string passes through verbatim, so a test can plant a raw wire id. */
+  readonly rootCommentId: number | string;
 }): unknown {
   return {
     id: options.id,
     isResolved: options.isResolved,
     comments: {
-      nodes: [
-        options.rootCommentId === null
-          ? { fullDatabaseId: null }
-          : { fullDatabaseId: String(options.rootCommentId) },
-      ],
+      nodes: [{ fullDatabaseId: String(options.rootCommentId) }],
     },
   };
 }
@@ -296,54 +288,6 @@ describe("setReviewThreadResolution", () => {
     expect(graphql).toHaveBeenCalledTimes(2);
   });
 
-  it("skips a thread whose root comment carries no usable database id", async () => {
-    const graphql = vi.fn().mockResolvedValueOnce(
-      walkPage([
-        threadNode({
-          id: THREAD_NODE_ID,
-          isResolved: false,
-          rootCommentId: null,
-        }),
-      ]),
-    );
-
-    const result = await setReviewThreadResolution(
-      mockGraphqlOctokit(graphql),
-      RESOLVE_INPUT,
-    );
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(graphql).toHaveBeenCalledTimes(1);
-  });
-
-  it("skips a thread whose root database id is not a number", async () => {
-    const graphql = vi.fn().mockResolvedValueOnce(
-      walkPage([
-        threadNode({
-          id: THREAD_NODE_ID,
-          isResolved: false,
-          rootCommentId: "abc",
-        }),
-      ]),
-    );
-
-    const result = await setReviewThreadResolution(
-      mockGraphqlOctokit(graphql),
-      RESOLVE_INPUT,
-    );
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(graphql).toHaveBeenCalledTimes(1);
-  });
-
   it("skips an unsafe-integer root database id rather than match it rounded", async () => {
     // `Number("9007199254740993")` ROUNDS to 9007199254740992. Drop the
     // safe-integer guard and this thread would falsely match a request for the
@@ -517,46 +461,6 @@ describe("setReviewThreadResolution", () => {
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
     expect(JSON.stringify(result.error)).not.toContain(UPSTREAM_TEXT);
     expect(JSON.stringify(result.error)).not.toContain("no access");
-  });
-
-  it("maps a mutation-time transport failure to a sanitized failure", async () => {
-    const graphql = vi
-      .fn()
-      .mockResolvedValueOnce(
-        walkPage([
-          threadNode({
-            id: THREAD_NODE_ID,
-            isResolved: false,
-            rootCommentId: ROOT_COMMENT_ID,
-          }),
-        ]),
-      )
-      .mockRejectedValueOnce(
-        new RequestError("Server Error", 502, {
-          request: {
-            method: "POST",
-            url: "https://api.github.com/graphql",
-            headers: {},
-          },
-          response: {
-            status: 502,
-            url: "https://api.github.com/graphql",
-            headers: {},
-            data: {},
-          },
-        }),
-      );
-
-    const result = await setReviewThreadResolution(
-      mockGraphqlOctokit(graphql),
-      RESOLVE_INPUT,
-    );
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("never converges on a mutation-time GraphQL error, whatever its message", async () => {

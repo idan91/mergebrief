@@ -17,7 +17,6 @@ export type ReleaseChannel = ValueOf<typeof ReleaseChannels>;
 /** One `docs/releases/<version>.md`, parsed. */
 export interface ReleaseNotes {
   readonly version: ReleaseVersion;
-  readonly channel: ReleaseChannel;
   readonly date: string;
   readonly breaking: boolean;
   readonly security: boolean;

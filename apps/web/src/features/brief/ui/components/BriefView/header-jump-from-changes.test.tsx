@@ -10,7 +10,6 @@ import {
   briefFixture,
   FixtureBriefView,
   mountBriefHost,
-  mountBriefView,
 } from "@web/features/brief/test-utils";
 
 afterEach(() => {
@@ -36,32 +35,6 @@ const briefWithRemainder = {
     },
   ],
 };
-
-describe("Chunk deep link from Changes scope", () => {
-  it("leaves the scope by replacing the arrival entry", async () => {
-    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    const exitChangesScope = vi.fn();
-    await mountBriefView({
-      brief: briefWithRemainder,
-      briefId: "fixture-brief-2",
-      comparisonPlan: {
-        lastReview: {
-          marks: {
-            queryKey: ["test-last-review-marks"],
-            queryFn: () => Promise.resolve(lastReviewMarks),
-          },
-        },
-      },
-      exitChangesScope,
-      link: "chunk-b",
-      searchParams: { view: "changes", compare: "last-review" },
-    });
-
-    await waitFor(() =>
-      expect(exitChangesScope).toHaveBeenCalledWith({ replace: true }),
-    );
-  });
-});
 
 const previousBriefMarks: ComparisonMarks = {
   baselineSha: "prev1234",

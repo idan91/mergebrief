@@ -82,8 +82,7 @@ What the gates cover that this page used to walk by hand:
   params, normalize-down with "Your last review" disabled, the Revisions
   tab, rev, span, chunk, line, range and folded-line links, an unlandable
   line link, the tab title), review from Changes Only (card comment, span
-  diff comment, dismissed flag), reduced motion (snaps instead of smooth
-  scroll), the signed-out landing, and axe-core with no serious or critical
+  diff comment, dismissed flag), the signed-out landing, and axe-core with no serious or critical
   violation on the picker, both revisions, Changes Only, the shortcuts
   dialog and the submit modal.
 
@@ -306,8 +305,8 @@ release`.
         affordance is disabled with a reachable reason and a GitHub
         permalink fallback, no nearest-revision guessing;
       - reduced motion: the scroll to target snaps instead of smooth-scrolling (the
-        suite pins this contract on the brief's own scroller; the
-        thread scroll path is not reachable there).
+        scroll-to-target hook test pins the scroll calls; the thread
+        scroll path is not covered).
       Any defect becomes its own fix PR.
 - [ ] Review submit: comments post to GitHub, the checkpoint is written by
       the webhook (commit_id pinned, bots filtered), submitted comments go

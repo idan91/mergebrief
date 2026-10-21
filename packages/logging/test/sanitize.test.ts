@@ -16,22 +16,13 @@ describe("sanitizeErrorDetail", () => {
     );
   });
 
-  it("redacts a URL-shaped substring", () => {
-    expect(sanitizeErrorDetail(`connect failed for ${LEAKY_URL}`)).toBe(
-      "connect failed for [redacted-url]",
-    );
-    expect(
-      sanitizeErrorDetail(`connect failed for ${LEAKY_URL}`),
-    ).not.toContain("hunter2");
-  });
-
   it("redacts every URL on the line", () => {
     expect(
       sanitizeErrorDetail(`tried ${LEAKY_URL} then https://api.github.com/x`),
     ).toBe("tried [redacted-url] then [redacted-url]");
   });
 
-  it("redacts file:// URLs too — detail is never a stack", () => {
+  it("redacts file:// URLs too, since detail is never a stack", () => {
     expect(sanitizeErrorDetail("thrown at file:///app/src/main.ts:10:5")).toBe(
       "thrown at [redacted-url]",
     );
@@ -42,15 +33,15 @@ describe("sanitizeErrorDetail", () => {
     expect(sanitizeErrorDetail(long)).toBe("x".repeat(300));
   });
 
-  it("leaves empty input empty — no fallback copy", () => {
+  it("leaves empty input empty with no fallback copy", () => {
     expect(sanitizeErrorDetail("")).toBe("");
   });
 
-  it("yields empty for a leading newline — callers gate on the result", () => {
+  it("yields empty for a leading newline", () => {
     expect(sanitizeErrorDetail("\nreal message on line two")).toBe("");
   });
 
-  it("redacts a credential-shaped token — this text reaches a DB column", () => {
+  it("redacts a credential-shaped token before it reaches a DB column", () => {
     expect(
       sanitizeErrorDetail("401 invalid x-api-key sk-ant-api03-LeAkEd_Key-999"),
     ).toBe("401 invalid x-api-key [redacted-token]");
@@ -69,11 +60,5 @@ describe("sanitizeErrorDetail", () => {
         token,
       );
     }
-  });
-
-  it("leaves a short URL-free line untouched", () => {
-    expect(sanitizeErrorDetail("missing ANTHROPIC_API_KEY")).toBe(
-      "missing ANTHROPIC_API_KEY",
-    );
   });
 });

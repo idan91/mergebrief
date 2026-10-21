@@ -35,15 +35,6 @@ function renderControls(initialEntry = "/") {
 }
 
 describe("ComparisonControls", () => {
-  it("offers View and Compare and no revision stepper", async () => {
-    await renderControls();
-
-    expect(screen.getByRole("radio", { name: /full brief/i })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: /changes only/i })).toBeTruthy();
-    expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.queryByRole("navigation")).toBeNull();
-  });
-
   it("keeps the link on a scope write", async () => {
     const { router } = await renderControls("/?l=c2.R4");
 

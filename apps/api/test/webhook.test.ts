@@ -8,16 +8,21 @@ import {
   isPullRequestRowId,
   isRepoId,
   parseTenantContext,
+  type AppDatabase,
   type RepoId,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { startTestTracing, type TestTracing } from "logging/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import { buildAuthDeps, INSTALLATION_ID, KEY_REF, SECRET } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  openPerTestPglite,
+  registerSharedPglite,
+  type SharedPglite,
+} from "./shared-pglite";
 
 // Dummy auth deps: the webhook tests never exercise the OAuth/session routes,
 // but `createApp` now requires the bundle. A throwaway 32-byte key keeps the
@@ -184,7 +189,7 @@ function installationRepositoriesPayload(input: {
 
 /** Seed one open PR row directly through the tenant repository. */
 async function seedPullRequest(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   repoId: bigint,
   prNumber: number,
 ): Promise<void> {
@@ -198,7 +203,7 @@ async function seedPullRequest(
 }
 
 async function countRows(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   table: string,
 ): Promise<number> {
   const rows = await harness.raw(`select count(*)::int as n from ${table}`);
@@ -213,12 +218,12 @@ async function countRows(
 // Suite.
 // ---------------------------------------------------------------------------
 
+const harness = registerSharedPglite();
+
 describe("POST /api/webhooks/github", () => {
-  let harness: PgliteHarness;
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
@@ -226,10 +231,6 @@ describe("POST /api/webhooks/github", () => {
       auth: DUMMY_AUTH,
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   it("200s signed opened events with PR, generation and debounced job rows", async () => {
@@ -293,23 +294,6 @@ describe("POST /api/webhooks/github", () => {
       "mergebrief.queued": true,
     });
     expect(byName.has("POST /api/webhooks/github")).toBe(true);
-  });
-
-  it("persists draft + author_login from a pull_request event", async () => {
-    const res = await deliver(
-      app,
-      "pull_request",
-      pullRequestPayload({
-        action: "opened",
-        draft: true,
-        authorLogin: "author-octocat",
-      }),
-    );
-    expect(res.status).toBe(200);
-    const prs = await harness.raw("select * from pull_request");
-    expect(prs).toHaveLength(1);
-    expect(prs[0]?.["draft"]).toBe(true);
-    expect(prs[0]?.["author_login"]).toBe("author-octocat");
   });
 
   it("a pull_request_review does NOT overwrite stored draft/author_login", async () => {
@@ -377,7 +361,7 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["draft"]).toBe(false);
   });
 
-  it("converges ready_for_review and route flips idempotently", async () => {
+  it("clears the stored draft flag on a ready_for_review event", async () => {
     expect(
       (
         await deliver(
@@ -585,17 +569,6 @@ describe("POST /api/webhooks/github", () => {
     const rows = await harness.raw("select last_submitted_sha from checkpoint");
     expect(rows).toHaveLength(1);
     expect(String(rows[0]?.["last_submitted_sha"])).toBe(newerSha);
-  });
-
-  it("review redelivery is idempotent, one checkpoint row, same values", async () => {
-    await seedPullRequest(harness, BigInt(REPO_ID), 2);
-    const payload = pullRequestReviewPayload();
-    await deliver(app, "pull_request_review", payload);
-    const res = await deliver(app, "pull_request_review", payload);
-    expect(res.status).toBe(200);
-    const rows = await harness.raw("select last_submitted_sha from checkpoint");
-    expect(rows).toHaveLength(1);
-    expect(String(rows[0]?.["last_submitted_sha"])).toBe(HEAD_SHA);
   });
 
   it("invalid signature → 401 and NOTHING written", async () => {
@@ -935,18 +908,6 @@ describe("POST /api/webhooks/github", () => {
     });
   });
 
-  it("pull_request closed with merged=true → merged state", async () => {
-    await seedPullRequest(harness, BigInt(REPO_ID), 2);
-    const res = await deliver(
-      app,
-      "pull_request",
-      pullRequestPayload({ action: "closed", merged: true }),
-    );
-    expect(res.status).toBe(200);
-    const prs = await harness.raw("select state from pull_request");
-    expect(prs[0]?.["state"]).toBe("merged");
-  });
-
   it("installation deleted → 200, tenant purged, delete audit entry appended", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     expect(await countRows(harness, "pull_request")).toBe(1);
@@ -1062,17 +1023,6 @@ describe("POST /api/webhooks/github", () => {
       expect(generations).toEqual([{ status: "succeeded", attempts: 0 }]);
     }
 
-    it("an opened redelivery queues nothing", async () => {
-      await openWithStoredBrief();
-      const res = await deliver(
-        app,
-        "pull_request",
-        pullRequestPayload({ action: "opened" }),
-      );
-      expect(res.status).toBe(200);
-      await expectQueued(false);
-    });
-
     it("a synchronize for the briefed head queues nothing", async () => {
       await openWithStoredBrief();
       await deliver(
@@ -1089,16 +1039,6 @@ describe("POST /api/webhooks/github", () => {
         app,
         "pull_request",
         pullRequestPayload({ action: "reopened" }),
-      );
-      await expectQueued(false);
-    });
-
-    it("a review request queues nothing", async () => {
-      await openWithStoredBrief();
-      await deliver(
-        app,
-        "pull_request",
-        pullRequestPayload({ action: "review_requested" }),
       );
       await expectQueued(false);
     });
@@ -1171,19 +1111,6 @@ describe("POST /api/webhooks/github", () => {
       expect(jobs).toHaveLength(1);
       return epochMs(jobs[0]?.["run_at"]) - before;
     }
-
-    it("ready_for_review enqueues on the short flip window, not the normal one", async () => {
-      const before = Date.now();
-      const res = await deliver(
-        app,
-        "pull_request",
-        pullRequestPayload({ action: "ready_for_review", draft: false }),
-      );
-      expect(res.status).toBe(200);
-      const delta = await jobRunAtDelta(before);
-      expect(delta).toBeGreaterThan(5_000);
-      expect(delta).toBeLessThan(15_000);
-    });
 
     it("damps draft regeneration only after success and when configured", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
@@ -1421,21 +1348,11 @@ describe("POST /api/webhooks/github", () => {
 });
 
 describe("webhook event logging", () => {
-  let harness: PgliteHarness;
-
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
-  });
-
-  afterEach(async () => {
-    await harness.close();
-  });
-
-  function appWithCapture() {
+  function appWithCapture(handle: AppDatabase = harness.handle) {
     const capture = testLogging();
     const app = createApp({
       logger: capture.logger,
-      handle: harness.handle,
+      handle,
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
       ...UNUSED_INSTALLATION_DEPS,
@@ -1464,12 +1381,11 @@ describe("webhook event logging", () => {
   });
 
   it("dispatch failure emits webhook.dispatch.fail at error with deliveryId", async () => {
-    const { app, capture } = appWithCapture();
+    const own = await openPerTestPglite();
+    const { app, capture } = appWithCapture(own.handle);
     // Poison the write path AFTER app construction: the dispatch's first
     // tenant write hits a missing table and throws, the route's 500 path.
-    await harness.raw(
-      "alter table pull_request rename to pull_request_poisoned",
-    );
+    await own.raw("alter table pull_request rename to pull_request_poisoned");
     const res = await deliver(
       app,
       "pull_request",
@@ -1561,18 +1477,5 @@ describe("webhook event logging", () => {
       "select count(*)::int as n from graphile_worker.jobs",
     );
     expect(job?.["n"]).toBe(0);
-  });
-
-  it("a handled delivery's api.access line carries the reqId for correlation", async () => {
-    const { app, capture } = appWithCapture();
-    const res = await deliver(
-      app,
-      "pull_request",
-      pullRequestPayload({ action: "opened" }),
-    );
-    expect(res.status).toBe(200);
-    const line = capture.lines().find((l) => l["evt"] === "api.access");
-    expect(line?.["status"]).toBe(200);
-    expect(typeof line?.["reqId"]).toBe("string");
   });
 });

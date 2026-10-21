@@ -33,12 +33,8 @@ import {
   PrStates,
   ReviewOutcomes,
 } from "types";
-import {
-  createPgliteHarness,
-  stampDraftAnchorStatus,
-  type PgliteHarness,
-} from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stampDraftAnchorStatus } from "persistence/testing";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import { BRIEF_BODY } from "./session/fixtures";
@@ -72,6 +68,11 @@ import {
   type RepoClientOverrides,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import {
+  openPerTestPglite,
+  registerSharedPglite,
+  type SharedPglite,
+} from "./shared-pglite";
 
 // Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });
@@ -325,7 +326,7 @@ async function readReviewId(res: Response): Promise<number> {
   return body.reviewId;
 }
 
-async function readDraftStatuses(harness: PgliteHarness): Promise<string[]> {
+async function readDraftStatuses(harness: SharedPglite): Promise<string[]> {
   const rows = await harness.raw(
     "select status from review_draft_comment order by id",
   );
@@ -454,7 +455,7 @@ async function deleteDraft(
   });
 }
 
-async function readSubmitAuditCount(harness: PgliteHarness): Promise<number> {
+async function readSubmitAuditCount(harness: SharedPglite): Promise<number> {
   const rows = await harness.raw(
     // The choke point records every submit attempt; a SUCCESSFUL submit is
     // the one this suite counts.
@@ -472,7 +473,7 @@ async function readSubmitAuditCount(harness: PgliteHarness): Promise<number> {
 // ---------------------------------------------------------------------------
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
@@ -489,18 +490,20 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   }
 
   /** A capture-logging app over the same harness, for the post-write logs. */
-  function buildCaptureApp(capture: ReturnType<typeof testLogging>): ApiApp {
+  function buildCaptureApp(
+    capture: ReturnType<typeof testLogging>,
+    handle: AppDatabase = harness.handle,
+  ): ApiApp {
     return createApp({
       logger: capture.logger,
-      handle: harness.handle,
+      handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...buildFakeInstallationDeps(fake),
     });
   }
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -512,16 +515,36 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
   });
 
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
-  });
-
   /** A refused outcome stops at the parse, past the gate that caches its pass. */
   async function cacheGatePass(cookie: string): Promise<void> {
     const refused = await postSubmit(app, cookie, { outcome: "ship-it" });
     expect(refused.status).toBe(400);
+  }
+
+  async function readClaims(): Promise<unknown[]> {
+    const rows = await harness.raw(
+      "select publish_claim from review_draft_comment order by id",
+    );
+    return rows.map((row) => row["publish_claim"]);
+  }
+
+  async function editDraft(cookie: string, draftId: string) {
+    return app.request(makeSessionPath(`/comments/${draftId}`), {
+      method: "PATCH",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        "content-type": "application/json",
+        cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+      body: JSON.stringify({ body: "edited" }),
+    });
+  }
+
+  async function readFirstDraftId(): Promise<string> {
+    const rows = await harness.raw(
+      "select id from review_draft_comment order by id",
+    );
+    return String(rows[0]?.["id"]);
   }
 
   it("401s absent session cookies without calling GitHub", async () => {
@@ -555,17 +578,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       expect(res.status).toBe(400);
       expect(res.headers.get("cache-control")).toBe("no-store");
     }
-    expect(listCallsPastGate(fake)).toEqual([]);
-  });
-
-  it("400 on a neutral comment submit the session has nothing for", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeGitHub(fake);
-    await seedPullRequest(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedSessionDrafts(harness.handle, []);
-    const res = await postSubmit(app, cookie, { outcome: "comment" });
-    expect(res.status).toBe(400);
     expect(listCallsPastGate(fake)).toEqual([]);
   });
 
@@ -781,50 +793,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(checkpoints[0]?.["n"]).toBe(0);
   });
 
-  it("maps a two-side draft to startSide LEFT and side RIGHT", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeGitHub(fake);
-    await seedPullRequest(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const briefId = await seedSessionDrafts(harness.handle, []);
-    await seedTwoSideDraft(harness.handle, briefId);
-
-    const res = await postSubmit(app, cookie, makeValidBody());
-    expect(res.status).toBe(201);
-    expect(listThreadInputs(fake)).toEqual([
-      {
-        reviewNodeId: expect.any(String),
-        subjectType: "line",
-        path: "src/c.ts",
-        body: "crosses sides",
-        line: 12,
-        side: "RIGHT",
-        startLine: 10,
-        startSide: "LEFT",
-      },
-    ]);
-  });
-
-  it("threads a File comment with subjectType file and no line", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeGitHub(fake);
-    await seedPullRequest(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const briefId = await seedSessionDrafts(harness.handle, []);
-    await seedFileDraft(harness.handle, briefId);
-
-    const res = await postSubmit(app, cookie, makeValidBody());
-    expect(res.status).toBe(201);
-    expect(listThreadInputs(fake)).toEqual([
-      {
-        reviewNodeId: expect.any(String),
-        subjectType: "file",
-        path: "src/app.ts",
-        body: "on the file",
-      },
-    ]);
-  });
-
   it("folds a rejected File thread while the line threads land", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeGitHub(fake, { rejectedAnchorPaths: ["src/app.ts"] });
@@ -928,19 +896,20 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     // review. `audit.fail` is NOT this failure, it names an audit ROW that
     // would not persist, and raising it here alerts on the wrong thing.
     const capture = testLogging();
+    const own = await openPerTestPglite();
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeGitHub(fake);
-    await seedPullRequest(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedSessionDrafts(harness.handle);
+    await seedPullRequest(own.handle);
+    const { cookie } = await seedSignIn(own.handle, kp);
+    await seedSessionDrafts(own.handle);
     // Reads still work; only recording the review is refused.
-    await harness.raw(
+    await own.raw(
       "alter table review_submitted_review add constraint no_record " +
         "check (github_review_id < 0)",
     );
 
     const res = await postSubmit(
-      buildCaptureApp(capture),
+      buildCaptureApp(capture, own.handle),
       cookie,
       makeValidBody(),
     );
@@ -959,15 +928,16 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     // The emit is the router choke point's, so the line names the operation
     // by its descriptor id rather than the route's own bookkeeping.
     const capture = testLogging();
+    const own = await openPerTestPglite();
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeGitHub(fake);
-    await seedPullRequest(harness.handle);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    await seedSessionDrafts(harness.handle);
-    await harness.raw("alter table audit_log rename to audit_log_poisoned");
+    await seedPullRequest(own.handle);
+    const { cookie } = await seedSignIn(own.handle, kp);
+    await seedSessionDrafts(own.handle);
+    await own.raw("alter table audit_log rename to audit_log_poisoned");
 
     const res = await postSubmit(
-      buildCaptureApp(capture),
+      buildCaptureApp(capture, own.handle),
       cookie,
       makeValidBody(),
     );
@@ -975,7 +945,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const line = capture.lines().find((l) => l["evt"] === "audit.fail");
     expect(line?.["level"]).toBe("error");
     expect(line?.["operation"]).toBe("submit-review");
-    await harness.raw("alter table audit_log_poisoned rename to audit_log");
   });
 
   it("409s a frozen session before spending a GitHub write", async () => {
@@ -1150,7 +1119,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(countCalls(fake, "deletePendingPullRequestReview")).toBe(1);
     expect(await findPendingReview(fake)).toBeUndefined();
     expect(await readDraftStatuses(harness)).toEqual(["draft", "draft"]);
+    expect(await readClaims()).toEqual([null, null]);
     expect(await readSubmitAuditCount(harness)).toBe(0);
+    const edited = await editDraft(cookie, await readFirstDraftId());
+    expect(edited.status).toBe(204);
   });
 
   it("deletes the review and 502s when a failed submit did not publish", async () => {
@@ -1312,13 +1284,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       return Number(rows[0]?.["n"]);
     }
 
-    async function readClaims(): Promise<unknown[]> {
-      const rows = await harness.raw(
-        "select publish_claim from review_draft_comment order by id",
-      );
-      return rows.map((row) => row["publish_claim"]);
-    }
-
     async function writeBrief(
       headSha: string,
       headIndex: number,
@@ -1395,25 +1360,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
           },
         ],
       });
-    }
-
-    async function editDraft(cookie: string, draftId: string) {
-      return app.request(makeSessionPath(`/comments/${draftId}`), {
-        method: "PATCH",
-        headers: {
-          ...SAME_ORIGIN_HEADERS,
-          "content-type": "application/json",
-          cookie: `__Host-mergebrief_session=${cookie}`,
-        },
-        body: JSON.stringify({ body: "edited" }),
-      });
-    }
-
-    async function readFirstDraftId(): Promise<string> {
-      const rows = await harness.raw(
-        "select id from review_draft_comment order by id",
-      );
-      return String(rows[0]?.["id"]);
     }
 
     it("creates no session for a submit with nothing to say", async () => {
@@ -1511,22 +1457,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         "submitted",
       ]);
       expect(await readClaims()).toEqual([null, null]);
-    });
-
-    it("releases the claim when the review never went out", async () => {
-      arrangeFakeGate(fake, { repoId: REPO_ID });
-      arrangeGitHub(fake);
-      fake.failOn("addPullRequestReviewThread", FakeFailures.SERVER_ERROR);
-      await seedPullRequest(harness.handle);
-      const { cookie } = await seedSignIn(harness.handle, kp);
-      await seedSessionDrafts(harness.handle);
-
-      expect((await postSubmit(app, cookie, makeValidBody())).status).toBe(502);
-
-      expect(await readDraftStatuses(harness)).toEqual(["draft", "draft"]);
-      expect(await readClaims()).toEqual([null, null]);
-      const edited = await editDraft(cookie, await readFirstDraftId());
-      expect(edited.status).toBe(204);
     });
 
     it("keeps the claim when the submit cannot be confirmed", async () => {

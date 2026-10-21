@@ -23,7 +23,9 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const ACME: InstallationId = brandWith(isInstallationId, 10n);
 const OCTO: InstallationId = brandWith(isInstallationId, 20n);
@@ -94,7 +96,7 @@ async function readArchives(handle: AppDatabase): Promise<ArchiveRow[]> {
 
 describe("the inbox archive store", () => {
   it("archives one row per reviewer anchored on the latest brief's head", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_ACME);
     await seedBrief(handle, CTX_ACME, prId, "old-head");
     await seedBrief(handle, CTX_ACME, prId, "new-head");
@@ -116,7 +118,7 @@ describe("the inbox archive store", () => {
   });
 
   it("archiving again moves the anchor instead of adding a row", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_ACME);
     const archives = createTenantRepository(handle, CTX_ACME).archives;
 
@@ -130,7 +132,7 @@ describe("the inbox archive store", () => {
   });
 
   it("a pull request with no brief yet archives with no anchor", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_ACME);
 
     await createTenantRepository(handle, CTX_ACME).archives.set(prId, VIEWER);
@@ -139,7 +141,7 @@ describe("the inbox archive store", () => {
   });
 
   it("two reviewers archive the same row separately", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_ACME);
     const archives = createTenantRepository(handle, CTX_ACME).archives;
 
@@ -153,7 +155,7 @@ describe("the inbox archive store", () => {
   });
 
   it("clear removes the reviewer's row and is a no-op when none exists", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_ACME);
     const archives = createTenantRepository(handle, CTX_ACME).archives;
 
@@ -166,7 +168,7 @@ describe("the inbox archive store", () => {
   });
 
   it("refuses a pull request outside the scope and writes nothing", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_ACME);
 
     const set = await createTenantRepository(handle, CTX_OCTO).archives.set(
@@ -184,7 +186,7 @@ describe("the inbox archive store", () => {
   });
 
   it("the owner world isolates by owner", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_VIEWER);
 
     const foreign = await createTenantRepository(
@@ -209,7 +211,7 @@ describe("the inbox archive store", () => {
   });
 
   it("the row goes with the pull request's cascade", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const prId = await seedRow(handle, CTX_ACME);
     await createTenantRepository(handle, CTX_ACME).archives.set(prId, VIEWER);
 

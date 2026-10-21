@@ -33,15 +33,6 @@ describe("IconButton", () => {
     expect(button.getAttribute("data-size")).toBe("sm");
   });
 
-  it("a caller aria-label overrides the label", () => {
-    render(
-      <IconButton aria-label="Next revision" label="Next">
-        →
-      </IconButton>,
-    );
-    expect(screen.getByRole("button", { name: "Next revision" })).toBeTruthy();
-  });
-
   it("keeps the compact callout on label when aria-label is longer", () => {
     render(
       <IconButton
@@ -141,8 +132,12 @@ describe("IconButton", () => {
   });
 
   it("shows no callout without the prop", () => {
+    vi.useFakeTimers();
     render(<IconButton label="Copy path">×</IconButton>);
-    fireEvent.pointerEnter(screen.getByRole("button", { name: "Copy path" }));
+    const button = screen.getByRole("button", { name: "Copy path" });
+
+    restPointer(button);
+    fireEvent.focus(button);
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
 

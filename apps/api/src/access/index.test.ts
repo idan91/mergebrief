@@ -21,16 +21,7 @@ import {
   type RepoId,
 } from "persistence";
 import { type Mutable, PrStates, AccessLevels } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildAuthDeps } from "../../test/fixtures";
 import type {
   AllowedRepo,
@@ -48,6 +39,7 @@ import {
   type ViewerPrincipal,
 } from "../routes/auth/session/types";
 import { refreshSessionToken } from "../routes/auth/session/logic/refresh";
+import { registerSharedPglite } from "../../test/shared-pglite";
 
 vi.mock("../routes/auth/session/logic/refresh", async (importOriginal) => ({
   ...(await importOriginal<typeof refreshModule>()),
@@ -80,13 +72,7 @@ function brand<T extends bigint>(
   return value;
 }
 
-let harness: PgliteHarness;
-beforeAll(async () => {
-  harness = await createPgliteHarness();
-});
-afterAll(async () => {
-  await harness.close();
-});
+const harness = registerSharedPglite();
 
 const REPO_IN_INSTALLATION = 9101n;
 const OPERATOR_PAT = "operator-pat";

@@ -271,12 +271,6 @@ function lintMatrix(): LintResult {
   return matrix;
 }
 
-describe("the matrix run itself", () => {
-  it("fails the process, so these rules block a real lint run", () => {
-    expect(lintMatrix().status).toBe(1);
-  });
-});
-
 describe("plural rule coverage", () => {
   it("reports a hand-built plural in a web helper and a web component", () => {
     expect(

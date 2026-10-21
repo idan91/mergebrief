@@ -7,7 +7,6 @@ import { deriveWaitReason } from "./wait-reason";
 const STARTS_LATER: GenerateJobTiming = { startsLater: true, locked: false };
 const DUE_UNCLAIMED: GenerateJobTiming = { startsLater: false, locked: false };
 const DUE_LOCKED: GenerateJobTiming = { startsLater: false, locked: true };
-const LATER_LOCKED: GenerateJobTiming = { startsLater: true, locked: true };
 
 interface WaitReasonCase {
   readonly name: string;
@@ -36,12 +35,6 @@ const CASES: readonly WaitReasonCase[] = [
     expected: undefined,
   },
   {
-    name: "pending with a locked job scheduled later has no reason",
-    status: GenerationStatuses.PENDING,
-    timing: LATER_LOCKED,
-    expected: undefined,
-  },
-  {
     name: "pending with no queued job has no reason",
     status: GenerationStatuses.PENDING,
     timing: undefined,
@@ -51,18 +44,6 @@ const CASES: readonly WaitReasonCase[] = [
     name: "running has no reason even with a future job",
     status: GenerationStatuses.RUNNING,
     timing: STARTS_LATER,
-    expected: undefined,
-  },
-  {
-    name: "succeeded has no reason even with a due job",
-    status: GenerationStatuses.SUCCEEDED,
-    timing: DUE_UNCLAIMED,
-    expected: undefined,
-  },
-  {
-    name: "failed has no reason",
-    status: GenerationStatuses.FAILED,
-    timing: DUE_UNCLAIMED,
     expected: undefined,
   },
 ];

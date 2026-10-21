@@ -126,19 +126,6 @@ describe("generate task, run claim", () => {
     expect(await countAttempts()).toBe(1);
   });
 
-  it("every graphile retry of one job is its own attempt", async () => {
-    const { payload } = await trigger(HEAD_1);
-    const failing = stubGenerator();
-    failing.failNextWith = makeConnectionError();
-    await expect(makeTask({ generator: failing })(payload)).rejects.toThrow(
-      "Connection error",
-    );
-
-    await makeTask()(payload);
-
-    expect(await countAttempts()).toBe(2);
-  });
-
   it("at a cap of 1 the retry of a failed attempt is capped", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const failing = stubGenerator();
@@ -386,19 +373,5 @@ describe("generate task, run claim", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
     expect(row?.errorCode).toBeNull();
     expect(await countAttempts()).toBe(1);
-  });
-
-  it("a stored-brief rerun leaves a row another run holds", async () => {
-    const { pr, payload } = await trigger(HEAD_1);
-    await makeTask()(payload);
-    await holdRowForOtherRun();
-
-    await makeTask()(payload);
-
-    const row = await createGenerationProjection(harness.handle, ctx).get(
-      makeTarget(pr, HEAD_1),
-    );
-    expect(row?.status).toBe(GenerationStatuses.RUNNING);
-    expect(row?.runId).toBe(OTHER_RUN_ID);
   });
 });

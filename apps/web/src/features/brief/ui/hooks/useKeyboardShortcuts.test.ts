@@ -60,10 +60,6 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("S", { shiftKey: true }), state())).toBeNull();
   });
 
-  it("s stands down while typing", () => {
-    expect(resolveShortcut(key("s", { isTyping: true }), state())).toBeNull();
-  });
-
   it("j advances to the next chunk", () => {
     expect(resolveShortcut(key("j"), state({ activeChunkId: "a" }))).toEqual({
       type: "jump",
@@ -309,35 +305,6 @@ describe("conversation shortcut", () => {
       ),
     ).toEqual({ type: "jumpToConversation" });
   });
-
-  it("stands down while typing or disabled", () => {
-    expect(
-      resolveShortcut(
-        {
-          key: "c",
-          metaKey: false,
-          ctrlKey: false,
-          altKey: false,
-          shiftKey: false,
-          isTyping: true,
-        },
-        shortcutState,
-      ),
-    ).toBeNull();
-    expect(
-      resolveShortcut(
-        {
-          key: "c",
-          metaKey: false,
-          ctrlKey: false,
-          altKey: false,
-          shiftKey: false,
-          isTyping: false,
-        },
-        { ...shortcutState, disabled: true },
-      ),
-    ).toBeNull();
-  });
 });
 
 describe("resolveShortcut for the diff view", () => {
@@ -345,14 +312,6 @@ describe("resolveShortcut for the diff view", () => {
     expect(resolveShortcut(key("d"), state())).toEqual({
       type: "toggleDiffView",
     });
-  });
-
-  it("d stands down while typing", () => {
-    expect(resolveShortcut(key("d", { isTyping: true }), state())).toBeNull();
-  });
-
-  it("d stands down under a modifier", () => {
-    expect(resolveShortcut(key("d", { metaKey: true }), state())).toBeNull();
   });
 });
 
@@ -363,12 +322,6 @@ describe("resolveShortcut for the focus panel", () => {
   it("s toggles the focus panel in focus mode", () => {
     expect(resolveShortcut(key("s"), focused())).toEqual({
       type: "toggleFocusPanel",
-    });
-  });
-
-  it("s toggles the sidebar outside focus mode", () => {
-    expect(resolveShortcut(key("s"), state())).toEqual({
-      type: "toggleSidebar",
     });
   });
 

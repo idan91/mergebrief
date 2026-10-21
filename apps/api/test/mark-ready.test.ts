@@ -2,16 +2,20 @@
 // route's own GitHub calls reach the `github/testing` fake through the
 // reviewer binding; the repo gate and the OAuth refresh still answer over
 // `fetch`.
-import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
+import {
+  CredentialKinds,
+  FakeFailures,
+  makeFakeGitHub,
+  type FakeGitHub,
+} from "github/testing";
 import {
   createTenantRepository,
   type AppDatabase,
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import {
   INSTALLATION_ID,
@@ -40,6 +44,7 @@ import {
   listCallsPastGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -90,7 +95,7 @@ async function readDraft(handle: AppDatabase): Promise<boolean | undefined> {
   return row?.draft;
 }
 
-async function countReadyAudits(harness: PgliteHarness): Promise<number> {
+async function countReadyAudits(harness: SharedPglite): Promise<number> {
   const rows = await harness.raw(
     "select id from audit_log where operation = 'mark-ready' and outcome = 'ok'",
   );
@@ -98,7 +103,7 @@ async function countReadyAudits(harness: PgliteHarness): Promise<number> {
 }
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
@@ -128,17 +133,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     return target.request(READY_PATH, { method: "POST", headers });
   }
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = buildApp();
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
   });
 
   it("401s an absent session cookie without calling GitHub", async () => {
@@ -300,11 +298,14 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await readDraft(harness.handle)).toBe(false);
   });
 
-  it("401s a second rejection without renewing twice", async () => {
+  it("401s when the write still 401s after a good refresh", async () => {
     const gate = arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeRepository(fake);
-    fake.rejectToken(ACCESS_TOKEN);
-    fake.rejectToken(ROTATED_ACCESS_TOKEN);
+    fake.failOn(
+      "markPullRequestReadyForReview",
+      FakeFailures.UNAUTHORIZED,
+      CredentialKinds.REVIEWER,
+    );
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
@@ -312,6 +313,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
     expect(res.status).toBe(401);
     expect(gate.tokenRefreshes()).toBe(1);
+    expect(fake.listCalls("markPullRequestReadyForReview")).toHaveLength(2);
     expect(await readDraft(harness.handle)).toBe(true);
     expect(await countReadyAudits(harness)).toBe(0);
   });

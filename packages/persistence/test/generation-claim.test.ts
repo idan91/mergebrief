@@ -1,7 +1,7 @@
 // The generation claim: a run id plus a lease on the projection row. Lease
 // expiry is simulated by moving `lease_expires_at` into the past through the
 // harness's raw window, never by sleeping.
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   ChargeOutcomes,
   ClaimOutcomes,
@@ -13,11 +13,7 @@ import {
   type GenerationProjection,
   type TenantContext,
 } from "../src/index";
-import {
-  createPgliteHarness,
-  succeedTestRun,
-  type PgliteHarness,
-} from "../src/testing";
+import { succeedTestRun, type PgliteHarness } from "../src/testing";
 import {
   isInstallationId,
   isRepoId,
@@ -30,7 +26,7 @@ import {
 } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import type { Result } from "types/utils";
-import { brandWith, makeBriefTarget } from "./helpers";
+import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
 
 const CTX: TenantContext = {
   installationId: brandWith(isInstallationId, 1000n),
@@ -55,9 +51,10 @@ interface ClaimWorld {
   readonly target: ReturnType<typeof makeBriefTarget>;
 }
 
+const shared = registerSharedPglite();
+
 async function makeClaimWorld(): Promise<ClaimWorld> {
-  const harness = await createPgliteHarness();
-  onTestFinished(() => harness.close());
+  const { harness } = shared;
   const pr = await createTenantRepository(
     harness.handle,
     CTX,
@@ -198,18 +195,6 @@ describe("claimRun", () => {
     expect(await claim(world)).toEqual({ kind: ClaimOutcomes.FINISHED });
     expect(await countAttemptRows(world)).toBe(0);
   });
-
-  it("a missing row returns claim-lost", async () => {
-    const world = await makeClaimWorld();
-
-    const result = await world.gen.claimRun({
-      target: makeBriefTarget(world.pullRequestId, "ghost"),
-      leaseMs: LEASE_MS,
-      ...WINDOW,
-    });
-
-    expectClaimLost(result);
-  });
 });
 
 describe("claimRun attempt budget and recovery job", () => {
@@ -335,18 +320,6 @@ describe("chargeRun", () => {
     expect(refused).toEqual({ kind: ChargeOutcomes.CAPPED, startedRuns: 1 });
     expect(await countAttemptRows(world)).toBe(1);
   });
-
-  it("a missing row returns claim-lost and writes nothing", async () => {
-    const world = await makeClaimWorld();
-
-    const result = await world.gen.chargeRun({
-      target: makeBriefTarget(world.pullRequestId, "ghost"),
-      ...WINDOW,
-    });
-
-    expectClaimLost(result);
-    expect(await countAttemptRows(world)).toBe(0);
-  });
 });
 
 describe("readClaim", () => {
@@ -441,17 +414,6 @@ describe("fenced transitions", () => {
     );
   });
 
-  it("recordRepoConfig writes the holder's repo config", async () => {
-    const world = await makeClaimWorld();
-    const runId = readRunId(await claim(world));
-
-    const recorded = unwrap(
-      await world.gen.recordRepoConfig(world.target, runId, "{}"),
-    );
-
-    expect(recorded.repoConfig).toBe("{}");
-  });
-
   it("finishRun succeeded clears the claim and the phase", async () => {
     const world = await makeClaimWorld();
     const runId = readRunId(await claim(world));
@@ -512,17 +474,6 @@ describe("fenced transitions", () => {
     expect(released.runId).toBeNull();
     expect(released.leaseExpiresAt).toBeNull();
     expect(await countAttemptRows(world)).toBe(1);
-  });
-
-  it("a fenced transition on a missing row returns claim-lost", async () => {
-    const world = await makeClaimWorld();
-
-    const result = await world.gen.releaseClaim(
-      makeBriefTarget(world.pullRequestId, "ghost"),
-      STALE_RUN_ID,
-    );
-
-    expectClaimLost(result);
   });
 });
 

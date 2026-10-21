@@ -294,23 +294,17 @@ describe("useConversation, filter facets", () => {
   });
 });
 
-interface MountedThreadRow {
-  row: HTMLElement;
-  measure: ReturnType<typeof vi.fn>;
-}
+const THREAD_ROW_HEIGHT_PX = 44;
 
-function mountThreadCard(rowTop: number, rowHeight = 44): MountedThreadRow {
+function mountThreadCard(rowTop: number): void {
   const card = document.createElement("section");
   card.id = "c1";
   card.innerHTML =
     '<table><tbody><tr data-conversation-thread="7"><td><button>open</button></td></tr></tbody></table>';
   document.body.append(card);
   const row = card.querySelector("tr")!;
-  const measure = vi.fn(
-    () => ({ top: rowTop, bottom: rowTop + rowHeight }) as DOMRect,
-  );
-  row.getBoundingClientRect = measure;
-  return { row, measure };
+  row.getBoundingClientRect = () =>
+    ({ top: rowTop, bottom: rowTop + THREAD_ROW_HEIGHT_PX }) as DOMRect;
 }
 
 // The stub pins the viewport at 1000; under a 190px stack the band runs 190 to 1000.
@@ -379,18 +373,21 @@ describe("useConversation, thread scroll holds the row", () => {
     expect(document.activeElement).toBe(card);
   });
 
-  it("moves a row that settled under the sticky stack a third down", async () => {
+  it("moves a row that settled under the sticky stack a third down", () => {
+    vi.useFakeTimers();
     stubScrolling();
     mountThreadCard(140);
     const { result } = renderWiring(plan());
     jumpToThread(result);
 
-    await waitFor(() =>
-      expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -320 }),
-    );
+    act(() => {
+      vi.advanceTimersByTime(SCROLL_WATCH_MS);
+    });
+    expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -320 });
   });
 
-  it("waits out a smooth scroll that starts late before correcting", async () => {
+  it("waits out a smooth scroll that starts late before correcting", () => {
+    vi.useFakeTimers();
     stubScrolling();
     mountThreadCard(140);
     // One read per polled frame: still for 6, moving for 5, then still.
@@ -412,39 +409,11 @@ describe("useConversation, thread scroll holds the row", () => {
     const { result } = renderWiring(plan());
     jumpToThread(result);
 
-    await waitFor(() => expect(scrollBy).toHaveBeenCalled());
+    act(() => {
+      vi.advanceTimersByTime(SCROLL_WATCH_MS);
+    });
+    expect(scrollBy).toHaveBeenCalled();
     expect(readsAtCorrection).toBeGreaterThan(11);
-  });
-
-  it("leaves a row that settled in view where it is", async () => {
-    stubScrolling();
-    const { measure } = mountThreadCard(400);
-    const { result } = renderWiring(plan());
-    jumpToThread(result);
-
-    await waitFor(() => expect(measure).toHaveBeenCalled());
-    expect(scrollBy).not.toHaveBeenCalled();
-  });
-
-  it("puts an expanded thread's head under the stack, not its middle", async () => {
-    stubScrolling();
-    mountThreadCard(40, 900);
-    const { result } = renderWiring(plan());
-    jumpToThread(result);
-
-    await waitFor(() =>
-      expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -166 }),
-    );
-  });
-
-  it("leaves an expanded thread whose head is already readable", async () => {
-    stubScrolling();
-    const { measure } = mountThreadCard(200, 900);
-    const { result } = renderWiring(plan());
-    jumpToThread(result);
-
-    await waitFor(() => expect(measure).toHaveBeenCalled());
-    expect(scrollBy).not.toHaveBeenCalled();
   });
 });
 

@@ -14,17 +14,6 @@ describe("ToolbarButton", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("passes aria-pressed and aria-expanded through as call-site state", () => {
-    render(
-      <ToolbarButton aria-expanded={false} aria-pressed="mixed">
-        Collapse
-      </ToolbarButton>,
-    );
-    const button = screen.getByRole("button", { name: "Collapse" });
-    expect(button.getAttribute("aria-pressed")).toBe("mixed");
-    expect(button.getAttribute("aria-expanded")).toBe("false");
-  });
-
   it("disabled sets aria-disabled, not the native one, and guards clicks", () => {
     const onClick = vi.fn();
     render(

@@ -200,20 +200,6 @@ describe("useReadingSession heading scroll", () => {
     expect(chunk.scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it("nudges a far chunk onto its mark once the scroll settles", () => {
-    vi.useFakeTimers();
-    window.scrollBy = vi.fn();
-    mountGroup(false);
-    const { session } = renderSession();
-
-    act(() => {
-      session.jumpToChunk(firstChunk.id);
-      vi.advanceTimersByTime(200);
-    });
-
-    expect(window.scrollBy).toHaveBeenCalledTimes(1);
-  });
-
   it("falls back to the chunk jump when the heading is not mounted", () => {
     vi.useFakeTimers();
     const { section, chunk } = mountGroup(false);

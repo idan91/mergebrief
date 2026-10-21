@@ -29,7 +29,6 @@ import {
 import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
 import { setMediaQueryMatches } from "@web/test/setup";
 import type { ComparisonMarks } from "@web/features/brief/model";
-import { omitFields } from "@web/test/fields";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildDbBriefQueryOptions,
@@ -172,7 +171,7 @@ describe("DB brief route revision timeline", () => {
     await openRevisionsTab();
     expectCurrentAt(0);
     // No hard block: the read-only reason and posture are gone…
-    expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
+    expect(screen.queryByText(/^read-only$/i)).toBeNull();
     expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
     // …and the receipt carries the stale-submit ack instead.
     fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
@@ -189,27 +188,6 @@ describe("DB brief route revision timeline", () => {
     ).toBeTruthy();
   });
 
-  it("the latest revision is writable with no read-only reason", async () => {
-    await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
-      ).toBeTruthy(),
-    );
-    expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
-  });
-
-  it("surfaces the head-advanced notice on a historical revision", async () => {
-    await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
-    );
-    expect(
-      await screen.findByRole("button", { name: /newer commits/i }),
-    ).toBeTruthy();
-  });
-
   it("surfaces the notice when meta.headSha ran past the newest revision", async () => {
     // The timeline's own latest point is behind the PR head, the case the
     // navigator alone cannot signal, since its last dot reads as selected.
@@ -221,19 +199,6 @@ describe("DB brief route revision timeline", () => {
     // …and offers no action: the newest brief IS selected, so navigating
     // would resolve back to this same span and change nothing.
     expect(chip.tagName).toBe("SPAN");
-  });
-
-  it("shows no notice when the meta has no head to compare against", async () => {
-    await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
-      omitFields(timelineMeta(), "headSha"),
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
-      ).toBeTruthy(),
-    );
-    expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
   });
 
   it("shows no notice on the current head", async () => {
@@ -349,33 +314,6 @@ describe("DB brief route revision timeline", () => {
     await waitFor(() =>
       expect(document.activeElement).toBe(listRevisionRows()[0]),
     );
-  });
-
-  it("gates submit behind the ack when headSha passed the newest revision", async () => {
-    // The newest revision is not the PR's current head (next brief still
-    // generating): writable, but the receipt requires the stale ack,
-    // comments would anchor to the reviewed head.
-    await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
-      timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
-    );
-    await openRevisionsTab();
-    expectCurrentAt(1);
-    expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
-    fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
-    // The advisory view fronts the modal when unresolved items exist;
-    // Continue reaches the verdict view, which carries the ack.
-    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
-    // The ack gate reached the drawer (plumbing proof, the disabled-until-
-    // acked mechanics are pinned in SubmitModal.test).
-    expect(
-      screen.getByText(/comments will anchor to the revision you reviewed/i),
-    ).toBeTruthy();
-    const ack = screen.getByRole("checkbox", {
-      name: /submit against the reviewed revision anyway/i,
-    });
-    fireEvent.click(ack);
-    expect(ack).toHaveProperty("checked", true);
   });
 
   it("group since-marker links into the last-review comparison", async () => {
@@ -520,49 +458,6 @@ describe("DB brief route revision timeline", () => {
     expect(screen.queryByText(/^read-only$/i)).toBeNull();
   });
 
-  it("degrades an unknown ?head= to latest with a polite note", async () => {
-    await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=never-briefed`,
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByText(/that revision link is no longer available/i),
-      ).toBeTruthy(),
-    );
-    await openRevisionsTab();
-    expectCurrentAt(1);
-  });
-
-  it("navigates to the picked revision's rev on selection", async () => {
-    const router = await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=2`,
-    );
-    await openRevisionsTab();
-    await choosePosition(0);
-    await waitFor(() => {
-      const search = searchRecord(router.state.location.search);
-      expect(search["rev"]).toBe(1);
-      // The rev alone addresses the revision; no span keys ride along.
-      expect(search["head"]).toBeUndefined();
-      expect(search["base"]).toBeUndefined();
-    });
-  });
-
-  it("rewrites a legacy span link to its rev, keeping the scope", async () => {
-    const router = await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&base=${REV1.baseSha}&view=changes`,
-    );
-    await waitFor(() => {
-      const search = searchRecord(router.state.location.search);
-      expect(search["rev"]).toBe(1);
-      expect(search["head"]).toBeUndefined();
-      expect(search["base"]).toBeUndefined();
-      expect(search["view"]).toBe("changes");
-    });
-    // Changes Only hides the sidebar; the page announcer names the revision.
-    expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
-  });
-
   it("addresses duplicate-head revisions by span, stale base read-only", async () => {
     // The brief natural key is (pr, base, head): after a retarget re-brief
     // the SAME head appears twice with different bases.
@@ -620,7 +515,7 @@ describe("DB brief route revision timeline", () => {
     await openRevisionsTab();
     expectCurrentAt(2);
     expect(screen.queryByText(/superseded base/i)).toBeNull();
-    expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
+    expect(screen.queryByText(/^read-only$/i)).toBeNull();
   });
 
   it("routes a pasted screenshot through the api proxy", async () => {

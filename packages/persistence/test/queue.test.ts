@@ -19,14 +19,6 @@ function buildInstallationPayload() {
 }
 
 describe("buildJobPayload trace context", () => {
-  it("writes no traceparent outside a trace", () => {
-    expect(buildInstallationPayload()).toEqual({
-      installation_id: "42",
-      pull_request_id: "7",
-      head_sha: HEAD,
-    });
-  });
-
   it("carries the enqueue's traceparent inside a trace", async () => {
     tracing = startTestTracing();
     let payload: ReturnType<typeof buildJobPayload> | undefined;

@@ -1,6 +1,6 @@
 // The Operator's read of one head: how many claims it spent since the last
 // trigger, whether the claim limit is spent, and the takeover job's state.
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   createArtifactStore,
   createGenerationProjection,
@@ -24,8 +24,8 @@ import {
   type InstallationId,
   type RepoId,
 } from "../src/types";
-import { claimTestRun, createPgliteHarness } from "../src/testing";
-import { brandWith, makeBriefTarget } from "./helpers";
+import { claimTestRun, type PgliteHarness } from "../src/testing";
+import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -37,8 +37,6 @@ const NEXT_HEAD = "h2";
 const BASE = "b0";
 const LAPSED = { leaseMs: 0 } as const;
 
-type Harness = Awaited<ReturnType<typeof createPgliteHarness>>;
-
 let pushClock = Date.parse("2026-10-19T00:00:00Z");
 
 /** A pull_request event's `updated_at`, later on every push like GitHub's. */
@@ -47,7 +45,7 @@ function makePushTime(): Date {
   return new Date(pushClock);
 }
 
-function triggerPush(harness: Harness, headSha: string) {
+function triggerPush(harness: PgliteHarness, headSha: string) {
   return createIngestRoutines(harness.handle, CTX_A).triggerGeneration({
     pullRequest: {
       repoId: REPO,
@@ -62,7 +60,7 @@ function triggerPush(harness: Harness, headSha: string) {
 }
 
 /** A review event: no `updated_at`, and its head may be one the PR left. */
-function triggerReview(harness: Harness, headSha: string) {
+function triggerReview(harness: PgliteHarness, headSha: string) {
   return createIngestRoutines(harness.handle, CTX_A).triggerGeneration({
     pullRequest: { repoId: REPO, prNumber: 11, state: PrStates.OPEN },
     headSha,
@@ -71,7 +69,7 @@ function triggerReview(harness: Harness, headSha: string) {
 }
 
 async function storeBrief(
-  harness: Harness,
+  harness: PgliteHarness,
   pullRequestId: PullRequestRowId,
   headSha: string,
 ): Promise<void> {
@@ -89,9 +87,10 @@ async function storeBrief(
   });
 }
 
+const shared = registerSharedPglite();
+
 async function triggerHead() {
-  const harness = await createPgliteHarness();
-  onTestFinished(() => harness.close());
+  const { harness } = shared;
   const triggered = await triggerPush(harness, HEAD);
   const pullRequestId = triggered.pullRequest.id;
   const projection = createGenerationProjection(harness.handle, CTX_A);

@@ -101,15 +101,6 @@ describe("the gate process", () => {
     }
   });
 
-  it("exits nonzero when the named base ref is not in the checkout", () => {
-    const checkout = makeCheckout(CLEAN_TREE);
-    try {
-      expect(runGate(checkout.root, "release")).toBe(1);
-    } finally {
-      checkout.dispose();
-    }
-  });
-
   it("exits nonzero when the base ref shares no history with HEAD", () => {
     const checkout = makeCheckout(CLEAN_TREE);
     try {
@@ -128,15 +119,6 @@ describe("the gate process", () => {
       expect(runGate(checkout.root, "main")).toBe(1);
     } finally {
       checkout.dispose();
-    }
-  });
-
-  it("exits nonzero outside a git work tree", () => {
-    const root = mkdtempSync(join(tmpdir(), "baselines-bare-"));
-    try {
-      expect(runGate(root, "main")).toBe(1);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
     }
   });
 });

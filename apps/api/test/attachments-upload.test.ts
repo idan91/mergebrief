@@ -11,8 +11,7 @@ import {
 } from "github/testing";
 import { createTenantRepository, type KeyProvider } from "persistence";
 import { PrStates, AccessLevels } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { spyPullRequestLookups } from "./pull-request-lookups";
@@ -35,6 +34,7 @@ import {
 } from "./fixtures";
 import { CTX, REPO_ID } from "./session/fixtures";
 import { seedSignIn, seedApiToken } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -64,14 +64,13 @@ function makeOversizedPng(): Uint8Array {
 }
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
   let cookieHeaders: Record<string, string>;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -96,11 +95,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
       ...SAME_ORIGIN_HEADERS,
       Cookie: `__Host-mergebrief_session=${cookie}`,
     };
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function upload(
@@ -169,19 +163,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
       "commitAttachment",
     ]);
     expect(pastGate[0]?.credential.kind).toBe(CredentialKinds.REVIEWER);
-  });
-
-  it("lets an external-write bearer token attach, as the cli does", async () => {
-    const token = await seedApiToken(
-      harness.handle,
-      kp,
-      AccessLevels.EXTERNAL_WRITE,
-    );
-
-    const response = await upload({ authorization: `Bearer ${token}` });
-
-    expect(response.status).toBe(201);
-    expect(listCommits()).toHaveLength(1);
   });
 
   it("answers 429 past the quota, cookie and bearer sharing it", async () => {
@@ -278,14 +259,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/attachments", () => {
 
   it("answers 502 when github rejects the app's own credential", async () => {
     failCommit(FakeFailures.UNAUTHORIZED);
-
-    const response = await upload(cookieHeaders);
-
-    expect(response.status).toBe(502);
-  });
-
-  it("answers 502 when the push fails upstream", async () => {
-    failCommit(FakeFailures.SERVER_ERROR);
 
     const response = await upload(cookieHeaders);
 

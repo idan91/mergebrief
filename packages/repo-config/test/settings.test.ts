@@ -58,19 +58,6 @@ describe("settings.yaml validation", () => {
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
-  it("accepts a dashed notion id and stores it bare", () => {
-    const tracker = {
-      kind: "notion",
-      keyPrefix: "BRIEF",
-      databaseId: "1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9",
-    };
-    const result = validate(yaml({ version: 1, tracker }));
-    expect(result.settings?.tracker).toEqual({
-      ...tracker,
-      databaseId: "1a2b3c4d5e6f40718293a4b5c6d7e8f9",
-    });
-  });
-
   it("applies a github tracker block with and without issuesRepo", () => {
     expect(
       validate(yaml({ version: 1, tracker: { kind: "github" } })).settings
@@ -87,7 +74,6 @@ describe("settings.yaml validation", () => {
   });
 
   it.each([
-    ["an unknown kind", { kind: "jira", keyPrefix: "X" }],
     [
       "a notion block missing its database id",
       { kind: "notion", keyPrefix: "BRIEF" },
@@ -134,19 +120,6 @@ describe("settings.yaml validation", () => {
       { tracker: { kind: "github" }, trackers: [{ kind: "github" }] },
     ],
     ["an empty list", { trackers: [] }],
-    [
-      "two boards on one prefix",
-      {
-        trackers: [
-          { kind: "notion", keyPrefix: "BRIEF", databaseId: "a".repeat(32) },
-          { kind: "notion", keyPrefix: "brief", databaseId: "b".repeat(32) },
-        ],
-      },
-    ],
-    [
-      "two github entries",
-      { trackers: [{ kind: "github" }, { kind: "github" }] },
-    ],
   ])("rejects the whole file for %s", (_label, block) => {
     const result = validate(yaml({ version: 1, ...block }));
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);

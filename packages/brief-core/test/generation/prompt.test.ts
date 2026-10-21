@@ -165,13 +165,6 @@ describe("summary succinctness", () => {
     }
   });
 
-  it("retires the three-part overview/what-it-does structure", () => {
-    expect(buildSystemPrompt()).not.toContain(
-      "fuller plain-English what-it-does",
-    );
-    expect(buildDeltaSystemPrompt()).not.toContain("the fuller what-changed");
-  });
-
   it("keeps the lede framing out of the revision-narrative prompt", () => {
     const narrative = buildRevisionNarrativeSystemPrompt();
     expect(narrative).not.toContain("lede");

@@ -195,76 +195,6 @@ describe("generate task, url-box world", () => {
     });
   });
 
-  it("re-queues the observed head when a url-box PR moves MID-generation", async () => {
-    // The mid-stream poller aborts the SDK call, which surfaces as an abort
-    // rather than a head mismatch, the follow-up must ride that path too.
-    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
-    const grantId = await seedViewerGrant();
-    const pr = await createTenantRepository(
-      harness.handle,
-      ownerCtx,
-    ).pullRequests.upsert({
-      repoId: makeRepoId(7n),
-      prNumber: 7,
-      repoSlug: "acme/widget",
-      state: PrStates.OPEN,
-    });
-    const projection = createGenerationProjection(harness.handle, ownerCtx);
-    await projection.upsertPending(makeTarget(pr, HEAD_1));
-    const github = makeGitHub(HEAD_1);
-    // The pre-flight read sees the job's head; every poll after it sees the
-    // push that supersedes this run.
-    pushHeadAfterFirstRead(github, HEAD_2);
-    const hangingGenerator: Generator = {
-      async generate<S extends z.ZodType>(
-        req: GenerateRequest<S>,
-      ): Promise<z.infer<S>> {
-        return new Promise<never>((_, reject) => {
-          req.signal?.addEventListener("abort", () => {
-            reject(
-              Object.assign(new Error("Request was aborted."), {
-                name: "APIUserAbortError",
-              }),
-            );
-          });
-        });
-      },
-      origin: (effort: Effort) => ({
-        provider: "stub",
-        model: "stub-model",
-        effort,
-      }),
-    };
-    const task = makeTask({
-      generator: hangingGenerator,
-      github,
-      headPollIntervalMs: 5,
-    });
-
-    await task({
-      owner_user_id: "555",
-      grant_id: String(grantId),
-      pull_request_id: String(pr.id),
-      head_sha: HEAD_1,
-    });
-
-    expect((await projection.get(makeTarget(pr, HEAD_1)))?.status).toBe(
-      GenerationStatuses.SUPERSEDED,
-    );
-    expect((await projection.get(makeTarget(pr, HEAD_2)))?.status).toBe(
-      GenerationStatuses.PENDING,
-    );
-    const jobs = await harness.raw(
-      "select payload from graphile_worker.jobs where task_identifier = 'generate'",
-    );
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0]?.["payload"]).toMatchObject({
-      owner_user_id: "555",
-      grant_id: String(grantId),
-      head_sha: HEAD_2,
-    });
-  });
-
   it("queues the successor from the read it already made, not a fresh one", async () => {
     // Every GitHub read after the abort fails. The follow-up must still queue
     // HEAD_2 off the read the watch already made, re-reading here would
@@ -320,9 +250,21 @@ describe("generate task, url-box world", () => {
       head_sha: HEAD_1,
     });
 
+    expect((await projection.get(makeTarget(pr, HEAD_1)))?.status).toBe(
+      GenerationStatuses.SUPERSEDED,
+    );
     expect((await projection.get(makeTarget(pr, HEAD_2)))?.status).toBe(
       GenerationStatuses.PENDING,
     );
+    const jobs = await harness.raw(
+      "select payload from graphile_worker.jobs where task_identifier = 'generate'",
+    );
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.["payload"]).toMatchObject({
+      owner_user_id: "555",
+      grant_id: String(grantId),
+      head_sha: HEAD_2,
+    });
   });
 
   it("a url-box job cannot address an installation tenant's PR", async () => {

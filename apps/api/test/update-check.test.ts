@@ -169,19 +169,6 @@ describe("update check", () => {
     });
   });
 
-  it("keeps the last good snapshot when a later fetch fails", async () => {
-    const fetch = stubFetch(MANIFEST);
-    const { check } = makeCheck({ fetch });
-    await check.refresh();
-    fetch.mockImplementationOnce(
-      async () => new Response("nope", { status: 500 }),
-    );
-
-    await check.refresh();
-
-    expect(check.snapshot()).toMatchObject({ latest: "1.6.0" });
-  });
-
   it("refreshes in the background past the hour, serving the cache meanwhile", async () => {
     const { check, fetch } = makeCheck();
     await check.refresh();

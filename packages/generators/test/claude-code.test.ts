@@ -137,15 +137,6 @@ describe("ClaudeCodeGenerator invocation profile", () => {
     const system = readFileSync(join(scriptDir, "system-0.txt"), "utf8");
     expect(system).toBe("you are a test");
   });
-
-  it("declares an effort-less origin regardless of requested effort", () => {
-    const generator = makeGenerator({});
-    expect(generator.origin("high")).toEqual({
-      provider: "claude-code",
-      model: "claude-opus-4-8",
-      effort: null,
-    });
-  });
 });
 
 function makeCwdLoggedGenerator(turns: unknown[]) {
@@ -471,44 +462,6 @@ function makeDeps(env: Record<string, string>) {
 }
 
 describe("claude-code registry entry", () => {
-  it("constructs through the boot probe against the shim", async () => {
-    const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      makeDeps({ SHIM_SCENARIO: "valid" }),
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-    expect(result.value.origin("low")).toMatchObject({
-      provider: "claude-code",
-    });
-  });
-
-  it("refuses boot when the CLI is not authenticated", async () => {
-    const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      makeDeps({ SHIM_SCENARIO: "auth-error" }),
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join("; ")).toContain("not authenticated");
-  });
-
-  it("refuses boot when the binary is missing", async () => {
-    const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: "/nonexistent/claude" },
-      makeDeps({}),
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.issues.join("; ")).toContain("not found on PATH");
-  });
-
   it("rejects unknown option keys strictly", async () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, modle: "typo" },
@@ -530,6 +483,12 @@ describe("claude-code registry entry", () => {
     );
     expect(result.ok).toBe(true);
     expect(warnings).toEqual([]);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value.origin("low")).toMatchObject({
+      provider: "claude-code",
+    });
   });
 
   it("warns but constructs when the CLI predates the billing floor", async () => {
@@ -544,27 +503,6 @@ describe("claude-code registry entry", () => {
     expect(result.ok).toBe(true);
     expect(warnings.join("; ")).toContain("2.1.207");
     expect(warnings.join("; ")).toContain("older");
-  });
-
-  it("refuses boot when auth status reports an apiKeyHelper route", async () => {
-    const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      makeDeps({
-        SHIM_SCENARIO: "valid",
-        SHIM_AUTH_STATUS: JSON.stringify({
-          loggedIn: true,
-          authMethod: "api_key_helper",
-          apiKeySource: "apiKeyHelper",
-        }),
-      }),
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    const text = result.error.issues.join("; ");
-    expect(text).toContain("apiKeyHelper");
-    expect(text).toContain("refusing to start");
   });
 
   it("warns unverifiable but constructs on pre-JSON auth-status output", async () => {

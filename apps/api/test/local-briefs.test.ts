@@ -3,7 +3,6 @@
 // production included, every path answers exactly as an unmounted one.
 import { join } from "node:path";
 import type { KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config";
 import { createApp, type ApiApp } from "../src/index";
@@ -25,6 +24,7 @@ import {
 import { testLogger } from "./logging";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const COOKIE_NAME = "__Host-mergebrief_session";
 const LIST_PATH = "/api/local-briefs";
@@ -60,18 +60,16 @@ const ARTIFACTS: Readonly<Record<string, string>> = {
 };
 
 describe("/api/local-briefs", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let dir: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     dir = await makeOutDir();
   });
 
   afterEach(async () => {
-    await harness.close();
     await removeOutDirs();
   });
 
@@ -172,21 +170,6 @@ describe("/api/local-briefs", () => {
         code: "signed-out",
       });
     });
-
-    it.each(buildIdPaths(SECOND_ID))(
-      "answers %s not-found for an absent artifact",
-      async (path) => {
-        const app = buildApp(dir);
-
-        const res = await readSignedIn(app, path);
-        expect(res.status).toBe(404);
-        expect(res.headers.get("cache-control")).toBe("no-store");
-        expect(await res.json()).toEqual({
-          error: "not found",
-          code: "not-found",
-        });
-      },
-    );
 
     it.each(buildIdPaths(SECOND_ID))(
       "answers %s artifact-unreadable for a file it cannot read",

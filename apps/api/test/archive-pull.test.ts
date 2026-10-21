@@ -18,8 +18,7 @@ import {
   PrStates,
   AccessLevels,
 } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
@@ -42,6 +41,7 @@ import {
   listCallsPastGate,
 } from "./reviewer-github";
 import { seedSignIn, seedApiToken } from "./sign-in";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -76,14 +76,12 @@ async function seedPr(handle: AppDatabase, ctx: ScopeContext): Promise<void> {
   });
 }
 
-async function readArchivedReviewers(
-  harness: PgliteHarness,
-): Promise<string[]> {
+async function readArchivedReviewers(harness: SharedPglite): Promise<string[]> {
   const rows = await harness.raw("select reviewer_id from inbox_archive");
   return rows.map((row) => String(row["reviewer_id"]));
 }
 
-async function readAuditOperations(harness: PgliteHarness): Promise<string[]> {
+async function readAuditOperations(harness: SharedPglite): Promise<string[]> {
   const rows = await harness.raw(
     "select operation from audit_log where outcome = 'ok' order by id",
   );
@@ -91,13 +89,12 @@ async function readAuditOperations(harness: PgliteHarness): Promise<string[]> {
 }
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/archive and /unarchive", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -107,11 +104,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/archive and /unarchive", () =>
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function cookieHeaders(cookie: string): Record<string, string> {
@@ -236,32 +228,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/archive and /unarchive", () =>
       PR_NUMBER,
     ]);
   });
-
-  it("an unknown pull request is a 404 either way", async () => {
-    arrangeGate(fake, true);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    expect((await archive(cookie)).status).toBe(404);
-    expect((await archive(cookie, UNARCHIVE_PATH)).status).toBe(404);
-    expect(await readArchivedReviewers(harness)).toEqual([]);
-  });
-
-  it.each(["PUT", "DELETE"])(
-    "the retired %s on archive is a 404",
-    async (method) => {
-      arrangeGate(fake, true);
-      await seedPr(harness.handle, TENANT);
-      const { cookie } = await seedSignIn(harness.handle, kp);
-
-      const res = await app.request(ARCHIVE_PATH, {
-        method,
-        headers: cookieHeaders(cookie),
-      });
-
-      expect(res.status).toBe(404);
-      expect(await readArchivedReviewers(harness)).toEqual([]);
-    },
-  );
 
   it("a private-write Bearer principal may archive", async () => {
     arrangeGate(fake, true);

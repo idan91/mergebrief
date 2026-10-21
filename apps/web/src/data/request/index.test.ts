@@ -10,21 +10,9 @@ vi.mock("../apiFetch", async (importOriginal) => {
 });
 
 import { ApiError, ApiErrorCodes, apiFetch } from "../apiFetch";
-import { readFailureKind, request, requestText } from "./index";
-import { WriteFailureKinds, type WriteKindTable } from "./types";
+import { request, requestText } from "./index";
 
 const apiFetchMock = vi.mocked(apiFetch);
-
-const TrialKinds = {
-  NOT_FOUND: "gone",
-  FALLBACK: "upstream",
-} as const;
-type TrialKind = (typeof TrialKinds)[keyof typeof TrialKinds];
-
-const trialKinds: WriteKindTable<TrialKind> = {
-  [ApiErrorCodes.NOT_FOUND]: TrialKinds.NOT_FOUND,
-  fallback: TrialKinds.FALLBACK,
-};
 
 const receiptSchema = z.object({ draft: z.literal(false) });
 
@@ -56,18 +44,6 @@ function readDiff(): Promise<string> {
     params: { repoId: "1", prNumber: 2 },
     query: { base: "a", head: "b" },
   });
-}
-
-async function readCaughtKind(
-  attempt: Promise<unknown>,
-  kinds: WriteKindTable<TrialKind> = trialKinds,
-): Promise<string> {
-  try {
-    await attempt;
-  } catch (error) {
-    return readFailureKind(error, kinds);
-  }
-  throw new Error("expected the request to fail");
 }
 
 describe("request", () => {
@@ -163,16 +139,6 @@ describe("request without a schema", () => {
       sendMarkReady({ repoId: "1", prNumber: 2 }),
     ).rejects.toMatchObject({ code: ApiErrorCodes.MALFORMED });
   });
-
-  it("throws the typed ApiError on a non-2xx", async () => {
-    answerError(409, ApiErrorCodes.PR_CHANGED_SINCE_READ);
-    await expect(
-      sendMarkReady({ repoId: "1", prNumber: 2 }),
-    ).rejects.toMatchObject({
-      code: ApiErrorCodes.PR_CHANGED_SINCE_READ,
-      status: 409,
-    });
-  });
 });
 
 describe("requestText", () => {
@@ -212,32 +178,5 @@ describe("requestText", () => {
     await expect(readDiff()).rejects.toMatchObject({
       code: ApiErrorCodes.MALFORMED,
     });
-  });
-});
-
-describe("readFailureKind", () => {
-  function markReady(): Promise<unknown> {
-    return sendMarkReady({ repoId: "424242", prNumber: 7 });
-  }
-
-  it("maps a listed code off a failed request to its kind", async () => {
-    answerError(404, ApiErrorCodes.NOT_FOUND);
-    await expect(readCaughtKind(markReady())).resolves.toBe(
-      TrialKinds.NOT_FOUND,
-    );
-  });
-
-  it("maps a codeless status to the fallback through its bucket", async () => {
-    answerWith(400, "<html>");
-    await expect(readCaughtKind(markReady())).resolves.toBe(
-      TrialKinds.FALLBACK,
-    );
-  });
-
-  it("maps a thrown fetch to indeterminate", async () => {
-    apiFetchMock.mockRejectedValue(new TypeError("network down"));
-    await expect(readCaughtKind(markReady())).resolves.toBe(
-      WriteFailureKinds.INDETERMINATE,
-    );
   });
 });

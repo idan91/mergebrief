@@ -1,9 +1,10 @@
-// Disposition command tests against the REAL api app. Risk ops pin the -F
-// requirement, the --reason mutual exclusion and the human-only relay; the rest
-// pin receipts and the span versus no-span split. The GitHub GraphQL boundary is
-// stubbed at global fetch, following the api test pattern.
+// Disposition command tests. Against the REAL api app: reclassify, thread
+// resolve and ready, with the GitHub GraphQL boundary stubbed at global
+// fetch. Over the offline runner: the risk ops' -F requirement and --reason
+// exclusion. Over a scripted api: the human-only relay with the merged
+// --reason, outcome and unresolve.
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -24,13 +25,17 @@ import { PrStates, ReviewOutcomes, AccessLevels } from "types";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
+import {
+  expectRefusedBeforeRequest,
+  expectRelayedRequest,
+  HUMAN_ONLY_REFUSAL,
+  OFFLINE_REPO_ID,
+  OFFLINE_REPOS_ROUTE,
+  runCliOffline,
+} from "./harness/offline";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
 
@@ -42,6 +47,18 @@ const HEAD_SHA = "b".repeat(40);
 const SPAN = ["--base", BASE_SHA, "--head", HEAD_SHA];
 const ROOT_COMMENT_ID = 12345;
 const THREAD_NODE_ID = "PRRT_thread1";
+const SPAN_QUERY = `base=${BASE_SHA}&head=${HEAD_SHA}`;
+const PULL_PATH = `/api/repos/${OFFLINE_REPO_ID}/pulls/7`;
+const FLAG = {
+  filePath: "src/a.ts",
+  attribute: "sql-injection",
+  regionStart: 10,
+  regionEnd: 14,
+};
+const FLAGS_PAYLOAD = JSON.stringify({ flags: [FLAG] });
+const ADDRESS_PAYLOAD = JSON.stringify({
+  flags: [{ ...FLAG, evidence: { kind: "manual-note", ref: "by hand" } }],
+});
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -209,7 +226,7 @@ describe("disposition commands over the real api app", () => {
     readonly err: string[];
   }
 
-  async function run(argv: string[], stdin?: string): Promise<Run> {
+  async function run(argv: string[]): Promise<Run> {
     const out: string[] = [];
     const err: string[] = [];
     const token = await seedToken();
@@ -221,12 +238,8 @@ describe("disposition commands over the real api app", () => {
       stdout: (t) => out.push(t),
       stderr: (l) => err.push(l),
       readStdin: async () => {
-        if (stdin === undefined) {
-          throw new Error("stdin not expected");
-        }
-        return stdin;
+        throw new Error("stdin not expected");
       },
-      readFile: (path) => readFileSync(path, "utf8"),
       gitOriginUrl: () => "git@github.com:octo/hello.git",
     });
     return { code, out: out.join(""), err };
@@ -250,167 +263,6 @@ describe("disposition commands over the real api app", () => {
     expect(code).toBe(ExitCodes.OK);
   }
 
-  const FLAGS_PAYLOAD = JSON.stringify({
-    flags: [
-      {
-        filePath: "src/a.ts",
-        attribute: "sql-injection",
-        regionStart: 10,
-        regionEnd: 14,
-      },
-    ],
-  });
-
-  it("risk dismiss without -F exits 2 with one line naming the requirement", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "risk",
-      "dismiss",
-      "7",
-      "--reason",
-      "false positive",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("-F");
-  });
-
-  it("risk dismiss --reason conflicts with a payload reason, exit 2", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const withReason = JSON.stringify({
-      flags: [],
-      reason: "already here",
-    });
-    const result = await run(
-      [
-        "risk",
-        "dismiss",
-        "7",
-        "-F",
-        "-",
-        "--reason",
-        "twice",
-        ...SPAN,
-        "--json",
-      ],
-      withReason,
-    );
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("--reason");
-  });
-
-  it("risk dismiss --reason on a non-object payload exits 2, nothing merged", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const bareArray = JSON.stringify([
-      {
-        filePath: "src/a.ts",
-        attribute: "sql-injection",
-        regionStart: 10,
-        regionEnd: 14,
-      },
-    ]);
-    const result = await run(
-      [
-        "risk",
-        "dismiss",
-        "7",
-        "-F",
-        "-",
-        "--reason",
-        "nope",
-        ...SPAN,
-        "--json",
-      ],
-      bareArray,
-    );
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("JSON object");
-  });
-
-  it("risk ops relay the server's human-only refusal as exit 5", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const dismissed = await run(
-      [
-        "risk",
-        "dismiss",
-        "7",
-        "-F",
-        "-",
-        "--reason",
-        "false positive",
-        ...SPAN,
-        "--json",
-      ],
-      FLAGS_PAYLOAD,
-    );
-    expect(dismissed.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(dismissed.out).toBe("");
-    expect(dismissed.err).toHaveLength(1);
-    expect(dismissed.err[0]).toContain("403");
-
-    const addressed = await run(
-      ["risk", "address", "7", "-F", "-", ...SPAN, "--json"],
-      JSON.stringify({
-        flags: [
-          {
-            filePath: "src/a.ts",
-            attribute: "sql-injection",
-            regionStart: 10,
-            regionEnd: 14,
-            evidence: { kind: "manual-note", ref: "checked by hand" },
-          },
-        ],
-      }),
-    );
-    expect(addressed.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(addressed.err[0]).toContain("403");
-
-    const reopened = await run(
-      ["risk", "reopen", "7", "-F", "-", ...SPAN, "--json"],
-      FLAGS_PAYLOAD,
-    );
-    expect(reopened.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(reopened.err[0]).toContain("403");
-  });
-
-  it("risk ops without the span exit 2 before any target resolution", async () => {
-    await login();
-    const token = await seedToken();
-    const requested: string[] = [];
-    const out: string[] = [];
-    const err: string[] = [];
-    const recordingFetch: CliDeps["fetch"] = async (input, init) => {
-      requested.push(input);
-      return appFetch(input, init);
-    };
-    const code = await runCli(["risk", "reopen", "7", "-F", "-", "--json"], {
-      fetch: recordingFetch,
-      env: { MERGEBRIEF_TOKEN: token },
-      configDir,
-      cacheDir,
-      stdout: (t) => out.push(t),
-      stderr: (l) => err.push(l),
-      readStdin: async () => FLAGS_PAYLOAD,
-      gitOriginUrl: () => "git@github.com:nobody/nothing.git",
-    });
-    expect(code).toBe(ExitCodes.USAGE);
-    expect(out.join("")).toBe("");
-    expect(err).toHaveLength(1);
-    expect(err[0]).toContain("--base and --head");
-    expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
-  });
-
   it("reclassify --category writes the override and prints nothing", async () => {
     await seedSessionedPr(harness.handle);
     await login();
@@ -431,38 +283,6 @@ describe("disposition commands over the real api app", () => {
     expect(session.out).toContain(
       '"reclassifications":[{"changeGroupId":"grp-1","category":"bugfix"}]',
     );
-  });
-
-  it("reclassify with an unknown category relays the 400 as exit 5", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "reclassify",
-      "7",
-      "grp-1",
-      "--category",
-      "nonsense",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-  });
-
-  it("outcome sets the session intent; receipt verbatim", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const result = await run([
-      "outcome",
-      "7",
-      "request-changes",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(result.out)).toEqual({ outcome: "request-changes" });
   });
 
   it("thread resolve flips over GitHub with a verbatim receipt, no span", async () => {
@@ -487,44 +307,6 @@ describe("disposition commands over the real api app", () => {
     });
   });
 
-  it("thread unresolve mirrors resolve", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    stubGitHub(world, [
-      {
-        repository: {
-          pullRequest: {
-            reviewThreads: {
-              pageInfo: { hasNextPage: false, endCursor: null },
-              nodes: [
-                {
-                  id: THREAD_NODE_ID,
-                  isResolved: true,
-                  comments: {
-                    nodes: [{ fullDatabaseId: String(ROOT_COMMENT_ID) }],
-                  },
-                },
-              ],
-            },
-          },
-        },
-      },
-      { unresolveReviewThread: { thread: { isResolved: false } } },
-    ]);
-    const result = await run([
-      "thread",
-      "unresolve",
-      "7",
-      String(ROOT_COMMENT_ID),
-      "--json",
-    ]);
-    expect(result.code).toBe(ExitCodes.OK);
-    expect(JSON.parse(result.out)).toEqual({
-      resolved: false,
-      alreadyInTargetState: false,
-    });
-  });
-
   it("ready marks the PR ready with empty stdout and no span", async () => {
     await seedSessionedPr(harness.handle);
     await login();
@@ -542,21 +324,103 @@ describe("disposition commands over the real api app", () => {
       expect(result.out).toBe("");
     }
   });
+});
 
-  it("an invalid PR number exits 2 on every disposition command", async () => {
-    await login();
-    for (const argv of [
-      ["risk", "dismiss", "x", "-F", "-", ...SPAN, "--json"],
-      ["reclassify", "x", "grp-1", "--category", "bugfix", ...SPAN, "--json"],
-      ["outcome", "x", "comment", ...SPAN, "--json"],
-      ["thread", "resolve", "x", "1", "--json"],
-      ["ready", "x", "--json"],
-    ]) {
-      const result = await run(argv, FLAGS_PAYLOAD);
-      expect(result.code).toBe(ExitCodes.USAGE);
+describe("risk refusals before any request", () => {
+  it("risk dismiss without -F exits 2 with one line naming the requirement", async () => {
+    const result = await runCliOffline([
+      "risk",
+      "dismiss",
+      "7",
+      "--reason",
+      "false positive",
+      ...SPAN,
+      "--json",
+    ]);
+    expectRefusedBeforeRequest(result, "-F");
+  });
+
+  it("risk dismiss --reason conflicts with a payload reason, exit 2", async () => {
+    const result = await runCliOffline(
+      ["risk", "dismiss", "7", "-F", "-", "--reason", "twice", ...SPAN],
+      { stdin: JSON.stringify({ flags: [], reason: "already here" }) },
+    );
+    expectRefusedBeforeRequest(result, "--reason");
+  });
+
+  it("risk dismiss --reason on a non-object payload exits 2, nothing merged", async () => {
+    const result = await runCliOffline(
+      ["risk", "dismiss", "7", "-F", "-", "--reason", "nope", ...SPAN],
+      { stdin: JSON.stringify([FLAG]) },
+    );
+    expectRefusedBeforeRequest(result, "JSON object");
+  });
+});
+
+describe("disposition relays over a scripted api", () => {
+  it.each([
+    [
+      ["risk", "dismiss", "7", "-F", "-", "--reason", "false positive"],
+      FLAGS_PAYLOAD,
+      JSON.stringify({ flags: [FLAG], reason: "false positive" }),
+    ],
+    [["risk", "address", "7", "-F", "-"], ADDRESS_PAYLOAD, ADDRESS_PAYLOAD],
+    [["risk", "reopen", "7", "-F", "-"], FLAGS_PAYLOAD, FLAGS_PAYLOAD],
+  ])(
+    "%j relays the server's human-only refusal as exit 5",
+    async (argv, stdin, sent) => {
+      const route = {
+        method: "POST",
+        path: `${PULL_PATH}/session/risks/${argv[1]}?${SPAN_QUERY}`,
+        status: 403,
+        body: HUMAN_ONLY_REFUSAL,
+      };
+      const result = await runCliOffline([...argv, ...SPAN, "--json"], {
+        stdin,
+        routes: [OFFLINE_REPOS_ROUTE, route],
+      });
+      expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
       expect(result.out).toBe("");
       expect(result.err).toHaveLength(1);
-      expect(result.err[0]).toContain("PR number");
-    }
+      expect(result.err[0]).toContain("403");
+      expectRelayedRequest(result, route, sent);
+    },
+  );
+
+  it("outcome sets the session intent; receipt verbatim", async () => {
+    const receipt = JSON.stringify({ outcome: "request-changes" });
+    const route = {
+      method: "PUT",
+      path: `${PULL_PATH}/session/outcome?${SPAN_QUERY}`,
+      body: receipt,
+    };
+    const result = await runCliOffline(
+      ["outcome", "7", "request-changes", ...SPAN, "--json"],
+      { routes: [OFFLINE_REPOS_ROUTE, route] },
+    );
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(receipt);
+    expectRelayedRequest(result, route, receipt);
+  });
+
+  it("thread unresolve mirrors resolve", async () => {
+    const receipt = JSON.stringify({
+      resolved: false,
+      alreadyInTargetState: false,
+    });
+    const route = {
+      method: "POST",
+      path: `${PULL_PATH}/comments/${ROOT_COMMENT_ID}/unresolve`,
+      body: receipt,
+    };
+    const result = await runCliOffline(
+      ["thread", "unresolve", "7", String(ROOT_COMMENT_ID), "--json"],
+      { routes: [OFFLINE_REPOS_ROUTE, route] },
+    );
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(receipt);
+    expectRelayedRequest(result, route, undefined);
   });
 });

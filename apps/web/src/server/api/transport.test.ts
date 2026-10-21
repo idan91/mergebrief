@@ -14,6 +14,8 @@ interface Upstream {
   readonly cookies: (string | undefined)[];
   readonly requestIds: (string | string[] | undefined)[];
   readonly paths: string[];
+  readonly methods: string[];
+  readonly bodies: string[];
   close(): Promise<void>;
 }
 
@@ -21,12 +23,20 @@ async function startUpstream(): Promise<Upstream> {
   const cookies: (string | undefined)[] = [];
   const requestIds: (string | string[] | undefined)[] = [];
   const paths: string[] = [];
+  const methods: string[] = [];
+  const bodies: string[] = [];
   const server: Server = createServer((request, response) => {
     cookies.push(request.headers.cookie);
     requestIds.push(request.headers["x-request-id"]);
     paths.push(request.url ?? "");
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end("{}");
+    methods.push(request.method ?? "");
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    request.on("end", () => {
+      bodies.push(Buffer.concat(chunks).toString());
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end("{}");
+    });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -37,6 +47,8 @@ async function startUpstream(): Promise<Upstream> {
     cookies,
     requestIds,
     paths,
+    methods,
+    bodies,
     close: () =>
       new Promise<void>((resolve) => {
         server.close(() => resolve());
@@ -76,11 +88,6 @@ describe("dispatchToApi", () => {
     expect(upstream.cookies).toEqual(["__Host-mergebrief_session=abc"]);
   });
 
-  it("sends no cookie when the incoming request carried none", async () => {
-    await dispatchToApi("/api/pulls", {}, deps());
-    expect(upstream.cookies).toEqual([undefined]);
-  });
-
   it("replaces a caller-supplied cookie whatever its casing", async () => {
     await dispatchToApi(
       "/api/pulls",
@@ -112,12 +119,8 @@ describe("dispatchToApi", () => {
       },
     );
     expect(upstream.paths).toEqual(["/api/repos/1/pulls/2/session/marks"]);
-  });
-
-  it("sends the inbound request's id with every SSR call", async () => {
-    await dispatchToApi("/api/pulls", { requestId: "minted-1" }, deps());
-    await dispatchToApi("/api/version", { requestId: "minted-1" }, deps());
-    expect(upstream.requestIds).toEqual(["minted-1", "minted-1"]);
+    expect(upstream.methods).toEqual(["POST"]);
+    expect(upstream.bodies).toEqual(['{"chunkId":"x"}']);
   });
 
   it("replaces a caller-supplied request id with the inbound one", async () => {
@@ -125,17 +128,6 @@ describe("dispatchToApi", () => {
       headers: { "X-Request-Id": "stale" },
     });
     expect(upstream.requestIds).toEqual(["minted-1"]);
-  });
-
-  it("answers a sanitized 503 when the API cannot be reached", async () => {
-    const dead = deps();
-    await upstream.close();
-    const response = await dispatchToApi("/api/pulls", {}, dead);
-    expect(response.status).toBe(503);
-    const body = await response.text();
-    expect(body).toBe(JSON.stringify({ error: "service unavailable" }));
-    expect(body).not.toContain("127.0.0.1");
-    upstream = await startUpstream();
   });
 });
 

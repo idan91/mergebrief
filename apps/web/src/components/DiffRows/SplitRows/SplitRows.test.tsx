@@ -145,13 +145,6 @@ describe("SplitRows", () => {
     ).toBe("6:3");
   });
 
-  it("spans a hunk row across every column", () => {
-    const view = renderSplit({ gutterCell: () => <td>g</td> });
-    const hunk = view.container.querySelector("tbody > tr > td");
-
-    expect(hunk?.getAttribute("colspan")).toBe("5");
-  });
-
   it("carries the kind on the cells, not the row", () => {
     const view = renderSplit();
     const pair = view.container.querySelectorAll("tbody > tr")[2];

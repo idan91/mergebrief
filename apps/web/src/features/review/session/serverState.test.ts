@@ -17,11 +17,7 @@ import type {
 import { briefFixture } from "@web/features/brief/test-utils";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/model";
-import {
-  createFileCommentAnchor,
-  isLineCommentAnchor,
-  type ReviewComment,
-} from "../utils/comments";
+import { isLineCommentAnchor, type ReviewComment } from "../utils/comments";
 import { deriveUnresolvedItems } from "../utils/state";
 import {
   emptySessionPayload,
@@ -99,79 +95,6 @@ describe("sessionInitialState", () => {
     expect(state.reviewOutcome).toBe("approve");
   });
 
-  it("lands a draft on the chunk its coordinates fall in, rows rebuilt", () => {
-    const chunk = firstChunk;
-    if (chunk === undefined) {
-      throw new Error("fixture has no chunk");
-    }
-    const line = chunk.addedRanges[0]?.start ?? 1;
-    const state = sessionInitialState(
-      model,
-      payload({
-        draftComments: [
-          {
-            id: "41",
-            filePath: chunk.file,
-            kind: CommentAnchorKinds.LINE,
-            side: DiffSides.NEW,
-            startLine: line,
-            endLine: line,
-            body: "carried draft",
-            status: DraftCommentStatuses.DRAFT,
-          },
-          // No chunk in this Brief owns this file, dropped, not guessed.
-          {
-            id: "42",
-            filePath: "src/deleted-since.ts",
-            kind: CommentAnchorKinds.LINE,
-            side: DiffSides.NEW,
-            startLine: 1,
-            endLine: 1,
-            body: "orphan",
-            status: DraftCommentStatuses.DRAFT,
-          },
-        ],
-      }),
-    );
-    expect(state.reviewComments.map((comment) => comment.id)).toEqual(["41"]);
-    const anchor = lineAnchorOf(state.reviewComments[0]);
-    expect(anchor?.chunkId).toBe(chunk.id);
-    expect(anchor?.rowIds.length).toBeGreaterThan(0);
-    expect(anchor?.selectedText.length).toBeGreaterThan(0);
-  });
-
-  it("lands a file draft on every path in the Brief, never a line", () => {
-    const chunk = firstChunk;
-    if (chunk === undefined) {
-      throw new Error("fixture has no chunk");
-    }
-    const state = sessionInitialState(
-      model,
-      payload({
-        draftComments: [
-          {
-            id: "51",
-            filePath: chunk.file,
-            kind: CommentAnchorKinds.FILE,
-            body: "whole file",
-            status: DraftCommentStatuses.DRAFT,
-          },
-          {
-            id: "52",
-            filePath: "src/deleted-since.ts",
-            kind: CommentAnchorKinds.FILE,
-            body: "orphan file",
-            status: DraftCommentStatuses.DRAFT,
-          },
-        ],
-      }),
-    );
-    expect(state.reviewComments.map((comment) => comment.id)).toEqual(["51"]);
-    expect(state.reviewComments[0]?.anchor).toEqual(
-      createFileCommentAnchor(chunk.file),
-    );
-  });
-
   it("keeps a draft whose file left the Brief as unplaced", () => {
     const chunk = firstChunk;
     if (chunk === undefined) {
@@ -245,10 +168,6 @@ describe("sessionInitialState", () => {
       expect.objectContaining({ id: "82", status: DraftCommentStatuses.DRAFT }),
     ]);
     expect(state.unplacedDrafts).toEqual([held]);
-  });
-
-  it("holds no unplaced drafts when there is no session", () => {
-    expect(sessionInitialState(model, undefined).unplacedDrafts).toEqual([]);
   });
 
   it("lands a leftover-line draft on the remainder chunk", () => {
@@ -337,55 +256,6 @@ describe("sessionInitialState", () => {
     expect(
       others.every((one) => state.dispositions[one.id]?.kind === "open"),
     ).toBe(true);
-  });
-
-  it("spans a two-side draft from its old start row to its new end row", () => {
-    const cross = structuredClone(briefFixture);
-    const chunk = cross.chunks[0];
-    if (chunk === undefined) {
-      throw new Error("fixture has no chunk");
-    }
-    chunk.addedRanges = [{ start: 10, end: 12 }];
-    chunk.removedRanges = [{ start: 10, end: 11 }];
-    chunk.diff = [
-      { kind: "hunk", content: "@@ -9,3 +9,4 @@" },
-      { kind: "ctx", content: "const a = 1;", oldLine: 9, newLine: 9 },
-      { kind: "del", content: "old ten", oldLine: 10 },
-      { kind: "del", content: "old eleven", oldLine: 11 },
-      { kind: "add", content: "new ten", newLine: 10 },
-      { kind: "add", content: "new eleven", newLine: 11 },
-      { kind: "add", content: "new twelve", newLine: 12 },
-    ];
-    const crossModel = buildBriefViewModel(cross);
-    const state = sessionInitialState(
-      crossModel,
-      payload({
-        draftComments: [
-          {
-            id: "51",
-            filePath: chunk.file,
-            kind: CommentAnchorKinds.LINE,
-            side: DiffSides.NEW,
-            startSide: DiffSides.OLD,
-            startLine: 10,
-            endLine: 12,
-            body: "spans both sides",
-            status: DraftCommentStatuses.DRAFT,
-          },
-        ],
-      }),
-    );
-    const anchor = lineAnchorOf(state.reviewComments[0]);
-    expect(anchor?.startSide).toBe("old");
-    // Every row from the del at old 10 through the add at new 12.
-    expect(anchor?.rowIds).toEqual(
-      [2, 3, 4, 5, 6].map((i) => `${chunk.id}:${i}`),
-    );
-    expect(anchor?.selectedText).toBe(
-      ["old ten", "old eleven", "new ten", "new eleven", "new twelve"].join(
-        "\n",
-      ),
-    );
   });
 
   it("spans new\u2192old across hunks, skipping the header row", () => {

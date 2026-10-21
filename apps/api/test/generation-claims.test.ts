@@ -9,11 +9,7 @@ import {
   type KeyProvider,
   type TenantContext,
 } from "persistence";
-import {
-  claimTestRun,
-  createPgliteHarness,
-  type PgliteHarness,
-} from "persistence/testing";
+import { claimTestRun } from "persistence/testing";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
@@ -21,7 +17,7 @@ import {
   QueueTasks,
   TakeoverJobStates,
 } from "types";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
@@ -38,6 +34,7 @@ import {
   buildFakeAuthDeps,
 } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_A = 424242;
 const HEAD = "head-1";
@@ -52,14 +49,13 @@ const CTX: TenantContext = {
 };
 
 describe("GET /api/repos/:repoId/pulls/:prNumber/generation", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let cookie: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -75,10 +71,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber/generation", () => {
       push: false,
     });
     ({ cookie } = await seedSignIn(harness.handle, kp));
-  });
-
-  afterEach(async () => {
-    await harness.close();
   });
 
   async function readClaims(): Promise<Record<string, unknown>> {

@@ -49,30 +49,6 @@ async function renderRows(filter: FilterView) {
 }
 
 describe("FilterRows", () => {
-  it("leads with the All row, ticked at All, and reports its choice", async () => {
-    const all = {
-      label: "All review states",
-      triggerLabel: "All",
-      checked: true,
-      onChoose: vi.fn(),
-    };
-    await renderRows(makeFilter({ all }));
-
-    const rows = screen.getAllByRole("option");
-    expect(rows.map((row) => row.textContent)).toEqual([
-      "All review states",
-      "New",
-      "Reviewed",
-    ]);
-    expect(rows[0]?.getAttribute("aria-selected")).toBe("true");
-    expect(rows[0]?.getAttribute("aria-disabled")).toBeNull();
-
-    await act(async () => {
-      fireEvent.click(rows[0]!);
-    });
-    expect(all.onChoose).toHaveBeenCalledOnce();
-  });
-
   it("gives the All row a glyph box only beside marked rows", async () => {
     const all = {
       label: "All review states",

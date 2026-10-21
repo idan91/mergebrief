@@ -27,6 +27,8 @@ import { createMigratedPglite } from "./pglite-snapshot";
 // before workers fork, so a cold cache is paid sequentially instead of by
 // every worker at once under coverage instrumentation.
 export { warmPgliteSnapshot } from "./pglite-snapshot";
+// One instance per test file: reset between tests instead of booting anew.
+export { resetPgliteHarness } from "./pglite-reset";
 // The suites PGlite cannot exercise, in this package and the worker.
 export { readTestPostgresUrl, type TestPostgresUrl } from "./postgres-url";
 

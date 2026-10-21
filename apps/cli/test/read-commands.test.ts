@@ -1,7 +1,7 @@
 // Read-command tests: passthrough byte-fidelity against the REAL api app, the
-// TTY versus --json split, `diff --json` rejection, and both arms of the delta
-// union over controlled PR-meta bodies. The arms are pure CLI logic; the
-// passthrough tests cover the real wire.
+// TTY versus --json split, the `--group` hunk filter, and both arms of the
+// delta union over controlled PR-meta bodies. The arms and the not-generated
+// refusal are pure CLI logic; the passthrough tests cover the real wire.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,13 +28,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { runDelta } from "../src/commands/read/run";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
+import {
+  OFFLINE_REPO_ID,
+  OFFLINE_REPOS_ROUTE,
+  runCliOffline,
+} from "./harness/offline";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
 
@@ -349,21 +350,6 @@ describe("read commands over the real api app", () => {
     expect(result.out).toBe(BRIEF_BODY);
   });
 
-  it("groups exits 4 with an honest line while the brief is not generated", async () => {
-    await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
-      repoId: brand(isRepoId, REPO_A),
-      prNumber: 7,
-      repoSlug: "octo/hello",
-      state: PrStates.OPEN,
-    });
-    await login();
-    const result = await run(["groups", "7", "--json"]);
-    expect(result.code).toBe(ExitCodes.NOT_FOUND);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("no brief generated yet");
-  });
-
   it("conversation --json is verbatim passthrough", async () => {
     await seedBriefedPr(harness.handle);
     await login();
@@ -376,23 +362,13 @@ describe("read commands over the real api app", () => {
     expect(result.out).toBe(wire.bodyText);
   });
 
-  it("diff rejects --json with exit 2 and passes the raw diff otherwise", async () => {
+  it("diff relays the raw diff; --group keeps the group's whole hunks", async () => {
     await seedBriefedPr(harness.handle);
     await login();
-
-    const rejected = await run(["diff", "7", "--json"]);
-    expect(rejected.code).toBe(ExitCodes.USAGE);
-    expect(rejected.out).toBe("");
-    expect(rejected.err).toHaveLength(1);
 
     const raw = await run(["diff", "7"]);
     expect(raw.code).toBe(ExitCodes.OK);
     expect(raw.out).toBe(RAW_DIFF);
-  });
-
-  it("diff --group keeps only the group's whole hunks; custom span is exit 2", async () => {
-    await seedBriefedPr(harness.handle);
-    await login();
 
     const filtered = await run(["diff", "7", "--group", "grp-1"]);
     expect(filtered.code).toBe(ExitCodes.OK);
@@ -400,17 +376,6 @@ describe("read commands over the real api app", () => {
     expect(filtered.out).toContain("+added two");
     expect(filtered.out).not.toContain("@@ -40,2 +42,2 @@");
     expect(filtered.out).not.toContain("src/other.ts");
-
-    const custom = await run([
-      "diff",
-      "7",
-      "--group",
-      "grp-1",
-      "--base",
-      BASE_SHA,
-    ]);
-    expect(custom.code).toBe(ExitCodes.USAGE);
-    expect(custom.out).toBe("");
 
     const unknown = await run(["diff", "7", "--group", "nope"]);
     expect(unknown.code).toBe(ExitCodes.NOT_FOUND);
@@ -468,6 +433,34 @@ describe("read commands over the real api app", () => {
     ]);
     expect(missing.code).toBe(ExitCodes.NOT_FOUND);
     expect(missing.out).toBe("");
+  });
+});
+
+describe("groups over a scripted api", () => {
+  it("exits 4 with an honest line while the brief is not generated", async () => {
+    const result = await runCliOffline(["groups", "7", "--json"], {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: `/api/repos/${OFFLINE_REPO_ID}/pulls/7`,
+          body: JSON.stringify({
+            baseSha: null,
+            headSha: HEAD_SHA,
+            briefAvailable: false,
+            comparisons: {},
+          }),
+        },
+      ],
+    });
+    expect(result.code).toBe(ExitCodes.NOT_FOUND);
+    expect(result.out).toBe("");
+    expect(result.err).toHaveLength(1);
+    expect(result.err[0]).toContain("no brief generated yet");
+    expect(result.requests.map((request) => request.path)).toEqual([
+      "/api/repos",
+      `/api/repos/${OFFLINE_REPO_ID}/pulls/7`,
+    ]);
   });
 });
 

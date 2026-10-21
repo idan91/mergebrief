@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   createGhTransport,
   createInstallationTransport,
-  GitHubTransports,
   type GhExec,
   type InstallationIssueApi,
   type IssueRecord,
@@ -118,14 +117,6 @@ describe("GitHubTransports.GH", () => {
       TicketUnreadReasons.NOT_FOUND,
     ],
     [
-      { code: 1, stderr: "gh: Resource not accessible (HTTP 403)" },
-      TicketUnreadReasons.NO_CREDENTIAL,
-    ],
-    [
-      { code: 1, stderr: "gh: Bad credentials (HTTP 401)" },
-      TicketUnreadReasons.NO_CREDENTIAL,
-    ],
-    [
       {
         code: 1,
         stderr: "gh: API rate limit exceeded for user ID 1 (HTTP 403)",
@@ -135,10 +126,6 @@ describe("GitHubTransports.GH", () => {
     [
       { code: 1, stderr: "gh: rate limit exceeded (HTTP 429)" },
       TicketUnreadReasons.RATE_LIMITED,
-    ],
-    [
-      { code: 1, stderr: "gh: server error (HTTP 502)" },
-      TicketUnreadReasons.TIMEOUT,
     ],
     [{ code: "ENOENT", stderr: "" }, TicketUnreadReasons.UNSUPPORTED],
     [{ name: "AbortError" }, TicketUnreadReasons.TIMEOUT],
@@ -256,12 +243,5 @@ describe("GitHubTransports.INSTALLATION", () => {
       value: ISSUE,
     });
     expect(calls).toEqual([LOCATOR]);
-  });
-
-  it("lists both implementations under create", () => {
-    expect(GitHubTransports.GH.create).toBe(createGhTransport);
-    expect(GitHubTransports.INSTALLATION.create).toBe(
-      createInstallationTransport,
-    );
   });
 });

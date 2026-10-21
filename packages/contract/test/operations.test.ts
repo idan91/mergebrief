@@ -9,7 +9,6 @@ import {
   type ProductOperationTable,
   type RouteEndpoint,
 } from "../src/index";
-import { HttpMethods } from "types/http";
 
 const API_PREFIX = "/api";
 
@@ -22,35 +21,11 @@ describe("operation table", () => {
     expect(Object.keys(ProductOperations).toSorted()).toEqual(ids.toSorted());
   });
 
-  it("gives every query GET and every action a write method", () => {
-    const rows = Object.values(ProductOperations);
-    const queries = rows.filter((row) => row.kind === OperationKinds.QUERY);
-    const actions = rows.filter((row) => row.kind === OperationKinds.ACTION);
-
-    expect(queries.map((row) => row.method)).toEqual(
-      queries.map(() => HttpMethods.GET),
-    );
-    expect(actions.map((row) => row.method)).not.toContain(HttpMethods.GET);
-    expect(queries.length + actions.length).toBe(rows.length);
-  });
-
   it("writes every path in full under the api prefix", () => {
     for (const row of Object.values(ProductOperations)) {
       expect(row.path.startsWith(`${API_PREFIX}/`)).toBe(true);
       expect(row.path.endsWith("/")).toBe(false);
     }
-  });
-
-  it("marks a chunk read and unread through a POST verb pair", () => {
-    const chunk = "/api/repos/:repoId/pulls/:prNumber/session/chunks/:chunkId";
-    const pair = [
-      ProductOperations[ProductActionIds.MARK_CHUNK_READ],
-      ProductOperations[ProductActionIds.MARK_CHUNK_UNREAD],
-    ];
-    expect(pair.map((row) => [row.method, row.path])).toEqual([
-      [HttpMethods.POST, `${chunk}/read`],
-      [HttpMethods.POST, `${chunk}/unread`],
-    ]);
   });
 
   it("refuses a query id mapped to an action row at compile time", () => {

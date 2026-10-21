@@ -1,7 +1,6 @@
 import { CredentialFailureCodes } from "github";
 import { createSessionAuth, type KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildAuthDeps,
   createKeyProvider,
@@ -15,6 +14,7 @@ import type {
   ViewerPrincipal,
 } from "../routes/auth/session/types";
 import { createSessionCredential } from "./session-credential";
+import { registerSharedPglite } from "../../test/shared-pglite";
 
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 
@@ -52,7 +52,7 @@ function stubTokenEndpoint(): TokenEndpoint {
 }
 
 describe("createSessionCredential", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let deps: AuthRouteDeps;
 
@@ -67,15 +67,9 @@ describe("createSessionCredential", () => {
     return derivePrincipalFromSession(found);
   }
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     deps = { handle: harness.handle, auth: buildAuthDeps(kp) };
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   it("reads the session's own token", async () => {

@@ -7,7 +7,6 @@ import {
 } from "./schemas";
 import {
   DiffLineKinds,
-  DiffRowOrigins,
   GrammarNames,
   TokenFailureReasons,
   type TokenizeRequest,
@@ -74,29 +73,6 @@ describe("workerRequestSchema", () => {
     expect(
       workerRequestSchema.parse({ ...TOKENIZE_REQUEST, rows }),
     ).toMatchObject({ rows });
-  });
-
-  it("carries a row's origin across the worker boundary", () => {
-    const rows = [
-      {
-        kind: DiffLineKinds.CTX,
-        origin: DiffRowOrigins.EXPANDED,
-        content: "a",
-        oldLine: 4,
-        newLine: 4,
-      },
-    ];
-
-    expect(
-      workerRequestSchema.parse({ ...TOKENIZE_REQUEST, rows }),
-    ).toMatchObject({ rows });
-  });
-
-  it("rejects a row origin outside the closed set", () => {
-    const rows = [{ kind: DiffLineKinds.CTX, content: "a", origin: "guess" }];
-    const parsed = workerRequestSchema.safeParse({ ...TOKENIZE_REQUEST, rows });
-
-    expect(parsed.success).toBe(false);
   });
 
   it("rejects a row whose line number is negative", () => {

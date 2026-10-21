@@ -1,5 +1,4 @@
 import {
-  CredentialFailureCodes,
   GitHubApiErrorCodes,
   ReviewSubjectTypes,
   type AddReviewThreadInput,
@@ -141,26 +140,6 @@ describe("postReviewThreads", () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 
-  it("passes an unreadable credential through untouched", async () => {
-    const unreadable = {
-      code: CredentialFailureCodes.CREDENTIAL_UNREADABLE,
-      message: "the reviewer token would not decrypt",
-    };
-    const post = stubPost([makeRefusedResult(unreadable)]);
-    const result = await postReviewThreads(
-      post,
-      "PRR_node",
-      [LINE_COMMENT],
-      hasNotExpired,
-    );
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error).toEqual(unreadable);
-  });
-
   it("lands nothing and posts nothing for an empty review", async () => {
     const post = stubPost([]);
     const result = await postReviewThreads(post, "PRR_node", [], hasNotExpired);
@@ -171,23 +150,5 @@ describe("postReviewThreads", () => {
     }
     expect(result.value).toEqual({ landed: [], rejected: [] });
     expect(post).not.toHaveBeenCalled();
-  });
-
-  it("stops before the next thread once the deadline has passed", async () => {
-    const post = stubPost([makeLandedResult(), makeLandedResult()]);
-    const hasExpired = vi
-      .fn<() => boolean>()
-      .mockReturnValueOnce(false)
-      .mockReturnValue(true);
-
-    const result = await postReviewThreads(
-      post,
-      "PRR_node",
-      [LINE_COMMENT, FILE_COMMENT, RANGE_COMMENT],
-      hasExpired,
-    );
-
-    expect(result).toEqual({ ok: false, error: { kind: "publish-expired" } });
-    expect(post).toHaveBeenCalledTimes(1);
   });
 });

@@ -154,14 +154,6 @@ function scopeSetter(scope: AccessLevel): MiddlewareHandler<SessionEnv> {
 }
 
 describe("product router", () => {
-  it("query mounts a GET the underlying app serves", async () => {
-    const router = productRouter();
-    router.query(QUERY, "/pulls", (c) => c.json({ ok: true }));
-    const res = await router.app.request("/pulls");
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
-  });
-
   it("action mounts each operation under its table row's method", async () => {
     const router = productRouter<SessionEnv>();
     router.use(scopeSetter(AccessLevels.EXTERNAL_WRITE));

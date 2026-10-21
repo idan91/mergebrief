@@ -98,18 +98,6 @@ describe("PrBriefBody wait announcements", () => {
     );
   });
 
-  it("stays silent when a poll returns the same state", async () => {
-    const view = render(makeBody({ waitReason: WaitReasons.DEBOUNCING }));
-    const { changes, observer } = watchLiveRegion();
-
-    view.rerender(makeBody({ waitReason: WaitReasons.DEBOUNCING }));
-    view.rerender(makeBody({ waitReason: WaitReasons.DEBOUNCING }));
-    await Promise.resolve();
-    observer.disconnect();
-
-    expect(changes).toEqual([]);
-  });
-
   it("announces once when the wait reason changes", async () => {
     const view = render(makeBody({ waitReason: WaitReasons.DEBOUNCING }));
     const { changes, observer } = watchLiveRegion();

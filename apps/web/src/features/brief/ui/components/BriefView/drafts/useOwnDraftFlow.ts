@@ -46,7 +46,7 @@ export const POST_COMMENT_COPY_KEYS = {
 } as const satisfies Record<string, TranslationKey>;
 
 /** Every non-posted result kind: its copy and the outcome it reports. */
-const POST_FAILURES = {
+export const POST_FAILURES = {
   [PostCommentResultKinds.UNAUTHORIZED]: {
     copy: POST_COMMENT_COPY_KEYS.UNAUTHORIZED,
     outcome: PostDraftOutcomes.UNAUTHORIZED,

@@ -22,9 +22,8 @@ import {
   type ScopeContext,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Mutable } from "types/utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { INBOX_PAGE_SIZE } from "../src/routes/wire-bounds";
 import { resetLiveReadMemory } from "../src/routes/live-read";
@@ -45,6 +44,7 @@ import {
   makeFakePullRequestInfo,
   stubNoNetwork,
 } from "./reviewer-github";
+import { registerSharedPglite } from "./shared-pglite";
 
 const OPERATOR_PAT = "ghp_OPERATOR_PAT";
 const OTHER_INSTALLATION_ID = 111222;
@@ -221,13 +221,12 @@ interface InboxBody {
 }
 
 describe("GET /api/inbox", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     stubNoNetwork();
@@ -240,11 +239,6 @@ describe("GET /api/inbox", () => {
       ...UNUSED_INSTALLATION_DEPS,
       githubAppSlug: APP_SLUG,
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function get(path: string, cookie?: string): Promise<Response> {

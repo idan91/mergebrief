@@ -393,6 +393,9 @@ describe("markReadyBatchFailureCopy", () => {
     expect(markReadyBatchFailureCopy(t, 0, 1, "rejected")).toContain(
       "edit the draft and try again",
     );
+    expect(markReadyBatchFailureCopy(t, 0, 1, "no-permission")).toContain(
+      "Check your access on GitHub.",
+    );
     expect(markReadyBatchFailureCopy(t, 0, 1, "unauthorized")).toContain(
       "sign in again",
     );
@@ -715,21 +718,6 @@ describe("buildReplyRecordingPlan", () => {
     // Structural stand-in: only postReply is exercised.
     return { postReply } as unknown as ConversationPlan;
   }
-
-  it("records the wrapping review id of a posted reply", async () => {
-    const record = vi.fn();
-    const plan = buildReplyRecordingPlan(
-      stubPlan(async () => ({ kind: "posted", commentId: 9, reviewId: 555 })),
-      record,
-    );
-
-    await expect(plan.postReply(1, "x")).resolves.toEqual({
-      kind: "posted",
-      commentId: 9,
-      reviewId: 555,
-    });
-    expect(record).toHaveBeenCalledWith(555);
-  });
 
   it("records nothing for a failure or a reply without a review id", async () => {
     const record = vi.fn();

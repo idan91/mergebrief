@@ -108,20 +108,6 @@ describe("draft anchors", () => {
     });
     expect(roundTripAnchor(anchor)).toEqual(anchor);
   });
-
-  it("keeps a draft no chunk holds apart as unplaced", () => {
-    const gone: SessionDraftComment = {
-      id: "9",
-      filePath: "src/deleted-since.ts",
-      kind: CommentAnchorKinds.FILE,
-      body: "gone",
-      status: DraftCommentStatuses.DRAFT,
-    };
-    expect(resolveDraftComments([gone], model)).toEqual({
-      reviewComments: [],
-      unplacedDrafts: [gone],
-    });
-  });
 });
 
 describe("flag anchors", () => {

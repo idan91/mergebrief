@@ -7,10 +7,7 @@ import { UNSAFE_LINKS } from "@web/test/links";
 
 import { parseVersion, type versionResponseSchema } from "./schemas";
 
-const versionResponsePin = true satisfies Equals<
-  z.output<typeof versionResponseSchema>,
-  VersionResponse
->;
+true satisfies Equals<z.output<typeof versionResponseSchema>, VersionResponse>;
 
 const FULL_BODY = {
   version: "1.4.0",
@@ -41,17 +38,6 @@ describe("parseVersion", () => {
     const parsed = parseVersion({ version: "1.4.0", releaseNotesUrl: link });
 
     expect(parsed).toEqual({ ok: true, value: { version: "1.4.0" } });
-  });
-
-  it("drops fields the wire adds", () => {
-    expect(parseVersion({ version: "1.4.0", extra: true })).toEqual({
-      ok: true,
-      value: { version: "1.4.0" },
-    });
-  });
-
-  it("pins the schema to the contract's VersionResponse", () => {
-    expect(versionResponsePin).toBe(true);
   });
 
   it("refuses a body without a version", () => {

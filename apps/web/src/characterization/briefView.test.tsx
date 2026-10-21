@@ -205,6 +205,8 @@ describe("brief screen characterization", () => {
         y: 360,
         toJSON: () => undefined,
       }) as DOMRect;
+    await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+    scrollTo.mockClear();
 
     fireEvent.keyDown(window, { key: "j" });
 
@@ -316,16 +318,6 @@ describe("brief screen characterization", () => {
     expect(section).not.toBeNull();
     expect(section?.textContent).toContain("no-tests");
     expect(section?.textContent).toContain("comment-contradicts-code");
-  });
-
-  it("renders a flag's risk note after the notes twist opens", async () => {
-    await renderBriefView();
-    fireEvent.click(screen.getByRole("button", { name: "Risk notes" }));
-    expect(
-      screen.getByText(
-        "Comment says the param is optional (L10), code throws when absent (L12)",
-      ),
-    ).toBeTruthy();
   });
 
   it("places the intent bar in the masthead's bar stack", async () => {

@@ -14,9 +14,8 @@ import {
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import {
   INSTALLATION_ID,
@@ -46,6 +45,7 @@ import {
   type GateGitHubOptions,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -168,22 +168,16 @@ function arrangeRenderedSources(
 }
 
 describe("GET attachments/:assetId", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let cookie: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     ({ cookie } = await seedSignIn(harness.handle, kp));
     await seedPullRequest(harness.handle, INSTALLATION);
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function makeApp(operatorToken?: string): ApiApp {
@@ -307,23 +301,6 @@ describe("GET attachments/:assetId", () => {
       expect(response.status).toBe(404);
     });
 
-    it("answers 404 for an svg attachment", async () => {
-      arrangeRenderedSources(fake, [SIGNED_URL]);
-      stubAttachmentFetch(
-        fake,
-        { repoId: REPO_ID },
-        () =>
-          new Response("<svg></svg>", {
-            status: 200,
-            headers: { "content-type": "image/svg+xml" },
-          }),
-      );
-
-      const response = await readAttachment(makeApp(), ASSET_ID);
-
-      expect(response.status).toBe(404);
-    });
-
     it("answers 502 on an upstream failure", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       fake.failOn("fetchRenderedImageSources", FakeFailures.SERVER_ERROR);
@@ -352,26 +329,31 @@ describe("GET attachments/:assetId", () => {
       ]);
     });
 
-    it("answers 401 when the rotated token is rejected too", async () => {
+    it("answers 401 when the read still 401s after a good refresh", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      fake.rejectToken(ACCESS_TOKEN);
-      fake.rejectToken(ROTATED_ACCESS_TOKEN);
+      fake.failOn(
+        "fetchRenderedImageSources",
+        FakeFailures.UNAUTHORIZED,
+        CredentialKinds.REVIEWER,
+      );
       stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
 
       expect(response.status).toBe(401);
+      expect(fake.listCalls("fetchRenderedImageSources")).toHaveLength(2);
     });
 
-    it("cancels the upstream body it will not serve", async () => {
+    it("answers 404 for an svg and cancels the upstream body", async () => {
       const cancelled = vi.fn();
       arrangeRenderedSources(fake, [SIGNED_URL]);
       stubAttachmentFetch(fake, { repoId: REPO_ID }, () =>
         makeCancelableResponse(cancelled, "image/svg+xml"),
       );
 
-      await readAttachment(makeApp(), ASSET_ID);
+      const response = await readAttachment(makeApp(), ASSET_ID);
 
+      expect(response.status).toBe(404);
       expect(cancelled).toHaveBeenCalledTimes(1);
     });
 

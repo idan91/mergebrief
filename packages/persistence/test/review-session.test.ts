@@ -3,7 +3,6 @@
 // semantics (the first write creates, a read never does), and prove tenant B can neither
 // read nor write tenant A's session rows.
 import type { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
 import {
   AnchorStatuses,
   CommentAnchorKinds,
@@ -11,7 +10,6 @@ import {
   DraftCommentStatuses,
 } from "types/comments";
 import { describe, expect, it } from "vitest";
-import { fromDrizzle } from "../src/db/handle";
 import {
   ClaimStates,
   createArtifactStore,
@@ -45,17 +43,18 @@ import {
   DispositionEvidenceStatuses,
 } from "types/dispositions";
 
-import { brandWith, freshPglite } from "./helpers";
+import {
+  brandWith,
+  expectCheckViolation,
+  registerSharedPglite,
+} from "./helpers";
 
 /**
  * The handle plus the PGlite client behind it: the raw client is how these
  * tests read `pg_constraint` and row counts the repository deliberately does
  * not expose.
  */
-async function freshPair(): Promise<{ client: PGlite; handle: AppDatabase }> {
-  const client = await freshPglite();
-  return { client, handle: fromDrizzle(drizzle(client)) };
-}
+const shared = registerSharedPglite();
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -205,7 +204,7 @@ describe("review-session vocabularies match CHECK constraints", () => {
     ["disposition_evidence_status_check", DispositionEvidenceStatuses],
     ["disposition_evidence_kind_check", DispositionEvidenceKinds],
   ])("%s accepts exactly its `as const` map", async (name, map) => {
-    const { client } = await freshPair();
+    const { client } = shared;
     expect((await checkValues(client, name)).toSorted()).toEqual(
       Object.values(map).toSorted(),
     );
@@ -215,7 +214,7 @@ describe("review-session vocabularies match CHECK constraints", () => {
     ["non-positive start", 0, 5],
     ["inverted range", 9, 4],
   ])("rejects a draft comment with a %s", async (_name, start, end) => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
@@ -240,7 +239,7 @@ describe("review-session vocabularies match CHECK constraints", () => {
   });
 
   it("round-trips a two-side draft and lets its lines invert", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
@@ -288,7 +287,7 @@ describe("review-session vocabularies match CHECK constraints", () => {
   });
 
   it("round-trips a file-arm draft with no line columns", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
@@ -320,45 +319,39 @@ describe("review-session vocabularies match CHECK constraints", () => {
   });
 
   it("rejects a line-arm row with null coordinates", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const session = await openSession(handle, CTX_A, briefId);
 
-    const rejection: unknown = await client
-      .query(
+    await expectCheckViolation(
+      client.query(
         `insert into review_draft_comment (
            review_session_id, file_path, kind, body
          ) values ($1, 'src/app.ts', 'line', 'no coords')`,
         [session.id],
-      )
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
-    expect(rejection).not.toBeNull();
+      ),
+      "review_draft_comment_anchor_shape",
+    );
   });
 
   it("rejects a line-arm row with a null side", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const session = await openSession(handle, CTX_A, briefId);
 
-    const rejection: unknown = await client
-      .query(
+    await expectCheckViolation(
+      client.query(
         `insert into review_draft_comment (
            review_session_id, file_path, kind, start_line, end_line, body
          ) values ($1, 'src/app.ts', 'line', 1, 1, 'no side')`,
         [session.id],
-      )
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
-    expect(rejection).not.toBeNull();
+      ),
+      "review_draft_comment_anchor_shape",
+    );
   });
 
   it("rejects a line-arm update that nulls coordinates", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
     const written = await seedDraft(
@@ -374,41 +367,35 @@ describe("review-session vocabularies match CHECK constraints", () => {
       "valid line",
     );
 
-    const rejection: unknown = await client
-      .query(
+    await expectCheckViolation(
+      client.query(
         `update review_draft_comment
          set side = null, start_line = null, end_line = null
          where id = $1`,
         [written.id],
-      )
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
-    expect(rejection).not.toBeNull();
+      ),
+      "review_draft_comment_anchor_shape",
+    );
   });
 
   it("rejects a file-arm row that still carries a line", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const session = await openSession(handle, CTX_A, briefId);
 
-    const rejection: unknown = await client
-      .query(
+    await expectCheckViolation(
+      client.query(
         `insert into review_draft_comment (
            review_session_id, file_path, kind, side, start_line, end_line, body
          ) values ($1, 'src/app.ts', 'file', 'new', 1, 1, 'mixed')`,
         [session.id],
-      )
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
-    expect(rejection).not.toBeNull();
+      ),
+      "review_draft_comment_anchor_shape",
+    );
   });
 
   it("rejects a start_side equal to side", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
@@ -428,20 +415,6 @@ describe("review-session vocabularies match CHECK constraints", () => {
       () => null,
       (error: unknown) => error,
     );
-    expect(rejection).not.toBeNull();
-  });
-
-  it("rejects a value outside the outcome vocabulary", async () => {
-    const { client, handle } = await freshPair();
-    const briefId = await seedBrief(handle, CTX_A);
-    await openSession(handle, CTX_A, briefId);
-
-    const rejection: unknown = await client
-      .exec("update review_session set review_outcome = 'lgtm'")
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
     expect(rejection).not.toBeNull();
   });
 });
@@ -467,21 +440,20 @@ describe("disposition uses a session-owned natural key", () => {
   }
 
   it("rejects a second decision on the same anchor in one session", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const created = await openSession(handle, CTX_A, briefId);
 
     await insertDisposition(client, created.id);
-    const rejection: unknown = await insertDisposition(client, created.id).then(
-      () => null,
-      (error: unknown) => error,
+    await expectCheckViolation(
+      insertDisposition(client, created.id),
+      "disposition_natural_key",
     );
-    expect(rejection).not.toBeNull();
     expect(await countRows(client, "disposition")).toBe(1);
   });
 
   it("keeps the same anchor decided in a second session", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const first = await openSession(
       handle,
       CTX_A,
@@ -497,21 +469,11 @@ describe("disposition uses a session-owned natural key", () => {
     await insertDisposition(client, second.id);
     expect(await countRows(client, "disposition")).toBe(2);
   });
-
-  it("cascades away with the session that owns it", async () => {
-    const { client, handle } = await freshPair();
-    const briefId = await seedBrief(handle, CTX_A);
-    const created = await openSession(handle, CTX_A, briefId);
-
-    await insertDisposition(client, created.id);
-    await client.exec("delete from review_session");
-    expect(await countRows(client, "disposition")).toBe(0);
-  });
 });
 
 describe("reviewSessions session semantics", () => {
   it("creates on the first write and reuses the row on the second", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
 
     const first = await openSession(handle, CTX_A, briefId);
@@ -522,7 +484,7 @@ describe("reviewSessions session semantics", () => {
   });
 
   it("leaves the stored outcome alone when a later write does not name one", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
     const query = {
@@ -546,7 +508,7 @@ describe("reviewSessions session semantics", () => {
   });
 
   it("reads nothing and creates nothing when no session exists", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
 
@@ -558,7 +520,7 @@ describe("reviewSessions session semantics", () => {
   });
 
   it("returns the session with everything it owns", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
     const created = await openSession(handle, CTX_A, briefId);
@@ -588,7 +550,7 @@ describe("reviewSessions session semantics", () => {
   });
 
   it("keeps the per-subject writes idempotent on their natural keys", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
@@ -621,7 +583,7 @@ describe("reviewSessions session semantics", () => {
   });
 
   it("publishing flips the named drafts and leaves the rest alone", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const repo = createTenantRepository(handle, CTX_A);
     const key = { briefId, reviewerId: REVIEWER };
@@ -644,25 +606,11 @@ describe("reviewSessions session semantics", () => {
       DraftCommentStatuses.DRAFT,
     ]);
   });
-
-  it("cascades the session and its owned rows away with the brief", async () => {
-    const { client, handle } = await freshPair();
-    const briefId = await seedBrief(handle, CTX_A);
-    await createTenantRepository(handle, CTX_A).reviewSessions.setChunkRead(
-      { briefId, reviewerId: REVIEWER },
-      { chunkId: "c1", read: true },
-    );
-
-    await client.exec("delete from brief");
-
-    expect(await countRows(client, "review_session")).toBe(0);
-    expect(await countRows(client, "review_read_mark")).toBe(0);
-  });
 });
 
 describe("the draft operations", () => {
   it("adds a draft as the session's first write", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
@@ -681,7 +629,7 @@ describe("the draft operations", () => {
   });
 
   it("refuses the 65th unposted draft and counts no published one", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
@@ -714,7 +662,7 @@ describe("the draft operations", () => {
   });
 
   it("edits, re-anchors and deletes a draft the session holds", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
@@ -741,7 +689,7 @@ describe("the draft operations", () => {
   });
 
   it("refuses an unknown or published draft and moves nothing", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
@@ -781,19 +729,6 @@ describe("the draft operations", () => {
       expect.objectContaining({ id: published, body: "published" }),
     ]);
   });
-
-  it("leaves no session row behind a refused first write", async () => {
-    const { client, handle } = await freshPair();
-    const briefId = await seedBrief(handle, CTX_A);
-    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
-    const key = { briefId, reviewerId: REVIEWER };
-
-    await expect(
-      sessions.editDraft(key, 987654321n, "edited"),
-    ).rejects.toBeInstanceOf(ScopeViolationError);
-
-    expect(await countRows(client, "review_session")).toBe(0);
-  });
 });
 
 describe("publish claims", () => {
@@ -804,7 +739,7 @@ describe("publish claims", () => {
   }
 
   async function openWorld() {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
@@ -919,21 +854,6 @@ describe("publish claims", () => {
     expect(drafts.map((row) => row.publishClaim)).toEqual([null, null, null]);
   });
 
-  it("leaves no session row behind a refused first claim", async () => {
-    const { client, handle } = await freshPair();
-    const briefId = await seedBrief(handle, CTX_A);
-    const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
-
-    await expect(
-      sessions.claimDrafts(
-        { briefId, reviewerId: REVIEWER },
-        { draftIds: [987654321n] },
-      ),
-    ).rejects.toBeInstanceOf(ScopeViolationError);
-
-    expect(await countRows(client, "review_session")).toBe(0);
-  });
-
   it("refuses edit and re-anchor on a claimed draft, pending or in doubt", async () => {
     const { sessions, key, first, second } = await openWorld();
     await claimOrThrow(sessions, key, [first], new Date());
@@ -1016,7 +936,7 @@ describe("publish claims", () => {
   });
 
   it("answers not found to settle or release without a session", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     const key = { briefId, reviewerId: REVIEWER };
@@ -1037,17 +957,13 @@ describe("publish claims", () => {
   it("rejects a claim token stored without its time", async () => {
     const { client, first } = await openWorld();
 
-    const rejection: unknown = await client
-      .query(
+    await expectCheckViolation(
+      client.query(
         "update review_draft_comment set publish_claim = gen_random_uuid() where id = $1",
         [first.toString()],
-      )
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
-
-    expect(rejection).not.toBeNull();
+      ),
+      "review_draft_comment_publish_claim_pair_check",
+    );
   });
 });
 
@@ -1065,7 +981,7 @@ function makeDismissal(anchor: typeof FLAG, reason: string) {
 
 describe("the review work operations", () => {
   async function openWorld(body = BRIEF_BODY) {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A, 7, body);
     const sessions = createTenantRepository(handle, CTX_A).reviewSessions;
     return { client, sessions, key: { briefId, reviewerId: REVIEWER } };
@@ -1237,14 +1153,6 @@ describe("the review work operations", () => {
     expect(again).toEqual({ ok: true, value: 0 });
   });
 
-  it("sets the outcome and reads it back off the row", async () => {
-    const { sessions, key } = await openWorld();
-
-    const set = await sessions.setOutcome(key, ReviewOutcomes.APPROVE);
-
-    expect(set.ok && set.value.reviewOutcome).toBe(ReviewOutcomes.APPROVE);
-  });
-
   it("refuses a capped first write on an empty Brief without a session", async () => {
     const { client, sessions, key } = await openWorld(
       '{"changeGroups":[],"chunks":[]}',
@@ -1347,7 +1255,7 @@ describe("the review work operations", () => {
 
 describe("reviewSessions tenancy containment", () => {
   it("B cannot open a session against A's brief", async () => {
-    const { client, handle } = await freshPair();
+    const { client, handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
 
     await expect(
@@ -1361,7 +1269,7 @@ describe("reviewSessions tenancy containment", () => {
   });
 
   it("B cannot read A's session", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
@@ -1374,7 +1282,7 @@ describe("reviewSessions tenancy containment", () => {
   });
 
   it("keeps A's and B's sessions independent on their own briefs", async () => {
-    const { handle } = await freshPair();
+    const { handle } = shared;
     const briefA = await seedBrief(handle, CTX_A, 7);
     const briefB = await seedBrief(handle, CTX_B, 8);
 

@@ -489,6 +489,27 @@ describe("Previous Brief narrative cards take comments", () => {
 
     expect(stripStyleHashes(card?.innerHTML ?? "")).toMatchSnapshot();
   });
+
+  it("shows the lines this revision removed as inert rows from the span diff", () => {
+    const { view } = renderChanges({ narrativeSpanRows: SPAN_ROWS_CACHE });
+
+    const removed = view.container.querySelectorAll(
+      'tr[data-line-kind="del"][aria-disabled="true"]',
+    );
+    expect(removed).toHaveLength(2);
+    expect(removed[0]?.textContent).toContain("stale(a);");
+    expect(screen.queryByText("−2 lines removed")).toBeNull();
+  });
+
+  it("keeps the removed-lines count while the span has no rows for the file", () => {
+    const elsewhere: FileRowsCache = {
+      isEmpty: false,
+      getFileRows: () => undefined,
+    };
+    renderChanges({ narrativeSpanRows: elsewhere });
+
+    expect(screen.getByText("−2 lines removed")).toBeTruthy();
+  });
 });
 
 describe("Previous Brief narrative cards lead back to Full", () => {
@@ -540,38 +561,6 @@ describe("Your last review delta cards take comments", () => {
       }),
       undefined,
       "delta:chunk-a",
-    );
-  });
-
-  it("shows the lines this revision removed as inert rows from the span diff", () => {
-    const { view } = renderChanges({ narrativeSpanRows: SPAN_ROWS_CACHE });
-
-    const removed = view.container.querySelectorAll(
-      'tr[data-line-kind="del"][aria-disabled="true"]',
-    );
-    expect(removed).toHaveLength(2);
-    expect(removed[0]?.textContent).toContain("stale(a);");
-    expect(screen.queryByText("−2 lines removed")).toBeNull();
-  });
-
-  it("keeps the removed-lines count while the span has no rows for the file", () => {
-    const elsewhere: FileRowsCache = {
-      isEmpty: false,
-      getFileRows: () => undefined,
-    };
-    renderChanges({ narrativeSpanRows: elsewhere });
-
-    expect(screen.getByText("−2 lines removed")).toBeTruthy();
-  });
-
-  it("keeps a deleted row inert with the removed-before-head reason", () => {
-    const { view } = renderChanges({ compare: "last-review" });
-    const row = findCardRow(view.container, "check(a);");
-    const reasonId = row.getAttribute("aria-describedby") ?? "";
-
-    expect(row.getAttribute("aria-disabled")).toBe("true");
-    expect(document.getElementById(reasonId)?.textContent).toBe(
-      appI18n.t("brief.diff.guest.removedBeforeHead"),
     );
   });
 });

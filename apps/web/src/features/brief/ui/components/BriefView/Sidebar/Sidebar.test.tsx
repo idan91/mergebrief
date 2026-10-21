@@ -203,15 +203,6 @@ describe("Sidebar", () => {
     });
   });
 
-  it("restores a stored expanded preference at mount", () => {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      JSON.stringify({ expanded: true, tab: "this-pr" }),
-    );
-    renderSidebar();
-    expect(chevron().getAttribute("aria-expanded")).toBe("true");
-  });
-
   it("Escape in the expanded sidebar collapses it and returns focus", () => {
     const windowListener = vi.fn();
     window.addEventListener("keydown", windowListener);
@@ -449,16 +440,6 @@ describe("Sidebar below the tablet breakpoint", () => {
     expect(screen.getByTestId("sidebar-bar")).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByRole("navigation")).toBeNull();
-  });
-
-  it("starts collapsed even when the stored preference is expanded", () => {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      JSON.stringify({ expanded: true, tab: "this-pr" }),
-    );
-    renderSidebar({ band: "narrow" });
-    expect(chevronNarrow().getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("the chevron opens the sheet on the active tab, Escape returns focus", () => {

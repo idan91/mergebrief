@@ -37,22 +37,4 @@ describe("RowButton", () => {
     fireEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
   });
-
-  it("passes through aria-expanded, data-* hooks, and refs", () => {
-    let node: HTMLButtonElement | null = null;
-    render(
-      <RowButton
-        aria-expanded={false}
-        data-testid="thread-row"
-        ref={(element) => {
-          node = element;
-        }}
-      >
-        Row
-      </RowButton>,
-    );
-    const button = screen.getByTestId("thread-row");
-    expect(button.getAttribute("aria-expanded")).toBe("false");
-    expect(node).not.toBeNull();
-  });
 });

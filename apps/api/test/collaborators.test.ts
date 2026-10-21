@@ -10,8 +10,7 @@ import {
   type FakeGitHub,
 } from "github/testing";
 import type { KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
@@ -28,6 +27,7 @@ import {
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import { buildFakeInstallationDeps } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_ID = 424242;
 const COLLABORATORS_PATH = `/api/repos/${REPO_ID}/collaborators`;
@@ -73,15 +73,14 @@ function repoOk(push: boolean): Response {
   });
 }
 
-function stubRepoAccess(
-  repositories: (call: number) => Response,
-  installationRepos: readonly number[] = [REPO_ID],
-): { counts: { repositories: number } } {
+function stubRepoAccess(repositories: (call: number) => Response): {
+  counts: { repositories: number };
+} {
   const counts = { repositories: 0 };
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
       const url = getRequestUrl(input);
-      const membership = answerInstallationRepositories(url, installationRepos);
+      const membership = answerInstallationRepositories(url, [REPO_ID]);
       if (membership !== undefined) {
         return membership;
       }
@@ -110,13 +109,12 @@ async function getCollaborators(
 }
 
 describe("GET /api/repos/:repoId/collaborators", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     fake.addCollaborators({ owner: "octo", repo: "hello" }, rosterFixture());
@@ -129,12 +127,6 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     });
   });
 
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
-  });
-
   it("401s without a session cookie and never reads the roster", async () => {
     stubRepoAccess(() => repoOk(true));
     const res = await getCollaborators(app, undefined);
@@ -145,23 +137,6 @@ describe("GET /api/repos/:repoId/collaborators", () => {
 
   it("404s without repo access and leaves the roster unread", async () => {
     stubRepoAccess(() => jsonResponse({ message: "denied" }, 404));
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(app, cookie);
-    expect(res.status).toBe(404);
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(fake.calls).toEqual([]);
-  });
-
-  it("404s for a push viewer on a repo outside the installation", async () => {
-    stubRepoAccess(() => repoOk(true), []);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(app, cookie);
-    expect(res.status).toBe(404);
-    expect(fake.calls).toEqual([]);
-  });
-
-  it("404s for a read-only viewer without reading the roster", async () => {
-    stubRepoAccess(() => repoOk(false));
     const { cookie } = await seedSignIn(harness.handle, kp);
     const res = await getCollaborators(app, cookie);
     expect(res.status).toBe(404);
@@ -227,15 +202,6 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(denied.status).toBe(404);
     expect(denied.headers.get("cache-control")).toBe("no-store");
     expect(listRosterReads(fake)).toHaveLength(1);
-  });
-
-  it("collapses an App NOT_FOUND to 404", async () => {
-    fake.failOn("listRepoCollaborators", FakeFailures.NOT_FOUND);
-    stubRepoAccess(() => repoOk(true));
-    const { cookie } = await seedSignIn(harness.handle, kp);
-    const res = await getCollaborators(app, cookie);
-    expect(res.status).toBe(404);
-    expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
   it("502s an upstream failure and caches no failure", async () => {

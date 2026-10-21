@@ -30,10 +30,6 @@ describe("dropNullKeys", () => {
     expect(AuthorSchema.safeParse({ login: null }).success).toBe(false);
   });
 
-  it("leaves a non-object input for the schema to reject", () => {
-    expect(AuthorSchema.safeParse(null).success).toBe(false);
-  });
-
   it("never lets a __proto__ key change the parsed object's prototype", () => {
     const body: unknown = JSON.parse(
       '{"login":"octocat","__proto__":{"name":"injected"}}',
@@ -117,8 +113,9 @@ describe("drop-keys object gate", () => {
     ["name"],
   );
 
-  it("leaves an array for the object schema to refuse", () => {
+  it("leaves an array or null for the object schema to refuse", () => {
     expect(OptionalOnly.safeParse([]).success).toBe(false);
+    expect(OptionalOnly.safeParse(null).success).toBe(false);
     expect(OptionalOnly.safeParse({ name: null }).success).toBe(true);
   });
 

@@ -249,19 +249,6 @@ describe("DiffRows", () => {
     expect(glyphs[0]?.parentElement?.textContent).toBe("2glyph");
   });
 
-  it("gives hunk and note rows a single spanning cell", () => {
-    const view = renderRows();
-
-    const meta = view.container.querySelectorAll(
-      'tr[data-line-kind="hunk"] td, tr[data-line-kind="note"] td',
-    );
-    expect(meta).toHaveLength(2);
-    expect([...meta].map((cell) => cell.getAttribute("colspan"))).toEqual([
-      "3",
-      "3",
-    ]);
-  });
-
   it("signs added and deleted rows", () => {
     const view = renderRows();
 

@@ -34,11 +34,4 @@ describe("buildReadThroughSegments", () => {
     expect(current?.groupId).toBe(group.id);
     expect(current?.fillPercent).toBe(100); // 2nd of 2 chunks in the group.
   });
-
-  it("numbers segments by their position in the group order", () => {
-    const segments = buildReadThroughSegments(model.groups, null, titleOf);
-    expect(segments.map((segment) => segment.position)).toEqual(
-      model.groups.map((_group, index) => index + 1),
-    );
-  });
 });

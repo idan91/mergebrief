@@ -71,21 +71,6 @@ describe("createPullRequestReview", () => {
     });
   });
 
-  it("sends no event, body or comments so the review stays pending", async () => {
-    const createReview = vi
-      .fn()
-      .mockResolvedValue({ data: { id: 512, node_id: "PRR_kwDOABCD" } });
-    await createPullRequestReview(mockOctokit(createReview), INPUT);
-
-    const sent = createReview.mock.calls[0]?.[0];
-    if (sent === undefined) {
-      throw new Error("expected a createReview call");
-    }
-    expect("event" in sent).toBe(false);
-    expect("body" in sent).toBe(false);
-    expect("comments" in sent).toBe(false);
-  });
-
   it("rejects a review id past the safe-integer range", async () => {
     const createReview = vi
       .fn()

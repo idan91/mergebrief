@@ -78,14 +78,11 @@ function stubFileRowsCache(): FileRowsCache {
   };
 }
 
-async function renderWithLink(link: string, withFileRows = false) {
+async function renderWithLink(link: string) {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
   const navigateLink = vi.fn();
-  const fileRows = withFileRows
-    ? stubFileRowsCache()
-    : createFileRowsCache(new Map());
   await mountBriefView({
-    fileRows,
+    fileRows: createFileRowsCache(new Map()),
     link,
     navigateLink,
     searchParams: { view: "full", compare: "off" },
@@ -94,23 +91,8 @@ async function renderWithLink(link: string, withFileRows = false) {
 }
 
 describe("line link scroll from Changes scope", () => {
-  it("leaves the scope by replacing the arrival entry, then scrolls", async () => {
-    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    const exitChangesScope = vi.fn();
-    await mountBriefView({
-      comparisonPlan: stubLastReviewPlan(),
-      exitChangesScope,
-      link: "chunk-a.R10",
-      searchParams: { view: "changes", compare: "last-review" },
-    });
-
-    await waitFor(() =>
-      expect(exitChangesScope).toHaveBeenCalledWith({ replace: true }),
-    );
-  });
-
   it("scrolls to the card and says so when the read fails", async () => {
-    const exits = await renderInChangesScope("chunk-a.R4");
+    const { exits, navigateLink } = await renderInChangesScope("chunk-a.R4");
 
     await waitFor(() => expect(document.activeElement?.id).toBe("chunk-a"));
     await waitFor(() =>
@@ -118,10 +100,12 @@ describe("line link scroll from Changes scope", () => {
     );
     expect(exits).toEqual([{ replace: true }]);
     expect(document.querySelector("tr[data-selected]")).toBeNull();
+    expect(screen.queryByTestId("line-link-notice")).toBeNull();
+    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
   });
 
   it("leaves the scope for the card when the chunk has no rows", async () => {
-    const exits = await renderInChangesScope("chunk-b.R2");
+    const { exits } = await renderInChangesScope("chunk-b.R2");
 
     await waitFor(() => expect(document.activeElement?.id).toBe("chunk-b"));
     await waitFor(() =>
@@ -131,7 +115,7 @@ describe("line link scroll from Changes scope", () => {
   });
 
   it("scrolls to a shown line after leaving the scope, and selects it", async () => {
-    const exits = await renderInChangesScope("chunk-a.R10");
+    const { exits, navigateLink } = await renderInChangesScope("chunk-a.R10");
 
     const row = await waitFor(() => {
       const found = document.querySelector('td[data-line-new="10"]');
@@ -144,10 +128,15 @@ describe("line link scroll from Changes scope", () => {
     await waitFor(() => expect(document.activeElement).toBe(row));
     expect(row.hasAttribute("data-selected")).toBe(true);
     expect(exits).toEqual([{ replace: true }]);
+    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
+    expect(screen.queryByTestId("line-link-notice")).toBeNull();
   });
 
   it("reads a folded line, leaves the scope once and selects it", async () => {
-    const exits = await renderInChangesScope("chunk-a.R4", stubFileRowsCache());
+    const { exits } = await renderInChangesScope(
+      "chunk-a.R4",
+      stubFileRowsCache(),
+    );
 
     const row = await waitFor(() => {
       const found = document.querySelector('td[data-line-new="4"]');
@@ -368,13 +357,19 @@ function stubLineLinkInput() {
 const READ_FAILED =
   "The lines this link names could not be loaded; the chunk is shown instead.";
 
+interface ChangesScopeArrival {
+  exits: (ScopeExitOptions | undefined)[];
+  navigateLink: ReturnType<typeof vi.fn>;
+}
+
 /** Arrives on the link in Changes scope; the exit flips the scope to Full. */
 async function renderInChangesScope(
   link: string,
   fileRows: FileRowsCache = createFileRowsCache(new Map()),
-): Promise<(ScopeExitOptions | undefined)[]> {
+): Promise<ChangesScopeArrival> {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
   const exits: (ScopeExitOptions | undefined)[] = [];
+  const navigateLink = vi.fn();
   function Harness() {
     const [search, setSearch] = useState<BriefSearchParams>({
       view: "changes",
@@ -389,34 +384,17 @@ async function renderInChangesScope(
         }}
         fileRows={fileRows}
         link={link}
-        navigateLink={vi.fn()}
+        navigateLink={navigateLink}
         searchParams={search}
       />
     );
   }
   await mountBriefHost(<Harness />);
 
-  return exits;
+  return { exits, navigateLink };
 }
 
 describe("line link scroll", () => {
-  it("scrolls to a shown line, selects it and keeps the link", async () => {
-    const navigateLink = await renderWithLink("chunk-a.R10");
-
-    const row = await waitFor(() => {
-      const cell = document.querySelector('td[data-line-new="10"]');
-      const found = cell?.closest("tr");
-      if (!(found instanceof HTMLElement)) {
-        throw new Error("no row yet");
-      }
-      return found;
-    });
-    await waitFor(() => expect(row.hasAttribute("data-selected")).toBe(true));
-    await waitFor(() => expect(document.activeElement).toBe(row));
-    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
-    expect(screen.queryByTestId("line-link-notice")).toBeNull();
-  });
-
   it("selects a range and announces it", async () => {
     await renderWithLink("chunk-a.R9-R10");
 
@@ -431,20 +409,6 @@ describe("line link scroll", () => {
     expect(screen.getByTestId("brief-toast").textContent).toBe("");
   });
 
-  it("expands a folded line from the nearer edge, then scrolls to it", async () => {
-    await renderWithLink("chunk-a.R4", true);
-
-    const row = await waitFor(() => {
-      const cell = document.querySelector('td[data-line-new="4"]');
-      const found = cell?.closest("tr");
-      if (!(found instanceof HTMLElement)) {
-        throw new Error("no row yet");
-      }
-      return found;
-    });
-    await waitFor(() => expect(row.hasAttribute("data-selected")).toBe(true));
-  });
-
   it("drops the link and shows the notice when it misses", async () => {
     const navigateLink = await renderWithLink("nope.R1");
 
@@ -457,22 +421,11 @@ describe("line link scroll", () => {
         "This link points at lines this brief does not contain.",
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    const dismiss = screen.getByRole("button", { name: "Dismiss" });
+    dismiss.focus();
+    fireEvent.click(dismiss);
     expect(screen.queryByTestId("line-link-notice")).toBeNull();
-  });
-
-  it("shows the chunk and keeps the link when the edge cannot read", async () => {
-    // No file rows and no expansion source: the edge cannot read now.
-    const navigateLink = await renderWithLink("chunk-a.R4");
-
-    await waitFor(() =>
-      expect(screen.getByTestId("brief-toast").textContent).toBe(
-        "The lines this link names could not be loaded; the chunk is shown instead.",
-      ),
-    );
-    expect(screen.queryByTestId("line-link-notice")).toBeNull();
-    expect(navigateLink).not.toHaveBeenCalledWith(undefined);
-    expect(document.querySelector("tr[data-selected]")).toBeNull();
+    expect(document.activeElement?.id).toBe("main-content");
   });
 
   it("keeps the notice when the brief object changes under the same id", async () => {
@@ -501,16 +454,5 @@ describe("line link scroll", () => {
     fireEvent.click(screen.getByRole("button", { name: "swap brief" }));
 
     expect(screen.getByTestId("line-link-notice")).toBeTruthy();
-  });
-
-  it("moves focus to the main landmark when the notice is dismissed", async () => {
-    await renderWithLink("nope.R1");
-    const dismiss = await waitFor(() =>
-      screen.getByRole("button", { name: "Dismiss" }),
-    );
-    dismiss.focus();
-    fireEvent.click(dismiss);
-
-    expect(document.activeElement?.id).toBe("main-content");
   });
 });

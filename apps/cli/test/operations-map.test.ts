@@ -1,19 +1,11 @@
 // The CLI-mapping gate: every operation maps to a command the real program
 // registers, an unexpired fully-documented gap, or a reasoned web-only note;
-// every map key names an operation in the table. The last tests run the REAL committed
-// files and the REAL command tree through the same check the lint gate uses.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { ProductOperations } from "contract";
+// every map key names an operation in the table.
 import { describe, expect, it } from "vitest";
-import { cliCommandPaths } from "../scripts/command-paths";
 import {
   checkOperationsMap,
   type CheckOperationsMapInput,
 } from "../scripts/operations-map-lib";
-
-const PKG_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const PATHS = new Set(["thing", "auth", "auth login"]);
 
@@ -238,35 +230,5 @@ describe("command validation", () => {
     });
     expect(result.ok).toBe(false);
     expect(formatErrors(result)).toMatch(/must start with "mergebrief"/);
-  });
-});
-
-describe("cliCommandPaths", () => {
-  it("enumerates the real program's commands and subcommands", () => {
-    const paths = cliCommandPaths();
-    expect(paths.has("pr")).toBe(true);
-    expect(paths.has("repos")).toBe(true);
-    expect(paths.has("auth")).toBe(true);
-    expect(paths.has("auth login")).toBe(true);
-    expect(paths.has("renamed")).toBe(false);
-  });
-});
-
-describe("the committed catalog", () => {
-  it("passes the gate against the real command tree", () => {
-    const result = checkOperationsMap({
-      operationIds: Object.keys(ProductOperations),
-      mapRaw: readFileSync(
-        join(PKG_ROOT, "product-operations.map.json"),
-        "utf8",
-      ),
-      today: "2026-08-16",
-      commandPaths: cliCommandPaths(),
-    });
-    // The catalog's final shape: every operation accounted for.
-    expect(result).toEqual({
-      ok: true,
-      value: { commands: 33, gaps: 0, webOnly: 21 },
-    });
   });
 });

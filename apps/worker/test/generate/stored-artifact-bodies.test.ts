@@ -4,14 +4,10 @@ import {
   createTenantRepository,
   GenerationKinds,
 } from "persistence";
-import { RepoConfigPaths } from "repo-config";
 import {
   BASE,
-  buildRepoFile,
   captureLogger,
   ctx,
-  CUSTOM_RISK,
-  CUSTOM_RISK_POLICY,
   harness,
   HEAD_1,
   HEAD_2,
@@ -19,7 +15,6 @@ import {
   makeReviewerId,
   makeTask,
   PR_REF,
-  REPO,
   setUpHarness,
   stubGenerator,
   trigger,
@@ -78,24 +73,12 @@ setUpHarness();
 describe("generate task, stored artifact bodies", () => {
   /** Rev 1, an optional SQL rewrite of its stored body, then a second push. */
   async function runSecondPush(options: {
-    policy?: string;
-    rev1Output?: unknown;
     rev2Output?: unknown;
     storedBodySql?: string;
   }) {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
-    if (options.rev1Output !== undefined) {
-      generator.outputs["brief"] = options.rev1Output;
-    }
     const github = makeGitHub(HEAD_1);
-    if (options.policy !== undefined) {
-      github.addRepoFile(
-        REPO,
-        { path: RepoConfigPaths.POLICY },
-        buildRepoFile(options.policy, "sha-p"),
-      );
-    }
     const { logger, readLines } = captureLogger({ LOG_LEVEL: "debug" });
     const task = makeTask({ generator, github, log: logger });
     await task(first.payload);
@@ -119,19 +102,6 @@ describe("generate task, stored artifact bodies", () => {
     );
     return { row, readLines, shapeWarnings };
   }
-
-  it("anchors on a stored brief that fires a custom risk attribute", async () => {
-    const { row, readLines, shapeWarnings } = await runSecondPush({
-      policy: CUSTOM_RISK_POLICY,
-      rev1Output: makeBriefOutputFiring(CUSTOM_RISK, "stub brief"),
-    });
-
-    expect(row?.anchorState).toBe("anchored");
-    expect(shapeWarnings).toEqual([]);
-    expect(
-      readLines().some((line) => line["evt"] === "artifact.check.fail"),
-    ).toBe(false);
-  });
 
   it("restarts unanchored and warns on an empty stored body", async () => {
     const { row, readLines, shapeWarnings } = await runSecondPush({

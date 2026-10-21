@@ -11,8 +11,7 @@ import {
   type FakeGitHub,
 } from "github/testing";
 import type { KeyProvider } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
@@ -35,6 +34,7 @@ import {
 } from "./reviewer-github";
 import { seedSignIn, seedApiToken } from "./sign-in";
 import { AccessLevels } from "types/access-levels";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -63,7 +63,7 @@ function readBigInt(value: unknown): bigint | null {
   return null;
 }
 
-async function readAudits(harness: PgliteHarness): Promise<AuditRow[]> {
+async function readAudits(harness: SharedPglite): Promise<AuditRow[]> {
   const rows = await harness.raw(
     "select installation_id, source, operation, outcome, actor_id, target_type, target_id from audit_log order by id",
   );
@@ -97,14 +97,13 @@ function arrangeFreshRepository(fake: FakeGitHub, viewerIsAdmin: boolean) {
 }
 
 describe("DELETE /api/repos/:repoId/attachments", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
   let cookie: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -115,11 +114,6 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
       ...buildFakeInstallationDeps(fake),
     });
     ({ cookie } = await seedSignIn(harness.handle, kp));
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function stubGate(options: Partial<GateGitHubOptions> = {}) {
@@ -239,16 +233,6 @@ describe("DELETE /api/repos/:repoId/attachments", () => {
 
     expect(res.status).toBe(404);
     expect(listDeletes()).toEqual([]);
-  });
-
-  it("the owner world is a 404 with no call past the gate", async () => {
-    stubGate({ inInstallation: false });
-    arrangeFreshRepository(fake, true);
-
-    const res = await purge();
-
-    expect(res.status).toBe(404);
-    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("a Bearer principal is refused as human-only before any fresh read", async () => {

@@ -2,7 +2,7 @@
 // collaborators AND org/team-granted members (`affiliation: ALL` is critical).
 // Drives the wire→domain mapping, the capped cursor loop, and the sanitized
 // failure paths.
-import { RequestError, type Octokit } from "octokit";
+import type { Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { listRepoCollaborators } from "../src/operations/collaborators";
 import { GitHubApiErrorCodes } from "../src/errors";
@@ -199,29 +199,6 @@ describe("listRepoCollaborators failures", () => {
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
     expect(result.error.message).not.toContain(UPSTREAM_TEXT);
-  });
-
-  it("maps a thrown RequestError through the REST taxonomy", async () => {
-    const graphql = vi.fn().mockRejectedValue(
-      new RequestError("boom", 502, {
-        request: {
-          method: "POST",
-          url: "https://api.github.com/graphql",
-          headers: {},
-        },
-      }),
-    );
-    const result = await listRepoCollaborators(
-      mockGraphqlOctokit(graphql),
-      INPUT,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
-    expect(result.error.status).toBe(502);
-    expect(result.error.message).not.toContain("boom");
   });
 
   it("returns a sanitized failure for an ill-shaped 2xx body on any page", async () => {

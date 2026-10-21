@@ -285,13 +285,6 @@ describe("ThreadRowView, slim resolved rows", () => {
     );
   });
 
-  it("keeps the jump-to-thread landing attribute on a slim row", () => {
-    const { view } = renderRow(threadRow({ isResolved: true }));
-    expect(
-      view.container.querySelector('[data-conversation-section-thread="9001"]'),
-    ).not.toBeNull();
-  });
-
   it("omits landing attributes from all inline hideJump rows", () => {
     const flowStore = createReviewFlowStore(
       {

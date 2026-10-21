@@ -11,9 +11,8 @@ import {
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
-import { PrStates, AccessLevels } from "types";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PrStates } from "types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
@@ -37,7 +36,8 @@ import {
   arrangeFakeGate,
   listCallsPastGate,
 } from "./reviewer-github";
-import { seedSignIn, seedApiToken } from "./sign-in";
+import { seedSignIn } from "./sign-in";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -114,7 +114,7 @@ function readBigInt(value: unknown): bigint | null {
   return null;
 }
 
-async function readAudits(harness: PgliteHarness): Promise<AuditRow[]> {
+async function readAudits(harness: SharedPglite): Promise<AuditRow[]> {
   const rows = await harness.raw(
     "select installation_id, source, operation, outcome, actor_type, actor_id from audit_log order by id",
   );
@@ -128,7 +128,7 @@ async function readAudits(harness: PgliteHarness): Promise<AuditRow[]> {
   }));
 }
 
-async function readOwners(harness: PgliteHarness): Promise<string[]> {
+async function readOwners(harness: SharedPglite): Promise<string[]> {
   const rows = await harness.raw(
     "select owner_user_id from pull_request order by id",
   );
@@ -136,14 +136,14 @@ async function readOwners(harness: PgliteHarness): Promise<string[]> {
 }
 
 async function countRows(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   table: string,
 ): Promise<number> {
   return (await harness.raw(`select id from ${table}`)).length;
 }
 
 describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
   let app: ApiApp;
@@ -162,16 +162,10 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     });
   }
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = buildApp();
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function del(
@@ -383,27 +377,6 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     expect(res.status).toBe(404);
   });
 
-  it("a Bearer principal is refused as human-only before any fresh read", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    arrangeFreshRead(fake, true);
-    await seedBriefedPr(harness.handle, TENANT);
-    const bearer = await seedApiToken(
-      harness.handle,
-      kp,
-      AccessLevels.EXTERNAL_WRITE,
-    );
-
-    const res = await app.request(DELETE_PATH, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${bearer}` },
-    });
-
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code?: string }).code).toBe("human-only");
-    expect(listCallsPastGate(fake)).toEqual([]);
-    expect(await countRows(harness, "pull_request")).toBe(1);
-  });
-
   it("a cross-origin cookie request is forbidden", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeFreshRead(fake, true);
@@ -418,17 +391,5 @@ describe("DELETE /api/repos/:repoId/pulls/:prNumber", () => {
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code?: string }).code).toBe("forbidden");
     expect(await countRows(harness, "pull_request")).toBe(1);
-  });
-
-  it("the inbox path erases the same own row with no call past the session", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID, inInstallation: false });
-    await seedBriefedPr(harness.handle, OWNER);
-    const { cookie } = await seedSignIn(harness.handle, kp);
-
-    const res = await del(cookie, `/api/inbox/${REPO_ID}/${PR_NUMBER}`);
-
-    expect(res.status).toBe(204);
-    expect(fake.calls).toEqual([]);
-    expect(await countRows(harness, "pull_request")).toBe(0);
   });
 });

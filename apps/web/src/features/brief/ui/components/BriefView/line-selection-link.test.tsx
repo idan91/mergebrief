@@ -137,17 +137,6 @@ describe("line selection link", () => {
     expect(screen.getByTestId("brief-toast").textContent).toBe("");
   });
 
-  it("never drops a link it did not write", async () => {
-    const navigateLink = vi.fn();
-    await mountBriefHost(
-      <Host initialLink="chunk-a" navigateLink={navigateLink} />,
-    );
-    await waitFor(() => findNumberCell("10"));
-
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(navigateLink).not.toHaveBeenCalled();
-  });
-
   it("never drops a link an outside write replaced", async () => {
     const navigateLink = vi.fn();
     await mountBriefHost(<Host navigateLink={navigateLink} />);

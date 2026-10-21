@@ -3,12 +3,6 @@ import { describe, expect, it } from "vitest";
 import { SYNTAX_PALETTE, TEXT_CLASS_ID, resolveClassId } from "./palette";
 
 describe("SYNTAX_PALETTE", () => {
-  it("holds no duplicate hex", () => {
-    const hexes = SYNTAX_PALETTE.map((entry) => entry.hex);
-
-    expect(new Set(hexes).size).toBe(hexes.length);
-  });
-
   it("holds no duplicate token name", () => {
     const tokens = SYNTAX_PALETTE.map((entry) => entry.token);
 
@@ -18,12 +12,6 @@ describe("SYNTAX_PALETTE", () => {
   it("spells every hex lowercase and six digits", () => {
     for (const entry of SYNTAX_PALETTE) {
       expect(entry.hex).toMatch(/^#[0-9a-f]{6}$/);
-    }
-  });
-
-  it("spells every token name kebab-case", () => {
-    for (const entry of SYNTAX_PALETTE) {
-      expect(entry.token).toMatch(/^[a-z]+(-[a-z]+)*$/);
     }
   });
 

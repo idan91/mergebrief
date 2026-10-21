@@ -122,7 +122,6 @@ export interface TokenizableRow {
   content: string;
   oldLine?: number | undefined;
   newLine?: number | undefined;
-  origin?: DiffRowOrigin | undefined;
 }
 
 /**

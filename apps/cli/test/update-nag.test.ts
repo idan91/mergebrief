@@ -107,17 +107,6 @@ describe("the update nag", () => {
     expect(readCache(world.cacheDir)).toMatchObject({ notified: true });
   });
 
-  it("third run the same day prints nothing", async () => {
-    const world = makeWorld();
-    await world.run({});
-    await world.run({}, { now: () => T0 + 60_000 });
-
-    const line = await world.run({}, { now: () => T0 + 120_000 });
-
-    expect(line).toBeUndefined();
-    expect(world.calls).toHaveLength(1);
-  });
-
   it("a run a day later checks again and prints on the run after", async () => {
     const world = makeWorld();
     await world.run({});

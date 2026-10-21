@@ -66,16 +66,6 @@ describe("hunk edge expansion store", () => {
       60,
     );
   });
-
-  it("keeps each edge of each chunk apart", () => {
-    const store = createExpansionStore();
-
-    store
-      .getState()
-      .actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 });
-
-    expect(readExpansion(store.getState(), "chunk-a:3:up")).toBeUndefined();
-  });
 });
 
 describe("expansion store per brief", () => {

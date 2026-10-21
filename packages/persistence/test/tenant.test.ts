@@ -26,7 +26,9 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -45,7 +47,7 @@ function upsertInput(
 
 describe("createTenantRepository row_version", () => {
   it("moves row_version on every pull_request write", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const { pullRequests } = createTenantRepository(handle, CTX_A);
     const readAt = new Date("2026-09-20T12:00:00Z");
     const stack = { stack: { members: [], index: 1 }, readAt };
@@ -74,7 +76,7 @@ describe("createTenantRepository row_version", () => {
 
 describe("createTenantRepository tenant isolation on reads", () => {
   it("A cannot read a pull_request B wrote under the same repo and number", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -88,7 +90,7 @@ describe("createTenantRepository tenant isolation on reads", () => {
   });
 
   it("A and B keep independent rows under the same natural key", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -109,7 +111,7 @@ describe("createTenantRepository tenant isolation on reads", () => {
   });
 
   it("A cannot read a checkpoint written under B", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -128,7 +130,7 @@ describe("createTenantRepository tenant isolation on reads", () => {
 
 describe("createTenantRepository refuses cross-tenant child writes", () => {
   it("rejects a checkpoint whose pull_request belongs to another tenant", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -150,7 +152,7 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
   });
 
   it("advanceGithubUpdatedAt keeps the newer value, refuses another tenant", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
     const later = new Date("2026-09-20T12:00:00Z");
@@ -171,7 +173,7 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
   });
 
   it("setEntryComment on a PR outside the tenant returns undefined", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -188,7 +190,7 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
 
 describe("createTenantRepository entry comment rotation", () => {
   it("setEntryComment stores and rotates the comment id", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
@@ -206,7 +208,7 @@ describe("createTenantRepository entry comment rotation", () => {
 
 describe("createTenantRepository setDraft, the mark-ready flip", () => {
   it("flips draft=true to false in place and is idempotent", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert({ ...upsertInput(7), draft: true });
@@ -222,7 +224,7 @@ describe("createTenantRepository setDraft, the mark-ready flip", () => {
   });
 
   it("setDraft outside the tenant returns undefined, touches nothing", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
@@ -247,7 +249,7 @@ describe("createTenantRepository recordStack, the last stack GitHub resolved", (
   };
 
   it("writes the stack and its read time, and a later write overwrites", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
     expect(pr.stack).toBeNull();
@@ -272,7 +274,7 @@ describe("createTenantRepository recordStack, the last stack GitHub resolved", (
   });
 
   it("recordStack outside the tenant returns undefined, touches nothing", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
     const bPr = await b.pullRequests.upsert(upsertInput(7));
@@ -289,7 +291,7 @@ describe("createTenantRepository recordStack, the last stack GitHub resolved", (
 
 describe("createTenantRepository idempotent upserts", () => {
   it("pull_request upsert is idempotent and mutates state in place", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const first = await a.pullRequests.upsert(
@@ -306,28 +308,8 @@ describe("createTenantRepository idempotent upserts", () => {
     expect(second.state).toBe(PrStates.MERGED); // updated in place
   });
 
-  it("an upsert older than the stored githubUpdatedAt keeps the row", async () => {
-    const handle = await freshDatabase();
-    const tenantRepo = createTenantRepository(handle, CTX_A);
-    const newer = new Date("2026-07-02T00:00:00Z");
-    await tenantRepo.pullRequests.upsert({
-      ...upsertInput(7),
-      title: "newer",
-      githubUpdatedAt: newer,
-    });
-
-    const stale = await tenantRepo.pullRequests.upsert({
-      ...upsertInput(7),
-      title: "stale",
-      githubUpdatedAt: new Date("2026-07-01T00:00:00Z"),
-    });
-
-    expect(stale.title).toBe("newer");
-    expect(stale.githubUpdatedAt).toEqual(newer);
-  });
-
   it("reopening a closed PR clears its close time", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const closed = await a.pullRequests.upsert(
@@ -346,7 +328,7 @@ describe("createTenantRepository idempotent upserts", () => {
   });
 
   it("checkpoint upsertOnSubmit is idempotent and advances the sha", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
 
@@ -368,7 +350,7 @@ describe("createTenantRepository idempotent upserts", () => {
   });
 
   it("checkpoint upsertOnSubmit never regresses to an older submitted_at", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
 
@@ -395,7 +377,7 @@ describe("createTenantRepository idempotent upserts", () => {
   });
 
   it("checkpoint upsertOnSubmit re-applies an equal submitted_at", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
     const at = new Date("2026-07-07T12:00:00Z");

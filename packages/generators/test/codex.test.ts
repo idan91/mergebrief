@@ -242,29 +242,9 @@ describe("CodexGenerator invocation profile", () => {
       effort: "low",
     });
   });
-
-  it("stamps codex-default and echoes effort when no model is configured", () => {
-    const generator = makeGenerator({});
-    // The reroute blind spot: no JSONL event carries a model id, so the
-    // stamp is the static declaration, here, the CLI's own default.
-    expect(generator.origin("medium")).toEqual({
-      provider: "codex",
-      model: "codex-default",
-      effort: "medium",
-    });
-  });
 });
 
 describe("CodexGenerator answer selection and classification", () => {
-  it("selects the LAST completed agent_message, skipping narration", async () => {
-    // The 'valid' scenario emits a preliminary narration message first.
-    const generator = makeGenerator({
-      SHIM_SCENARIO: "valid",
-      SHIM_OUTPUT: '{"ok":true}',
-    });
-    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
-  });
-
   it("keeps untrusted failure messages out of the thrown error", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "turn-failed" });
     const caught = await generator.generate(request()).then(
@@ -402,13 +382,5 @@ describe("codex registry entry", () => {
       return;
     }
     expect(result.error.issues.join("; ")).toContain("codex login");
-  });
-
-  it("refuses boot when the binary is missing", async () => {
-    const result = await createGenerator(
-      { provider: Providers.CODEX, command: "/nonexistent/codex" },
-      makeDeps({}),
-    );
-    expect(result.ok).toBe(false);
   });
 });

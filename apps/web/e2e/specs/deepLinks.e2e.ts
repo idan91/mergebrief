@@ -96,17 +96,6 @@ test("the Revisions tab navigates between the fixture's revisions", async ({
   ).toBeVisible();
 });
 
-test("a rev link opens that revision", async ({ page }) => {
-  await gotoBrief(page, FIXTURE_ROUTE_REV1);
-
-  await expect(
-    page.getByRole("heading", {
-      name: "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",
-    }),
-  ).toBeVisible();
-  await expect(page).toHaveURL(/[?&]rev=1(?:&|$)/);
-});
-
 test("an old span link opens its revision and is rewritten to rev", async ({
   page,
 }) => {

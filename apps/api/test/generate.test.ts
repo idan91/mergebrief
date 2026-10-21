@@ -17,8 +17,7 @@ import {
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
 import { spyPullRequestLookups } from "./pull-request-lookups";
@@ -37,6 +36,7 @@ import {
   arrangeFakeGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
 const PR_URL = "https://github.com/o/r/pull/7";
@@ -92,7 +92,7 @@ function listPullReadTokens(fake: FakeGitHub): string[] {
 
 /** An owner-world sign-in with no installation: the url-box viewer's shape. */
 async function seedOwnerSignIn(
-  harness: PgliteHarness,
+  harness: SharedPglite,
   kp: KeyProvider,
   reviewer: ReviewerId = REVIEWER,
 ): Promise<string> {
@@ -122,20 +122,14 @@ async function post(
 }
 
 describe("POST /api/generate: the url-box door", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     arrangeFakeGate(fake, { repoId: REPO_ID, fullName: "o/r" });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function buildApp(

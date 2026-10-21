@@ -174,18 +174,6 @@ describe("policy.yaml floor attributes cannot be de-emphasized", () => {
 });
 
 describe("policy.yaml collision resolution, where built-in wins with a chip", () => {
-  it("drops a custom name colliding with a built-in, file stays applied", () => {
-    const result = validate(
-      yaml({
-        version: 1,
-        attributes: { "touches-auth": { criteria: "custom def" } },
-      }),
-    );
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
-    expect(result.collisions).toContain("touches-auth");
-    expect(result.policy?.attributes).not.toHaveProperty("touches-auth");
-  });
-
   it("drops a custom name colliding with a parked candidate", () => {
     const result = validate(
       yaml({
@@ -215,6 +203,7 @@ describe("policy.yaml collision resolution, where built-in wins with a chip", ()
         },
       }),
     );
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
     expect(result.collisions).toEqual(["touches-auth"]);
     expect(result.policy?.attributes).toHaveProperty("touches-billing");
     expect(result.policy?.attributes).not.toHaveProperty("touches-auth");

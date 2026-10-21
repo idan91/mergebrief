@@ -33,15 +33,6 @@ describe("useDelayedPending", () => {
     expect(result.current).toBe(false);
   });
 
-  it("appears only after the delay while still pending", () => {
-    const { result } = renderHook(() => useDelayedPending(true));
-    expect(result.current).toBe(false);
-    act(() => {
-      vi.advanceTimersByTime(PENDING_APPEAR_MS);
-    });
-    expect(result.current).toBe(true);
-  });
-
   it("holds for the minimum once shown, even if pending ends sooner", () => {
     const { result, rerender } = renderHook(
       ({ pending }: { pending: boolean }) => useDelayedPending(pending),

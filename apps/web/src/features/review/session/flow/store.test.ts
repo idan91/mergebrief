@@ -220,24 +220,6 @@ describe("ReviewFlow store", () => {
       rowIds: ["chunk-a:3", "chunk-a:4"],
     };
 
-    it("starts empty and holds the lines a reader picks", () => {
-      expect(store.getState().lineSelection).toBeNull();
-      store.getState().actions.selectLines(picked);
-      expect(store.getState().lineSelection).toEqual(picked);
-    });
-
-    it("a pick in another chunk replaces the selection whole", () => {
-      const { actions } = store.getState();
-      actions.selectLines(picked);
-      const elsewhere = {
-        ...picked,
-        chunkId: "chunk-b",
-        rowIds: ["chunk-b:0"],
-      };
-      actions.selectLines(elsewhere);
-      expect(store.getState().lineSelection).toEqual(elsewhere);
-    });
-
     it("clears on request and survives the composer closing", () => {
       const { actions } = store.getState();
       actions.selectLines(picked);
@@ -354,12 +336,6 @@ describe("ReviewFlow store", () => {
   });
 
   describe("review comment draft", () => {
-    it("starts empty and sets verbatim", () => {
-      expect(store.getState().reviewComment).toBe("");
-      store.getState().actions.setReviewComment("Solid change.  ");
-      expect(store.getState().reviewComment).toBe("Solid change.  ");
-    });
-
     it("consumes the draft when it still equals the shipped text", () => {
       store.getState().actions.setReviewComment("Solid change.");
       store.getState().actions.consumeReviewComment("Solid change.");

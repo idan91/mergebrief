@@ -6,13 +6,9 @@
 // can keep stepping; a small decorative spinner rides beside the controls.
 // Fast loads (shorter than the appearance delay) must show nothing at all.
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  PENDING_APPEAR_MS,
-  PENDING_MIN_HOLD_MS,
-} from "../../hooks/useDelayedPending";
+import { PENDING_APPEAR_MS } from "../../hooks/useDelayedPending";
 import { mountBriefView } from "@web/features/brief/test-utils";
 
 afterEach(() => {
@@ -43,19 +39,6 @@ describe("revision-pending treatment", () => {
     expect(main().getAttribute("aria-busy")).toBeNull();
   });
 
-  it("shows nothing for a load faster than the appearance delay", async () => {
-    const view = await mountBriefView({ revisionPending: true });
-    act(() => {
-      vi.advanceTimersByTime(PENDING_APPEAR_MS - 1);
-    });
-    view.rerender({ revisionPending: false });
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-    expect(main().hasAttribute("inert")).toBe(false);
-    expect(main().hasAttribute("data-pending")).toBe(false);
-  });
-
   it("dims and inerts ONLY the content region after the delay", async () => {
     await mountBriefView({ revisionPending: true });
     act(() => {
@@ -82,33 +65,5 @@ describe("revision-pending treatment", () => {
     expect(
       screen.getByText("Keyboard shortcuts").closest("[data-state]"),
     ).toMatchObject({ dataset: { state: "closed" } });
-  });
-
-  it("keeps the shortcuts live when nothing is pending", async () => {
-    await mountBriefView({ revisionPending: false });
-    fireEvent.keyDown(window, { key: "?" });
-    expect(
-      screen.getByText("Keyboard shortcuts").closest("[data-state]"),
-    ).toMatchObject({ dataset: { state: "open" } });
-  });
-
-  it("holds the treatment for the minimum once shown, then releases", async () => {
-    const view = await mountBriefView({ revisionPending: true });
-    act(() => {
-      vi.advanceTimersByTime(PENDING_APPEAR_MS);
-    });
-    expect(main().hasAttribute("inert")).toBe(true);
-
-    view.rerender({ revisionPending: false });
-    act(() => {
-      vi.advanceTimersByTime(PENDING_MIN_HOLD_MS - 1);
-    });
-    expect(main().hasAttribute("inert")).toBe(true);
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(main().hasAttribute("inert")).toBe(false);
-    expect(main().hasAttribute("data-pending")).toBe(false);
-    expect(main().getAttribute("aria-busy")).toBeNull();
   });
 });

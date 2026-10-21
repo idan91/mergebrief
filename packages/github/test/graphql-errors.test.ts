@@ -1,4 +1,4 @@
-// `mapGraphqlError` — the GraphQL taxonomy sibling of `mapRequestError`.
+// `mapGraphqlError`: the GraphQL taxonomy sibling of `mapRequestError`.
 // GraphQL failures arrive as `GraphqlResponseError` (HTTP 200 + errors array),
 // which the octokit umbrella does NOT export, so classification is structural.
 // The same sanitization contract holds: no upstream message, token, or body
@@ -13,7 +13,7 @@ import {
 } from "./fixtures/graphql-error";
 
 describe("mapGraphqlError", () => {
-  it("classifies a NOT_FOUND GraphQL error as not-found without leaking upstream text", () => {
+  it("maps NOT_FOUND to not-found without leaking upstream text", () => {
     const mapped = mapGraphqlError(
       graphqlResponseError([{ type: "NOT_FOUND", message: UPSTREAM_TEXT }]),
       "fetch pull request conversation",
@@ -22,7 +22,7 @@ describe("mapGraphqlError", () => {
     const serialized = JSON.stringify(mapped);
     expect(serialized).not.toContain(LEAKED_TOKEN);
     expect(serialized).not.toContain("Could not resolve");
-    // The request URL and auth header are planted on the thrown error too —
+    // The request URL and auth header are planted on the thrown error too:
     // the full sanitization contract is token AND url AND header.
     expect(serialized).not.toContain("api.github.com");
     expect(serialized).not.toContain("authorization");
@@ -31,15 +31,7 @@ describe("mapGraphqlError", () => {
     );
   });
 
-  it("classifies FORBIDDEN as forbidden", () => {
-    const mapped = mapGraphqlError(
-      graphqlResponseError([{ type: "FORBIDDEN", message: "nope" }]),
-      "fetch pull request conversation",
-    );
-    expect(mapped.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
-  });
-
-  it("classifies RATE_LIMITED as rate-limited, taking precedence over other error types", () => {
+  it("lets RATE_LIMITED win over the other error types", () => {
     const mapped = mapGraphqlError(
       graphqlResponseError([
         { type: "NOT_FOUND", message: "x" },
@@ -59,7 +51,7 @@ describe("mapGraphqlError", () => {
     expect(JSON.stringify(mapped)).not.toContain("weirdness");
   });
 
-  it("delegates an HTTP-level RequestError to the REST taxonomy (status preserved)", () => {
+  it("delegates an HTTP-level RequestError to the REST taxonomy", () => {
     const httpError = new RequestError("HTTP 401", 401, {
       request: {
         method: "POST",
@@ -86,7 +78,7 @@ describe("mapGraphqlError", () => {
     expect(serialized).not.toContain("Bad credentials");
   });
 
-  it("classifies a GraphqlResponseError-shaped plain object (wrapped/cross-realm)", () => {
+  it("classifies a GraphqlResponseError-shaped plain object", () => {
     // Detection is fully structural: a shape carrying the name + errors array
     // must classify even when it is not an `instanceof Error` in this realm.
     const shaped = {

@@ -12,7 +12,14 @@ import {
   validateTextLength,
   validateNarrativeTextLength,
 } from "../../src/generation/validate";
-import type { Chunk, IntentCheck, RiskSurfaceAttribute } from "../../src/types";
+import type {
+  Chunk,
+  IntentBucket,
+  IntentCheck,
+  IntentCheckGeneration,
+  IntentItem,
+  RiskSurfaceAttribute,
+} from "../../src/types";
 
 const groups = [{ id: "g1" }, { id: "g2" }];
 
@@ -82,10 +89,6 @@ describe("validateReadingOrder with frozen ids on anchored runs", () => {
     );
     expect(issues.join(" ")).toContain("ghost");
   });
-
-  it("preserves fresh validation behavior without carried ids", () => {
-    expect(validateReadingOrder([{ groupId: "tmp1" }], emitted)).toEqual([]);
-  });
 });
 
 describe("validateNarrativeGroups", () => {
@@ -141,11 +144,6 @@ describe("validateReadingOrder", () => {
       issues.some((i) => i.includes("more than once") && i.includes("g1")),
     ).toBe(true);
   });
-
-  it("keeps a valid three-group permutation", () => {
-    const order = [{ groupId: "g3" }, { groupId: "g1" }, { groupId: "g2" }];
-    expect(validateReadingOrder(order, threeGroups)).toEqual([]);
-  });
 });
 
 function isNoRemovedLinesDrop(issue: string): boolean {
@@ -185,7 +183,7 @@ describe("validateRiskAttributes", () => {
     ];
     const result = validateRiskAttributes(chunks, []);
     expect(result.issues).toEqual([]);
-    expect(result.chunks[0].riskSurface).toContain("comment-contradicts-code");
+    expect(result.chunks[0]?.riskSurface).toContain("comment-contradicts-code");
   });
 
   it("warns and drops uncited comment-contradicts-code while keeping chunks", () => {
@@ -194,14 +192,14 @@ describe("validateRiskAttributes", () => {
     ];
     const result = validateRiskAttributes(chunks, []);
     expect(result.chunks).toHaveLength(1);
-    expect(result.chunks[0].riskSurface).toEqual(["no-tests"]);
+    expect(result.chunks[0]?.riskSurface).toEqual(["no-tests"]);
     expect(
       result.issues.some(
         (i) => i.includes("c1") && i.includes("comment-contradicts-code"),
       ),
     ).toBe(true);
     // pure: input untouched
-    expect(chunks[0].riskSurface).toContain("comment-contradicts-code");
+    expect(chunks[0]?.riskSurface).toContain("comment-contradicts-code");
   });
 
   it("keeps new-dependency for new keys in the chunk's own added lines", () => {
@@ -224,7 +222,7 @@ describe("validateRiskAttributes", () => {
       { file: "package.json", patch },
     ]);
     expect(result.issues).toEqual([]);
-    expect(result.chunks[0].riskSurface).toEqual(["new-dependency"]);
+    expect(result.chunks[0]?.riskSurface).toEqual(["new-dependency"]);
   });
 
   it("drops new-dependency for version bumps with matching removed keys", () => {
@@ -244,7 +242,7 @@ describe("validateRiskAttributes", () => {
     const result = validateRiskAttributes(chunks, [
       { file: "package.json", patch },
     ]);
-    expect(result.chunks[0].riskSurface).toEqual([]);
+    expect(result.chunks[0]?.riskSurface).toEqual([]);
     expect(result.issues.some((i) => i.includes("new-dependency"))).toBe(true);
   });
 
@@ -255,7 +253,7 @@ describe("validateRiskAttributes", () => {
     const result = validateRiskAttributes(chunks, [
       { file: "src/a.ts", patch: '+import leftPad from "left-pad";' },
     ]);
-    expect(result.chunks[0].riskSurface).toEqual([]);
+    expect(result.chunks[0]?.riskSurface).toEqual([]);
     expect(
       result.issues.some((i) => i.includes("not a package manifest")),
     ).toBe(true);
@@ -295,7 +293,7 @@ describe("validateRiskAttributes", () => {
         ],
         [{ file, patch }],
       );
-      expect(result.chunks[0].riskSurface).toEqual(["new-dependency"]);
+      expect(result.chunks[0]?.riskSurface).toEqual(["new-dependency"]);
     }
   });
 
@@ -351,7 +349,7 @@ describe("validateRiskAttributes", () => {
         ],
         [{ file, patch }],
       );
-      expect(result.chunks[0].riskSurface).toEqual([]);
+      expect(result.chunks[0]?.riskSurface).toEqual([]);
       expect(result.issues).toHaveLength(1);
     }
   });
@@ -384,8 +382,8 @@ describe("validateRiskAttributes", () => {
     const result = validateRiskAttributes(chunks, [
       { file: "package.json", patch },
     ]);
-    expect(result.chunks[0].riskSurface).toEqual(["new-dependency"]);
-    expect(result.chunks[1].riskSurface).toEqual([]);
+    expect(result.chunks[0]?.riskSurface).toEqual(["new-dependency"]);
+    expect(result.chunks[1]?.riskSurface).toEqual([]);
     expect(result.issues.some((i) => i.includes("c2"))).toBe(true);
     expect(result.issues.some((i) => i.includes("c1"))).toBe(false);
   });
@@ -400,8 +398,8 @@ describe("validateRiskAttributes", () => {
       }),
     ];
     const result = validateRiskAttributes(chunks, []);
-    expect(result.chunks[0].riskSurface).toEqual(["new-abstraction"]);
-    expect(result.chunks[0].riskNotes).toEqual([
+    expect(result.chunks[0]?.riskSurface).toEqual(["new-abstraction"]);
+    expect(result.chunks[0]?.riskNotes).toEqual([
       { attr: "new-abstraction", note: "introduces RetryPolicy class" },
     ]);
   });
@@ -414,7 +412,7 @@ describe("validateRiskAttributes", () => {
       }),
     ];
     const result = validateRiskAttributes(chunks, []);
-    expect(result.chunks[0].riskSurface).toEqual(["no-tests"]);
+    expect(result.chunks[0]?.riskSurface).toEqual(["no-tests"]);
     expect(result.issues.some(isNoRemovedLinesDrop)).toBe(true);
   });
 
@@ -435,7 +433,7 @@ describe("validateRiskAttributes", () => {
       acceptsRevisionDroppedChecks: true,
     });
     expect(result.issues).toEqual([]);
-    expect(result.chunks[0].riskSurface).toEqual(["removes-validation"]);
+    expect(result.chunks[0]?.riskSurface).toEqual(["removes-validation"]);
   });
 
   it("drops an uncited removes-validation on an additive revision chunk", () => {
@@ -445,7 +443,7 @@ describe("validateRiskAttributes", () => {
     const result = validateRiskAttributes(chunks, [], {
       acceptsRevisionDroppedChecks: true,
     });
-    expect(result.chunks[0].riskSurface).toEqual([]);
+    expect(result.chunks[0]?.riskSurface).toEqual([]);
     expect(result.issues.some(isNoRemovedLinesDrop)).toBe(true);
   });
 
@@ -458,8 +456,8 @@ describe("validateRiskAttributes", () => {
       }),
     ];
     const result = validateRiskAttributes(chunks, []);
-    expect(result.chunks[0].riskSurface).toEqual([]);
-    expect(result.chunks[0].riskNotes ?? []).toEqual([]);
+    expect(result.chunks[0]?.riskSurface).toEqual([]);
+    expect(result.chunks[0]!.riskNotes ?? []).toEqual([]);
   });
 
   it("keeps removes-validation when the chunk removes lines", () => {
@@ -471,7 +469,7 @@ describe("validateRiskAttributes", () => {
     ];
     const result = validateRiskAttributes(chunks, []);
     expect(result.issues).toEqual([]);
-    expect(result.chunks[0].riskSurface).toEqual(["removes-validation"]);
+    expect(result.chunks[0]?.riskSurface).toEqual(["removes-validation"]);
   });
 
   it("never drops the chunk itself", () => {
@@ -1116,28 +1114,6 @@ describe("validateIntentCheck", () => {
     expect(issues.join("\n")).toContain("empty quote");
   });
 
-  it("allows unstated items to have empty quotes without warning", () => {
-    const input = {
-      ...preciseCheck(),
-      doneButUnstated: [
-        {
-          intent: "cleanup",
-          quote: "",
-          sourceUrl: "",
-          groupIds: ["g2"],
-          acknowledged: false,
-        },
-      ],
-    };
-    const { issues } = validateIntentCheck(
-      input,
-      emittedGroups,
-      injected,
-      sources,
-    );
-    expect(issues).toEqual([]);
-  });
-
   it("is pure, the input intent check is not mutated", () => {
     const input = { ...preciseCheck(), specificity: "broad" as const };
     validateIntentCheck(input, emittedGroups, injected, sources);
@@ -1173,6 +1149,10 @@ describe("validateIntentCheck", () => {
         expect(issues.join("\n")).toContain("empty quote");
         expect(issues.join("\n")).toContain("dropped");
       });
+    }
+
+    describe("the other drop reasons, on a deviations item", () => {
+      const bucket = "deviations";
 
       it(`drops a ${bucket} item whose quote is a bare fragment, even when it verifies`, () => {
         // "must stop" IS a substring of the ticket content, length, not
@@ -1270,7 +1250,7 @@ describe("validateIntentCheck", () => {
         expect(intentCheck[bucket]).toEqual([]);
         expect(issues.join("\n")).toContain(forged);
       });
-    }
+    });
 
     it("preserves acknowledged deviations", () => {
       const input = {
@@ -1338,15 +1318,21 @@ describe("validateIntentCheck", () => {
 });
 
 /** One tagged wire item, the shape generation actually emits. */
-const genItem = (bucket: string, intent: string, overrides = {}) => ({
-  bucket,
-  intent,
-  quote: "q",
-  sourceUrl: "",
-  groupIds: ["g1"],
-  acknowledged: false,
-  ...overrides,
-});
+function makeWireItem(
+  bucket: IntentBucket,
+  intent: string,
+  overrides: Partial<IntentItem> = {},
+): IntentCheckGeneration["items"][number] {
+  return {
+    bucket,
+    intent,
+    quote: "q",
+    sourceUrl: "",
+    groupIds: ["g1"],
+    acknowledged: false,
+    ...overrides,
+  };
+}
 
 describe("fanOutIntentCheck within the grammar budget", () => {
   it("dispatches each tagged item into its stored bucket and drops the tag", () => {
@@ -1356,11 +1342,11 @@ describe("fanOutIntentCheck within the grammar budget", () => {
       specificity: "precise",
       scopeNote: "note",
       items: [
-        genItem("accomplished", "did the thing"),
-        genItem("statedButMissing", "missed the thing"),
-        genItem("doneButUnstated", "extra thing"),
-        genItem("deviations", "opposed the thing", { acknowledged: true }),
-        genItem("maskedFixes", "masked the thing"),
+        makeWireItem("accomplished", "did the thing"),
+        makeWireItem("statedButMissing", "missed the thing"),
+        makeWireItem("doneButUnstated", "extra thing"),
+        makeWireItem("deviations", "opposed the thing", { acknowledged: true }),
+        makeWireItem("maskedFixes", "masked the thing"),
       ],
       alignment: { read: "", goal: "", response: "" },
     });
@@ -1388,30 +1374,14 @@ describe("fanOutIntentCheck within the grammar budget", () => {
       specificity: "precise",
       scopeNote: "",
       items: [
-        genItem("accomplished", "first"),
-        genItem("deviations", "dev"),
-        genItem("accomplished", "second"),
+        makeWireItem("accomplished", "first"),
+        makeWireItem("deviations", "dev"),
+        makeWireItem("accomplished", "second"),
       ],
       alignment: { read: "", goal: "", response: "" },
     });
     expect(out.accomplished.map((i) => i.intent)).toEqual(["first", "second"]);
     expect(out.deviations).toHaveLength(1);
-  });
-
-  it("returns five empty buckets for empty tagged items", () => {
-    const out = fanOutIntentCheck({
-      ticketUrls: [],
-      ticketTitles: [],
-      specificity: "none",
-      scopeNote: "",
-      items: [],
-      alignment: { read: "", goal: "", response: "" },
-    });
-    expect(out.accomplished).toEqual([]);
-    expect(out.statedButMissing).toEqual([]);
-    expect(out.doneButUnstated).toEqual([]);
-    expect(out.deviations).toEqual([]);
-    expect(out.maskedFixes).toEqual([]);
   });
 
   it("validates dispatched tagged items like native bucket arrays", () => {
@@ -1422,7 +1392,7 @@ describe("fanOutIntentCheck within the grammar budget", () => {
       scopeNote: "",
       items: [
         // Alarm item with an unverifiable quote, the validator must still drop it.
-        genItem("deviations", "ungrounded alarm", {
+        makeWireItem("deviations", "ungrounded alarm", {
           quote: "this ask appears nowhere in the sources",
         }),
       ],

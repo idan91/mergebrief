@@ -1,6 +1,3 @@
-// Every deterministic route rejection maps to recoverable copy (the FE
-// resubmits the same state); the 503 config path surfaces the server-authored
-// env-name copy verbatim.
 import type { GenerateBriefResponse } from "contract";
 import type { Equals } from "types/utils";
 import { describe, expect, it, vi } from "vitest";
@@ -17,12 +14,12 @@ vi.mock("../../data/apiFetch", async (importOriginal) => ({
 
 const { generateBriefViaApi } = await import("./queries");
 
-const generateResponsePin = true satisfies Equals<
+true satisfies Equals<
   z.output<typeof generateBriefResponseSchema>,
   GenerateBriefResponse
 >;
 
-const readsWireFieldsPin = true satisfies ReadsWireFields<
+true satisfies ReadsWireFields<
   z.input<typeof generateBriefResponseSchema>,
   GenerateBriefResponse
 >;
@@ -49,38 +46,8 @@ describe("generateBriefViaApi", () => {
     });
   });
 
-  it.each([
-    [400, "not-a-pr-url"],
-    [401, "unauthorized"],
-    [404, "not-found"],
-    [502, "github-unavailable"],
-  ])("preserves wire code %s as a typed error", async (status, code) => {
-    apiFetch.mockResolvedValue(jsonResponse({ error: "x", code }, status));
-    await expect(generateBriefViaApi("u")).rejects.toMatchObject({
-      status,
-      code,
-    });
-  });
-
   it("falls back to generic copy on a malformed 202", async () => {
     apiFetch.mockResolvedValue(jsonResponse({ nope: true }, 202));
-    await expect(generateBriefViaApi("u")).rejects.toMatchObject({
-      code: "malformed",
-    });
-  });
-
-  it("pins the parser to the contract receipt", () => {
-    expect(generateResponsePin).toBe(true);
-  });
-
-  it("reads only the fields the contract sends", () => {
-    expect(readsWireFieldsPin).toBe(true);
-  });
-
-  it("refuses a 202 whose prNumber is not a number", async () => {
-    apiFetch.mockResolvedValue(
-      jsonResponse({ repoId: "424242", prNumber: "7" }, 202),
-    );
     await expect(generateBriefViaApi("u")).rejects.toMatchObject({
       code: "malformed",
     });

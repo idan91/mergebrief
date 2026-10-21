@@ -60,8 +60,8 @@ function renderPreview(files: readonly string[]): void {
   );
 }
 
-function readFileNames(): string[] {
-  return screen.getAllByRole("group").map((group) => group.textContent ?? "");
+function readDisclosureOpen(group: HTMLElement): boolean {
+  return group instanceof HTMLDetailsElement && group.open;
 }
 
 beforeEach(() => {
@@ -85,8 +85,8 @@ describe("LiveDiffPreview", () => {
   it("opens every file when there are five or fewer", () => {
     renderPreview(["src/a.ts", "src/b.ts"]);
 
-    expect(screen.getAllByRole("table")).toHaveLength(2);
-    expect(readFileNames()).toHaveLength(2);
+    const files = screen.getAllByRole("group");
+    expect(files.map((file) => readDisclosureOpen(file))).toEqual([true, true]);
   });
 
   it("asks for tokens per open file at five files or fewer", () => {

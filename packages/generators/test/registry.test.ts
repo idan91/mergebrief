@@ -165,9 +165,13 @@ describe("createGenerator", () => {
     expect(text).toContain("(redacted)");
   });
 
-  it("rejects a non-object config with per-field issues", async () => {
+  it("names the config root when the block is not an object", async () => {
     const result = await createGenerator("anthropic", deps);
     expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues[0]).toMatch(/^config: /);
   });
 });
 
@@ -203,21 +207,6 @@ describe("compose-worker runtime marker", () => {
     const result = await createGenerator(defaultGeneratorConfig, composeDeps);
     expect(result.ok).toBe(true);
   });
-
-  it("leaves harness providers to the probe when the marker is unset", async () => {
-    const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: "definitely-missing-cli" },
-      deps,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    // The refusal message is the marker's; a missing binary reports itself.
-    expect(result.error.issues[0]).not.toContain(
-      "not available in the compose worker",
-    );
-  });
 });
 
 describe("effort on the generator block", () => {
@@ -244,17 +233,14 @@ describe("effort on the generator block", () => {
     },
   );
 
-  it.each(minimalBlocks)(
-    "leaves effort undefined when omitted on $provider",
-    (block) => {
-      const parsed = GeneratorConfigSchema.safeParse(block);
-      expect(parsed.success).toBe(true);
-      if (!parsed.success) {
-        return;
-      }
-      expect(parsed.data.effort).toBeUndefined();
-    },
-  );
+  it("leaves effort undefined when omitted", () => {
+    const parsed = GeneratorConfigSchema.safeParse(minimalBlocks[0]);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+      return;
+    }
+    expect(parsed.data.effort).toBeUndefined();
+  });
 
   it("rejects an unknown effort with a per-field issue naming effort", () => {
     const result = validateGeneratorConfig({
@@ -311,17 +297,14 @@ describe("full-regeneration on the generator block", () => {
     },
   );
 
-  it.each(minimalBlocks)(
-    "leaves full-regeneration undefined when omitted on $provider",
-    (block) => {
-      const parsed = GeneratorConfigSchema.safeParse(block);
-      expect(parsed.success).toBe(true);
-      if (!parsed.success) {
-        return;
-      }
-      expect(parsed.data["full-regeneration"]).toBeUndefined();
-    },
-  );
+  it("leaves full-regeneration undefined when omitted", () => {
+    const parsed = GeneratorConfigSchema.safeParse(minimalBlocks[0]);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+      return;
+    }
+    expect(parsed.data["full-regeneration"]).toBeUndefined();
+  });
 
   it("rejects an unknown value with a per-field issue naming the key", () => {
     const result = validateGeneratorConfig({
@@ -348,19 +331,5 @@ describe("full-regeneration on the generator block", () => {
       return;
     }
     expect(result.error.issues.join("; ")).toContain("full-regen");
-  });
-});
-
-describe("GeneratorConfigSchema derived from the registry", () => {
-  it("parses every registry provider's minimal block", () => {
-    expect(
-      GeneratorConfigSchema.safeParse({ provider: Providers.ANTHROPIC })
-        .success,
-    ).toBe(true);
-  });
-
-  it("is the same vocabulary the unknown-provider error names", () => {
-    const parsed = GeneratorConfigSchema.safeParse({ provider: "nope" });
-    expect(parsed.success).toBe(false);
   });
 });

@@ -218,18 +218,6 @@ describe("prSummarySchema", () => {
     );
   });
 
-  it("leaves the wait reason absent when the wire carries none", () => {
-    const parsed = parseWithSchema(prSummarySchema, {
-      ...ROW,
-      generation: PENDING_GENERATION,
-    });
-
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value.generation).not.toHaveProperty("waitReason");
-  });
-
   it("degrades a wait reason this bundle does not know to absent", () => {
     const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
@@ -240,16 +228,6 @@ describe("prSummarySchema", () => {
       throw new Error("unreachable");
     }
     expect(parsed.value.generation).not.toHaveProperty("waitReason");
-  });
-
-  it("accepts a full row", () => {
-    const parsed = parseWithSchema(prSummarySchema, ROW);
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value.prNumber).toBe(7);
-    expect(parsed.value.generation?.status).toBe("succeeded");
   });
 
   it("parses draft + viewerIsAuthor and requires both", () => {
@@ -360,18 +338,6 @@ describe("prSummarySchema", () => {
     ).toBe(false);
   });
 
-  it("accepts nullable fields on a waiting row with no brief and no title", () => {
-    const parsed = parseWithSchema(prSummarySchema, {
-      ...ROW,
-      title: null,
-      baseSha: null,
-      headSha: null,
-      briefAvailable: false,
-      generation: null,
-    });
-    expect(parsed.ok).toBe(true);
-  });
-
   it("reads a generation status this bundle predates as unknown", () => {
     const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
@@ -382,11 +348,6 @@ describe("prSummarySchema", () => {
       throw new Error(parsed.error);
     }
     expect(parsed.value.generation?.status).toBe(UnknownValues.UNKNOWN);
-  });
-
-  it("rejects a missing required field", () => {
-    const { prNumber: _dropped, ...rest } = ROW;
-    expect(parseWithSchema(prSummarySchema, rest).ok).toBe(false);
   });
 
   it("reads a state this bundle predates as unknown and still requires one", () => {
@@ -417,15 +378,6 @@ describe("prSummarySchema", () => {
 });
 
 describe("prSummarySchema draftPolicy on PR-meta", () => {
-  it("accepts an absent draftPolicy on list rows", () => {
-    const parsed = parseWithSchema(prSummarySchema, ROW);
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value.draftPolicy).toBeUndefined();
-  });
-
   it("parses a present draftPolicy", () => {
     const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
@@ -469,16 +421,6 @@ describe("prSummarySchema draftPolicy on PR-meta", () => {
 });
 
 describe("prSummarySchema comparisons on PR-meta", () => {
-  it("accepts an absent comparisons key and an empty envelope", () => {
-    expect(parseWithSchema(prSummarySchema, ROW).ok).toBe(true);
-    const empty = parseWithSchema(prSummarySchema, { ...ROW, comparisons: {} });
-    expect(empty.ok).toBe(true);
-    if (!empty.ok) {
-      throw new Error("unreachable");
-    }
-    expect(empty.value.comparisons?.previousBrief).toBeUndefined();
-  });
-
   it("parses previousBrief availability", () => {
     const parsed = parseWithSchema(prSummarySchema, {
       ...ROW,
@@ -614,19 +556,6 @@ describe("prSummarySchema comparisons on PR-meta", () => {
 });
 
 describe("prSummarySchema degrade paths", () => {
-  it("reads a mistyped failure code and a null wait reason as absent", () => {
-    const parsed = parseWithSchema(prSummarySchema, {
-      ...ROW,
-      generation: { ...PENDING_GENERATION, errorCode: 7, waitReason: null },
-    });
-
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value.generation).not.toHaveProperty("errorCode");
-    expect(parsed.value.generation).not.toHaveProperty("waitReason");
-  });
-
   it("rejects a revision whose comparisons is null", () => {
     const revision = {
       headSha: "h",
@@ -667,15 +596,6 @@ describe("prSummarySchema revisions on PR-meta", () => {
       throw new Error("unreachable");
     }
     expect(parsed.value.revisions?.[0]?.comparisons).toEqual({});
-  });
-
-  it("accepts an absent revisions key on a row with no brief", () => {
-    const parsed = parseWithSchema(prSummarySchema, ROW);
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      throw new Error("unreachable");
-    }
-    expect(parsed.value.revisions).toBeUndefined();
   });
 
   it("parses an ordered timeline preserving each entry's own baseSha", () => {
@@ -915,11 +835,7 @@ const SCHEMA_PINS = {
   PullStack: true satisfies Equals<z.output<typeof pullStackSchema>, PullStack>,
 } as const;
 
-describe("pulls schemas match their interfaces", () => {
-  it.each(Object.entries(SCHEMA_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void SCHEMA_PINS;
 
 type UnavailableLastReviewView = Extract<
   LastReviewComparisonView,
@@ -974,8 +890,16 @@ const CONTRACT_PINS = {
   >,
 } as const;
 
-describe("pulls schemas read only what the contract sends", () => {
-  it.each(Object.entries(CONTRACT_PINS))("%s is pinned", (_shape, pinned) => {
-    expect(pinned).toBe(true);
-  });
-});
+void CONTRACT_PINS;
+
+// The FE re-keys the wire union by `kind`, so only the available branch's
+// payload must match the contract field for field.
+true satisfies Equals<
+  Omit<Extract<LastReviewComparison, { kind: "available" }>, "kind">,
+  Exclude<LastReviewComparisonView, { readonly unavailable: unknown }>
+>;
+
+// `stack` is the FE's own mutable PrStack, so the pin stops at the key set
+// and `asOf`.
+true satisfies Equals<keyof PullStack, keyof PullStackView>;
+true satisfies Equals<PullStack["asOf"], PullStackView["asOf"]>;

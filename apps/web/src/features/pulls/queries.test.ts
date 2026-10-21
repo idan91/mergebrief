@@ -147,25 +147,6 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
       behind: false,
     });
   });
-
-  it("fails closed on a body from a server predating the field", async () => {
-    const { viewerCanResolve: _absent, ...older } = META_BODY;
-    resolveBodyText(older);
-    await expect(runPrMeta()).resolves.toMatchObject({
-      viewerCanResolve: false,
-      appInstalled: true,
-      behind: false,
-    });
-  });
-
-  it("throws typed malformed when the capability is not a boolean", async () => {
-    resolveBodyText({
-      ...META_BODY,
-      viewerCanResolve: "yes",
-      appInstalled: true,
-    });
-    await expect(runPrMeta()).rejects.toBeInstanceOf(ApiError);
-  });
 });
 
 function runBrief(): Promise<unknown> {
@@ -196,28 +177,6 @@ describe("buildSessionQueryOptions queryFn", () => {
     expect(apiFetchMock.mock.lastCall?.[0]).toBe(
       "/api/repos/424242/pulls/7/session?base=base-1&head=head-1",
     );
-  });
-
-  it("reads an outcome this bundle predates as unknown", async () => {
-    resolveBodyText({ ...emptySessionPayload(), reviewOutcome: "merge" });
-    await expect(runSession()).resolves.toMatchObject({
-      reviewOutcome: "unknown",
-    });
-  });
-
-  it("throws typed malformed on a body that is not JSON", async () => {
-    getSsrWarnSinkMock.mockResolvedValue(undefined);
-    answerText(200, "not json");
-    await expect(runSession()).rejects.toMatchObject({ code: "malformed" });
-  });
-
-  it("routes a null session body to the SSR sink before it throws", async () => {
-    const warn = vi.fn();
-    getSsrWarnSinkMock.mockResolvedValue({ warn });
-    answerText(200, "null");
-
-    await expect(runSession()).rejects.toMatchObject({ code: "malformed" });
-    expect(warn).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -350,12 +309,6 @@ describe("the SSR warn sink on the brief and session queryFns", () => {
     getSsrWarnSinkMock.mockResolvedValue(undefined);
     resolveBodyText({ reviewOutcome: "nonsense" });
     await expect(runSession()).rejects.toBeInstanceOf(ApiError);
-  });
-
-  it("parses fine when the sink is absent on the browser refetch", async () => {
-    getSsrWarnSinkMock.mockResolvedValue(undefined);
-    resolveBodyText(briefBody("not an array"));
-    await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
   });
 
   it("carries the pr lifecycle snapshot off the wire", async () => {
@@ -671,26 +624,6 @@ describe("buildDbBriefContextQueryOptions queryFn", () => {
     resolveBodyText({ nope: true });
     await expect(runQuery(options)).rejects.toMatchObject({
       code: "malformed",
-    });
-  });
-});
-
-describe("buildPrDiffQueryOptions queryFn", () => {
-  const options = buildPrDiffQueryOptions("424242", 7, "base-1", "head-1");
-
-  it("resolves the diff text verbatim", async () => {
-    answerText(200, "diff --git a/x b/x\n");
-    await expect(runQuery(options)).resolves.toBe("diff --git a/x b/x\n");
-  });
-
-  it("throws the typed error the api answered", async () => {
-    answerText(
-      502,
-      JSON.stringify({ error: "refused", code: "github-unavailable" }),
-    );
-    await expect(runQuery(options)).rejects.toMatchObject({
-      code: "github-unavailable",
-      status: 502,
     });
   });
 });

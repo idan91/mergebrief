@@ -1,7 +1,5 @@
 // Read boundaries (PGlite): the per-PR "current span" enrichment batches
 // (`briefs.latestForPullRequests`, `generation.latestBriefForPullRequests`).
-// Also: `title` is persisted and refreshed by both upsert paths (a purgeable
-// display label, same class as `repo_slug`).
 import { describe, expect, it } from "vitest";
 import {
   createArtifactStore,
@@ -20,9 +18,11 @@ import { GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import {
   brandWith,
-  freshDatabase,
+  registerSharedPglite,
   writeGenerationTriggeredAt,
 } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -35,33 +35,9 @@ const OLDER = new Date("2026-01-01T00:00:00Z");
 const NEWER = new Date("2026-01-01T00:01:00Z");
 const NEWEST = new Date("2026-01-01T00:02:00Z");
 
-describe("pull_request title persistence", () => {
-  it("round-trips title on upsert and refreshes it on conflict", async () => {
-    const handle = await freshDatabase();
-    const repo = createTenantRepository(handle, CTX_A);
-
-    const first = await repo.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 1,
-      title: "feat: initial title",
-      state: PrStates.OPEN,
-    });
-    expect(first.title).toBe("feat: initial title");
-
-    const renamed = await repo.pullRequests.upsert({
-      repoId: REPO_1,
-      prNumber: 1,
-      title: "feat: renamed title",
-      state: PrStates.OPEN,
-    });
-    expect(renamed.id).toBe(first.id);
-    expect(renamed.title).toBe("feat: renamed title");
-  });
-});
-
 describe("pull_request base_sha persistence", () => {
   it("persists baseSha, refreshing it only when one is provided", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
 
     const first = await repo.pullRequests.upsert({
@@ -93,7 +69,7 @@ describe("pull_request base_sha persistence", () => {
 
 describe("briefs.latestForPullRequests", () => {
   it("returns the highest-index brief per PR; PRs without briefs are absent", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
     const pr1 = await repo.pullRequests.upsert({
@@ -135,7 +111,7 @@ describe("briefs.latestForPullRequests", () => {
   });
 
   it("never returns another tenant's briefs", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const b = createTenantRepository(handle, CTX_B);
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,
@@ -162,8 +138,8 @@ describe("briefs.latestForPullRequests", () => {
 });
 
 describe("comparison artifact reads", () => {
-  it("never sees another tenant's marks/narratives/deltas", async () => {
-    const handle = await freshDatabase();
+  it("never sees another tenant's marks or deltas", async () => {
+    const handle = shared.handle;
     const b = createTenantRepository(handle, CTX_B);
     const bStore = createArtifactStore(handle, CTX_B);
     const bPr = await b.pullRequests.upsert({
@@ -197,16 +173,13 @@ describe("comparison artifact reads", () => {
     expect(
       await aStore.comparisonMarks.get(bPr.id, "head-1", "head-2"),
     ).toBeUndefined();
-    expect(
-      await aStore.revisionNarratives.get(bPr.id, "head-1", "head-2"),
-    ).toBeUndefined();
     expect(await aStore.deltas.get(bPr.id, "head-1", "head-2")).toBeUndefined();
   });
 });
 
 describe("batched span listings and per-revision joins", () => {
   it("briefs.listForPullRequest carries createdAt and orders by headIndex", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -246,7 +219,7 @@ describe("batched span listings and per-revision joins", () => {
   });
 
   it("the per-PR listings return lean SHA pairs, tenant-scoped", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -317,7 +290,7 @@ describe("batched span listings and per-revision joins", () => {
 
 describe("generation.latestBriefForPullRequests", () => {
   it("returns the newest brief-kind projection per PR, ignoring span kinds", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
@@ -356,7 +329,7 @@ describe("generation.latestBriefForPullRequests", () => {
   });
 
   it("never returns another tenant's projections", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const b = createTenantRepository(handle, CTX_B);
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,

@@ -48,7 +48,6 @@ beforeEach(() => {
 const REPO_ID = "424242";
 const PR_NUMBER = 7;
 const SPAN = { base: "base-1", head: "head-1" };
-const SESSION_PATH = `/api/repos/${REPO_ID}/pulls/${String(PR_NUMBER)}/session?base=${SPAN.base}&head=${SPAN.head}`;
 
 afterEach(() => {
   cleanup();
@@ -144,14 +143,6 @@ function viewedCheckboxes(): HTMLInputElement[] {
 }
 
 describe("the session read in the route loader", () => {
-  it("keeps the Viewed toggles live when the session is there", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(emptySessionPayload()), { status: 200 }),
-    );
-    await renderRoute();
-    expect(viewedCheckboxes().some((box) => box.disabled)).toBe(false);
-  });
-
   it("first paint already carries the session, with no unmarked flash", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(workedSession()), { status: 200 }),
@@ -161,21 +152,6 @@ describe("the session read in the route loader", () => {
     // first render shows the mark and the draft.
     expect(viewedCheckboxes()[0]?.checked).toBe(true);
     expect(screen.getByText("the draft I already wrote")).toBeTruthy();
-  });
-
-  it("reads the session with a GET and writes nothing", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(emptySessionPayload()), { status: 200 }),
-    );
-    await renderRoute();
-    const sessionCalls = fetchMock.mock.calls.filter(
-      ([path]) => path === SESSION_PATH,
-    );
-    expect(sessionCalls.length).toBeGreaterThan(0);
-    // A session is created by a WRITE, never by this read.
-    for (const [, init] of sessionCalls) {
-      expect(init?.method).toBe("GET");
-    }
   });
 
   it("degrades: a failed read renders the Brief with writes off", async () => {

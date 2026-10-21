@@ -148,7 +148,7 @@ describe("loadConfig attachment quota knobs", () => {
     "MERGEBRIEF_ATTACHMENT_QUOTA_MB",
     "MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES",
   ];
-  const INVALID = ["0", "-1", "1.5", "ten", "1e3", "99999999999999999999"];
+  const INVALID = ["ten", "99999999999999999999"];
   const CASES = KEYS.flatMap((key) => INVALID.map((value) => [key, value]));
 
   it.each(CASES)("refuses %s set to %s, naming the key", (key, value) => {

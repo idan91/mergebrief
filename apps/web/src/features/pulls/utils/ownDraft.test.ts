@@ -20,10 +20,6 @@ describe("isOwnDraft", () => {
   it("is false for the viewer's own ready PR", () => {
     expect(isOwnDraft({ draft: false, viewerIsAuthor: true })).toBe(false);
   });
-
-  it("is false for an unrelated ready PR", () => {
-    expect(isOwnDraft({ draft: false, viewerIsAuthor: false })).toBe(false);
-  });
 });
 
 describe("draftPolicyNotice", () => {

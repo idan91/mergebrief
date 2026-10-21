@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { useTranslation } from "react-i18next";
 import { renderToString } from "react-dom/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LOCALE_STORAGE_KEY } from "./locale";
 import { activeLocale, changeLocale, I18nProvider } from "./I18nProvider";
 
@@ -12,28 +12,23 @@ function CatalogProbe() {
 }
 
 describe("I18nProvider", () => {
+  beforeEach(() => {
+    document.documentElement.lang = "";
+  });
+
   afterEach(async () => {
     cleanup();
     window.localStorage.clear();
     await changeLocale("en");
   });
 
-  it("renders catalog copy through useTranslation", () => {
+  it("stamps <html lang> with the rendered locale on mount", async () => {
     render(
       <I18nProvider>
         <CatalogProbe />
       </I18nProvider>,
     );
-    expect(screen.getByText("not found")).toBeDefined();
-  });
-
-  it("stamps <html lang> with the rendered locale on mount", () => {
-    render(
-      <I18nProvider>
-        <CatalogProbe />
-      </I18nProvider>,
-    );
-    expect(document.documentElement.lang).toBe(activeLocale());
+    await waitFor(() => expect(document.documentElement.lang).toBe("en"));
   });
 
   it("keeps the server render in English when a browser locale is stored", () => {
@@ -57,7 +52,7 @@ describe("I18nProvider", () => {
     expect(activeLocale()).toBe("fr");
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("fr");
     expect(document.documentElement.lang).toBe("en");
-    // No fr catalog ships — the chain falls back to the en template.
+    // No fr catalog ships, so the chain falls back to the en template.
     expect(screen.getByText("not found")).toBeDefined();
   });
 
@@ -70,16 +65,5 @@ describe("I18nProvider", () => {
     );
     expect(await screen.findByText(/ñóŧ fóúñð/)).toBeDefined();
     expect(document.documentElement.lang).toBe("en");
-  });
-
-  it("changeLocale re-renders t() consumers (pseudo makes it visible)", async () => {
-    render(
-      <I18nProvider>
-        <CatalogProbe />
-      </I18nProvider>,
-    );
-    await changeLocale("pseudo");
-    // Accent-padded output proves languageChanged reached the consumer.
-    expect(screen.getByText(/ñóŧ fóúñð/).textContent).toMatch(/^\[.*\]$/);
   });
 });

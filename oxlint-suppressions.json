@@ -30,10 +30,10 @@
     }
   },
   "apps/api/src/routes/ttl-cache.ts": {
-    "house/no-em-dash": {
+    "house/comment-run": {
       "count": 1
     },
-    "house/comment-run": {
+    "house/no-em-dash": {
       "count": 1
     }
   },
@@ -48,14 +48,6 @@
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "apps/api/test/ttl-cache.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 2
     }
   },
   "apps/web/src/components/Markdown/utils.test.ts": {
@@ -78,22 +70,9 @@
       "count": 1
     }
   },
-  "apps/web/src/i18n/I18nProvider.test.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/i18n/I18nProvider.tsx": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/i18n/locale.server.test.ts": {
-    "house/test-title": {
-      "count": 1
     }
   },
   "apps/web/src/i18n/locale.test.ts": {
@@ -116,66 +95,11 @@
       "count": 1
     }
   },
-  "apps/worker/test/sweep-audit.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "packages/brief-core/test/context/url-provider.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "packages/brief-core/test/diff/descent.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/brief-core/test/diff/revchanges.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "packages/brief-core/test/diff/touched.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 3
-    }
-  },
-  "packages/brief-core/test/generation/loc.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "packages/brief-core/test/generation/prompt-snapshots.test.ts": {
     "house/no-em-dash": {
       "count": 1
     },
     "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/brief-core/test/generation/salvage.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/generators/test/openai-strict.test.ts": {
-    "house/no-em-dash": {
       "count": 1
     }
   },
@@ -189,14 +113,6 @@
       "count": 2
     }
   },
-  "packages/github/test/graphql-errors.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 6
-    }
-  },
   "packages/i18n/src/create.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -205,11 +121,6 @@
   "packages/i18n/src/pseudo.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/i18n/test/helpers.ts": {
-    "house/no-em-dash": {
-      "count": 6
     }
   },
   "packages/logging/src/graphile.ts": {
@@ -227,25 +138,20 @@
       "count": 2
     }
   },
-  "packages/logging/test/sanitize.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "packages/persistence/drizzle.config.ts": {
     "house/no-em-dash": {
       "count": 1
     }
   },
   "packages/persistence/src/schema/github-grant.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
     "house/comment-density": {
       "count": 1
     },
     "house/comment-run": {
       "count": 1
+    },
+    "house/no-em-dash": {
+      "count": 3
     }
   },
   "packages/persistence/src/schema/review-read-mark.ts": {
@@ -354,11 +260,11 @@
     }
   },
   "tools/categorizer/scripts/probe-enum-enforcement.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
     "house/comment-run": {
       "count": 1
+    },
+    "house/no-em-dash": {
+      "count": 3
     }
   },
   "tools/categorizer/test/eval-baseline.test.ts": {
@@ -367,11 +273,6 @@
     },
     "house/test-title": {
       "count": 2
-    }
-  },
-  "tools/categorizer/test/eval-verdicts.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "tools/ingest-briefs/src/cli/report.ts": {

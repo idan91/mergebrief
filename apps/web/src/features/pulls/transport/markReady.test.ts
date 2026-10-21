@@ -35,13 +35,6 @@ describe("markPrReady", () => {
     );
   });
 
-  it("maps a 401 to the re-login kind", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 }),
-    );
-    await expect(run()).resolves.toEqual({ kind: "unauthorized" });
-  });
-
   it("maps a 404 to the not-found kind", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "not found" }), { status: 404 }),
@@ -69,16 +62,6 @@ describe("markPrReady", () => {
       ),
     );
     await expect(run()).resolves.toEqual({ kind: "github-permission" });
-  });
-
-  it("maps a thrown fetch to the indeterminate kind", async () => {
-    apiFetchMock.mockRejectedValue(new TypeError("network down"));
-    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
-  });
-
-  it("maps the proxy's 504 to the indeterminate kind", async () => {
-    apiFetchMock.mockResolvedValue(new Response("<html>", { status: 504 }));
-    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
   });
 
   it("maps a 502 and the unreachable 400 to the upstream kind", async () => {

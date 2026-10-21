@@ -56,13 +56,4 @@ describe("buildPrReview", () => {
 
     expect(review.readOnly).toBe(readOnly);
   });
-
-  it("carries head drift and the own-draft plan", () => {
-    const ownDraft = { markReady: vi.fn() };
-
-    const review = buildPrReview(makeInput({ staleHead: true, ownDraft }));
-
-    expect(review.staleHead).toBe(true);
-    expect(review.ownDraft).toBe(ownDraft);
-  });
 });

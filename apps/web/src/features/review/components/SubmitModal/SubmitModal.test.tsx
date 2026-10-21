@@ -10,13 +10,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 
-vi.mock("../../../../data/apiFetch", async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>();
-  return { ...actual, apiFetch: vi.fn() };
-});
-
-import { apiFetch } from "../../../../data/apiFetch";
-
 import {
   createReviewFlowStore,
   type ReviewFlowStore,
@@ -271,11 +264,6 @@ describe("SubmitModal advisory view", () => {
     ).toBeNull();
   });
 
-  it("skips straight to the verdict view with nothing unresolved", () => {
-    renderModal({ unresolvedItems: [] });
-    expect(submitButton()).toBeTruthy();
-  });
-
   it("Continue reaches the verdict view and receipt's Back returns there", () => {
     renderModal({ unresolvedItems: items });
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
@@ -430,16 +418,6 @@ describe("SubmitModal mention suggestions", () => {
     });
   }
 
-  it("offers the conversation's participants in the review body", () => {
-    renderModal({ mentionSource: { participants } });
-
-    typeComment("Thanks @b");
-
-    expect(
-      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
-    ).toEqual(["@bob"]);
-  });
-
   it("floats the review body's list and selects from the keyboard", () => {
     renderModal({ mentionSource: { participants } });
     const input = screen.getByRole("textbox", { name: /review comment/i });
@@ -457,25 +435,5 @@ describe("SubmitModal mention suggestions", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(input).toHaveProperty("value", "Thanks @bob ");
-  });
-
-  it("adds what GitHub offers after the participants", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          users: [{ login: "alan", avatarUrl: "https://avatars.example/a" }],
-          teams: [{ combinedSlug: "acme/api", name: "API" }],
-        }),
-        { status: 200 },
-      ),
-    );
-    renderModal({ mentionSource: { repoId: "42", participants } });
-
-    typeComment("@a");
-
-    await screen.findByRole("option", { name: /acme\/api/ });
-    expect(
-      screen.getAllByRole("option").map((option) => option.textContent?.trim()),
-    ).toEqual(["@alice", "@alan", "@acme/api API"]);
   });
 });

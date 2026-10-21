@@ -67,11 +67,6 @@ describe("writeStoryCardTrack", () => {
     );
   });
 
-  it("round trips through storage", () => {
-    writeStoryCardTrack(480);
-    expect(readStoryCardTrack()).toBe(480);
-  });
-
   it("writes nothing on the server", () => {
     vi.stubGlobal("window", undefined);
     expect(() => writeStoryCardTrack(480)).not.toThrow();

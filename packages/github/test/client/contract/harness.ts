@@ -16,7 +16,7 @@ import {
   type ContractCase,
   type ContractOutcome,
 } from "./types";
-import { shapeDenialAnswer } from "./utils";
+import { selectCases, shapeDenialAnswer } from "./utils";
 
 const TOKEN_DENIALS: readonly DenialOutcome[] = [
   ContractOutcomes.NOT_FOUND,
@@ -144,40 +144,56 @@ function listOperations<Client>(
   return cases.map((testCase) => testCase.operation);
 }
 
+function listSurface(...operationLists: readonly string[][]): string[] {
+  const operations = new Set(operationLists.flat());
+  return [...operations].toSorted();
+}
+
+function listKeys(client: object): string[] {
+  return Object.keys(client).toSorted();
+}
+
 function describeSurfaces(createAdapter: ContractAdapterFactory): void {
-  const reviewerRepo = listOperations(REVIEWER_REPO_CASES);
-  const installationRepo = listOperations(INSTALLATION_REPO_CASES);
-  const reviewerOnly = reviewerRepo.filter(
-    (operation) => !installationRepo.includes(operation),
-  );
-  const installationOnly = installationRepo.filter(
-    (operation) => !reviewerRepo.includes(operation),
-  );
+  const repoReads = listOperations(REPO_READER_CASES);
+  const accountReads = listOperations(ACCOUNT_READER_CASES);
   const adapter = createAdapter({
     operation: "fetchPullRequest",
     outcome: ContractOutcomes.OK,
   });
-
-  it.each([...reviewerRepo, ...installationOnly])(
-    "the operator binding has no %s",
-    (operation) => {
-      expect(adapter.operator.forRepo(REPO)).not.toHaveProperty(operation);
+  const surfaces = [
+    {
+      binding: "operator",
+      client: adapter.operator,
+      account: listSurface(accountReads, ["forRepo"]),
+      repo: listSurface(repoReads),
     },
-  );
+    {
+      binding: "installation",
+      client: adapter.installation,
+      account: listSurface(accountReads, ["forRepo"]),
+      repo: listSurface(repoReads, listOperations(INSTALLATION_REPO_CASES)),
+    },
+    {
+      binding: "reviewer",
+      client: adapter.reviewer,
+      account: listSurface(
+        accountReads,
+        listOperations(REVIEWER_ACCOUNT_CASES),
+        ["forRepo"],
+      ),
+      repo: listSurface(repoReads, listOperations(REVIEWER_REPO_CASES)),
+    },
+  ];
 
-  it.each(reviewerOnly)("the installation binding has no %s", (operation) => {
-    expect(adapter.installation.forRepo(REPO)).not.toHaveProperty(operation);
-  });
+  it.each(surfaces)(
+    "the $binding binding exposes exactly its operations",
+    ({ client, account, repo }) => {
+      const exposed = {
+        account: listKeys(client),
+        repo: listKeys(client.forRepo(REPO)),
+      };
 
-  it.each(installationOnly)("the reviewer binding has no %s", (operation) => {
-    expect(adapter.reviewer.forRepo(REPO)).not.toHaveProperty(operation);
-  });
-
-  it.each(listOperations(REVIEWER_ACCOUNT_CASES))(
-    "only the reviewer binding has %s",
-    (operation) => {
-      expect(adapter.operator).not.toHaveProperty(operation);
-      expect(adapter.installation).not.toHaveProperty(operation);
+      expect(exposed).toEqual({ account, repo });
     },
   );
 }
@@ -193,6 +209,12 @@ export function describeGitHubContract(
       cases: REPO_READER_CASES,
       bindings: [
         makeReviewerBinding((adapter) => adapter.reviewer.forRepo(REPO)),
+      ],
+    });
+    describeFamily(createAdapter, {
+      name: "repo reads",
+      cases: selectCases(REPO_READER_CASES, ["fetchPullRequest"]),
+      bindings: [
         makeInstallationBinding((adapter) =>
           adapter.installation.forRepo(REPO),
         ),
@@ -202,8 +224,12 @@ export function describeGitHubContract(
     describeFamily(createAdapter, {
       name: "account reads",
       cases: ACCOUNT_READER_CASES,
+      bindings: [makeReviewerBinding((adapter) => adapter.reviewer)],
+    });
+    describeFamily(createAdapter, {
+      name: "account reads",
+      cases: selectCases(ACCOUNT_READER_CASES, ["fetchRepositoryById"]),
       bindings: [
-        makeReviewerBinding((adapter) => adapter.reviewer),
         makeInstallationBinding((adapter) => adapter.installation),
         makeOperatorBinding((adapter) => adapter.operator),
       ],

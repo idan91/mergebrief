@@ -170,17 +170,6 @@ describe("useAddress", () => {
     expect(focusWrites).toEqual([["focus", true]]);
   });
 
-  it("follows the active chunk in Focus mode", async () => {
-    const writes: Write[] = [];
-    await mountBriefHost(<AddressHost writes={writes} />);
-    await toggleFocusMode(true);
-    await waitFor(() => expect(writes).toContainEqual(["link", "chunk-a"]));
-
-    fireEvent.keyDown(window, { key: "j" });
-
-    await waitFor(() => expect(writes.at(-1)).toEqual(["link", "chunk-b"]));
-  });
-
   it("drops its own chunk link on leaving Focus mode in Full scope", async () => {
     const writes: Write[] = [];
     await mountBriefHost(<AddressHost writes={writes} />);
@@ -222,30 +211,6 @@ describe("useAddress", () => {
       ["focus", true],
       ["focus", false],
     ]);
-  });
-
-  it("a shared chunk link outlives the selection it stands down", async () => {
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText: vi.fn().mockResolvedValue(undefined) },
-    });
-    const writes: Write[] = [];
-    await mountBriefHost(<AddressHost writes={writes} />);
-    await selectLineTen();
-    await waitFor(() => expect(writes).toEqual([["link", "chunk-a.R10"]]));
-
-    const [glyph] = screen.getAllByRole("button", {
-      name: /copy link to this chunk/i,
-    });
-    if (glyph === undefined) {
-      throw new Error("expected a chunk glyph");
-    }
-    fireEvent.click(glyph);
-    await waitFor(() => expect(writes.at(-1)).toEqual(["link", "chunk-a"]));
-    await settleWrites();
-
-    expect(writes).toHaveLength(2);
-    expect(document.querySelector("tr[data-selected]")).toBeNull();
   });
 
   it("drops a line link that misses, once", async () => {

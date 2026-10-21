@@ -137,10 +137,6 @@ describe("readServerStacked", () => {
 });
 
 describe("releaseCapture", () => {
-  it("skips a target without pointer capture", () => {
-    expect(() => releaseCapture({} as unknown as Element, 1)).not.toThrow();
-  });
-
   it("releases the pointer on a target that captures", () => {
     const releasePointerCapture = vi.fn();
     releaseCapture({ releasePointerCapture } as unknown as Element, 7);
@@ -154,13 +150,6 @@ describe("restoreTrack", () => {
     const drag = { main: { style }, priorTrack } as unknown as StoryDrag;
     return { style, drag };
   }
-
-  it("removes the property when there was none before", () => {
-    const { style, drag } = stubDrag("");
-    restoreTrack(drag);
-    expect(style.removeProperty).toHaveBeenCalledWith("--story-card-track");
-    expect(style.setProperty).not.toHaveBeenCalled();
-  });
 
   it("puts the prior value back", () => {
     const { style, drag } = stubDrag("500px");

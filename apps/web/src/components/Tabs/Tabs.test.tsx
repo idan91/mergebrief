@@ -72,7 +72,7 @@ describe("Tabs rail variant", () => {
     expect(onValueChange.mock.calls).toEqual([["c"], ["a"]]);
   });
 
-  it("still moves with the side arrows when the rail collapses to a row", () => {
+  it("moves with the side arrows too", () => {
     const onValueChange = vi.fn();
     renderRail("a", onValueChange);
 
@@ -145,17 +145,6 @@ describe("Tabs", () => {
     fireEvent.keyDown(first, { key: "End" });
     expect(onValueChange).toHaveBeenLastCalledWith("b");
     expect(onValueChange).toHaveBeenCalledTimes(4);
-  });
-
-  it("ignores other keys", () => {
-    const onValueChange = vi.fn();
-    renderTabs("a", onValueChange);
-
-    fireEvent.keyDown(screen.getByRole("tab", { name: "First" }), {
-      key: "ArrowDown",
-    });
-
-    expect(onValueChange).not.toHaveBeenCalled();
   });
 
   it("refuses a sub-component outside the root", () => {

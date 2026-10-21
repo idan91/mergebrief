@@ -7,9 +7,8 @@ import {
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { PrStates, type ValueOf, AccessLevels } from "types";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import type { ProductOperationDescriptor } from "../src/product-operations/types";
@@ -30,6 +29,7 @@ import {
 import { REPO_ID, seedPullRequest } from "./session/fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import { seedSignIn, seedApiToken } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -118,13 +118,13 @@ function hasBody(descriptor: ProductOperationDescriptor): boolean {
   return !descriptor.endpoint.startsWith("GET ");
 }
 
+const harness = registerSharedPglite();
+
 describe("the descriptor policy over every operation", () => {
-  let harness: PgliteHarness;
   let kp: KeyProvider;
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -133,11 +133,6 @@ describe("the descriptor policy over every operation", () => {
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function listOperations(
@@ -320,12 +315,10 @@ describe("the descriptor policy over every operation", () => {
 });
 
 describe("the audit row's world", () => {
-  let harness: PgliteHarness;
   let kp: KeyProvider;
   let app: ApiApp;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -334,11 +327,6 @@ describe("the audit row's world", () => {
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   it("records the url row's world inside an installation-held repo", async () => {

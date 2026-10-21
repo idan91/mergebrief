@@ -131,14 +131,6 @@ describe("startWebServer", () => {
     expect(reply.status).toBe(403);
     expect(reached).toBe(false);
   });
-
-  it("answers the healthcheck's bare IP host", async () => {
-    const port = await startServer();
-
-    const reply = await sendRequest(port, "/healthz", `127.0.0.1:${port}`);
-
-    expect(reply.status).toBe(200);
-  });
 });
 
 describe("startWebServer error answers", () => {

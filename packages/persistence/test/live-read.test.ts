@@ -21,7 +21,9 @@ import {
   type ReviewerId,
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
-import { brandWith, freshDatabase } from "./helpers";
+import { brandWith, registerSharedPglite } from "./helpers";
+
+const shared = registerSharedPglite();
 
 const OWNER_A: ReviewerId = brandWith(isReviewerId, 501n);
 const OWNER_B: ReviewerId = brandWith(isReviewerId, 502n);
@@ -78,7 +80,7 @@ async function seedOpen(
 
 describe("createLiveReadStore.listDue", () => {
   it("lists never-read rows first, then the oldest read, under the limit", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, CTX_A);
     const neverRead = await seedOpen(handle, CTX_A, 1);
     const readLongAgo = await seedOpen(handle, CTX_A, 2);
@@ -106,7 +108,7 @@ describe("createLiveReadStore.listDue", () => {
   });
 
   it("a merged row is never due; a closed one is", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, CTX_A);
     const merged = await seedOpen(handle, CTX_A, 1);
     const closed = await seedOpen(handle, CTX_A, 2);
@@ -144,7 +146,7 @@ describe("createLiveReadStore.listDue", () => {
   });
 
   it("lists an installation's rows in the given repositories only", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, TENANT);
     const readable = await seedOpen(handle, TENANT, 1);
     await seedOpen(handle, TENANT, 2, OTHER_REPO);
@@ -168,7 +170,7 @@ describe("createLiveReadStore.listDue", () => {
   });
 
   it("lists an installation's open rows only", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const open = await seedOpen(handle, TENANT, 1);
     await createIngestRoutines(handle, TENANT).recordState({
       repoId: REPO,
@@ -189,7 +191,7 @@ describe("createLiveReadStore.listDue", () => {
   });
 
   it("sees the owner's rows only", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     await seedOpen(handle, CTX_A, 1);
 
     const due = await createLiveReadStore(handle, CTX_B).listDue({
@@ -203,7 +205,7 @@ describe("createLiveReadStore.listDue", () => {
 
 describe("createLiveReadStore.record", () => {
   it("writes the read facts and a live open beats a stored closed", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, CTX_A);
     const id = await seedOpen(handle, CTX_A, 1);
     unwrap(
@@ -239,7 +241,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("writes the author GitHub names and keeps it when the account is gone", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, CTX_A);
     const id = await seedOpen(handle, CTX_A, 1);
 
@@ -253,7 +255,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("keeps a newer webhook's facts and takes only the read stamp", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, TENANT);
     const id = await seedOpen(handle, TENANT, 1);
     await createTenantRepository(handle, TENANT).pullRequests.upsert({
@@ -280,7 +282,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("keeps a later read's facts against an earlier read landing last", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, TENANT);
     const id = await seedOpen(handle, TENANT, 1);
     const laterRead = stubFacts({ draft: false, readAt: minutesAgo(-1) });
@@ -294,7 +296,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("never writes an installation row's github_updated_at", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, TENANT, 1);
     const store = createLiveReadStore(handle, TENANT);
     const facts = stubFacts({ draft: true });
@@ -306,7 +308,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("reopens a closed row only on a strictly newer read", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, TENANT, 1);
     const closedAt = minutesAgo(1);
     const ingest = createIngestRoutines(handle, TENANT);
@@ -331,7 +333,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("keeps a merged row against an equal-timestamp open snapshot", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, TENANT);
     const id = await seedOpen(handle, TENANT, 1);
     const closedAt = minutesAgo(1);
@@ -350,7 +352,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("keeps a webhook merge against an equal-timestamp open live read", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, TENANT, 1);
     const closedAt = minutesAgo(1);
     const ingest = createIngestRoutines(handle, TENANT);
@@ -372,7 +374,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("keeps a webhook's facts against a same-second read that raced it", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, TENANT, 1);
     const store = createLiveReadStore(handle, TENANT);
     const earlierSnapshot = stubFacts({
@@ -399,7 +401,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("keeps a webhook's facts when the planned row already held its time", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, TENANT, 1);
     const ingest = createIngestRoutines(handle, TENANT);
     const webhookState = {
@@ -422,7 +424,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("moves row_version on every live-read write", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, CTX_A, 1);
     const store = createLiveReadStore(handle, CTX_A);
     const facts = stubFacts();
@@ -438,7 +440,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("repairs a row whose time the worker advanced without its facts", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, TENANT, 1);
     const ingest = createIngestRoutines(handle, TENANT);
     await ingest.recordState({
@@ -461,7 +463,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("writes an installation row's facts from a strictly newer read", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, TENANT, 1);
     const ingest = createIngestRoutines(handle, TENANT);
     await ingest.recordState({
@@ -481,7 +483,7 @@ describe("createLiveReadStore.record", () => {
   });
 
   it("refuses another owner's row", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, CTX_A, 1);
 
     const result = await createLiveReadStore(handle, CTX_B).record(
@@ -494,7 +496,7 @@ describe("createLiveReadStore.record", () => {
 
 describe("createLiveReadStore.stampAttempt", () => {
   it("stamps the read and leaves the facts and the mark alone", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, CTX_A);
     const id = await seedOpen(handle, CTX_A, 1);
     unwrap(await store.markUnreachable(id, minutesAgo(10)));
@@ -507,7 +509,7 @@ describe("createLiveReadStore.stampAttempt", () => {
   });
 
   it("refuses another owner's row", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const id = await seedOpen(handle, CTX_A, 1);
 
     const result = await createLiveReadStore(handle, CTX_B).stampAttempt(
@@ -521,7 +523,7 @@ describe("createLiveReadStore.stampAttempt", () => {
 
 describe("createLiveReadStore.markUnreachable", () => {
   it("keeps the first sighting and stamps every read", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, CTX_A);
     const id = await seedOpen(handle, CTX_A, 1);
 
@@ -533,7 +535,7 @@ describe("createLiveReadStore.markUnreachable", () => {
   });
 
   it("a paste stamp clears the mark", async () => {
-    const handle = await freshDatabase();
+    const handle = shared.handle;
     const store = createLiveReadStore(handle, CTX_A);
     const id = await seedOpen(handle, CTX_A, 1);
     unwrap(await store.markUnreachable(id, minutesAgo(10)));

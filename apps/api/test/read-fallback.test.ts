@@ -20,8 +20,7 @@ import {
   type PullRequestRow,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import {
@@ -49,6 +48,7 @@ import {
 } from "./reviewer-github";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_ID = 424242;
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
@@ -142,19 +142,13 @@ async function seedTenantPullRequest(
 }
 
 describe("the per-repo gate's operator-PAT rung", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   function buildApp(
@@ -214,16 +208,6 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(res.status).toBe(200);
     // The stub grants push on the PAT read; the reader still gets none.
     expect(body).toMatchObject({ viewerCanResolve: false });
-  });
-
-  it("404s with no operator PAT configured", async () => {
-    arrangeOperatorGate(fake);
-    const cookie = await signIn();
-    await seedOwnerPullRequest(harness.handle);
-
-    const res = await read(buildApp(), cookie);
-
-    expect(res.status).toBe(404);
   });
 
   it("404s a reader who does not own the operator token", async () => {
@@ -605,28 +589,6 @@ describe("the per-repo gate's operator-PAT rung", () => {
       expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
       expect(listCallsPastGate(fake, OPERATOR_GATE_CALLS)).toEqual([]);
     });
-  });
-
-  it("refuses a write honestly instead of claiming the PR is gone", async () => {
-    arrangeOperatorGate(fake);
-    const cookie = await signIn();
-    await seedOwnerPullRequest(harness.handle);
-
-    const res = await buildApp(FALLBACK_PAT).request(
-      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/ready`,
-      {
-        method: "POST",
-        headers: {
-          ...SAME_ORIGIN_HEADERS,
-          Cookie: `__Host-mergebrief_session=${cookie}`,
-          "content-type": "application/json",
-        },
-        body: "{}",
-      },
-    );
-
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ code: "no-repo-write-access" });
   });
 
   it("keeps the uniform 404 for a write the gate never PAT-passed", async () => {

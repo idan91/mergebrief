@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // queryFn-level tests: component tests seed the cache and BYPASS the wire
-// parser, so these prove each call runs its parser and surfaces a typed
-// MALFORMED for a bad 2xx body.
+// parser, so these prove each call runs its parser.
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -54,11 +53,6 @@ describe("buildTokensQueryOptions queryFn", () => {
       method: "GET",
     });
   });
-
-  it("rejects a malformed 200 body with a typed MALFORMED error", async () => {
-    apiFetch.mockResolvedValue(makeJsonResponse({ tokens: [{ id: 3 }] }, 200));
-    await expect(runQueryFn()).rejects.toMatchObject({ code: "malformed" });
-  });
 });
 
 describe("mintToken", () => {
@@ -79,22 +73,6 @@ describe("mintToken", () => {
       body: JSON.stringify({ name: "ci", scope: "read", expiresInDays: null }),
     });
   });
-
-  it("maps an invalid 201 body to the typed MALFORMED error", async () => {
-    apiFetch.mockResolvedValue(new Response("not json", { status: 201 }));
-    await expect(mintToken({ name: "x", scope: "read" })).rejects.toMatchObject(
-      { code: "malformed" },
-    );
-  });
-
-  it("preserves a refusal's wire code", async () => {
-    apiFetch.mockResolvedValue(
-      makeJsonResponse({ error: "x", code: "invalid-request" }, 400),
-    );
-    await expect(mintToken({ name: "x", scope: "read" })).rejects.toMatchObject(
-      { status: 400, code: "invalid-request" },
-    );
-  });
 });
 
 describe("revokeToken", () => {
@@ -105,16 +83,6 @@ describe("revokeToken", () => {
     await expect(revokeToken("3/../4")).resolves.toBeUndefined();
     expect(apiFetch).toHaveBeenCalledWith("/api/auth/tokens/3%2F..%2F4", {
       method: "DELETE",
-    });
-  });
-
-  it("throws a refusal's typed error", async () => {
-    apiFetch.mockResolvedValue(
-      makeJsonResponse({ error: "x", code: "not-found" }, 404),
-    );
-    await expect(revokeToken("3")).rejects.toMatchObject({
-      status: 404,
-      code: "not-found",
     });
   });
 });

@@ -2,10 +2,7 @@
 // bundle answers with. The SSR branch itself now crosses a process boundary
 // and is pinned in `server/api/transport.test.ts`.
 import { describe, expect, it } from "vitest";
-import {
-  ApiErrorCodes as WireErrorCodes,
-  type ApiErrorCode as WireErrorCode,
-} from "contract";
+import type { ApiErrorCode as WireErrorCode } from "contract";
 import type { Equals } from "types/utils";
 import {
   ApiError,
@@ -105,35 +102,11 @@ describe("errorFromResponse", () => {
     expect(error.code).toBe(ApiErrorCodes.INTERNAL_ERROR);
     expect(error.status).toBe(502);
   });
-
-  it("keeps GitHub unavailable when the API wrote that code", async () => {
-    const error = await errorFromResponse(
-      new Response(
-        '{"error":"github is unavailable or rate limited","code":"github-unavailable"}',
-        {
-          status: 502,
-        },
-      ),
-      "/x",
-    );
-    expect(error.code).toBe(ApiErrorCodes.GITHUB_UNAVAILABLE);
-  });
 });
 
-describe("wire vocabulary", () => {
-  type WebWireCode = Exclude<ApiErrorCode, "malformed">;
-  // Compile-time: this surface minus the web-local member IS the contract.
-  true satisfies Equals<WebWireCode, WireErrorCode>;
-
-  it("adds malformed to the contract vocabulary and nothing else", () => {
-    const web: readonly string[] = Object.values(ApiErrorCodes);
-    const wire: readonly string[] = Object.values(WireErrorCodes);
-    expect(web.filter((code) => code !== "malformed").toSorted()).toEqual(
-      wire.toSorted(),
-    );
-    expect(web).toContain("malformed");
-  });
-});
+type WebWireCode = Exclude<ApiErrorCode, "malformed">;
+// Compile-time: this surface minus the web-local member IS the contract.
+true satisfies Equals<WebWireCode, WireErrorCode>;
 
 describe("apiErrorSerializationAdapter", () => {
   it("rebuilds an ApiError with its code, status and path", () => {

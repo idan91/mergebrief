@@ -22,6 +22,8 @@ interface FixtureCase {
   readonly name?: string;
   readonly bad: string;
   readonly good: string;
+  /** Further fixtures the rule must pass, such as a `.tsx` barrel. */
+  readonly alsoGood?: readonly string[];
   /** Strings outside the rule's reach (ignored callees, attributes, keys), kept out of `good`. */
   readonly ignored?: string;
   readonly lines: readonly number[];
@@ -145,6 +147,7 @@ const CASES: readonly FixtureCase[] = [
     name: "no-re-export inside a barrel",
     bad: "bad-barrel/index.ts",
     good: "good-barrel/index.ts",
+    alsoGood: ["good-barrel-tsx/index.tsx"],
     lines: readMarkedLines("no-re-export", "bad-barrel/index.ts"),
   },
   {
@@ -172,6 +175,7 @@ for (const {
   name,
   bad,
   good,
+  alsoGood = [],
   ignored,
   lines,
   messageIds,
@@ -181,7 +185,9 @@ for (const {
   if (definition === undefined) {
     throw new Error(`plugin has no rule ${rule}`);
   }
-  const valid: ValidCase[] = [{ ...readFixture(rule, good) }];
+  const valid: ValidCase[] = [good, ...alsoGood].map((file) => ({
+    ...readFixture(rule, file),
+  }));
   if (ignored !== undefined) {
     valid.push({ ...readFixture(rule, ignored) });
   }

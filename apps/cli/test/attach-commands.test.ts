@@ -1,6 +1,8 @@
-// `draft attach` against the REAL api app: the bytes ride the upload route
+// `draft attach`: against the REAL api app the bytes ride the upload route
 // with the Bearer token, the App's push is answered by the GitHub stub at
 // the Git Data endpoints, and with --draft the URL lands in the held draft.
+// The receipt and refusal arms run over a scripted api, pinning the three
+// requests the command sends and what it prints.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,28 +25,38 @@ import { PrStates, ReviewOutcomes, AccessLevels } from "types";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
+import {
+  expectRefusedBeforeRequest,
+  OFFLINE_REPO_ID,
+  OFFLINE_REPOS_ROUTE,
+  runCliOffline,
+  type OfflineRunOptions,
+  type ScriptedRoute,
+} from "./harness/offline";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
-import type { FetchLike } from "../src/client";
 
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
 const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const SPAN = ["--base", BASE_SHA, "--head", HEAD_SHA];
-const NOTES_BYTES = new TextEncoder().encode("not an image");
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
 ]);
 const BRANCH_URL_PATTERN =
   /^https:\/\/github\.com\/octo\/hello\/blob\/mergebrief\/attachments\/[0-9a-f-]{36}\.png\?raw=true$/;
+const SPAN_QUERY = `base=${BASE_SHA}&head=${HEAD_SHA}`;
+const PULL_PATH = `/api/repos/${OFFLINE_REPO_ID}/pulls/7`;
+const SESSION_PATH = `${PULL_PATH}/session?${SPAN_QUERY}`;
+const UPLOAD_PATH = `${PULL_PATH}/attachments`;
+const DRAFT_ID = "5";
+const DRAFT_PATH = `${PULL_PATH}/session/comments/${DRAFT_ID}?${SPAN_QUERY}`;
+const IMAGE_PATH = "/shots/shot.png";
+const BRANCH_URL = "https://github.com/octo/hello/blob/x/a.png?raw=true";
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -126,21 +138,6 @@ function readReceiptField(out: string, field: string): string {
   return value;
 }
 
-/** The real app answers every call; the upload's receipt body is swapped. */
-function stubUploadReceipt(fetch: FetchLike, receipt: string): FetchLike {
-  return async (input, init) => {
-    const response = await fetch(input, init);
-    const isUpload = init?.method === "POST" && input.endsWith("/attachments");
-    if (!isUpload) {
-      return response;
-    }
-    return new Response(receipt, {
-      status: response.status,
-      headers: response.headers,
-    });
-  };
-}
-
 describe("draft attach over the real api app", () => {
   let world: CliApiHarness;
   let harness: PgliteHarness;
@@ -149,7 +146,6 @@ describe("draft attach over the real api app", () => {
   let configDir: string;
   let cacheDir: string;
   let imagePath: string;
-  let notesPath: string;
 
   beforeEach(async () => {
     world = await startCliApiHarness();
@@ -160,8 +156,6 @@ describe("draft attach over the real api app", () => {
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
     imagePath = join(mkdtempSync(join(tmpdir(), "mb-shot-")), "shot.png");
     writeFileSync(imagePath, PNG_BYTES);
-    notesPath = join(mkdtempSync(join(tmpdir(), "mb-notes-")), "notes.txt");
-    writeFileSync(notesPath, NOTES_BYTES);
     stubGitHub(world);
   });
 
@@ -249,9 +243,6 @@ describe("draft attach over the real api app", () => {
         if (path === imagePath) {
           return PNG_BYTES;
         }
-        if (path === notesPath) {
-          return NOTES_BYTES;
-        }
         throw new Error(`unexpected read: ${path}`);
       },
       gitOriginUrl: () => "git@github.com:octo/hello.git",
@@ -335,172 +326,142 @@ describe("draft attach over the real api app", () => {
     const session = await run(["session", "7", ...SPAN, "--json"]);
     expect(session.out).toContain(`tighten this\\n\\n![Image](${url})`);
   });
+});
 
-  it("relays the server's refusal of a non-image, exit 5, nothing pushed", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
+/** The session `draft attach --draft` reads, holding the drafts given. */
+function stubSessionRoute(
+  drafts: readonly { id: string; body: string }[],
+): ScriptedRoute {
+  return {
+    method: "GET",
+    path: SESSION_PATH,
+    body: JSON.stringify({ draftComments: drafts }),
+  };
+}
 
-    const result = await run(["draft", "attach", "7", notesPath, "--json"]);
+function stubUploadRoute(receipt: string): ScriptedRoute {
+  return { method: "POST", path: UPLOAD_PATH, status: 201, body: receipt };
+}
 
-    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(result.out).toBe("");
-    expect(result.err).toHaveLength(1);
-    expect(
-      world.github.requested.filter((path) => path.includes("/git/")),
-    ).toEqual([]);
+function makeAttachOptions(
+  routes: readonly ScriptedRoute[],
+): OfflineRunOptions {
+  return {
+    routes: [OFFLINE_REPOS_ROUTE, ...routes],
+    files: { [IMAGE_PATH]: PNG_BYTES },
+  };
+}
+
+const HELD_DRAFT = { id: DRAFT_ID, body: "tighten this" };
+const ATTACH_TO_DRAFT = [
+  "draft",
+  "attach",
+  "7",
+  IMAGE_PATH,
+  "--draft",
+  DRAFT_ID,
+  ...SPAN,
+  "--json",
+];
+
+describe("draft attach over a scripted api", () => {
+  it("posts the bytes under their media type after reading the draft", async () => {
+    const receipt = JSON.stringify({ url: BRANCH_URL, size: 9 });
+    const result = await runCliOffline(
+      ATTACH_TO_DRAFT,
+      makeAttachOptions([
+        stubSessionRoute([HELD_DRAFT]),
+        stubUploadRoute(receipt),
+        { method: "PATCH", path: DRAFT_PATH },
+      ]),
+    );
+
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(receipt);
+    expect(result.requests.map((request) => request.method)).toEqual([
+      "GET",
+      "GET",
+      "POST",
+      "GET",
+      "PATCH",
+    ]);
+    expect(result.requests[2]).toMatchObject({
+      path: UPLOAD_PATH,
+      headers: { "content-type": "image/png" },
+      body: PNG_BYTES,
+    });
+    expect(result.requests[4]).toMatchObject({
+      path: DRAFT_PATH,
+      body: JSON.stringify({
+        body: `tighten this\n\n![Image](${BRANCH_URL})`,
+      }),
+    });
   });
 
   it("an append the server refuses still prints the image url", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    // A body at the cap: the image line the append adds pushes it over,
-    // so the PATCH is a 400 after the push has landed.
-    const created = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--start",
-      "10",
-      "--end",
-      "12",
-      "--body",
-      "x".repeat(65_536),
-      ...SPAN,
-      "--json",
-    ]);
-    expect(created.code).toBe(ExitCodes.OK);
-    const draftId = readReceiptField(created.out, "draftId");
-
-    const attached = await run([
-      "draft",
-      "attach",
-      "7",
-      imagePath,
-      "--draft",
-      draftId,
-      ...SPAN,
-      "--json",
-    ]);
-
-    expect(attached.code).toBe(ExitCodes.SERVER_REJECTED);
-    expect(attached.out).toBe("");
-    expect(attached.err).toHaveLength(1);
-    expect(attached.err[0]).toMatch(
-      /the image is at https:\/\/github\.com\/octo\/hello\/blob\/mergebrief\/attachments\/[0-9a-f-]+\.png\?raw=true$/,
+    const result = await runCliOffline(
+      ATTACH_TO_DRAFT,
+      makeAttachOptions([
+        stubSessionRoute([HELD_DRAFT]),
+        stubUploadRoute(JSON.stringify({ url: BRANCH_URL })),
+        {
+          method: "PATCH",
+          path: DRAFT_PATH,
+          status: 400,
+          body: JSON.stringify({ error: "body too long" }),
+        },
+      ]),
     );
+
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
+    expect(result.out).toBe("");
+    expect(result.err).toEqual([
+      `body too long (HTTP 400); the image is at ${BRANCH_URL}`,
+    ]);
     expect(
-      world.github.requested.filter((path) => path.includes("/git/refs")),
+      result.requests.filter((request) => request.path === UPLOAD_PATH),
     ).toHaveLength(1);
   });
 
-  async function createHeldDraft(): Promise<string> {
-    const created = await run([
-      "draft",
-      "create",
-      "7",
-      "--file",
-      "src/a.ts",
-      "--start",
-      "10",
-      "--end",
-      "12",
-      "--body",
-      "tighten this",
-      ...SPAN,
-      "--json",
-    ]);
-    expect(created.code).toBe(ExitCodes.OK);
-    return readReceiptField(created.out, "draftId");
-  }
+  it("refuses an upload receipt with no url, exit 1", async () => {
+    const result = await runCliOffline(
+      ATTACH_TO_DRAFT,
+      makeAttachOptions([
+        stubSessionRoute([HELD_DRAFT]),
+        stubUploadRoute("{}"),
+      ]),
+    );
 
-  it.each([
-    ["no url", "{}"],
-    ["a non-string url", JSON.stringify({ url: 5 })],
-  ])("refuses an upload receipt with %s, exit 1", async (_label, receipt) => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const draftId = await createHeldDraft();
-    appFetch = stubUploadReceipt(world.fetch, receipt);
-
-    const attached = await run([
-      "draft",
-      "attach",
-      "7",
-      imagePath,
-      "--draft",
-      draftId,
-      ...SPAN,
-      "--json",
-    ]);
-
-    expect(attached.code).toBe(ExitCodes.GENERIC);
-    expect(attached.out).toBe("");
-    expect(attached.err).toEqual(["upload receipt carried no url"]);
-  });
-
-  it("reads the url from a receipt that carries extra fields", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-    const draftId = await createHeldDraft();
-    const url = "https://github.com/octo/hello/blob/x/a.png?raw=true";
-    const receipt = JSON.stringify({ url, size: 9 });
-    appFetch = stubUploadReceipt(world.fetch, receipt);
-
-    const attached = await run([
-      "draft",
-      "attach",
-      "7",
-      imagePath,
-      "--draft",
-      draftId,
-      ...SPAN,
-      "--json",
-    ]);
-
-    expect(attached.code).toBe(ExitCodes.OK);
-    expect(attached.out).toBe(receipt);
-    const session = await run(["session", "7", ...SPAN, "--json"]);
-    expect(session.out).toContain(`tighten this\\n\\n![Image](${url})`);
+    expect(result.code).toBe(ExitCodes.GENERIC);
+    expect(result.out).toBe("");
+    expect(result.err).toEqual(["upload receipt carried no url"]);
+    expect(
+      result.requests.filter((request) => request.method === "PATCH"),
+    ).toEqual([]);
   });
 
   it("a draft that is not held is refused before any push, exit 4", async () => {
-    await seedSessionedPr(harness.handle);
-    await login();
-
-    const result = await run([
-      "draft",
-      "attach",
-      "7",
-      imagePath,
-      "--draft",
-      "999",
-      ...SPAN,
-      "--json",
-    ]);
+    const result = await runCliOffline(
+      ATTACH_TO_DRAFT,
+      makeAttachOptions([stubSessionRoute([])]),
+    );
 
     expect(result.code).toBe(ExitCodes.NOT_FOUND);
     expect(result.out).toBe("");
+    expect(result.err).toEqual([
+      `draft ${DRAFT_ID} is not held in this session`,
+    ]);
     expect(
-      world.github.requested.filter((path) => path.includes("/git/")),
+      result.requests.filter((request) => request.path === UPLOAD_PATH),
     ).toEqual([]);
   });
 
   it("needs the span beside --draft, exit 2", async () => {
-    await login();
-
-    const result = await run([
-      "draft",
-      "attach",
-      "7",
-      imagePath,
-      "--draft",
-      "1",
-      "--json",
-    ]);
-
-    expect(result.code).toBe(ExitCodes.USAGE);
-    expect(world.github.requested).toEqual([]);
+    const result = await runCliOffline(
+      ["draft", "attach", "7", IMAGE_PATH, "--draft", DRAFT_ID, "--json"],
+      makeAttachOptions([]),
+    );
+    expectRefusedBeforeRequest(result, "--base and --head");
   });
 });

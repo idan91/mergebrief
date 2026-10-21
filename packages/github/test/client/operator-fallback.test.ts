@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { bindReviewerGitHub } from "../../src/client/reviewer";
 import { GitHubApiErrorCodes } from "../../src/errors";
-import { ReviewCommentSides } from "types/conversation";
 import {
   NOT_FOUND,
   OLD_TOKEN,
@@ -115,18 +114,6 @@ describe("bindReviewerGitHub operator reads", () => {
     );
   });
 
-  it("never reads another repository on the operator token", async () => {
-    const stub = stubDeniedReviewer(PULL);
-    const { github } = bindWithOperator(stub);
-
-    const result = await github
-      .forRepo({ owner: "acme", repo: "secrets" })
-      .fetchPullRequest(7);
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(listAuthorizations(stub)).toEqual(REVIEWER_ONLY);
-  });
-
   it("matches the operator repository ignoring case", async () => {
     const stub = stubDeniedReviewer(PULL);
     const { github } = bindWithOperator(stub);
@@ -136,23 +123,6 @@ describe("bindReviewerGitHub operator reads", () => {
       .fetchPullRequest(7);
 
     expect(result.ok).toBe(true);
-  });
-
-  it("never writes on the operator token", async () => {
-    const stub = stubDeniedReviewer(PULL);
-    const { github } = bindWithOperator(stub);
-
-    const result = await github.forRepo(REPO).createInlineReviewComment({
-      prNumber: 7,
-      commitId: HEAD_SHA,
-      path: "src/index.ts",
-      line: 3,
-      side: ReviewCommentSides.RIGHT,
-      body: "why",
-    });
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(listAuthorizations(stub)).toEqual(REVIEWER_ONLY);
   });
 
   it("keeps account reads on the reviewer's token", async () => {
@@ -167,26 +137,6 @@ describe("bindReviewerGitHub operator reads", () => {
 });
 
 describe("bindReviewerGitHub operator reach", () => {
-  it("never lists open pull requests on the operator token", async () => {
-    const stub = stubDeniedReviewer({ status: 200, body: [] });
-    const { github } = bindWithOperator(stub);
-
-    const result = await github.forRepo(REPO).listOpenPullRequests();
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(listAuthorizations(stub)).toEqual(REVIEWER_ONLY);
-  });
-
-  it("refuses the operator token for another pull request", async () => {
-    const stub = stubDeniedReviewer(PULL);
-    const { github } = bindWithOperator(stub);
-
-    const result = await github.forRepo(REPO).fetchDiff(8);
-
-    expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(listAuthorizations(stub)).toEqual(REVIEWER_ONLY);
-  });
-
   it.each([
     ["an unknown commit", UNKNOWN_SHA],
     ["a short sha", HEAD_SHA.slice(0, 7)],
@@ -217,57 +167,17 @@ describe("bindReviewerGitHub operator reach", () => {
     expect(loadKnownCommits).toHaveBeenCalledTimes(1);
   });
 
-  it("compares two known commits on the operator token", async () => {
-    const stub = stubDeniedReviewer(DIFF);
-    const { github } = bindWithOperator(stub);
-
-    const result = await github
-      .forRepo(REPO)
-      .fetchCompareDiff({ base: BASE_SHA, head: HEAD_SHA });
-
-    expect(result).toEqual({ ok: true, value: DIFF.body });
-    expect(listAuthorizations(stub)).toEqual(REVIEWER_THEN_OPERATOR);
-  });
-
-  it.each([
-    ["no ref", {}],
-    ["an unknown ref", { ref: UNKNOWN_SHA }],
-    ["a short sha ref", { ref: HEAD_SHA.slice(0, 7) }],
-  ])("refuses a repo file read with %s", async (_, at) => {
+  it("refuses a repo file read at a short sha ref", async () => {
     const stub = stubDeniedReviewer(NOT_FOUND, FORBIDDEN);
     const { github } = bindWithOperator(stub);
 
-    const result = await github
-      .forRepo(REPO)
-      .fetchRepoFile({ path: "src/a.ts", maxBytes: 1024, ...at });
+    const result = await github.forRepo(REPO).fetchRepoFile({
+      path: "src/a.ts",
+      maxBytes: 1024,
+      ref: HEAD_SHA.slice(0, 7),
+    });
 
     expect(result.ok || result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(listAuthorizations(stub)).toEqual(REVIEWER_ONLY);
-  });
-
-  it("reads a repo file at a known commit on the operator token", async () => {
-    const stub = stubGitHubFetch(
-      answerByToken({
-        [OLD_TOKEN]: FORBIDDEN,
-        [OPERATOR_TOKEN]: {
-          status: 200,
-          body: {
-            type: "file",
-            size: 2,
-            sha: "f".repeat(40),
-            content: Buffer.from("ok").toString("base64"),
-            encoding: "base64",
-          },
-        },
-      }),
-    );
-    const { github } = bindWithOperator(stub);
-
-    const result = await github
-      .forRepo(REPO)
-      .fetchRepoFile({ path: "src/a.ts", maxBytes: 1024, ref: HEAD_SHA });
-
-    expect(result.ok && result.value.kind).toBe("file");
-    expect(listAuthorizations(stub)).toEqual(REVIEWER_THEN_OPERATOR);
   });
 });

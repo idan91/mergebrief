@@ -68,11 +68,6 @@ describe("resolveDbTimeline", () => {
     expect(selection?.selectedIndex).toBe(0);
   });
 
-  it("carries the per-entry drifted base for a middle revision", () => {
-    const selection = resolveDbTimeline(REVISIONS, { head: "h3" });
-    expect(selection?.selected.baseSha).toBe("b3-drifted");
-  });
-
   it("degrades an unknown head to latest with the note flag set", () => {
     const selection = resolveDbTimeline(REVISIONS, { head: "never-briefed" });
     expect(selection?.selected.headSha).toBe("h3");

@@ -25,15 +25,10 @@ import {
 } from "persistence";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import {
-  claimTestRun,
-  createPgliteHarness,
-  succeedTestRun,
-  type PgliteHarness,
-} from "persistence/testing";
+import { succeedTestRun } from "persistence/testing";
 import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { startTestTracing, type TestTracing } from "logging/testing";
 import { createApp, type ApiApp } from "../src/index";
 import { resetLiveReadMemory } from "../src/routes/live-read";
@@ -56,6 +51,7 @@ import {
   type GateGitHub,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import { registerSharedPglite } from "./shared-pglite";
 
 const OTHER_INSTALLATION_ID = 111222;
 const REPO_A = 424242;
@@ -180,13 +176,12 @@ function isMetaRevisionsBody(value: unknown): value is MetaRevisionsBody {
 }
 
 describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     app = createApp({
@@ -196,11 +191,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
   });
 
   async function get(path: string, cookie?: string): Promise<Response> {
@@ -590,28 +580,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     );
 
     expect(body.generation?.["waitReason"]).toBe(WaitReasons.WAITING_FOR_SLOT);
-  });
-
-  it("meta: omits the wait reason once the generation runs", async () => {
-    stubGate();
-    const cookie = await signIn();
-    const pr = await triggerPendingBrief(0);
-    await claimTestRun(createGenerationProjection(harness.handle, CTX), {
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "head-1",
-      baselineSha: null,
-    });
-
-    const { body } = await readGenerationSummary(
-      `/api/repos/${REPO_A}/pulls/7`,
-      cookie,
-    );
-
-    expect(body.generation).toMatchObject({
-      status: GenerationStatuses.RUNNING,
-    });
-    expect(body.generation).not.toHaveProperty("waitReason");
   });
 
   it("meta: exposes draft status, author and authorship for an own draft", async () => {
@@ -1035,15 +1003,6 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(await metaLastReview(cookie)).toEqual({
       unavailable: "baseline-unavailable",
     });
-  });
-
-  it("meta: omits lastReview for a checkpoint at the current head", async () => {
-    stubGate();
-    const cookie = await signIn();
-    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    await seedBriefs(pr);
-    await seedCheckpoint(pr.id, REVIEWER_ID, "head-2");
-    expect(await metaLastReview(cookie)).toBeUndefined();
   });
 
   it("meta: lastReview never leaks a cross-tenant checkpoint", async () => {

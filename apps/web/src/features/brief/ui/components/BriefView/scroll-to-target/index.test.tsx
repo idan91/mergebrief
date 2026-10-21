@@ -2,6 +2,7 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { REVISION_JUMP_ATTR } from "../../../../model/comparison/runs";
 import type { ScopeExitOptions } from "../types";
 import { deriveGroupHeadingId, deriveGroupSectionId } from "../utils";
@@ -634,6 +635,47 @@ describe("useScrollToTarget", () => {
 
     expect(scheduled).toBe(true);
     expect(card.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useScrollToTarget under reduced motion", () => {
+  beforeEach(() => {
+    setMediaQueryMatches("(prefers-reduced-motion: reduce)", true);
+  });
+
+  afterEach(resetMediaQueries);
+
+  it("snaps an under-stack scroll instead of gliding", () => {
+    mountCard("chunk-a", 300);
+    const { result } = renderScrollToTarget();
+
+    act(() => {
+      result.current.scrollToTarget(CHUNK_A, {
+        ...SMOOTH,
+        placement: ScrollPlacements.UNDER_STACK,
+      });
+      vi.advanceTimersByTime(40);
+    });
+
+    expect(window.scrollTo).toHaveBeenCalledWith({
+      behavior: "auto",
+      top: 150,
+    });
+  });
+
+  it("snaps a scroll into view instead of gliding", () => {
+    const card = mountCard("chunk-a", 300);
+    const { result } = renderScrollToTarget();
+
+    act(() => {
+      result.current.scrollToTarget(CHUNK_A, SMOOTH);
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(card.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "auto",
+      block: "start",
+    });
   });
 });
 

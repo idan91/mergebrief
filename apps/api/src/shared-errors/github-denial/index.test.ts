@@ -115,11 +115,4 @@ describe("resolveGitHubDenialError", () => {
       expect(error.code).toBe(expectedCode);
     },
   );
-
-  it("builds a fresh error on every call", () => {
-    const failure = makeGitHubError(GitHubApiErrorCodes.NOT_FOUND);
-    const first = resolveGitHubDenialError(failure, DenialPostures.COLLAPSE);
-    const second = resolveGitHubDenialError(failure, DenialPostures.COLLAPSE);
-    expect(first).not.toBe(second);
-  });
 });

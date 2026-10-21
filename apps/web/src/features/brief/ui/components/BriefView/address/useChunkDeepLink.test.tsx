@@ -64,21 +64,6 @@ describe("useChunkDeepLink", () => {
     expect(scrollToChunk).not.toHaveBeenCalled();
   });
 
-  it("stands down while a thread target owns the arrival", () => {
-    const scrollToChunk = vi.fn(() => true);
-    renderHook(() =>
-      useChunkDeepLink({
-        briefId: "brief-a",
-        chunkIds: ["c1"],
-        link: "c1",
-        enabled: false,
-        scrollToChunk,
-      }),
-    );
-
-    expect(scrollToChunk).not.toHaveBeenCalled();
-  });
-
   it("stays stood down once a thread arrival has yielded to", () => {
     const scrollToChunk = vi.fn(() => true);
     const { rerender } = renderHook(

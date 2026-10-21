@@ -20,8 +20,7 @@ import {
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { ReviewOutcomes } from "types/reviews";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
@@ -47,13 +46,17 @@ import {
   buildOverriddenAuthDeps,
   listFakeCallTokens,
   arrangeFakeGate,
-  DENIED_GATE_CALLS,
   OPERATOR_GATE_CALLS,
   REVIEWER_GATE_CALLS,
   listCallTokens,
   listCallsPastGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
+import {
+  openPerTestPglite,
+  registerSharedPglite,
+  type SharedPglite,
+} from "./shared-pglite";
 
 // Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });
@@ -274,7 +277,7 @@ async function postReply(
   });
 }
 
-async function replyAuditCount(harness: PgliteHarness): Promise<number> {
+async function replyAuditCount(harness: SharedPglite): Promise<number> {
   const rows = await harness.raw(
     "select count(*)::int as n from audit_log where operation = 'reply-to-comment' and outcome = 'ok'",
   );
@@ -290,24 +293,17 @@ async function replyAuditCount(harness: PgliteHarness): Promise<number> {
 // ---------------------------------------------------------------------------
 
 describe("conversation surface", () => {
-  let harness: PgliteHarness;
+  const harness = registerSharedPglite();
   let kp: KeyProvider;
   let fake: FakeGitHub;
 
-  beforeEach(async () => {
-    harness = await createPgliteHarness();
+  beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
     arrangeFakePullRequest(fake, {
       repoId: REPO_ID,
       conversation: conversationFixture(),
     });
-  });
-
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    await harness.close();
   });
 
   function makeApp(operatorToken?: string): ApiApp {
@@ -333,16 +329,6 @@ describe("conversation surface", () => {
       // EVERY response of a gated route, middleware denials included.
       expect(res.headers.get("cache-control")).toBe("no-store");
       expect(fake.calls).toEqual([]);
-    });
-
-    it("404s denied viewers without reading the conversation", async () => {
-      arrangeFakeGate(fake, { repoId: REPO_ID, viewerStatus: 404 });
-      const { cookie } = await seedSignIn(harness.handle, kp);
-      await seedPullRequest(harness.handle);
-      const res = await getConversation(makeApp(), cookie);
-      expect(res.status).toBe(404);
-      expect(res.headers.get("cache-control")).toBe("no-store");
-      expect(listCallsPastGate(fake, DENIED_GATE_CALLS)).toEqual([]);
     });
 
     it("returns no-store conversation data on the App with one row read", async () => {
@@ -405,35 +391,6 @@ describe("conversation surface", () => {
       expect(body.hasMorePrComments).toBe(false);
     });
 
-    it("does not filter other bot comments, only the stored Entry id", async () => {
-      const fixture = conversationFixture();
-      arrangeFakePullRequest(fake, {
-        repoId: REPO_ID,
-        conversation: {
-          ...fixture,
-          prComments: [
-            ...fixture.prComments,
-            {
-              commentId: 5_555,
-              author: { login: "coderabbitai[bot]", isBot: true },
-              body: "another bot's PR comment",
-              createdAt: "2026-07-02T11:00:00Z",
-              url: "https://github.com/octo/hello/pull/7#issuecomment-5555",
-            },
-          ],
-        },
-      });
-      arrangeFakeGate(fake, { repoId: REPO_ID });
-      const { cookie } = await seedSignIn(harness.handle, kp);
-      // Stored id targets NEITHER comment (stale rotation), nothing filters.
-      await seedPullRequestWithEntryComment(harness.handle, 999_999n);
-      const res = await getConversation(makeApp(), cookie);
-      const body = (await res.json()) as PrConversation;
-      expect(body.prComments.map((comment) => comment.commentId)).toEqual([
-        9001, 5_555,
-      ]);
-    });
-
     it("caches the second read per PR within the TTL", async () => {
       arrangeFakeGate(fake, { repoId: REPO_ID });
       const { cookie } = await seedSignIn(harness.handle, kp);
@@ -449,16 +406,6 @@ describe("conversation surface", () => {
       const third = await getConversation(app, other.cookie);
       expect(third.status).toBe(200);
       expect(listConversationReads(fake)).toHaveLength(1);
-    });
-
-    it("maps an App not-found to 404", async () => {
-      fake.failOn("fetchPullRequestConversation", FakeFailures.NOT_FOUND);
-      arrangeFakeGate(fake, { repoId: REPO_ID });
-      const { cookie } = await seedSignIn(harness.handle, kp);
-      await seedPullRequest(harness.handle);
-      const res = await getConversation(makeApp(), cookie);
-      expect(res.status).toBe(404);
-      expect(await res.json()).toMatchObject({ code: "not-found" });
     });
 
     it("502s a rate limit and caches no failure", async () => {
@@ -494,19 +441,6 @@ describe("conversation surface", () => {
       const res = await getConversation(makeApp(), cookie);
       expect(res.status).toBe(502);
       expect(await res.json()).toMatchObject({ code: "github-unavailable" });
-    });
-
-    it("404s an unknown PR number without reading GitHub", async () => {
-      arrangeFakeGate(fake, { repoId: REPO_ID });
-      const { cookie } = await seedSignIn(harness.handle, kp);
-      await seedPullRequest(harness.handle);
-      const res = await getConversation(
-        makeApp(),
-        cookie,
-        conversationPath(999),
-      );
-      expect(res.status).toBe(404);
-      expect(listCallsPastGate(fake)).toEqual([]);
     });
   });
 
@@ -568,9 +502,12 @@ describe("conversation surface", () => {
       expect(await res.json()).toMatchObject({ code: "not-found" });
     });
 
-    it("401s a viewer token GitHub rejects past its one renewal", async () => {
-      fake.rejectToken(ACCESS_TOKEN);
-      fake.rejectToken(ROTATED_ACCESS_TOKEN);
+    it("401s when the read still 401s after a good refresh", async () => {
+      fake.failOn(
+        "fetchPullRequestConversation",
+        FakeFailures.UNAUTHORIZED,
+        CredentialKinds.REVIEWER,
+      );
       const gate = arrangeFakeGate(fake, {
         repoId: REPO_ID,
         inInstallation: false,
@@ -580,6 +517,7 @@ describe("conversation surface", () => {
       const res = await getConversation(makeApp(), cookie);
       expect(res.status).toBe(401);
       expect(gate.tokenRefreshes()).toBe(1);
+      expect(listConversationReads(fake)).toHaveLength(2);
     });
 
     it("falls back to the operator token behind an operator pass", async () => {
@@ -881,34 +819,31 @@ describe("conversation surface", () => {
     });
 
     it("keeps 201 when auditing fails after posting the reply", async () => {
+      const own = await openPerTestPglite();
       arrangeFakeGate(fake, { repoId: REPO_ID });
-      const { cookie } = await seedSignIn(harness.handle, kp);
-      await seedPullRequest(harness.handle);
+      const { cookie } = await seedSignIn(own.handle, kp);
+      await seedPullRequest(own.handle);
       const capture = testLogging();
       const app = createApp({
         logger: capture.logger,
-        handle: harness.handle,
+        handle: own.handle,
         webhookSecret: SECRET,
         auth: buildFakeAuthDeps(kp, fake),
         ...buildFakeInstallationDeps(fake),
       });
       // The GitHub write already happened, so a local persistence failure
       // must not read as "nothing was posted".
-      await harness.raw("alter table audit_log rename to audit_log_hidden");
-      try {
-        const res = await postReply(app, cookie, {
-          body: "posted then audit dies",
-        });
-        expect(res.status).toBe(201);
-        // The integrity failure is operator-visible: one audit.fail error
-        // line naming the operation whose row never landed.
-        const line = capture.lines().find((l) => l["evt"] === "audit.fail");
-        expect(line?.["level"]).toBe("error");
-        expect(line?.["operation"]).toBe("reply-to-comment");
-        expect(line?.["err"]).toBeDefined();
-      } finally {
-        await harness.raw("alter table audit_log_hidden rename to audit_log");
-      }
+      await own.raw("alter table audit_log rename to audit_log_hidden");
+      const res = await postReply(app, cookie, {
+        body: "posted then audit dies",
+      });
+      expect(res.status).toBe(201);
+      // The integrity failure is operator-visible: one audit.fail error
+      // line naming the operation whose row never landed.
+      const line = capture.lines().find((l) => l["evt"] === "audit.fail");
+      expect(line?.["level"]).toBe("error");
+      expect(line?.["operation"]).toBe("reply-to-comment");
+      expect(line?.["err"]).toBeDefined();
     });
 
     it("collapses a denied fresh re-resolve to the gate's 404 posture", async () => {

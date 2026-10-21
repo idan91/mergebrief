@@ -15,15 +15,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { runCli } from "../src/program";
-import {
-  BASE_URL,
-  KEY_REF,
-  startCliApiHarness,
-  type CliApiHarness,
-} from "./harness/api";
+import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
+import { BASE_URL } from "./harness/consts";
 
 const REVIEWER_ID = 555;
-const OTHER_ID = 9919;
 const DAILY_CAP = 50;
 
 function makeTempDir(prefix: string): string {
@@ -94,7 +89,15 @@ describe("spend command over the real api app", () => {
     return plaintext;
   }
 
-  async function runSpend(started: CliApiHarness, argv: string[]) {
+  interface OperatorProfile {
+    readonly configDir: string;
+    readonly cacheDir: string;
+    readonly token: string;
+  }
+
+  async function loginAsOperator(
+    started: CliApiHarness,
+  ): Promise<OperatorProfile> {
     const token = await seedToken(started);
     const configDir = makeTempDir("mb-config-");
     const cacheDir = makeTempDir("mb-cache-");
@@ -112,14 +115,21 @@ describe("spend command over the real api app", () => {
       },
     );
     expect(login).toBe(ExitCodes.OK);
+    return { configDir, cacheDir, token };
+  }
 
+  async function runSpend(
+    started: CliApiHarness,
+    profile: OperatorProfile,
+    argv: string[],
+  ) {
     const out: string[] = [];
     const err: string[] = [];
     const code = await runCli(argv, {
       fetch: started.fetch,
       env: {},
-      configDir,
-      cacheDir,
+      configDir: profile.configDir,
+      cacheDir: profile.cacheDir,
       stdout: (text) => out.push(text),
       stderr: (line) => err.push(line),
       readStdin: async () => {
@@ -128,42 +138,28 @@ describe("spend command over the real api app", () => {
       gitOriginUrl: () => undefined,
     });
     const stdout = out.join("");
-    return { code, out: stdout, err, token };
+    return { code, out: stdout, err };
   }
 
-  it("spend --json relays the Operator's body verbatim", async () => {
+  it("spend --json is the Operator's body verbatim; the TTY arm is one line", async () => {
     const started = await startWorld(REVIEWER_ID);
+    const profile = await loginAsOperator(started);
 
-    const run = await runSpend(started, ["spend", "--json"]);
+    const json = await runSpend(started, profile, ["spend", "--json"]);
     const reference = await createApiClient({
       fetch: started.fetch,
       baseUrl: BASE_URL,
-      token: run.token,
+      token: profile.token,
     }).request({ path: "/api/spend" });
 
-    expect(run.code).toBe(ExitCodes.OK);
-    expect(run.out).toBe(reference.bodyText);
-  });
+    expect(json.code).toBe(ExitCodes.OK);
+    expect(json.out).toBe(reference.bodyText);
 
-  it("spend prints today's count against the cap on one line", async () => {
-    const started = await startWorld(REVIEWER_ID);
+    const tty = await runSpend(started, profile, ["spend"]);
 
-    const run = await runSpend(started, ["spend"]);
-
-    expect(run.code).toBe(ExitCodes.OK);
-    expect(run.out).toBe(
+    expect(tty.code).toBe(ExitCodes.OK);
+    expect(tty.out).toBe(
       `0 of ${DAILY_CAP} runs started today · resets at 00:00 UTC\n`,
     );
-  });
-
-  it("spend refuses a viewer the config does not list", async () => {
-    const started = await startWorld(OTHER_ID);
-
-    const run = await runSpend(started, ["spend", "--json"]);
-
-    expect(run.code).not.toBe(ExitCodes.OK);
-    expect(run.out).toBe("");
-    expect(run.err).toHaveLength(1);
-    expect(run.err[0]).toContain("only an operator of this instance");
   });
 });

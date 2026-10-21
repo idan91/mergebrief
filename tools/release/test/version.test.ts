@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareReleaseVersions,
-  formatReleaseTag,
   formatReleaseVersion,
-  isStableVersion,
   parseReleaseVersion,
   pickHighestStable,
 } from "../src/logic/version";
@@ -59,20 +57,6 @@ describe("the release version grammar", () => {
       "0.1.1",
       "1.0.0",
     ]);
-  });
-
-  it("formats the version and the tag", () => {
-    expect(formatReleaseVersion({ major: 1, minor: 2, patch: 3, rc: 4 })).toBe(
-      "1.2.3-rc.4",
-    );
-    expect(formatReleaseTag({ major: 1, minor: 2, patch: 3 })).toBe("v1.2.3");
-  });
-
-  it("tells a stable version from a candidate", () => {
-    expect(isStableVersion({ major: 1, minor: 0, patch: 0 })).toBe(true);
-    expect(isStableVersion({ major: 1, minor: 0, patch: 0, rc: 1 })).toBe(
-      false,
-    );
   });
 
   it("picks the highest stable version and ignores candidates", () => {

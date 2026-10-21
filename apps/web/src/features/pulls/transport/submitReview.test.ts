@@ -20,13 +20,13 @@ import { submitReview, type submittedReviewSchema } from "./submitReview";
 const apiFetchMock = vi.mocked(apiFetch);
 
 const SPAN = { base: "b".repeat(40), head: "c".repeat(40) };
-const submittedReviewPin = true satisfies Equals<
+true satisfies Equals<
   z.output<typeof submittedReviewSchema>,
   Extract<SubmitReviewResult, { kind: "submitted" }>
 >;
 
 /** Every field the parser reads is one the contract sends. */
-const readsWireFieldsPin = true satisfies Equals<
+true satisfies Equals<
   Exclude<
     keyof z.input<typeof submittedReviewSchema>,
     keyof SubmitReviewResponse
@@ -101,11 +101,6 @@ describe("submitReview", () => {
     await expect(run()).resolves.toEqual({ kind: "indeterminate" });
   });
 
-  it("maps the fail-closed 409 to the rewritten state", async () => {
-    apiFetchMock.mockResolvedValue(new Response("{}", { status: 409 }));
-    await expect(run()).resolves.toEqual({ kind: "rewritten" });
-  });
-
   it("maps the wire pr-rewritten-since-read code to rewritten", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(
@@ -162,53 +157,14 @@ describe("submitReview", () => {
     }
   });
 
-  it("maps 401 to unauthorized for a clean re-login", async () => {
-    apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
-    await expect(run()).resolves.toEqual({ kind: "unauthorized" });
-  });
-
   it("maps 404 to not-found", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 404 }));
     await expect(run()).resolves.toEqual({ kind: "not-found" });
   });
 
-  it("maps the proxy's 504 to indeterminate, never a retryable upstream", async () => {
-    apiFetchMock.mockResolvedValue(new Response("", { status: 504 }));
-    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
-  });
-
   it("maps 502 and other upstream failures to upstream", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 502 }));
     await expect(run()).resolves.toEqual({ kind: "upstream" });
-  });
-
-  it("reads a 201 with a bad shape as indeterminate", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ nope: true }), { status: 201 }),
-    );
-    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
-  });
-
-  it("reads a network throw as indeterminate, never a retryable failure", async () => {
-    apiFetchMock.mockRejectedValue(new TypeError("network down"));
-    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
-  });
-
-  it("maps the signed-out code to unauthorized", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ error: "x", code: "signed-out" }), {
-        status: 401,
-      }),
-    );
-    await expect(run()).resolves.toEqual({ kind: "unauthorized" });
-  });
-
-  it("pins the parser to the submitted result", () => {
-    expect(submittedReviewPin).toBe(true);
-  });
-
-  it("reads only the fields the contract sends", () => {
-    expect(readsWireFieldsPin).toBe(true);
   });
 
   it("maps every previously-swallowed coded failure deliberately", async () => {

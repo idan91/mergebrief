@@ -73,14 +73,6 @@ async function loadHome() {
 }
 
 describe("page tab titles", () => {
-  it("names the home page", async () => {
-    await loadHome();
-
-    await waitFor(() => {
-      expect(document.title).toBe("Briefs · MergeBrief");
-    });
-  });
-
   it("follows a client navigation to settings", async () => {
     const router = await loadHome();
 

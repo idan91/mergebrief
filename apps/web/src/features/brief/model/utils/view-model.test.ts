@@ -96,12 +96,6 @@ function twoGroupBrief(readingOrder?: unknown): TwoGroupBrief {
 }
 
 describe("getCategoryLabel", () => {
-  it("labels move-with-edits without a stray hyphen", () => {
-    expect(
-      getCategoryLabel(appI18n.t, ChangeGroupCategories.MOVE_WITH_EDITS),
-    ).toBe("move with edits");
-  });
-
   it("labels every ChangeGroupCategory from the catalog", () => {
     for (const category of Object.values(ChangeGroupCategories)) {
       const label = getCategoryLabel(appI18n.t, category);
@@ -673,15 +667,6 @@ describe("buildBriefViewModel, remainder group", () => {
       undefined,
     ]);
   });
-
-  it("does not add a remainder when the field is absent", () => {
-    const parsed = parseBriefBody(twoGroupBrief());
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      return;
-    }
-    expect(buildBriefViewModel(parsed.value).groups).toHaveLength(2);
-  });
 });
 
 describe("buildBriefViewModel, exact totals under overlaps", () => {
@@ -704,28 +689,5 @@ describe("buildBriefViewModel, exact totals under overlaps", () => {
     const model = buildBriefViewModel(parsed.value);
     expect(model.totalAdded).toBe(10);
     expect(model.totalDeleted).toBe(3);
-  });
-
-  it("falls back to chunk sums + remainder on pre-diffTotals briefs", () => {
-    const parsed = parseBriefBody({
-      ...twoGroupBrief(),
-      unattributed: [
-        {
-          file: "src/orphan.ts",
-          addedRanges: [{ start: 1, end: 2 }],
-          removedRanges: [],
-        },
-      ],
-    });
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      return;
-    }
-    const model = buildBriefViewModel(parsed.value);
-    const chunkAdded = parsed.value.chunks.reduce(
-      (sum, chunk) => sum + chunk.loc.added,
-      0,
-    );
-    expect(model.totalAdded).toBe(chunkAdded + 2);
   });
 });

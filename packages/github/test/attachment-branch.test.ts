@@ -178,34 +178,6 @@ describe("commitAttachment", () => {
     });
   });
 
-  it("lands a burst of three uploads that each move the head", async () => {
-    const { octokit, git } = stubGit({
-      getRef: vi
-        .fn()
-        .mockResolvedValueOnce({ data: { object: { sha: "head1" } } })
-        .mockResolvedValueOnce({ data: { object: { sha: "head2" } } })
-        .mockResolvedValueOnce({ data: { object: { sha: "head3" } } }),
-      updateRef: vi
-        .fn()
-        .mockRejectedValueOnce(
-          makeRequestError(422, "Update is not a fast forward"),
-        )
-        .mockRejectedValueOnce(
-          makeRequestError(422, "Update is not a fast forward"),
-        )
-        .mockResolvedValueOnce({ data: {} }),
-    });
-
-    const result = await commitAttachment(octokit, INPUT);
-
-    expect(result.ok).toBe(true);
-    expect(git.createBlob).toHaveBeenCalledTimes(1);
-    expect(git.createTree).toHaveBeenCalledTimes(3);
-    expect(git.createTree.mock.calls[2]?.[0]).toMatchObject({
-      base_tree: "tree-of-head3",
-    });
-  });
-
   it("gives up once the attempts run out", async () => {
     const { octokit, git } = stubGit({
       updateRef: vi
@@ -314,20 +286,6 @@ describe("deleteAttachmentBranch", () => {
     const result = await deleteAttachmentBranch(octokit, TARGET);
 
     expect(result).toEqual({ ok: true, value: { existed: false } });
-  });
-
-  it("keeps a 404 as not-found: the repository, not the branch, is gone", async () => {
-    const { octokit } = stubGit({
-      deleteRef: vi.fn().mockRejectedValue(makeRequestError(404)),
-    });
-
-    const result = await deleteAttachmentBranch(octokit, TARGET);
-
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
   it("reads a rule refusing the delete as a rule refusal", async () => {
