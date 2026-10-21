@@ -1,6 +1,6 @@
 # packages/persistence — agent notes
 
-The persistence layer for the self-host backend. The schema and every design decision behind it live in the Postgres-schema decision record under `docs/adr/`. Do not re-derive or contradict them here; if code must diverge, amend that record first.
+The persistence layer for the self-host backend. The schema and every design decision behind it live in the Postgres-schema decision record under `docs/internal/adr/`. Do not re-derive or contradict them here; if code must diverge, amend that record first.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 

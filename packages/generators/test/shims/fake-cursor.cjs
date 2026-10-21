@@ -3,8 +3,8 @@
  * Fake `cursor-agent` binary for harness tests (fake the BINARY, not the
  * spawn). Scenario via SHIM_SCENARIO; the answer payload via SHIM_OUTPUT.
  *
- * Emits envelope-accurate `--output-format stream-json` NDJSON (see
- * docs/dev/harness-cli-capabilities.md §3) with the CLI's verified quirk:
+ * Emits envelope-accurate `--output-format stream-json` NDJSON with the
+ * CLI's verified quirk:
  * NOTHING reaches the pipe until process exit: events are buffered and
  * flushed in one write at termination.
  */

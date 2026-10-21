@@ -9,7 +9,7 @@ Turns a real pull-request diff into a structured review **brief** — a *story* 
 > output naming in `src/artifacts/`) and the eval harness (`eval/`,
 > `pnpm eval`).
 
-This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/mvp/center-of-gravity.md`.
+This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/internal/mvp/center-of-gravity.md`.
 
 ## How it works
 
@@ -19,7 +19,7 @@ PR URL ──▶ gh pr diff + gh pr view ──▶ Opus 4.8 (messages.parse + Zo
 
 - **Diff source:** the `gh` CLI (`gh pr diff` + `gh pr view --json`). No GitHub token setup — uses your existing `gh` auth.
 - **Model:** `claude-opus-4-8`, adaptive thinking, with the taxonomy system prompt prompt-cached.
-- **Output contract:** the model must return JSON matching the Zod `BriefSchema` (`src/types.ts`), whose enums mirror the closed vocabulary in `docs/mvp/labeling-schema.md` and the 16 attributes in `docs/mvp/risk-surface.md`.
+- **Output contract:** the model must return JSON matching the Zod `BriefSchema` (`src/types.ts`), whose enums mirror the closed vocabulary in `docs/vocabulary/labeling-schema.md` and the 16 attributes in `docs/vocabulary/risk-surface.md`.
 
 ## Setup
 
@@ -103,7 +103,7 @@ This is the delta **core** only — the per-reviewer **carry-over overlay** (reo
 ### Known approximations (flagged, not hidden)
 
 - **Adjusted LoC ≈ git LoC.** Reliable move detection is out of scope; the model reports git added/deleted and notes likely relocations in the group summary rather than netting out moved lines.
-- **No automated gold scorer.** Validation here is a manual N=1 eyeball of the medusa #15605 output vs `docs/mvp/briefs/medusa-15605.md`. Automated scoring is later work.
+- **No automated gold scorer.** Validation here is a manual eyeball of a run's output; there is no hand-labeled gold set. Automated scoring is later work.
 
 ## Development
 

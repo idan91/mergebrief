@@ -152,9 +152,8 @@ smoke builds from source and never pulls`.
 Fresh-host recipe:
 [`../self-host/compose.md`](../self-host/compose.md) opens with it (curl the
 compose file and `.env.example` from the Release, `docker compose up -d
---wait`). Full loop walkthrough: [`brief-19-smoke.md`](./brief-19-smoke.md)
-(30 to 40 minutes, spends real tokens; its service list and log commands
-predate the `api` service). Tunnel and App plumbing:
+--wait`).
+Tunnel and App plumbing:
 [`webhook-loop.md`](./webhook-loop.md). Source builds are the developer
 path: foreground `docker compose build`, never piped, because the keychain
 fails sandboxed or backgrounded.
@@ -316,8 +315,7 @@ release`.
       read-only locally, the verdict is spent on success.
       `manual-forever: writes land on a real PR thread through a real App
       installation; the hermetic suites stop at the octokit boundary.`
-- [ ] Author self-review. Full walkthrough:
-      [`brief-43-testing.md`](./brief-43-testing.md). Fast pass:
+- [ ] Author self-review. Fast pass:
       `manual-forever: needs a draft PR you author plus a SECOND GitHub
       account for the non-author arm; two real identities against one
       installation.`

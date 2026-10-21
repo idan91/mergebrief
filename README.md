@@ -159,10 +159,8 @@ something was erased without retaining *what*.
 
 ## Status
 
-This project follows [`docs/oss-roadmap.md`](./docs/oss-roadmap.md) — an early-stage, actively
-developed self-hosted project, not a finished product. The domain model is documented in
-[`CONTEXT.md`](./CONTEXT.md); architectural decisions are recorded as ADRs under
-[`docs/adr/`](./docs/adr/).
+This is an early-stage, actively developed self-hosted project, not a finished product. The
+domain model is documented in [`CONTEXT.md`](./CONTEXT.md).
 
 ## Contributing
 

@@ -1,6 +1,6 @@
 # apps/web — agent notes
 
-The TanStack Start front end: the DB-backed read + submit surface, fed by `apps/api` for both App-installation and URL-box briefs. Feature context lives in `docs/adr/`.
+The TanStack Start front end: the DB-backed read + submit surface, fed by `apps/api` for both App-installation and URL-box briefs. Feature context lives in `docs/internal/adr/`.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 
@@ -36,7 +36,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - An effect syncs React with something outside it. It is idempotent, its dependency list is real, and derived state never lives in one.
 - **State that resets on a Brief switch resets one of three ways**: a per-Brief zustand store a `useCreate*` hook holds in a ref and rebuilds when the Brief id changes (`BriefView/store.ts` is the template; the expansion, reading-position and review-flow stores follow it); a `key` on the Brief id for one region's own state; or a value tagged with its Brief id and compared at read. Never a module singleton, a keyed remount of the whole view, or a render-phase reset.
 
-## Placement and styling (full rules + rationale live in `docs/adr/`)
+## Placement and styling (full rules + rationale live in `docs/internal/adr/`)
 
 - Every folder answers at a glance: one visible MAIN entry, everything else in a visible support category. A feature root = `index.tsx` (THE entry — the component's JSX, or a curated re-export when it has co-located support files), plus `types.ts` and `components/` / `hooks/` / `utils/` / `server/` / topic folders. Inside `components/`, every component nests under its owning component, and a component folder's entry is `index.tsx`, so a consumer imports the folder (`@web/components/Menu`, never `@web/components/Menu/Menu`) and reaches support one segment below it (`@web/components/Menu/types`). The test and the stylesheet keep the component name (`Menu/Menu.test.tsx`, `Menu/Menu.module.scss`); any other file named after its folder is a defect, and so is a loose uncategorized file (except files with an explicit justification in the decision record, e.g. `brief/queries.ts`).
 - **apps/web runs no server functions for data.** A read or write the app needs is an `apps/api` route reached through `data/request`; a dev-only surface is a dev-only API route. `src/server/` is app-wide infrastructure only (env, logger, API transport, health, the refused paths). Lint bans `createServerFn` in `apps/web/src`.

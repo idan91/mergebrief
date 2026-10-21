@@ -14,8 +14,7 @@ If you have reviewed enough PRs to know that a factual pattern — `removes-vali
 contribute here.
 
 > **Where did the Playbooks go?** The per-Category checklist layer is **parked to v2**.
-> `docs/mvp/playbooks.md` is kept as the v2 seed, but no product surface consumes it
-> and no new playbook items are accepted while parked. Any revival is bound to the
+> No product surface consumes it and no new playbook items are accepted while parked. Any revival is bound to the
 > layer's rubric identity: coverage *measurement* of finished reviews, never prompt
 > material for reviewers or agents.
 
@@ -25,10 +24,9 @@ The vocabulary is split across files with a strict division of labor:
 
 | File | Role |
 |---|---|
-| [`docs/mvp/labeling-schema.md`](./docs/mvp/labeling-schema.md) | The authoritative **index** of valid tokens on every axis. A token not registered here is not valid, full stop. |
+| [`docs/vocabulary/labeling-schema.md`](docs/vocabulary/labeling-schema.md) | The authoritative **index** of valid tokens on every axis. A token not registered here is not valid, full stop. |
 | [`CONTEXT.md`](./CONTEXT.md) | The **glossary** — what each concept means, what terms are deliberately avoided. |
-| [`docs/mvp/risk-surface.md`](./docs/mvp/risk-surface.md) | The per-attribute detail for **Risk Surface** — detection notes and reviewer implications. |
-| [`docs/mvp/playbooks.md`](./docs/mvp/playbooks.md) | **Parked.** The v2 seed for the coverage-rubric layer; read-only while parked. |
+| [`docs/vocabulary/risk-surface.md`](docs/vocabulary/risk-surface.md) | The per-attribute detail for **Risk Surface** — detection notes and reviewer implications. |
 
 Always edit in that order: register the token in the index first, then write the deep
 content. Never invent a token inline anywhere else.
@@ -164,10 +162,9 @@ open an issue before starting one.
 ## Code contributions
 
 Bug fixes and features are welcome through ordinary PRs — run the verification commands
-above before opening one. For anything architectural, read the relevant ADRs in
-[`docs/adr/`](./docs/adr/) first and open an issue to discuss; several tempting features
-(severity scores, AI-authored review comments, general-purpose bug hunting) are documented
-non-goals, and a PR won't change that.
+above before opening one. For anything architectural, open an issue to discuss first; several tempting features
+(severity scores, AI-authored review comments, general-purpose bug hunting) are non-goals
+listed in [`docs/vision.md`](docs/vision.md), and a PR won't change that.
 
 ## License and the DCO
 

@@ -2,10 +2,10 @@
 
 Comprehension scaffolding for human reviewers of pull requests. Not another reviewer bot. The tool's job is to restore *engagement* and *comprehension* to code review in an AI-authored world, by re-unitizing the diff from "lines" to "categorized chunks with playbooks", and by separating AI assistance from AI authorship.
 
-> This file defines the *meaning* of each term. For the authoritative closed list of valid labeling **tokens** (the current Category / Concern / Role / Risk-Surface values + quick rules), see `docs/mvp/labeling-schema.md` — the controlled vocabulary. A token is not valid unless registered there.
+> This file defines the *meaning* of each term. For the authoritative closed list of valid labeling **tokens** (the current Category / Concern / Role / Risk-Surface values + quick rules), see `docs/vocabulary/labeling-schema.md` — the controlled vocabulary. A token is not valid unless registered there.
 
 > **Reading notes.** This file describes vocabulary, not priority — for the
-> current product weighting see `docs/mvp/center-of-gravity.md` (story +
+> current product weighting see `docs/internal/mvp/center-of-gravity.md` (story +
 > risk-surface + delta). The project is **OSS-only**: no hosted arm, no moat.
 > Entries still carrying hosted/headless/multi-reviewer phrasing (**Trigger**,
 > **Delta Brief**, agent-via-API consumption) are design concepts that survive,
@@ -119,7 +119,7 @@ A templated, domain-rule checklist of items to verify for a given category. Not 
 _Avoid_: checklist, rules, review template
 
 **Risk Surface**:
-The set of factual attributes attached to a chunk. Attributes only — never verdicts. Severity (when needed) emerges from the *combination* of attributes, never from a graded prefix on any single attribute. Three-bucket structure: **about the code** (e.g., `no-tests`, `legacy-area`), **about the change** (e.g., `touches-auth`, `mutates-state`, `removes-validation`), **about the blast radius** (e.g., `external-io`, `widely-imported`, `cross-service`). Full library in `docs/mvp/risk-surface.md`.
+The set of factual attributes attached to a chunk. Attributes only — never verdicts. Severity (when needed) emerges from the *combination* of attributes, never from a graded prefix on any single attribute. Three-bucket structure: **about the code** (e.g., `no-tests`, `legacy-area`), **about the change** (e.g., `touches-auth`, `mutates-state`, `removes-validation`), **about the blast radius** (e.g., `external-io`, `widely-imported`, `cross-service`). Full library in `docs/vocabulary/risk-surface.md`.
 _Avoid_: critical area, hot spot, risky code, severity tag
 
 **Flag**:
@@ -323,7 +323,7 @@ Display-weight tuning from `.mergebrief/policy.yaml`: a non-floor risk attribute
 _Avoid_: hide, suppress, mute (nothing is removed)
 
 **Floor**:
-The three risk attributes that can never be de-emphasized — `touches-auth`, `removes-validation`, `relaxes-permissions` (declared in `docs/mvp/risk-surface.md`). A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted: the combination is the signal.
+The three risk attributes that can never be de-emphasized — `touches-auth`, `removes-validation`, `relaxes-permissions` (declared in `docs/vocabulary/risk-surface.md`). A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted: the combination is the signal.
 _Avoid_: severity tier, critical attributes (the floor is a display guarantee, not a score)
 
 **Jump-rail**:

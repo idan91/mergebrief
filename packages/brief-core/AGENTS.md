@@ -13,7 +13,7 @@ The entry loads the whole generation graph and every provider SDK: only `apps/wo
 What the layout can't show:
 
 - `types.ts` takes the origin vocabulary from `generators/generation`, never the `generators` entry, so the Brief shape loads without an adapter. It re-exports none of it: `Effort`, `Generation`, `Anchor` and kin come from `generators/generation`, `AnchorStates` from `types/generations`, `TicketTrackers` from `types/trackers`.
-- `types.ts` (Brief schema + closed vocabulary, mirroring `docs/mvp/labeling-schema.md` and `risk-surface.md`) and `generation/prompt.ts` are generation surface (root AGENTS.md's eval gate).
+- `types.ts` (Brief schema + closed vocabulary, mirroring `docs/vocabulary/labeling-schema.md` and `risk-surface.md`) and `generation/prompt.ts` are generation surface (root AGENTS.md's eval gate).
 - `diff/` and `anchoring/` are mechanical parsing and partition, no model calls.
 - `generation/brief/` holds `generateBrief`, the one Brief generation entry the worker, the eval harness and the dev CLI call: plan, anchored generate and stitch when a previous brief is passed, then `generation/final-validation`'s one pass over the final chunk set, typed warnings returned. Nothing after the model call fails it: the stitch only merges, and a chunk naming no final group drops into the unattributed remainder. Whether to anchor and the anchor stamp stay with the caller.
 - `github/` keeps the PR shapes (`types.ts`), the url parser and the `gh` exec plumbing the GitHub tracker's transport uses; the dev CLI's `gh` fetchers live in `tools/categorizer`, and the worker uses its own github-port.

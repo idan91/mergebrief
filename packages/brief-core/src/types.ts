@@ -6,8 +6,8 @@ import { PrStackSchema } from "./pr-stack";
 /**
  * Brief schema. Generation surface: schema changes are eval-gated.
  *
- * Enums mirror the closed vocabulary docs (`docs/mvp/labeling-schema.md`,
- * `docs/mvp/risk-surface.md`) and change only in lockstep with them.
+ * Enums mirror the closed vocabulary docs (`docs/vocabulary/labeling-schema.md`,
+ * `docs/vocabulary/risk-surface.md`) and change only in lockstep with them.
  *
  * Structured-output constraints: no recursive schemas, no min/max. Always-present
  * arrays (empty when N/A) instead of optionality, to keep the strict schema simple.

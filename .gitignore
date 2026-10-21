@@ -65,3 +65,6 @@ mergebrief.config.yaml
 
 # Nested git worktrees (other checkouts of this repo).
 .worktrees/
+
+# Local implementation plans, never committed
+docs/plans/

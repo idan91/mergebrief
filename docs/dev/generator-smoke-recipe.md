@@ -73,7 +73,7 @@ cannot fake — a REAL CLI's process tree, grandchildren included:
 
 ## What this covers that CI cannot
 
-- Envelope fidelity: the shims mirror `docs/dev/harness-cli-capabilities.md`;
+- Envelope fidelity: the shims mirror `docs/internal/dev/harness-cli-capabilities.md`;
   a CLI upgrade can drift the real envelopes without failing any test.
 - Auth reality: keychain/OAuth (claude), `auth.json` (codex) — CI never has
   them; the boot probes only prove the SHIM's contract there.

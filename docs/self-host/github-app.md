@@ -3,9 +3,7 @@
 The self-host backend runs as a **per-instance GitHub App** — you register your own, on your
 own account/org, wired to your own deployment. There is no shared hosted App.
 
-This doc is the canonical setup reference for both contributors and self-hosters; the
-**decision** rationale lives in
-[ADR 0016](../adr/0016-github-app-auth-and-trust-tenancy-boundary.md).
+This doc is the canonical setup reference for both contributors and self-hosters.
 
 ## Permissions (least-privilege, exactly these four)
 

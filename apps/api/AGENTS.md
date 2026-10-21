@@ -34,7 +34,7 @@ Security collapses stay at the per-domain handlers, BEFORE the wire: internal vo
 
 ## Domain layout (enforced, don't weaken)
 
-The unit is the operation module, per the amended api-layering record under `docs/adr/`: it takes the database handle or a narrow deps slice, the resolved access value and the parsed input, returns a `Result`, and sits behind a thin HTTP adapter. A domain converts with its own change, and its pass-through controller goes then. `repos/pr/archive`, `delete` and `ready` set the converted shape:
+The unit is the operation module, per the amended api-layering record under `docs/internal/adr/`: it takes the database handle or a narrow deps slice, the resolved access value and the parsed input, returns a `Result`, and sits behind a thin HTTP adapter. A domain converts with its own change, and its pass-through controller goes then. `repos/pr/archive`, `delete` and `ready` set the converted shape:
 
 - `index.ts` — the route factory: each declaration with its adapter, the only file that touches Hono. An adapter reads `pullRequestAccess` (or `repoAccess`), parses any input (`schemas.ts`), calls the operation, throws a failure through `logic/wire-failures.ts`, stamps the audit target and answers `c.json(..., NO_STORE)`, or `c.body(null, HttpStatuses.NO_CONTENT, NO_STORE)` when the success tells the caller nothing new.
 - `<operation>.ts`, named for the operation (`mark-ready.ts`, `delete-pull.ts`): `(handle or a narrow deps slice, access, input?) → Promise<Result<T, XxxFailure>>`. It reads `access.row` and `access.rowScope` and never re-reads the row; GitHub goes only through `access.github`; writes go through `createTenantRepository(handle, access.rowScope)`.

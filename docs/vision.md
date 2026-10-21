@@ -1,8 +1,6 @@
 # Vision & Charter
 
 > The single statement of what this project is, who it's for, and what it refuses to be.
-> For the prioritized work that follows from it, see [`oss-roadmap.md`](./oss-roadmap.md).
-> For the decision that set this direction, see [ADR 0023](./adr/0023-oss-only-no-hosted-arm.md).
 
 ## What it is
 
@@ -45,7 +43,7 @@ in the open, and a credible piece of public work. Mindshare for the thesis, not 
 
 ## Non-goals (what this project refuses to be)
 
-- **No hosted SaaS / commercial arm.** Decided, not deferred. See [ADR 0023](./adr/0023-oss-only-no-hosted-arm.md).
+- **No hosted SaaS / commercial arm.** Decided, not deferred.
 - **No moat-building.** No data-exhaust capture, no org-learned-playbook lock-in, no
   switching-cost engineering. Defensibility is not the game; usefulness in the open is.
 - **No telemetry.** Self-hosted instances produce no analytics back to us, by design.
@@ -59,5 +57,4 @@ in the open, and a credible piece of public work. Mindshare for the thesis, not 
 
 The domain model (`CONTEXT.md`), the labeling schema, the playbook library, the no-verdict /
 receipt design, and the self-host architecture (Postgres-only; per-instance GitHub App) all
-carry forward unchanged. What's gone is the *commercial scaffolding* built around them — see
-[`archive/`](./archive/).
+carry forward unchanged. What's gone is the *commercial scaffolding* built around them.

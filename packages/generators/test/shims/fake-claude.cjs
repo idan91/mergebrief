@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 /**
- * Fake `claude` binary for harness tests (BRIEF-11 testing strategy: fake
- * the BINARY, not the spawn). Scenario via SHIM_SCENARIO; the structured
+ * Fake `claude` binary for harness tests: fake the BINARY, not the spawn. Scenario via SHIM_SCENARIO; the structured
  * payload via SHIM_OUTPUT (a JSON string); SIGINT recording via
  * SHIM_MARKER_FILE; drip pacing via SHIM_DRIP_MS / SHIM_DRIP_COUNT.
  *
- * Emits envelope-accurate `--output-format stream-json` NDJSON (see
- * docs/dev/harness-cli-capabilities.md §1): a `system`/`init` event, then a
+ * Emits envelope-accurate `--output-format stream-json` NDJSON: a `system`/`init` event, then a
  * terminal `result` envelope with `structured_output` / `result` /
  * `subtype` / `modelUsage`.
  */
@@ -79,7 +77,7 @@ if (argv.includes("--version")) {
   if (scenario === "version-broken") {
     process.exit(1);
   }
-  // Default = the billing-attribution floor (BRIEF-150); SHIM_VERSION
+  // Default = the billing-attribution floor; SHIM_VERSION
   // overrides for the old-version warning cases.
   process.stdout.write(
     `${process.env.SHIM_VERSION ?? "2.1.226"} (Claude Code)\n`,
@@ -116,7 +114,7 @@ if (argv[0] === "auth" && argv[1] === "status") {
   process.exit(0);
 }
 
-// `auth status` defaults to --json (BRIEF-150 route table); SHIM_AUTH_STATUS
+// `auth status` defaults to --json; SHIM_AUTH_STATUS
 // overrides the whole body for route/drift scenarios.
 function authStatusJson() {
   return (

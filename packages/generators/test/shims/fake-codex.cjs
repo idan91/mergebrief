@@ -4,8 +4,7 @@
  * structured payload via SHIM_OUTPUT (a JSON string); SIGINT recording via
  * SHIM_MARKER_FILE.
  *
- * Emits envelope-accurate `codex exec --json` JSONL (see
- * docs/dev/harness-cli-capabilities.md §2): thread/turn/item events, the
+ * Emits envelope-accurate `codex exec --json` JSONL: thread/turn/item events, the
  * answer as the LAST `item.completed` `agent_message` whose `item.text` is
  * a JSON STRING (the double-parse quirk). No model id anywhere in JSONL:
  * the verified origin blind spot.

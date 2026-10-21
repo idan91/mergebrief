@@ -282,8 +282,7 @@ container never sees your installed CLI or your login, no matter where it
 runs. This is a boundary about where a login lives, not about whether
 subscription auth is allowed. Deployed workers on API keys are legally
 fine but erase the cost advantage, so they wait for a real deployed-mode
-decision. Full reasoning + the revisit triggers:
-[`docs/dev/harness-cli-deployed-feasibility.md`](../dev/harness-cli-deployed-feasibility.md).
+decision.
 
 **On the terms of service** (verified 2026-08-26): running the vendor's own
 CLI non-interactively against your own subscription, on your own machine, is
@@ -295,9 +294,7 @@ lives in a documentation page rather than versioned legal terms, so it can
 narrow without notice; and "advertised usage limits … assume ordinary,
 individual usage", which is undefined and volume-keyed. The safe shape is
 one operator, one login, one machine, with no credential shared and no
-generation run on anyone else's behalf. Evidence, quotes, and the revisit
-triggers:
-[`docs/dev/harness-subscription-ban-risk.md`](../dev/harness-subscription-ban-risk.md).
+generation run on anyone else's behalf.
 
 What the CLIs *are* for: host-side processes in the dev loop
 (`pnpm categorize`, the web app run with `pnpm dev` — not its docker
