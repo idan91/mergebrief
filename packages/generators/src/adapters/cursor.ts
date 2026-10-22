@@ -37,10 +37,12 @@ import type { CliVersionPolicy } from "../harness/version-floor";
 import {
   createHarnessWorkDir,
   removeHarnessWorkDir,
+  type HarnessCwdFile,
 } from "../harness/work-dir";
 import type { Effort, Generation } from "../contract/generation";
 
-// Bare print mode writes files; plan mode with an empty cwd is the lockdown.
+// Bare print mode writes files; plan mode in a cwd holding only the deny-all
+// config is the lockdown.
 // The stream stays silent until exit, so inactivity defaults to the hard limit.
 
 const CURSOR_DEFAULT_MODEL_TOKEN = "cursor-default";
@@ -147,10 +149,10 @@ export class CursorGenerator implements Generator {
     }
     const schemaBlock = `The JSON schema your response must conform to:\n${JSON.stringify(wireSchema)}`;
 
-    // Fresh EMPTY temp cwd per generate(): plan mode still reads the
-    // workspace, so a generation must never see repo or ambient files.
-    // One dir covers both attempts, removed best-effort below.
-    const workDir = createHarnessWorkDir("cursor-gen-");
+    // Fresh temp cwd per generate() holding only the deny-all config: plan
+    // mode still reads the workspace, so a generation must never see repo
+    // or ambient files. One dir covers both attempts, removed below.
+    const workDir = createHarnessWorkDir("cursor-gen-", CURSOR_CWD_FILES);
 
     const floorArgs: RunWithSchemaFloorArgs<S> = {
       schema: req.schema,
@@ -559,9 +561,9 @@ export function resolveCursorTimeouts(
   };
 }
 
-// Boot-probe interpreters: a warn-only headless-contract version floor and the
-// auth verdict. Both exist because the CLI's own exits are auth-blind: `about`
-// exits 0 while logged out, and the verdict lives in its JSON body.
+// Boot-probe interpreter: the auth verdict, because the CLI's own exits are
+// auth-blind: `about` exits 0 while logged out, and the verdict lives in its
+// JSON body. The version floor is `CURSOR_VERSION_POLICY`.
 
 /**
  * `CURSOR_API_KEY` bills the same subscription pool as the stored login;
@@ -571,6 +573,32 @@ export const CURSOR_CLI_ENV: HarnessCliEnv = {
   passVars: ["CURSOR_API_KEY", "CURSOR_CONFIG_DIR", "XDG_CONFIG_HOME"],
   fixedVars: {},
 };
+
+/**
+ * cursor-agent has no switch to skip user config or turn tools off, so its
+ * spawn cwd carries a deny-all permissions file. Shell, read and fetch calls
+ * were verified to fail; writes are also off in plan mode; MCP is denied but
+ * unverified, and user MCP servers still load. cursor enforces this itself,
+ * not the OS.
+ */
+export const CURSOR_CWD_FILES: readonly HarnessCwdFile[] = [
+  {
+    path: ".cursor/cli.json",
+    content: JSON.stringify({
+      permissions: {
+        allow: [],
+        deny: [
+          "Shell(*)",
+          "Read(**)",
+          "Read(/**)",
+          "Write(**)",
+          "WebFetch(*)",
+          "Mcp(*:*)",
+        ],
+      },
+    }),
+  },
+];
 
 /** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
 export const CURSOR_PROBE = {

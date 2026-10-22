@@ -29,6 +29,7 @@ const ShimCwdRecordSchema = z.object({
   argv: z.array(z.string()),
   cwd: z.string(),
   entries: z.array(z.string()),
+  cursorConfig: z.string().optional(),
 });
 
 /** One shim invocation as `SHIM_CWD_LOG` recorded it, read during the run. */
@@ -48,12 +49,13 @@ export function readShimCwdLog(file: string): ShimCwdRecord[] {
 
 /**
  * Asserts every recorded spawn ran in a temp dir named by `prefix`, under the
- * home cache rather than the shared temp dir, that was empty while the CLI
- * ran and is gone now; returns the records.
+ * home cache rather than the shared temp dir, that held nothing but
+ * `allowedEntries` while the CLI ran and is gone now; returns the records.
  */
 export function expectEmptyRemovedCwds(
   file: string,
   prefix: string,
+  allowedEntries: readonly string[] = [],
 ): ShimCwdRecord[] {
   const records = readShimCwdLog(file);
   const home = realpathSync(homedir());
@@ -63,7 +65,7 @@ export function expectEmptyRemovedCwds(
     expect(record.cwd).toContain(prefix);
     expect(record.cwd.startsWith(harnessBase)).toBe(true);
     expect(record.cwd).not.toBe(process.cwd());
-    expect(record.entries).toEqual([]);
+    expect(record.entries).toEqual(allowedEntries);
     expect(existsSync(record.cwd)).toBe(false);
   }
   return records;

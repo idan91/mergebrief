@@ -18,6 +18,7 @@ import {
 import {
   CursorGenerator,
   CURSOR_CLI_ENV,
+  CURSOR_CWD_FILES,
   CURSOR_PROBE,
   CURSOR_VERSION_POLICY,
   interpretCursorAbout,
@@ -347,6 +348,7 @@ export const GENERATOR_REGISTRY = {
         authFailureHint: CURSOR_PROBE.authFailureHint,
         env: deps.env,
         cliEnv: CURSOR_CLI_ENV,
+        cwdFiles: CURSOR_CWD_FILES,
         interpretVersionOutput: (stdout) =>
           checkCliVersion(stdout, CURSOR_VERSION_POLICY),
         interpretAuthOutput: interpretCursorAbout,

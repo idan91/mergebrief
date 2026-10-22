@@ -24,6 +24,9 @@ if (process.env.SHIM_CWD_LOG) {
     cwd: process.cwd(),
     entries: readdirSync(process.cwd()),
   };
+  if (existsSync(".cursor/cli.json")) {
+    record.cursorConfig = readFileSync(".cursor/cli.json", "utf8");
+  }
   appendFileSync(process.env.SHIM_CWD_LOG, `${JSON.stringify(record)}\n`);
 }
 

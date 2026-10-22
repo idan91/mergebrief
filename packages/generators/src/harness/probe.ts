@@ -10,7 +10,11 @@ import {
   type HarnessRunResult,
   type HarnessTimeouts,
 } from "./run";
-import { createHarnessWorkDir, removeHarnessWorkDir } from "./work-dir";
+import {
+  createHarnessWorkDir,
+  removeHarnessWorkDir,
+  type HarnessCwdFile,
+} from "./work-dir";
 
 // Refuse misconfigured boots: version probes prove the CLI runs and auth preflight proves credentials.
 
@@ -30,6 +34,8 @@ export interface HarnessProbeArgs {
   env: Record<string, string | undefined>;
   /** The same allowlist extras generation spawns with. */
   cliEnv: HarnessCliEnv;
+  /** The same cwd files generation spawns with, so both read one config. */
+  cwdFiles?: readonly HarnessCwdFile[];
   /** Sink for interpreter warnings; absent = warnings are dropped. */
   log?: Logger;
   /**
@@ -53,11 +59,11 @@ export interface HarnessProbeArgs {
   ) => Result<string | null, ConfigError>;
 }
 
-/** Both probe steps share the empty cwd generation runs in, so they read the same CLI config. */
+/** Both probe steps share a cwd shaped like generation's, so they read the same CLI config. */
 export async function probeHarnessCli(
   args: HarnessProbeArgs,
 ): Promise<Result<void, ConfigError>> {
-  const workDir = createHarnessWorkDir("harness-probe-");
+  const workDir = createHarnessWorkDir("harness-probe-", args.cwdFiles);
   try {
     return await runHarnessProbes(args, workDir.cwd);
   } finally {

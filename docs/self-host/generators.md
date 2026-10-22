@@ -357,7 +357,13 @@ settings, hooks, plugins, MCP servers and skills under `~/.claude` stay
 out too. codex runs with `--ignore-user-config --ignore-rules` and its
 hooks feature off, which keeps the MCP servers, hooks, `notify` command
 and rules in `~/.codex` out while auth still reads `CODEX_HOME`. cursor-agent has no equivalent switch, so
-its user-level config under `~/.cursor` still applies. Every harness CLI runs under hard + inactivity watchdogs
+its user-level config under `~/.cursor` still applies, MCP servers included.
+To hold it in, MergeBrief writes a deny-all `.cursor/cli.json` into the
+empty working folder for every run and startup check. In testing it refused
+every shell command, file read and web fetch cursor tried. The file also
+denies MCP calls, but that part is untested, and your MCP servers still
+load, so treat them as reachable. cursor enforces that file itself, not the
+operating system. Every harness CLI runs under hard + inactivity watchdogs
 with a process-group kill ladder: a hung CLI (or its grandchildren) is
 killed, classified, and dumped, never waited on forever.
 

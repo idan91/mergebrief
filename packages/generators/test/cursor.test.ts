@@ -121,14 +121,34 @@ async function rejection(promise: Promise<unknown>): Promise<GeneratorError> {
   return caught;
 }
 
+/** The permissions shape cursor-agent reads from `.cursor/cli.json`. */
+const DENY_ALL_CONFIG = {
+  permissions: {
+    allow: [],
+    deny: [
+      "Shell(*)",
+      "Read(**)",
+      "Read(/**)",
+      "Write(**)",
+      "WebFetch(*)",
+      "Mcp(*:*)",
+    ],
+  },
+};
+
 describe("CursorGenerator spawn cwd", () => {
-  it("runs the CLI in an empty temp cwd, removed after success", async () => {
+  it("runs the CLI in a config-only temp cwd, removed after success", async () => {
     const { generator, cwdLog } = scriptedGenerator([
       { output: '{"ok":true}' },
     ]);
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
 
-    expectEmptyRemovedCwds(cwdLog, "cursor-gen-");
+    const records = expectEmptyRemovedCwds(cwdLog, "cursor-gen-", [".cursor"]);
+    for (const record of records) {
+      expect(JSON.parse(record.cursorConfig ?? "null")).toEqual(
+        DENY_ALL_CONFIG,
+      );
+    }
   });
 
   it("removes the empty temp cwd after a failed generation", async () => {
@@ -139,7 +159,7 @@ describe("CursorGenerator spawn cwd", () => {
       kind: GeneratorErrorKinds.AUTH,
     });
 
-    expectEmptyRemovedCwds(cwdLog, "cursor-gen-");
+    expectEmptyRemovedCwds(cwdLog, "cursor-gen-", [".cursor"]);
   });
 });
 
@@ -652,6 +672,24 @@ describe("cursor registry entry", () => {
       { env: shim.env, failureDir: tempDir("cursor-reg-") },
     );
     expect(result.ok).toBe(true);
+  });
+
+  it("runs the startup check with the same deny-all config", async () => {
+    const cwdLog = join(tempDir("cursor-probe-cwd-"), "cwd.log");
+    const deps = makeDeps({ SHIM_SCENARIO: "valid", SHIM_CWD_LOG: cwdLog });
+    const result = await createGenerator(
+      { provider: Providers.CURSOR, command: deps.command },
+      deps,
+    );
+    expect(result.ok).toBe(true);
+    const records = expectEmptyRemovedCwds(cwdLog, "harness-probe-", [
+      ".cursor",
+    ]);
+    for (const record of records) {
+      expect(JSON.parse(record.cursorConfig ?? "null")).toEqual(
+        DENY_ALL_CONFIG,
+      );
+    }
   });
 });
 
