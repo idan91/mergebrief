@@ -38,6 +38,19 @@ export interface GenerateRequest<S extends z.ZodType> {
   onUsage?: (usage: TokenUsage) => void;
   /** Once per degradation this generation survived; the `log` line still fires. */
   onWarning?: GeneratorWarningSink;
+  /** Masks values the caller holds secret in model output written to a failure dump. */
+  redact?: (text: string) => string;
+  /**
+   * Runs on every attempt's output before validation, salvage, a warning or
+   * the feedback retry; a throw ends the generation with that error.
+   */
+  screenAttempt?: (attempt: ScreenedAttempt) => void;
+}
+
+/** One attempt as the model returned it: the raw text and the value parsed from it, when any. */
+export interface ScreenedAttempt {
+  readonly raw: string;
+  readonly parsed: unknown;
 }
 
 /** Schema-valid output or a throw; provider-specific features stay on each adapter. */

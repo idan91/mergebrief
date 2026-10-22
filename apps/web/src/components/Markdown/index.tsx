@@ -1,7 +1,12 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { DEMOTED_HEADING_COMPONENTS, MENTION_AWARE_COMPONENTS } from "./consts";
+import {
+  DEMOTED_HEADING_COMPONENTS,
+  MENTION_AWARE_COMPONENTS,
+  NO_DISALLOWED_ELEMENTS,
+  PROSE_DISALLOWED_ELEMENTS,
+} from "./consts";
 import { useMarkdownRehypePlugins } from "./useMarkdownRehypePlugins";
 import { SuggestionCard } from "./SuggestionCard";
 import {
@@ -23,7 +28,8 @@ export interface MarkdownProps {
   renderSuggestions?: boolean;
   /**
    * Parse raw HTML as GitHub renders it, so a pasted screenshot's `<img>`
-   * shows. For text written on GitHub; the brief's own prose keeps `<T>`.
+   * shows. For text written on GitHub; the brief's own prose keeps `<T>`
+   * and renders no image at all.
    */
   renderHtml?: boolean;
   /** Mark `@login` and `@org/slug`: for text people wrote, never the brief's own prose. */
@@ -45,11 +51,15 @@ export function Markdown({
   const suggestions = renderSuggestions ? parseSuggestionBlocks(content) : [];
   const markdown =
     suggestions.length > 0 ? stripSuggestionBlocks(content) : content;
+  const disallowedElements = renderHtml
+    ? NO_DISALLOWED_ELEMENTS
+    : PROSE_DISALLOWED_ELEMENTS;
   return (
     // dir="auto": RTL-first content right-aligns, matching the composer.
     <div className={styles["markdown"]} dir="auto">
       <ReactMarkdown
         components={components}
+        disallowedElements={disallowedElements}
         rehypePlugins={rehypePlugins}
         remarkPlugins={[remarkGfm]}
       >

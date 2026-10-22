@@ -71,3 +71,13 @@ export const MARKDOWN_SANITIZE_SCHEMA: SanitizeSchema = {
     src: ["https"],
   },
 };
+
+/**
+ * The brief's own prose never renders an image: model output an injected PR
+ * steered could point one at an outside URL, and the browser would fetch it,
+ * secrets in the query string included, the moment the page opens.
+ */
+export const PROSE_DISALLOWED_ELEMENTS: readonly string[] = ["img"];
+
+/** Text people wrote keeps every element the sanitize schema allows. */
+export const NO_DISALLOWED_ELEMENTS: readonly string[] = [];

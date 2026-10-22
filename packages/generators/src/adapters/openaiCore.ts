@@ -260,6 +260,12 @@ export class OpenAiCompatibleCore implements Generator {
     if (req.onWarning) {
       floor.onWarning = req.onWarning;
     }
+    if (req.redact) {
+      floor.redact = req.redact;
+    }
+    if (req.screenAttempt) {
+      floor.screenAttempt = req.screenAttempt;
+    }
 
     return runWithSchemaFloor(floor);
   }

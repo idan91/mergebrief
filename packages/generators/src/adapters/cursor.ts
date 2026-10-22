@@ -220,6 +220,12 @@ export class CursorGenerator implements Generator {
     if (req.onWarning) {
       floorArgs.onWarning = req.onWarning;
     }
+    if (req.redact) {
+      floorArgs.redact = req.redact;
+    }
+    if (req.screenAttempt) {
+      floorArgs.screenAttempt = req.screenAttempt;
+    }
 
     try {
       return await runWithSchemaFloor(floorArgs);

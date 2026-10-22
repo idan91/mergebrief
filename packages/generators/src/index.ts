@@ -13,6 +13,7 @@ export {
   type Generator,
   type GenerateRequest,
   type Logger,
+  type ScreenedAttempt,
   type TokenUsage,
 } from "./contract/generator";
 export {

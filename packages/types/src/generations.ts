@@ -37,6 +37,7 @@ export const GenerationFailureCodes = {
   PROVIDER_UNAVAILABLE: "provider-unavailable",
   PROVIDER_REFUSAL: "provider-refusal",
   OUTPUT_INVALID: "output-invalid",
+  OUTPUT_SECRET: "output-secret",
   GENERATION_CONFIG: "generation-config",
   GITHUB_ACCESS: "github-access",
   DIFF_TOO_LARGE: "diff-too-large",

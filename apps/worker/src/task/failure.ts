@@ -6,6 +6,7 @@
 import { GeneratorError, GeneratorErrorKinds } from "generators";
 import type { GenerationFailure } from "persistence";
 import { GenerationFailureCodes } from "types/generations";
+import { OutputSecretError } from "./generate/logic/output-secret";
 
 interface JobErrorOptions {
   readonly cause?: unknown;
@@ -78,6 +79,10 @@ export function classifyFailure(error: unknown): GenerationFailure {
   // The generator boundary wraps its original throw as `cause`; classify
   // the real failure, not the wrapper's message.
   const unwrapped = stamped && error.cause !== undefined ? error.cause : error;
+
+  if (unwrapped instanceof OutputSecretError) {
+    return { code: GenerationFailureCodes.OUTPUT_SECRET };
+  }
 
   if (unwrapped instanceof GeneratorError) {
     switch (unwrapped.kind) {

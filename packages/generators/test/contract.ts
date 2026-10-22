@@ -243,6 +243,66 @@ export function describeGeneratorContract(
       }
     });
 
+    it.each([
+      ["a salvageable attempt", contractPayloads.salvageable],
+      ["an invalid attempt", contractPayloads.invalid],
+    ])(
+      "stops at the caller's screen on %s: no retry, no dump",
+      async (_label, raw) => {
+        const handle = await harness.make(
+          [{ raw }, { raw: contractPayloads.valid }],
+          dir,
+        );
+        const refused = new Error("screened out");
+        const warnings: GeneratorWarning[] = [];
+        const req: GenerateRequest<typeof ContractSchema> = {
+          schema: ContractSchema,
+          system: "sys",
+          user: "usr",
+          effort: "medium",
+          label: "contract",
+          salvageFields: ["tags"],
+          onWarning: (warning) => warnings.push(warning),
+          screenAttempt: () => {
+            throw refused;
+          },
+        };
+
+        await expect(handle.generator.generate(req)).rejects.toBe(refused);
+
+        expect(handle.attempts()).toBe(1);
+        expect(warnings).toEqual([]);
+        expect(dumps(dir)).toHaveLength(0);
+      },
+    );
+
+    it("runs the caller's redactor over every dump", async () => {
+      const handle = await harness.make(
+        [{ raw: contractPayloads.invalid }, { raw: contractPayloads.invalid }],
+        dir,
+      );
+      const req: GenerateRequest<typeof ContractSchema> = {
+        schema: ContractSchema,
+        system: "sys",
+        user: "usr",
+        effort: "medium",
+        label: "contract",
+        redact: (text) => text.replaceAll("42", "[MASKED]"),
+      };
+
+      await expect(handle.generator.generate(req)).rejects.toBeInstanceOf(
+        GeneratorError,
+      );
+
+      const files = dumps(dir);
+      expect(files).toHaveLength(2);
+      for (const file of files) {
+        const dumped = readFileSync(join(dir, file), "utf8");
+        expect(dumped).toContain("[MASKED]");
+        expect(dumped).not.toContain("42");
+      }
+    });
+
     it("fails a no-output attempt once: schema-floor, no retry, dumped", async () => {
       const handle = await harness.make([{ raw: "" }], dir);
       await expect(generate(handle)).rejects.toMatchObject({

@@ -25,9 +25,9 @@ export function harnessTimeoutError(
 }
 
 /**
- * Untrusted third-party stderr: strip credential-shaped substrings before any
- * of it reaches an error message. No-secrets outranks diagnosability, and the
- * FULL tail still reaches failure dumps.
+ * Untrusted third-party text: strip credential-shaped substrings before any
+ * of it reaches an error message or a failure dump. No-secrets outranks
+ * diagnosability.
  */
 export function redactSecrets(text: string): string {
   return (

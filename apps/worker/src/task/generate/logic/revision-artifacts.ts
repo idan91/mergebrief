@@ -19,6 +19,7 @@ import type { RevisionArtifactInputs } from "../types";
 import { getGenerationOrigin } from "../utils";
 import { warnOnFailedCheck } from "./artifact-check";
 import { isPermanentGitHubError } from "./errors";
+import { OutputSecretError } from "./output-secret";
 
 /**
  * Comparison marks (mechanical, always) + revision narrative (generated,
@@ -147,11 +148,16 @@ export async function writeRevisionArtifacts(
       // A mid-stream abort is a supersession, not a narrative failure.
       throw error;
     }
-    log.warn(
-      `generate: revision narrative failed (Brief unaffected): ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+    const message = `generate: revision narrative failed (Brief unaffected): ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+    // A secret in the output means an injected PR reached one: the operator
+    // acts on that now, whatever happens to the narrative.
+    if (error instanceof OutputSecretError) {
+      log.error(message);
+      return;
+    }
+    log.warn(message);
   }
 }
 

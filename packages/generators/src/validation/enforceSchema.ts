@@ -2,10 +2,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
+import { redactSecrets } from "../harness/redact";
 import {
   GeneratorWarningKinds,
   type GeneratorWarningSink,
 } from "../contract/types";
+import type { ScreenedAttempt } from "../contract/generator";
 import { parseStructuredText, validationError } from "./jsonSchema";
 import { salvageDroppableEnums } from "./enumRecovery";
 
@@ -54,6 +56,10 @@ export interface RunWithSchemaFloorArgs<S extends z.ZodType> {
   failureDir: string;
   log?: Logger;
   onWarning?: GeneratorWarningSink;
+  /** The caller's own secret masking, applied before the credential patterns. */
+  redact?: (text: string) => string;
+  /** The caller's check on each attempt; it throws to stop the floor before anything reads the output. */
+  screenAttempt?: (attempt: ScreenedAttempt) => void;
   attempt(feedback: FloorFeedback | undefined): Promise<FloorAttempt>;
 }
 
@@ -73,16 +79,19 @@ export function schemaFeedbackMessage(error: string): string {
 /** Disambiguates dump filenames within one process (Date.now can collide). */
 let dumpCounter = 0;
 
+/** A dump holds model output a PR may have steered: owner-readable only. */
+const DUMP_FILE_MODE = 0o600;
+
 /**
  * Persist a failed attempt's raw output so a schema failure is debuggable
  * after the fact (the Zod error alone doesn't show what the model actually
- * emitted). Best-effort, never throws.
+ * emitted), credential-shaped strings redacted. Best-effort, never throws.
  */
 function dumpFailure(
   failureDir: string,
   label: string,
-  raw: string,
-  error: string,
+  attempt: { raw: string; error: string },
+  redact: (text: string) => string,
 ): string | null {
   try {
     mkdirSync(failureDir, { recursive: true });
@@ -90,7 +99,17 @@ function dumpFailure(
       failureDir,
       `${label.replace(/\W+/g, "-")}-${Date.now()}-${dumpCounter++}.failed.json`,
     );
-    writeFileSync(file, JSON.stringify({ error, raw }, null, 2));
+    // Redact each field before serializing: JSON escaping would hide a
+    // keyed secret's quotes from the redaction patterns.
+    const body = JSON.stringify(
+      {
+        error: redactSecrets(redact(attempt.error)),
+        raw: redactSecrets(redact(attempt.raw)),
+      },
+      null,
+      2,
+    );
+    writeFileSync(file, body, { mode: DUMP_FILE_MODE });
     return file;
   } catch {
     return null;
@@ -164,6 +183,10 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
     // oxlint-disable-next-line no-await-in-loop
     const outcome = await args.attempt(feedback);
     const raw = outcome.raw;
+    args.screenAttempt?.({
+      raw,
+      parsed: outcome.parsed === undefined ? tryJsonParse(raw) : outcome.parsed,
+    });
     let parseError: unknown;
 
     if (outcome.invalidReason !== undefined) {
@@ -223,8 +246,8 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
     const dumpPath = dumpFailure(
       args.failureDir,
       args.label,
-      effectiveRaw,
-      errorMessage,
+      { raw: effectiveRaw, error: errorMessage },
+      args.redact ?? ((text) => text),
     );
     const dumpNote = dumpPath ? ` (raw output saved to ${dumpPath})` : "";
 

@@ -45,6 +45,11 @@ import {
 } from "./task/sweep-sessions";
 import { startWorker } from "./runner";
 import { buildTaskList } from "./task-list";
+import {
+  collectOutputSecrets,
+  guardGeneratorOutput,
+  listCredentialVars,
+} from "./task/generate/logic/output-secret";
 
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
 const FAILURE_DUMP_DIR = "out";
@@ -182,9 +187,19 @@ async function main(): Promise<void> {
   const configuredEffort = config.value.generator.effort;
   const configuredFullRegeneration =
     config.value.generator["full-regeneration"];
+  // The resolved values join the env so a file-sourced database URL or
+  // private key is scanned for too.
+  const outputSecrets = collectOutputSecrets(
+    {
+      ...env,
+      DATABASE_URL: config.value.databaseUrl,
+      GITHUB_APP_PRIVATE_KEY: githubConfig.value.privateKey,
+    },
+    listCredentialVars(config.value.generator, config.value.contextSources),
+  );
   const generateDeps: Mutable<GenerateTaskDeps> = {
     handle,
-    generator: generator.value,
+    generator: guardGeneratorOutput(generator.value, outputSecrets),
     github: createGitHubPort(
       createAppGitHubBinders(createAppClient(githubConfig.value)),
       urlBoxDeps,

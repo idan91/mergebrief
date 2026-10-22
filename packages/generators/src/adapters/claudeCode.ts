@@ -249,6 +249,12 @@ export class ClaudeCodeGenerator implements Generator {
     if (req.onWarning) {
       floorArgs.onWarning = req.onWarning;
     }
+    if (req.redact) {
+      floorArgs.redact = req.redact;
+    }
+    if (req.screenAttempt) {
+      floorArgs.screenAttempt = req.screenAttempt;
+    }
 
     try {
       writeFileSync(systemFile, req.system, { mode: 0o600 });

@@ -1,4 +1,10 @@
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -138,6 +144,31 @@ describe("runWithSchemaFloor", () => {
     expect(
       readdirSync(dir).filter((f) => f.endsWith(".failed.json")),
     ).toHaveLength(2);
+  });
+
+  it("dumps a failed attempt redacted and readable by its owner only", async () => {
+    const leaked = "postgres://app:hunter2-database-pw@db:5432/app";
+    await expect(
+      runWithSchemaFloor({
+        schema: Schema,
+        label: "floor",
+        failureDir: dir,
+        attempt: async () => ({
+          raw: `{"name": "${leaked}", "api_key": "hunter3-key-value"}`,
+        }),
+      }),
+    ).rejects.toMatchObject({ kind: GeneratorErrorKinds.SCHEMA_FLOOR });
+
+    const dumps = readdirSync(dir).filter((f) => f.endsWith(".failed.json"));
+    expect(dumps.length).toBeGreaterThan(0);
+    for (const dump of dumps) {
+      const file = join(dir, dump);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      const text = readFileSync(file, "utf8");
+      expect(text).not.toContain("hunter2-database-pw");
+      expect(text).not.toContain("hunter3-key-value");
+      expect(() => JSON.parse(text)).not.toThrow();
+    }
   });
 
   it("uses a transport-supplied invalidReason over its own parse error", async () => {

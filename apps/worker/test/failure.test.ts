@@ -1,6 +1,7 @@
 import { GeneratorError, GeneratorErrorKinds } from "generators";
 import { GenerationFailureCodes } from "types/generations";
 import { describe, expect, it } from "vitest";
+import { OutputSecretError } from "../src/task/generate/logic/output-secret";
 import {
   classifyFailure,
   PermanentJobError,
@@ -21,6 +22,18 @@ describe("classifyFailure", () => {
     });
     expect(classifyFailure(transient)).toEqual({
       code: GenerationFailureCodes.GITHUB_UNAVAILABLE,
+    });
+  });
+
+  it("classifies a secret in the output as output-secret", () => {
+    const wrapped = new PermanentJobError("secret in output", {
+      cause: new OutputSecretError({
+        fieldPath: "summary",
+        envVar: "DATABASE_URL",
+      }),
+    });
+    expect(classifyFailure(wrapped)).toEqual({
+      code: GenerationFailureCodes.OUTPUT_SECRET,
     });
   });
 

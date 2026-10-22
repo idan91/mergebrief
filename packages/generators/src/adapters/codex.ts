@@ -182,6 +182,12 @@ export class CodexGenerator implements Generator {
     if (req.onWarning) {
       floorArgs.onWarning = req.onWarning;
     }
+    if (req.redact) {
+      floorArgs.redact = req.redact;
+    }
+    if (req.screenAttempt) {
+      floorArgs.screenAttempt = req.screenAttempt;
+    }
 
     try {
       writeFileSync(schemaFile, JSON.stringify(codexWireSchema), {

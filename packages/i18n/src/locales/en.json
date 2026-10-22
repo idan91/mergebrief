@@ -46,6 +46,7 @@
     "provider-unavailable": "The model provider could not be reached.",
     "provider-refusal": "The model declined to summarize this pull request.",
     "output-invalid": "The model returned output that could not be read as a brief.",
+    "output-secret": "Generation stopped: the output contained a value this instance treats as secret. Your operator has been told.",
     "generation-config": "Generator configuration is invalid: {{detail}}",
     "github-access": "GitHub denied access to this repository's content.",
     "diff-too-large": "The diff is too large to summarize.",
