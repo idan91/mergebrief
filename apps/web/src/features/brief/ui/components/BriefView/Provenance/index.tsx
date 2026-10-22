@@ -4,6 +4,8 @@ import type { BriefViewModel } from "../../../../model/utils/view-model";
 import { BriefDetailsPanel } from "./BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge";
 import { RepoConfigChip } from "./RepoConfigChip";
+import { TOOL_ACCESS_PROVIDERS } from "./consts";
+import { ToolAccessNote } from "./ToolAccessNote";
 import styles from "./Provenance.module.scss";
 
 export interface ProvenanceProps {
@@ -15,6 +17,10 @@ export interface ProvenanceProps {
 
 /** How the brief was generated: the provider badge, the details panel and any repo-config trouble. */
 export function Provenance({ brief, model, repoConfig }: ProvenanceProps) {
+  const provider = brief.generation?.provider;
+  const hasToolAccess =
+    provider !== undefined && TOOL_ACCESS_PROVIDERS.has(provider);
+
   return (
     <span className={styles["provenance"]}>
       <ProviderBadge generation={brief.generation} />
@@ -27,6 +33,7 @@ export function Provenance({ brief, model, repoConfig }: ProvenanceProps) {
         totalCoreDeleted={model.totalCoreDeleted}
       />
       {repoConfig ? <RepoConfigChip repoConfig={repoConfig} /> : null}
+      {hasToolAccess ? <ToolAccessNote /> : null}
     </span>
   );
 }

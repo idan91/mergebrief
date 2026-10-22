@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
@@ -122,5 +122,36 @@ describe("repo-config chip flips to warning when an applied file warns", () => {
         .querySelector("[data-repo-config-chip]")
         ?.getAttribute("data-state"),
     ).toBe("warning");
+  });
+});
+
+describe("tool-access note", () => {
+  afterEach(cleanup);
+
+  it.each(["codex", "cursor"])(
+    "names %s as a CLI with tool access",
+    (provider) => {
+      renderProvenance({
+        brief: {
+          ...brief,
+          generation: { provider, model: "m-1", effort: "high" },
+        },
+      });
+
+      expect(screen.getByTestId("tool-access-note").textContent).toBe(
+        "A local CLI that can run tools wrote this brief, so instructions in the PR could have shaped it. Check its claims against the diff.",
+      );
+    },
+  );
+
+  it.each(["claude-code", "anthropic"])("shows no note for %s", (provider) => {
+    renderProvenance({
+      brief: {
+        ...brief,
+        generation: { provider, model: "m-1", effort: "high" },
+      },
+    });
+
+    expect(screen.queryByTestId("tool-access-note")).toBeNull();
   });
 });

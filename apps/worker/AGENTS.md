@@ -36,7 +36,7 @@ What the layout can't show:
   - `sweep-pull-requests` (daily) calls `sweepClosedPullRequests`; retention is `PR_RETENTION_DAYS`, read by close time across both scope worlds. Unset retention deletes nothing; a window under one day is refused.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema (`startWorker`); the `graphile_worker` schema stays graphile-owned.
 - **One process logger**: `main.ts` builds it; the task takes it via `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every job line; graphile lifecycle logs ride `createGraphileLogFactory`.
-  - The first-class `evt` names this worker mints: `job.fail`, `job.retries.exhausted` (`attempts === max_attempts`, or a head's claims spent), `provider.error`, `spend.cap.trip`, `artifact.check.fail`.
+  - The first-class `evt` names this worker mints: `job.fail`, `job.retries.exhausted` (`attempts === max_attempts`, or a head's claims spent), `provider.error`, `spend.cap.trip`, `artifact.check.fail`, `generator.tool-access` (boot, codex or cursor).
   - JOB/PROVIDER failure logs are MESSAGE-ONLY (no `err` field): provider cause chains may carry request contents, and the URL scrub targets URL-shaped secrets, not prompt/diff payloads. Boot failures (`main.ts` catch) are exempt: nothing provider-shaped reaches them, and the `err` field keeps the stack the operator needs.
 
 ## Tests

@@ -45,6 +45,7 @@ import {
 } from "./task/sweep-sessions";
 import { startWorker } from "./runner";
 import { buildTaskList } from "./task-list";
+import { buildToolAccessWarning } from "./tool-access";
 import {
   collectOutputSecrets,
   guardGeneratorOutput,
@@ -133,6 +134,10 @@ async function main(): Promise<void> {
       throw new Error(message);
     }
     exitOnConfigError(message);
+  }
+  const toolAccess = buildToolAccessWarning(config.value.generator.provider);
+  if (toolAccess !== undefined) {
+    logger.warn(toolAccess.message, toolAccess.fields);
   }
 
   // Tracker reads: every `contextSources:` entry must be able to build its

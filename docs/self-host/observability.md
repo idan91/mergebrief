@@ -59,6 +59,7 @@ changes get a breaking-change entry in
 | `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | no: the model-call duration line; nothing else records how long a generation took |
 | `generation.succeeded` | info | worker | `prId`, `headSha`, `prNumber`, `briefId` | no: the run finished; `briefId` is the brief it served |
 | `artifact.check.fail` | warn | worker | `kind`, `issueCount`, `firstPath`, job bindings | on **sustained rate**: a generated brief, delta brief or revision narrative failed its stored-shape check and was written anyway; `kind` is `brief`, `delta` or `revision-narrative`, the same values `generation.complete` carries, and no body content rides the line |
+| `generator.tool-access` | warn | worker | `provider` | no: fires once at boot when the generator is `codex` or `cursor`, naming what that CLI can still reach (see "What stays open" in `generators.md`) |
 | `update.available` | info; warn when `security` | api | `current`, `latest`, `breaking`, `security`, `releaseNotesUrl` | warn: yes, a vulnerability fix exists. Fires once when `latest` is first newer than the running version, and once at boot if behind |
 | `update.check.fail` | info on the first failure after boot, debug after | api | `err` | no; the network blocks github.com or the release file is malformed, and `/api/version` carries no fresh `checkedAt` |
 | `db.version.upgrade` | info | api, worker | `from`, `to` | no; the one-row `instance_version` table moved forward at boot |
