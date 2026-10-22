@@ -18,104 +18,54 @@ export const REPO_FENCE_TAGS = [
   "repo_custom_attributes",
 ] as const;
 
-/** Length of the `<` or `</` plus tag that starts `candidate`, else 0. */
-function matchTagPrefix(candidate: string, tags: readonly string[]): number {
-  if (!candidate.startsWith("<")) {
-    return 0;
-  }
-  const closing = candidate.startsWith("</");
-  const lead = closing ? 2 : 1;
-  const rest = candidate.slice(lead).toLowerCase();
-  const tag = tags.find((name) => rest.startsWith(name));
-  return tag === undefined ? 0 : lead + tag.length;
-}
+/** Any spelling a model reads as `<`: the bracket, its entities and its look-alikes. */
+const OPENER_SOURCE =
+  "(?:<|&lt;?|&#0*60;?|&#x0*3c;?|\\u02C2|\\u1438|\\u2039|\\u2329|\\u276E|\\u27E8|\\u3008|\\uFE64|\\uFF1C)";
 
 /**
- * Remove every opening or closing occurrence of the given tags in one pass.
- * A removal can join its neighbours into a new tag
- * (`<linked_<linked_contextcontext`), so after each removal the output's tail
- * is re-checked against the remaining input; every re-check consumes text, so
- * the walk stays linear however deep the nesting.
+ * What may sit between the opener and the tag name. Diffs split on `\n` alone,
+ * so every other break is gap; prose has no line contract and takes `\n` too.
+ * One class per gap keeps the match linear.
  */
+const LINE_GAP_CHARS =
+  "\\t\\v\\f\\r \\u0085\\u00A0\\u1680\\u2000-\\u200F\\u2028\\u2029\\u202F\\u205F\\u2060\\u3000\\uFEFF/";
+const PROSE_GAP_CHARS = `${LINE_GAP_CHARS}\\n`;
+
+/**
+ * Left where a tag was removed. It is no opener, gap or tag-name character,
+ * so the text on either side can never join into a new tag.
+ */
+export const REMOVED_TAG_MARK = "\uFFFD";
+
+function buildFencePattern(tags: readonly string[], gapChars: string): RegExp {
+  const names = tags.map((tag) => tag.toLowerCase()).join("|");
+  return new RegExp(`${OPENER_SOURCE}[${gapChars}]*(?:${names})`, "giu");
+}
+
+const KNOWN_FENCE_PATTERN = buildFencePattern(KNOWN_FENCE_TAGS, LINE_GAP_CHARS);
+const KNOWN_PROSE_FENCE_PATTERN = buildFencePattern(
+  KNOWN_FENCE_TAGS,
+  PROSE_GAP_CHARS,
+);
+
+/** Keeps the line count, so it is safe on a diff. */
 export function stripFenceTags(text: string, tags: readonly string[]): string {
-  const lowered = tags.map((tag) => tag.toLowerCase());
-  const window = Math.max(...lowered.map((tag) => tag.length)) + 2;
-  const out: string[] = [];
-  let i = 0;
-
-  while (i < text.length) {
-    const char = text.charAt(i);
-    if (char !== "<") {
-      out.push(char);
-      i += 1;
-      continue;
-    }
-    const skip = matchTagPrefix(text.slice(i, i + window), lowered);
-    if (skip === 0) {
-      out.push(char);
-      i += 1;
-      continue;
-    }
-    i += skip;
-    i = skipJoinedTags(out, text, i, lowered, window);
-  }
-
-  return out.join("");
+  return text.replace(
+    buildFencePattern(tags, LINE_GAP_CHARS),
+    REMOVED_TAG_MARK,
+  );
 }
 
-/** Index of the last `<` within the final `window` chars of `out`, else -1. */
-function findOpenWithin(out: readonly string[], window: number): number {
-  const floor = Math.max(0, out.length - window);
-  for (let j = out.length - 1; j >= floor; j -= 1) {
-    if (out[j] === "<") {
-      return j;
-    }
-  }
-  return -1;
-}
-
-/**
- * A removal can make the kept tail of `out` and the next input spell a tag
- * (`<linked_` + `context>` after the inner tag of `<linked_<linked_context>context>`
- * goes). Drop each such tag and return the input index to resume from.
- */
-function skipJoinedTags(
-  out: string[],
-  text: string,
-  start: number,
-  tags: readonly string[],
-  window: number,
-): number {
-  let i = start;
-  let lastOpen = findOpenWithin(out, window);
-  while (lastOpen !== -1) {
-    const tail = out.slice(lastOpen).join("");
-    const skip = matchTagPrefix(tail + text.slice(i, i + window), tags);
-    if (skip === 0) {
-      return i;
-    }
-
-    out.length = lastOpen;
-    if (skip < tail.length) {
-      out.push(...tail.slice(skip).split(""));
-      return i;
-    }
-    i += skip - tail.length;
-    lastOpen = findOpenWithin(out, window);
-  }
-  return i;
-}
-
-/**
- * The strip for injected data. Applied to the rendered fence body AND to the
- * quote-verification corpus, which must stay byte-identical views of the same
- * text.
- */
 export function stripKnownFences(text: string): string {
-  return stripFenceTags(text, KNOWN_FENCE_TAGS);
+  return text.replace(KNOWN_FENCE_PATTERN, REMOVED_TAG_MARK);
+}
+
+/** For text with no line contract: a tag split across a line break goes too. */
+export function stripKnownProseFences(text: string): string {
+  return text.replace(KNOWN_PROSE_FENCE_PATTERN, REMOVED_TAG_MARK);
 }
 
 /** Fence-attribute values: keep them inert inside a quoted XML-ish attribute. */
 export function attributeSafe(value: string): string {
-  return value.replace(/["<>\\]/g, "");
+  return stripKnownFences(value.replace(/["<>\\]/g, ""));
 }

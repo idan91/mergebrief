@@ -71,7 +71,12 @@ import type {
   PrimaryTicketOutcome,
 } from "../context/types";
 import { toPrimaryTicket } from "../context/primary";
-import { attributeSafe, stripKnownFences } from "./fences";
+import { attributeSafe } from "./fences";
+import {
+  restoreRawPaths,
+  sanitizeUntrustedDiff,
+  sanitizeUntrustedText,
+} from "./untrusted-text";
 import { createWarningCollector, formatGenerationWarnings } from "./warnings";
 import {
   GenerationWarningKinds,
@@ -136,7 +141,7 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
 
 /**
  * Render the untrusted linked-context section, fenced so it reads as data.
- * The body strip is the same `stripKnownFences` the verification corpus
+ * The body strip is the same `sanitizeUntrustedText` the verification corpus
  * applies: the two views must stay byte-identical.
  */
 function renderLinked(links: readonly ContextSnippet[]): string {
@@ -146,7 +151,7 @@ function renderLinked(links: readonly ContextSnippet[]): string {
   return links
     .map((l) => {
       const url = attributeSafe(l.source);
-      return `<linked_context url="${url}">\n${stripKnownFences(l.text)}\n</linked_context>`;
+      return `<linked_context url="${url}">\n${sanitizeUntrustedText(l.text)}\n</linked_context>`;
     })
     .join("\n\n");
 }
@@ -178,7 +183,7 @@ function readPrimary(
  */
 function buildPrimaryTicketText(primary: PrimarySnippet): string {
   const header = primary.header === "" ? "" : `${primary.header}\n\n`;
-  return stripKnownFences(`${header}${primary.text}`);
+  return sanitizeUntrustedText(`${header}${primary.text}`);
 }
 
 /**
@@ -344,6 +349,15 @@ function renderBranchFacts(meta: PrMetadata): string {
   return `\n${lines.join("\n")}`;
 }
 
+function renderFileList(files: PrMetadata["files"]): string {
+  return files
+    .map((f) => {
+      const path = sanitizeUntrustedText(f.path);
+      return `- ${path} (+${f.additions} -${f.deletions})`;
+    })
+    .join("\n");
+}
+
 function renderUser(
   pr: FetchedPr,
   repoBlocks = "",
@@ -356,16 +370,14 @@ function renderUser(
   const clean = defuseForgedFences
     ? stripForgedRepoFences
     : (text: string) => text;
-  const fileList = pr.meta.files
-    .map((f) => `- ${clean(f.path)} (+${f.additions} -${f.deletions})`)
-    .join("\n");
+  const fileList = renderFileList(pr.meta.files);
   return `PR: ${pr.meta.url}
 Repo: ${pr.locator.owner}/${pr.locator.repo}
 Number: ${pr.locator.number}
-Title: ${clean(pr.meta.title)}${clean(renderBranchFacts(pr.meta))}
+Title: ${sanitizeUntrustedText(pr.meta.title)}${sanitizeUntrustedText(renderBranchFacts(pr.meta))}
 
 ## Description
-${clean(pr.meta.body.trim()) || "(no description)"}
+${sanitizeUntrustedText(pr.meta.body).trim() || "(no description)"}
 
 ${clean(primaryBlock)}## Linked context
 ${clean(renderLinked(pr.links))}${repoBlocks}${clean(anchorBlock)}
@@ -374,7 +386,7 @@ ${clean(renderLinked(pr.links))}${repoBlocks}${clean(anchorBlock)}
 ${fileList || "(none reported)"}
 
 ## Unified diff
-${clean(pr.diff)}`;
+${sanitizeUntrustedDiff(pr.diff)}`;
 }
 
 export interface DraftBriefOptions {
@@ -395,28 +407,34 @@ export interface DraftBrief {
   readonly context: BriefValidationContext;
 }
 
+/** Title and description as the prompt renders them, for the quote checks. */
+function buildDescriptionCorpus(meta: PrMetadata): string {
+  const title = sanitizeUntrustedText(meta.title);
+  const body = sanitizeUntrustedText(meta.body);
+  return `${title}\n\n${body}`;
+}
+
 /** The fetched texts the prompt rendered, as the quote checks must see them. */
 function buildIntentSources(
   pr: FetchedPr,
-  defuseForgedFences: boolean,
   primaryText: string,
 ): Pick<BriefValidationContext, "injectedUrls" | "corpus"> {
-  const clean = defuseForgedFences
-    ? stripForgedRepoFences
-    : (text: string) => text;
   const injectedUrls = pr.links.map((link) => link.source);
   const corpus = [
-    { url: "", content: clean(`${pr.meta.title}\n\n${pr.meta.body}`) },
+    { url: "", content: buildDescriptionCorpus(pr.meta) },
     ...pr.links.map((link) => ({
       url: link.source,
-      content: clean(stripKnownFences(link.text)),
+      content: sanitizeUntrustedText(link.text),
     })),
   ];
 
   const primary = readPrimary(pr.primaryTicket);
   if (primary !== undefined) {
     injectedUrls.push(primary.source);
-    corpus.push({ url: primary.source, content: clean(primaryText) });
+    corpus.push({
+      url: primary.source,
+      content: primaryText,
+    });
   }
 
   return { injectedUrls, corpus };
@@ -432,7 +450,7 @@ function buildValidationContext(
     prFiles: pr.meta.files,
     fileDiffs,
     changedFiles: changedRangesFromFileDiffs(fileDiffs),
-    ...buildIntentSources(pr, acceptedContext !== undefined, primaryText),
+    ...buildIntentSources(pr, primaryText),
   };
 
   if (acceptedContext !== undefined) {
@@ -495,6 +513,10 @@ export async function generateDraftBrief(
   // Counts never come from the model: ranges snap over the statement tails
   // the model left to the remainder, then chunk loc = |ranges ∩ changed lines|.
   const fileDiffs = splitDiffByFile(pr.diff);
+  const rawPaths = [
+    ...pr.meta.files.map((file) => file.path),
+    ...fileDiffs.map((fileDiff) => fileDiff.file),
+  ];
   const context = buildValidationContext(
     pr,
     fileDiffs,
@@ -502,8 +524,9 @@ export async function generateDraftBrief(
     primaryText,
   );
   const changedFiles = [...context.changedFiles];
+  const restored = restoreRawPaths(generated.chunks, rawPaths);
   const chunks = deriveChunkLoc(
-    snapChunkRanges(generated.chunks, fileDiffs),
+    snapChunkRanges(restored, fileDiffs),
     changedFiles,
   );
 
@@ -562,8 +585,9 @@ function renderComments(comments: ReviewComment[]): string {
     .map((c) => {
       const reply = c.inReplyToId ? ` reply-to:${c.inReplyToId}` : "";
       const loc = commentLocation(c);
-      const safeBody = stripKnownFences(c.body);
-      return `<review_comment>\nid:${c.id} ${c.file}${loc} @${c.author}${reply}\n${safeBody}\n</review_comment>`;
+      const safeBody = sanitizeUntrustedText(c.body);
+      const safeFile = sanitizeUntrustedText(c.file);
+      return `<review_comment>\nid:${c.id} ${safeFile}${loc} @${c.author}${reply}\n${safeBody}\n</review_comment>`;
     })
     .join("\n\n");
 }
@@ -588,12 +612,12 @@ function renderDeltaUser(input: DeltaInput): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
-Title: ${input.meta.title}${renderBranchFacts(input.meta)}
+Title: ${sanitizeUntrustedText(input.meta.title)}${sanitizeUntrustedText(renderBranchFacts(input.meta))}
 Baseline SHA: ${input.baselineSha}
 Head SHA: ${input.headSha}
 
 ## Description
-${input.meta.body.trim() || "(no description)"}
+${sanitizeUntrustedText(input.meta.body).trim() || "(no description)"}
 
 ${renderPrimaryTicket(readPrimary(input.primaryTicket))}## Linked context
 ${renderLinked(input.links ?? [])}
@@ -602,7 +626,7 @@ ${renderLinked(input.links ?? [])}
 ${renderComments(input.comments ?? [])}
 
 ## Incremental diff (baseline→head)
-${input.incrementalDiff}`;
+${sanitizeUntrustedDiff(input.incrementalDiff)}`;
 }
 
 export async function categorizeDelta(
@@ -624,15 +648,16 @@ export async function categorizeDelta(
     log,
     onWarning: collector.recordGeneratorWarning,
   });
-  const known = dropUnknownGroupChunks(
-    generated.changedGroups,
-    generated.chunks,
-  );
-  collector.reportIssues("unknown group", known.issues);
-
   // Delta chunk loc derives from the incremental diff, same discipline as
   // the full brief; the delta artifact carries no concernView/unattributed.
   const fileDiffs = splitDiffByFile(input.incrementalDiff);
+  const restored = restoreRawPaths(
+    generated.chunks,
+    fileDiffs.map((fileDiff) => fileDiff.file),
+  );
+  const known = dropUnknownGroupChunks(generated.changedGroups, restored);
+  collector.reportIssues("unknown group", known.issues);
+
   const chunksWithLoc = deriveChunkLoc(
     known.chunks,
     changedRangesFromFileDiffs(fileDiffs),
@@ -712,7 +737,9 @@ function renderBriefContext(brief: Brief): string {
         const categories = [g.dominantCategory, ...g.secondaryCategories].join(
           ", ",
         );
-        return `- ${g.id} [${categories}] ${g.title} — ${g.summary}`;
+        const id = sanitizeUntrustedText(g.id);
+        const title = sanitizeUntrustedText(g.title);
+        return `- ${id} [${categories}] ${title} — ${sanitizeUntrustedText(g.summary)}`;
       })
       .join("\n") || "(none)";
   const chunks =
@@ -723,7 +750,9 @@ function renderBriefContext(brief: Brief): string {
         const removed =
           c.removedRanges.map((r) => `-${r.start}-${r.end}`).join(",") ||
           "none";
-        return `- ${c.id} (group ${c.changeGroupId}) ${c.file} added:${added} removed:${removed}`;
+        const id = sanitizeUntrustedText(c.id);
+        const groupId = sanitizeUntrustedText(c.changeGroupId);
+        return `- ${id} (group ${groupId}) ${sanitizeUntrustedText(c.file)} added:${added} removed:${removed}`;
       })
       .join("\n") || "(none)";
   return `### Change-groups\n${groups}\n\n### Chunks\n${chunks}`;
@@ -748,12 +777,12 @@ function renderRevisionNarrativeUser(input: RevisionNarrativeInput): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
-Title: ${input.meta.title}${renderBranchFacts(input.meta)}
+Title: ${sanitizeUntrustedText(input.meta.title)}${sanitizeUntrustedText(renderBranchFacts(input.meta))}
 Previous head SHA: ${input.prevHeadSha} (brief _${input.prevIndex})
 Head SHA: ${input.headSha} (brief _${input.headIndex})${renderAnchorDiscontinuity(input.brief)}
 
 ## Description
-${input.meta.body.trim() || "(no description)"}
+${sanitizeUntrustedText(input.meta.body).trim() || "(no description)"}
 
 ${renderPrimaryTicket(readPrimary(input.primaryTicket))}## Linked context
 ${renderLinked(input.links ?? [])}
@@ -762,7 +791,7 @@ ${renderLinked(input.links ?? [])}
 ${renderBriefContext(input.brief)}
 
 ## Incremental diff (previous head → head)
-${input.incrementalDiff}`;
+${sanitizeUntrustedDiff(input.incrementalDiff)}`;
 }
 
 export async function categorizeRevisionNarrative(
@@ -783,30 +812,33 @@ export async function categorizeRevisionNarrative(
     log,
     onWarning: collector.recordGeneratorWarning,
   });
+  const rawPaths = [
+    ...input.brief.chunks.map((chunk) => chunk.file),
+    ...splitDiffByFile(input.incrementalDiff).map((fileDiff) => fileDiff.file),
+  ];
+  const chunks = restoreRawPaths(generated.chunks, rawPaths);
   collector.reportIssues(
     "revision narrative",
-    validateNarrativeGroups(generated.chunks, input.brief.changeGroups),
+    validateNarrativeGroups(chunks, input.brief.changeGroups),
   );
   if (input.marksFiles !== undefined) {
     collector.reportIssues(
       "revision narrative marks overlap",
-      validateNarrativeMarksOverlap(generated.chunks, input.marksFiles),
+      validateNarrativeMarksOverlap(chunks, input.marksFiles),
     );
     collector.reportIssues(
       "revision narrative coverage",
-      validateMarksNarrativeCoverage(input.marksFiles, generated.chunks),
+      validateMarksNarrativeCoverage(input.marksFiles, chunks),
     );
   }
   // Warn-only length floor: overview + hover-callout summaries.
-  const textLength = validateNarrativeTextLength(
-    generated.overview,
-    generated.chunks,
-  );
+  const textLength = validateNarrativeTextLength(generated.overview, chunks);
   collector.reportIssues("text length", textLength.issues);
   const warnings = collector.listWarnings();
   const narrative: RevisionNarrative = {
     artifactKind: "revisionNarrative",
     ...generated,
+    chunks,
     pr: buildPrRef(input.locator, input.meta, input.headSha),
     prevHeadSha: input.prevHeadSha,
     headSha: input.headSha,

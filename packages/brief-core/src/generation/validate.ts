@@ -1,4 +1,5 @@
 import type { FileDiff } from "../diff/file-diff";
+import { REMOVED_TAG_MARK } from "./fences";
 import {
   inAttributeScope,
   type CustomRiskAttributeInput,
@@ -156,9 +157,9 @@ export interface IntentSource {
   content: string;
 }
 
-/** Collapse all whitespace runs to single spaces for the quote substring check. */
-function normalizeWhitespace(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+/** Drop removed-tag marks and collapse whitespace runs for the quote substring check. */
+function normalizeQuoteText(text: string): string {
+  return text.replaceAll(REMOVED_TAG_MARK, "").replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -262,7 +263,7 @@ function findAlignmentDefect(
     return "the primary ticket was not read";
   }
 
-  const goal = normalizeWhitespace(alignment.goal);
+  const goal = normalizeQuoteText(alignment.goal);
   if (goal === "") {
     return "empty goal quote";
   }
@@ -359,7 +360,7 @@ export function validateIntentCheck(
   );
   const allowedSources = new Set(["", ...ticketUrls]);
   const contentByUrl = new Map(
-    fetchedContent.map((s) => [s.url, normalizeWhitespace(s.content)]),
+    fetchedContent.map((s) => [s.url, normalizeQuoteText(s.content)]),
   );
   const groupIds = new Set([
     ...changeGroups.map((g) => g.id),
@@ -383,7 +384,7 @@ export function validateIntentCheck(
     bucket: string,
     item: { intent: string; quote: string; sourceUrl: string },
   ): void {
-    const quote = normalizeWhitespace(item.quote);
+    const quote = normalizeQuoteText(item.quote);
     if (quote === "") {
       // Ticket-side buckets demand a verbatim citation; an empty quote is an
       // uncited stated ask. Warn-only, same posture as the substring check.
@@ -443,7 +444,7 @@ export function validateIntentCheck(
     bucket: string,
     item: { intent: string; quote: string; sourceUrl: string },
   ): boolean {
-    const quote = normalizeWhitespace(item.quote);
+    const quote = normalizeQuoteText(item.quote);
     if (quote === "") {
       issues.push(
         `${bucket} item "${item.intent}": empty quote — dropped (alarm buckets require verified grounding)`,
