@@ -29,6 +29,7 @@ import {
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
+import type { CliVersionPolicy } from "../harness/version-floor";
 import {
   createHarnessWorkDir,
   removeHarnessWorkDir,
@@ -457,49 +458,15 @@ export const CLAUDE_PROBE = {
 } as const;
 
 /**
- * Oldest CLI verified to bill subscription OAuth spend to the subscription;
- * older versions misattributed it to the Console prepaid account.
+ * The claude version the hardening was last checked on. It also clears the
+ * 2.1.226 floor below which the CLI billed subscription OAuth runs to the
+ * Console API account.
  */
-export const CLAUDE_BILLING_VERSION_FLOOR = "2.1.226";
-
-const VERSION_SHAPE = /(\d+)\.(\d+)\.(\d+)/;
-
-function parseCliVersion(text: string): [number, number, number] | null {
-  const match = VERSION_SHAPE.exec(text);
-  if (match === null) {
-    return null;
-  }
-  const [, major, minor, patch] = match;
-  return [Number(major), Number(minor), Number(patch)];
-}
-
-/**
- * Version-floor check, warn-only: the floor is about billing attribution,
- * not ability to run. Unparseable output warns too, "could not verify"
- * must surface, never silently pass.
- */
-export function buildClaudeVersionWarning(stdout: string): string | null {
-  const seen = parseCliVersion(stdout);
-  if (seen === null) {
-    return `warning: could not read a version from the claude CLI's --version output — the billing-attribution floor ${CLAUDE_BILLING_VERSION_FLOOR} is unverifiable`;
-  }
-  const floor = parseCliVersion(CLAUDE_BILLING_VERSION_FLOOR);
-  if (floor === null) {
-    return null;
-  } // unreachable: the floor constant parses
-  for (let i = 0; i < 3; i++) {
-    const a = seen[i] ?? 0;
-    const b = floor[i] ?? 0;
-    if (a > b) {
-      return null;
-    }
-    if (a < b) {
-      // Rendered digits come from the parse, never raw stdout.
-      return `warning: claude CLI ${seen.join(".")} is older than ${CLAUDE_BILLING_VERSION_FLOOR}, the oldest version verified to bill subscription OAuth runs to the subscription — older versions charged the Console API account instead; upgrade the CLI`;
-    }
-  }
-  return null;
-}
+export const CLAUDE_VERSION_POLICY: CliVersionPolicy = {
+  cli: "claude",
+  tested: "2.1.307",
+  updateHint: "update the CLI (`claude update`)",
+};
 
 /**
  * The `auth status --json` fields the assertion reads; unknown fields are ignored

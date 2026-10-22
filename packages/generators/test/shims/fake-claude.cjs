@@ -77,10 +77,9 @@ if (argv.includes("--version")) {
   if (scenario === "version-broken") {
     process.exit(1);
   }
-  // Default = the billing-attribution floor; SHIM_VERSION
-  // overrides for the old-version warning cases.
+  // Default = the tested version; SHIM_VERSION drives the floor cases.
   process.stdout.write(
-    `${process.env.SHIM_VERSION ?? "2.1.226"} (Claude Code)\n`,
+    `${process.env.SHIM_VERSION ?? "2.1.307"} (Claude Code)\n`,
   );
   process.exit(0);
 }

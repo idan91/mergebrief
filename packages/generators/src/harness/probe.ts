@@ -34,10 +34,12 @@ export interface HarnessProbeArgs {
   log?: Logger;
   /**
    * Adapter-owned read of a SUCCESSFUL version probe's stdout (exit 0,
-   * failures keep their generic verdicts above). Non-null = a warning to
-   * surface (e.g. a billing-attribution version floor); never fatal.
+   * failures keep their generic verdicts above). `ok` carries an optional
+   * warning; an error refuses boot (the version floor).
    */
-  interpretVersionOutput?: (stdout: string) => string | null;
+  interpretVersionOutput?: (
+    stdout: string,
+  ) => Result<string | null, ConfigError>;
   /**
    * Adapter-owned read of a SUCCESSFUL auth preflight's stdout (exit 0,
    * the CLI says "authenticated"; this decides whether that credential is
@@ -105,9 +107,14 @@ async function runHarnessProbes(
   }
   // Interpreter strings may embed untrusted CLI stdout: redact at this boundary
   // so the no-secrets invariant holds regardless of adapter discipline.
-  const versionWarning = args.interpretVersionOutput?.(version.stdout) ?? null;
-  if (versionWarning !== null) {
-    args.log?.(redactSecrets(versionWarning));
+  if (args.interpretVersionOutput) {
+    const verdict = args.interpretVersionOutput(version.stdout);
+    if (!verdict.ok) {
+      return configError(verdict.error.issues.map(redactSecrets));
+    }
+    if (verdict.value !== null) {
+      args.log?.(redactSecrets(verdict.value));
+    }
   }
 
   let auth: HarnessRunResult;

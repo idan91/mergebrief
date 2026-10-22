@@ -75,7 +75,7 @@ if (argv.includes("--version")) {
   if (scenario === "version-broken") {
     process.exit(1);
   }
-  process.stdout.write("codex-cli 0.144.1\n");
+  process.stdout.write(`codex-cli ${process.env.SHIM_VERSION ?? "0.163.0"}\n`);
   process.exit(0);
 }
 if (argv[0] === "login" && argv[1] === "status") {

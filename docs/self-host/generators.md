@@ -382,9 +382,15 @@ whole point), but a few facts keep the guarantee honest:
 - **The startup check asserts the billing route.** At startup the worker
   reads `claude auth status` and refuses to start if the active route is
   an API key (including a settings-file `apiKeyHelper`) rather than the
-  subscription login; a CLI older than 2.1.226 (see below) draws a
-  warning, and output too old to carry the route fields degrades to an
-  "unverifiable" warning rather than a refusal.
+  subscription login; output too old to carry the route fields degrades
+  to an "unverifiable" warning rather than a refusal.
+- **Each CLI must be at least the version MergeBrief's hardening was
+  checked on.** The flags and config keys that keep a CLI away from your
+  secrets can be ignored silently by an older release, so the worker
+  refuses to start below claude 2.1.307, codex 0.163.0 or cursor-agent
+  2026.10.19, naming both versions. A newer release starts with a warning:
+  built-in tools it added have not been checked yet. A `--version` output
+  with no readable version also starts with a warning.
 - **A stray `CLAUDE_CODE_OAUTH_TOKEN` in your shell startup files can
   silently switch billing to metered.** Because the strip-list lets that
   var through on purpose (it is the subscription route), a stale token
@@ -417,7 +423,8 @@ system-prompt file), and the `claude setup-token` route all billed the
 subscription: the Console prepaid balance did not move across any round,
 proved by elimination with extra usage OFF. The fix appears in no
 changelog, so treat this as **version-verified, not guaranteed**:
-re-verify after CLI upgrades if attribution matters to you.
+re-verify after CLI upgrades if attribution matters to you. The startup
+version floor (2.1.307) sits above this release.
 
 Re-verify in two minutes:
 

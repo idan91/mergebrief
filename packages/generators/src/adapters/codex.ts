@@ -18,6 +18,7 @@ import {
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
+import type { CliVersionPolicy } from "../harness/version-floor";
 import {
   createHarnessWorkDir,
   removeHarnessWorkDir,
@@ -321,6 +322,13 @@ function parseCodexLine(line: string): CodexEvent | null {
 export const CODEX_CLI_ENV: HarnessCliEnv = {
   passVars: ["CODEX_HOME"],
   fixedVars: {},
+};
+
+/** The codex version the hardening was last checked on. */
+export const CODEX_VERSION_POLICY: CliVersionPolicy = {
+  cli: "codex",
+  tested: "0.163.0",
+  updateHint: "update the CLI (`npm install -g @openai/codex`)",
 };
 
 /** Boot-probe wiring shared with the registry entry. */

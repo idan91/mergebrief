@@ -796,7 +796,7 @@ describe("probeHarnessCli", () => {
       log: (message) => warnings.push(message),
       interpretVersionOutput: (stdout) => {
         seen.version = stdout;
-        return "warning: version below the verified floor";
+        return { ok: true, value: "warning: version below the verified floor" };
       },
       interpretAuthOutput: (stdout) => {
         seen.auth = stdout;
@@ -820,11 +820,29 @@ describe("probeHarnessCli", () => {
       ...probeArgs,
       env: { SHIM_SCENARIO: "valid" },
       log: (message) => warnings.push(message),
-      interpretVersionOutput: () => null,
+      interpretVersionOutput: () => ({ ok: true, value: null }),
       interpretAuthOutput: () => ({ ok: true, value: null }),
     });
     expect(result.ok).toBe(true);
     expect(warnings).toEqual([]);
+  });
+
+  it("refuses boot when the version interpreter refuses", async () => {
+    let authRan = false;
+    const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "valid" },
+      interpretVersionOutput: () =>
+        configError(["claude 2.0.0 is older than 2.1.307"]),
+      interpretAuthOutput: () => {
+        authRan = true;
+        return { ok: true, value: null };
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : result.error.issues.join(";")).toContain("older");
+    expect(authRan).toBe(false);
   });
 
   it("refuses boot when the auth interpreter rejects the route", async () => {
@@ -850,8 +868,10 @@ describe("probeHarnessCli", () => {
       ...probeArgs,
       env: { SHIM_SCENARIO: "valid" },
       log: (message) => warnings.push(message),
-      interpretVersionOutput: () =>
-        "warning: odd version sk-ant-api03-supersecretvalue reported",
+      interpretVersionOutput: () => ({
+        ok: true,
+        value: "warning: odd version sk-ant-api03-supersecretvalue reported",
+      }),
     });
     expect(warned.ok).toBe(true);
     expect(warnings.join("; ")).not.toContain("supersecretvalue");
@@ -898,7 +918,7 @@ describe("probeHarnessCli", () => {
       env: { SHIM_SCENARIO: "version-broken" },
       interpretVersionOutput: () => {
         versionCalled++;
-        return null;
+        return { ok: true, value: null };
       },
     });
     expect(broken.ok).toBe(false);

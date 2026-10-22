@@ -33,6 +33,7 @@ import {
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
+import type { CliVersionPolicy } from "../harness/version-floor";
 import {
   createHarnessWorkDir,
   removeHarnessWorkDir,
@@ -581,55 +582,15 @@ export const CURSOR_PROBE = {
 } as const;
 
 /**
- * Oldest CLI whose headless contract (plan-mode lockdown, envelope shape,
- * stderr taxonomy) was execution-verified. Date-versioned: compare the
- * YYYY.MM.DD prefix, ignore the build-hash suffix.
+ * The cursor-agent version the hardening was last checked on; it also
+ * clears the 2026.08.25 headless contract (plan-mode lockdown, envelope
+ * shape, stderr taxonomy). Date-versioned, build-hash suffix ignored.
  */
-export const CURSOR_VERSION_FLOOR = "2026.08.25";
-
-const DATE_VERSION_SHAPE = /(\d{4})\.(\d{2})\.(\d{2})/;
-
-interface DateVersion {
-  /** The matched YYYY.MM.DD text, regex-constrained, safe to render. */
-  date: string;
-  parts: [number, number, number];
-}
-
-function parseCursorVersion(text: string): DateVersion | null {
-  const match = DATE_VERSION_SHAPE.exec(text);
-  if (match === null) {
-    return null;
-  }
-  const [date, year, month, day] = match;
-  return { date, parts: [Number(year), Number(month), Number(day)] };
-}
-
-/**
- * Version-floor check, warn-only: the floor is about contract verification,
- * not ability to run. Unparseable output warns too, "could not verify"
- * must surface, never silently pass.
- */
-export function buildCursorVersionWarning(stdout: string): string | null {
-  const seen = parseCursorVersion(stdout);
-  if (seen === null) {
-    return `warning: could not read a version from the cursor-agent --version output — the headless-contract floor ${CURSOR_VERSION_FLOOR} is unverifiable`;
-  }
-  const floor = parseCursorVersion(CURSOR_VERSION_FLOOR);
-  if (floor === null) {
-    return null;
-  } // unreachable: the floor constant parses
-  for (let i = 0; i < 3; i++) {
-    const a = seen.parts[i] ?? 0;
-    const b = floor.parts[i] ?? 0;
-    if (a > b) {
-      return null;
-    }
-    if (a < b) {
-      return `warning: cursor-agent ${seen.date} is older than ${CURSOR_VERSION_FLOOR}, the oldest version this adapter's headless contract was verified against — envelope and flag behavior may differ; update the CLI (\`cursor-agent update\`)`;
-    }
-  }
-  return null;
-}
+export const CURSOR_VERSION_POLICY: CliVersionPolicy = {
+  cli: "cursor-agent",
+  tested: "2026.10.19",
+  updateHint: "update the CLI (`cursor-agent update`)",
+};
 
 /**
  * The `about --format json` fields the verdict reads (lenient shape,

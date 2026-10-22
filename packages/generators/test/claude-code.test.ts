@@ -12,7 +12,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import {
   ClaudeCodeGenerator,
-  buildClaudeVersionWarning,
   interpretClaudeAuthStatus,
 } from "../src/adapters/claudeCode";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
@@ -527,19 +526,27 @@ describe("claude-code registry entry", () => {
     });
   });
 
-  it("warns but constructs when the CLI predates the billing floor", async () => {
-    const warnings: string[] = [];
+  it("refuses a CLI older than the version the hardening was checked on", async () => {
     const deps = makeDeps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.1.207" });
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: deps.command },
-      {
-        ...deps,
-        log: (m) => warnings.push(m),
-      },
+      deps,
+    );
+    expect(result.ok).toBe(false);
+    const issues = result.ok ? "" : result.error.issues.join("; ");
+    expect(issues).toContain("2.1.207");
+    expect(issues).toContain("older");
+  });
+
+  it("warns but constructs on a CLI newer than the checked version", async () => {
+    const warnings: string[] = [];
+    const deps = makeDeps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.2.0" });
+    const result = await createGenerator(
+      { provider: Providers.CLAUDE_CODE, command: deps.command },
+      { ...deps, log: (m) => warnings.push(m) },
     );
     expect(result.ok).toBe(true);
-    expect(warnings.join("; ")).toContain("2.1.207");
-    expect(warnings.join("; ")).toContain("older");
+    expect(warnings.join("; ")).toContain("newer");
   });
 
   it("warns unverifiable but constructs on pre-JSON auth-status output", async () => {
@@ -557,35 +564,6 @@ describe("claude-code registry entry", () => {
     );
     expect(result.ok).toBe(true);
     expect(warnings.join("; ")).toContain("unverifiable");
-  });
-});
-
-describe("buildClaudeVersionWarning billing floor", () => {
-  it("stays silent at the floor and above", () => {
-    expect(buildClaudeVersionWarning("2.1.226 (Claude Code)")).toBeNull();
-    expect(buildClaudeVersionWarning("2.1.227 (Claude Code)")).toBeNull();
-    expect(buildClaudeVersionWarning("2.2.0 (Claude Code)")).toBeNull();
-    expect(buildClaudeVersionWarning("3.0.0 (Claude Code)")).toBeNull();
-  });
-
-  it("warns below the floor, naming both versions from parsed digits", () => {
-    const warning = buildClaudeVersionWarning("2.1.207 (Claude Code)");
-    expect(warning).toContain("2.1.207");
-    expect(warning).toContain("2.1.226");
-    expect(warning).toContain("older");
-    // Same-major/minor boundary and lower-major both count as older.
-    expect(buildClaudeVersionWarning("2.1.225 (Claude Code)")).toContain(
-      "older",
-    );
-    expect(buildClaudeVersionWarning("1.9.999 (Claude Code)")).toContain(
-      "older",
-    );
-  });
-
-  it("warns unverifiable when no version parses", () => {
-    const warning = buildClaudeVersionWarning("Claude Code, no digits here");
-    expect(warning).toContain("unverifiable");
-    expect(warning).toContain("2.1.226");
   });
 });
 

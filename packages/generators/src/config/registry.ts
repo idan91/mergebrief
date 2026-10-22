@@ -5,15 +5,20 @@ import {
   ClaudeCodeGenerator,
   CLAUDE_CLI_ENV,
   CLAUDE_PROBE,
-  buildClaudeVersionWarning,
+  CLAUDE_VERSION_POLICY,
   interpretClaudeAuthStatus,
 } from "../adapters/claudeCode";
-import { CodexGenerator, CODEX_CLI_ENV, CODEX_PROBE } from "../adapters/codex";
+import {
+  CodexGenerator,
+  CODEX_CLI_ENV,
+  CODEX_PROBE,
+  CODEX_VERSION_POLICY,
+} from "../adapters/codex";
 import {
   CursorGenerator,
   CURSOR_CLI_ENV,
   CURSOR_PROBE,
-  buildCursorVersionWarning,
+  CURSOR_VERSION_POLICY,
   interpretCursorAbout,
 } from "../adapters/cursor";
 import { createOpenAiCore } from "../adapters/openai";
@@ -23,6 +28,7 @@ import { Efforts } from "../contract/generation";
 import { AnthropicGenerator } from "../adapters/anthropic";
 import type { Generator, Logger } from "../contract/generator";
 import { probeHarnessCli } from "../harness/probe";
+import { checkCliVersion } from "../harness/version-floor";
 import { COMPOSE_WORKER_RUNTIME, ENV_VAR_NAME } from "./consts";
 import { RUNTIME_MARKER_VAR } from "./instancePolicy";
 
@@ -265,7 +271,8 @@ export const GENERATOR_REGISTRY = {
         authFailureHint: CLAUDE_PROBE.authFailureHint,
         env: deps.env,
         cliEnv: CLAUDE_CLI_ENV,
-        interpretVersionOutput: buildClaudeVersionWarning,
+        interpretVersionOutput: (stdout) =>
+          checkCliVersion(stdout, CLAUDE_VERSION_POLICY),
         interpretAuthOutput: interpretClaudeAuthStatus,
       };
       if (deps.log) {
@@ -295,14 +302,20 @@ export const GENERATOR_REGISTRY = {
     options: codexOptions,
     create: async (options, deps) => {
       const command = options.command ?? DEFAULT_CODEX_COMMAND;
-      const probe = await probeHarnessCli({
+      const probeArgs: Parameters<typeof probeHarnessCli>[0] = {
         command,
         versionArgv: [...CODEX_PROBE.versionArgv],
         authArgv: [...CODEX_PROBE.authArgv],
         authFailureHint: CODEX_PROBE.authFailureHint,
         env: deps.env,
         cliEnv: CODEX_CLI_ENV,
-      });
+        interpretVersionOutput: (stdout) =>
+          checkCliVersion(stdout, CODEX_VERSION_POLICY),
+      };
+      if (deps.log) {
+        probeArgs.log = deps.log;
+      }
+      const probe = await probeHarnessCli(probeArgs);
       if (!probe.ok) {
         return probe;
       }
@@ -332,7 +345,8 @@ export const GENERATOR_REGISTRY = {
         authFailureHint: CURSOR_PROBE.authFailureHint,
         env: deps.env,
         cliEnv: CURSOR_CLI_ENV,
-        interpretVersionOutput: buildCursorVersionWarning,
+        interpretVersionOutput: (stdout) =>
+          checkCliVersion(stdout, CURSOR_VERSION_POLICY),
         interpretAuthOutput: interpretCursorAbout,
       };
       if (deps.log) {

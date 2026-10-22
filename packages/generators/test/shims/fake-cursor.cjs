@@ -90,7 +90,7 @@ if (argv.includes("--version")) {
   if (scenario === "version-broken") {
     process.exit(1);
   }
-  process.stdout.write(`${process.env.SHIM_VERSION ?? "2026.08.25-3e8eec8"}\n`);
+  process.stdout.write(`${process.env.SHIM_VERSION ?? "2026.10.19-3e8eec8"}\n`);
   process.exit(0);
 }
 if (argv[0] === "about") {
@@ -127,7 +127,7 @@ function aboutJson() {
       ? { userEmail: null, subscriptionTier: null }
       : { userEmail: "shim@example.com", subscriptionTier: "pro" };
   return JSON.stringify({
-    cliVersion: process.env.SHIM_VERSION ?? "2026.08.25-3e8eec8",
+    cliVersion: process.env.SHIM_VERSION ?? "2026.10.19-3e8eec8",
     model: "auto",
     ...identity,
   });

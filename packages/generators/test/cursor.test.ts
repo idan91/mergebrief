@@ -5,9 +5,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import {
-  CURSOR_VERSION_FLOOR,
   CursorGenerator,
-  buildCursorVersionWarning,
   interpretCursorAbout,
   resolveCursorTimeouts,
 } from "../src/adapters/cursor";
@@ -623,22 +621,19 @@ describe("cursor registry entry", () => {
     expect(result.error.issues.join("; ")).toContain('"modle"');
   });
 
-  it("warns but constructs when the CLI predates the contract floor", async () => {
-    const warnings: string[] = [];
+  it("refuses a CLI older than the version the hardening was checked on", async () => {
     const deps = makeDeps({
       SHIM_SCENARIO: "valid",
       SHIM_VERSION: "2026.08.20-abcdef0",
     });
     const result = await createGenerator(
       { provider: Providers.CURSOR, command: deps.command },
-      {
-        ...deps,
-        log: (m) => warnings.push(m),
-      },
+      deps,
     );
-    expect(result.ok).toBe(true);
-    expect(warnings.join("; ")).toContain("2026.08.20");
-    expect(warnings.join("; ")).toContain("older");
+    expect(result.ok).toBe(false);
+    const issues = result.ok ? "" : result.error.issues.join("; ");
+    expect(issues).toContain("2026.08.20");
+    expect(issues).toContain("older");
   });
 
   it("keeps credential vars out of the probe spawns", async () => {
@@ -657,34 +652,6 @@ describe("cursor registry entry", () => {
       { env: shim.env, failureDir: tempDir("cursor-reg-") },
     );
     expect(result.ok).toBe(true);
-  });
-});
-
-describe("buildCursorVersionWarning headless-contract floor", () => {
-  it("stays silent at the floor and above", () => {
-    expect(buildCursorVersionWarning("2026.08.25-3e8eec8")).toBeNull();
-    expect(buildCursorVersionWarning("2026.08.26-0000000")).toBeNull();
-    expect(buildCursorVersionWarning("2026.09.01-abcdef0")).toBeNull();
-    expect(buildCursorVersionWarning("2027.01.01")).toBeNull();
-  });
-
-  it("ignores the build-hash suffix when comparing", () => {
-    // Lexicographically "-0000000" < "-3e8eec8": only the date prefix counts.
-    expect(buildCursorVersionWarning("2026.08.25-0000000")).toBeNull();
-  });
-
-  it("warns below the floor, naming both versions from parsed digits", () => {
-    const warning = buildCursorVersionWarning("2026.08.24-fffffff");
-    expect(warning).toContain("2026.08.24");
-    expect(warning).toContain(CURSOR_VERSION_FLOOR);
-    expect(warning).toContain("older");
-    expect(buildCursorVersionWarning("2025.12.31-abcdef0")).toContain("older");
-  });
-
-  it("warns unverifiable when no version parses", () => {
-    const warning = buildCursorVersionWarning("cursor-agent, no digits");
-    expect(warning).toContain("unverifiable");
-    expect(warning).toContain(CURSOR_VERSION_FLOOR);
   });
 });
 
