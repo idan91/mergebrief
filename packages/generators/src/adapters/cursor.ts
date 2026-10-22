@@ -29,6 +29,7 @@ import {
   runHarnessProcess,
   type HarnessRunArgs,
   type HarnessRunResult,
+  type HarnessCliEnv,
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
@@ -186,6 +187,7 @@ export class CursorGenerator implements Generator {
         }
         const runArgs: HarnessRunArgs = {
           env: this.env,
+          cliEnv: CURSOR_CLI_ENV,
           command: this.command,
           argv,
           stdin: prompt,
@@ -553,6 +555,15 @@ export function resolveCursorTimeouts(
 // Boot-probe interpreters: a warn-only headless-contract version floor and the
 // auth verdict. Both exist because the CLI's own exits are auth-blind: `about`
 // exits 0 while logged out, and the verdict lives in its JSON body.
+
+/**
+ * `CURSOR_API_KEY` bills the same subscription pool as the stored login;
+ * `CURSOR_API_ENDPOINT` stays out, so no redirect reaches a spawn.
+ */
+export const CURSOR_CLI_ENV: HarnessCliEnv = {
+  passVars: ["CURSOR_API_KEY", "CURSOR_CONFIG_DIR", "XDG_CONFIG_HOME"],
+  fixedVars: {},
+};
 
 /** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
 export const CURSOR_PROBE = {

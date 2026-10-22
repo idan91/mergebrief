@@ -362,20 +362,23 @@ killed, classified, and dumped, never waited on forever.
 Selecting a harness provider bills the CLI's **own login** (that is the
 whole point), but a few facts keep the guarantee honest:
 
-- **The harness strips credential env vars before spawning.** Both CLIs
-  put env credentials ABOVE the interactive login in their auth
-  precedence (no flag disables it), so a leaked `ANTHROPIC_API_KEY` /
-  `CODEX_API_KEY` would silently rebill every generation to an API
-  account. MergeBrief removes the known credential and billing-redirect
-  vars (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
-  `CLAUDE_CODE_USE_BEDROCK`/`_VERTEX`, `CODEX_API_KEY`,
-  `CODEX_ACCESS_TOKEN`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`,
-  `CURSOR_API_ENDPOINT`) from the
-  spawned CLI's environment, generation and startup check alike, so the
-  configured provider means what it says. `CLAUDE_CODE_OAUTH_TOKEN`
-  survives deliberately: it IS the subscription route. Residual hole the
-  strip cannot reach: an `apiKeyHelper` configured in the CLI's own
-  settings file still outranks OAuth; remove it if you have one.
+- **A harness CLI starts with an allowlisted environment, never the
+  worker's.** The CLI reads PR text written by people you may not trust,
+  so it gets only `PATH`, `HOME`, `USER`, `TMPDIR`, `LANG` and `LC_*`, your
+  proxy and CA settings (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` and their
+  lowercase forms, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`), and its own login
+  vars: `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CONFIG_DIR` for claude,
+  `CODEX_HOME` for codex, `CURSOR_API_KEY`, `CURSOR_CONFIG_DIR` and
+  `XDG_CONFIG_HOME` for cursor. claude also gets `DISABLE_AUTOUPDATER=1` and
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`. Everything else the worker
+  holds (`DATABASE_URL`, the GitHub App key, `SESSION_KEY_V1`, other provider
+  API keys) stays out, generation and startup check alike. That also keeps the
+  billing route honest: env credentials such as `ANTHROPIC_API_KEY` or
+  `CODEX_API_KEY` sit ABOVE the interactive login in each CLI's auth
+  precedence and would silently rebill every generation to an API account,
+  and none of them is on the list. Residual hole the env cannot reach: an
+  `apiKeyHelper` configured in the CLI's own settings file still outranks
+  OAuth; remove it if you have one.
 - **The startup check asserts the billing route.** At startup the worker
   reads `claude auth status` and refuses to start if the active route is
   an API key (including a settings-file `apiKeyHelper`) rather than the

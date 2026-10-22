@@ -22,7 +22,7 @@ import {
   type GeneratorWarning,
 } from "../src/contract/types";
 import { createGenerator, Providers } from "../src/config/registry";
-import { expectEmptyRemovedCwds } from "./helpers";
+import { expectEmptyRemovedCwds, stubShimCommand } from "./helpers";
 
 /**
  * Adapter-specific behavior on real fake-claude processes: invocation
@@ -57,10 +57,11 @@ function makeGenerator(
   env: Record<string, string>,
   overrides?: Partial<ConstructorParameters<typeof ClaudeCodeGenerator>[0]>,
 ) {
+  const shim = stubShimCommand(FAKE_CLAUDE, { ...process.env, ...env });
   return new ClaudeCodeGenerator({
-    command: FAKE_CLAUDE,
+    command: shim.command,
     failureDir: tempDir("claude-code-fail-"),
-    env: { ...process.env, ...env },
+    env: shim.env,
     timeouts: { hardMs: 8000, inactivityMs: 4000, killGraceMs: 300 },
     ...overrides,
   });
@@ -170,6 +171,38 @@ describe("ClaudeCodeGenerator spawn cwd", () => {
     });
 
     expectEmptyRemovedCwds(cwdLog, "claude-code-gen-");
+  });
+});
+
+describe("ClaudeCodeGenerator spawn env", () => {
+  it("passes its login vars and off switches, never a host secret", async () => {
+    const EchoSchema = z.object({
+      leakedVars: z.array(z.string()),
+      envNames: z.array(z.string()),
+      home: z.string(),
+    });
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "env-echo",
+      CLAUDE_CODE_OAUTH_TOKEN: "shim-oauth-token",
+      CLAUDE_CONFIG_DIR: "/claude-config",
+      DATABASE_URL: "postgres://app:pw@db/app",
+    });
+    const echoed = await generator.generate({
+      schema: EchoSchema,
+      system: "s",
+      user: "u",
+      effort: "medium",
+      label: "env",
+    });
+    expect(echoed.envNames).toEqual(
+      expect.arrayContaining([
+        "CLAUDE_CODE_OAUTH_TOKEN",
+        "CLAUDE_CONFIG_DIR",
+        "DISABLE_AUTOUPDATER",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+      ]),
+    );
+    expect(echoed.envNames).not.toContain("DATABASE_URL");
   });
 });
 
@@ -455,8 +488,10 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
 });
 
 function makeDeps(env: Record<string, string>) {
+  const shim = stubShimCommand(FAKE_CLAUDE, { ...process.env, ...env });
   return {
-    env: { ...process.env, ...env },
+    command: shim.command,
+    env: shim.env,
     failureDir: tempDir("claude-code-reg-"),
   };
 }
@@ -477,9 +512,10 @@ describe("claude-code registry entry", () => {
   // The billing checks ride the startup check end to end.
   it("constructs silently on a floor-version subscription login", async () => {
     const warnings: string[] = [];
+    const deps = makeDeps({ SHIM_SCENARIO: "valid" });
     const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      { ...makeDeps({ SHIM_SCENARIO: "valid" }), log: (m) => warnings.push(m) },
+      { provider: Providers.CLAUDE_CODE, command: deps.command },
+      { ...deps, log: (m) => warnings.push(m) },
     );
     expect(result.ok).toBe(true);
     expect(warnings).toEqual([]);
@@ -493,10 +529,11 @@ describe("claude-code registry entry", () => {
 
   it("warns but constructs when the CLI predates the billing floor", async () => {
     const warnings: string[] = [];
+    const deps = makeDeps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.1.207" });
     const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
+      { provider: Providers.CLAUDE_CODE, command: deps.command },
       {
-        ...makeDeps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.1.207" }),
+        ...deps,
         log: (m) => warnings.push(m),
       },
     );
@@ -507,13 +544,14 @@ describe("claude-code registry entry", () => {
 
   it("warns unverifiable but constructs on pre-JSON auth-status output", async () => {
     const warnings: string[] = [];
+    const deps = makeDeps({
+      SHIM_SCENARIO: "valid",
+      SHIM_AUTH_STATUS: "Logged in as shim@example.com",
+    });
     const result = await createGenerator(
-      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
+      { provider: Providers.CLAUDE_CODE, command: deps.command },
       {
-        ...makeDeps({
-          SHIM_SCENARIO: "valid",
-          SHIM_AUTH_STATUS: "Logged in as shim@example.com",
-        }),
+        ...deps,
         log: (m) => warnings.push(m),
       },
     );

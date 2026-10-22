@@ -79,8 +79,9 @@ export interface HarnessRunArgs {
   signal?: AbortSignal;
   /** Complete stdout lines, in order, the adapters' envelope boundary. */
   onStdoutLine?: (line: string) => void;
-  /** Spawn env, from the composition root (CLIs need HOME/keychain for auth). */
+  /** The composition root's env; only the allowlist below reaches the child. */
   env: Record<string, string | undefined>;
+  cliEnv: HarnessCliEnv;
   cwd?: string;
   log?: Logger;
   /** Cap on accumulated stdout, UTF-16 code units. Default 16M. */
@@ -128,7 +129,7 @@ export async function runHarnessProcess(
       StdioPipe,
       StdioPipe
     > = {
-      env: envForSpawn(args.env),
+      env: envForSpawn(args.env, args.cliEnv),
       stdio: ["pipe", "pipe", "pipe"],
       detached: true,
     };
@@ -442,45 +443,53 @@ function toAbortReason(signal: AbortSignal | undefined): unknown {
 }
 
 /**
- * Strip credential/billing redirects that override the CLI's interactive login.
- * CLAUDE_CODE_OAUTH_TOKEN survives as the intended subscription route.
- * Settings-file apiKeyHelper is outside this environment boundary.
+ * The env every harness CLI gets, whatever the composition root holds:
+ * process basics, locale and the operator's proxy and CA settings. The
+ * worker's own secrets (DATABASE_URL, the GitHub App key, provider keys)
+ * never reach a CLI that reads PR text.
  */
-export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
-  // claude: key/token outrank OAuth; the cloud switches + base-url redirect
-  // outrank everything.
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_BASE_URL",
-  "CLAUDE_CODE_USE_BEDROCK",
-  "CLAUDE_CODE_USE_VERTEX",
-  // codex: CODEX_API_KEY is the documented `codex exec` env auth;
-  // OPENAI_API_KEY is login-time; CODEX_ACCESS_TOKEN is enterprise tokens.
-  "CODEX_API_KEY",
-  "CODEX_ACCESS_TOKEN",
-  "OPENAI_API_KEY",
-  "OPENROUTER_API_KEY",
-  // cursor: the endpoint redirect must never reach a spawn. CURSOR_API_KEY
-  // deliberately SURVIVES, it outranks the stored login in the CLI's auth
-  // precedence but bills the SAME subscription pool (the claude vars above
-  // are stripped for the opposite reason: they rebill to an API account).
-  "CURSOR_API_ENDPOINT",
+export const HARNESS_BASE_ENV_VARS = [
+  "PATH",
+  "HOME",
+  "USER",
+  "TMPDIR",
+  "LANG",
+  "HTTPS_PROXY",
+  "HTTP_PROXY",
+  "NO_PROXY",
+  "https_proxy",
+  "http_proxy",
+  "no_proxy",
+  "NODE_EXTRA_CA_CERTS",
+  "SSL_CERT_FILE",
 ] as const;
 
-/**
- * Spawn env: strip undefined values (spawn requires string values) and the
- * credential vars above (billing-route guarantee).
- */
+/** `LC_ALL`, `LC_CTYPE` and kin pass by prefix. */
+const LOCALE_VAR_PREFIX = "LC_";
+
+/** What one CLI needs on top of the base allowlist. */
+export interface HarnessCliEnv {
+  /** Its own login and config vars, passed when the root holds them. */
+  readonly passVars: readonly string[];
+  /** Set on every spawn: the CLI's update and telemetry off switches. */
+  readonly fixedVars: Readonly<Record<string, string>>;
+}
+
+/** Spawn env: the allowlist only, undefined values dropped (spawn needs strings). */
 function envForSpawn(
   env: Record<string, string | undefined>,
+  cliEnv: HarnessCliEnv,
 ): Record<string, string> {
-  const source = env;
-  const stripped = new Set<string>(HARNESS_STRIPPED_CREDENTIAL_VARS);
+  const allowed = new Set<string>([
+    ...HARNESS_BASE_ENV_VARS,
+    ...cliEnv.passVars,
+  ]);
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(source)) {
-    if (typeof value === "string" && !stripped.has(key)) {
+  for (const [key, value] of Object.entries(env)) {
+    const passes = allowed.has(key) || key.startsWith(LOCALE_VAR_PREFIX);
+    if (typeof value === "string" && passes) {
       out[key] = value;
     }
   }
-  return out;
+  return { ...out, ...cliEnv.fixedVars };
 }

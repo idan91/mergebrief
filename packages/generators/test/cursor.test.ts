@@ -19,7 +19,7 @@ import {
   type GeneratorWarningSink,
 } from "../src/contract/types";
 import { createGenerator, Providers } from "../src/config/registry";
-import { expectEmptyRemovedCwds } from "./helpers";
+import { expectEmptyRemovedCwds, stubShimCommand } from "./helpers";
 
 /**
  * Adapter-specific behavior on real fake-cursor processes: invocation
@@ -55,10 +55,11 @@ function makeGenerator(
   env: Record<string, string>,
   overrides?: Partial<ConstructorParameters<typeof CursorGenerator>[0]>,
 ) {
+  const shim = stubShimCommand(FAKE_CURSOR, { ...process.env, ...env });
   return new CursorGenerator({
-    command: FAKE_CURSOR,
+    command: shim.command,
     failureDir: tempDir("cursor-fail-"),
-    env: { ...process.env, ...env },
+    env: shim.env,
     timeouts: { hardMs: 8000, killGraceMs: 300 },
     ...overrides,
   });
@@ -524,6 +525,7 @@ describe("CursorGenerator spawn-env boundary", () => {
     // spawn.
     const EchoSchema = z.object({
       leakedVars: z.array(z.string()),
+      envNames: z.array(z.string()),
       cwd: z.string(),
     });
     const generator = makeGenerator({
@@ -531,6 +533,9 @@ describe("CursorGenerator spawn-env boundary", () => {
       CURSOR_API_KEY: "shim-cursor-key",
       CURSOR_API_ENDPOINT: "https://attacker.example",
       ANTHROPIC_API_KEY: "shim-anthropic-key",
+      CURSOR_CONFIG_DIR: "/cursor-config",
+      XDG_CONFIG_HOME: "/xdg-config",
+      DATABASE_URL: "postgres://app:pw@db/app",
     });
     const echoed = await generator.generate({
       schema: EchoSchema,
@@ -542,21 +547,28 @@ describe("CursorGenerator spawn-env boundary", () => {
     expect(echoed.leakedVars).toContain("CURSOR_API_KEY");
     expect(echoed.leakedVars).not.toContain("CURSOR_API_ENDPOINT");
     expect(echoed.leakedVars).not.toContain("ANTHROPIC_API_KEY");
+    expect(echoed.envNames).toEqual(
+      expect.arrayContaining(["CURSOR_CONFIG_DIR", "XDG_CONFIG_HOME"]),
+    );
+    expect(echoed.envNames).not.toContain("DATABASE_URL");
   });
 });
 
 function makeDeps(env: Record<string, string>) {
+  const shim = stubShimCommand(FAKE_CURSOR, { ...process.env, ...env });
   return {
-    env: { ...process.env, ...env },
+    command: shim.command,
+    env: shim.env,
     failureDir: tempDir("cursor-reg-"),
   };
 }
 
 describe("cursor registry entry", () => {
   it("constructs through the boot probe against the shim", async () => {
+    const deps = makeDeps({ SHIM_SCENARIO: "valid" });
     const result = await createGenerator(
-      { provider: Providers.CURSOR, command: FAKE_CURSOR },
-      makeDeps({ SHIM_SCENARIO: "valid" }),
+      { provider: Providers.CURSOR, command: deps.command },
+      deps,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) {
@@ -568,9 +580,10 @@ describe("cursor registry entry", () => {
   it("refuses boot when the CLI is logged out though about exits 0", async () => {
     // The exit-blind trap: `about` succeeds either way, only the JSON
     // verdict can refuse.
+    const deps = makeDeps({ SHIM_SCENARIO: "auth-logged-out" });
     const result = await createGenerator(
-      { provider: Providers.CURSOR, command: FAKE_CURSOR },
-      makeDeps({ SHIM_SCENARIO: "auth-logged-out" }),
+      { provider: Providers.CURSOR, command: deps.command },
+      deps,
     );
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -580,13 +593,14 @@ describe("cursor registry entry", () => {
   });
 
   it("rejects a bracketed model id at config time", async () => {
+    const deps = makeDeps({ SHIM_SCENARIO: "valid" });
     const result = await createGenerator(
       {
         provider: Providers.CURSOR,
-        command: FAKE_CURSOR,
+        command: deps.command,
         model: "gpt-5.2[effort=high]",
       },
-      makeDeps({ SHIM_SCENARIO: "valid" }),
+      deps,
     );
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -611,13 +625,14 @@ describe("cursor registry entry", () => {
 
   it("warns but constructs when the CLI predates the contract floor", async () => {
     const warnings: string[] = [];
+    const deps = makeDeps({
+      SHIM_SCENARIO: "valid",
+      SHIM_VERSION: "2026.08.20-abcdef0",
+    });
     const result = await createGenerator(
-      { provider: Providers.CURSOR, command: FAKE_CURSOR },
+      { provider: Providers.CURSOR, command: deps.command },
       {
-        ...makeDeps({
-          SHIM_SCENARIO: "valid",
-          SHIM_VERSION: "2026.08.20-abcdef0",
-        }),
+        ...deps,
         log: (m) => warnings.push(m),
       },
     );
@@ -628,23 +643,18 @@ describe("cursor registry entry", () => {
 
   it("keeps credential vars out of the probe spawns", async () => {
     // The shim's about arm exits 1 when any stripped-list var reached it,
-    // a successful construction here proves the probe went through
-    // envForSpawn (CURSOR_API_KEY excepted: the deliberate survivor).
-    // Minimal env, not a process.env spread: the vitest runner injects
-    // BASE_URL, which the shim's leak regex would flag as a false positive.
-    // PATH stays so the shim's `#!/usr/bin/env node` resolves.
+    // so a successful construction proves the probe spawned with the
+    // allowlist (CURSOR_API_KEY is the deliberate survivor).
+    const shim = stubShimCommand(FAKE_CURSOR, {
+      ...process.env,
+      SHIM_SCENARIO: "auth-fail-if-credentials",
+      ANTHROPIC_API_KEY: "shim-anthropic-key",
+      CURSOR_API_ENDPOINT: "https://attacker.example",
+      CURSOR_API_KEY: "shim-cursor-key",
+    });
     const result = await createGenerator(
-      { provider: Providers.CURSOR, command: FAKE_CURSOR },
-      {
-        env: {
-          PATH: process.env["PATH"] ?? "",
-          SHIM_SCENARIO: "auth-fail-if-credentials",
-          ANTHROPIC_API_KEY: "shim-anthropic-key",
-          CURSOR_API_ENDPOINT: "https://attacker.example",
-          CURSOR_API_KEY: "shim-cursor-key",
-        },
-        failureDir: tempDir("cursor-reg-"),
-      },
+      { provider: Providers.CURSOR, command: shim.command },
+      { env: shim.env, failureDir: tempDir("cursor-reg-") },
     );
     expect(result.ok).toBe(true);
   });

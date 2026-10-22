@@ -8,6 +8,7 @@ import {
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
+import { stubShimCommand } from "./helpers";
 
 /**
  * The shared Generator conformance suite against REAL fake-claude processes
@@ -70,14 +71,15 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
         }, 20);
       }
 
+      const shim = stubShimCommand(FAKE_CLAUDE, {
+        ...process.env,
+        SHIM_SCENARIO: "scripted",
+        SHIM_SCRIPT_DIR: scriptDir,
+      });
       const generator = new ClaudeCodeGenerator({
-        command: FAKE_CLAUDE,
+        command: shim.command,
         failureDir,
-        env: {
-          ...process.env,
-          SHIM_SCENARIO: "scripted",
-          SHIM_SCRIPT_DIR: scriptDir,
-        },
+        env: shim.env,
         // Scaled-real timers: irrelevant for scripted turns (fast exits),
         // small enough that a scripting bug fails the test, not the suite.
         timeouts: { hardMs: 8000, inactivityMs: 4000, killGraceMs: 300 },

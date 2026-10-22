@@ -8,6 +8,7 @@ import {
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
+import { stubShimCommand } from "./helpers";
 
 /**
  * The shared Generator conformance suite against REAL fake-codex processes:
@@ -64,14 +65,15 @@ function makeCodexHarness(): GeneratorContractHarness {
         }, 20);
       }
 
+      const shim = stubShimCommand(FAKE_CODEX, {
+        ...process.env,
+        SHIM_SCENARIO: "scripted",
+        SHIM_SCRIPT_DIR: scriptDir,
+      });
       const generator = new CodexGenerator({
-        command: FAKE_CODEX,
+        command: shim.command,
         failureDir,
-        env: {
-          ...process.env,
-          SHIM_SCENARIO: "scripted",
-          SHIM_SCRIPT_DIR: scriptDir,
-        },
+        env: shim.env,
         timeouts: { hardMs: 8000, inactivityMs: 4000, killGraceMs: 300 },
       });
 

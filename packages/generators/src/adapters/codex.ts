@@ -14,6 +14,7 @@ import {
   runHarnessProcess,
   type HarnessRunArgs,
   type HarnessRunResult,
+  type HarnessCliEnv,
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
@@ -160,6 +161,7 @@ export class CodexGenerator implements Generator {
         }
         const runArgs: HarnessRunArgs = {
           env: this.env,
+          cliEnv: CODEX_CLI_ENV,
           command: this.command,
           argv,
           stdin: prompt,
@@ -305,6 +307,15 @@ function parseCodexLine(line: string): CodexEvent | null {
   }
   return null;
 }
+
+/**
+ * codex reads its login from `CODEX_HOME`; `CODEX_API_KEY` and
+ * `OPENAI_API_KEY` stay out, so a stored ChatGPT login is the only route.
+ */
+export const CODEX_CLI_ENV: HarnessCliEnv = {
+  passVars: ["CODEX_HOME"],
+  fixedVars: {},
+};
 
 /** Boot-probe wiring shared with the registry entry. */
 export const CODEX_PROBE = {

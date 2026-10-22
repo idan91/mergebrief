@@ -4,10 +4,15 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
+import { z } from "zod/v4";
+import { CLAUDE_CLI_ENV } from "../src/adapters/claudeCode";
+import { CODEX_CLI_ENV } from "../src/adapters/codex";
+import { CURSOR_CLI_ENV } from "../src/adapters/cursor";
 import {
-  HARNESS_STRIPPED_CREDENTIAL_VARS,
+  HARNESS_BASE_ENV_VARS,
   runHarnessProcess,
   spawnFailureError,
+  type HarnessCliEnv,
   type HarnessRunArgs,
   type HarnessRunResult,
   type HarnessTimeouts,
@@ -15,7 +20,7 @@ import {
 import { harnessTimeoutError, redactSecrets } from "../src/harness/redact";
 import { probeHarnessCli } from "../src/harness/probe";
 import { configError } from "../src/contract/errors";
-import { expectEmptyRemovedCwds } from "./helpers";
+import { expectEmptyRemovedCwds, SHIM_CLI_ENV } from "./helpers";
 
 /**
  * Fake the CLI binary, never spawn. Use injected short timers with separated tiers
@@ -68,6 +73,7 @@ function run(
   } = {},
 ) {
   const runArgs: HarnessRunArgs = {
+    cliEnv: SHIM_CLI_ENV,
     command: process.execPath,
     argv: [FAKE_CLAUDE],
     stdin: extra.stdin ?? "prompt body",
@@ -109,6 +115,7 @@ describe("runHarnessProcess", () => {
 
   it("resolves a relative command path against the parent's cwd", async () => {
     const result = await runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
       command: relative(process.cwd(), FAKE_CLAUDE),
       argv: [],
       stdin: "prompt body",
@@ -285,6 +292,7 @@ describe("runHarnessProcess", () => {
     const controller = new AbortController();
     const reason = new Error("aborted before spawn settled");
     const promise = runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
       env: process.env,
       command: join(dir, "definitely-not-a-real-binary"),
       argv: [],
@@ -317,6 +325,7 @@ describe("runHarnessProcess", () => {
     // and must NOT signal the (post-close, possibly reused) process group.
     const boom = new Error("final-line consumer failure");
     const promise = runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
       env: process.env,
       command: process.execPath,
       argv: ["-e", "process.stdout.write('unterminated-final')"],
@@ -333,6 +342,7 @@ describe("runHarnessProcess", () => {
     const controller = new AbortController();
     const reason = new Error("aborted from the final flush");
     const promise = runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
       env: process.env,
       command: process.execPath,
       argv: ["-e", "process.stdout.write('unterminated-final')"],
@@ -360,6 +370,7 @@ describe("runHarnessProcess", () => {
     // Steady large chunks keep resetting the inactivity watchdog, the cap
     // must terminate the run long before the hard timer.
     const promise = runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
       env: process.env,
       command: process.execPath,
       argv: [
@@ -383,6 +394,7 @@ describe("runHarnessProcess", () => {
     // returned partial stdout must still respect the cap.
     const cap = 64 * 1024;
     const result = await runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
       env: process.env,
       command: process.execPath,
       argv: [
@@ -412,6 +424,7 @@ describe("runHarnessProcess", () => {
 
   it("classifies a missing binary as cli-missing", async () => {
     const promise = runHarnessProcess({
+      cliEnv: SHIM_CLI_ENV,
       env: process.env,
       command: join(dir, "definitely-not-a-real-binary"),
       argv: [],
@@ -440,42 +453,137 @@ describe("runHarnessProcess", () => {
   });
 });
 
-/** Every stripped var set to a live value, derived from the exported
- * list so a var added there is automatically under test. */
-const leakedCredentials = () =>
-  Object.fromEntries(
-    HARNESS_STRIPPED_CREDENTIAL_VARS.map((name) => [name, `leaked-${name}`]),
-  );
+/** Vars that outrank a CLI's own login and rebill it to an API or cloud account. */
+const BILLING_REDIRECT_VARS = [
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "ANTHROPIC_BASE_URL",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  "CODEX_API_KEY",
+  "CODEX_ACCESS_TOKEN",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "CURSOR_API_ENDPOINT",
+];
 
-describe("billing-route guarantee: credential vars never reach the CLI", () => {
-  it("strips every listed var from the spawn env while HOME passes through", async () => {
+/** Secrets a worker legitimately holds that no CLI reading PR text may see. */
+const HOST_SECRET_VARS = [
+  "DATABASE_URL",
+  "GITHUB_APP_PRIVATE_KEY",
+  "GH_TOKEN",
+  "SESSION_KEY_V1",
+  "NOTION_TOKEN",
+  "CUSTOM_SECRET",
+];
+
+function stubLiveValues(names: readonly string[]): Record<string, string> {
+  return Object.fromEntries(names.map((name) => [name, `leaked-${name}`]));
+}
+
+const EnvEchoSchema = z.object({
+  structured_output: z.object({
+    leakedVars: z.array(z.string()),
+    envNames: z.array(z.string()),
+    home: z.string(),
+  }),
+});
+
+function readEnvEcho(result: HarnessRunResult) {
+  const events = result.stdout
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line): unknown => JSON.parse(line));
+  for (const event of events) {
+    const parsed = EnvEchoSchema.safeParse(event);
+    if (parsed.success) {
+      return parsed.data.structured_output;
+    }
+  }
+  throw new Error("no env-echo envelope in stdout");
+}
+
+describe("spawn env: only the allowlist reaches the CLI", () => {
+  it("strips every billing redirect var while HOME passes through", async () => {
     const result = await run("env-echo", {
-      env: { ...leakedCredentials(), HOME: "/fake/home" },
+      env: { ...stubLiveValues(BILLING_REDIRECT_VARS), HOME: "/fake/home" },
     });
     expect(result.exitCode).toBe(0);
-    const envelope: unknown = result.stdout
-      .split("\n")
-      .filter((line) => line !== "")
-      .map((line): unknown => JSON.parse(line))
-      .find(
-        (event) =>
-          typeof event === "object" &&
-          event !== null &&
-          "structured_output" in event,
-      );
-    expect(envelope).toMatchObject({
-      structured_output: { leakedVars: [], home: "/fake/home" },
+    const echo = readEnvEcho(result);
+    expect(echo.leakedVars).toEqual([]);
+    for (const name of BILLING_REDIRECT_VARS) {
+      expect(echo.envNames).not.toContain(name);
+    }
+    expect(echo.home).toBe("/fake/home");
+  });
+
+  it("keeps the worker's own secrets out of the CLI env", async () => {
+    const result = await run("env-echo", {
+      env: stubLiveValues(HOST_SECRET_VARS),
     });
+    const echo = readEnvEcho(result);
+    for (const name of HOST_SECRET_VARS) {
+      expect(echo.envNames).not.toContain(name);
+    }
+  });
+
+  it("passes locale, proxy and CA vars plus the CLI's own extras", async () => {
+    const cliEnv: HarnessCliEnv = {
+      passVars: [...SHIM_CLI_ENV.passVars, "FAKE_CLI_LOGIN"],
+      fixedVars: { FAKE_CLI_UPDATES_OFF: "1" },
+    };
+    const shim = { SHIM_SCENARIO: "env-echo" };
+    const result = await runHarnessProcess({
+      command: process.execPath,
+      argv: [FAKE_CLAUDE],
+      stdin: "prompt body",
+      timeouts: CLEAN_EXIT_TIMEOUTS,
+      cliEnv,
+      env: {
+        ...shim,
+        LC_ALL: "en_US.UTF-8",
+        HTTPS_PROXY: "http://proxy.internal:3128",
+        NODE_EXTRA_CA_CERTS: "/etc/ca.pem",
+        FAKE_CLI_LOGIN: "login",
+        UNLISTED_VAR: "dropped",
+      },
+    });
+    const echo = readEnvEcho(result);
+    expect(echo.envNames).toEqual(
+      expect.arrayContaining([
+        "LC_ALL",
+        "HTTPS_PROXY",
+        "NODE_EXTRA_CA_CERTS",
+        "FAKE_CLI_LOGIN",
+        "FAKE_CLI_UPDATES_OFF",
+      ]),
+    );
+    expect(echo.envNames).not.toContain("UNLISTED_VAR");
+  });
+
+  it("lists no billing redirect or host secret var on any allowlist", () => {
+    const allowlists = [
+      HARNESS_BASE_ENV_VARS,
+      CLAUDE_CLI_ENV.passVars,
+      CODEX_CLI_ENV.passVars,
+      CURSOR_CLI_ENV.passVars,
+    ];
+    for (const names of allowlists) {
+      for (const name of [...BILLING_REDIRECT_VARS, ...HOST_SECRET_VARS]) {
+        expect(names).not.toContain(name);
+      }
+    }
   });
 
   it("strips probe credentials to match generation authentication", async () => {
     const probe = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       command: process.execPath,
       versionArgv: [FAKE_CLAUDE, "--version"],
       authArgv: [FAKE_CLAUDE, "auth", "status"],
       authFailureHint: "hint",
       env: {
-        ...leakedCredentials(),
+        ...stubLiveValues(BILLING_REDIRECT_VARS),
         SHIM_SCENARIO: "auth-fail-if-credentials",
       },
     });
@@ -601,6 +709,7 @@ describe("probeHarnessCli", () => {
     const cwdLog = join(logDir, "cwd.log");
     try {
       const result = await probeHarnessCli({
+        cliEnv: SHIM_CLI_ENV,
         ...probeArgs,
         env: { SHIM_SCENARIO: "valid", SHIM_CWD_LOG: cwdLog },
       });
@@ -619,6 +728,7 @@ describe("probeHarnessCli", () => {
 
   it("fails with a cli-missing issue when the binary is absent", async () => {
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       command: "/nonexistent/claude-binary",
     });
@@ -631,6 +741,7 @@ describe("probeHarnessCli", () => {
 
   it("fails with the auth hint when the auth preflight exits nonzero", async () => {
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "auth-error" },
     });
@@ -646,6 +757,7 @@ describe("probeHarnessCli", () => {
   it("marks signalled auth preflights incomplete rather than unauthenticated", async () => {
     // Externally killed preflight: exitCode null, no auth verdict produced.
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       authArgv: ["-e", 'process.kill(process.pid, "SIGTERM")'],
     });
@@ -660,6 +772,7 @@ describe("probeHarnessCli", () => {
 
   it("reports a hung auth preflight as a timeout, not as not-authenticated", async () => {
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "auth-hang" },
       timeoutMs: 400,
@@ -677,6 +790,7 @@ describe("probeHarnessCli", () => {
     const warnings: string[] = [];
     const seen: { version?: string; auth?: string } = {};
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "valid" },
       log: (message) => warnings.push(message),
@@ -702,6 +816,7 @@ describe("probeHarnessCli", () => {
   it("stays silent when interpreters return no warning", async () => {
     const warnings: string[] = [];
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "valid" },
       log: (message) => warnings.push(message),
@@ -714,6 +829,7 @@ describe("probeHarnessCli", () => {
 
   it("refuses boot when the auth interpreter rejects the route", async () => {
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "valid" },
       interpretAuthOutput: () => configError(["billing route is an API key"]),
@@ -730,6 +846,7 @@ describe("probeHarnessCli", () => {
     // both channels regardless of adapter discipline.
     const warnings: string[] = [];
     const warned = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "valid" },
       log: (message) => warnings.push(message),
@@ -741,6 +858,7 @@ describe("probeHarnessCli", () => {
     expect(warnings.join("; ")).toContain("odd version");
 
     const refused = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "valid" },
       interpretAuthOutput: () =>
@@ -760,6 +878,7 @@ describe("probeHarnessCli", () => {
     // route interpreter must not run against a failed preflight's output.
     let called = 0;
     const result = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "auth-error" },
       interpretAuthOutput: () => {
@@ -774,6 +893,7 @@ describe("probeHarnessCli", () => {
     // generic verdict and never reaches the interpreter.
     let versionCalled = 0;
     const broken = await probeHarnessCli({
+      cliEnv: SHIM_CLI_ENV,
       ...probeArgs,
       env: { SHIM_SCENARIO: "version-broken" },
       interpretVersionOutput: () => {

@@ -5,6 +5,7 @@ import type { Logger } from "../contract/generator";
 import { redactSecrets } from "./redact";
 import {
   runHarnessProcess,
+  type HarnessCliEnv,
   type HarnessRunArgs,
   type HarnessRunResult,
   type HarnessTimeouts,
@@ -27,6 +28,8 @@ export interface HarnessProbeArgs {
   /** Probe ceiling per invocation (default 10 s). */
   timeoutMs?: number;
   env: Record<string, string | undefined>;
+  /** The same allowlist extras generation spawns with. */
+  cliEnv: HarnessCliEnv;
   /** Sink for interpreter warnings; absent = warnings are dropped. */
   log?: Logger;
   /**
@@ -70,6 +73,7 @@ async function runHarnessProbes(
     stdin: "",
     timeouts,
     env: args.env,
+    cliEnv: args.cliEnv,
     cwd,
   };
 

@@ -3,13 +3,15 @@ import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
 import {
   ClaudeCodeGenerator,
+  CLAUDE_CLI_ENV,
   CLAUDE_PROBE,
   buildClaudeVersionWarning,
   interpretClaudeAuthStatus,
 } from "../adapters/claudeCode";
-import { CodexGenerator, CODEX_PROBE } from "../adapters/codex";
+import { CodexGenerator, CODEX_CLI_ENV, CODEX_PROBE } from "../adapters/codex";
 import {
   CursorGenerator,
+  CURSOR_CLI_ENV,
   CURSOR_PROBE,
   buildCursorVersionWarning,
   interpretCursorAbout,
@@ -262,6 +264,7 @@ export const GENERATOR_REGISTRY = {
         authArgv: [...CLAUDE_PROBE.authArgv],
         authFailureHint: CLAUDE_PROBE.authFailureHint,
         env: deps.env,
+        cliEnv: CLAUDE_CLI_ENV,
         interpretVersionOutput: buildClaudeVersionWarning,
         interpretAuthOutput: interpretClaudeAuthStatus,
       };
@@ -298,6 +301,7 @@ export const GENERATOR_REGISTRY = {
         authArgv: [...CODEX_PROBE.authArgv],
         authFailureHint: CODEX_PROBE.authFailureHint,
         env: deps.env,
+        cliEnv: CODEX_CLI_ENV,
       });
       if (!probe.ok) {
         return probe;
@@ -327,6 +331,7 @@ export const GENERATOR_REGISTRY = {
         authArgv: [...CURSOR_PROBE.authArgv],
         authFailureHint: CURSOR_PROBE.authFailureHint,
         env: deps.env,
+        cliEnv: CURSOR_CLI_ENV,
         interpretVersionOutput: buildCursorVersionWarning,
         interpretAuthOutput: interpretCursorAbout,
       };

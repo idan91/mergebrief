@@ -8,6 +8,7 @@ import {
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
+import { stubShimCommand } from "./helpers";
 
 /**
  * The shared Generator conformance suite against REAL fake-cursor processes
@@ -72,14 +73,15 @@ function makeCursorHarness(): GeneratorContractHarness {
         }, 20);
       }
 
+      const shim = stubShimCommand(FAKE_CURSOR, {
+        ...process.env,
+        SHIM_SCENARIO: "scripted",
+        SHIM_SCRIPT_DIR: scriptDir,
+      });
       const generator = new CursorGenerator({
-        command: FAKE_CURSOR,
+        command: shim.command,
         failureDir,
-        env: {
-          ...process.env,
-          SHIM_SCENARIO: "scripted",
-          SHIM_SCRIPT_DIR: scriptDir,
-        },
+        env: shim.env,
         // Scaled-real timers: irrelevant for scripted turns (fast exits),
         // small enough that a scripting bug fails the test, not the suite.
         timeouts: { hardMs: 8000, killGraceMs: 300 },

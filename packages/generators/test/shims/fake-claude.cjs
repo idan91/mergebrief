@@ -265,6 +265,7 @@ switch (scenario) {
                 ),
               )
               .toSorted(),
+            envNames: Object.keys(process.env).toSorted(),
             home: process.env.HOME ?? "ABSENT",
           },
         }),

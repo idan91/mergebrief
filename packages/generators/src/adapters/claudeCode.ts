@@ -25,6 +25,7 @@ import {
   runHarnessProcess,
   type HarnessRunArgs,
   type HarnessRunResult,
+  type HarnessCliEnv,
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "../harness/run";
@@ -209,6 +210,7 @@ export class ClaudeCodeGenerator implements Generator {
         );
         const runArgs: HarnessRunArgs = {
           env: this.env,
+          cliEnv: CLAUDE_CLI_ENV,
           command: this.command,
           argv: [
             "-p",
@@ -425,6 +427,19 @@ function parseEventLine(line: string): StreamEvent | null {
 // assertion, both reading stdout the probe already produces. The route assertion
 // closes the `apiKeyHelper` residual hole, since a settings-file override is
 // invisible to the env strip but `auth status --json` reports it.
+
+/**
+ * claude's own login and config vars, plus its update and nonessential
+ * traffic off switches. `CLAUDE_CODE_OAUTH_TOKEN` is the subscription route;
+ * `ANTHROPIC_API_KEY` stays out, so it can never rebill to an API account.
+ */
+export const CLAUDE_CLI_ENV: HarnessCliEnv = {
+  passVars: ["CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR"],
+  fixedVars: {
+    DISABLE_AUTOUPDATER: "1",
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+  },
+};
 
 /** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
 export const CLAUDE_PROBE = {

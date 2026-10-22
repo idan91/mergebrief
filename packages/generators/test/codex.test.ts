@@ -14,7 +14,7 @@ import { CodexGenerator } from "../src/adapters/codex";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import type { GenerateRequest } from "../src/contract/generator";
 import { createGenerator, Providers } from "../src/config/registry";
-import { expectEmptyRemovedCwds } from "./helpers";
+import { expectEmptyRemovedCwds, stubShimCommand } from "./helpers";
 
 /**
  * Use real fake-codex processes for argv, tempfile, envelope and origin behavior.
@@ -45,10 +45,11 @@ function makeGenerator(
   env: Record<string, string>,
   overrides?: Partial<ConstructorParameters<typeof CodexGenerator>[0]>,
 ) {
+  const shim = stubShimCommand(FAKE_CODEX, { ...process.env, ...env });
   return new CodexGenerator({
-    command: FAKE_CODEX,
+    command: shim.command,
     failureDir: tempDir("codex-fail-"),
-    env: { ...process.env, ...env },
+    env: shim.env,
     timeouts: { hardMs: 8000, inactivityMs: 4000, killGraceMs: 300 },
     ...overrides,
   });
@@ -244,6 +245,28 @@ describe("CodexGenerator invocation profile", () => {
   });
 });
 
+describe("CodexGenerator spawn env", () => {
+  it("passes CODEX_HOME, never a host secret", async () => {
+    const EchoSchema = z.object({ envNames: z.array(z.string()) });
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "env-echo",
+      CODEX_HOME: "/codex-home",
+      CODEX_API_KEY: "shim-codex-key",
+      DATABASE_URL: "postgres://app:pw@db/app",
+    });
+    const echoed = await generator.generate({
+      schema: EchoSchema,
+      system: "s",
+      user: "u",
+      effort: "medium",
+      label: "env",
+    });
+    expect(echoed.envNames).toContain("CODEX_HOME");
+    expect(echoed.envNames).not.toContain("CODEX_API_KEY");
+    expect(echoed.envNames).not.toContain("DATABASE_URL");
+  });
+});
+
 describe("CodexGenerator answer selection and classification", () => {
   it("keeps untrusted failure messages out of the thrown error", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "turn-failed" });
@@ -349,17 +372,20 @@ describe("CodexGenerator answer selection and classification", () => {
 });
 
 function makeDeps(env: Record<string, string>) {
+  const shim = stubShimCommand(FAKE_CODEX, { ...process.env, ...env });
   return {
-    env: { ...process.env, ...env },
+    command: shim.command,
+    env: shim.env,
     failureDir: tempDir("codex-reg-"),
   };
 }
 
 describe("codex registry entry", () => {
   it("constructs through the boot probe against the shim", async () => {
+    const deps = makeDeps({ SHIM_SCENARIO: "valid" });
     const result = await createGenerator(
-      { provider: Providers.CODEX, command: FAKE_CODEX },
-      makeDeps({ SHIM_SCENARIO: "valid" }),
+      { provider: Providers.CODEX, command: deps.command },
+      deps,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) {
@@ -373,9 +399,10 @@ describe("codex registry entry", () => {
   });
 
   it("refuses boot when the CLI is not logged in", async () => {
+    const deps = makeDeps({ SHIM_SCENARIO: "auth-error" });
     const result = await createGenerator(
-      { provider: Providers.CODEX, command: FAKE_CODEX },
-      makeDeps({ SHIM_SCENARIO: "auth-error" }),
+      { provider: Providers.CODEX, command: deps.command },
+      deps,
     );
     expect(result.ok).toBe(false);
     if (result.ok) {

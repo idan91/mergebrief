@@ -207,6 +207,14 @@ switch (scenario) {
       process.exit(0);
     });
     break;
+  case "env-echo":
+    // Spawn-env boundary: reports every var name that reached the child.
+    drainStdinThen(() => {
+      preamble();
+      answer(JSON.stringify({ envNames: Object.keys(process.env).toSorted() }));
+      process.exit(0);
+    });
+    break;
   case "invalid-json":
     drainStdinThen(() => {
       preamble();
