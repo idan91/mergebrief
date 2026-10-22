@@ -69,6 +69,10 @@ function formatCodePoint(char: string): string {
   return `[U+${code.toString(16).toUpperCase().padStart(4, "0")}]`;
 }
 
+export function removeHiddenCharacters(text: string): string {
+  return text.replace(HIDDEN_CHARS, "");
+}
+
 /** For prose, the prompt and the quote corpus alike. */
 export function sanitizeUntrustedText(text: string): string {
   const lines = text.replace(/\r\n?/g, "\n");

@@ -10,6 +10,9 @@ export const KNOWN_FENCE_TAGS = [
   "repo_custom_attributes",
   "review_comment",
   "anchor_brief",
+  "pr_title",
+  "pr_description",
+  "pr_diff",
 ] as const;
 
 /** The two tags a PR could forge to impersonate default-branch config. */

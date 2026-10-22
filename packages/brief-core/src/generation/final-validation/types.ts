@@ -14,6 +14,8 @@ export interface BriefValidationContext {
   /** Absent when no repo context was accepted; the token check then skips. */
   readonly customAttributes?: readonly CustomRiskAttributeInput[];
   readonly injectedUrls: readonly string[];
+  /** The user message the model read; a link the brief writes must appear in it. */
+  readonly prompt: string;
   /** The sanitized texts the prompt rendered, which quotes verify against. */
   readonly corpus: readonly IntentSource[];
   readonly primaryFacts?: PrimaryTicketFacts;

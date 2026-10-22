@@ -23,6 +23,7 @@ import {
   validateTextLength,
   type CheckedChunks,
 } from "../validate";
+import { listUnseenLinkIssues, removeUnseenLinks } from "../unseen-links";
 import type { WarningCollector } from "../warnings/types";
 import type { BriefValidationContext, FinalValidationArgs } from "./types";
 
@@ -157,6 +158,11 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
   const textLength = validateTextLength(groups, risks.chunks);
   warnings.reportIssues("text length", textLength.issues);
   warnings.reportIssues("partition", validatePartition(groups, risks.chunks));
+  const summary = removeUnseenLinks(args.brief.summary, context.prompt);
+  warnings.reportIssues(
+    "unseen links",
+    listUnseenLinkIssues("summary", summary),
+  );
 
   const {
     readingOrder: _unchecked,
@@ -166,6 +172,7 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
   } = args.brief;
   const brief: Brief = {
     ...rest,
+    summary: summary.text,
     chunks: risks.chunks,
     concernView: buildConcernView(risks.chunks),
     unattributed,
