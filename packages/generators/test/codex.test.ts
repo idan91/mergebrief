@@ -119,22 +119,47 @@ describe("CodexGenerator invocation profile", () => {
     const argv: unknown = JSON.parse(
       readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
     );
-    // The COMPLETE lockdown argv contract, read-only sandbox, no session
-    // persistence, effort mapped to model_reasoning_effort, no --model
-    // when unconfigured.
+    // The COMPLETE lockdown argv contract: tools off, a read-only offline
+    // permission profile, no session persistence, effort mapped to
+    // model_reasoning_effort, no --model when unconfigured.
+    const disabledFeatures = [
+      "shell_tool",
+      "hooks",
+      "browser_use",
+      "browser_use_external",
+      "browser_use_full_cdp_access",
+      "computer_use",
+      "multi_agent",
+      "plugins",
+      "remote_plugin",
+      "apps",
+      "image_generation",
+      "view_image",
+    ].flatMap((feature) => ["-c", `features.${feature}=false`]);
     expect(argv).toEqual([
       "exec",
       "--json",
-      "--sandbox",
-      "read-only",
       "--skip-git-repo-check",
       "--ephemeral",
       "--ignore-user-config",
       "--ignore-rules",
       "--output-schema",
       expect.stringContaining("codex-gen-"),
+      ...disabledFeatures,
       "-c",
-      "features.hooks=false",
+      'web_search="disabled"',
+      "-c",
+      "analytics.enabled=false",
+      "-c",
+      "check_for_update_on_startup=false",
+      "-c",
+      "approval_policy=never",
+      "-c",
+      expect.stringMatching(
+        /^permissions\.mergebrief\.filesystem=\{":minimal"="read", ":workspace_roots"=\{"\."="read"\}, "\/.+\/packages"="read", "\/.+\/\.local\/bin"="read"\}$/,
+      ),
+      "-c",
+      "default_permissions=mergebrief",
       "-c",
       "model_reasoning_effort=high",
     ]);
@@ -432,5 +457,34 @@ describe("codex registry entry", () => {
     );
     expect(result.ok).toBe(true);
     expect(warnings.join("; ")).toContain("newer");
+  });
+
+  it("refuses a stored API-key login that would bill an API account", async () => {
+    const deps = makeDeps({
+      SHIM_SCENARIO: "valid",
+      SHIM_LOGIN_STATUS: "Logged in using an API key - sk-proj-***",
+    });
+    const result = await createGenerator(
+      { provider: Providers.CODEX, command: deps.command },
+      deps,
+    );
+    expect(result.ok).toBe(false);
+    const issues = result.ok ? "" : result.error.issues.join("; ");
+    expect(issues).toContain("API key");
+    expect(issues).not.toContain("sk-proj");
+  });
+
+  it("warns but constructs when the login route is unreadable", async () => {
+    const warnings: string[] = [];
+    const deps = makeDeps({
+      SHIM_SCENARIO: "valid",
+      SHIM_LOGIN_STATUS: "Signed in",
+    });
+    const result = await createGenerator(
+      { provider: Providers.CODEX, command: deps.command },
+      { ...deps, log: (m) => warnings.push(m) },
+    );
+    expect(result.ok).toBe(true);
+    expect(warnings.join("; ")).toContain("unverifiable");
   });
 });

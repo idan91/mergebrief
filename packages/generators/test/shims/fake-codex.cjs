@@ -83,7 +83,10 @@ if (argv[0] === "login" && argv[1] === "status") {
     process.stderr.write("Not logged in\n");
     process.exit(1);
   }
-  process.stdout.write("Logged in using ChatGPT\n");
+  // Real codex prints its login verdict on stderr, stdout stays empty.
+  process.stderr.write(
+    `${process.env.SHIM_LOGIN_STATUS ?? "Logged in using ChatGPT"}\n`,
+  );
   process.exit(0);
 }
 

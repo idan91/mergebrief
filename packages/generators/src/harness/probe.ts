@@ -41,12 +41,16 @@ export interface HarnessProbeArgs {
     stdout: string,
   ) => Result<string | null, ConfigError>;
   /**
-   * Adapter-owned read of a SUCCESSFUL auth preflight's stdout (exit 0,
+   * Adapter-owned read of a SUCCESSFUL auth preflight's output (exit 0,
    * the CLI says "authenticated"; this decides whether that credential is
    * also the RIGHT one). `ok` carries an optional warning; an error refuses
-   * boot (fail-loud, same contract as the generic checks).
+   * boot (fail-loud, same contract as the generic checks). Some CLIs print
+   * the verdict on stderr, so the first KB of it rides along.
    */
-  interpretAuthOutput?: (stdout: string) => Result<string | null, ConfigError>;
+  interpretAuthOutput?: (
+    stdout: string,
+    stderr: string,
+  ) => Result<string | null, ConfigError>;
 }
 
 /** Both probe steps share the empty cwd generation runs in, so they read the same CLI config. */
@@ -152,7 +156,7 @@ async function runHarnessProbes(
     ]);
   }
   if (args.interpretAuthOutput) {
-    const verdict = args.interpretAuthOutput(auth.stdout);
+    const verdict = args.interpretAuthOutput(auth.stdout, auth.stderrHead);
     if (!verdict.ok) {
       // Same redaction boundary on the refusal path (transient never applies:
       // a wrong billing route is deterministic config, not a flaky network).

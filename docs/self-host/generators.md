@@ -259,7 +259,7 @@ under one instance-wide lock, so N slots cannot start past it together.
 | `openai` | API | `apiKeyEnv` (default `OPENAI_API_KEY`) | discovered at run time (a model without `reasoning_effort` records `effort: null`) | `model` required; `baseUrl` escape hatch for self-hosted compatible servers (preflight downgrades to warnings) |
 | `openrouter` | API | `apiKeyEnv` (default `OPENROUTER_API_KEY`) | gated by the model's listed `reasoning` support | full slug required; boot requires the model to list `structured_outputs`; `require_parameters` is forced on every request |
 | `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null`, an honest gap) | lockdown: `--tools ""`, `--setting-sources ""`, `--strict-mcp-config`, `--disable-slash-commands`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
-| `codex` | **local CLI** | your interactive `codex login` | `model_reasoning_effort` | lockdown: `--sandbox read-only --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules -c features.hooks=false`; **origin blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable, so the stamp records what you configured |
+| `codex` | **local CLI** | your interactive `codex login` (ChatGPT; a stored API-key login refuses to start) | `model_reasoning_effort` | lockdown: `--skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules`, shell, web search and other built-in tools off, a read-only offline `default_permissions` profile; **origin blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable, so the stamp records what you configured |
 | `cursor` | **local CLI** | your interactive `cursor-agent login` (or `CURSOR_API_KEY`, which bills the same subscription pool) | rides the model-id VARIANT (`gpt-5.2-high` vs `-low`); the `effort:` knob has no wire effect (the stamp parses the id's suffix; a disagreeing `effort:` logs a note) | lockdown: `--mode plan` from an empty temp dir (bare print mode APPLIES file writes); the stream is pipe-silent until exit, so the wall-clock timeout is the only watchdog; **origin blind spot**: the envelope has no model field and `system/init` echoes the request, so the stamp records what you configured |
 
 `effort:` note: the committed eval baselines (`tools/categorizer/eval`)
@@ -338,8 +338,12 @@ directory you launched from. The base sits in your home rather than the
 shared temp dir because claude reads `CLAUDE.md` from every parent of its
 working directory, and on Linux any local user can write to `/tmp`. On top
 of that, claude-code runs with ALL built-in tools disabled, print mode and
-no session persistence; codex runs read-only sandboxed with no session
-persistence; cursor runs in
+no session persistence; codex runs with its shell, hosted web search and
+its browser, computer-use, image, plugin and sub-agent tools off, under a
+permission profile that lets what is left read only codex's minimal set of
+system paths, its own install folders and the empty working folder (not
+your home, not the `auth.json` in `CODEX_HOME`), with no network, and no
+session persistence; cursor runs in
 plan mode (read-only: a bare print-mode run would APPLY file writes). Two cursor housekeeping
 notes: the CLI keeps its own session state under `~/.cursor` between runs
 (the adapter's temp-cwd isolation does not cover the CLI's home-directory
@@ -350,9 +354,9 @@ The working directory is the empty one, so project-level config never
 loads, and claude also runs with `--setting-sources ""`,
 `--strict-mcp-config` and `--disable-slash-commands`, so your user-level
 settings, hooks, plugins, MCP servers and skills under `~/.claude` stay
-out too. codex runs with `--ignore-user-config --ignore-rules -c
-features.hooks=false`, which keeps the MCP servers, hooks, `notify`
-command and rules in `~/.codex` out while auth still reads `CODEX_HOME`. cursor-agent has no equivalent switch, so
+out too. codex runs with `--ignore-user-config --ignore-rules` and its
+hooks feature off, which keeps the MCP servers, hooks, `notify` command
+and rules in `~/.codex` out while auth still reads `CODEX_HOME`. cursor-agent has no equivalent switch, so
 its user-level config under `~/.cursor` still applies. Every harness CLI runs under hard + inactivity watchdogs
 with a process-group kill ladder: a hung CLI (or its grandchildren) is
 killed, classified, and dumped, never waited on forever.

@@ -1,7 +1,14 @@
 import { writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
+import type { Result } from "types/utils";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
+import {
+  configError,
+  GeneratorError,
+  GeneratorErrorKinds,
+  type ConfigError,
+} from "../contract/errors";
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
@@ -55,10 +62,12 @@ import type { Effort, Generation } from "../contract/generation";
  *    by type), those strings are untrusted and are NEVER interpolated
  *    into GeneratorError messages; classification stays opaque with fixed
  *    text, and the full detail lives in local failure dumps only.
- * 5. Lockdown profile: `--sandbox read-only --skip-git-repo-check
- *    --ephemeral --ignore-user-config --ignore-rules -c features.hooks=false`
- *    in an empty cwd, generation must neither write, persist sessions, nor
- *    load the operator's MCP servers, hooks, notify command or rules.
+ * 5. Lockdown profile (`buildCodexConfigArgs`): built-in tools off, hosted
+ *    web search off, and a read-only offline `default_permissions` profile
+ *    that keeps `auth.json` unreadable, plus `--skip-git-repo-check
+ *    --ephemeral --ignore-user-config --ignore-rules` in an empty cwd:
+ *    generation must neither write, persist sessions, reach the network,
+ *    nor load the operator's MCP servers, hooks, notify command or rules.
  */
 /* oxlint-enable house/comment-run */
 
@@ -144,16 +153,13 @@ export class CodexGenerator implements Generator {
         const argv = [
           "exec",
           "--json",
-          "--sandbox",
-          "read-only",
           "--skip-git-repo-check",
           "--ephemeral",
           "--ignore-user-config",
           "--ignore-rules",
           "--output-schema",
           schemaFile,
-          "-c",
-          "features.hooks=false",
+          ...buildCodexConfigArgs(this.env),
           "-c",
           `model_reasoning_effort=${req.effort}`,
         ];
@@ -317,12 +323,67 @@ function parseCodexLine(line: string): CodexEvent | null {
 
 /**
  * codex reads its login from `CODEX_HOME`; `CODEX_API_KEY` and
- * `OPENAI_API_KEY` stay out, so a stored ChatGPT login is the only route.
+ * `OPENAI_API_KEY` stay out, and the startup check refuses a stored
+ * API-key login.
  */
 export const CODEX_CLI_ENV: HarnessCliEnv = {
   passVars: ["CODEX_HOME"],
   fixedVars: {},
 };
+
+/** Built-in tools a Brief never needs; each reads or reaches past the empty folder. */
+const CODEX_DISABLED_FEATURES = [
+  "shell_tool",
+  "hooks",
+  "browser_use",
+  "browser_use_external",
+  "browser_use_full_cdp_access",
+  "computer_use",
+  "multi_agent",
+  "plugins",
+  "remote_plugin",
+  "apps",
+  "image_generation",
+  "view_image",
+] as const;
+
+const CODEX_PERMISSION_PROFILE = "mergebrief";
+
+/**
+ * What the model's own tools may read: codex's minimal system set, the empty
+ * working folder, and the install folders codex re-execs itself from. The
+ * login folder's `auth.json` stays unreadable. Paths are absolute because
+ * codex expands no `$HOME`.
+ */
+function buildCodexFilesystemPolicy(
+  env: Record<string, string | undefined>,
+): string {
+  const home = env["HOME"] ?? homedir();
+  const codexHome = env["CODEX_HOME"] ?? join(home, ".codex");
+  const readable = [join(codexHome, "packages"), join(home, ".local", "bin")];
+  const entries = [
+    '":minimal"="read"',
+    '":workspace_roots"={"."="read"}',
+    ...readable.map((path) => `${JSON.stringify(path)}="read"`),
+  ];
+  return `permissions.${CODEX_PERMISSION_PROFILE}.filesystem={${entries.join(", ")}}`;
+}
+
+/** The `-c` overrides that hold codex to a read-only, offline, tool-light run. */
+function buildCodexConfigArgs(
+  env: Record<string, string | undefined>,
+): string[] {
+  const overrides = [
+    ...CODEX_DISABLED_FEATURES.map((feature) => `features.${feature}=false`),
+    'web_search="disabled"',
+    "analytics.enabled=false",
+    "check_for_update_on_startup=false",
+    "approval_policy=never",
+    buildCodexFilesystemPolicy(env),
+    `default_permissions=${CODEX_PERMISSION_PROFILE}`,
+  ];
+  return overrides.flatMap((override) => ["-c", override]);
+}
 
 /** The codex version the hardening was last checked on. */
 export const CODEX_VERSION_POLICY: CliVersionPolicy = {
@@ -338,3 +399,32 @@ export const CODEX_PROBE = {
   authFailureHint:
     "run `codex login` interactively (or `codex login --device-auth` headless)",
 } as const;
+
+const CODEX_SUBSCRIPTION_LOGIN = "Logged in using ChatGPT";
+const CODEX_API_KEY_LOGIN = "Logged in using an API key";
+
+/**
+ * Billing-route assertion over `codex login status`, which prints its verdict
+ * on stderr: a ChatGPT login passes, a stored API key refuses (it bills the
+ * operator's OpenAI account while the provider promises the subscription),
+ * and wording it cannot read warns.
+ */
+export function interpretCodexLoginStatus(
+  stdout: string,
+  stderr: string,
+): Result<string | null, ConfigError> {
+  const verdict = `${stdout}\n${stderr}`;
+  if (verdict.includes(CODEX_SUBSCRIPTION_LOGIN)) {
+    return { ok: true, value: null };
+  }
+  if (verdict.includes(CODEX_API_KEY_LOGIN)) {
+    return configError([
+      "codex is logged in with an API key; harness generators bill your subscription only. Run `codex login` with ChatGPT, or use the `openai` provider for API billing",
+    ]);
+  }
+  return {
+    ok: true,
+    value:
+      "warning: could not read the codex login route from `codex login status`; subscription billing is unverifiable",
+  };
+}

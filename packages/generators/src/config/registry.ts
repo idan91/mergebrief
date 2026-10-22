@@ -13,6 +13,7 @@ import {
   CODEX_CLI_ENV,
   CODEX_PROBE,
   CODEX_VERSION_POLICY,
+  interpretCodexLoginStatus,
 } from "../adapters/codex";
 import {
   CursorGenerator,
@@ -311,6 +312,7 @@ export const GENERATOR_REGISTRY = {
         cliEnv: CODEX_CLI_ENV,
         interpretVersionOutput: (stdout) =>
           checkCliVersion(stdout, CODEX_VERSION_POLICY),
+        interpretAuthOutput: interpretCodexLoginStatus,
       };
       if (deps.log) {
         probeArgs.log = deps.log;

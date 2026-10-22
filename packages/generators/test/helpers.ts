@@ -82,6 +82,7 @@ export const SHIM_CLI_ENV: HarnessCliEnv = {
     "SHIM_ERROR",
     "SHIM_EXIT_CODE",
     "SHIM_GRANDCHILD_PID_FILE",
+    "SHIM_LOGIN_STATUS",
     "SHIM_MARKER_FILE",
     "SHIM_MODEL",
     "SHIM_MODEL_DISPLAY",
