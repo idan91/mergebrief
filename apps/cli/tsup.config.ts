@@ -19,7 +19,7 @@ export default defineConfig({
     js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
   },
   platform: "node",
-  target: "node20",
+  target: "node24",
   bundle: true,
   noExternal: [/.*/],
   clean: true,

@@ -23,7 +23,7 @@ PR URL ──▶ gh pr diff + gh pr view ──▶ the configured generator (Zod
 
 ## Setup
 
-Requires Node 22, 24 or 26+ (the repo's `engines`; `.nvmrc` pins the CI version), [`pnpm`](https://pnpm.io), and an authenticated [`gh`](https://cli.github.com) CLI.
+Requires Node 24 or 26+ (the repo's `engines`; `.nvmrc` pins the CI version), [`pnpm`](https://pnpm.io), and an authenticated [`gh`](https://cli.github.com) CLI.
 
 ```bash
 cd tools/categorizer

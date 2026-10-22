@@ -58,7 +58,7 @@ migrations, and backup/restore:
 
 ## Quickstart (local dev loop)
 
-Requires Node 22, 24 or 26+ (`.nvmrc` pins the version CI uses), [`pnpm`](https://pnpm.io),
+Requires Node 24 or 26+ (`.nvmrc` pins the version CI uses), [`pnpm`](https://pnpm.io),
 and Docker for Postgres. The api, worker and web processes run on your machine; only Postgres
 runs in a container.
 

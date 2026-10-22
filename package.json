@@ -4,7 +4,7 @@
   "license": "FSL-1.1-ALv2",
   "type": "module",
   "engines": {
-    "node": "^22 || ^24 || >=26"
+    "node": "^24 || >=26"
   },
   "scripts": {
     "app:docker": "docker compose up -d",
