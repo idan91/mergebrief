@@ -86,9 +86,9 @@ generator:
 
 # --- Daily generation cap ----------------------------------------------------
 # The spend guardrail: at most N generations per UTC calendar day, counted
-# across every repo this instance serves. Omit the block for no cap at all,
-# the default. One number, not fair share: a busy repo can use the day for
-# the others.
+# across every repo this instance serves. Omit the block, or the key, for the
+# default of 300; write `maxGenerationsPerDay: unlimited` for no cap at all.
+# One number, not fair share: a busy repo can use the day for the others.
 #
 # At the cap the worker SKIPS the generation: the PR view shows a "daily
 # generation cap reached" state carrying the reset time, an Entry comment that

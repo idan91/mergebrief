@@ -15,6 +15,10 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-23)
 
+- **Changed** an instance config with no `spend.maxGenerationsPerDay` caps
+  the Instance at 300 generations a day (was uncapped), so `GET /api/spend`
+  reports `cap: 300` there. `maxGenerationsPerDay: unlimited` keeps the old
+  uncapped behaviour and leaves `cap` out.
 - **Changed** a token rotation GitHub does not answer (no answer within 10
   seconds, a network error or a 5xx) answers `502 github-unavailable` on any
   route that reads with the viewer's token (was `401 unauthorized`, and a

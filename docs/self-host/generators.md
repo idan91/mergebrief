@@ -56,7 +56,8 @@ generator:
 
 # spend: the THIRD root block: the daily generation cap, at most N
 # generations per UTC calendar day across every repo this instance serves.
-# Omitting the block means uncapped. See "Daily generation cap" below.
+# Omitting the block means 300; `unlimited` lifts the cap. See "Daily
+# generation cap" below.
 # spend:
 #   maxGenerationsPerDay: 50
 
@@ -146,10 +147,14 @@ spend:
   maxGenerationsPerDay: 50
 ```
 
-The key is optional and must be a positive whole number; omitting the block
-leaves the instance **uncapped** (the default). There is no per-repo
-override: the cap is a ceiling, not fair share, so a busy repo can use the
-day's budget for the others. If that bites, raise the number.
+The key is optional and takes a positive whole number or `unlimited`.
+Omitting it, or the whole block, caps the instance at **300 a day** (the
+default); `maxGenerationsPerDay: unlimited` is the only way to run uncapped.
+The cap ships on because the app carries no request rate limit of its own,
+so it is what stands between a burst of webhooks and your provider quota.
+There is no per-repo override: the cap is a ceiling, not fair share, so a
+busy repo can use the day's budget for the others. If that bites, raise the
+number.
 
 At the cap the worker **skips** the generation before any provider call:
 

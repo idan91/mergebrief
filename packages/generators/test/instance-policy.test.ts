@@ -38,7 +38,7 @@ describe("loadInstancePolicy", () => {
     }
     expect(result.value).toEqual({
       draftPolicy: DEFAULT_POLICY,
-      spendPolicy: { maxGenerationsPerDay: null },
+      spendPolicy: { maxGenerationsPerDay: 300 },
       operatorIds: new Set(),
       source: null,
     });
@@ -81,7 +81,7 @@ describe("loadInstancePolicy", () => {
     }
     expect(result.value).toEqual({
       draftPolicy: DEFAULT_POLICY,
-      spendPolicy: { maxGenerationsPerDay: null },
+      spendPolicy: { maxGenerationsPerDay: 300 },
       operatorIds: new Set(),
       source: path,
     });
@@ -240,6 +240,36 @@ describe("loadInstancePolicy spend and operators", () => {
     }
     expect(result.value.spendPolicy).toEqual({ maxGenerationsPerDay: 50 });
     expect(result.value.operatorIds).toEqual(new Set([583231n]));
+  });
+
+  it("defaults the cap to 300 when the spend block names none", () => {
+    const path = configFile("spend: {}\n");
+
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value.spendPolicy).toEqual({ maxGenerationsPerDay: 300 });
+  });
+
+  it("reads maxGenerationsPerDay: unlimited as uncapped", () => {
+    const path = configFile("spend:\n  maxGenerationsPerDay: unlimited\n");
+
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value.spendPolicy).toEqual({ maxGenerationsPerDay: null });
+  });
+
+  it("refuses boot on a cap of 0", () => {
+    const path = configFile("spend:\n  maxGenerationsPerDay: 0\n");
+
+    expect(loadInstancePolicy({ MERGEBRIEF_CONFIG: path }).ok).toBe(false);
   });
 
   it("refuses boot on an invalid operators block", () => {

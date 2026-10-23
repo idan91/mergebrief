@@ -70,8 +70,8 @@ export interface GenerateTaskDeps {
   /** Cross-revision regeneration policy; absent → `never` (anchored). */
   readonly fullRegeneration?: FullRegeneration;
   /**
-   * The instance daily generation cap; absent → uncapped, which is also what
-   * a config file with no `spend` block means.
+   * The instance daily generation cap; absent → uncapped. Only test
+   * harnesses omit it: a config file with no `spend` block means 300.
    */
   readonly spend?: SpendPolicy;
   /** The context providers main.ts built; absent → the built-ins only. */

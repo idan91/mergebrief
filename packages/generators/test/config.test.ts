@@ -39,7 +39,7 @@ describe("loadGeneratorConfig from env", () => {
     }
     expect(result.value).toEqual({
       generator: { provider: "anthropic" },
-      spend: { maxGenerationsPerDay: null },
+      spend: { maxGenerationsPerDay: 300 },
       contextSources: [],
       trackers: [],
       source: null,

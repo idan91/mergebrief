@@ -311,8 +311,8 @@ groups:
         expr: sum(count_over_time({service="api"} | json | evt = `audit.fail` [15m])) > 0
         labels: { severity: critical }
       - alert: SpendCapSustained
-        # only if you set a cap (spend.maxGenerationsPerDay); an instance
-        # pinned at it produces no briefs until 00:00 UTC
+        # off only under spend.maxGenerationsPerDay: unlimited; an instance
+        # pinned at the cap produces no briefs until 00:00 UTC
         expr: sum(count_over_time({service="worker"} | json | evt = `spend.cap.trip` [1h])) > 5
         labels: { severity: warning }
 ```

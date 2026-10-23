@@ -232,7 +232,7 @@ One run the Instance started on a UTC day: every paid **Claim**, graphile retrie
 _Avoid_: paid run (some started runs made no provider call), generation (the record, not one run of it)
 
 **Daily cap**:
-The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs** the **Instance** starts on one UTC day across every repository; absent means uncapped. At the cap the worker skips the generation, the PR shows the capped **Not-ready screen** with the reset time, an existing **Entry** is updated to say so, and the head runs on its next push after the reset at 00:00 UTC.
+The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs** the **Instance** starts on one UTC day across every repository; absent means 300, and `unlimited` lifts it. At the cap the worker skips the generation, the PR shows the capped **Not-ready screen** with the reset time, an existing **Entry** is updated to say so, and the head runs on its next push after the reset at 00:00 UTC.
 _Avoid_: budget, quota, rate limit (GitHub's)
 
 **Job**:
@@ -340,7 +340,7 @@ A reviewer finalizing their review on GitHub (the **Approval** plus any **Commen
 _Avoid_: send, post, finish (informal)
 
 **Instance config**:
-`mergebrief.config.yaml`, the file the **Operator** points `MERGEBRIEF_CONFIG` at: the generator (provider, model, effort, `full-regeneration`), the `drafts` policy, the `spend` cap, the `operators` list and shared `trackers`. No file means the zero-config defaults: drafts generate with the normal debounce, no cap, no Operators.
+`mergebrief.config.yaml`, the file the **Operator** points `MERGEBRIEF_CONFIG` at: the generator (provider, model, effort, `full-regeneration`), the `drafts` policy, the `spend` cap, the `operators` list and shared `trackers`. No file means the zero-config defaults: drafts generate with the normal debounce, a cap of 300 a day, no Operators.
 _Avoid_: config (bare), settings (that is the repository's `settings.yaml`), env (the keys are named in the file, never held by it)
 
 **Repo config**:

@@ -216,7 +216,6 @@ async function main(): Promise<void> {
       urlBoxDeps,
     ),
     publicBaseUrl: config.value.publicBaseUrl,
-    // No `spend` block → uncapped.
     spend: config.value.spend,
     trackerRoot,
     revisionNarrative: config.value.revisionNarrative,

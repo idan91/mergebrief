@@ -28,7 +28,7 @@ export interface LoadedGeneratorConfig {
   generator: GeneratorConfig;
   /**
    * The instance spend policy; enforced by the worker's generation gate.
-   * Uncapped when the block is absent.
+   * 300 a day when the block is absent.
    */
   spend: SpendPolicy;
   /**

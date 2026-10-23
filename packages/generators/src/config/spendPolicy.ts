@@ -10,23 +10,30 @@ import { renderKey } from "./readRoot";
  * `.mergebrief/` repo-side counterpart and a repo file can never widen it.
  */
 
-/** Unset = uncapped, the zero-config default. */
+/** Omitted = 300 a day; only `maxGenerationsPerDay: unlimited` lifts the cap. */
 export interface SpendPolicy {
   /** Generations per UTC calendar day across every repo; null = uncapped. */
   readonly maxGenerationsPerDay: number | null;
 }
 
+const DEFAULT_GENERATIONS_PER_DAY = 300;
+const UNLIMITED_CAP = "unlimited";
+const capIssue = `must be a positive whole number or "${UNLIMITED_CAP}"`;
+
 export const DEFAULT_SPEND_POLICY: SpendPolicy = {
-  maxGenerationsPerDay: null,
+  maxGenerationsPerDay: DEFAULT_GENERATIONS_PER_DAY,
 };
 
-const capSchema = z
-  .number()
-  .int("must be a whole number")
-  .positive("must be greater than 0");
+const capSchema = z.union(
+  [
+    z.number().int(capIssue).positive(capIssue),
+    z.literal(UNLIMITED_CAP).transform(() => null),
+  ],
+  { error: capIssue },
+);
 
 const spendBlockSchema = z.strictObject({
-  maxGenerationsPerDay: capSchema.optional(),
+  maxGenerationsPerDay: capSchema.default(DEFAULT_GENERATIONS_PER_DAY),
 });
 
 /**
@@ -56,8 +63,5 @@ export function validateSpendBlock(
     );
   }
 
-  return {
-    ok: true,
-    value: { maxGenerationsPerDay: parsed.data.maxGenerationsPerDay ?? null },
-  };
+  return { ok: true, value: parsed.data };
 }

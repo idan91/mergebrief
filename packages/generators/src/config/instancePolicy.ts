@@ -46,7 +46,7 @@ export interface LoadedInstancePolicy {
   readonly source: string | null;
 }
 
-/** Zero-config: no drafts damping, no daily cap, no Operators. */
+/** Zero-config: no drafts damping, the default daily cap, no Operators. */
 export const DEFAULT_INSTANCE_POLICY: Omit<LoadedInstancePolicy, "source"> = {
   draftPolicy: DEFAULT_DRAFT_POLICY,
   spendPolicy: DEFAULT_SPEND_POLICY,

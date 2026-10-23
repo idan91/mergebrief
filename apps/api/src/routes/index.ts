@@ -62,7 +62,7 @@ export interface AppDeps {
   readonly updateCheck?: UpdateCheck;
   /** Instance draft-PR policy; omitted = zero-config default. */
   readonly draftPolicy?: DraftPolicy;
-  /** The daily generation cap the spend read reports; omitted = uncapped. */
+  /** The daily generation cap the spend read reports; omitted = the default 300. */
   readonly spendPolicy?: LoadedInstancePolicy["spendPolicy"];
   /** GitHub user ids of the Instance's Operators; omitted = nobody. */
   readonly operatorIds?: LoadedInstancePolicy["operatorIds"];

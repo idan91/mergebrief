@@ -8,9 +8,9 @@ import {
   type TenantContext,
 } from "persistence";
 import { claimTestRun } from "persistence/testing";
-import { AccessLevels, PrStates } from "types";
+import { AccessLevels, PrStates, type Mutable } from "types";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createApp, type ApiApp } from "../src/index";
+import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
@@ -27,6 +27,7 @@ import { registerSharedPglite } from "./shared-pglite";
 
 const PATH = "/api/spend";
 const DAILY_CAP = 50;
+const DEFAULT_DAILY_CAP = 300;
 const MS_PER_DAY = 86_400_000;
 const OPERATOR_IDS: ReadonlySet<bigint> = new Set([BigInt(REVIEWER_ID)]);
 
@@ -48,15 +49,18 @@ describe("GET /api/spend", () => {
   });
 
   function buildApp(options: AppOptions): ApiApp {
-    return createApp({
+    const deps: Mutable<AppDeps> = {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       operatorIds: options.operatorIds ?? OPERATOR_IDS,
-      spendPolicy: { maxGenerationsPerDay: options.cap ?? null },
       ...UNUSED_INSTALLATION_DEPS,
-    });
+    };
+    if (options.cap !== undefined) {
+      deps.spendPolicy = { maxGenerationsPerDay: options.cap };
+    }
+    return createApp(deps);
   }
 
   async function startRuns(count: number): Promise<void> {
@@ -120,6 +124,12 @@ describe("GET /api/spend", () => {
     const res = await readAsCookie(buildApp({ cap: null }));
 
     expect(await res.json()).not.toHaveProperty("cap");
+  });
+
+  it("reports the default cap of 300 when no spend policy is given", async () => {
+    const res = await readAsCookie(buildApp({}));
+
+    expect(await res.json()).toMatchObject({ cap: DEFAULT_DAILY_CAP });
   });
 
   it("answers an Operator on an API token", async () => {

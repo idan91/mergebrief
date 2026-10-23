@@ -40,8 +40,8 @@ export interface WorkerConfig {
   /** The web deployment's public origin; the Entry comment's deep-link base. */
   readonly publicBaseUrl: string;
   /**
-   * The daily generation cap the task enforces. Uncapped when the config file
-   * carries no `spend` block.
+   * The daily generation cap the task enforces: 300 when the config file
+   * carries no `spend` block, uncapped only under `unlimited`.
    */
   readonly spend: SpendPolicy;
   /** The credentialed context providers to construct; empty = built-ins only. */
