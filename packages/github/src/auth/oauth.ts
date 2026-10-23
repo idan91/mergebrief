@@ -8,6 +8,7 @@
 // return a refresh token plus expiries.
 import { createHash } from "node:crypto";
 import { Octokit } from "octokit";
+import { Octokit as CoreOctokit } from "@octokit/core";
 import { OAuthApp, type Options } from "@octokit/oauth-app";
 import { retryOptions } from "./retry";
 import type { InstallationId, ReviewerId } from "persistence";
@@ -56,16 +57,44 @@ export interface OAuthError {
 // Client construction + authorization URL.
 // ---------------------------------------------------------------------------
 
-/** Construct the github-app-typed `OAuthApp`. No network call. */
-export function createOAuthApp(config: {
-  clientId: string;
-  clientSecret: string;
-}): GitHubOAuthApp {
+/** The longest one call to GitHub's OAuth endpoints may hold its caller. */
+const OAUTH_REQUEST_TIMEOUT_MS = 10_000;
+
+interface OAuthAppConfig {
+  readonly clientId: string;
+  readonly clientSecret: string;
+  /** Overrides `OAUTH_REQUEST_TIMEOUT_MS`, so a test can abort in milliseconds. */
+  readonly requestTimeoutMs?: number;
+}
+
+/**
+ * Construct the github-app-typed `OAuthApp`. No network call. Every OAuth
+ * call it makes aborts after the request timeout and fails like any other.
+ */
+export function createOAuthApp(config: OAuthAppConfig): GitHubOAuthApp {
+  const timeoutMs = config.requestTimeoutMs ?? OAUTH_REQUEST_TIMEOUT_MS;
   return new OAuthApp<Options<"github-app">>({
     clientType: "github-app",
     clientId: config.clientId,
     clientSecret: config.clientSecret,
+    Octokit: CoreOctokit.defaults({
+      request: { fetch: createTimedFetch(timeoutMs) },
+    }),
   });
+}
+
+/** Reads the global fetch per call, not at construction, so a stub still answers. */
+function createTimedFetch(timeoutMs: number): typeof fetch {
+  return function fetchWithTimeout(input, init) {
+    const signals = [AbortSignal.timeout(timeoutMs)];
+    if (init?.signal) {
+      signals.push(init.signal);
+    }
+    return globalThis.fetch(input, {
+      ...init,
+      signal: AbortSignal.any(signals),
+    });
+  };
 }
 
 /**

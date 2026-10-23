@@ -67,6 +67,13 @@ describe("loadConfig", () => {
     expect(refused.error.issues.join("; ")).toMatch(/PR_RETENTION_DAYS/);
   });
 
+  it("carries the pool size, ten when DATABASE_POOL_MAX is unset", () => {
+    const sized = loadConfig({ ...VALID_ENV, DATABASE_POOL_MAX: "4" });
+    expect(sized.ok && sized.value.poolMax).toBe(4);
+    const unset = loadConfig(VALID_ENV);
+    expect(unset.ok && unset.value.poolMax).toBe(10);
+  });
+
   it("exposes MERGEBRIEF_AUTO_MIGRATE=false through persistence's loader", () => {
     const result = loadConfig({
       ...VALID_ENV,

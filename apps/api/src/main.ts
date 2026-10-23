@@ -76,6 +76,7 @@ async function main(): Promise<void> {
   const handle: AppDatabase = createDb(databaseUrl, {
     onError: (error) =>
       logger.warn("postgres pool error (idle client)", { err: error }),
+    maxConnections: boot.persistence.poolMax,
   });
 
   const updateCheck = createUpdateCheck({

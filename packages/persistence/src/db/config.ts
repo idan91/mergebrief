@@ -29,6 +29,8 @@ export interface PersistenceConfig {
   readonly prRetentionDays: number | null;
   /** Record private writes in the audit log. Self-host: ON. */
   readonly auditPrivateWrites: boolean;
+  /** Connections this process's pool opens at most. */
+  readonly poolMax: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +136,27 @@ function isPostgresUrl(value: string): boolean {
   }
 }
 
+/** node-postgres's own default, kept when `DATABASE_POOL_MAX` is unset. */
+const DEFAULT_POOL_MAX = 10;
+
+/**
+ * graphile pins one client of the worker's queue pool to its job listener for
+ * the process lifetime, and claims jobs through the same pool with no
+ * checkout bound: one connection would wedge the worker silently.
+ */
+const MIN_POOL_MAX = 2;
+
+const poolMaxSchema = z.preprocess(
+  (value) => (value === undefined || value === "" ? DEFAULT_POOL_MAX : value),
+  z.coerce
+    .number({ error: "DATABASE_POOL_MAX must be a number" })
+    .int("DATABASE_POOL_MAX must be a whole number of connections")
+    .min(
+      MIN_POOL_MAX,
+      `DATABASE_POOL_MAX must be at least ${MIN_POOL_MAX}: the job queue holds one connection for its listener and needs another to work`,
+    ),
+);
+
 const ConfigSchema = z.object({
   DATABASE_URL: databaseUrlSchema,
   STORE_DISPLAY_NAMES: envBool(true),
@@ -141,6 +164,7 @@ const ConfigSchema = z.object({
   AUDIT_RETENTION_DAYS: auditRetentionDaysSchema,
   PR_RETENTION_DAYS: prRetentionDaysSchema,
   AUDIT_PRIVATE_WRITES: envBool(true),
+  DATABASE_POOL_MAX: poolMaxSchema,
 });
 
 // ---------------------------------------------------------------------------
@@ -209,6 +233,7 @@ export function loadConfig(
       auditRetentionDays: parsed.data.AUDIT_RETENTION_DAYS,
       prRetentionDays: parsed.data.PR_RETENTION_DAYS,
       auditPrivateWrites: parsed.data.AUDIT_PRIVATE_WRITES,
+      poolMax: parsed.data.DATABASE_POOL_MAX,
     },
   };
 }

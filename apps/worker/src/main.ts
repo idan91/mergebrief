@@ -175,6 +175,7 @@ async function main(): Promise<void> {
   const handle = createDb(config.value.databaseUrl, {
     onError: (error) =>
       logger.warn("postgres pool error (idle client)", { err: error }),
+    maxConnections: config.value.poolMax,
   });
   // Grants name their key by env-var NAME (keyRef); resolution is lazy, per
   // url-box job, a deployment with no url-box traffic never needs the key.
@@ -250,6 +251,7 @@ async function main(): Promise<void> {
     log: logger,
     migrateCommand: resolveMigrateCommand(env[RUNTIME_MARKER_VAR]),
     concurrency: config.value.concurrency,
+    poolMax: config.value.poolMax,
     // helpers.abortSignal is graphile's graceful-shutdown signal: SIGTERM
     // aborts an in-flight stream (job back to queue) instead of riding out the
     // kill grace into a stuck job lock. helpers.job carries the attempt counts

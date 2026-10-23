@@ -20,19 +20,28 @@ export interface AppDatabase {
   readonly [INTERNAL]: DbCore;
 }
 
+/** A pool checkout waits this long, then fails, instead of queueing forever. */
+const POOL_CONNECTION_TIMEOUT_MS = 10_000;
+
 export interface CreateDbOptions {
   /**
    * pg's `Pool` emits `'error'` for IDLE clients, and with no listener the
    * process dies. Omitted, the error is dropped and the next query fails loudly.
    */
   readonly onError?: (error: Error) => void;
+  /** Absent, node-postgres's own default of 10 applies. */
+  readonly maxConnections?: number;
 }
 
 export function createDb(
   connectionString: string,
   options: CreateDbOptions = {},
 ): AppDatabase {
-  const pool = new Pool({ connectionString });
+  const pool = new Pool({
+    connectionString,
+    max: options.maxConnections,
+    connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
+  });
   // Forward only the error: pg also passes the PoolClient, whose options carry the password.
   pool.on("error", (error) => {
     options.onError?.(error);

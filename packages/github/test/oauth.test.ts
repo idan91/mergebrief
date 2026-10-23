@@ -4,6 +4,7 @@
 // and that a thrown exchange or refresh error never leaks what it carried.
 import { describe, expect, it, vi } from "vitest";
 import {
+  createOAuthApp,
   exchangeWebFlowCode,
   listUserInstallations,
   refreshUserToken,
@@ -145,7 +146,40 @@ describe("refreshUserToken", () => {
     expect(serialized).not.toContain(REFRESH_TOKEN);
     expect(serialized).not.toContain("SECRET_VALUE");
   });
+
+  it("gives up on a GitHub that never answers once the timeout passes", async () => {
+    const app = createOAuthApp({
+      clientId: "Iv1.client",
+      clientSecret: "SECRET_VALUE",
+      requestTimeoutMs: SHORT_TIMEOUT_MS,
+    });
+    vi.stubGlobal("fetch", vi.fn(stubHangingFetch));
+
+    const result = await refreshUserToken(app, { refreshToken: REFRESH_TOKEN });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
+    const serialized = JSON.stringify(result.error);
+    expect(serialized).not.toContain(REFRESH_TOKEN);
+    expect(serialized).not.toContain("SECRET_VALUE");
+  });
 });
+
+const SHORT_TIMEOUT_MS = 20;
+
+/** A GitHub that never answers: only the request's abort signal ends it. */
+function stubHangingFetch(
+  _input: string | URL | Request,
+  init?: RequestInit,
+): Promise<Response> {
+  return new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => {
+      reject(init.signal?.reason);
+    });
+  });
+}
 
 // `listUserInstallations` builds its own user-scoped Octokit, which reads the
 // global `fetch` at call time, so it is stubbed at the HTTP boundary.

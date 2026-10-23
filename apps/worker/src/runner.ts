@@ -29,6 +29,8 @@ export interface StartWorkerOptions {
    * the schedule and leave a green build with nothing sweeping. */
   readonly crontab: string;
   readonly concurrency?: number;
+  /** graphile's own pool size (`DATABASE_POOL_MAX`); omitted = graphile's 10. */
+  readonly poolMax?: number;
   /** The logging-boundary adapter, omitted = graphile's console default. */
   readonly logger?: GraphileLogger;
   /** false = check-only (refuse boot when the schema is behind instead of
@@ -100,6 +102,9 @@ export async function startWorker(
 
   if (options.logger !== undefined) {
     runnerOptions.logger = options.logger;
+  }
+  if (options.poolMax !== undefined) {
+    runnerOptions.maxPoolSize = options.poolMax;
   }
 
   return run(runnerOptions);

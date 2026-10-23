@@ -436,6 +436,9 @@ importers:
 
   packages/github:
     dependencies:
+      '@octokit/core':
+        specifier: ^6.1.6
+        version: 6.1.6
       '@octokit/oauth-app':
         specifier: ^7.1.6
         version: 7.1.6

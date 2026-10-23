@@ -339,6 +339,38 @@ describe("config: MERGEBRIEF_AUTO_MIGRATE", () => {
   });
 });
 
+describe("config: DATABASE_POOL_MAX", () => {
+  it("defaults the pool to ten connections", () => {
+    const unsetConfig = ok(loadConfig({ DATABASE_URL: VALID_URL }));
+    const blankConfig = ok(
+      loadConfig({ DATABASE_URL: VALID_URL, DATABASE_POOL_MAX: "" }),
+    );
+    expect(unsetConfig.poolMax).toBe(10);
+    expect(blankConfig.poolMax).toBe(10);
+  });
+
+  it("takes a positive whole number of connections", () => {
+    const config = ok(
+      loadConfig({ DATABASE_URL: VALID_URL, DATABASE_POOL_MAX: "25" }),
+    );
+    expect(config.poolMax).toBe(25);
+  });
+
+  it.each([
+    ["1", /at least 2/],
+    ["0", /at least 2/],
+    ["-3", /at least 2/],
+    ["2.5", /whole number/],
+    ["many", /DATABASE_POOL_MAX/],
+  ])("refuses a pool size of %s", (raw, reason) => {
+    const error = err(
+      loadConfig({ DATABASE_URL: VALID_URL, DATABASE_POOL_MAX: raw }),
+    );
+    expect(error.issues.join("; ")).toMatch(/^DATABASE_POOL_MAX: /);
+    expect(error.issues.join("; ")).toMatch(reason);
+  });
+});
+
 // TLS explicit-or-refuse. A non-loopback host with no `sslmode`
 // DSN parameter refuses boot: the operator must choose; loopback and
 // unix-socket DSNs are exempt. Any EXPLICIT sslmode (including `disable`)

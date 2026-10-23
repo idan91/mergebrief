@@ -549,6 +549,13 @@ replicas there are N fetches an hour, N `update.available` lines per
 release, and `GET /api/version` can differ between replicas for up to an
 hour after a release.
 
+Each replica also opens its own Postgres pool of up to `DATABASE_POOL_MAX`
+connections (default 10), and each worker opens two such pools, one for
+its store and one for its job queue. The api replica count plus twice the
+worker count, times that value, must stay under Postgres `max_connections`.
+The value is at least 2: the job queue keeps one connection for its
+listener for the life of the worker and needs another to claim jobs.
+
 How requests spread under compose alone: `web` calls `http://api:3001`,
 Docker's DNS answers that name with every replica in rotating order, and
 each new connection lands on the next one. Requests sent back to back
@@ -565,7 +572,7 @@ and point `MERGEBRIEF_API_ORIGIN` at it. `web` is stateless as well, a
 server render plus the `/api/*` proxy, so it can be scaled the same way
 behind the proxy that already terminates TLS for it.
 
-Each api opens its own connection pool (up to ten connections), so count
+Each api opens its own pool of up to `DATABASE_POOL_MAX` connections, so count
 replicas against Postgres's `max_connections` the way you count workers.
 GitHub webhooks arrive through `web` and land on whichever replica
 answers; the debounce that folds pushes into one job is a queue key in
