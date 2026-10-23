@@ -114,7 +114,7 @@ doesn't apply: several loaders distinguish unset from empty.
 |---|---|---|
 | `GITHUB_APP_ID` | api, worker | numeric App id |
 | `GITHUB_APP_PRIVATE_KEY` / `..._PATH` | api, worker | exactly ONE of the two |
-| `GITHUB_WEBHOOK_SECRET` | api | HMAC for inbound deliveries |
+| `GITHUB_WEBHOOK_SECRET` | api, worker | HMAC for inbound deliveries, which only `api` receives; the worker parses the same GitHub config. `openssl rand -hex 32`; under 32 characters refuses boot |
 | `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api, worker | reviewer login; the worker uses them to revoke a dead grant's token at GitHub after its hourly sweep, and refuses boot without them |
 | `GITHUB_APP_SLUG` | api, worker | optional; the App's URL name, the last segment of `https://github.com/apps/<slug>`. Set, Home links a viewer with no reachable installation to its install page; unset, that line carries no link |
 | `MERGEBRIEF_URL_BOX_TOKEN` | api, worker | optional; an operator GitHub token (fine-grained, Contents and Pull requests read) that reads a pasted private PR the App is not installed on, tried only after the reviewer's own token is denied. It serves only the GitHub account that owns it, so make it on your own account. `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` is no longer read: set, it logs one warning and is ignored |
@@ -437,14 +437,17 @@ original Host, and don't strip `X-Request-Id` if you correlate logs
 present a session or a token. Every delivery is accepted or rejected purely
 on the HMAC-SHA256 signature computed with `GITHUB_WEBHOOK_SECRET`
 (constant-time compared; failures log `evt: webhook.verify.fail`). There is
-no IP allow-list, no second factor, and no rate limit in front of it (only a
-1 MB body cap).
+no IP allow-list and no second factor. The app ships no rate limit either,
+only a 1 MB body cap: put one in your proxy
+([below](#rate-limit-the-webhook-route-at-your-proxy)).
 
 So the secret IS the perimeter for that route:
 
-- Generate it, never invent it: `openssl rand -hex 32`. A guessable secret
-  lets anyone on the internet enqueue generation jobs against your provider
-  key. This is the one setting where weakness costs money.
+- Generate it, never invent it: `openssl rand -hex 32`. `api` and `worker`
+  refuse to boot on a secret under 32 characters, counted after trimming
+  whitespace. A guessable secret lets anyone on the internet enqueue
+  generation jobs against your provider key. This is the one setting where
+  weakness costs money.
 - Use a DIFFERENT secret per instance (dev, staging, production), and rotate
   by changing it in GitHub's App settings and `.env` together, then running
   `docker compose up -d`, which recreates `api` with the new value (`api`
@@ -454,6 +457,68 @@ So the secret IS the perimeter for that route:
   means one side didn't move.
 - Never put it in the config YAML or a command line; `.env` (or your secret
   store) only.
+
+#### Rate-limit the webhook route at your proxy
+
+The signature check is what keeps forged deliveries out; a proxy limit only
+sheds a flood of them before it reaches `api`. Scope the limit to the
+webhook path and size it for GitHub's bursts: closing or labelling many
+pull requests at once sends one delivery per pull request, and they all
+arrive from a small pool of GitHub addresses, so a per-address limit sees
+them as one caller. GitHub never retries a failed delivery on its own, so
+a delivery the limit refuses is lost until you redeliver it from the App's
+**Advanced** tab.
+
+nginx ships the limiter (`ngx_http_limit_req_module`):
+
+```nginx
+# in the http {} block
+limit_req_zone $binary_remote_addr zone=github_webhook:10m rate=10r/s;
+
+server {
+    # ...listen, TLS, and your `location /` proxying to 127.0.0.1:3000...
+
+    location = /api/webhooks/github {
+        limit_req zone=github_webhook burst=100 nodelay;
+        limit_req_status 429;
+        proxy_set_header Host $host;
+        proxy_pass http://127.0.0.1:3000;
+    }
+}
+```
+
+`burst=100 nodelay` lets a burst of 100 through at once and refills at
+10 a second; without `limit_req_status`, nginx refuses with a 503. If nginx
+sits behind another load balancer, key the zone on the real client address
+(`set_real_ip_from` and `real_ip_header`), or every caller shares one bucket.
+
+Core Caddy has no rate limiter. The third-party
+[`caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit) module adds
+one, built into a custom binary with `xcaddy`:
+
+```sh
+xcaddy build --with github.com/mholt/caddy-ratelimit
+```
+
+```caddyfile
+brief.example.com {
+    rate_limit {
+        zone github_webhook {
+            match {
+                path /api/webhooks/github
+            }
+            key    {remote_host}
+            events 600
+            window 1m
+        }
+    }
+    reverse_proxy 127.0.0.1:3000
+}
+```
+
+A refused request gets a 429 with `Retry-After`. Behind another load
+balancer, key on `{client_ip}` with Caddy's `trusted_proxies` set instead of
+`{remote_host}`.
 
 ### 4. A tunnel is production exposure
 

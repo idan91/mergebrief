@@ -58,7 +58,7 @@ openssl genrsa -out "$work/app.pem" 2048 2>/dev/null
 cat > "$work/env" <<EOF
 DATABASE_URL=postgres://smoke:smoke@pg-$$:5432/smoke?sslmode=disable
 GITHUB_APP_ID=1
-GITHUB_WEBHOOK_SECRET=smoke-webhook-secret
+GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
 GITHUB_OAUTH_CLIENT_ID=Iv1.smoke
 GITHUB_OAUTH_CLIENT_SECRET=smoke-oauth-secret
 SESSION_KEY_V1=$(openssl rand -base64 32)

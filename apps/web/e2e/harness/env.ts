@@ -209,7 +209,8 @@ export function buildApiServerEnv(): Record<string, string> {
     MERGEBRIEF_API_PORT: String(E2E_API_PORT),
     GITHUB_APP_ID: "1",
     GITHUB_APP_PRIVATE_KEY_PATH: writeThrowawayGitHubKey(),
-    GITHUB_WEBHOOK_SECRET: "e2e-webhook-secret",
+    GITHUB_WEBHOOK_SECRET:
+      "7a1d4f8c2e6b0a3d5f9c1e7b4a8d2f6c0e3b9a5d1f7c4e8b2a6d0f3c9e5b1a7d",
     GITHUB_OAUTH_CLIENT_ID: "Iv1.e2e-client-id",
     GITHUB_OAUTH_CLIENT_SECRET: "e2e-client-secret",
     GITHUB_APP_SLUG: E2E_APP_SLUG,

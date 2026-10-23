@@ -58,6 +58,9 @@ export interface ConfigError {
 /** GitHub lower-cases an App's name and joins its words with hyphens. */
 const APP_SLUG_PATTERN = /^[a-z0-9-]+$/;
 
+/** Counted after trimming; the HMAC still keys on the value as set. */
+const WEBHOOK_SECRET_MIN_LENGTH = 32;
+
 const REMOVED_REVIEWERS_KEY = "MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS";
 const REMOVED_REVIEWERS_WARNING = `${REMOVED_REVIEWERS_KEY} is no longer read: the URL-box token now serves only the GitHub account that owns it. Remove the key.`;
 
@@ -86,7 +89,10 @@ const ConfigSchema = z
       .optional(),
     GITHUB_WEBHOOK_SECRET: z
       .string({ error: "GITHUB_WEBHOOK_SECRET is required" })
-      .min(1, "GITHUB_WEBHOOK_SECRET is required"),
+      .refine(
+        (value) => value.trim().length >= WEBHOOK_SECRET_MIN_LENGTH,
+        `GITHUB_WEBHOOK_SECRET must be at least ${WEBHOOK_SECRET_MIN_LENGTH} characters; generate one with openssl rand -hex 32`,
+      ),
     GITHUB_OAUTH_CLIENT_ID: z
       .string({ error: "GITHUB_OAUTH_CLIENT_ID is required" })
       .min(1, "GITHUB_OAUTH_CLIENT_ID is required"),

@@ -18,10 +18,15 @@ import type { Result } from "types/utils";
 const VALID_PEM =
   "-----BEGIN RSA PRIVATE KEY-----\nfake-pem-contents\n-----END RSA PRIVATE KEY-----\n";
 
+const WEBHOOK_SECRET =
+  "9f2c4e6a8b0d1f3e5a7c9b2d4f6e8a0c1b3d5f7e9a2c4b6d8f0e1a3c5b7d9f2e";
+const WEBHOOK_SECRET_REFUSAL =
+  "GITHUB_WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET must be at least 32 characters; generate one with openssl rand -hex 32";
+
 const BASE_ENV = {
   GITHUB_APP_ID: "123456",
   GITHUB_APP_PRIVATE_KEY: VALID_PEM,
-  GITHUB_WEBHOOK_SECRET: "webhook-secret",
+  GITHUB_WEBHOOK_SECRET: WEBHOOK_SECRET,
   GITHUB_OAUTH_CLIENT_ID: "client-id",
   GITHUB_OAUTH_CLIENT_SECRET: "client-secret",
   GITHUB_APP_SLUG: "mergebrief-dev",
@@ -48,7 +53,7 @@ describe("loadConfig", () => {
     const config = ok(loadConfig(BASE_ENV));
     expect(config.appId).toBe(123456);
     expect(config.privateKey).toBe(VALID_PEM);
-    expect(config.webhookSecret).toBe("webhook-secret");
+    expect(config.webhookSecret).toBe(WEBHOOK_SECRET);
     expect(config.oauthClientId).toBe("client-id");
     expect(config.oauthClientSecret).toBe("client-secret");
     expect(config.appSlug).toBe("mergebrief-dev");
@@ -132,6 +137,41 @@ describe("loadConfig", () => {
     ).toBe(true);
   });
 
+  describe("the webhook secret floor", () => {
+    it.each([
+      { name: "31 characters", secret: "a".repeat(31) },
+      { name: "32 spaces", secret: " ".repeat(32) },
+      {
+        name: "31 characters padded to 40",
+        secret: `    ${"a".repeat(31)}     `,
+      },
+    ])("refuses a secret of $name", ({ secret }) => {
+      const error = err(
+        loadConfig({ ...BASE_ENV, GITHUB_WEBHOOK_SECRET: secret }),
+      );
+
+      expect(error.issues).toEqual([WEBHOOK_SECRET_REFUSAL]);
+    });
+
+    it("keeps a 32-character secret verbatim, surrounding whitespace included", () => {
+      const secret = ` ${"b".repeat(32)}\n`;
+      const config = ok(
+        loadConfig({ ...BASE_ENV, GITHUB_WEBHOOK_SECRET: secret }),
+      );
+
+      expect(config.webhookSecret).toBe(secret);
+    });
+
+    it("still reports a missing secret as required", () => {
+      const { GITHUB_WEBHOOK_SECRET: _secret, ...env } = BASE_ENV;
+      const error = err(loadConfig(env));
+
+      expect(error.issues).toEqual([
+        "GITHUB_WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET is required",
+      ]);
+    });
+  });
+
   it("never echoes the private key or either secret in error output", () => {
     const secretEnv = {
       ...BASE_ENV,
@@ -141,6 +181,7 @@ describe("loadConfig", () => {
     };
     const error = err(loadConfig(secretEnv));
     const joined = [error.message, ...error.issues].join(" ");
+    expect(error.issues).toContain(WEBHOOK_SECRET_REFUSAL);
     expect(joined).not.toContain(VALID_PEM);
     expect(joined).not.toContain("super-webhook-secret");
     expect(joined).not.toContain("super-oauth-secret");

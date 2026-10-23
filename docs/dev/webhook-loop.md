@@ -33,7 +33,7 @@ GITHUB_APP_ID=123456
 # Exactly ONE of the next two: the inline PEM, or a path to the .pem file:
 GITHUB_APP_PRIVATE_KEY_PATH=./secrets/dev-app.private-key.pem
 # GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
-GITHUB_WEBHOOK_SECRET=replace-with-openssl-rand-hex-32
+GITHUB_WEBHOOK_SECRET=<output-of-openssl-rand-hex-32>
 GITHUB_OAUTH_CLIENT_ID=Iv1.replace-me
 GITHUB_OAUTH_CLIENT_SECRET=replace-me
 GITHUB_APP_SLUG=your-app-slug

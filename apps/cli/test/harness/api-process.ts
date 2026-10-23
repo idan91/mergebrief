@@ -94,7 +94,8 @@ function buildEnv(options: ApiProcessOptions): NodeJS.ProcessEnv {
     MERGEBRIEF_GITHUB_STUB_ORIGIN: options.githubStubOrigin,
     GITHUB_APP_ID: "1",
     GITHUB_APP_PRIVATE_KEY: options.githubPrivateKey,
-    GITHUB_WEBHOOK_SECRET: "test-webhook-secret",
+    GITHUB_WEBHOOK_SECRET:
+      "3c8e1a5f7b9d2e4c6a8f0b1d3e5c7a9f2b4d6e8a0c1f3b5d7e9a2c4f6b8d0e1a",
     GITHUB_OAUTH_CLIENT_ID: "Iv1.test-client-id",
     GITHUB_OAUTH_CLIENT_SECRET: "test-client-secret",
     GITHUB_APP_SLUG: "mergebrief-test",

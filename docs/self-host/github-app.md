@@ -90,7 +90,7 @@ that still lists it.
   localhost URL.
 - **ngrok is the recommended tunnel** (`ngrok http PORT`). Set both
   the App's **Webhook URL** and the OAuth callback to the ngrok public URL, and set a
-  **Webhook secret** (`openssl rand -hex 32`). The callback path is
+  **Webhook secret** (`openssl rand -hex 32`; boot refuses one under 32 characters). The callback path is
   `<PUBLIC_BASE_URL>/api/auth/github/callback`, one namespace with the webhook receiver
   (`/api/webhooks/github`), so both App URLs share the `/api` shape.
   > **Upgrading an older App registration:** the callback path moved from
