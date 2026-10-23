@@ -12,11 +12,20 @@ import {
   type RepoId,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
+import { AccessLevels } from "types/access-levels";
 import { startTestTracing, type TestTracing } from "logging/testing";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
-import { buildAuthDeps, INSTALLATION_ID, KEY_REF, SECRET } from "./fixtures";
+import {
+  buildAuthDeps,
+  createKeyProvider,
+  INSTALLATION_ID,
+  KEY_REF,
+  REVIEWER_ID,
+  SECRET,
+} from "./fixtures";
+import { seedApiToken, seedSignIn } from "./sign-in";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
 import {
   openPerTestPglite,
@@ -1344,6 +1353,71 @@ describe("POST /api/webhooks/github", () => {
       expect(res.status).toBe(200);
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
     });
+  });
+});
+
+describe("POST /api/webhooks/github, github_app_authorization", () => {
+  const keyProvider = createKeyProvider();
+  let app: ApiApp;
+
+  beforeEach(() => {
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(keyProvider),
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+  });
+
+  function makeRevokedPayload(senderId: number): Record<string, unknown> {
+    return { action: "revoked", sender: { id: senderId, login: "octocat" } };
+  }
+
+  it("revoked wipes the user's session, token and grant and answers 200", async () => {
+    await seedSignIn(harness.handle, keyProvider);
+    await seedApiToken(harness.handle, keyProvider, AccessLevels.READ);
+
+    const res = await deliver(
+      app,
+      "github_app_authorization",
+      makeRevokedPayload(REVIEWER_ID),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "auth_session")).toBe(0);
+    expect(await countRows(harness, "api_token")).toBe(0);
+    expect(await countRows(harness, "github_grant")).toBe(0);
+  });
+
+  it("an unsigned revoked delivery is 401 and deletes nothing", async () => {
+    await seedSignIn(harness.handle, keyProvider);
+
+    const res = await deliver(
+      app,
+      "github_app_authorization",
+      makeRevokedPayload(REVIEWER_ID),
+      { secret: "wrong-secret" },
+    );
+
+    expect(res.status).toBe(401);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+    expect(await countRows(harness, "github_grant")).toBe(1);
+  });
+
+  it("the wiped cookie answers 401 on the next request", async () => {
+    const { cookie } = await seedSignIn(harness.handle, keyProvider);
+
+    await deliver(
+      app,
+      "github_app_authorization",
+      makeRevokedPayload(REVIEWER_ID),
+    );
+    const res = await app.request("/api/version", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+
+    expect(res.status).toBe(401);
   });
 });
 

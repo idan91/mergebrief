@@ -26,6 +26,7 @@ import {
   PullRequestActions,
   parseWebhookEvent,
   verifyWebhookSignature,
+  type ParsedGitHubAppAuthorizationEvent,
   type ParsedInstallationEvent,
   type ParsedInstallationRepositoriesEvent,
   type ParsedPullRequestEvent,
@@ -40,6 +41,7 @@ import {
   createIngestRoutines,
   parseTenantContext,
   createPurgeRoutines,
+  deleteUserCredentials,
   type AppDatabase,
   type UncoveredWork,
   type PullRequestLifecycle,
@@ -384,6 +386,22 @@ async function handleInstallationRepositories(
   await createPurgeRoutines(handle, ctx).purgeRepos(event.repoIdsRemoved);
 }
 
+/** A revoked authorization ends every sign-in of that user; GitHub already killed the token. */
+async function handleAppAuthorization(
+  handle: AppDatabase,
+  event: ParsedGitHubAppAuthorizationEvent,
+  log: Logger,
+): Promise<void> {
+  const deleted = await deleteUserCredentials(handle, event.userId);
+  log.info("app authorization revoked, credentials deleted", {
+    evt: "authorization.revoked",
+    reviewerId: String(event.userId),
+    sessions: deleted.sessions,
+    tokens: deleted.tokens,
+    grants: deleted.grants,
+  });
+}
+
 async function dispatch(
   handle: AppDatabase,
   event: ParsedWebhookEvent,
@@ -392,6 +410,9 @@ async function dispatch(
 ): Promise<void> {
   if (event.kind === ParsedWebhookEventKinds.IGNORED) {
     return;
+  }
+  if (event.kind === ParsedWebhookEventKinds.GITHUB_APP_AUTHORIZATION) {
+    return handleAppAuthorization(handle, event, log);
   }
   // The tenant boundary: the branded installation id from the SIGNED payload,
   // revalidated through persistence's context schema.

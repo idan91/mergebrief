@@ -10,6 +10,10 @@ import {
   reviewerIdSchema,
 } from "../ids";
 import type { Mutable, Result, ValueOf } from "types/utils";
+import {
+  GitHubAppAuthorizationActions,
+  type GitHubAppAuthorizationAction,
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies (kebab-case values; SHOUT_CASE keys).
@@ -21,6 +25,7 @@ export const ParsedWebhookEventKinds = {
   INSTALLATION: "installation",
   INSTALLATION_REPOSITORIES: "installation-repositories",
   IGNORED: "ignored",
+  GITHUB_APP_AUTHORIZATION: "github-app-authorization",
 } as const;
 export type ParsedWebhookEventKind = ValueOf<typeof ParsedWebhookEventKinds>;
 
@@ -80,6 +85,7 @@ const HANDLED_EVENT_NAMES = {
   PULL_REQUEST_REVIEW: "pull_request_review",
   INSTALLATION: "installation",
   INSTALLATION_REPOSITORIES: "installation_repositories",
+  GITHUB_APP_AUTHORIZATION: "github_app_authorization",
 } as const satisfies Record<string, WebhookEventName>;
 
 // ---------------------------------------------------------------------------
@@ -156,6 +162,13 @@ export interface ParsedInstallationRepositoriesEvent {
   readonly repoIdsRemoved: readonly RepoId[];
 }
 
+/** A user revoked their authorization of the App; it carries no installation. */
+export interface ParsedGitHubAppAuthorizationEvent {
+  readonly kind: typeof ParsedWebhookEventKinds.GITHUB_APP_AUTHORIZATION;
+  readonly action: GitHubAppAuthorizationAction;
+  readonly userId: ReviewerId;
+}
+
 export interface IgnoredWebhookEvent {
   readonly kind: typeof ParsedWebhookEventKinds.IGNORED;
   readonly eventName: string;
@@ -168,7 +181,8 @@ export type ParsedWebhookEvent =
   | ParsedPullRequestReviewEvent
   | ParsedInstallationEvent
   | ParsedInstallationRepositoriesEvent
-  | IgnoredWebhookEvent;
+  | IgnoredWebhookEvent
+  | ParsedGitHubAppAuthorizationEvent;
 
 // ---------------------------------------------------------------------------
 // Errors.
@@ -253,6 +267,10 @@ const installationRepositoriesEventSchema = z.object({
   installation: installationRefSchema,
   repositories_added: z.array(z.object({ id: repoIdSchema })).default([]),
   repositories_removed: z.array(z.object({ id: repoIdSchema })).default([]),
+});
+
+const githubAppAuthorizationEventSchema = z.object({
+  sender: z.object({ id: reviewerIdSchema }),
 });
 
 // Minimal probe for the raw `action`, used to (a) classify before a full parse
@@ -427,6 +445,26 @@ function parseInstallationRepositories(
   };
 }
 
+function parseGitHubAppAuthorization(
+  payload: unknown,
+): Result<ParsedWebhookEvent, EventParseError> {
+  const parsed = githubAppAuthorizationEventSchema.safeParse(payload);
+  if (!parsed.success) {
+    return invalidPayload(
+      HANDLED_EVENT_NAMES.GITHUB_APP_AUTHORIZATION,
+      parsed.error,
+    );
+  }
+  return {
+    ok: true,
+    value: {
+      kind: ParsedWebhookEventKinds.GITHUB_APP_AUTHORIZATION,
+      action: GitHubAppAuthorizationActions.REVOKED,
+      userId: parsed.data.sender.id,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Entry point.
 // ---------------------------------------------------------------------------
@@ -496,6 +534,12 @@ export function parseWebhookEvent(
         return { ok: true, value: ignored(eventName, rawAction) };
       }
       return parseInstallationRepositories(payload, action);
+    }
+    case HANDLED_EVENT_NAMES.GITHUB_APP_AUTHORIZATION: {
+      if (rawAction !== GitHubAppAuthorizationActions.REVOKED) {
+        return { ok: true, value: ignored(eventName, rawAction) };
+      }
+      return parseGitHubAppAuthorization(payload);
     }
     default: {
       return { ok: true, value: ignored(eventName, rawAction) };

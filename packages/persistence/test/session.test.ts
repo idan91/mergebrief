@@ -8,7 +8,7 @@ import { createSessionAuth, sweepExpiredSessions } from "../src/auth/session";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import { isReviewerId, type ReviewerId } from "../src/types";
-import { brandWith, registerSharedPglite } from "./helpers";
+import { brandWith, createQueryLog, registerSharedPglite } from "./helpers";
 
 const shared = registerSharedPglite();
 
@@ -127,6 +127,22 @@ describe("createSessionAuth.deleteSession, last-referent lifecycle", () => {
 });
 
 describe("createSessionAuth.deleteSessionsForReviewer", () => {
+  it("locks the candidate grants in id order", async () => {
+    const log = await createQueryLog();
+    await seedSession(log.handle, {});
+    await seedSession(log.handle, { hash: OTHER_HASH });
+    log.statements.length = 0;
+
+    await createSessionAuth(log.handle).deleteSessionsForReviewer(REVIEWER_ID);
+
+    const lock = log.statements.find(
+      (statement) =>
+        statement.includes('from "github_grant"') &&
+        statement.endsWith("for update"),
+    );
+    expect(lock).toMatch(/order by "github_grant"\."id" for update$/);
+  });
+
   it("deletes every session of the reviewer and orphan-cleans the grant", async () => {
     const grant = await seedSession(shared.handle, {});
     await seedSession(shared.handle, { hash: OTHER_HASH, grant });

@@ -17,6 +17,7 @@ import {
   type ParsedWebhookEvent,
   type PullRequestAction,
 } from "../src/webhook/events";
+import { GitHubAppAuthorizationActions } from "../src/webhook/types";
 import type { Result } from "types/utils";
 
 function jsonFixture(name: string): unknown {
@@ -504,6 +505,42 @@ describe("parseWebhookEvent, installation_repositories", () => {
     expect(event.action).toBe(InstallationRepositoriesActions.ADDED);
     expect(event.repoIdsAdded).toEqual([186853007n]);
     expect(event.repoIdsRemoved).toEqual([]);
+  });
+});
+
+describe("parseWebhookEvent, github_app_authorization", () => {
+  it("parses revoked with the GitHub user who revoked", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "github_app_authorization",
+        payload: jsonFixture("github_app_authorization.revoked.json"),
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.GITHUB_APP_AUTHORIZATION) {
+      throw new Error(`expected github-app-authorization, got ${event.kind}`);
+    }
+    expect(event.action).toBe(GitHubAppAuthorizationActions.REVOKED);
+    expect(event.userId).toBe(1n);
+  });
+
+  it("ignores another github_app_authorization action", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "github_app_authorization",
+        payload: { action: "granted", sender: { id: 1 } },
+      }),
+    );
+    expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
+  });
+
+  it("errors on a revoked payload without a sender id", () => {
+    const error = expectErr(
+      parseWebhookEvent({
+        eventName: "github_app_authorization",
+        payload: { action: "revoked", sender: { login: "octocat" } },
+      }),
+    );
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
   });
 });
 

@@ -101,6 +101,7 @@ export type {
   ParsedPullRequestReviewEvent,
   ParsedInstallationEvent,
   ParsedInstallationRepositoriesEvent,
+  ParsedGitHubAppAuthorizationEvent,
   IgnoredWebhookEvent,
   EventParseError,
   EventParseErrorCode,
@@ -109,6 +110,10 @@ export type {
   InstallationAction,
   InstallationRepositoriesAction,
 } from "./webhook/events";
+export {
+  GitHubAppAuthorizationActions,
+  type GitHubAppAuthorizationAction,
+} from "./webhook/types";
 
 // --- operations/: what we CALL on GitHub (REST + GraphQL) -------------------
 

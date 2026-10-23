@@ -46,10 +46,15 @@ On the registration "what events would you like to subscribe to?" screen, check 
 - **Pull request**: the trigger for brief generation (open + every push/synchronize).
 - **Pull request review**: a reviewer submitting → advances their Checkpoint.
 
-**`installation` and `installation_repositories` are NOT on that list, and don't need to
-be.** GitHub delivers those to every App automatically (install/uninstall, repos added or
-removed), regardless of subscription. The checkbox list only covers optional per-resource
-events. So two checkboxes is the complete set.
+**`installation`, `installation_repositories` and `github_app_authorization` are NOT on
+that list, and don't need to be.** GitHub delivers those to every App automatically
+(install/uninstall, repos added or removed, a user revoking the App), regardless of
+subscription. The checkbox list only covers optional per-resource events. So two checkboxes
+is the complete set.
+
+When a user revokes MergeBrief from their GitHub settings, `github_app_authorization` arrives
+and MergeBrief deletes every sign-in session, API token and stored GitHub credential that user
+held, and records it in the audit log. They sign in again to come back.
 
 ## Reviewer sign-in
 

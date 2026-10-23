@@ -354,6 +354,11 @@ export type {
   ApiTokenMetadataRow,
 } from "./auth/token";
 
+// One GitHub user's whole credential set, for the revoke webhook: unscoped,
+// keyed by the user, audited in its own transaction.
+export { deleteUserCredentials } from "./auth/credentials";
+export type { UserCredentialsDeleted } from "./auth/credentials";
+
 // GitHub OAuth token crypto: AES-256-GCM behind the key-provider interface.
 export {
   encryptToken,

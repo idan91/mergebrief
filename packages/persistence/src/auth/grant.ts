@@ -200,6 +200,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
     },
 
     async retireGrant(grantId, now) {
+      // Lock order sessions, tokens, grant: `deleteUserCredentials` keeps it too.
       return db.transaction(async (tx) => {
         const sessions = await tx
           .delete(authSession)
@@ -308,8 +309,9 @@ export async function deleteOrphanedGrants(
   if (grantIds.length === 0) {
     return 0;
   }
-  // De-dup (several referents may share one grant) + stable order so
-  // concurrent callers acquire overlapping locks in the same sequence.
+  // De-dup (several referents may share one grant). The lock's ORDER BY, not
+  // this sort, is what makes concurrent callers lock overlapping grants in
+  // the same sequence: Postgres takes the IN-list's rows in plan order.
   const unique = [...new Set(grantIds)].toSorted(compareGrantIds);
   // Lock the candidate grants FIRST: two transactions deleting DIFFERENT
   // referents would each see the other's still-visible row under READ COMMITTED
@@ -319,6 +321,7 @@ export async function deleteOrphanedGrants(
     .select({ id: githubGrant.id })
     .from(githubGrant)
     .where(inArray(githubGrant.id, unique))
+    .orderBy(githubGrant.id)
     .for("update");
   const deleted = await executor
     .delete(githubGrant)
