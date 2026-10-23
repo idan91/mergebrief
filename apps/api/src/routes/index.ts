@@ -21,7 +21,10 @@ import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { OwnedOperatorToken } from "github";
 import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
 import { createTtlCache } from "./ttl-cache";
-import type { InstallationBinder } from "../access/types";
+import type {
+  InstallationBinder,
+  InstallationPresenceReader,
+} from "../access/types";
 import type { UpdateCheck, VersionSnapshot } from "../update-check";
 import { capabilitiesRoute } from "./capabilities";
 import { spendRoute } from "./spend";
@@ -49,6 +52,10 @@ export interface AppDeps {
   readonly auth: AuthDeps;
   /** The App's GitHub on one Installation, bound per request that needs it. */
   readonly bindInstallationGitHub: InstallationBinder;
+  /** The App-JWT presence read a destructive webhook event confirms against. */
+  readonly readInstallationPresence: InstallationPresenceReader;
+  /** Overrides the confirmation bound, so a test can time out in milliseconds. */
+  readonly webhookConfirmationTimeoutMs?: number;
   /** Exposed by GET /api/version for skew visibility. */
   readonly serverVersion?: string;
   /** The release check `GET /api/version` reads; absent answers `{version}` only. */

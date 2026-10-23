@@ -18,10 +18,12 @@ import {
 import { PrStates } from "types/pull-requests";
 import { AccessLevels } from "types/access-levels";
 import { startTestTracing, type TestTracing } from "logging/testing";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
+  brandInstallationId,
   buildAuthDeps,
   createKeyProvider,
   INSTALLATION_ID,
@@ -30,7 +32,10 @@ import {
   SECRET,
 } from "./fixtures";
 import { seedApiToken, seedSignIn } from "./sign-in";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  buildFakeInstallationDeps,
+  UNUSED_INSTALLATION_DEPS,
+} from "./reviewer-github";
 import {
   openPerTestPglite,
   registerSharedPglite,
@@ -927,28 +932,6 @@ describe("POST /api/webhooks/github", () => {
     });
   });
 
-  it("installation deleted → 200, tenant purged, delete audit entry appended", async () => {
-    await seedPullRequest(harness, BigInt(REPO_ID), 2);
-    expect(await countRows(harness, "pull_request")).toBe(1);
-
-    const res = await deliver(
-      app,
-      "installation",
-      installationPayload("deleted"),
-    );
-    expect(res.status).toBe(200);
-
-    expect(await countRows(harness, "pull_request")).toBe(0);
-    const audits = await harness.raw(
-      "select operation, target_type, installation_id from audit_log where operation = 'delete'",
-    );
-    expect(audits).toHaveLength(1);
-    expect(audits[0]?.["target_type"]).toBe("installation");
-    expect(String(audits[0]?.["installation_id"])).toBe(
-      String(INSTALLATION_ID),
-    );
-  });
-
   it("installation created → 200, no writes", async () => {
     const res = await deliver(
       app,
@@ -960,30 +943,238 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "audit_log")).toBe(0);
   });
 
-  it("installation_repositories removed → purges only that repo's PRs", async () => {
-    await seedPullRequest(harness, BigInt(REPO_ID), 2);
-    await seedPullRequest(harness, BigInt(OTHER_REPO_ID), 5);
-    expect(await countRows(harness, "pull_request")).toBe(2);
+  describe("destructive events confirm with GitHub before purging", () => {
+    const INSTALLATION = brandInstallationId(BigInt(INSTALLATION_ID));
+    const REPO = brandRepoId(BigInt(REPO_ID));
+    const OTHER_REPO = brandRepoId(BigInt(OTHER_REPO_ID));
+    let fake: FakeGitHub;
+    let capture: ReturnType<typeof testLogging>;
+    let confirming: ApiApp;
 
-    const res = await deliver(
-      app,
-      "installation_repositories",
-      installationRepositoriesPayload({
+    beforeEach(() => {
+      fake = makeFakeGitHub();
+      capture = testLogging();
+      confirming = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+      });
+    });
+
+    function findWarnLines(): ReturnType<typeof capture.lines> {
+      return capture.lines().filter((line) => line["level"] === "warn");
+    }
+
+    async function readDeleteAudits(): Promise<Record<string, unknown>[]> {
+      return harness.raw(
+        "select target_type, installation_id from audit_log where operation = 'delete'",
+      );
+    }
+
+    async function readRemainingRepoIds(): Promise<string[]> {
+      const rows = await harness.raw(
+        "select repo_id from pull_request order by repo_id",
+      );
+      return rows.map((row) => String(row["repo_id"]));
+    }
+
+    function makeRemovalPayload(repoIds: number[]): Record<string, unknown> {
+      return installationRepositoriesPayload({
         action: "removed",
-        removedRepoIds: [REPO_ID],
-      }),
-    );
-    expect(res.status).toBe(200);
+        removedRepoIds: repoIds,
+      });
+    }
 
-    const remaining = await harness.raw("select repo_id from pull_request");
-    expect(remaining).toHaveLength(1);
-    expect(String(remaining[0]?.["repo_id"])).toBe(String(OTHER_REPO_ID));
-    // The repo purge emitted its own delete audit entry.
-    const audits = await harness.raw(
-      "select target_type from audit_log where operation = 'delete'",
-    );
-    expect(audits).toHaveLength(1);
-    expect(audits[0]?.["target_type"]).toBe("repo");
+    it("installation deleted and gone at GitHub purges the tenant", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.removeInstallation(INSTALLATION);
+
+      const res = await deliver(
+        confirming,
+        "installation",
+        installationPayload("deleted"),
+      );
+      expect(res.status).toBe(200);
+
+      expect(await countRows(harness, "pull_request")).toBe(0);
+      const audits = await readDeleteAudits();
+      expect(audits).toHaveLength(1);
+      expect(audits[0]?.["target_type"]).toBe("installation");
+      expect(String(audits[0]?.["installation_id"])).toBe(
+        String(INSTALLATION_ID),
+      );
+    });
+
+    it("installation deleted while GitHub lists it keeps the tenant and warns", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+
+      const res = await deliver(
+        confirming,
+        "installation",
+        installationPayload("deleted"),
+      );
+      expect(res.status).toBe(200);
+
+      expect(await countRows(harness, "pull_request")).toBe(1);
+      expect(await readDeleteAudits()).toHaveLength(0);
+      const warnings = findWarnLines();
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.["evt"]).toBeUndefined();
+      expect(warnings[0]?.["installationId"]).toBe(String(INSTALLATION_ID));
+    });
+
+    it("installation deleted with GitHub unreachable answers 502 unrecorded", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.failOn("readInstallationPresence", FakeFailures.SERVER_ERROR);
+
+      const res = await deliver(
+        confirming,
+        "installation",
+        installationPayload("deleted"),
+      );
+      expect(res.status).toBe(502);
+      expect(await res.json()).toMatchObject({ code: "github-unavailable" });
+
+      expect(await countRows(harness, "pull_request")).toBe(1);
+      expect(await readDeleteAudits()).toHaveLength(0);
+      expect(await countRows(harness, "webhook_delivery")).toBe(0);
+    });
+
+    it("a redelivery after a 502 purges once GitHub answers gone", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.failOn("readInstallationPresence", FakeFailures.SERVER_ERROR);
+      const payload = installationPayload("deleted");
+      expect((await deliver(confirming, "installation", payload)).status).toBe(
+        502,
+      );
+
+      const recovered = makeFakeGitHub();
+      recovered.removeInstallation(INSTALLATION);
+      const later = createApp({
+        logger: testLogger(),
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(recovered),
+      });
+      const res = await deliver(later, "installation", payload);
+
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "pull_request")).toBe(0);
+    });
+
+    it("a replayed deletion after a reinstall is a no-op without error", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.removeInstallation(INSTALLATION);
+      const payload = installationPayload("deleted");
+      expect((await deliver(confirming, "installation", payload)).status).toBe(
+        200,
+      );
+
+      const res = await deliver(
+        confirming,
+        "installation",
+        makeDistinctEvent(payload),
+      );
+
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "pull_request")).toBe(0);
+    });
+
+    it("a confirmation past its bound answers 502 and purges nothing", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      const hanging = createApp({
+        logger: testLogger(),
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+        readInstallationPresence: () => new Promise(() => undefined),
+        webhookConfirmationTimeoutMs: 20,
+      });
+
+      const res = await deliver(
+        hanging,
+        "installation",
+        installationPayload("deleted"),
+      );
+
+      expect(res.status).toBe(502);
+      expect(await countRows(harness, "pull_request")).toBe(1);
+      expect(await countRows(harness, "webhook_delivery")).toBe(0);
+    });
+
+    it("repos removed purges only the repos GitHub no longer lists", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      await seedPullRequest(harness, BigInt(OTHER_REPO_ID), 5);
+      fake.setInstallationRepoIds(INSTALLATION, [OTHER_REPO]);
+
+      const res = await deliver(
+        confirming,
+        "installation_repositories",
+        makeRemovalPayload([REPO_ID, OTHER_REPO_ID]),
+      );
+      expect(res.status).toBe(200);
+
+      expect(await readRemainingRepoIds()).toEqual([String(OTHER_REPO_ID)]);
+      const audits = await readDeleteAudits();
+      expect(audits).toHaveLength(1);
+      expect(audits[0]?.["target_type"]).toBe("repo");
+      const warnings = findWarnLines();
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.["evt"]).toBeUndefined();
+      expect(warnings[0]?.["repoIds"]).toEqual([String(OTHER_REPO_ID)]);
+    });
+
+    it("repos removed keeps a repo GitHub still lists", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.setInstallationRepoIds(INSTALLATION, [REPO]);
+
+      const res = await deliver(
+        confirming,
+        "installation_repositories",
+        makeRemovalPayload([REPO_ID]),
+      );
+      expect(res.status).toBe(200);
+
+      expect(await countRows(harness, "pull_request")).toBe(1);
+      expect(await readDeleteAudits()).toHaveLength(0);
+      expect(findWarnLines()).toHaveLength(1);
+    });
+
+    it("repos removed from a gone installation purges every removed repo", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      await seedPullRequest(harness, BigInt(OTHER_REPO_ID), 5);
+      fake.removeInstallation(INSTALLATION);
+
+      const res = await deliver(
+        confirming,
+        "installation_repositories",
+        makeRemovalPayload([REPO_ID, OTHER_REPO_ID]),
+      );
+      expect(res.status).toBe(200);
+
+      expect(await countRows(harness, "pull_request")).toBe(0);
+      expect(findWarnLines()).toHaveLength(0);
+    });
+
+    it("repos removed from an unlistable present installation answers 502", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.failOn("listInstallationRepoIds", FakeFailures.FORBIDDEN);
+
+      const res = await deliver(
+        confirming,
+        "installation_repositories",
+        makeRemovalPayload([REPO_ID]),
+      );
+      expect(res.status).toBe(502);
+      expect(await res.json()).toMatchObject({ code: "github-unavailable" });
+
+      expect(await countRows(harness, "pull_request")).toBe(1);
+      expect(await countRows(harness, "webhook_delivery")).toBe(0);
+    });
   });
 
   it("200s ignored pull_request labeled events without writes", async () => {
@@ -1436,14 +1627,23 @@ describe("webhook delivery dedup", () => {
   let app: ApiApp;
   let capture: ReturnType<typeof testLogging>;
 
+  /** A GitHub that confirms every purge: the installation is gone. */
+  function makeGoneGitHub(): FakeGitHub {
+    const gone = makeFakeGitHub();
+    const installationId = brandInstallationId(BigInt(INSTALLATION_ID));
+    gone.removeInstallation(installationId);
+    return gone;
+  }
+
   beforeEach(() => {
+    const goneGitHub = makeGoneGitHub();
     capture = testLogging({ LOG_LEVEL: "debug" });
     app = createApp({
       logger: capture.logger,
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
-      ...UNUSED_INSTALLATION_DEPS,
+      ...buildFakeInstallationDeps(goneGitHub),
     });
   });
 
@@ -1594,17 +1794,19 @@ describe("webhook delivery dedup", () => {
     expect(await countRows(harness, "webhook_delivery")).toBe(0);
   });
 
+  /** Its own database, and a GitHub that confirms the uninstall. */
   async function openOwnApp(): Promise<{
     own: Awaited<ReturnType<typeof openPerTestPglite>>;
     ownApp: ApiApp;
   }> {
     const own = await openPerTestPglite();
+    const goneGitHub = makeGoneGitHub();
     const ownApp = createApp({
       logger: capture.logger,
       handle: own.handle,
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
-      ...UNUSED_INSTALLATION_DEPS,
+      ...buildFakeInstallationDeps(goneGitHub),
     });
     return { own, ownApp };
   }

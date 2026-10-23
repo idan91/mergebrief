@@ -1,6 +1,8 @@
 import type {
+  GitHubApiError,
   GitHubCallFailure,
   InstallationGitHub,
+  InstallationPresence,
   ReviewerGitHub,
 } from "github";
 import type {
@@ -9,7 +11,7 @@ import type {
   RepoId,
   ScopeContext,
 } from "persistence";
-import type { ValueOf } from "types/utils";
+import type { Result, ValueOf } from "types/utils";
 import type { RequestLogVariables } from "../request-logging";
 import type { ViewerPrincipal } from "../routes/auth/session/types";
 import type { RepoWorld } from "../routes/installation-resolver";
@@ -105,6 +107,11 @@ export interface PullRequestEnv {
 export type InstallationBinder = (
   installationId: InstallationId,
 ) => InstallationGitHub;
+
+/** Whether GitHub still holds the Installation, read on the App's own JWT. */
+export type InstallationPresenceReader = (
+  installationId: InstallationId,
+) => Promise<Result<InstallationPresence, GitHubApiError>>;
 
 export interface InstallationBindingDeps {
   readonly bindInstallationGitHub: InstallationBinder;

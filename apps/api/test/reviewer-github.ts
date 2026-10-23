@@ -220,19 +220,25 @@ function failUnexpected(port: string): never {
   throw new Error(`the ${port} port must not be called in this suite`);
 }
 
-/** The App-credential slice of `AppDeps`: the installation binder. */
-export type InstallationDeps = Pick<AppDeps, "bindInstallationGitHub">;
+/** The App-credential slice of `AppDeps`: the installation binder and presence read. */
+export type InstallationDeps = Pick<
+  AppDeps,
+  "bindInstallationGitHub" | "readInstallationPresence"
+>;
 
-/** For a suite whose routes make no installation-credential call. */
+/** For a suite whose routes make no App-credential call. */
 export const UNUSED_INSTALLATION_DEPS: InstallationDeps = {
   bindInstallationGitHub: () => failUnexpected("installation binding"),
+  readInstallationPresence: () => failUnexpected("installation presence"),
 };
 
-/** The installation binding served by `fake`. */
+/** The installation binding and presence read served by `fake`. */
 export function buildFakeInstallationDeps(fake: FakeGitHub): InstallationDeps {
   return {
     bindInstallationGitHub: (installationId) =>
       fake.bindInstallationGitHub(installationId),
+    readInstallationPresence: (installationId) =>
+      fake.readInstallationPresence(installationId),
   };
 }
 

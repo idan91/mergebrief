@@ -5,25 +5,34 @@
 // Tenancy comes from the SIGNED payload's installation.id, never from a spoofable header.
 //
 // Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
-// rows and enqueue one debounced job, with no model call and no GitHub API call. Natural-key
-// upserts plus graphile job_key replacement make redelivery idempotent. A pull request or
-// review delivery's signature digest is recorded after its dispatch succeeds, and the same
-// signature within 72h is skipped; a failed one records nothing, so its redelivery processes.
-// Concurrent duplicates both process: the seen-set holds no lock, the writes are idempotent.
+// rows and enqueue one debounced job, with no model call and no GitHub API call except the
+// confirmation a destructive event makes before it purges, bounded well inside the budget.
+// Natural-key upserts plus graphile job_key replacement make redelivery idempotent. A pull
+// request or review delivery's signature digest is recorded after its dispatch succeeds, and
+// the same signature within 72h is skipped; a failed one records nothing, so its redelivery
+// processes. Concurrent duplicates both process: the seen-set holds no lock, the writes are
+// idempotent. A destructive event bypasses the seen-set: its confirmation is its replay guard.
 //
 // Status contract:
 //   401 missing or invalid signature (nothing parsed, nothing written)
 //   400 signed but unparseable (bad JSON or malformed handled payload)
 //   413 body exceeds the webhook size cap (nothing read past the cap)
 //   200 handled, deliberately ignored, or already processed within 72h
+//   502 a destructive event GitHub could not confirm (nothing purged, delivery not recorded)
 //   500 unexpected throw, the seen-set read and record included (sanitized body)
 /* oxlint-enable house/comment-run */
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
-import { HttpStatuses, type Mutable, type DraftPolicy } from "types";
+import {
+  HttpStatuses,
+  type DraftPolicy,
+  type Mutable,
+  type Result,
+} from "types";
 import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
 import {
   InstallationActions,
+  InstallationPresences,
   InstallationRepositoriesActions,
   ParsedWebhookEventKinds,
   PullRequestActions,
@@ -37,6 +46,7 @@ import {
   type ParsedWebhookEvent,
   type ParsedWebhookEventKind,
   type PullRequestAction,
+  type GitHubCallFailure,
 } from "github";
 import { traceStep, type Logger, type SpanAttributes } from "logging";
 import {
@@ -51,6 +61,7 @@ import {
   deleteUserCredentials,
   type AppDatabase,
   type DeliveryId,
+  type RepoId,
   type UncoveredWork,
   type PullRequestLifecycle,
   type PullRequestUpsertInput,
@@ -60,12 +71,17 @@ import {
 import { PrStates } from "types/pull-requests";
 import { ApiErrorCodes } from "contract";
 import {
+  BadGateway,
   BadRequest,
   InternalError,
   PayloadTooLarge,
   Unauthorized,
 } from "../shared-errors/api-error";
 import { readRawBodyWithinLimit } from "./read-body";
+import type {
+  InstallationBinder,
+  InstallationPresenceReader,
+} from "../access/types";
 
 export interface WebhookRouteDeps {
   readonly handle: AppDatabase;
@@ -78,7 +94,32 @@ export interface WebhookRouteDeps {
    * misconfigured.
    */
   readonly draftPolicy?: DraftPolicy;
+  /** A removal is confirmed against the installation's own repository list. */
+  readonly bindInstallationGitHub: InstallationBinder;
+  /** An uninstall is confirmed on the App's JWT: a gone installation cannot mint. */
+  readonly readInstallationPresence: InstallationPresenceReader;
+  /** Overrides the confirmation bound, so a test can time out in milliseconds. */
+  readonly webhookConfirmationTimeoutMs?: number;
 }
+
+/** GitHub could not confirm a destructive event; `error` is absent when the bound passed first. */
+interface ConfirmationFailure {
+  readonly error?: GitHubCallFailure;
+}
+
+/** The removed ids GitHub no longer lists, and those it still holds. */
+interface RemovalConfirmation {
+  readonly absent: readonly RepoId[];
+  readonly stillHeld: readonly RepoId[];
+}
+
+const DISPATCHED: Result<void, ConfirmationFailure> = {
+  ok: true,
+  value: undefined,
+};
+
+/** Half of GitHub's 10s delivery budget: the purge and the answer need the rest. */
+const CONFIRMATION_TIMEOUT_MS = 5 * 1000;
 
 /**
  * The `ready_for_review` enqueue window (constant, not a knob): short because
@@ -377,32 +418,131 @@ async function triggerGeneration(
   }
 }
 
+/**
+ * One bound over the whole confirmation, so a removal's two reads cannot
+ * together outlast GitHub's delivery budget.
+ */
+async function confirmWithin<Confirmed>(
+  deps: WebhookRouteDeps,
+  read: () => Promise<Result<Confirmed, GitHubCallFailure>>,
+): Promise<Result<Confirmed, ConfirmationFailure>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bound = new Promise<undefined>((resolve) => {
+    timer = setTimeout(
+      () => resolve(undefined),
+      deps.webhookConfirmationTimeoutMs ?? CONFIRMATION_TIMEOUT_MS,
+    );
+  });
+
+  const answer = await Promise.race([read(), bound]);
+  clearTimeout(timer);
+
+  if (answer === undefined) {
+    return { ok: false, error: {} };
+  }
+  if (!answer.ok) {
+    return { ok: false, error: { error: answer.error } };
+  }
+  return answer;
+}
+
 async function handleInstallation(
-  handle: AppDatabase,
+  deps: WebhookRouteDeps,
   ctx: TenantContext,
   event: ParsedInstallationEvent,
-): Promise<void> {
-  if (event.action === InstallationActions.DELETED) {
-    // App uninstalled → the tenant offboards: createPurgeRoutines deletes all PR
-    // aggregates (children cascade) and emits its own `delete` audit entry, in
-    // one transaction. Sessions and tokens stay; GitHub stops confirming access.
-    await createPurgeRoutines(handle, ctx).purgeInstallation();
+  log: Logger,
+): Promise<Result<void, ConfirmationFailure>> {
+  if (event.action !== InstallationActions.DELETED) {
+    return DISPATCHED; // `created` is a no-op: rows appear lazily with the first PR event.
   }
-  // `created` is a no-op: rows appear lazily when the first PR event lands.
+
+  const presence = await confirmWithin(deps, () =>
+    deps.readInstallationPresence(ctx.installationId),
+  );
+  if (!presence.ok) {
+    return presence;
+  }
+  if (presence.value === InstallationPresences.PRESENT) {
+    log.warn("installation deleted event unconfirmed, github still holds it", {
+      installationId: String(ctx.installationId),
+    });
+    return DISPATCHED;
+  }
+
+  // The tenant offboards: createPurgeRoutines deletes all PR aggregates
+  // (children cascade) and emits its own `delete` audit entry, in one
+  // transaction. Sessions and tokens stay; GitHub stops confirming access.
+  await createPurgeRoutines(deps.handle, ctx).purgeInstallation();
+  return DISPATCHED;
+}
+
+/**
+ * The installation's own list is the authority; one it cannot list is
+ * purged whole only when the App's JWT reads it gone. A suspended
+ * installation lists nothing and still reads present, so it fails here.
+ */
+async function confirmRemovedRepoIds(
+  deps: WebhookRouteDeps,
+  ctx: TenantContext,
+  removed: readonly RepoId[],
+): Promise<Result<RemovalConfirmation, GitHubCallFailure>> {
+  const listed = await deps
+    .bindInstallationGitHub(ctx.installationId)
+    .listInstallationRepoIds();
+  if (listed.ok) {
+    const held = listed.value;
+    return {
+      ok: true,
+      value: {
+        absent: removed.filter((repoId) => !held.has(repoId)),
+        stillHeld: removed.filter((repoId) => held.has(repoId)),
+      },
+    };
+  }
+
+  const presence = await deps.readInstallationPresence(ctx.installationId);
+  if (!presence.ok) {
+    return presence;
+  }
+  if (presence.value === InstallationPresences.GONE) {
+    return { ok: true, value: { absent: removed, stillHeld: [] } };
+  }
+  return listed;
 }
 
 async function handleInstallationRepositories(
-  handle: AppDatabase,
+  deps: WebhookRouteDeps,
   ctx: TenantContext,
   event: ParsedInstallationRepositoriesEvent,
-): Promise<void> {
+  log: Logger,
+): Promise<Result<void, ConfirmationFailure>> {
   if (event.action !== InstallationRepositoriesActions.REMOVED) {
-    return; // `added` is a no-op, same lazy-row reasoning as install-created.
+    return DISPATCHED; // `added` is a no-op, same lazy-row reasoning as install-created.
   }
+
+  const confirmed = await confirmWithin(deps, () =>
+    confirmRemovedRepoIds(deps, ctx, event.repoIdsRemoved),
+  );
+  if (!confirmed.ok) {
+    return confirmed;
+  }
+  if (confirmed.value.stillHeld.length > 0) {
+    log.warn(
+      "repositories removed event unconfirmed, github still lists some",
+      {
+        installationId: String(ctx.installationId),
+        repoIds: confirmed.value.stillHeld.map(String),
+      },
+    );
+  }
+
   // ONE set-based transaction (not a per-repo Promise.all, which would open N
   // concurrent pool connections and could starve the webhook's fast 200 on a
   // large deselection). Per-repo audit granularity is preserved inside it.
-  await createPurgeRoutines(handle, ctx).purgeRepos(event.repoIdsRemoved);
+  await createPurgeRoutines(deps.handle, ctx).purgeRepos(
+    confirmed.value.absent,
+  );
+  return DISPATCHED;
 }
 
 /** A revoked authorization ends every sign-in of that user; GitHub already killed the token. */
@@ -421,30 +561,34 @@ async function handleAppAuthorization(
   });
 }
 
+/** A destructive event's failure is the route's 502; every other event's work throws or completes. */
 async function dispatch(
-  handle: AppDatabase,
+  deps: WebhookRouteDeps,
   event: ParsedWebhookEvent,
   policy: DraftPolicy,
   log: Logger,
-): Promise<void> {
+): Promise<Result<void, ConfirmationFailure>> {
   if (event.kind === ParsedWebhookEventKinds.IGNORED) {
-    return;
+    return DISPATCHED;
   }
   if (event.kind === ParsedWebhookEventKinds.GITHUB_APP_AUTHORIZATION) {
-    return handleAppAuthorization(handle, event, log);
+    await handleAppAuthorization(deps.handle, event, log);
+    return DISPATCHED;
   }
   // The tenant boundary: the branded installation id from the SIGNED payload,
   // revalidated through persistence's context schema.
   const ctx = parseTenantContext({ installationId: event.installationId });
   switch (event.kind) {
     case ParsedWebhookEventKinds.PULL_REQUEST:
-      return handlePullRequest(handle, ctx, event, policy, log);
+      await handlePullRequest(deps.handle, ctx, event, policy, log);
+      return DISPATCHED;
     case ParsedWebhookEventKinds.PULL_REQUEST_REVIEW:
-      return handlePullRequestReview(handle, ctx, event, policy, log);
+      await handlePullRequestReview(deps.handle, ctx, event, policy, log);
+      return DISPATCHED;
     case ParsedWebhookEventKinds.INSTALLATION:
-      return handleInstallation(handle, ctx, event);
+      return handleInstallation(deps, ctx, event, log);
     case ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES:
-      return handleInstallationRepositories(handle, ctx, event);
+      return handleInstallationRepositories(deps, ctx, event, log);
   }
 }
 
@@ -464,11 +608,11 @@ async function dispatchOnce(
   event: ParsedWebhookEvent,
   delivery: VerifiedDelivery,
   log: Logger,
-): Promise<void> {
+): Promise<Result<void, ConfirmationFailure>> {
   const policy = deps.draftPolicy ?? DEFAULT_DRAFT_POLICY;
   const runDispatch = () =>
     traceStep("webhook.dispatch", readEventAttributes(event), () =>
-      dispatch(deps.handle, event, policy, log),
+      dispatch(deps, event, policy, log),
     );
   if (SEEN_SET_EXEMPT_KINDS.has(event.kind)) {
     return runDispatch();
@@ -482,13 +626,31 @@ async function dispatchOnce(
     log.debug("webhook delivery already processed, skipped", {
       evt: "webhook.delivery.duplicate",
     });
-    return;
+    return DISPATCHED;
   }
 
-  await runDispatch();
+  const dispatched = await runDispatch();
+  if (!dispatched.ok) {
+    return dispatched;
+  }
   await deliveries.recordDelivery(
     { signatureDigest, deliveryId: delivery.deliveryId },
     delivery.receivedAt,
+  );
+  return dispatched;
+}
+
+/** Plain warn, no taxonomy row: the 502 itself is what GitHub's redelivery answers. */
+function logUnconfirmed(log: Logger, failure: ConfirmationFailure): void {
+  const fields: Record<string, unknown> = {
+    timedOut: failure.error === undefined,
+  };
+  if (failure.error !== undefined) {
+    fields["code"] = failure.error.code;
+  }
+  log.warn(
+    "destructive event unconfirmed, github unavailable, nothing purged",
+    fields,
   );
 }
 
@@ -568,8 +730,9 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     // Map the event to tenant-scoped writes. Unexpected throw → 500 with a
     // sanitized body, internals never reach the caller.
     const event = parsed.value;
+    let dispatched: Result<void, ConfirmationFailure>;
     try {
-      await dispatchOnce(
+      dispatched = await dispatchOnce(
         deps,
         event,
         { signature, deliveryId, receivedAt },
@@ -581,6 +744,10 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
         err: error,
       });
       throw new InternalError();
+    }
+    if (!dispatched.ok) {
+      logUnconfirmed(log, dispatched.error);
+      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
     return c.json({ ok: true }, HttpStatuses.OK);
   });

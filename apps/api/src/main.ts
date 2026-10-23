@@ -9,6 +9,7 @@ import {
   bindOperatorGitHub,
   bindReviewerGitHub,
   createAppClient,
+  readInstallationPresence,
   resolveOperatorTokenOwner,
 } from "github";
 import { stopTracing } from "logging/tracing";
@@ -117,6 +118,8 @@ async function main(): Promise<void> {
     serverVersion: boot.api.serverVersion,
     bindInstallationGitHub: (installationId) =>
       bindInstallationGitHub(githubApp, installationId),
+    readInstallationPresence: (installationId) =>
+      readInstallationPresence(githubApp, installationId),
     operatorToken,
     githubAppSlug: boot.github.appSlug,
     attachmentQuota: boot.api.attachmentQuota,
