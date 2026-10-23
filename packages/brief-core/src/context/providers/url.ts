@@ -1,7 +1,7 @@
-import { isIP, type LookupFunction } from "node:net";
+import { BlockList, isIP, type LookupFunction } from "node:net";
 import { lookup as dnsLookup, type LookupAddress } from "node:dns";
-import { get as httpGet } from "node:http";
-import { get as httpsGet } from "node:https";
+import { Agent as HttpAgent, get as httpGet } from "node:http";
+import { Agent as HttpsAgent, get as httpsGet } from "node:https";
 import type { Result } from "types/utils";
 import { canonicalizeTicketUrl } from "../references";
 import {
@@ -20,38 +20,62 @@ const LINK_TIMEOUT_MS = 10_000;
 
 const URL_IN_TEXT = /https?:\/\/[^\s<>()[\]"']+/g;
 
-const PRIVATE_IPV4 = [
-  /^0\./, // "this network" / unspecified
-  /^10\./,
-  /^127\./,
-  /^169\.254\./, // link-local incl. cloud metadata 169.254.169.254
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^192\.168\./,
+interface BlockedSubnet {
+  readonly prefix: string;
+  readonly length: number;
+}
+
+const BLOCKED_IPV4_SUBNETS: readonly BlockedSubnet[] = [
+  { prefix: "0.0.0.0", length: 8 }, // "this network"; 0.0.0.0 reaches the local host
+  { prefix: "10.0.0.0", length: 8 },
+  { prefix: "100.64.0.0", length: 10 }, // carrier-grade NAT
+  { prefix: "127.0.0.0", length: 8 },
+  { prefix: "168.63.129.16", length: 32 }, // Azure WireServer, the platform's host agent
+  { prefix: "169.254.0.0", length: 16 }, // link-local incl. cloud metadata 169.254.169.254
+  { prefix: "172.16.0.0", length: 12 },
+  { prefix: "192.0.0.0", length: 24 }, // IETF protocol assignments
+  { prefix: "192.168.0.0", length: 16 },
+  { prefix: "198.18.0.0", length: 15 }, // benchmarking
+  { prefix: "240.0.0.0", length: 4 }, // reserved, incl. broadcast
 ];
 
-function isPrivateAddr(addr: string): boolean {
-  const a = addr.toLowerCase();
-  if (
-    a === "::" || // unspecified
-    a === "::1" || // loopback
-    a.startsWith("fc") || // unique-local fc00::/7
-    a.startsWith("fd") ||
-    a.startsWith("fe80") || // link-local
-    a.startsWith("64:ff9b:") // NAT64 → embeds an IPv4 we can't see here
-  ) {
-    return true;
+const BLOCKED_IPV6_SUBNETS: readonly BlockedSubnet[] = [
+  { prefix: "::", length: 96 }, // unspecified, loopback and IPv4-compatible ::a.b.c.d
+  { prefix: "64:ff9b::", length: 32 }, // NAT64, embeds an IPv4 address
+  { prefix: "fc00::", length: 7 }, // unique-local
+  { prefix: "fe80::", length: 10 }, // link-local
+  { prefix: "fec0::", length: 10 }, // deprecated site-local
+];
+
+function buildBlockedAddresses(): BlockList {
+  const blocked = new BlockList();
+  for (const { prefix, length } of BLOCKED_IPV4_SUBNETS) {
+    blocked.addSubnet(prefix, length, "ipv4");
   }
-  // IPv4-mapped IPv6 (::ffff:a.b.c.d) collapses to the v4 ranges below.
-  const v4 = a.startsWith("::ffff:") ? a.slice("::ffff:".length) : a;
-  return PRIVATE_IPV4.some((re) => re.test(v4));
+  for (const { prefix, length } of BLOCKED_IPV6_SUBNETS) {
+    blocked.addSubnet(prefix, length, "ipv6");
+  }
+  return blocked;
+}
+
+/** An IPv4 rule also matches the IPv4-mapped IPv6 form, in any spelling. */
+const BLOCKED_ADDRESSES = buildBlockedAddresses();
+
+function isBlockedAddress(address: string): boolean {
+  const family = isIP(address);
+  if (family === 0) {
+    return false;
+  }
+  return BLOCKED_ADDRESSES.check(address, family === 6 ? "ipv6" : "ipv4");
 }
 
 /**
  * Synchronous pre-filter for a candidate link. Rejects non-http(s) schemes,
  * embedded credentials (userinfo; almost never a real public reference, and a
- * credential-leak hazard), localhost/`.local`, and literal private IPs. This is
- * a fast gate only; the authoritative SSRF defense is `validatingLookup`, which
- * checks the address at *connect* time and so is immune to DNS-rebinding TOCTOU.
+ * credential-leak hazard), localhost/`.local`, and blocked IP literals. An IP
+ * literal never reaches a lookup, so this is its only gate; a name is checked
+ * again at connect time against every resolved address, which closes DNS
+ * rebinding.
  */
 export function isPublicUrl(raw: string): boolean {
   let url: URL;
@@ -70,38 +94,74 @@ export function isPublicUrl(raw: string): boolean {
   if (host === "localhost" || host.endsWith(".local")) {
     return false;
   }
-  if (isIP(host) && isPrivateAddr(host)) {
+  if (isBlockedAddress(host)) {
     return false;
   }
   return true;
 }
 
-/** A `dns.lookup`-shaped resolver that rejects any private resolved address. */
-const validatingLookup: LookupFunction = (hostname, _options, callback) => {
-  // `{ all: true }` so a host returning several A/AAAA records can't sneak a
-  // private one past us. We connect to exactly the address we validate.
-  dnsLookup(hostname, { all: true }, (err, addresses: LookupAddress[]) => {
-    if (err) {
-      return callback(err, "", 0);
-    }
-    const blocked = addresses.find((a) => isPrivateAddr(a.address));
-    if (blocked) {
-      callback(
-        Object.assign(new Error(`blocked private address ${blocked.address}`), {
-          code: "ESSRFBLOCKED",
-        }),
-        "",
-        0,
-      );
-      return;
-    }
-    const first = addresses[0];
-    if (!first) {
-      return callback(new Error("no address"), "", 0);
-    }
-    callback(null, first.address, first.family);
+/** Every A/AAAA record for a name: `dns.lookup` with `all: true` in production. */
+export type AddressResolver = (
+  hostname: string,
+  callback: (
+    error: NodeJS.ErrnoException | null,
+    addresses: LookupAddress[],
+  ) => void,
+) => void;
+
+function resolveAllAddresses(
+  hostname: string,
+  callback: Parameters<AddressResolver>[1],
+): void {
+  dnsLookup(hostname, { all: true }, callback);
+}
+
+function makeBlockedAddressError(address: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(`blocked private address ${address}`), {
+    code: "ESSRFBLOCKED",
   });
-};
+}
+
+/**
+ * A `dns.lookup`-shaped function that refuses a name when any of its records
+ * is blocked, then answers in the form node asked for: every record under
+ * `all` (node 24's family autoselection), else the first. The socket connects
+ * only to an address this check saw.
+ */
+export function createValidatingLookup(
+  resolve: AddressResolver,
+): LookupFunction {
+  return (hostname, options, callback) => {
+    resolve(hostname, (error, addresses) => {
+      if (error) {
+        callback(error, "", 0);
+        return;
+      }
+      const blocked = addresses.find((record) =>
+        isBlockedAddress(record.address),
+      );
+      if (blocked) {
+        callback(makeBlockedAddressError(blocked.address), "", 0);
+        return;
+      }
+      const first = addresses[0];
+      if (!first) {
+        callback(new Error("no address"), "", 0);
+        return;
+      }
+      if (options.all === true) {
+        callback(null, addresses);
+        return;
+      }
+      callback(null, first.address, first.family);
+    });
+  };
+}
+
+// Own agents: node's env proxy rides only the global ones and would resolve
+// the target past the validating lookup. These pools hold only its sockets.
+const HTTP_LINK_AGENT = new HttpAgent();
+const HTTPS_LINK_AGENT = new HttpsAgent();
 
 /** Strip credentials from a URL for safe logging/display; redact if unparseable. */
 function displayUrl(raw: string): string {
@@ -126,6 +186,7 @@ type FetchTextResult = { text: string } | { error: string };
 function fetchText(
   rawUrl: string,
   signal: AbortSignal,
+  lookup: LookupFunction,
 ): Promise<FetchTextResult> {
   return new Promise((resolve) => {
     let url: URL;
@@ -135,10 +196,12 @@ function fetchText(
       resolve({ error: "malformed URL" });
       return;
     }
-    const get = url.protocol === "https:" ? httpsGet : httpGet;
+    const isHttps = url.protocol === "https:";
+    const get = isHttps ? httpsGet : httpGet;
+    const agent = isHttps ? HTTPS_LINK_AGENT : HTTP_LINK_AGENT;
     const req = get(
       rawUrl,
-      { lookup: validatingLookup, timeout: LINK_TIMEOUT_MS, signal },
+      { agent, lookup, timeout: LINK_TIMEOUT_MS, signal },
       (res) => {
         const status = res.statusCode ?? 0;
         if (status < 200 || status >= 300) {
@@ -192,6 +255,7 @@ export function extractLinks(body: string): string[] {
 async function fetchUrlSnippets(
   query: ContextQuery,
   deps: ContextProviderDeps,
+  lookup: LookupFunction,
 ): Promise<Result<ProviderSnippet[], ContextReadFailure>> {
   const { log, signal } = deps;
   // The primary ticket is the tracker provider's read; never fetch it twice.
@@ -208,7 +272,7 @@ async function fetchUrlSnippets(
         );
         return null;
       }
-      const result = await fetchText(url, signal);
+      const result = await fetchText(url, signal, lookup);
       if ("error" in result) {
         log(`linked context: ${shown} failed (${result.error}), skipping`);
         return null;
@@ -227,8 +291,19 @@ async function fetchUrlSnippets(
   };
 }
 
+export interface UrlContextProviderOptions {
+  readonly resolveAddresses?: AddressResolver;
+}
+
 /** The built-in provider: plain HTTP behind the URLs in the PR description. */
-export const urlContextProvider: ContextProvider = {
-  providerId: ContextProviderTypes.URL,
-  fetch: fetchUrlSnippets,
-};
+export function createUrlContextProvider(
+  options: UrlContextProviderOptions = {},
+): ContextProvider {
+  const lookup = createValidatingLookup(
+    options.resolveAddresses ?? resolveAllAddresses,
+  );
+  return {
+    providerId: ContextProviderTypes.URL,
+    fetch: (query, deps) => fetchUrlSnippets(query, deps, lookup),
+  };
+}

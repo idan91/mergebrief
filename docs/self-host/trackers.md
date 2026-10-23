@@ -40,6 +40,16 @@ Two halves of configuration:
 - **Fresh every run.** No cache; a ticket edited between two generations is
   re-read.
 
+## Links in the description
+
+Beside the primary ticket, the worker fetches up to five other http(s) links
+from the PR description as context, each capped at 20,000 characters. It skips
+a link with credentials in it, a `localhost` or `.local` host, and any private,
+link-local, reserved or cloud-metadata address. A host name is checked again at
+connect time against every address it resolves to. Redirects are not followed.
+Link fetches always connect directly and never use node's env proxy
+(`NODE_USE_ENV_PROXY`).
+
 ## GitHub Issues
 
 Built in, and the default: a repo with no `trackers:` list reads GitHub. Nothing to configure and no config entry: the read runs
