@@ -1,10 +1,14 @@
 // Use real signatures and schema-valid payloads over PGlite with a graphile queue stub.
 // No network, model calls or real Postgres are needed at this boundary.
+import { randomInt } from "node:crypto";
 import { sign } from "@octokit/webhooks-methods";
 import {
   createArtifactStore,
   createEnvKeyProvider,
   createTenantRepository,
+  createWebhookDeliveryStore,
+  DELIVERY_DEDUP_TTL_MS,
+  digestWebhookSignature,
   isPullRequestRowId,
   isRepoId,
   parseTenantContext,
@@ -45,6 +49,7 @@ const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
 const BASE_SHA = "f95f852bd8fca8fcc58a9a2d6c842781e32a215e";
 /** A `run_at` no delivery computes, so one that moved it cannot match. */
 const PINNED_RUN_AT = new Date("2026-01-01T00:00:00Z");
+const HOUR_MS = 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // Helpers.
@@ -72,6 +77,13 @@ interface DeliverOptions {
   readonly secret?: string;
   readonly signature?: string;
   readonly deliveryId?: string;
+}
+
+/** The same event content under a new signature, as a second GitHub event carries. */
+function makeDistinctEvent(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...payload, sender: { id: randomInt(1, 2 ** 31) } };
 }
 
 /** Sign `payload` (over the exact serialized bytes) and POST it. */
@@ -454,33 +466,31 @@ describe("POST /api/webhooks/github", () => {
       await harness.raw("select id, run_at from graphile_worker.jobs"),
     ).toEqual(jobsBefore);
 
-    // Redelivery converges (idempotent no-op when already draft).
-    expect(
-      (
-        await deliver(
-          app,
-          "pull_request",
-          pullRequestPayload({
-            action: "converted_to_draft",
-            draft: true,
-            authorLogin: "author-octocat",
-          }),
-        )
-      ).status,
-    ).toBe(200);
+    // A second conversion event converges (idempotent no-op when already draft).
+    const secondConversion = makeDistinctEvent(
+      pullRequestPayload({
+        action: "converted_to_draft",
+        draft: true,
+        authorLogin: "author-octocat",
+      }),
+    );
+    expect((await deliver(app, "pull_request", secondConversion)).status).toBe(
+      200,
+    );
     const again = await harness.raw("select draft from pull_request");
     expect(again).toHaveLength(1);
     expect(again[0]?.["draft"]).toBe(true);
   });
 
-  it("redelivery increments attempts and keeps the single job's run_at", async () => {
+  it("a second event for one head keeps one attempt and the job's run_at", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
     await harness.raw("update graphile_worker.jobs set run_at = $1", [
       PINNED_RUN_AT.toISOString(),
     ]);
 
-    expect((await deliver(app, "pull_request", payload)).status).toBe(200);
+    const secondEvent = makeDistinctEvent(payload);
+    expect((await deliver(app, "pull_request", secondEvent)).status).toBe(200);
 
     expect(await countRows(harness, "pull_request")).toBe(1);
     const generations = await harness.raw("select attempts from generation");
@@ -1418,6 +1428,284 @@ describe("POST /api/webhooks/github, github_app_authorization", () => {
     });
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe("webhook delivery dedup", () => {
+  const openedPayload = pullRequestPayload({ action: "opened" });
+  let app: ApiApp;
+  let capture: ReturnType<typeof testLogging>;
+
+  beforeEach(() => {
+    capture = testLogging({ LOG_LEVEL: "debug" });
+    app = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: DUMMY_AUTH,
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+  });
+
+  async function pinJobRunAt(): Promise<void> {
+    await harness.raw("update graphile_worker.jobs set run_at = $1", [
+      PINNED_RUN_AT.toISOString(),
+    ]);
+  }
+
+  async function readJobRunAts(): Promise<number[]> {
+    const jobs = await harness.raw("select run_at from graphile_worker.jobs");
+    return jobs.map((job) => epochMs(job["run_at"]));
+  }
+
+  function findDuplicateLines(): ReturnType<typeof capture.lines> {
+    return capture
+      .lines()
+      .filter((line) => line["evt"] === "webhook.delivery.duplicate");
+  }
+
+  it("skips a delivery already processed and logs it at debug", async () => {
+    await deliver(app, "pull_request", openedPayload, {
+      deliveryId: "delivery-first",
+    });
+    await pinJobRunAt();
+
+    const res = await deliver(app, "pull_request", openedPayload, {
+      deliveryId: "delivery-first",
+    });
+
+    expect(res.status).toBe(200);
+    expect(await readJobRunAts()).toEqual([PINNED_RUN_AT.getTime()]);
+    expect(findDuplicateLines()).toEqual([
+      expect.objectContaining({ level: "debug", deliveryId: "delivery-first" }),
+    ]);
+  });
+
+  it("skips a replay whose delivery id header was changed", async () => {
+    await deliver(app, "pull_request", openedPayload, {
+      deliveryId: "delivery-original",
+    });
+    await pinJobRunAt();
+
+    await deliver(app, "pull_request", openedPayload, {
+      deliveryId: "delivery-forged",
+    });
+
+    expect(await readJobRunAts()).toEqual([PINNED_RUN_AT.getTime()]);
+    expect(findDuplicateLines()).toHaveLength(1);
+  });
+
+  it("records a delivery whose id header is malformed and still dedups it", async () => {
+    await deliver(app, "pull_request", openedPayload, {
+      deliveryId: "not a delivery id",
+    });
+    await pinJobRunAt();
+
+    await deliver(app, "pull_request", openedPayload, {
+      deliveryId: "not a delivery id",
+    });
+
+    expect(
+      await harness.raw("select delivery_id from webhook_delivery"),
+    ).toEqual([{ delivery_id: null }]);
+    expect(await readJobRunAts()).toEqual([PINNED_RUN_AT.getTime()]);
+  });
+
+  it("records nothing for an ignored event", async () => {
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "labeled" }),
+    );
+
+    expect(await countRows(harness, "webhook_delivery")).toBe(0);
+  });
+
+  it("processes a delivery recorded past the dedup window", async () => {
+    const signature = await sign(SECRET, JSON.stringify(openedPayload));
+    const signatureDigest = digestWebhookSignature(signature);
+    const pastWindow = new Date(Date.now() - DELIVERY_DEDUP_TTL_MS - HOUR_MS);
+    await createWebhookDeliveryStore(harness.handle).recordDelivery(
+      { signatureDigest },
+      pastWindow,
+    );
+
+    const res = await deliver(app, "pull_request", openedPayload);
+
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+    expect(findDuplicateLines()).toEqual([]);
+  });
+
+  it("processes concurrent duplicates to one idempotent end state", async () => {
+    const responses = await Promise.all([
+      deliver(app, "pull_request", openedPayload),
+      deliver(app, "pull_request", openedPayload),
+    ]);
+
+    expect(responses.map((res) => res.status)).toEqual([200, 200]);
+    expect(await countRows(harness, "pull_request")).toBe(1);
+    expect(await countRows(harness, "generation")).toBe(1);
+    expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+    expect(await countRows(harness, "webhook_delivery")).toBe(1);
+  });
+
+  it("a second identical revoke still wipes a fresh sign-in", async () => {
+    const keyProvider = createKeyProvider();
+    const revoked = { action: "revoked", sender: { id: REVIEWER_ID } };
+    await seedSignIn(harness.handle, keyProvider);
+    await deliver(app, "github_app_authorization", revoked);
+    await seedSignIn(harness.handle, keyProvider);
+
+    const res = await deliver(app, "github_app_authorization", revoked);
+
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "auth_session")).toBe(0);
+    expect(await countRows(harness, "github_grant")).toBe(0);
+    expect(await countRows(harness, "webhook_delivery")).toBe(0);
+  });
+
+  it("a second identical repo removal still purges the re-added repo", async () => {
+    const removed = installationRepositoriesPayload({
+      action: "removed",
+      removedRepoIds: [REPO_ID],
+    });
+    await seedPullRequest(harness, BigInt(REPO_ID), 2);
+    await deliver(app, "installation_repositories", removed);
+    await seedPullRequest(harness, BigInt(REPO_ID), 3);
+
+    const res = await deliver(app, "installation_repositories", removed);
+
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "pull_request")).toBe(0);
+    expect(await countRows(harness, "webhook_delivery")).toBe(0);
+  });
+
+  it("a second identical uninstall still purges the tenant", async () => {
+    const deleted = installationPayload("deleted");
+    await seedPullRequest(harness, BigInt(REPO_ID), 2);
+    await deliver(app, "installation", deleted);
+    await seedPullRequest(harness, BigInt(REPO_ID), 3);
+
+    const res = await deliver(app, "installation", deleted);
+
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "pull_request")).toBe(0);
+    expect(await countRows(harness, "webhook_delivery")).toBe(0);
+  });
+
+  async function openOwnApp(): Promise<{
+    own: Awaited<ReturnType<typeof openPerTestPglite>>;
+    ownApp: ApiApp;
+  }> {
+    const own = await openPerTestPglite();
+    const ownApp = createApp({
+      logger: capture.logger,
+      handle: own.handle,
+      webhookSecret: SECRET,
+      auth: DUMMY_AUTH,
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+    return { own, ownApp };
+  }
+
+  it("answers 500 and writes nothing when the seen-set cannot be read", async () => {
+    const { own, ownApp } = await openOwnApp();
+    await own.raw(
+      "alter table webhook_delivery rename to webhook_delivery_gone",
+    );
+
+    const res = await deliver(ownApp, "pull_request", openedPayload);
+
+    expect(res.status).toBe(500);
+    expect(
+      await own.raw("select count(*)::int as n from pull_request"),
+    ).toEqual([{ n: 0 }]);
+    const failures = capture
+      .lines()
+      .filter((line) => line["evt"] === "webhook.dispatch.fail");
+    expect(failures).toHaveLength(1);
+  });
+
+  it("answers 500 when the record fails, and a redelivery then processes", async () => {
+    const { own, ownApp } = await openOwnApp();
+    await own.raw(
+      "create function refuse_delivery() returns trigger language plpgsql as $$ begin raise exception 'refused'; end $$",
+    );
+    await own.raw(
+      "create trigger refuse_delivery before insert on webhook_delivery for each row execute function refuse_delivery()",
+    );
+    const failed = await deliver(ownApp, "pull_request", openedPayload);
+    await own.raw("drop trigger refuse_delivery on webhook_delivery");
+
+    const redelivered = await deliver(ownApp, "pull_request", openedPayload);
+
+    expect(failed.status).toBe(500);
+    expect(redelivered.status).toBe(200);
+    expect(
+      await own.raw("select count(*)::int as n from webhook_delivery"),
+    ).toEqual([{ n: 1 }]);
+    expect(findDuplicateLines()).toEqual([]);
+  });
+
+  it("processes a revoke redelivered after its first attempt failed", async () => {
+    const { own, ownApp } = await openOwnApp();
+    await seedSignIn(own.handle, createKeyProvider());
+    const revoked = { action: "revoked", sender: { id: REVIEWER_ID } };
+    await own.raw("alter table auth_session rename to auth_session_gone");
+    const failed = await deliver(ownApp, "github_app_authorization", revoked);
+    await own.raw("alter table auth_session_gone rename to auth_session");
+
+    const redelivered = await deliver(
+      ownApp,
+      "github_app_authorization",
+      revoked,
+    );
+
+    expect(failed.status).toBe(500);
+    expect(redelivered.status).toBe(200);
+    expect(
+      await own.raw("select count(*)::int as n from github_grant"),
+    ).toEqual([{ n: 0 }]);
+  });
+
+  it("processes an uninstall redelivered after its first purge failed", async () => {
+    const { own, ownApp } = await openOwnApp();
+    await seedPullRequest(own, BigInt(REPO_ID), 2);
+    await own.raw("alter table audit_log rename to audit_log_gone");
+    const failed = await deliver(
+      ownApp,
+      "installation",
+      installationPayload("deleted"),
+    );
+    await own.raw("alter table audit_log_gone rename to audit_log");
+
+    const redelivered = await deliver(
+      ownApp,
+      "installation",
+      installationPayload("deleted"),
+    );
+
+    expect(failed.status).toBe(500);
+    expect(redelivered.status).toBe(200);
+    expect(
+      await own.raw("select count(*)::int as n from pull_request"),
+    ).toEqual([{ n: 0 }]);
+  });
+
+  it("processes a redelivery of a delivery whose dispatch failed", async () => {
+    const { own, ownApp } = await openOwnApp();
+    await own.raw("alter table pull_request rename to pull_request_poisoned");
+    const failed = await deliver(ownApp, "pull_request", openedPayload);
+    await own.raw("alter table pull_request_poisoned rename to pull_request");
+
+    const redelivered = await deliver(ownApp, "pull_request", openedPayload);
+
+    expect(failed.status).toBe(500);
+    expect(redelivered.status).toBe(200);
+    expect(
+      await own.raw("select count(*)::int as n from pull_request"),
+    ).toEqual([{ n: 1 }]);
   });
 });
 

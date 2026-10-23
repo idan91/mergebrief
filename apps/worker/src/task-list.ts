@@ -4,6 +4,7 @@ import { traceJob } from "./task/job-span";
 import { SWEEP_AUDIT_TASK } from "./task/sweep-audit";
 import { SWEEP_PULL_REQUESTS_TASK } from "./task/sweep-pull-requests";
 import { SWEEP_SESSIONS_TASK } from "./task/sweep-sessions";
+import { SWEEP_WEBHOOK_DELIVERIES_TASK } from "./task/sweep-webhook-deliveries";
 
 export interface WorkerTasks {
   readonly generate: Task;
@@ -11,6 +12,7 @@ export interface WorkerTasks {
   readonly sweepAudit: Task;
   readonly sweepSessions: Task;
   readonly sweepPullRequests: Task;
+  readonly sweepWebhookDeliveries: Task;
 }
 
 export function buildTaskList(tasks: WorkerTasks): TaskList {
@@ -26,6 +28,10 @@ export function buildTaskList(tasks: WorkerTasks): TaskList {
     [SWEEP_PULL_REQUESTS_TASK]: traceJob(
       SWEEP_PULL_REQUESTS_TASK,
       tasks.sweepPullRequests,
+    ),
+    [SWEEP_WEBHOOK_DELIVERIES_TASK]: traceJob(
+      SWEEP_WEBHOOK_DELIVERIES_TASK,
+      tasks.sweepWebhookDeliveries,
     ),
   };
 }

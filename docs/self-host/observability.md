@@ -47,6 +47,7 @@ changes get a breaking-change entry in
 |---|---|---|---|---|
 | `webhook.verify.fail` | warn | api | `deliveryId`, `reqId` | on **sustained rate**: raw hits are internet scanner noise; a sustained rate after a secret rotation means webhook-secret drift |
 | `webhook.dispatch.fail` | error | api | `deliveryId`, `reqId`, `err` | yes: a signed delivery failed to persist/enqueue |
+| `webhook.delivery.duplicate` | debug | api | `deliveryId`, `reqId` | no: a signed pull request or review delivery with a signature already processed in the last 72 hours was skipped; a GitHub manual redelivery of a successful delivery lands here |
 | `job.fail` | error | worker | `prId`, `headSha`, `permanent`, `attempt`, `maxAttempts` | yes |
 | `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt`, `maxAttempts` | **THE worker alert**: the queue gave up on this job, or the head spent its claims and its row ends `failed` as `attempts-exhausted` |
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |

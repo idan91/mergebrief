@@ -33,6 +33,7 @@ What the layout can't show:
 - **Scheduled jobs are instance-wide and worker-only**: each runs on graphile's cron (its `*_CRONTAB` line joined into the runner's `crontab` in `main.ts`) and calls a persistence sweep that takes the handle, never a ctx. Nothing on a request path may call one.
   - `sweep-audit` (daily) calls `sweepAuditLog`; retention is an operator env setting. Unset retention deletes nothing; a window under the 30-day floor is refused.
   - `sweep-sessions` (hourly) calls `sweepExpiredSessions`, then `sweepDeadCredentials` (dead grants, and tokens 30 days past revoke or expiry), always on: an expired session or dead token grants nothing. Each batch hands its orphaned grants over once committed, and the task revokes every one at GitHub in a `finally`, so a later failure still revokes what earlier batches removed. Revokes run three at a time inside a 30-second budget (`REVOKE_BUDGET_MS`) so a GitHub outage cannot hold the job slot; the rest are skipped with one warn naming the count, since the grants are gone and GitHub expires the tokens on its own. A failed revoke warns `grant.revoke.fail` and the sweep stands.
+  - `sweep-webhook-deliveries` (hourly) calls `sweepWebhookDeliveries`, always on: a delivery past the 72-hour window suppresses nothing.
   - `sweep-pull-requests` (daily) calls `sweepClosedPullRequests`; retention is `PR_RETENTION_DAYS`, read by close time across both scope worlds. Unset retention deletes nothing; a window under one day is refused.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema (`startWorker`); the `graphile_worker` schema stays graphile-owned.
 - **One process logger**: `main.ts` builds it; the task takes it via `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every job line; graphile lifecycle logs ride `createGraphileLogFactory`.
@@ -41,7 +42,7 @@ What the layout can't show:
 
 ## Tests
 
-`test/sweep-audit.test.ts`, `test/sweep-sessions.test.ts` and `test/sweep-pull-requests.test.ts` drive the scheduled sweeps over the same PGlite harness.
+`test/sweep-audit.test.ts`, `test/sweep-sessions.test.ts`, `test/sweep-pull-requests.test.ts` and `test/sweep-webhook-deliveries.test.ts` drive the scheduled sweeps over the same PGlite harness.
 
 `test/generate/` = integration, one file per behaviour, via `persistence/testing`'s PGlite harness (real migrations + the graphile_worker stub), a stub `Generator` (canned outputs parsed through the request's own schema, no model calls), and `github/testing`'s fake GitHub behind the real port (no network; url-box jobs seed a real grant). The shared `helpers.ts` holds the stubs, the fake's PR #7 arrangement, `setUpHarness` (a harness per test; `setUpFileHarness` shares one across a file whose tests share no rows) and `makeTask` (the task over the test's harness with stub defaults; a test passes only what it varies). An interleaving the fake cannot arrange wraps the binding a job reads through (`interceptInstallationRepo`). `trigger` drives the real `createIngestRoutines` enqueue and feeds the task the payload read back from the stubbed jobs table.
 

@@ -117,9 +117,10 @@ Two task ids cross from `persistence` to the worker, both in
   job fires once the lease could have lapsed and takes the head over if it did
   (the glossary's Takeover). A head takes at most three claims between
   triggers; the daily generation cap counts started runs instance-wide.
-- **Scheduled sweeps** (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`)
-  are graphile cron entries the worker registers for itself. Nothing enqueues
-  them, and they run instance-wide rather than in one scope.
+- **Scheduled sweeps** (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`,
+  `sweep-webhook-deliveries`) are graphile cron entries the worker registers
+  for itself. Nothing enqueues them, and they run instance-wide rather than in
+  one scope.
 
 Payload shapes change additively: a queued job outlives the release that wrote
 it, so the worker's parser takes a new field as optional.
@@ -141,7 +142,9 @@ webhook events (`packages/github/src/webhook/events.ts`):
 The webhook route (`apps/api/src/routes/webhook.ts`) verifies the HMAC over the
 raw body before parsing anything, takes the Installation from the signed
 payload, upserts and enqueues, and answers 200 without calling GitHub or a
-model. Redelivery is idempotent through natural-key upserts and the job key.
+model. Redelivery is idempotent through natural-key upserts and the job key,
+and a pull request or review signature the route processed in the last 72
+hours is skipped.
 
 **The Entry comment.** One branded comment per pull request carries the deep
 link to the Brief. On each settled head the worker deletes its previous comment

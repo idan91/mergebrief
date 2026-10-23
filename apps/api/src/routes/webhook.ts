@@ -6,14 +6,17 @@
 //
 // Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
 // rows and enqueue one debounced job, with no model call and no GitHub API call. Natural-key
-// upserts plus graphile job_key replacement make redelivery idempotent with no dedup here.
+// upserts plus graphile job_key replacement make redelivery idempotent. A pull request or
+// review delivery's signature digest is recorded after its dispatch succeeds, and the same
+// signature within 72h is skipped; a failed one records nothing, so its redelivery processes.
+// Concurrent duplicates both process: the seen-set holds no lock, the writes are idempotent.
 //
 // Status contract:
 //   401 missing or invalid signature (nothing parsed, nothing written)
 //   400 signed but unparseable (bad JSON or malformed handled payload)
 //   413 body exceeds the webhook size cap (nothing read past the cap)
-//   200 handled or deliberately ignored
-//   500 unexpected throw (sanitized body; internals stay in the log)
+//   200 handled, deliberately ignored, or already processed within 72h
+//   500 unexpected throw, the seen-set read and record included (sanitized body)
 /* oxlint-enable house/comment-run */
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
@@ -32,6 +35,7 @@ import {
   type ParsedPullRequestEvent,
   type ParsedPullRequestReviewEvent,
   type ParsedWebhookEvent,
+  type ParsedWebhookEventKind,
   type PullRequestAction,
 } from "github";
 import { traceStep, type Logger, type SpanAttributes } from "logging";
@@ -39,10 +43,14 @@ import {
   UncoveredWorks,
   createTenantRepository,
   createIngestRoutines,
+  createWebhookDeliveryStore,
+  digestWebhookSignature,
+  isDeliveryId,
   parseTenantContext,
   createPurgeRoutines,
   deleteUserCredentials,
   type AppDatabase,
+  type DeliveryId,
   type UncoveredWork,
   type PullRequestLifecycle,
   type PullRequestUpsertInput,
@@ -82,6 +90,17 @@ const READY_FLIP_DEBOUNCE_SECONDS = 10;
 
 /** Hard cap for public webhook bodies: enough for GitHub JSON, bounded for DoS. */
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
+
+/**
+ * Kinds that bypass the seen-set. A revoke or an uninstall can legitimately
+ * repeat byte for byte, and their handlers are idempotent.
+ */
+const SEEN_SET_EXEMPT_KINDS: ReadonlySet<ParsedWebhookEventKind> = new Set([
+  ParsedWebhookEventKinds.IGNORED,
+  ParsedWebhookEventKinds.GITHUB_APP_AUTHORIZATION,
+  ParsedWebhookEventKinds.INSTALLATION,
+  ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES,
+]);
 
 /**
  * The `pull_request` actions that always (re)queue a generation. `closed` is
@@ -429,6 +448,50 @@ async function dispatch(
   }
 }
 
+/** A verified delivery: its signature digest keys the seen-set. */
+interface VerifiedDelivery {
+  readonly signature: string;
+  readonly deliveryId: DeliveryId | undefined;
+  readonly receivedAt: Date;
+}
+
+/**
+ * Dispatch an event unless the seen-set holds its signature from within the
+ * window, then record it. Every seen-set failure throws to the route's 500.
+ */
+async function dispatchOnce(
+  deps: WebhookRouteDeps,
+  event: ParsedWebhookEvent,
+  delivery: VerifiedDelivery,
+  log: Logger,
+): Promise<void> {
+  const policy = deps.draftPolicy ?? DEFAULT_DRAFT_POLICY;
+  const runDispatch = () =>
+    traceStep("webhook.dispatch", readEventAttributes(event), () =>
+      dispatch(deps.handle, event, policy, log),
+    );
+  if (SEEN_SET_EXEMPT_KINDS.has(event.kind)) {
+    return runDispatch();
+  }
+
+  const deliveries = createWebhookDeliveryStore(deps.handle);
+  const signatureDigest = digestWebhookSignature(delivery.signature);
+  if (
+    await deliveries.hasRecentDelivery(signatureDigest, delivery.receivedAt)
+  ) {
+    log.debug("webhook delivery already processed, skipped", {
+      evt: "webhook.delivery.duplicate",
+    });
+    return;
+  }
+
+  await runDispatch();
+  await deliveries.recordDelivery(
+    { signatureDigest, deliveryId: delivery.deliveryId },
+    delivery.receivedAt,
+  );
+}
+
 /** The parsed event's own vocabulary only, never payload text. */
 function readEventAttributes(event: ParsedWebhookEvent): SpanAttributes {
   const attributes: SpanAttributes = { "mergebrief.webhook.kind": event.kind };
@@ -445,9 +508,10 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
   app.post("/github", async (c) => {
     // Delivery ids are untrusted before signature verification. Bind only bounded GUID-shaped
     // values for operator correlation, preventing log injection and volume inflation.
+    const receivedAt = new Date();
     const rawDeliveryId = c.req.header("x-github-delivery");
     const deliveryId =
-      rawDeliveryId !== undefined && /^[\w-]{1,64}$/.test(rawDeliveryId)
+      rawDeliveryId !== undefined && isDeliveryId(rawDeliveryId)
         ? rawDeliveryId
         : undefined;
     const log =
@@ -477,7 +541,8 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
       span.setAttributes({ "mergebrief.verified": checked.ok });
       return checked;
     });
-    if (!verified.ok) {
+    const signatureRefused = !verified.ok || signature === undefined;
+    if (signatureRefused) {
       // Warn, not error, raw hits are scanner noise; a SUSTAINED rate
       // (secret drift after rotation) is what an operator alerts on.
       log.warn("webhook signature verification failed", {
@@ -504,13 +569,11 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     // sanitized body, internals never reach the caller.
     const event = parsed.value;
     try {
-      await traceStep("webhook.dispatch", readEventAttributes(event), () =>
-        dispatch(
-          deps.handle,
-          event,
-          deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
-          log,
-        ),
+      await dispatchOnce(
+        deps,
+        event,
+        { signature, deliveryId, receivedAt },
+        log,
       );
     } catch (error) {
       log.error("webhook dispatch failed", {

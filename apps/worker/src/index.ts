@@ -23,8 +23,8 @@ export {
 } from "./task/generate";
 export type { GenerateTaskDeps } from "./task/generate";
 
-// The scheduled jobs (graphile cron): audit retention, expired sessions and
-// pull request retention.
+// The scheduled jobs (graphile cron): audit retention, expired sessions,
+// pull request retention and webhook delivery expiry.
 export {
   createSweepAuditTask,
   SWEEP_AUDIT_CRONTAB,
@@ -43,6 +43,12 @@ export {
   SWEEP_SESSIONS_TASK,
 } from "./task/sweep-sessions";
 export type { SweepSessionsTaskDeps } from "./task/sweep-sessions";
+export {
+  createSweepWebhookDeliveriesTask,
+  SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
+  SWEEP_WEBHOOK_DELIVERIES_TASK,
+} from "./task/sweep-webhook-deliveries";
+export type { SweepWebhookDeliveriesTaskDeps } from "./task/sweep-webhook-deliveries";
 
 // Job-payload boundary (the shared `GenerateJobPayload` handshake).
 export { parseGeneratePayload } from "./task/payload";

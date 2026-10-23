@@ -5,13 +5,15 @@ import { readPayloadTraceparent } from "./payload";
 import type { SWEEP_AUDIT_TASK } from "./sweep-audit";
 import type { SWEEP_PULL_REQUESTS_TASK } from "./sweep-pull-requests";
 import type { SWEEP_SESSIONS_TASK } from "./sweep-sessions";
+import type { SWEEP_WEBHOOK_DELIVERIES_TASK } from "./sweep-webhook-deliveries";
 
 /** Every task id the worker registers, queued and scheduled. */
 type WorkerTaskId =
   | QueueTask
   | typeof SWEEP_AUDIT_TASK
   | typeof SWEEP_SESSIONS_TASK
-  | typeof SWEEP_PULL_REQUESTS_TASK;
+  | typeof SWEEP_PULL_REQUESTS_TASK
+  | typeof SWEEP_WEBHOOK_DELIVERIES_TASK;
 
 const MESSAGING_SYSTEM = "graphile_worker";
 

@@ -42,6 +42,7 @@ function buildRecordingTaskList(generate: Task): TaskList {
     sweepAudit: failUnexpectedTask,
     sweepSessions: failUnexpectedTask,
     sweepPullRequests: failUnexpectedTask,
+    sweepWebhookDeliveries: failUnexpectedTask,
   });
 }
 

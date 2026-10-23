@@ -44,6 +44,10 @@ import {
   createSweepSessionsTask,
   SWEEP_SESSIONS_CRONTAB,
 } from "./task/sweep-sessions";
+import {
+  createSweepWebhookDeliveriesTask,
+  SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
+} from "./task/sweep-webhook-deliveries";
 import { startWorker } from "./runner";
 import { buildTaskList } from "./task-list";
 import { buildToolAccessWarning } from "./tool-access";
@@ -251,6 +255,10 @@ async function main(): Promise<void> {
     retentionDays: config.value.prRetentionDays,
     log: logger,
   });
+  const sweepWebhookDeliveries = createSweepWebhookDeliveriesTask({
+    handle,
+    log: logger,
+  });
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
@@ -272,12 +280,14 @@ async function main(): Promise<void> {
       sweepAudit: () => sweepAudit(),
       sweepSessions: () => sweepSessions(),
       sweepPullRequests: () => sweepPullRequests(),
+      sweepWebhookDeliveries: () => sweepWebhookDeliveries(),
     }),
     // Unset retention → a retention job still runs and deletes nothing.
     crontab: [
       SWEEP_AUDIT_CRONTAB,
       SWEEP_SESSIONS_CRONTAB,
       SWEEP_PULL_REQUESTS_CRONTAB,
+      SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
     ].join("\n"),
     // graphile's lifecycle logs flow through the logging boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),
