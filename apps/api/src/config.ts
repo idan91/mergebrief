@@ -20,8 +20,8 @@ import { DEFAULT_UPDATE_CHECK_URL } from "./update-check/consts";
 export const DEFAULT_API_HOST = "127.0.0.1";
 export const DEFAULT_API_PORT = 3001;
 
-/** The env var name the reviewer session tokens seal under. */
-export const SESSION_KEY_REF = "SESSION_KEY_V1";
+/** The env var NAME new GitHub tokens seal under when `SESSION_KEY_REF` is unset. */
+const DEFAULT_SESSION_KEY_REF = "SESSION_KEY_V1";
 
 export const ConfigErrorCodes = {
   INVALID: "invalid",
@@ -47,6 +47,8 @@ export interface ApiConfig {
   readonly attachmentQuota: UploadQuotaLimits;
   /** `MERGEBRIEF_OUT_DIR`, as written; never set in production. */
   readonly localBriefsDir?: string;
+  /** `SESSION_KEY_REF`: the env var NAME sign-in and refresh seal under. */
+  readonly sessionKeyRef: string;
 }
 
 const TRUE_TOKENS: ReadonlySet<string> = new Set(["true", "1", "yes", "on"]);
@@ -110,6 +112,25 @@ function parseEnvPositiveInt(defaultValue: number): z.ZodType<number> {
   );
 }
 
+// A ref names a variable, so a value shaped like key material is refused
+// before it could be logged as a name.
+const ENV_VAR_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+
+const SessionKeyRefSchema = z.preprocess(
+  (value) => {
+    if (value === undefined || value === "") {
+      return DEFAULT_SESSION_KEY_REF;
+    }
+    return value;
+  },
+  z
+    .string()
+    .regex(
+      ENV_VAR_NAME_PATTERN,
+      "must name an env var, such as SESSION_KEY_V2",
+    ),
+);
+
 const PortSchema = z
   .string()
   .refine((value) => /^\d+$/.test(value), "MERGEBRIEF_API_PORT must be a port")
@@ -157,6 +178,7 @@ const ConfigSchema = z.object({
   MERGEBRIEF_OUT_DIR: z.string().optional(),
   MERGEBRIEF_RUNTIME: z.string().optional(),
   NODE_ENV: z.string().optional(),
+  SESSION_KEY_REF: SessionKeyRefSchema,
 });
 type ParsedConfig = z.infer<typeof ConfigSchema>;
 
@@ -232,6 +254,7 @@ export function loadConfig(
       windowMs:
         value.MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES * MS_PER_MINUTE,
     },
+    sessionKeyRef: value.SESSION_KEY_REF,
   };
 
   const localBriefsDir = readLocalBriefsDir(value);

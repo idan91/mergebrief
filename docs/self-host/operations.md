@@ -450,6 +450,54 @@ the row. Signing out deletes the session at once, and revoking the App on
 github.com deletes every credential that user held; neither waits for the
 sweep.
 
+## Tokens at rest
+
+The only secret MergeBrief stores is each signed-in user's GitHub access and
+refresh token pair, on its `github_grant` row. Session cookies and API tokens
+are stored as SHA-256 hashes only, so a database copy cannot replay them.
+
+The pair is encrypted with AES-256-GCM under the key held in an env var, with
+a fresh random IV for every token. The row's `key_ref` column names that env
+var. Each ciphertext is also bound to where it lives: its grant row's id, its
+column and its `key_ref` are authenticated with it, so a ciphertext copied
+into another row or column, or relabelled with another `key_ref`, no longer
+decrypts.
+
+One rule covers every stored token the session key cannot open, access or
+refresh, whatever the cause: a key that changed or was removed, or a
+ciphertext moved into the wrong row, column or `key_ref`. The request that
+needs it answers 500, the session is kept, and the api logs
+`token.decrypt.fail` at error. An access token fails at the user's next
+GitHub call, a refresh token when the access token next needs a refresh, and
+either keeps failing until the key matches again, the user signs out, or the
+session expires. If user A's encrypted access token is copied into user B's
+row, B's GitHub-backed requests answer 500 and A's token is never sent.
+
+The binding stops ciphertext moving between rows and columns. It does not
+stop someone who can write to the database from inserting a session or API
+token row, or repointing an existing one, at user A's grant: that row then
+acts as A. Guard database write access as closely as the key.
+
+`SESSION_KEY_REF` names the env var new tokens are sealed under, default
+`SESSION_KEY_V1`. It holds a name, never a key: a value that is not an env
+var name refuses boot. Existing rows keep opening under the `key_ref` they
+were sealed with. To rotate the key:
+
+1. Generate a new key (`openssl rand -base64 32`) and set it as
+   `SESSION_KEY_V2` in `.env`, keeping `SESSION_KEY_V1`.
+2. Set `SESSION_KEY_REF=SESSION_KEY_V2`.
+3. Restart `api` and `worker`. New sign-ins and every token refresh now seal
+   under V2. The worker never seals; it opens each grant by its own
+   `key_ref`, so it only needs both keys present.
+4. Keep `SESSION_KEY_V1` set until this returns 0:
+
+   ```sql
+   select count(*) from github_grant where key_ref = 'SESSION_KEY_V1';
+   ```
+
+   Removing it earlier fails every user whose grant still names it with 500
+   and `token.decrypt.fail` until you set it back; nobody is signed out.
+
 ## The audit log
 
 Every action a credential takes is recorded, and so is every refusal of one. Reads

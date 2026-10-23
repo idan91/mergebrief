@@ -223,6 +223,40 @@ describe("loadConfig local Briefs dir", () => {
   });
 });
 
+describe("loadConfig SESSION_KEY_REF", () => {
+  const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
+
+  function readKeyRef(env: Record<string, string>): string {
+    const result = loadConfig(env);
+    if (!result.ok) {
+      throw new Error("expected a valid config");
+    }
+    return result.value.sessionKeyRef;
+  }
+
+  it("reads unset and empty as SESSION_KEY_V1", () => {
+    expect(readKeyRef(BASE)).toBe("SESSION_KEY_V1");
+    expect(readKeyRef({ ...BASE, SESSION_KEY_REF: "" })).toBe("SESSION_KEY_V1");
+  });
+
+  it("takes another env var name", () => {
+    expect(readKeyRef({ ...BASE, SESSION_KEY_REF: "SESSION_KEY_V2" })).toBe(
+      "SESSION_KEY_V2",
+    );
+  });
+
+  it("refuses a value that is not an env var name, such as key material", () => {
+    const keyMaterial = "q3T0n8mLwq0z5d1X2YcFvQ9hG4kP7sRbJ6uE1aZoN0w=";
+    const result = loadConfig({ ...BASE, SESSION_KEY_REF: keyMaterial });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { issues: [expect.stringMatching(/^SESSION_KEY_REF: /)] },
+    });
+    expect(JSON.stringify(result)).not.toContain(keyMaterial);
+  });
+});
+
 describe("loadConfig refusals never echo the value", () => {
   const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
   const MARKER = "leak-marker";
@@ -243,6 +277,7 @@ describe("loadConfig refusals never echo the value", () => {
       "MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES",
       { ...BASE, MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES: MARKER },
     ],
+    ["SESSION_KEY_REF", { ...BASE, SESSION_KEY_REF: MARKER }],
   ])("names %s without its value", (key, env) => {
     const result = loadConfig(env);
     expect(result.ok).toBe(false);

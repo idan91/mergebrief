@@ -25,7 +25,6 @@ import { createApp } from "./app";
 import { createBootLogger, exitOnConfigError, loadBootConfig } from "./boot";
 import { resolveLocalBriefsDir } from "./boot/local-briefs-dir";
 import { ExitCodes } from "./boot/types";
-import { SESSION_KEY_REF } from "./config";
 import { handleHealthRequest } from "./health";
 import { migrateQueue } from "./queue";
 import { createUpdateCheck, type UpdateCheck } from "./update-check";
@@ -49,11 +48,12 @@ async function main(): Promise<void> {
   // Eager: a key changed post-deploy makes every stored ciphertext
   // undecryptable, which the gate reads as a mass logout.
   const keyProvider = createEnvKeyProvider(env);
-  const sessionKey = await keyProvider.resolveKey(SESSION_KEY_REF);
+  const { sessionKeyRef } = boot.api;
+  const sessionKey = await keyProvider.resolveKey(sessionKeyRef);
   if (!sessionKey.ok) {
     exitOnConfigError(
       logger,
-      `api composition: ${SESSION_KEY_REF} is missing or invalid: ${sessionKey.error.code}`,
+      `api composition: ${sessionKeyRef} is missing or invalid: ${sessionKey.error.code}`,
     );
   }
 
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
       oauthClientId: boot.github.oauthClientId,
       oauthClientSecret: boot.github.oauthClientSecret,
       keyProvider,
-      sessionKeyRef: SESSION_KEY_REF,
+      sessionKeyRef,
       publicBaseUrl: boot.api.publicBaseUrl,
       bindReviewerGitHub,
       bindOperatorGitHub,

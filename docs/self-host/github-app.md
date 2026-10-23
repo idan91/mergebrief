@@ -120,8 +120,9 @@ After creating the App, collect and store in your deployment's env / secret mana
 - **OAuth Client ID + client secret** (for reviewer login)
 
 None of these ever go in the database or the repository. The one *dynamic* secret (the
-reviewer token) is encrypted at rest by the persistence layer; every static secret stays in
-env.
+reviewer token) is encrypted at rest by the persistence layer, see
+[Tokens at rest](./operations.md#tokens-at-rest) for what that binding stops and how to
+rotate its key; every static secret stays in env.
 
 ## Installing across multiple repos
 
