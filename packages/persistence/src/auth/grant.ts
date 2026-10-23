@@ -119,6 +119,12 @@ export interface OrphanedGrant {
   readonly keyRef: string;
 }
 
+/**
+ * Takes each batch's orphaned grants once that batch has committed, so a
+ * sweep that fails later still hands over every grant it already removed.
+ */
+export type OrphanedGrantSink = (grants: readonly OrphanedGrant[]) => void;
+
 /** Everything a login hands over to open a new grant; the pair is sealed here. */
 export interface GrantCreateInput {
   readonly userId: ReviewerId;
@@ -220,12 +226,25 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
     },
 
     async retireGrant(grantId, now) {
-      // Lock order sessions, tokens, grant: `deleteUserCredentials` keeps it too.
+      // Lock order sessions, tokens, grant, each table by id, as on every
+      // credential path (`deleteUserCredentials`, the sweeps).
       return db.transaction(async (tx) => {
+        await tx
+          .select({ id: authSession.id })
+          .from(authSession)
+          .where(eq(authSession.grantId, grantId))
+          .orderBy(authSession.id)
+          .for("update");
         const sessions = await tx
           .delete(authSession)
           .where(eq(authSession.grantId, grantId))
           .returning({ id: authSession.id });
+        await tx
+          .select({ id: apiToken.id })
+          .from(apiToken)
+          .where(eq(apiToken.grantId, grantId))
+          .orderBy(apiToken.id)
+          .for("update");
         const tokens = await tx
           .update(apiToken)
           .set({ revokedAt: now })
@@ -394,8 +413,11 @@ function compareGrantIds(left: GrantRowId, right: GrantRowId): number {
   return 0;
 }
 
-/** No session and no token neither revoked nor expired (database clock) uses the grant. */
-function buildNoLiveReferentConditions(executor: AppDrizzle): SQL[] {
+/**
+ * No session and no token neither revoked nor expired (database clock) uses
+ * the grant: the one definition of a dead grant, the sweep's included.
+ */
+export function buildNoLiveReferentConditions(executor: AppDrizzle): SQL[] {
   return [
     notExists(
       executor
@@ -422,7 +444,7 @@ function buildNoLiveReferentConditions(executor: AppDrizzle): SQL[] {
  * Settle every grant in `grantIds` that no session and no live token uses any
  * more: return it, so the caller revokes its token at GitHub after commit,
  * and delete its row when no token row references it at all (a revoked or
- * expired token keeps the row for its FK until it is itself deleted). MUST
+ * expired token keeps the row until the hourly sweep deletes it). MUST
  * run on the transaction that removed or revoked the referents, hence the raw
  * `AppDrizzle` executor. Module-internal: NOT re-exported from `index.ts`.
  */

@@ -328,6 +328,7 @@ export type {
   GrantRefreshPatch,
   GrantRefreshRejection,
   OrphanedGrant,
+  OrphanedGrantSink,
   RetiredGrant,
 } from "./auth/grant";
 
@@ -343,6 +344,10 @@ export type {
   SessionDeleteResult,
   SessionWithGrant,
 } from "./auth/session";
+
+// The hourly sweep's credential half: dead grants and month-old dead tokens,
+// instance-wide, after the session sweep.
+export { sweepDeadCredentials } from "./auth/credential-sweep";
 
 // The API-token auth boundary: the second presentation channel's PRE-TENANT,
 // hash-keyed resolver. Like `createSessionAuth` it PRODUCES the tenant, so it

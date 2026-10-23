@@ -34,7 +34,7 @@ export function derivePrincipalFromApiToken({
     sessionTokenHash: token.tokenHash,
     reviewerId: token.userId,
     reviewerLogin: token.userLogin,
-    grantId: token.grantId,
+    grantId: grant.id,
     ghTokenCiphertext: grant.ghTokenCiphertext,
     keyRef: grant.keyRef,
     expiresAt: token.expiresAt ?? NO_EXPIRY_SENTINEL,

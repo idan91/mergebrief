@@ -115,10 +115,10 @@ doesn't apply: several loaders distinguish unset from empty.
 | `GITHUB_APP_ID` | api, worker | numeric App id |
 | `GITHUB_APP_PRIVATE_KEY` / `..._PATH` | api, worker | exactly ONE of the two |
 | `GITHUB_WEBHOOK_SECRET` | api | HMAC for inbound deliveries |
-| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api | reviewer login |
+| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api, worker | reviewer login; the worker uses them to revoke a dead grant's token at GitHub after its hourly sweep, and refuses boot without them |
 | `GITHUB_APP_SLUG` | api, worker | optional; the App's URL name, the last segment of `https://github.com/apps/<slug>`. Set, Home links a viewer with no reachable installation to its install page; unset, that line carries no link |
 | `MERGEBRIEF_URL_BOX_TOKEN` | api, worker | optional; an operator GitHub token (fine-grained, Contents and Pull requests read) that reads a pasted private PR the App is not installed on, tried only after the reviewer's own token is denied. It serves only the GitHub account that owns it, so make it on your own account. `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` is no longer read: set, it logs one warning and is ignored |
-| `SESSION_KEY_V1` | api | `openssl rand -base64 32` |
+| `SESSION_KEY_V1` | api, worker | `openssl rand -base64 32`; the worker opens grants with it for pasted PRs and for the hourly sweep's GitHub revokes. Both services read the same `.env` |
 | `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it. An absolute http(s) URL with no credentials in it, or api and worker refuse boot |
 | `MERGEBRIEF_WEB_HOST` / `_PORT` | web | optional; where the web process listens, default `0.0.0.0` and `3000`. The web service reads no `.env`, so set them under its `environment:`, and move its port mapping and healthcheck with the port |
 | `SERVER_VERSION` | api, worker | set by the image; unset or empty means `dev`. An override must be printable ASCII without spaces, or api and worker refuse boot |

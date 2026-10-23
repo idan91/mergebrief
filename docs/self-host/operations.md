@@ -438,6 +438,18 @@ audit has to outlive a review session, and no floor can guarantee that for you.
 Nothing on the web tier can trigger the sweep: it exists only inside the
 worker process.
 
+Sign-in credentials prune themselves, always on. Every hour the worker
+deletes expired sessions. It then deletes each GitHub authorization that no
+session and no live API token still uses, encrypted GitHub tokens included,
+and asks GitHub to revoke that access token. Those revokes are
+best-effort and stop after 30 seconds per sweep; a token the sweep does not
+reach stays valid at GitHub until it expires, and the worker logs how many
+it skipped. A revoked or expired API token
+stays listed in settings as revoked for 30 days, then the same sweep deletes
+the row. Signing out deletes the session at once, and revoking the App on
+github.com deletes every credential that user held; neither waits for the
+sweep.
+
 ## The audit log
 
 Every action a credential takes is recorded, and so is every refusal of one. Reads

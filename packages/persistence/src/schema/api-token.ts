@@ -2,7 +2,8 @@
 // GitHub credential pair lives on the `github_grant` row it links. It holds
 // no installation (the gate resolves the installation from the repository)
 // and installation offboarding leaves it: access ends when GitHub stops
-// confirming it.
+// confirming it. A revoked or expired row outlives its grant (`grant_id` goes
+// NULL) for the settings list, until the sweep deletes it 30 days on.
 import {
   bigint,
   check,
@@ -30,8 +31,7 @@ export const apiToken = pgTable(
     scope: text("scope").$type<AccessLevel>().notNull(),
     grantId: bigint("grant_id", { mode: "bigint" })
       .$type<GrantRowId>()
-      .notNull()
-      .references(() => githubGrant.id),
+      .references(() => githubGrant.id, { onDelete: "set null" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),

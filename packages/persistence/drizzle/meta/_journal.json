@@ -463,6 +463,13 @@
       "when": 1792713326410,
       "tag": "0066_grant-user-id",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792716667949,
+      "tag": "0067_api-token-grant-set-null",
+      "breakpoints": true
     }
   ]
 }

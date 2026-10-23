@@ -13,6 +13,7 @@ import type { GrantRowId, ReviewerId } from "../types";
 import {
   type GithubGrantRow,
   type OrphanedGrant,
+  type OrphanedGrantSink,
   deleteOrphanedGrants,
 } from "./grant";
 
@@ -125,20 +126,21 @@ export function createSessionAuth(handle: AppDatabase): SessionAuth {
 /**
  * Delete every session expired before `now`, across every reviewer, and
  * orphan-clean their grants. Each batch is its own transaction, so a large
- * backlog holds no long lock. Writes no audit row: an expired session already
- * grants nothing, and the row belongs to neither audit world. Returns rows
- * deleted.
+ * backlog holds no long lock, and hands its orphaned grants to `onOrphaned`
+ * once committed. Writes no audit row: an expired session already grants
+ * nothing, and the row belongs to neither audit world. Returns rows deleted.
  */
 export async function sweepExpiredSessions(
   handle: AppDatabase,
   now: Date,
+  onOrphaned: OrphanedGrantSink,
 ): Promise<number> {
   const db = internal(handle);
   const isExpired = lt(authSession.expiresAt, now);
-  let total = 0;
+  let sessionsDeleted = 0;
 
   for (;;) {
-    const deleted = await db.transaction(async (tx) => {
+    const swept = await db.transaction(async (tx) => {
       const batch = tx
         .select({ id: authSession.id })
         .from(authSession)
@@ -148,15 +150,12 @@ export async function sweepExpiredSessions(
       // The outer predicate is re-checked on a row a concurrent refresh moved,
       // so a session extended after the batch was picked survives.
       const inBatch = inArray(authSession.id, batch);
-      const swept = await deleteSessionsWhere(
-        tx,
-        sql`${inBatch} and ${isExpired}`,
-      );
-      return swept.deleted;
+      return deleteSessionsWhere(tx, sql`${inBatch} and ${isExpired}`);
     });
-    total += deleted;
-    if (deleted < SESSION_SWEEP_BATCH_SIZE) {
-      return total;
+    sessionsDeleted += swept.deleted;
+    onOrphaned(swept.orphanedGrants);
+    if (swept.deleted < SESSION_SWEEP_BATCH_SIZE) {
+      return sessionsDeleted;
     }
   }
 }
@@ -166,6 +165,14 @@ async function deleteSessionsWhere(
   tx: AppDrizzle,
   where: SQL,
 ): Promise<SessionDeleteResult> {
+  // Lock order sessions, tokens, grants; within the table, by id, so two
+  // multi-row deletes over overlapping sessions wait instead of deadlocking.
+  await tx
+    .select({ id: authSession.id })
+    .from(authSession)
+    .where(where)
+    .orderBy(authSession.id)
+    .for("update");
   const rows = await tx
     .delete(authSession)
     .where(where)

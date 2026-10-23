@@ -2,7 +2,8 @@
 // holder of its sealed credential pair. Sessions and API tokens reference it,
 // because GitHub refresh tokens are single-use and two copies would race each
 // other's rotation. It belongs to a GitHub user, not an installation, and dies
-// with its last referent in the same transaction (`auth/grant.ts`).
+// with its last referent in the same transaction (`auth/grant.ts`), or on the
+// hourly sweep once only dead tokens hold it (`auth/credential-sweep.ts`).
 import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { GrantRowId, ReviewerId } from "../types";
 import { stampColumns } from "./columns";

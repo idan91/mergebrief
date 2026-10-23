@@ -26,16 +26,34 @@ export interface UserCredentialsDeleted {
 /**
  * Delete the user's sessions, API tokens (revoked ones too) and grants in one
  * transaction, plus one audit row with the counts. Lock order is sessions,
- * tokens, grants, the same as `retireGrant`: a revoke racing a dead-grant
- * retirement for this user then waits instead of deadlocking. A grant a
- * concurrent refresh holds `FOR UPDATE` makes the delete wait for that
- * rotation to commit.
+ * tokens, grants, each table by id, the same as `retireGrant` and the sweeps:
+ * a revoke racing a retirement or a sweep batch then waits instead of
+ * deadlocking. A grant a concurrent refresh holds `FOR UPDATE` makes the
+ * delete wait for that rotation to commit.
  */
 export async function deleteUserCredentials(
   handle: AppDatabase,
   userId: ReviewerId,
 ): Promise<UserCredentialsDeleted> {
   return internal(handle).transaction(async (tx) => {
+    await tx
+      .select({ id: authSession.id })
+      .from(authSession)
+      .where(eq(authSession.reviewerId, userId))
+      .orderBy(authSession.id)
+      .for("update");
+    await tx
+      .select({ id: apiToken.id })
+      .from(apiToken)
+      .where(eq(apiToken.userId, userId))
+      .orderBy(apiToken.id)
+      .for("update");
+    await tx
+      .select({ id: githubGrant.id })
+      .from(githubGrant)
+      .where(eq(githubGrant.userId, userId))
+      .orderBy(githubGrant.id)
+      .for("update");
     const sessions = await tx
       .delete(authSession)
       .where(eq(authSession.reviewerId, userId))

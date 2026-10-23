@@ -124,7 +124,8 @@ export interface TokenAuth {
   /**
    * The Bearer-path resolver: hash → row (JOINed to its grant) → liveness.
    * An unknown, revoked or expired token is `undefined`, one answer, so the
-   * api layer cannot tell the cases apart on the wire.
+   * api layer cannot tell the cases apart on the wire. A token whose grant
+   * the sweep deleted joins nothing and answers the same.
    */
   resolveByHash(
     tokenHash: string,
@@ -277,7 +278,9 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
         const updatedRow = updated[0];
         if (updatedRow !== undefined) {
           const { grantId, ...token } = updatedRow;
-          const orphanedGrants = await deleteOrphanedGrants(tx, [grantId]);
+          // An expired token's grant may already be swept: nothing to settle.
+          const grantIds = grantId === null ? [] : [grantId];
+          const orphanedGrants = await deleteOrphanedGrants(tx, grantIds);
           return { token, orphanedGrants };
         }
         // Second arm: distinguish already-revoked (idempotent success,

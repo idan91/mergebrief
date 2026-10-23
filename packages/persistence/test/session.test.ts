@@ -3,7 +3,7 @@
 // `setExpiresAt` mirror. Rotation lives on the grant boundary.
 import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import type { GithubGrantRow } from "../src/auth/grant";
+import type { GithubGrantRow, OrphanedGrant } from "../src/auth/grant";
 import { createSessionAuth, sweepExpiredSessions } from "../src/auth/session";
 import { createTokenAuth } from "../src/auth/token";
 import { internal, type AppDatabase } from "../src/db/handle";
@@ -282,6 +282,18 @@ describe("createSessionAuth.setExpiresAt", () => {
   });
 });
 
+async function runSessionSweep(now: Date) {
+  const orphanedGrants: OrphanedGrant[] = [];
+  const sessionsDeleted = await sweepExpiredSessions(
+    shared.handle,
+    now,
+    (grants) => {
+      orphanedGrants.push(...grants);
+    },
+  );
+  return { sessionsDeleted, orphanedGrants };
+}
+
 describe("sweepExpiredSessions", () => {
   const NOW = new Date("2026-07-04T00:00:00Z");
   const EXPIRED = new Date("2026-07-01T00:00:00Z");
@@ -296,7 +308,7 @@ describe("sweepExpiredSessions", () => {
     });
     await seedSession(shared.handle, { hash: THIRD_HASH, expiresAt: LIVE });
 
-    expect(await sweepExpiredSessions(shared.handle, NOW)).toBe(2);
+    expect((await runSessionSweep(NOW)).sessionsDeleted).toBe(2);
 
     const sessions = createSessionAuth(shared.handle);
     expect(await sessions.findSession(HASH)).toBeUndefined();
@@ -317,7 +329,7 @@ describe("sweepExpiredSessions", () => {
     });
     expect(await grantCount(shared.handle)).toBe(2);
 
-    expect(await sweepExpiredSessions(shared.handle, NOW)).toBe(2);
+    expect((await runSessionSweep(NOW)).sessionsDeleted).toBe(2);
 
     expect(await grantCount(shared.handle)).toBe(1);
     const survivor = await createSessionAuth(shared.handle).findSession(
@@ -326,10 +338,24 @@ describe("sweepExpiredSessions", () => {
     expect(survivor?.grant.id).toBe(sharedGrant.id);
   });
 
+  it("returns the grants its expired sessions took with it", async () => {
+    const grant = await seedSession(shared.handle, { expiresAt: EXPIRED });
+
+    const swept = await runSessionSweep(NOW);
+
+    expect(swept.orphanedGrants).toEqual([
+      {
+        id: grant.id,
+        ghTokenCiphertext: grant.ghTokenCiphertext,
+        keyRef: grant.keyRef,
+      },
+    ]);
+  });
+
   it("keeps a session whose expiry is exactly now", async () => {
     await seedSession(shared.handle, { expiresAt: NOW });
 
-    expect(await sweepExpiredSessions(shared.handle, NOW)).toBe(0);
+    expect((await runSessionSweep(NOW)).sessionsDeleted).toBe(0);
     expect(
       await createSessionAuth(shared.handle).findSession(HASH),
     ).toBeDefined();
@@ -344,14 +370,14 @@ describe("sweepExpiredSessions", () => {
           from generate_series(1, ${backlog}) as n`,
     );
 
-    expect(await sweepExpiredSessions(shared.handle, NOW)).toBe(backlog + 1);
+    expect((await runSessionSweep(NOW)).sessionsDeleted).toBe(backlog + 1);
     expect(await grantCount(shared.handle)).toBe(0);
   });
 
   it("answers 0 when nothing has expired", async () => {
     await seedSession(shared.handle, { expiresAt: LIVE });
 
-    expect(await sweepExpiredSessions(shared.handle, NOW)).toBe(0);
+    expect((await runSessionSweep(NOW)).sessionsDeleted).toBe(0);
     expect(await grantCount(shared.handle)).toBe(1);
   });
 });

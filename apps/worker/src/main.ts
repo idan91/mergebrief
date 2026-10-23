@@ -10,6 +10,7 @@ import {
 import { createGenerator, RUNTIME_MARKER_VAR } from "generators";
 import {
   createAppClient,
+  createOAuthApp,
   loadConfig as loadGitHubConfig,
   resolveOperatorTokenOwner,
 } from "github";
@@ -178,7 +179,7 @@ async function main(): Promise<void> {
     maxConnections: config.value.poolMax,
   });
   // Grants name their key by env-var NAME (keyRef); resolution is lazy, per
-  // url-box job, a deployment with no url-box traffic never needs the key.
+  // url-box job or swept grant, so an instance with neither never needs it.
   const keyProvider = createEnvKeyProvider(env);
   const urlBoxDeps: Mutable<UrlBoxAuthDeps> = { handle, keyProvider };
   // Awaited before the runner starts; a job denied while the lookup is
@@ -236,7 +237,15 @@ async function main(): Promise<void> {
     retentionDays: config.value.auditRetentionDays,
     log: logger,
   });
-  const sweepSessions = createSweepSessionsTask({ handle, log: logger });
+  const sweepSessions = createSweepSessionsTask({
+    handle,
+    keyProvider,
+    oauthApp: createOAuthApp({
+      clientId: githubConfig.value.oauthClientId,
+      clientSecret: githubConfig.value.oauthClientSecret,
+    }),
+    log: logger,
+  });
   const sweepPullRequests = createSweepPullRequestsTask({
     handle,
     retentionDays: config.value.prRetentionDays,
