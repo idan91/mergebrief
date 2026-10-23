@@ -17,6 +17,7 @@ export {
   isApiTokenRowId,
   isGrantRowId,
   isReviewSessionId,
+  isDeliveryId,
   UncoveredWorks,
   GenerationKinds,
   ClaimOutcomes,
@@ -35,6 +36,8 @@ export type {
   ApiTokenRowId,
   GrantRowId,
   ReviewSessionId,
+  DeliveryId,
+  WebhookSignatureDigest,
   UncoveredWork,
   GenerationKind,
   GenerationFailure,
@@ -137,6 +140,18 @@ export {
   type UserSettingsStore,
 } from "./stores/user-settings";
 export { createInboxArchiveStore } from "./stores/inbox-archive";
+// The webhook delivery seen-set and its instance-wide sweep: unscoped, read
+// before any tenant write.
+export {
+  createWebhookDeliveryStore,
+  DELIVERY_DEDUP_TTL_MS,
+  digestWebhookSignature,
+  sweepWebhookDeliveries,
+} from "./stores/webhook-delivery";
+export type {
+  WebhookDelivery,
+  WebhookDeliveryStore,
+} from "./stores/webhook-delivery";
 export type { InboxArchiveStore } from "./stores/inbox-archive";
 export type {
   InboxBriefRef,

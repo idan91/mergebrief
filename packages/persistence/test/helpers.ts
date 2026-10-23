@@ -268,11 +268,11 @@ export async function recordStatements<TValue>(
   return { statements: log.statements.slice(from), outcome };
 }
 
-/** Brand a bigint via its guard, the sanctioned no-`as` path. */
-export function brandWith<T extends bigint>(
-  guard: (value: bigint) => value is T,
-  value: bigint,
-): T {
+/** Brand a value via its guard, the sanctioned no-`as` path. */
+export function brandWith<Base extends bigint | string, Branded extends Base>(
+  guard: (value: Base) => value is Branded,
+  value: Base,
+): Branded {
   if (!guard(value)) {
     throw new Error(`test fixture id failed its brand guard: ${value}`);
   }

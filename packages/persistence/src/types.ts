@@ -57,6 +57,24 @@ export function isReviewSessionId(value: bigint): value is ReviewSessionId {
   return isPositiveBigInt(value);
 }
 
+/** GitHub's `X-GitHub-Delivery` header: unsigned, so a log field only, never a key. */
+export type DeliveryId = Brand<string, "DeliveryId">;
+/** Lowercase hex SHA-256 of a verified `X-Hub-Signature-256` header. */
+export type WebhookSignatureDigest = Brand<string, "WebhookSignatureDigest">;
+
+/** Each pattern's source must read the same as a POSIX regex: a CHECK reuses it. */
+export const DELIVERY_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+export const WEBHOOK_SIGNATURE_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
+
+export function isDeliveryId(value: string): value is DeliveryId {
+  return DELIVERY_ID_PATTERN.test(value);
+}
+export function isWebhookSignatureDigest(
+  value: string,
+): value is WebhookSignatureDigest {
+  return WEBHOOK_SIGNATURE_DIGEST_PATTERN.test(value);
+}
+
 /**
  * Work a webhook event names that a stored Brief for its base and head pair
  * does not cover. In memory only: the ingest routine reads it to decide

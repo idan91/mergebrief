@@ -26,6 +26,7 @@ import {
   reviewSession,
   reviewSubmittedReview,
   userSettings,
+  webhookDelivery,
 } from "../src/schema";
 import {
   freshPglite,
@@ -56,6 +57,7 @@ const SCHEMA_TABLES = {
   reviewSession,
   reviewSubmittedReview,
   userSettings,
+  webhookDelivery,
 };
 
 const ARRAY_LITERAL = /ARRAY\[([^\]]*)\]/g;
