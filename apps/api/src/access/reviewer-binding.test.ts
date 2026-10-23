@@ -7,6 +7,7 @@ import {
 import type { Logger } from "logging";
 import {
   encryptToken,
+  GrantSealedColumns,
   isRepoId,
   isReviewerId,
   isGrantRowId,
@@ -54,11 +55,17 @@ function brandRepoId(value: bigint): RepoId {
 }
 
 async function makeSession(kp: AuthRouteDeps["auth"]["keyProvider"]) {
-  const sealed = await encryptToken(kp, KEY_REF, VIEWER_TOKEN);
   const reviewerId = BigInt(555);
   const grantId = BigInt(1);
-  if (!sealed.ok || !isReviewerId(reviewerId) || !isGrantRowId(grantId)) {
+  if (!isReviewerId(reviewerId) || !isGrantRowId(grantId)) {
     throw new Error("fixture session failed its guards");
+  }
+  const sealed = await encryptToken(kp, KEY_REF, VIEWER_TOKEN, {
+    grantId,
+    column: GrantSealedColumns.ACCESS_TOKEN,
+  });
+  if (!sealed.ok) {
+    throw new Error("fixture seal failed");
   }
   const session: ViewerPrincipal = {
     id: 1n,

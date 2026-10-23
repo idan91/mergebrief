@@ -33,6 +33,7 @@ import type { Logger } from "logging";
 import {
   createGrantAuth,
   decryptToken,
+  GrantSealedColumns,
   type AppDatabase,
   type GrantRowId,
   type InstallationId,
@@ -274,6 +275,7 @@ async function readViewerToken(
     urlBox.keyProvider,
     grant.keyRef,
     grant.ghTokenCiphertext,
+    { grantId: grant.id, column: GrantSealedColumns.ACCESS_TOKEN },
   );
   if (!token.ok) {
     throw buildPermanentAccessFailure(

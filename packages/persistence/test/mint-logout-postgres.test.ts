@@ -12,7 +12,7 @@ import { closeDb, createDb, type AppDatabase } from "../src/db/handle";
 import { readTestPostgresUrl } from "../src/testing";
 import { isReviewerId, type ReviewerId } from "../src/types";
 import { AccessLevels } from "types/access-levels";
-import { brandWith, connectMigrated, waitMs } from "./helpers";
+import { brandWith, connectMigrated, makeGrant, waitMs } from "./helpers";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const POOL_SIZE = 4;
@@ -72,13 +72,7 @@ describe.skipIf(databaseUrl === undefined)(
         BigInt(1 + Math.floor(Math.random() * MAX_TEST_USER_ID)),
       );
       users.push(user);
-      const grant = await createGrantAuth(handle).createGrant({
-        userId: user,
-        ghTokenCiphertext: "v1.access",
-        ghRefreshTokenCiphertext: "v1.refresh",
-        keyRef: "SESSION_KEY_V1",
-        refreshExpiresAt: FUTURE,
-      });
+      const grant = await makeGrant(handle, user, FUTURE);
       const sessionHash = makeHash();
       await createSessionAuth(handle).createSession({
         sessionTokenHash: sessionHash,

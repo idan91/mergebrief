@@ -4,6 +4,7 @@ import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import {
   encryptToken,
+  GrantSealedColumns,
   isGrantRowId,
   isInstallationId,
   isReviewerId,
@@ -47,7 +48,11 @@ const harness = registerSharedPglite();
 let fake: FakeGitHub;
 
 async function stubPrincipal(): Promise<ViewerPrincipal> {
-  const sealed = await encryptToken(keyProvider, KEY_REF, "ghu_TOKEN");
+  const grantId = brand(7n, isGrantRowId);
+  const sealed = await encryptToken(keyProvider, KEY_REF, "ghu_TOKEN", {
+    grantId,
+    column: GrantSealedColumns.ACCESS_TOKEN,
+  });
   if (!sealed.ok) {
     throw new Error("fixture seal failed");
   }
@@ -56,7 +61,7 @@ async function stubPrincipal(): Promise<ViewerPrincipal> {
     sessionTokenHash: `hash-installations-${randomBytes(4).toString("hex")}`,
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",
-    grantId: brand(7n, isGrantRowId),
+    grantId,
     expiresAt: new Date(Date.now() + 60_000),
     createdAt: new Date(),
     ghTokenCiphertext: sealed.value,

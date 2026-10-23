@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { apiToken } from "../src/schema/api-token";
 import { auditLog } from "../src/schema/audit-log";
 
-import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
+import type { GithubGrantRow } from "../src/auth/grant";
 import { createSessionAuth } from "../src/auth/session";
 import { createTokenAuth, type TokenMintInput } from "../src/auth/token";
 import { TokenMintErrorCodes } from "../src/auth/types";
@@ -17,6 +17,7 @@ import {
   brandWith,
   expectCheckViolation,
   freshDatabase,
+  makeGrant,
   registerSharedPglite,
 } from "./helpers";
 import { AccessLevels } from "types/access-levels";
@@ -111,16 +112,6 @@ const PAST = new Date("2026-01-01T00:00:00Z");
 const FUTURE = new Date("2026-10-07T00:00:00Z");
 const SESSION_EXPIRES_AT = new Date("2027-06-01T00:00:00Z");
 
-async function seedGrant(handle: AppDatabase): Promise<GithubGrantRow> {
-  return createGrantAuth(handle).createGrant({
-    userId: USER,
-    ghTokenCiphertext: "v1.enc-access",
-    ghRefreshTokenCiphertext: "v1.enc-refresh",
-    keyRef: "SESSION_KEY_V1",
-    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-  });
-}
-
 function mintInput(
   grant: GithubGrantRow,
   overrides: Partial<TokenMintInput> = {},
@@ -142,7 +133,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
   let grant: GithubGrantRow;
   beforeEach(async () => {
     handle = shared.handle;
-    grant = await seedGrant(handle);
+    grant = await makeGrant(handle, USER);
   });
 
   it("mints a token row linking the grant and resolves it by hash", async () => {
@@ -158,7 +149,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     expect(resolved?.token.name).toBe("ci-token");
     // The credential material rides on the grant half. LINKED, not copied.
     expect(resolved?.grant.id).toBe(grant.id);
-    expect(resolved?.grant.ghTokenCiphertext).toBe("v1.enc-access");
+    expect(resolved?.grant.ghTokenCiphertext).toBe(grant.ghTokenCiphertext);
     expect(resolved?.token).not.toHaveProperty("ghTokenCiphertext");
   });
 
@@ -224,7 +215,7 @@ describe("createTokenAuth.mintTokenFromSession", () => {
   let grant: GithubGrantRow;
   beforeEach(async () => {
     handle = shared.handle;
-    grant = await seedGrant(handle);
+    grant = await makeGrant(handle, USER);
     await createSessionAuth(handle).createSession({
       sessionTokenHash: OTHER_HASH,
       reviewerId: USER,
@@ -272,7 +263,7 @@ describe("createTokenAuth list / revoke", () => {
   let grant: GithubGrantRow;
   beforeEach(async () => {
     handle = shared.handle;
-    grant = await seedGrant(handle);
+    grant = await makeGrant(handle, USER);
   });
 
   it("lists a user's tokens, not other users'", async () => {
@@ -368,7 +359,7 @@ describe("createTokenAuth list / revoke", () => {
 describe("createTokenAuth.mintToken audit atomicity", () => {
   it("mint emits its issuance audit row with the token's metadata", async () => {
     const handle = shared.handle;
-    const grant = await seedGrant(handle);
+    const grant = await makeGrant(handle, USER);
     await createTokenAuth(handle).mintToken(mintInput(grant));
     const rows = await internal(handle).select().from(auditLog);
     expect(rows).toHaveLength(1);
@@ -383,7 +374,7 @@ describe("createTokenAuth.mintToken audit atomicity", () => {
 
   it("mint rolls the token back when its audit row fails", async () => {
     const handle = await freshDatabase();
-    const grant = await seedGrant(handle);
+    const grant = await makeGrant(handle, USER);
     await internal(handle).execute(
       sql`alter table audit_log add constraint refuse_issuance check (operation <> 'issue-api-token')`,
     );

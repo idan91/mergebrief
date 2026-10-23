@@ -6,6 +6,7 @@ import { randomBytes } from "node:crypto";
 import {
   decryptToken,
   encryptToken,
+  GrantSealedColumns,
   createGrantAuth,
   createSessionAuth,
   createTokenAuth,
@@ -320,9 +321,9 @@ describe("reviewer auth routes", () => {
     const grantRows = await harness.raw("select * from github_grant");
     expect(grantRows).toHaveLength(1);
     expect(String(row?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
-    expect(String(grantRows[0]?.["gh_token_ciphertext"])).toMatch(/^v1\./);
+    expect(String(grantRows[0]?.["gh_token_ciphertext"])).toMatch(/^v2\./);
     expect(String(grantRows[0]?.["gh_refresh_token_ciphertext"])).toMatch(
-      /^v1\./,
+      /^v2\./,
     );
     // Ciphertext at rest never equals the plaintext token.
     expect(String(grantRows[0]?.["gh_token_ciphertext"])).not.toContain(
@@ -573,6 +574,45 @@ describe("reviewer auth routes", () => {
     expect(readTokenDeleteCalls(fetchFn)).toHaveLength(1);
   });
 
+  it("a token copied into another grant's row answers 500 and is never used", async () => {
+    const fetchFn = stubTokenDelete(204);
+    const victimToken = "ghu_VICTIM_TOKEN_PLAINTEXT";
+    const victim = await seedSignIn(harness.handle, kp, {
+      accessToken: victimToken,
+    });
+    const target = await seedSignIn(harness.handle, kp, {
+      reviewer: { id: brandReviewerId(556n), login: "mallory" },
+    });
+    await harness.raw(
+      "update github_grant set gh_token_ciphertext = (select gh_token_ciphertext from github_grant where id = $1) where id = $2",
+      [victim.grantId, target.grantId],
+    );
+    const capture = testLogging();
+    const capturedApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+
+    const res = await capturedApp.request("/api/repos", {
+      headers: { Cookie: `__Host-mergebrief_session=${target.cookie}` },
+    });
+
+    expect(res.status).toBe(500);
+    const sessions = await harness.raw(
+      "select id from auth_session where session_token_hash = $1",
+      [target.cookieHash],
+    );
+    expect(sessions).toHaveLength(1);
+    expect(JSON.stringify(fetchFn.mock.calls)).not.toContain(victimToken);
+    const decryptFailures = capture
+      .lines()
+      .filter((entry) => entry["evt"] === "token.decrypt.fail");
+    expect(decryptFailures).toHaveLength(1);
+  });
+
   it("GET /api/auth/session without a cookie answers 401", async () => {
     const res = await app.request("/api/auth/session");
     expect(res.status).toBe(401);
@@ -650,7 +690,11 @@ describe("reviewer auth routes", () => {
     const afterAccessCipher = String(after[0]?.["gh_token_ciphertext"]);
     expect(afterAccessCipher).not.toBe(beforeCipher);
     // The rotated access ciphertext decrypts back to the rotated plaintext.
-    const decrypted = await decryptToken(kp, KEY_REF, afterAccessCipher);
+    const grantId = resolved.grant.id;
+    const decrypted = await decryptToken(kp, KEY_REF, afterAccessCipher, {
+      grantId,
+      column: GrantSealedColumns.ACCESS_TOKEN,
+    });
     expect(decrypted.ok).toBe(true);
     if (!decrypted.ok) {
       throw new Error("unreachable");
@@ -661,6 +705,7 @@ describe("reviewer auth routes", () => {
       kp,
       KEY_REF,
       String(after[0]?.["gh_refresh_token_ciphertext"]),
+      { grantId, column: GrantSealedColumns.REFRESH_TOKEN },
     );
     if (!decryptedR.ok) {
       throw new Error("unreachable");
@@ -865,8 +910,14 @@ describe("reviewer auth routes", () => {
 
     // Another channel wins the rotation while our principal is in flight.
     const rotatedExpiry = new Date("2027-09-01T00:00:00Z");
-    const sealedAccess = await encryptToken(kp, KEY_REF, ROTATED_ACCESS);
-    const sealedRefresh = await encryptToken(kp, KEY_REF, ROTATED_REFRESH);
+    const sealedAccess = await encryptToken(kp, KEY_REF, ROTATED_ACCESS, {
+      grantId: stale.grant.id,
+      column: GrantSealedColumns.ACCESS_TOKEN,
+    });
+    const sealedRefresh = await encryptToken(kp, KEY_REF, ROTATED_REFRESH, {
+      grantId: stale.grant.id,
+      column: GrantSealedColumns.REFRESH_TOKEN,
+    });
     if (!sealedAccess.ok || !sealedRefresh.ok) {
       throw new Error("seed encrypt failed");
     }
@@ -947,6 +998,7 @@ describe("reviewer auth routes", () => {
       kp,
       KEY_REF,
       String(grantRow[0]?.["gh_token_ciphertext"]),
+      { grantId: resolved.grant.id, column: GrantSealedColumns.ACCESS_TOKEN },
     );
     if (!decrypted.ok) {
       throw new Error("unreachable");

@@ -32,8 +32,10 @@ import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
 import { authSession } from "../schema/auth-session";
-import type { GrantRowId, ReviewerId } from "../types";
+import { isGrantRowId, type GrantRowId, type ReviewerId } from "../types";
 import type { Result, ValueOf } from "types/utils";
+import { encryptToken, type CryptoError, type KeyProvider } from "./crypto";
+import { GrantSealedColumns } from "./types";
 
 export type GithubGrantRow = typeof githubGrant.$inferSelect;
 
@@ -117,18 +119,30 @@ export interface OrphanedGrant {
   readonly keyRef: string;
 }
 
-/** Everything a login persists to open a new grant. */
+/** Everything a login hands over to open a new grant; the pair is sealed here. */
 export interface GrantCreateInput {
   readonly userId: ReviewerId;
-  readonly ghTokenCiphertext: string;
-  readonly ghRefreshTokenCiphertext: string;
+  readonly accessToken: string;
+  readonly refreshToken: string;
+  readonly keyProvider: KeyProvider;
   readonly keyRef: string;
   readonly refreshExpiresAt: Date;
 }
 
+interface SealedGrantPair {
+  readonly ghTokenCiphertext: string;
+  readonly ghRefreshTokenCiphertext: string;
+}
+
 export interface GrantAuth {
-  /** Insert the grant row for a fresh GitHub authorization (login callback). */
-  createGrant(input: GrantCreateInput): Promise<GithubGrantRow>;
+  /**
+   * Insert the grant row for a fresh GitHub authorization (login callback),
+   * sealing the pair to the row's own id inside the insert's transaction. A
+   * key the provider cannot resolve is a `CryptoError` and inserts nothing.
+   */
+  createGrant(
+    input: GrantCreateInput,
+  ): Promise<Result<GithubGrantRow, CryptoError>>;
   /**
    * Plain read by id, how the worker resolves a job's `grant_id` reference
    * into the ciphertext pair it lazily decrypts. Absence is a normal
@@ -175,21 +189,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
 
   return traceStore("grantAuth", {
     async createGrant(input) {
-      const rows = await db
-        .insert(githubGrant)
-        .values({
-          userId: input.userId,
-          ghTokenCiphertext: input.ghTokenCiphertext,
-          ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
-          keyRef: input.keyRef,
-          refreshExpiresAt: input.refreshExpiresAt,
-        })
-        .returning();
-      const row = rows[0];
-      if (row === undefined) {
-        throw new Error("github_grant insert returned no row");
-      }
-      return row;
+      return insertSealedGrant(db, input);
     },
 
     async getGrant(grantId) {
@@ -238,6 +238,84 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
         };
       });
     },
+  });
+}
+
+const allocatedGrantIdSchema = z.object({
+  rows: z.tuple([z.object({ id: z.string().regex(/^\d+$/) })]),
+});
+
+/** The id is drawn before the insert because the AAD must name it. */
+async function allocateGrantId(executor: AppDrizzle): Promise<GrantRowId> {
+  const result = await executor.execute(
+    sql`select nextval(pg_get_serial_sequence('github_grant', 'id'))::text as id`,
+  );
+  const id = BigInt(allocatedGrantIdSchema.parse(result).rows[0].id);
+  if (!isGrantRowId(id)) {
+    throw new Error("github_grant sequence returned a non-positive id");
+  }
+  return id;
+}
+
+async function sealGrantPair(
+  input: GrantCreateInput,
+  grantId: GrantRowId,
+): Promise<Result<SealedGrantPair, CryptoError>> {
+  const access = await encryptToken(
+    input.keyProvider,
+    input.keyRef,
+    input.accessToken,
+    { grantId, column: GrantSealedColumns.ACCESS_TOKEN },
+  );
+  if (!access.ok) {
+    return access;
+  }
+  const refresh = await encryptToken(
+    input.keyProvider,
+    input.keyRef,
+    input.refreshToken,
+    { grantId, column: GrantSealedColumns.REFRESH_TOKEN },
+  );
+  if (!refresh.ok) {
+    return refresh;
+  }
+  return {
+    ok: true,
+    value: {
+      ghTokenCiphertext: access.value,
+      ghRefreshTokenCiphertext: refresh.value,
+    },
+  };
+}
+
+async function insertSealedGrant(
+  db: AppDrizzle,
+  input: GrantCreateInput,
+): Promise<Result<GithubGrantRow, CryptoError>> {
+  return db.transaction(async (tx) => {
+    const grantId = await allocateGrantId(tx);
+    const sealed = await sealGrantPair(input, grantId);
+    if (!sealed.ok) {
+      return sealed;
+    }
+
+    const rows = await tx
+      .insert(githubGrant)
+      .overridingSystemValue()
+      .values({
+        id: grantId,
+        userId: input.userId,
+        ghTokenCiphertext: sealed.value.ghTokenCiphertext,
+        ghRefreshTokenCiphertext: sealed.value.ghRefreshTokenCiphertext,
+        keyRef: input.keyRef,
+        refreshExpiresAt: input.refreshExpiresAt,
+      })
+      .returning();
+    const row = rows[0];
+    if (row === undefined) {
+      throw new Error("github_grant insert returned no row");
+    }
+    return { ok: true, value: row };
   });
 }
 

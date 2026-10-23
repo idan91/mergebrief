@@ -3,7 +3,11 @@
 // failure warns and the caller's answer stands.
 import { createOAuthApp, deleteUserToken, type OAuthErrorCode } from "github";
 import type { Logger } from "logging";
-import { decryptToken, type OrphanedGrant } from "persistence";
+import {
+  decryptToken,
+  GrantSealedColumns,
+  type OrphanedGrant,
+} from "persistence";
 import type { AuthRouteDeps } from "../types";
 
 const CREDENTIAL_UNREADABLE = "credential-unreadable";
@@ -32,6 +36,7 @@ export async function revokeOrphanedGrantsAtGitHub(
         deps.auth.keyProvider,
         grant.keyRef,
         grant.ghTokenCiphertext,
+        { grantId: grant.id, column: GrantSealedColumns.ACCESS_TOKEN },
       );
       if (!accessToken.ok) {
         warnRevokeFailed(log, grant, CREDENTIAL_UNREADABLE);

@@ -1,13 +1,13 @@
-// GitHub OAuth token encryption for `auth_session.gh_token_ciphertext`:
-// AES-256-GCM with a provider-resolved key, NOT a per-row envelope DEK.
-// Every row stores the `key_ref` that sealed it and passes it back into
-// `decryptToken`, so a new key is a config change only and old rows keep
-// decrypting under their own `key_ref`. `resolveKey` returns a `MaybePromise`
-// so an async (KMS) provider drops in without a call-site change.
+// GitHub token encryption for the `github_grant` credential pair: AES-256-GCM
+// with a provider-resolved key, NOT a per-row envelope DEK. Every row stores
+// the `key_ref` that sealed it, so a new key is a config change only. The AAD
+// binds each ciphertext to its grant row, its column and its key ref: a copy
+// into another row or column, or a read under another ref, fails the tag.
 // Every expected failure is a `Result`, never a throw, and NO error message
 // ever contains plaintext or key material.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { MaybePromise, Result, ValueOf } from "types/utils";
+import type { GrantSealBinding } from "./types";
 
 // ---------------------------------------------------------------------------
 // Constants, AES-256-GCM parameters. All lengths are in bytes.
@@ -20,8 +20,11 @@ const KEY_BYTES = 32;
 const IV_BYTES = 12;
 /** GCM authentication tag size. */
 const TAG_BYTES = 16;
-/** The only format version this module emits. */
-const VERSION = "v1";
+/** The only format version this module emits or opens. */
+const VERSION = "v2";
+/** The table every sealed token lives in, as the AAD names it. */
+const SEALED_TABLE = "github_grant";
+const AAD_SEPARATOR = "|";
 /** Field delimiter. Safe: base64 never contains ".". */
 const SEPARATOR = ".";
 
@@ -135,20 +138,32 @@ function cryptoFail(
   };
 }
 
-// Ciphertext format, compact and self-describing: v1.<iv_b64>.<ct_b64>.<tag_b64>
-// with iv 12 random bytes, ct AES-256-GCM and tag the 16-byte GCM auth tag. The
-// version prefix lets a future scheme coexist, and an unknown prefix is a clean
-// `unknownVersion` error rather than a misparse.
+// Ciphertext format: v2.<iv_b64>.<ct_b64>.<tag_b64>, with a 12-byte random IV
+// and the 16-byte GCM tag. The AAD is never stored: both sides rebuild it as
+// v2|github_grant|<column>|<grant_id>|<key_ref>. An unknown prefix is a clean
+// `UNKNOWN_VERSION` error rather than a misparse.
+
+function buildAad(keyRef: string, binding: GrantSealBinding): Buffer {
+  const fields = [
+    VERSION,
+    SEALED_TABLE,
+    binding.column,
+    String(binding.grantId),
+    keyRef,
+  ];
+  return Buffer.from(fields.join(AAD_SEPARATOR), "utf8");
+}
 
 /**
- * Encrypt `plaintext` (the GitHub OAuth token) under the key named by `keyRef`.
- * A fresh random 12-byte IV per call means two encryptions of the same
- * plaintext produce different ciphertexts. Returns the compact `v1.…` string.
+ * Encrypt `plaintext` (a GitHub token) under the key named by `keyRef`, bound
+ * to the grant row and column it will be stored in. A fresh random IV per call
+ * means two encryptions of the same plaintext differ. Returns the `v2.…` string.
  */
 export async function encryptToken(
   provider: KeyProvider,
   keyRef: string,
   plaintext: string,
+  binding: GrantSealBinding,
 ): Promise<Result<string, CryptoError>> {
   const resolved = await provider.resolveKey(keyRef);
   if (!resolved.ok) {
@@ -161,6 +176,7 @@ export async function encryptToken(
   const key = resolved.value;
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv(ALGORITHM, key, iv);
+  cipher.setAAD(buildAad(keyRef, binding));
   const ciphertext = Buffer.concat([
     cipher.update(plaintext, "utf8"),
     cipher.final(),
@@ -176,15 +192,16 @@ export async function encryptToken(
 }
 
 /**
- * Decrypt a `v1.…` string produced by `encryptToken`, using the key named by
- * `keyRef` (the value stored on the `auth_session` row). Auth-tag failure
- * (tampering / wrong key), malformed input, and an unknown version all return
- * a `Result` error whose message carries NO plaintext or key material.
+ * Decrypt a `v2.…` string produced by `encryptToken`, using the key named by
+ * the row's `keyRef` and the binding it was sealed under. Auth-tag failure
+ * (tampering, wrong key, wrong row, column or key ref), malformed input and an
+ * unknown version all return a `Result` error carrying NO plaintext or key.
  */
 export async function decryptToken(
   provider: KeyProvider,
   keyRef: string,
   ciphertext: string,
+  binding: GrantSealBinding,
 ): Promise<Result<string, CryptoError>> {
   const segments = ciphertext.split(SEPARATOR);
   if (segments.length !== 4) {
@@ -229,11 +246,12 @@ export async function decryptToken(
 
   try {
     const decipher = createDecipheriv(ALGORITHM, resolved.value, iv);
+    decipher.setAAD(buildAad(keyRef, binding));
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([decipher.update(ct), decipher.final()]);
     return { ok: true, value: plaintext.toString("utf8") };
   } catch {
-    // `final()` throws on tag mismatch (tampered ciphertext/tag, or wrong key).
+    // `final()` throws on tag mismatch (tampering, wrong key or wrong binding).
     // Swallow the underlying error, it carries nothing useful and we must not
     // leak key/plaintext state, and return a uniform authentication failure.
     return cryptoFail(

@@ -2,7 +2,7 @@
 // instance from the process's migrated snapshot
 // (`src/testing/pglite-snapshot`) and wraps it as the opaque `AppDatabase` the
 // repository consumes; the real-Postgres suites share the tenant fixture below.
-import { randomInt } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import { and, eq } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
@@ -13,6 +13,8 @@ import {
   expect,
   onTestFinished,
 } from "vitest";
+import { createEnvKeyProvider, type KeyProvider } from "../src/auth/crypto";
+import type { GithubGrantRow } from "../src/auth/grant";
 import { type AppDatabase, fromDrizzle, internal } from "../src/db/handle";
 import {
   closeDb,
@@ -22,6 +24,7 @@ import {
   type TenantContext,
 } from "../src/index";
 import { createMigratedPglite } from "../src/testing/pglite-snapshot";
+import { seedGrant } from "../src/testing/seed-grant";
 import {
   createPgliteHarness,
   type PgliteHarness,
@@ -37,6 +40,7 @@ import {
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
+  type ReviewerId,
 } from "../src/types";
 
 /** Far above any real GitHub installation id, so a fixture never meets one. */
@@ -341,3 +345,25 @@ export async function virginPglite(): Promise<PGlite> {
 
 /** A test that replays the migrations itself outgrows the 5 s default under a parallel run. */
 export const MIGRATION_REPLAY_TIMEOUT_MS = 30_000;
+
+export const TEST_KEY_REF = "SESSION_KEY_V1";
+export const TEST_KEY_PROVIDER: KeyProvider = createEnvKeyProvider({
+  [TEST_KEY_REF]: randomBytes(32).toString("base64"),
+});
+const GRANT_REFRESH_EXPIRY = new Date("2027-01-01T00:00:00Z");
+
+/** A grant for `userId` holding a sealed throwaway pair, as a sign-in leaves one. */
+export async function makeGrant(
+  handle: AppDatabase,
+  userId: ReviewerId,
+  refreshExpiresAt: Date = GRANT_REFRESH_EXPIRY,
+): Promise<GithubGrantRow> {
+  return seedGrant(handle, {
+    userId,
+    accessToken: "ghu_test-access",
+    refreshToken: "ghr_test-refresh",
+    keyProvider: TEST_KEY_PROVIDER,
+    keyRef: TEST_KEY_REF,
+    refreshExpiresAt,
+  });
+}

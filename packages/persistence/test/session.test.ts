@@ -3,13 +3,18 @@
 // `setExpiresAt` mirror. Rotation lives on the grant boundary.
 import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
+import type { GithubGrantRow } from "../src/auth/grant";
 import { createSessionAuth, sweepExpiredSessions } from "../src/auth/session";
 import { createTokenAuth } from "../src/auth/token";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import { isReviewerId, type ReviewerId } from "../src/types";
-import { brandWith, createQueryLog, registerSharedPglite } from "./helpers";
+import {
+  brandWith,
+  createQueryLog,
+  makeGrant,
+  registerSharedPglite,
+} from "./helpers";
 import { AccessLevels } from "types/access-levels";
 
 const shared = registerSharedPglite();
@@ -34,13 +39,11 @@ async function seedSession(
 ): Promise<GithubGrantRow> {
   const grant =
     input.grant ??
-    (await createGrantAuth(handle).createGrant({
-      userId: input.reviewerId ?? REVIEWER_ID,
-      ghTokenCiphertext: "v1.enc-access",
-      ghRefreshTokenCiphertext: "v1.enc-refresh",
-      keyRef: "SESSION_KEY_V1",
-      refreshExpiresAt: input.expiresAt ?? EXPIRY,
-    }));
+    (await makeGrant(
+      handle,
+      input.reviewerId ?? REVIEWER_ID,
+      input.expiresAt ?? EXPIRY,
+    ));
   await createSessionAuth(handle).createSession({
     sessionTokenHash: input.hash ?? HASH,
     reviewerId: input.reviewerId ?? REVIEWER_ID,
@@ -60,13 +63,7 @@ async function grantCount(handle: AppDatabase): Promise<number> {
 describe("createSessionAuth.createSession", () => {
   it("creates a session that links its grant by id", async () => {
     const handle = shared.handle;
-    const grant = await createGrantAuth(handle).createGrant({
-      userId: REVIEWER_ID,
-      ghTokenCiphertext: "v1.enc-access",
-      ghRefreshTokenCiphertext: "v1.enc-refresh",
-      keyRef: "SESSION_KEY_V1",
-      refreshExpiresAt: EXPIRY,
-    });
+    const grant = await makeGrant(handle, REVIEWER_ID, EXPIRY);
 
     const row = await createSessionAuth(handle).createSession({
       sessionTokenHash: HASH,
@@ -91,7 +88,7 @@ describe("createSessionAuth.findSession", () => {
     expect(String(resolved?.session.reviewerId)).toBe(String(REVIEWER_ID));
     // The credential material rides on the grant half only.
     expect(resolved?.grant.id).toBe(grant.id);
-    expect(resolved?.grant.ghTokenCiphertext).toBe("v1.enc-access");
+    expect(resolved?.grant.ghTokenCiphertext).toBe(grant.ghTokenCiphertext);
     expect(resolved?.session).not.toHaveProperty("ghTokenCiphertext");
   });
 
@@ -139,8 +136,8 @@ describe("createSessionAuth.deleteSession, last-referent lifecycle", () => {
     expect(deleted.orphanedGrants).toEqual([
       {
         id: grant.id,
-        ghTokenCiphertext: "v1.enc-access",
-        keyRef: "SESSION_KEY_V1",
+        ghTokenCiphertext: grant.ghTokenCiphertext,
+        keyRef: grant.keyRef,
       },
     ]);
   });

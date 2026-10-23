@@ -5,7 +5,7 @@ import {
   type ReviewerCredential,
 } from "github";
 import type { Logger } from "logging";
-import { decryptToken } from "persistence";
+import { decryptToken, GrantSealedColumns } from "persistence";
 import type { Result } from "types/utils";
 import { refreshSessionToken } from "../routes/auth/session/logic/refresh";
 import {
@@ -47,6 +47,7 @@ export function createSessionCredential(
       deps.auth.keyProvider,
       current.keyRef,
       current.ghTokenCiphertext,
+      { grantId: current.grantId, column: GrantSealedColumns.ACCESS_TOKEN },
     );
     if (decrypted.ok) {
       return decrypted;

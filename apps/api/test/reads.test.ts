@@ -13,6 +13,7 @@ import {
   decryptToken,
   createTenantRepository,
   createSessionAuth,
+  GrantSealedColumns,
   createTokenAuth,
   type AppDatabase,
   type KeyProvider,
@@ -357,15 +358,17 @@ describe("reviewer read API + authz gate", () => {
 
     // The linked grant's access ciphertext rotated to the refreshed token,
     // decrypt and compare, an existence check alone proves nothing.
-    const rows = await harness.raw(
-      "select g.gh_token_ciphertext from auth_session s join github_grant g on g.id = s.grant_id where s.session_token_hash = $1",
-      [cookieHash],
+    const resolved = await createSessionAuth(harness.handle).findSession(
+      cookieHash,
     );
-    expect(rows).toHaveLength(1);
+    if (resolved === undefined) {
+      throw new Error("signed-in session not found");
+    }
     const decrypted = await decryptToken(
       kp,
       KEY_REF,
-      String(rows[0]?.["gh_token_ciphertext"]),
+      resolved.grant.ghTokenCiphertext,
+      { grantId: resolved.grant.id, column: GrantSealedColumns.ACCESS_TOKEN },
     );
     if (!decrypted.ok) {
       throw new Error("stored grant ciphertext unreadable");

@@ -379,3 +379,6 @@ export type {
   CryptoError,
   CryptoErrorCode,
 } from "./auth/crypto";
+// A sealed token opens only under the grant row and column it was sealed for.
+export { GrantSealedColumns } from "./auth/types";
+export type { GrantSealBinding, GrantSealedColumn } from "./auth/types";

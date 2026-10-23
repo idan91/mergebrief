@@ -1,17 +1,27 @@
 // A rotation holds its grant's row lock and one pool connection while GitHub
-// answers. PGlite runs one connection, so this suite runs only against a real
-// Postgres named by MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when unset,
-// red under CI.
+// answers, and concurrent sign-ins draw grant ids in parallel transactions.
+// PGlite runs one connection, so this suite runs only against a real Postgres
+// named by MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when unset, red
+// under CI.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { decryptToken } from "../src/auth/crypto";
 import {
   createGrantAuth,
   GrantAuthErrorCodes,
   type GrantAuth,
+  type GrantRefreshPatch,
 } from "../src/auth/grant";
+import { GrantSealedColumns } from "../src/auth/types";
 import { closeDb, createDb, type AppDatabase } from "../src/db/handle";
 import { readTestPostgresUrl } from "../src/testing";
 import { isReviewerId, type GrantRowId } from "../src/types";
-import { brandWith, connectMigrated, waitMs } from "./helpers";
+import {
+  brandWith,
+  connectMigrated,
+  makeGrant,
+  TEST_KEY_PROVIDER,
+  waitMs,
+} from "./helpers";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const ROTATION_BOUND_MS = 1_000;
@@ -22,13 +32,14 @@ const WAITERS_POOL_SIZE = WAITER_COUNT + 1;
 const SUITE_TIMEOUT_MS = 15_000;
 const FUTURE = new Date("2027-01-01T00:00:00Z");
 
+const CONCURRENT_SIGN_INS = 8;
+
 const REVIEWER = brandWith(isReviewerId, 777n);
 
-function makeGrantInput(label: string) {
+function makeRotationPatch(label: string): GrantRefreshPatch {
   return {
-    userId: REVIEWER,
-    ghTokenCiphertext: `v1.${label}-access`,
-    ghRefreshTokenCiphertext: `v1.${label}-refresh`,
+    ghTokenCiphertext: `v2.${label}-access`,
+    ghRefreshTokenCiphertext: `v2.${label}-refresh`,
     keyRef: "SESSION_KEY_V1",
     refreshExpiresAt: FUTURE,
   };
@@ -42,7 +53,7 @@ function stubHungRotation(holdMs: number) {
 }
 
 describe.skipIf(databaseUrl === undefined)(
-  "refreshGrant on real Postgres",
+  "the grant boundary on real Postgres",
   () => {
     let handle: AppDatabase;
     let auth: GrantAuth;
@@ -54,16 +65,15 @@ describe.skipIf(databaseUrl === undefined)(
       }
       handle = createDb(databaseUrl, { maxConnections: size });
       auth = createGrantAuth(handle);
-      const seed = await auth.createGrant(makeGrantInput("warm"));
-      created.push(seed.id);
+      const seed = await makePooledGrant();
       // Open every connection up front, so no timing below pays a connect.
       await Promise.all(
         Array.from({ length: size }, () => auth.getGrant(seed.id)),
       );
     }
 
-    async function makeGrant(label: string) {
-      const grant = await auth.createGrant(makeGrantInput(label));
+    async function makePooledGrant() {
+      const grant = await makeGrant(handle, REVIEWER, FUTURE);
       created.push(grant.id);
       return grant;
     }
@@ -84,8 +94,8 @@ describe.skipIf(databaseUrl === undefined)(
 
     it("frees its connection at the bound while another grant rotates", async () => {
       await openPool(POOL_SIZE);
-      const hung = await makeGrant("hung");
-      const other = await makeGrant("other");
+      const hung = await makePooledGrant();
+      const other = await makePooledGrant();
       let hungSettled = false;
 
       const hungRefresh = auth
@@ -100,7 +110,7 @@ describe.skipIf(databaseUrl === undefined)(
       const otherResult = await auth.refreshGrant(
         other.id,
         other.ghTokenCiphertext,
-        async () => ({ ok: true, value: makeGrantInput("rotated") }),
+        async () => ({ ok: true, value: makeRotationPatch("rotated") }),
       );
       const settledBeforeOther = hungSettled;
 
@@ -116,7 +126,7 @@ describe.skipIf(databaseUrl === undefined)(
       "times out waiters on a held grant without calling GitHub again",
       async () => {
         await openPool(WAITERS_POOL_SIZE);
-        const grant = await makeGrant("contended");
+        const grant = await makePooledGrant();
         let waiterRotations = 0;
 
         let signalLockHeld = (): void => {};
@@ -138,7 +148,7 @@ describe.skipIf(databaseUrl === undefined)(
           Array.from({ length: WAITER_COUNT }, () =>
             auth.refreshGrant(grant.id, grant.ghTokenCiphertext, async () => {
               waiterRotations += 1;
-              return { ok: true, value: makeGrantInput("never") };
+              return { ok: true, value: makeRotationPatch("never") };
             }),
           ),
         );
@@ -157,5 +167,31 @@ describe.skipIf(databaseUrl === undefined)(
       },
       SUITE_TIMEOUT_MS,
     );
+
+    it("gives concurrent sign-ins distinct ids, each sealed to its own", async () => {
+      await openPool(WAITERS_POOL_SIZE);
+
+      const grants = await Promise.all(
+        Array.from({ length: CONCURRENT_SIGN_INS }, () => makePooledGrant()),
+      );
+      const opened = await Promise.all(
+        grants.map((grant) =>
+          decryptToken(
+            TEST_KEY_PROVIDER,
+            grant.keyRef,
+            grant.ghTokenCiphertext,
+            {
+              grantId: grant.id,
+              column: GrantSealedColumns.ACCESS_TOKEN,
+            },
+          ),
+        ),
+      );
+
+      expect(new Set(grants.map((grant) => grant.id)).size).toBe(
+        CONCURRENT_SIGN_INS,
+      );
+      expect(opened.every((result) => result.ok)).toBe(true);
+    });
   },
 );

@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { deleteUserCredentials } from "../src/auth/credentials";
-import { createGrantAuth } from "../src/auth/grant";
 import { createSessionAuth } from "../src/auth/session";
 import { createTokenAuth } from "../src/auth/token";
 import { internal, type AppDatabase } from "../src/db/handle";
@@ -11,7 +10,7 @@ import { authSession } from "../src/schema/auth-session";
 import { githubGrant } from "../src/schema/github-grant";
 import { isReviewerId, type ReviewerId } from "../src/types";
 import { AccessLevels } from "types/access-levels";
-import { brandWith, registerSharedPglite } from "./helpers";
+import { brandWith, makeGrant, registerSharedPglite } from "./helpers";
 
 const shared = registerSharedPglite();
 
@@ -25,13 +24,7 @@ async function seedSignedInUser(
   userId: ReviewerId,
   label: string,
 ): Promise<void> {
-  const grant = await createGrantAuth(handle).createGrant({
-    userId,
-    ghTokenCiphertext: `v1.${label}-access`,
-    ghRefreshTokenCiphertext: `v1.${label}-refresh`,
-    keyRef: "SESSION_KEY_V1",
-    refreshExpiresAt: FUTURE,
-  });
+  const grant = await makeGrant(handle, userId, FUTURE);
   await createSessionAuth(handle).createSession({
     sessionTokenHash: `${label}-session`,
     reviewerId: userId,

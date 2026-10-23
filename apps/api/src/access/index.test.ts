@@ -13,6 +13,7 @@ import type { Logger } from "logging";
 import {
   createEnvKeyProvider,
   encryptToken,
+  GrantSealedColumns,
   isGrantRowId,
   isInstallationId,
   isRepoId,
@@ -147,7 +148,11 @@ async function buildGateApp(
   options: GateAppOptions = {},
 ): Promise<Hono<AuthzEnv>> {
   const installations = options.installations ?? stubInstallations();
-  const sealed = await encryptToken(keyProvider, KEY_REF, STALE_TOKEN);
+  const grantId = brand(7n, isGrantRowId);
+  const sealed = await encryptToken(keyProvider, KEY_REF, STALE_TOKEN, {
+    grantId,
+    column: GrantSealedColumns.ACCESS_TOKEN,
+  });
   if (!sealed.ok) {
     throw new Error("fixture seal failed");
   }
@@ -156,7 +161,7 @@ async function buildGateApp(
     sessionTokenHash: `hash-authz-unit-${randomBytes(4).toString("hex")}`,
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",
-    grantId: brand(7n, isGrantRowId),
+    grantId,
     expiresAt: new Date(Date.now() + 60_000),
     createdAt: new Date(),
     ghTokenCiphertext: sealed.value,

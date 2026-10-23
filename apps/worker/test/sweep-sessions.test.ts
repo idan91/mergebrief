@@ -1,10 +1,15 @@
 // The scheduled session sweep against a real migrated schema (the
 // `persistence/testing` PGlite harness). Sessions are seeded through
 // persistence's own session writes.
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import {
-  createGrantAuth,
+  createPgliteHarness,
+  seedGrant,
+  type PgliteHarness,
+} from "persistence/testing";
+import {
+  createEnvKeyProvider,
   createSessionAuth,
   isReviewerId,
   type ReviewerId,
@@ -21,6 +26,11 @@ function makeReviewerId(id: bigint): ReviewerId {
   return id;
 }
 
+const KEY_REF = "SESSION_KEY_V1";
+const KEY_PROVIDER = createEnvKeyProvider({
+  [KEY_REF]: randomBytes(32).toString("base64"),
+});
+
 const REVIEWER = makeReviewerId(5001n);
 const OTHER_REVIEWER = makeReviewerId(5002n);
 
@@ -34,11 +44,12 @@ async function seedSession(
   reviewerId: ReviewerId,
   expiresAt: Date,
 ): Promise<void> {
-  const grant = await createGrantAuth(harness.handle).createGrant({
+  const grant = await seedGrant(harness.handle, {
     userId: reviewerId,
-    ghTokenCiphertext: "v1.enc-access",
-    ghRefreshTokenCiphertext: "v1.enc-refresh",
-    keyRef: "SESSION_KEY_V1",
+    accessToken: "ghu_access",
+    refreshToken: "ghr_refresh",
+    keyProvider: KEY_PROVIDER,
+    keyRef: KEY_REF,
     refreshExpiresAt: expiresAt,
   });
   await createSessionAuth(harness.handle).createSession({

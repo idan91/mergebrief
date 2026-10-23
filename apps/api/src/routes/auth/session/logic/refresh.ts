@@ -15,6 +15,7 @@ import {
   encryptToken,
   createGrantAuth,
   GrantAuthErrorCodes,
+  GrantSealedColumns,
   createSessionAuth,
   createTokenAuth,
   type GithubGrantRow,
@@ -95,6 +96,7 @@ async function rotateGitHubTokens(
     deps.auth.keyProvider,
     locked.keyRef,
     locked.ghRefreshTokenCiphertext,
+    { grantId: locked.id, column: GrantSealedColumns.REFRESH_TOKEN },
   );
   if (!decryptedRefresh.ok) {
     return rejectRotation(RotationFailures.DECRYPT_FAILED);
@@ -109,11 +111,13 @@ async function rotateGitHubTokens(
     deps.auth.keyProvider,
     deps.auth.sessionKeyRef,
     tokens.value.accessToken,
+    { grantId: locked.id, column: GrantSealedColumns.ACCESS_TOKEN },
   );
   const sealedRefresh = await encryptToken(
     deps.auth.keyProvider,
     deps.auth.sessionKeyRef,
     tokens.value.refreshToken,
+    { grantId: locked.id, column: GrantSealedColumns.REFRESH_TOKEN },
   );
   if (!sealedAccess.ok || !sealedRefresh.ok) {
     return rejectRotation(RotationFailures.SEAL_FAILED);
@@ -262,6 +266,7 @@ export async function refreshSessionToken(
     deps.auth.keyProvider,
     grant.keyRef,
     grant.ghTokenCiphertext,
+    { grantId: grant.id, column: GrantSealedColumns.ACCESS_TOKEN },
   );
   if (!decryptedAccess.ok) {
     return answerRotationFailure(

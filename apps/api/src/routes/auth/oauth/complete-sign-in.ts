@@ -1,6 +1,6 @@
 // A verified callback becomes a session: exchange the code, resolve the
-// reviewer, seal both tokens onto a grant row, and create the session that
-// links it. No token or secret is ever logged.
+// reviewer, hand both tokens to a new grant row that seals them, and create
+// the session that links it. No token or secret is ever logged.
 import { randomBytes } from "node:crypto";
 import {
   exchangeWebFlowCode,
@@ -9,9 +9,9 @@ import {
   type GitHubOAuthApp,
 } from "github";
 import {
-  encryptToken,
   createGrantAuth,
   createSessionAuth,
+  type CryptoError,
   type ReviewerId,
 } from "persistence";
 import { SignInFailures, type SignInFailure } from "contract";
@@ -28,12 +28,12 @@ export interface VerifiedCallback {
   readonly state: string;
 }
 
-interface SealedSession {
+interface SignedInSession {
   readonly sessionToken: string;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin: string;
-  readonly ghTokenCiphertext: string;
-  readonly ghRefreshTokenCiphertext: string;
+  readonly accessToken: string;
+  readonly refreshToken: string;
   readonly refreshExpiresAt: Date;
 }
 
@@ -62,58 +62,52 @@ export async function completeSignIn(
     return { ok: false, error: SignInFailures.GITHUB_UNAVAILABLE };
   }
 
-  const sealedAccess = await encryptToken(
-    deps.auth.keyProvider,
-    deps.auth.sessionKeyRef,
-    tokens.value.accessToken,
-  );
-  const sealedRefresh = await encryptToken(
-    deps.auth.keyProvider,
-    deps.auth.sessionKeyRef,
-    tokens.value.refreshToken,
-  );
-  const sealed = sealedAccess.ok && sealedRefresh.ok;
-  if (!sealed) {
-    log.error("sign-in failed: the GitHub tokens could not be sealed");
-    return { ok: false, error: SignInFailures.SIGN_IN_FAILED };
-  }
-
   const sessionToken = randomBytes(SESSION_TOKEN_BYTES).toString("base64url");
-  await storeSession(deps, {
+  const stored = await storeSession(deps, {
     sessionToken,
     reviewerId: user.value.reviewerId,
     reviewerLogin: user.value.reviewerLogin,
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
+    accessToken: tokens.value.accessToken,
+    refreshToken: tokens.value.refreshToken,
     refreshExpiresAt: tokens.value.refreshTokenExpiresAt,
   });
+  if (!stored.ok) {
+    log.error("sign-in failed: the GitHub tokens could not be sealed");
+    return { ok: false, error: SignInFailures.SIGN_IN_FAILED };
+  }
   return { ok: true, value: sessionToken };
 }
 
 /**
- * The credential pair lands on a fresh grant row and the session links it.
- * Session lifetime is the refresh token's; access-token freshness is lazy
- * refresh on a 401.
+ * The credential pair lands sealed on a fresh grant row and the session links
+ * it; a key the provider cannot resolve stores nothing. Session lifetime is
+ * the refresh token's; access-token freshness is lazy refresh on a 401.
  */
 async function storeSession(
   deps: AuthRouteDeps,
-  sealed: SealedSession,
-): Promise<void> {
+  signedIn: SignedInSession,
+): Promise<Result<undefined, CryptoError>> {
   const grants = createGrantAuth(deps.handle);
-  const grant = await grants.createGrant({
-    userId: sealed.reviewerId,
-    ghTokenCiphertext: sealed.ghTokenCiphertext,
-    ghRefreshTokenCiphertext: sealed.ghRefreshTokenCiphertext,
+  const created = await grants.createGrant({
+    userId: signedIn.reviewerId,
+    accessToken: signedIn.accessToken,
+    refreshToken: signedIn.refreshToken,
+    keyProvider: deps.auth.keyProvider,
     keyRef: deps.auth.sessionKeyRef,
-    refreshExpiresAt: sealed.refreshExpiresAt,
+    refreshExpiresAt: signedIn.refreshExpiresAt,
   });
+  if (!created.ok) {
+    return created;
+  }
+
+  const grant = created.value;
   try {
     await createSessionAuth(deps.handle).createSession({
-      sessionTokenHash: sha256Hex(sealed.sessionToken),
-      reviewerId: sealed.reviewerId,
-      reviewerLogin: sealed.reviewerLogin,
+      sessionTokenHash: sha256Hex(signedIn.sessionToken),
+      reviewerId: signedIn.reviewerId,
+      reviewerLogin: signedIn.reviewerLogin,
       grantId: grant.id,
-      expiresAt: sealed.refreshExpiresAt,
+      expiresAt: signedIn.refreshExpiresAt,
     });
   } catch (error) {
     // A grant that never gained its referent would linger forever: lifecycle
@@ -122,4 +116,5 @@ async function storeSession(
     await grants.deleteIfOrphaned(grant.id).catch(() => undefined);
     throw error;
   }
+  return { ok: true, value: undefined };
 }

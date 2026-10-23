@@ -1,7 +1,8 @@
 // Token-crypto tests. Cover the security gates: round-trip, tamper/wrong-key
 // auth failure (Result, no throw, no key material leaked), key env validation,
-// IV randomness, and version rejection. Result narrowing uses the repo's
-// `if (!x.ok) throw` pattern so no `expect` is conditional.
+// IV randomness, version rejection, and the row/column/key-ref binding. Result
+// narrowing uses the repo's `if (!x.ok) throw` pattern so no `expect` is
+// conditional.
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
@@ -13,11 +14,18 @@ import {
   type CryptoError,
   type KeyProvider,
 } from "../src/auth/crypto";
+import { GrantSealedColumns, type GrantSealBinding } from "../src/auth/types";
+import { isGrantRowId } from "../src/types";
 import type { Result } from "types/utils";
+import { brandWith } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const OTHER_KEY_REF = "SESSION_KEY_V2";
 const TOKEN = "gho_16C7e42F292c6912E7710c838347Ae178B4a"; // shape of a GitHub token
+const ACCESS_BINDING: GrantSealBinding = {
+  grantId: brandWith(isGrantRowId, 41n),
+  column: GrantSealedColumns.ACCESS_TOKEN,
+};
 
 /** A base64 32-byte key. */
 function freshKeyB64(): string {
@@ -34,8 +42,9 @@ async function seal(
   provider: KeyProvider,
   keyRef: string,
   plaintext: string,
+  binding: GrantSealBinding = ACCESS_BINDING,
 ): Promise<string> {
-  const enc = await encryptToken(provider, keyRef, plaintext);
+  const enc = await encryptToken(provider, keyRef, plaintext, binding);
   if (!enc.ok) {
     throw new Error(`setup: encrypt failed (${enc.error.code})`);
   }
@@ -115,9 +124,9 @@ describe("crypto: encrypt/decrypt round-trip", () => {
   it("decrypts what it encrypted", async () => {
     const provider = providerWith({ [KEY_REF]: freshKeyB64() });
     const sealed = await seal(provider, KEY_REF, TOKEN);
-    expect(sealed.startsWith("v1.")).toBe(true);
+    expect(sealed.startsWith("v2.")).toBe(true);
 
-    const dec = await decryptToken(provider, KEY_REF, sealed);
+    const dec = await decryptToken(provider, KEY_REF, sealed, ACCESS_BINDING);
     if (!dec.ok) {
       throw new Error("expected decrypt to succeed");
     }
@@ -128,7 +137,7 @@ describe("crypto: encrypt/decrypt round-trip", () => {
     const provider = providerWith({ [KEY_REF]: freshKeyB64() });
     for (const plaintext of ["ünïcödé-🔑-token", "x".repeat(4096)]) {
       const sealed = await seal(provider, KEY_REF, plaintext);
-      const dec = await decryptToken(provider, KEY_REF, sealed);
+      const dec = await decryptToken(provider, KEY_REF, sealed, ACCESS_BINDING);
       if (!dec.ok) {
         throw new Error("expected decrypt to succeed");
       }
@@ -153,7 +162,9 @@ describe("crypto: decrypt fails as a Result, with no throw and no leak", () => {
     ctBytes[0] = ctBytes[0] === undefined ? 0 : ctBytes[0] ^ 0xff;
     const tampered = [v, iv, ctBytes.toString("base64"), tag].join(".");
 
-    const error = decryptError(await decryptToken(provider, KEY_REF, tampered));
+    const error = decryptError(
+      await decryptToken(provider, KEY_REF, tampered, ACCESS_BINDING),
+    );
     expect(error.code).toBe(CryptoErrorCodes.AUTHENTICATION_FAILED);
     expect(error.message).not.toContain(TOKEN);
   });
@@ -166,7 +177,9 @@ describe("crypto: decrypt fails as a Result, with no throw and no leak", () => {
     tagBytes[0] = tagBytes[0] === undefined ? 0 : tagBytes[0] ^ 0xff;
     const tampered = [v, iv, ct, tagBytes.toString("base64")].join(".");
 
-    const error = decryptError(await decryptToken(provider, KEY_REF, tampered));
+    const error = decryptError(
+      await decryptToken(provider, KEY_REF, tampered, ACCESS_BINDING),
+    );
     expect(error.code).toBe(CryptoErrorCodes.AUTHENTICATION_FAILED);
   });
 
@@ -179,16 +192,18 @@ describe("crypto: decrypt fails as a Result, with no throw and no leak", () => {
     // Same keyRef, different key material behind it.
     const decProvider = providerWith({ [KEY_REF]: freshKeyB64() });
     const error = decryptError(
-      await decryptToken(decProvider, KEY_REF, sealed),
+      await decryptToken(decProvider, KEY_REF, sealed, ACCESS_BINDING),
     );
     expect(error.code).toBe(CryptoErrorCodes.AUTHENTICATION_FAILED);
   });
 
-  it("unknown version prefix is rejected", async () => {
+  it("a v1 ciphertext is an unknown version", async () => {
     const provider = providerWith({ [KEY_REF]: freshKeyB64() });
     const sealed = await seal(provider, KEY_REF, TOKEN);
-    const withV2 = sealed.replace(/^v1\./, "v2.");
-    const error = decryptError(await decryptToken(provider, KEY_REF, withV2));
+    const asV1 = sealed.replace(/^v2\./, "v1.");
+    const error = decryptError(
+      await decryptToken(provider, KEY_REF, asV1, ACCESS_BINDING),
+    );
     expect(error.code).toBe(CryptoErrorCodes.UNKNOWN_VERSION);
   });
 
@@ -200,13 +215,15 @@ describe("crypto: decrypt fails as a Result, with no throw and no leak", () => {
     ];
     for (const bad of [
       "",
-      "v1",
-      "v1.aaa",
-      "v1.a.b",
+      "v2",
+      "v2.aaa",
+      "v2.a.b",
       "not-even-close",
-      "v1.....",
+      "v2.....",
     ]) {
-      const error = decryptError(await decryptToken(provider, KEY_REF, bad));
+      const error = decryptError(
+        await decryptToken(provider, KEY_REF, bad, ACCESS_BINDING),
+      );
       expect(accepted).toContain(error.code);
     }
   });
@@ -218,7 +235,7 @@ describe("crypto: decrypt fails as a Result, with no throw and no leak", () => {
       TOKEN,
     );
     const error = decryptError(
-      await decryptToken(providerWith({}), KEY_REF, sealed),
+      await decryptToken(providerWith({}), KEY_REF, sealed, ACCESS_BINDING),
     );
     expect(error.code).toBe(CryptoErrorCodes.KEY_UNAVAILABLE);
     expect(error.cause?.code).toBe(KeyErrorCodes.MISSING);
@@ -233,14 +250,86 @@ describe("crypto: decrypt fails as a Result, with no throw and no leak", () => {
     const sealedV1 = await seal(provider, KEY_REF, TOKEN);
     const sealedV2 = await seal(provider, OTHER_KEY_REF, TOKEN);
 
-    const okV1 = await decryptToken(provider, KEY_REF, sealedV1);
-    const okV2 = await decryptToken(provider, OTHER_KEY_REF, sealedV2);
+    const okV1 = await decryptToken(
+      provider,
+      KEY_REF,
+      sealedV1,
+      ACCESS_BINDING,
+    );
+    const okV2 = await decryptToken(
+      provider,
+      OTHER_KEY_REF,
+      sealedV2,
+      ACCESS_BINDING,
+    );
     expect(okV1.ok && okV2.ok).toBe(true);
 
     // Wrong key_ref for the ciphertext → auth failure.
     const error = decryptError(
-      await decryptToken(provider, OTHER_KEY_REF, sealedV1),
+      await decryptToken(provider, OTHER_KEY_REF, sealedV1, ACCESS_BINDING),
     );
     expect(error.code).toBe(CryptoErrorCodes.AUTHENTICATION_FAILED);
+  });
+});
+
+describe("crypto: a ciphertext opens only where it was sealed", () => {
+  it("fails under another grant id", async () => {
+    const provider = providerWith({ [KEY_REF]: freshKeyB64() });
+    const sealed = await seal(provider, KEY_REF, TOKEN);
+    const otherRow: GrantSealBinding = {
+      ...ACCESS_BINDING,
+      grantId: brandWith(isGrantRowId, 42n),
+    };
+
+    const error = decryptError(
+      await decryptToken(provider, KEY_REF, sealed, otherRow),
+    );
+    expect(error.code).toBe(CryptoErrorCodes.AUTHENTICATION_FAILED);
+    expect(error.message).not.toContain(TOKEN);
+  });
+
+  it("fails when read as the other column", async () => {
+    const provider = providerWith({ [KEY_REF]: freshKeyB64() });
+    const sealed = await seal(provider, KEY_REF, TOKEN);
+    const refreshColumn: GrantSealBinding = {
+      ...ACCESS_BINDING,
+      column: GrantSealedColumns.REFRESH_TOKEN,
+    };
+
+    const error = decryptError(
+      await decryptToken(provider, KEY_REF, sealed, refreshColumn),
+    );
+    expect(error.code).toBe(CryptoErrorCodes.AUTHENTICATION_FAILED);
+    expect(error.message).not.toContain(TOKEN);
+  });
+
+  it("fails under another key ref holding the same key bytes", async () => {
+    const keyBytes = freshKeyB64();
+    const provider = providerWith({
+      [KEY_REF]: keyBytes,
+      [OTHER_KEY_REF]: keyBytes,
+    });
+    const sealed = await seal(provider, KEY_REF, TOKEN);
+
+    const error = decryptError(
+      await decryptToken(provider, OTHER_KEY_REF, sealed, ACCESS_BINDING),
+    );
+    expect(error.code).toBe(CryptoErrorCodes.AUTHENTICATION_FAILED);
+    expect(error.message).not.toContain(TOKEN);
+  });
+
+  it("opens the refresh column under its own binding", async () => {
+    const provider = providerWith({ [KEY_REF]: freshKeyB64() });
+    const refreshColumn: GrantSealBinding = {
+      ...ACCESS_BINDING,
+      column: GrantSealedColumns.REFRESH_TOKEN,
+    };
+    const sealed = await seal(provider, KEY_REF, TOKEN, refreshColumn);
+
+    const opened = await decryptToken(provider, KEY_REF, sealed, refreshColumn);
+    if (!opened.ok) {
+      throw new Error("expected decrypt to succeed");
+    }
+    expect(opened.value).toBe(TOKEN);
   });
 });

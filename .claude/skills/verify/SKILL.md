@@ -85,11 +85,15 @@ then `docker compose stop postgres` if it was down before. Blanket
 ## Seed-script gotchas (2026-07-17 pass)
 
 - `createDb(databaseUrl)` and `migrateApp(databaseUrl)` take the URL STRING,
-  not an options object; `encryptToken(provider, keyRef, plaintext)` — provider
-  first.
-- Sessions have no high-level helper: `createSession` wants the sha256-hex
-  hash of a random token (cookie value = the raw token), reviewer id, BOTH
-  ciphertext fields, `keyRef`, `expiresAt`.
+  not an options object.
+- Seed the GitHub token pair with `seedGrant(handle, { userId, accessToken,
+  refreshToken, keyProvider, keyRef })` from `persistence/testing`: it seals
+  both tokens bound to the new grant row, so never hand-seal them.
+  `encryptToken` and `decryptToken` take a fourth `{ grantId, column }`
+  binding, and a ciphertext opens only under its own grant id and column.
+- Then `createSession` wants the sha256-hex hash of a random token (cookie
+  value = the raw token), reviewer id, the grant's `id` as `grantId`, and
+  `expiresAt`; no ciphertext lives on `auth_session`.
 - `SESSION_KEY_V1` must be base64-encoded 32 bytes (`openssl rand -base64 32`)
   — hex is "wrong-length".
 - Use a REAL repo id the `gh` token can read (e.g. `gh api repos/<o>/<r> --jq
