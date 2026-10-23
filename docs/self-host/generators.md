@@ -34,8 +34,9 @@ generator:
   #                            # generation (default medium); see the effort-knob
   #                            # column below for what each provider does with it
   # apiKeyEnv: MY_KEY_VAR      # API providers: NAME of the env var holding the key
-  # baseUrl: https://your-server.example/v1   # openai only: OpenAI-compatible
-  #                            # server escape hatch (preflight downgrades to warnings)
+  # baseUrl: https://gateway.example   # anthropic: gateway host root, NO /v1 (a path ending in /v1 refuses boot)
+  # baseUrl: https://your-server.example/v1   # openai: the /v1 root of a gateway or
+  #                            # compatible server (preflight downgrades to warnings)
   # command: /usr/local/bin/claude   # CLI providers: binary path/name
   # timeouts:                  # CLI providers: harness timer tunables (ms)
   #   hardMs: 900000
@@ -265,12 +266,22 @@ under one instance-wide lock, so N slots cannot start past it together.
 
 | provider | class | auth | effort knob | notes |
 |---|---|---|---|---|
-| `anthropic` | API | `apiKeyEnv` (default `ANTHROPIC_API_KEY`) | yes | the default; `claude-sonnet-5` = cost knob |
-| `openai` | API | `apiKeyEnv` (default `OPENAI_API_KEY`) | discovered at run time (a model without `reasoning_effort` records `effort: null`) | `model` required; `baseUrl` escape hatch for self-hosted compatible servers (preflight downgrades to warnings) |
+| `anthropic` | API | `apiKeyEnv` (default `ANTHROPIC_API_KEY`) | yes | the default; `claude-sonnet-5` = cost knob; `baseUrl` routes through a gateway and is its host root without `/v1` (the SDK appends `/v1/messages`); a `baseUrl` ending in `/v1` refuses boot |
+| `openai` | API | `apiKeyEnv` (default `OPENAI_API_KEY`) | discovered at run time (a model without `reasoning_effort` records `effort: null`) | `model` required; `baseUrl` routes through a gateway or a self-hosted compatible server and ends in its `/v1` root (the SDK appends `/chat/completions`; preflight downgrades to warnings) |
 | `openrouter` | API | `apiKeyEnv` (default `OPENROUTER_API_KEY`) | gated by the model's listed `reasoning` support | full slug required; boot requires the model to list `structured_outputs`; `require_parameters` is forced on every request |
 | `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null`, an honest gap) | lockdown: `--tools ""`, `--setting-sources ""`, `--strict-mcp-config`, `--disable-slash-commands`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
 | `codex` | **local CLI** | your interactive `codex login` (ChatGPT; a stored API-key login refuses to start) | `model_reasoning_effort` | lockdown: `--skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules`, shell, web search and other built-in tools off, a read-only offline `default_permissions` profile; **origin blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable, so the stamp records what you configured |
 | `cursor` | **local CLI** | your interactive `cursor-agent login` (or `CURSOR_API_KEY`, which bills the same subscription pool) | rides the model-id VARIANT (`gpt-5.2-high` vs `-low`); the `effort:` knob has no wire effect (the stamp parses the id's suffix; a disagreeing `effort:` logs a note) | lockdown: `--mode plan` from an empty temp dir (bare print mode APPLIES file writes); the stream is pipe-silent until exit, so the wall-clock timeout is the only watchdog; **origin blind spot**: the envelope has no model field and `system/init` echoes the request, so the stamp records what you configured |
+
+An API provider's host comes only from this file: `baseUrl` when set, else
+the provider's own (`api.anthropic.com`, `api.openai.com/v1`,
+`openrouter.ai`). The worker ignores `ANTHROPIC_BASE_URL`,
+`ANTHROPIC_AUTH_TOKEN`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`,
+`OPENAI_PROJECT_ID` and `OPENAI_ADMIN_KEY`, so no environment variable can
+redirect generations to another host. `ANTHROPIC_CUSTOM_HEADERS` and
+`OPENAI_CUSTOM_HEADERS` are still honoured: they add or override request
+headers, a key or organization header included, on that same host. Whoever
+sets the worker's environment owns them.
 
 `effort:` note: the committed eval baselines (`tools/categorizer/eval`)
 assume the default (anthropic at `medium`); running an instance at a

@@ -43,9 +43,14 @@ generator:
   # OPENAI_API_KEY / OPENROUTER_API_KEY.
   # apiKeyEnv: MY_PROVIDER_KEY_VAR
 
-  # openai only: OpenAI-compatible server escape hatch (the /models
-  # preflight downgrades to warnings when set).
-  # baseUrl: https://your-server.example/v1
+  # anthropic and openai: gateway URL; the provider's own host when unset
+  # (ANTHROPIC_BASE_URL / OPENAI_BASE_URL are ignored). The two forms differ:
+  # anthropic takes the host root with NO /v1 (the SDK appends /v1/messages;
+  # a path ending in /v1 refuses boot);
+  # openai takes the /v1 root of a gateway or OpenAI-compatible server, and
+  # its /models preflight downgrades to warnings when set.
+  # baseUrl: https://gateway.example          # anthropic
+  # baseUrl: https://your-server.example/v1   # openai
 
   # openrouter only: routing options passed through under `provider`
   # (require_parameters: true is always forced on top) + attribution headers.

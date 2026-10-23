@@ -9,6 +9,8 @@ import { OpenAiCompatibleCore, type OpenAiChatTransport } from "./openaiCore";
  * Custom baseURL probes warn instead of refusing boot because compatible servers may lack /models.
  */
 
+const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
+
 export interface OpenAiAssemblyOptions {
   apiKey: string;
   model: string;
@@ -42,11 +44,16 @@ export function sdkTransport(client: OpenAI): OpenAiChatTransport {
 export async function createOpenAiCore(
   options: OpenAiAssemblyOptions,
 ): Promise<Result<OpenAiCompatibleCore, ConfigError>> {
-  const clientOptions: ClientOptions = { apiKey: options.apiKey };
+  const clientOptions: ClientOptions = {
+    apiKey: options.apiKey,
+    baseURL: options.baseUrl ?? DEFAULT_OPENAI_BASE_URL,
+    // Explicit values keep the SDK from reading OPENAI_BASE_URL, OPENAI_ORG_ID,
+    // OPENAI_PROJECT_ID and OPENAI_ADMIN_KEY.
+    organization: null,
+    project: null,
+    adminAPIKey: null,
+  };
 
-  if (options.baseUrl) {
-    clientOptions.baseURL = options.baseUrl;
-  }
   if (options.defaultHeaders) {
     clientOptions.defaultHeaders = options.defaultHeaders;
   }

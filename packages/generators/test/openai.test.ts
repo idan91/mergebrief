@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APIUserAbortError } from "openai";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import {
@@ -11,7 +11,13 @@ import {
 } from "../src/contract/types";
 import { createOpenAiCore } from "../src/adapters/openai";
 import { createGenerator, Providers } from "../src/config/registry";
-import { getRequestUrl } from "./helpers";
+import {
+  expectNoAmbientAccountHeaders,
+  getRequestUrl,
+  stubAmbientOpenAiEnv,
+  stubCapturingFetch,
+  type CapturingFetch,
+} from "./helpers";
 
 /**
  * Adapter-specific behavior on fetch-level fixtures: request construction, the
@@ -122,6 +128,18 @@ async function mustCore(fixtureFetch: typeof fetch) {
     throw new Error(core.error.issues.join("; "));
   }
   return core.value;
+}
+
+/** Answers the `/models` preflight per `models` and the chat call with valid output. */
+function stubOpenAiFetch(
+  models: (url: string) => Response | null = modelsOk,
+): CapturingFetch {
+  return stubCapturingFetch((url) => {
+    if (url.includes("/models/")) {
+      return models(url) ?? jsonError(500, "no models fixture");
+    }
+    return sse('{"ok":true}');
+  });
 }
 
 function request() {
@@ -748,6 +766,57 @@ describe("openai preflight and registry entry", () => {
       return;
     }
     expect(result.error.issues.join("; ")).toContain("OPENAI_API_KEY");
+  });
+});
+
+describe("openai client ignores ambient provider env", () => {
+  beforeEach(() => {
+    stubAmbientOpenAiEnv();
+  });
+
+  it("sends to the canonical host with no org or project header", async () => {
+    const capturing = stubOpenAiFetch();
+    const core = await createOpenAiCore({
+      apiKey: "test-key",
+      model: "gpt-test-1",
+      failureDir: tempDir("openai-env-"),
+      provider: "openai",
+      fetch: capturing.fetch,
+    });
+    expect(core.ok).toBe(true);
+    if (!core.ok) {
+      return;
+    }
+    await core.value.generate(request());
+
+    const urls = capturing.requests.map((sent) => sent.url);
+    expect(urls).toEqual([
+      "https://api.openai.com/v1/models/gpt-test-1",
+      "https://api.openai.com/v1/chat/completions",
+    ]);
+    for (const sent of capturing.requests) {
+      expectNoAmbientAccountHeaders(sent.headers);
+    }
+  });
+
+  it("sends to the configured baseUrl and keeps its preflight warning", async () => {
+    const logs: string[] = [];
+    const capturing = stubOpenAiFetch(() => jsonError(404, "no /models here"));
+    const core = await createOpenAiCore({
+      apiKey: "test-key",
+      model: "local-model",
+      failureDir: tempDir("openai-env-base-"),
+      provider: "openai",
+      baseUrl: "https://gateway.example/v1",
+      log: (message) => logs.push(message),
+      fetch: capturing.fetch,
+    });
+
+    expect(core.ok).toBe(true);
+    expect(capturing.requests[0]?.url).toBe(
+      "https://gateway.example/v1/models/local-model",
+    );
+    expect(logs.join("\n")).toContain("continuing because baseUrl is set");
   });
 });
 

@@ -165,6 +165,61 @@ describe("createGenerator", () => {
     expect(text).toContain("(redacted)");
   });
 
+  it("accepts a baseUrl on the anthropic block", () => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      baseUrl: "https://gateway.example",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("refuses a non-URL anthropic baseUrl naming the key", () => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      baseUrl: "not a url",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues.join("; ")).toContain("baseUrl");
+  });
+
+  it.each([
+    "https://user:secret@gateway.example/v1",
+    "https://user:secret@gateway.example/proxy/v1/",
+  ])("refuses an anthropic baseUrl ending in /v1 without echoing it", (url) => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      baseUrl: url,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("baseUrl: anthropic takes the gateway host root");
+    expect(text).not.toContain("secret");
+    expect(text).not.toContain("gateway.example");
+  });
+
+  it("accepts an anthropic baseUrl with a non-/v1 path", () => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      baseUrl: "https://gateway.example/anthropic",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("still accepts an openai baseUrl ending in /v1", () => {
+    const result = validateGeneratorConfig({
+      provider: "openai",
+      model: "gpt-test-1",
+      baseUrl: "https://gateway.example/v1",
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it("names the config root when the block is not an object", async () => {
     const result = await createGenerator("anthropic", deps);
     expect(result.ok).toBe(false);

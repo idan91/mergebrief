@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { APIUserAbortError } from "openai";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
@@ -17,7 +17,12 @@ import {
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
-import { getRequestUrl } from "./helpers";
+import {
+  expectNoAmbientAccountHeaders,
+  getRequestUrl,
+  stubAmbientOpenAiEnv,
+  stubCapturingFetch,
+} from "./helpers";
 
 /**
  * Fetch fixtures cover preflight plus transport assembly and shared conformance.
@@ -182,6 +187,35 @@ describe("OpenRouter request translation", () => {
       model: SLUG,
       effort: null,
     });
+  });
+});
+
+describe("OpenRouter client ignores ambient provider env", () => {
+  beforeEach(() => {
+    stubAmbientOpenAiEnv();
+  });
+
+  it("sends to OpenRouter with no org or project header", async () => {
+    const scripted = scriptedFetch(
+      () =>
+        new Response(sse('{"ok":true}'), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+    );
+    const capturing = stubCapturingFetch((url, init) =>
+      scripted.fetch(url, init),
+    );
+    const generator = await mustCore({ ...scripted, fetch: capturing.fetch });
+    await generator.generate(request());
+
+    expect(capturing.requests.map((sent) => sent.url)).toEqual([
+      "https://openrouter.ai/api/v1/models",
+      "https://openrouter.ai/api/v1/chat/completions",
+    ]);
+    for (const sent of capturing.requests) {
+      expectNoAmbientAccountHeaders(sent.headers);
+    }
   });
 });
 

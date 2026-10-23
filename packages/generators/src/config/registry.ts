@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
 import {
@@ -27,7 +26,10 @@ import { createOpenAiCore } from "../adapters/openai";
 import { createOpenRouterCore } from "../adapters/openrouter";
 import { configError, type ConfigError } from "../contract/errors";
 import { Efforts } from "../contract/generation";
-import { AnthropicGenerator } from "../adapters/anthropic";
+import {
+  AnthropicGenerator,
+  createAnthropicClient,
+} from "../adapters/anthropic";
 import type { Generator, Logger } from "../contract/generator";
 import { probeHarnessCli } from "../harness/probe";
 import { checkCliVersion } from "../harness/version-floor";
@@ -113,6 +115,19 @@ export type FullRegeneration = ValueOf<typeof FullRegenerations>;
 
 const fullRegenerationOption = z.enum(FullRegenerations).optional();
 
+const ANTHROPIC_BASE_URL_VERSION_ISSUE =
+  "anthropic takes the gateway host root with no /v1 (the SDK appends /v1/messages)";
+
+const VERSION_SEGMENT_SUFFIX = /\/v1\/?$/;
+
+function endsWithVersionSegment(url: string): boolean {
+  try {
+    return VERSION_SEGMENT_SUFFIX.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
 const anthropicOptions = z
   .object({
     provider: z.literal(Providers.ANTHROPIC),
@@ -123,6 +138,14 @@ const anthropicOptions = z
     model: z.string().min(1).optional(),
     /** NAME of the env var holding the key (BYOK-by-env-name). */
     apiKeyEnv: z.string().min(1).optional(),
+    /** Gateway host root without `/v1`; the canonical Anthropic host when absent. */
+    baseUrl: z
+      .string()
+      .url()
+      .refine((url) => !endsWithVersionSegment(url), {
+        message: ANTHROPIC_BASE_URL_VERSION_ISSUE,
+      })
+      .optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
   })
@@ -252,7 +275,10 @@ export const GENERATOR_REGISTRY = {
       return {
         ok: true,
         value: new AnthropicGenerator(
-          new Anthropic({ apiKey: key.value }),
+          createAnthropicClient({
+            apiKey: key.value,
+            baseUrl: options.baseUrl,
+          }),
           deps.failureDir,
           options.model,
         ),

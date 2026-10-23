@@ -98,6 +98,8 @@ export {
 // direct composition.)
 export {
   AnthropicGenerator,
+  createAnthropicClient,
+  type AnthropicClientOptions,
   type AnthropicStreamingClient,
 } from "./adapters/anthropic";
 export {

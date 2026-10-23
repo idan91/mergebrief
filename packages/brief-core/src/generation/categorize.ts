@@ -17,12 +17,7 @@ import {
   stripForgedRepoFences,
   type RepoContext,
 } from "./repo-context";
-import {
-  AnthropicGenerator,
-  type Effort,
-  type Generator,
-  type Logger,
-} from "generators";
+import type { Effort, Generator, Logger } from "generators";
 import type { Mutable } from "types/utils";
 import {
   buildSystemPrompt,
@@ -660,7 +655,7 @@ ${DATA_REMINDER}`;
 
 export async function categorizeDelta(
   input: DeltaInput,
-  generator: Generator = new AnthropicGenerator(),
+  generator: Generator,
   log: Logger = () => {},
   effort: Effort = DEFAULT_EFFORT,
 ): Promise<DeltaBrief> {
@@ -840,7 +835,7 @@ ${DATA_REMINDER}`;
 
 export async function categorizeRevisionNarrative(
   input: RevisionNarrativeInput,
-  generator: Generator = new AnthropicGenerator(),
+  generator: Generator,
   log: Logger = () => {},
   effort: Effort = DEFAULT_EFFORT,
 ): Promise<RevisionNarrative> {

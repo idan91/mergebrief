@@ -248,14 +248,6 @@
       "count": 1
     }
   },
-  "tools/categorizer/scripts/probe-enum-enforcement.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "tools/categorizer/test/eval-baseline.test.ts": {
     "house/no-em-dash": {
       "count": 1

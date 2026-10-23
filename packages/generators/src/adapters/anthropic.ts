@@ -2,6 +2,7 @@ import Anthropic, {
   AnthropicError,
   APIConnectionError,
   RetryableError,
+  type ClientOptions,
 } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
@@ -55,6 +56,35 @@ export interface AnthropicStreamingClient {
  */
 const DEFAULT_MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 32000;
+const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
+
+export interface AnthropicClientOptions {
+  apiKey: string;
+  /** The Instance config's gateway host root, without `/v1`; the canonical host when absent. */
+  baseUrl?: string | undefined;
+  /** Injected for fetch-level test fixtures. */
+  fetch?: typeof globalThis.fetch;
+}
+
+/**
+ * An explicit `baseURL` and a null `authToken` keep the SDK from reading
+ * `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`; `ANTHROPIC_CUSTOM_HEADERS`
+ * still merges over the auth headers.
+ */
+export function createAnthropicClient(
+  options: AnthropicClientOptions,
+): Anthropic {
+  const clientOptions: ClientOptions = {
+    apiKey: options.apiKey,
+    authToken: null,
+    baseURL: options.baseUrl ?? DEFAULT_ANTHROPIC_BASE_URL,
+  };
+
+  if (options.fetch) {
+    clientOptions.fetch = options.fetch;
+  }
+  return new Anthropic(clientOptions);
+}
 
 export class AnthropicGenerator implements Generator {
   private readonly client: AnthropicStreamingClient;
@@ -62,7 +92,7 @@ export class AnthropicGenerator implements Generator {
   private readonly model: string;
 
   constructor(
-    client: AnthropicStreamingClient = new Anthropic(),
+    client: AnthropicStreamingClient,
     failureDir = "out",
     model: string = DEFAULT_MODEL,
   ) {

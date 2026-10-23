@@ -64,6 +64,11 @@ export async function createOpenRouterCore(
     apiKey: options.apiKey,
     baseURL: options.baseUrl ?? OPENROUTER_BASE_URL,
     defaultHeaders,
+    // Explicit nulls keep the SDK from reading OPENAI_ORG_ID,
+    // OPENAI_PROJECT_ID and OPENAI_ADMIN_KEY.
+    organization: null,
+    project: null,
+    adminAPIKey: null,
   };
 
   if (options.fetch) {

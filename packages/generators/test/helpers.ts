@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { expect } from "vitest";
+import { expect, vi } from "vitest";
 import { z } from "zod/v4";
 import type { HarnessCliEnv } from "../src/harness/run";
 
@@ -23,6 +23,54 @@ export function getRequestUrl(input: string | URL | Request): string {
     return input.href;
   }
   return input.url;
+}
+
+/** One request a capturing fetch saw. */
+export interface CapturedRequest {
+  url: string;
+  headers: Headers;
+}
+
+export interface CapturingFetch {
+  requests: CapturedRequest[];
+  fetch: typeof fetch;
+}
+
+/** A fetch that records each request's url and headers, then answers via `respond`. */
+export function stubCapturingFetch(
+  respond: (
+    url: string,
+    init: RequestInit | undefined,
+  ) => Response | Promise<Response>,
+): CapturingFetch {
+  const requests: CapturedRequest[] = [];
+  const fixture: typeof fetch = async (input, init) => {
+    const url = getRequestUrl(input);
+    requests.push({ url, headers: new Headers(init?.headers) });
+    return respond(url, init);
+  };
+  return { requests, fetch: fixture };
+}
+
+/** Canary values for the openai SDK's env-read host and account vars. */
+export const AMBIENT_OPENAI_ENV = {
+  OPENAI_BASE_URL: "https://redirect.invalid/v1",
+  OPENAI_ORG_ID: "org-canary",
+  OPENAI_PROJECT_ID: "proj-canary",
+  OPENAI_ADMIN_KEY: "admin-key-canary",
+} as const;
+
+/** Points every openai SDK env read at a canary for the current test. */
+export function stubAmbientOpenAiEnv(): void {
+  for (const [name, value] of Object.entries(AMBIENT_OPENAI_ENV)) {
+    vi.stubEnv(name, value);
+  }
+}
+
+/** Asserts no request header names an organization or project. */
+export function expectNoAmbientAccountHeaders(headers: Headers): void {
+  expect(headers.has("openai-organization")).toBe(false);
+  expect(headers.has("openai-project")).toBe(false);
 }
 
 const ShimCwdRecordSchema = z.object({

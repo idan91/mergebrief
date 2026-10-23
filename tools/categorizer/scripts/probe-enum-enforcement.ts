@@ -1,24 +1,16 @@
 /**
- * Spike probe: does the Anthropic platform enforce `enum` in a
- * structured-output schema server-side (constrained decoding), or only treat it
- * as text?
- *
- * Runs the **same adversarial request twice** on the production model:
- *  - Control:   the SDK's `zodOutputFormat` (strips `enum` → text).
- *  - Treatment: `enumPreservingOutputFormat` (keeps `enum` as real keywords).
- *
- * The prompt demands verbatim out-of-vocabulary tokens at three enum positions
- * (top-level, array item, object-in-array) and declares substitution a test
- * failure. Under prompt-only enforcement the model complies (or refuses); under
- * constrained decoding it *cannot* emit those tokens.
- *
- * Exit codes: 0 = enforcement confirmed on the treatment run, 2 = schema
- * rejected by the API, 3 = not confirmed (invalid tokens still appear).
+ * Spike probe: does the Anthropic platform enforce `enum` in a structured-output
+ * schema server-side, or only treat it as text? The same adversarial request runs
+ * twice on the production model: control through the SDK's `zodOutputFormat`
+ * (strips `enum`), treatment through `enumPreservingOutputFormat` (keeps it). The
+ * prompt demands out-of-vocabulary tokens at three enum positions, which
+ * constrained decoding cannot emit.
+ * Exit codes: 0 = enforcement confirmed, 2 = schema rejected by the API, 3 = not confirmed.
  */
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
-import { enumPreservingOutputFormat } from "generators";
+import { createAnthropicClient, enumPreservingOutputFormat } from "generators";
 
 const MODEL = "claude-opus-4-8";
 
@@ -50,7 +42,7 @@ function loadEnv(): void {
   try {
     process.loadEnvFile(".env");
   } catch {
-    // no .env file — ANTHROPIC_API_KEY may still be set in the environment
+    // no .env file: ANTHROPIC_API_KEY may still be set in the environment
   }
 }
 
@@ -99,20 +91,20 @@ function analyze(
 
 async function main(): Promise<number> {
   loadEnv();
-  if (!process.env["ANTHROPIC_API_KEY"]) {
+  const apiKey = process.env["ANTHROPIC_API_KEY"];
+  if (!apiKey) {
     console.error(
       "ANTHROPIC_API_KEY not set — add it to tools/categorizer/.env (see .env.example).",
     );
     return 1;
   }
-  const client = new Anthropic();
+  const client = createAnthropicClient({ apiKey });
 
   // Visual check: the treatment schema must carry `enum` arrays.
   const treatmentFormat = enumPreservingOutputFormat(ProbeSchema);
   console.info("Outgoing TREATMENT schema (enum arrays should be present):");
   console.info(JSON.stringify(treatmentFormat.schema, null, 2));
 
-  // Control run — SDK path, enum stripped.
   const controlResp = await client.messages.create({
     model: MODEL,
     max_tokens: 1000,
@@ -125,8 +117,7 @@ async function main(): Promise<number> {
     analyze(controlResp.content, controlResp.stop_reason),
   );
 
-  // Treatment run — hand-built enum-preserving format; a 400 here means the
-  // API rejected the schema outright.
+  // A 400 on the treatment run means the API rejected the schema outright.
   let treatmentReport: RunReport;
   try {
     const treatmentResp = await client.messages.create({
