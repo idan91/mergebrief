@@ -20,7 +20,11 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 function createMarkReadyHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
   return async (c) => {
     const access = c.get("pullRequestAccess");
-    const marked = await markPullRequestReady(deps.handle, access);
+    const marked = await markPullRequestReady(
+      deps.handle,
+      c.get("logger"),
+      access,
+    );
     if (!marked.ok) {
       throwMarkReadyFailure(marked.error, access.footing);
     }

@@ -30,7 +30,8 @@ import {
   buildOperatorToken,
   createKeyProvider,
 } from "./fixtures";
-import { testLogger } from "./logging";
+import type { Logger } from "logging";
+import { testLogger, testLogging } from "./logging";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
   ROTATED_ACCESS_TOKEN,
@@ -44,7 +45,11 @@ import {
   listCallsPastGate,
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
-import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
+import {
+  openPerTestPglite,
+  registerSharedPglite,
+  type SharedPglite,
+} from "./shared-pglite";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -95,6 +100,15 @@ async function readDraft(handle: AppDatabase): Promise<boolean | undefined> {
   return row?.draft;
 }
 
+async function arrangeFailingDraftWrite(harness: SharedPglite): Promise<void> {
+  await harness.raw(
+    "create function refuse_draft_write() returns trigger language plpgsql as $$ begin raise exception 'refused'; end $$",
+  );
+  await harness.raw(
+    "create trigger refuse_draft_write before update on pull_request for each row when (old.draft is distinct from new.draft) execute function refuse_draft_write()",
+  );
+}
+
 async function countReadyAudits(harness: SharedPglite): Promise<number> {
   const rows = await harness.raw(
     "select id from audit_log where operation = 'mark-ready' and outcome = 'ok'",
@@ -108,10 +122,15 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
   let fake: FakeGitHub;
   let app: ApiApp;
 
-  function buildApp(operatorToken?: string): ApiApp {
+  interface AppOverrides {
+    handle: AppDatabase;
+    logger: Logger;
+  }
+
+  function buildApp(operatorToken?: string, overrides?: AppOverrides): ApiApp {
     return createApp({
-      logger: testLogger(),
-      handle: harness.handle,
+      logger: overrides?.logger ?? testLogger(),
+      handle: overrides?.handle ?? harness.handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
@@ -242,6 +261,31 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await second.text()).toBe("");
     expect(await readDraft(harness.handle)).toBe(false);
     expect(await countReadyAudits(harness)).toBe(2);
+  });
+
+  it("answers 204 and audits ok when the draft write fails", async () => {
+    const own = await openPerTestPglite();
+    const capture = testLogging();
+    const ownApp = buildApp(undefined, {
+      handle: own.handle,
+      logger: capture.logger,
+    });
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    arrangeRepository(fake);
+    await seedDraftPr(own.handle);
+    const { cookie } = await seedSignIn(own.handle, kp);
+    await arrangeFailingDraftWrite(own);
+
+    const res = await markReady(cookie, ownApp);
+
+    expect(res.status).toBe(204);
+    expect(fake.listCalls("markPullRequestReadyForReview")).toHaveLength(1);
+    expect(await readDraft(own.handle)).toBe(true);
+    expect(await countReadyAudits(own)).toBe(1);
+    const errors = capture.lines().filter((line) => line["level"] === "error");
+    expect(errors).toEqual([
+      expect.objectContaining({ pullRequestId: expect.any(String) }),
+    ]);
   });
 
   it("502s an upstream failure and leaves the row a draft", async () => {
