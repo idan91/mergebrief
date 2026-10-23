@@ -13,7 +13,12 @@ import {
 } from "../src/auth/grant";
 import { GrantSealedColumns } from "../src/auth/types";
 import { closeDb, createDb, type AppDatabase } from "../src/db/handle";
-import { readTestPostgresUrl } from "../src/testing";
+import {
+  buildNamedPostgresUrl,
+  readTestPostgresUrl,
+  terminateIdleTransactions,
+  waitUntil,
+} from "../src/testing";
 import { isReviewerId, type GrantRowId } from "../src/types";
 import {
   brandWith,
@@ -33,6 +38,8 @@ const SUITE_TIMEOUT_MS = 15_000;
 const FUTURE = new Date("2027-01-01T00:00:00Z");
 
 const CONCURRENT_SIGN_INS = 8;
+const HELD_REFRESH_APPLICATION = "grant-held-refresh";
+const CLIENT_END_WAIT_MS = 5_000;
 
 const REVIEWER = brandWith(isReviewerId, 777n);
 
@@ -167,6 +174,72 @@ describe.skipIf(databaseUrl === undefined)(
       },
       SUITE_TIMEOUT_MS,
     );
+
+    it("fails a held refresh Postgres ends without crashing the process", async () => {
+      if (databaseUrl === undefined) {
+        throw new Error("unreachable");
+      }
+      const uncaught: unknown[] = [];
+      const forwarded: Error[] = [];
+      function recordUncaught(error: unknown): void {
+        uncaught.push(error);
+      }
+      process.on("uncaughtException", recordUncaught);
+      handle = createDb(
+        buildNamedPostgresUrl(databaseUrl, HELD_REFRESH_APPLICATION),
+        {
+          maxConnections: POOL_SIZE,
+          onError: (error) => forwarded.push(error),
+        },
+      );
+      auth = createGrantAuth(handle);
+      const observer = createDb(databaseUrl);
+      const grant = await makePooledGrant();
+
+      let signalLockHeld = (): void => {};
+      const lockHeld = new Promise<void>((resolve) => {
+        signalLockHeld = resolve;
+      });
+      let releaseRotation = (): void => {};
+      const rotationReleased = new Promise<void>((resolve) => {
+        releaseRotation = resolve;
+      });
+      const refresh = auth.refreshGrant(
+        grant.id,
+        grant.ghTokenCiphertext,
+        async () => {
+          signalLockHeld();
+          await rotationReleased;
+          return {
+            ok: false,
+            error: { reason: "github-unavailable" },
+          } as const;
+        },
+      );
+      await lockHeld;
+      const ended = await terminateIdleTransactions(
+        observer,
+        HELD_REFRESH_APPLICATION,
+      );
+      await waitUntil(
+        () => forwarded.length + uncaught.length > 0,
+        CLIENT_END_WAIT_MS,
+      );
+      releaseRotation();
+      const outcome = await refresh.then(
+        () => "resolved",
+        () => "rejected",
+      );
+      process.off("uncaughtException", recordUncaught);
+      await closeDb(observer);
+
+      expect(ended).toBe(1);
+      expect(uncaught).toEqual([]);
+      expect(forwarded.length).toBeGreaterThan(0);
+      expect(outcome).toBe("rejected");
+      const after = await auth.getGrant(grant.id);
+      expect(after?.ghTokenCiphertext).toBe(grant.ghTokenCiphertext);
+    });
 
     it("gives concurrent sign-ins distinct ids, each sealed to its own", async () => {
       await openPool(WAITERS_POOL_SIZE);

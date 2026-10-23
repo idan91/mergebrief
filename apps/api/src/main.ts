@@ -75,8 +75,7 @@ async function main(): Promise<void> {
   }
   await migrateQueue(databaseUrl);
   const handle: AppDatabase = createDb(databaseUrl, {
-    onError: (error) =>
-      logger.warn("postgres pool error (idle client)", { err: error }),
+    onError: (error) => logger.warn("postgres client error", { err: error }),
     maxConnections: boot.persistence.poolMax,
   });
 

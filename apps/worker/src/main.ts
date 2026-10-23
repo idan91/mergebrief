@@ -178,8 +178,7 @@ async function main(): Promise<void> {
   // Pool error observer: a DB restart surfaces as warn lines, not an
   // unhandled-'error' process crash.
   const handle = createDb(config.value.databaseUrl, {
-    onError: (error) =>
-      logger.warn("postgres pool error (idle client)", { err: error }),
+    onError: (error) => logger.warn("postgres client error", { err: error }),
     maxConnections: config.value.poolMax,
   });
   // Grants name their key by env-var NAME (keyRef); resolution is lazy, per

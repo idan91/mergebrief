@@ -100,7 +100,7 @@ The operation table is also one half of a both-directions gate: EVERY operation 
 
 ## Tests
 
-`test/webhook.test.ts` = integration via `app.request()` against `persistence/testing`'s PGlite harness (real migrations + a `graphile_worker` stub standing in for the real worker schema, tests only; the compose smoke uses real graphile). Payloads follow the shapes in `packages/github/test/fixtures/*.json` and are signed with `@octokit/webhooks-methods` `sign`. Zero network, zero LLM calls.
+`test/webhook.test.ts` = integration via `app.request()` against `persistence/testing`'s PGlite harness (real migrations + a `graphile_worker` stub standing in for the real worker schema, tests only; the compose smoke uses real graphile). Payloads follow the shapes in `packages/github/test/fixtures/*.json` and are signed with `@octokit/webhooks-methods` `sign`. Zero network, zero LLM calls. `test/refresh-postgres.test.ts` is the one real-Postgres suite: it reads `MERGEBRIEF_TEST_POSTGRES_URL`, skips locally when unset and fails under `CI`.
 
 ## Verification
 

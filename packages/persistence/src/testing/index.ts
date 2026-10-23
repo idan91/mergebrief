@@ -29,9 +29,14 @@ import { createMigratedPglite } from "./pglite-snapshot";
 export { warmPgliteSnapshot } from "./pglite-snapshot";
 // One instance per test file: reset between tests instead of booting anew.
 export { resetPgliteHarness } from "./pglite-reset";
-// The suites PGlite cannot exercise, in this package and the worker.
+// The suites PGlite cannot exercise, in this package, the api and the worker.
 export { readTestPostgresUrl, type TestPostgresUrl } from "./postgres-url";
 export { seedGrant, type SeedGrantInput } from "./seed-grant";
+export {
+  buildNamedPostgresUrl,
+  terminateIdleTransactions,
+  waitUntil,
+} from "./terminate-backends";
 
 // Mirrors `job_key_mode` 'replace' and 'preserve_run_at'; parameter names match
 // the named-notation call in `ingest.ts`, and the columns carry the real

@@ -25,8 +25,9 @@ const POOL_CONNECTION_TIMEOUT_MS = 10_000;
 
 export interface CreateDbOptions {
   /**
-   * pg's `Pool` emits `'error'` for IDLE clients, and with no listener the
-   * process dies. Omitted, the error is dropped and the next query fails loudly.
+   * Postgres ending a client, idle in the pool or checked out by a
+   * transaction. Omitted, the error is dropped and the client's next query
+   * fails loudly.
    */
   readonly onError?: (error: Error) => void;
   /** Absent, node-postgres's own default of 10 applies. */
@@ -43,8 +44,18 @@ export function createDb(
     connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
   });
   // Forward only the error: pg also passes the PoolClient, whose options carry the password.
-  pool.on("error", (error) => {
+  function forwardError(error: Error): void {
     options.onError?.(error);
+  }
+  pool.on("error", forwardError);
+  // pg-pool listens on a client only while it is idle. A checked-out client
+  // with no `'error'` listener crashes the process when Postgres ends it; the
+  // transaction's next statement fails instead, and release discards it.
+  pool.on("acquire", (client) => {
+    client.on("error", forwardError);
+  });
+  pool.on("release", (_error, client) => {
+    client.removeListener("error", forwardError);
   });
   const db = drizzle(pool);
   return { [INTERNAL]: { db, pool } };
