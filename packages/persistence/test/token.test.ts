@@ -8,7 +8,9 @@ import { apiToken } from "../src/schema/api-token";
 import { auditLog } from "../src/schema/audit-log";
 
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
+import { createSessionAuth } from "../src/auth/session";
 import { createTokenAuth, type TokenMintInput } from "../src/auth/token";
+import { TokenMintErrorCodes } from "../src/auth/types";
 import { isReviewerId, type ReviewerId } from "../src/types";
 import { internal, type AppDatabase } from "../src/db/handle";
 import {
@@ -102,10 +104,12 @@ const USER: ReviewerId = brandWith(isReviewerId, 777n);
 const OTHER_USER: ReviewerId = brandWith(isReviewerId, 888n);
 const HASH = "a".repeat(64); // shape of a sha256 hex digest
 const OTHER_HASH = "b".repeat(64);
+const THIRD_HASH = "c".repeat(64);
 
 const NOW = new Date("2026-07-09T12:00:00Z");
 const PAST = new Date("2026-01-01T00:00:00Z");
 const FUTURE = new Date("2026-10-07T00:00:00Z");
+const SESSION_EXPIRES_AT = new Date("2027-06-01T00:00:00Z");
 
 async function seedGrant(handle: AppDatabase): Promise<GithubGrantRow> {
   return createGrantAuth(handle).createGrant({
@@ -164,7 +168,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     const listed = await auth.listForUser(USER);
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
 
-    for (const row of [minted, listed[0], revoked]) {
+    for (const row of [minted, listed[0], revoked?.token]) {
       expect(row).toBeDefined();
       expect(row).not.toHaveProperty("tokenHash");
       expect(row).not.toHaveProperty("grantId");
@@ -215,6 +219,54 @@ describe("createTokenAuth mint / resolve / touch", () => {
   });
 });
 
+describe("createTokenAuth.mintTokenFromSession", () => {
+  let handle: AppDatabase;
+  let grant: GithubGrantRow;
+  beforeEach(async () => {
+    handle = shared.handle;
+    grant = await seedGrant(handle);
+    await createSessionAuth(handle).createSession({
+      sessionTokenHash: OTHER_HASH,
+      reviewerId: USER,
+      reviewerLogin: "octocat",
+      grantId: grant.id,
+      expiresAt: SESSION_EXPIRES_AT,
+    });
+  });
+
+  it("mints on the live session's grant", async () => {
+    const minted = await createTokenAuth(handle).mintTokenFromSession(
+      OTHER_HASH,
+      mintInput(grant),
+    );
+
+    expect(minted.ok).toBe(true);
+    expect(
+      await createTokenAuth(handle).resolveByHash(HASH, NOW),
+    ).toBeDefined();
+  });
+
+  it("refuses a mint whose session a logout already deleted", async () => {
+    const tokens = createTokenAuth(handle);
+    const revoked = await tokens.mintToken(
+      mintInput(grant, { tokenHash: THIRD_HASH }),
+    );
+    await tokens.revokeToken(USER, revoked.id, NOW);
+    await createSessionAuth(handle).deleteSession(OTHER_HASH);
+
+    const minted = await createTokenAuth(handle).mintTokenFromSession(
+      OTHER_HASH,
+      mintInput(grant),
+    );
+
+    expect(minted.ok ? undefined : minted.error.code).toBe(
+      TokenMintErrorCodes.SESSION_GONE,
+    );
+    expect(await tokens.resolveByHash(HASH, NOW)).toBeUndefined();
+    expect(await tokens.listForUser(USER)).toHaveLength(1);
+  });
+});
+
 describe("createTokenAuth list / revoke", () => {
   let handle: AppDatabase;
   let grant: GithubGrantRow;
@@ -253,7 +305,7 @@ describe("createTokenAuth list / revoke", () => {
     const minted = await auth.mintToken(mintInput(grant));
 
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
-    expect(revoked?.revokedAt).toEqual(NOW);
+    expect(revoked?.token.revokedAt).toEqual(NOW);
 
     expect(await auth.resolveByHash(HASH, NOW)).toBeUndefined();
 
@@ -270,7 +322,37 @@ describe("createTokenAuth list / revoke", () => {
     const minted = await auth.mintToken(mintInput(grant));
     await auth.revokeToken(USER, minted.id, PAST);
     const again = await auth.revokeToken(USER, minted.id, NOW);
-    expect(again?.revokedAt).toEqual(PAST);
+    expect(again?.token.revokedAt).toEqual(PAST);
+    expect(again?.orphanedGrants).toEqual([]);
+  });
+
+  it("revoking a grant's last live referent returns the grant", async () => {
+    const auth = createTokenAuth(handle);
+    const minted = await auth.mintToken(mintInput(grant));
+
+    const revoked = await auth.revokeToken(USER, minted.id, NOW);
+
+    expect(revoked?.orphanedGrants.map((orphan) => orphan.id)).toEqual([
+      grant.id,
+    ]);
+  });
+
+  it("a live browser session keeps the grant through a CLI token revoke", async () => {
+    await createSessionAuth(handle).createSession({
+      sessionTokenHash: OTHER_HASH,
+      reviewerId: USER,
+      reviewerLogin: "octocat",
+      grantId: grant.id,
+      expiresAt: SESSION_EXPIRES_AT,
+    });
+    const auth = createTokenAuth(handle);
+    const minted = await auth.mintToken(mintInput(grant));
+
+    const revoked = await auth.revokeToken(USER, minted.id, NOW);
+
+    expect(revoked?.orphanedGrants).toEqual([]);
+    const session = await createSessionAuth(handle).findSession(OTHER_HASH);
+    expect(session?.grant.id).toBe(grant.id);
   });
 
   it("revokes nothing for a token the user does not own", async () => {

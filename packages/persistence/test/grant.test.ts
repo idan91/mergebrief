@@ -158,9 +158,10 @@ describe("grant lifecycle: deleteIfOrphaned", () => {
   it("deletes an unreferenced grant on the login compensation path", async () => {
     const auth = createGrantAuth(shared.handle);
     const grant = await auth.createGrant(createInput());
-    expect(await auth.deleteIfOrphaned(grant.id)).toBe(1);
-    // Idempotent: an already-gone id is a clean 0.
-    expect(await auth.deleteIfOrphaned(grant.id)).toBe(0);
+    const orphaned = await auth.deleteIfOrphaned(grant.id);
+    expect(orphaned.map((orphan) => orphan.id)).toEqual([grant.id]);
+    // Idempotent: an already-gone id deletes nothing.
+    expect(await auth.deleteIfOrphaned(grant.id)).toEqual([]);
   });
 
   it("is a no-op on a grant that still has a referent", async () => {
@@ -173,7 +174,7 @@ describe("grant lifecycle: deleteIfOrphaned", () => {
       grantId: grant.id,
       expiresAt: FUTURE,
     });
-    expect(await auth.deleteIfOrphaned(grant.id)).toBe(0);
+    expect(await auth.deleteIfOrphaned(grant.id)).toEqual([]);
     // The referent still resolves with its grant.
     const resolved = await createSessionAuth(shared.handle).findSession(
       "a".repeat(64),

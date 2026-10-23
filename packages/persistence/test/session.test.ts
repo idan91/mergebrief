@@ -5,10 +5,12 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import { createSessionAuth, sweepExpiredSessions } from "../src/auth/session";
+import { createTokenAuth } from "../src/auth/token";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import { isReviewerId, type ReviewerId } from "../src/types";
 import { brandWith, createQueryLog, registerSharedPglite } from "./helpers";
+import { AccessLevels } from "types/access-levels";
 
 const shared = registerSharedPglite();
 
@@ -18,6 +20,7 @@ const OTHER_HASH = "b".repeat(64);
 const OTHER_REVIEWER_ID: ReviewerId = brandWith(isReviewerId, 888n);
 const THIRD_HASH = "c".repeat(64);
 const EXPIRY = new Date("2027-01-01T00:00:00Z");
+const EXPIRED_AT = new Date("2020-01-01T00:00:00Z");
 
 /** Seed a grant + one session row referencing it (the production shape). */
 async function seedSession(
@@ -103,26 +106,102 @@ describe("createSessionAuth.deleteSession, last-referent lifecycle", () => {
   it("deletes by hash and orphan-cleans the grant in the same transaction", async () => {
     await seedSession(shared.handle, {});
     expect(await grantCount(shared.handle)).toBe(1);
-    expect(await createSessionAuth(shared.handle).deleteSession(HASH)).toBe(1);
+    const deleted = await createSessionAuth(shared.handle).deleteSession(HASH);
+    expect(deleted.deleted).toBe(1);
     expect(
       await createSessionAuth(shared.handle).findSession(HASH),
     ).toBeUndefined();
     // Last referent gone → the grant died with it.
     expect(await grantCount(shared.handle)).toBe(0);
     // Idempotent: deleting an already-gone hash is a clean 0.
-    expect(await createSessionAuth(shared.handle).deleteSession(HASH)).toBe(0);
+    const again = await createSessionAuth(shared.handle).deleteSession(HASH);
+    expect(again).toEqual({ deleted: 0, orphanedGrants: [] });
   });
 
   it("keeps a grant that another referent still shares", async () => {
     const grant = await seedSession(shared.handle, {});
     await seedSession(shared.handle, { hash: OTHER_HASH, grant });
-    expect(await createSessionAuth(shared.handle).deleteSession(HASH)).toBe(1);
+    const deleted = await createSessionAuth(shared.handle).deleteSession(HASH);
+    expect(deleted).toEqual({ deleted: 1, orphanedGrants: [] });
     // The sibling still holds the grant.
     expect(await grantCount(shared.handle)).toBe(1);
     const resolved = await createSessionAuth(shared.handle).findSession(
       OTHER_HASH,
     );
     expect(resolved?.grant.id).toBe(grant.id);
+  });
+
+  it("returns the grant its last session took with it", async () => {
+    const grant = await seedSession(shared.handle, {});
+
+    const deleted = await createSessionAuth(shared.handle).deleteSession(HASH);
+
+    expect(deleted.orphanedGrants).toEqual([
+      {
+        id: grant.id,
+        ghTokenCiphertext: "v1.enc-access",
+        keyRef: "SESSION_KEY_V1",
+      },
+    ]);
+  });
+
+  it("returns no grant while an API token still links it", async () => {
+    const grant = await seedSession(shared.handle, {});
+    await createTokenAuth(shared.handle).mintToken({
+      scope: AccessLevels.READ,
+      userId: REVIEWER_ID,
+      userLogin: "octocat",
+      name: "ci",
+      tokenHash: THIRD_HASH,
+      grantId: grant.id,
+      expiresAt: null,
+    });
+
+    const deleted = await createSessionAuth(shared.handle).deleteSession(HASH);
+
+    expect(deleted).toEqual({ deleted: 1, orphanedGrants: [] });
+    expect(await grantCount(shared.handle)).toBe(1);
+  });
+
+  it("returns the grant when its only token is revoked, keeping the row", async () => {
+    const grant = await seedSession(shared.handle, {});
+    const tokens = createTokenAuth(shared.handle);
+    const minted = await tokens.mintToken({
+      scope: AccessLevels.READ,
+      userId: REVIEWER_ID,
+      userLogin: "octocat",
+      name: "ci",
+      tokenHash: THIRD_HASH,
+      grantId: grant.id,
+      expiresAt: null,
+    });
+    await tokens.revokeToken(REVIEWER_ID, minted.id, EXPIRED_AT);
+
+    const deleted = await createSessionAuth(shared.handle).deleteSession(HASH);
+
+    expect(deleted.orphanedGrants.map((orphan) => orphan.id)).toEqual([
+      grant.id,
+    ]);
+    expect(await grantCount(shared.handle)).toBe(1);
+  });
+
+  it("returns the grant when its only token has expired", async () => {
+    const grant = await seedSession(shared.handle, {});
+    await createTokenAuth(shared.handle).mintToken({
+      scope: AccessLevels.READ,
+      userId: REVIEWER_ID,
+      userLogin: "octocat",
+      name: "ci",
+      tokenHash: THIRD_HASH,
+      grantId: grant.id,
+      expiresAt: EXPIRED_AT,
+    });
+
+    const deleted = await createSessionAuth(shared.handle).deleteSession(HASH);
+
+    expect(deleted.orphanedGrants.map((orphan) => orphan.id)).toEqual([
+      grant.id,
+    ]);
   });
 });
 
@@ -151,7 +230,10 @@ describe("createSessionAuth.deleteSessionsForReviewer", () => {
       shared.handle,
     ).deleteSessionsForReviewer(REVIEWER_ID);
 
-    expect(deleted).toBe(2);
+    expect(deleted.deleted).toBe(2);
+    expect(deleted.orphanedGrants.map((orphan) => orphan.id)).toEqual([
+      grant.id,
+    ]);
     expect(
       await createSessionAuth(shared.handle).findSession(HASH),
     ).toBeUndefined();
@@ -169,7 +251,7 @@ describe("createSessionAuth.deleteSessionsForReviewer", () => {
       shared.handle,
     ).deleteSessionsForReviewer(REVIEWER_ID);
 
-    expect(deleted).toBe(1);
+    expect(deleted.deleted).toBe(1);
     const survivor = await createSessionAuth(shared.handle).findSession(
       THIRD_HASH,
     );
@@ -183,7 +265,7 @@ describe("createSessionAuth.deleteSessionsForReviewer", () => {
       await createSessionAuth(shared.handle).deleteSessionsForReviewer(
         REVIEWER_ID,
       ),
-    ).toBe(0);
+    ).toEqual({ deleted: 0, orphanedGrants: [] });
   });
 });
 

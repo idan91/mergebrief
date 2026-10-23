@@ -5,6 +5,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createOAuthApp,
+  deleteUserToken,
   exchangeWebFlowCode,
   listUserInstallations,
   refreshUserToken,
@@ -327,6 +328,86 @@ function stubOAuthErrorBody(oauthError: string): void {
       }),
     ),
   );
+}
+
+describe("deleteUserToken", () => {
+  it("sends DELETE /applications/{client_id}/token and answers ok on 204", async () => {
+    const fetchStub = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchStub);
+
+    const result = await deleteUserToken(makeOAuthApp(), {
+      accessToken: ACCESS_TOKEN,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+    const [input, init] = fetchStub.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(getRequestUrl(input)).toBe(
+      "https://api.github.com/applications/Iv1.client/token",
+    );
+    expect(init.method).toBe("DELETE");
+    expect(typeof init.body === "string" && JSON.parse(init.body)).toEqual({
+      access_token: ACCESS_TOKEN,
+    });
+  });
+
+  it("answers ok when GitHub answers 404 for a token it no longer knows", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ message: "Not Found" }, 404)),
+    );
+
+    const result = await deleteUserToken(makeOAuthApp(), {
+      accessToken: ACCESS_TOKEN,
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("fails without the token in its error when GitHub answers 500", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ message: "Server Error" }, 500)),
+    );
+
+    const result = await deleteUserToken(makeOAuthApp(), {
+      accessToken: ACCESS_TOKEN,
+    });
+
+    expect(readDeleteErrorCode(result)).toBe(
+      OAuthErrorCodes.TOKEN_DELETE_FAILED,
+    );
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain(ACCESS_TOKEN);
+    expect(serialized).not.toContain("SECRET_VALUE");
+  });
+
+  it("fails once the timeout passes on a GitHub that never answers", async () => {
+    const app = createOAuthApp({
+      clientId: "Iv1.client",
+      clientSecret: "SECRET_VALUE",
+      requestTimeoutMs: SHORT_TIMEOUT_MS,
+    });
+    vi.stubGlobal("fetch", vi.fn(stubHangingFetch));
+
+    const result = await deleteUserToken(app, { accessToken: ACCESS_TOKEN });
+
+    expect(readDeleteErrorCode(result)).toBe(
+      OAuthErrorCodes.TOKEN_DELETE_FAILED,
+    );
+  });
+});
+
+function readDeleteErrorCode(
+  result: Awaited<ReturnType<typeof deleteUserToken>>,
+): string {
+  if (result.ok) {
+    throw new Error("expected the delete to fail");
+  }
+  return result.error.code;
 }
 
 function makeOAuthApp(): GitHubOAuthApp {

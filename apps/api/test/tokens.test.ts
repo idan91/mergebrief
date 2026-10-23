@@ -801,6 +801,47 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     }
   });
 
+  it("revoking a grant's last live token revokes it at GitHub", async () => {
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request) =>
+        new Response(null, { status: 204 }),
+    );
+    vi.stubGlobal("fetch", fetchFn);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const grant = await seedGrant(harness.handle, {
+      userId: REVIEWER,
+      accessToken: ACCESS_TOKEN,
+      refreshToken: REFRESH_TOKEN,
+      keyProvider: kp,
+      keyRef: KEY_REF,
+    });
+    const minted = await createTokenAuth(harness.handle).mintToken({
+      scope: AccessLevels.READ,
+      userId: REVIEWER,
+      userLogin: "octocat",
+      name: "sessionless",
+      tokenHash: hashSha256Hex(randomBytes(32).toString("base64url")),
+      grantId: grant.id,
+      expiresAt: null,
+    });
+
+    const revoke = await app.request(`/api/auth/tokens/${String(minted.id)}`, {
+      method: "DELETE",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+
+    expect(revoke.status).toBe(200);
+    const deleteUrls = fetchFn.mock.calls
+      .map((call) => getRequestUrl(call[0]))
+      .filter((url) => url.includes("/applications/"));
+    expect(deleteUrls).toEqual([
+      "https://api.github.com/applications/Iv1.test-client-id/token",
+    ]);
+  });
+
   it("revokes idempotently, records revocation and 404s foreign token ids", async () => {
     stubGitHub({
       userInstallations: () =>

@@ -9,6 +9,7 @@ import { requireSameOrigin } from "../../access/session-layer";
 import type { AuthzEnv } from "../../access/types";
 import type { AuthRouteDeps } from "./session/types";
 import { HOST_COOKIE_CLEAR, SESSION_COOKIE } from "./session/consts";
+import { revokeOrphanedGrantsAtGitHub } from "./session/logic/revoke-at-github";
 import { resolveAllowedOrigin } from "./session/logic/same-origin";
 import { sha256Hex } from "./session/utils";
 import { HttpStatuses } from "types/http";
@@ -24,7 +25,14 @@ export function logoutRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
     const token = getCookie(c, SESSION_COOKIE);
     if (token !== undefined) {
-      await createSessionAuth(deps.handle).deleteSession(sha256Hex(token));
+      const deleted = await createSessionAuth(deps.handle).deleteSession(
+        sha256Hex(token),
+      );
+      await revokeOrphanedGrantsAtGitHub(
+        deps,
+        deleted.orphanedGrants,
+        c.get("logger"),
+      );
     }
     deleteCookie(c, SESSION_COOKIE, HOST_COOKIE_CLEAR);
     return c.body(null, HttpStatuses.NO_CONTENT, NO_STORE);

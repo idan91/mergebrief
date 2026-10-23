@@ -71,6 +71,13 @@ fails. The api logs that failure only at `debug`, as `sign-in refused:
 GitHub rejected the code`, so check this setting first when sign-in fails
 for everyone.
 
+Signing out, "sign out everywhere" and revoking a MergeBrief CLI token revoke the reviewer's
+GitHub token at GitHub, through the App's client id and secret, once no session and no live
+CLI token still uses that sign-in. A refused or unanswered revoke is logged as
+`grant.revoke.fail` and the sign-out or token revoke completes anyway. MergeBrief never uses
+the stored copy again; it is deleted at once, or with the last revoked or expired CLI token
+that still lists it.
+
 ## Webhook
 
 - During registration you can **leave "Active" unchecked** until there's a receiver to point

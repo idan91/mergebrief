@@ -55,6 +55,8 @@ export const OAuthErrorCodes = {
   REFRESH_UNAVAILABLE: "refresh-unavailable",
   /** GitHub returned no refresh token; token expiration is not enabled. */
   EXPIRATION_NOT_ENABLED: "expiration-not-enabled",
+  /** GitHub did not confirm the token delete (timeout, network, 422, 5xx). */
+  TOKEN_DELETE_FAILED: "token-delete-failed",
 } as const;
 export type OAuthErrorCode = ValueOf<typeof OAuthErrorCodes>;
 
@@ -293,6 +295,35 @@ export async function refreshUserToken(
       error: {
         code: OAuthErrorCodes.REFRESH_UNAVAILABLE,
         message: "GitHub did not answer the token refresh",
+      },
+    };
+  }
+}
+
+const tokenAlreadyGoneSchema = z.object({ status: z.literal(404) });
+
+/**
+ * Revoke a user access token at GitHub (`DELETE /applications/{client_id}/token`).
+ * A 404 answers ok: GitHub gives it for a token it already invalidated (an
+ * expired sign-out, a second revoke), so it is routine. A wrong client secret
+ * also answers 404 and goes unflagged here; 422, 5xx and timeouts fail.
+ */
+export async function deleteUserToken(
+  oauthApp: GitHubOAuthApp,
+  input: { accessToken: string },
+): Promise<Result<void, OAuthError>> {
+  try {
+    await oauthApp.deleteToken({ token: input.accessToken });
+    return { ok: true, value: undefined };
+  } catch (error) {
+    if (tokenAlreadyGoneSchema.safeParse(error).success) {
+      return { ok: true, value: undefined };
+    }
+    return {
+      ok: false,
+      error: {
+        code: OAuthErrorCodes.TOKEN_DELETE_FAILED,
+        message: "GitHub did not confirm the token delete",
       },
     };
   }

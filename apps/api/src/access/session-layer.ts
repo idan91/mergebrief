@@ -30,6 +30,7 @@ import {
   resolveAllowedOrigin,
 } from "../routes/auth/session/logic/same-origin";
 import type { AuthRouteDeps } from "../routes/auth/session/types";
+import { revokeOrphanedGrantsAtGitHub } from "../routes/auth/session/logic/revoke-at-github";
 import { sha256Hex } from "../routes/auth/session/utils";
 import { createTtlCache } from "../routes/ttl-cache";
 import { Forbidden, Unauthorized } from "../shared-errors/api-error";
@@ -167,7 +168,14 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     // recovery, so the row burns and the reviewer logs in again. An expired
     // access token is the repo gate's refresh path instead.
     if (resolved.session.expiresAt.getTime() <= startedAt) {
-      await createSessionAuth(deps.handle).deleteSession(sessionTokenHash);
+      const deleted = await createSessionAuth(deps.handle).deleteSession(
+        sessionTokenHash,
+      );
+      await revokeOrphanedGrantsAtGitHub(
+        deps,
+        deleted.orphanedGrants,
+        c.get("logger"),
+      );
       stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
       throw new Unauthorized(ApiErrorCodes.SIGNED_OUT);
     }

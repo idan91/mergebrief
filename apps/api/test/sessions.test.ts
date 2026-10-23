@@ -12,7 +12,7 @@ import {
   type ReviewerId,
 } from "persistence";
 import { seedGrant } from "persistence/testing";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import {
   KEY_REF,
@@ -22,6 +22,7 @@ import {
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
+  getRequestUrl,
   hashSha256Hex,
 } from "./fixtures";
 import { testLogger } from "./logging";
@@ -77,10 +78,13 @@ describe("DELETE /api/auth/sessions", () => {
   const harness = registerSharedPglite();
   let kp: KeyProvider;
   let app: ApiApp;
+  let fetchFn: ReturnType<typeof vi.fn>;
   const reviewer = brandReviewerId(BigInt(REVIEWER_ID));
   const otherReviewer = brandReviewerId(BigInt(OTHER_REVIEWER_ID));
 
   beforeEach(() => {
+    fetchFn = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchFn);
     kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
@@ -127,6 +131,21 @@ describe("DELETE /api/auth/sessions", () => {
     expect((await probe(phone.cookie)).status).toBe(401);
     expect((await probe(stranger.cookie)).status).toBe(200);
     expect(await countRows(harness, "auth_session")).toBe(1);
+  });
+
+  it("revokes each orphaned grant's token at GitHub", async () => {
+    const laptop = await seedSessionFor(harness.handle, kp, reviewer);
+    await seedSessionFor(harness.handle, kp, reviewer);
+
+    await revokeAll(laptop.cookie);
+
+    const deleteUrls = fetchFn.mock.calls
+      .map((call) => getRequestUrl(call[0] as string | URL | Request))
+      .filter((url) => url.includes("/applications/"));
+    expect(deleteUrls).toEqual([
+      "https://api.github.com/applications/Iv1.test-client-id/token",
+      "https://api.github.com/applications/Iv1.test-client-id/token",
+    ]);
   });
 
   it("keeps a grant an API token still links", async () => {

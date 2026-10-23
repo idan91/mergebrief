@@ -3,7 +3,7 @@
 // `unauthorized`.
 import { randomBytes } from "node:crypto";
 import { createEnvKeyProvider, type KeyProvider } from "persistence";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { SESSION_COOKIE } from "../src/routes/auth/session/consts";
 import { KEY_REF, buildAuthDeps } from "./fixtures";
@@ -59,6 +59,10 @@ describe("sessionLayer refusals", () => {
   });
 
   it("answers signed-out for an expired session", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 })),
+    );
     const { cookie } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date(Date.now() - PAST_EXPIRY_MS),
     });

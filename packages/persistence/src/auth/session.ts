@@ -10,7 +10,11 @@ import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { githubGrant } from "../schema/github-grant";
 import { authSession } from "../schema/auth-session";
 import type { GrantRowId, ReviewerId } from "../types";
-import { type GithubGrantRow, deleteOrphanedGrants } from "./grant";
+import {
+  type GithubGrantRow,
+  type OrphanedGrant,
+  deleteOrphanedGrants,
+} from "./grant";
 
 export type AuthSessionRow = typeof authSession.$inferSelect;
 
@@ -29,6 +33,12 @@ export interface SessionCreateInput {
 // The surface.
 // ---------------------------------------------------------------------------
 
+/** What a session delete removed, and the grants it left with no referent. */
+export interface SessionDeleteResult {
+  readonly deleted: number;
+  readonly orphanedGrants: readonly OrphanedGrant[];
+}
+
 /** A resolved session with the grant it references (one JOINed query). */
 export interface SessionWithGrant {
   readonly session: AuthSessionRow;
@@ -40,13 +50,15 @@ export interface SessionAuth {
   createSession(input: SessionCreateInput): Promise<AuthSessionRow>;
   /** By the globally-unique hash, JOINed to the grant; absence is `undefined`. */
   findSession(sessionTokenHash: string): Promise<SessionWithGrant | undefined>;
-  /** Delete by hash; the grant dies with its last referent. Returns rows deleted. */
-  deleteSession(sessionTokenHash: string): Promise<number>;
+  /** Delete by hash; the grant dies with its last referent. */
+  deleteSession(sessionTokenHash: string): Promise<SessionDeleteResult>;
   /**
    * Delete every session the reviewer holds; each grant dies with its last
-   * referent, so one an API token still links survives. Returns rows deleted.
+   * referent, so one an API token still links survives.
    */
-  deleteSessionsForReviewer(reviewerId: ReviewerId): Promise<number>;
+  deleteSessionsForReviewer(
+    reviewerId: ReviewerId,
+  ): Promise<SessionDeleteResult>;
   /** Mirror the grant's rotated `refresh_expires_at`; returns rows touched. */
   setExpiresAt(sessionTokenHash: string, expiresAt: Date): Promise<number>;
 }
@@ -136,7 +148,11 @@ export async function sweepExpiredSessions(
       // The outer predicate is re-checked on a row a concurrent refresh moved,
       // so a session extended after the batch was picked survives.
       const inBatch = inArray(authSession.id, batch);
-      return deleteSessionsWhere(tx, sql`${inBatch} and ${isExpired}`);
+      const swept = await deleteSessionsWhere(
+        tx,
+        sql`${inBatch} and ${isExpired}`,
+      );
+      return swept.deleted;
     });
     total += deleted;
     if (deleted < SESSION_SWEEP_BATCH_SIZE) {
@@ -149,14 +165,14 @@ export async function sweepExpiredSessions(
 async function deleteSessionsWhere(
   tx: AppDrizzle,
   where: SQL,
-): Promise<number> {
+): Promise<SessionDeleteResult> {
   const rows = await tx
     .delete(authSession)
     .where(where)
     .returning({ grantId: authSession.grantId });
-  await deleteOrphanedGrants(
+  const orphanedGrants = await deleteOrphanedGrants(
     tx,
     rows.map((row) => row.grantId),
   );
-  return rows.length;
+  return { deleted: rows.length, orphanedGrants };
 }

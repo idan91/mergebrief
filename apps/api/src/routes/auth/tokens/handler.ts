@@ -1,10 +1,15 @@
-import type {
-  ListTokensResponse,
-  MintTokenResponse,
-  RevokeTokenResponse,
+import {
+  ApiErrorCodes,
+  type ListTokensResponse,
+  type MintTokenResponse,
+  type RevokeTokenResponse,
 } from "contract";
 import type { Context } from "hono";
-import { BadRequest, NotFound } from "../../../shared-errors/api-error";
+import {
+  BadRequest,
+  NotFound,
+  Unauthorized,
+} from "../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../product-operations/audit";
 import { API_TOKEN_PREFIX } from "../../../access/consts";
 import type { AuthzEnv } from "../../../access/types";
@@ -33,9 +38,12 @@ export function createTokensHandlers(deps: AuthRouteDeps) {
         tokenPrefix: API_TOKEN_PREFIX,
       },
     );
+    if (!minted.ok) {
+      throw new Unauthorized(ApiErrorCodes.SIGNED_OUT);
+    }
     const body: MintTokenResponse = {
-      token: minted.token,
-      apiToken: buildTokenView(minted.row),
+      token: minted.value.token,
+      apiToken: buildTokenView(minted.value.row),
     };
     return c.json(body, HttpStatuses.CREATED, NO_STORE);
   };

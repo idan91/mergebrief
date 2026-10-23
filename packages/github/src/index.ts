@@ -26,6 +26,7 @@ export {
   buildAuthorizationUrl,
   exchangeWebFlowCode,
   refreshUserToken,
+  deleteUserToken,
   fetchAuthenticatedUser,
   listUserInstallations,
   createUserOctokit,

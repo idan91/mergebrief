@@ -7,8 +7,9 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { traceStore } from "../stores/trace-store";
 import { insertAudit } from "../stores/audit";
-import { type AppDatabase, internal } from "../db/handle";
+import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
+import { authSession } from "../schema/auth-session";
 import { githubGrant } from "../schema/github-grant";
 import {
   AuditOutcomes,
@@ -18,7 +19,13 @@ import {
   type ReviewerId,
 } from "../types";
 import { PullRequestSources, type AccessLevel } from "types";
-import type { GithubGrantRow } from "./grant";
+import type { Result } from "types/utils";
+import { TokenMintErrorCodes, type TokenMintErrorCode } from "./types";
+import {
+  type GithubGrantRow,
+  type OrphanedGrant,
+  deleteOrphanedGrants,
+} from "./grant";
 
 // The issuance row this store writes INSIDE the mint transaction, a mint that
 // commits always has a ledger entry. Named apart from the `mint-token`
@@ -26,6 +33,11 @@ import type { GithubGrantRow } from "./grant";
 const AUDIT_OPERATION_MINT = "issue-api-token";
 
 export type ApiTokenRow = typeof apiToken.$inferSelect;
+
+export interface TokenMintError {
+  readonly code: TokenMintErrorCode;
+  readonly message: string;
+}
 
 /**
  * The settings-facing projection: everything the mint/list/revoke surfaces
@@ -35,6 +47,12 @@ export type ApiTokenRow = typeof apiToken.$inferSelect;
  * which needs the grant to decrypt) sees the full row.
  */
 export type ApiTokenMetadataRow = Omit<ApiTokenRow, "tokenHash" | "grantId">;
+
+/** A revoked token's metadata, and its grant when no live referent remains. */
+export interface RevokedToken {
+  readonly token: ApiTokenMetadataRow;
+  readonly orphanedGrants: readonly OrphanedGrant[];
+}
 
 /** The `.select()`/`.returning()` column set backing `ApiTokenMetadataRow`. */
 const metadataColumns = {
@@ -95,6 +113,15 @@ export interface TokenAuth {
    */
   mintToken(input: TokenMintInput): Promise<ApiTokenMetadataRow>;
   /**
+   * The browser mint: `mintToken` behind a lock on the minting session, so a
+   * concurrent logout cannot orphan the grant under a fresh token. A session
+   * gone by the time the lock is taken is `SESSION_GONE`, nothing inserted.
+   */
+  mintTokenFromSession(
+    sessionTokenHash: string,
+    input: TokenMintInput,
+  ): Promise<Result<ApiTokenMetadataRow, TokenMintError>>;
+  /**
    * The Bearer-path resolver: hash → row (JOINed to its grant) → liveness.
    * An unknown, revoked or expired token is `undefined`, one answer, so the
    * api layer cannot tell the cases apart on the wire.
@@ -113,18 +140,54 @@ export interface TokenAuth {
    * Owner-scoped soft revoke: sets `revoked_at = now` once; idempotent (a
    * second revoke returns the row with its ORIGINAL `revoked_at`). The
    * UPDATE is gated by `(user_id, id)`, so a user can only revoke their own
-   * tokens; someone else's id and an absent one are both `undefined`.
+   * tokens; someone else's id and an absent one are both `undefined`. The
+   * first revoke also settles the token's grant when no session or live token
+   * uses it any more, and returns it for a GitHub revoke after commit.
    */
   revokeToken(
     userId: ReviewerId,
     tokenId: ApiTokenRowId,
     now: Date,
-  ): Promise<ApiTokenMetadataRow | undefined>;
+  ): Promise<RevokedToken | undefined>;
   /**
    * Stamp `last_used_at` by hash (the api layer throttles, this is
    * unconditional). Returns rows touched (0 for an unknown hash).
    */
   touchLastUsed(tokenHash: string, now: Date): Promise<number>;
+}
+
+async function insertMintedToken(
+  tx: AppDrizzle,
+  input: TokenMintInput,
+): Promise<ApiTokenMetadataRow> {
+  const rows = await tx
+    .insert(apiToken)
+    .values({
+      userId: input.userId,
+      userLogin: input.userLogin,
+      name: input.name,
+      scope: input.scope,
+      tokenHash: input.tokenHash,
+      grantId: input.grantId,
+      expiresAt: input.expiresAt,
+    })
+    .returning(metadataColumns);
+  const row = rows[0];
+  if (row === undefined) {
+    throw new Error("api_token insert returned no row");
+  }
+  await insertAudit(tx, {
+    installationId: null,
+    source: PullRequestSources.URL,
+    actorType: AuditActorTypes.REVIEWER,
+    actorId: input.userId,
+    operation: AUDIT_OPERATION_MINT,
+    outcome: AuditOutcomes.OK,
+    targetType: "api_token",
+    targetId: row.id,
+    metadata: { decision: "200", kind: "mint" },
+  });
+  return row;
 }
 
 /**
@@ -140,35 +203,34 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
       // ONE transaction with the audit emit: an audit failure would otherwise
       // leave a live, unaudited credential behind a 500, and the caller's
       // retry mints another.
+      return db.transaction(async (tx) => insertMintedToken(tx, input));
+    },
+
+    async mintTokenFromSession(sessionTokenHash, input) {
       return db.transaction(async (tx) => {
-        const rows = await tx
-          .insert(apiToken)
-          .values({
-            userId: input.userId,
-            userLogin: input.userLogin,
-            name: input.name,
-            scope: input.scope,
-            tokenHash: input.tokenHash,
-            grantId: input.grantId,
-            expiresAt: input.expiresAt,
-          })
-          .returning(metadataColumns);
-        const row = rows[0];
-        if (row === undefined) {
-          throw new Error("api_token insert returned no row");
+        // FOR SHARE first (sessions, then tokens, then the grant): a logout
+        // deleting this session waits for the mint and then sees its token,
+        // or committed first and the mint is refused.
+        const held = await tx
+          .select({ id: authSession.id })
+          .from(authSession)
+          .where(
+            and(
+              eq(authSession.sessionTokenHash, sessionTokenHash),
+              eq(authSession.grantId, input.grantId),
+            ),
+          )
+          .for("share");
+        if (held.length === 0) {
+          return {
+            ok: false,
+            error: {
+              code: TokenMintErrorCodes.SESSION_GONE,
+              message: "the minting session no longer exists",
+            },
+          };
         }
-        await insertAudit(tx, {
-          installationId: null,
-          source: PullRequestSources.URL,
-          actorType: AuditActorTypes.REVIEWER,
-          actorId: input.userId,
-          operation: AUDIT_OPERATION_MINT,
-          outcome: AuditOutcomes.OK,
-          targetType: "api_token",
-          targetId: row.id,
-          metadata: { decision: "200", kind: "mint" },
-        });
-        return row;
+        return { ok: true, value: await insertMintedToken(tx, input) };
       });
     },
 
@@ -211,10 +273,12 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
               isNull(apiToken.revokedAt),
             ),
           )
-          .returning(metadataColumns);
+          .returning({ ...metadataColumns, grantId: apiToken.grantId });
         const updatedRow = updated[0];
         if (updatedRow !== undefined) {
-          return updatedRow;
+          const { grantId, ...token } = updatedRow;
+          const orphanedGrants = await deleteOrphanedGrants(tx, [grantId]);
+          return { token, orphanedGrants };
         }
         // Second arm: distinguish already-revoked (idempotent success,
         // original `revoked_at` intact) from not-owned or absent.
@@ -223,7 +287,10 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
           .from(apiToken)
           .where(and(eq(apiToken.userId, userId), eq(apiToken.id, tokenId)))
           .limit(1);
-        return existing[0];
+        const existingRow = existing[0];
+        return existingRow === undefined
+          ? undefined
+          : { token: existingRow, orphanedGrants: [] };
       });
     },
 

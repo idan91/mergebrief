@@ -327,6 +327,7 @@ export type {
   GrantCreateInput,
   GrantRefreshPatch,
   GrantRefreshRejection,
+  OrphanedGrant,
   RetiredGrant,
 } from "./auth/grant";
 
@@ -339,6 +340,7 @@ export type {
   AuthSessionRow,
   SessionAuth,
   SessionCreateInput,
+  SessionDeleteResult,
   SessionWithGrant,
 } from "./auth/session";
 
@@ -346,12 +348,15 @@ export type {
 // hash-keyed resolver. Like `createSessionAuth` it PRODUCES the tenant, so it
 // precedes `createTenantRepository` scoping.
 export { createTokenAuth } from "./auth/token";
+export { TokenMintErrorCodes, type TokenMintErrorCode } from "./auth/types";
 export type {
   TokenAuth,
   TokenMintInput,
   TokenWithGrant,
   ApiTokenRow,
   ApiTokenMetadataRow,
+  RevokedToken,
+  TokenMintError,
 } from "./auth/token";
 
 // One GitHub user's whole credential set, for the revoke webhook: unscoped,

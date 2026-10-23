@@ -9,6 +9,11 @@ export interface TokensControllerDeps {
   readonly log: Logger;
 }
 
+/** A logout deleted the minting session before the mint could lock it. */
+export interface MintFailure {
+  readonly kind: "session-gone";
+}
+
 /** The one failure the revoke path can produce. */
 export interface RevokeFailure {
   readonly kind: "token-not-found";

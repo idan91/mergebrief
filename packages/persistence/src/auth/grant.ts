@@ -15,7 +15,17 @@
 // interleavings at the cost of one aborted transaction that retries clean;
 // do not "fix" it by dropping the FK.
 /* oxlint-enable house/comment-run */
-import { and, eq, inArray, isNull, notExists, sql } from "drizzle-orm";
+import {
+  type SQL,
+  and,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod/v4";
 import { traceStore } from "../stores/trace-store";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
@@ -97,6 +107,16 @@ export interface RetiredGrant {
   readonly tokensRevoked: number;
 }
 
+/**
+ * A grant no session and no live token uses any more: what a caller needs to
+ * revoke the access token at GitHub once the transaction has committed.
+ */
+export interface OrphanedGrant {
+  readonly id: GrantRowId;
+  readonly ghTokenCiphertext: string;
+  readonly keyRef: string;
+}
+
 /** Everything a login persists to open a new grant. */
 export interface GrantCreateInput {
   readonly userId: ReviewerId;
@@ -134,9 +154,9 @@ export interface GrantAuth {
    * Delete the grant iff nothing references it. This is the compensation path
    * for a login that created a grant but failed before the session insert, since
    * the lifecycle rule only cleans on referent DELETE. A referenced grant is a
-   * no-op. Returns rows deleted, 0 or 1.
+   * no-op. Returns the grant it deleted, if any.
    */
-  deleteIfOrphaned(grantId: GrantRowId): Promise<number>;
+  deleteIfOrphaned(grantId: GrantRowId): Promise<OrphanedGrant[]>;
   /**
    * End every sign-in riding a grant GitHub refused to rotate, in ONE
    * transaction: delete its sessions and set `revoked_at = now` on its live
@@ -296,18 +316,44 @@ function compareGrantIds(left: GrantRowId, right: GrantRowId): number {
   return 0;
 }
 
+/** No session and no token neither revoked nor expired (database clock) uses the grant. */
+function buildNoLiveReferentConditions(executor: AppDrizzle): SQL[] {
+  return [
+    notExists(
+      executor
+        .select({ one: authSession.id })
+        .from(authSession)
+        .where(eq(authSession.grantId, githubGrant.id)),
+    ),
+    notExists(
+      executor
+        .select({ one: apiToken.id })
+        .from(apiToken)
+        .where(
+          and(
+            eq(apiToken.grantId, githubGrant.id),
+            isNull(apiToken.revokedAt),
+            or(isNull(apiToken.expiresAt), gt(apiToken.expiresAt, sql`now()`)),
+          ),
+        ),
+    ),
+  ];
+}
+
 /**
- * Delete every grant in `grantIds` that no session or token references
- * anymore. MUST run on the same transaction that deleted the referents, a
- * grant dies with its last referent, atomically, hence the raw `AppDrizzle`
- * executor. Module-internal: NOT re-exported from `index.ts`.
+ * Settle every grant in `grantIds` that no session and no live token uses any
+ * more: return it, so the caller revokes its token at GitHub after commit,
+ * and delete its row when no token row references it at all (a revoked or
+ * expired token keeps the row for its FK until it is itself deleted). MUST
+ * run on the transaction that removed or revoked the referents, hence the raw
+ * `AppDrizzle` executor. Module-internal: NOT re-exported from `index.ts`.
  */
 export async function deleteOrphanedGrants(
   executor: AppDrizzle,
   grantIds: readonly GrantRowId[],
-): Promise<number> {
+): Promise<OrphanedGrant[]> {
   if (grantIds.length === 0) {
-    return 0;
+    return [];
   }
   // De-dup (several referents may share one grant). The lock's ORDER BY, not
   // this sort, is what makes concurrent callers lock overlapping grants in
@@ -323,25 +369,36 @@ export async function deleteOrphanedGrants(
     .where(inArray(githubGrant.id, unique))
     .orderBy(githubGrant.id)
     .for("update");
-  const deleted = await executor
-    .delete(githubGrant)
+  const orphaned = await executor
+    .select({
+      id: githubGrant.id,
+      ghTokenCiphertext: githubGrant.ghTokenCiphertext,
+      keyRef: githubGrant.keyRef,
+    })
+    .from(githubGrant)
     .where(
       and(
         inArray(githubGrant.id, unique),
-        notExists(
-          executor
-            .select({ one: authSession.id })
-            .from(authSession)
-            .where(eq(authSession.grantId, githubGrant.id)),
-        ),
-        notExists(
-          executor
-            .select({ one: apiToken.id })
-            .from(apiToken)
-            .where(eq(apiToken.grantId, githubGrant.id)),
-        ),
+        ...buildNoLiveReferentConditions(executor),
       ),
-    )
-    .returning({ id: githubGrant.id });
-  return deleted.length;
+    );
+  if (orphaned.length === 0) {
+    return [];
+  }
+
+  await executor.delete(githubGrant).where(
+    and(
+      inArray(
+        githubGrant.id,
+        orphaned.map((grant) => grant.id),
+      ),
+      notExists(
+        executor
+          .select({ one: apiToken.id })
+          .from(apiToken)
+          .where(eq(apiToken.grantId, githubGrant.id)),
+      ),
+    ),
+  );
+  return orphaned;
 }

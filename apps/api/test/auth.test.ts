@@ -356,6 +356,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("logout deletes the session and its orphaned grant, clearing the cookie", async () => {
+    stubTokenDelete(204);
     const { cookie: token } = await seedSignIn(harness.handle, kp);
     expect(await countRows(harness, "auth_session")).toBe(1);
 
@@ -432,6 +433,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("logout with the instance's own Origin goes through", async () => {
+    stubTokenDelete(204);
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await app.request("/api/auth/logout", {
@@ -444,6 +446,131 @@ describe("reviewer auth routes", () => {
 
     expect(res.status).toBe(204);
     expect(await countRows(harness, "auth_session")).toBe(0);
+  });
+
+  it("logout revokes the last session's token at GitHub", async () => {
+    const fetchFn = stubTokenDelete(204);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await logOut(app, cookie);
+
+    expect(res.status).toBe(204);
+    expect(readTokenDeleteCalls(fetchFn)).toEqual([
+      {
+        url: "https://api.github.com/applications/Iv1.test-client-id/token",
+        method: "DELETE",
+        body: { access_token: ACCESS_TOKEN },
+      },
+    ]);
+  });
+
+  it("logout keeps the GitHub token while a CLI token rides the grant", async () => {
+    const fetchFn = stubTokenDelete(204);
+    const signIn = await seedSignIn(harness.handle, kp);
+    await makeTokenOnGrant(signIn.grantId);
+
+    const res = await logOut(app, signIn.cookie);
+
+    expect(res.status).toBe(204);
+    expect(readTokenDeleteCalls(fetchFn)).toEqual([]);
+    expect(await countRows(harness, "github_grant")).toBe(1);
+  });
+
+  it("logout revokes at GitHub when the grant's only CLI token is revoked", async () => {
+    const fetchFn = stubTokenDelete(204);
+    const signIn = await seedSignIn(harness.handle, kp);
+    const tokens = createTokenAuth(harness.handle);
+    const minted = await tokens.mintToken({
+      scope: AccessLevels.READ,
+      userId: brandReviewerId(BigInt(REVIEWER_ID)),
+      name: "revoked-first",
+      tokenHash: hashSha256Hex(randomBytes(32).toString("base64url")),
+      grantId: signIn.grantId,
+      expiresAt: null,
+    });
+    await tokens.revokeToken(signIn.reviewerId, minted.id, new Date());
+
+    const res = await logOut(app, signIn.cookie);
+
+    expect(res.status).toBe(204);
+    expect(readTokenDeleteCalls(fetchFn)).toHaveLength(1);
+  });
+
+  it("logout revokes at GitHub when the grant's only CLI token expired", async () => {
+    const fetchFn = stubTokenDelete(204);
+    const signIn = await seedSignIn(harness.handle, kp);
+    await createTokenAuth(harness.handle).mintToken({
+      scope: AccessLevels.READ,
+      userId: brandReviewerId(BigInt(REVIEWER_ID)),
+      name: "expired",
+      tokenHash: hashSha256Hex(randomBytes(32).toString("base64url")),
+      grantId: signIn.grantId,
+      expiresAt: new Date("2000-01-01T00:00:00Z"),
+    });
+
+    const res = await logOut(app, signIn.cookie);
+
+    expect(res.status).toBe(204);
+    expect(readTokenDeleteCalls(fetchFn)).toHaveLength(1);
+  });
+
+  it("logout still answers 204 when GitHub refuses the token delete", async () => {
+    stubTokenDelete(500);
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const capture = testLogging();
+    const loggedApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+
+    const res = await logOut(loggedApp, cookie);
+
+    expect(res.status).toBe(204);
+    expect(await countRows(harness, "auth_session")).toBe(0);
+    expect(await countRows(harness, "github_grant")).toBe(0);
+    const line = capture
+      .lines()
+      .find((entry) => entry["evt"] === "grant.revoke.fail");
+    expect(line?.["level"]).toBe("warn");
+    expect(line?.["code"]).toBe("token-delete-failed");
+    expect(JSON.stringify(capture.lines())).not.toContain(ACCESS_TOKEN);
+  });
+
+  it("logout still answers 204 when the token delete hangs", async () => {
+    vi.stubGlobal("fetch", vi.fn(stubHangingFetch));
+    const { cookie } = await seedSignIn(harness.handle, kp);
+    const capture = testLogging();
+    const boundedApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: { ...buildAuthDeps(kp), oauthRequestTimeoutMs: SHORT_TIMEOUT_MS },
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+
+    const res = await logOut(boundedApp, cookie);
+
+    expect(res.status).toBe(204);
+    expect(
+      capture.lines().some((entry) => entry["evt"] === "grant.revoke.fail"),
+    ).toBe(true);
+  });
+
+  it("an expired session's grant is revoked at GitHub on its 401", async () => {
+    const fetchFn = stubTokenDelete(204);
+    const { cookie } = await seedSignIn(harness.handle, kp, {
+      expiresAt: new Date(Date.now() - 1000),
+    });
+
+    const res = await app.request("/api/version", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+
+    expect(res.status).toBe(401);
+    expect(readTokenDeleteCalls(fetchFn)).toHaveLength(1);
   });
 
   it("GET /api/auth/session without a cookie answers 401", async () => {
@@ -898,6 +1025,50 @@ function readRefreshErrorCode(
     throw new Error("expected the refresh to fail");
   }
   return result.error.code;
+}
+
+/** GitHub's token-delete endpoint answering `status`, every call recorded. */
+function stubTokenDelete(status: number): ReturnType<typeof vi.fn> {
+  const fetchFn = vi.fn(async () => {
+    if (status === 204) {
+      return new Response(null, { status });
+    }
+    return jsonResponse({ message: "refused" }, status);
+  });
+  vi.stubGlobal("fetch", fetchFn);
+  return fetchFn;
+}
+
+interface TokenDeleteCall {
+  readonly url: string;
+  readonly method: string | undefined;
+  readonly body: unknown;
+}
+
+function readTokenDeleteCalls(
+  fetchFn: ReturnType<typeof vi.fn>,
+): TokenDeleteCall[] {
+  return fetchFn.mock.calls
+    .map((call) => {
+      const [input, init] = call as [string | URL | Request, RequestInit?];
+      return {
+        url: getRequestUrl(input),
+        method: init?.method,
+        body:
+          typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
+      };
+    })
+    .filter((call) => call.url.includes("/applications/"));
+}
+
+async function logOut(app: ApiApp, cookie: string): Promise<Response> {
+  return app.request("/api/auth/logout", {
+    method: "POST",
+    headers: {
+      ...SAME_ORIGIN_HEADERS,
+      Cookie: `__Host-mergebrief_session=${cookie}`,
+    },
+  });
 }
 
 /** A GitHub that never answers: only the request's abort signal ends it. */

@@ -2,16 +2,19 @@
 // field, so the delete reaches only the caller's own sessions.
 import type { RevokeSessionsResponse } from "contract";
 import { createSessionAuth } from "persistence";
+import { revokeOrphanedGrantsAtGitHub } from "../session/logic/revoke-at-github";
 import type { SessionsControllerDeps } from "./types";
 
 export const sessionsController = {
   async revokeAll({
     deps,
     session,
+    log,
   }: SessionsControllerDeps): Promise<RevokeSessionsResponse> {
-    const revoked = await createSessionAuth(
+    const deleted = await createSessionAuth(
       deps.handle,
     ).deleteSessionsForReviewer(session.reviewerId);
-    return { revoked };
+    await revokeOrphanedGrantsAtGitHub(deps, deleted.orphanedGrants, log);
+    return { revoked: deleted.deleted };
   },
 };
