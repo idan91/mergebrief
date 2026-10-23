@@ -30,6 +30,7 @@ const ROTATED_EXPIRY = new Date("2027-06-01T00:00:00Z");
 
 function createInput() {
   return {
+    userId: REVIEWER,
     ghTokenCiphertext: "v1.enc-access",
     ghRefreshTokenCiphertext: "v1.enc-refresh",
     keyRef: "SESSION_KEY_V1",
@@ -52,6 +53,14 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     expect(grant.ghRefreshTokenCiphertext).toBe("v1.enc-refresh");
     expect(grant.keyRef).toBe("SESSION_KEY_V1");
     expect(grant.refreshExpiresAt).toEqual(FUTURE);
+  });
+
+  it("stores the GitHub user the grant belongs to", async () => {
+    const auth = createGrantAuth(shared.handle);
+    const grant = await auth.createGrant(createInput());
+
+    const read = await auth.getGrant(grant.id);
+    expect(read?.userId).toBe(777n);
   });
 
   it("applies the patch and returns the updated row when stale", async () => {

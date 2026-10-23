@@ -25,6 +25,7 @@ export const GRANDFATHERED_MIGRATIONS: readonly string[] = [
   "0015_generation-status-capped",
   "0017_generation-failure-codes",
   "0018_auth-session-rename",
+  "0021_disposition-session-anchors",
   "0020_disposition-drop-legacy-anchors",
   "0025_audit-operation-columns",
   "0026_audit-drop-action",
@@ -46,7 +47,9 @@ const ALTER_COLUMN_DROP = String.raw`\bALTER\s+(COLUMN\s+)?${IDENTIFIER}\s+DROP\
 
 /**
  * What release N-1 cannot survive: a dropped table, column, constraint,
- * index or trigger, a rename, a column type change, a NOT NULL tightening.
+ * index or trigger, a rename, a column type change, a NOT NULL tightening,
+ * a NOT NULL column added with no default (N-1's inserts omit it), and a
+ * DELETE (rows N-1 still reads go away).
  * A bare `DROP name` is a column drop with the keyword left out, so it
  * counts; the four `ALTER COLUMN ... DROP` clauses (NOT NULL, DEFAULT,
  * IDENTITY, EXPRESSION) only widen, so they pass.
@@ -59,6 +62,8 @@ const DESTRUCTIVE_STATEMENT = new RegExp(
     String.raw`\bRENAME\s+${IDENTIFIER}\s+TO\b`,
     String.raw`\bALTER\s+(COLUMN\s+)?${IDENTIFIER}\s+(SET\s+DATA\s+)?TYPE\b`,
     String.raw`\bALTER\s+(COLUMN\s+)?${IDENTIFIER}\s+SET\s+NOT\s+NULL\b`,
+    String.raw`\bADD\s+COLUMN\s+(IF\s+NOT\s+EXISTS\s+)?${IDENTIFIER}(?!.*\bDEFAULT\b).*\bNOT\s+NULL\b`,
+    String.raw`\bDELETE\s+FROM\b`,
   ].join("|"),
   "i",
 );

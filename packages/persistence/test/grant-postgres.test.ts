@@ -10,8 +10,8 @@ import {
 } from "../src/auth/grant";
 import { closeDb, createDb, type AppDatabase } from "../src/db/handle";
 import { readTestPostgresUrl } from "../src/testing";
-import type { GrantRowId } from "../src/types";
-import { connectMigrated, waitMs } from "./helpers";
+import { isReviewerId, type GrantRowId } from "../src/types";
+import { brandWith, connectMigrated, waitMs } from "./helpers";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const ROTATION_BOUND_MS = 1_000;
@@ -22,8 +22,11 @@ const WAITERS_POOL_SIZE = WAITER_COUNT + 1;
 const SUITE_TIMEOUT_MS = 15_000;
 const FUTURE = new Date("2027-01-01T00:00:00Z");
 
+const REVIEWER = brandWith(isReviewerId, 777n);
+
 function makeGrantInput(label: string) {
   return {
+    userId: REVIEWER,
     ghTokenCiphertext: `v1.${label}-access`,
     ghRefreshTokenCiphertext: `v1.${label}-refresh`,
     keyRef: "SESSION_KEY_V1",

@@ -3,12 +3,8 @@
 // server fields, over a stub client. One runCli pass
 // wires the real command against the real map.
 import { createHash, randomBytes } from "node:crypto";
-import {
-  encryptToken,
-  createGrantAuth,
-  isReviewerId,
-  createTokenAuth,
-} from "persistence";
+import { isReviewerId, createTokenAuth } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import type { ApiClient } from "../src/client";
@@ -252,14 +248,11 @@ describe("mergebrief capabilities against the real api", () => {
       if (!isReviewerId(reviewerId)) {
         throw new Error("bad id");
       }
-      const sealedAccess = await encryptToken(kp, "SESSION_KEY_V1", "ghu_A");
-      const sealedRefresh = await encryptToken(kp, "SESSION_KEY_V1", "ghr_R");
-      if (!sealedAccess.ok || !sealedRefresh.ok) {
-        throw new Error("seed encrypt failed");
-      }
-      const grant = await createGrantAuth(harness.handle).createGrant({
-        ghTokenCiphertext: sealedAccess.value,
-        ghRefreshTokenCiphertext: sealedRefresh.value,
+      const grant = await seedGrant(harness.handle, {
+        userId: reviewerId,
+        accessToken: "ghu_A",
+        refreshToken: "ghr_R",
+        keyProvider: kp,
         keyRef: "SESSION_KEY_V1",
         refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
       });

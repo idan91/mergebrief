@@ -8,9 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createArtifactStore,
-  encryptToken,
   createTenantRepository,
-  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -19,8 +17,8 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
+import { seedGrant, type PgliteHarness } from "persistence/testing";
 import { PrStates, ReviewOutcomes, AccessLevels } from "types";
-import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { requireSpan } from "../src/commands/options";
@@ -183,14 +181,11 @@ describe("write commands over the real api app", () => {
 
   async function seedToken(): Promise<string> {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-    const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
-    const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
+    const grant = await seedGrant(harness.handle, {
+      userId: REVIEWER,
+      accessToken: "ghu_ACCESS",
+      refreshToken: "ghr_REFRESH",
+      keyProvider: kp,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });

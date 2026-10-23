@@ -12,6 +12,7 @@ import {
   type GithubGrantRow,
   type KeyProvider,
 } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createApp,
@@ -828,14 +829,11 @@ describe("reviewer auth routes", () => {
 
   it("bearer refresh denies a token revoked mid-rotation and keeps the row", async () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
-    const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-    const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
+    const grant = await seedGrant(harness.handle, {
+      userId: brandReviewerId(BigInt(REVIEWER_ID)),
+      accessToken: ACCESS_TOKEN,
+      refreshToken: REFRESH_TOKEN,
+      keyProvider: kp,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });

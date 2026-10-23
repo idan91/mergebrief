@@ -52,8 +52,8 @@ describe("api_token schema", () => {
     const db = shared.db;
     const tokenHash = "a".repeat(64); // shape of a sha256 hex digest
     await db.execute(sql`
-      insert into github_grant (gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref, refresh_expires_at)
-      values ('ct', 'rct', 'K', now() + interval '6 months')
+      insert into github_grant (user_id, gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref, refresh_expires_at)
+      values (777, 'ct', 'rct', 'K', now() + interval '6 months')
     `);
     await db.execute(sql`
       insert into api_token (token_hash, user_id, name, scope, grant_id)
@@ -109,6 +109,7 @@ const FUTURE = new Date("2026-10-07T00:00:00Z");
 
 async function seedGrant(handle: AppDatabase): Promise<GithubGrantRow> {
   return createGrantAuth(handle).createGrant({
+    userId: USER,
     ghTokenCiphertext: "v1.enc-access",
     ghRefreshTokenCiphertext: "v1.enc-refresh",
     keyRef: "SESSION_KEY_V1",

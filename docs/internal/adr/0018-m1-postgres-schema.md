@@ -496,3 +496,7 @@ No `delta_overlay` table exists and none is planned. Carry-over is realized by t
 ### 2026-10-20: D7's `disposition` body as shipped
 
 The shipped row is keyed `(review_session_id, file_path, attribute, region_start, region_end)`, takes its SHA from the session's Brief, and carries `carry_status`, `evidence_status`, `evidence_kind` and `evidence_ref` beside `decision`, `reason` and `decided_at`; there is no `pull_request_id`, `reviewer_id` or `decided_at_sha` column (`packages/persistence/src/schema/disposition.ts`). Rows are written by the review-session store, not deferred to a later milestone. The anchored-by-coordinates principle holds.
+
+### 2026-10-23: A grant names its user
+
+D15: `github_grant.user_id` (`bigint NOT NULL`) records the GitHub user the authorization belongs to, and sign-in writes it. It is the grant's ownership and deletion key: the `github_app_authorization.revoked` webhook deletes every grant of that user by it, with their sessions and tokens, and `github_grant_user_idx` serves that delete. Migration 0066 adds the column with no backfill and opens with `-- contracts 0.1.0`. Before the `ADD COLUMN` it deletes every `auth_session`, `api_token` and `github_grant` row: a deliberate pre-release wipe, since existing grants name no user and pre-release credentials are not kept. Every reviewer signs in again once.

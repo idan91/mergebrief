@@ -3,9 +3,7 @@ import { randomBytes } from "node:crypto";
 import { beforeAll, beforeEach } from "vitest";
 import {
   createEnvKeyProvider,
-  createGrantAuth,
   createIngestRoutines,
-  encryptToken,
   GenerationKinds,
   isPullRequestRowId,
   isRepoId,
@@ -13,12 +11,17 @@ import {
   parseTenantContext,
   type GenerationTarget,
   type GrantRowId,
+  type KeyProvider,
   type PullRequestRow,
   type RepoId,
   type ReviewerId,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import {
+  createPgliteHarness,
+  type PgliteHarness,
+  seedGrant,
+} from "persistence/testing";
 import type { z } from "zod/v4";
 import {
   GeneratorError,
@@ -223,6 +226,7 @@ export function stubGenerator(): StubGenerator {
 export const REPO: RepositoryRef = { owner: "acme", repo: "widget" };
 export const PR_REF: PullRequestRef = { ...REPO, prNumber: 7 };
 export const VIEWER_TOKEN = "ghu_viewer";
+const VIEWER_ID = 100n;
 
 const KEY_REF = "SESSION_KEY_TEST";
 export const TEST_KEY_PROVIDER = createEnvKeyProvider({
@@ -302,23 +306,22 @@ export function openTestPort(
   return createGitHubPort(github, urlBox);
 }
 
-/** A stored grant sealing `token`; `keyRef` names the key that opens it. */
+/**
+ * A stored grant sealing `token` under the test key; `keyRef` is the name
+ * recorded on the row, so a ref the test provider lacks leaves it unreadable.
+ */
 export async function seedViewerGrant(
   token = VIEWER_TOKEN,
   keyRef = KEY_REF,
 ): Promise<GrantRowId> {
-  const sealedAccess = await encryptToken(TEST_KEY_PROVIDER, KEY_REF, token);
-  const sealedRefresh = await encryptToken(
-    TEST_KEY_PROVIDER,
-    KEY_REF,
-    "refresh",
-  );
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(harness.handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
+  const sealingProvider: KeyProvider = {
+    resolveKey: () => TEST_KEY_PROVIDER.resolveKey(KEY_REF),
+  };
+  const grant = await seedGrant(harness.handle, {
+    userId: makeReviewerId(VIEWER_ID),
+    accessToken: token,
+    refreshToken: "refresh",
+    keyProvider: sealingProvider,
     keyRef,
     refreshExpiresAt: new Date(Date.now() + 3_600_000),
   });

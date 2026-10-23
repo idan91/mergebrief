@@ -2,12 +2,11 @@
 // every /api/* surface, the catalog fields in registry order.
 import { createHash, randomBytes } from "node:crypto";
 import {
-  encryptToken,
   createEnvKeyProvider,
-  createGrantAuth,
   createTokenAuth,
   type KeyProvider,
 } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
@@ -51,14 +50,11 @@ describe("GET /api/capabilities", () => {
 
   async function bearer(): Promise<string> {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-    const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
-    const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
+    const grant = await seedGrant(harness.handle, {
+      userId: brandReviewerId(555n),
+      accessToken: "ghu_ACCESS",
+      refreshToken: "ghr_REFRESH",
+      keyProvider: kp,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });

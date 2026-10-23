@@ -116,6 +116,30 @@ describe("judgeMigration", () => {
     });
   });
 
+  it("flags a NOT NULL column added without a default and a DELETE", () => {
+    const cases = [
+      'ALTER TABLE "brief" ADD COLUMN "owner" bigint NOT NULL;',
+      'ALTER TABLE "brief" ADD COLUMN IF NOT EXISTS owner bigint NOT NULL;',
+      'DELETE FROM "brief";',
+      "delete from brief where id = 1;",
+    ];
+
+    for (const statement of cases) {
+      expect(judgeMigration("0047_x.sql", statement).kind).toBe(
+        MigrationVerdicts.MISSING_CONTRACTS_LINE,
+      );
+    }
+  });
+
+  it("passes a NOT NULL column added with a default", () => {
+    const statement =
+      'ALTER TABLE "brief" ADD COLUMN "n" integer DEFAULT 0 NOT NULL;';
+
+    expect(judgeMigration("0047_x.sql", statement)).toEqual({
+      kind: MigrationVerdicts.OK,
+    });
+  });
+
   it("passes pure additions, widenings and comments naming a drop", () => {
     const cases = [
       'CREATE TABLE "thing" ("id" bigint PRIMARY KEY);',

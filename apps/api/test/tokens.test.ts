@@ -13,12 +13,14 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { PrStates, type AccessLevel, AccessLevels } from "types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
   INSTALLATION_ID,
+  KEY_REF,
   REVIEWER_ID,
   SECRET,
   buildAuthDeps,
@@ -28,7 +30,7 @@ import {
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
-import { seedGrant, seedSignIn } from "./sign-in";
+import { ACCESS_TOKEN, REFRESH_TOKEN, seedSignIn } from "./sign-in";
 import { registerSharedPglite } from "./shared-pglite";
 
 const REPO_A = 42001;
@@ -166,14 +168,20 @@ async function seedApiToken(
   } = {},
 ): Promise<string> {
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-  const grantId = await seedGrant(handle, kp);
+  const grant = await seedGrant(handle, {
+    userId: REVIEWER,
+    accessToken: ACCESS_TOKEN,
+    refreshToken: REFRESH_TOKEN,
+    keyProvider: kp,
+    keyRef: KEY_REF,
+  });
   const minted = await createTokenAuth(handle).mintToken({
     scope: overrides.scope ?? AccessLevels.EXTERNAL_WRITE,
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",
     tokenHash: hashSha256Hex(plaintext),
-    grantId,
+    grantId: grant.id,
     expiresAt:
       overrides.expiresAt === undefined
         ? new Date("2027-01-01T00:00:00Z")

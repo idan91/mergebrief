@@ -63,6 +63,7 @@ async function insertGrant(db: Db): Promise<GrantRowId> {
   const rows = await db
     .insert(githubGrant)
     .values({
+      userId: brandWith(isReviewerId, 777n),
       ghTokenCiphertext: "ct",
       ghRefreshTokenCiphertext: "rct",
       keyRef: "SESSION_KEY_V1",

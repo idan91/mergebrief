@@ -4,15 +4,14 @@
 // cookie mutation.
 import { randomBytes } from "node:crypto";
 import {
-  createGrantAuth,
   createSessionAuth,
   createTokenAuth,
-  encryptToken,
   type AppDatabase,
   type GithubGrantRow,
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import {
@@ -44,14 +43,11 @@ async function seedSessionFor(
   reviewerId: ReviewerId,
 ): Promise<SeededSession> {
   const cookie = randomBytes(32).toString("base64url");
-  const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
-  const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
+  const grant = await seedGrant(handle, {
+    userId: reviewerId,
+    accessToken: "ghu_ACCESS",
+    refreshToken: "ghr_REFRESH",
+    keyProvider: kp,
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });

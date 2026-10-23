@@ -3,15 +3,14 @@
 // that needs a principal seeds it here.
 import { randomBytes } from "node:crypto";
 import {
-  createGrantAuth,
   createSessionAuth,
   createTokenAuth,
-  encryptToken,
   type AppDatabase,
   type GithubGrantRow,
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
+import { seedGrant } from "persistence/testing";
 import {
   KEY_REF,
   REVIEWER_ID,
@@ -49,28 +48,17 @@ export interface SeededSignIn {
 }
 
 /** The sealed GitHub grant a session or an API token links to. */
-export async function seedGrant(
+async function seedReviewerGrant(
   handle: AppDatabase,
   kp: KeyProvider,
+  userId: ReviewerId,
   options: GrantOptions = {},
 ): Promise<GithubGrantRow["id"]> {
-  const sealedAccess = await encryptToken(
-    kp,
-    KEY_REF,
-    options.accessToken ?? ACCESS_TOKEN,
-  );
-  const sealedRefresh = await encryptToken(
-    kp,
-    KEY_REF,
-    options.refreshToken ?? REFRESH_TOKEN,
-  );
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
-
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
+  const grant = await seedGrant(handle, {
+    userId,
+    accessToken: options.accessToken ?? ACCESS_TOKEN,
+    refreshToken: options.refreshToken ?? REFRESH_TOKEN,
+    keyProvider: kp,
     keyRef: KEY_REF,
     refreshExpiresAt: options.expiresAt ?? SIGN_IN_EXPIRES_AT,
   });
@@ -88,7 +76,7 @@ export async function seedSignIn(
   };
   const expiresAt = options.expiresAt ?? SIGN_IN_EXPIRES_AT;
 
-  const grantId = await seedGrant(handle, kp, options);
+  const grantId = await seedReviewerGrant(handle, kp, reviewer.id, options);
   const cookie = randomBytes(32).toString("base64url");
   const cookieHash = hashSha256Hex(cookie);
   await createSessionAuth(handle).createSession({
@@ -109,13 +97,14 @@ export async function seedApiToken(
   scope: AccessLevel,
 ): Promise<string> {
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
+  const userId = brandReviewerId(BigInt(REVIEWER_ID));
   await createTokenAuth(handle).mintToken({
     scope,
-    userId: brandReviewerId(BigInt(REVIEWER_ID)),
+    userId,
     userLogin: "octocat",
     name: "ci-token",
     tokenHash: hashSha256Hex(plaintext),
-    grantId: await seedGrant(handle, kp),
+    grantId: await seedReviewerGrant(handle, kp, userId),
     expiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   return plaintext;

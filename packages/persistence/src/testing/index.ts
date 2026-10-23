@@ -31,6 +31,7 @@ export { warmPgliteSnapshot } from "./pglite-snapshot";
 export { resetPgliteHarness } from "./pglite-reset";
 // The suites PGlite cannot exercise, in this package and the worker.
 export { readTestPostgresUrl, type TestPostgresUrl } from "./postgres-url";
+export { seedGrant, type SeedGrantInput } from "./seed-grant";
 
 // Mirrors `job_key_mode` 'replace' and 'preserve_run_at'; parameter names match
 // the named-notation call in `ingest.ts`, and the columns carry the real

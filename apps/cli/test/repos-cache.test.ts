@@ -6,14 +6,12 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  encryptToken,
-  createGrantAuth,
   isReviewerId,
   createTokenAuth,
   type KeyProvider,
   type ReviewerId,
 } from "persistence";
-import type { PgliteHarness } from "persistence/testing";
+import { seedGrant, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
@@ -97,14 +95,11 @@ describe("mergebrief repos command + cache", () => {
   async function seedToken(): Promise<string> {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const hash = createHash("sha256").update(plaintext).digest("hex");
-    const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
-    const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
+    const grant = await seedGrant(harness.handle, {
+      userId: REVIEWER,
+      accessToken: "ghu_ACCESS",
+      refreshToken: "ghr_REFRESH",
+      keyProvider: kp,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });

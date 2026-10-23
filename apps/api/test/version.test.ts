@@ -3,12 +3,11 @@
 // injected version in the body, no-store, hint-free 401 without auth.
 import { createHash, randomBytes } from "node:crypto";
 import {
-  encryptToken,
   createEnvKeyProvider,
-  createGrantAuth,
   createTokenAuth,
   type KeyProvider,
 } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { createUpdateCheck, type UpdateCheck } from "../src/update-check";
@@ -80,14 +79,11 @@ describe("GET /api/version", () => {
 
   it("returns the update snapshot to a Bearer principal, no-store", async () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-    const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
-    const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
+    const grant = await seedGrant(harness.handle, {
+      userId: brandReviewerId(555n),
+      accessToken: "ghu_ACCESS",
+      refreshToken: "ghr_REFRESH",
+      keyProvider: kp,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });

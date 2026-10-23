@@ -165,7 +165,7 @@ describe("schema additions from migration 0003", () => {
     const db = shared.db;
     await expectCheckViolation(
       db.execute(
-        sql`insert into github_grant (gh_token_ciphertext, key_ref, refresh_expires_at) values ('ct', 'env:K', now())`,
+        sql`insert into github_grant (user_id, gh_token_ciphertext, key_ref, refresh_expires_at) values (777, 'ct', 'env:K', now())`,
       ),
       "gh_refresh_token_ciphertext",
     );

@@ -101,6 +101,7 @@ async function storeSession(
 ): Promise<void> {
   const grants = createGrantAuth(deps.handle);
   const grant = await grants.createGrant({
+    userId: sealed.reviewerId,
     ghTokenCiphertext: sealed.ghTokenCiphertext,
     ghRefreshTokenCiphertext: sealed.ghRefreshTokenCiphertext,
     keyRef: deps.auth.sessionKeyRef,

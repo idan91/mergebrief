@@ -22,7 +22,7 @@ import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
 import { authSession } from "../schema/auth-session";
-import type { GrantRowId } from "../types";
+import type { GrantRowId, ReviewerId } from "../types";
 import type { Result, ValueOf } from "types/utils";
 
 export type GithubGrantRow = typeof githubGrant.$inferSelect;
@@ -99,6 +99,7 @@ export interface RetiredGrant {
 
 /** Everything a login persists to open a new grant. */
 export interface GrantCreateInput {
+  readonly userId: ReviewerId;
   readonly ghTokenCiphertext: string;
   readonly ghRefreshTokenCiphertext: string;
   readonly keyRef: string;
@@ -157,6 +158,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
       const rows = await db
         .insert(githubGrant)
         .values({
+          userId: input.userId,
           ghTokenCiphertext: input.ghTokenCiphertext,
           ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
           keyRef: input.keyRef,

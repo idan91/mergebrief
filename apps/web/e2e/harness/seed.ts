@@ -9,10 +9,8 @@ import {
   closeDb,
   createArtifactStore,
   createDb,
-  createGrantAuth,
   createSessionAuth,
   createTenantRepository,
-  encryptToken,
   createEnvKeyProvider,
   ensureAppSchema,
   isBriefRowId,
@@ -28,6 +26,7 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
 import {
   E2E_OTHER_LOGIN,
@@ -264,23 +263,12 @@ async function seedSession(
   viewer: StateViewer,
 ): Promise<void> {
   const keyProvider = createEnvKeyProvider({ SESSION_KEY_V1: E2E_SESSION_KEY });
-  const sealedAccess = await encryptToken(
-    keyProvider,
-    "SESSION_KEY_V1",
-    viewer.token,
-  );
-  const sealedRefresh = await encryptToken(
-    keyProvider,
-    "SESSION_KEY_V1",
-    `ghr_${viewer.login}_refresh`,
-  );
-  if (!sealedAccess.ok || !sealedRefresh.ok) {
-    throw new Error("seed encrypt failed");
-  }
   const reviewer = brandReviewer(viewer.userId);
-  const grant = await createGrantAuth(handle).createGrant({
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
+  const grant = await seedGrant(handle, {
+    userId: reviewer,
+    accessToken: viewer.token,
+    refreshToken: `ghr_${viewer.login}_refresh`,
+    keyProvider,
     keyRef: "SESSION_KEY_V1",
     refreshExpiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
   });

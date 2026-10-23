@@ -4,12 +4,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  createGrantAuth,
-  createTokenAuth,
-  encryptToken,
-  isReviewerId,
-} from "persistence";
+import { createTokenAuth, isReviewerId } from "persistence";
+import { seedGrant } from "persistence/testing";
 import { AccessLevels } from "types/access-levels";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
@@ -50,32 +46,18 @@ describe("spend command over the real api app", () => {
 
   async function seedToken(started: CliApiHarness): Promise<string> {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-    const sealedAccess = await encryptToken(
-      started.keyProvider,
-      KEY_REF,
-      "ghu_ACCESS",
-    );
-    const sealedRefresh = await encryptToken(
-      started.keyProvider,
-      KEY_REF,
-      "ghr_REFRESH",
-    );
-    if (!sealedAccess.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    if (!sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
-    }
-    const grant = await createGrantAuth(started.harness.handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
-      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
-    });
     const userId = BigInt(REVIEWER_ID);
     if (!isReviewerId(userId)) {
       throw new Error("bad reviewer id");
     }
+    const grant = await seedGrant(started.harness.handle, {
+      userId,
+      accessToken: "ghu_ACCESS",
+      refreshToken: "ghr_REFRESH",
+      keyProvider: started.keyProvider,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     const hash = createHash("sha256").update(plaintext);
     const tokenHash = hash.digest("hex");
     await createTokenAuth(started.harness.handle).mintToken({

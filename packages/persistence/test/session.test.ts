@@ -32,6 +32,7 @@ async function seedSession(
   const grant =
     input.grant ??
     (await createGrantAuth(handle).createGrant({
+      userId: input.reviewerId ?? REVIEWER_ID,
       ghTokenCiphertext: "v1.enc-access",
       ghRefreshTokenCiphertext: "v1.enc-refresh",
       keyRef: "SESSION_KEY_V1",
@@ -57,6 +58,7 @@ describe("createSessionAuth.createSession", () => {
   it("creates a session that links its grant by id", async () => {
     const handle = shared.handle;
     const grant = await createGrantAuth(handle).createGrant({
+      userId: REVIEWER_ID,
       ghTokenCiphertext: "v1.enc-access",
       ghRefreshTokenCiphertext: "v1.enc-refresh",
       keyRef: "SESSION_KEY_V1",

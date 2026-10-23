@@ -35,6 +35,7 @@ async function seedSession(
   expiresAt: Date,
 ): Promise<void> {
   const grant = await createGrantAuth(harness.handle).createGrant({
+    userId: reviewerId,
     ghTokenCiphertext: "v1.enc-access",
     ghRefreshTokenCiphertext: "v1.enc-refresh",
     keyRef: "SESSION_KEY_V1",
