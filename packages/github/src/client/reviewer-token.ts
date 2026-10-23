@@ -1,15 +1,17 @@
 import type { Result } from "types/utils";
-import type { GitHubApiError } from "../errors";
-import type {
-  CredentialFailure,
-  GitHubCall,
-  ReviewerCredential,
+import { buildRenewalUnavailableError, type GitHubApiError } from "../errors";
+import {
+  RenewalFailureCodes,
+  type CredentialFailure,
+  type GitHubCall,
+  type RenewalFailure,
+  type ReviewerCredential,
 } from "./types";
 import { isUnauthorized } from "./utils";
 
 export interface TokenState {
   current(): Promise<Result<string, CredentialFailure>>;
-  renewPast(rejected: string): Promise<string | undefined>;
+  renewPast(rejected: string): Promise<Result<string, RenewalFailure>>;
 }
 
 /**
@@ -18,7 +20,7 @@ export interface TokenState {
  */
 export function createTokenState(credential: ReviewerCredential): TokenState {
   let read: Promise<Result<string, CredentialFailure>> | undefined;
-  let renewal: Promise<string | undefined> | undefined;
+  let renewal: Promise<Result<string, RenewalFailure>> | undefined;
 
   return {
     current() {
@@ -28,8 +30,8 @@ export function createTokenState(credential: ReviewerCredential): TokenState {
     async renewPast(rejected) {
       renewal ??= credential.renewToken(rejected);
       const renewed = await renewal;
-      if (renewed !== undefined) {
-        read = Promise.resolve({ ok: true, value: renewed });
+      if (renewed.ok) {
+        read = Promise.resolve(renewed);
       }
       return renewed;
     },
@@ -51,10 +53,15 @@ export async function runOnReviewerToken<Value>(
   }
 
   const renewed = await state.renewPast(token.value);
-  // A 401 on the rotated token itself gets no second rotation.
-  const rotatedPastCall = renewed !== undefined && renewed !== token.value;
-  if (!rotatedPastCall) {
+  if (!renewed.ok) {
+    if (renewed.error.code === RenewalFailureCodes.UNAVAILABLE) {
+      return { ok: false, error: buildRenewalUnavailableError() };
+    }
     return first;
   }
-  return call(renewed);
+  // A 401 on the rotated token itself gets no second rotation.
+  if (renewed.value === token.value) {
+    return first;
+  }
+  return call(renewed.value);
 }

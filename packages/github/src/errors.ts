@@ -132,6 +132,14 @@ export function notTextError(context: string): GitHubApiError {
   };
 }
 
+/** GitHub 401ed the token and then did not answer its rotation. */
+export function buildRenewalUnavailableError(): GitHubApiError {
+  return {
+    code: GitHubApiErrorCodes.REQUEST_FAILED,
+    message: "failed to renew the reviewer token: GitHub did not answer",
+  };
+}
+
 /** Build a sanitized `GitHubApiError` for an unexpected/ill-shaped 2xx response body. */
 export function unexpectedResponseError(context: string): GitHubApiError {
   return {

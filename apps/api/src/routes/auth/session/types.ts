@@ -18,6 +18,8 @@ export interface AuthDeps {
   readonly bindReviewerGitHub: typeof bindReviewerGitHub;
   /** Binds the operator's read-only GitHub. */
   readonly bindOperatorGitHub: typeof bindOperatorGitHub;
+  /** Overrides the OAuth request bound, so a test can abort in milliseconds. */
+  readonly oauthRequestTimeoutMs?: number;
 }
 
 /** The slice of app deps the auth surface needs. `AppDeps` satisfies it. */
@@ -58,13 +60,43 @@ export type ViewerPrincipal = AuthSessionRow & {
 
 export const RefreshErrorCodes = {
   NOT_FOUND: "not-found",
+  /** The API token died while the grant rotated; the row is its owner's. */
   REFRESH_FAILED: "refresh-failed",
+  /** GitHub refused the rotation: every sign-in on the grant was ended. */
+  GRANT_DEAD: "grant-dead",
+  /** GitHub did not answer the rotation; nothing was touched. */
+  UNAVAILABLE: "unavailable",
+  /** The session key could not open or seal the grant's tokens; nothing was touched. */
+  CRYPTO_FAILED: "crypto-failed",
+  /** GitHub refused the App's own credentials or settings; nothing was touched. */
+  CLIENT_MISCONFIGURED: "client-misconfigured",
 } as const;
 export type RefreshErrorCode = ValueOf<typeof RefreshErrorCodes>;
 
 export interface RefreshError {
   readonly code: RefreshErrorCode;
   readonly message: string;
+}
+
+/** Why a refresh wrote nothing to the grant. */
+export const RotationFailures = {
+  GITHUB_REJECTED: "github-rejected",
+  GITHUB_UNAVAILABLE: "github-unavailable",
+  /** The session key could not open a stored token; GitHub was not called. */
+  DECRYPT_FAILED: "decrypt-failed",
+  /** GitHub rotated, but the session key could not seal the new pair. */
+  SEAL_FAILED: "seal-failed",
+  /** Another refresh held the grant past the lock bound; GitHub was not called. */
+  GRANT_BUSY: "grant-busy",
+  /** GitHub refused the App's credentials or settings, not the reviewer's grant. */
+  CLIENT_MISCONFIGURED: "client-misconfigured",
+} as const;
+export type RotationFailure = ValueOf<typeof RotationFailures>;
+
+export interface RotationRejection {
+  readonly reason: RotationFailure;
+  /** On `CLIENT_MISCONFIGURED`: GitHub's OAuth error token, or `expiration-not-enabled`. */
+  readonly clientError?: string;
 }
 
 export interface RefreshedSession {

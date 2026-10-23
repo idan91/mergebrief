@@ -35,6 +35,7 @@ import { createErrorHandler } from "../shared-errors/on-error";
 import type * as refreshModule from "../routes/auth/session/logic/refresh";
 import {
   AuthChannels,
+  RefreshErrorCodes,
   type AuthRouteDeps,
   type ViewerPrincipal,
 } from "../routes/auth/session/types";
@@ -259,19 +260,50 @@ describe("repoAuthzLayer refresh disambiguation", () => {
     expect(refreshSessionToken).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the refresh-failed 401 posture when no retry was possible", async () => {
+  it("answers 401 when the refresh finds the grant dead", async () => {
     const app = await buildGateApp();
     arrangeRepo(9101n, "acme/inside");
     fake.rejectToken(STALE_TOKEN);
     vi.mocked(refreshSessionToken).mockResolvedValue({
       ok: false,
-      error: { code: "refresh-failed", message: "refresh failed" },
+      error: { code: RefreshErrorCodes.GRANT_DEAD, message: "grant dead" },
     });
 
     const res = await app.request("/9101/probe");
 
     expect(res.status).toBe(401);
     expect(countRepositoryReads()).toBe(1);
+  });
+
+  it("answers 502 github-unavailable when GitHub skips the refresh", async () => {
+    const app = await buildGateApp();
+    arrangeRepo(9101n, "acme/inside");
+    fake.rejectToken(STALE_TOKEN);
+    vi.mocked(refreshSessionToken).mockResolvedValue({
+      ok: false,
+      error: { code: RefreshErrorCodes.UNAVAILABLE, message: "no answer" },
+    });
+
+    const res = await app.request("/9101/probe");
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ code: "github-unavailable" });
+    expect(countRepositoryReads()).toBe(1);
+  });
+
+  it("answers 500 when the session key cannot open the grant", async () => {
+    const app = await buildGateApp();
+    arrangeRepo(9101n, "acme/inside");
+    fake.rejectToken(STALE_TOKEN);
+    vi.mocked(refreshSessionToken).mockResolvedValue({
+      ok: false,
+      error: { code: RefreshErrorCodes.CRYPTO_FAILED, message: "key" },
+    });
+
+    const res = await app.request("/9101/probe");
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ code: "internal-error" });
   });
 
   it("renews once for the gate's read and the route's own call", async () => {

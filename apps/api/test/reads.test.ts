@@ -654,7 +654,7 @@ describe("reviewer read API + authz gate", () => {
       expect(listDiffCalls()).toHaveLength(1);
     });
 
-    it("401s an unreadable token behind a cached gate pass", async () => {
+    it("500s an unreadable token behind a cached gate pass", async () => {
       stubGate(fake);
       fake.addCompare(
         REPO,
@@ -670,13 +670,13 @@ describe("reviewer read API + authz gate", () => {
 
       const res = await readDiff(cookie, "base2", "head2");
 
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(500);
       expect(listDiffCalls()).toHaveLength(1);
       const sessions = await harness.raw(
         "select id from auth_session where session_token_hash = $1",
         [cookieHash],
       );
-      expect(sessions).toEqual([]);
+      expect(sessions).toHaveLength(1);
     });
   });
 });

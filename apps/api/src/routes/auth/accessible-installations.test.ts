@@ -18,6 +18,7 @@ import {
   type RequestGitHub,
 } from "../../access/reviewer-binding";
 import { createAccessibleInstallationsResolver } from "./accessible-installations";
+import { InternalError } from "../../shared-errors/api-error";
 import { AuthChannels, type ViewerPrincipal } from "./session/types";
 import { AccessLevels } from "types/access-levels";
 import { registerSharedPglite } from "../../../test/shared-pglite";
@@ -146,7 +147,7 @@ describe("the reachable installations resolver", () => {
     expect(!resolved.ok && resolved.error.kind).toBe("auth-dead");
   });
 
-  it("burns the session of a token that will not decrypt", async () => {
+  it("keeps the session of a token that will not decrypt and fails 500", async () => {
     const { cookieHash } = await seedSignIn(harness.handle, keyProvider);
     const principal = await stubPrincipal();
     const unreadable = {
@@ -156,15 +157,16 @@ describe("the reachable installations resolver", () => {
     };
     const resolver = createAccessibleInstallationsResolver();
 
-    const resolved = await resolver.resolve(bindRequest(unreadable));
+    await expect(
+      resolver.resolve(bindRequest(unreadable)),
+    ).rejects.toBeInstanceOf(InternalError);
 
-    expect(!resolved.ok && resolved.error.kind).toBe("auth-dead");
     expect(countInstallationReads()).toBe(0);
     const sessions = await harness.raw(
       "select id from auth_session where session_token_hash = $1",
       [cookieHash],
     );
-    expect(sessions).toEqual([]);
+    expect(sessions).toHaveLength(1);
   });
 
   it("shares one in-flight walk between concurrent callers", async () => {

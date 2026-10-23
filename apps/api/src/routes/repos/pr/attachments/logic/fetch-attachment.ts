@@ -6,6 +6,8 @@
 import { ATTACHMENT_BRANCH, AttachmentMediaTypes } from "contract";
 import {
   GitHubApiErrorCodes,
+  RenewalFailureCodes,
+  buildRenewalUnavailableError,
   type GitHubApiError,
   type GitHubApiErrorCode,
   type GitHubCallFailure,
@@ -164,8 +166,14 @@ export async function readBranchAttachment(
   }
 
   const renewed = await credential.renewToken(token.value);
-  if (renewed === undefined || renewed === token.value) {
+  if (!renewed.ok) {
+    if (renewed.error.code === RenewalFailureCodes.UNAVAILABLE) {
+      return { ok: false, error: buildRenewalUnavailableError() };
+    }
     return first;
   }
-  return fetchBranchAttachmentBytes(fetchImpl, renewed, input);
+  if (renewed.value === token.value) {
+    return first;
+  }
+  return fetchBranchAttachmentBytes(fetchImpl, renewed.value, input);
 }

@@ -1,3 +1,4 @@
+import { RenewalFailureCodes } from "github";
 import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import { PUBLISH_CLAIM_LEASE_MS } from "persistence";
@@ -28,7 +29,8 @@ const MARGIN_SLACK_MS = 1000;
 function bindRepoClient(fake: FakeGitHub) {
   const credential = {
     readToken: async () => ({ ok: true, value: "viewer-token" }) as const,
-    renewToken: async () => undefined,
+    renewToken: async () =>
+      ({ ok: false, error: { code: RenewalFailureCodes.REFUSED } }) as const,
   };
   return fake
     .bindReviewerGitHub(credential, { log })

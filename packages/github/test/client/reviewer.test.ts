@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { bindReviewerGitHub } from "../../src/client/reviewer";
 import { GitHubApiErrorCodes } from "../../src/errors";
+import { RenewalFailureCodes } from "../../src/client/types";
 import { ReviewCommentSides } from "types/conversation";
 import { ReviewSubjectTypes } from "../../src/operations/review-thread";
 import {
@@ -98,6 +99,24 @@ describe("bindReviewerGitHub token renewal", () => {
 
     expect(result.ok || result.error.code).toBe(
       GitHubApiErrorCodes.UNAUTHORIZED,
+    );
+    expect(stub.requests).toHaveLength(1);
+  });
+
+  it("answers request-failed when GitHub cannot be reached to renew", async () => {
+    const stub = stubGitHubFetch(() => UNAUTHORIZED);
+    const credential = stubCredential(OLD_TOKEN, {
+      code: RenewalFailureCodes.UNAVAILABLE,
+    });
+    const github = bindReviewerGitHub(credential, {
+      log: makeLogger(),
+      octokitFactory: makeOctokitFactory(stub),
+    });
+
+    const result = await github.forRepo(REPO).fetchPullRequest(7);
+
+    expect(result.ok || result.error.code).toBe(
+      GitHubApiErrorCodes.REQUEST_FAILED,
     );
     expect(stub.requests).toHaveLength(1);
   });

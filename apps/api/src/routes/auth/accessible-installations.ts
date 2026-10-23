@@ -48,9 +48,9 @@ export interface AccessibleInstallationsResolver {
 }
 
 /**
- * `auth-dead` = re-login territory (an unreadable stored token, which the
- * credential answers by burning the session, or a still-unauthorized GitHub
- * answer); `upstream-failed` = GitHub upstream error.
+ * `auth-dead` = re-login territory (a GitHub answer still unauthorized after
+ * the refresh); `upstream-failed` = GitHub upstream error. A token the session
+ * key cannot open never gets here: the credential throws a 500 first.
  */
 async function fetchAccessibleInstallations(
   request: RequestGitHub,

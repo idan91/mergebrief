@@ -27,6 +27,7 @@ import { AUTHZ_CACHE_TTL_MS } from "../access/consts";
 import { createInstallationResolver } from "./installation-resolver";
 import { AccessLevels } from "types/access-levels";
 import { registerSharedPglite } from "../../test/shared-pglite";
+import { InternalError } from "../shared-errors/api-error";
 
 const keyProvider = createKeyProvider();
 
@@ -312,18 +313,16 @@ describe("the installation resolver", () => {
     expect(!failed.ok && failed.error.status).toBe(401);
   });
 
-  it("answers 401 on a walk whose stored token will not decrypt", async () => {
+  it("throws a 500 on a walk whose stored token will not decrypt", async () => {
     arrangeInstallations();
     const resolver = createInstallationResolver(stubReachable([ACME_ID]));
     const principal = await stubPrincipal();
     const unreadable = { ...principal, ghTokenCiphertext: "sealed" };
+    const bound = await bindRequest(unreadable);
 
-    const failed = await resolver.listAllowedRepos(
-      await bindRequest(unreadable),
-      log,
+    await expect(resolver.listAllowedRepos(bound, log)).rejects.toBeInstanceOf(
+      InternalError,
     );
-
-    expect(!failed.ok && failed.error.status).toBe(401);
     expect(fake.calls).toEqual([]);
   });
 

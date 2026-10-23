@@ -114,7 +114,7 @@ function isDeniedWalk(walk: InstallationWalk): boolean {
   return !walk.repos.ok && isGitHubDenial(walk.repos.error);
 }
 
-/** A dead token is re-login (the credential already burned an unreadable one). */
+/** A token GitHub still refuses after the refresh is re-login. */
 function resolveWalkFailureStatus(
   failure: GitHubCallFailure,
 ): ResolverFailure["status"] {

@@ -1,5 +1,6 @@
 import {
   GitHubApiErrorCodes,
+  RenewalFailureCodes,
   ReviewSubjectTypes,
   type ReviewerRepoClient,
 } from "github";
@@ -48,7 +49,8 @@ const THREAD_DURATION_MS = 1000;
 function bindFakeRepoClient(fake: FakeGitHub): ReviewerRepoClient {
   const credential = {
     readToken: async () => ({ ok: true, value: "viewer-token" }) as const,
-    renewToken: async () => undefined,
+    renewToken: async () =>
+      ({ ok: false, error: { code: RenewalFailureCodes.REFUSED } }) as const,
   };
   return fake
     .bindReviewerGitHub(credential, { log })

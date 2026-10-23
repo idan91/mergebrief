@@ -16,7 +16,8 @@
 //
 // REFRESH: the gate binds the request's one credential and hands it on as
 // `repoAccess`, so the repo read, the installation walk and the route share
-// one renewal; a failed refresh already deleted the session, so it is a 401.
+// one renewal. A refresh GitHub refused retired the grant and is a 401; one
+// GitHub did not answer is a 502, and one the session key failed is a 500.
 //
 // LOGGING: the gate only STAMPS its decision via `stampAccess`, numeric ids
 // only; `requestLogging` emits the line after the handler. On the allowed
@@ -149,7 +150,6 @@ async function resolveRefusedRepoAccess(
     repoId,
     reviewerId: bound.credential.session().reviewerId,
   };
-  // The credential already burned the unreadable session.
   if (error.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE) {
     stampAccess(c, "401", stampFields);
     throw new Unauthorized();

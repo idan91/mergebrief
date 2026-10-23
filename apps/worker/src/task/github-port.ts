@@ -8,6 +8,7 @@ import {
   bindOperatorGitHub,
   bindReviewerGitHub,
   GitHubApiErrorCodes,
+  RenewalFailureCodes,
   type AppClient,
   type GitHubApiError,
   type GitHubCall,
@@ -239,7 +240,10 @@ function resolveOperatorTokenFor(
 function createViewerCredential(token: string): ReviewerCredential {
   return {
     readToken: async () => ({ ok: true, value: token }),
-    renewToken: async () => undefined,
+    renewToken: async () => ({
+      ok: false,
+      error: { code: RenewalFailureCodes.REFUSED },
+    }),
   };
 }
 

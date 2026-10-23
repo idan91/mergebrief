@@ -27,7 +27,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { INBOX_PAGE_SIZE } from "../src/routes/wire-bounds";
 import { resetLiveReadMemory } from "../src/routes/live-read";
-import { testLogger } from "./logging";
+import { testLogger, testLogging, type TestLogging } from "./logging";
 import {
   INSTALLATION_ID,
   SECRET,
@@ -42,7 +42,10 @@ import {
   buildFakeAuthDeps,
   listFakeCallTokens,
   makeFakePullRequestInfo,
+  makeOAuthErrorBody,
   stubNoNetwork,
+  stubRefusedTokenRefresh,
+  stubTokenRefreshAnswer,
 } from "./reviewer-github";
 import { registerSharedPglite } from "./shared-pglite";
 
@@ -225,14 +228,16 @@ describe("GET /api/inbox", () => {
   let app: ApiApp;
   let kp: KeyProvider;
   let fake: FakeGitHub;
+  let capture: TestLogging;
 
   beforeEach(() => {
     kp = createKeyProvider();
     fake = makeFakeGitHub();
+    capture = testLogging();
     stubNoNetwork();
     resetLiveReadMemory();
     app = createApp({
-      logger: testLogger(),
+      logger: capture.logger,
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
@@ -614,6 +619,7 @@ describe("GET /api/inbox", () => {
   it("a dead token on the installations check is a 401", async () => {
     arrangeGitHub(fake);
     fake.failOn("listUserInstallations", FakeFailures.UNAUTHORIZED);
+    stubRefusedTokenRefresh();
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await get("/api/inbox", cookie);
@@ -621,25 +627,67 @@ describe("GET /api/inbox", () => {
     expect(res.status).toBe(401);
   });
 
-  it("a token that will not decrypt is a 401 and burns the session", async () => {
+  async function countSessions(cookieHash: string): Promise<number> {
+    const sessions = await harness.raw(
+      "select id from auth_session where session_token_hash = $1",
+      [cookieHash],
+    );
+    return sessions.length;
+  }
+
+  it("a token that will not decrypt is a 500 and keeps the session", async () => {
     arrangeGitHub(fake);
     const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
 
     const res = await get("/api/inbox", cookie);
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
     expect(fake.calls).toEqual([]);
-    const sessions = await harness.raw(
-      "select id from auth_session where session_token_hash = $1",
-      [cookieHash],
-    );
-    expect(sessions).toEqual([]);
+    expect(await countSessions(cookieHash)).toBe(1);
+    const line = capture
+      .lines()
+      .find((entry) => entry["evt"] === "token.decrypt.fail");
+    expect(line?.["level"]).toBe("error");
+  });
+
+  it.each([
+    [
+      "a wrong client secret",
+      makeOAuthErrorBody("incorrect_client_credentials"),
+      "incorrect_client_credentials",
+    ],
+    [
+      "another client-config error",
+      makeOAuthErrorBody("unsupported_grant_type"),
+      "unsupported_grant_type",
+    ],
+    [
+      "tokens that do not expire",
+      { access_token: "ghu_NON_EXPIRING", token_type: "bearer", scope: "" },
+      "expiration-not-enabled",
+    ],
+  ])("keeps the session and answers 500 on %s", async (_, answer, kind) => {
+    arrangeGitHub(fake);
+    fake.failOn("listUserInstallations", FakeFailures.UNAUTHORIZED);
+    stubTokenRefreshAnswer(answer);
+    const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
+
+    const res = await get("/api/inbox", cookie);
+
+    expect(res.status).toBe(500);
+    expect(await countSessions(cookieHash)).toBe(1);
+    const line = capture
+      .lines()
+      .find((entry) => entry["evt"] === "token.refresh.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["kind"]).toBe(kind);
   });
 
   it("a dead token on the repositories walk is a 401", async () => {
     arrangeGitHub(fake);
     fake.failOn("listInstallationRepositories", FakeFailures.UNAUTHORIZED);
+    stubRefusedTokenRefresh();
     const { cookie } = await seedSignIn(harness.handle, kp);
 
     const res = await get("/api/inbox", cookie);

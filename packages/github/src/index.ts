@@ -8,7 +8,7 @@ export { loadConfig, ConfigErrorCodes } from "./config";
 export type { GitHubConfig, ConfigError, ConfigErrorCode } from "./config";
 
 // Shared sanitized API-error shape: the single sanitization chokepoint.
-export { GitHubApiErrorCodes } from "./errors";
+export { GitHubApiErrorCodes, buildRenewalUnavailableError } from "./errors";
 export type { GitHubApiError, GitHubApiErrorCode } from "./errors";
 
 // --- auth/: how a client gets CONSTRUCTED + AUTHENTICATED ------------------
@@ -49,10 +49,12 @@ export { bindReviewerGitHub } from "./client/reviewer";
 export { bindInstallationGitHub } from "./client/installation";
 export { bindOperatorGitHub, isOperatorToken } from "./client/operator";
 export { resolveOperatorTokenOwner } from "./client/operator-owner";
-export { CredentialFailureCodes } from "./client/types";
+export { CredentialFailureCodes, RenewalFailureCodes } from "./client/types";
 export type {
   CredentialFailure,
   CredentialFailureCode,
+  RenewalFailure,
+  RenewalFailureCode,
   GitHubCall,
   GitHubCallFailure,
   GitHubReader,

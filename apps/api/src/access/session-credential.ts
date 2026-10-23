@@ -1,16 +1,20 @@
 import {
-  CredentialFailureCodes,
+  RenewalFailureCodes,
   type CredentialFailure,
+  type RenewalFailure,
   type ReviewerCredential,
 } from "github";
 import type { Logger } from "logging";
-import { createSessionAuth, decryptToken } from "persistence";
+import { decryptToken } from "persistence";
 import type { Result } from "types/utils";
 import { refreshSessionToken } from "../routes/auth/session/logic/refresh";
-import type {
-  AuthRouteDeps,
-  ViewerPrincipal,
+import {
+  RefreshErrorCodes,
+  type AuthRouteDeps,
+  type RefreshErrorCode,
+  type ViewerPrincipal,
 } from "../routes/auth/session/types";
+import { InternalError } from "../shared-errors/api-error";
 
 /** The request's reviewer credential, and the principal it currently holds. */
 export interface SessionCredential extends ReviewerCredential {
@@ -18,15 +22,17 @@ export interface SessionCredential extends ReviewerCredential {
   session(): ViewerPrincipal;
 }
 
-const UNREADABLE: CredentialFailure = {
-  code: CredentialFailureCodes.CREDENTIAL_UNREADABLE,
-  message: "the session's GitHub token would not decrypt",
-};
+/** Refresh failures the operator fixes; the reviewer keeps the session. */
+const SERVER_SIDE_REFRESH_FAILURES: ReadonlySet<RefreshErrorCode> = new Set([
+  RefreshErrorCodes.CRYPTO_FAILED,
+  RefreshErrorCodes.CLIENT_MISCONFIGURED,
+]);
 
 /**
- * One per request. An unreadable token burns the session, so the 401 it
- * answers sends the reviewer to sign in again; the renewal is the session's
- * compare-and-swap refresh, spent at most once however many calls ask.
+ * One per request. The renewal is the session's compare-and-swap refresh,
+ * spent at most once however many calls ask. A token the session key cannot
+ * open, and a refresh failure the operator owns, answer 500 and keep the
+ * session: a key or App misconfiguration never logs anybody out.
  */
 export function createSessionCredential(
   deps: AuthRouteDeps,
@@ -34,7 +40,7 @@ export function createSessionCredential(
   log: Logger,
 ): SessionCredential {
   let current = session;
-  let renewal: Promise<string | undefined> | undefined;
+  let renewal: Promise<Result<string, RenewalFailure>> | undefined;
 
   async function readToken(): Promise<Result<string, CredentialFailure>> {
     const decrypted = await decryptToken(
@@ -45,19 +51,26 @@ export function createSessionCredential(
     if (decrypted.ok) {
       return decrypted;
     }
-    await createSessionAuth(deps.handle).deleteSession(
-      current.sessionTokenHash,
-    );
-    return { ok: false, error: UNREADABLE };
+    log.error("the session key could not open the session's GitHub token", {
+      evt: "token.decrypt.fail",
+      reviewerId: String(current.reviewerId),
+    });
+    throw new InternalError();
   }
 
-  async function renewOnce(): Promise<string | undefined> {
+  async function renewOnce(): Promise<Result<string, RenewalFailure>> {
     const refreshed = await refreshSessionToken(deps, current, log);
-    if (!refreshed.ok) {
-      return undefined;
+    if (refreshed.ok) {
+      current = refreshed.value.session;
+      return { ok: true, value: refreshed.value.accessToken };
     }
-    current = refreshed.value.session;
-    return refreshed.value.accessToken;
+    if (SERVER_SIDE_REFRESH_FAILURES.has(refreshed.error.code)) {
+      throw new InternalError();
+    }
+    if (refreshed.error.code === RefreshErrorCodes.UNAVAILABLE) {
+      return { ok: false, error: { code: RenewalFailureCodes.UNAVAILABLE } };
+    }
+    return { ok: false, error: { code: RenewalFailureCodes.REFUSED } };
   }
 
   return {

@@ -7,8 +7,14 @@ import {
   type UserOctokitFactory,
 } from "../../src/auth/oauth";
 import type { InstallationId, RepoId, ReviewerId } from "persistence";
+import type { Result } from "types/utils";
 import { isOperatorToken } from "../../src/client/operator";
-import type { OperatorToken, ReviewerCredential } from "../../src/client/types";
+import {
+  RenewalFailureCodes,
+  type OperatorToken,
+  type RenewalFailure,
+  type ReviewerCredential,
+} from "../../src/client/types";
 import { isInstallationId, isRepoId, isReviewerId } from "../../src/ids";
 
 export interface RecordedRequest {
@@ -89,17 +95,34 @@ export interface CredentialStub extends ReviewerCredential {
   readonly renewToken: Mock<ReviewerCredential["renewToken"]>;
 }
 
-/** A credential holding `token` whose renewal answers `renewed`. */
+/**
+ * A credential holding `token`: a string renewal rotates to it, a failure
+ * answers it, and `undefined` refuses.
+ */
 export function stubCredential(
   token: string,
-  renewed: string | undefined,
+  renewed: string | RenewalFailure | undefined,
 ): CredentialStub {
   return {
     readToken: vi.fn<ReviewerCredential["readToken"]>(async () => ({
       ok: true,
       value: token,
     })),
-    renewToken: vi.fn<ReviewerCredential["renewToken"]>(async () => renewed),
+    renewToken: vi.fn<ReviewerCredential["renewToken"]>(async () =>
+      shapeRenewal(renewed),
+    ),
+  };
+}
+
+function shapeRenewal(
+  renewed: string | RenewalFailure | undefined,
+): Result<string, RenewalFailure> {
+  if (typeof renewed === "string") {
+    return { ok: true, value: renewed };
+  }
+  return {
+    ok: false,
+    error: renewed ?? { code: RenewalFailureCodes.REFUSED },
   };
 }
 

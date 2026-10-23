@@ -15,7 +15,8 @@
 // interleavings at the cost of one aborted transaction that retries clean;
 // do not "fix" it by dropping the FK.
 /* oxlint-enable house/comment-run */
-import { and, eq, inArray, isNull, notExists } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists, sql } from "drizzle-orm";
+import { z } from "zod/v4";
 import { traceStore } from "../stores/trace-store";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
@@ -53,12 +54,34 @@ export const GrantAuthErrorCodes = {
   NOT_FOUND: "not-found",
   /** The caller's `refresh` callback rejected; the row is left untouched. */
   REFRESH_REJECTED: "refresh-rejected",
+  /** Another refresh held the grant past the lock bound; nothing was called. */
+  LOCK_TIMEOUT: "lock-timeout",
 } as const;
 export type GrantAuthErrorCode = ValueOf<typeof GrantAuthErrorCodes>;
 
 export interface GrantAuthError {
   readonly code: GrantAuthErrorCode;
   readonly message: string;
+}
+
+/**
+ * A waiter on a grant another refresh holds gives up after this long, so a
+ * queue of waiters cannot each hold a pool connection for a GitHub call.
+ */
+const GRANT_LOCK_TIMEOUT_MS = 2_000;
+
+/** Postgres SQLSTATE `lock_not_available`, raised when `lock_timeout` fires. */
+const LOCK_NOT_AVAILABLE = "55P03";
+
+const lockTimeoutSchema = z.object({ code: z.literal(LOCK_NOT_AVAILABLE) });
+
+/** drizzle wraps the driver's error, so the SQLSTATE sits on it or its cause. */
+function isLockTimeout(error: unknown): boolean {
+  if (lockTimeoutSchema.safeParse(error).success) {
+    return true;
+  }
+  const wrapped = z.object({ cause: lockTimeoutSchema }).safeParse(error);
+  return wrapped.success;
 }
 
 function fail(
@@ -97,6 +120,7 @@ export interface GrantAuth {
    * `NOT_FOUND`; a `seenTokenCiphertext` mismatch means another request already
    * rotated, so the row returns as-is rather than spending the consumed
    * single-use refresh token; a rejection is `REFRESH_REJECTED` with no write.
+   * A lock held past the bound is `LOCK_TIMEOUT`, before the callback runs.
    */
   refreshGrant(
     grantId: GrantRowId,
@@ -156,56 +180,17 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
     },
 
     async refreshGrant(grantId, seenTokenCiphertext, refresh) {
-      return db.transaction(async (tx) => {
-        // FOR UPDATE: serialize concurrent refreshes of THIS grant, across
-        // channels, GitHub refresh tokens are single-use, so a lost race
-        // burns the token.
-        const locked = await tx
-          .select()
-          .from(githubGrant)
-          .where(eq(githubGrant.id, grantId))
-          .for("update")
-          .limit(1);
-        const row = locked[0];
-        if (row === undefined) {
+      try {
+        return await rotateUnderLock(db, grantId, seenTokenCiphertext, refresh);
+      } catch (error) {
+        if (isLockTimeout(error)) {
           return fail(
-            GrantAuthErrorCodes.NOT_FOUND,
-            "github_grant not found for the given id",
+            GrantAuthErrorCodes.LOCK_TIMEOUT,
+            "github_grant is held by another refresh",
           );
         }
-
-        // Compare-and-swap: already rotated by another request while we
-        // waited for the lock → return AS-IS, no second exchange.
-        if (row.ghTokenCiphertext !== seenTokenCiphertext) {
-          return { ok: true, value: row };
-        }
-
-        const patch = await refresh(row);
-        if (!patch.ok) {
-          // The tx commits cleanly with NO write, the caller acts per channel.
-          return fail(
-            GrantAuthErrorCodes.REFRESH_REJECTED,
-            "github_grant refresh was rejected by the caller",
-          );
-        }
-
-        const updated = await tx
-          .update(githubGrant)
-          .set({
-            ghTokenCiphertext: patch.value.ghTokenCiphertext,
-            ghRefreshTokenCiphertext: patch.value.ghRefreshTokenCiphertext,
-            keyRef: patch.value.keyRef,
-            refreshExpiresAt: patch.value.refreshExpiresAt,
-            updatedAt: new Date(),
-          })
-          .where(eq(githubGrant.id, row.id))
-          .returning();
-        const updatedRow = updated[0];
-        if (updatedRow === undefined) {
-          throw new Error("github_grant refresh update returned no row");
-        }
-        return { ok: true, value: updatedRow };
-      });
+        throw error;
+      }
     },
 
     async deleteIfOrphaned(grantId) {
@@ -230,6 +215,71 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
         };
       });
     },
+  });
+}
+
+type RotationCallback = (
+  locked: GithubGrantRow,
+) => Promise<Result<GrantRefreshPatch, GrantRefreshRejection>>;
+
+async function rotateUnderLock(
+  db: AppDrizzle,
+  grantId: GrantRowId,
+  seenTokenCiphertext: string,
+  refresh: RotationCallback,
+): Promise<Result<GithubGrantRow, GrantAuthError>> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select set_config('lock_timeout', ${`${GRANT_LOCK_TIMEOUT_MS}ms`}, true)`,
+    );
+    // FOR UPDATE: serialize concurrent refreshes of THIS grant, across
+    // channels, GitHub refresh tokens are single-use, so a lost race
+    // burns the token.
+    const locked = await tx
+      .select()
+      .from(githubGrant)
+      .where(eq(githubGrant.id, grantId))
+      .for("update")
+      .limit(1);
+    const row = locked[0];
+    if (row === undefined) {
+      return fail(
+        GrantAuthErrorCodes.NOT_FOUND,
+        "github_grant not found for the given id",
+      );
+    }
+
+    // Compare-and-swap: already rotated by another request while we
+    // waited for the lock → return AS-IS, no second exchange.
+    if (row.ghTokenCiphertext !== seenTokenCiphertext) {
+      return { ok: true, value: row };
+    }
+
+    const patch = await refresh(row);
+    if (!patch.ok) {
+      // The tx commits cleanly with NO write, the caller acts per channel.
+      return fail(
+        GrantAuthErrorCodes.REFRESH_REJECTED,
+        "github_grant refresh was rejected by the caller",
+      );
+    }
+
+    const updated = await tx
+      .update(githubGrant)
+      .set({
+        ghTokenCiphertext: patch.value.ghTokenCiphertext,
+        ghRefreshTokenCiphertext: patch.value.ghRefreshTokenCiphertext,
+        keyRef: patch.value.keyRef,
+        refreshExpiresAt: patch.value.refreshExpiresAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(githubGrant.id, row.id))
+      .returning();
+    const updatedRow = updated[0];
+    if (updatedRow === undefined) {
+      throw new Error("github_grant refresh update returned no row");
+    }
+    return { ok: true, value: updatedRow };
   });
 }
 

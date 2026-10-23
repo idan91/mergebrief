@@ -77,7 +77,7 @@ interface OAuthAppConfig {
   readonly clientId: string;
   readonly clientSecret: string;
   /** Overrides `OAUTH_REQUEST_TIMEOUT_MS`, so a test can abort in milliseconds. */
-  readonly requestTimeoutMs?: number;
+  readonly requestTimeoutMs?: number | undefined;
 }
 
 /**

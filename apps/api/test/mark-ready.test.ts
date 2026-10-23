@@ -318,7 +318,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await countReadyAudits(harness)).toBe(0);
   });
 
-  it("401s an unreadable token behind a cached gate pass, ending the session", async () => {
+  it("500s an unreadable token behind a cached gate pass, session kept", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     arrangeRepository(fake);
     await seedDraftPr(harness.handle);
@@ -328,12 +328,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
     const res = await markReady(cookie);
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
     const sessions = await harness.raw(
       "select id from auth_session where session_token_hash = $1",
       [cookieHash],
     );
-    expect(sessions).toEqual([]);
+    expect(sessions).toHaveLength(1);
   });
 
   it("refuses a write behind an operator pass with no-repo-write-access", async () => {

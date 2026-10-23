@@ -1,5 +1,5 @@
 import { isAttachmentAssetId, type AttachmentAssetId } from "contract";
-import type { RepoReader } from "github";
+import { RenewalFailureCodes, type RepoReader } from "github";
 import { makeFakeGitHub, type FakeGitHub } from "github/testing";
 import type { Logger } from "logging";
 import { isRepoId } from "persistence";
@@ -65,7 +65,8 @@ function arrangeSources(fake: FakeGitHub, imageSources: readonly string[]) {
 function bindReader(fake: FakeGitHub): RepoReader {
   const credential = {
     readToken: async () => ({ ok: true, value: "ghu_viewer" }) as const,
-    renewToken: async () => undefined,
+    renewToken: async () =>
+      ({ ok: false, error: { code: RenewalFailureCodes.REFUSED } }) as const,
   };
   return fake.bindReviewerGitHub(credential, { log }).forRepo(REPO);
 }

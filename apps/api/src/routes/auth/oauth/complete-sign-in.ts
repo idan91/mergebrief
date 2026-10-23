@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import {
   exchangeWebFlowCode,
   fetchAuthenticatedUser,
+  OAuthErrorCodes,
   type GitHubOAuthApp,
 } from "github";
 import {
@@ -45,7 +46,13 @@ export async function completeSignIn(
 ): Promise<Result<string, SignInFailure>> {
   const tokens = await exchangeWebFlowCode(oauthApp, callback);
   if (!tokens.ok) {
-    log.debug("sign-in refused: GitHub rejected the code");
+    if (tokens.error.code === OAuthErrorCodes.CLIENT_MISCONFIGURED) {
+      log.error("sign-in refused: GitHub refused the App's OAuth credentials", {
+        kind: tokens.error.oauthError,
+      });
+    } else {
+      log.debug("sign-in refused: GitHub rejected the code");
+    }
     return { ok: false, error: SignInFailures.SIGN_IN_FAILED };
   }
 

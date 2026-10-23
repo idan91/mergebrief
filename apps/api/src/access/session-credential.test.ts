@@ -1,4 +1,4 @@
-import { CredentialFailureCodes } from "github";
+import { RenewalFailureCodes } from "github";
 import { createSessionAuth, type KeyProvider } from "persistence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -14,6 +14,7 @@ import type {
   ViewerPrincipal,
 } from "../routes/auth/session/types";
 import { createSessionCredential } from "./session-credential";
+import { InternalError } from "../shared-errors/api-error";
 import { registerSharedPglite } from "../../test/shared-pglite";
 
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
@@ -22,7 +23,9 @@ interface TokenEndpoint {
   readonly calls: () => number;
 }
 
-function stubTokenEndpoint(): TokenEndpoint {
+const BAD_GATEWAY_STATUS = 502;
+
+function stubTokenEndpoint(status = 200): TokenEndpoint {
   let calls = 0;
   vi.stubGlobal(
     "fetch",
@@ -40,7 +43,7 @@ function stubTokenEndpoint(): TokenEndpoint {
         scope: "",
       };
       return new Response(JSON.stringify(body), {
-        status: 200,
+        status,
         headers: {
           "content-type": "application/json",
           date: new Date().toUTCString(),
@@ -96,8 +99,9 @@ describe("createSessionCredential", () => {
     ]);
     const rejectedAgain = await credential.renewToken(ROTATED_ACCESS);
 
-    expect(renewed).toEqual([ROTATED_ACCESS, ROTATED_ACCESS]);
-    expect(rejectedAgain).toBe(ROTATED_ACCESS);
+    const rotated = { ok: true, value: ROTATED_ACCESS };
+    expect(renewed).toEqual([rotated, rotated]);
+    expect(rejectedAgain).toEqual(rotated);
     expect(endpoint.calls()).toBe(1);
     expect(credential.session().ghTokenCiphertext).not.toBe(
       principal.ghTokenCiphertext,
@@ -108,7 +112,36 @@ describe("createSessionCredential", () => {
     });
   });
 
-  it("deletes the session when its token will not decrypt", async () => {
+  it("answers an unavailable renewal when GitHub does not answer", async () => {
+    stubTokenEndpoint(BAD_GATEWAY_STATUS);
+    const credential = createSessionCredential(
+      deps,
+      await signIn(),
+      testLogger(),
+    );
+
+    expect(await credential.renewToken(ACCESS_TOKEN)).toEqual({
+      ok: false,
+      error: { code: RenewalFailureCodes.UNAVAILABLE },
+    });
+  });
+
+  it("throws a 500 when the session key cannot open the grant", async () => {
+    stubTokenEndpoint();
+    const principal = await signIn();
+    const otherKey = { ...deps, auth: buildAuthDeps(createKeyProvider()) };
+    const credential = createSessionCredential(
+      otherKey,
+      principal,
+      testLogger(),
+    );
+
+    await expect(credential.renewToken(ACCESS_TOKEN)).rejects.toBeInstanceOf(
+      InternalError,
+    );
+  });
+
+  it("throws a 500 and keeps the session when its token will not decrypt", async () => {
     const principal = await signIn();
     const unreadable = {
       ...principal,
@@ -116,15 +149,11 @@ describe("createSessionCredential", () => {
     };
     const credential = createSessionCredential(deps, unreadable, testLogger());
 
-    const token = await credential.readToken();
+    await expect(credential.readToken()).rejects.toBeInstanceOf(InternalError);
 
-    expect(token.ok).toBe(false);
-    expect(token.ok ? undefined : token.error.code).toBe(
-      CredentialFailureCodes.CREDENTIAL_UNREADABLE,
-    );
     const session = await createSessionAuth(harness.handle).findSession(
       principal.sessionTokenHash,
     );
-    expect(session).toBeUndefined();
+    expect(session).toBeDefined();
   });
 });

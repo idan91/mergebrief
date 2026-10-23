@@ -461,7 +461,7 @@ describe("conversation surface", () => {
       ]);
     });
 
-    it("401s an unreadable token behind a cached gate pass", async () => {
+    it("500s an unreadable token behind a cached gate pass", async () => {
       arrangeFakePullRequest(fake, {
         repoId: REPO_ID,
         prNumber: OTHER_PR_NUMBER,
@@ -483,13 +483,13 @@ describe("conversation surface", () => {
         conversationPath(OTHER_PR_NUMBER),
       );
 
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(500);
       expect(listConversationReads(fake)).toHaveLength(1);
       const sessions = await harness.raw(
         "select id from auth_session where session_token_hash = $1",
         [cookieHash],
       );
-      expect(sessions).toEqual([]);
+      expect(sessions).toHaveLength(1);
     });
 
     it("collapses a viewer-token 403 to 404", async () => {

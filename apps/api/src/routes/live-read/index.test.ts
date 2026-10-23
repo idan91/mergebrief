@@ -3,6 +3,7 @@
 // before an unreachable mark, the ceiling, and installation rows.
 import {
   LIVE_READ_PAGE_SIZE,
+  RenewalFailureCodes,
   isOperatorToken,
   type PullRequestInfo,
   type ReviewerCredential,
@@ -72,7 +73,10 @@ const log: Logger = {
 function stubCredential(token: string): ReviewerCredential {
   return {
     readToken: async () => ({ ok: true, value: token }),
-    renewToken: async () => undefined,
+    renewToken: async () => ({
+      ok: false,
+      error: { code: RenewalFailureCodes.REFUSED },
+    }),
   };
 }
 

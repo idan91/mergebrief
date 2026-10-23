@@ -5,6 +5,7 @@
 // its only writer. The github suite owns the wire-to-domain mapping.
 import {
   GitHubApiErrorCodes,
+  RenewalFailureCodes,
   type GitHubApiError,
   type ReviewerRepoClient,
 } from "github";
@@ -179,7 +180,8 @@ function readSubmittedNodeId(fake: FakeGitHub): string {
 function bindProbeClient(fake: FakeGitHub): ReviewerRepoClient {
   const credential = {
     readToken: async () => ({ ok: true, value: "probe-token" }) as const,
-    renewToken: async () => undefined,
+    renewToken: async () =>
+      ({ ok: false, error: { code: RenewalFailureCodes.REFUSED } }) as const,
   };
   const [owner = "", repo = ""] = REPO_SLUG.split("/");
   return fake

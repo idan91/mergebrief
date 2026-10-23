@@ -278,6 +278,43 @@ function answerTokenRefresh(): Response {
   });
 }
 
+export interface OAuthErrorBody {
+  readonly error: string;
+  readonly error_description: string;
+  readonly error_uri: string;
+}
+
+/** The body GitHub's OAuth token endpoint answers a refusal with. */
+export function makeOAuthErrorBody(error: string): OAuthErrorBody {
+  return {
+    error,
+    error_description: "GitHub refused the request.",
+    error_uri: "https://docs.github.com/apps",
+  };
+}
+
+/** GitHub's answer refusing a rotation: the grant's refresh token is spent. */
+export const BAD_REFRESH_TOKEN_BODY = makeOAuthErrorBody("bad_refresh_token");
+
+/** OAuth's token endpoint answers every rotation with `body`. */
+export function stubTokenRefreshAnswer(body: unknown): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = getRequestUrl(input);
+      if (!url.includes("/login/oauth/access_token")) {
+        throw new Error(`unexpected fetch: ${url}`);
+      }
+      return answerJson(body);
+    }),
+  );
+}
+
+/** GitHub refuses the rotation: the grant's refresh token is spent for good. */
+export function stubRefusedTokenRefresh(): void {
+  stubTokenRefreshAnswer(BAD_REFRESH_TOKEN_BODY);
+}
+
 const VIEWER_REFUSALS: Record<number, FakeFailure> = {
   403: FakeFailures.FORBIDDEN,
   404: FakeFailures.NOT_FOUND,

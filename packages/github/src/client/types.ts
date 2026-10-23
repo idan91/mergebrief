@@ -83,6 +83,18 @@ export interface CredentialFailure {
 
 export type GitHubCallFailure = GitHubApiError | CredentialFailure;
 
+export const RenewalFailureCodes = {
+  /** No rotation is possible, or GitHub refused it: the 401 stands. */
+  REFUSED: "renewal-refused",
+  /** GitHub did not answer the rotation; the credential may still be good. */
+  UNAVAILABLE: "renewal-unavailable",
+} as const;
+export type RenewalFailureCode = ValueOf<typeof RenewalFailureCodes>;
+
+export interface RenewalFailure {
+  readonly code: RenewalFailureCode;
+}
+
 export type GitHubCall<Value> = Promise<Result<Value, GitHubCallFailure>>;
 
 /**
@@ -91,8 +103,8 @@ export type GitHubCall<Value> = Promise<Result<Value, GitHubCallFailure>>;
  */
 export interface ReviewerCredential {
   readToken(): Promise<Result<string, CredentialFailure>>;
-  /** Rotate past `rejected`; `undefined` when no rotation is possible. */
-  renewToken(rejected: string): Promise<string | undefined>;
+  /** Rotate past `rejected`, or say why no rotated token came back. */
+  renewToken(rejected: string): Promise<Result<string, RenewalFailure>>;
 }
 
 export type OperatorToken = Brand<string, "OperatorToken">;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CredentialFailureCodes,
+  RenewalFailureCodes,
   type CredentialFailure,
   type GitHubCall,
   type ReviewerCredential,
@@ -62,7 +63,10 @@ const UNREADABLE: CredentialFailure = {
 function stubUnreadableCredential(): ReviewerCredential {
   return {
     readToken: async () => ({ ok: false, error: UNREADABLE }),
-    renewToken: async () => undefined,
+    renewToken: async () => ({
+      ok: false,
+      error: { code: RenewalFailureCodes.REFUSED },
+    }),
   };
 }
 

@@ -387,20 +387,20 @@ describe("POST /api/generate: the url-box door", () => {
     ]);
   });
 
-  it("a token that will not decrypt is a 401 and burns the session", async () => {
+  it("a token that will not decrypt is a 500 and keeps the session", async () => {
     arrangePastedPull(fake);
     const { cookie, cookieHash } = await seedSignIn(harness.handle, kp);
     await harness.raw("update github_grant set gh_token_ciphertext = 'sealed'");
 
     const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
     expect(fake.calls).toEqual([]);
     const sessions = await harness.raw(
       "select id from auth_session where session_token_hash = $1",
       [cookieHash],
     );
-    expect(sessions).toEqual([]);
+    expect(sessions).toHaveLength(1);
   });
 
   it("a viewer denial with no PAT collapses to the uniform 404", async () => {

@@ -13,6 +13,29 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-23)
+
+- **Changed** a token rotation GitHub does not answer (no answer within 10
+  seconds, a network error or a 5xx) answers `502 github-unavailable` on any
+  route that reads with the viewer's token (was `401 unauthorized`, and a
+  browser session was deleted). Every session and API token is kept, so a
+  retry can succeed. A request that waits more than 2 seconds behind another
+  refresh of the same sign-in answers the same 502.
+- **Changed** a token rotation GitHub refuses deletes every browser session
+  from that sign-in and revokes every API token minted from it, then answers
+  `401 unauthorized` (was: only the browser session making the request was
+  deleted). The CLI's existing answer to a 401 asks for a fresh token.
+- **Changed** a stored GitHub token the instance's session key cannot open
+  or seal, on any request or rotation, answers `500 internal-error` and
+  keeps the session (was `401 unauthorized` with the browser session
+  deleted).
+- **Changed** a rotation GitHub refuses for the App's own credentials or
+  settings (a wrong client secret, any other client-config OAuth error, or
+  tokens that do not expire) answers `500 internal-error` and keeps every
+  session and API token (was `401 unauthorized` with the browser session
+  deleted). Only GitHub refusing the refresh token itself
+  (`bad_refresh_token`) ends the sign-in.
+
 ## dev (2026-10-20)
 
 - **Added** `search-mention-suggestions`,

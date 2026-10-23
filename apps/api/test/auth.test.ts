@@ -9,6 +9,7 @@ import {
   createGrantAuth,
   createSessionAuth,
   createTokenAuth,
+  type GithubGrantRow,
   type KeyProvider,
 } from "persistence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +17,7 @@ import {
   createApp,
   derivePrincipalFromApiToken,
   derivePrincipalFromSession,
+  RefreshErrorCodes,
   refreshSessionToken,
   type ApiApp,
 } from "../src/index";
@@ -32,7 +34,12 @@ import {
   getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  BAD_REFRESH_TOKEN_BODY,
+  UNUSED_INSTALLATION_DEPS,
+  makeOAuthErrorBody,
+} from "./reviewer-github";
+import type { ViewerPrincipal } from "../src/routes/auth/session/types";
 import { seedPullRequest } from "./session/fixtures";
 import { ACCESS_TOKEN, REFRESH_TOKEN, seedSignIn } from "./sign-in";
 import { AccessLevels } from "types/access-levels";
@@ -87,6 +94,7 @@ function tokenSuccess(access: string, refresh: string): TokenSuccess {
 
 interface StubOptions {
   readonly token: TokenBody;
+  readonly tokenStatus?: number;
   readonly installations?: { id: number }[];
   readonly user?: { id: number; login: string };
   readonly userStatus?: number;
@@ -101,7 +109,7 @@ function stubGitHub(opts: StubOptions): ReturnType<typeof vi.fn> {
     ): Promise<Response> => {
       const url = getRequestUrl(input);
       if (url.includes("/login/oauth/access_token")) {
-        return jsonResponse(opts.token);
+        return jsonResponse(opts.token, opts.tokenStatus);
       }
       const userReadFails =
         url.endsWith("/user") && opts.userStatus !== undefined;
@@ -227,6 +235,30 @@ describe("reviewer auth routes", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/?error=github-unavailable");
     expect(await countRows(harness, "auth_session")).toBe(0);
+  });
+
+  it("logs a wrong client secret at sign-in as an operator error", async () => {
+    stubGitHub({ token: makeOAuthErrorBody("incorrect_client_credentials") });
+    const capture = testLogging();
+    const captureApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+    });
+    const state = "state-wrong-client-secret";
+
+    const res = await captureApp.request(
+      `/api/auth/github/callback?code=thecode&state=${state}`,
+      { headers: { Cookie: `__Host-mergebrief_oauth_state=${state}` } },
+    );
+
+    expect(res.status).toBe(302);
+    const line = capture
+      .lines()
+      .find((entry) => entry["kind"] === "incorrect_client_credentials");
+    expect(line?.["level"]).toBe("error");
   });
 
   it("a sign-in cancelled on GitHub lands home and keeps the state", async () => {
@@ -511,40 +543,178 @@ describe("reviewer auth routes", () => {
     expect(epochMs(sessionRow[0]?.["expires_at"])).toBeGreaterThan(Date.now());
   });
 
-  it("refreshSessionToken deletes the session on a GitHub refresh failure", async () => {
-    stubGitHub({
-      token: {
-        error: "bad_refresh_token",
-        error_description: "The refresh token is expired",
-        error_uri: "https://docs.github.com/",
-      },
+  async function makeTokenOnGrant(
+    grantId: GithubGrantRow["id"],
+  ): Promise<string> {
+    const tokenHash = hashSha256Hex(randomBytes(32).toString("base64url"));
+    await createTokenAuth(harness.handle).mintToken({
+      scope: AccessLevels.EXTERNAL_WRITE,
+      userId: brandReviewerId(BigInt(REVIEWER_ID)),
+      name: "rides-the-grant",
+      tokenHash,
+      grantId,
+      expiresAt: null,
     });
-    const { cookieHash: hash } = await seedSignIn(harness.handle, kp, {
-      expiresAt: new Date("2000-01-01T00:00:00Z"),
-    });
+    return tokenHash;
+  }
 
-    const resolved = await createSessionAuth(harness.handle).findSession(hash);
+  async function makeCookiePrincipal(
+    cookieHash: string,
+  ): Promise<ViewerPrincipal> {
+    const resolved = await createSessionAuth(harness.handle).findSession(
+      cookieHash,
+    );
     if (resolved === undefined) {
       throw new Error("seeded session not found");
     }
+    return derivePrincipalFromSession(resolved);
+  }
+
+  async function makeBearerPrincipal(
+    tokenHash: string,
+  ): Promise<ViewerPrincipal> {
+    const live = await createTokenAuth(harness.handle).resolveByHash(
+      tokenHash,
+      new Date(),
+    );
+    if (live === undefined) {
+      throw new Error("seeded token did not resolve");
+    }
+    return derivePrincipalFromApiToken(live);
+  }
+
+  async function readRevokedAt(): Promise<unknown[]> {
+    const rows = await harness.raw("select revoked_at from api_token");
+    return rows.map((row) => row["revoked_at"]);
+  }
+
+  it("retires the grant when GitHub rejects the cookie's refresh token", async () => {
+    stubGitHub({ token: BAD_REFRESH_TOKEN_BODY });
+    const signIn = await seedSignIn(harness.handle, kp, { expiresAt: PAST });
+    await makeTokenOnGrant(signIn.grantId);
+    const principal = await makeCookiePrincipal(signIn.cookieHash);
     const capture = testLogging();
+
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: buildAuthDeps(kp) },
-      derivePrincipalFromSession(resolved),
+      principal,
       capture.logger,
     );
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    // Session burned → re-login required; the orphaned grant died with it.
+
+    expect(readRefreshErrorCode(result)).toBe(RefreshErrorCodes.GRANT_DEAD);
     expect(await countRows(harness, "auth_session")).toBe(0);
-    expect(await countRows(harness, "github_grant")).toBe(0);
-    // The failure is operator-visible: one
-    // token.refresh.fail error line, numeric ids only.
+    expect(await readRevokedAt()).toEqual([expect.any(Date)]);
     const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
     expect(line?.["level"]).toBe("error");
-    expect(line?.["reviewerId"]).toBe(String(resolved.session.reviewerId));
+    expect(line?.["reviewerId"]).toBe(String(principal.reviewerId));
+  });
+
+  it("retires the grant when GitHub rejects a Bearer token's refresh", async () => {
+    stubGitHub({ token: BAD_REFRESH_TOKEN_BODY });
+    const signIn = await seedSignIn(harness.handle, kp);
+    const tokenHash = await makeTokenOnGrant(signIn.grantId);
+    const principal = await makeBearerPrincipal(tokenHash);
+
+    const result = await refreshSessionToken(
+      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      principal,
+      testLogger(),
+    );
+
+    expect(readRefreshErrorCode(result)).toBe(RefreshErrorCodes.GRANT_DEAD);
+    expect(await countRows(harness, "auth_session")).toBe(0);
+    expect(await readRevokedAt()).toEqual([expect.any(Date)]);
+  });
+
+  it("keeps the session and tokens when GitHub answers the refresh 502", async () => {
+    stubGitHub({
+      token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+      tokenStatus: 502,
+    });
+    const signIn = await seedSignIn(harness.handle, kp);
+    await makeTokenOnGrant(signIn.grantId);
+    const principal = await makeCookiePrincipal(signIn.cookieHash);
+    const capture = testLogging();
+
+    const result = await refreshSessionToken(
+      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      principal,
+      capture.logger,
+    );
+
+    expect(readRefreshErrorCode(result)).toBe(RefreshErrorCodes.UNAVAILABLE);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+    expect(await readRevokedAt()).toEqual([null]);
+    const line = capture
+      .lines()
+      .find((l) => l["evt"] === "token.refresh.unavailable");
+    expect(line?.["level"]).toBe("warn");
+  });
+
+  it("answers unavailable once a hung refresh passes the request bound", async () => {
+    vi.stubGlobal("fetch", vi.fn(stubHangingFetch));
+    const signIn = await seedSignIn(harness.handle, kp);
+    const principal = await makeCookiePrincipal(signIn.cookieHash);
+
+    const result = await refreshSessionToken(
+      {
+        handle: harness.handle,
+        auth: { ...buildAuthDeps(kp), oauthRequestTimeoutMs: SHORT_TIMEOUT_MS },
+      },
+      principal,
+      testLogger(),
+    );
+
+    expect(readRefreshErrorCode(result)).toBe(RefreshErrorCodes.UNAVAILABLE);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+  });
+
+  it("keeps the session when the session key cannot open the grant", async () => {
+    const fetchFn = stubGitHub({
+      token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+    });
+    const signIn = await seedSignIn(harness.handle, kp);
+    const principal = await makeCookiePrincipal(signIn.cookieHash);
+    const capture = testLogging();
+
+    const result = await refreshSessionToken(
+      { handle: harness.handle, auth: buildAuthDeps(createKeyProvider()) },
+      principal,
+      capture.logger,
+    );
+
+    expect(readRefreshErrorCode(result)).toBe(RefreshErrorCodes.CRYPTO_FAILED);
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(await countRows(harness, "auth_session")).toBe(1);
+    expect(await countRows(harness, "github_grant")).toBe(1);
+    const line = capture.lines().find((l) => l["evt"] === "token.decrypt.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["reviewerId"]).toBe(String(principal.reviewerId));
+    expect(
+      capture.lines().find((l) => l["evt"] === "token.refresh.fail"),
+    ).toBeUndefined();
+  });
+
+  it("keeps the session when the rotated tokens cannot be sealed", async () => {
+    stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
+    const signIn = await seedSignIn(harness.handle, kp);
+    const principal = await makeCookiePrincipal(signIn.cookieHash);
+    const capture = testLogging();
+
+    const result = await refreshSessionToken(
+      {
+        handle: harness.handle,
+        auth: { ...buildAuthDeps(kp), sessionKeyRef: "SESSION_KEY_UNSET" },
+      },
+      principal,
+      capture.logger,
+    );
+
+    expect(readRefreshErrorCode(result)).toBe(RefreshErrorCodes.CRYPTO_FAILED);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+    const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["kind"]).toBe("seal-failed");
   });
 
   it("a stale CAS seed returns the stored token with no GitHub exchange", async () => {
@@ -719,6 +889,30 @@ describe("reviewer auth routes", () => {
 // ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
+
+const PAST = new Date("2000-01-01T00:00:00Z");
+const SHORT_TIMEOUT_MS = 20;
+
+function readRefreshErrorCode(
+  result: Awaited<ReturnType<typeof refreshSessionToken>>,
+): string {
+  if (result.ok) {
+    throw new Error("expected the refresh to fail");
+  }
+  return result.error.code;
+}
+
+/** A GitHub that never answers: only the request's abort signal ends it. */
+function stubHangingFetch(
+  _input: string | URL | Request,
+  init?: RequestInit,
+): Promise<Response> {
+  return new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => {
+      reject(init.signal?.reason);
+    });
+  });
+}
 
 function epochMs(cell: unknown): number {
   if (cell instanceof Date) {
