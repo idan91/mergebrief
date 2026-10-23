@@ -17,7 +17,7 @@ The comprehension artifact for re-review: what changed between a **Checkpoint** 
 _Avoid_: incremental brief, diff-of-diff (informal only), update
 
 **Checkpoint**:
-The commit SHA at which a given reviewer last *submitted* a review. The baseline from which that reviewer's **Delta Brief** is computed (Checkpoint → current head). Advances on review submission, never on mere viewing; distinct per reviewer, so two reviewers can hold different Checkpoints on the same PR and therefore receive different Delta Briefs. On screen and in code it is the "last review" **Comparison baseline**.
+The commit SHA at which a given reviewer last *submitted* a review. The baseline from which that reviewer's **Delta Brief** is computed (Checkpoint → current head). Advances on review submission, never on mere viewing, and only for a reviewer on the team: anyone on a private (not internal) repository; on a public or internal one, the owner, organization members, collaborators and others with write access. Any other reviewer has none. Distinct per reviewer, so two reviewers can hold different Checkpoints on the same PR and therefore receive different Delta Briefs. On screen and in code it is the "last review" **Comparison baseline**.
 _Avoid_: baseline (informal), last-seen, watermark
 
 **Session baseline**:
@@ -204,7 +204,7 @@ A **URL** pull request GitHub no longer shows to this reviewer. The row and its 
 _Avoid_: stale (means newer commits exist)
 
 **Trigger**:
-What causes a **Brief** to compute: every push, PR open included, debounced about 60s from the first push, which fixes the start time; later pushes only swap the head. A draft computes too unless the **Instance config** sets `drafts.generate: off`, in which case its first Brief waits for `ready_for_review`; `drafts.debounceSeconds` lengthens the window for a draft's regenerations once it has one successful Brief. A ready flip and a URL paste take a 10s window. A submitted review also queues a run, which builds the reviewer's **Delta Brief** from their **Checkpoint**. No compute-on-first-click gate: spend is bounded by the debounce and the **Daily cap**, not by withholding compute.
+What causes a **Brief** to compute: every push, PR open included, debounced about 60s from the first push, which fixes the start time; later pushes only swap the head. A draft computes too unless the **Instance config** sets `drafts.generate: off`, in which case its first Brief waits for `ready_for_review`; `drafts.debounceSeconds` lengthens the window for a draft's regenerations once it has one successful Brief. A ready flip and a URL paste take a 10s window. A submitted review also queues a run, which builds the reviewer's **Delta Brief** from their **Checkpoint** when they hold one. No compute-on-first-click gate: spend is bounded by the debounce and the **Daily cap**, not by withholding compute.
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
 
 **Entry**:

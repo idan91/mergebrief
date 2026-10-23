@@ -170,11 +170,19 @@ function pullRequestReviewPayload(review?: {
   submittedAt?: string;
   userType?: string;
   userId?: number;
+  authorAssociation?: string;
+  visibility?: "public" | "private" | "internal";
 }): Record<string, unknown> {
+  const visibility = review?.visibility ?? "public";
   return {
     action: "submitted",
     installation: { id: INSTALLATION_ID },
-    repository: { id: REPO_ID, full_name: "acme/widgets" },
+    repository: {
+      id: REPO_ID,
+      full_name: "acme/widgets",
+      private: visibility !== "public",
+      visibility,
+    },
     pull_request: {
       number: 2,
       title: "Update the README with new information.",
@@ -184,6 +192,7 @@ function pullRequestReviewPayload(review?: {
       state: "approved",
       commit_id: review?.commitId ?? HEAD_SHA,
       submitted_at: review?.submittedAt ?? "2026-07-07T12:00:00Z",
+      author_association: review?.authorAssociation ?? "COLLABORATOR",
       user: {
         id: review?.userId ?? 21031067,
         login: "reviewer",
@@ -566,6 +575,225 @@ describe("POST /api/webhooks/github", () => {
     expect(res.status).toBe(200);
     expect(await countRows(harness, "checkpoint")).toBe(0);
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+  });
+
+  describe("review checkpoints follow the reviewer's standing", () => {
+    const REVIEW_REPO = { owner: "acme", repo: "widgets" };
+    let fake: FakeGitHub;
+    let capture: ReturnType<typeof testLogging>;
+    let checking: ApiApp;
+
+    beforeEach(async () => {
+      fake = makeFakeGitHub();
+      capture = testLogging({ LOG_LEVEL: "debug" });
+      checking = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+      });
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+    });
+
+    function countPermissionReads(): number {
+      return fake.listCalls("readCollaboratorPermission").length;
+    }
+
+    it.each(["OWNER", "MEMBER", "COLLABORATOR"])(
+      "writes a %s reviewer's checkpoint without asking GitHub",
+      async (authorAssociation) => {
+        const res = await deliver(
+          checking,
+          "pull_request_review",
+          pullRequestReviewPayload({ authorAssociation }),
+        );
+        expect(res.status).toBe(200);
+        expect(await countRows(harness, "checkpoint")).toBe(1);
+        expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+        expect(countPermissionReads()).toBe(0);
+      },
+    );
+
+    it.each(["CONTRIBUTOR", "NONE"])(
+      "writes a private repo %s reviewer's checkpoint without asking GitHub",
+      async (authorAssociation) => {
+        const res = await deliver(
+          checking,
+          "pull_request_review",
+          pullRequestReviewPayload({
+            authorAssociation,
+            visibility: "private",
+          }),
+        );
+        expect(res.status).toBe(200);
+        expect(await countRows(harness, "checkpoint")).toBe(1);
+        expect(countPermissionReads()).toBe(0);
+      },
+    );
+
+    it("skips a bot's checkpoint on a private repo", async () => {
+      const res = await deliver(
+        checking,
+        "pull_request_review",
+        pullRequestReviewPayload({
+          userType: "Bot",
+          userId: 49699333,
+          authorAssociation: "NONE",
+          visibility: "private",
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "checkpoint")).toBe(0);
+      expect(countPermissionReads()).toBe(0);
+    });
+
+    it("skips an internal repo CONTRIBUTOR GitHub grants only read", async () => {
+      fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", "read");
+      const res = await deliver(
+        checking,
+        "pull_request_review",
+        pullRequestReviewPayload({
+          authorAssociation: "CONTRIBUTOR",
+          visibility: "internal",
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "checkpoint")).toBe(0);
+      expect(countPermissionReads()).toBe(1);
+    });
+
+    it.each(["admin", "write"] as const)(
+      "writes a CONTRIBUTOR reviewer's checkpoint when GitHub grants %s",
+      async (permission) => {
+        fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", permission);
+        const res = await deliver(
+          checking,
+          "pull_request_review",
+          pullRequestReviewPayload({ authorAssociation: "CONTRIBUTOR" }),
+        );
+        expect(res.status).toBe(200);
+        expect(await countRows(harness, "checkpoint")).toBe(1);
+        expect(countPermissionReads()).toBe(1);
+      },
+    );
+
+    it.each([
+      "CONTRIBUTOR",
+      "FIRST_TIME_CONTRIBUTOR",
+      "FIRST_TIMER",
+      "MANNEQUIN",
+      "NONE",
+      "SPONSOR",
+    ])(
+      "skips a %s reviewer GitHub grants only read, still queueing",
+      async (authorAssociation) => {
+        fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", "read");
+        const res = await deliver(
+          checking,
+          "pull_request_review",
+          pullRequestReviewPayload({ authorAssociation }),
+        );
+        expect(res.status).toBe(200);
+        expect(await countRows(harness, "checkpoint")).toBe(0);
+        expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+        expect(countPermissionReads()).toBe(1);
+      },
+    );
+
+    it("skips a reviewer with no author_association GitHub grants read", async () => {
+      fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", "read");
+      const payload = pullRequestReviewPayload();
+      delete (payload["review"] as Record<string, unknown>)[
+        "author_association"
+      ];
+      const res = await deliver(checking, "pull_request_review", payload);
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "checkpoint")).toBe(0);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+    });
+
+    it("logs an untrusted skip at debug with the login and association", async () => {
+      fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", "read");
+      await deliver(
+        checking,
+        "pull_request_review",
+        pullRequestReviewPayload({ authorAssociation: "NONE" }),
+      );
+      const skipped = capture
+        .lines()
+        .filter((line) => line["level"] === "debug")
+        .find((line) => line["reviewerLogin"] === "reviewer");
+      expect(skipped).toMatchObject({ association: "NONE" });
+    });
+
+    it("skips the checkpoint and warns when the permission read fails", async () => {
+      fake.failOn("readCollaboratorPermission", FakeFailures.SERVER_ERROR);
+      const res = await deliver(
+        checking,
+        "pull_request_review",
+        pullRequestReviewPayload({ authorAssociation: "CONTRIBUTOR" }),
+      );
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "checkpoint")).toBe(0);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+      const warned = capture.lines().filter((line) => line["level"] === "warn");
+      expect(warned).toEqual([
+        expect.objectContaining({
+          reviewerLogin: "reviewer",
+          association: "CONTRIBUTOR",
+          code: "request-failed",
+        }),
+      ]);
+    });
+
+    it("skips the checkpoint when the permission read passes its bound", async () => {
+      const hanging = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+        bindInstallationGitHub: (installationId) => {
+          const bound = fake.bindInstallationGitHub(installationId);
+          return {
+            ...bound,
+            forRepo: (repo) => ({
+              ...bound.forRepo(repo),
+              readCollaboratorPermission: () => new Promise(() => undefined),
+            }),
+          };
+        },
+        webhookConfirmationTimeoutMs: 20,
+      });
+      const res = await deliver(
+        hanging,
+        "pull_request_review",
+        pullRequestReviewPayload({ authorAssociation: "CONTRIBUTOR" }),
+      );
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "checkpoint")).toBe(0);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+      const warned = capture.lines().filter((line) => line["level"] === "warn");
+      expect(warned).toEqual([expect.objectContaining({ timedOut: true })]);
+    });
+
+    it("writes no checkpoint for untrusted reviews on distinct commits", async () => {
+      const untrustedReviewers = [301, 302, 303, 304, 305];
+      for (const [index, userId] of untrustedReviewers.entries()) {
+        const res = await deliver(
+          checking,
+          "pull_request_review",
+          pullRequestReviewPayload({
+            userId,
+            authorAssociation: "NONE",
+            commitId: String(index + 1).repeat(40),
+          }),
+        );
+        expect(res.status).toBe(200);
+      }
+      expect(await countRows(harness, "checkpoint")).toBe(0);
+    });
   });
 
   it("keeps the newest submitted review on out-of-order delivery", async () => {

@@ -11,6 +11,7 @@ import { ReviewSubjectTypes } from "../../../src/operations/review-thread";
 import { MentionTargetKinds } from "../../../src/operations/mentions/types";
 import { ReviewEvents } from "../../../src/operations/review-submit";
 import { InstallationPresences } from "../../../src/operations/installation/types";
+import { CollaboratorPermissions } from "../../../src/operations/collaborator-permission/types";
 import { requireInstallationId, requireRepoId } from "../helpers";
 import {
   ATTACHMENT_COMMIT_SHA,
@@ -418,6 +419,12 @@ export const INSTALLATION_REPO_CASES: readonly ContractCase<InstallationRepoClie
         ],
         hasMore: false,
       },
+    }),
+    defineCase({
+      operation: "readCollaboratorPermission",
+      call: (client: InstallationRepoClient) =>
+        client.readCollaboratorPermission("bob"),
+      expected: CollaboratorPermissions.WRITE,
     }),
     defineCase({
       operation: "fetchComment",

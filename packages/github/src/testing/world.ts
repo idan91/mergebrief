@@ -1,5 +1,6 @@
 import type { InstallationId, RepoId } from "persistence";
 import type { UserInstallation } from "../auth/oauth";
+import type { CollaboratorPermission } from "../operations/collaborator-permission/types";
 import type { RepoCollaborators } from "../operations/collaborators";
 import type { PrConversation } from "../operations/conversation";
 import type {
@@ -51,6 +52,8 @@ export interface RepoState {
   readonly comments: Map<bigint, string>;
   readonly branches: Set<string>;
   collaborators: RepoCollaborators;
+  /** Keyed by lowercased login. */
+  readonly collaboratorPermissions: Map<string, CollaboratorPermission>;
   mentionableUsers: readonly MentionableUser[];
 }
 
@@ -124,6 +127,7 @@ function createRepoState(): RepoState {
     comments: new Map(),
     branches: new Set(),
     collaborators: { collaborators: [], hasMore: false },
+    collaboratorPermissions: new Map(),
     mentionableUsers: [],
   };
 }
@@ -219,6 +223,10 @@ function buildArrange(state: WorldState): WorldArrange {
     },
     addCollaborators(repo, listing) {
       ensureRepo(state, repo).collaborators = listing;
+    },
+    addCollaboratorPermission(repo, login, permission) {
+      const permissions = ensureRepo(state, repo).collaboratorPermissions;
+      permissions.set(login.toLowerCase(), permission);
     },
     addMentionableUsers(repo, users) {
       ensureRepo(state, repo).mentionableUsers = users;

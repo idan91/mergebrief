@@ -2,10 +2,8 @@
 // cannot mint a token, so 404 is the answer "gone", never a failure.
 import { describe, expect, it } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
-import {
-  CONFIRMATION_READ_TIMEOUT_MS,
-  readInstallationPresence,
-} from "../src/operations/installation";
+import { CONFIRMATION_READ_TIMEOUT_MS } from "../src/operations/deadline";
+import { readInstallationPresence } from "../src/operations/installation";
 import { InstallationPresences } from "../src/operations/installation/types";
 import {
   makeApp,

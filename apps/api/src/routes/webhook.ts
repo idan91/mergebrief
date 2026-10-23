@@ -5,8 +5,9 @@
 // Tenancy comes from the SIGNED payload's installation.id, never from a spoofable header.
 //
 // Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
-// rows and enqueue one debounced job, with no model call and no GitHub API call except the
-// confirmation a destructive event makes before it purges, bounded well inside the budget.
+// rows and enqueue one debounced job, with no model call. The only GitHub calls are bounded
+// confirmation reads, no retry, well inside the budget: a destructive event's before it
+// purges, and an untrusted reviewer's repository permission, whose failure is no checkpoint.
 // Natural-key upserts plus graphile job_key replacement make redelivery idempotent. A pull
 // request or review delivery's signature digest is recorded after its dispatch succeeds, and
 // the same signature within 72h is skipped; a failed one records nothing, so its redelivery
@@ -36,6 +37,8 @@ import {
   InstallationRepositoriesActions,
   ParsedWebhookEventKinds,
   PullRequestActions,
+  TRUSTED_AUTHOR_ASSOCIATIONS,
+  TRUSTED_COLLABORATOR_PERMISSIONS,
   parseWebhookEvent,
   verifyWebhookSignature,
   type ParsedGitHubAppAuthorizationEvent,
@@ -78,6 +81,7 @@ import {
   Unauthorized,
 } from "../shared-errors/api-error";
 import { readRawBodyWithinLimit } from "./read-body";
+import { parseOwnerAndName } from "./repos/utils";
 import type {
   InstallationBinder,
   InstallationPresenceReader,
@@ -102,7 +106,7 @@ export interface WebhookRouteDeps {
   readonly webhookConfirmationTimeoutMs?: number;
 }
 
-/** GitHub could not confirm a destructive event; `error` is absent when the bound passed first. */
+/** GitHub did not answer a confirmation read; `error` is absent when the bound passed first. */
 interface ConfirmationFailure {
   readonly error?: GitHubCallFailure;
 }
@@ -292,13 +296,83 @@ function windowOverrides(
   return {};
 }
 
+/** Plain warn, no taxonomy row: the review still queues, only its checkpoint is lost. */
+function logPermissionUnconfirmed(
+  log: Logger,
+  event: ParsedPullRequestReviewEvent,
+  failure: ConfirmationFailure,
+): void {
+  const fields: Record<string, unknown> = {
+    reviewerLogin: event.reviewerLogin,
+    association: event.reviewerAssociation,
+    timedOut: failure.error === undefined,
+  };
+  if (failure.error !== undefined) {
+    fields["code"] = failure.error.code;
+  }
+  log.warn(
+    "review checkpoint skipped, reviewer permission unconfirmed",
+    fields,
+  );
+}
+
+/**
+ * Whether the reviewer is on the team. Only invited people see a private (not
+ * internal) repo, so every reviewer there counts. On a public or internal repo a
+ * trusted association counts at once; anyone else, a private org member
+ * included, needs write access, and a permission read that fails counts as none.
+ */
+async function isReviewerTrusted(
+  deps: WebhookRouteDeps,
+  ctx: TenantContext,
+  event: ParsedPullRequestReviewEvent,
+  log: Logger,
+): Promise<boolean> {
+  if (event.repoPrivate) {
+    return true;
+  }
+  const association = event.reviewerAssociation;
+  if (
+    association !== undefined &&
+    TRUSTED_AUTHOR_ASSOCIATIONS.has(association)
+  ) {
+    return true;
+  }
+  const repo = parseOwnerAndName(event.repoFullName);
+  if (repo === undefined) {
+    return false;
+  }
+
+  const permission = await confirmWithin(deps, () =>
+    deps
+      .bindInstallationGitHub(ctx.installationId)
+      .forRepo(repo)
+      .readCollaboratorPermission(event.reviewerLogin),
+  );
+  if (!permission.ok) {
+    logPermissionUnconfirmed(log, event, permission.error);
+    return false;
+  }
+  if (TRUSTED_COLLABORATOR_PERMISSIONS.has(permission.value)) {
+    return true;
+  }
+
+  log.debug("review checkpoint skipped, reviewer lacks write access", {
+    reviewerLogin: event.reviewerLogin,
+    association,
+    permission: permission.value,
+  });
+  return false;
+}
+
 async function handlePullRequestReview(
-  handle: AppDatabase,
+  deps: WebhookRouteDeps,
   ctx: TenantContext,
   event: ParsedPullRequestReviewEvent,
   policy: DraftPolicy,
   log: Logger,
 ): Promise<void> {
+  const { handle } = deps;
   // Requeue submitted reviews only for known PRs; inserting here could invent an open
   // row for a closed PR. Unknown PRs wait for their pull_request delivery.
   // The ingest guard preserves terminal state and skips enqueueing for known closed PRs.
@@ -311,9 +385,13 @@ async function handlePullRequestReview(
     return;
   }
   // Only webhooks write checkpoints, including echoes of our own submissions.
-  // Pin to the reviewed commit, never the delivery-time head; skip bots to avoid unused spend.
+  // Pin to the reviewed commit, never the delivery-time head. Each checkpoint costs a delta
+  // call inside one capped run, so only a trusted, non-bot reviewer gets one.
   // Write before enqueueing so the worker sees the baseline. Newest-submission wins on redelivery.
-  if (event.reviewerType !== "Bot") {
+  const writesCheckpoint =
+    event.reviewerType !== "Bot" &&
+    (await isReviewerTrusted(deps, ctx, event, log));
+  if (writesCheckpoint) {
     await tenant.checkpoints.upsertOnSubmit({
       pullRequestId: known.id,
       reviewerId: event.reviewerId,
@@ -419,8 +497,9 @@ async function triggerGeneration(
 }
 
 /**
- * One bound over the whole confirmation, so a removal's two reads cannot
- * together outlast GitHub's delivery budget.
+ * One bound over a whole confirmation read, so a removal's two reads cannot
+ * together outlast GitHub's delivery budget. A destructive event answers its
+ * failure with 502; a reviewer's permission read answers 200 without a checkpoint.
  */
 async function confirmWithin<Confirmed>(
   deps: WebhookRouteDeps,
@@ -583,7 +662,7 @@ async function dispatch(
       await handlePullRequest(deps.handle, ctx, event, policy, log);
       return DISPATCHED;
     case ParsedWebhookEventKinds.PULL_REQUEST_REVIEW:
-      await handlePullRequestReview(deps.handle, ctx, event, policy, log);
+      await handlePullRequestReview(deps, ctx, event, policy, log);
       return DISPATCHED;
     case ParsedWebhookEventKinds.INSTALLATION:
       return handleInstallation(deps, ctx, event, log);

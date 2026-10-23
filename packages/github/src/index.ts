@@ -112,7 +112,10 @@ export type {
   InstallationRepositoriesAction,
 } from "./webhook/events";
 export {
+  AuthorAssociations,
   GitHubAppAuthorizationActions,
+  TRUSTED_AUTHOR_ASSOCIATIONS,
+  type AuthorAssociation,
   type GitHubAppAuthorizationAction,
 } from "./webhook/types";
 
@@ -258,6 +261,13 @@ export type {
 // covers org/team-granted members). GraphQL because REST's list carries no
 // display name.
 export { listRepoCollaborators } from "./operations/collaborators";
+// A user's effective permission on one repository, under the webhook
+// confirmation deadline: it settles a review whose association hides access.
+export {
+  CollaboratorPermissions,
+  TRUSTED_COLLABORATOR_PERMISSIONS,
+} from "./operations/collaborator-permission/types";
+export type { CollaboratorPermission } from "./operations/collaborator-permission/types";
 export type {
   ListRepoCollaboratorsInput,
   RepoCollaborator,

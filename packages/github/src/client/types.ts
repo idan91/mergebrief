@@ -11,6 +11,7 @@ import type {
   AttachmentCommit,
   CommitAttachmentInput,
 } from "../operations/attachment-branch";
+import type { CollaboratorPermission } from "../operations/collaborator-permission/types";
 import type { RepoCollaborators } from "../operations/collaborators";
 import type {
   FetchedComment,
@@ -283,6 +284,8 @@ export interface ReviewerRepoClient extends RepoReader {
 
 export interface InstallationRepoClient extends RepoReader {
   listRepoCollaborators(): GitHubCall<RepoCollaborators>;
+  /** Asks GitHub once, under the webhook confirmation deadline. */
+  readCollaboratorPermission(login: string): GitHubCall<CollaboratorPermission>;
   listOpenPullRequests(): GitHubCall<OpenPullRequest[]>;
   /** `undefined` when the comment is gone. */
   fetchComment(commentId: bigint): GitHubCall<FetchedComment | undefined>;

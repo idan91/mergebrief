@@ -2,6 +2,7 @@ import {
   commitAttachment,
   deleteAttachmentBranch,
 } from "../operations/attachment-branch";
+import { readCollaboratorPermission } from "../operations/collaborator-permission";
 import { listRepoCollaborators } from "../operations/collaborators";
 import {
   deleteComment,
@@ -27,6 +28,12 @@ export function buildInstallationRepoClient(
       return run(
         (octokit) => listRepoCollaborators(octokit, repo),
         "list repo collaborators",
+      );
+    },
+    readCollaboratorPermission(login) {
+      return run(
+        (octokit) => readCollaboratorPermission(octokit, { ...repo, login }),
+        "read collaborator permission",
       );
     },
     listOpenPullRequests() {

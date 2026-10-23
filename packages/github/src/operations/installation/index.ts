@@ -13,24 +13,9 @@ import {
   type GitHubApiError,
 } from "../../errors";
 import { repoIdSchema } from "../../ids";
+import { CONFIRMATION_READ_TIMEOUT_MS, runWithinDeadline } from "../deadline";
 import { INSTALLATION_REPOSITORIES_PAGE_SIZE } from "../repo";
 import { InstallationPresences, type InstallationPresence } from "./types";
-
-/** Two reads in a row still leave room inside GitHub's 10s delivery timeout. */
-export const CONFIRMATION_READ_TIMEOUT_MS = 4_000;
-
-/** Reject once the deadline passes, whether or not the read honoured the signal. */
-async function runWithinDeadline<Value>(
-  read: (signal: AbortSignal) => Promise<Value>,
-): Promise<Value> {
-  const signal = AbortSignal.timeout(CONFIRMATION_READ_TIMEOUT_MS);
-  const deadline = new Promise<never>((_resolve, reject) => {
-    signal.addEventListener("abort", () => reject(signal.reason), {
-      once: true,
-    });
-  });
-  return Promise.race([read(signal), deadline]);
-}
 
 /** On the App's own JWT: a deleted installation cannot mint a token. */
 export async function readInstallationPresence(
@@ -38,11 +23,13 @@ export async function readInstallationPresence(
   installationId: InstallationId,
 ): Promise<Result<InstallationPresence, GitHubApiError>> {
   try {
-    await runWithinDeadline((signal) =>
-      app.octokit.request("GET /app/installations/{installation_id}", {
-        installation_id: Number(installationId),
-        request: { retries: 0, signal },
-      }),
+    await runWithinDeadline(
+      (signal) =>
+        app.octokit.request("GET /app/installations/{installation_id}", {
+          installation_id: Number(installationId),
+          request: { retries: 0, signal },
+        }),
+      CONFIRMATION_READ_TIMEOUT_MS,
     );
     return { ok: true, value: InstallationPresences.PRESENT };
   } catch (error) {
@@ -91,8 +78,9 @@ export async function listInstallationRepoIds(
   octokit: Octokit,
 ): Promise<Result<ReadonlySet<RepoId>, GitHubApiError>> {
   try {
-    const repoIds = await runWithinDeadline((signal) =>
-      collectRepoIds(octokit, signal),
+    const repoIds = await runWithinDeadline(
+      (signal) => collectRepoIds(octokit, signal),
+      CONFIRMATION_READ_TIMEOUT_MS,
     );
     if (repoIds === undefined) {
       return {

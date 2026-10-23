@@ -134,8 +134,12 @@ webhook events (`packages/github/src/webhook/events.ts`):
   `review_requested` queue a generation; `edited` queues only when it moved the
   base; `closed` writes the state and queues nothing; `converted_to_draft`
   updates the draft flag.
-- `pull_request_review` (`submitted`): advances the reviewer's Checkpoint, then
-  triggers a generation so the delta from that checkpoint can be pre-warmed.
+- `pull_request_review` (`submitted`): advances the reviewer's Checkpoint when
+  the repository is private (not internal), or otherwise when the review's
+  `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`, or else when one
+  bounded read of the reviewer's repository permission answers `write` or
+  `admin`. Then it triggers a generation so the delta from that checkpoint can
+  be pre-warmed. Any other reviewer gets no checkpoint and so costs no delta.
 - `installation` (`deleted`) purges every row of that Installation;
   `installation_repositories` (`removed`) purges the removed repositories.
 

@@ -5,6 +5,7 @@ import type {
   ReviewerCredential,
   ReviewerGitHub,
 } from "../../../src/client/types";
+import { CollaboratorPermissions } from "../../../src/operations/collaborator-permission/types";
 import type { PrConversation } from "../../../src/operations/conversation";
 import type { ReviewCommentListing } from "../../../src/operations/review-comment-list";
 import { makeFakeGitHub } from "../../../src/testing";
@@ -200,6 +201,7 @@ function arrangeRepository(github: FakeGitHub, operation: GitHubOperation) {
     ],
     hasMore: false,
   });
+  github.addCollaboratorPermission(REPO, "bob", CollaboratorPermissions.WRITE);
   github.addMentionableUsers(REPO, [
     {
       login: "bob",

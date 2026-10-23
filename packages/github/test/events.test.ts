@@ -17,7 +17,10 @@ import {
   type ParsedWebhookEvent,
   type PullRequestAction,
 } from "../src/webhook/events";
-import { GitHubAppAuthorizationActions } from "../src/webhook/types";
+import {
+  AuthorAssociations,
+  GitHubAppAuthorizationActions,
+} from "../src/webhook/types";
 import type { Result } from "types/utils";
 
 function jsonFixture(name: string): unknown {
@@ -389,6 +392,87 @@ describe("parseWebhookEvent, pull_request_review", () => {
     }
     expect(event.reviewerType).toBe("Bot");
     expect(event.reviewerLogin).toBe("dependabot[bot]");
+  });
+
+  it("carries the reviewer's author_association from the review", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: jsonFixture("pull_request_review.submitted.json"),
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event.reviewerAssociation).toBe(AuthorAssociations.OWNER);
+  });
+
+  it.each([
+    ["an unknown value", "SPONSOR"],
+    ["null", null],
+    ["a non-string", 7],
+  ])("reads %s author_association as absent", (_label, association) => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: reviewFixtureWith((review) => {
+          review["author_association"] = association;
+        }),
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event).not.toHaveProperty("reviewerAssociation");
+  });
+
+  it.each([
+    ["a public repo", false, "public", false],
+    ["a private repo", true, "private", true],
+    ["an internal repo", true, "internal", false],
+    ["a private repo with no visibility", true, undefined, false],
+    ["an unknown visibility", true, "secret", false],
+    ["a missing private flag", undefined, "private", false],
+    ["a malformed private flag", "yes", "private", false],
+  ])("reads repoPrivate from %s", (_label, isPrivate, visibility, expected) => {
+    const fixture = jsonFixture("pull_request_review.submitted.json");
+    if (!isRecord(fixture) || !isRecord(fixture["repository"])) {
+      throw new Error("fixture shape changed");
+    }
+    const repository = { ...fixture["repository"] };
+    delete repository["private"];
+    delete repository["visibility"];
+    if (isPrivate !== undefined) {
+      repository["private"] = isPrivate;
+    }
+    if (visibility !== undefined) {
+      repository["visibility"] = visibility;
+    }
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: { ...fixture, repository },
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event.repoPrivate).toBe(expected);
+  });
+
+  it("reads a missing author_association as absent", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: reviewFixtureWith((review) => {
+          delete review["author_association"];
+        }),
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event).not.toHaveProperty("reviewerAssociation");
   });
 
   it("errors on a submitted review missing commit_id", () => {

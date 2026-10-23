@@ -15,6 +15,7 @@ import type {
   ReviewerRepoClient,
 } from "../client/types";
 import type { GitHubApiError } from "../errors";
+import type { CollaboratorPermission } from "../operations/collaborator-permission/types";
 import type { RepoCollaborators } from "../operations/collaborators";
 import type { InstallationPresence } from "../operations/installation/types";
 import type {
@@ -167,6 +168,12 @@ export interface FakeGitHubArrange {
     repositories: ReadonlyMap<RepoId, InstallationRepository>,
   ): void;
   addCollaborators(repo: RepositoryRef, listing: RepoCollaborators): void;
+  /** A login with none arranged reads `none`, as on a private repository. */
+  addCollaboratorPermission(
+    repo: RepositoryRef,
+    login: string,
+    permission: CollaboratorPermission,
+  ): void;
   /** Who GitHub says can be mentioned in the repo, in its answer order. */
   addMentionableUsers(
     repo: RepositoryRef,

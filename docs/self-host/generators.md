@@ -167,9 +167,14 @@ At the cap the worker **skips** the generation before any provider call:
   [observability.md](./observability.md));
 - nothing is queued for later.
 
-The counter is one record per started run: **provider attempts** started on
-the current UTC day, whichever repo made them, not distinct pull requests, and
-not distinct pushes. A push that is re-queued (another push lands, a review is submitted)
+The counter is one record per started run: **runs** started on the current
+UTC day, whichever repo made them, not provider calls, not distinct pull
+requests, and not distinct pushes. One run can make several model calls: the
+brief, a revision narrative against the previous brief, and one delta per
+distinct reviewer checkpoint. On a public or internal repository only the
+owner, organization members, collaborators and others with write access set a
+checkpoint, so outside accounts reviewing it add no calls to a run. On a private
+(not internal) repository every reviewer sets one. A push that is re-queued (another push lands, a review is submitted)
 spends again and counts again, and so does every automatic retry of a failed
 run, so a single busy PR can consume a day's budget on its own. Runs that
 were superseded or failed DO count: they spent. A run counts on the day it

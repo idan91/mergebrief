@@ -11,7 +11,10 @@ import {
 } from "../ids";
 import type { Mutable, Result, ValueOf } from "types/utils";
 import {
+  AuthorAssociations,
   GitHubAppAuthorizationActions,
+  RepositoryVisibilities,
+  type AuthorAssociation,
   type GitHubAppAuthorizationAction,
 } from "./types";
 
@@ -129,6 +132,11 @@ export interface ParsedPullRequestReviewEvent {
   readonly installationId: InstallationId;
   readonly repoId: RepoId;
   readonly repoFullName: string;
+  /**
+   * Private and not internal, so only invited people see it. A missing or
+   * malformed `private` or `visibility` reads not private.
+   */
+  readonly repoPrivate: boolean;
   readonly prNumber: number;
   /** The PR title, a purgeable display label, refreshed on every event. */
   readonly title: string;
@@ -137,6 +145,8 @@ export interface ParsedPullRequestReviewEvent {
   readonly reviewerLogin: string;
   /** GitHub account type, e.g. `User` / `Bot`, the checkpoint bot filter key. */
   readonly reviewerType: string;
+  /** The reviewer's `review.author_association`; absent when GitHub omits it or sends a value we do not know. */
+  readonly reviewerAssociation?: AuthorAssociation;
   /** GitHub review state, e.g. `approved` / `changes_requested` / `commented`. */
   readonly reviewState: string;
   /** The SHA the review was submitted against, the checkpoint SHA. */
@@ -239,7 +249,10 @@ const pullRequestEventSchema = z.object({
 
 const pullRequestReviewEventSchema = z.object({
   installation: installationRefSchema,
-  repository: repositoryRefSchema,
+  repository: repositoryRefSchema.extend({
+    private: z.boolean().catch(false),
+    visibility: z.enum(RepositoryVisibilities).optional().catch(undefined),
+  }),
   pull_request: z.object({
     number: z.number().int(),
     title: z.string(),
@@ -249,6 +262,7 @@ const pullRequestReviewEventSchema = z.object({
     state: z.string().min(1),
     commit_id: z.string().min(1),
     submitted_at: githubTimestampSchema,
+    author_association: z.enum(AuthorAssociations).optional().catch(undefined),
     user: z.object({
       id: reviewerIdSchema,
       login: z.string().min(1),
@@ -377,24 +391,32 @@ function parsePullRequestReview(
     );
   }
   const data = parsed.data;
-  return {
-    ok: true,
-    value: {
-      kind: ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
-      installationId: data.installation.id,
-      repoId: data.repository.id,
-      repoFullName: data.repository.full_name,
-      prNumber: data.pull_request.number,
-      title: data.pull_request.title,
-      headSha: data.pull_request.head.sha,
-      reviewerId: data.review.user.id,
-      reviewerLogin: data.review.user.login,
-      reviewerType: data.review.user.type,
-      reviewState: data.review.state,
-      commitId: data.review.commit_id,
-      submittedAt: data.review.submitted_at,
-    },
+  const repoPrivate =
+    data.repository.private &&
+    data.repository.visibility === RepositoryVisibilities.PRIVATE;
+  const event: Mutable<ParsedPullRequestReviewEvent> = {
+    kind: ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
+    installationId: data.installation.id,
+    repoId: data.repository.id,
+    repoFullName: data.repository.full_name,
+    repoPrivate,
+    prNumber: data.pull_request.number,
+    title: data.pull_request.title,
+    headSha: data.pull_request.head.sha,
+    reviewerId: data.review.user.id,
+    reviewerLogin: data.review.user.login,
+    reviewerType: data.review.user.type,
+    reviewState: data.review.state,
+    commitId: data.review.commit_id,
+    submittedAt: data.review.submitted_at,
   };
+
+  const association = data.review.author_association;
+  if (association !== undefined) {
+    event.reviewerAssociation = association;
+  }
+
+  return { ok: true, value: event };
 }
 
 function parseInstallation(

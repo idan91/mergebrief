@@ -232,6 +232,11 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
       nodes: [gqlCollaborator({ login: "bob", name: "Bob Example" })],
     }),
   ),
+  readCollaboratorPermission: answerOk({
+    permission: "write",
+    role_name: "maintain",
+    user: { login: "bob" },
+  }),
   fetchComment: answerOk({ id: 1001, body: "Entry" }),
   postEntryComment: answerOk({ id: 1001 }),
   deleteComment: answerOk({}),

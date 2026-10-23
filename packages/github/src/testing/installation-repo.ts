@@ -1,4 +1,5 @@
 import type { InstallationRepoClient } from "../client/types";
+import { CollaboratorPermissions } from "../operations/collaborator-permission/types";
 import type { RepositoryRef } from "../operations/pull-request/types";
 import { COMMIT_SHA_LENGTH } from "./consts";
 import { buildRepoReader, listOpenPullRequests } from "./repo-reader";
@@ -23,6 +24,22 @@ export function buildInstallationRepoClient(
             return answerNotFound("list repo collaborators");
           }
           return answerOk(state.collaborators);
+        },
+      });
+    },
+    readCollaboratorPermission(login) {
+      return run({
+        operation: "readCollaboratorPermission",
+        input: { ...repo, login },
+        answer: () => {
+          const state = world.findRepo(repo);
+          if (state === undefined) {
+            return answerNotFound("read collaborator permission");
+          }
+          const permission = state.collaboratorPermissions.get(
+            login.toLowerCase(),
+          );
+          return answerOk(permission ?? CollaboratorPermissions.NONE);
         },
       });
     },

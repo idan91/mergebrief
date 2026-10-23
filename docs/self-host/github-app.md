@@ -15,7 +15,7 @@ This doc is the canonical setup reference for both contributors and self-hosters
 
 | Organization permission | Access | Why |
 |---|---|---|
-| **Members** | Read-only | Lists the teams a reviewer can `@mention` while writing a comment, reply or review. The read runs on the reviewer's own token, so a reviewer sees only the teams GitHub shows them. Without it, people are still suggested and a typed `@org/team` still reaches GitHub; only team suggestions are missing. |
+| **Members** | Read-only | Lists the teams a reviewer can `@mention` while writing a comment, reply or review. The read runs on the reviewer's own token, so a reviewer sees only the teams GitHub shows them. Without it, people are still suggested and a typed `@org/team` still reaches GitHub; only team suggestions are missing. Review Checkpoints do not depend on it: a private member's write access is read through Metadata. |
 
 > **Adding Members to an App you already registered:** GitHub asks each installation's
 > organization owner to approve the new permission. Until they do, the installation keeps
@@ -44,7 +44,13 @@ This doc is the canonical setup reference for both contributors and self-hosters
 On the registration "what events would you like to subscribe to?" screen, check only:
 
 - **Pull request**: the trigger for brief generation (open + every push/synchronize).
-- **Pull request review**: a reviewer submitting → advances their Checkpoint.
+- **Pull request review**: a reviewer submitting → queues a regeneration, and advances
+  their Checkpoint when the reviewer is on the team. On a private (not internal) repository every
+  reviewer counts. On a public or internal repository the owner, organization members and
+  collaborators count;
+  anyone else, such as a private organization member that GitHub reports as a contributor,
+  counts only with write access, which one read of their repository permission (covered by
+  Metadata) settles. A read, triage or failed answer sets no Checkpoint.
 
 **`installation`, `installation_repositories` and `github_app_authorization` are NOT on
 that list, and don't need to be.** GitHub delivers those to every App automatically

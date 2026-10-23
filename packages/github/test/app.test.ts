@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAppClient, MINT_TIMEOUT_MS } from "../src/auth/app";
 import { bindInstallationGitHub } from "../src/client/installation";
-import { CONFIRMATION_READ_TIMEOUT_MS } from "../src/operations/installation";
+import { CONFIRMATION_READ_TIMEOUT_MS } from "../src/operations/deadline";
 import {
   MINT_OK,
   MINT_PATH,

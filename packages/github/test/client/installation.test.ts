@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { bindInstallationGitHub } from "../../src/client/installation";
-import { CONFIRMATION_READ_TIMEOUT_MS } from "../../src/operations/installation";
+import { CONFIRMATION_READ_TIMEOUT_MS } from "../../src/operations/deadline";
 import { GitHubApiErrorCodes } from "../../src/errors";
 import {
   collaboratorsResponse,
