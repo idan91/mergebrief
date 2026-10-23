@@ -37,6 +37,7 @@ import {
   GenerationKinds,
   isInstallationId,
   isRepoId,
+  isReviewerId,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
@@ -61,17 +62,29 @@ export interface TenantFixture {
  * shared database never upsert, or clean up, each other's rows.
  */
 export function makeFixture(): TenantFixture {
-  const drawn = randomInt(
-    SMALLEST_FIXTURE_ID,
-    SMALLEST_FIXTURE_ID + FIXTURE_ID_SPAN,
-  );
-  const stamp = BigInt(drawn);
+  const stamp = drawFixtureId();
   const tenant: InstallationId = brandWith(isInstallationId, stamp);
   return {
     tenant,
     repoId: brandWith(isRepoId, stamp),
     ctx: { installationId: tenant },
   };
+}
+
+/**
+ * A reviewer drawn at random, so credential suites in parallel workers never
+ * lock, delete or sweep each other's sessions, tokens and grants.
+ */
+export function makeFixtureReviewer(): ReviewerId {
+  return brandWith(isReviewerId, drawFixtureId());
+}
+
+function drawFixtureId(): bigint {
+  const drawn = randomInt(
+    SMALLEST_FIXTURE_ID,
+    SMALLEST_FIXTURE_ID + FIXTURE_ID_SPAN,
+  );
+  return BigInt(drawn);
 }
 
 /** Migrate the real database at `url`, then open a pooled handle on it. */

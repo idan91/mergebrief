@@ -10,9 +10,14 @@ import { createTokenAuth, type TokenMintInput } from "../src/auth/token";
 import { TokenMintErrorCodes } from "../src/auth/types";
 import { closeDb, createDb, type AppDatabase } from "../src/db/handle";
 import { readTestPostgresUrl } from "../src/testing";
-import { isReviewerId, type ReviewerId } from "../src/types";
+import type { ReviewerId } from "../src/types";
 import { AccessLevels } from "types/access-levels";
-import { brandWith, connectMigrated, makeGrant, waitMs } from "./helpers";
+import {
+  connectMigrated,
+  makeFixtureReviewer,
+  makeGrant,
+  waitMs,
+} from "./helpers";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const POOL_SIZE = 4;
@@ -20,7 +25,6 @@ const GRANT_HOLD_MS = 800;
 const SETTLE_MS = 150;
 const SUITE_TIMEOUT_MS = 15_000;
 const FUTURE = new Date("2027-06-01T00:00:00Z");
-const MAX_TEST_USER_ID = 1_000_000_000;
 
 interface SignedIn {
   readonly user: ReviewerId;
@@ -67,10 +71,7 @@ describe.skipIf(databaseUrl === undefined)(
 
     /** A session and a revoked CLI token on one grant: the grant row outlives a logout. */
     async function makeSignedInWithRevokedToken(): Promise<SignedIn> {
-      const user = brandWith(
-        isReviewerId,
-        BigInt(1 + Math.floor(Math.random() * MAX_TEST_USER_ID)),
-      );
+      const user = makeFixtureReviewer();
       users.push(user);
       const grant = await makeGrant(handle, user, FUTURE);
       const sessionHash = makeHash();

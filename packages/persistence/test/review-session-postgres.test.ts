@@ -166,6 +166,44 @@ async function holdSessionWrite(
   });
 }
 
+/**
+ * Materialize the session with one store write, then insert the rest of
+ * `count` drafts in one statement: the race under test is at the cap, not
+ * on the way there.
+ */
+async function seedDrafts(
+  world: World,
+  key: ReviewSessionKey,
+  count: number,
+): Promise<void> {
+  await addDraft(world, key, "draft 1");
+  const sessions = await internal(world.handle)
+    .select({
+      id: reviewSession.id,
+      installationId: reviewSession.installationId,
+    })
+    .from(reviewSession)
+    .where(
+      and(
+        eq(reviewSession.briefId, key.briefId),
+        eq(reviewSession.reviewerId, key.reviewerId),
+      ),
+    );
+  const session = sessions[0];
+  if (session === undefined) {
+    throw new Error("no session to seed");
+  }
+
+  const drafts = Array.from({ length: count - 1 }, (_, index) => ({
+    installationId: session.installationId,
+    reviewSessionId: session.id,
+    kind: CommentAnchorKinds.FILE,
+    filePath: FILE_ANCHOR.file,
+    body: `draft ${index + 2}`,
+  }));
+  await internal(world.handle).insert(reviewDraftComment).values(drafts);
+}
+
 async function readDraftBodies(
   world: World,
   key: ReviewSessionKey,
@@ -260,9 +298,7 @@ describe.skipIf(databaseUrl === undefined)(
 
     it("two parallel adds one under the draft cap add exactly one", async () => {
       await runInWorld(async (world) => {
-        for (let index = 1; index < DRAFT_CAP; index++) {
-          await addDraft(world, world.older, `draft ${index}`);
-        }
+        await seedDrafts(world, world.older, DRAFT_CAP - 1);
 
         const outcomes = await Promise.all(
           [1, 2].map(() => addDraft(world, world.older, "under the cap")),
