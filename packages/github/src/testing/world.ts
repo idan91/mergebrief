@@ -68,6 +68,9 @@ export interface FakeWorld extends WorldArrange {
   findRepository(repoId: RepoId): RepositoryInfo | undefined;
   findIssue(ref: IssueRef): IssueInfo | undefined;
   findInstallation(id: InstallationId): InstallationState | undefined;
+  /** The arranged list, else the repos `addInstallation` gave it, else empty. */
+  findInstallationRepoIds(id: InstallationId): ReadonlySet<RepoId>;
+  isInstallationRemoved(id: InstallationId): boolean;
   /** `undefined` when no teams were arranged for the org. */
   findTeams(org: string): readonly MentionableTeam[] | undefined;
   /** The arranged account by login, any case, in its own casing. */
@@ -143,6 +146,8 @@ interface WorldState {
   readonly repositories: Map<RepoId, RepositoryInfo>;
   readonly issues: Map<string, IssueInfo>;
   readonly installations: Map<InstallationId, InstallationState>;
+  readonly installationRepoIds: Map<InstallationId, ReadonlySet<RepoId>>;
+  readonly removedInstallations: Set<InstallationId>;
   readonly factsHidings: Map<string, FakeFactsHiding>;
   readonly teams: Map<string, readonly MentionableTeam[]>;
   readonly accounts: Map<string, string>;
@@ -205,6 +210,13 @@ function buildArrange(state: WorldState): WorldArrange {
       const { installationId } = installation;
       state.installations.set(installationId, { installation, repositories });
     },
+    setInstallationRepoIds(installationId, repoIds) {
+      state.installationRepoIds.set(installationId, new Set(repoIds));
+    },
+    removeInstallation(installationId) {
+      state.installations.delete(installationId);
+      state.removedInstallations.add(installationId);
+    },
     addCollaborators(repo, listing) {
       ensureRepo(state, repo).collaborators = listing;
     },
@@ -257,6 +269,17 @@ function buildLookups(state: WorldState): WorldLookups {
     findInstallation(id) {
       return state.installations.get(id);
     },
+    findInstallationRepoIds(id) {
+      const arranged = state.installationRepoIds.get(id);
+      if (arranged !== undefined) {
+        return arranged;
+      }
+      const repositories = state.installations.get(id)?.repositories;
+      return new Set(repositories?.keys());
+    },
+    isInstallationRemoved(id) {
+      return state.removedInstallations.has(id);
+    },
     findTeams(org) {
       return state.teams.get(org.toLowerCase());
     },
@@ -284,6 +307,8 @@ export function createFakeWorld(): FakeWorld {
     repositories: new Map(),
     issues: new Map(),
     installations: new Map(),
+    installationRepoIds: new Map(),
+    removedInstallations: new Set(),
     factsHidings: new Map(),
     teams: new Map(),
     accounts: new Map(),

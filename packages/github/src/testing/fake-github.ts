@@ -2,12 +2,15 @@ import { buildAccountReader, buildReviewerAccount } from "./account-reader";
 import { buildInstallationRepoClient } from "./installation-repo";
 import { buildRepoReader } from "./repo-reader";
 import { buildReviewerRepoClient } from "./reviewer-repo";
+import { InstallationPresences } from "../operations/installation/types";
 import {
   createExchange,
   createFixedRunner,
+  createInstallationRunner,
   createReviewerRunners,
 } from "./runners";
 import { CredentialKinds, type FakeGitHub } from "./types";
+import { answerNotFound, answerOk } from "./utils";
 import { createFakeWorld } from "./world";
 
 /**
@@ -49,16 +52,39 @@ export function makeFakeGitHub(): FakeGitHub {
       };
     },
     bindInstallationGitHub(installationId) {
-      const run = createFixedRunner(send, {
-        kind: CredentialKinds.INSTALLATION,
-        installationId,
-      });
+      const run = createInstallationRunner(send, installationId, (id) =>
+        world.isInstallationRemoved(id),
+      );
       return {
         ...buildAccountReader(world, run),
         forRepo(repo) {
           return buildInstallationRepoClient(world, repo, run);
         },
+        listInstallationRepoIds() {
+          return run({
+            operation: "listInstallationRepoIds",
+            input: { installationId },
+            answer: () =>
+              answerOk(world.findInstallationRepoIds(installationId)),
+          });
+        },
       };
+    },
+    async readInstallationPresence(installationId) {
+      return send(
+        { kind: CredentialKinds.APP },
+        {
+          operation: "readInstallationPresence",
+          input: { installationId },
+          onNotFound: () => InstallationPresences.GONE,
+          answer: () => {
+            if (world.isInstallationRemoved(installationId)) {
+              return answerNotFound("read installation presence");
+            }
+            return answerOk(InstallationPresences.PRESENT);
+          },
+        },
+      );
     },
     bindOperatorGitHub(token) {
       const run = createFixedRunner(send, {

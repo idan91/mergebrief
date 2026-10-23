@@ -1,5 +1,6 @@
 import type {
   GitHubReader,
+  InstallationGitHub,
   InstallationRepoClient,
   RepoReader,
   ReviewerGitHub,
@@ -9,6 +10,7 @@ import { ReviewCommentSides } from "types/conversation";
 import { ReviewSubjectTypes } from "../../../src/operations/review-thread";
 import { MentionTargetKinds } from "../../../src/operations/mentions/types";
 import { ReviewEvents } from "../../../src/operations/review-submit";
+import { InstallationPresences } from "../../../src/operations/installation/types";
 import { requireInstallationId, requireRepoId } from "../helpers";
 import {
   ATTACHMENT_COMMIT_SHA,
@@ -17,7 +19,11 @@ import {
   HEAD_SHA,
   REPO_FILE_MAX_BYTES,
 } from "./consts";
-import type { ContractCase, TypedContractCase } from "./types";
+import type {
+  ContractAppReader,
+  ContractCase,
+  TypedContractCase,
+} from "./types";
 
 export function defineCase<Client, Value>(
   typed: TypedContractCase<Client, Value>,
@@ -170,6 +176,25 @@ export const ACCOUNT_READER_CASES: readonly ContractCase<GitHubReader>[] = [
       body: "Details",
       isPullRequest: false,
     },
+  }),
+];
+
+export const INSTALLATION_ACCOUNT_CASES: readonly ContractCase<InstallationGitHub>[] =
+  [
+    defineCase({
+      operation: "listInstallationRepoIds",
+      call: (client: InstallationGitHub) => client.listInstallationRepoIds(),
+      expected: new Set([requireRepoId(4242n)]),
+    }),
+  ];
+
+export const APP_CASES: readonly ContractCase<ContractAppReader>[] = [
+  defineCase({
+    operation: "readInstallationPresence",
+    call: (client: ContractAppReader) =>
+      client.readInstallationPresence(requireInstallationId(99n)),
+    expected: InstallationPresences.PRESENT,
+    notFound: InstallationPresences.GONE,
   }),
 ];
 

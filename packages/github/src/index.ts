@@ -134,6 +134,10 @@ export {
   listInstallationRepositoriesForUser,
 } from "./operations/repo";
 export type { InstallationRepository, RepositoryInfo } from "./operations/repo";
+// Installation presence, on the App's own JWT: 404 reads gone.
+export { readInstallationPresence } from "./operations/installation";
+export { InstallationPresences } from "./operations/installation/types";
+export type { InstallationPresence } from "./operations/installation/types";
 export { getRepoFile, RepoFileKinds } from "./operations/repo-file";
 export type {
   GetRepoFileInput,

@@ -1,4 +1,5 @@
 import type { ValueOf } from "types/utils";
+import type { InstallationId } from "persistence";
 import type {
   GitHubCall,
   GitHubReader,
@@ -7,6 +8,7 @@ import type {
   ReviewerCredential,
   ReviewerGitHub,
 } from "../../../src/client/types";
+import type { InstallationPresence } from "../../../src/operations/installation/types";
 import type { GitHubOperation } from "../../../src/testing/types";
 
 /** How GitHub answers the arranged operation. */
@@ -27,6 +29,15 @@ export interface ContractArrangement {
    * renewed reviewer token included, get `outcome`.
    */
   readonly reviewerOutcome?: ContractOutcome;
+  /** GitHub refuses the installation token mint with a 404, as after an uninstall. */
+  readonly mintRefused?: boolean;
+}
+
+/** The reads made on the App's own JWT, outside any binding. */
+export interface ContractAppReader {
+  readInstallationPresence(
+    installationId: InstallationId,
+  ): GitHubCall<InstallationPresence>;
 }
 
 /**
@@ -38,6 +49,7 @@ export interface ContractAdapter {
   readonly reviewer: ReviewerGitHub;
   readonly installation: InstallationGitHub;
   readonly operator: GitHubReader;
+  readonly app: ContractAppReader;
   bindReviewer(
     credential: ReviewerCredential,
     operatorReads?: OperatorReads,

@@ -11,6 +11,7 @@ import { Octokit } from "octokit";
 import { Octokit as CoreOctokit } from "@octokit/core";
 import { OAuthApp, type Options } from "@octokit/oauth-app";
 import { retryOptions } from "./retry";
+import { createTimedFetch } from "./utils";
 import type { InstallationId, ReviewerId } from "persistence";
 import { z } from "zod/v4";
 import {
@@ -96,20 +97,6 @@ export function createOAuthApp(config: OAuthAppConfig): GitHubOAuthApp {
       request: { fetch: createTimedFetch(timeoutMs) },
     }),
   });
-}
-
-/** Reads the global fetch per call, not at construction, so a stub still answers. */
-function createTimedFetch(timeoutMs: number): typeof fetch {
-  return function fetchWithTimeout(input, init) {
-    const signals = [AbortSignal.timeout(timeoutMs)];
-    if (init?.signal) {
-      signals.push(init.signal);
-    }
-    return globalThis.fetch(input, {
-      ...init,
-      signal: AbortSignal.any(signals),
-    });
-  };
 }
 
 /**

@@ -70,8 +70,8 @@ export async function fetchRepositoryById(
   }
 }
 
-/** Page size for the installation∩user listing, GitHub's maximum. */
-const INSTALLATION_REPOSITORIES_PAGE_SIZE = 100;
+/** Page size for both installation listings, GitHub's maximum. */
+export const INSTALLATION_REPOSITORIES_PAGE_SIZE = 100;
 
 const installationRepositoryItemSchema = z.object({
   id: repoIdSchema,

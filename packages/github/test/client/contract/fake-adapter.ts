@@ -239,6 +239,7 @@ function arrangeAccount(github: FakeGitHub): void {
     { installationId: requireInstallationId(99n), accountLogin: "acme" },
     new Map([[REPO_ID, { fullName: "acme/widgets", viewerIsAdmin: true }]]),
   );
+  github.setInstallationRepoIds(requireInstallationId(99n), [REPO_ID]);
 }
 
 const FAILURES: Readonly<
@@ -282,6 +283,9 @@ export function createFakeAdapter(
   arrangeRepository(github, arrangement.operation);
   arrangeAccount(github);
   arrangeOutcome(github, arrangement);
+  if (arrangement.mintRefused === true) {
+    github.removeInstallation(requireInstallationId(99n));
+  }
 
   function bindReviewer(
     credential: ReviewerCredential,
@@ -298,6 +302,10 @@ export function createFakeAdapter(
     reviewer: bindReviewer(stubCredential(REVIEWER_TOKEN, undefined)),
     installation: github.bindInstallationGitHub(requireInstallationId(99n)),
     operator: github.bindOperatorGitHub(OPERATOR_READS.token),
+    app: {
+      readInstallationPresence: (installationId) =>
+        github.readInstallationPresence(installationId),
+    },
     bindReviewer,
     countRequests() {
       return github.calls.length;

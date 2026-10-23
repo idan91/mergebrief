@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ReviewEvents } from "../../src/operations/review-submit";
 import { ReviewSubjectTypes } from "../../src/operations/review-thread";
+import { InstallationPresences } from "../../src/operations/installation/types";
 import { makeFakeGitHub } from "../../src/testing";
 import {
   CredentialKinds,
@@ -308,5 +309,82 @@ describe("makeFakeGitHub writes", () => {
     expect(first).toEqual({ ok: true, value: { alreadyReady: false } });
     expect(second).toEqual({ ok: true, value: { alreadyReady: true } });
     expect(pull.ok && pull.value.draft).toBe(false);
+  });
+});
+
+describe("makeFakeGitHub installation presence", () => {
+  const INSTALLATION = requireInstallationId(99n);
+
+  it("reads an installation present until it is removed", async () => {
+    const github = makeFakeGitHub();
+
+    expect(await github.readInstallationPresence(INSTALLATION)).toEqual({
+      ok: true,
+      value: InstallationPresences.PRESENT,
+    });
+    github.removeInstallation(INSTALLATION);
+
+    expect(await github.readInstallationPresence(INSTALLATION)).toEqual({
+      ok: true,
+      value: InstallationPresences.GONE,
+    });
+    expect(github.listCalls("readInstallationPresence")).toEqual([
+      expect.objectContaining({ credential: { kind: CredentialKinds.APP } }),
+      expect.objectContaining({ credential: { kind: CredentialKinds.APP } }),
+    ]);
+  });
+
+  it("answers an unreachable presence read through failOn", async () => {
+    const github = makeFakeGitHub();
+    github.failOn("readInstallationPresence", FakeFailures.SERVER_ERROR);
+
+    const result = await github.readInstallationPresence(INSTALLATION);
+
+    expect(result.ok || result.error.code).toBe("request-failed");
+  });
+
+  it("lists the arranged repo ids on the installation binding", async () => {
+    const github = makeFakeGitHub();
+    github.setInstallationRepoIds(INSTALLATION, [requireRepoId(4242n)]);
+
+    const result = await github
+      .bindInstallationGitHub(INSTALLATION)
+      .listInstallationRepoIds();
+
+    expect(result).toEqual({ ok: true, value: new Set([4242n]) });
+  });
+
+  it("lists the repos an added installation holds when none were set", async () => {
+    const github = makeFakeGitHub();
+    github.addInstallation(
+      { installationId: INSTALLATION, accountLogin: "acme" },
+      new Map([
+        [
+          requireRepoId(4242n),
+          { fullName: "acme/widgets", viewerIsAdmin: true },
+        ],
+      ]),
+    );
+
+    const result = await github
+      .bindInstallationGitHub(INSTALLATION)
+      .listInstallationRepoIds();
+
+    expect(result).toEqual({ ok: true, value: new Set([4242n]) });
+  });
+
+  it("refuses every call on a removed installation as a refused mint", async () => {
+    const github = makeFakeGitHub();
+    github.setInstallationRepoIds(INSTALLATION, [requireRepoId(4242n)]);
+    github.removeInstallation(INSTALLATION);
+
+    const result = await github
+      .bindInstallationGitHub(INSTALLATION)
+      .listInstallationRepoIds();
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "not-found", status: 404 },
+    });
   });
 });

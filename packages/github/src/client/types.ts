@@ -323,4 +323,6 @@ export interface ReviewerGitHub extends GitHubReader {
 
 export interface InstallationGitHub extends GitHubReader {
   forRepo(repo: RepositoryRef): InstallationRepoClient;
+  /** Every repository the installation holds, not one reviewer's share. */
+  listInstallationRepoIds(): GitHubCall<ReadonlySet<RepoId>>;
 }

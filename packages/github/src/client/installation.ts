@@ -2,6 +2,7 @@ import type { Octokit } from "octokit";
 import type { InstallationId } from "persistence";
 import { getInstallationClient, type AppClient } from "../auth/app";
 import { GitHubApiErrorCodes, type GitHubApiError } from "../errors";
+import { listInstallationRepoIds } from "../operations/installation";
 import { buildAccountReader } from "./account-reader";
 import { buildInstallationRepoClient } from "./installation-repo";
 import type { CallRunner, InstallationGitHub } from "./types";
@@ -45,6 +46,12 @@ export function bindInstallationGitHub(
     ...buildAccountReader(run),
     forRepo(repo) {
       return buildInstallationRepoClient(repo, run);
+    },
+    listInstallationRepoIds() {
+      return run(
+        (octokit) => listInstallationRepoIds(octokit),
+        "list installation repo ids",
+      );
     },
   };
 }

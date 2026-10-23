@@ -4,6 +4,7 @@ import {
   selectOperatorFallback,
   type OperatorFallback,
 } from "../client/operator-fallback";
+import type { InstallationId } from "persistence";
 import { createTokenState, runOnReviewerToken } from "../client/reviewer-token";
 import type {
   GitHubCall,
@@ -23,7 +24,7 @@ import {
   type FakeGitHubCall,
   type GitHubOperation,
 } from "./types";
-import { buildFailure, type FakeAnswer } from "./utils";
+import { answerNotFound, buildFailure, type FakeAnswer } from "./utils";
 
 export interface FakeRequest<Value> {
   readonly operation: GitHubOperation;
@@ -127,6 +128,30 @@ export function createFixedRunner(
   credential: FakeCredential,
 ): FakeRunner {
   return async (request) => send(credential, request);
+}
+
+/**
+ * A removed installation's token mint answers 404 inside the call, as
+ * octokit's lazy mint does, so the call's own 404 handling applies.
+ */
+export function createInstallationRunner(
+  send: FakeSend,
+  installationId: InstallationId,
+  isRemoved: (installationId: InstallationId) => boolean,
+): FakeRunner {
+  const credential: FakeCredential = {
+    kind: CredentialKinds.INSTALLATION,
+    installationId,
+  };
+  return async (request) => {
+    if (!isRemoved(installationId)) {
+      return send(credential, request);
+    }
+    return send(credential, {
+      ...request,
+      answer: () => answerNotFound(request.operation),
+    });
+  };
 }
 
 function buildReviewerCredential(token: string): FakeCredential {

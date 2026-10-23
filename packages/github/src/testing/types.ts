@@ -1,6 +1,6 @@
 import type { CompareFiles } from "brief-core";
 import type { InstallationId, RepoId } from "persistence";
-import type { ValueOf } from "types/utils";
+import type { Result, ValueOf } from "types/utils";
 import type { UserInstallation } from "../auth/oauth";
 import type {
   GitHubReader,
@@ -14,7 +14,9 @@ import type {
   ReviewerGitHub,
   ReviewerRepoClient,
 } from "../client/types";
+import type { GitHubApiError } from "../errors";
 import type { RepoCollaborators } from "../operations/collaborators";
+import type { InstallationPresence } from "../operations/installation/types";
 import type {
   MentionableTeam,
   MentionableUser,
@@ -37,17 +39,22 @@ import type { ReviewCommentListing } from "../operations/review-comment-list";
 import type { PullRequestReviewState } from "../operations/review-pending";
 
 /** Every method a binding exposes, named as the interfaces name it. */
-export type GitHubOperation = Exclude<
-  | keyof ReviewerRepoClient
-  | keyof InstallationRepoClient
-  | keyof ReviewerGitHub,
-  "forRepo"
->;
+export type GitHubOperation =
+  | Exclude<
+      | keyof ReviewerRepoClient
+      | keyof InstallationRepoClient
+      | keyof ReviewerGitHub
+      | keyof InstallationGitHub,
+      "forRepo"
+    >
+  | "readInstallationPresence";
 
 export const CredentialKinds = {
   REVIEWER: "reviewer",
   INSTALLATION: "installation",
   OPERATOR: "operator",
+  /** The App's own JWT, for reads about an installation itself. */
+  APP: "app",
 } as const;
 export type CredentialKind = ValueOf<typeof CredentialKinds>;
 
@@ -62,7 +69,8 @@ export type FakeCredential =
   | {
       readonly kind: typeof CredentialKinds.INSTALLATION;
       readonly installationId: InstallationId;
-    };
+    }
+  | { readonly kind: typeof CredentialKinds.APP };
 
 /** One request that reached the fake, in the order it arrived. */
 export interface FakeGitHubCall {
@@ -190,6 +198,13 @@ export interface FakeGitHubArrange {
   ): void;
   /** GitHub answers 401 to every call carrying `token`. */
   rejectToken(token: string): void;
+  /** Every repository the installation holds; wins over `addInstallation`'s map. */
+  setInstallationRepoIds(
+    installationId: InstallationId,
+    repoIds: readonly RepoId[],
+  ): void;
+  /** Uninstalled: presence reads gone and every binding call answers the mint's 404. */
+  removeInstallation(installationId: InstallationId): void;
 }
 
 /**
@@ -207,6 +222,10 @@ export interface FakeGitHub extends FakeGitHubArrange {
     token: OperatorToken,
     options?: OperatorBindingOptions,
   ): GitHubReader;
+  /** Unarranged installations read present. */
+  readInstallationPresence(
+    installationId: InstallationId,
+  ): Promise<Result<InstallationPresence, GitHubApiError>>;
   readonly calls: readonly FakeGitHubCall[];
   listCalls(operation: GitHubOperation): FakeGitHubCall[];
   /** The repository's live comments by id, in posting order. */

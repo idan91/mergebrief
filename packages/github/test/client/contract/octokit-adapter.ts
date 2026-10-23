@@ -1,4 +1,5 @@
 import { bindInstallationGitHub } from "../../../src/client/installation";
+import { readInstallationPresence } from "../../../src/operations/installation";
 import { bindOperatorGitHub } from "../../../src/client/operator";
 import { bindReviewerGitHub } from "../../../src/client/reviewer";
 import {
@@ -152,6 +153,11 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
       { id: 4242, full_name: "acme/widgets", permissions: { admin: true } },
     ],
   }),
+  listInstallationRepoIds: answerOk({
+    total_count: 1,
+    repositories: [{ id: 4242 }],
+  }),
+  readInstallationPresence: answerOk({ id: 99, account: { login: "acme" } }),
   listOpenPullRequests: answerOk([OPEN_PULL]),
   findPendingPullRequestReview: answerOk(REVIEW_LIST),
   countPendingReviewComments: answerGraphql({
@@ -267,6 +273,8 @@ function selectAnswer(
   return FAILURE_ANSWERS[outcome];
 }
 
+const MINT_REFUSED = { status: 404, body: { message: "Not Found" } };
+
 /** The reviewer's token gets `reviewerOutcome`; every other credential `outcome`. */
 function routeArrangement(arrangement: ContractArrangement): RouteHandler {
   const { operation, outcome } = arrangement;
@@ -279,7 +287,7 @@ function routeArrangement(arrangement: ContractArrangement): RouteHandler {
 
   return (request) => {
     if (request.path === MINT_PATH) {
-      return MINT_OK;
+      return arrangement.mintRefused === true ? MINT_REFUSED : MINT_OK;
     }
     if (request.authorization === reviewerAuthorization) {
       return reviewerAnswer;
@@ -294,6 +302,7 @@ export function createOctokitAdapter(
 ): ContractAdapter {
   const stub = stubGitHubFetch(routeArrangement(arrangement));
   const octokitFactory = makeOctokitFactory(stub);
+  const app = makeApp(stub);
 
   function bindReviewer(
     credential: ReviewerCredential,
@@ -311,11 +320,12 @@ export function createOctokitAdapter(
 
   return {
     reviewer: bindReviewer(stubCredential(REVIEWER_TOKEN, undefined)),
-    installation: bindInstallationGitHub(
-      makeApp(stub),
-      requireInstallationId(99n),
-    ),
+    installation: bindInstallationGitHub(app, requireInstallationId(99n)),
     operator: bindOperatorGitHub(OPERATOR_READS.token, { octokitFactory }),
+    app: {
+      readInstallationPresence: (installationId) =>
+        readInstallationPresence(app, installationId),
+    },
     bindReviewer,
     countRequests() {
       return stub.requests.filter((request) => request.path !== MINT_PATH)

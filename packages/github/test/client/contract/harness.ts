@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { REPO } from "../helpers";
 import {
   ACCOUNT_READER_CASES,
+  APP_CASES,
+  INSTALLATION_ACCOUNT_CASES,
   INSTALLATION_REPO_CASES,
   REPO_READER_CASES,
   REVIEWER_ACCOUNT_CASES,
@@ -29,6 +31,12 @@ const TOKEN_DENIALS: readonly DenialOutcome[] = [
  * token, so an installation 401 is octokit's to retry, not a contract case.
  */
 const INSTALLATION_DENIALS: readonly DenialOutcome[] = [
+  ContractOutcomes.NOT_FOUND,
+  ContractOutcomes.FORBIDDEN,
+];
+
+/** An App-JWT read: no token to renew, so a 401 is no contract case either. */
+const APP_DENIALS: readonly DenialOutcome[] = [
   ContractOutcomes.NOT_FOUND,
   ContractOutcomes.FORBIDDEN,
 ];
@@ -138,6 +146,29 @@ function describeCreates(createAdapter: ContractAdapterFactory): void {
   );
 }
 
+function describeRefusedMint<Client>(
+  createAdapter: ContractAdapterFactory,
+  cases: readonly ContractCase<Client>[],
+  select: (adapter: ContractAdapter) => Client,
+): void {
+  it.each(cases)(
+    "$operation answers a refused mint as not-found",
+    async (testCase) => {
+      const adapter = createAdapter({
+        operation: testCase.operation,
+        outcome: ContractOutcomes.OK,
+        mintRefused: true,
+      });
+
+      const result = await testCase.call(select(adapter));
+
+      expect(result).toEqual(
+        shapeDenialAnswer(testCase, ContractOutcomes.NOT_FOUND),
+      );
+    },
+  );
+}
+
 function listOperations<Client>(
   cases: readonly ContractCase<Client>[],
 ): string[] {
@@ -170,7 +201,11 @@ function describeSurfaces(createAdapter: ContractAdapterFactory): void {
     {
       binding: "installation",
       client: adapter.installation,
-      account: listSurface(accountReads, ["forRepo"]),
+      account: listSurface(
+        accountReads,
+        listOperations(INSTALLATION_ACCOUNT_CASES),
+        ["forRepo"],
+      ),
       repo: listSurface(repoReads, listOperations(INSTALLATION_REPO_CASES)),
     },
     {
@@ -235,6 +270,18 @@ export function describeGitHubContract(
       ],
     });
     describeFamily(createAdapter, {
+      name: "installation account",
+      cases: INSTALLATION_ACCOUNT_CASES,
+      bindings: [makeInstallationBinding((adapter) => adapter.installation)],
+    });
+    describeFamily(createAdapter, {
+      name: "app reads",
+      cases: APP_CASES,
+      bindings: [
+        { name: "app", select: (adapter) => adapter.app, denials: APP_DENIALS },
+      ],
+    });
+    describeFamily(createAdapter, {
       name: "reviewer account",
       cases: REVIEWER_ACCOUNT_CASES,
       bindings: [makeReviewerBinding((adapter) => adapter.reviewer)],
@@ -257,6 +304,26 @@ export function describeGitHubContract(
     });
     describe("creates", () => {
       describeCreates(createAdapter);
+    });
+    describe("installation binding with a refused mint", () => {
+      describeRefusedMint(
+        createAdapter,
+        INSTALLATION_ACCOUNT_CASES,
+        (adapter) => adapter.installation,
+      );
+      describeRefusedMint(
+        createAdapter,
+        selectCases(ACCOUNT_READER_CASES, ["fetchRepositoryById"]),
+        (adapter) => adapter.installation,
+      );
+      describeRefusedMint(
+        createAdapter,
+        [
+          ...selectCases(REPO_READER_CASES, ["fetchPullRequest"]),
+          ...INSTALLATION_REPO_CASES,
+        ],
+        (adapter) => adapter.installation.forRepo(REPO),
+      );
     });
     describe("credential surfaces", () => {
       describeSurfaces(createAdapter);

@@ -15,6 +15,7 @@ import {
   type RenewalFailure,
   type ReviewerCredential,
 } from "../../src/client/types";
+import type { GitHubConfig } from "../../src/config";
 import { isInstallationId, isRepoId, isReviewerId } from "../../src/ids";
 
 export interface RecordedRequest {
@@ -29,7 +30,10 @@ export interface StubResponse {
   readonly headers?: Readonly<Record<string, string>>;
 }
 
-export type RouteHandler = (request: RecordedRequest) => StubResponse;
+/** `undefined` holds the request unanswered until its signal aborts. */
+export type RouteHandler = (
+  request: RecordedRequest,
+) => StubResponse | undefined;
 
 export interface GitHubFetchStub {
   readonly fetch: typeof fetch;
@@ -39,6 +43,14 @@ export interface GitHubFetchStub {
 function readAuthorization(init: RequestInit | undefined): string | undefined {
   const headers = new Headers(init?.headers);
   return headers.get("authorization") ?? undefined;
+}
+
+function holdUntilAborted(signal: AbortSignal | null | undefined) {
+  return new Promise<Response>((_resolve, reject) => {
+    signal?.addEventListener("abort", () => reject(signal.reason), {
+      once: true,
+    });
+  });
 }
 
 /** A fetch that answers every request through `route` and records it. */
@@ -54,6 +66,9 @@ export function stubGitHubFetch(route: RouteHandler): GitHubFetchStub {
       };
       requests.push(request);
       const answer = route(request);
+      if (answer === undefined) {
+        return holdUntilAborted(init?.signal);
+      }
       return new Response(JSON.stringify(answer.body), {
         status: answer.status,
         headers: { "content-type": "application/json", ...answer.headers },
@@ -228,6 +243,19 @@ function makeThrowawayPrivateKey(): string {
 }
 
 let privateKey: string | undefined;
+
+/** Production config for `createAppClient` (App id 1) with a throwaway key. */
+export function makeAppConfig(): GitHubConfig {
+  privateKey ??= makeThrowawayPrivateKey();
+  return {
+    appId: 1,
+    privateKey,
+    webhookSecret: "a".repeat(64),
+    oauthClientId: "Iv1.client",
+    oauthClientSecret: "client-secret",
+    appSlug: undefined,
+  };
+}
 
 /** An unthrottled App (id 1) whose requests go through `stub`. */
 export function makeApp(stub: GitHubFetchStub): App {
