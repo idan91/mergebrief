@@ -11,9 +11,9 @@
 #
 # DATABASE_URL comes from `.env` (env_file below) or the shell you run
 # compose from (the pass-through entries under `environment:`; a shell value
-# wins over `.env`). A NON-loopback host must carry an explicit `sslmode`
-# DSN parameter or boot is refused — see docs/self-host/compose.md for the
-# provider recipes (verify-full + CA bundle, the `require` trap, `_FILE`
+# wins over `.env`). A NON-loopback host boots only on `sslmode=verify-full`
+# or `sslmode=disable`; see docs/self-host/compose.md for the provider
+# recipes (verify-full + CA bundle, why `require` is refused, `_FILE`
 # secrets). There is no `depends_on` on the database: the services fail
 # loudly against an unreachable one instead of gating on a healthcheck
 # compose cannot see.

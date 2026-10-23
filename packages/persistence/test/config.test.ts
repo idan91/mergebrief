@@ -371,11 +371,10 @@ describe("config: DATABASE_POOL_MAX", () => {
   });
 });
 
-// TLS explicit-or-refuse. A non-loopback host with no `sslmode`
-// DSN parameter refuses boot: the operator must choose; loopback and
-// unix-socket DSNs are exempt. Any EXPLICIT sslmode (including `disable`)
-// passes the gate.
-describe("config: TLS explicit-or-refuse gate", () => {
+// TLS allowlist. A non-loopback host boots only on `sslmode=verify-full` or
+// `sslmode=disable`, and `uselibpqcompat=true` only beside verify-full;
+// loopback and unix-socket DSNs are exempt.
+describe("config: TLS allowlist gate", () => {
   const REMOTE = "postgres://user:pass@db.example.com:5432/app";
 
   it.each([
@@ -419,13 +418,22 @@ describe("config: TLS explicit-or-refuse gate", () => {
     ).toBe(true);
   });
 
-  it("names the three choices in the refusal", () => {
-    const error = err(loadConfig({ DATABASE_URL: REMOTE }));
+  it("names verify-full, sslrootcert and disable, and refuses require", () => {
+    const error = err(
+      loadConfig({ DATABASE_URL: `${REMOTE}?sslmode=require` }),
+    );
     const joined = error.issues.join(" ");
     expect(joined).toContain("sslmode=verify-full");
     expect(joined).toContain("sslrootcert");
-    expect(joined).toContain("sslmode=require");
     expect(joined).toContain("sslmode=disable");
+    expect(joined).toContain("no-verify");
+    expect(joined).toContain("uselibpqcompat");
+    expect(joined).not.toContain("sslmode=require");
+  });
+
+  it("does not echo the refused sslmode value in the refusal", () => {
+    const error = err(loadConfig({ DATABASE_URL: `${REMOTE}?sslmode=bogus` }));
+    expect(error.issues.join(" ")).not.toContain("bogus");
   });
 
   it("does not echo the host or credentials in the refusal", () => {
@@ -439,9 +447,66 @@ describe("config: TLS explicit-or-refuse gate", () => {
     expect(joined).not.toContain("db.example.com");
   });
 
-  it("accepts an explicit sslmode", () => {
+  it.each([
+    ["require", "sslmode=require"],
+    ["prefer", "sslmode=prefer"],
+    ["verify-ca", "sslmode=verify-ca"],
+    ["no-verify", "sslmode=no-verify"],
+    ["an uppercase spelling", "sslmode=VERIFY-FULL"],
+    ["an unknown value", "sslmode=bogus"],
+    ["compat with require", "uselibpqcompat=true&sslmode=require"],
+    ["compat with disable", "uselibpqcompat=true&sslmode=disable"],
+    [
+      "a repeated key ending in no-verify",
+      "sslmode=verify-full&sslmode=no-verify",
+    ],
+  ])("refuses %s on a remote host", (_label, query) => {
+    const error = err(loadConfig({ DATABASE_URL: `${REMOTE}?${query}` }));
+    expect(error.code).toBe(ConfigErrorCodes.INVALID);
+  });
+
+  it.each([
+    ["verify-full", "sslmode=verify-full"],
+    ["disable", "sslmode=disable"],
+    ["compat with verify-full", "uselibpqcompat=true&sslmode=verify-full"],
+  ])("accepts %s on a remote host", (_label, query) => {
+    expect(loadConfig({ DATABASE_URL: `${REMOTE}?${query}` }).ok).toBe(true);
+  });
+
+  it("accepts verify-full with a readable sslrootcert", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tls-ca-"));
+    const caPath = join(dir, "ca.pem");
+    writeFileSync(caPath, "stub CA bundle\n");
     expect(
-      loadConfig({ DATABASE_URL: `${REMOTE}?sslmode=verify-full` }).ok,
+      loadConfig({
+        DATABASE_URL: `${REMOTE}?sslmode=verify-full&sslrootcert=${caPath}`,
+      }).ok,
+    ).toBe(true);
+  });
+
+  it.each([
+    ["an empty authority", "postgres:///app"],
+    ["an empty host with require", "postgres:///app?sslmode=require"],
+  ])("refuses %s, which pg resolves through PGHOST", (_label, url) => {
+    const error = err(loadConfig({ DATABASE_URL: url }));
+    expect(error.issues.join(" ")).toContain("sslmode=verify-full");
+  });
+
+  it("refuses credentials with an empty host", () => {
+    expect(loadConfig({ DATABASE_URL: "postgres://u:p@/app" }).ok).toBe(false);
+  });
+
+  it("accepts an empty host with sslmode=verify-full", () => {
+    expect(
+      loadConfig({ DATABASE_URL: "postgres:///app?sslmode=verify-full" }).ok,
+    ).toBe(true);
+  });
+
+  it("exempts loopback even with a refused sslmode", () => {
+    expect(
+      loadConfig({
+        DATABASE_URL: "postgres://u:p@localhost:5432/app?sslmode=no-verify",
+      }).ok,
     ).toBe(true);
   });
 
@@ -465,7 +530,7 @@ describe("config: TLS explicit-or-refuse gate", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("passes a file-resolved DSN with an explicit sslmode", () => {
+  it("passes a file-resolved DSN with sslmode=verify-full", () => {
     const result = loadConfig(
       { DATABASE_URL_FILE: "/run/secrets/db-url" },
       { readFile: () => `${REMOTE}?sslmode=verify-full` },

@@ -210,8 +210,8 @@ export function loadConfig(
       },
     };
   }
-  // TLS explicit-or-refuse: runs on the RESOLVED DSN (env or file), after
-  // scheme validation; see `tls.ts` for the rule and its loopback exemption.
+  // TLS allowlist: runs on the RESOLVED DSN (env or file), after
+  // scheme validation; see `tls/` for the rule and its loopback exemption.
   const tls = checkDsnTls(parsed.data.DATABASE_URL);
   if (!tls.ok) {
     return {

@@ -1,20 +1,21 @@
-// TLS explicit-or-refuse: an external Postgres DSN must carry an explicit
-// `sslmode`, so a plaintext or unverified managed-DB connection is never
-// silent. Loopback and unix-socket hosts are exempt. The gate only enforces
-// that a CHOICE was made; `pg` itself honors the parameters.
-// pg 8.x treats `require`/`prefer`/`verify-ca` as verify-full; pg v9 adopts
-// libpq semantics where `require` does NOT verify certificates. This
+// TLS allowlist: a non-loopback DSN boots only on `sslmode=verify-full` or
+// `sslmode=disable`, and `uselibpqcompat=true` only beside verify-full. Every
+// other mode skips certificate verification under libpq semantics (opt-in
+// today, pg v9's default). Loopback and unix-socket hosts are exempt. This
 // package's `pg-connection-string` must resolve to the version pg bundles, so
 // the DSN is classified exactly as the driver parses it.
 import { parse } from "pg-connection-string";
 import type { Result } from "types/utils";
+import { AllowedSslModes, type AllowedSslMode } from "./types";
+
+const LIBPQ_COMPAT_ENABLED = "true";
 
 /** Hosts whose traffic never leaves the machine: exact `localhost`, the
- * 127.0.0.0/8 block (plus its IPv6-mapped form), IPv6 `::1`, a unix-socket
- * path, or no host at all (pg defaults to the local socket). */
+ * 127.0.0.0/8 block (plus its IPv6-mapped form), IPv6 `::1`, or a unix-socket
+ * path. An empty host is NOT loopback: pg then dials `PGHOST` over TCP. */
 function isLoopbackHost(host: string | null | undefined): boolean {
   if (host === null || host === undefined || host.length === 0) {
-    return true;
+    return false;
   }
   if (host.startsWith("/")) {
     return true;
@@ -40,14 +41,17 @@ function isLoopbackIpv4(host: string): boolean {
 }
 
 const REFUSAL =
-  "DATABASE_URL: non-loopback host with no sslmode — choose one explicitly: " +
-  "sslmode=verify-full with sslrootcert=/path/to/ca.pem (verified TLS; the " +
-  "recommended posture for managed providers), sslmode=require (TLS without " +
-  "a pinned CA — note pg treats it as verify-full today but pg v9 will stop " +
-  "verifying), or sslmode=disable (private networks only)";
+  "DATABASE_URL: a non-loopback host needs sslmode=verify-full (add " +
+  "sslrootcert=/path/to/ca.pem for a private CA) or sslmode=disable (private " +
+  "networks only). require, prefer, verify-ca, no-verify and uselibpqcompat " +
+  "are refused because they can skip certificate verification";
+
+function isAllowedSslMode(sslmode: unknown): sslmode is AllowedSslMode {
+  return Object.values(AllowedSslModes).some((mode) => mode === sslmode);
+}
 
 /**
- * Enforce the explicit-or-refuse rule on an already-scheme-validated DSN.
+ * Enforce the TLS allowlist on an already-scheme-validated DSN.
  * Refusal text is value-free: neither the DSN nor its host is echoed (the
  * URL may carry a password; the message is generic on purpose). A DSN
  * pg-connection-string cannot parse is refused generically too, except a
@@ -83,13 +87,18 @@ export function checkDsnTls(databaseUrl: string): Result<undefined, string> {
   if (isLoopbackHost(parsed.host)) {
     return { ok: true, value: undefined };
   }
-  // `sslmode` rides pg-connection-string's passthrough index signature: it
-  // is present exactly when the DSN carried the parameter. An EMPTY value
-  // (`?sslmode=`, e.g. from unset shell templating) counts as absent: pg's
-  // own ssl-enablement check is a truthiness test, so `sslmode=` behaves
-  // exactly like no sslmode at all: plaintext.
+  // `sslmode` and `uselibpqcompat` ride the parse result's passthrough index
+  // signature, last occurrence winning as the driver reads them. A missing or
+  // empty `sslmode` is not on the allowlist, so it refuses like any other.
   const sslmode = parsed["sslmode"];
-  if (sslmode === undefined || sslmode === "") {
+  if (!isAllowedSslMode(sslmode)) {
+    return { ok: false, error: REFUSAL };
+  }
+
+  const libpqCompatWithoutVerifyFull =
+    parsed["uselibpqcompat"] === LIBPQ_COMPAT_ENABLED &&
+    sslmode !== AllowedSslModes.VERIFY_FULL;
+  if (libpqCompatWithoutVerifyFull) {
     return { ok: false, error: REFUSAL };
   }
   return { ok: true, value: undefined };

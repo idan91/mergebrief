@@ -131,7 +131,7 @@ doesn't apply: several loaders distinguish unset from empty.
 | `WORKER_COUNT` | compose | optional; worker containers compose starts, default 1. Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`; `docker compose up --scale worker=N` wins for that run |
 | `API_COUNT` | compose | optional; api containers compose starts, default 1. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api); `docker compose up --scale api=N` wins for that run |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned: the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24`, since the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
-| `DATABASE_URL` | none | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input when the database is external ([below](#external-postgres-managed-database)). Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
+| `DATABASE_URL` | none | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input when the database is external ([below](#external-postgres-managed-database)). Non-loopback hosts must carry `sslmode=verify-full` or `sslmode=disable` or boot is refused ([TLS](#tls-verify-full-or-disable-sslmode-in-the-dsn)) |
 | `DATABASE_URL_FILE` | api, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
 | `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
 | `DATABASE_POOL_MAX` | api, worker | optional, default `10` (empty included); the size of each Postgres pool. An api process opens one pool and a worker two (its store and its job queue). A request waits up to 10 seconds for a free connection, then fails. (api replicas + 2 x worker count) x this value must stay under Postgres `max_connections` ([operations.md](./operations.md#running-more-than-one-api)). A whole number of at least 2 (the job queue keeps one connection for its listener and needs another to work), or api and worker refuse boot |
@@ -195,28 +195,26 @@ provider-specific behavior (TLS handshakes, pooled proxies, permission
 models) is exactly what the suites cannot see; the smoke checklist below
 is how a provider setup is actually proven.
 
-### TLS: you must choose (`sslmode` in the DSN)
+### TLS: verify-full or disable (`sslmode` in the DSN)
 
-A `DATABASE_URL` whose host is not loopback **refuses boot unless the DSN
-carries an explicit `sslmode`**. There is no separate TLS config: the DSN
-is the whole decision:
+A `DATABASE_URL` whose host is not loopback **boots only on
+`sslmode=verify-full` or `sslmode=disable`**. There is no separate TLS
+config: the DSN is the whole decision:
 
 | DSN parameter | meaning |
 |---|---|
 | `sslmode=verify-full&sslrootcert=/path/ca.pem` | TLS, certificate verified against that CA, hostname checked: **the recommended posture** |
 | `sslmode=verify-full` | TLS, verified against Node's bundled trust roots (the Mozilla CA set, NOT the OS store, so mounting a CA into `/etc/ssl/certs` alone changes nothing; that mount only feeds `sslrootcert`). Works when the provider's chain ends in a publicly trusted CA. Check your provider: some (e.g. Supabase's dedicated-instance certificates) issue from a provider CA you must download and pin via `sslrootcert` |
-| `sslmode=require` | see the trap below; write `verify-full` if you mean verification |
 | `sslmode=disable` | plaintext, for private networks / VPC peering only |
 
-**The `sslmode=require` trap.** libpq (psql and most tooling) treats
-`require` as "encrypt but do NOT verify the certificate". node-postgres
-(the driver this product uses, pg 8.x) currently treats `require`,
-`prefer`, and `verify-ca` as *aliases for `verify-full`*: it verifies,
-and prints a security warning saying so. pg v9 will switch to the libpq
-semantics, where `require` stops verifying. So: a DSN copied from a
-provider dashboard with `sslmode=require` behaves differently here than in
-psql, and will change behavior again on a future driver bump. Write
-`verify-full` when you want verification (always, unless you know why not).
+**Refused:** `require`, `prefer`, `verify-ca`, `no-verify`, any other
+value, and `uselibpqcompat=true` beside anything but `verify-full`. libpq
+(psql and most tooling) treats `require` as "encrypt but do NOT verify
+the certificate". node-postgres (pg 8.x) verifies on `require`, `prefer`
+and `verify-ca` today, but its warning steers to `uselibpqcompat=true`,
+which switches to the libpq meaning, and pg v9 makes that the default.
+`no-verify` never verifies. A DSN copied from a provider dashboard with
+`sslmode=require` refuses boot: change it to `verify-full`.
 
 Providers whose CA is not in the system store (RDS is the common case)
 need the CA bundle mounted into `api` and `worker`. Download the

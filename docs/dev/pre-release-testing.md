@@ -251,9 +251,10 @@ what the PGlite-based suites cannot see. Every step carries the same tag,
 pg-connection-string bump or an external-db compose change, not every
 release`.
 
-- [ ] TLS refusal fires: a provider DSN with NO `sslmode` makes api and
-      worker refuse boot naming the three choices; web never starts behind
-      api's health check; no DSN in any log.
+- [ ] TLS refusal fires: a provider DSN with NO `sslmode`, and one with
+      `sslmode=require`, each make api and worker refuse boot naming
+      verify-full and disable; web never starts behind api's health check;
+      no DSN in any log.
 - [ ] Connects verified: `?sslmode=verify-full` (plus `sslrootcert` through
       the CA mount if the provider's chain needs pinning; record which) and
       api, worker and web come up, `/readyz` 200.
