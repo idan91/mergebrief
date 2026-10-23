@@ -106,6 +106,38 @@ describe("exchangeWebFlowCode", () => {
   });
 });
 
+describe("exchangeWebFlowCode against GitHub's OAuth bodies", () => {
+  it.each(["bad_verification_code", "unverified_user_email"])(
+    "answers EXCHANGE_FAILED for the reviewer-side %s",
+    async (oauthError) => {
+      stubOAuthErrorBody(oauthError);
+
+      const result = await exchangeWebFlowCode(makeOAuthApp(), {
+        code: CODE,
+        state: STATE,
+      });
+
+      expect(result.ok || result.error.code).toBe(
+        OAuthErrorCodes.EXCHANGE_FAILED,
+      );
+    },
+  );
+
+  it("answers CLIENT_MISCONFIGURED for a wrong client secret", async () => {
+    stubOAuthErrorBody("incorrect_client_credentials");
+
+    const result = await exchangeWebFlowCode(makeOAuthApp(), {
+      code: CODE,
+      state: STATE,
+    });
+
+    expect(result.ok || result.error).toMatchObject({
+      code: OAuthErrorCodes.CLIENT_MISCONFIGURED,
+      oauthError: "incorrect_client_credentials",
+    });
+  });
+});
+
 describe("refreshUserToken", () => {
   it("maps a rotated authentication result to OAuthTokens", async () => {
     const refreshFn = vi.fn().mockResolvedValue({
@@ -132,7 +164,7 @@ describe("refreshUserToken", () => {
     expect(refreshFn).toHaveBeenCalledWith({ refreshToken: REFRESH_TOKEN });
   });
 
-  it("maps a thrown refresh error to a sanitized REFRESH_FAILED", async () => {
+  it("maps a thrown refresh error to a sanitized REFRESH_UNAVAILABLE", async () => {
     const refreshFn = vi.fn().mockRejectedValue(leakyError());
     const app = mockOAuthApp({ refreshToken: refreshFn });
 
@@ -141,10 +173,128 @@ describe("refreshUserToken", () => {
     if (result.ok) {
       throw new Error("unreachable");
     }
-    expect(result.error.code).toBe(OAuthErrorCodes.REFRESH_FAILED);
+    expect(result.error.code).toBe(OAuthErrorCodes.REFRESH_UNAVAILABLE);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(REFRESH_TOKEN);
     expect(serialized).not.toContain("SECRET_VALUE");
+  });
+
+  it("answers REFRESH_TOKEN_REJECTED for a bad_refresh_token body", async () => {
+    stubOAuthErrorBody("bad_refresh_token");
+
+    const result = await refreshUserToken(makeOAuthApp(), {
+      refreshToken: REFRESH_TOKEN,
+    });
+
+    expect(readRefreshErrorCode(result)).toBe(
+      OAuthErrorCodes.REFRESH_TOKEN_REJECTED,
+    );
+  });
+
+  it.each(["incorrect_client_credentials", "unsupported_grant_type"])(
+    "answers CLIENT_MISCONFIGURED, naming %s, on a refresh",
+    async (oauthError) => {
+      stubOAuthErrorBody(oauthError);
+
+      const result = await refreshUserToken(makeOAuthApp(), {
+        refreshToken: REFRESH_TOKEN,
+      });
+
+      expect(result.ok || result.error).toMatchObject({
+        code: OAuthErrorCodes.CLIENT_MISCONFIGURED,
+        oauthError,
+      });
+    },
+  );
+
+  it("answers EXPIRATION_NOT_ENABLED for a token that never expires", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          access_token: "ghu_NON_EXPIRING",
+          token_type: "bearer",
+          scope: "",
+        }),
+      ),
+    );
+
+    const result = await refreshUserToken(makeOAuthApp(), {
+      refreshToken: REFRESH_TOKEN,
+    });
+
+    expect(readRefreshErrorCode(result)).toBe(
+      OAuthErrorCodes.EXPIRATION_NOT_ENABLED,
+    );
+  });
+
+  it("names an OAuth error that is not a plain token as unrecognized", async () => {
+    stubOAuthErrorBody("Bad <credentials> for SECRET_VALUE");
+
+    const result = await refreshUserToken(makeOAuthApp(), {
+      refreshToken: REFRESH_TOKEN,
+    });
+
+    expect(result.ok || result.error).toMatchObject({
+      code: OAuthErrorCodes.CLIENT_MISCONFIGURED,
+      oauthError: "unrecognized",
+    });
+  });
+
+  it("answers REFRESH_TOKEN_REJECTED for an OAuth body on a real 401", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(
+          {
+            error: "bad_refresh_token",
+            error_description: "The refresh token passed is incorrect.",
+            error_uri: "https://docs.github.com/apps",
+          },
+          401,
+        ),
+      ),
+    );
+
+    const result = await refreshUserToken(makeOAuthApp(), {
+      refreshToken: REFRESH_TOKEN,
+    });
+
+    expect(readRefreshErrorCode(result)).toBe(
+      OAuthErrorCodes.REFRESH_TOKEN_REJECTED,
+    );
+  });
+
+  it("answers REFRESH_UNAVAILABLE when GitHub answers 502", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ message: "Bad Gateway" }, 502)),
+    );
+
+    const result = await refreshUserToken(makeOAuthApp(), {
+      refreshToken: REFRESH_TOKEN,
+    });
+
+    expect(readRefreshErrorCode(result)).toBe(
+      OAuthErrorCodes.REFRESH_UNAVAILABLE,
+    );
+  });
+
+  it("answers REFRESH_UNAVAILABLE when the network call throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }),
+    );
+
+    const result = await refreshUserToken(makeOAuthApp(), {
+      refreshToken: REFRESH_TOKEN,
+    });
+
+    expect(readRefreshErrorCode(result)).toBe(
+      OAuthErrorCodes.REFRESH_UNAVAILABLE,
+    );
   });
 
   it("gives up on a GitHub that never answers once the timeout passes", async () => {
@@ -157,15 +307,43 @@ describe("refreshUserToken", () => {
 
     const result = await refreshUserToken(app, { refreshToken: REFRESH_TOKEN });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("unreachable");
-    }
-    const serialized = JSON.stringify(result.error);
+    expect(readRefreshErrorCode(result)).toBe(
+      OAuthErrorCodes.REFRESH_UNAVAILABLE,
+    );
+    const serialized = JSON.stringify(result);
     expect(serialized).not.toContain(REFRESH_TOKEN);
     expect(serialized).not.toContain("SECRET_VALUE");
   });
 });
+
+function stubOAuthErrorBody(oauthError: string): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      jsonResponse({
+        error: oauthError,
+        error_description: "GitHub refused the request.",
+        error_uri: "https://docs.github.com/apps",
+      }),
+    ),
+  );
+}
+
+function makeOAuthApp(): GitHubOAuthApp {
+  return createOAuthApp({
+    clientId: "Iv1.client",
+    clientSecret: "SECRET_VALUE",
+  });
+}
+
+function readRefreshErrorCode(
+  result: Awaited<ReturnType<typeof refreshUserToken>>,
+): string {
+  if (result.ok) {
+    throw new Error("expected the refresh to fail");
+  }
+  return result.error.code;
+}
 
 const SHORT_TIMEOUT_MS = 20;
 

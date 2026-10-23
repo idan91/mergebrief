@@ -14,10 +14,12 @@ import {
   type GrantRefreshRejection,
 } from "../src/auth/grant";
 import { createSessionAuth } from "../src/auth/session";
+import { createTokenAuth } from "../src/auth/token";
 import { internal } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
-import { isReviewerId, type ReviewerId } from "../src/types";
+import { isReviewerId, type GrantRowId, type ReviewerId } from "../src/types";
 import type { Result } from "types/utils";
+import { AccessLevels } from "types/access-levels";
 import { brandWith, registerSharedPglite } from "./helpers";
 
 const shared = registerSharedPglite();
@@ -183,5 +185,98 @@ describe("createGrantAuth.getGrant", () => {
 
     await auth.deleteIfOrphaned(grant.id);
     expect(await auth.getGrant(grant.id)).toBeUndefined();
+  });
+});
+
+const RETIRED_AT = new Date("2026-10-23T12:00:00Z");
+const EARLIER_REVOKE = new Date("2026-10-01T00:00:00Z");
+
+async function makeSession(grantId: GrantRowId, hashChar: string) {
+  await createSessionAuth(shared.handle).createSession({
+    sessionTokenHash: hashChar.repeat(64),
+    reviewerId: REVIEWER,
+    reviewerLogin: "octocat",
+    grantId,
+    expiresAt: FUTURE,
+  });
+  return hashChar.repeat(64);
+}
+
+async function makeToken(grantId: GrantRowId, name: string) {
+  return createTokenAuth(shared.handle).mintToken({
+    userId: REVIEWER,
+    name,
+    scope: AccessLevels.EXTERNAL_WRITE,
+    tokenHash: name.padEnd(64, "0"),
+    grantId,
+    expiresAt: FUTURE,
+  });
+}
+
+async function readTokenRevokedAt(name: string): Promise<Date | null> {
+  const tokens = await createTokenAuth(shared.handle).listForUser(REVIEWER);
+  const token = tokens.find((row) => row.name === name);
+  if (token === undefined) {
+    throw new Error(`token ${name} not found`);
+  }
+  return token.revokedAt;
+}
+
+describe("createGrantAuth.retireGrant", () => {
+  it("deletes the grant's sessions and leaves another grant's session", async () => {
+    const auth = createGrantAuth(shared.handle);
+    const dead = await auth.createGrant(createInput());
+    const live = await auth.createGrant(createInput());
+    const deadHash = await makeSession(dead.id, "b");
+    const liveHash = await makeSession(live.id, "c");
+
+    const retired = await auth.retireGrant(dead.id, RETIRED_AT);
+
+    expect(retired.sessionsDeleted).toBe(1);
+    const sessions = createSessionAuth(shared.handle);
+    expect(await sessions.findSession(deadHash)).toBeUndefined();
+    expect((await sessions.findSession(liveHash))?.grant.id).toBe(live.id);
+  });
+
+  it("revokes only the grant's live tokens and keeps an earlier revoke", async () => {
+    const auth = createGrantAuth(shared.handle);
+    const dead = await auth.createGrant(createInput());
+    const live = await auth.createGrant(createInput());
+    await makeToken(dead.id, "dead-live");
+    const alreadyRevoked = await makeToken(dead.id, "dead-revoked");
+    await createTokenAuth(shared.handle).revokeToken(
+      REVIEWER,
+      alreadyRevoked.id,
+      EARLIER_REVOKE,
+    );
+    await makeToken(live.id, "other-grant");
+
+    const retired = await auth.retireGrant(dead.id, RETIRED_AT);
+
+    expect(retired.tokensRevoked).toBe(1);
+    expect(await readTokenRevokedAt("dead-live")).toEqual(RETIRED_AT);
+    expect(await readTokenRevokedAt("dead-revoked")).toEqual(EARLIER_REVOKE);
+    expect(await readTokenRevokedAt("other-grant")).toBeNull();
+  });
+
+  it("deletes a grant that only sessions referenced", async () => {
+    const auth = createGrantAuth(shared.handle);
+    const grant = await auth.createGrant(createInput());
+    await makeSession(grant.id, "d");
+
+    await auth.retireGrant(grant.id, RETIRED_AT);
+
+    expect(await auth.getGrant(grant.id)).toBeUndefined();
+  });
+
+  it("keeps a grant its revoked tokens still reference", async () => {
+    const auth = createGrantAuth(shared.handle);
+    const grant = await auth.createGrant(createInput());
+    await makeSession(grant.id, "e");
+    await makeToken(grant.id, "kept-row");
+
+    await auth.retireGrant(grant.id, RETIRED_AT);
+
+    expect((await auth.getGrant(grant.id))?.id).toBe(grant.id);
   });
 });

@@ -327,6 +327,7 @@ export type {
   GrantCreateInput,
   GrantRefreshPatch,
   GrantRefreshRejection,
+  RetiredGrant,
 } from "./auth/grant";
 
 // The `auth_session` boundary: every credential-row read and write, keyed by

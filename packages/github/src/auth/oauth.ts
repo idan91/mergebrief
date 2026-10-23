@@ -20,6 +20,7 @@ import {
 } from "../errors";
 import { isInstallationId, isReviewerId } from "../ids";
 import type { Result, ValueOf } from "types/utils";
+import { HttpStatuses } from "types/http";
 
 // `Options<"github-app">` makes `createToken`/`refreshToken` resolve to the
 // WithExpiration authentication shapes, not the OAuth-App variant.
@@ -38,10 +39,20 @@ export interface OAuthTokens {
 }
 
 export const OAuthErrorCodes = {
-  /** The code→token exchange failed (bad/expired code, network, GitHub 4xx). */
+  /**
+   * The code→token exchange failed on the reviewer's side (a stale code, an
+   * unverified primary email) or in transport (network, GitHub 5xx).
+   */
   EXCHANGE_FAILED: "exchange-failed",
-  /** The refresh-token rotation failed (revoked/expired refresh token, etc.). */
-  REFRESH_FAILED: "refresh-failed",
+  /** GitHub refused the refresh token itself (`bad_refresh_token`): the grant is dead. */
+  REFRESH_TOKEN_REJECTED: "refresh-token-rejected",
+  /**
+   * GitHub refused the App's own credentials or settings (`oauthError` names
+   * which): an operator fix, not the reviewer's code or grant.
+   */
+  CLIENT_MISCONFIGURED: "client-misconfigured",
+  /** GitHub gave no OAuth answer (timeout, network, 5xx); the grant may live. */
+  REFRESH_UNAVAILABLE: "refresh-unavailable",
   /** GitHub returned no refresh token; token expiration is not enabled. */
   EXPIRATION_NOT_ENABLED: "expiration-not-enabled",
 } as const;
@@ -51,6 +62,8 @@ export interface OAuthError {
   readonly code: OAuthErrorCode;
   /** Static, safe-to-log summary; never carries the code/token/secret. */
   readonly message: string;
+  /** GitHub's OAuth `error` token, or `unrecognized` when it is not a plain token. */
+  readonly oauthError?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,6 +138,17 @@ interface ExpiringAuthentication {
   readonly refreshTokenExpiresAt?: string;
 }
 
+function failExpirationNotEnabled(): Result<never, OAuthError> {
+  return {
+    ok: false,
+    error: {
+      code: OAuthErrorCodes.EXPIRATION_NOT_ENABLED,
+      message:
+        "GitHub returned no refresh token; enable 'Expire user authorization tokens' on the App",
+    },
+  };
+}
+
 function toOAuthTokens(
   auth: ExpiringAuthentication,
 ): Result<OAuthTokens, OAuthError> {
@@ -133,14 +157,7 @@ function toOAuthTokens(
     auth.expiresAt === undefined ||
     auth.refreshTokenExpiresAt === undefined
   ) {
-    return {
-      ok: false,
-      error: {
-        code: OAuthErrorCodes.EXPIRATION_NOT_ENABLED,
-        message:
-          "GitHub returned no refresh token; enable 'Expire user authorization tokens' on the App",
-      },
-    };
+    return failExpirationNotEnabled();
   }
   return {
     ok: true,
@@ -167,7 +184,14 @@ export async function exchangeWebFlowCode(
       state: input.state,
     });
     return toOAuthTokens(authentication);
-  } catch {
+  } catch (error) {
+    const oauthError = readOAuthErrorBody(error);
+    const clientRefused =
+      oauthError !== undefined &&
+      !REVIEWER_SIDE_EXCHANGE_ERRORS.has(oauthError);
+    if (clientRefused) {
+      return failClientMisconfigured(oauthError);
+    }
     return {
       ok: false,
       error: {
@@ -176,6 +200,60 @@ export async function exchangeWebFlowCode(
       },
     };
   }
+}
+
+// GitHub's OAuth `error` body arrives on a 4xx: `@octokit/oauth-methods`
+// rethrows a 200 carrying one as a 400, and a real 4xx keeps its own status.
+// Either way the body rides on `response.data`; every other throw is transport.
+const oauthErrorBodySchema = z.object({
+  status: z
+    .number()
+    .int()
+    .gte(HttpStatuses.BAD_REQUEST)
+    .lt(HttpStatuses.INTERNAL_SERVER_ERROR),
+  response: z.object({ data: z.object({ error: z.string() }) }),
+});
+
+/**
+ * Exchange refusals the reviewer causes and an operator cannot fix: a stale
+ * code, a primary email GitHub has not verified. Every other is the App's.
+ */
+const REVIEWER_SIDE_EXCHANGE_ERRORS: ReadonlySet<string> = new Set([
+  "bad_verification_code",
+  "unverified_user_email",
+]);
+
+/** The only refresh refusal that means the reviewer's grant is gone. */
+const DEAD_REFRESH_TOKEN_ERROR = "bad_refresh_token";
+
+/** GitHub's error tokens are snake_case words; anything else is not echoed. */
+const OAUTH_ERROR_TOKEN = /^[a-z][a-z0-9_]{0,63}$/;
+const UNRECOGNIZED_OAUTH_ERROR = "unrecognized";
+
+/** GitHub's OAuth `error` token from a thrown answer; `undefined` for transport. */
+function readOAuthErrorBody(error: unknown): string | undefined {
+  const parsed = oauthErrorBodySchema.safeParse(error);
+  if (!parsed.success) {
+    return undefined;
+  }
+  const token = parsed.data.response.data.error;
+  if (!OAUTH_ERROR_TOKEN.test(token)) {
+    return UNRECOGNIZED_OAUTH_ERROR;
+  }
+  return token;
+}
+
+function failClientMisconfigured(
+  oauthError: string,
+): Result<never, OAuthError> {
+  return {
+    ok: false,
+    error: {
+      code: OAuthErrorCodes.CLIENT_MISCONFIGURED,
+      message: "GitHub refused the App's OAuth credentials or settings",
+      oauthError,
+    },
+  };
 }
 
 /**
@@ -191,12 +269,30 @@ export async function refreshUserToken(
       refreshToken: input.refreshToken,
     });
     return toOAuthTokens(authentication);
-  } catch {
+  } catch (error) {
+    const oauthError = readOAuthErrorBody(error);
+    if (oauthError === DEAD_REFRESH_TOKEN_ERROR) {
+      return {
+        ok: false,
+        error: {
+          code: OAuthErrorCodes.REFRESH_TOKEN_REJECTED,
+          message: "GitHub rejected the refresh token",
+        },
+      };
+    }
+    if (oauthError !== undefined) {
+      return failClientMisconfigured(oauthError);
+    }
+    // octokit turns a 2xx's missing `expires_in` into an Invalid Date and
+    // throws RangeError: GitHub answered with a token that never expires.
+    if (error instanceof RangeError) {
+      return failExpirationNotEnabled();
+    }
     return {
       ok: false,
       error: {
-        code: OAuthErrorCodes.REFRESH_FAILED,
-        message: "failed to refresh the user access token",
+        code: OAuthErrorCodes.REFRESH_UNAVAILABLE,
+        message: "GitHub did not answer the token refresh",
       },
     };
   }

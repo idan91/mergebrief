@@ -15,7 +15,7 @@
 // interleavings at the cost of one aborted transaction that retries clean;
 // do not "fix" it by dropping the FK.
 /* oxlint-enable house/comment-run */
-import { and, eq, inArray, notExists } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists } from "drizzle-orm";
 import { traceStore } from "../stores/trace-store";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
@@ -68,6 +68,12 @@ function fail(
   return { ok: false, error: { code, message } };
 }
 
+/** What retiring a dead grant removed: sessions deleted, live tokens revoked. */
+export interface RetiredGrant {
+  readonly sessionsDeleted: number;
+  readonly tokensRevoked: number;
+}
+
 /** Everything a login persists to open a new grant. */
 export interface GrantCreateInput {
   readonly ghTokenCiphertext: string;
@@ -106,6 +112,13 @@ export interface GrantAuth {
    * no-op. Returns rows deleted, 0 or 1.
    */
   deleteIfOrphaned(grantId: GrantRowId): Promise<number>;
+  /**
+   * End every sign-in riding a grant GitHub refused to rotate, in ONE
+   * transaction: delete its sessions and set `revoked_at = now` on its live
+   * tokens (an earlier `revoked_at` stays). The grant dies here only when no
+   * token row still references it.
+   */
+  retireGrant(grantId: GrantRowId, now: Date): Promise<RetiredGrant>;
 }
 
 /**
@@ -197,6 +210,25 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
 
     async deleteIfOrphaned(grantId) {
       return deleteOrphanedGrants(db, [grantId]);
+    },
+
+    async retireGrant(grantId, now) {
+      return db.transaction(async (tx) => {
+        const sessions = await tx
+          .delete(authSession)
+          .where(eq(authSession.grantId, grantId))
+          .returning({ id: authSession.id });
+        const tokens = await tx
+          .update(apiToken)
+          .set({ revokedAt: now })
+          .where(and(eq(apiToken.grantId, grantId), isNull(apiToken.revokedAt)))
+          .returning({ id: apiToken.id });
+        await deleteOrphanedGrants(tx, [grantId]);
+        return {
+          sessionsDeleted: sessions.length,
+          tokensRevoked: tokens.length,
+        };
+      });
     },
   });
 }
