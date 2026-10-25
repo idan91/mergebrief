@@ -17,6 +17,11 @@
   "pull_request": {
     "number": 2,
     "title": "Update the README with new information.",
+    "author_association": "OWNER",
+    "user": {
+      "login": "Codertocat",
+      "type": "User"
+    },
     "state": "open",
     "head": {
       "ref": "changes",

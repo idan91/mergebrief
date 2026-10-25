@@ -11,6 +11,7 @@ import {
   type GitHubApiError,
 } from "../../errors";
 import { repoIdSchema } from "../../ids";
+import { GitHubAccountTypes } from "../../types";
 
 import {
   compareFilesSchema,
@@ -69,6 +70,7 @@ export async function fetchPullRequest(
       htmlUrl: data.html_url,
       commitCount: data.commits,
       authorLogin: data.user?.login ?? null,
+      authorIsBot: data.user?.type === GitHubAccountTypes.BOT,
       closedAt: data.closed_at === null ? null : new Date(data.closed_at),
       updatedAt: new Date(data.updated_at),
     };

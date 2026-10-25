@@ -135,10 +135,11 @@ function pullRequestPayload(input: {
     head: { sha: input.headSha ?? HEAD_SHA },
     base: { sha: input.baseSha ?? BASE_SHA },
     draft: input.draft ?? false,
+    author_association: "COLLABORATOR",
     user:
       input.authorLogin === null
         ? null
-        : { login: input.authorLogin ?? "author-octocat" },
+        : { login: input.authorLogin ?? "author-octocat", type: "User" },
   };
 
   if (input.merged !== undefined) {
@@ -187,6 +188,8 @@ function pullRequestReviewPayload(review?: {
       number: 2,
       title: "Update the README with new information.",
       head: { sha: HEAD_SHA },
+      author_association: "COLLABORATOR",
+      user: { login: "author-octocat", type: "User" },
     },
     review: {
       state: "approved",

@@ -251,6 +251,7 @@ export function makePullRequestInfo(headSha: string): PullRequestInfo {
     htmlUrl: "https://github.com/acme/widget/pull/7",
     commitCount: 3,
     authorLogin: "octocat",
+    authorIsBot: false,
     closedAt: null,
     updatedAt: new Date("2026-09-20T10:00:00Z"),
     headRepo: { owner: "acme", repo: "widget" },

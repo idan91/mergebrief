@@ -613,6 +613,7 @@ describe("fetchPullRequest / fetchDiff", () => {
       htmlUrl: "https://github.com/o/r/pull/3",
       commitCount: 4,
       authorLogin: "octocat",
+      authorIsBot: false,
       closedAt: null,
       updatedAt: new Date("2026-09-20T10:00:00Z"),
       headRepo: { owner: "contributor", repo: "fork" },
@@ -656,6 +657,39 @@ describe("fetchPullRequest / fetchDiff", () => {
       expect("baseRef" in result.value).toBe(false);
     },
   );
+
+  it.each([
+    ["a Bot", true, { login: "renovate[bot]", type: "Bot" }],
+    ["a User", false, { login: "octocat", type: "User" }],
+    ["no", false, null],
+  ])("reads %s author as authorIsBot %s", async (_label, expected, user) => {
+    const pullsGet = vi.fn().mockResolvedValue({
+      data: {
+        head: { sha: "head-sha", ref: "feature/thing" },
+        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
+        state: "open",
+        draft: false,
+        merged: false,
+        title: "A PR",
+        body: "",
+        html_url: "https://github.com/o/r/pull/3",
+        commits: 1,
+        user,
+        closed_at: null,
+        updated_at: "2026-09-20T10:00:00Z",
+      },
+    });
+    const octokit = mockOctokit({ pullsGet });
+    const result = await fetchPullRequest(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.value.authorIsBot).toBe(expected);
+  });
 
   it("captures merged on a merged and closed PR", async () => {
     const pullsGet = vi.fn().mockResolvedValue({

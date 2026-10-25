@@ -10,6 +10,7 @@ import {
   reviewerIdSchema,
 } from "../ids";
 import type { Mutable, Result, ValueOf } from "types/utils";
+import { GitHubAccountTypes, type GitHubAccountType } from "../types";
 import {
   AuthorAssociations,
   GitHubAppAuthorizationActions,
@@ -113,6 +114,10 @@ export interface ParsedPullRequestEvent {
    * instead of nulling it.
    */
   readonly authorLogin?: string;
+  /** The PR author's `author_association`; absent when GitHub omits it or sends a value we do not know. */
+  readonly authorAssociation?: AuthorAssociation;
+  /** The PR author's account is a `Bot`; false when the author is gone or untyped. */
+  readonly authorIsBot: boolean;
   /** Present on `synchronize`, the pre-push head, for force-push detection. */
   readonly before?: string;
   /** Present on `synchronize`, the post-push head. */
@@ -141,10 +146,14 @@ export interface ParsedPullRequestReviewEvent {
   /** The PR title, a purgeable display label, refreshed on every event. */
   readonly title: string;
   readonly headSha: string;
+  /** The PR author's `author_association`, not the reviewer's; absent when omitted or unknown. */
+  readonly authorAssociation?: AuthorAssociation;
+  /** The PR author's account is a `Bot`, not the reviewer's. */
+  readonly authorIsBot: boolean;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin: string;
-  /** GitHub account type, e.g. `User` / `Bot`, the checkpoint bot filter key. */
-  readonly reviewerType: string;
+  /** The reviewer's GitHub account type, the checkpoint bot filter key; absent when GitHub sends a type we do not know. */
+  readonly reviewerType?: GitHubAccountType;
   /** The reviewer's `review.author_association`; absent when GitHub omits it or sends a value we do not know. */
   readonly reviewerAssociation?: AuthorAssociation;
   /** GitHub review state, e.g. `approved` / `changes_requested` / `commented`. */
@@ -225,6 +234,14 @@ const githubTimestampSchema = z
   .string()
   .datetime({ offset: true })
   .transform((value) => new Date(value));
+const authorAssociationSchema = z
+  .enum(AuthorAssociations)
+  .optional()
+  .catch(undefined);
+const accountTypeSchema = z
+  .enum(GitHubAccountTypes)
+  .optional()
+  .catch(undefined);
 
 const pullRequestEventSchema = z.object({
   action: z.string(),
@@ -240,8 +257,11 @@ const pullRequestEventSchema = z.object({
     base: shaRefSchema,
     draft: z.boolean(),
     merged: z.boolean().optional(),
+    author_association: authorAssociationSchema,
     // The author. `null` for a deleted account; absent in trimmed payloads.
-    user: z.object({ login: z.string().min(1) }).nullish(),
+    user: z
+      .object({ login: z.string().min(1), type: accountTypeSchema })
+      .nullish(),
     updated_at: githubTimestampSchema.optional(),
     closed_at: githubTimestampSchema.nullish(),
   }),
@@ -257,16 +277,18 @@ const pullRequestReviewEventSchema = z.object({
     number: z.number().int(),
     title: z.string(),
     head: shaRefSchema,
+    author_association: authorAssociationSchema,
+    user: z.object({ type: accountTypeSchema }).nullish().catch(undefined),
   }),
   review: z.object({
     state: z.string().min(1),
     commit_id: z.string().min(1),
     submitted_at: githubTimestampSchema,
-    author_association: z.enum(AuthorAssociations).optional().catch(undefined),
+    author_association: authorAssociationSchema,
     user: z.object({
       id: reviewerIdSchema,
       login: z.string().min(1),
-      type: z.string().min(1),
+      type: accountTypeSchema,
     }),
   }),
 });
@@ -317,6 +339,12 @@ function invalidPayload(
   };
 }
 
+function isBotAccount(
+  account: { readonly type?: GitHubAccountType | undefined } | null | undefined,
+): boolean {
+  return account?.type === GitHubAccountTypes.BOT;
+}
+
 function ignored(
   eventName: string,
   action: string | undefined,
@@ -350,11 +378,16 @@ function parsePullRequest(
     headSha: data.pull_request.head.sha,
     baseSha: data.pull_request.base.sha,
     draft: data.pull_request.draft,
+    authorIsBot: isBotAccount(data.pull_request.user),
   };
 
   const author = data.pull_request.user;
   if (author !== null && author !== undefined) {
     event.authorLogin = author.login;
+  }
+  const authorAssociation = data.pull_request.author_association;
+  if (authorAssociation !== undefined) {
+    event.authorAssociation = authorAssociation;
   }
   if (data.before !== undefined) {
     event.before = data.before;
@@ -403,17 +436,25 @@ function parsePullRequestReview(
     prNumber: data.pull_request.number,
     title: data.pull_request.title,
     headSha: data.pull_request.head.sha,
+    authorIsBot: isBotAccount(data.pull_request.user),
     reviewerId: data.review.user.id,
     reviewerLogin: data.review.user.login,
-    reviewerType: data.review.user.type,
     reviewState: data.review.state,
     commitId: data.review.commit_id,
     submittedAt: data.review.submitted_at,
   };
 
+  const reviewerType = data.review.user.type;
+  if (reviewerType !== undefined) {
+    event.reviewerType = reviewerType;
+  }
   const association = data.review.author_association;
   if (association !== undefined) {
     event.reviewerAssociation = association;
+  }
+  const authorAssociation = data.pull_request.author_association;
+  if (authorAssociation !== undefined) {
+    event.authorAssociation = authorAssociation;
   }
 
   return { ok: true, value: event };

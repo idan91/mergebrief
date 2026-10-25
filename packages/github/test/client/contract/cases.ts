@@ -54,6 +54,7 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
       htmlUrl: "https://github.com/acme/widgets/pull/7",
       commitCount: 2,
       authorLogin: "octocat",
+      authorIsBot: false,
       closedAt: null,
       updatedAt: UPDATED_AT,
       baseRepo: { owner: "acme", repo: "widgets" },

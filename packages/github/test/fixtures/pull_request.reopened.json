@@ -19,8 +19,10 @@
     "number": 2,
     "state": "open",
     "title": "Update the README with new information.",
+    "author_association": "OWNER",
     "user": {
-      "login": "Codertocat"
+      "login": "Codertocat",
+      "type": "User"
     },
     "draft": false,
     "merged": false,

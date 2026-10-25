@@ -42,6 +42,7 @@ function makeGitHubWithPullRequest(
       htmlUrl: "https://github.com/acme/widgets/pull/7",
       commitCount: 1,
       authorLogin: "octocat",
+      authorIsBot: false,
       closedAt: null,
       updatedAt: new Date("2026-10-01T10:00:00Z"),
     },

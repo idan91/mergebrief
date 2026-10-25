@@ -40,6 +40,8 @@ export interface PullRequestInfo {
   readonly commitCount: number;
   /** PR author login; null when the account is gone. */
   readonly authorLogin: string | null;
+  /** The PR author's account is a `Bot`; false when the account is gone. */
+  readonly authorIsBot: boolean;
   /** When the PR closed/merged; null while open. */
   readonly closedAt: Date | null;
   /** GitHub's `updated_at`, the Inbox's default sort key. */

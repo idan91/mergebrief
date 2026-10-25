@@ -45,6 +45,20 @@ function reviewFixtureWith(
   return { ...fixture, review };
 }
 
+/** A fixture with its `pull_request` object mutated in a copy. */
+function makePullRequestFixture(
+  name: string,
+  patch: (pullRequest: Record<string, unknown>) => void,
+): unknown {
+  const fixture = jsonFixture(name);
+  if (!isRecord(fixture) || !isRecord(fixture["pull_request"])) {
+    throw new Error("fixture shape changed");
+  }
+  const pullRequest = { ...fixture["pull_request"] };
+  patch(pullRequest);
+  return { ...fixture, pull_request: pullRequest };
+}
+
 function expectOk(
   result: Result<ParsedWebhookEvent, EventParseError>,
 ): ParsedWebhookEvent {
@@ -52,6 +66,12 @@ function expectOk(
     throw new Error(`expected ok, got error: ${result.error.message}`);
   }
   return result.value;
+}
+
+function parseReviewEvent(payload: unknown): ParsedWebhookEvent {
+  return expectOk(
+    parseWebhookEvent({ eventName: "pull_request_review", payload }),
+  );
 }
 
 function expectErr(
@@ -236,6 +256,97 @@ describe("parseWebhookEvent, pull_request", () => {
     expect(event.authorLogin).toBeUndefined();
   });
 
+  it("carries the PR author's association and a human account", () => {
+    const payload = jsonFixture("pull_request.opened.json");
+    const event = expectOk(
+      parseWebhookEvent({ eventName: "pull_request", payload }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event.authorAssociation).toBe(AuthorAssociations.OWNER);
+    expect(event.authorIsBot).toBe(false);
+  });
+
+  it.each(Object.values(AuthorAssociations))(
+    "parses the %s author association",
+    (association) => {
+      const payload = makePullRequestFixture(
+        "pull_request.opened.json",
+        (pullRequest) => {
+          pullRequest["author_association"] = association;
+        },
+      );
+      const event = expectOk(
+        parseWebhookEvent({ eventName: "pull_request", payload }),
+      );
+      if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+        throw new Error("expected pull-request");
+      }
+      expect(event.authorAssociation).toBe(association);
+    },
+  );
+
+  it.each([
+    ["an unknown", "SPONSOR"],
+    ["a null", null],
+    ["a non-string", 7],
+    ["a missing", undefined],
+  ])("reads %s author association as absent", (_label, association) => {
+    const payload = makePullRequestFixture(
+      "pull_request.opened.json",
+      (pullRequest) => {
+        pullRequest["author_association"] = association;
+      },
+    );
+    const event = expectOk(
+      parseWebhookEvent({ eventName: "pull_request", payload }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event).not.toHaveProperty("authorAssociation");
+  });
+
+  it.each([
+    ["Bot", true],
+    ["User", false],
+    ["Organization", false],
+    ["Mannequin", false],
+  ])("reads author type %s as authorIsBot %s", (type, expected) => {
+    const payload = makePullRequestFixture(
+      "pull_request.opened.json",
+      (pullRequest) => {
+        pullRequest["user"] = { login: "renovate[bot]", type };
+      },
+    );
+    const event = expectOk(
+      parseWebhookEvent({ eventName: "pull_request", payload }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event.authorIsBot).toBe(expected);
+  });
+
+  it("reads a gone or typeless author as not a bot", () => {
+    for (const user of [null, { login: "ghost" }, { login: "x", type: 7 }]) {
+      const payload = makePullRequestFixture(
+        "pull_request.opened.json",
+        (pullRequest) => {
+          pullRequest["user"] = user;
+        },
+      );
+      const event = expectOk(
+        parseWebhookEvent({ eventName: "pull_request", payload }),
+      );
+      if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+        throw new Error("expected pull-request");
+      }
+      expect(event.authorIsBot).toBe(false);
+    }
+  });
+
   it("carries updated_at and closed_at when the payload sends them", () => {
     const event = expectOk(
       parseWebhookEvent({
@@ -394,6 +505,19 @@ describe("parseWebhookEvent, pull_request_review", () => {
     expect(event.reviewerLogin).toBe("dependabot[bot]");
   });
 
+  it("reads a reviewer account type it does not know as absent", () => {
+    const payload = reviewFixtureWith((review) => {
+      review["user"] = { id: 1, login: "someone", type: "Mannequin" };
+    });
+
+    const event = parseReviewEvent(payload);
+
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event.reviewerType).toBeUndefined();
+  });
+
   it("carries the reviewer's author_association from the review", () => {
     const event = expectOk(
       parseWebhookEvent({
@@ -458,6 +582,64 @@ describe("parseWebhookEvent, pull_request_review", () => {
       throw new Error(`expected pull-request-review, got ${event.kind}`);
     }
     expect(event.repoPrivate).toBe(expected);
+  });
+
+  it("reads the PR author's association, not the reviewer's", () => {
+    const fixture = makePullRequestFixture(
+      "pull_request_review.submitted.json",
+      (pullRequest) => {
+        pullRequest["author_association"] = AuthorAssociations.CONTRIBUTOR;
+      },
+    );
+    const event = expectOk(
+      parseWebhookEvent({ eventName: "pull_request_review", payload: fixture }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event.authorAssociation).toBe(AuthorAssociations.CONTRIBUTOR);
+    expect(event.reviewerAssociation).toBe(AuthorAssociations.OWNER);
+  });
+
+  it("reads the PR author's bot flag, not the reviewer's", () => {
+    const botAuthored = makePullRequestFixture(
+      "pull_request_review.submitted.json",
+      (pullRequest) => {
+        pullRequest["user"] = { login: "renovate[bot]", type: "Bot" };
+      },
+    );
+    const humanAuthored = jsonFixture("pull_request_review.submitted.bot.json");
+    const events = [botAuthored, humanAuthored].map(parseReviewEvent);
+
+    const flags = events.map((event) =>
+      event.kind === ParsedWebhookEventKinds.PULL_REQUEST_REVIEW
+        ? [event.authorIsBot, event.reviewerType]
+        : undefined,
+    );
+    expect(flags).toEqual([
+      [true, "User"],
+      [false, "Bot"],
+    ]);
+  });
+
+  it("reads an unknown or missing PR author association as absent", () => {
+    for (const association of ["SPONSOR", undefined]) {
+      const payload = makePullRequestFixture(
+        "pull_request_review.submitted.json",
+        (pullRequest) => {
+          pullRequest["author_association"] = association;
+          delete pullRequest["user"];
+        },
+      );
+      const event = expectOk(
+        parseWebhookEvent({ eventName: "pull_request_review", payload }),
+      );
+      if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+        throw new Error(`expected pull-request-review, got ${event.kind}`);
+      }
+      expect(event).not.toHaveProperty("authorAssociation");
+      expect(event.authorIsBot).toBe(false);
+    }
   });
 
   it("reads a missing author_association as absent", () => {
