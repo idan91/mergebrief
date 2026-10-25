@@ -9,3 +9,4 @@ export {
   PrBriefError,
   type PrBriefErrorProps,
 } from "./components/PrBrief/PrBriefError";
+export { PrBriefNotFound } from "./components/PrBrief/PrBriefNotFound";

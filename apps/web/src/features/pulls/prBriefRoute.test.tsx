@@ -532,9 +532,8 @@ function readRequestUrl(input: RequestInfo | URL): string {
 }
 
 /**
- * Build the route with a fetch stub and a recognizable not-found component, so
- * a loader `notFound()` is observable in the DOM (the shared `renderRoute`
- * helper above seeds every query and configures no not-found component).
+ * Build the route with a fetch stub, so a read the test leaves unseeded hits
+ * the network (the shared `renderRoute` helper above seeds every query).
  */
 async function renderRouteWithFetch(
   seed: (client: QueryClient) => void,
@@ -556,7 +555,6 @@ async function renderRouteWithFetch(
     routeTree,
     context: { queryClient },
     history: createMemoryHistory({ initialEntries: [path] }),
-    defaultNotFoundComponent: () => <div data-testid="nf">Not Found</div>,
   });
   await router.load();
   render(
@@ -566,6 +564,8 @@ async function renderRouteWithFetch(
   );
   return { router, queryClient };
 }
+
+const PR_NOT_FOUND_HEADING = "This pull request isn't available.";
 
 describe("DB brief route, explicit-span deep link while generating", () => {
   const generatingMeta = meta({
@@ -610,7 +610,9 @@ describe("DB brief route, explicit-span deep link while generating", () => {
       ).toBeTruthy(),
     );
     expect(screen.getByText(/read the raw diff while you wait/i)).toBeTruthy();
-    expect(screen.queryByTestId("nf")).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: PR_NOT_FOUND_HEADING }),
+    ).toBeNull();
 
     // Generation completes: the artifact becomes fetchable and the poll flips
     // briefAvailable → the route swaps to the render state and DbBrief mounts.
@@ -639,7 +641,11 @@ describe("DB brief route, explicit-span deep link while generating", () => {
       () => new Response("not found", { status: 404 }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
-    await waitFor(() => expect(screen.getByTestId("nf")).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: PR_NOT_FOUND_HEADING }),
+      ).toBeTruthy(),
+    );
     expect(
       screen.queryByRole("heading", { name: /generating the brief/i }),
     ).toBeNull();

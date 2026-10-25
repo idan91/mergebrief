@@ -1,0 +1,34 @@
+@use "functions";
+
+@layer components {
+  .page {
+    flex: 1;
+  }
+
+  .main {
+    padding-block: var(--space-8) var(--space-9);
+    padding-inline: var(--page-gutter);
+
+    h1 {
+      margin-block-end: var(--space-2);
+      text-wrap: balance;
+    }
+
+    p {
+      max-inline-size: functions.to-rem(632px);
+      font-size: var(--font-size-2xl);
+      line-height: 1.55;
+      text-wrap: pretty;
+    }
+  }
+
+  .action {
+    margin-block-start: var(--space-4);
+  }
+
+  @media (width < 760px) {
+    .main {
+      padding-block-start: var(--space-6);
+    }
+  }
+}

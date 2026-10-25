@@ -1,6 +1,10 @@
+// @vitest-environment jsdom
+import { cleanup, screen } from "@testing-library/react";
 import type { LinkHTMLAttributes } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { I18nProvider } from "../i18n/I18nProvider";
+import { renderInRouter } from "../test/router";
 import { Route } from "./__root";
 
 type HeadLink = LinkHTMLAttributes<HTMLLinkElement>;
@@ -43,5 +47,39 @@ describe("root route head", () => {
 
     expect(hrefs.some((href) => href.includes("googleapis"))).toBe(false);
     expect(hrefs.some((href) => href.includes("gstatic"))).toBe(false);
+  });
+});
+
+describe("root route not found", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("says the page does not exist and links home", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => undefined)),
+    );
+    const NotFound = Route.options.notFoundComponent;
+    if (NotFound === undefined) {
+      throw new Error("the root route declares no notFoundComponent");
+    }
+
+    await renderInRouter(
+      <I18nProvider>
+        <NotFound data={undefined} isNotFound routeId="__root__" />
+      </I18nProvider>,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "This page doesn't exist.",
+      }),
+    ).toBeTruthy();
+    const home = screen.getByRole("link", { name: "Go Home" });
+    expect(screen.getByRole("main").contains(home)).toBe(true);
+    expect(home.getAttribute("href")).toBe("/");
   });
 });

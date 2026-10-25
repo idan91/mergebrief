@@ -209,8 +209,12 @@
       "heading": "Brief failed to load",
       "signIn": "Sign in with GitHub"
     },
+    "notFound": {
+      "heading": "This pull request isn't available.",
+      "detail": "It may not exist, or your GitHub account may not have access to it."
+    },
     "briefError": {
-      "not-found": "This pull request (or this span's brief) was not found.",
+      "not-found": "This pull request may not exist, or your GitHub account may not have access to it.",
       "unauthorized": "You need to sign in to read this brief.",
       "signed-out": "You are signed out. Sign in to read this brief.",
       "sign-in-failed": "Signing in didn't complete. Try again.",
@@ -1402,6 +1406,10 @@
       "appPermission": "The MergeBrief App may not write to this repository (its Contents permission is read-only), so the image was not attached.",
       "waitForUpload": "An image is still uploading; wait for it to land before submitting.",
       "failed": "The image could not be uploaded. It was not attached; try again."
+    },
+    "notFound": {
+      "heading": "This page doesn't exist.",
+      "home": "Go Home"
     },
     "skipToContent": "Skip to content",
     "backToBriefs": "Back to briefs",

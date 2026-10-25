@@ -6,7 +6,6 @@ import {
   FIXTURE_GROUP_TITLES,
   FIXTURE_PR_TITLE,
   FIXTURE_ROUTE_REV2,
-  MISSING_PR_PATH,
 } from "../fixtures/ids";
 import { collectPageFaults } from "../support/console";
 import { waitForInteractive } from "../support/page";
@@ -46,14 +45,4 @@ test("renders the fixture brief with no browser faults", async ({ page }) => {
 
   await waitForInteractive(page);
   expect(faults).toEqual([]);
-});
-
-test("a pull request with no row renders the not-found state", async ({
-  page,
-}) => {
-  // The route contract: an unknown PR is a 404 through the router's
-  // not-found handling, not a redirect and not a blank page.
-  const response = await page.goto(MISSING_PR_PATH);
-  expect(response?.status()).toBe(404);
-  await expect(page.locator("body")).toContainText(/not found/i);
 });

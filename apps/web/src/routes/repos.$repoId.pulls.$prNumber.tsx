@@ -18,7 +18,11 @@ import {
 import { AttachmentScopeProvider } from "@web/components/Markdown/context";
 import { useViewerLogin } from "@web/features/account";
 import { MentionTargetsProvider } from "@web/features/conversation";
-import { PrBriefBody, PrBriefError } from "@web/features/pulls";
+import {
+  PrBriefBody,
+  PrBriefError,
+  PrBriefNotFound,
+} from "@web/features/pulls";
 import { usePrBriefPage } from "@web/features/pulls/hooks";
 import {
   parsePrSearch,
@@ -197,6 +201,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   },
   component: PrBriefRoute,
   errorComponent: PrBriefError,
+  notFoundComponent: PrBriefNotFound,
 });
 
 /** Exactly a PR-brief page, never any other repos surface. */

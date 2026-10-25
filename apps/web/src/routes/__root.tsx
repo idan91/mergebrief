@@ -7,8 +7,10 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { Button } from "@web/components/Button";
 import { Footer } from "@web/components/Footer";
-import { useSyncViewerOnSignOut } from "@web/features/account";
+import { StatePage } from "@web/components/StatePage";
+import { AccountMenu, useSyncViewerOnSignOut } from "@web/features/account";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { RouterContext } from "../router";
 import appStyles from "../styles/app.scss?url";
@@ -61,6 +63,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
   }),
   component: RootComponent,
+  notFoundComponent: RootNotFound,
 });
 
 function RootComponent() {
@@ -73,6 +76,23 @@ function RootComponent() {
         <Footer />
       </I18nProvider>
     </RootDocument>
+  );
+}
+
+/** An address no route matches; the PR route answers its own misses. */
+function RootNotFound() {
+  const { t } = useTranslation();
+
+  return (
+    <StatePage
+      action={
+        <Button as="a" href="/">
+          {t("shell.notFound.home")}
+        </Button>
+      }
+      heading={t("shell.notFound.heading")}
+      headerEnd={<AccountMenu />}
+    />
   );
 }
 
