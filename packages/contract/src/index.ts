@@ -165,6 +165,7 @@ export type {
 } from "./session";
 export {
   SIGN_IN_FAILURE_PARAM,
+  SIGN_IN_RETURN_PARAM,
   SignInFailures,
   type SignInFailure,
 } from "./sign-in";

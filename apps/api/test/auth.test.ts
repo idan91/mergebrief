@@ -40,6 +40,8 @@ import {
   BAD_REFRESH_TOKEN_BODY,
   UNUSED_INSTALLATION_DEPS,
   makeOAuthErrorBody,
+  makeTokenSuccess,
+  stubGitHub,
 } from "./reviewer-github";
 import type { ViewerPrincipal } from "../src/routes/auth/session/types";
 import { seedPullRequest } from "./session/fixtures";
@@ -57,22 +59,6 @@ const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 /** The route mints its CSRF state from this many random bytes. */
 const OAUTH_STATE_BYTES = 32;
 
-// ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch).
-// ---------------------------------------------------------------------------
-
-interface TokenSuccess {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  refresh_token_expires_in: number;
-  token_type: string;
-  scope: string;
-}
-type TokenBody =
-  | TokenSuccess
-  | { error: string; error_description: string; error_uri: string };
-
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -81,63 +67,6 @@ function jsonResponse(body: unknown, status = 200): Response {
       date: new Date().toUTCString(),
     },
   });
-}
-
-function tokenSuccess(access: string, refresh: string): TokenSuccess {
-  return {
-    access_token: access,
-    refresh_token: refresh,
-    expires_in: 28_800, // ~8h
-    refresh_token_expires_in: 15_897_600, // ~6mo
-    token_type: "bearer",
-    scope: "",
-  };
-}
-
-interface StubOptions {
-  readonly token: TokenBody;
-  readonly tokenStatus?: number;
-  readonly installations?: { id: number }[];
-  readonly user?: { id: number; login: string };
-  readonly userStatus?: number;
-}
-
-/** Install a fetch stub answering the three GitHub endpoints the flow hits. */
-function stubGitHub(opts: StubOptions): ReturnType<typeof vi.fn> {
-  const fetchFn = vi.fn(
-    async (
-      input: string | URL | Request,
-      _init?: RequestInit,
-    ): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (url.includes("/login/oauth/access_token")) {
-        return jsonResponse(opts.token, opts.tokenStatus);
-      }
-      const userReadFails =
-        url.endsWith("/user") && opts.userStatus !== undefined;
-      if (userReadFails) {
-        return jsonResponse({ message: "unavailable" }, opts.userStatus);
-      }
-      if (url.endsWith("/user")) {
-        return jsonResponse(opts.user ?? { id: REVIEWER_ID, login: "octocat" });
-      }
-      if (url.includes("/user/installations")) {
-        const installations = (
-          opts.installations ?? [{ id: INSTALLATION_ID }]
-        ).map((installation) => ({
-          id: installation.id,
-          account: { login: `org-${installation.id}` },
-        }));
-        return jsonResponse({
-          total_count: installations.length,
-          installations,
-        });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    },
-  );
-  vi.stubGlobal("fetch", fetchFn);
-  return fetchFn;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +91,7 @@ describe("reviewer auth routes", () => {
 
   it("lists nothing for a session that reaches no installation", async () => {
     const fetchFn = stubGitHub({
-      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [],
     });
     await seedPullRequest(harness.handle);
@@ -224,7 +153,7 @@ describe("reviewer auth routes", () => {
 
   it("callback lands home with github-unavailable when the user read fails", async () => {
     stubGitHub({
-      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       userStatus: 401,
     });
     const state = "state-user-read-fails";
@@ -275,7 +204,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("stores both ciphertexts, refresh expiry and the session cookie", async () => {
-    stubGitHub({ token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN) });
+    stubGitHub({ token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN) });
     const state = "matching-state-nonce";
     const before = Date.now();
 
@@ -336,7 +265,7 @@ describe("reviewer auth routes", () => {
 
   it("callback stores a session that names the reviewer and no installation", async () => {
     const fetchFn = stubGitHub({
-      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [{ id: INSTALLATION_ID }],
     });
     const state = "state-reviewer-only";
@@ -656,7 +585,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("refresh rotates both ciphertexts and returns the fresh access token", async () => {
-    stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
+    stubGitHub({ token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     // The observed access ciphertext still matches the stored row (no concurrent
     // rotation), so the compare-and-swap guard lets a real refresh proceed.
     const { cookieHash: hash } = await seedSignIn(harness.handle, kp, {
@@ -801,7 +730,7 @@ describe("reviewer auth routes", () => {
 
   it("keeps the session and tokens when GitHub answers the refresh 502", async () => {
     stubGitHub({
-      token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+      token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
       tokenStatus: 502,
     });
     const signIn = await seedSignIn(harness.handle, kp);
@@ -844,7 +773,7 @@ describe("reviewer auth routes", () => {
 
   it("keeps the session when the session key cannot open the grant", async () => {
     const fetchFn = stubGitHub({
-      token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+      token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
     });
     const signIn = await seedSignIn(harness.handle, kp);
     const principal = await makeCookiePrincipal(signIn.cookieHash);
@@ -869,7 +798,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("keeps the session when the rotated tokens cannot be sealed", async () => {
-    stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
+    stubGitHub({ token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     const signIn = await seedSignIn(harness.handle, kp);
     const principal = await makeCookiePrincipal(signIn.cookieHash);
     const capture = testLogging();
@@ -959,7 +888,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("cookie refresh returns NOT_FOUND when the session vanishes", async () => {
-    stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
+    stubGitHub({ token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     const { cookieHash: hash } = await seedSignIn(harness.handle, kp, {
       expiresAt: new Date("2000-01-01T00:00:00Z"),
     });
@@ -1007,7 +936,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("bearer refresh denies a token revoked mid-rotation and keeps the row", async () => {
-    stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
+    stubGitHub({ token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     const grant = await seedGrant(harness.handle, {
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       accessToken: ACCESS_TOKEN,

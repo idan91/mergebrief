@@ -26,6 +26,7 @@ import {
   INSTALLATION_ID,
   PR_NUMBER,
   REPO_SLUG,
+  REVIEWER_ID,
   brandInstallationId,
   brandRepoId,
   buildAuthDeps,
@@ -302,6 +303,76 @@ export function makeOAuthErrorBody(error: string): OAuthErrorBody {
 
 /** GitHub's answer refusing a rotation: the grant's refresh token is spent. */
 export const BAD_REFRESH_TOKEN_BODY = makeOAuthErrorBody("bad_refresh_token");
+
+interface TokenSuccess {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  refresh_token_expires_in: number;
+  token_type: string;
+  scope: string;
+}
+type TokenBody = TokenSuccess | OAuthErrorBody;
+
+export function makeTokenSuccess(
+  access: string,
+  refresh: string,
+): TokenSuccess {
+  return {
+    access_token: access,
+    refresh_token: refresh,
+    expires_in: 28_800, // ~8h
+    refresh_token_expires_in: 15_897_600, // ~6mo
+    token_type: "bearer",
+    scope: "",
+  };
+}
+
+interface SignInStubOptions {
+  readonly token: TokenBody;
+  readonly tokenStatus?: number;
+  readonly installations?: { id: number }[];
+  readonly user?: { id: number; login: string };
+  readonly userStatus?: number;
+}
+
+/** Install a fetch stub answering the three GitHub endpoints the flow hits. */
+export function stubGitHub(opts: SignInStubOptions): ReturnType<typeof vi.fn> {
+  const fetchFn = vi.fn(
+    async (
+      input: string | URL | Request,
+      _init?: RequestInit,
+    ): Promise<Response> => {
+      const url = getRequestUrl(input);
+      if (url.includes("/login/oauth/access_token")) {
+        return answerJson(opts.token, opts.tokenStatus);
+      }
+      const userReadFails =
+        url.endsWith("/user") && opts.userStatus !== undefined;
+      if (userReadFails) {
+        return answerJson({ message: "unavailable" }, opts.userStatus);
+      }
+      if (url.endsWith("/user")) {
+        return answerJson(opts.user ?? { id: REVIEWER_ID, login: "octocat" });
+      }
+      if (url.includes("/user/installations")) {
+        const installations = (
+          opts.installations ?? [{ id: INSTALLATION_ID }]
+        ).map((installation) => ({
+          id: installation.id,
+          account: { login: `org-${installation.id}` },
+        }));
+        return answerJson({
+          total_count: installations.length,
+          installations,
+        });
+      }
+      return answerJson({ message: "unexpected endpoint" }, 404);
+    },
+  );
+  vi.stubGlobal("fetch", fetchFn);
+  return fetchFn;
+}
 
 /** OAuth's token endpoint answers every rotation with `body`. */
 export function stubTokenRefreshAnswer(body: unknown): void {
