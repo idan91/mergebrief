@@ -122,11 +122,11 @@
     },
     "superseded": {
       "heading": "A newer revision is on the way",
-      "copy": "This push was superseded before its brief finished; the brief for the newest push will appear here automatically."
+      "copy": "This push was superseded before its brief finished; the newest push is briefed as usual."
     },
     "empty": {
       "heading": "No brief for this pull request yet",
-      "copy": "Generation starts automatically on the next push (or a submitted review) in a repository where the App is installed."
+      "copy": "The next push (or a submitted review) is briefed as usual in a repository where the App is installed."
     },
     "failed": {
       "heading": "Brief generation failed",
@@ -262,7 +262,7 @@
       "revisionLinkGone": "That revision link is no longer available — showing the latest brief."
     },
     "ownDraft": {
-      "draftsOff": "Brief generation for draft pull requests is off on this instance — the brief will generate when this pull request is marked ready for review.",
+      "draftsOff": "Brief generation for draft pull requests is off on this instance, so nothing is generated until this pull request is marked ready for review.",
       "damped": "Draft mode — the brief can take up to {{window}} to refresh after the last push.",
       "windowMinute": "about a minute",
       "windowMinutes_one": "about {{count}} minute",
@@ -1464,8 +1464,8 @@
         "goes_one": "Every brief for this pull request goes, and with it every reviewer's review session, draft comments and flag decisions.",
         "goes_other": "Every brief for these pull requests goes, and with it every reviewer's review session, draft comments and flag decisions.",
         "irreversible": "This cannot be undone.",
-        "next_one": "The next push makes a new brief; the comment on GitHub stays.",
-        "next_other": "The next push makes a new brief; the comments on GitHub stay.",
+        "next_one": "The next push is briefed as usual; the comment on GitHub stays.",
+        "next_other": "The next push is briefed as usual; the comments on GitHub stay.",
         "cancel": "Cancel",
         "confirm": "Delete",
         "deleting": "Deleting"

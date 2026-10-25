@@ -17,4 +17,18 @@ describe("SupersededCard", () => {
     expect(heading.textContent).toContain("newer");
     expect(screen.getByTestId("empty-block-spinner")).toBeTruthy();
   });
+
+  it("says the newest push is briefed as usual", () => {
+    render(
+      <I18nProvider>
+        <SupersededCard />
+      </I18nProvider>,
+    );
+
+    expect(
+      screen.getByText(
+        "This push was superseded before its brief finished; the newest push is briefed as usual.",
+      ),
+    ).toBeTruthy();
+  });
 });

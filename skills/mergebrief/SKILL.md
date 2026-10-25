@@ -53,10 +53,12 @@ submit-review`. Every operation the
    stop. Exit 6 is a deployment fact, never a retry.
 3. `mergebrief pr <n> --json`. Record `baseSha` and `headSha`. Every session
    command names this span with `--base`/`--head`. When `headBriefStored`
-   is false (`briefAvailable` on a server without it), poll `mergebrief pr
-   <n>` with backoff; run `mergebrief generate
-<url>` only when the user asked for an on-demand run, since it spends
-   model tokens.
+   is false (`briefAvailable` on a server without it), read the same JSON's
+   `generation.status`: poll `mergebrief pr <n>` with backoff only while it
+   is `pending` or `running`. On `awaiting-trigger` a collaborator must click
+   Generate in MergeBrief, so tell the user and stop; on `failed` or
+   `capped`, report the code and stop. Run `mergebrief generate <url>` only
+   when the user asked for an on-demand run, since it spends model tokens.
 
 ## The loop
 

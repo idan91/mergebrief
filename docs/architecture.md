@@ -155,8 +155,8 @@ link to the Brief. On each settled head the worker deletes its previous comment
 and posts a fresh one, which keeps it at the bottom of the thread and fires one
 notification per settled head, never per push (`apps/worker/src/task/entry-comment.ts`).
 Drafts get the comment too, unless the repository sets
-`entryCommentOnDrafts: false` in `.mergebrief/`; the Brief still computes on
-every push.
+`entryCommentOnDrafts: false` in `.mergebrief/`; the opt-out never stops the
+Brief computing.
 
 **Two sources.** A pull request enters MergeBrief one of two ways
 (`PullRequestSources` in `packages/types/src/pull-requests.ts`):

@@ -18,9 +18,11 @@ function renderCard(copyOverride?: string) {
 }
 
 describe("EmptyCard copy", () => {
-  it("promises next-push generation by default", () => {
+  it("says the next push is briefed as usual by default", () => {
     renderCard();
-    expect(screen.getByText(/next push/).textContent).toContain("next push");
+    expect(screen.getByText(/next push/).textContent).toBe(
+      "The next push (or a submitted review) is briefed as usual in a repository where the App is installed.",
+    );
   });
 
   it("the drafts-off override replaces the copy wholesale", () => {

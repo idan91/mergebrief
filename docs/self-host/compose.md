@@ -2,7 +2,7 @@
 
 One command brings up the whole product: Postgres (the single stateful
 dependency), the API, the web tier that proxies to it, and the background
-worker that generates Briefs on every push.
+worker that generates Briefs as pull requests are pushed.
 
 ```sh
 mkdir mergebrief && cd mergebrief
@@ -28,8 +28,12 @@ Replace `v1.6.0` with the release you want; the
 
 Then install your GitHub App on a repo (see [`github-app.md`](./github-app.md)),
 point its webhook at your public URL, and open http://localhost:3000. From
-here on, every push to an open PR gets its Brief generated automatically in
-the background: push code, Brief appears, reviewer opens it.
+here on, the pushes to an open PR get their Brief generated in the
+background, debounced and under the instance's daily cap: push code, Brief
+appears, reviewer opens it. A PR whose
+author the repository does not trust waits for one Generate click from a
+collaborator with push access first
+([who triggers a brief](./github-app.md#who-triggers-a-brief)).
 
 ## What the host holds
 

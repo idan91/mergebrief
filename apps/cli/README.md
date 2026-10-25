@@ -109,7 +109,9 @@ PR's metadata. Critical fields: **`baseSha`/`headSha`**, the brief span
 your `submit` must name (never auto-fetched); `headBriefStored`: a brief is
 stored at that span, on a base the PR may since have left; `briefAvailable`:
 one is stored for the PR's current base too. Generation is webhook-driven for
-an installed repo (`generate <url>` queues a pasted PR); poll with backoff;
+an installed repo (`generate <url>` queues a pasted PR); poll with backoff
+while `generation.status` is `pending` or `running`, since an
+`awaiting-trigger` head waits for a collaborator's Generate click;
 `comparisons.lastReview`, what `delta` resolves.
 
 ```json

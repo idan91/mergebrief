@@ -7,6 +7,10 @@
 export { loadConfig, ConfigErrorCodes } from "./config";
 export type { GitHubConfig, ConfigError, ConfigErrorCode } from "./config";
 
+// GitHub's account `type` vocabulary, read by webhook parsing and REST reads.
+export { GitHubAccountTypes } from "./types";
+export type { GitHubAccountType } from "./types";
+
 // Shared sanitized API-error shape: the single sanitization chokepoint.
 export { GitHubApiErrorCodes, buildRenewalUnavailableError } from "./errors";
 export type { GitHubApiError, GitHubApiErrorCode } from "./errors";

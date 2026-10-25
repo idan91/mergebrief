@@ -27,6 +27,13 @@ deprecation note here, removal only at a major.
   `409 generation-not-regenerable` when the pull request is closed or merged,
   the head did not fail, failed with `diff-too-large`, `output-secret` or
   `provider-refusal`, or already has a stored brief.
+- **Added** `awaiting-trigger` to `generation.status` on `read-pull`,
+  `list-inbox` and `read-generation-claims`: a pull request whose author the
+  repository does not trust waits for a collaborator with push access to
+  approve its runs, and no brief generates until then. Not a failure:
+  `errorCode` is null on `read-pull` and `list-inbox`, absent on
+  `read-generation-claims`, and no attempt is consumed. Clients that treat the
+  status set as closed must accept the new value.
 - **Added** `viewerCanPush` on `read-pull`
   (`GET /api/repos/:repoId/pulls/:prNumber`): the viewer's push access alone,
   where `viewerCanResolve` is push or authorship. A client gates

@@ -5,6 +5,7 @@ import { sign } from "@octokit/webhooks-methods";
 import {
   createArtifactStore,
   createEnvKeyProvider,
+  createIngestRoutines,
   createTenantRepository,
   createWebhookDeliveryStore,
   DELIVERY_DEDUP_TTL_MS,
@@ -12,7 +13,9 @@ import {
   isPullRequestRowId,
   isRepoId,
   parseTenantContext,
+  RegenerateOutcomes,
   type AppDatabase,
+  type PullRequestRowId,
   type RepoId,
 } from "persistence";
 import { PrStates } from "types/pull-requests";
@@ -24,6 +27,7 @@ import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
   brandInstallationId,
+  brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
   INSTALLATION_ID,
@@ -115,6 +119,20 @@ async function deliver(
 
 // Minimal payloads satisfying github's Zod event schemas.
 
+type RepositoryVisibility = "public" | "private" | "internal";
+
+function makeRepository(
+  repoId: number,
+  visibility: RepositoryVisibility,
+): Record<string, unknown> {
+  return {
+    id: repoId,
+    full_name: "acme/widgets",
+    private: visibility !== "public",
+    visibility,
+  };
+}
+
 function pullRequestPayload(input: {
   action: string;
   prNumber?: number;
@@ -129,18 +147,28 @@ function pullRequestPayload(input: {
   closedAt?: string | null;
   /** GitHub's `changes` block on an `edited` event. */
   changes?: Record<string, unknown>;
+  /** The author's `author_association`; `null` omits the field. */
+  authorAssociation?: string | null;
+  authorType?: string;
+  visibility?: RepositoryVisibility;
 }): Record<string, unknown> {
   const pullRequest: Record<string, unknown> = {
     title: "Update the README with new information.",
     head: { sha: input.headSha ?? HEAD_SHA },
     base: { sha: input.baseSha ?? BASE_SHA },
     draft: input.draft ?? false,
-    author_association: "COLLABORATOR",
     user:
       input.authorLogin === null
         ? null
-        : { login: input.authorLogin ?? "author-octocat", type: "User" },
+        : {
+            login: input.authorLogin ?? "author-octocat",
+            type: input.authorType ?? "User",
+          },
   };
+  if (input.authorAssociation !== null) {
+    pullRequest["author_association"] =
+      input.authorAssociation ?? "COLLABORATOR";
+  }
 
   if (input.merged !== undefined) {
     pullRequest["merged"] = input.merged;
@@ -156,7 +184,10 @@ function pullRequestPayload(input: {
     action: input.action,
     number: input.prNumber ?? 2,
     installation: { id: INSTALLATION_ID },
-    repository: { id: input.repoId ?? REPO_ID, full_name: "acme/widgets" },
+    repository: makeRepository(
+      input.repoId ?? REPO_ID,
+      input.visibility ?? "public",
+    ),
     pull_request: pullRequest,
   };
   if (input.changes !== undefined) {
@@ -172,23 +203,20 @@ function pullRequestReviewPayload(review?: {
   userType?: string;
   userId?: number;
   authorAssociation?: string;
-  visibility?: "public" | "private" | "internal";
+  visibility?: RepositoryVisibility;
+  /** The PR author's `author_association`, not the reviewer's. */
+  pullRequestAuthorAssociation?: string;
 }): Record<string, unknown> {
-  const visibility = review?.visibility ?? "public";
   return {
     action: "submitted",
     installation: { id: INSTALLATION_ID },
-    repository: {
-      id: REPO_ID,
-      full_name: "acme/widgets",
-      private: visibility !== "public",
-      visibility,
-    },
+    repository: makeRepository(REPO_ID, review?.visibility ?? "public"),
     pull_request: {
       number: 2,
       title: "Update the README with new information.",
       head: { sha: HEAD_SHA },
-      author_association: "COLLABORATOR",
+      author_association:
+        review?.pullRequestAuthorAssociation ?? "COLLABORATOR",
       user: { login: "author-octocat", type: "User" },
     },
     review: {
@@ -796,6 +824,490 @@ describe("POST /api/webhooks/github", () => {
         expect(res.status).toBe(200);
       }
       expect(await countRows(harness, "checkpoint")).toBe(0);
+    });
+  });
+
+  describe("the PR author's standing gates the trigger", () => {
+    const AUTHOR_REPO = { owner: "acme", repo: "widgets" };
+    const AUTHOR_LOGIN = "author-octocat";
+    const NEXT_HEAD_SHA = "c".repeat(40);
+    let fake: FakeGitHub;
+    let capture: ReturnType<typeof testLogging>;
+    let gating: ApiApp;
+
+    beforeEach(() => {
+      fake = makeFakeGitHub();
+      capture = testLogging({ LOG_LEVEL: "debug" });
+      gating = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+      });
+    });
+
+    /** The inputs of every collaborator-permission read, `{ owner, repo, login }`. */
+    function listPermissionReads(): unknown[] {
+      return fake
+        .listCalls("readCollaboratorPermission")
+        .map((call) => call.input);
+    }
+
+    async function readStatuses(): Promise<unknown[]> {
+      const rows = await harness.raw(
+        "select status from generation order by id",
+      );
+      return rows.map((row) => row["status"]);
+    }
+
+    const tenantCtx = parseTenantContext({ installationId: INSTALLATION_ID });
+    const approverId = brandReviewerId(BigInt(REVIEWER_ID));
+
+    async function readPullRequestRowId(): Promise<PullRequestRowId> {
+      const prs = await harness.raw("select id from pull_request");
+      const pullRequestId = BigInt(String(prs[0]?.["id"]));
+      if (!isPullRequestRowId(pullRequestId)) {
+        throw new Error("bad pr id");
+      }
+      return pullRequestId;
+    }
+
+    async function approvePullRequest(): Promise<void> {
+      const pullRequestId = await readPullRequestRowId();
+      await createTenantRepository(
+        harness.handle,
+        tenantCtx,
+      ).pullRequests.approveTrigger(pullRequestId, approverId);
+    }
+
+    async function deliverAdmittedOpen(): Promise<void> {
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "write");
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          authorAssociation: "CONTRIBUTOR",
+        }),
+      );
+      expect(await readStatuses()).toEqual(["pending"]);
+    }
+
+    async function deliverReviewRequested(): Promise<Response> {
+      return deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "review_requested",
+          authorAssociation: "CONTRIBUTOR",
+        }),
+      );
+    }
+
+    it.each(["OWNER", "MEMBER", "COLLABORATOR"])(
+      "projects a %s author's push pending without asking GitHub",
+      async (authorAssociation) => {
+        const res = await deliver(
+          gating,
+          "pull_request",
+          pullRequestPayload({ action: "opened", authorAssociation }),
+        );
+        expect(res.status).toBe(200);
+        expect(await readStatuses()).toEqual(["pending"]);
+        expect(listPermissionReads()).toEqual([]);
+      },
+    );
+
+    it.each(["CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR", "NONE"])(
+      "holds a %s author's push GitHub grants only read",
+      async (authorAssociation) => {
+        fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "read");
+        const res = await deliver(
+          gating,
+          "pull_request",
+          pullRequestPayload({ action: "opened", authorAssociation }),
+        );
+        expect(res.status).toBe(200);
+        expect(await readStatuses()).toEqual(["awaiting-trigger"]);
+        expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+        expect(listPermissionReads()).toEqual([
+          { ...AUTHOR_REPO, login: AUTHOR_LOGIN },
+        ]);
+      },
+    );
+
+    it("holds a push whose author has no author_association", async () => {
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "read");
+      const res = await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({ action: "opened", authorAssociation: null }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["awaiting-trigger"]);
+    });
+
+    it("holds a push whose author account is gone without asking GitHub", async () => {
+      const res = await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          authorLogin: null,
+          authorAssociation: "NONE",
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["awaiting-trigger"]);
+      expect(listPermissionReads()).toEqual([]);
+    });
+
+    it("never asks GitHub about a bot author and projects it pending", async () => {
+      const res = await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          authorLogin: "renovate[bot]",
+          authorType: "Bot",
+          authorAssociation: "NONE",
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["pending"]);
+      expect(listPermissionReads()).toEqual([]);
+    });
+
+    it("projects a private repo NONE author's push pending", async () => {
+      const res = await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          authorAssociation: "NONE",
+          visibility: "private",
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["pending"]);
+      expect(listPermissionReads()).toEqual([]);
+    });
+
+    it("holds an internal repo NONE author's push GitHub grants read", async () => {
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "read");
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          authorAssociation: "NONE",
+          visibility: "internal",
+        }),
+      );
+      expect(await readStatuses()).toEqual(["awaiting-trigger"]);
+    });
+
+    it.each(["write", "admin"] as const)(
+      "projects a public repo NONE author's push pending on %s access",
+      async (permission) => {
+        fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, permission);
+        await deliver(
+          gating,
+          "pull_request",
+          pullRequestPayload({ action: "opened", authorAssociation: "NONE" }),
+        );
+        expect(await readStatuses()).toEqual(["pending"]);
+        expect(listPermissionReads()).toHaveLength(1);
+      },
+    );
+
+    it("holds the push and warns when the author's permission read fails", async () => {
+      fake.failOn("readCollaboratorPermission", FakeFailures.SERVER_ERROR);
+      const res = await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({ action: "opened", authorAssociation: "NONE" }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["awaiting-trigger"]);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+      const warned = capture.lines().filter((line) => line["level"] === "warn");
+      expect(warned).toEqual([
+        expect.objectContaining({
+          repoId: String(REPO_ID),
+          prNumber: 2,
+          code: "request-failed",
+        }),
+      ]);
+      expect(warned[0]).not.toHaveProperty("authorLogin");
+    });
+
+    it("logs an off-team author at debug with the repo and PR only", async () => {
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "read");
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({ action: "opened", authorAssociation: "NONE" }),
+      );
+      const held = capture
+        .lines()
+        .filter((line) => line["level"] === "debug")
+        .find((line) => String(line["msg"]).includes("author off the team"));
+      expect(held).toMatchObject({ repoId: String(REPO_ID), prNumber: 2 });
+      expect(held).not.toHaveProperty("evt");
+      const logged = JSON.stringify(capture.lines());
+      expect(logged).not.toContain(AUTHOR_LOGIN);
+    });
+
+    it("projects an approved PR's next push pending", async () => {
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({ action: "opened", authorAssociation: "NONE" }),
+      );
+      await approvePullRequest();
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "synchronize",
+          authorAssociation: "NONE",
+          headSha: NEXT_HEAD_SHA,
+        }),
+      );
+      expect(await readStatuses()).toEqual(["awaiting-trigger", "pending"]);
+    });
+
+    it("projects a promoted author's next push pending", async () => {
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({ action: "opened", authorAssociation: "NONE" }),
+      );
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "synchronize",
+          authorAssociation: "COLLABORATOR",
+          headSha: NEXT_HEAD_SHA,
+        }),
+      );
+      expect(await readStatuses()).toEqual(["awaiting-trigger", "pending"]);
+    });
+
+    it("holds a submitted review on a gated PR", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "read");
+      const res = await deliver(
+        gating,
+        "pull_request_review",
+        pullRequestReviewPayload({ pullRequestAuthorAssociation: "NONE" }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["awaiting-trigger"]);
+      expect(await countRows(harness, "checkpoint")).toBe(1);
+    });
+
+    it("skips the author's permission read on a review of an approved PR", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      await approvePullRequest();
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "read");
+      const res = await deliver(
+        gating,
+        "pull_request_review",
+        pullRequestReviewPayload({ pullRequestAuthorAssociation: "NONE" }),
+      );
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["pending"]);
+      expect(listPermissionReads()).toEqual([]);
+    });
+
+    it("asks GitHub about the PR author on a review, not the reviewer", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "write");
+      await deliver(
+        gating,
+        "pull_request_review",
+        pullRequestReviewPayload({ pullRequestAuthorAssociation: "NONE" }),
+      );
+      expect(await readStatuses()).toEqual(["pending"]);
+      expect(listPermissionReads()).toEqual([
+        { ...AUTHOR_REPO, login: AUTHOR_LOGIN },
+      ]);
+    });
+
+    it("runs the reviewer and author reads at once on a review", async () => {
+      await seedPullRequest(harness, BigInt(REPO_ID), 2);
+      fake.addCollaboratorPermission(AUTHOR_REPO, "reviewer", "write");
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "write");
+      const started: string[] = [];
+      let releaseReads: () => void = () => undefined;
+      const bothStarted = new Promise<void>((resolve) => {
+        releaseReads = resolve;
+      });
+      const concurrent = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+        bindInstallationGitHub: (installationId) => {
+          const bound = fake.bindInstallationGitHub(installationId);
+          return {
+            ...bound,
+            forRepo: (repo) => {
+              const repoReads = bound.forRepo(repo);
+              return {
+                ...repoReads,
+                readCollaboratorPermission: async (login) => {
+                  started.push(login);
+                  if (started.length === 2) {
+                    releaseReads();
+                  }
+                  await bothStarted;
+                  return repoReads.readCollaboratorPermission(login);
+                },
+              };
+            },
+          };
+        },
+        webhookConfirmationTimeoutMs: 500,
+      });
+
+      const res = await deliver(
+        concurrent,
+        "pull_request_review",
+        pullRequestReviewPayload({
+          authorAssociation: "NONE",
+          pullRequestAuthorAssociation: "NONE",
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(started.toSorted()).toEqual([AUTHOR_LOGIN, "reviewer"]);
+      expect(await countRows(harness, "checkpoint")).toBe(1);
+      expect(await readStatuses()).toEqual(["pending"]);
+      const timedOut = capture
+        .lines()
+        .filter((line) => line["timedOut"] === true);
+      expect(timedOut).toEqual([]);
+    });
+
+    it("keeps an admitted head pending when a later author read fails", async () => {
+      await deliverAdmittedOpen();
+      fake.failOn("readCollaboratorPermission", FakeFailures.SERVER_ERROR);
+
+      const res = await deliverReviewRequested();
+
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["pending"]);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+    });
+
+    it("keeps a failed head's code and Regenerate when a later read fails", async () => {
+      await deliverAdmittedOpen();
+      await harness.raw(
+        "update generation set status = 'failed', error_code = 'provider-timeout'",
+      );
+      await harness.raw("delete from graphile_worker.jobs");
+      fake.failOn("readCollaboratorPermission", FakeFailures.SERVER_ERROR);
+
+      const res = await deliverReviewRequested();
+
+      expect(res.status).toBe(200);
+      expect(
+        await harness.raw("select status, error_code from generation"),
+      ).toEqual([{ status: "failed", error_code: "provider-timeout" }]);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
+      const regenerated = await createIngestRoutines(
+        harness.handle,
+        tenantCtx,
+      ).regenerateFailedHead({ pullRequestId: await readPullRequestRowId() });
+      expect(regenerated).toBe(RegenerateOutcomes.QUEUED);
+    });
+
+    it("keeps a held head held when a later author read fails", async () => {
+      fake.addCollaboratorPermission(AUTHOR_REPO, AUTHOR_LOGIN, "read");
+      await deliver(
+        gating,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          authorAssociation: "CONTRIBUTOR",
+        }),
+      );
+      fake.failOn("readCollaboratorPermission", FakeFailures.SERVER_ERROR);
+
+      const res = await deliverReviewRequested();
+
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["awaiting-trigger"]);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+    });
+
+    it("keeps an admitted head pending when a review's author read fails", async () => {
+      await deliverAdmittedOpen();
+      fake.failOn("readCollaboratorPermission", FakeFailures.SERVER_ERROR);
+
+      const res = await deliver(
+        gating,
+        "pull_request_review",
+        pullRequestReviewPayload({
+          pullRequestAuthorAssociation: "CONTRIBUTOR",
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(await readStatuses()).toEqual(["pending"]);
+    });
+
+    it("keeps drafts-off ahead of the gate on a push", async () => {
+      const draftsOff = createApp({
+        logger: testLogger(),
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+        draftPolicy: { generate: false, debounceSeconds: null },
+      });
+      const res = await deliver(
+        draftsOff,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          draft: true,
+          authorAssociation: "NONE",
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "generation")).toBe(0);
+      expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
+      expect(listPermissionReads()).toEqual([]);
+    });
+
+    it("keeps drafts-off ahead of the gate on a review", async () => {
+      const draftsOff = createApp({
+        logger: testLogger(),
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        ...buildFakeInstallationDeps(fake),
+        draftPolicy: { generate: false, debounceSeconds: null },
+      });
+      await deliver(
+        draftsOff,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
+      await deliver(
+        draftsOff,
+        "pull_request_review",
+        pullRequestReviewPayload({ pullRequestAuthorAssociation: "NONE" }),
+      );
+      expect(await countRows(harness, "generation")).toBe(0);
+      expect(listPermissionReads()).toEqual([]);
     });
   });
 

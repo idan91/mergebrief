@@ -15,7 +15,7 @@ This doc is the canonical setup reference for both contributors and self-hosters
 
 | Organization permission | Access | Why |
 |---|---|---|
-| **Members** | Read-only | Lists the teams a reviewer can `@mention` while writing a comment, reply or review. The read runs on the reviewer's own token, so a reviewer sees only the teams GitHub shows them. Without it, people are still suggested and a typed `@org/team` still reaches GitHub; only team suggestions are missing. Review Checkpoints do not depend on it: a private member's write access is read through Metadata. |
+| **Members** | Read-only | Lists the teams a reviewer can `@mention` while writing a comment, reply or review. The read runs on the reviewer's own token, so a reviewer sees only the teams GitHub shows them. Without it, people are still suggested and a typed `@org/team` still reaches GitHub; only team suggestions are missing. Review Checkpoints and [who triggers a brief](#who-triggers-a-brief) do not depend on it: a private member's write access is read through Metadata. |
 
 > **Adding Members to an App you already registered:** GitHub asks each installation's
 > organization owner to approve the new permission. Until they do, the installation keeps
@@ -43,7 +43,8 @@ This doc is the canonical setup reference for both contributors and self-hosters
 
 On the registration "what events would you like to subscribe to?" screen, check only:
 
-- **Pull request**: the trigger for brief generation (open + every push/synchronize).
+- **Pull request**: the trigger for brief generation (open + every push/synchronize), for an
+  author on the team; see [Who triggers a brief](#who-triggers-a-brief).
 - **Pull request review**: a reviewer submitting → queues a regeneration, and advances
   their Checkpoint when the reviewer is on the team. On a private (not internal) repository every
   reviewer counts. On a public or internal repository the owner, organization members and
@@ -115,6 +116,31 @@ that still lists it.
 - **Running the loop end-to-end:** see [`../dev/webhook-loop.md`](../dev/webhook-loop.md)
   for the full local recipe: `docker compose up -d postgres`, the `apps/api/.env` vars, `pnpm dev`,
   the ngrok URL to set, and how to verify the `pull_requests` + `graphile_worker.jobs` rows.
+
+## Who triggers a brief
+
+A push generates a brief at once only when the PR's author is on the repository's team, by the
+same rule a reviewer's Checkpoint uses. MergeBrief reads it from the delivery's
+`author_association`, GitHub's own label for how the author relates to the repository:
+
+- **A private (not internal) repository:** every author counts, since only invited people see it.
+- **A public or internal repository:** `OWNER` (owns the repository), `MEMBER` (belongs to the
+  organization that owns it) and `COLLABORATOR` (invited to collaborate) count at once.
+- **Anyone else:** `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, `MANNEQUIN`, `NONE`,
+  or no association at all. One read of their repository permission settles it, covered by
+  Metadata: `write` or `admin` counts (GitHub reports `maintain` as `write`); `read`, `triage`
+  (reported as `read`), and a read that fails or times out do not. A private organization member
+  that GitHub reports as a contributor counts here once they hold write access.
+
+Any other author's PR waits: each head shows as awaiting a trigger, and nothing is spent until
+someone with push access starts the first brief from MergeBrief. That approval holds for the
+PR, so every later push generates as usual. An author promoted onto the team triggers normally
+from their next push. A later event whose read fails leaves a head that already
+triggered as it is.
+
+A bot author is decided separately, by the repository's `trustedBots` list in
+`.mergebrief/settings.yaml` ([repo-config.md](repo-config.md)). A draft that
+`drafts.generate: off` holds back waits for `ready_for_review` before any of this applies.
 
 ## Identity / secrets (all env, never the DB or repo)
 

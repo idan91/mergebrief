@@ -102,6 +102,11 @@ export interface ParsedPullRequestEvent {
   readonly installationId: InstallationId;
   readonly repoId: RepoId;
   readonly repoFullName: string;
+  /**
+   * Private and not internal, so only invited people see it. A missing or
+   * malformed `private` or `visibility` reads not private.
+   */
+  readonly repoPrivate: boolean;
   readonly prNumber: number;
   /** The PR title, a purgeable display label, refreshed on every event. */
   readonly title: string;
@@ -146,6 +151,8 @@ export interface ParsedPullRequestReviewEvent {
   /** The PR title, a purgeable display label, refreshed on every event. */
   readonly title: string;
   readonly headSha: string;
+  /** The PR author's login, not the reviewer's; absent for a gone or loginless author. */
+  readonly authorLogin?: string;
   /** The PR author's `author_association`, not the reviewer's; absent when omitted or unknown. */
   readonly authorAssociation?: AuthorAssociation;
   /** The PR author's account is a `Bot`, not the reviewer's. */
@@ -243,6 +250,11 @@ const accountTypeSchema = z
   .optional()
   .catch(undefined);
 
+const visibleRepositorySchema = repositoryRefSchema.extend({
+  private: z.boolean().catch(false),
+  visibility: z.enum(RepositoryVisibilities).optional().catch(undefined),
+});
+
 const pullRequestEventSchema = z.object({
   action: z.string(),
   number: z.number().int(),
@@ -250,7 +262,7 @@ const pullRequestEventSchema = z.object({
   after: z.string().min(1).optional(),
   changes: z.object({ base: z.object({}).optional() }).optional(),
   installation: installationRefSchema,
-  repository: repositoryRefSchema,
+  repository: visibleRepositorySchema,
   pull_request: z.object({
     title: z.string(),
     head: shaRefSchema,
@@ -269,16 +281,19 @@ const pullRequestEventSchema = z.object({
 
 const pullRequestReviewEventSchema = z.object({
   installation: installationRefSchema,
-  repository: repositoryRefSchema.extend({
-    private: z.boolean().catch(false),
-    visibility: z.enum(RepositoryVisibilities).optional().catch(undefined),
-  }),
+  repository: visibleRepositorySchema,
   pull_request: z.object({
     number: z.number().int(),
     title: z.string(),
     head: shaRefSchema,
     author_association: authorAssociationSchema,
-    user: z.object({ type: accountTypeSchema }).nullish().catch(undefined),
+    user: z
+      .object({
+        login: z.string().min(1).optional().catch(undefined),
+        type: accountTypeSchema,
+      })
+      .nullish()
+      .catch(undefined),
   }),
   review: z.object({
     state: z.string().min(1),
@@ -339,6 +354,15 @@ function invalidPayload(
   };
 }
 
+function isPrivateRepository(
+  repository: z.infer<typeof visibleRepositorySchema>,
+): boolean {
+  return (
+    repository.private &&
+    repository.visibility === RepositoryVisibilities.PRIVATE
+  );
+}
+
 function isBotAccount(
   account: { readonly type?: GitHubAccountType | undefined } | null | undefined,
 ): boolean {
@@ -373,6 +397,7 @@ function parsePullRequest(
     installationId: data.installation.id,
     repoId: data.repository.id,
     repoFullName: data.repository.full_name,
+    repoPrivate: isPrivateRepository(data.repository),
     prNumber: data.number,
     title: data.pull_request.title,
     headSha: data.pull_request.head.sha,
@@ -424,15 +449,12 @@ function parsePullRequestReview(
     );
   }
   const data = parsed.data;
-  const repoPrivate =
-    data.repository.private &&
-    data.repository.visibility === RepositoryVisibilities.PRIVATE;
   const event: Mutable<ParsedPullRequestReviewEvent> = {
     kind: ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
     installationId: data.installation.id,
     repoId: data.repository.id,
     repoFullName: data.repository.full_name,
-    repoPrivate,
+    repoPrivate: isPrivateRepository(data.repository),
     prNumber: data.pull_request.number,
     title: data.pull_request.title,
     headSha: data.pull_request.head.sha,
@@ -455,6 +477,10 @@ function parsePullRequestReview(
   const authorAssociation = data.pull_request.author_association;
   if (authorAssociation !== undefined) {
     event.authorAssociation = authorAssociation;
+  }
+  const authorLogin = data.pull_request.user?.login;
+  if (authorLogin !== undefined) {
+    event.authorLogin = authorLogin;
   }
 
   return { ok: true, value: event };

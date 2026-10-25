@@ -59,6 +59,39 @@ function makePullRequestFixture(
   return { ...fixture, pull_request: pullRequest };
 }
 
+/** Repository flags GitHub may send, and whether they read private (not internal). */
+const REPO_VISIBILITY_CASES = [
+  ["a public repo", false, "public", false],
+  ["a private repo", true, "private", true],
+  ["an internal repo", true, "internal", false],
+  ["a private repo with no visibility", true, undefined, false],
+  ["an unknown visibility", true, "secret", false],
+  ["a missing private flag", undefined, "private", false],
+  ["a malformed private flag", "yes", "private", false],
+] as const;
+
+/** A fixture whose `repository` carries only the given `private` and `visibility`. */
+function makeVisibilityFixture(
+  name: string,
+  isPrivate: boolean | string | undefined,
+  visibility: string | undefined,
+): unknown {
+  const fixture = jsonFixture(name);
+  if (!isRecord(fixture) || !isRecord(fixture["repository"])) {
+    throw new Error("fixture shape changed");
+  }
+  const repository = { ...fixture["repository"] };
+  delete repository["private"];
+  delete repository["visibility"];
+  if (isPrivate !== undefined) {
+    repository["private"] = isPrivate;
+  }
+  if (visibility !== undefined) {
+    repository["visibility"] = visibility;
+  }
+  return { ...fixture, repository };
+}
+
 function expectOk(
   result: Result<ParsedWebhookEvent, EventParseError>,
 ): ParsedWebhookEvent {
@@ -255,6 +288,24 @@ describe("parseWebhookEvent, pull_request", () => {
     }
     expect(event.authorLogin).toBeUndefined();
   });
+
+  it.each(REPO_VISIBILITY_CASES)(
+    "reads repoPrivate from %s",
+    (_label, isPrivate, visibility, expected) => {
+      const payload = makeVisibilityFixture(
+        "pull_request.opened.json",
+        isPrivate,
+        visibility,
+      );
+      const event = expectOk(
+        parseWebhookEvent({ eventName: "pull_request", payload }),
+      );
+      if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+        throw new Error(`expected pull-request, got ${event.kind}`);
+      }
+      expect(event.repoPrivate).toBe(expected);
+    },
+  );
 
   it("carries the PR author's association and a human account", () => {
     const payload = jsonFixture("pull_request.opened.json");
@@ -550,38 +601,58 @@ describe("parseWebhookEvent, pull_request_review", () => {
     expect(event).not.toHaveProperty("reviewerAssociation");
   });
 
-  it.each([
-    ["a public repo", false, "public", false],
-    ["a private repo", true, "private", true],
-    ["an internal repo", true, "internal", false],
-    ["a private repo with no visibility", true, undefined, false],
-    ["an unknown visibility", true, "secret", false],
-    ["a missing private flag", undefined, "private", false],
-    ["a malformed private flag", "yes", "private", false],
-  ])("reads repoPrivate from %s", (_label, isPrivate, visibility, expected) => {
-    const fixture = jsonFixture("pull_request_review.submitted.json");
-    if (!isRecord(fixture) || !isRecord(fixture["repository"])) {
-      throw new Error("fixture shape changed");
-    }
-    const repository = { ...fixture["repository"] };
-    delete repository["private"];
-    delete repository["visibility"];
-    if (isPrivate !== undefined) {
-      repository["private"] = isPrivate;
-    }
-    if (visibility !== undefined) {
-      repository["visibility"] = visibility;
-    }
+  it.each(REPO_VISIBILITY_CASES)(
+    "reads repoPrivate from %s",
+    (_label, isPrivate, visibility, expected) => {
+      const payload = makeVisibilityFixture(
+        "pull_request_review.submitted.json",
+        isPrivate,
+        visibility,
+      );
+      const event = expectOk(
+        parseWebhookEvent({ eventName: "pull_request_review", payload }),
+      );
+      if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+        throw new Error(`expected pull-request-review, got ${event.kind}`);
+      }
+      expect(event.repoPrivate).toBe(expected);
+    },
+  );
+
+  it("reads the PR author's login, not the reviewer's", () => {
+    const payload = makePullRequestFixture(
+      "pull_request_review.submitted.json",
+      (pullRequest) => {
+        pullRequest["user"] = { login: "outside-dev", type: "User" };
+      },
+    );
     const event = expectOk(
-      parseWebhookEvent({
-        eventName: "pull_request_review",
-        payload: { ...fixture, repository },
-      }),
+      parseWebhookEvent({ eventName: "pull_request_review", payload }),
     );
     if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
       throw new Error(`expected pull-request-review, got ${event.kind}`);
     }
-    expect(event.repoPrivate).toBe(expected);
+    expect(event.authorLogin).toBe("outside-dev");
+    expect(event.reviewerLogin).toBe("Codertocat");
+  });
+
+  it.each([
+    ["a gone author", null],
+    ["a loginless author", { type: "User" }],
+  ])("omits the PR author's login for %s", (_label, user) => {
+    const payload = makePullRequestFixture(
+      "pull_request_review.submitted.json",
+      (pullRequest) => {
+        pullRequest["user"] = user;
+      },
+    );
+    const event = expectOk(
+      parseWebhookEvent({ eventName: "pull_request_review", payload }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event).not.toHaveProperty("authorLogin");
   });
 
   it("reads the PR author's association, not the reviewer's", () => {

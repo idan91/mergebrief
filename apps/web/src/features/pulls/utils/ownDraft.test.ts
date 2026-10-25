@@ -52,6 +52,13 @@ describe("draftPolicyNotice", () => {
     }
   });
 
+  it("promises no brief on ready, which the author gate may hold", () => {
+    const notice = draftPolicyNotice(t, { generate: false }, ownDraft);
+
+    expect(notice?.text).toContain("marked ready for review");
+    expect(notice?.text).not.toMatch(/brief (will )?generates?/);
+  });
+
   it("states the CONFIGURED damping window in minutes", () => {
     const notice = draftPolicyNotice(
       t,

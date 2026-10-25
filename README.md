@@ -48,10 +48,13 @@ docker compose up -d
 ```
 
 That's the whole product running: Postgres, the web app on
-http://localhost:3000, and a background worker that generates a Brief for
-**every push to every PR** on the repos your GitHub App is installed on,
-with no manual step. Setup details (App registration, env table, verification,
-hardening before you expose it):
+http://localhost:3000, and a background worker that briefs **the pushes to
+every PR** on the repos your GitHub App is installed on, debounced and under
+the instance's daily cap, with no manual step for an author the repository
+trusts. Any other author's PR waits for one Generate click from a
+collaborator with push access, and its later pushes run as usual. Setup
+details (App registration, env table, verification, hardening before you
+expose it):
 [`docs/self-host/compose.md`](./docs/self-host/compose.md). Upgrades,
 migrations, and backup/restore:
 [`docs/self-host/operations.md`](./docs/self-host/operations.md).

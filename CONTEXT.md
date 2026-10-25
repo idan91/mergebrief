@@ -554,7 +554,7 @@ _Avoid_: banner (the skin, not the concept), update prompt, nag (that is the CLI
 - A **Comment** belongs to a reviewer and ships to the PR. It is a **Line comment** or a **File comment**; a **Chunk** does not own it.
 - A reviewer records a **Disposition** on a **Flag**: **addressed** (with **Evidence**) or **dismissed** (with reason). The **Receipt** shows the Dispositions as they stand at **Submit**. A Flag may carry a **Risk note**.
 - On submit, the review lands natively on GitHub (comments plus approve, request changes or comment) authored by the reviewer; the **Signature line** carries the **Receipt**'s counts. The review otherwise reads as a normal human review.
-- A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires on every push, drafts included unless the **Instance config** turns drafts off; the **Entry** comment posts on drafts too unless the **Repo config** opts out, and then waits for ready.
+- A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires on every push, drafts included unless the **Instance config** turns drafts off, and on a PR whose author is not a **Trusted author** once it has its **Trigger approval**; the **Entry** comment posts on drafts too unless the **Repo config** opts out, and then waits for ready.
 - The **Analysis Layer** is reviewer-agnostic; a human reviewer consumes it through the **Engagement Layer**.
 
 ## Example dialogue

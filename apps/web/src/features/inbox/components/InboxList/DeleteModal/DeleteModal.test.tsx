@@ -67,7 +67,7 @@ describe("DeleteModal", () => {
     expect(paragraphs).toEqual([
       "Every brief for this pull request goes, and with it every reviewer's review session, draft comments and flag decisions.",
       "This cannot be undone.",
-      "The next push makes a new brief; the comment on GitHub stays.",
+      "The next push is briefed as usual; the comment on GitHub stays.",
     ]);
     expect(screen.queryByRole("list")).toBeNull();
   });

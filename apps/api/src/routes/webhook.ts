@@ -7,7 +7,8 @@
 // Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
 // rows and enqueue one debounced job, with no model call. The only GitHub calls are bounded
 // confirmation reads, no retry, well inside the budget: a destructive event's before it
-// purges, and an untrusted reviewer's repository permission, whose failure is no checkpoint.
+// purges, and the repository permission of a reviewer or PR author no association trusts,
+// whose failure counts them off the team.
 // Natural-key upserts plus graphile job_key replacement make redelivery idempotent. A pull
 // request or review delivery's signature digest is recorded after its dispatch succeeds, and
 // the same signature within 72h is skipped; a failed one records nothing, so its redelivery
@@ -32,6 +33,7 @@ import {
 } from "types";
 import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
 import {
+  GitHubAccountTypes,
   InstallationActions,
   InstallationPresences,
   InstallationRepositoriesActions,
@@ -49,6 +51,7 @@ import {
   type ParsedWebhookEvent,
   type ParsedWebhookEventKind,
   type PullRequestAction,
+  type AuthorAssociation,
   type GitHubCallFailure,
 } from "github";
 import { traceStep, type Logger, type SpanAttributes } from "logging";
@@ -110,6 +113,26 @@ export interface WebhookRouteDeps {
 interface ConfirmationFailure {
   readonly error?: GitHubCallFailure;
 }
+
+/** Someone a delivery names, asked about on the repository it names. */
+interface RepositoryPerson {
+  /** Absent for a gone account, which no permission read can answer. */
+  readonly login: string | undefined;
+  readonly association: AuthorAssociation | undefined;
+  readonly repoFullName: string;
+  readonly repoPrivate: boolean;
+  /** How this person's log lines name them. */
+  readonly logFields: Readonly<Record<string, unknown>>;
+}
+
+/** What a trigger sets beyond the event itself. */
+type TriggerOptions = Pick<
+  TriggerGenerationInput,
+  | "debounceSeconds"
+  | "regenerationDebounceSeconds"
+  | "refreshRunAt"
+  | "requiresTriggerApproval"
+>;
 
 /** The removed ids GitHub no longer lists, and those it still holds. */
 interface RemovalConfirmation {
@@ -218,12 +241,13 @@ function logSkippedEvent(
 }
 
 async function handlePullRequest(
-  handle: AppDatabase,
+  deps: WebhookRouteDeps,
   ctx: TenantContext,
   event: ParsedPullRequestEvent,
   policy: DraftPolicy,
   log: Logger,
 ): Promise<void> {
+  const { handle } = deps;
   if (event.action === PullRequestActions.CLOSED) {
     // Terminal state write, NO enqueue; the close time is what the worker's
     // retention sweep reads.
@@ -265,11 +289,20 @@ async function handlePullRequest(
       }
       return;
     }
+    const requiresApproval = await requiresTriggerApproval(
+      deps,
+      ctx,
+      event,
+      log,
+    );
     await triggerGeneration(
       handle,
       ctx,
       event,
-      windowOverrides(event, event.draft, policy),
+      {
+        ...windowOverrides(event, event.draft, policy),
+        requiresTriggerApproval: requiresApproval,
+      },
       log,
     );
   }
@@ -296,50 +329,48 @@ function windowOverrides(
   return {};
 }
 
-/** Plain warn, no taxonomy row: the review still queues, only its checkpoint is lost. */
+/** Plain warn, no taxonomy row: the delivery still answers 200, the person counted off the team. */
 function logPermissionUnconfirmed(
   log: Logger,
-  event: ParsedPullRequestReviewEvent,
+  person: RepositoryPerson,
   failure: ConfirmationFailure,
 ): void {
   const fields: Record<string, unknown> = {
-    reviewerLogin: event.reviewerLogin,
-    association: event.reviewerAssociation,
+    ...person.logFields,
     timedOut: failure.error === undefined,
   };
   if (failure.error !== undefined) {
     fields["code"] = failure.error.code;
   }
-  log.warn(
-    "review checkpoint skipped, reviewer permission unconfirmed",
-    fields,
-  );
+  log.warn("repository permission unconfirmed, counted off the team", fields);
 }
 
 /**
- * Whether the reviewer is on the team. Only invited people see a private (not
- * internal) repo, so every reviewer there counts. On a public or internal repo a
- * trusted association counts at once; anyone else, a private org member
- * included, needs write access, and a permission read that fails counts as none.
+ * Whether the person is on the repository's team. Only invited people see a
+ * private (not internal) repo, so everyone there counts. On a public or
+ * internal repo a trusted association counts at once; anyone else, a private
+ * org member included, needs write access, and a permission read that fails
+ * counts as none.
  */
-async function isReviewerTrusted(
+async function isOnRepositoryTeam(
   deps: WebhookRouteDeps,
   ctx: TenantContext,
-  event: ParsedPullRequestReviewEvent,
+  person: RepositoryPerson,
   log: Logger,
 ): Promise<boolean> {
-  if (event.repoPrivate) {
+  if (person.repoPrivate) {
     return true;
   }
-  const association = event.reviewerAssociation;
+  const { association, login } = person;
   if (
     association !== undefined &&
     TRUSTED_AUTHOR_ASSOCIATIONS.has(association)
   ) {
     return true;
   }
-  const repo = parseOwnerAndName(event.repoFullName);
-  if (repo === undefined) {
+  const repo = parseOwnerAndName(person.repoFullName);
+  const askable = repo !== undefined && login !== undefined;
+  if (!askable) {
     return false;
   }
 
@@ -347,22 +378,75 @@ async function isReviewerTrusted(
     deps
       .bindInstallationGitHub(ctx.installationId)
       .forRepo(repo)
-      .readCollaboratorPermission(event.reviewerLogin),
+      .readCollaboratorPermission(login),
   );
   if (!permission.ok) {
-    logPermissionUnconfirmed(log, event, permission.error);
+    logPermissionUnconfirmed(log, person, permission.error);
     return false;
   }
   if (TRUSTED_COLLABORATOR_PERMISSIONS.has(permission.value)) {
     return true;
   }
 
-  log.debug("review checkpoint skipped, reviewer lacks write access", {
-    reviewerLogin: event.reviewerLogin,
-    association,
+  log.debug("repository permission below write, counted off the team", {
+    ...person.logFields,
     permission: permission.value,
   });
   return false;
+}
+
+/** A bot reviewer never earns a checkpoint; anyone else must be on the team. */
+async function isReviewerTrusted(
+  deps: WebhookRouteDeps,
+  ctx: TenantContext,
+  event: ParsedPullRequestReviewEvent,
+  log: Logger,
+): Promise<boolean> {
+  if (event.reviewerType === GitHubAccountTypes.BOT) {
+    return false;
+  }
+  const reviewer: RepositoryPerson = {
+    login: event.reviewerLogin,
+    association: event.reviewerAssociation,
+    repoFullName: event.repoFullName,
+    repoPrivate: event.repoPrivate,
+    logFields: {
+      reviewerLogin: event.reviewerLogin,
+      association: event.reviewerAssociation,
+    },
+  };
+  return isOnRepositoryTeam(deps, ctx, reviewer, log);
+}
+
+/**
+ * Whether the PR's author owes a Trigger approval: anyone off the team does.
+ * A bot never does here, because the worker decides for it from `trustedBots`.
+ */
+async function requiresTriggerApproval(
+  deps: WebhookRouteDeps,
+  ctx: TenantContext,
+  event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
+  log: Logger,
+): Promise<boolean> {
+  if (event.authorIsBot) {
+    return false;
+  }
+  const logFields = { repoId: String(event.repoId), prNumber: event.prNumber };
+  const author: RepositoryPerson = {
+    login: event.authorLogin,
+    association: event.authorAssociation,
+    repoFullName: event.repoFullName,
+    repoPrivate: event.repoPrivate,
+    logFields,
+  };
+  const onTeam = await isOnRepositoryTeam(deps, ctx, author, log);
+  if (!onTeam) {
+    log.debug(
+      "pull request author off the team, head gated unless already approved",
+      logFields,
+    );
+  }
+  return !onTeam;
 }
 
 async function handlePullRequestReview(
@@ -388,9 +472,16 @@ async function handlePullRequestReview(
   // Pin to the reviewed commit, never the delivery-time head. Each checkpoint costs a delta
   // call inside one capped run, so only a trusted, non-bot reviewer gets one.
   // Write before enqueueing so the worker sees the baseline. Newest-submission wins on redelivery.
-  const writesCheckpoint =
-    event.reviewerType !== "Bot" &&
-    (await isReviewerTrusted(deps, ctx, event, log));
+  // Review events carry no draft flag; the STORED row supplies it. Under drafts-off the
+  // checkpoint still lands, it's reviewer-baseline state, not spend, but no job enqueues.
+  // The two reads run at once: each may take half of GitHub's delivery budget.
+  const generates = !known.draft || policy.generate;
+  // Ingest ignores the author's standing once a collaborator approved the PR.
+  const asksAboutAuthor = generates && known.triggerApprovedAt === null;
+  const [writesCheckpoint, requiresApproval] = await Promise.all([
+    isReviewerTrusted(deps, ctx, event, log),
+    asksAboutAuthor ? requiresTriggerApproval(deps, ctx, event, log) : false,
+  ]);
   if (writesCheckpoint) {
     await tenant.checkpoints.upsertOnSubmit({
       pullRequestId: known.id,
@@ -400,26 +491,26 @@ async function handlePullRequestReview(
       submittedAt: event.submittedAt,
     });
   }
-  // Review events carry no draft flag; the STORED row (loaded above for the
-  // known-PR guard) supplies it. Under drafts-off the checkpoint still
-  // landed, it's reviewer-baseline state, not spend, but no job enqueues.
-  if (known.draft && !policy.generate) {
+  if (!generates) {
     return;
   }
   // No window override: damping exists for WIP push storms, and a submitted
   // review is deliberate human engagement, its gap-filler regeneration
   // takes the normal window even on a damped draft.
-  await triggerGeneration(handle, ctx, event, {}, log);
+  await triggerGeneration(
+    handle,
+    ctx,
+    event,
+    { requiresTriggerApproval: requiresApproval },
+    log,
+  );
 }
 
 async function triggerGeneration(
   handle: AppDatabase,
   ctx: TenantContext,
   event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
-  overrides: Pick<
-    TriggerGenerationInput,
-    "debounceSeconds" | "regenerationDebounceSeconds" | "refreshRunAt"
-  >,
+  options: TriggerOptions,
   log: Logger,
 ): Promise<void> {
   // Only a `reopened` pull_request event may transition a terminal PR back to
@@ -442,13 +533,17 @@ async function triggerGeneration(
     pullRequest.baseSha = event.baseSha;
   }
 
-  // Draft + author ride pull_request events only; a review omits both, so
-  // omission preserves the stored values (same as base_sha).
+  // Draft and author are written from pull_request events only: a review
+  // carries no draft, and its author login feeds the gate but is never
+  // stored, so omission preserves the stored values (same as base_sha).
   if ("draft" in event) {
     pullRequest.draft = event.draft;
   }
 
-  if ("authorLogin" in event && event.authorLogin !== undefined) {
+  const isPullRequestEvent =
+    event.kind === ParsedWebhookEventKinds.PULL_REQUEST;
+  const namesAuthor = isPullRequestEvent && event.authorLogin !== undefined;
+  if (namesAuthor) {
     pullRequest.authorLogin = event.authorLogin;
   }
   if ("updatedAt" in event && event.updatedAt !== undefined) {
@@ -458,7 +553,7 @@ async function triggerGeneration(
     pullRequest,
     headSha: event.headSha,
     reopen,
-    ...overrides,
+    ...options,
   };
   const uncoveredWork = nameUncoveredWork(event);
   if (uncoveredWork !== undefined) {
@@ -499,7 +594,7 @@ async function triggerGeneration(
 /**
  * One bound over a whole confirmation read, so a removal's two reads cannot
  * together outlast GitHub's delivery budget. A destructive event answers its
- * failure with 502; a reviewer's permission read answers 200 without a checkpoint.
+ * failure with 502; a failed permission read answers 200, the person off the team.
  */
 async function confirmWithin<Confirmed>(
   deps: WebhookRouteDeps,
@@ -659,7 +754,7 @@ async function dispatch(
   const ctx = parseTenantContext({ installationId: event.installationId });
   switch (event.kind) {
     case ParsedWebhookEventKinds.PULL_REQUEST:
-      await handlePullRequest(deps.handle, ctx, event, policy, log);
+      await handlePullRequest(deps, ctx, event, policy, log);
       return DISPATCHED;
     case ParsedWebhookEventKinds.PULL_REQUEST_REVIEW:
       await handlePullRequestReview(deps, ctx, event, policy, log);
