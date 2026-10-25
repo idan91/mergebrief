@@ -363,6 +363,25 @@ export interface GenerationProjection {
     runId: string,
     outcome: RunOutcome,
   ): Promise<Result<GenerationRow, GenerationError>>;
+  /**
+   * End a claim whose holder died once nothing is left to take it over: only
+   * a row a lapsed lease still names moves, in one statement, so a claim
+   * taken or finished since stays. `claim-lost` otherwise.
+   */
+  endLapsedClaim(
+    target: GenerationTarget,
+    outcome: RunOutcome,
+  ): Promise<Result<GenerationRow, GenerationError>>;
+  /**
+   * End a row a shutdown handed back: only a `pending` row no claim names,
+   * claimed since its last trigger, moves, in one statement, so a row
+   * claimed, gated, finished or re-projected since stays. `claim-lost`
+   * otherwise.
+   */
+  endReleasedClaim(
+    target: GenerationTarget,
+    outcome: RunOutcome,
+  ): Promise<Result<GenerationRow, GenerationError>>;
   /** The holder hands the row back `pending`; its attempt row stays, it was paid. */
   releaseClaim(
     target: GenerationTarget,
@@ -1043,6 +1062,16 @@ export function createGenerationProjection(
 
     async finishRun(target, runId, outcome) {
       return fencedTransition(target, runId, shapeRunEnd(outcome));
+    },
+
+    async endLapsedClaim(target, outcome) {
+      const lapsed = sql`(${generation.runId} is not null and not ${isLeaseLive()})`;
+      return transition(target, shapeRunEnd(outcome), { guard: lapsed });
+    },
+
+    async endReleasedClaim(target, outcome) {
+      const released = sql`(${generation.runId} is null and ${generation.status} = ${GenerationStatuses.PENDING} and ${generation.claims} > 0)`;
+      return transition(target, shapeRunEnd(outcome), { guard: released });
     },
 
     async releaseClaim(target, runId) {

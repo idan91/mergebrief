@@ -93,9 +93,11 @@ async function openRunScope(start: RunStart): Promise<RunScope | undefined> {
   }
 
   // A succeeded row is one ingest left alone for work over a stored brief:
-  // nothing before the run decision may mark it.
+  // nothing before the run decision may mark it, nor a recovery run's row.
   const projected = await projection.get(target);
-  run.leaveRow = projected?.status === GenerationStatuses.SUCCEEDED;
+  if (projected?.status === GenerationStatuses.SUCCEEDED) {
+    run.leaveRow = true;
+  }
   // Taken before the source opens: a url-box source may read the head while
   // opening and serve that read as the run's first.
   const pickedUpAt = new Date();

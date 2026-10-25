@@ -1,9 +1,17 @@
 import type { Generator } from "generators";
 import type { Logger } from "logging";
-import { createGenerationProjection } from "persistence";
-import { GenerationStatuses } from "types/generations";
+import {
+  createGenerationProjection,
+  type GenerationFailure,
+} from "persistence";
+import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { parseGeneratePayload } from "../payload";
-import { shouldRecoverClaim } from "./logic/claim-recovery";
+import {
+  endUnclaimedRecovery,
+  isRecoveryRetry,
+  shouldRecoverClaim,
+  supersedeUnclaimedRecovery,
+} from "./logic/claim-recovery";
 import { traceProviderCalls } from "./logic/model-span";
 import { isRunSignal, listRunStops, traceRunStep } from "./logic/step-span";
 import { postFailedEntry } from "./logic/failed-entry";
@@ -33,6 +41,7 @@ import {
   type GenerateTaskDeps,
   type GenerateTaskHelpers,
   type GeneratingRun,
+  type JobFailureReport,
   type RunContext,
   type RunProgress,
   type RunStart,
@@ -85,9 +94,8 @@ export function createRecoverGenerationTask(
     const start: RunStart = { ...opened, recovering: true };
     // Nothing before the run decision may mark the row.
     start.run.leaveRow = true;
-    const isRetry = (helpers?.job?.attempts ?? 1) > 1;
     await runJob(start, async (progress) => {
-      if (await shouldRecoverClaim(start, isRetry)) {
+      if (await shouldRecoverClaim(start, isRecoveryRetry(start))) {
         await runGeneration(start, progress);
       }
     });
@@ -169,7 +177,7 @@ async function settleFailedRun(
     throw error;
   }
 
-  const { outcome, failure } = await reportJobFailure(error, {
+  const report = await reportJobFailure(error, {
     deps: start.deps,
     projection,
     target,
@@ -178,11 +186,12 @@ async function settleFailedRun(
     job: start.job,
     log,
   });
+  const { outcome } = report;
   const endsFailed =
     outcome === JobFailureOutcomes.PERMANENT ||
     outcome === JobFailureOutcomes.LAST_ATTEMPT;
-  if (endsFailed && !run.leaveRow) {
-    await postFailedEntry(progress, failure.code);
+  if (endsFailed) {
+    await announceFailedRun(start, report, progress);
   }
   const retried =
     outcome === JobFailureOutcomes.RETRYING ||
@@ -190,6 +199,38 @@ async function settleFailedRun(
   if (retried) {
     throw error;
   }
+}
+
+/**
+ * A failure no retry follows ends the run `failed` and posts the failed
+ * Entry; an unclaimed recovery's row is `endUnclaimedRecovery`'s to end.
+ */
+async function announceFailedRun(
+  start: RunStart,
+  report: JobFailureReport,
+  progress: RunProgress,
+): Promise<void> {
+  const { run } = start;
+  const recoveryUnclaimed =
+    start.recovering && run.leaveRow && run.runId === undefined;
+  if (!recoveryUnclaimed) {
+    if (!run.leaveRow) {
+      await postFailedEntry(progress, report.failure.code);
+    }
+    return;
+  }
+
+  const code = await endUnclaimedRecovery(start, selectRecoveryFailure(report));
+  if (code !== undefined) {
+    await postFailedEntry(progress, code);
+  }
+}
+
+function selectRecoveryFailure(report: JobFailureReport): GenerationFailure {
+  if (report.outcome === JobFailureOutcomes.LAST_ATTEMPT) {
+    return { code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED };
+  }
+  return report.failure;
 }
 
 /** The released claim stays counted against the head's attempts. */
@@ -216,6 +257,10 @@ async function markRunSuperseded(start: RunStart): Promise<void> {
   }
   if (!run.leaveRow) {
     await projection.markSuperseded(target);
+    return;
+  }
+  if (start.recovering) {
+    await supersedeUnclaimedRecovery(start);
   }
 }
 

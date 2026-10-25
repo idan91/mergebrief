@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { createI18n } from "i18n";
 import {
   createGenerationProjection,
   createTenantRepository,
+  parseScopeContext,
   type PullRequestRow,
 } from "persistence";
+import { FakeFailures, type FakeGitHub } from "github/testing";
 import { claimTestRun } from "persistence/testing";
-import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
+import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import {
@@ -15,15 +18,23 @@ import {
   FIRST_ATTEMPT,
   harness,
   HEAD_1,
+  HEAD_2,
+  LAST_ATTEMPT,
+  listCommentCalls,
   makeConnectionError,
   makeGitHub,
   makeRecoveryTask,
+  makeRepoId,
   makeReviewerId,
   makeTarget,
   makeTask,
+  PR_REF,
+  readLiveBodies,
   SECOND_ATTEMPT,
+  seedViewerGrant,
   setUpHarness,
   stubGenerator,
+  stubHangingGenerator,
   trigger,
 } from "./helpers";
 
@@ -31,6 +42,9 @@ setUpHarness();
 
 const LEASE_SECONDS = 120;
 const DELAY_BOUND_SECONDS = 30;
+const EXHAUSTED_REASON = createI18n().t(
+  "entryComment.failed.reason.attempts-exhausted",
+);
 
 async function readRecoveryJobs(): Promise<Record<string, unknown>[]> {
   return harness.raw(
@@ -82,6 +96,72 @@ async function leaveDeadHolder(): Promise<void> {
   await harness.raw(
     "update generation set lease_expires_at = now() - interval '1 second'",
   );
+}
+
+/** The first pull request read GitHub answers fails as a 502; later ones succeed. */
+function failFirstPullRequestRead(github: FakeGitHub): void {
+  const refusing = makeGitHub(HEAD_1);
+  refusing.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+  const bindLive = github.bindInstallationGitHub.bind(github);
+  let reads = 0;
+  github.bindInstallationGitHub = (installationId) => {
+    const live = bindLive(installationId);
+    const refused = refusing.bindInstallationGitHub(installationId);
+    return {
+      ...live,
+      forRepo(repo) {
+        const client = live.forRepo(repo);
+        const refusedClient = refused.forRepo(repo);
+        return {
+          ...client,
+          async fetchPullRequest(prNumber: number) {
+            reads += 1;
+            const answering = reads === 1 ? refusedClient : client;
+            return answering.fetchPullRequest(prNumber);
+          },
+        };
+      },
+    };
+  };
+}
+
+/** A holder posted its generating Entry, claimed the row and died. */
+async function leaveDeadHolderWithEntry(
+  github: FakeGitHub,
+): Promise<{ pr: PullRequestRow; payload: unknown }> {
+  const triggered = await trigger(HEAD_1);
+  const failing = stubGenerator();
+  failing.failNextWith = makeConnectionError();
+  await expect(
+    makeTask({ github, generator: failing })(triggered.payload),
+  ).rejects.toThrow("Connection error");
+  await holdRowForOtherRun();
+  await leaveDeadHolder();
+  return triggered;
+}
+
+/** The warn lines that end a lapsed claim `failed`. */
+function readEndedClaimMessages(
+  lines: ReadonlyArray<Record<string, unknown>>,
+): string[] {
+  const messages = lines.map((line) => String(line["msg"]));
+  return messages.filter((message) =>
+    message.endsWith("the lapsed claim ends failed"),
+  );
+}
+/** A recovery attempt takes the dead holder's claim over, then a shutdown releases it. */
+async function releaseTakeoverOnShutdown(
+  github: FakeGitHub,
+  payload: unknown,
+): Promise<void> {
+  const shutdown = new AbortController();
+  const generator = stubHangingGenerator(async () => shutdown.abort());
+  await expect(
+    makeRecoveryTask({ github, generator })(payload, {
+      job: FIRST_ATTEMPT,
+      abortSignal: shutdown.signal,
+    }),
+  ).rejects.toThrow("aborted");
 }
 
 describe("generate task, claim recovery", () => {
@@ -148,7 +228,8 @@ describe("generate task, claim recovery", () => {
     const { pr, payload } = await trigger(HEAD_1);
     await makeTask()(payload);
     const projection = createGenerationProjection(harness.handle, ctx);
-    const before = await projection.get(makeTarget(pr, HEAD_1));
+    const target = makeTarget(pr, HEAD_1);
+    const before = await projection.get(target);
     const github = makeGitHub(HEAD_1);
     let opened = 0;
     github.bindInstallationGitHub = () => {
@@ -163,7 +244,7 @@ describe("generate task, claim recovery", () => {
 
     expect(opened).toBe(0);
     expect(generator.calls).toEqual([]);
-    expect(await projection.get(makeTarget(pr, HEAD_1))).toEqual(before);
+    expect(await projection.get(target)).toEqual(before);
     expect(await countAttempts()).toBe(1);
   });
 
@@ -311,7 +392,8 @@ describe("generate task, claim recovery", () => {
     const { pr, payload } = await trigger(HEAD_1);
     await holdRowForOtherRun();
     const projection = createGenerationProjection(harness.handle, ctx);
-    const before = await projection.get(makeTarget(pr, HEAD_1));
+    const target = makeTarget(pr, HEAD_1);
+    const before = await projection.get(target);
     // The reschedule past the live lease reaches a queue that is gone.
     await harness.raw("alter schema graphile_worker rename to queue_offline");
     const { logger, readLines } = captureLogger();
@@ -321,7 +403,7 @@ describe("generate task, claim recovery", () => {
     ).rejects.toThrow(/graphile_worker/);
 
     expect(readLines().map((line) => line["evt"])).toContain("job.fail");
-    expect(await projection.get(makeTarget(pr, HEAD_1))).toEqual(before);
+    expect(await projection.get(target)).toEqual(before);
   });
 
   it("a run over a lapsed claim and the recovery pay one delta", async () => {
@@ -360,5 +442,276 @@ describe("generate task, claim recovery", () => {
     expect(inner.calls).toEqual(["delta"]);
     expect(recovery.calls).toEqual([]);
     expect(await countAttempts()).toBe(2);
+  });
+
+  it("a last attempt failing before its claim ends the row failed", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    const [generating] = readLiveBodies(github);
+    expect(generating).toContain("Brief is generating for this push");
+    failFirstPullRequestRead(github);
+    const { logger, readLines } = captureLogger();
+
+    await expect(
+      makeRecoveryTask({ github, log: logger })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.ATTEMPTS_EXHAUSTED);
+    expect(row?.runId).toBeNull();
+    const ended = readEndedClaimMessages(readLines());
+    expect(ended).toEqual([
+      "generate: recovery attempts spent, the lapsed claim ends failed",
+    ]);
+    const [body] = readLiveBodies(github);
+    expect(readLiveBodies(github)).toHaveLength(1);
+    expect(body).toContain(EXHAUSTED_REASON);
+  });
+
+  it("an earlier attempt failing before its claim leaves the row", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    const before = readLiveBodies(github);
+    failFirstPullRequestRead(github);
+
+    await expect(
+      makeRecoveryTask({ github })(payload, { job: FIRST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.RUNNING);
+    expect(row?.runId).toBe(OTHER_RUN_ID);
+    expect(readLiveBodies(github)).toEqual(before);
+  });
+
+  it("a last attempt beside a live lease leaves the holder's row", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await holdRowForOtherRun();
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const target = makeTarget(pr, HEAD_1);
+    const before = await projection.get(target);
+    await harness.raw("alter schema graphile_worker rename to queue_offline");
+    const github = makeGitHub(HEAD_1);
+
+    await expect(
+      makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow(/graphile_worker/);
+
+    expect(await projection.get(target)).toEqual(before);
+    expect(listCommentCalls(github)).toEqual([]);
+  });
+
+  it("a last attempt over a finished row leaves it finished", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    await makeTask({ github })(payload);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const target = makeTarget(pr, HEAD_1);
+    const before = await projection.get(target);
+    const bodies = readLiveBodies(github);
+    failFirstPullRequestRead(github);
+
+    await expect(
+      makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    expect(await projection.get(target)).toEqual(before);
+    expect(readLiveBodies(github)).toEqual(bodies);
+  });
+
+  it("an exhausted url-box recovery ends failed without a GitHub write", async () => {
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const grantId = await seedViewerGrant();
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrStates.OPEN,
+    });
+    const projection = createGenerationProjection(harness.handle, ownerCtx);
+    await projection.upsertPending(makeTarget(pr, HEAD_1));
+    await holdRowForOtherRun();
+    await harness.raw(
+      "update generation set lease_expires_at = now() - interval '1 second'",
+    );
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+    const payload = {
+      owner_user_id: "555",
+      grant_id: String(grantId),
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    };
+
+    await expect(
+      makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await projection.get(makeTarget(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.ATTEMPTS_EXHAUSTED);
+    expect(listCommentCalls(github)).toEqual([]);
+  });
+
+  it("a last attempt after its own failed takeover posts that failure", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    const failing = stubGenerator();
+    failing.failNextWith = makeConnectionError();
+    await expect(
+      makeRecoveryTask({ github, generator: failing })(payload, {
+        job: SECOND_ATTEMPT,
+      }),
+    ).rejects.toThrow("Connection error");
+    const [generating] = readLiveBodies(github);
+    expect(generating).toContain("Brief is generating for this push");
+    failFirstPullRequestRead(github);
+
+    await expect(
+      makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.PROVIDER_UNAVAILABLE);
+    const [body] = readLiveBodies(github);
+    expect(readLiveBodies(github)).toHaveLength(1);
+    expect(body).toContain("The model provider could not be reached.");
+  });
+
+  it("an exhausted older head leaves the newer head's Entry", async () => {
+    const github = makeGitHub(HEAD_1);
+    const first = await leaveDeadHolderWithEntry(github);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    const second = await trigger(HEAD_2);
+    const failing = stubGenerator();
+    failing.failNextWith = makeConnectionError();
+    await expect(
+      makeTask({ github, generator: failing })(second.payload),
+    ).rejects.toThrow("Connection error");
+    await harness.raw(
+      "update generation set status = 'running', run_id = $1, lease_expires_at = now() - interval '1 second' where head_sha = $2",
+      [OTHER_RUN_ID, HEAD_1],
+    );
+    const newer = readLiveBodies(github);
+    expect(newer).toHaveLength(1);
+    expect(newer[0]).toContain("`bbbbbbb`");
+    failFirstPullRequestRead(github);
+
+    await expect(
+      makeRecoveryTask({ github })(first.payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(first.pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(readLiveBodies(github)).toEqual(newer);
+  });
+
+  it("a permanent failure before the claim keeps its own code", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    github.failOn("fetchPullRequest", FakeFailures.NOT_FOUND);
+    const { logger, readLines } = captureLogger();
+
+    await makeRecoveryTask({ github, log: logger })(payload, {
+      job: FIRST_ATTEMPT,
+    });
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.GITHUB_ACCESS);
+    expect(row?.runId).toBeNull();
+    const ended = readEndedClaimMessages(readLines());
+    expect(ended).toEqual([
+      "generate: recovery failed for good, the lapsed claim ends failed",
+    ]);
+    const [body] = readLiveBodies(github);
+    expect(readLiveBodies(github)).toHaveLength(1);
+    expect(body).not.toContain(EXHAUSTED_REASON);
+    expect(body).toContain("Brief generation failed");
+  });
+
+  it("a moved head before the claim ends the lapsed claim superseded", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+
+    await makeRecoveryTask({ github })(payload, { job: FIRST_ATTEMPT });
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
+    expect(row?.runId).toBeNull();
+  });
+
+  it("a last attempt over the row its shutdown released ends it failed", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    await releaseTakeoverOnShutdown(github, payload);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const released = await projection.get(makeTarget(pr, HEAD_1));
+    expect(released?.status).toBe(GenerationStatuses.PENDING);
+    expect(released?.runId).toBeNull();
+    failFirstPullRequestRead(github);
+
+    await expect(
+      makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await projection.get(makeTarget(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.ATTEMPTS_EXHAUSTED);
+    const [body] = readLiveBodies(github);
+    expect(readLiveBodies(github)).toHaveLength(1);
+    expect(body).toContain(EXHAUSTED_REASON);
+  });
+
+  it("a last attempt leaves a pending row a trigger projected since", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    await releaseTakeoverOnShutdown(github, payload);
+    await trigger(HEAD_1);
+    const [generating] = readLiveBodies(github);
+    failFirstPullRequestRead(github);
+
+    await expect(
+      makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.PENDING);
+    expect(readLiveBodies(github)).toEqual([generating]);
+  });
+
+  it("a moved head over the row its shutdown released ends it superseded", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    await releaseTakeoverOnShutdown(github, payload);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+
+    await makeRecoveryTask({ github })(payload, { job: SECOND_ATTEMPT });
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
+    expect(row?.runId).toBeNull();
   });
 });
