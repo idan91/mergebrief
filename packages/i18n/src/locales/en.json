@@ -213,6 +213,10 @@
       "heading": "This pull request isn't available.",
       "detail": "It may not exist, or your GitHub account may not have access to it."
     },
+    "signIn": {
+      "heading": "Sign in to read this brief.",
+      "detail": "MergeBrief checks with GitHub that your account can see this pull request. You'll come back to this page after signing in."
+    },
     "briefError": {
       "not-found": "This pull request may not exist, or your GitHub account may not have access to it.",
       "unauthorized": "You need to sign in to read this brief.",

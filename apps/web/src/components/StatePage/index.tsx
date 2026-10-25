@@ -5,8 +5,8 @@ import { Header } from "../Header";
 import styles from "./StatePage.module.scss";
 
 export interface StatePageProps {
-  /** What sits at the end of the Header: the Account menu. */
-  headerEnd: ReactNode;
+  /** What sits at the end of the Header: the Account menu, unless the page's own action is Sign in. */
+  headerEnd?: ReactNode;
   heading: string;
   detail?: string | undefined;
   /** The one way on: a link home, or Sign in. */

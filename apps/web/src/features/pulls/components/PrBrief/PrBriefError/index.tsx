@@ -1,16 +1,26 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button";
+import { ApiError, ApiErrorCodes } from "@web/data/apiFetch";
 import { EmptyBlock } from "@web/components/EmptyBlock";
 import { SIGN_IN_PATH } from "@web/data/sign-in";
 import { prBriefErrorDetail } from "@web/features/brief/model";
+import { SignedOut } from "./SignedOut";
 import { prBriefErrorNeedsSignIn } from "./utils";
 
 export interface PrBriefErrorProps {
   error: unknown;
+  /** The page the viewer is on, so a sign-in lands back on it. */
+  returnTo?: string | undefined;
 }
 
-export function PrBriefError({ error }: PrBriefErrorProps) {
+export function PrBriefError({ error, returnTo }: PrBriefErrorProps) {
   const { t } = useTranslation();
+  const signedOut =
+    error instanceof ApiError && error.code === ApiErrorCodes.SIGNED_OUT;
+  if (signedOut) {
+    return <SignedOut returnTo={returnTo} />;
+  }
+
   // Curated copy only, never `error.message`: an SSR loader or
   // server-function rejection serializes its own text, and even ApiError's
   // message embeds the request path.

@@ -652,6 +652,39 @@ describe("DB brief route, explicit-span deep link while generating", () => {
   });
 });
 
+function stubUnauthorized(code: string): () => Response {
+  return () =>
+    new Response(JSON.stringify({ error: code, code }), { status: 401 });
+}
+
+describe("DB brief route, sign-in returns to the page", () => {
+  const path = `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=1`;
+  const signInHref = `/api/auth/github?returnTo=${encodeURIComponent(path)}`;
+
+  it("asks a signed-out viewer to sign in back to this page", async () => {
+    await renderRouteWithFetch(
+      () => undefined,
+      stubUnauthorized("signed-out"),
+      path,
+    );
+
+    const signIn = await screen.findByRole("link", {
+      name: /sign in with github/i,
+    });
+    expect(signIn.getAttribute("href")).toBe(signInHref);
+  });
+
+  it("sends a session GitHub refused to sign-in back to this page", async () => {
+    const { router } = await renderRouteWithFetch(
+      () => undefined,
+      stubUnauthorized("unauthorized"),
+      path,
+    );
+
+    await waitFor(() => expect(router.state.location.href).toBe(signInHref));
+  });
+});
+
 describe("DB brief route, rev param", () => {
   const OLDER = { base: "base-0", head: "head-0" };
   const revisions = [

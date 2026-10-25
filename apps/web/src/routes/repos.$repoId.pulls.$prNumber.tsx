@@ -4,11 +4,12 @@ import {
   notFound,
   redirect,
   useRouterState,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 
 import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import { appI18n } from "../i18n/I18nProvider";
-import { SIGN_IN_PATH } from "@web/data/sign-in";
+import { buildSignInHref } from "@web/data/sign-in";
 import { useBriefAddress } from "@web/features/brief";
 import {
   resolveDbTimeline,
@@ -59,11 +60,11 @@ function isNotFoundError(error: unknown): boolean {
 }
 
 /** A missing PR/brief becomes a real 404 on SSR, not a 500. */
-function mapLoaderError(error: unknown): never {
+function mapLoaderError(error: unknown, returnTo: string): never {
   // A signed-out session stays signed out: only a live session GitHub
   // refused goes back through sign-in.
   if (error instanceof ApiError && error.code === ApiErrorCodes.UNAUTHORIZED) {
-    throw redirect({ href: SIGN_IN_PATH });
+    throw redirect({ href: buildSignInHref(returnTo) });
   }
   if (isNotFoundError(error)) {
     throw notFound();
@@ -82,9 +83,10 @@ function dropMissingBriefPrefetch(
   repoId: string,
   prNumber: number,
   span: Span,
+  returnTo: string,
 ): void {
   if (!isNotFoundError(reason)) {
-    mapLoaderError(reason);
+    mapLoaderError(reason, returnTo);
   }
 
   queryClient.removeQueries({
@@ -121,7 +123,7 @@ function prefetchSession(
 export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: parsePrSearch,
   loaderDeps: ({ search }) => readRevisionRequest(search),
-  loader: async ({ context, params, deps }) => {
+  loader: async ({ context, params, deps, location }) => {
     const repoId = assertRepoId(params.repoId);
     const prNumber = parsePrNumber(params.prNumber);
     const explicit =
@@ -149,7 +151,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           prefetchSession(context.queryClient, repoId, prNumber, explicit),
         ]);
         if (metaResult.status === "rejected") {
-          mapLoaderError(metaResult.reason);
+          mapLoaderError(metaResult.reason, location.href);
         }
         if (briefResult.status === "rejected") {
           dropMissingBriefPrefetch(
@@ -158,6 +160,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
             repoId,
             prNumber,
             explicit,
+            location.href,
           );
         }
         return pickPageTitleInput(metaResult.value);
@@ -187,7 +190,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       }
       return pickPageTitleInput(meta);
     } catch (error) {
-      mapLoaderError(error);
+      mapLoaderError(error, location.href);
     } finally {
       await versionPrefetch;
     }
@@ -200,9 +203,16 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     return { meta: [{ title: buildPrPageTitle(appI18n.t, loaderData) }] };
   },
   component: PrBriefRoute,
-  errorComponent: PrBriefError,
+  errorComponent: PrBriefErrorRoute,
   notFoundComponent: PrBriefNotFound,
 });
+
+/** The page's own address becomes the sign-in's return path. */
+function PrBriefErrorRoute({ error }: ErrorComponentProps) {
+  const returnTo = useRouterState({ select: (state) => state.location.href });
+
+  return <PrBriefError error={error} returnTo={returnTo} />;
+}
 
 /** Exactly a PR-brief page, never any other repos surface. */
 const PR_BRIEF_PATH_PATTERN = /^\/repos\/[^/]+\/pulls\/[^/]+$/;

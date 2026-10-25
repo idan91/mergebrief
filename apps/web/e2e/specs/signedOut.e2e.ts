@@ -2,6 +2,7 @@
 // picture of a brief, Sign in with GitHub, and no URL box.
 import { expect, test } from "@playwright/test";
 
+import { FIXTURE_PR_PATH } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
 import { collectPageFaults } from "../support/console";
 
@@ -47,4 +48,34 @@ test("the server-function transport answers 404", async ({ request }) => {
 
   expect(transport.status()).toBe(404);
   expect(encoded.status()).toBe(404);
+});
+
+test("a signed-out deep link signs in and returns to the brief", async ({
+  page,
+  request,
+}, testInfo) => {
+  const response = await page.goto(`${FIXTURE_PR_PATH}?rev=1`);
+  const status = String(response?.status());
+  testInfo.annotations.push({ type: "status", description: status });
+
+  const main = page.getByRole("main");
+  await expect(
+    main.getByRole("heading", {
+      level: 1,
+      name: "Sign in to read this brief.",
+    }),
+  ).toBeVisible();
+  const signIn = main.getByRole("link", { name: "Sign in with GitHub" });
+  await expect(signIn).toHaveAttribute(
+    "href",
+    "/api/auth/github?returnTo=%2Frepos%2F424242%2Fpulls%2F1%3Frev%3D1",
+  );
+  await expectNoSeriousAxeViolations(page, testInfo, "pr-signed-out");
+
+  const href = await signIn.getAttribute("href");
+  const start = await request.get(href ?? "", { maxRedirects: 0 });
+  expect(start.status()).toBe(302);
+  expect(start.headers()["set-cookie"]).toContain(
+    "__Host-mergebrief_oauth_return=",
+  );
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { requestSignIn } from "./sign-in";
+import { buildSignInHref, requestSignIn } from "./sign-in";
 
 const assign = vi.fn();
 
@@ -68,5 +68,17 @@ describe("requestSignIn", () => {
     requestSignIn();
 
     expect(assign).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("buildSignInHref", () => {
+  it("is the bare sign-in path without a return path", () => {
+    expect(buildSignInHref()).toBe("/api/auth/github");
+  });
+
+  it("carries the return path encoded in returnTo", () => {
+    expect(buildSignInHref("/repos/424242/pulls/1?rev=1&thread=9")).toBe(
+      "/api/auth/github?returnTo=%2Frepos%2F424242%2Fpulls%2F1%3Frev%3D1%26thread%3D9",
+    );
   });
 });

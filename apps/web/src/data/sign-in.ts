@@ -1,4 +1,15 @@
+import { SIGN_IN_RETURN_PARAM } from "contract";
+
 export const SIGN_IN_PATH = "/api/auth/github";
+
+/** Sign-in that lands back on `returnTo`; the API refuses any path off this app. */
+export function buildSignInHref(returnTo?: string): string {
+  if (returnTo === undefined) {
+    return SIGN_IN_PATH;
+  }
+  const encoded = encodeURIComponent(returnTo);
+  return `${SIGN_IN_PATH}?${SIGN_IN_RETURN_PARAM}=${encoded}`;
+}
 
 const SIGN_IN_REQUESTED_KEY = "mergebrief.signInRequestedAt";
 /**
