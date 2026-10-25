@@ -1,16 +1,16 @@
 import type { ReviewOutcome } from "types/reviews";
 import { useTranslation } from "react-i18next";
 
-import type { Receipt } from "../../../utils/receipt";
-import { reviewOutcomeLabel, summarySignatureLine } from "../../../utils/state";
+import { reviewOutcomeLabel } from "../../../utils/state";
 import styles from "./ReceiptAccordion.module.scss";
 
 export interface OutcomeCardProps {
-  receipt: Receipt;
   outcome: ReviewOutcome | undefined;
+  /** The posted signature line, shown verbatim; absent when nothing posts. */
+  signatureLine?: string | undefined;
 }
 
-export function OutcomeCard({ receipt, outcome }: OutcomeCardProps) {
+export function OutcomeCard({ outcome, signatureLine }: OutcomeCardProps) {
   const { t } = useTranslation();
   return (
     <section className={styles["card"]}>
@@ -22,13 +22,9 @@ export function OutcomeCard({ receipt, outcome }: OutcomeCardProps) {
           </span>
         </div>
       )}
-      <div className={styles["signature"]}>
-        {summarySignatureLine(t, {
-          reviewedChunks: receipt.progress.reviewedChunks,
-          addressedRisks: receipt.counts.addressed,
-          dismissedRisks: receipt.counts.dismissed,
-        })}
-      </div>
+      {signatureLine === undefined ? null : (
+        <div className={styles["signature"]}>{signatureLine}</div>
+      )}
     </section>
   );
 }

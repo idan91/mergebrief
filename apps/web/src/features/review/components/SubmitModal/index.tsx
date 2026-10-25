@@ -67,6 +67,8 @@ export interface SubmitModalProps {
   submitError?: string | null;
   /** Persistent post-submit note (anchoring degradation). */
   submitNote?: string | null;
+  /** The signature line the submit posts; absent on the local demo path. */
+  signatureLine?: string | undefined;
   /**
    * The viewed span's head is no longer the PR head: Submit requires the
    * explicit ack below. Evaluated live, a poll tick may flip it while the
@@ -91,6 +93,7 @@ export function SubmitModal({
   blockedReasonWith,
   submitError = null,
   submitNote = null,
+  signatureLine,
   staleHead = false,
   mentionSource,
 }: SubmitModalProps) {
@@ -202,6 +205,7 @@ export function SubmitModal({
         headingRef={headingRef}
         outcome={outcome}
         receipt={receipt}
+        signatureLine={signatureLine}
         close={close}
         backToVerdict={() => setView("verdict")}
       />

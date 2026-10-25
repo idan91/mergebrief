@@ -341,7 +341,7 @@ staleness.
 ```
 Usage: mergebrief [options] [command]
 
-MergeBrief — PR briefs for humans and agents, over your deployment's API
+MergeBrief: PR briefs for humans and agents, over your deployment's API
 
 Options:
   -V, --version                            output the version number
@@ -356,7 +356,7 @@ Commands:
   repos [options]                          repositories visible to the profile's token (cached; see --refresh)
   pr [number]                              your PRs (no argument), or one PR's metadata
   generation <number>                      the PR head's generation claims, last failure and takeover job
-  groups <number>                          the PR's brief — change groups over the current span
+  groups <number>                          the PR's brief: change groups over the current span
   conversation <number>                    the PR's review conversation
   diff [options] <number>                  the PR's unified diff (its raw text IS the machine format)
   reply [options] <commentId>              reply to a review comment (the viewer's own voice)
@@ -434,7 +434,7 @@ Options:
 ```
 Usage: mergebrief groups [options] <number>
 
-the PR's brief — change groups over the current span
+the PR's brief: change groups over the current span
 
 Arguments:
   number      PR number
@@ -568,7 +568,7 @@ Options:
   -F, --payload <path>  full JSON payload from a file, or "-" for stdin
   --file <path>         anchor file path (flag form)
   --side <side>         old | new (flag form; default: new)
-  --start-side <side>   old | new — side of --start when the range crosses sides
+  --start-side <side>   old | new: side of --start when the range crosses sides
                         (flag form)
   --start <line>        anchor start line (flag form)
   --end <line>          anchor end line (flag form)
@@ -612,7 +612,7 @@ Options:
   -F, --payload <path>  full JSON payload from a file, or "-" for stdin
   --file <path>         anchor file path (flag form)
   --side <side>         old | new (flag form; default: new)
-  --start-side <side>   old | new — side of --start when the range crosses sides
+  --start-side <side>   old | new: side of --start when the range crosses sides
                         (flag form)
   --start <line>        anchor start line (flag form)
   --end <line>          anchor end line (flag form)

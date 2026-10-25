@@ -27,7 +27,7 @@ export function requireComparisonSpan(
   if (!baseline || !head) {
     throw new CliError(
       ExitCodes.USAGE,
-      "--baseline and --head are required — name the comparison span (see `mergebrief pr <n>` revisions); it is never auto-fetched",
+      "--baseline and --head are required: name the comparison span (see `mergebrief pr <n> --json` revisions); it is never auto-fetched",
     );
   }
   return { baseline, head };
@@ -40,7 +40,7 @@ export function requireNarrativeSpan(
   if (!prevHead || !head) {
     throw new CliError(
       ExitCodes.USAGE,
-      "--prev-head and --head are required — name the revision hop (see `mergebrief pr <n>` revisions); it is never auto-fetched",
+      "--prev-head and --head are required: name the revision hop (see `mergebrief pr <n> --json` revisions); it is never auto-fetched",
     );
   }
   return { prevHead, head };

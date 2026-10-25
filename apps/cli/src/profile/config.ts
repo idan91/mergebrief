@@ -122,7 +122,7 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
   if (name === undefined || profile === undefined) {
     throw new CliError(
       ExitCodes.USAGE,
-      "no profile resolved — run: mergebrief auth login",
+      "no profile resolved; run: mergebrief auth login",
     );
   }
   return {

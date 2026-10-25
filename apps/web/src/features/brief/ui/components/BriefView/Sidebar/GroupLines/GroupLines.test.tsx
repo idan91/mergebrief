@@ -37,7 +37,7 @@ describe("GroupLines", () => {
       />,
     );
     const line = screen.getByRole("button", {
-      name: `${firstName} — has conversation`,
+      name: `${firstName}, has conversation`,
     });
     expect(line.getAttribute("aria-current")).toBe("true");
   });

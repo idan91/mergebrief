@@ -642,7 +642,7 @@ describe("generate task, claim recovery", () => {
     const [body] = readLiveBodies(github);
     expect(readLiveBodies(github)).toHaveLength(1);
     expect(body).not.toContain(EXHAUSTED_REASON);
-    expect(body).toContain("Brief generation failed");
+    expect(body).toContain("generation failed");
   });
 
   it("a moved head before the claim ends the lapsed claim superseded", async () => {

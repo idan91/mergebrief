@@ -110,5 +110,5 @@ export function describeUnreadPrimary(ticket: PrimaryTicket): string {
   const label = ticket.key === "" ? ticket.url : ticket.key;
   const tracker = i18n.t(`brief.intent.tracker.${ticket.tracker}`);
   const reason = readUnreadReason(ticket, tracker);
-  return `error: ${label} could not be read (${ticket.reason}) — ${reason}`;
+  return `error: ${label} could not be read (${ticket.reason}); ${reason}`;
 }

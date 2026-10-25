@@ -312,6 +312,7 @@ export function PrBriefContent({
     sessionReads,
     writes,
     sessionUnavailableReason: t("brief.screen.sessionUnavailable"),
+    viewerIsAuthor: meta.viewerIsAuthor,
   });
   const conversation: ConversationCapability = {
     plan: conversationPlan,

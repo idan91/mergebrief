@@ -31,7 +31,7 @@ export function addAnchorOptions(command: Command): Command {
     .option("--side <side>", "old | new (flag form; default: new)")
     .option(
       "--start-side <side>",
-      "old | new — side of --start when the range crosses sides (flag form)",
+      "old | new: side of --start when the range crosses sides (flag form)",
     )
     .option("--start <line>", "anchor start line (flag form)")
     .option("--end <line>", "anchor end line (flag form)");
@@ -45,7 +45,7 @@ export function requireSpan(
   if (!base || !head) {
     throw new CliError(
       ExitCodes.USAGE,
-      "--base and --head are required — name the brief span you reviewed (see `mergebrief pr <n>` baseSha/headSha); it is never auto-fetched",
+      "--base and --head are required: name the brief span you reviewed (see `mergebrief pr <n> --json` baseSha/headSha); it is never auto-fetched",
     );
   }
   return { base, head };

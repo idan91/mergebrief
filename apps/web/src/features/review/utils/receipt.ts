@@ -371,7 +371,7 @@ function buildReceiptRepoConfig(
   };
 }
 
-/** Frozen receipt format written into GitHub, English by shape. */
+/** Frozen receipt format, English by shape: the submit flow shows it, nothing posts it. */
 function renderDeEmphasisLine(
   attributes: number,
   policySha: string | null,
@@ -394,11 +394,11 @@ export function shortFile(path: string): string {
 
 function renderCommentLine(label: string, comment: ReceiptComment): string {
   if (comment.kind === CommentAnchorKinds.FILE) {
-    return `      ${label}: ${comment.file} — ${comment.firstLine}`;
+    return `      ${label}: ${comment.file}: ${comment.firstLine}`;
   }
   const range =
     comment.endLine === comment.startLine ? "" : `-${comment.endLine}`;
-  return `      ${label}: ${comment.file}:${comment.startLine}${range} — ${comment.firstLine}`;
+  return `      ${label}: ${comment.file}:${comment.startLine}${range}: ${comment.firstLine}`;
 }
 
 function renderProgressLines(receipt: Receipt): string[] {
@@ -439,7 +439,7 @@ function renderRepoConfigBlock(
       file.blobSha === null || file.blobSha === ""
         ? ""
         : ` @ ${file.blobSha.slice(0, 7)}`;
-    return `      ${file.path} — ${file.outcome}${sha}`;
+    return `      ${file.path}: ${file.outcome}${sha}`;
   });
   // The empty join is deliberate: a config with no files keeps the blank line
   // the frozen format has always emitted there.
@@ -469,7 +469,7 @@ function rawReceiptText(receipt: Receipt): string {
   // string, and receiptText collapses the blank runs those leave behind.
   const lines = [
     `Reviewed by @you (human) · ${subject.repo} #${subject.number} @ ${subject.sha.slice(0, 7)}`,
-    "Tool verification receipt — mechanical claims only",
+    "Tool verification receipt: mechanical claims only",
     "",
     ...renderProgressLines(receipt),
     drafts.map((comment) => renderCommentLine("comment", comment)).join("\n"),
@@ -477,19 +477,19 @@ function rawReceiptText(receipt: Receipt): string {
     addressed
       .map(
         (flag) =>
-          `      addressed: ${flag.attr} @ ${shortFile(flag.file)} — ${flag.evidenceLabelInline ?? "addressed without linked evidence"}`,
+          `      addressed: ${flag.attr} @ ${shortFile(flag.file)}: ${flag.evidenceLabelInline ?? "addressed without linked evidence"}`,
       )
       .join("\n"),
     dismissed
       .map(
         (flag) =>
-          `      dismissed: ${flag.attr} @ ${shortFile(flag.file)} — "${flag.reason}"`,
+          `      dismissed: ${flag.attr} @ ${shortFile(flag.file)}: "${flag.reason}"`,
       )
       .join("\n"),
     receipt.open
       .map(
         (flag) =>
-          `      open: ${flag.attr} @ ${shortFile(flag.file)} — not addressed, not dismissed`,
+          `      open: ${flag.attr} @ ${shortFile(flag.file)}: not addressed, not dismissed`,
       )
       .join("\n"),
     renderReclassifiedBlock(receipt.reclassifiedCount),

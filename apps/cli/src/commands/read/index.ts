@@ -63,7 +63,7 @@ export function registerGroupsCommand(
 ): void {
   program
     .command("groups")
-    .description("the PR's brief — change groups over the current span")
+    .description("the PR's brief: change groups over the current span")
     .argument("<number>", "PR number")
     .action(async (raw: string) => {
       const prNumber = parsePrNumber(raw);
@@ -109,7 +109,7 @@ export function registerDiffCommand(
         if (context.readGlobals().json) {
           throw new CliError(
             ExitCodes.USAGE,
-            "diff has no JSON arm — its raw output is the machine format",
+            "diff has no JSON arm; its raw output is the machine format",
           );
         }
         const prNumber = parsePrNumber(raw);

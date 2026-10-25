@@ -71,7 +71,7 @@ function buildSessionPayload(): ReviewSessionPayload {
   };
 }
 
-const CHIP_COPY = "Self-review — your draft";
+const CHIP_COPY = "Self-review: your draft";
 /** A three-draft batch announces once per draft plus its summary. */
 const BATCH_ANNOUNCES = 4;
 /** Long enough for every clear-then-set announce tick a batch queues. */

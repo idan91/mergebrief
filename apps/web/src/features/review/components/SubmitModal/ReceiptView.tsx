@@ -13,6 +13,7 @@ export interface ReceiptViewProps {
   headingRef: RefObject<HTMLHeadingElement | null>;
   outcome: ReviewOutcome | undefined;
   receipt: Receipt;
+  signatureLine?: string | undefined;
   close: () => void;
   backToVerdict: () => void;
 }
@@ -21,6 +22,7 @@ export function ReceiptView({
   headingRef,
   outcome,
   receipt,
+  signatureLine,
   close,
   backToVerdict,
 }: ReceiptViewProps) {
@@ -39,7 +41,12 @@ export function ReceiptView({
         </span>
       </div>
       <p className={styles["sub"]}>{t("review.submit.receiptSub")}</p>
-      <ReceiptAccordion outcome={outcome} raw={raw} receipt={receipt} />
+      <ReceiptAccordion
+        outcome={outcome}
+        raw={raw}
+        receipt={receipt}
+        signatureLine={signatureLine}
+      />
       <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
         <Button onClick={backToVerdict}>
           {t("review.submit.backToVerdict")}

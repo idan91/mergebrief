@@ -106,6 +106,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     resetOutcome,
     trackWrite,
     flowStore: makeFlowStore(),
+    viewerIsAuthor: false,
     ...overrides,
   };
   const rendered = renderHook(
@@ -251,6 +252,22 @@ describe("useReviewSubmit", () => {
     expect(rendered.result.current.note).toMatch(
       /folded into the review body/i,
     );
+  });
+
+  it("never says 1 of 1 when the only comment was folded", async () => {
+    const { rendered, action } = setup();
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 5,
+      commentsFolded: 1,
+      commentsTotal: 1,
+    });
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+    expect(rendered.result.current.note).toMatch(/^Your comment couldn't/);
+    expect(rendered.result.current.note).not.toMatch(/1 of 1/);
   });
 
   it("renders the fail-closed reload copy on rewritten, drafts untouched", async () => {
@@ -559,6 +576,23 @@ describe("useReviewSubmit", () => {
     expect(markSubmitted).toHaveBeenCalledWith(["a", "held"]);
   });
 
+  it("previews the same signature line the submit posts", async () => {
+    const { rendered, action } = setup();
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 3,
+      commentsFolded: 0,
+      commentsTotal: 1,
+    });
+    const preview = rendered.result.current.signatureLine;
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+    expect(preview).toBe(buildSignatureLine(RECEIPT, 1));
+    expect(action).toHaveBeenCalledWith({ outcome: "approve", body: preview });
+  });
+
   it("evaluates blockedReasonWith per caller draft", () => {
     // The editing surface subscribes to the raw text and re-derives the
     // disabled state per keystroke, without the owning screen re-rendering.
@@ -590,21 +624,45 @@ describe("useReviewSubmit", () => {
     );
   });
 
-  it("mentions the own-PR rule only for verdicts on rejection", async () => {
-    const { rendered, action } = setup({ outcome: "approve" });
+  it.each(["approve", "request-changes"] as const)(
+    "offers a reviewer a retry on a refused or missed %s",
+    async (outcome) => {
+      const { rendered, action } = setup({ outcome });
+      action.mockResolvedValue({ kind: "upstream" });
+      act(() => rendered.result.current.submit());
+      await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+      expect(rendered.result.current.error).toBe(
+        "GitHub rejected the review or is unreachable. Try again shortly.",
+      );
+    },
+  );
+
+  it.each(["approve", "request-changes"] as const)(
+    "points the author's refused %s at Comment",
+    async (outcome) => {
+      const { rendered, action } = setup({ outcome, viewerIsAuthor: true });
+      action.mockResolvedValue({ kind: "upstream" });
+      act(() => rendered.result.current.submit());
+      await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+      expect(rendered.result.current.error).toMatch(
+        /^GitHub does not let an author approve or request changes/,
+      );
+    },
+  );
+
+  it("offers the author a retry on a refused Comment", async () => {
+    const { rendered, action } = setup({
+      outcome: "comment",
+      viewerIsAuthor: true,
+    });
     action.mockResolvedValue({ kind: "upstream" });
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
-    expect(rendered.result.current.error).toMatch(/your own pull request/i);
 
-    const neutral = setup({ outcome: "comment", comments: [draft("a")] });
-    neutral.action.mockResolvedValue({ kind: "upstream" });
-    act(() => neutral.rendered.result.current.submit());
-    await waitFor(() =>
-      expect(neutral.rendered.result.current.pending).toBe(false),
-    );
-    expect(neutral.rendered.result.current.error).not.toMatch(
-      /your own pull request/i,
+    expect(rendered.result.current.error).toBe(
+      "GitHub rejected the review or is unreachable. Try again shortly.",
     );
   });
 

@@ -86,6 +86,7 @@ function buildFixtureReview(overrides: BriefViewOverrides): ReviewCapability {
     session: overrides.session,
     sessionReads: overrides.sessionReads,
     writes: overrides.writes,
+    viewerIsAuthor: overrides.viewerIsAuthor ?? false,
   };
 }
 

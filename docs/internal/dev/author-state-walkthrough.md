@@ -57,7 +57,7 @@ gh pr create --draft --title "author-state manual test" --fill
 
 Open the Brief as `AUTHOR` (deep-link or via the picker).
 
-- [ ] **Header chip** reads exactly **"Self-review — your draft"** — not
+- [ ] **Header chip** reads exactly **"Self-review: your draft"** — not
       "Author mode", not "Author", not any "mode" wording. The chip is
       **non-dismissible** (no close affordance).
 - [ ] Chip tooltip (hover or focus the info button): "You're viewing your own

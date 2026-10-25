@@ -4,11 +4,11 @@ import type en from "./locales/en.json";
 export type Catalog = typeof en & {
   entryComment: (typeof en)["entryComment"] & {
     capped: (typeof en)["entryComment"]["capped"] & {
-      heading: "Daily generation cap reached — no brief for {{shortSha}}.";
-      body: "Generation resumes at {{resetsAt}}; the next push after that briefs normally.";
+      heading: "No brief for {{shortSha}}: this instance reached its daily generation cap.";
+      body: "Generation resumes at {{resetsAt}}. The next push after that is briefed as usual.";
     };
     failed: (typeof en)["entryComment"]["failed"] & {
-      heading: "Brief generation failed — no brief for {{shortSha}}.";
+      heading: "No brief for {{shortSha}}: generation failed.";
     };
   };
   generationError: (typeof en)["generationError"] & {
@@ -17,7 +17,7 @@ export type Catalog = typeof en & {
   };
   pulls: (typeof en)["pulls"] & {
     capped: (typeof en)["pulls"]["capped"] & {
-      resumes: "Daily generation cap reached — resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
+      resumes: "Daily generation cap reached. Resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
     };
     failed: (typeof en)["pulls"]["failed"] & {
       attempts_one: "{{count}} attempt so far.";
@@ -38,7 +38,7 @@ export type Catalog = typeof en & {
       postDrafts_other: "Post my {{count}} draft comments before marking ready";
     };
     ownDraft: (typeof en)["pulls"]["ownDraft"] & {
-      damped: "Draft mode — the brief can take up to {{window}} to refresh after the last push.";
+      damped: "Draft mode: the brief can take up to {{window}} to refresh after the last push.";
       windowMinutes_one: "about {{count}} minute";
       windowMinutes_other: "about {{count}} minutes";
     };
@@ -72,10 +72,10 @@ export type Catalog = typeof en & {
     intent: (typeof en)["brief"]["intent"] & {
       showAll: "Show all {{count}}";
       jumpToGroup: "Go to change-group {{groupId}}";
-      jumpToGroupTitled: "Go to change-group {{groupId}} — {{title}}";
+      jumpToGroupTitled: "Go to change-group {{groupId}}: {{title}}";
       deviations_one: "<0>{{count}}</0> deviation";
       deviations_other: "<0>{{count}}</0> deviations";
-      unavailable: "Intent check unavailable — {{reason}}";
+      unavailable: "Intent check unavailable: {{reason}}";
       accomplished_one: "<0>{{count}}</0> accomplished";
       accomplished_other: "<0>{{count}}</0> accomplished";
       maskedFixes_one: "<0>{{count}}</0> masked fix";
@@ -86,8 +86,8 @@ export type Catalog = typeof en & {
       doneButUnstated_other: "<0>{{count}}</0> done but unstated";
       ticketUnread: "{{key}} could not be read.";
       reason: (typeof en)["brief"]["intent"]["reason"] & {
-        "not-found": "{{tracker}} returned not found — the page was moved, or the integration has no access to it";
-        "no-credential": "{{tracker}} refused the read — no credential is configured for it on this deployment";
+        "not-found": "{{tracker}} returned not found. The page was moved, or the integration has no access to it";
+        "no-credential": "{{tracker}} refused the read: no credential is configured for it on this deployment";
         timeout: "{{tracker}} did not answer in time";
         "rate-limited": "{{tracker}} rate-limited the read";
         unsupported: "No {{tracker}} reader is configured on this deployment";
@@ -105,10 +105,10 @@ export type Catalog = typeof en & {
       filterReviewers_one: "{{count}} reviewer";
       filterReviewers_other: "{{count}} reviewers";
       filterHidden: "{{count}} hidden";
-      srJumpToCarryingGroup: " — jump to carrying group {{position}} of {{total}}, story order";
+      srJumpToCarryingGroup: ", jump to carrying group {{position}} of {{total}} in story order";
     };
     group: (typeof en)["brief"]["group"] & {
-      ariaLabelGroupRiskSurface: "{{title}} — risk surface";
+      ariaLabelGroupRiskSurface: "Risk surface of {{title}}";
       groupOf: "Group {{index}} of {{total}}";
       chunkCounts: "{{core}} core · {{supporting}} supporting";
       selectedFlags_one: "{{count}} selected flag";
@@ -125,7 +125,7 @@ export type Catalog = typeof en & {
     story: (typeof en)["brief"]["story"] & {
       stepOf: "Step {{step}} of {{total}}";
       groupOf: "Change-group {{index}} of {{total}}";
-      dominantAnnounce: "Dominant category set to {{category}} — recorded on the receipt.";
+      dominantAnnounce: "Dominant category set to {{category}}, recorded on the receipt.";
       splitterValueText: "Change-group column {{width}} pixels wide";
     };
     changes: (typeof en)["brief"]["changes"] & {
@@ -136,7 +136,7 @@ export type Catalog = typeof en & {
       linesNotShown_other: "{{count}} lines not shown";
     };
     diff: (typeof en)["brief"]["diff"] & {
-      summarySkipped: "Summary skipped — {{reason}}.";
+      summarySkipped: "Summary skipped: {{reason}}.";
       caption: "Diff for {{file}}";
       calloutIn: "In: {{group}}";
       copyLineLink: "Copy link to line {{line}}";
@@ -173,8 +173,8 @@ export type Catalog = typeof en & {
       busyLabel: "Posting {{current}} of {{total}}…";
     };
     riskBadge: (typeof en)["brief"]["riskBadge"] & {
-      repoPolicyWithImplication: "Defined by repo policy — {{implication}}";
-      srRepoPolicyWithImplication: " — defined by repo policy. {{implication}}";
+      repoPolicyWithImplication: "Defined by repo policy: {{implication}}";
+      srRepoPolicyWithImplication: ", defined by repo policy. {{implication}}";
     };
     timeline: (typeof en)["brief"]["timeline"] & {
       viewingBrief: "Viewing brief {{index}} of {{total}}.";
@@ -222,7 +222,6 @@ export type Catalog = typeof en & {
   };
   review: (typeof en)["review"] & {
     summary: (typeof en)["review"]["summary"] & {
-      signature: "Reviewed with MergeBrief / review — summary: {{reviewedChunks}} chunks read, {{addressedRisks}} risks addressed, {{dismissedRisks}} dismissed.";
       evidenceLinkedComment: "Linked comment {{location}}";
       evidenceLinkedComment_inline: "linked comment {{location}}";
       evidenceChunkReviewed: "Reviewed related chunk {{file}}";
@@ -232,7 +231,7 @@ export type Catalog = typeof en & {
     };
     submit: (typeof en)["review"]["submit"] & {
       receiptCommentsFold: "Inline comments ({{total}})";
-      receiptRiskFold: "Risk disposition — {{addressed}} addressed · {{dismissed}} dismissed · {{open}} open";
+      receiptRiskFold: "Risk disposition: {{addressed}} addressed · {{dismissed}} dismissed · {{open}} open";
     };
     comment: (typeof en)["review"]["comment"] & {
       anchorCross: "{{start}} → {{end}}";
@@ -240,7 +239,7 @@ export type Catalog = typeof en & {
       replyTo: "Reply to {{id}}";
       lines_one: "{{count}} line";
       lines_other: "{{count}} lines";
-      tooLongToPost: "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.";
+      tooLongToPost: "This comment is longer than GitHub's {{max, number}}-character limit. Shorten it to post.";
       tooLongToSave: "This comment is longer than the {{max, number}}-character limit. Shorten it to save.";
     };
     announce: (typeof en)["review"]["announce"] & {
@@ -254,13 +253,15 @@ export type Catalog = typeof en & {
     submitResult: (typeof en)["review"]["submitResult"] & {
       postedDegraded: "Review posted. GitHub couldn't anchor {{folded}} of {{total}} comments to the diff, so they were folded into the review body. Nothing was dropped.";
       anchorsFolded: "{{folded}} of {{total}} comments couldn't be anchored on GitHub's side and were folded into the review body. Nothing was dropped.";
+      postedDegradedEvery: "Review posted. GitHub couldn't anchor any of your {{total}} comments to the diff, so they were folded into the review body. Nothing was dropped.";
+      anchorsFoldedEvery: "None of your {{total}} comments could be anchored on GitHub's side, so all of them were folded into the review body. Nothing was dropped.";
     };
   };
   conversation: (typeof en)["conversation"] & {
     jumpToRevision: "Jump to revision {{sha}}";
     ariaLabelComment: "Comment by {{login}}";
     ariaLabelQuoteReply: "Quote reply to @{{login}}";
-    replyTooLong: "This reply is longer than GitHub allows ({{max, number}} characters) — shorten it to post.";
+    replyTooLong: "This reply is longer than GitHub allows ({{max, number}} characters). Shorten it to post.";
     afterBrief_one: "{{count}} new comment since this brief was generated";
     afterBrief_other: "{{count}} new comments since this brief was generated";
     threadsOpen: "{{threads}} threads · {{open}} open";
@@ -272,7 +273,7 @@ export type Catalog = typeof en & {
     openThreads_other: "{{count}} open threads";
     showMore_one: "Show {{count}} more";
     showMore_other: "Show {{count}} more";
-    srFacetSummary: " — {{humanCount}} from people, {{botCount}} from bots; filters the conversation";
+    srFacetSummary: ", {{humanCount}} from people, {{botCount}} from bots; filters the conversation";
     summaryReviews_one: "{{count}} review";
     summaryReviews_other: "{{count}} reviews";
     summaryComments_one: "{{count}} comment";

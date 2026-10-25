@@ -102,7 +102,7 @@ export async function resolveRepoTarget(
   if (fullName === undefined) {
     throw new CliError(
       ExitCodes.USAGE,
-      "no target repository — run inside a git repo with an origin remote, or pass -R owner/name",
+      "no target repository: run inside a git repo with an origin remote, or pass -R owner/name",
     );
   }
   if (!REPO_FULL_NAME.test(fullName)) {

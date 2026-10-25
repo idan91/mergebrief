@@ -377,7 +377,7 @@ describe("CommentThread", () => {
     // Posting it mid-submit would double-post it when the review lands.
     const post = vi.fn();
     const reason =
-      "A review is being submitted — wait for it to finish before posting this comment.";
+      "A review is being submitted. Wait for it to finish before posting this comment.";
     render(
       <CommentThread
         comment={comment(DraftCommentStatuses.DRAFT)}

@@ -67,12 +67,16 @@ function receipt(): Receipt {
   };
 }
 
+const SIGNATURE_LINE =
+  "Reviewed with MergeBrief: 3/4 chunks read · 1 risks addressed · 0 dismissed · 1 open · 2 inline comments";
+
 function renderAccordion(overrides: Partial<Receipt> = {}) {
   return render(
     <ReceiptAccordion
       outcome="comment"
       raw={RAW}
       receipt={{ ...receipt(), ...overrides }}
+      signatureLine={SIGNATURE_LINE}
     />,
   );
 }
@@ -87,7 +91,7 @@ describe("ReceiptAccordion", () => {
     renderAccordion();
     expect(screen.getByText("Review outcome")).toBeTruthy();
     expect(screen.getByText("Comment")).toBeTruthy();
-    expect(screen.getByText(/3 chunks read, 1 risks addressed/i)).toBeTruthy();
+    expect(screen.getByText(SIGNATURE_LINE)).toBeTruthy();
   });
 
   it("opens coverage by default and keeps every other fold collapsed", () => {
@@ -110,9 +114,7 @@ describe("ReceiptAccordion", () => {
     renderAccordion();
     expect(screen.getByText("Inline comments (2)")).toBeTruthy();
     expect(
-      screen.getByText(
-        /risk disposition — 1 addressed · 1 dismissed · 1 open/i,
-      ),
+      screen.getByText(/risk disposition: 1 addressed · 1 dismissed · 1 open/i),
     ).toBeTruthy();
   });
 
@@ -156,7 +158,7 @@ describe("ReceiptAccordion", () => {
 
   it("keeps the frozen artifact verbatim inside the raw disclosure", () => {
     renderAccordion();
-    const fold = findFold(/show raw receipt \(as posted to github\)/i);
+    const fold = findFold(/^show raw receipt$/i);
     expect(fold?.querySelector("pre")?.textContent).toBe(RAW);
   });
 });

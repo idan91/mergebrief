@@ -19,6 +19,7 @@ import type { ReviewFlowStore } from "../session/flow/store";
 import {
   buildReviewBody,
   buildSignatureLine,
+  describeFoldedComments,
   listUnplacedDrafts,
   submitBlockedReason,
   type SubmitReviewAction,
@@ -64,6 +65,8 @@ export interface UseReviewSubmitInput {
   trackWrite: ReviewSessionActions["trackWrite"];
   /** The per-Brief flow store: the submit copy lives there, so a switch starts clean. */
   flowStore: ReviewFlowStore;
+  /** GitHub refuses an author's Approve or Request changes on their own PR. */
+  viewerIsAuthor: boolean;
 }
 
 export interface UseReviewSubmitValue {
@@ -80,6 +83,8 @@ export interface UseReviewSubmitValue {
   error: string | null;
   /** Persistent receipt note (anchoring degradation), survives the toast. */
   note: string | null;
+  /** The line appended to the GitHub review body, exactly as it posts. */
+  signatureLine: string;
   submit: () => void;
   clearError: () => void;
 }
@@ -99,7 +104,7 @@ export function useReviewSubmit(
       GITHUB_PERMISSION: t("review.submitResult.githubPermission"),
       INVALID: t("review.submitResult.invalid"),
       UPSTREAM_NEUTRAL: t("review.submitResult.upstream"),
-      UPSTREAM_VERDICT: t("review.submitResult.ownPr"),
+      OWN_PR_VERDICT: t("review.submitResult.ownPr"),
       // Deliberately INDETERMINATE: a throw can land after the POST reached
       // GitHub, so this copy must not claim "nothing was posted".
       FAILED: t("review.submitResult.indeterminate"),
@@ -127,6 +132,7 @@ export function useReviewSubmit(
     blockedExternally,
     trackWrite,
     flowStore,
+    viewerIsAuthor,
   } = input;
   const [pending, setPending] = useState(false);
   const submitError = useStore(flowStore, (state) => state.submitError);
@@ -216,16 +222,15 @@ export function useReviewSubmit(
       closeSubmit();
       invalidateConversation?.();
       if (result.commentsFolded > 0) {
-        const counts = {
-          folded: result.commentsFolded,
-          total: result.commentsTotal,
-        };
+        const folded = describeFoldedComments(
+          t,
+          result.commentsFolded,
+          result.commentsTotal,
+        );
         if (briefCurrent()) {
-          readFlowActions().setSubmitNote(
-            t("review.submitResult.anchorsFolded", counts),
-          );
+          readFlowActions().setSubmitNote(folded.note);
         }
-        announce(t("review.submitResult.postedDegraded", counts));
+        announce(folded.announcement);
       } else {
         announce(COPY.POSTED);
       }
@@ -275,11 +280,9 @@ export function useReviewSubmit(
             break;
           }
           case SubmitReviewResultKinds.UPSTREAM: {
-            fail(
-              outcome === ReviewOutcomes.COMMENT
-                ? COPY.UPSTREAM_NEUTRAL
-                : COPY.UPSTREAM_VERDICT,
-            );
+            const ownVerdict =
+              outcome !== ReviewOutcomes.COMMENT && viewerIsAuthor;
+            fail(ownVerdict ? COPY.OWN_PR_VERDICT : COPY.UPSTREAM_NEUTRAL);
             break;
           }
           case SubmitReviewResultKinds.INDETERMINATE: {
@@ -324,6 +327,7 @@ export function useReviewSubmit(
     signatureLine,
     trackWrite,
     unplacedDrafts,
+    viewerIsAuthor,
     COPY,
     t,
   ]);
@@ -339,6 +343,7 @@ export function useReviewSubmit(
     blockedReasonWith,
     error: submitError === "" ? null : submitError,
     note: submitNote === "" ? null : submitNote,
+    signatureLine,
     submit,
     clearError,
   };

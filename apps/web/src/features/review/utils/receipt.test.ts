@@ -152,7 +152,7 @@ describe("buildReceipt", () => {
     );
 
     expect(receiptText(receipt)).toContain(
-      "addressed: no-tests @ leak.ts — reviewed related chunk src/leak.ts",
+      "addressed: no-tests @ leak.ts: reviewed related chunk src/leak.ts",
     );
   });
 

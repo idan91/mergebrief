@@ -380,8 +380,8 @@
     },
     {
       // Copy that stays English by shape: the root document's head meta, the
-      // dev fixtures, and the receipt and submit text written into GitHub in a
-      // frozen format.
+      // dev fixtures, the receipt the submit flow shows, and the review body
+      // submit.ts posts to GitHub, both in a frozen format.
       "files": [
         "apps/web/src/routes/__root.tsx",
         "apps/web/src/features/brief/test-utils/fixtures.ts",

@@ -213,6 +213,8 @@ export interface ReviewCapability {
   /** Every session read after the first. */
   sessionReads?: SessionReadSource | undefined;
   writes?: SessionWrites | undefined;
+  /** The viewer wrote the PR, so GitHub refuses their Approve or Request changes. */
+  viewerIsAuthor?: boolean;
 }
 
 /** Present only where the Brief has a pull request conversation to show. */

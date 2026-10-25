@@ -193,7 +193,7 @@ export async function runSubmit(
   }
   if (degraded) {
     io.stderr(
-      "WARNING: comment anchors were rejected upstream — your comments were folded into the review body (commentsDegraded: true)",
+      "WARNING: comment anchors were rejected upstream, so those comments were folded into the review body (commentsDegraded: true)",
     );
   }
 

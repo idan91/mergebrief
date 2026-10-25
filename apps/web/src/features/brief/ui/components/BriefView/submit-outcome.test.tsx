@@ -43,11 +43,13 @@ function stubSubmitReview() {
 
 async function openSubmitModal(
   reviewOutcome: ReviewSessionPayload["reviewOutcome"],
+  viewerIsAuthor = false,
 ) {
   const submitReview = stubSubmitReview();
   await mountBriefView({
     session: buildSessionPayload(reviewOutcome),
     submitReview,
+    viewerIsAuthor,
   });
   fireEvent.click(screen.getByRole("button", { name: "Submit" }));
   fireEvent.click(screen.getByRole("button", { name: CONTINUE_TO_VERDICT }));
@@ -101,5 +103,30 @@ describe("submit under a stored outcome this bundle does not know", () => {
         .checked,
     ).toBe(true);
     expect(readSubmitDisabled()).toBeNull();
+  });
+});
+
+describe("a verdict GitHub refuses", () => {
+  it("points the pull request's author at Comment", async () => {
+    const submitReview = await openSubmitModal("approve", true);
+    submitReview.mockResolvedValue({ kind: SubmitReviewResultKinds.UPSTREAM });
+
+    clickSubmitReview();
+
+    expect(
+      await screen.findByText(/GitHub does not let an author approve/),
+    ).toBeTruthy();
+  });
+
+  it("offers any other reviewer a retry", async () => {
+    const submitReview = await openSubmitModal("approve");
+    submitReview.mockResolvedValue({ kind: SubmitReviewResultKinds.UPSTREAM });
+
+    clickSubmitReview();
+
+    expect(
+      await screen.findByText(/GitHub rejected the review or is unreachable/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/does not let an author/)).toBeNull();
   });
 });

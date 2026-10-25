@@ -59,6 +59,14 @@ describe("hard-fail catalog gates", () => {
     }
   });
 
+  it("keeps the em-dash out of every catalog value", () => {
+    const flat = flattenCatalog(parseLocale("en.json"));
+    const dashed = Object.keys(flat).filter((key) =>
+      flat[key]?.includes("\u2014"),
+    );
+    expect(dashed).toEqual([]);
+  });
+
   it("gives every _inline variant its standalone base key", () => {
     const flat = flattenCatalog(parseLocale("en.json"));
     const orphans = Object.keys(flat).filter((key) => {

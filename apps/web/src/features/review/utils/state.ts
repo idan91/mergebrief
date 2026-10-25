@@ -79,12 +79,6 @@ export interface UnresolvedItem {
   targetId: string;
 }
 
-export interface SignatureCounts {
-  reviewedChunks: number;
-  addressedRisks: number;
-  dismissedRisks: number;
-}
-
 export interface RiskDispositionCounts {
   addressed: number;
   dismissed: number;
@@ -502,22 +496,6 @@ export function reviewOutcomeLabel(
     return t("review.outcome.approve");
   }
   return t("review.outcome.comment");
-}
-
-/**
- * The PREVIEW's signature line. The one actually posted to GitHub lives in
- * `submit.ts` and stays English, it is written into an external system, not
- * rendered to the viewer.
- */
-export function summarySignatureLine(
-  t: TFunction,
-  counts: SignatureCounts,
-): string {
-  return t("review.summary.signature", {
-    reviewedChunks: counts.reviewedChunks,
-    addressedRisks: counts.addressedRisks,
-    dismissedRisks: counts.dismissedRisks,
-  });
 }
 
 export function riskDispositionCounts(

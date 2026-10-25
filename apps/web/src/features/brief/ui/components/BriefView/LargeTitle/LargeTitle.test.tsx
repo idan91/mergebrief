@@ -57,6 +57,6 @@ describe("LargeTitle", () => {
   it("labels the viewer's own draft", async () => {
     const block = await renderLargeTitle(true);
 
-    expect(within(block).getByText("Self-review — your draft")).toBeTruthy();
+    expect(within(block).getByText("Self-review: your draft")).toBeTruthy();
   });
 });

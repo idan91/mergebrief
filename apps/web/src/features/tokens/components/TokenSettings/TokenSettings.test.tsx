@@ -136,7 +136,7 @@ describe("TokenSettings", () => {
     // Token material + the treat-as-password / CLI-plaintext disclaimer.
     const status = await screen.findByRole("status");
     expect(status.textContent).toContain(SECRET);
-    expect(status.textContent).toMatch(/shown exactly once/i);
+    expect(status.textContent).toMatch(/shown once/i);
     expect(status.textContent).toMatch(/like a password/i);
     expect(status.textContent).toMatch(/plaintext/i);
     // The disclaimer's slots: a wrong components arity drops an element and
@@ -165,7 +165,7 @@ describe("TokenSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: /mint token/i }));
     await screen.findByRole("status");
 
-    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+    fireEvent.click(screen.getByRole("button", { name: /I saved it/i }));
     expect(screen.queryByRole("status")).toBeNull();
     expect(document.body.textContent).not.toContain(SECRET);
 
@@ -190,7 +190,7 @@ describe("TokenSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: /mint token/i }));
 
     const alert = await screen.findByText(
-      "Minting failed — nothing was created. Try again.",
+      "Minting failed and nothing was created. Try again.",
     );
     expect(alert.getAttribute("role")).toBe("alert");
   });
@@ -225,7 +225,7 @@ describe("TokenSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: /^revoke ci-token$/i }));
 
     const alert = await screen.findByText(
-      "Revoking failed — the token is still active. Try again.",
+      "Revoking failed and the token is still active. Try again.",
     );
     expect(alert.getAttribute("role")).toBe("alert");
   });

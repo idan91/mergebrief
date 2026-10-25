@@ -100,7 +100,7 @@ function briefSpan(
   if (!spanStored) {
     throw new CliError(
       ExitCodes.NOT_FOUND,
-      `no brief generated yet for PR ${prNumber} — generation is webhook-driven; try again after the next push settles`,
+      `no brief generated yet for PR ${prNumber}; \`mergebrief generation ${prNumber}\` shows where its generation stands`,
     );
   }
   return { base: baseSha, head: headSha };
@@ -207,7 +207,7 @@ export function requireDiffFlags(options: DiffOptions): void {
   if (options.group !== undefined && customSpan) {
     throw new CliError(
       ExitCodes.USAGE,
-      "--group filters the brief's own span — it cannot be combined with --base/--head",
+      "--group filters the brief's own span, so it cannot be combined with --base/--head",
     );
   }
   const loneSpanFlag =
@@ -289,7 +289,7 @@ export async function runDiff(
       // brief and the live diff disagree about files.
       throw new CliError(
         ExitCodes.GENERIC,
-        `group "${options.group}" references files missing from the live diff (${filtered.missingFiles.join(", ")}) — the brief may lag a push; retry after regeneration`,
+        `group "${options.group}" references files missing from the live diff (${filtered.missingFiles.join(", ")}). The brief may lag a push; retry after regeneration`,
       );
     }
     text = filtered.diff;

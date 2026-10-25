@@ -515,7 +515,7 @@ describe("Header Submit CTA draft count", () => {
 describe("Header own-draft state", () => {
   it("renders no self-review chip outside the own-draft state", async () => {
     await renderHeader();
-    expect(screen.queryByText("Self-review — your draft")).toBeNull();
+    expect(screen.queryByText("Self-review: your draft")).toBeNull();
   });
 
   it("swaps the terminal-action slot: Mark ready for review replaces Receipt", async () => {

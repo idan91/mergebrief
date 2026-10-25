@@ -14,8 +14,9 @@ import styles from "./ReceiptAccordion.module.scss";
 export interface ReceiptAccordionProps {
   receipt: Receipt;
   outcome: ReviewOutcome | undefined;
-  /** The frozen artifact text, exactly as posted to GitHub. */
+  /** The frozen receipt text, shown in the raw fold. */
   raw: string;
+  signatureLine?: string | undefined;
 }
 
 /** The modal receipt view: outcome pinned, everything else a fold with its
@@ -24,11 +25,12 @@ export function ReceiptAccordion({
   receipt,
   outcome,
   raw,
+  signatureLine,
 }: ReceiptAccordionProps) {
   const { t } = useTranslation();
   return (
     <div className={styles["stack"]}>
-      <OutcomeCard outcome={outcome} receipt={receipt} />
+      <OutcomeCard outcome={outcome} signatureLine={signatureLine} />
       <details className={styles["fold"]} open>
         <summary>
           <Icon

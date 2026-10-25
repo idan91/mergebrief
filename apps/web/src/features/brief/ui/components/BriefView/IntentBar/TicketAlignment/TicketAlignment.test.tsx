@@ -92,7 +92,7 @@ describe("TicketAlignment", () => {
       />,
     );
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "No read — the ticket states no goal to check this PR against",
+      "No read: the ticket states no goal to check this PR against",
     );
   });
 
@@ -105,7 +105,7 @@ describe("TicketAlignment", () => {
       />,
     );
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "No read — the ticket states no goal to check this PR against",
+      "No read: the ticket states no goal to check this PR against",
     );
   });
 
@@ -122,7 +122,7 @@ describe("TicketAlignment", () => {
     expect(screen.getByText(READ_TICKET.header)).toBeTruthy();
     expect(screen.getByText("This PR")).toBeTruthy();
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "No read — the ticket scope is too broad to check against this PR",
+      "No read: the ticket scope is too broad to check against this PR",
     );
     expect(screen.queryByText("Ticket asks")).toBeNull();
     expect(screen.queryByTestId("ticket-alignment-read")).toBeNull();
@@ -150,7 +150,7 @@ describe("TicketAlignment", () => {
     const notice = screen.getByRole("status");
     expect(notice.getAttribute("data-testid")).toBe("ticket-alignment-notice");
     expect(notice.textContent).toBe(
-      "BRIEF-88 could not be read. Notion returned not found — the page was moved, or the integration has no access to it. No alignment read for this PR.",
+      "BRIEF-88 could not be read. Notion returned not found. The page was moved, or the integration has no access to it. No alignment read for this PR.",
     );
     expect(notice.querySelector("b")?.textContent).toBe(
       "BRIEF-88 could not be read.",
@@ -180,7 +180,7 @@ describe("TicketAlignment", () => {
     );
 
     expect(screen.getByRole("status").textContent).toContain(
-      "GitHub refused the read — no credential is configured for it on this deployment.",
+      "GitHub refused the read: no credential is configured for it on this deployment.",
     );
     expect(screen.getByText("GitHub")).toBeTruthy();
   });

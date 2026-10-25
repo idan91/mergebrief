@@ -153,7 +153,7 @@ export async function runAuthLogin(
   if (baseUrl === undefined) {
     throw new CliError(
       ExitCodes.USAGE,
-      `profile "${profileName}" has no base URL yet — pass --base-url <deployment origin>`,
+      `profile "${profileName}" has no base URL yet; pass --base-url <deployment origin>`,
     );
   }
 
@@ -161,7 +161,7 @@ export async function runAuthLogin(
   if (!token.startsWith(TOKEN_PREFIX)) {
     throw new CliError(
       ExitCodes.USAGE,
-      `that does not look like a MergeBrief token (expected the ${TOKEN_PREFIX} prefix) — mint one at ${baseUrl}/settings`,
+      `that does not look like a MergeBrief token (expected the ${TOKEN_PREFIX} prefix); mint one at ${baseUrl}/settings`,
     );
   }
 

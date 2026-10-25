@@ -479,7 +479,7 @@ describe("ConversationSection", () => {
       ]),
     });
     expect(
-      await screen.findByText(/comments land here as teammates review/),
+      await screen.findByText(/Comments appear here as teammates review/),
     ).toBeDefined();
   });
 
@@ -487,7 +487,7 @@ describe("ConversationSection", () => {
     renderSection({ plan: plan([{ kind: "unavailable" }]) });
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toMatch(
-      /GitHub \(or the backend\) is unreachable/,
+      /GitHub or the MergeBrief server is unreachable/,
     );
     cleanup();
     renderSection({ plan: plan([{ kind: "unauthorized" }]) });

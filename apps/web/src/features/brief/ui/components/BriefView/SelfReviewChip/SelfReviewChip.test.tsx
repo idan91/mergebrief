@@ -16,7 +16,7 @@ function renderChip() {
 describe("SelfReviewChip", () => {
   it("renders the non-dismissible self-review chip with its tooltip", () => {
     renderChip();
-    const chip = screen.getByText("Self-review — your draft");
+    const chip = screen.getByText("Self-review: your draft");
     expect(chip).toBeTruthy();
     // Non-dismissible: the chip carries no close affordance.
     expect(

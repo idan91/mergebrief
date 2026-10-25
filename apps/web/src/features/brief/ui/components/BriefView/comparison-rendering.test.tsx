@@ -220,7 +220,7 @@ describe("Full Brief comparison overlay", () => {
     expect(screen.getByText("Core chunk.")).toBeTruthy();
     expect(screen.getByText("In: Tighten validation")).toBeTruthy();
     expect(
-      screen.getByText("Span summary unavailable — showing group context."),
+      screen.getByText("Span summary unavailable. Showing group context."),
     ).toBeTruthy();
     expect(screen.queryByText("Summary unavailable for this span.")).toBeNull();
   });
@@ -292,7 +292,9 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
+    expect(
+      screen.getByText("Regenerated from scratch after a model change."),
+    ).toBeTruthy();
   });
 
   it("shows the fresh-restart line even when the narrative is unavailable", () => {
@@ -313,7 +315,9 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
+    expect(
+      screen.getByText("Regenerated from scratch after a model change."),
+    ).toBeTruthy();
     expect(screen.getByText(/Revision summary unavailable/)).toBeTruthy();
   });
 
@@ -335,7 +339,9 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
+    expect(
+      screen.getByText("Regenerated from scratch after a model change."),
+    ).toBeTruthy();
     expect(screen.getByText(/No revision summary/)).toBeTruthy();
   });
 
@@ -365,7 +371,7 @@ describe("Changes Only rendering", () => {
       ),
     );
     expect(
-      screen.getByText(/Some brief text exceeds length guidance/),
+      screen.getByText(/Some brief text is longer than the length guidance/),
     ).toBeTruthy();
   });
 
@@ -395,7 +401,7 @@ describe("Changes Only rendering", () => {
       ),
     );
     expect(
-      screen.getByText(/Some brief text exceeds length guidance/),
+      screen.getByText(/Some brief text is longer than the length guidance/),
     ).toBeTruthy();
   });
 
@@ -425,7 +431,7 @@ describe("Changes Only rendering", () => {
       ),
     );
     expect(
-      screen.getByText(/Some brief text exceeds length guidance/),
+      screen.getByText(/Some brief text is longer than the length guidance/),
     ).toBeTruthy();
   });
 
@@ -443,7 +449,7 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    expect(screen.queryByText(/exceeds length guidance/)).toBeNull();
+    expect(screen.queryByText(/longer than the length guidance/)).toBeNull();
   });
 
   it("hides the fresh-restart line on anchored and unstamped briefs", () => {
@@ -461,7 +467,7 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
+    expect(screen.queryByText(/^Regenerated/)).toBeNull();
     unmount();
     render(
       withClient(
@@ -476,7 +482,7 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
+    expect(screen.queryByText(/^Regenerated/)).toBeNull();
   });
 
   it("keeps narrative generation warnings out of the reading path", () => {

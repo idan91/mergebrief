@@ -451,7 +451,9 @@ describe("groups over a scripted api", () => {
     expect(result.code).toBe(ExitCodes.NOT_FOUND);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
-    expect(result.err[0]).toContain("no brief generated yet");
+    expect(result.err[0]).toBe(
+      "no brief generated yet for PR 7; `mergebrief generation 7` shows where its generation stands",
+    );
     expect(result.requests.map((request) => request.path)).toEqual([
       "/api/repos",
       `/api/repos/${OFFLINE_REPO_ID}/pulls/7`,

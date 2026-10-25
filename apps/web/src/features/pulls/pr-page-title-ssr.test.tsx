@@ -78,6 +78,6 @@ describe("PR brief tab title on the server render", () => {
     const titleCount = html.split("<title>").length - 1;
 
     expect(titleCount).toBe(1);
-    expect(html).not.toContain("MergeBrief / review</title>");
+    expect(html).not.toContain("<title>MergeBrief</title>");
   });
 });

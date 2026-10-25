@@ -120,7 +120,7 @@ describe("describeUnreadPrimary", () => {
         reason: "not-found",
       }),
     ).toBe(
-      "error: BRIEF-1 could not be read (not-found) — Notion returned not found — the page was moved, or the integration has no access to it",
+      "error: BRIEF-1 could not be read (not-found); Notion returned not found. The page was moved, or the integration has no access to it",
     );
   });
 
@@ -137,7 +137,7 @@ describe("describeUnreadPrimary", () => {
         reason: "unsupported",
       }),
     ).toBe(
-      "error: https://github.com/o/r/issues/7 could not be read (unsupported) \u2014 no GitHub reader is configured on this deployment",
+      "error: https://github.com/o/r/issues/7 could not be read (unsupported); no GitHub reader is configured on this deployment",
     );
   });
 });

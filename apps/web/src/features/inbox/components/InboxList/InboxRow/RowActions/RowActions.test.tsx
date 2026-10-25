@@ -284,7 +284,7 @@ describe("RowActions", () => {
     });
 
     expect(onAnnounce).toHaveBeenCalledWith(
-      expect.stringContaining("sign in again"),
+      expect.stringContaining("Sign in again"),
     );
     expect(assign).not.toHaveBeenCalled();
   });

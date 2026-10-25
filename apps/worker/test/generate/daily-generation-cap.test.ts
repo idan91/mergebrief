@@ -398,7 +398,7 @@ describe("generate task, daily generation cap", () => {
     // Replace-never-duplicate: still exactly ONE comment, now the capped body.
     expect(github.readComments(REPO).size).toBe(1);
     const body = [...github.readComments(REPO).values()][0] ?? "";
-    expect(body).toContain("Daily generation cap reached");
+    expect(body).toContain("reached its daily generation cap");
     expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7`);
     expect(body).toContain(HEAD_2.slice(0, 7));
   });

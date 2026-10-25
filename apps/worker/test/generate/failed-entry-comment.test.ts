@@ -613,7 +613,7 @@ describe("generate task, failed Entry comment", () => {
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.FAILED);
     const [body] = readLiveBodies(github);
     expect(readLiveBodies(github)).toHaveLength(1);
-    expect(body).toContain("Daily generation cap reached");
+    expect(body).toContain("reached its daily generation cap");
   });
 
   it("a later head's capped run replaces an older head's failed body", async () => {
@@ -632,8 +632,8 @@ describe("generate task, failed Entry comment", () => {
     );
     const [body] = readLiveBodies(github);
     expect(readLiveBodies(github)).toHaveLength(1);
-    expect(body).toContain("no brief for `bbbbbbb`");
-    expect(body).toContain("Daily generation cap reached");
+    expect(body).toContain("No brief for `bbbbbbb`");
+    expect(body).toContain("reached its daily generation cap");
   });
 
   it("an unreadable live comment is left alone", async () => {

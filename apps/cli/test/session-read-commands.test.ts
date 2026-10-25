@@ -279,4 +279,28 @@ describe("session read span refusals before any request", () => {
     const result = await runCliOffline([...argv, "--json"]);
     expectRefusedBeforeRequest(result, flags);
   });
+
+  it.each([
+    {
+      command: "marks",
+      argv: ["marks", "7", "--head", HEAD_SHA],
+      pointer: "`mergebrief pr <n> --json` revisions",
+    },
+    {
+      command: "narrative",
+      argv: ["narrative", "7", "--prev-head", PREV_HEAD_SHA],
+      pointer: "`mergebrief pr <n> --json` revisions",
+    },
+    {
+      command: "context",
+      argv: ["context", "7"],
+      pointer: "`mergebrief pr <n> --json` baseSha/headSha",
+    },
+  ])(
+    "points $command at the full SHAs pr --json carries",
+    async ({ argv, pointer }) => {
+      const result = await runCliOffline([...argv, "--json"]);
+      expectRefusedBeforeRequest(result, pointer);
+    },
+  );
 });

@@ -12,6 +12,9 @@ import {
 } from "types/generations";
 
 const SHORT_SHA_LENGTH = 7;
+const ISO_DATE_END = 10;
+const ISO_TIME_START = 11;
+const ISO_MINUTE_END = 16;
 
 /** The revision deep link into the web app's DB-brief route. */
 export function buildEntryCommentDeepLink(
@@ -72,11 +75,17 @@ export function buildEntryCommentCappedBody(
 ): string {
   const url = buildPrViewUrl(link);
   const shortSha = formatShortSha(link.headSha);
-  const resetsAt = link.resetsAt.toISOString().replace(".000Z", "Z");
+  const resetsAt = formatUtcMinute(link.resetsAt);
   const heading = `**${t("entryComment.capped.heading", { shortSha })}**`;
   const body = `${t("entryComment.capped.body", { resetsAt })} [${t("entryComment.capped.openLink")}](${url})`;
   const footer = formatFooter(t("entryComment.capped.footer"));
   return [heading, "", body, "", footer].join("\n");
+}
+
+/** `2026-10-25 00:00 UTC`: the reset as a reader writes it, not a raw ISO instant. */
+function formatUtcMinute(instant: Date): string {
+  const iso = instant.toISOString();
+  return `${iso.slice(0, ISO_DATE_END)} ${iso.slice(ISO_TIME_START, ISO_MINUTE_END)} UTC`;
 }
 
 /**

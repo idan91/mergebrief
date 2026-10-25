@@ -323,7 +323,7 @@ describe("ThreadDetail, standalone resolve/unresolve", () => {
     });
     fireEvent.click(screen.getByRole("button", RESOLVE_BUTTON));
     const copy =
-      "GitHub refused the change — your permission to resolve threads here may have changed.";
+      "GitHub refused the change. Your permission to resolve threads here may have changed.";
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toBe(copy),
     );
@@ -341,7 +341,7 @@ describe("ThreadDetail, standalone resolve/unresolve", () => {
     });
     fireEvent.click(screen.getByRole("button", RESOLVE_BUTTON));
     const copy =
-      "This thread is no longer on GitHub — it may have been deleted.";
+      "This thread is no longer on GitHub. It may have been deleted.";
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toBe(copy),
     );
@@ -524,7 +524,7 @@ describe("ThreadDetail, Reply & resolve combo", () => {
       expect(
         screen.getAllByRole("alert").map((element) => element.textContent),
       ).toContain(
-        "GitHub rejected the reply or is unreachable — try again shortly. The thread was left unresolved.",
+        "GitHub rejected the reply or is unreachable. Try again shortly. The thread was left unresolved.",
       ),
     );
     // Nothing was resolved: the resolve leg never ran.
@@ -540,7 +540,7 @@ describe("ThreadDetail, Reply & resolve combo", () => {
     type("fixed");
     fireEvent.click(screen.getByRole("button", COMBO_BUTTON));
     const partial =
-      "Your reply posted, but resolving the thread failed. The reply is on GitHub — use Resolve on the thread to finish.";
+      "Your reply posted, but resolving the thread failed. Use Resolve on the thread to finish.";
     await waitFor(() =>
       expect(
         screen.getAllByRole("alert").map((element) => element.textContent),
@@ -569,7 +569,7 @@ describe("ThreadDetail, Reply & resolve combo", () => {
       type("fixed");
       fireEvent.click(screen.getByRole("button", COMBO_BUTTON));
       const indeterminate =
-        "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed — check the thread before resolving it again.";
+        "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed, so check the thread before resolving it again.";
       await waitFor(() =>
         expect(
           screen.getAllByRole("alert").map((element) => element.textContent),
@@ -619,7 +619,7 @@ describe("ThreadDetail, Reply & resolve combo", () => {
         expect(
           screen.getAllByRole("alert").map((element) => element.textContent),
         ).toContain(
-          "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying. The thread was left unresolved.",
+          "Something went wrong posting the reply. It may or may not have posted. Check the thread on GitHub before retrying. The thread was left unresolved.",
         ),
       );
       expect(h.setResolved).not.toHaveBeenCalled();

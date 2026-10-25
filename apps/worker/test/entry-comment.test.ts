@@ -46,7 +46,7 @@ describe("entry comment bodies", () => {
       [
         "**[Read the brief for this push](https://mb.example/repos/123/pulls/7?rev=2)** (`abcdef1`)",
         "",
-        "<sub>Posted by MergeBrief — replaced on each settled push so it always links the latest revision.</sub>",
+        "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on a later push.</sub>",
       ].join("\n"),
     );
   });
@@ -56,7 +56,7 @@ describe("entry comment bodies", () => {
       [
         "**[Brief is generating for this push…](https://mb.example/repos/123/pulls/7?rev=2)** (`abcdef1`)",
         "",
-        "<sub>Posted by MergeBrief — the link already shows the live diff; this comment is replaced when the brief is ready.</sub>",
+        "<sub>Posted by MergeBrief. The link shows the live diff now, and this comment is replaced when the brief is ready.</sub>",
       ].join("\n"),
     );
   });
@@ -64,11 +64,11 @@ describe("entry comment bodies", () => {
   it("builds the capped body with the spanless PR link and reset time", () => {
     expect(buildEntryCommentCappedBody(t, CAPPED_LINK)).toBe(
       [
-        "**Daily generation cap reached — no brief for `abcdef1`.**",
+        "**No brief for `abcdef1`: this instance reached its daily generation cap.**",
         "",
-        "Generation resumes at 2026-10-25T00:00:00Z; the next push after that briefs normally. [Open this PR in MergeBrief](https://mb.example/repos/123/pulls/7)",
+        "Generation resumes at 2026-10-25 00:00 UTC. The next push after that is briefed as usual. [Open this PR in MergeBrief](https://mb.example/repos/123/pulls/7)",
         "",
-        "<sub>Posted by MergeBrief — this instance's operator sets the daily cap.</sub>",
+        "<sub>Posted by MergeBrief. The instance operator sets the daily cap.</sub>",
       ].join("\n"),
     );
   });
@@ -82,7 +82,7 @@ describe("entry comment bodies", () => {
 
     expect(body).toBe(
       [
-        "**Brief generation failed — no brief for `abcdef1`.**",
+        "**No brief for `abcdef1`: generation failed.**",
         "",
         "The model provider timed out before finishing. [Regenerate from MergeBrief](https://mb.example/repos/123/pulls/7?rev=2)",
         "",
@@ -100,7 +100,7 @@ describe("entry comment bodies", () => {
 
     expect([...bodies]).toEqual([
       [
-        "**Brief generation failed — no brief for `abcdef1`.**",
+        "**No brief for `abcdef1`: generation failed.**",
         "",
         "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief. [Open this push in MergeBrief](https://mb.example/repos/123/pulls/7?rev=2)",
         "",
@@ -118,7 +118,7 @@ describe("entry comment bodies", () => {
 
     expect(body).toBe(
       [
-        "**Brief generation failed — no brief for `abcdef1`.**",
+        "**No brief for `abcdef1`: generation failed.**",
         "",
         "GitHub will not serve a diff this large. [Open this push in MergeBrief](https://mb.example/repos/123/pulls/7?rev=2)",
         "",

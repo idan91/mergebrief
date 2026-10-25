@@ -18,6 +18,7 @@ import {
   buildReviewBody,
   buildSignatureLine,
   buildSubmitPayload,
+  describeFoldedComments,
   foldDraftsIntoBody,
   listUnplacedDrafts,
   submitBlockedReason,
@@ -126,7 +127,7 @@ describe("buildSignatureLine", () => {
   it("renders one line of mechanical claims", () => {
     const line = buildSignatureLine(receipt, 2);
     expect(line).toBe(
-      "Reviewed with MergeBrief — 12/14 chunks read · 2 risks addressed · 1 dismissed · 3 open · 2 inline comments",
+      "Reviewed with MergeBrief: 12/14 chunks read · 2 risks addressed · 1 dismissed · 3 open · 2 inline comments",
     );
     expect(line).not.toContain("\n");
   });
@@ -318,6 +319,23 @@ describe("foldDraftsIntoBody", () => {
     );
   });
 
+  it("measures one draft with the route's single-comment preamble", () => {
+    const drafts: ReviewComment[] = [
+      comment(
+        "line",
+        { file: "src/a.ts", startLine: 12, endLine: 12 },
+        "anchored note",
+      ),
+    ];
+
+    const folded = foldDraftsIntoBody("", drafts, []);
+
+    expect(folded).toContain(
+      "This comment could not be anchored to the diff, so it is included here:",
+    );
+    expect(folded).not.toContain("1 of 1");
+  });
+
   it("folds the fixture the api fold test pins to the same length", () => {
     // The api fold test holds a literal copy of this fixture and length:
     // apps/api/src/routes/repos/pr/publish/logic/fold.test.ts.
@@ -361,7 +379,7 @@ describe("foldDraftsIntoBody", () => {
       [],
     );
 
-    expect(folded).toHaveLength(305);
+    expect(folded).toHaveLength(273);
   });
 
   it("folds unplaced and placed drafts to the route's length", () => {
@@ -409,7 +427,7 @@ describe("foldDraftsIntoBody", () => {
       unplaced,
     );
 
-    expect(folded).toHaveLength(337);
+    expect(folded).toHaveLength(305);
     expect(folded).toContain("**`src/gone.ts:LEFT 8-RIGHT 9`**");
   });
 });
@@ -423,6 +441,34 @@ describe("buildReviewBody", () => {
   it("fences the trimmed comment above the signature with a rule", () => {
     expect(buildReviewBody("  Solid change. ", "sig")).toBe(
       "Solid change.\n\n---\n\nsig",
+    );
+  });
+});
+
+describe("describeFoldedComments", () => {
+  it("names how many of the total folded on a partial fold", () => {
+    const copy = describeFoldedComments(t, 1, 3);
+    expect(copy.note).toBe(
+      "1 of 3 comments couldn't be anchored on GitHub's side and were folded into the review body. Nothing was dropped.",
+    );
+    expect(copy.announcement).toContain("couldn't anchor 1 of 3 comments");
+  });
+
+  it("reads a full fold of one comment as that comment", () => {
+    const copy = describeFoldedComments(t, 1, 1);
+    expect(copy.note).toBe(
+      "Your comment couldn't be anchored on GitHub's side and was folded into the review body. Nothing was dropped.",
+    );
+    expect(copy.announcement).not.toContain("1 of 1");
+  });
+
+  it("reads a full fold of several comments without N of N", () => {
+    const copy = describeFoldedComments(t, 3, 3);
+    expect(copy.note).toBe(
+      "None of your 3 comments could be anchored on GitHub's side, so all of them were folded into the review body. Nothing was dropped.",
+    );
+    expect(copy.announcement).toBe(
+      "Review posted. GitHub couldn't anchor any of your 3 comments to the diff, so they were folded into the review body. Nothing was dropped.",
     );
   });
 });

@@ -386,22 +386,22 @@ describe("markReadyBatchFailureCopy", () => {
     ] as const) {
       const copy = markReadyBatchFailureCopy(t, 1, 3, cause);
       expect(copy).toContain("Posted 1 of 3.");
-      expect(copy).toContain("The PR was NOT marked ready.");
+      expect(copy).toContain("The pull request was not marked ready.");
     }
   });
 
   it("gives the cause's own recovery guidance", () => {
     expect(markReadyBatchFailureCopy(t, 0, 1, "rejected")).toContain(
-      "edit the draft and try again",
+      "Edit the draft and try again",
     );
     expect(markReadyBatchFailureCopy(t, 0, 1, "no-permission")).toContain(
       "Check your access on GitHub.",
     );
     expect(markReadyBatchFailureCopy(t, 0, 1, "unauthorized")).toContain(
-      "sign in again",
+      "Sign in again",
     );
     expect(markReadyBatchFailureCopy(t, 0, 1, "stale")).toContain(
-      "reload to post against the current diff",
+      "Reload to post against the current diff",
     );
     expect(markReadyBatchFailureCopy(t, 0, 1, "not-found")).toContain(
       "no longer accessible",
@@ -410,7 +410,7 @@ describe("markReadyBatchFailureCopy", () => {
 
   it("keeps the indeterminate cause indeterminate", () => {
     expect(markReadyBatchFailureCopy(t, 2, 3, "indeterminate")).toContain(
-      "may or may not have posted — check GitHub before retrying",
+      "may or may not have posted. Check GitHub before retrying",
     );
   });
 });

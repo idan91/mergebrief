@@ -21,7 +21,6 @@ import {
   deriveUnresolvedItems,
   getChunkRegion,
   riskEvidenceLabel,
-  summarySignatureLine,
   type CarriedInput,
 } from "./state";
 
@@ -264,22 +263,6 @@ describe("deriveUnresolvedItems", () => {
         targetId: "u-7e7f21ef",
       },
     ]);
-  });
-});
-
-const t = appI18n.t;
-
-describe("summarySignatureLine", () => {
-  it("counts reviewed chunks and risk disposition", () => {
-    expect(
-      summarySignatureLine(t, {
-        reviewedChunks: 7,
-        addressedRisks: 5,
-        dismissedRisks: 1,
-      }),
-    ).toBe(
-      "Reviewed with MergeBrief / review — summary: 7 chunks read, 5 risks addressed, 1 dismissed.",
-    );
   });
 });
 

@@ -23,20 +23,20 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
-      { title: "MergeBrief / review" },
+      { title: "MergeBrief" },
       {
         name: "description",
         content:
-          "Open-source, self-hostable comprehension layer for code review. Turns a PR into a brief: categorized change-groups with plain-language summaries and risk-surface attributes. BYOK, no telemetry.",
+          "MergeBrief turns a pull request into a brief that groups the changes, summarizes them in plain language and points at what needs a closer look. Open source, self-hosted, bring your own model key.",
       },
       {
         property: "og:title",
-        content: "MergeBrief / review — a comprehension layer for code review",
+        content: "MergeBrief: understand a pull request before you review it",
       },
       {
         property: "og:description",
         content:
-          "Turns a pull request into a brief: categorized change-groups, plain-language summaries, and risk-as-facts. Open-source, self-hostable, BYOK.",
+          "MergeBrief turns a pull request into a brief that groups the changes, summarizes them in plain language and points at what needs a closer look. Open source, self-hosted, bring your own model key.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

@@ -34,7 +34,7 @@ describe("buildCappedLabel", () => {
       "2026-08-03T18:30:00.000Z",
       new Date("2026-08-03T19:00:00.000Z"),
     );
-    expect(label).toContain("Daily generation cap reached — resumes ");
+    expect(label).toContain("Daily generation cap reached. Resumes ");
   });
 
   it("says generation has resumed once the window rolled over", () => {
@@ -45,7 +45,7 @@ describe("buildCappedLabel", () => {
       new Date("2026-08-03T09:00:00.000Z"),
     );
     expect(label).toBe(
-      "Daily generation cap reached — generation has since resumed.",
+      "Daily generation cap reached. Generation has since resumed.",
     );
   });
 

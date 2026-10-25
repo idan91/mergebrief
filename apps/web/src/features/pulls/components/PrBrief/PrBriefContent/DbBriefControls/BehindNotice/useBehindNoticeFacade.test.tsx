@@ -133,10 +133,10 @@ describe("useBehindNoticeFacade", () => {
     const refused = renderNotice(makeMeta());
     act(() => refused.result.current.notice?.onRegenerate?.());
     await waitFor(() =>
-      expect(refused.result.current.notice?.failure).toContain("sign in"),
+      expect(refused.result.current.notice?.failure).toContain("Sign in"),
     );
     await waitFor(() =>
-      expect(refused.result.current.announcement).toContain("sign in"),
+      expect(refused.result.current.announcement).toContain("Sign in"),
     );
     expect(refused.invalidate).toHaveBeenCalledTimes(1);
   });

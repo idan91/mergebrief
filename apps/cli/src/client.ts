@@ -247,7 +247,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       ) {
         throw new CliError(
           ExitCodes.GENERIC,
-          `${base} answered like an identity-provider proxy (redirect/HTML) — exempt /api/* from the IdP for Bearer traffic (see docs/self-host)`,
+          `${base} answered like an identity-provider proxy (redirect/HTML). Exempt /api/* from the IdP for Bearer traffic (see docs/self-host)`,
         );
       }
 

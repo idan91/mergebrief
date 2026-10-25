@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "MergeBrief CLI — humans and AI agents over the read/write API.",
+  "description": "MergeBrief CLI: humans and AI agents over the read/write API.",
   "license": "FSL-1.1-ALv2",
   "repository": {
     "type": "git",

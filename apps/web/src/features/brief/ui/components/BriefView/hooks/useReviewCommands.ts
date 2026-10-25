@@ -116,6 +116,7 @@ function useSubmitFlow(
     blockedExternally,
     trackWrite: actions.trackWrite,
     flowStore,
+    viewerIsAuthor: props.review?.viewerIsAuthor === true,
   });
 }
 

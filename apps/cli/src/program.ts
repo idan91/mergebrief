@@ -53,7 +53,7 @@ export function buildProgram(deps: CliDeps): Command {
   const program = new Command("mergebrief");
   program
     .description(
-      "MergeBrief — PR briefs for humans and agents, over your deployment's API",
+      "MergeBrief: PR briefs for humans and agents, over your deployment's API",
     )
     .version(resolveCliVersion(deps))
     .option("--json", "machine output: the documented JSON contract", false)

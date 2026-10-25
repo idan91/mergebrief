@@ -30,7 +30,7 @@ import type { SubmitReviewResult } from "./types";
 
 export interface BuildSubmitPayloadInput {
   outcome: ReviewOutcome;
-  /** The review body, the receipt's one-line signature on the DB path. */
+  /** The review body on the DB path: the reviewer's words, a rule, then the signature line. */
   body?: string;
 }
 
@@ -67,9 +67,9 @@ export type SubmitReviewAction = (
 ) => Promise<SubmitReviewResult>;
 
 /**
- * The one-line signature carried as the GitHub review body. Mechanical claims
- * only; never empty, GitHub requires a body for REQUEST_CHANGES, and this
- * line satisfies it for every outcome.
+ * The signature line closing the GitHub review body, under the reviewer's
+ * words. Mechanical claims only; never empty, GitHub requires a body for
+ * REQUEST_CHANGES, and this line satisfies it for every outcome.
  */
 export function buildSignatureLine(
   receipt: Receipt,
@@ -83,7 +83,7 @@ export function buildSignatureLine(
     `${counts.open} open`,
     `${draftCommentCount} inline comments`,
   ];
-  return `Reviewed with MergeBrief — ${claims.join(" · ")}`;
+  return `Reviewed with MergeBrief: ${claims.join(" · ")}`;
 }
 
 /**
@@ -175,6 +175,14 @@ function shapeFoldedBlock(draft: FoldedDraft): string {
   return [`**\`${location}\`**`, "", draft.body].join("\n");
 }
 
+/** The route's preamble when every comment folded, one or many. */
+function shapeEveryFoldedPreamble(count: number): string {
+  if (count === 1) {
+    return "This comment could not be anchored to the diff, so it is included here:";
+  }
+  return `These ${String(count)} comments could not be anchored to the diff, so they are included here:`;
+}
+
 /** The folded review body, measured against `RequestBounds.BODY_LENGTH`. */
 export type FoldedReviewBody = string;
 
@@ -197,8 +205,7 @@ export function foldDraftsIntoBody(
   if (folded.length === 0) {
     return reviewBody;
   }
-  const count = String(folded.length);
-  const preamble = `${count} of ${count} comments could not be anchored to the diff and were folded into this review body (nothing was dropped):`;
+  const preamble = shapeEveryFoldedPreamble(folded.length);
   const sections: string[] = [];
   const hasReviewBody = reviewBody.trim() !== "";
   if (hasReviewBody) {
@@ -263,4 +270,36 @@ export function submitBlockedReason(
     return t("review.submit.commentNeedsContent");
   }
   return undefined;
+}
+
+export interface FoldedCommentsCopy {
+  /** The persistent note under the submit flow. */
+  readonly note: string;
+  /** The page announcement once the review posted. */
+  readonly announcement: string;
+}
+
+/** What the reviewer reads once GitHub refused some anchors; a full fold never reads N of N. */
+export function describeFoldedComments(
+  t: TFunction,
+  folded: number,
+  total: number,
+): FoldedCommentsCopy {
+  if (folded < total) {
+    const counts = { folded, total };
+    return {
+      note: t("review.submitResult.anchorsFolded", counts),
+      announcement: t("review.submitResult.postedDegraded", counts),
+    };
+  }
+  if (total === 1) {
+    return {
+      note: t("review.submitResult.anchorsFoldedSingle"),
+      announcement: t("review.submitResult.postedDegradedSingle"),
+    };
+  }
+  return {
+    note: t("review.submitResult.anchorsFoldedEvery", { total }),
+    announcement: t("review.submitResult.postedDegradedEvery", { total }),
+  };
 }

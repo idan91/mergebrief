@@ -127,6 +127,18 @@ describe("SubmitModal views", () => {
     );
   });
 
+  it("says the receipt stays off GitHub, not that only the signature posts", () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+
+    expect(
+      screen.getByText(
+        "Your review as it stands at submit. This receipt is not posted to GitHub; its counts go on the signature line in your review.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/only the one-line signature/i)).toBeNull();
+  });
+
   it("keeps the review comment across a receipt preview and back", () => {
     renderModal();
     const field = screen.getByRole("textbox", { name: /review comment/i });
@@ -256,7 +268,9 @@ describe("SubmitModal advisory view", () => {
     expect(
       screen.getByRole("heading", { name: /before you submit/i }),
     ).toBeTruthy();
-    expect(screen.getByText(/this is advisory/i)).toBeTruthy();
+    expect(
+      screen.getByText(/you can continue; the summary shows unresolved items/i),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: /open risk/i })).toBeTruthy();
     // No submit control on the advisory stop.
     expect(

@@ -30,9 +30,30 @@ describe("foldCommentsIntoBody", () => {
       3,
     );
     expect(folded).toContain(
-      "1 of 3 comments could not be anchored to the diff and were folded into this review body (nothing was dropped):",
+      "1 of 3 comments could not be anchored to the diff and were folded into this review body:",
     );
     expect(folded?.startsWith("overall verdict")).toBe(true);
+  });
+
+  it("reads a full fold of one comment as that comment", () => {
+    const comments = [shapePublishComment(makeFileDraft())];
+    const folded = foldCommentsIntoBody("overall verdict", comments, 1);
+    expect(folded).toContain(
+      "This comment could not be anchored to the diff, so it is included here:",
+    );
+    expect(folded).not.toContain("1 of 1");
+  });
+
+  it("reads a full fold of several comments as the set, never N of N", () => {
+    const comments = [
+      shapePublishComment(makeFileDraft()),
+      shapePublishComment(makeDraftCommentRow()),
+    ];
+    const folded = foldCommentsIntoBody(undefined, comments, 2);
+    expect(folded).toContain(
+      "These 2 comments could not be anchored to the diff, so they are included here:",
+    );
+    expect(folded).not.toContain("2 of 2");
   });
 
   it("folds a File comment as path with no range", () => {
@@ -91,7 +112,7 @@ describe("foldCommentsIntoBody", () => {
       drafts.length,
     );
 
-    expect(folded?.length).toBe(305);
+    expect(folded?.length).toBe(273);
   });
 
   it("folds the fixture the web pins with its unplaced drafts", () => {
@@ -134,6 +155,6 @@ describe("foldCommentsIntoBody", () => {
       drafts.length,
     );
 
-    expect(folded?.length).toBe(337);
+    expect(folded?.length).toBe(305);
   });
 });

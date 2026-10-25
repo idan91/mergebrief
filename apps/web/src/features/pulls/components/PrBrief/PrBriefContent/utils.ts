@@ -17,6 +17,7 @@ export interface PrReviewInput {
   sessionReads: SessionReadSource;
   writes: SessionWrites;
   sessionUnavailableReason: string;
+  viewerIsAuthor: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function buildPrReview(input: PrReviewInput): ReviewCapability {
     ownDraft: input.ownDraft,
     session,
     sessionReads: input.sessionReads,
+    viewerIsAuthor: input.viewerIsAuthor,
   };
   if (input.readOnly !== undefined) {
     review.readOnly = input.readOnly;

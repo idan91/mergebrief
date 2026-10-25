@@ -514,7 +514,7 @@ describe("DB brief route", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
     expect(
-      within(screen.getByRole("banner")).getByText("Self-review — your draft"),
+      within(screen.getByRole("banner")).getByText("Self-review: your draft"),
     ).toBeTruthy();
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
     expect(cta.getAttribute("aria-disabled")).toBe("false");

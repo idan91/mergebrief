@@ -817,7 +817,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(body).toContain("overall verdict");
     expect(body).toContain("---");
     expect(body).toContain(
-      "1 of 3 comments could not be anchored to the diff and were folded into this review body (nothing was dropped):",
+      "1 of 3 comments could not be anchored to the diff and were folded into this review body:",
     );
     expect(body).toContain("**`src/app.ts`**");
     expect(body).not.toContain("src/app.ts:");

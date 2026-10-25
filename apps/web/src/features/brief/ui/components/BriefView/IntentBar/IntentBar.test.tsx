@@ -232,7 +232,7 @@ describe("IntentBar", () => {
       screen.getByRole("link", { name: /^EPIC-9 ?\(opens in a new tab\)$/ }),
     ).toBeTruthy();
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "No read \u2014 the ticket scope is too broad to check against this PR",
+      "No read: the ticket scope is too broad to check against this PR",
     );
     expect(screen.queryByText("Accomplished")).toBeNull();
   });
@@ -293,11 +293,11 @@ describe("IntentBar", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const button = screen.getByRole("button", {
-      name: "Go to change-group g1 \u2014 Add the widget endpoint and its store",
+      name: "Go to change-group g1: Add the widget endpoint and its store",
     });
     // The hover tooltip carries the same text as the accessible name.
     expect(button.getAttribute("title")).toBe(
-      "Go to change-group g1 \u2014 Add the widget endpoint and its store",
+      "Go to change-group g1: Add the widget endpoint and its store",
     );
     // A group with no known title keeps the plain label.
     const bare = screen.getByRole("button", { name: "Go to change-group g2" });
@@ -479,7 +479,7 @@ describe("IntentBar", () => {
   it("closes the panel with one inference caution below the buckets", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    const caution = "AI-inferred — verify against the ticket and the diff";
+    const caution = "AI-inferred. Verify against the ticket and the diff.";
     expect(screen.getAllByText(caution)).toHaveLength(1);
     const body = bodyText();
     expect(body.indexOf(caution)).toBeGreaterThan(
@@ -529,7 +529,7 @@ describe("IntentBar", () => {
       "parent epic spans several PRs",
     );
     expect(
-      screen.getByText("AI-inferred — verify against the ticket and the diff"),
+      screen.getByText("AI-inferred. Verify against the ticket and the diff."),
     ).toBeTruthy();
   });
 });

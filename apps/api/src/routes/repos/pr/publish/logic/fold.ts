@@ -21,6 +21,17 @@ export function shapeFoldedCommentBlock(comment: PublishComment): string {
   return [`**\`${anchor.path}:${range}\`**`, "", comment.body].join("\n");
 }
 
+/** A partial fold says how many of how many; a full one reads as the set it is. */
+function shapeFoldPreamble(folded: number, total: number): string {
+  if (folded < total) {
+    return `${String(folded)} of ${String(total)} comments could not be anchored to the diff and were folded into this review body:`;
+  }
+  if (folded === 1) {
+    return "This comment could not be anchored to the diff, so it is included here:";
+  }
+  return `These ${String(folded)} comments could not be anchored to the diff, so they are included here:`;
+}
+
 /**
  * The review body with the rejected comments folded in as quoted blocks.
  * Nothing rejected returns the body as given, `undefined` included.
@@ -33,7 +44,7 @@ export function foldCommentsIntoBody(
   if (rejected.length === 0) {
     return body;
   }
-  const preamble = `${String(rejected.length)} of ${String(total)} comments could not be anchored to the diff and were folded into this review body (nothing was dropped):`;
+  const preamble = shapeFoldPreamble(rejected.length, total);
   const sections: string[] = [];
   if (body !== undefined && body.trim() !== "") {
     sections.push(body);
