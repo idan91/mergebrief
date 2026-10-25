@@ -49,6 +49,16 @@ export type BriefRouteState =
    */
   | { readonly kind: "capped"; readonly cappedAt: string };
 
+/**
+ * A brief is stored for the current head, on any base: what display, polling
+ * and route state ask. Action offers read `briefAvailable`, the regenerate
+ * route's test for a failed head. A server older than `headBriefStored`
+ * meant this by `briefAvailable`.
+ */
+export function hasStoredHeadBrief(meta: PrSummary): boolean {
+  return meta.headBriefStored ?? meta.briefAvailable;
+}
+
 function isInFlight(status: GenerationSummary["status"] | undefined): boolean {
   return (
     status === GenerationStatuses.PENDING ||
@@ -93,14 +103,17 @@ export function deriveBriefRouteState(
   meta: PrSummary,
   explicitSpan: ExplicitSpan,
 ): BriefRouteState {
-  if (
+  const explicitAwaitsHead =
     explicitSpan !== undefined &&
-    !(explicitNamesGeneratingHead(meta, explicitSpan) && !meta.briefAvailable)
-  ) {
+    explicitNamesGeneratingHead(meta, explicitSpan) &&
+    !hasStoredHeadBrief(meta);
+  const rendersExplicitSpan = explicitSpan !== undefined && !explicitAwaitsHead;
+  if (rendersExplicitSpan) {
     return { kind: "render", span: explicitSpan };
   }
   const span = metaSpan(meta);
-  if (meta.briefAvailable && span !== undefined) {
+  const rendersHeadBrief = hasStoredHeadBrief(meta) && span !== undefined;
+  if (rendersHeadBrief) {
     return { kind: "render", span };
   }
   const generation = meta.generation;
@@ -181,7 +194,7 @@ export function selectBriefRouteState(
     return deriveBriefRouteState(meta, request.explicitSpan);
   }
   const awaitsLinkedRevision =
-    !meta.briefAvailable &&
+    !hasStoredHeadBrief(meta) &&
     requestNamesUnstoredRevision(meta, timeline, request);
   if (awaitsLinkedRevision) {
     return deriveBriefRouteState(meta, request.explicitSpan);
@@ -210,7 +223,7 @@ export function shouldPollMeta(meta: PrSummary): boolean {
   if (isInFlight(status)) {
     return true;
   }
-  if (status === GenerationStatuses.SUPERSEDED && !meta.briefAvailable) {
+  if (status === GenerationStatuses.SUPERSEDED && !hasStoredHeadBrief(meta)) {
     return true;
   }
   // A pending lastReview comparison is also in-flight work (its delta may
@@ -233,6 +246,7 @@ export function resolveMetaPollMs(meta: PrSummary): number {
  * comparison warmup after the artifact landed); show the warming chip.
  */
 export function comparisonsWarming(meta: PrSummary): boolean {
-  const warming = meta.briefAvailable && isInFlight(meta.generation?.status);
+  const warming =
+    hasStoredHeadBrief(meta) && isInFlight(meta.generation?.status);
   return warming;
 }

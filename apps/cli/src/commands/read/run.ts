@@ -20,6 +20,7 @@ const prMetaSliceSchema = z.object({
   baseSha: z.string().nullable(),
   headSha: z.string().nullable(),
   briefAvailable: z.boolean(),
+  headBriefStored: z.boolean().optional(),
   comparisons: z
     .object({
       lastReview: z
@@ -79,13 +80,24 @@ async function fetchPrMeta(
   return { bodyText: response.bodyText, slice: slice.data };
 }
 
+/**
+ * A brief is stored at the meta's own span, on whatever base it was built.
+ * A server older than `headBriefStored` meant exactly this by
+ * `briefAvailable`.
+ */
+function isSpanBriefStored(slice: PrMetaSlice["slice"]): boolean {
+  return slice.headBriefStored ?? slice.briefAvailable;
+}
+
 /** The brief's own span, required by `groups` and `diff --group`. */
 function briefSpan(
   meta: PrMetaSlice,
   prNumber: number,
 ): { base: string; head: string } {
-  const { baseSha, headSha, briefAvailable } = meta.slice;
-  if (!briefAvailable || baseSha === null || headSha === null) {
+  const { baseSha, headSha } = meta.slice;
+  const spanStored =
+    isSpanBriefStored(meta.slice) && baseSha !== null && headSha !== null;
+  if (!spanStored) {
     throw new CliError(
       ExitCodes.NOT_FOUND,
       `no brief generated yet for PR ${prNumber} — generation is webhook-driven; try again after the next push settles`,
@@ -130,9 +142,10 @@ export async function runPrMeta(
     return;
   }
   const meta = await fetchPrMeta(client, repoId, prNumber);
-  const { baseSha, headSha, briefAvailable } = meta.slice;
+  const { baseSha, headSha } = meta.slice;
+  const stored = isSpanBriefStored(meta.slice);
   io.stdout(
-    `PR ${prNumber} · brief ${briefAvailable ? "available" : "not ready"}` +
+    `PR ${prNumber} · brief ${stored ? "available" : "not ready"}` +
       `${baseSha === null || headSha === null ? "" : ` · span ${baseSha.slice(0, 7)}..${headSha.slice(0, 7)}`}\n`,
   );
 }

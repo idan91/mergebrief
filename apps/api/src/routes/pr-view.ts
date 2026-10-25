@@ -1,11 +1,11 @@
 // The PR meta's row-derived view, and the generation slice the Inbox shares
 // with it: one `pull_request` row joined with its CURRENT-SPAN derivation.
 // The current head is the newest brief-kind `generation` projection's head
-// (written at ingest, so it exists from the first webhook, before any
-// artifact); `briefAvailable` is true only when the latest brief artifact IS
-// for that head (render trigger = artifact EXISTS, status is display-only).
-// `baseSha` prefers the brief row and falls back to the base SHA persisted
-// at ingest.
+// (written at ingest, before any artifact); `headBriefStored` is true only
+// when the latest brief artifact IS for that head, on any base. `baseSha`
+// prefers that brief's base, else the base persisted at ingest. The read
+// adds `briefAvailable`, which needs every stored brief. The render trigger
+// is an artifact that exists; the status is display-only.
 import type { GenerationSummaryView, PullMetaView, WaitReason } from "contract";
 import type { BriefSpanRow, GenerationRow, PullRequestRow } from "persistence";
 import type { Mutable } from "types/utils";
@@ -13,7 +13,11 @@ import type { Mutable } from "types/utils";
 /** The row-derived part of the PR meta; the read adds the rest. */
 export type PrView = Omit<
   PullMetaView,
-  "comparisons" | "appInstalled" | "draftPolicy" | "revisions"
+  | "comparisons"
+  | "appInstalled"
+  | "draftPolicy"
+  | "revisions"
+  | "briefAvailable"
 >;
 
 /**
@@ -65,7 +69,7 @@ export function buildPrView(
   waitReason?: WaitReason,
 ): PrView {
   const headSha = latestGeneration?.headSha ?? latestBrief?.headSha ?? null;
-  const briefAvailable =
+  const headBriefStored =
     latestBrief !== undefined && latestBrief.headSha === headSha;
   const viewerIsAuthor = deriveViewerIsAuthor(viewerLogin, row.authorLogin);
   const behind =
@@ -78,13 +82,14 @@ export function buildPrView(
     prNumber: row.prNumber,
     title: row.title,
     state: row.state,
-    baseSha: briefAvailable ? latestBrief.baseSha : row.baseSha,
+    baseSha: headBriefStored ? latestBrief.baseSha : row.baseSha,
     headSha,
-    briefAvailable,
+    headBriefStored,
     draft: row.draft,
     authorLogin: row.authorLogin,
     viewerIsAuthor,
     viewerCanResolve: viewerCanPush || viewerIsAuthor,
+    viewerCanPush,
     generation: buildGenerationSummary(latestGeneration, waitReason),
     updatedAt: row.updatedAt.toISOString(),
     behind,

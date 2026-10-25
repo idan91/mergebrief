@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { GenerationStatuses } from "types";
 
 import { useAnnouncer } from "@web/hooks/useAnnouncer";
+import { isRerunHopeless } from "@web/utils/failure-class";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import { generateBriefViaApi } from "../../../../../../brief/queries";
 import { briefErrorDetail } from "../../../../../../brief/model";
@@ -29,7 +30,8 @@ function isGenerationUnderway(meta: PrSummary): boolean {
 
 /**
  * Regenerate goes through the paste path with the pull request's own URL, so
- * only a url row offers it; an installation row shows the notice alone. Every
+ * only a url row offers it, and not over a failure a repeat paste fails
+ * again; an installation row shows the notice alone. Every
  * outcome, the arrival of the brief it asked for included, lands in a region
  * that outlives the notice, and the meta re-reads once the request settles so
  * the queued generation shows.
@@ -83,7 +85,10 @@ export function useBehindNoticeFacade(
     notice.failure = briefErrorDetail(t, regenerate.error);
   }
   const url = buildGithubPullUrl(meta.repoSlug, prNumber);
-  const canRegenerate = url !== undefined && !meta.appInstalled;
+  const canRegenerate =
+    url !== undefined &&
+    !meta.appInstalled &&
+    !isRerunHopeless(meta.generation);
   if (canRegenerate) {
     notice.onRegenerate = () => regenerate.mutate(url);
   }

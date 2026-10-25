@@ -67,6 +67,7 @@ function meta(): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    viewerCanPush: false,
     appInstalled: true,
     behind: false,
     generation: {

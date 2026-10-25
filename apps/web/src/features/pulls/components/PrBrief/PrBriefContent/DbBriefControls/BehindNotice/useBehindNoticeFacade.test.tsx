@@ -32,6 +32,7 @@ function makeMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    viewerCanPush: false,
     appInstalled: false,
     updatedAt: "2026-09-20T10:00:00.000Z",
     behind: true,
@@ -180,4 +181,39 @@ describe("useBehindNoticeFacade", () => {
 
     expect(result.current.notice?.onRegenerate).toBeUndefined();
   });
+
+  it.each(["diff-too-large", "output-secret", "provider-refusal"] as const)(
+    "offers no repeat paste of a head that failed as %s",
+    (errorCode) => {
+      const failed = makeMeta({
+        generation: {
+          status: "failed",
+          attempts: 0,
+          errorCode,
+          updatedAt: "2026-09-20T10:00:00.000Z",
+        },
+      });
+      const { result } = renderNotice(failed);
+
+      expect(result.current.notice).toBeDefined();
+      expect(result.current.notice?.onRegenerate).toBeUndefined();
+    },
+  );
+
+  it.each(["provider-timeout", "provider-auth"] as const)(
+    "keeps the paste after a %s failure",
+    (errorCode) => {
+      const failed = makeMeta({
+        generation: {
+          status: "failed",
+          attempts: 0,
+          errorCode,
+          updatedAt: "2026-09-20T10:00:00.000Z",
+        },
+      });
+      const { result } = renderNotice(failed);
+
+      expect(result.current.notice?.onRegenerate).toBeDefined();
+    },
+  );
 });

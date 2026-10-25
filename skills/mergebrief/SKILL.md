@@ -52,8 +52,9 @@ submit-review`. Every operation the
    this server and CLI pair cannot run the loop; report stderr verbatim and
    stop. Exit 6 is a deployment fact, never a retry.
 3. `mergebrief pr <n> --json`. Record `baseSha` and `headSha`. Every session
-   command names this span with `--base`/`--head`. When `briefAvailable` is
-   false, poll `mergebrief pr <n>` with backoff; run `mergebrief generate
+   command names this span with `--base`/`--head`. When `headBriefStored`
+   is false (`briefAvailable` on a server without it), poll `mergebrief pr
+   <n>` with backoff; run `mergebrief generate
 <url>` only when the user asked for an on-demand run, since it spends
    model tokens.
 

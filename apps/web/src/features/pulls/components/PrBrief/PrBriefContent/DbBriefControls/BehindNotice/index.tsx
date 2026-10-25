@@ -1,11 +1,9 @@
-import { useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
 import { Chip } from "@web/components/Chip";
+import { handOffFocusOnRemoval } from "../../../../../utils/focus-hand-off";
 import styles from "./BehindNotice.module.scss";
-
-const MAIN_CONTENT_ID = "main-content";
 
 export interface BehindNoticeProps {
   /** A generation for the new head is already queued or running. */
@@ -37,26 +35,16 @@ export function BehindNotice({
   onRegenerate,
 }: BehindNoticeProps) {
   const { t } = useTranslation();
-  const root = useRef<HTMLSpanElement>(null);
   const label = queued
     ? t("pulls.behind.queued")
     : t("pulls.behind.regenerate");
 
-  // A layout cleanup runs while the notice is still in the document, so
-  // the active element is read directly; a blur the browser fires on
-  // removal never gets a say.
-  useLayoutEffect(
-    () => () => {
-      const active = document.activeElement;
-      if (active !== null && root.current?.contains(active)) {
-        document.getElementById(MAIN_CONTENT_ID)?.focus();
-      }
-    },
-    [],
-  );
-
   return (
-    <span className={styles["notice"]} data-testid="behind-notice" ref={root}>
+    <span
+      className={styles["notice"]}
+      data-testid="behind-notice"
+      ref={handOffFocusOnRemoval}
+    >
       <Chip as="span" title={t("pulls.behind.title")} tone="warning">
         {t("pulls.behind.label")}
       </Chip>

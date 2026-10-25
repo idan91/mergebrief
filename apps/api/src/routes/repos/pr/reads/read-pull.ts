@@ -121,6 +121,26 @@ async function readRevisions(
 }
 
 /**
+ * The regenerate route's own test: a brief stored for the PR's current base
+ * and head. A brief for this head on a base the PR has left does not count,
+ * so a retargeted head that failed still offers its rerun.
+ */
+function isCurrentSpanBriefed(
+  pr: PullRequestRow,
+  headSha: string | null,
+  revisions: readonly RevisionView[] | undefined,
+): boolean {
+  if (revisions === undefined) {
+    return false;
+  }
+  return revisions.some((revision) => {
+    const currentSpan =
+      revision.headSha === headSha && revision.baseSha === pr.baseSha;
+    return currentSpan;
+  });
+}
+
+/**
  * PR meta: the row, its current-span derivation, the latest brief-kind
  * generation, and every stored revision while a newer head generates.
  */
@@ -166,14 +186,21 @@ export async function readPull(
       latestGeneration,
       reviewerId,
     );
-    if (view.briefAvailable) {
+    if (view.headBriefStored) {
       comparisons = revisions.at(-1)?.comparisons ?? {};
     }
   }
 
+  const briefAvailable = isCurrentSpanBriefed(pr, view.headSha, revisions);
   const appInstalled = !isOwnerContext(access.rowScope);
   const draftPolicy = deps.draftPolicy;
-  const meta = { ...view, comparisons, appInstalled, draftPolicy };
+  const meta = {
+    ...view,
+    briefAvailable,
+    comparisons,
+    appInstalled,
+    draftPolicy,
+  };
   if (revisions === undefined) {
     return meta;
   }

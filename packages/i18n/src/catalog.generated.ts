@@ -43,6 +43,11 @@ export type Catalog = typeof en & {
       windowMinutes_one: "about {{count}} minute";
       windowMinutes_other: "about {{count}} minutes";
     };
+    latestPush: (typeof en)["pulls"]["latestPush"] & {
+      capped: (typeof en)["pulls"]["latestPush"]["capped"] & {
+        resumes: "Generation resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}.";
+      };
+    };
   };
   brief: (typeof en)["brief"] & {
     header: (typeof en)["brief"]["header"] & {

@@ -122,7 +122,7 @@ export const draftPolicySummarySchema = dropNullKeys(
 
 /**
  * `draft` and `viewerIsAuthor` are required: they gate author-only
- * affordances. `viewerCanResolve`, `appInstalled` and `behind` read false when
+ * affordances. `viewerCanResolve`, `viewerCanPush`, `appInstalled` and `behind` read false when
  * a server predates them, failing closed; present but not a boolean fails.
  */
 export const prSummarySchema = dropNullKeys(
@@ -135,10 +135,12 @@ export const prSummarySchema = dropNullKeys(
     baseSha: z.string().exactOptional(),
     headSha: z.string().exactOptional(),
     briefAvailable: z.boolean(),
+    headBriefStored: z.boolean().exactOptional(),
     draft: z.boolean(),
     authorLogin: z.string().exactOptional(),
     viewerIsAuthor: z.boolean(),
     viewerCanResolve: z.boolean().default(false),
+    viewerCanPush: z.boolean().default(false),
     appInstalled: z.boolean().default(false),
     generation: generationSummarySchema.exactOptional(),
     updatedAt: z.string(),

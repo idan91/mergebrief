@@ -13,10 +13,11 @@ import type {
   DbTimelinePoint,
   DbTimelineSelection,
 } from "../../../utils/dbTimeline";
+import { awaitsReadyForReview } from "../../../utils/draft-policy";
 import { draftPolicyNotice } from "../../../utils/ownDraft";
 import type { PrSummary } from "../../../types";
 import { CappedCard } from "../CappedCard";
-import { cappedLabel } from "../CappedCard/utils";
+import { buildCappedLabel } from "../capped-head";
 import { EmptyCard } from "../EmptyCard";
 import { FailedCard } from "../FailedCard";
 import { PrBriefContent } from "../PrBriefContent";
@@ -74,7 +75,7 @@ export function stateAnnouncement(
     case "superseded":
       return t("pulls.announce.superseded");
     case "capped":
-      return cappedLabel(t, state.cappedAt);
+      return buildCappedLabel(t, state.cappedAt);
     case "empty":
       return notice?.kind === "drafts-off"
         ? notice.text
@@ -133,6 +134,7 @@ function PrBriefBodyState({
 }: PrBriefBodyProps) {
   const { t } = useTranslation();
   const policyNotice = metaPolicyNotice(t, meta);
+  const heldForReady = awaitsReadyForReview(meta);
   switch (state.kind) {
     case "render":
       return (
@@ -176,8 +178,14 @@ function PrBriefBodyState({
         <main className="main" id="main-content" tabIndex={-1}>
           <FailedCard
             attempts={state.attempts}
+            appInstalled={meta.appInstalled}
+            awaitsReadyForReview={heldForReady}
             errorCode={state.errorCode}
             errorDetail={state.errorDetail}
+            prNumber={prNumber}
+            prState={meta.state}
+            repoId={repoId}
+            viewerCanPush={meta.viewerCanPush}
           />
         </main>
       );
@@ -211,7 +219,8 @@ function PrBriefBodyState({
 export function PrBriefBody(props: PrBriefBodyProps) {
   const { state, meta, timeline, readOnly, staleHead } = props;
   const { t } = useTranslation();
-  const announcement = timeline
+  const announcesRevision = timeline !== undefined && state.kind === "render";
+  const announcement = announcesRevision
     ? timelineAnnouncement(t, timeline, readOnly === undefined)
     : stateAnnouncement(t, state, meta, staleHead === true);
   return (

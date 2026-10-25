@@ -1,6 +1,14 @@
+import type { TranslationKey } from "i18n";
 import type { LastReviewUnavailableReason, WaitReason } from "contract";
-import type { GenerationFailureCode, GenerationStatus, PrState } from "types";
+import type {
+  GenerationFailureCode,
+  GenerationStatus,
+  PrState,
+  ValueOf,
+} from "types";
 import type { UnknownValue } from "@web/utils/open-enum/types";
+
+import { WriteFailureKinds } from "../../data/request/types";
 
 /** The poll-relevant slice of the generation projection (already sanitized). */
 export interface GenerationSummary {
@@ -80,7 +88,13 @@ export interface PrSummary {
   readonly state: PrState | UnknownValue;
   readonly baseSha?: string;
   readonly headSha?: string;
+  /** A brief is stored for the PR's current base and head, as the regenerate route tests it. */
   readonly briefAvailable: boolean;
+  /**
+   * The latest brief is for `headSha`, on whatever base it was built. Absent
+   * from a server that predates it; `hasStoredHeadBrief` reads that case.
+   */
+  readonly headBriefStored?: boolean;
   readonly draft: boolean;
   readonly authorLogin?: string;
   readonly viewerIsAuthor: boolean;
@@ -89,6 +103,11 @@ export interface PrSummary {
    * GitHub still enforces push permission or authorship at mutation time.
    */
   readonly viewerCanResolve: boolean;
+  /**
+   * Push alone, PR-meta only: gates Regenerate, which GitHub never checks.
+   * A server predating the field reads false.
+   */
+  readonly viewerCanPush: boolean;
   /**
    * The PR sits in an installation's world, so the App can push an
    * attachment for it. PR-meta only; a server predating the field reads
@@ -107,8 +126,32 @@ export interface PrSummary {
    */
   readonly draftPolicy?: DraftPolicySummary;
   /**
-   * The browsable revision timeline, present on PR-meta only when
-   * `briefAvailable` (no brief, no head, no history). Ordered by `headIndex`.
+   * The browsable revision timeline, present on PR-meta once any brief is
+   * stored (no brief, no history). Ordered by `headIndex`.
    */
   readonly revisions?: readonly RevisionSummary[];
 }
+
+/** What a Regenerate click came back with. */
+export const RegenerateResultKinds = {
+  QUEUED: "queued",
+  /** A run already holds the head; the meta read shows it. */
+  HELD: "held",
+  /** The head moved past failed, or failed in a way a rerun cannot help. */
+  NOT_REGENERABLE: "not-regenerable",
+  /** No push access, no App installation, a token below the write, or the row is gone. */
+  NOT_ALLOWED: "not-allowed",
+  UNAUTHORIZED: WriteFailureKinds.UNAUTHORIZED,
+  UPSTREAM: "upstream",
+  INDETERMINATE: WriteFailureKinds.INDETERMINATE,
+} as const;
+export type RegenerateResultKind = ValueOf<typeof RegenerateResultKinds>;
+
+export interface RegenerateResult {
+  readonly kind: RegenerateResultKind;
+}
+
+/** What each answer announces; `undefined` where the card swap speaks instead. */
+export type RegenerateNoticeKeys = Readonly<
+  Record<RegenerateResultKind, TranslationKey | undefined>
+>;

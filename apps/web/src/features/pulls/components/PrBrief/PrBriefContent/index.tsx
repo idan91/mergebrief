@@ -53,6 +53,7 @@ import {
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
 import { useBehindNoticeFacade } from "./DbBriefControls/BehindNotice/useBehindNoticeFacade";
+import { useLatestPushNotice } from "./DbBriefControls/LatestPushNotice/useLatestPushNotice";
 import { DbBriefControls } from "./DbBriefControls";
 import { WarmingChip } from "../WarmingChip";
 import { buildPrReview } from "./utils";
@@ -102,6 +103,7 @@ export function PrBriefContent({
 }: PrBriefContentProps) {
   const { t } = useTranslation();
   const behind = useBehindNoticeFacade(meta, repoId, prNumber);
+  const latestPush = useLatestPushNotice(meta, repoId, prNumber);
   const brief = useSuspenseQuery(
     buildDbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
@@ -333,6 +335,7 @@ export function PrBriefContent({
       readOnly={review.readOnly !== undefined}
       staleHead={staleHead}
       behind={behind}
+      latestPush={latestPush}
       {...(onGoToNewest ? { onGoToNewest } : {})}
     />
   );

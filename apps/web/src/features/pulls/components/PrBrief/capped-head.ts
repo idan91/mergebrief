@@ -6,7 +6,7 @@
  */
 import type { TFunction } from "i18next";
 
-export function capResetsAt(cappedAtIso: string): Date | undefined {
+export function readCapResetsAt(cappedAtIso: string): Date | undefined {
   const cappedAt = new Date(cappedAtIso);
   if (Number.isNaN(cappedAt.getTime())) {
     return undefined;
@@ -26,12 +26,12 @@ export function capResetsAt(cappedAtIso: string): Date | undefined {
  * timestamp degrades to the capless sentence rather than printing
  * "Invalid Date".
  */
-export function cappedLabel(
+export function buildCappedLabel(
   t: TFunction,
   cappedAtIso: string,
   now: Date = new Date(),
 ): string {
-  const resetsAt = capResetsAt(cappedAtIso);
+  const resetsAt = readCapResetsAt(cappedAtIso);
   if (resetsAt === undefined) {
     return t("pulls.capped.reached");
   }

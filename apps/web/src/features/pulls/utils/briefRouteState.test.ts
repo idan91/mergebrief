@@ -24,6 +24,7 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    viewerCanPush: false,
     appInstalled: true,
     behind: false,
     updatedAt: "2026-07-06T12:00:00.000Z",
@@ -232,6 +233,55 @@ describe("deriveBriefRouteState", () => {
       kind: "empty",
     });
     expect(shouldPollMeta(awaiting)).toBe(false);
+  });
+
+  it("a null-base row with a brief at its head warms and settles", () => {
+    const nullBase = { briefAvailable: false, headBriefStored: true };
+    const running = meta({ ...nullBase, generation: generation({}) });
+    const superseded = meta({
+      ...nullBase,
+      generation: generation({ status: "superseded" }),
+    });
+
+    expect(comparisonsWarming(running)).toBe(true);
+    expect(shouldPollMeta(superseded)).toBe(false);
+  });
+
+  it("renders a null-base row's head brief over its failed rerun", () => {
+    const failed = meta({
+      briefAvailable: false,
+      headBriefStored: true,
+      baseSha: "base-a",
+      generation: generation({ status: "failed" }),
+    });
+
+    expect(deriveBriefRouteState(failed, undefined)).toEqual({
+      kind: "render",
+      span: { base: "base-a", head: "head-2" },
+    });
+  });
+
+  it("renders a link to a head whose brief sits on another base", () => {
+    const running = meta({
+      briefAvailable: false,
+      headBriefStored: true,
+      generation: generation({}),
+    });
+    const link = { base: "base-a", head: "head-2" };
+
+    expect(deriveBriefRouteState(running, link)).toEqual({
+      kind: "render",
+      span: link,
+    });
+  });
+
+  it("reads briefAvailable as any-base on a server without headBriefStored", () => {
+    const legacy = meta({
+      briefAvailable: true,
+      generation: generation({ status: "running" }),
+    });
+
+    expect(comparisonsWarming(legacy)).toBe(true);
   });
 
   it("succeeded but artifact missing → empty, never an infinite wait", () => {
@@ -497,5 +547,40 @@ describe("selectBriefRouteState", () => {
         rev: 2,
       }),
     ).toMatchObject({ kind: "waiting", status: "pending" });
+  });
+
+  const newerHeadFailed = meta({
+    ...newerHeadPending,
+    generation: generation({
+      status: "failed",
+      errorCode: "provider-timeout",
+      attempts: 1,
+    }),
+  });
+
+  it("keeps the stored brief up while the latest push failed", () => {
+    const timeline = resolveDbTimeline(newerHeadFailed.revisions, {});
+
+    expect(
+      selectBriefRouteState(newerHeadFailed, timeline, {
+        explicitSpan: undefined,
+      }),
+    ).toEqual({ kind: "render", span: { base: "base-1", head: "head-1" } });
+  });
+
+  it("shows the failed card when the Entry links the failed push's rev", () => {
+    const timeline = resolveDbTimeline(newerHeadFailed.revisions, { rev: 2 });
+
+    expect(
+      selectBriefRouteState(newerHeadFailed, timeline, {
+        explicitSpan: undefined,
+        rev: 2,
+      }),
+    ).toEqual({
+      kind: "failed",
+      errorCode: "provider-timeout",
+      errorDetail: undefined,
+      attempts: 1,
+    });
   });
 });

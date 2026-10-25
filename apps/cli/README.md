@@ -106,13 +106,14 @@ No argument: the first page of your Inbox, verbatim (`{"items":[...],
 "page":1,"pageSize":25,"total":n,...}`), every installation you reach plus
 the pull requests you pasted. With a number: the
 PR's metadata. Critical fields: **`baseSha`/`headSha`**, the brief span
-your `submit` must name (never auto-fetched); `briefAvailable`: generation is
-webhook-driven for an installed repo (`generate <url>` queues a pasted PR);
-poll with backoff;
+your `submit` must name (never auto-fetched); `headBriefStored`: a brief is
+stored at that span, on a base the PR may since have left; `briefAvailable`:
+one is stored for the PR's current base too. Generation is webhook-driven for
+an installed repo (`generate <url>` queues a pasted PR); poll with backoff;
 `comparisons.lastReview`, what `delta` resolves.
 
 ```json
-{"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant boundary","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"error":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}
+{"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant boundary","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"headBriefStored":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"errorCode":null,"errorParams":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}
 ```
 
 ### `groups <n>`

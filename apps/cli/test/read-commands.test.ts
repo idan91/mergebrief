@@ -25,7 +25,7 @@ import { PrStates, AccessLevels } from "types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
-import { runDelta } from "../src/commands/read/run";
+import { runDelta, runGroups } from "../src/commands/read/run";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
 import { BASE_URL } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
@@ -456,6 +456,36 @@ describe("groups over a scripted api", () => {
       "/api/repos",
       `/api/repos/${OFFLINE_REPO_ID}/pulls/7`,
     ]);
+  });
+});
+
+describe("groups on a head briefed only on a base the PR has left", () => {
+  it("reads the brief at the meta's span", async () => {
+    const paths: string[] = [];
+    const client = createApiClient({
+      fetch: async (input) => {
+        paths.push(input);
+        if (input.includes("/brief?")) {
+          return jsonResponse({ changeGroups: [] });
+        }
+        return jsonResponse({
+          baseSha: BASE_SHA,
+          headSha: HEAD_SHA,
+          briefAvailable: false,
+          headBriefStored: true,
+          comparisons: {},
+        });
+      },
+      baseUrl: BASE_URL,
+      token: "mergebrief_x",
+    });
+    const { out, io: sinks } = sinkPair();
+
+    await runGroups(client, "1", 7, sinks);
+
+    const printed = out.join("");
+    expect(JSON.parse(printed)).toEqual({ changeGroups: [] });
+    expect(paths.at(-1)).toContain(`base=${BASE_SHA}`);
   });
 });
 

@@ -90,7 +90,7 @@
     "github-access": "GitHub denied access to this repository's content.",
     "diff-too-large": "The diff is too large to summarize.",
     "github-unavailable": "GitHub was unavailable while reading the pull request.",
-    "attempts-exhausted": "The brief stopped after using all its attempts for this push and will not try again on its own. A submitted review, a review request or pasting the pull request URL again starts it over.",
+    "attempts-exhausted": "The brief stopped after using all its attempts for this push and will not try again on its own.",
     "unknown": "Generation failed: {{detail}}"
   },
   "pulls": {
@@ -117,7 +117,8 @@
       "reached": "Daily generation cap reached.",
       "resumed": "Daily generation cap reached — generation has since resumed.",
       "resumes": "Daily generation cap reached — resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}",
-      "copy": "This instance limits how many briefs each repository generates per day. The next push after the cap resets is briefed normally — this one will not be picked up again on its own."
+      "copy": "This instance limits how many briefs each repository generates per day. The next push after the cap resets is briefed normally — this one will not be picked up again on its own.",
+      "readyForReviewNote": "Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review after the reset queues a run."
     },
     "superseded": {
       "heading": "A newer revision is on the way",
@@ -132,7 +133,27 @@
       "noDetail": "No failure detail was recorded.",
       "attempts_one": "{{count}} attempt so far.",
       "attempts_other": "{{count}} attempts so far.",
-      "requeueNote": "A new push re-queues generation automatically."
+      "requeueNote": "A new push re-queues generation automatically.",
+      "notOpenNote": "This pull request is no longer open, so no brief will generate.",
+      "repasteNote": "Paste this pull request's URL on the home page to retry it.",
+      "repasteAfterPushNote": "A rerun of this push fails the same way. After a new push, paste this pull request's URL on the home page to brief it.",
+      "exhaustedRequeueNote": "A new push, a submitted review or a review request queues a new run.",
+      "readyForReviewNote": "Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review queues a new run.",
+      "readyForReviewAfterPushNote": "A rerun of this push fails the same way. Brief generation for draft pull requests is off on this instance, so after a new push, mark this pull request ready for review to brief it.",
+      "fixFirst": {
+        "generationConfig": "An operator needs to fix this instance's generator configuration before a rerun can succeed.",
+        "githubAccess": "The MergeBrief App needs read access to this repository's contents before a rerun can succeed.",
+        "githubAccessUrl": "MergeBrief needs read access to this repository's contents on GitHub before a rerun can succeed.",
+        "providerAuth": "An operator needs to update this instance's model provider credentials before a rerun can succeed."
+      },
+      "regenerate": {
+        "action": "Regenerate brief",
+        "indeterminate": "MergeBrief could not confirm the rerun was queued. Reload to see where this brief stands.",
+        "notAllowed": "Regenerating needs push access to this repository and the MergeBrief App installed on it.",
+        "pending": "Regenerating…",
+        "unauthorized": "Your session expired. Sign in again to regenerate this brief.",
+        "upstream": "MergeBrief could not queue the rerun. Try again in a moment."
+      }
     },
     "headAdvanced": {
       "notice": "This pull request has new commits since this brief's span.",
@@ -258,6 +279,26 @@
       "regenerate": "Regenerate",
       "queued": "Regenerate queued",
       "arrived": "The new brief is ready."
+    },
+    "latestPush": {
+      "failed": {
+        "label": "Latest push failed",
+        "title": "Generation for the latest push failed. The brief on screen covers an earlier push, or this push on an earlier base.",
+        "queued": "Rerun queued for the latest push."
+      },
+      "generating": {
+        "label": "Latest push generating",
+        "title": "The latest push's brief is generating. The brief on screen covers an earlier push."
+      },
+      "capped": {
+        "label": "Latest push skipped",
+        "title": "The latest push was skipped because this instance reached its daily generation cap. The brief on screen covers an earlier push.",
+        "resumes": "Generation resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}.",
+        "resumed": "Generation has since resumed.",
+        "resetUnknown": "Generation resumes at the daily reset.",
+        "nextPush": "The next push after the reset is briefed as usual.",
+        "repasteNote": "Paste this pull request's URL on the home page after the reset to retry it."
+      }
     }
   },
   "brief": {

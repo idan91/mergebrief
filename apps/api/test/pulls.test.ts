@@ -25,7 +25,7 @@ import {
 } from "persistence";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { succeedTestRun } from "persistence/testing";
+import { failTestRun, succeedTestRun } from "persistence/testing";
 import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -36,6 +36,7 @@ import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
   REVIEWER_ID,
+  SAME_ORIGIN_HEADERS,
   SECRET,
   buildOperatorToken,
   createKeyProvider,
@@ -136,6 +137,8 @@ interface RevisionEntry {
 
 interface MetaRevisionsBody {
   readonly briefAvailable: boolean;
+  readonly headBriefStored?: boolean;
+  readonly baseSha?: string | null;
   readonly comparisons?: Record<string, unknown>;
   readonly revisions?: RevisionEntry[];
 }
@@ -679,6 +682,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(first.status).toBe(200);
     const firstBody = (await first.json()) as Record<string, unknown>;
     expect(firstBody["viewerCanResolve"]).toBe(true);
+    expect(firstBody["viewerCanPush"]).toBe(true);
     expect(firstBody["viewerIsAuthor"]).toBe(false);
     expect(firstBody["appInstalled"]).toBe(true);
 
@@ -705,6 +709,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body["viewerCanResolve"]).toBe(true);
+    expect(body["viewerCanPush"]).toBe(false);
     expect(body["viewerIsAuthor"]).toBe(true);
   });
 
@@ -723,6 +728,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body["viewerCanResolve"]).toBe(false);
+    expect(body["viewerCanPush"]).toBe(false);
 
     // The cache-hit path must stay fail-closed too, a second read inside the
     // TTL (no re-fetch) may not invent a capability the check never saw.
@@ -1056,6 +1062,34 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   }
 
+  /** The head's row as a timed-out run leaves it: claimed, then failed. */
+  async function seedFailedHead(
+    prId: Parameters<typeof writeBrief>[0],
+    headSha: string,
+  ): Promise<void> {
+    const gen = createGenerationProjection(harness.handle, CTX);
+    const target = {
+      pullRequestId: prId,
+      kind: GenerationKinds.BRIEF,
+      headSha,
+      baselineSha: null,
+    } as const;
+    await gen.upsertPending(target);
+    await failTestRun(gen, target, {
+      code: GenerationFailureCodes.PROVIDER_TIMEOUT,
+    });
+  }
+
+  async function postRegenerate(cookie: string): Promise<Response> {
+    return app.request(`/api/repos/${REPO_A}/pulls/7/regenerate`, {
+      method: "POST",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+  }
+
   it("meta: lists revisions by headIndex only once a brief exists", async () => {
     stubGate();
     const cookie = await signIn();
@@ -1132,6 +1166,45 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(
       body.revisions?.map((revision) => [revision.headIndex, revision.headSha]),
     ).toEqual([[1, "head-1"]]);
+  });
+
+  it("meta: a retargeted head briefed only on its old base offers its rerun", async () => {
+    stubGate(true);
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      baseSha: "base-new",
+    });
+    await writeBrief(pr.id, "base-old", "head-1", 1);
+    await seedFailedHead(pr.id, "head-1");
+
+    const body = await metaBody(cookie);
+    expect(body).toMatchObject({
+      briefAvailable: false,
+      headBriefStored: true,
+      baseSha: "base-old",
+    });
+
+    const rerun = await postRegenerate(cookie);
+    expect(rerun.status).toBe(202);
+  });
+
+  it("meta: a null-base row keeps its head brief and still offers a rerun", async () => {
+    stubGate(true);
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await writeBrief(pr.id, "base-a", "head-1", 1);
+    await seedFailedHead(pr.id, "head-1");
+
+    const body = await metaBody(cookie);
+    expect(body).toMatchObject({
+      briefAvailable: false,
+      headBriefStored: true,
+    });
+
+    const rerun = await postRegenerate(cookie);
+    expect(rerun.status).toBe(202);
   });
 
   it("meta: per-revision previousBrief joins consecutive briefed pairs only", async () => {

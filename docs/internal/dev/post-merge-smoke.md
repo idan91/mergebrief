@@ -221,7 +221,7 @@ docs-on-main convention). Likely-trouble ranking, with first-look locations:
 
 1. **OAuth** (step 3) — web log `evt` lines; the `auth_session` row.
 2. **Poll → render transition** (step 5) — Network tab for the 4s PR-meta
-   cadence; `briefAvailable` flag in the PR-meta JSON vs the worker log.
+   cadence; `headBriefStored` (and `briefAvailable` for the current base) in the PR-meta JSON vs the worker log.
 3. **Comparison client fetch** (step 7) — marks/narrative response bodies vs
    the parse error; `comparison_marks` / `revision_narrative` rows in
    Postgres.

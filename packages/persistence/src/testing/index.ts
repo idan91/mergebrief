@@ -15,7 +15,7 @@ import type {
   GenerationRow,
   GenerationTarget,
 } from "../stores/generation";
-import { ClaimOutcomes } from "../types";
+import { ClaimOutcomes, type GenerationFailure } from "../types";
 import {
   GenerationPhases,
   GenerationStatuses,
@@ -164,6 +164,23 @@ export async function succeedTestRun(
   const runId = await claimTestRun(projection, target);
   const finished = await projection.finishRun(target, runId, {
     status: GenerationStatuses.SUCCEEDED,
+  });
+  if (!finished.ok) {
+    throw new Error(finished.error.message);
+  }
+  return finished.value;
+}
+
+/** Claim the row and finish it `failed` with `failure`, as a run that failed for good leaves it. */
+export async function failTestRun(
+  projection: GenerationProjection,
+  target: GenerationTarget,
+  failure: GenerationFailure,
+): Promise<GenerationRow> {
+  const runId = await claimTestRun(projection, target);
+  const finished = await projection.finishRun(target, runId, {
+    status: GenerationStatuses.FAILED,
+    failure,
   });
   if (!finished.ok) {
     throw new Error(finished.error.message);

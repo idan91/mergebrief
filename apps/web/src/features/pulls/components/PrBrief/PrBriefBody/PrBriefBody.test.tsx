@@ -2,12 +2,14 @@
 // The wait heading feeds the one polite live region. A screen reader speaks on
 // a DOM change, so the contract is: one text change per reason or phase
 // change, and none for a poll that returns the same state.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { WaitReasons } from "contract";
 import { describe, expect, it } from "vitest";
 import type { BriefAddressPort } from "@web/features/brief";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
+import type { DbTimelineSelection } from "../../../utils/dbTimeline";
 import type { GenerationSummary, PrSummary } from "../../../types";
 import { PrBriefBody } from ".";
 
@@ -28,6 +30,7 @@ function makeMeta(generation: Partial<GenerationSummary>): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    viewerCanPush: false,
     appInstalled: true,
     behind: false,
     generation: {
@@ -50,26 +53,61 @@ const IGNORED_ADDRESS: BriefAddressPort = {
   navigateSearch: ignoreNavigation,
 };
 
+const QUERY_CLIENT = new QueryClient();
+
+const STORED_POINT = {
+  headSha: "head-0",
+  baseSha: "base-0",
+  headIndex: 1,
+  comparisons: {},
+};
+
+/** One stored revision behind a later push the link names. */
+const TIMELINE: DbTimelineSelection = {
+  points: [STORED_POINT],
+  selected: STORED_POINT,
+  selectedIndex: 0,
+  degraded: false,
+};
+
 /** A fresh meta object per call, the way each poll hands the route a new one. */
-function makeBody(generation: Partial<GenerationSummary>) {
-  const meta = makeMeta(generation);
+function makeBody(
+  generation: Partial<GenerationSummary>,
+  timeline?: DbTimelineSelection,
+) {
+  return makeBodyFor(makeMeta(generation), timeline);
+}
+
+function makeBodyFor(meta: PrSummary, timeline?: DbTimelineSelection) {
   return (
-    <I18nProvider>
-      <PrBriefBody
-        meta={meta}
-        address={IGNORED_ADDRESS}
-        onConversationFilterChange={ignoreNavigation}
-        prNumber={7}
-        repoId="424242"
-        searchParams={{}}
-        state={deriveBriefRouteState(meta, undefined)}
-      />
-    </I18nProvider>
+    <QueryClientProvider client={QUERY_CLIENT}>
+      <I18nProvider>
+        <PrBriefBody
+          meta={meta}
+          address={IGNORED_ADDRESS}
+          onConversationFilterChange={ignoreNavigation}
+          prNumber={7}
+          repoId="424242"
+          searchParams={{}}
+          state={deriveBriefRouteState(meta, undefined)}
+          timeline={timeline}
+        />
+      </I18nProvider>
+    </QueryClientProvider>
   );
 }
 
+/** The page's region leads the switch; a state card may carry its own. */
+function getPageRegion(): HTMLElement {
+  const [region] = screen.getAllByRole("status");
+  if (region === undefined) {
+    throw new Error("expected the page's live region");
+  }
+  return region;
+}
+
 function watchLiveRegion() {
-  const region = screen.getByRole("status");
+  const region = getPageRegion();
   const changes: string[] = [];
   // One entry per mutation record: callbacks batch, so counting callbacks
   // would read two text changes as one.
@@ -120,5 +158,38 @@ describe("PrBriefBody wait announcements", () => {
     observer.disconnect();
 
     expect(changes).toEqual(["Saving the brief…"]);
+  });
+});
+
+describe("PrBriefBody state cards under a timeline", () => {
+  it("announces the state card, not the stored revision", () => {
+    render(makeBody({ status: "failed" }, TIMELINE));
+
+    expect(getPageRegion().textContent).toBe("Brief generation failed.");
+  });
+
+  it("announces the wait once a queued run swaps the failed card", async () => {
+    const view = render(makeBody({ status: "failed" }, TIMELINE));
+    const { changes, observer } = watchLiveRegion();
+
+    view.rerender(makeBody({ waitReason: WaitReasons.DEBOUNCING }, TIMELINE));
+    await Promise.resolve();
+    observer.disconnect();
+
+    expect(changes).toEqual([DEBOUNCING_LINE]);
+  });
+});
+
+describe("PrBriefBody on a draft its instance does not generate", () => {
+  it("tells a failed draft's reader to mark it ready for review", () => {
+    const meta: PrSummary = {
+      ...makeMeta({ status: "failed", errorCode: "provider-timeout" }),
+      draft: true,
+      draftPolicy: { generate: false },
+    };
+    render(makeBodyFor(meta));
+
+    expect(screen.getByText(/marking this pull request ready/)).toBeTruthy();
+    expect(screen.queryByText(/A new push re-queues/)).toBeNull();
   });
 });

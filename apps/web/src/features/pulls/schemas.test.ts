@@ -313,6 +313,27 @@ describe("prSummarySchema", () => {
     ).toBe(false);
   });
 
+  it("parses viewerCanPush and fails closed when it is absent", () => {
+    const pusher = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      viewerCanPush: true,
+    });
+    if (!pusher.ok) {
+      throw new Error("unreachable");
+    }
+    expect(pusher.value.viewerCanPush).toBe(true);
+
+    const older = parseWithSchema(prSummarySchema, ROW);
+    if (!older.ok) {
+      throw new Error("unreachable");
+    }
+    expect(older.value.viewerCanPush).toBe(false);
+
+    expect(
+      parseWithSchema(prSummarySchema, { ...ROW, viewerCanPush: "true" }).ok,
+    ).toBe(false);
+  });
+
   it("parses authorLogin and reads a null or absent one as absent", () => {
     const authored = parseWithSchema(prSummarySchema, {
       ...ROW,

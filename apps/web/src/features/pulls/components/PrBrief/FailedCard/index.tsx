@@ -1,7 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import { GenerationFailureCodes, type GenerationFailureCode } from "types";
-import { failureLine } from "./utils";
+import type { GenerationFailureCode, PrState } from "types";
+import type { UnknownValue } from "@web/utils/open-enum/types";
+
+import { RegenerateAction } from "./RegenerateAction";
+import { useFailedCardFacade } from "./useFailedCardFacade";
 
 export interface FailedCardProps {
   /** Absent when the wire sent none or one this bundle doesn't know. */
@@ -9,24 +12,34 @@ export interface FailedCardProps {
   /** Sanitized detail for the two codes that carry one. */
   errorDetail: string | undefined;
   attempts: number;
+  repoId: string;
+  prNumber: number;
+  /** Push alone, from PR meta. */
+  viewerCanPush: boolean;
+  /** The PR sits in an installation's world, which the route requires. */
+  appInstalled: boolean;
+  /** From PR meta; the route refuses a closed or merged PR. */
+  prState: PrState | UnknownValue;
+  /** A draft under a drafts-off instance: only ready for review queues a run. */
+  awaitsReadyForReview: boolean;
 }
 
-export function FailedCard({
-  errorCode,
-  errorDetail,
-  attempts,
-}: FailedCardProps) {
+export function FailedCard(props: FailedCardProps) {
   const { t } = useTranslation();
-  const requeueNote = t("pulls.failed.requeueNote");
-  // `attempts` counts triggers, not claims: beside the spent-claims line it would contradict it.
-  const showsAttempts = errorCode !== GenerationFailureCodes.ATTEMPTS_EXHAUSTED;
-  const attemptsLine = t("pulls.failed.attempts", { count: attempts + 1 });
-  const note = showsAttempts ? `${attemptsLine} ${requeueNote}` : requeueNote;
+  const { detail, note, pending, announcement, onRegenerate } =
+    useFailedCardFacade(props);
 
   return (
     <section aria-labelledby="failed-heading">
       <EmptyBlock
-        detail={failureLine(t, errorCode, errorDetail)}
+        action={
+          <RegenerateAction
+            announcement={announcement}
+            pending={pending}
+            onRegenerate={onRegenerate}
+          />
+        }
+        detail={detail}
         heading={<h1 id="failed-heading">{t("pulls.failed.heading")}</h1>}
         note={note}
       />

@@ -141,6 +141,23 @@ describe("parseInboxResponse", () => {
     });
   });
 
+  it("keeps a failed generation's code and drops one this bundle predates", () => {
+    const failed = { status: "failed", updatedAt: "2026-09-20T10:00:00Z" };
+    const parsed = parseInboxResponse({
+      ...WIRE_PAGE,
+      items: [
+        { ...ITEM, generation: { ...failed, errorCode: "diff-too-large" } },
+        { ...ITEM, generation: { ...failed, errorCode: "exploded" } },
+      ],
+    });
+
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    expect(parsed.value.items[0]?.generation?.errorCode).toBe("diff-too-large");
+    expect(parsed.value.items[1]?.generation).toEqual(failed);
+  });
+
   it("reads a review state this bundle predates as unknown", () => {
     const parsed = parseInboxResponse({
       ...WIRE_PAGE,

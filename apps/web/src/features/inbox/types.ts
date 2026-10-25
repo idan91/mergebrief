@@ -1,4 +1,5 @@
 import type {
+  GenerationFailureCode,
   GenerationStatus,
   InboxArchivedFilter,
   InboxAuthorFilter,
@@ -35,6 +36,8 @@ export type FailureSide = ValueOf<typeof FailureSides>;
 
 export interface InboxGeneration {
   status: GenerationStatus | UnknownValue;
+  /** A failed generation's code; absent otherwise, or for a code this bundle predates. */
+  errorCode?: GenerationFailureCode;
   updatedAt: string;
 }
 

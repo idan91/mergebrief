@@ -27,6 +27,18 @@ deprecation note here, removal only at a major.
   `409 generation-not-regenerable` when the pull request is closed or merged,
   the head did not fail, failed with `diff-too-large`, `output-secret` or
   `provider-refusal`, or already has a stored brief.
+- **Added** `viewerCanPush` on `read-pull`
+  (`GET /api/repos/:repoId/pulls/:prNumber`): the viewer's push access alone,
+  where `viewerCanResolve` is push or authorship. A client gates
+  `regenerate-brief` on it together with `appInstalled`.
+- **Added** `headBriefStored` on `read-pull`: the latest brief is for
+  `headSha`, on any base, which is what `briefAvailable` meant before.
+- **Changed** `briefAvailable` on `read-pull` now means a brief is stored
+  for the pull request's current base and `headSha`, the test
+  `regenerate-brief` applies (was: the latest brief is for `headSha`, on any
+  base). On a pull request retargeted after its head was briefed, a client
+  that still reads `briefAvailable` reports no brief while the brief exists;
+  `headBriefStored` keeps the old meaning.
 
 ## dev (2026-10-23)
 

@@ -4,7 +4,7 @@
 // region.
 import { useTranslation } from "react-i18next";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import { cappedLabel } from "./utils";
+import { buildCappedLabel } from "../capped-head";
 
 export interface CappedCardProps {
   /** When the skip was recorded (the projection row's `updatedAt`). */
@@ -17,7 +17,7 @@ export function CappedCard({ cappedAt }: CappedCardProps) {
     <section aria-labelledby="capped-heading" data-testid="brief-capped-card">
       <EmptyBlock
         detail={t("pulls.capped.copy")}
-        heading={<h1 id="capped-heading">{cappedLabel(t, cappedAt)}</h1>}
+        heading={<h1 id="capped-heading">{buildCappedLabel(t, cappedAt)}</h1>}
       />
     </section>
   );

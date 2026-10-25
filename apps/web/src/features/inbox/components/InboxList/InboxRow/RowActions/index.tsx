@@ -10,6 +10,7 @@ import { AccessibleLink } from "@web/components/AccessibleLink";
 import { IconButton } from "@web/components/IconButton";
 import { Menu } from "@web/components/Menu";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
+import { isRerunHopeless } from "@web/utils/failure-class";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import type { InboxItem } from "../../../../types";
 import { Icon } from "@web/components/Icon";
@@ -37,7 +38,8 @@ export interface RowActionsProps {
  * (Unarchive in the archived view) and, on the rows the viewer may delete,
  * Delete. An installation row an admin may delete also offers the
  * repository's attachment-branch purge. Regenerate leads the menu when
- * GitHub has commits the latest brief does not cover.
+ * GitHub has commits the latest brief does not cover, unless the latest
+ * generation failed in a way a repeat paste fails again.
  */
 export function RowActions({
   item,
@@ -66,7 +68,8 @@ export function RowActions({
   const canRegenerate =
     item.behind &&
     item.source === PullRequestSources.URL &&
-    githubUrl !== undefined;
+    githubUrl !== undefined &&
+    !isRerunHopeless(item.generation);
   const canPurgeAttachments =
     item.viewerCanDelete && item.source === PullRequestSources.INSTALLATION;
 

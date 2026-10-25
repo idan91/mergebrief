@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import {
+  GenerationFailureCodes,
   GenerationStatuses,
   InboxReviewStates,
   PrStates,
@@ -18,10 +19,14 @@ const prStateSchema = buildOpenEnumSchema(PrStates);
 const sourceSchema = buildOpenEnumSchema(PullRequestSources);
 const generationStatusSchema = buildOpenEnumSchema(GenerationStatuses);
 
-export const inboxGenerationSchema = z.object({
-  status: generationStatusSchema,
-  updatedAt: z.string(),
-});
+export const inboxGenerationSchema = dropInvalidKeys(
+  z.object({
+    status: generationStatusSchema,
+    errorCode: z.enum(GenerationFailureCodes).exactOptional(),
+    updatedAt: z.string(),
+  }),
+  ["errorCode"],
+);
 
 export const inboxStackPositionSchema = z.object({
   index: z.number().int().min(1),

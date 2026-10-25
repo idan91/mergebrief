@@ -9,7 +9,7 @@ import {
   type KeyProvider,
   type ScopeContext,
 } from "persistence";
-import { claimTestRun, succeedTestRun } from "persistence/testing";
+import { claimTestRun, failTestRun, succeedTestRun } from "persistence/testing";
 import {
   AccessLevels,
   GenerationFailureCodes,
@@ -83,13 +83,11 @@ async function seedHead(
     await succeedTestRun(gen, target);
     return;
   }
-  const runId = await claimTestRun(gen, target);
   if (state === "failed") {
-    await gen.finishRun(target, runId, {
-      status: GenerationStatuses.FAILED,
-      failure,
-    });
+    await failTestRun(gen, target, failure);
+    return;
   }
+  await claimTestRun(gen, target);
 }
 
 async function readGenerateJobs(

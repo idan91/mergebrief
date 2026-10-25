@@ -307,6 +307,38 @@ describe("RowActions", () => {
     expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
   });
 
+  it.each(["diff-too-large", "output-secret", "provider-refusal"] as const)(
+    "a url row whose head failed as %s has no Regenerate",
+    async (errorCode) => {
+      const generation = {
+        status: "failed",
+        errorCode,
+        updatedAt: "2026-09-20T10:00:00Z",
+      } as const;
+      await renderActions({ ...URL_ROW, behind: true, generation });
+      await openMenu();
+
+      expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
+    },
+  );
+
+  it.each(["provider-timeout", "provider-auth"] as const)(
+    "a url row whose head failed as %s keeps Regenerate",
+    async (errorCode) => {
+      const generation = {
+        status: "failed",
+        errorCode,
+        updatedAt: "2026-09-20T10:00:00Z",
+      } as const;
+      await renderActions({ ...URL_ROW, behind: true, generation });
+      await openMenu();
+
+      expect(
+        screen.getByRole("menuitem", { name: "Regenerate" }),
+      ).toBeDefined();
+    },
+  );
+
   it("a row the viewer may not delete has no Delete, whatever its source", async () => {
     await renderActions(
       omitFields(makeItem({ source: "url" }), "installationId"),
