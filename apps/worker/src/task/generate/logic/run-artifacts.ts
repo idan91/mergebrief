@@ -81,6 +81,7 @@ async function generateFreshBrief(
     runId: decision.runId,
     entryCommentManager: context.entryCommentManager,
     entryCommentAllowed: inputs.entryCommentAllowed,
+    translate: deps.translate,
     priorBriefs: context.priorBriefs,
     prevBrief: context.prevBrief,
     prevSpanFetch: inputs.prevSpanFetch,

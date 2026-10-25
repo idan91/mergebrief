@@ -39,6 +39,7 @@ export async function writeFreshBrief(
     source,
     entryCommentManager,
     entryCommentAllowed,
+    translate,
     priorBriefs,
     prevBrief,
     prevSpanFetch,
@@ -70,6 +71,7 @@ export async function writeFreshBrief(
   await advancePhase(inputs, GenerationPhases.GENERATING);
   if (entryCommentAllowed) {
     const generatingBody = entryCommentGeneratingBody(
+      translate,
       entryCommentManager.buildDeepLink(headIndex),
     );
     await entryCommentManager.refresh(generatingBody);

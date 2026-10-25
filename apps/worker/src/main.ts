@@ -15,6 +15,7 @@ import {
   resolveOperatorTokenOwner,
 } from "github";
 import { Logger as GraphileLogger, type Runner } from "graphile-worker";
+import { createI18n } from "i18n";
 import { createGraphileLogFactory, createLogger } from "logging";
 import { stopTracing } from "logging/tracing";
 import {
@@ -215,6 +216,7 @@ async function main(): Promise<void> {
       urlBoxDeps,
     ),
     publicBaseUrl: config.value.publicBaseUrl,
+    translate: createI18n().t,
     spend: config.value.spend,
     trackerRoot,
     revisionNarrative: config.value.revisionNarrative,

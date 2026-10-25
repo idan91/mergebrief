@@ -235,6 +235,10 @@ _Avoid_: lock (graphile's lock is on the **Job**), lease (one part of the Claim)
 How many **Claims** one head of a **Generation** may take between triggers: 3. A shutdown release and a **Takeover** that made no provider call count too. A head that has taken them all, holds no live Claim and has not succeeded is exhausted: nothing claims it again until a trigger queues it afresh. Its stored failure stays as it was.
 _Avoid_: attempts (the code's name for the counter, `MAX_GENERATION_ATTEMPTS`, and the trigger counter on the wire), retries (graphile's, one way a Claim is taken)
 
+**Failure class**:
+What a pusher can do about a failed **Generation**, read off its failure code. Transient: running it again may succeed. Fix-first: the instance's provider credentials or generator config, or the access GitHub grants to the repository's contents (the App's on an installed repository; on a pasted URL, the viewer's grant or the operator's token), must change before a rerun can succeed. Cannot-help: a rerun fails the same way and still spends, as with a diff GitHub will not serve, a model refusal, or output carrying a secret. Only the first two are worth regenerating. The Transient class is not the worker's `TransientJobError`: the generator's own timeout or output that cannot be read as a brief is class Transient, yet its job fails without a graphile retry.
+_Avoid_: retryable (graphile's transient-versus-permanent split, which decides retries, not what a pusher can do)
+
 **Takeover**:
 The job queued with each **Claim** that wakes once the Claim's lease could have lapsed and, if it did, claims the head for a new attempt. Anyone who can read the PR reads its state per head: scheduled with a start time, running, or spent (graphile ran out of attempts and nothing will take the head over).
 _Avoid_: recovery (the task id `recover-generation` keeps it; in prose that word belongs to **Restore**), retry job

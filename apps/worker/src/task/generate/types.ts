@@ -17,6 +17,7 @@ import type {
   Generator,
   SpendPolicy,
 } from "generators";
+import type { TFunction } from "i18next";
 import type { Logger } from "logging";
 import type {
   AppDatabase,
@@ -63,6 +64,8 @@ export interface GenerateTaskDeps {
   readonly github: GitHubPort;
   /** The web deployment's public origin, the Entry comment's deep-link base. */
   readonly publicBaseUrl: string;
+  /** The catalog's `t`, the Entry comment bodies' copy. */
+  readonly translate: TFunction;
   /** Head-poll cadence during streaming; default ~20s. */
   readonly headPollIntervalMs?: number;
   /** Instance-config reasoning effort; absent → engine default. */
@@ -433,6 +436,7 @@ export interface BriefGenerationInputs {
   readonly runId: string;
   readonly entryCommentManager: EntryCommentManager;
   readonly entryCommentAllowed: boolean;
+  readonly translate: TFunction;
   readonly priorBriefs: readonly BriefSpanRow[];
   readonly prevBrief: BriefSpanRow | undefined;
   /** The prevHead...head compare diff Result, fetched once by the caller. */

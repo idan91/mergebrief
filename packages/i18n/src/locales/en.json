@@ -2,6 +2,42 @@
   "a11y": {
     "opensInNewTab": " (opens in a new tab)"
   },
+  "entryComment": {
+    "capped": {
+      "heading": "Daily generation cap reached — no brief for {{shortSha}}.",
+      "body": "Generation resumes at {{resetsAt}}; the next push after that briefs normally.",
+      "openLink": "Open this PR in MergeBrief",
+      "footer": "Posted by MergeBrief — this instance's operator sets the daily cap."
+    },
+    "failed": {
+      "heading": "Brief generation failed — no brief for {{shortSha}}.",
+      "regenerateLink": "Regenerate from MergeBrief",
+      "footer": "Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again, or when it closes.",
+      "reason": {
+        "provider-auth": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
+        "provider-rate-limit": "The model provider's rate limit was hit.",
+        "provider-timeout": "The model provider timed out before finishing.",
+        "provider-unavailable": "The model provider could not be reached.",
+        "provider-refusal": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
+        "output-invalid": "The model returned output that could not be read as a brief.",
+        "output-secret": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
+        "generation-config": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
+        "github-access": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
+        "diff-too-large": "GitHub will not serve a diff this large.",
+        "github-unavailable": "GitHub was unavailable while reading the pull request.",
+        "attempts-exhausted": "Generation used all its attempts for this push.",
+        "unknown": "Generation failed for an unexpected reason."
+      }
+    },
+    "generating": {
+      "link": "Brief is generating for this push…",
+      "footer": "Posted by MergeBrief — the link already shows the live diff; this comment is replaced when the brief is ready."
+    },
+    "ready": {
+      "link": "Read the brief for this push",
+      "footer": "Posted by MergeBrief — replaced on each settled push so it always links the latest revision."
+    }
+  },
   "errors": {
     "unauthorized": "unauthorized",
     "signed-out": "signed out",

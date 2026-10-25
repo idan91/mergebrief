@@ -223,7 +223,7 @@ async function recordCappedRun(
     // UPDATE ONLY: a capped PR never gets an Entry comment created for it,
     // the cap must not make MergeBrief louder on a thread than it was.
     await entryCommentManager.refresh(
-      entryCommentCappedBody({
+      entryCommentCappedBody(deps.translate, {
         publicBaseUrl: deps.publicBaseUrl,
         repoId: prRow.repoId,
         prNumber: prRow.prNumber,

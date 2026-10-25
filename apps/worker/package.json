@@ -17,6 +17,8 @@
     "generators": "workspace:*",
     "github": "workspace:^",
     "graphile-worker": "^0.16.6",
+    "i18n": "workspace:*",
+    "i18next": "^26.3.6",
     "logging": "workspace:*",
     "persistence": "workspace:*",
     "repo-config": "workspace:*",

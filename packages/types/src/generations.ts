@@ -49,6 +49,39 @@ export const GenerationFailureCodes = {
 } as const;
 export type GenerationFailureCode = ValueOf<typeof GenerationFailureCodes>;
 
+/**
+ * What a pusher can do about a failed brief: run it again, fix something
+ * first, or nothing, since a rerun fails the same way and still spends.
+ */
+export const GenerationFailureClasses = {
+  TRANSIENT: "transient",
+  FIX_FIRST: "fix-first",
+  CANNOT_HELP: "cannot-help",
+} as const;
+export type GenerationFailureClass = ValueOf<typeof GenerationFailureClasses>;
+
+export const GenerationFailureClassByCode = {
+  [GenerationFailureCodes.PROVIDER_AUTH]: GenerationFailureClasses.FIX_FIRST,
+  [GenerationFailureCodes.PROVIDER_RATE_LIMIT]:
+    GenerationFailureClasses.TRANSIENT,
+  [GenerationFailureCodes.PROVIDER_TIMEOUT]: GenerationFailureClasses.TRANSIENT,
+  [GenerationFailureCodes.PROVIDER_UNAVAILABLE]:
+    GenerationFailureClasses.TRANSIENT,
+  [GenerationFailureCodes.PROVIDER_REFUSAL]:
+    GenerationFailureClasses.CANNOT_HELP,
+  [GenerationFailureCodes.OUTPUT_INVALID]: GenerationFailureClasses.TRANSIENT,
+  [GenerationFailureCodes.OUTPUT_SECRET]: GenerationFailureClasses.CANNOT_HELP,
+  [GenerationFailureCodes.GENERATION_CONFIG]:
+    GenerationFailureClasses.FIX_FIRST,
+  [GenerationFailureCodes.GITHUB_ACCESS]: GenerationFailureClasses.FIX_FIRST,
+  [GenerationFailureCodes.DIFF_TOO_LARGE]: GenerationFailureClasses.CANNOT_HELP,
+  [GenerationFailureCodes.GITHUB_UNAVAILABLE]:
+    GenerationFailureClasses.TRANSIENT,
+  [GenerationFailureCodes.ATTEMPTS_EXHAUSTED]:
+    GenerationFailureClasses.TRANSIENT,
+  [GenerationFailureCodes.UNKNOWN]: GenerationFailureClasses.TRANSIENT,
+} as const satisfies Record<GenerationFailureCode, GenerationFailureClass>;
+
 /** A failure's interpolation params (today: detail only). */
 export interface GenerationFailureParams {
   readonly detail: string;

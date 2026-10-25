@@ -309,6 +309,12 @@ importers:
       graphile-worker:
         specifier: ^0.16.6
         version: 0.16.6(typescript@5.9.3)
+      i18n:
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      i18next:
+        specifier: ^26.3.6
+        version: 26.3.6(typescript@5.9.3)
       logging:
         specifier: workspace:*
         version: link:../../packages/logging
@@ -492,6 +498,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)
+      types:
+        specifier: workspace:*
+        version: link:../types
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

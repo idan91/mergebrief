@@ -9,6 +9,7 @@ import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
+import { createI18n } from "i18n";
 import { createLogger } from "logging";
 import { RepoConfigPaths } from "repo-config";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
@@ -1291,6 +1292,7 @@ describe("generate task", () => {
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
+      translate: createI18n().t,
       generator,
       github: createGitHubPort(createAppGitHubBinders(refusingApp)),
     });

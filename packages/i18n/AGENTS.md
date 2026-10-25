@@ -1,6 +1,6 @@
 # packages/i18n: agent notes
 
-The string-catalog boundary. `src/locales/en.json` is the single source of truth for user-facing copy; `createI18n()` bakes every shipped catalog into a ready instance. apps/web binds react-i18next on top; the CLI calls `t()` bare. This package depends on i18next only: react-i18next stays in apps/web (the CLI never pulls React).
+The string-catalog boundary. `src/locales/en.json` is the single source of truth for user-facing copy; `createI18n()` bakes every shipped catalog into a ready instance. apps/web binds react-i18next on top; the CLI and the worker (its Entry comment bodies) call `t()` bare. This package depends on i18next only: react-i18next stays in apps/web (the CLI never pulls React).
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 
@@ -10,7 +10,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Invariants (enforced, don't weaken)
 
-- **Key grammar**: semantic dotted camelCase `feature.area.phrase`; purpose-prefixed leaves where ambiguous (`ariaLabelComment`). Wire-error keys are `errors.<code>` (verbatim kebab-case wire code) and generation-failure keys `generationError.<code>`. Lookup is `"errors." + code`, never a mapping table.
+- **Key grammar**: semantic dotted camelCase `feature.area.phrase`; purpose-prefixed leaves where ambiguous (`ariaLabelComment`). Wire-error keys are `errors.<code>` (verbatim kebab-case wire code), generation-failure keys `generationError.<code>`, and the Entry comment's detail-free failure reasons `entryComment.failed.reason.<code>`, which post to a public thread and so never name a secret match or the instance's setup. Lookup is `"errors." + code`, never a mapping table.
 - **Plurals**: i18next `_one`/`_other` suffix keys with mandatory `{ count }`; no `_zero` in English (`_other` covers 0; special zero-copy is its own key). Composite sentences split: plural core as a keyed pair, suffixes as separate keys, composition in code. No ICU.
 - **Inline markup rides positional slots**: a sentence wrapping an element (`<code>`, a link) is ONE entry with `<0>…</0>` / `<0/>` marking where the element sits; the call site passes them through `<Trans components={…}>`. Element NAMES never appear in a value; that is what keeps the markup ban absolute. Indices run 0..n-1 exactly once each, no nesting, no empty or blank pair. Slots replace only a fragment pair split MID-CLAUSE around an element. Whole sentences side by side, a leading label with its own clause, and a unit label trailing a value all stay split (`brief.changes.noRevisionSummary*`, `brief.details.countsCaveatLead`/`countsCaveatBody`, `brief.group.coreSuffix`).
 - **Slots are self-closing (`<0/>`); the element brings its own children.** A `<code>` gets its identifier, a link its label from its own key (`shell.signInWithGithub`). The paired `<0>…</0>` form is ONLY for prose that must stay inside the sentence: `<Trans>` parses an interpolated `{{param}}` as HTML (a bracket-bearing command renders escaped, and external data would feed an HTML parser), and an empty `<a/>` in a `components` array fails `jsx-a11y/anchor-has-content`.

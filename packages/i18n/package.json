@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The string-catalog boundary: en.json + createI18n() with resources baked in. apps/web binds react-i18next on top; the CLI calls t() bare. Locale files are community-owned; the QA gates in this package's suite are the review bar.",
+  "description": "The string-catalog boundary: en.json + createI18n() with resources baked in. apps/web binds react-i18next on top; the CLI and the worker call t() bare. Locale files are community-owned; the QA gates in this package's suite are the review bar.",
   "exports": {
     ".": "./src/index.ts"
   },
@@ -19,6 +19,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.8",
+    "types": "workspace:*",
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
   }

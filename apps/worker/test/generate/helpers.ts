@@ -30,6 +30,7 @@ import {
   type GenerateRequest,
   type Generator,
 } from "generators";
+import { createI18n } from "i18n";
 import { createLogger, type Logger } from "logging";
 import type { Mutable } from "types/utils";
 import type { CompareFiles } from "brief-core";
@@ -575,6 +576,7 @@ function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {
   return {
     handle: harness.handle,
     publicBaseUrl: PUBLIC_URL,
+    translate: createI18n().t,
     generator: stubGenerator(),
     ...rest,
     github: openTestPort(github, operatorToken),

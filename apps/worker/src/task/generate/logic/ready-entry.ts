@@ -16,7 +16,8 @@ export async function postReadyEntry(
   entryCommentAllowed: boolean,
   headIndex: number,
 ): Promise<void> {
-  const { payload, prInfo, source, watch, entryCommentManager, log } = context;
+  const { deps, payload, prInfo, source, watch, entryCommentManager, log } =
+    context;
   await watch.assertCurrent();
   const readyEntryAllowed = await resolveReadyEntryAllowed(payload, {
     prInfo,
@@ -29,6 +30,7 @@ export async function postReadyEntry(
   }
 
   const readyBody = entryCommentBody(
+    deps.translate,
     entryCommentManager.buildDeepLink(headIndex),
   );
   const alreadyLive =

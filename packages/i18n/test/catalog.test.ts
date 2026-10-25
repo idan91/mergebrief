@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { GenerationFailureCodes } from "types/generations";
 import { describe, expect, it } from "vitest";
+import enCatalog from "../src/locales/en.json";
 import { LOCALES, RESOURCES } from "../src/locales";
 import {
   checkLocale,
@@ -99,6 +101,44 @@ describe("hard-fail catalog gates", () => {
       "tokens.disclaimer": 1,
       "tokens.intro": 1,
     });
+  });
+});
+
+// These post to a public PR thread: a reason that names a secret match or
+// the instance's setup tells an anonymous reader what PR content provoked.
+const LEAKING_WORDS =
+  /secret|credential|config|access|denied|declined|setup|key|token|permission|operator|install/i;
+
+const PUBLIC_COLLAPSED_CODES = [
+  GenerationFailureCodes.PROVIDER_AUTH,
+  GenerationFailureCodes.PROVIDER_REFUSAL,
+  GenerationFailureCodes.OUTPUT_SECRET,
+  GenerationFailureCodes.GENERATION_CONFIG,
+  GenerationFailureCodes.GITHUB_ACCESS,
+];
+
+describe("entry comment failure reasons", () => {
+  it("never names a secret, credential or instance setup", () => {
+    const reasons = Object.values(enCatalog.entryComment.failed.reason);
+    const leaking = reasons.filter((reason) => LEAKING_WORDS.test(reason));
+    expect(leaking).toEqual([]);
+  });
+
+  it("reads every secret and setup failure as one generic line", () => {
+    const reasons = enCatalog.entryComment.failed.reason;
+    const lines = new Set(PUBLIC_COLLAPSED_CODES.map((code) => reasons[code]));
+    expect([...lines]).toEqual([reasons["provider-auth"]]);
+  });
+
+  it("names every failure code with a detail-free sentence", () => {
+    const reasons = enCatalog.entryComment.failed.reason;
+    expect(Object.keys(reasons).toSorted()).toEqual(
+      Object.values(GenerationFailureCodes).toSorted(),
+    );
+    const parameterized = Object.values(reasons).filter(
+      (reason) => paramTokens(reason).size > 0,
+    );
+    expect(parameterized).toEqual([]);
   });
 });
 

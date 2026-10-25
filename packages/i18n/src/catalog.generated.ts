@@ -2,6 +2,15 @@
 import type en from "./locales/en.json";
 
 export type Catalog = typeof en & {
+  entryComment: (typeof en)["entryComment"] & {
+    capped: (typeof en)["entryComment"]["capped"] & {
+      heading: "Daily generation cap reached — no brief for {{shortSha}}.";
+      body: "Generation resumes at {{resetsAt}}; the next push after that briefs normally.";
+    };
+    failed: (typeof en)["entryComment"]["failed"] & {
+      heading: "Brief generation failed — no brief for {{shortSha}}.";
+    };
+  };
   generationError: (typeof en)["generationError"] & {
     "generation-config": "Generator configuration is invalid: {{detail}}";
     unknown: "Generation failed: {{detail}}";
