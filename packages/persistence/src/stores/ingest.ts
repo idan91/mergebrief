@@ -18,8 +18,10 @@ import {
   getGenerateJobKey,
   projectAwaitingTrigger,
   projectPendingGeneration,
+  readCurrentBriefHead,
   stampBriefTriggered,
   type GenerationRow,
+  type ProjectedGeneration,
 } from "./generation";
 import {
   buildNextRowVersion,
@@ -36,6 +38,8 @@ import {
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import {
+  GenerationFailureClasses,
+  GenerationFailureClassByCode,
   GenerationStatuses,
   PrStates,
   QueueTasks,
@@ -45,13 +49,16 @@ import {
 import {
   GenerationKinds,
   JobKeyModes,
+  RegenerateOutcomes,
   type BriefRowId,
   type GrantRowId,
   type PullRequestRowId,
+  type RegenerateOutcome,
   type UncoveredWork,
 } from "../types";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
+const REGENERATE_DELAY_SECONDS = 10;
 
 /**
  * A head a live read stamped, cleared when this newer event reports another:
@@ -219,13 +226,23 @@ async function lockPullRequestInScope(
   scope: RowScope,
   pullRequestId: PullRequestRowId,
 ): Promise<boolean> {
+  const locked = await lockPullRequestRow(tx, scope, pullRequestId);
+  return locked !== undefined;
+}
+
+/** `lockPullRequestInScope`, answering the locked row itself. */
+async function lockPullRequestRow(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+): Promise<PullRequestRow | undefined> {
   const rows = await tx
-    .select({ id: pullRequest.id })
+    .select()
     .from(pullRequest)
     .where(and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)))
     .limit(1)
     .for("update");
-  return rows.length > 0;
+  return rows[0];
 }
 
 /**
@@ -264,6 +281,47 @@ async function enqueueGenerateJob(
         ? JobKeyModes.REPLACE
         : JobKeyModes.PRESERVE_RUN_AT,
   });
+}
+
+/** A rerun of these fails the same way and still spends. */
+function isRerunHopeless(row: GenerationRow): boolean {
+  if (row.errorCode === null) {
+    return false;
+  }
+  const failureClass = GenerationFailureClassByCode[row.errorCode];
+  return failureClass === GenerationFailureClasses.CANNOT_HELP;
+}
+
+/**
+ * Why the current head cannot take a fresh run, or `undefined` when it can.
+ * A closed or merged PR has nothing left to generate for. Only a live claim
+ * holds the head, as on a push: a dead worker's job stays locked for hours,
+ * and a live one that has not claimed yet meets the reset row's fence. A head
+ * whose brief is stored failed after it, and a fresh run there would claim
+ * nothing.
+ */
+async function findRegenerateRefusal(
+  tx: IngestTransaction,
+  scope: RowScope,
+  prRow: PullRequestRow,
+  head: ProjectedGeneration,
+): Promise<RegenerateOutcome | undefined> {
+  if (prRow.state !== PrStates.OPEN) {
+    return RegenerateOutcomes.NOT_REGENERABLE;
+  }
+  if (head.held) {
+    return RegenerateOutcomes.HELD;
+  }
+  const failed = head.row.status === GenerationStatuses.FAILED;
+  const regenerable = failed && !isRerunHopeless(head.row);
+  if (!regenerable) {
+    return RegenerateOutcomes.NOT_REGENERABLE;
+  }
+  const storedBrief = await findStoredBrief(tx, scope, prRow, head.row.headSha);
+  if (storedBrief !== undefined) {
+    return RegenerateOutcomes.NOT_REGENERABLE;
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +445,21 @@ export interface IngestRoutines {
   scheduleClaimRecovery(
     input: RequeueGenerateJobInput,
   ): Promise<RequeueOutcome>;
+  /**
+   * A pusher's fresh run of the PR's failed current head: projected `pending`
+   * with its claims reset, and the job queued a few seconds out, replacing a
+   * waiting one; a locked job gets its key detached, as on a push. A closed or
+   * merged PR, a head under a live claim, a head that is not failed or whose
+   * failure class is cannot-help, a head whose brief is stored, and a PR
+   * outside an installation scope write nothing.
+   */
+  regenerateFailedHead(
+    input: RegenerateFailedHeadInput,
+  ): Promise<RegenerateOutcome>;
+}
+
+export interface RegenerateFailedHeadInput {
+  readonly pullRequestId: PullRequestRowId;
 }
 
 export interface RequeueGenerateJobInput {
@@ -619,6 +692,49 @@ export function createIngestRoutines(
           keyMode: JobKeyModes.REPLACE,
         });
         return { queued: true };
+      });
+    },
+
+    async regenerateFailedHead(input) {
+      if (scope.ownerUserId !== null) {
+        return RegenerateOutcomes.NOT_FOUND;
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId } = input;
+        const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
+        if (prRow === undefined) {
+          return RegenerateOutcomes.NOT_FOUND;
+        }
+
+        const head = await readCurrentBriefHead(tx, scope, pullRequestId);
+        if (head === undefined) {
+          return RegenerateOutcomes.NOT_REGENERABLE;
+        }
+        const refusal = await findRegenerateRefusal(tx, scope, prRow, head);
+        if (refusal !== undefined) {
+          return refusal;
+        }
+
+        const { headSha } = head.row;
+        const projected = await projectPendingGeneration(tx, scope, {
+          pullRequestId,
+          kind: GenerationKinds.BRIEF,
+          headSha,
+          baselineSha: null,
+        });
+        if (projected.held) {
+          return RegenerateOutcomes.HELD;
+        }
+        await stampBriefTriggered(tx, scope, pullRequestId, headSha);
+        await enqueueGenerateJob(
+          tx,
+          scope,
+          { headSha, refreshRunAt: true },
+          pullRequestId,
+          REGENERATE_DELAY_SECONDS,
+        );
+        return RegenerateOutcomes.QUEUED;
       });
     },
 

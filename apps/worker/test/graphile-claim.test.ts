@@ -5,21 +5,27 @@
 import { randomInt } from "node:crypto";
 import {
   Logger as GraphileLogger,
+  makeWorkerUtils,
   runMigrations,
   runOnce,
   type Task,
   type TaskList,
+  type WorkerUtils,
 } from "graphile-worker";
 import {
   closeDb,
   createDb,
+  createGenerationProjection,
   createIngestRoutines,
   ensureAppSchema,
+  GenerationKinds,
   parseTenantContext,
+  RegenerateOutcomes,
+  type PullRequestRowId,
 } from "persistence";
 import { startTestTracing } from "logging/testing";
 import { readTestPostgresUrl } from "persistence/testing";
-import { PrStates } from "types/pull-requests";
+import { GenerationFailureCodes, PrStates } from "types";
 import { describe, expect, it } from "vitest";
 import { parseGeneratePayload } from "../src/task/payload";
 import { buildTaskList } from "../src/task-list";
@@ -55,6 +61,32 @@ async function prepareQueue(url: string): Promise<void> {
     connectionString: url,
     logger: SILENT_GRAPHILE_LOGGER,
   });
+}
+
+/** Sets columns on the PR's generate job, through graphile's private table. */
+async function updateGenerateJob(
+  utils: WorkerUtils,
+  pullRequestId: PullRequestRowId,
+  set: string,
+): Promise<void> {
+  const params = [String(pullRequestId)];
+  await utils.withPgClient((client) =>
+    client.query(
+      `update graphile_worker._private_jobs set ${set} where id in (select id from graphile_worker.jobs where task_identifier = 'generate' and payload->>'pull_request_id' = $1)`,
+      params,
+    ),
+  );
+}
+
+function listClaimedPullRequests(claimed: readonly unknown[]): string[] {
+  const ids: string[] = [];
+  for (const payload of claimed) {
+    const parsed = parseGeneratePayload(payload);
+    if (parsed.ok) {
+      ids.push(String(parsed.value.pullRequestId));
+    }
+  }
+  return ids;
 }
 
 describe.skipIf(databaseUrl === undefined)("graphile enqueue to claim", () => {
@@ -172,6 +204,75 @@ describe.skipIf(databaseUrl === undefined)("graphile enqueue to claim", () => {
       ]);
     } finally {
       await tracing.stop();
+      await closeDb(handle);
+    }
+  });
+
+  it("revives a spent generate job when its failed head is regenerated", async () => {
+    const url = databaseUrl ?? "";
+    await prepareQueue(url);
+    const handle = createDb(url);
+    const utils = await makeWorkerUtils({
+      connectionString: url,
+      logger: SILENT_GRAPHILE_LOGGER,
+    });
+    const installationId = randomInt(
+      SMALLEST_FIXTURE_ID,
+      SMALLEST_FIXTURE_ID + FIXTURE_ID_SPAN,
+    );
+    const ctx = parseTenantContext({ installationId });
+    const repoId = makeRepoId(BigInt(installationId));
+    const ingest = createIngestRoutines(handle, ctx);
+    const claimed: unknown[] = [];
+    const recordPayload: Task = (payload) => {
+      claimed.push(payload);
+    };
+    const drainQueue = () =>
+      runOnce({
+        connectionString: url,
+        logger: SILENT_GRAPHILE_LOGGER,
+        taskList: buildRecordingTaskList(recordPayload),
+      });
+    try {
+      const triggered = await ingest.triggerGeneration({
+        pullRequest: {
+          repoId,
+          prNumber: 9,
+          repoSlug: "acme/widget",
+          state: PrStates.OPEN,
+        },
+        headSha: HEAD_1,
+        debounceSeconds: 0,
+      });
+      const pullRequestId = triggered.pullRequest.id;
+      await updateGenerateJob(
+        utils,
+        pullRequestId,
+        "attempts = max_attempts, last_error = 'spent'",
+      );
+      await createGenerationProjection(handle, ctx).markFailed(
+        {
+          pullRequestId,
+          kind: GenerationKinds.BRIEF,
+          headSha: HEAD_1,
+          baselineSha: null,
+        },
+        { code: GenerationFailureCodes.PROVIDER_TIMEOUT },
+      );
+      await drainQueue();
+      const claimedWhileSpent = listClaimedPullRequests(claimed);
+
+      const regenerated = await ingest.regenerateFailedHead({ pullRequestId });
+      await updateGenerateJob(utils, pullRequestId, "run_at = now()");
+      await drainQueue();
+
+      expect(claimedWhileSpent).not.toContain(String(pullRequestId));
+      expect(regenerated).toBe(RegenerateOutcomes.QUEUED);
+      expect(listClaimedPullRequests(claimed)).toEqual(
+        expect.arrayContaining([String(pullRequestId)]),
+      );
+    } finally {
+      await utils.release();
       await closeDb(handle);
     }
   });

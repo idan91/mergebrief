@@ -144,6 +144,19 @@ export const JobKeyModes = {
 } as const;
 export type JobKeyMode = ValueOf<typeof JobKeyModes>;
 
+/** What asking for a fresh run of a PR's failed current head found. */
+export const RegenerateOutcomes = {
+  /** Projected `pending` with a fresh claim budget, and the PR's job queued. */
+  QUEUED: "queued",
+  /** A live claim holds the head; nothing was written. */
+  HELD: "held",
+  /** The PR is closed or merged, or its head is not failed, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
+  NOT_REGENERABLE: "not-regenerable",
+  /** The PR is outside the scope, or the scope is an owner's; nothing was written. */
+  NOT_FOUND: "not-found",
+} as const;
+export type RegenerateOutcome = ValueOf<typeof RegenerateOutcomes>;
+
 /** What charging a paid run that holds no claim to the day's cap found. */
 export const ChargeOutcomes = {
   /** One attempt row was written under the cap. */

@@ -190,7 +190,7 @@ export type RunOutcome =
 
 export interface ProjectedGeneration {
   readonly row: GenerationRow;
-  /** A live run holds the row, so the projection left every column as stored. */
+  /** A live run holds the row, so a projection leaves every column as stored. */
   readonly held: boolean;
 }
 
@@ -715,6 +715,33 @@ export async function stampBriefTriggered(
     .update(generation)
     .set({ triggeredAt: sql`clock_timestamp()` })
     .where(sameHead);
+}
+
+/**
+ * The PR's current push, ordered as `latestBriefForPullRequests` orders it,
+ * with whether the projection holds it, by the database clock.
+ */
+export async function readCurrentBriefHead(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+): Promise<ProjectedGeneration | undefined> {
+  const rows = await executor
+    .select({
+      row: getTableColumns(generation),
+      held: sql<boolean>`${isProjectionHeld()}`,
+    })
+    .from(generation)
+    .where(
+      and(
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.pullRequestId, pullRequestId),
+      ),
+    )
+    .orderBy(...orderNewestBriefFirst())
+    .limit(1);
+  return rows[0];
 }
 
 function shapeFailure(failure: GenerationFailure) {
