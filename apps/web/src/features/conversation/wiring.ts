@@ -4,6 +4,8 @@ import type { MentionSource, ReplyResult, ResolveThreadResult } from "./types";
 export interface ThreadRevisionJump {
   /** Briefed revision head SHAs a thread anchor can navigate to. */
   readonly knownHeads: ReadonlySet<string>;
+  /** The head of the revision on screen. */
+  readonly currentHeadSha: string;
   readonly onJump: (anchorSha: string, threadId: number) => void;
 }
 

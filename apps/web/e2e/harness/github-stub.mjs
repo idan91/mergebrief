@@ -12,6 +12,11 @@ const REPO_SLUG =
 const INBOX = JSON.parse(
   process.env.MERGEBRIEF_E2E_INBOX ?? '{"installations":[],"urlRows":[]}',
 );
+const OUTDATED_THREADS = JSON.parse(
+  process.env.MERGEBRIEF_E2E_OUTDATED_THREADS ?? "[]",
+);
+const OUTDATED_THREAD_PATH =
+  "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx";
 const MINUTE_MS = 60_000;
 const SYNTHETIC_FILE_LINES = 900;
 const FIXTURE_PR_NUMBER = 1;
@@ -140,6 +145,47 @@ function findInstallationRepo(id) {
 /** The Inbox's live read names its query; the conversation read does not. */
 function isLiveRead(init) {
   return typeof init?.body === "string" && init.body.includes("query LiveRead");
+}
+
+/** The fixture PR's conversation read, the one query that gets threads. */
+function isFixtureConversationRead(init) {
+  if (
+    typeof init?.body !== "string" ||
+    !init.body.includes("query PullRequestConversation(")
+  ) {
+    return false;
+  }
+  const { owner, repo, prNumber } = JSON.parse(init.body).variables ?? {};
+  const isFixtureRepo = `${owner}/${repo}` === REPO_SLUG;
+  const isFixturePr = isFixtureRepo && prNumber === FIXTURE_PR_NUMBER;
+  return isFixturePr;
+}
+
+function buildOutdatedThread({ rootCommentId, anchorSha }) {
+  return {
+    isResolved: false,
+    isOutdated: true,
+    path: OUTDATED_THREAD_PATH,
+    line: null,
+    startLine: null,
+    diffSide: "RIGHT",
+    startDiffSide: null,
+    subjectType: "LINE",
+    comments: {
+      pageInfo: { hasNextPage: false },
+      nodes: [
+        {
+          fullDatabaseId: String(rootCommentId),
+          author: { login: "fixture-reviewer", __typename: "User" },
+          body: "This moved since the first revision.",
+          createdAt: "2026-01-01T00:00:00Z",
+          url: `https://github.com/${REPO_SLUG}/pull/${String(FIXTURE_PR_NUMBER)}#discussion_r${String(rootCommentId)}`,
+          pullRequestReview: null,
+          originalCommit: { oid: anchorSha },
+        },
+      ],
+    },
+  };
 }
 
 /**
@@ -271,15 +317,19 @@ globalThis.fetch = async (input, init) => {
     return jsonResponse({ data: answerLiveRead(init) });
   }
   if (pathname === "/graphql") {
-    // An EMPTY conversation: the section renders its no-threads state and
-    // the browser console stays clean (a 404 here logs a resource error).
+    // The fixture PR's conversation carries the outdated threads the
+    // revision jump lands on; every other read is EMPTY. Either way the
+    // browser console stays clean (a 404 here logs a resource error).
+    const threads = isFixtureConversationRead(init)
+      ? OUTDATED_THREADS.map(buildOutdatedThread)
+      : [];
     return jsonResponse({
       data: {
         repository: {
           pullRequest: {
             reviewThreads: {
               pageInfo: { hasNextPage: false, endCursor: null },
-              nodes: [],
+              nodes: threads,
             },
             reviews: { pageInfo: { hasNextPage: false }, nodes: [] },
             comments: { pageInfo: { hasNextPage: false }, nodes: [] },

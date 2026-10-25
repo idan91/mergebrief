@@ -40,7 +40,7 @@ import type {
 } from "../../wiring";
 import { VERDICT_LABEL_KEYS } from "../../utils/chips";
 import { DigestGroupView } from "./DigestGroupView";
-import { headSummary } from "./utils";
+import { headSummary, shouldRelandInPlace } from "./utils";
 import styles from "./ConversationSection.module.scss";
 
 /** The route-injected data plan (absent on the local demo path). */
@@ -247,6 +247,7 @@ export function ConversationSection({
   // Spend a thread landing only after its row is found and focused. Hidden rows retry
   // on refetch; a completed target must not keep pulling focus from the reviewer.
   const landedThreadRef = useRef<number | undefined>(undefined);
+  const [landingRequest, setLandingRequest] = useState(0);
   useEffect(() => {
     if (focusThreadId === undefined || !open || conversation === undefined) {
       return;
@@ -304,7 +305,7 @@ export function ConversationSection({
       }
     };
     window.requestAnimationFrame(land);
-  }, [conversation, digest, focusThreadId, open]);
+  }, [conversation, digest, focusThreadId, open, landingRequest]);
 
   // Every conversation write evicts server-side; the post-reply refetch makes
   // the reply visible in-section. Draft reads/writes and announce copy live
@@ -319,7 +320,23 @@ export function ConversationSection({
     composer.readOnlyReason = readOnlyReason;
   }
   if (plan.revisionJump !== undefined) {
-    composer.revisionJump = plan.revisionJump;
+    const revisionJump = plan.revisionJump;
+    composer.revisionJump = {
+      ...revisionJump,
+      onJump: (anchorSha, threadId) => {
+        const spot = {
+          currentHeadSha: revisionJump.currentHeadSha,
+          anchorSha,
+          focusThreadId,
+          threadId,
+        };
+        if (shouldRelandInPlace(spot)) {
+          landedThreadRef.current = undefined;
+          setLandingRequest((count) => count + 1);
+        }
+        revisionJump.onJump(anchorSha, threadId);
+      },
+    };
   }
   // A resolution flip is a conversation write too: the row's slim/full
   // transition comes from THIS section's refetch, not a local edit.

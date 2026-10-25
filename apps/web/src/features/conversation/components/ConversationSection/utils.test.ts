@@ -1,7 +1,7 @@
 import type { PrLevelCommentView } from "contract";
 import type { ReviewVerdictState } from "types/conversation";
 import { describe, expect, it } from "vitest";
-import { headSummary } from "./utils";
+import { headSummary, shouldRelandInPlace } from "./utils";
 import type {
   ConversationReview,
   ConversationThread,
@@ -107,6 +107,27 @@ describe("headSummary", () => {
     });
     expect(headSummary(t, conversation)).toBe(
       "2 reviews · 1 comment · 1 thread · 1 open",
+    );
+  });
+});
+
+describe("shouldRelandInPlace", () => {
+  it("relands only when the jump changes neither revision nor thread", () => {
+    const sameSpot = {
+      currentHeadSha: "a".repeat(40),
+      anchorSha: "a".repeat(40),
+      focusThreadId: 7,
+      threadId: 7,
+    };
+
+    expect(shouldRelandInPlace(sameSpot)).toBe(true);
+    const otherSha = "b".repeat(40);
+    expect(shouldRelandInPlace({ ...sameSpot, anchorSha: otherSha })).toBe(
+      false,
+    );
+    expect(shouldRelandInPlace({ ...sameSpot, threadId: 8 })).toBe(false);
+    expect(shouldRelandInPlace({ ...sameSpot, focusThreadId: undefined })).toBe(
+      false,
     );
   });
 });

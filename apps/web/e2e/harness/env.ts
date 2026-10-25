@@ -10,7 +10,14 @@ import {
   INBOX_BEHIND_ROW,
   INBOX_INSTALLATIONS,
 } from "../fixtures/inbox";
-import { FIXTURE_PR_TITLE, FIXTURE_REV2_HEAD } from "../fixtures/ids";
+import {
+  FIXTURE_BRIEFED_ANCHOR_THREAD_ID,
+  FIXTURE_PR_TITLE,
+  FIXTURE_REV1_HEAD,
+  FIXTURE_REV2_HEAD,
+  FIXTURE_UNBRIEFED_ANCHOR_THREAD_ID,
+  FIXTURE_UNBRIEFED_SHA,
+} from "../fixtures/ids";
 
 function readEnvNumber(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -220,6 +227,16 @@ export function buildApiServerEnv(): Record<string, string> {
     MERGEBRIEF_E2E_FIXTURES: FIXTURE_DIR,
     MERGEBRIEF_E2E_REPO_ID: String(E2E_REPO_ID),
     MERGEBRIEF_E2E_REPO_SLUG: E2E_REPO_SLUG,
+    MERGEBRIEF_E2E_OUTDATED_THREADS: JSON.stringify([
+      {
+        rootCommentId: FIXTURE_BRIEFED_ANCHOR_THREAD_ID,
+        anchorSha: FIXTURE_REV1_HEAD,
+      },
+      {
+        rootCommentId: FIXTURE_UNBRIEFED_ANCHOR_THREAD_ID,
+        anchorSha: FIXTURE_UNBRIEFED_SHA,
+      },
+    ]),
     // The installations walk and the live read answer from the same fixture
     // the seed wrote, described here because the stub runs in that process.
     MERGEBRIEF_E2E_INBOX: JSON.stringify({

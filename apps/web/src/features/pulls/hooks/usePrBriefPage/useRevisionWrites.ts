@@ -60,14 +60,18 @@ export function useRevisionWrites(
   );
 
   const spansKey = buildRevisionSpansKey(timeline);
+  const currentHeadSha = timeline?.selected.headSha;
   const revisionJump = useMemo(() => {
-    if (spansKey === undefined) {
+    const timelineMissing =
+      spansKey === undefined || currentHeadSha === undefined;
+    if (timelineMissing) {
       return undefined;
     }
     const spans = parseRevisionSpansKey(spansKey);
 
     return {
       knownHeads: new Set(spans.map((span) => span.headSha)),
+      currentHeadSha,
       onJump: (anchorSha: string, threadId: number) => {
         const rev = findJumpRevision(spans, anchorSha);
         void navigate({
@@ -80,10 +84,11 @@ export function useRevisionWrites(
               thread: threadId,
             }),
           replace: false,
+          resetScroll: false,
         });
       },
     };
-  }, [navigate, spansKey]);
+  }, [currentHeadSha, navigate, spansKey]);
 
   usePinnedRev(search, navigate, readPinnedRev(timeline));
 

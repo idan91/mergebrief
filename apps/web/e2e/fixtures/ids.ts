@@ -29,3 +29,8 @@ export const FIXTURE_GROUP_TITLES = [
 
 /** No row was seeded for this pull request. */
 export const MISSING_PR_PATH = "/repos/424242/pulls/999";
+
+/** Outdated review threads the GitHub stub serves on the fixture PR. */
+export const FIXTURE_BRIEFED_ANCHOR_THREAD_ID = 880001;
+export const FIXTURE_UNBRIEFED_ANCHOR_THREAD_ID = 880002;
+export const FIXTURE_UNBRIEFED_SHA = "99999999ffff8888eeee7777dddd6666cccc5555";

@@ -731,7 +731,11 @@ function jumpPlan(
       ...plan([
         { kind: "ready", conversation: outdatedHumanConversation(anchorSha) },
       ]),
-      revisionJump: { knownHeads: new Set(knownHeads), onJump },
+      revisionJump: {
+        knownHeads: new Set(knownHeads),
+        currentHeadSha: "anchor-0",
+        onJump,
+      },
     },
     onJump,
   };
