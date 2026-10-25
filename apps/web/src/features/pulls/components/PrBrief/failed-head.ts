@@ -11,6 +11,8 @@ import {
 import { readFailureClass } from "@web/utils/failure-class";
 import { UnknownValues, type UnknownValue } from "@web/utils/open-enum/types";
 
+import { readOffersTrigger, type TriggerOfferInput } from "./trigger-offer";
+
 /** The two codes whose template interpolates a `{{detail}}`. */
 const DETAIL_CODES: ReadonlySet<string> = new Set([
   GenerationFailureCodes.GENERATION_CONFIG,
@@ -52,24 +54,18 @@ export const FixFirstNoteKeys: Partial<
   [GenerationFailureCodes.GITHUB_ACCESS]: "pulls.failed.fixFirst.githubAccess",
 };
 
-export interface RegenerateOfferInput {
+export interface RegenerateOfferInput extends TriggerOfferInput {
   readonly errorCode: GenerationFailureCode | undefined;
-  readonly viewerCanPush: boolean;
-  readonly appInstalled: boolean;
-  readonly prState: PrState | UnknownValue;
 }
 
-/** The route's own bar: an open PR, push access, a repository in an installation, and a rerun that can help. */
+/** The trigger route's bar, and a rerun that can help. */
 export function readOffersRegenerate({
   errorCode,
-  viewerCanPush,
-  appInstalled,
-  prState,
+  ...offer
 }: RegenerateOfferInput): boolean {
   const rerunCanHelp =
     readFailureClass(errorCode) !== GenerationFailureClasses.CANNOT_HELP;
-  const open = prState === PrStates.OPEN;
-  const offered = open && viewerCanPush && appInstalled && rerunCanHelp;
+  const offered = rerunCanHelp && readOffersTrigger(offer);
   return offered;
 }
 

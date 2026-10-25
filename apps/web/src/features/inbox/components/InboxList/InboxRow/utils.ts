@@ -67,7 +67,7 @@ export function describeRow(
   } else if (item.state !== UnknownValues.UNKNOWN) {
     parts.push(t("home.inbox.status.open"));
   }
-  const generationSignal = readGenerationSignal(generation);
+  const generationSignal = readGenerationSignal(generation, item.state);
   if (generationSignal !== null) {
     parts.push(t(generationSignal.label));
   }

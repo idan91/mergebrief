@@ -20,6 +20,7 @@ import { useLatestPushNotice } from "./useLatestPushNotice";
 
 const fetchMock = vi.fn<typeof fetch>();
 const REGENERATE = /regenerate brief/i;
+const AWAITING = makeGeneration({ status: "awaiting-trigger" });
 const TIMEOUT_REASON = "The model provider timed out before finishing.";
 
 beforeEach(() => {
@@ -202,6 +203,79 @@ describe("useLatestPushNotice", () => {
     );
     expect(result.current.notice?.detail).toBeUndefined();
     expect(result.current.notice?.action).toBeUndefined();
+  });
+
+  it("offers Generate while the latest push awaits over a stored brief", () => {
+    const { result } = renderNoticeHook(makeMeta({ generation: AWAITING }));
+
+    expect(result.current.notice?.label).toBe("Latest push on demand");
+    expect(result.current.notice?.action?.label).toBe("Generate brief");
+  });
+
+  it("waits on a collaborator while the PR is open", () => {
+    const { result } = renderNoticeHook(
+      makeMeta({ generation: AWAITING, viewerCanPush: false }),
+    );
+
+    expect(result.current.notice?.title).toBe(
+      "The latest push waits for a collaborator with push access to generate its brief.",
+    );
+    expect(result.current.notice?.detail).toBeUndefined();
+    expect(result.current.notice?.action).toBeUndefined();
+  });
+
+  it.each([
+    ["failed", makeGeneration()],
+    ["capped", makeGeneration({ status: "capped" })],
+  ] as const)(
+    "points a %s draft its instance skips at ready for review",
+    (_label, generation) => {
+      const meta = makeMeta({
+        generation,
+        draft: true,
+        draftPolicy: { generate: false },
+        viewerCanPush: false,
+      });
+      const { result } = renderNoticeHook(meta);
+
+      expect(result.current.notice?.detail).toMatch(
+        /marking this pull request ready for review/,
+      );
+      expect(result.current.notice?.detail).not.toMatch(/next push|new push/i);
+    },
+  );
+
+  it("on a closed PR offers no Generate and says none will come", () => {
+    const { result } = renderNoticeHook(
+      makeMeta({ generation: AWAITING, state: "closed" }),
+    );
+
+    expect(result.current.notice?.action).toBeUndefined();
+    expect(result.current.notice?.label).toBe("Latest push not briefed");
+    expect(result.current.notice?.title).toBe(
+      "The latest push got no brief, and none will be generated now that this pull request is no longer open.",
+    );
+    expect(result.current.notice?.detail).toBe(
+      "This pull request is no longer open, so its brief will not be generated.",
+    );
+  });
+
+  it("queues the awaiting push, re-reads the meta and says so", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const { result, invalidate } = renderNoticeHook(
+      makeMeta({ generation: AWAITING }),
+    );
+
+    act(() => result.current.notice?.action?.onTrigger());
+
+    await waitFor(() =>
+      expect(result.current.announcement).toBe(
+        "Brief queued for the latest push.",
+      ),
+    );
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["pr-meta", "424242", 7],
+    });
   });
 
   it("names a capped latest push and offers a pusher no rerun", () => {

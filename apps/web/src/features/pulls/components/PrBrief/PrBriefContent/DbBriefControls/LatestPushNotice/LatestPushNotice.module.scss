@@ -1,24 +1,4 @@
-@use "functions";
-
 @layer components {
-  .notice {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    align-items: center;
-    min-inline-size: 0;
-  }
-
-  .chip {
-    min-height: functions.to-rem(24px);
-    padding-inline: functions.to-rem(8px);
-    border-radius: var(--radius-md);
-    font-family: var(--sans);
-    font-size: var(--font-size-sm);
-    letter-spacing: normal;
-    white-space: nowrap;
-  }
-
   .detail {
     max-inline-size: 64ch;
     color: var(--color-text-2);

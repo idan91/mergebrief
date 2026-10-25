@@ -3,7 +3,7 @@ import { EmptyBlock } from "@web/components/EmptyBlock";
 import type { GenerationFailureCode, PrState } from "types";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 
-import { RegenerateAction } from "./RegenerateAction";
+import { TriggerAction } from "../TriggerAction";
 import { useFailedCardFacade } from "./useFailedCardFacade";
 
 export interface FailedCardProps {
@@ -33,10 +33,12 @@ export function FailedCard(props: FailedCardProps) {
     <section aria-labelledby="failed-heading">
       <EmptyBlock
         action={
-          <RegenerateAction
+          <TriggerAction
+            actionLabel={t("pulls.failed.regenerate.action")}
             announcement={announcement}
             pending={pending}
-            onRegenerate={onRegenerate}
+            pendingLabel={t("pulls.failed.regenerate.pending")}
+            onTrigger={onRegenerate}
           />
         }
         detail={detail}

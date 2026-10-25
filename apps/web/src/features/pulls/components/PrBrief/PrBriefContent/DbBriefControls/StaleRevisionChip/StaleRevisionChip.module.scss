@@ -13,18 +13,6 @@
     background: currentcolor;
   }
 
-  // Header-slot deltas on Chip's warning chrome: tighter box, md radius,
-  // sans sm label.
-  .chip {
-    min-height: functions.to-rem(24px);
-    padding-inline: functions.to-rem(8px);
-    border-radius: var(--radius-md);
-    font-family: var(--sans);
-    font-size: var(--font-size-sm);
-    letter-spacing: normal;
-    white-space: nowrap;
-  }
-
   .action {
     padding-inline-start: functions.to-rem(8px);
     margin-inline-start: functions.to-rem(2px);

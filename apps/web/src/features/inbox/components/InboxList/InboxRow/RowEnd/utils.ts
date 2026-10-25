@@ -1,3 +1,4 @@
+import { isNoLongerOpen } from "@web/features/pulls/utils";
 import { GenerationStatuses, PrStates } from "types";
 import type { InboxGeneration, InboxItem } from "../../../../types";
 import { RowSignalKinds, type RowSignalKind } from "./types";
@@ -9,14 +10,20 @@ export interface RowSignal {
     | "home.inbox.generation.generating"
     | "home.inbox.generation.failed"
     | "home.inbox.generation.capped"
+    | "home.inbox.generation.awaitingTrigger"
     | "home.inbox.status.draft"
     | "home.inbox.status.merged"
     | "home.inbox.status.closed";
 }
 
-/** The generation state worth printing: a brief on its way, or one that stopped. */
+/**
+ * The generation state worth printing: a brief on its way, one that stopped,
+ * or one waiting for a click while the PR is open. A closed or merged PR's
+ * waiting head never gets one, so its status signal says it all.
+ */
 export function readGenerationSignal(
   generation: InboxGeneration | undefined,
+  state: InboxItem["state"],
 ): RowSignal | null {
   switch (generation?.status) {
     case GenerationStatuses.PENDING:
@@ -39,6 +46,15 @@ export function readGenerationSignal(
         kind: RowSignalKinds.CAPPED,
         label: "home.inbox.generation.capped",
       };
+    case GenerationStatuses.AWAITING_TRIGGER: {
+      if (isNoLongerOpen(state)) {
+        return null;
+      }
+      return {
+        kind: RowSignalKinds.AWAITING_TRIGGER,
+        label: "home.inbox.generation.awaitingTrigger",
+      };
+    }
     default:
       return null;
   }

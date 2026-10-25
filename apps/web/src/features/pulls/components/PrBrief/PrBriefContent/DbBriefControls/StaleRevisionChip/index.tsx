@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next";
 
 import { Chip } from "@web/components/Chip";
+import noticeStyles from "../revision-notices.module.scss";
 import styles from "./StaleRevisionChip.module.scss";
 
 export interface StaleRevisionChipProps {
@@ -22,7 +23,7 @@ export function StaleRevisionChip({ onGoToNewest }: StaleRevisionChipProps) {
     return (
       <Chip
         as="span"
-        className={styles["chip"]}
+        className={noticeStyles["chip"]}
         data-testid="stale-revision-chip"
         title={t("pulls.staleChip.title")}
         tone="warning"
@@ -33,7 +34,7 @@ export function StaleRevisionChip({ onGoToNewest }: StaleRevisionChipProps) {
   }
   return (
     <Chip
-      className={styles["chip"]}
+      className={noticeStyles["chip"]}
       data-testid="stale-revision-chip"
       title={t("pulls.staleChip.title")}
       tone="warning"

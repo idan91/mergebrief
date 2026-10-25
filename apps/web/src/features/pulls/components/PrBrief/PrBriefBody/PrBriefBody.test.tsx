@@ -3,9 +3,9 @@
 // a DOM change, so the contract is: one text change per reason or phase
 // change, and none for a poll that returns the same state.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { WaitReasons } from "contract";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { BriefAddressPort } from "@web/features/brief";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
@@ -123,6 +123,8 @@ function watchLiveRegion() {
   return { region, changes, observer };
 }
 
+afterEach(cleanup);
+
 describe("PrBriefBody wait announcements", () => {
   it("announces the wait reason in the polite live region", () => {
     render(makeBody({ waitReason: WaitReasons.DEBOUNCING }));
@@ -192,4 +194,53 @@ describe("PrBriefBody on a draft its instance does not generate", () => {
     expect(screen.getByText(/marking this pull request ready/)).toBeTruthy();
     expect(screen.queryByText(/A new push re-queues/)).toBeNull();
   });
+});
+
+describe("PrBriefBody awaiting trigger", () => {
+  it("renders the on-demand card and announces it politely", () => {
+    render(makeBody({ status: "awaiting-trigger" }));
+
+    expect(screen.getByTestId("brief-awaiting-trigger-card")).toBeTruthy();
+    expect(getPageRegion().textContent).toBe("Brief available on demand.");
+  });
+
+  it("tells an awaiting draft's reader its pushes wait for ready", () => {
+    const meta: PrSummary = {
+      ...makeMeta({ status: "awaiting-trigger" }),
+      draft: true,
+      draftPolicy: { generate: false },
+    };
+    render(makeBodyFor(meta));
+
+    expect(screen.getByText(/once it is marked ready for review/)).toBeTruthy();
+    expect(screen.queryByText(/its pushes are briefed as usual/)).toBeNull();
+  });
+
+  it("announces the wait once a Generate click swaps the card", async () => {
+    const view = render(makeBody({ status: "awaiting-trigger" }, TIMELINE));
+    const { changes, observer } = watchLiveRegion();
+
+    view.rerender(makeBody({ waitReason: WaitReasons.DEBOUNCING }, TIMELINE));
+    await Promise.resolve();
+    observer.disconnect();
+
+    expect(changes).toEqual([DEBOUNCING_LINE]);
+  });
+});
+
+describe("PrBriefBody awaiting trigger on a closed PR", () => {
+  it.each(["closed", "merged"] as const)(
+    "announces no brief for a %s PR's waiting head",
+    (state) => {
+      const meta: PrSummary = {
+        ...makeMeta({ status: "awaiting-trigger" }),
+        state,
+      };
+      render(makeBodyFor(meta));
+
+      expect(getPageRegion().textContent).toBe(
+        "No brief generated. This pull request is no longer open.",
+      );
+    },
+  );
 });

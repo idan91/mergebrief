@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button";
 import { Chip } from "@web/components/Chip";
 import { handOffFocusOnRemoval } from "../../../../../utils/focus-hand-off";
+import noticeStyles from "../revision-notices.module.scss";
 import styles from "./BehindNotice.module.scss";
 
 export interface BehindNoticeProps {
@@ -41,7 +42,7 @@ export function BehindNotice({
 
   return (
     <span
-      className={styles["notice"]}
+      className={noticeStyles["notice"]}
       data-testid="behind-notice"
       ref={handOffFocusOnRemoval}
     >

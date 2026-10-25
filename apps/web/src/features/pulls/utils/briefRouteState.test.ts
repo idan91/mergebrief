@@ -223,14 +223,14 @@ describe("deriveBriefRouteState", () => {
     );
   });
 
-  it("an awaiting-trigger head reads empty and ends the fast poll", () => {
+  it("an awaiting-trigger head reads its own state and ends the fast poll", () => {
     const awaiting = meta({
       generation: generation({ status: "awaiting-trigger" }),
       briefAvailable: false,
     });
 
     expect(deriveBriefRouteState(awaiting, undefined)).toEqual({
-      kind: "empty",
+      kind: "awaiting-trigger",
     });
     expect(shouldPollMeta(awaiting)).toBe(false);
   });
@@ -536,6 +536,46 @@ describe("selectBriefRouteState", () => {
         { explicitSpan: generating },
       ),
     ).toMatchObject({ kind: "waiting" });
+  });
+
+  it("keeps the stored brief up while the latest push awaits its trigger", () => {
+    const gated = meta({
+      ...newerHeadPending,
+      generation: generation({ status: "awaiting-trigger" }),
+    });
+    const timeline = resolveDbTimeline(gated.revisions, {});
+
+    expect(
+      selectBriefRouteState(gated, timeline, { explicitSpan: undefined }),
+    ).toEqual({ kind: "render", span: { base: "base-1", head: "head-1" } });
+  });
+
+  it("shows the awaiting card when the Entry links the gated push's rev", () => {
+    const gated = meta({
+      ...newerHeadPending,
+      generation: generation({ status: "awaiting-trigger" }),
+    });
+    const timeline = resolveDbTimeline(gated.revisions, { rev: 2 });
+
+    expect(
+      selectBriefRouteState(gated, timeline, {
+        explicitSpan: undefined,
+        rev: 2,
+      }),
+    ).toEqual({ kind: "awaiting-trigger" });
+  });
+
+  it("shows the awaiting card when a link names the gated push", () => {
+    const gated = meta({
+      ...newerHeadPending,
+      generation: generation({ status: "awaiting-trigger" }),
+    });
+    const explicit = { base: "base-2", head: "head-2" };
+    const timeline = resolveDbTimeline(gated.revisions, explicit);
+
+    expect(
+      selectBriefRouteState(gated, timeline, { explicitSpan: explicit }),
+    ).toEqual({ kind: "awaiting-trigger" });
   });
 
   it("waits when a link names the next revision that is still generating", () => {

@@ -1,15 +1,28 @@
 import type { TFunction } from "i18next";
-import { GenerationStatuses, PrStates } from "types";
+import { GenerationStatuses } from "types";
+import type { Mutable } from "types/utils";
 
 import type { GenerationSummary, PrSummary } from "../../../../../types";
 import { readCapResetsAt } from "../../../capped-head";
-import { buildFailedNote, buildFailureLine } from "../../../failed-head";
+import {
+  buildFailedNote,
+  buildFailureLine,
+  readOffersRegenerate,
+} from "../../../failed-head";
+import { readOffersTrigger } from "../../../trigger-offer";
+import { isNoLongerOpen } from "../../../../../utils/pr-state";
 import { hasStoredHeadBrief } from "../../../../../utils/briefRouteState";
-import { LatestPushStates, type LatestPushState } from "./types";
+import { awaitsReadyForReview } from "../../../../../utils/draft-policy";
+import {
+  LatestPushStates,
+  type LatestPushCopy,
+  type LatestPushState,
+} from "./types";
 
 /** The latest push's states whose notice carries a run the route may take. */
 const OFFER_STATUSES: ReadonlySet<string> = new Set([
   GenerationStatuses.FAILED,
+  GenerationStatuses.AWAITING_TRIGGER,
 ]);
 
 /**
@@ -30,6 +43,8 @@ export function readLatestPushState(
   switch (status) {
     case GenerationStatuses.FAILED:
       return LatestPushStates.FAILED;
+    case GenerationStatuses.AWAITING_TRIGGER:
+      return LatestPushStates.AWAITING_TRIGGER;
     case GenerationStatuses.PENDING:
     case GenerationStatuses.RUNNING:
       return LatestPushStates.GENERATING;
@@ -76,7 +91,7 @@ export function buildCappedPushDetail(
     cappedAt,
     prState,
     appInstalled,
-    awaitsReadyForReview,
+    awaitsReadyForReview: heldForReady,
   }: CappedPushDetailInput,
   now: Date = new Date(),
 ): string {
@@ -84,12 +99,10 @@ export function buildCappedPushDetail(
   if (!appInstalled) {
     return `${resume} ${t("pulls.latestPush.capped.repasteNote")}`;
   }
-  const noLongerOpen =
-    prState === PrStates.CLOSED || prState === PrStates.MERGED;
-  if (noLongerOpen) {
+  if (isNoLongerOpen(prState)) {
     return t("pulls.failed.notOpenNote");
   }
-  if (awaitsReadyForReview) {
+  if (heldForReady) {
     return `${resume} ${t("pulls.capped.readyForReviewNote")}`;
   }
   return `${resume} ${t("pulls.latestPush.capped.nextPush")}`;
@@ -111,7 +124,7 @@ export function buildFailedPushDetail(
     offersRegenerate,
     prState,
     appInstalled,
-    awaitsReadyForReview,
+    awaitsReadyForReview: heldForReady,
   }: FailedPushDetailInput,
 ): string {
   const { errorCode, errorDetail, attempts } = generation;
@@ -122,10 +135,99 @@ export function buildFailedPushDetail(
     offersRegenerate,
     prState,
     appInstalled,
-    awaitsReadyForReview,
+    awaitsReadyForReview: heldForReady,
   });
   if (note === undefined) {
     return reason;
   }
   return `${reason} ${note}`;
+}
+
+function describeFailedPush(
+  t: TFunction,
+  meta: PrSummary,
+  generation: GenerationSummary,
+): LatestPushCopy {
+  const offersRegenerate = readOffersRegenerate({
+    errorCode: generation.errorCode,
+    viewerCanPush: meta.viewerCanPush,
+    appInstalled: meta.appInstalled,
+    prState: meta.state,
+  });
+  const copy: Mutable<LatestPushCopy> = {
+    label: t("pulls.latestPush.failed.label"),
+    title: t("pulls.latestPush.failed.title"),
+    detail: buildFailedPushDetail(t, {
+      generation,
+      offersRegenerate,
+      prState: meta.state,
+      appInstalled: meta.appInstalled,
+      awaitsReadyForReview: awaitsReadyForReview(meta),
+    }),
+  };
+  if (offersRegenerate) {
+    copy.actionLabels = {
+      action: t("pulls.failed.regenerate.action"),
+      pending: t("pulls.failed.regenerate.pending"),
+    };
+  }
+  return copy;
+}
+
+function describeAwaitingPush(t: TFunction, meta: PrSummary): LatestPushCopy {
+  const copy: Mutable<LatestPushCopy> = {
+    label: t("pulls.awaitingTrigger.notice.label"),
+    title: t("pulls.awaitingTrigger.notice.title"),
+  };
+  if (isNoLongerOpen(meta.state)) {
+    copy.label = t("pulls.awaitingTrigger.notice.notOpenLabel");
+    copy.title = t("pulls.awaitingTrigger.notice.notOpenTitle");
+    copy.detail = t("pulls.awaitingTrigger.notOpenCopy");
+  }
+  const offersGenerate = readOffersTrigger({
+    prState: meta.state,
+    viewerCanPush: meta.viewerCanPush,
+    appInstalled: meta.appInstalled,
+  });
+  if (offersGenerate) {
+    copy.actionLabels = {
+      action: t("pulls.awaitingTrigger.generate.action"),
+      pending: t("pulls.awaitingTrigger.generate.pending"),
+    };
+  }
+  return copy;
+}
+
+/** What the notice says for the latest push's state, and whether it offers a run. */
+export function describeLatestPush(
+  t: TFunction,
+  meta: PrSummary,
+  state: LatestPushState,
+): LatestPushCopy | undefined {
+  const { generation } = meta;
+  if (generation === undefined) {
+    return undefined;
+  }
+  switch (state) {
+    case LatestPushStates.FAILED:
+      return describeFailedPush(t, meta, generation);
+    case LatestPushStates.AWAITING_TRIGGER:
+      return describeAwaitingPush(t, meta);
+    case LatestPushStates.GENERATING:
+      return {
+        label: t("pulls.latestPush.generating.label"),
+        title: t("pulls.latestPush.generating.title"),
+      };
+    case LatestPushStates.CAPPED:
+      return {
+        label: t("pulls.latestPush.capped.label"),
+        title: t("pulls.latestPush.capped.title"),
+        detail: buildCappedPushDetail(t, {
+          cappedAt: generation.updatedAt,
+          prState: meta.state,
+          appInstalled: meta.appInstalled,
+          awaitsReadyForReview: awaitsReadyForReview(meta),
+        }),
+      };
+  }
 }

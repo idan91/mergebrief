@@ -23,6 +23,7 @@ const RegenerateKinds: WriteKindTable<RegenerateFailureKind> = {
   [ApiErrorCodes.NOT_FOUND]: RegenerateResultKinds.NOT_ALLOWED,
   [ApiErrorCodes.FORBIDDEN]: RegenerateResultKinds.NOT_ALLOWED,
   [ApiErrorCodes.SCOPE_EXCEEDED]: RegenerateResultKinds.NOT_ALLOWED,
+  [ApiErrorCodes.HUMAN_ONLY]: RegenerateResultKinds.NOT_ALLOWED,
   [ApiErrorCodes.MALFORMED]: RegenerateResultKinds.INDETERMINATE,
   fallback: RegenerateResultKinds.UPSTREAM,
 };

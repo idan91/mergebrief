@@ -6,6 +6,7 @@ export const RowSignalKinds = {
   RUNNING: "running",
   FAILED: "failed",
   CAPPED: "capped",
+  AWAITING_TRIGGER: "awaiting-trigger",
   DRAFT: "draft",
   MERGED: "merged",
   CLOSED: "closed",

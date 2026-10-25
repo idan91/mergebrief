@@ -1,10 +1,12 @@
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
-import { formatAgeLabel, readRowTitle } from "./utils";
+import type { InboxItem } from "../../../types";
+import { describeRow, formatAgeLabel, readRowTitle } from "./utils";
 
 const now = new Date("2026-09-20T12:00:00Z");
 const t = appI18n.t;
+const AT = "2026-09-20T10:00:00Z";
 
 describe("formatAgeLabel", () => {
   it.each([
@@ -27,5 +29,46 @@ describe("readRowTitle", () => {
     expect(readRowTitle("   ")).toBeUndefined();
     expect(readRowTitle("")).toBeUndefined();
     expect(readRowTitle(undefined)).toBeUndefined();
+  });
+});
+
+describe("describeRow", () => {
+  it("names an awaiting head on demand in the row link", () => {
+    const item: InboxItem = {
+      repoId: "424242",
+      prNumber: 7,
+      state: "open",
+      draft: false,
+      source: "installation",
+      viewerIsAuthor: true,
+      viewerCanDelete: false,
+      behind: false,
+      unreachable: false,
+    };
+
+    expect(
+      describeRow(t, item, { status: "awaiting-trigger", updatedAt: AT }),
+    ).toContain("On demand.");
+  });
+
+  it("names a merged PR's waiting head merged, not on demand", () => {
+    const item: InboxItem = {
+      repoId: "424242",
+      prNumber: 7,
+      state: "merged",
+      draft: false,
+      source: "installation",
+      viewerIsAuthor: true,
+      viewerCanDelete: false,
+      behind: false,
+      unreachable: false,
+    };
+
+    const label = describeRow(t, item, {
+      status: "awaiting-trigger",
+      updatedAt: AT,
+    });
+    expect(label).toContain("Merged.");
+    expect(label).not.toContain("On demand");
   });
 });

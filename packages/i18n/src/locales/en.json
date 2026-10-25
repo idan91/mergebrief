@@ -125,6 +125,29 @@
       "copy": "This instance limits how many briefs each repository generates per day. The next push after the cap resets is briefed normally — this one will not be picked up again on its own.",
       "readyForReviewNote": "Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review after the reset queues a run."
     },
+    "awaitingTrigger": {
+      "heading": "Brief available on demand",
+      "notOpenHeading": "No brief generated",
+      "copy": "A collaborator with push access can generate this pull request's brief. After that, its pushes are briefed as usual.",
+      "notOpenCopy": "This pull request is no longer open, so its brief will not be generated.",
+      "readyForReviewCopy": "A collaborator with push access can generate this pull request's brief. Brief generation for draft pull requests is off on this instance, so after that, pushes are briefed once it is marked ready for review.",
+      "generate": {
+        "action": "Generate brief",
+        "pending": "Generating…",
+        "stale": "This brief no longer waits for a click.",
+        "notAllowed": "Generating needs push access to this repository and the MergeBrief App installed on it.",
+        "unauthorized": "Your session expired. Sign in again to generate this brief.",
+        "upstream": "MergeBrief could not start the brief. Try again in a moment.",
+        "indeterminate": "MergeBrief could not confirm the brief started. Reload to see where it stands."
+      },
+      "notice": {
+        "label": "Latest push on demand",
+        "notOpenLabel": "Latest push not briefed",
+        "title": "The latest push waits for a collaborator with push access to generate its brief.",
+        "notOpenTitle": "The latest push got no brief, and none will be generated now that this pull request is no longer open.",
+        "queued": "Brief queued for the latest push."
+      }
+    },
     "superseded": {
       "heading": "A newer revision is on the way",
       "copy": "This push was superseded before its brief finished; the newest push is briefed as usual."
@@ -171,6 +194,8 @@
       "briefReady": "Brief ready.",
       "briefReadyWarming": "Brief ready. Comparisons are still warming.",
       "failed": "Brief generation failed.",
+      "awaitingTrigger": "Brief available on demand.",
+      "awaitingTriggerNotOpen": "No brief generated. This pull request is no longer open.",
       "superseded": "A newer revision is on the way.",
       "noBrief": "No brief for this pull request yet."
     },
@@ -1387,7 +1412,8 @@
         "queued": "Queued",
         "generating": "Generating",
         "failed": "Failed",
-        "capped": "Capped"
+        "capped": "Capped",
+        "awaitingTrigger": "On demand"
       },
       "stackChip": "{{index}} of {{size}}",
       "stackChipLabel": "Place in a stack: {{index}} of {{size}}",

@@ -23,6 +23,7 @@
 
   .revisionRow {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: functions.to-rem(8px);
     min-inline-size: 0;

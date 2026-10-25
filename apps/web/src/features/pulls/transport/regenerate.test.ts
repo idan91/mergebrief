@@ -41,6 +41,7 @@ describe("regenerateBrief", () => {
     [404, "not-found", "not-allowed"],
     [403, "scope-exceeded", "not-allowed"],
     [403, "forbidden", "not-allowed"],
+    [403, "human-only", "not-allowed"],
     [401, "unauthorized", "unauthorized"],
     [502, "github-unavailable", "upstream"],
     [500, "internal-error", "upstream"],

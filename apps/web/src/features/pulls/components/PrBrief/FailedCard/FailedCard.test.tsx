@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import {
   act,
   cleanup,
@@ -22,7 +22,7 @@ vi.mock("../../../../../data/apiFetch", async (importOriginal) => {
 import { apiFetch } from "../../../../../data/apiFetch";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import { FailedCard, type FailedCardProps } from ".";
-import { answerApiFetch } from "../../../test-utils";
+import { answerApiFetch, stubQueryClient } from "../../../test-utils";
 
 const apiFetchMock = vi.mocked(apiFetch);
 const REGENERATE = /regenerate brief/i;
@@ -38,12 +38,6 @@ const BASE_PROPS: FailedCardProps = {
   prState: "open",
   awaitsReadyForReview: false,
 };
-
-function stubQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-}
 
 function makeCard(overrides: Partial<FailedCardProps>, client: QueryClient) {
   return (

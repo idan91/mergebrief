@@ -436,7 +436,7 @@ One surface housed in the expanded **Sidebar**, shown one at a time via a tabs r
 _Avoid_: tenant, inhabitant, view (that is the URL scope param), pane
 
 **Not-ready screen**:
-What the Brief page shows in place of a **Brief** while there is none to read: waiting, generating, failed, capped, empty, superseded, or an error. One concept with seven states; in code one card per state under `PrBrief` (`WaitCard`, `FailedCard`, `CappedCard`, `EmptyCard`, `SupersededCard`, `PrBriefError`).
+What the Brief page shows in place of a **Brief** while there is none to read: waiting, generating, failed, capped, awaiting its trigger, empty, superseded, or an error. One concept with eight states; in code one card per state under `PrBrief` (`WaitCard`, `FailedCard`, `CappedCard`, `AwaitingTriggerCard`, `EmptyCard`, `SupersededCard`, `PrBriefError`).
 _Avoid_: state card, error card, placeholder
 
 **Focus mode**:

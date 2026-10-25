@@ -14,8 +14,10 @@ import type {
   DbTimelineSelection,
 } from "../../../utils/dbTimeline";
 import { awaitsReadyForReview } from "../../../utils/draft-policy";
+import { isNoLongerOpen } from "../../../utils/pr-state";
 import { draftPolicyNotice } from "../../../utils/ownDraft";
 import type { PrSummary } from "../../../types";
+import { AwaitingTriggerCard } from "../AwaitingTriggerCard";
 import { CappedCard } from "../CappedCard";
 import { buildCappedLabel } from "../capped-head";
 import { EmptyCard } from "../EmptyCard";
@@ -72,6 +74,10 @@ export function stateAnnouncement(
       });
     case "failed":
       return t("pulls.announce.failed");
+    case "awaiting-trigger":
+      return isNoLongerOpen(meta.state)
+        ? t("pulls.announce.awaitingTriggerNotOpen")
+        : t("pulls.announce.awaitingTrigger");
     case "superseded":
       return t("pulls.announce.superseded");
     case "capped":
@@ -182,6 +188,19 @@ function PrBriefBodyState({
             awaitsReadyForReview={heldForReady}
             errorCode={state.errorCode}
             errorDetail={state.errorDetail}
+            prNumber={prNumber}
+            prState={meta.state}
+            repoId={repoId}
+            viewerCanPush={meta.viewerCanPush}
+          />
+        </main>
+      );
+    case "awaiting-trigger":
+      return (
+        <main className="main" id="main-content" tabIndex={-1}>
+          <AwaitingTriggerCard
+            appInstalled={meta.appInstalled}
+            awaitsReadyForReview={heldForReady}
             prNumber={prNumber}
             prState={meta.state}
             repoId={repoId}

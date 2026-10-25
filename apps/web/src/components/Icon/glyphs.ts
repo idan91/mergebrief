@@ -19,6 +19,7 @@ import CodeGlyph from "../icons/code.svg?react";
 import ColumnsGlyph from "../icons/columns.svg?react";
 import CopyGlyph from "../icons/copy.svg?react";
 import CursorGlyph from "../icons/cursor.svg?react";
+import CursorClickGlyph from "../icons/cursor-click.svg?react";
 import DotsThreeGlyph from "../icons/dots-three.svg?react";
 import EyeSlashGlyph from "../icons/eye-slash.svg?react";
 import GearGlyph from "../icons/gear.svg?react";
@@ -103,6 +104,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.ANTHROPIC]: AnthropicGlyph,
   [IconNames.CLAUDE_CODE]: ClaudeCodeGlyph,
   [IconNames.CURSOR]: CursorGlyph,
+  [IconNames.CURSOR_CLICK]: CursorClickGlyph,
   [IconNames.OPENAI]: OpenaiGlyph,
   [IconNames.OPENROUTER]: OpenrouterGlyph,
 };

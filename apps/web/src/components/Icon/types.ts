@@ -21,6 +21,7 @@ export const IconNames = {
   COLUMNS: "columns",
   COPY: "copy",
   CURSOR: "cursor",
+  CURSOR_CLICK: "cursor-click",
   DOTS_THREE: "dots-three",
   EYE_SLASH: "eye-slash",
   GEAR: "gear",

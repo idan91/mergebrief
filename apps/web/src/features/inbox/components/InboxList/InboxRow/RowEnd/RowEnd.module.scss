@@ -1,5 +1,15 @@
 @use "functions";
 
+$on-demand-label-min-width: 640px;
+
+@mixin visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 @layer components {
   /* Reads only; the row's link keeps the pointer under the labels. */
   .end {
@@ -70,12 +80,15 @@
       gap: var(--space-3);
     }
 
-    .label {
-      position: absolute;
-      inline-size: 1px;
-      block-size: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
+    .status .label,
+    .generation:not([data-generation="awaiting-trigger"]) .label {
+      @include visually-hidden;
+    }
+  }
+
+  @media (width < $on-demand-label-min-width) {
+    .generation[data-generation="awaiting-trigger"] .label {
+      @include visually-hidden;
     }
   }
 }

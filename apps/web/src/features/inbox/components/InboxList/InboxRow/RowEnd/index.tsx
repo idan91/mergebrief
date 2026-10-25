@@ -19,6 +19,7 @@ const ICONS: Readonly<Record<RowSignalKind, ReactNode>> = {
   [RowSignalKinds.RUNNING]: <span className={styles["spinner"]} />,
   [RowSignalKinds.FAILED]: <Icon name={IconNames.WARNING} />,
   [RowSignalKinds.CAPPED]: <Icon name={IconNames.CLOCK} />,
+  [RowSignalKinds.AWAITING_TRIGGER]: <Icon name={IconNames.CURSOR_CLICK} />,
   [RowSignalKinds.DRAFT]: <Icon name={IconNames.CIRCLE_DASHED} />,
   [RowSignalKinds.MERGED]: <Icon name={IconNames.GIT_MERGE} />,
   [RowSignalKinds.CLOSED]: <Icon name={IconNames.X_CIRCLE} />,
@@ -32,7 +33,7 @@ const ICONS: Readonly<Record<RowSignalKind, ReactNode>> = {
  */
 export function RowEnd({ generation, state, draft }: RowEndProps) {
   const { t } = useTranslation();
-  const generationSignal = readGenerationSignal(generation);
+  const generationSignal = readGenerationSignal(generation, state);
   const status = readStatusSignal(state, draft);
 
   return (

@@ -1,6 +1,7 @@
 import { Button } from "@web/components/Button";
 import { Chip } from "@web/components/Chip";
 import { handOffFocusOnRemoval } from "../../../../../utils/focus-hand-off";
+import noticeStyles from "../revision-notices.module.scss";
 import type { LatestPushAction } from "./types";
 import styles from "./LatestPushNotice.module.scss";
 
@@ -14,8 +15,9 @@ export interface LatestPushNoticeProps {
 }
 
 /**
- * The PR's latest push has no brief while an older one is on screen. The
- * chip names its state, the detail says why, and the one run the viewer may
+ * The PR's latest push has no brief while an older one is on screen: it
+ * failed, it waits for a collaborator's Generate, or it is generating. The
+ * chip names the state, the detail says why, and the one run the viewer may
  * queue sits beside them; the notice leaves once that push's brief lands.
  */
 export function LatestPushNotice({
@@ -25,8 +27,13 @@ export function LatestPushNotice({
   action,
 }: LatestPushNoticeProps) {
   return (
-    <span className={styles["notice"]} data-testid="latest-push-notice">
-      <Chip as="span" className={styles["chip"]} title={title} variant="fact">
+    <span className={noticeStyles["notice"]} data-testid="latest-push-notice">
+      <Chip
+        as="span"
+        className={noticeStyles["chip"]}
+        title={title}
+        variant="fact"
+      >
         {label}
       </Chip>
       {detail === undefined ? null : (

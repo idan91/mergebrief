@@ -15,6 +15,13 @@ describe("readLatestPushState", () => {
     expect(readLatestPushState(meta)).toBe(LatestPushStates.FAILED);
   });
 
+  it("reads an awaiting latest push with no brief as awaiting its trigger", () => {
+    const meta = makeMeta({
+      generation: makeGeneration({ status: "awaiting-trigger" }),
+    });
+    expect(readLatestPushState(meta)).toBe(LatestPushStates.AWAITING_TRIGGER);
+  });
+
   it.each(["pending", "running"] as const)(
     "reads a %s latest push as generating",
     (status) => {
@@ -34,6 +41,18 @@ describe("readLatestPushState", () => {
 
     expect(readLatestPushState(failed)).toBe(LatestPushStates.FAILED);
     expect(readLatestPushState(running)).toBeUndefined();
+  });
+
+  it("keeps Generate on an awaiting head whose old base holds a brief", () => {
+    const awaiting = makeMeta({
+      briefAvailable: false,
+      headBriefStored: true,
+      generation: makeGeneration({ status: "awaiting-trigger" }),
+    });
+
+    expect(readLatestPushState(awaiting)).toBe(
+      LatestPushStates.AWAITING_TRIGGER,
+    );
   });
 
   it("is absent once the latest push has its brief", () => {
