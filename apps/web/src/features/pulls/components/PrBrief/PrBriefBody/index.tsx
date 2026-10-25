@@ -25,7 +25,7 @@ import { FailedCard } from "../FailedCard";
 import { PrBriefContent } from "../PrBriefContent";
 import { SupersededCard } from "../SupersededCard";
 import { WaitCard, waitLabel } from "../WaitCard";
-import { readSupersededAnnouncementKey } from "./utils";
+import { readEmptyCopyOverride, readSupersededAnnouncementKey } from "./utils";
 
 type BriefRouteState = ReturnType<typeof deriveBriefRouteState>;
 
@@ -84,9 +84,7 @@ export function stateAnnouncement(
     case "capped":
       return buildCappedLabel(t, state.cappedAt);
     case "empty":
-      return notice?.kind === "drafts-off"
-        ? notice.text
-        : t("pulls.announce.noBrief");
+      return readEmptyCopyOverride(t, meta) ?? t("pulls.announce.noBrief");
   }
 }
 
@@ -175,6 +173,11 @@ function PrBriefBodyState({
               policyNotice?.kind === "damped" ? policyNotice.text : undefined
             }
             repoId={repoId}
+            rerun={{
+              prState: meta.state,
+              appInstalled: meta.appInstalled,
+              awaitsReadyForReview: heldForReady,
+            }}
             span={state.span}
             status={state.status}
             waitReason={state.waitReason}
@@ -230,13 +233,7 @@ function PrBriefBodyState({
     case "empty":
       return (
         <main className="main" id="main-content" tabIndex={-1}>
-          <EmptyCard
-            copyOverride={
-              policyNotice?.kind === "drafts-off"
-                ? policyNotice.text
-                : undefined
-            }
-          />
+          <EmptyCard copyOverride={readEmptyCopyOverride(t, meta)} />
         </main>
       );
   }

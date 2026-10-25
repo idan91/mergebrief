@@ -193,6 +193,8 @@ export interface RevisionArtifactInputs {
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
+  /** Every signal the generator's calls carry: the watch's and the worker's shutdown. */
+  readonly stops: readonly (AbortSignal | undefined)[];
   readonly chargeSpend: SpendCharge;
   /** Instance-config reasoning effort; undefined → engine default. */
   readonly effort: Effort | undefined;
@@ -278,10 +280,33 @@ export interface ReadLiveBody {
 
 export interface UnreadLiveBody {
   readonly kind: typeof LiveBodyKinds.UNREAD;
+  /** GitHub refused the read for good (404, 401, 403): a retry meets the same answer. */
+  readonly refused: boolean;
 }
 
 /** What the tracked Entry comment holds on GitHub right now. */
 export type LiveBody = NoLiveBody | ReadLiveBody | UnreadLiveBody;
+
+export const EntryWrites = {
+  /** This run's comment now holds the body. */
+  WRITTEN: "written",
+  /** Nothing to write: the body is live already, the thread is another body's, or the row is gone. */
+  LEFT: "left",
+  /**
+   * Another writer's comment holds the row: it won the swap, or the row
+   * tracks a comment this run never read. Its body may be stale, so only a
+   * render from freshly read facts settles the thread.
+   */
+  CONFLICTED: "conflicted",
+  /** A read, delete or post failed in a way a retry may clear; the thread is not known to hold the body. */
+  FAILED: "failed",
+  /** GitHub refused the delete or post for good (404, 401, 403): a retry meets the same answer. */
+  REFUSED: "refused",
+} as const;
+export type EntryWrite = ValueOf<typeof EntryWrites>;
+
+/** Whether a live Entry body is one a post may replace. */
+export type LiveBodyMatcher = (body: string) => boolean;
 
 /** The operations over one live Entry comment id, plus a read of it. */
 export interface EntryCommentManager {
@@ -289,16 +314,19 @@ export interface EntryCommentManager {
   buildDeepLink(headIndex: number): EntryCommentLink;
   remove(): Promise<void>;
   matches(body: string): Promise<boolean>;
-  refresh(body: string): Promise<void>;
+  refresh(body: string): Promise<EntryWrite>;
   /**
    * Post `body` when no comment is live and the PR row names none another
-   * run posted, or over a live one whose body is in `replaceable`; a live
-   * `body` is left unpinged and any other live body stays, as does one whose
-   * read failed.
+   * run posted, or over a live one `isReplaceable` accepts; a live
+   * `body` is left unpinged and any other live body stays. A live body whose
+   * read failed is left as well, and reported failed.
    */
-  replaceOrCreate(body: string, replaceable: readonly string[]): Promise<void>;
+  replaceOrCreate(
+    body: string,
+    isReplaceable: LiveBodyMatcher,
+  ): Promise<EntryWrite>;
   /** As `replaceOrCreate`, except no comment is created when none is live. */
-  replace(body: string, replaceable: readonly string[]): Promise<void>;
+  replace(body: string, isReplaceable: LiveBodyMatcher): Promise<EntryWrite>;
 }
 
 /**
@@ -317,6 +345,11 @@ export interface RunState {
   providerCalls: number;
   /** The Entry gate once the run inputs resolved it; a later failure reuses it. */
   entryCommentAllowed?: boolean;
+  /**
+   * The run stands on the pair's stored brief without a claim: however it
+   * ends with no retry to follow, the row settles `succeeded`.
+   */
+  standsOnStoredBrief?: boolean;
 }
 
 /** The audit row's world: an owner-world row carries no installation. */
@@ -334,9 +367,10 @@ export interface RunStart {
   readonly job: GenerateTaskHelpers["job"];
   readonly shutdownSignal: AbortSignal | undefined;
   /**
-   * A recovery job's run: it claims the row even over a stored brief, follows
-   * a live holder by moving its own job, and its claim queues no further
-   * recovery, whose key would end its own retries.
+   * A recovery job's run: it claims the row even over a stored brief and
+   * follows a live holder by moving its own job. Its claim queues the next
+   * recovery job, which ends this job's own retries, so a takeover owing a
+   * retry hands the row back to that job instead.
    */
   readonly recovering: boolean;
 }
@@ -448,8 +482,12 @@ export interface JobFailureInputs {
   readonly leaveRow: boolean;
   /** The claim's run id; absent before the claim, when unclaimed marks apply. */
   readonly runId: string | undefined;
+  /** A recovery job's run: a takeover's retry is its successor recovery job. */
+  readonly recovering: boolean;
   /** graphile's job row slice; absent on direct test invocations. */
   readonly job: GenerateTaskHelpers["job"];
+  /** Queues the head's Entry sync; called before a failure no retry follows is written. */
+  readonly queueEntrySync: () => Promise<void>;
   readonly log: Logger;
 }
 

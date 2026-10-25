@@ -15,6 +15,7 @@ import {
   resolveEntryCommentAllowed,
   resolveRunEntryCommentAllowed,
 } from "./entry-comment-gate";
+import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
 import { isPermanentGitHubError } from "./errors";
 
 const PROCEED_WITHOUT_CONFIG: AuthorGateOutcome = {
@@ -149,7 +150,8 @@ async function holdBotRun(
  * A click may approve the PR while this run reads GitHub, and the run it
  * queues posts its own generating body, so the row is read again right
  * before the post and a head no longer `awaiting-trigger` is left to it, as
- * is a thread a newer head's run now owns.
+ * is a thread a newer head's run now owns. A post that fails, or stands down
+ * on an unread head, queues the head's sync.
  */
 async function postOnDemandEntry(
   context: RunContext,
@@ -183,7 +185,9 @@ async function postOnDemandEntry(
     log.warn("generate: head unread, the on-demand Entry stands down", {
       error: head.error,
     });
+    await queueEntrySync(context);
     return;
   }
-  await entryCommentManager.refresh(body);
+  const write = await entryCommentManager.refresh(body);
+  await queueEntrySyncOnLostWrite(context, write);
 }

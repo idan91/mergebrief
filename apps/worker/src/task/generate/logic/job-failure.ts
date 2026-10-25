@@ -7,6 +7,7 @@ import {
 } from "persistence";
 import { GenerationStatuses } from "types/generations";
 import { classifyFailure, PermanentJobError } from "../../failure";
+import { isLastJobAttempt } from "../utils";
 import {
   FailureRecords,
   JobFailureOutcomes,
@@ -18,11 +19,12 @@ import {
 import { emitProviderError } from "./errors";
 
 /**
- * Mark the run failed, unless the row is to be left alone, and emit its
- * events. The outcome tells the caller whether the job ends here: it returns
- * normally on a permanent failure, or on a claim lost to another run or to a
- * deleted pull request, whose retry would only meet `held` or no row; it
- * rethrows otherwise so graphile owns the backoff.
+ * Mark the run failed unless the row is left alone, and emit its events. A
+ * failure no retry follows first queues the head's Entry sync. The outcome
+ * says whether the job ends: a permanent failure or a lost claim returns,
+ * anything else rethrows for graphile's backoff. A takeover's transient
+ * failure hands the row back to the recovery job its claim queued in place
+ * of this job's own retries.
  */
 export async function reportJobFailure(
   error: unknown,
@@ -31,7 +33,18 @@ export async function reportJobFailure(
   const { deps, job, log } = inputs;
 
   const failure = classifyFailure(error);
-  const record = await recordFailure(failure, inputs);
+  const permanent =
+    error instanceof PermanentJobError ||
+    error instanceof ScopeViolationError ||
+    error instanceof InvalidArtifactBodyError;
+  const handsBack =
+    inputs.recovering && inputs.runId !== undefined && !permanent;
+  const lastAttempt = !handsBack && isLastJobAttempt(job);
+  const endsForGood = permanent || lastAttempt;
+  if (endsForGood) {
+    await inputs.queueEntrySync();
+  }
+  const record = await recordFailure(failure, inputs, handsBack);
   const rowKept = record !== FailureRecords.WRITTEN;
   if (record === FailureRecords.LOST) {
     log.warn(
@@ -42,10 +55,6 @@ export async function reportJobFailure(
 
   const message = error instanceof Error ? error.message : String(error);
   emitProviderError(log, deps, error);
-  const permanent =
-    error instanceof PermanentJobError ||
-    error instanceof ScopeViolationError ||
-    error instanceof InvalidArtifactBodyError;
   const attempt = job?.attempts;
   const maxAttempts = job?.max_attempts;
   const failFields: LogFields = { evt: "job.fail", permanent };
@@ -59,16 +68,7 @@ export async function reportJobFailure(
 
   // Message-only: no `err` field, provider cause chains may carry
   // request contents, which the boundary's URL scrub does not cover.
-  log.error(
-    permanent
-      ? `generate: permanent failure — ${message}`
-      : `generate: failed (${message}) — handing to graphile for retry`,
-    failFields,
-  );
-  const lastAttempt =
-    attempt !== undefined &&
-    maxAttempts !== undefined &&
-    attempt >= maxAttempts;
+  log.error(describeFailure(message, permanent, handsBack), failFields);
   if (lastAttempt) {
     log.error("generate: retries exhausted", {
       evt: "job.retries.exhausted",
@@ -77,6 +77,20 @@ export async function reportJobFailure(
     });
   }
   return { outcome: selectOutcome(permanent, lastAttempt), failure, rowKept };
+}
+
+function describeFailure(
+  message: string,
+  permanent: boolean,
+  handsBack: boolean,
+): string {
+  if (permanent) {
+    return `generate: permanent failure — ${message}`;
+  }
+  if (handsBack) {
+    return `generate: failed (${message}) and the head's recovery job retries the takeover`;
+  }
+  return `generate: failed (${message}) — handing to graphile for retry`;
 }
 
 function selectOutcome(
@@ -100,12 +114,14 @@ function selectOutcome(
 async function recordFailure(
   failure: GenerationFailure,
   inputs: JobFailureInputs,
+  handsBack: boolean,
 ): Promise<FailureRecord> {
   const { projection, target, leaveRow, runId } = inputs;
   if (runId !== undefined) {
     const finished = await projection.finishRun(target, runId, {
       status: GenerationStatuses.FAILED,
       failure,
+      awaitsRecovery: handsBack,
     });
     return finished.ok ? FailureRecords.WRITTEN : FailureRecords.LOST;
   }

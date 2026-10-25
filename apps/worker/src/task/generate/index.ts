@@ -5,15 +5,21 @@ import {
   type GenerationFailure,
 } from "persistence";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
+import { TransientJobError } from "../failure";
 import { parseGeneratePayload } from "../payload";
 import type { AcquiredRepoConfig } from "../repo-config";
 import {
   endUnclaimedRecovery,
-  isRecoveryRetry,
   shouldRecoverClaim,
   supersedeUnclaimedRecovery,
 } from "./logic/claim-recovery";
 import { applyAuthorGate } from "./logic/author-gate";
+import {
+  isPermanentSyncFailure,
+  queueEntrySync,
+  reportEntrySyncFailure,
+  syncEntryComment,
+} from "./logic/entry-sync";
 import { traceProviderCalls } from "./logic/model-span";
 import { isRunSignal, listRunStops, traceRunStep } from "./logic/step-span";
 import { postFailedEntry } from "./logic/failed-entry";
@@ -22,6 +28,7 @@ import { postOwedReadyEntry, postReadyEntry } from "./logic/ready-entry";
 import {
   finishRun,
   produceBrief,
+  settleStoredBriefRun,
   writeFollowOnArtifacts,
 } from "./logic/run-artifacts";
 import {
@@ -51,7 +58,12 @@ import {
   type RunState,
   type SupersessionWatch,
 } from "./types";
-import { buildAttemptFields, getBriefTarget, createNoopLogger } from "./utils";
+import {
+  buildAttemptFields,
+  createNoopLogger,
+  getBriefTarget,
+  isLastJobAttempt,
+} from "./utils";
 
 export type { GenerateTaskDeps } from "./types";
 
@@ -77,9 +89,9 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
 
 /**
  * Build the recovery task, queued per head when a run claims it. It does
- * nothing unless the claim's lease lapsed with the run unfinished, then runs
- * the head as `generate` does, claiming the row even over a stored brief; a
- * retry is that run's retry.
+ * nothing unless the claim's lease lapsed with the run unfinished, or a
+ * takeover handed the row back owing a retry, then runs the head as
+ * `generate` does, claiming the row even over a stored brief.
  */
 export function createRecoverGenerationTask(
   deps: GenerateTaskDeps,
@@ -98,10 +110,50 @@ export function createRecoverGenerationTask(
     // Nothing before the run decision may mark the row.
     start.run.leaveRow = true;
     await runJob(start, async (progress) => {
-      if (await shouldRecoverClaim(start, isRecoveryRetry(start))) {
+      if (await shouldRecoverClaim(start)) {
         await runGeneration(start, progress);
       }
     });
+  };
+}
+
+/**
+ * Build the Entry sync task, queued per head ahead of a write that ends a
+ * run for good and when its pull request closes. It renders the Entry the
+ * head's row names; a GitHub failure throws so graphile retries it. A url-box
+ * job never writes to GitHub.
+ */
+export function createSyncEntryTask(deps: GenerateTaskDeps): GenerateTask {
+  const log = deps.log ?? createNoopLogger();
+
+  return async function syncEntry(
+    rawPayload: unknown,
+    helpers?: GenerateTaskHelpers,
+  ): Promise<void> {
+    const parsed = parseGeneratePayload(rawPayload);
+    if (!parsed.ok) {
+      log.warn(`entry sync: dropping malformed payload, ${parsed.error}`);
+      return;
+    }
+    const payload = parsed.value;
+    if (payload.grantId !== undefined) {
+      return;
+    }
+
+    const jobLog = log.child({
+      prId: String(payload.pullRequestId),
+      headSha: payload.headSha,
+    });
+    try {
+      await syncEntryComment(deps, payload, jobLog);
+    } catch (error) {
+      if (isPermanentSyncFailure(error)) {
+        jobLog.warn("entry sync: refused for good, nothing to retry");
+        return;
+      }
+      reportEntrySyncFailure(jobLog, helpers?.job);
+      throw error;
+    }
   };
 }
 
@@ -149,12 +201,13 @@ async function runJob(
 
 /**
  * A lost claim stands down without a write, the row is the new holder's or
- * gone with its pull request; a stored-brief run the cap refused stands down
- * too, its row as found; a supersession is terminal `superseded`; a shutdown
- * abort releases the claim and rethrows so graphile returns the job to the
- * queue; anything else is a failure, swallowed when permanent or when its
- * fenced write finds the claim lost, and rethrown for graphile's retry
- * otherwise. Only a failure no retry follows posts the failed Entry.
+ * gone with its pull request; a stored-brief run the cap refused settles the
+ * row it stands on; a supersession is terminal `superseded`; a shutdown abort
+ * releases the claim and rethrows so graphile returns the job to the queue,
+ * or, on the job's last attempt, ends the run as attempts spent; anything
+ * else is a failure, swallowed when permanent or when its fenced write finds
+ * the claim lost, and rethrown for graphile's retry otherwise. Only a failure
+ * no retry follows posts the failed Entry.
  */
 async function settleFailedRun(
   start: RunStart,
@@ -167,6 +220,9 @@ async function settleFailedRun(
     return;
   }
   if (error instanceof SpendCappedSignal) {
+    if (progress.context !== undefined) {
+      await settleStoredBriefRun(progress.context);
+    }
     return;
   }
   if (error instanceof SupersededSignal) {
@@ -174,19 +230,29 @@ async function settleFailedRun(
     log.info(`generate: superseded (${error.message})`);
     return;
   }
+  let failure = error;
   if (start.shutdownSignal?.aborted === true) {
-    await releaseClaimOnShutdown(start);
-    log.info("generate: aborted by shutdown — job returns to the queue");
-    throw error;
+    if (isRetriedAfterShutdown(start)) {
+      await releaseClaimOnShutdown(start);
+      log.info("generate: aborted by shutdown — job returns to the queue");
+      throw error;
+    }
+    log.warn("generate: shutdown on the job's last attempt, the run ends");
+    failure = new TransientJobError("shutdown on the job's last attempt", {
+      cause: error,
+      failure: { code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED },
+    });
   }
 
-  const report = await reportJobFailure(error, {
+  const report = await reportJobFailure(failure, {
     deps: start.deps,
     projection,
     target,
     leaveRow: run.leaveRow,
     runId: run.runId,
+    recovering: start.recovering,
     job: start.job,
+    queueEntrySync: () => queueEntrySync(start),
     log,
   });
   const { outcome } = report;
@@ -203,13 +269,25 @@ async function settleFailedRun(
     outcome === JobFailureOutcomes.RETRYING ||
     outcome === JobFailureOutcomes.LAST_ATTEMPT;
   if (retried) {
-    throw error;
+    throw failure;
   }
 }
 
 /**
+ * A shutdown leaves the run to a retry: graphile's next attempt of this job,
+ * or, for a takeover, the head's recovery job its claim queued. On the job's
+ * last attempt no retry follows, so the run ends there instead.
+ */
+function isRetriedAfterShutdown(start: RunStart): boolean {
+  const takeover = start.recovering && start.run.runId !== undefined;
+  const retried = takeover || !isLastJobAttempt(start.job);
+  return retried;
+}
+
+/**
  * A failure no retry follows ends the run `failed` and posts the failed
- * Entry; an unclaimed recovery's row is `endUnclaimedRecovery`'s to end.
+ * Entry; a run over the stored brief settles the row instead, and an
+ * unclaimed recovery's row is `endUnclaimedRecovery`'s to end.
  */
 async function announceFailedRun(
   start: RunStart,
@@ -217,6 +295,12 @@ async function announceFailedRun(
   progress: RunProgress,
 ): Promise<void> {
   const { run } = start;
+  if (run.standsOnStoredBrief === true) {
+    if (progress.context !== undefined) {
+      await settleStoredBriefRun(progress.context);
+    }
+    return;
+  }
   const recoveryUnclaimed =
     start.recovering && run.leaveRow && run.runId === undefined;
   if (!recoveryUnclaimed) {
@@ -239,14 +323,19 @@ function selectRecoveryFailure(report: JobFailureReport): GenerationFailure {
   return report.failure;
 }
 
-/** The released claim stays counted against the head's attempts. */
+/**
+ * The released claim stays counted against the head's attempts. A takeover's
+ * release hands the row to the head's recovery job, which carries its retry.
+ */
 async function releaseClaimOnShutdown(start: RunStart): Promise<void> {
-  const { projection, target, run, log } = start;
+  const { projection, target, run, recovering, log } = start;
   if (run.runId === undefined || run.attempt === undefined) {
     return;
   }
 
-  await projection.releaseClaim(target, run.runId);
+  await projection.releaseClaim(target, run.runId, {
+    awaitsRecovery: recovering,
+  });
   log.warn(
     "generate: claim released on shutdown, the attempt still counts",
     buildAttemptFields(run.attempt),
@@ -304,6 +393,7 @@ async function runGeneration(
   if (decision.kind === RunDecisionKinds.CAPPED) {
     if (decision.storedBrief !== undefined) {
       await postOwedReadyEntry(context, decision.storedBrief.headIndex);
+      await settleStoredBriefRun(context);
     }
     return;
   }

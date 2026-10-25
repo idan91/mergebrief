@@ -23,6 +23,12 @@ import {
  */
 export const MAX_GENERATION_ATTEMPTS = 3;
 
+/**
+ * The Entry sync's attempts: graphile waits exp(attempts) seconds between
+ * them, so ten spread one GitHub outage over about three and a half hours.
+ */
+export const ENTRY_SYNC_MAX_ATTEMPTS = 10;
+
 type QueueExecutor = Pick<AppDrizzle, "execute">;
 type QueueReader = Pick<AppDrizzle, "select">;
 
@@ -32,6 +38,8 @@ export interface QueueJob {
   readonly key: string;
   readonly delaySeconds: number;
   readonly keyMode: JobKeyMode;
+  /** Defaults to `MAX_GENERATION_ATTEMPTS`. */
+  readonly maxAttempts?: number;
 }
 
 /**
@@ -43,6 +51,14 @@ export function getRecoveryJobKey(
   headSha: string,
 ): string {
   return `${QueueTasks.RECOVER_GENERATION}:${pullRequestId}:${headSha}`;
+}
+
+/** One pending Entry sync per head; a later queue moves it. */
+export function getEntrySyncJobKey(
+  pullRequestId: bigint,
+  headSha: string,
+): string {
+  return `${QueueTasks.SYNC_ENTRY}:${pullRequestId}:${headSha}`;
 }
 
 /** The enqueue's trace, so the worker's job span can link back to it. */
@@ -101,7 +117,7 @@ export async function addQueueJob(
       payload => ${payloadJson}::json,
       job_key => ${job.key},
       run_at => now() + make_interval(secs => ${job.delaySeconds}),
-      max_attempts => ${MAX_GENERATION_ATTEMPTS},
+      max_attempts => ${job.maxAttempts ?? MAX_GENERATION_ATTEMPTS},
       job_key_mode => ${job.keyMode}
     )
   `);

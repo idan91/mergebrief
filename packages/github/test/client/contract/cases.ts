@@ -12,6 +12,7 @@ import { MentionTargetKinds } from "../../../src/operations/mentions/types";
 import { ReviewEvents } from "../../../src/operations/review-submit";
 import { InstallationPresences } from "../../../src/operations/installation/types";
 import { CollaboratorPermissions } from "../../../src/operations/collaborator-permission/types";
+import { FAKE_APP_BOT_USER_ID } from "../../../src/testing";
 import { requireInstallationId, requireRepoId } from "../helpers";
 import {
   ATTACHMENT_COMMIT_SHA,
@@ -432,6 +433,13 @@ export const INSTALLATION_REPO_CASES: readonly ContractCase<InstallationRepoClie
       call: (client: InstallationRepoClient) => client.fetchComment(1001n),
       expected: { body: "Entry" },
       notFound: undefined,
+    }),
+    defineCase({
+      operation: "listIssueComments",
+      call: (client: InstallationRepoClient) => client.listIssueComments(7),
+      expected: [
+        { commentId: 1001n, authorId: FAKE_APP_BOT_USER_ID, body: "Entry" },
+      ],
     }),
     defineCase({
       operation: "postEntryComment",

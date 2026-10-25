@@ -1,17 +1,39 @@
+import type { GitHubCallFailure, IssueComment } from "github";
 import {
   EntryCommentSwapErrorCodes,
   type EntryCommentSwapError,
   type PullRequestRow,
 } from "persistence";
 import type { Result } from "types/utils";
-import type { EntryCommentLink } from "../../entry-comment";
+import { isEntryCommentBody, type EntryCommentLink } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
+import { isPermanentGitHubError } from "./errors";
 import {
+  EntryWrites,
   LiveBodyKinds,
   type EntryCommentManager,
   type EntryCommentManagerInputs,
+  type EntryWrite,
   type LiveBody,
+  type LiveBodyMatcher,
 } from "../types";
+
+function isOrphanedEntryComment(
+  comment: IssueComment,
+  tracked: IssueComment,
+): boolean {
+  const older = comment.commentId < tracked.commentId;
+  const sameAuthor = comment.authorId === tracked.authorId;
+  const orphaned = older && sameAuthor && isEntryCommentBody(comment.body);
+  return orphaned;
+}
+
+function classifyFailedWrite(error: GitHubCallFailure): EntryWrite {
+  if (isPermanentGitHubError(error)) {
+    return EntryWrites.REFUSED;
+  }
+  return EntryWrites.FAILED;
+}
 
 /**
  * The Entry comment id rotates up to twice per run (generating → ready);
@@ -48,11 +70,29 @@ export function createEntryCommentManager(
     adoptedEntryCommentId = entryCommentId;
   }
 
-  /** Fail-closed: a failed read is a moved head. */
-  async function isOwnHeadConfirmed(): Promise<boolean> {
+  /**
+   * An adopted comment is another run's, replaced only once a fresh head read
+   * names this run's head: a moved head leaves it, and an unread one leaves
+   * it to the head's sync, which reads the head again. `undefined` lets the
+   * post go on.
+   */
+  async function resolveAdoptedCommentWrite(): Promise<EntryWrite | undefined> {
+    const adopted =
+      liveEntryCommentId !== null &&
+      liveEntryCommentId === adoptedEntryCommentId;
+    if (!adopted) {
+      return undefined;
+    }
     const read = await source.fetchPullRequest();
-    const ownHead = read.ok && read.value.headSha === headSha;
-    return ownHead;
+    if (!read.ok) {
+      log.info("generate: head unread, leaving another run's entry comment");
+      return EntryWrites.CONFLICTED;
+    }
+    if (read.value.headSha !== headSha) {
+      log.info("generate: head moved, leaving another run's entry comment");
+      return EntryWrites.LEFT;
+    }
+    return undefined;
   }
 
   function getCurrentId(): bigint | null {
@@ -125,7 +165,10 @@ export function createEntryCommentManager(
       log.warn(
         `generate: entry comment fetch failed (job unaffected) — ${fetched.error.message}`,
       );
-      return { kind: LiveBodyKinds.UNREAD };
+      return {
+        kind: LiveBodyKinds.UNREAD,
+        refused: isPermanentGitHubError(fetched.error),
+      };
     }
     if (fetched.value === undefined) {
       return { kind: LiveBodyKinds.NONE };
@@ -135,59 +178,63 @@ export function createEntryCommentManager(
 
   async function replaceOrCreateEntryComment(
     body: string,
-    replaceable: readonly string[],
-  ): Promise<void> {
-    await settleEntryComment(body, replaceable, true);
+    isReplaceable: LiveBodyMatcher,
+  ): Promise<EntryWrite> {
+    return settleEntryComment(body, isReplaceable, true);
   }
 
   async function replaceEntryComment(
     body: string,
-    replaceable: readonly string[],
-  ): Promise<void> {
-    await settleEntryComment(body, replaceable, false);
+    isReplaceable: LiveBodyMatcher,
+  ): Promise<EntryWrite> {
+    return settleEntryComment(body, isReplaceable, false);
   }
 
   async function settleEntryComment(
     body: string,
-    replaceable: readonly string[],
+    isReplaceable: LiveBodyMatcher,
     createsComment: boolean,
-  ): Promise<void> {
+  ): Promise<EntryWrite> {
     const live = await readLiveBody();
+    if (live.kind === LiveBodyKinds.UNREAD) {
+      return live.refused ? EntryWrites.REFUSED : EntryWrites.FAILED;
+    }
     if (live.kind === LiveBodyKinds.NONE) {
       if (createsComment) {
-        await createUnlessAnotherRunPosted(body);
+        return createUnlessAnotherRunPosted(body);
       }
-      return;
+      return EntryWrites.LEFT;
     }
-    const leftAsIs = live.kind === LiveBodyKinds.UNREAD || live.body === body;
-    if (leftAsIs) {
-      return;
+    if (live.body === body) {
+      return EntryWrites.LEFT;
     }
-    if (replaceable.includes(live.body)) {
-      await refreshEntryComment(body);
-      return;
+    if (isReplaceable(live.body)) {
+      return refreshEntryComment(body);
     }
     log.info("generate: entry comment holds another body, leaving it");
+    return EntryWrites.LEFT;
   }
 
   /**
    * A newer head's run may have posted since this run opened: an id on the
    * row this run never knew means the thread already has its one Entry
-   * comment. An id it knew, gone or left dangling by its own failed repost,
-   * is this run's to replace.
+   * comment, a body this run never read. An id it knew, gone or left
+   * dangling by its own failed repost, is this run's to replace.
    */
-  async function createUnlessAnotherRunPosted(body: string): Promise<void> {
+  async function createUnlessAnotherRunPosted(
+    body: string,
+  ): Promise<EntryWrite> {
     const row = await repo.pullRequests.getById(pullRequestId);
     if (row === undefined) {
-      return;
+      return EntryWrites.LEFT;
     }
     const postedByAnotherRun =
       row.entryCommentId !== null && !knownIds.has(row.entryCommentId);
     if (postedByAnotherRun) {
       log.info("generate: the PR row tracks another entry comment, leaving it");
-      return;
+      return EntryWrites.CONFLICTED;
     }
-    await refreshEntryComment(body);
+    return refreshEntryComment(body);
   }
 
   /**
@@ -196,19 +243,15 @@ export function createEntryCommentManager(
    * job alone; a later settled head can retry the cycle. A storage throw from the id swap
    * deletes the comment just posted, then propagates as an infra error.
    */
-  async function refreshEntryComment(body: string): Promise<void> {
+  async function refreshEntryComment(body: string): Promise<EntryWrite> {
     if (comments === undefined) {
-      return;
+      return EntryWrites.LEFT;
+    }
+    const adoptedWrite = await resolveAdoptedCommentWrite();
+    if (adoptedWrite !== undefined) {
+      return adoptedWrite;
     }
     if (liveEntryCommentId !== null) {
-      const adopted = liveEntryCommentId === adoptedEntryCommentId;
-      const adoptedUnconfirmed = adopted && !(await isOwnHeadConfirmed());
-      if (adoptedUnconfirmed) {
-        log.info(
-          "generate: head unconfirmed, leaving another run's entry comment",
-        );
-        return;
-      }
       const deleted = await comments.deleteComment(liveEntryCommentId);
       if (!deleted.ok) {
         // Skip the repost: posting past a live comment we failed to delete
@@ -216,7 +259,7 @@ export function createEntryCommentManager(
         log.warn(
           `generate: entry comment delete failed (job unaffected) — ${deleted.error.message}`,
         );
-        return;
+        return classifyFailedWrite(deleted.error);
       }
       liveEntryCommentId = null;
     }
@@ -230,7 +273,7 @@ export function createEntryCommentManager(
       log.warn(
         `generate: entry comment post failed (job unaffected) — ${posted.error.message}`,
       );
-      return;
+      return classifyFailedWrite(posted.error);
     }
     const stored = await swapPostedEntryComment(posted.value.commentId);
     if (!stored.ok) {
@@ -241,14 +284,54 @@ export function createEntryCommentManager(
         log.info(
           "generate: another run stored its entry comment first, this run's was deleted",
         );
-        return;
+        return EntryWrites.CONFLICTED;
       }
       log.warn(
         `generate: entry comment id not stored (job unaffected), pull_request ${pullRequestId} not found`,
       );
-      return;
+      return EntryWrites.LEFT;
     }
     trackPostedEntryComment(posted.value.commentId);
+    await deleteOrphanedEntryComments(posted.value.commentId);
+    return EntryWrites.WRITTEN;
+  }
+
+  /**
+   * A run killed between its post and its id swap leaves that comment
+   * untracked, so each tracked post deletes the Entry comments older than it
+   * that its own author left on the PR. Only older ones: a newer one is a
+   * later run's, mid-swap. Best-effort, a failure only warns.
+   */
+  async function deleteOrphanedEntryComments(trackedId: bigint): Promise<void> {
+    if (comments === undefined) {
+      return;
+    }
+    const listed = await comments.listIssueComments(prRow.prNumber);
+    if (!listed.ok) {
+      log.warn(
+        `generate: entry comment listing failed, orphans kept, ${listed.error.message}`,
+      );
+      return;
+    }
+    const tracked = listed.value.find(
+      (comment) => comment.commentId === trackedId,
+    );
+    if (tracked?.authorId === undefined) {
+      return;
+    }
+
+    const orphans = listed.value.filter((comment) =>
+      isOrphanedEntryComment(comment, tracked),
+    );
+    for (const orphan of orphans) {
+      // oxlint-disable-next-line no-await-in-loop -- deletes go one at a time, as every comment write does
+      await deleteUntrackedEntryComment(orphan.commentId);
+    }
+    if (orphans.length > 0) {
+      log.info("generate: deleted entry comments an earlier run left", {
+        count: orphans.length,
+      });
+    }
   }
 
   function trackPostedEntryComment(commentId: bigint): void {

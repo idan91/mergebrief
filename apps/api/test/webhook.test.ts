@@ -10,6 +10,7 @@ import {
   createWebhookDeliveryStore,
   DELIVERY_DEDUP_TTL_MS,
   digestWebhookSignature,
+  ENTRY_SYNC_MAX_ATTEMPTS,
   isPullRequestRowId,
   isRepoId,
   parseTenantContext,
@@ -648,7 +649,7 @@ describe("POST /api/webhooks/github", () => {
     );
 
     it.each(["CONTRIBUTOR", "NONE"])(
-      "writes a private repo %s reviewer's checkpoint without asking GitHub",
+      "checkpoints a private repo %s reviewer with no GitHub read",
       async (authorAssociation) => {
         const res = await deliver(
           checking,
@@ -718,7 +719,7 @@ describe("POST /api/webhooks/github", () => {
       "NONE",
       "SPONSOR",
     ])(
-      "skips a %s reviewer GitHub grants only read, still queueing",
+      "skips a read-only %s reviewer, still queueing",
       async (authorAssociation) => {
         fake.addCollaboratorPermission(REVIEW_REPO, "reviewer", "read");
         const res = await deliver(
@@ -1411,6 +1412,31 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["state"]).toBe("closed");
     expect(prs[0]?.["closed_at"]).not.toBeNull();
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
+  });
+
+  it("a close over a tracked Entry comment queues the head's Entry sync", async () => {
+    await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+    await harness.raw("delete from graphile_worker.jobs");
+    await harness.raw("update pull_request set entry_comment_id = 41");
+
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "closed", merged: true }),
+    );
+
+    expect(res.status).toBe(200);
+    const jobs = await harness.raw(
+      "select task_identifier, key, max_attempts from graphile_worker.jobs",
+    );
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.["task_identifier"]).toBe("sync-entry");
+    expect(String(jobs[0]?.["key"])).toMatch(/^sync-entry:\d+:[0-9a-f]{40}$/);
+    expect(jobs[0]?.["max_attempts"]).toBe(ENTRY_SYNC_MAX_ATTEMPTS);
   });
 
   it("a stale synchronize redelivered after close does NOT reopen the PR", async () => {

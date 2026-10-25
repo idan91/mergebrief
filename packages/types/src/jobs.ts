@@ -4,6 +4,8 @@ import type { ValueOf } from "./utils";
 export const QueueTasks = {
   GENERATE: "generate",
   RECOVER_GENERATION: "recover-generation",
+  /** Renders a head's Entry comment from its generation row; the generate payload. */
+  SYNC_ENTRY: "sync-entry",
 } as const;
 export type QueueTask = ValueOf<typeof QueueTasks>;
 

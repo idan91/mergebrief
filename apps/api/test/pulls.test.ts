@@ -585,6 +585,22 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(body.generation?.["waitReason"]).toBe(WaitReasons.WAITING_FOR_SLOT);
   });
 
+  it("meta: names a pending head behind a spent job stalled", async () => {
+    stubGate();
+    const cookie = await signIn();
+    await triggerPendingBrief(0);
+    await harness.raw(
+      "update graphile_worker.jobs set attempts = max_attempts",
+    );
+
+    const { body } = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+
+    expect(body.generation?.["waitReason"]).toBe(WaitReasons.STALLED);
+  });
+
   it("meta: exposes draft status, author and authorship for an own draft", async () => {
     stubGate();
     // The seeded session's reviewer login is "octocat".

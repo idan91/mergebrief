@@ -317,6 +317,73 @@ describe("generate task, daily generation cap", () => {
     expect(row?.errorCode).toBeNull();
   });
 
+  /** The row a shutdown or an earlier failure left beside the stored brief. */
+  async function unsettleRow(status: string): Promise<void> {
+    await harness.raw(
+      `update generation set status = '${status}' where head_sha = '${HEAD_1}'`,
+    );
+  }
+
+  it("a capped stored-brief rerun over a released row settles it", async () => {
+    const { pr, payload } = await burnOneRun();
+    await unsettleRow(GenerationStatuses.PENDING);
+    const generator = stubGenerator();
+
+    await makeTask({ generator, spend: { maxGenerationsPerDay: 1 } })(payload);
+
+    expect(generator.calls).toEqual([]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("a stored-brief rerun refused at its paid call settles a failed row", async () => {
+    const first = await trigger(HEAD_1);
+    await makeTask({ spend: UNCAPPED })(first.payload);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: BASE,
+      submittedAt: new Date(),
+    });
+    await unsettleRow(GenerationStatuses.FAILED);
+    const github = makeGitHub(HEAD_1);
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async fetchPullRequestFiles(prNumber) {
+        await burnRunElsewhere();
+        return client.fetchPullRequestFiles(prNumber);
+      },
+    }));
+
+    await makeTask({ github, spend: { maxGenerationsPerDay: 2 } })(
+      first.payload,
+    );
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(first.pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("a permanent failure over a stored brief settles a released row", async () => {
+    const { pr, payload } = await burnOneRun();
+    await unsettleRow(GenerationStatuses.PENDING);
+    const github = makeGitHub(HEAD_1);
+    github.failOn("fetchPullRequestFiles", FakeFailures.NOT_FOUND);
+
+    await makeTask({ github, spend: UNCAPPED })(payload);
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
   it("excludes the deciding run from the cap so a first run can proceed", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();

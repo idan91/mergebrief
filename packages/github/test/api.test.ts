@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   deleteComment,
   fetchComment,
+  listIssueComments,
   postEntryComment,
 } from "../src/operations/comments";
 import { GitHubApiErrorCodes } from "../src/errors";
@@ -105,6 +106,39 @@ function toInstallationId(value: bigint) {
   }
   return value;
 }
+
+describe("listIssueComments", () => {
+  const PR = { owner: "acme", repo: "widgets", prNumber: 7 };
+
+  it("leaves a deleted author's comment without an author id", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      { id: 5, body: "kept", user: { id: 9 } },
+      { id: 6, body: null, user: null },
+    ]);
+
+    const listed = await listIssueComments(mockOctokit({ paginate }), PR);
+
+    expect(listed).toEqual({
+      ok: true,
+      value: [
+        { commentId: 5n, authorId: 9n, body: "kept" },
+        { commentId: 6n, body: "" },
+      ],
+    });
+  });
+
+  it("fails the whole read on an id past the safe integer range", async () => {
+    const paginate = vi
+      .fn()
+      .mockResolvedValue([
+        { id: Number.MAX_SAFE_INTEGER + 2, body: "x", user: { id: 9 } },
+      ]);
+
+    const listed = await listIssueComments(mockOctokit({ paginate }), PR);
+
+    expect(listed.ok).toBe(false);
+  });
+});
 
 describe("postEntryComment", () => {
   it("returns the created comment id as a bigint", async () => {

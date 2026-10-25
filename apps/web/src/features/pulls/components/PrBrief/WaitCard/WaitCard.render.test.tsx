@@ -2,6 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { PrStates } from "types";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import type { Span } from "../../../utils/briefRouteState";
@@ -45,6 +46,11 @@ function renderWaitCard(span: Span | undefined): void {
           phase={undefined}
           prNumber={PR_NUMBER}
           repoId={REPO_ID}
+          rerun={{
+            prState: PrStates.OPEN,
+            appInstalled: true,
+            awaitsReadyForReview: false,
+          }}
           span={span}
           status="pending"
         />

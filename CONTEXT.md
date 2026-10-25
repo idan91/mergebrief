@@ -208,7 +208,7 @@ What causes a **Brief** to compute: every push, PR open included, debounced abou
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
 
 **Entry**:
-How a human reaches a computed **Brief**: one branded PR comment carrying a deep-link, reposted per generation, one ping per settled head. It posts on drafts too unless the repository's `settings.yaml` sets `entryCommentOnDrafts: false`, which holds it until `ready_for_review` and removes a lingering one; an unreadable `settings.yaml` holds it as well. A **URL** pull request never gets one. The deep-link click is navigation, never a compute **Trigger**.
+How a human reaches a computed **Brief**: one branded PR comment carrying a deep-link, reposted per generation, one ping per settled head. It posts on drafts too unless the repository's `settings.yaml` sets `entryCommentOnDrafts: false`, which holds it until `ready_for_review` and removes a lingering one; an unreadable `settings.yaml` holds it as well. A **URL** pull request never gets one. The deep-link click is navigation, never a compute **Trigger**. A run that ends `failed`, a terminal post GitHub failed transiently, that lost the comment swap to another writer or that stood down on an unread head, and a close or merge queue the head's Entry sync (`sync-entry`), which re-renders the Entry from the **Generation**'s state when the run's own post never landed or the PR stopped being open.
 _Avoid_: activation (as "the click"), deep-link gate, draft-first (the former name for the opt-out, which was described as an opt-in)
 
 **Generation**:
@@ -240,7 +240,7 @@ What a pusher can do about a failed **Generation**, read off its failure code. T
 _Avoid_: retryable (graphile's transient-versus-permanent split, which decides retries, not what a pusher can do)
 
 **Takeover**:
-The job queued with each **Claim** that wakes once the Claim's lease could have lapsed and, if it did, claims the head for a new attempt. Anyone who can read the PR reads its state per head: scheduled with a start time, running, or spent (graphile ran out of attempts and nothing will take the head over).
+The job queued with each **Claim** that wakes once the Claim's lease could have lapsed and, if it did, claims the head for a new attempt. A Takeover's own Claim queues the next one, so a Takeover that dies is taken over too, and one that fails transiently or meets a shutdown hands the head back for that next one to run. Anyone who can read the PR reads its state per head: scheduled with a start time, running, or spent (graphile ran out of attempts and nothing will take the head over).
 _Avoid_: recovery (the task id `recover-generation` keeps it; in prose that word belongs to **Restore**), retry job
 
 **Started run**:

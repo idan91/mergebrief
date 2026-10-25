@@ -9,6 +9,7 @@ import { SWEEP_WEBHOOK_DELIVERIES_TASK } from "./task/sweep-webhook-deliveries";
 export interface WorkerTasks {
   readonly generate: Task;
   readonly recoverGeneration: Task;
+  readonly syncEntry: Task;
   readonly sweepAudit: Task;
   readonly sweepSessions: Task;
   readonly sweepPullRequests: Task;
@@ -22,6 +23,7 @@ export function buildTaskList(tasks: WorkerTasks): TaskList {
       QueueTasks.RECOVER_GENERATION,
       tasks.recoverGeneration,
     ),
+    [QueueTasks.SYNC_ENTRY]: traceJob(QueueTasks.SYNC_ENTRY, tasks.syncEntry),
     // Scheduled jobs: instance-wide, not tenant-scoped, worker-only.
     [SWEEP_AUDIT_TASK]: traceJob(SWEEP_AUDIT_TASK, tasks.sweepAudit),
     [SWEEP_SESSIONS_TASK]: traceJob(SWEEP_SESSIONS_TASK, tasks.sweepSessions),

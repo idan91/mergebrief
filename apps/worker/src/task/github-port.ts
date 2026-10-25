@@ -48,7 +48,7 @@ import { PermanentJobError, TransientJobError } from "./failure";
 /** The Entry comment's operations; only an installation job has them. */
 export type EntryComments = Pick<
   InstallationRepoClient,
-  "postEntryComment" | "deleteComment" | "fetchComment"
+  "postEntryComment" | "deleteComment" | "fetchComment" | "listIssueComments"
 >;
 
 /** The GitHub calls a generate job performs, bound to one (credential, repo, PR). */

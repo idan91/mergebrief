@@ -1165,6 +1165,71 @@ describe("generate task", () => {
     expect(released?.["maxAttempts"]).toBe(3);
   });
 
+  it("a shutdown on the job's last attempt ends the row failed", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const shutdown = new AbortController();
+    const task = makeTask({
+      github,
+      generator: stubHangingGenerator(async () => shutdown.abort()),
+    });
+
+    await expect(
+      task(payload, { job: LAST_ATTEMPT, abortSignal: shutdown.signal }),
+    ).rejects.toThrow("last attempt");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.ATTEMPTS_EXHAUSTED);
+    expect(row?.runId).toBeNull();
+    const bodies = [...github.readComments(REPO).values()];
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain(
+      createI18n().t("entryComment.failed.reason.attempts-exhausted"),
+    );
+  });
+
+  it("a shutdown during the revision narrative requeues the job", async () => {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = makeGitHub(HEAD_1);
+    const task = makeTask({ generator, github });
+    await task(first.payload);
+
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    const second = await trigger(HEAD_2);
+    const shutdown = new AbortController();
+    const hanging = stubHangingGenerator(async () => shutdown.abort());
+    const answer = generator.generate.bind(generator);
+    generator.generate = async (req) => {
+      if (req.label === "revision narrative") {
+        return hanging.generate(req);
+      }
+      return answer(req);
+    };
+    await expect(
+      task(second.payload, { abortSignal: shutdown.signal }),
+    ).rejects.toThrow("aborted");
+
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const target = makeTarget(second.pr, HEAD_2);
+    expect((await projection.get(target))?.status).toBe(
+      GenerationStatuses.PENDING,
+    );
+
+    generator.generate = answer;
+    await task(second.payload);
+    const store = createArtifactStore(harness.handle, ctx);
+    expect(
+      await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2),
+    ).toBeDefined();
+    expect((await projection.get(target))?.status).toBe(
+      GenerationStatuses.SUCCEEDED,
+    );
+  });
+
   it("recovers a missing narrative while reusing the stored brief", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();

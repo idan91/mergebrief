@@ -311,12 +311,16 @@ export type {
 // transaction. Calls `graphile_worker.add_job` by name; no graphile-worker
 // npm dependency here.
 export { createIngestRoutines } from "./stores/ingest";
-// The claims a head takes between triggers.
-export { MAX_GENERATION_ATTEMPTS } from "./stores/queue";
+// The claims a head takes between triggers, and the Entry sync's attempts.
+export {
+  ENTRY_SYNC_MAX_ATTEMPTS,
+  MAX_GENERATION_ATTEMPTS,
+} from "./stores/queue";
 export type {
   IngestRoutines,
   IngestOutcome,
   RecordStateOptions,
+  QueueEntrySyncInput,
   ReleaseApprovedHoldInput,
   TriggerOnDemandInput,
   RequeueGenerateJobInput,

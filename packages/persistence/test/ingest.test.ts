@@ -8,6 +8,7 @@ import type {
   TriggerGenerationInput,
 } from "../src/stores/ingest";
 import { createIngestRoutines } from "../src/stores/ingest";
+import { ENTRY_SYNC_MAX_ATTEMPTS } from "../src/stores/queue";
 import { createArtifactStore } from "../src/stores/artifact-store";
 import { createGenerationProjection } from "../src/stores/generation";
 import { createLiveReadStore } from "../src/stores/live-read";
@@ -832,6 +833,80 @@ describe("createIngestRoutines.triggerGeneration", () => {
   // recordState: the enqueue-free sibling, state-only events
   // (converted_to_draft) persist PR fields WITHOUT touching the generation
   // projection or scheduling work.
+  describe("queueEntrySync", () => {
+    const SYNC_DELAY_SECONDS = 30;
+
+    async function readSyncJobs(): Promise<Record<string, unknown>[]> {
+      return harness.raw(
+        "select key, max_attempts, payload::text as payload from graphile_worker.jobs where task_identifier = 'sync-entry' order by id",
+      );
+    }
+
+    it("keeps one sync per head, with the sync's own attempts", async () => {
+      const first = await trigger();
+      const ingest = createIngestRoutines(harness.handle, CTX);
+      const request = {
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: SYNC_DELAY_SECONDS,
+      };
+
+      await ingest.queueEntrySync(request);
+      const queued = await ingest.queueEntrySync(request);
+
+      expect(queued.queued).toBe(true);
+      const jobs = await readSyncJobs();
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0]?.["key"]).toBe(
+        `sync-entry:${first.pullRequest.id}:${HEAD_SHA}`,
+      );
+      expect(jobs[0]?.["max_attempts"]).toBe(ENTRY_SYNC_MAX_ATTEMPTS);
+      const payload: unknown = JSON.parse(String(jobs[0]?.["payload"]));
+      expect(payload).toEqual({
+        installation_id: "100",
+        pull_request_id: String(first.pullRequest.id),
+        head_sha: HEAD_SHA,
+      });
+    });
+
+    it("without a head syncs the PR's current one", async () => {
+      const first = await trigger();
+
+      await createIngestRoutines(harness.handle, CTX).queueEntrySync({
+        pullRequestId: first.pullRequest.id,
+        delaySeconds: SYNC_DELAY_SECONDS,
+      });
+
+      const jobs = await readSyncJobs();
+      expect(jobs[0]?.["key"]).toBe(
+        `sync-entry:${first.pullRequest.id}:${HEAD_SHA}`,
+      );
+    });
+
+    it("queues nothing in an owner scope or outside the scope", async () => {
+      const first = await trigger();
+      const request = {
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        delaySeconds: SYNC_DELAY_SECONDS,
+      };
+      const ownerCtx = { ownerUserId: brandWith(isReviewerId, 555n) };
+      const otherCtx = parseTenantContext({ installationId: 101n });
+
+      const owner = await createIngestRoutines(
+        harness.handle,
+        ownerCtx,
+      ).queueEntrySync(request);
+      const other = await createIngestRoutines(
+        harness.handle,
+        otherCtx,
+      ).queueEntrySync(request);
+
+      expect([owner.queued, other.queued]).toEqual([false, false]);
+      expect(await readSyncJobs()).toEqual([]);
+    });
+  });
+
   describe("recordState", () => {
     it("upserts the PR row without a generation row or job", async () => {
       const { pullRequest: row } = await createIngestRoutines(

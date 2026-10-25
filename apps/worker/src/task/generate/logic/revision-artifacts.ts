@@ -144,8 +144,10 @@ export async function writeRevisionArtifacts(
     );
     await writeNarrative(narrative, narrative.generation);
   } catch (error) {
-    if (inputs.watch.signal.aborted) {
-      // A mid-stream abort is a supersession, not a narrative failure.
+    // A newer push or a shutdown stopped the call: the run settles that, and
+    // a shutdown's retry still owes the narrative.
+    const stopped = inputs.stops.some((signal) => signal?.aborted === true);
+    if (stopped) {
       throw error;
     }
     const message = `generate: revision narrative failed (Brief unaffected): ${

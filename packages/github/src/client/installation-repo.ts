@@ -7,6 +7,7 @@ import { listRepoCollaborators } from "../operations/collaborators";
 import {
   deleteComment,
   fetchComment,
+  listIssueComments,
   postEntryComment,
 } from "../operations/comments";
 import { listOpenPullRequests } from "../operations/pull-request";
@@ -46,6 +47,12 @@ export function buildInstallationRepoClient(
       return run(
         (octokit) => fetchComment(octokit, { ...repo, commentId }),
         "fetch comment",
+      );
+    },
+    listIssueComments(prNumber) {
+      return run(
+        (octokit) => listIssueComments(octokit, { ...repo, prNumber }),
+        "list comments",
       );
     },
     postEntryComment(input) {

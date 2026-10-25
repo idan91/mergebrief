@@ -91,13 +91,14 @@ no baseline. A member may import only the workspace packages its own
 
 ## The queue contract
 
-Two task ids cross from `persistence` to the worker, both in
+Three task ids cross from `persistence` to the worker, all in
 `packages/types/src/jobs.ts` (`QueueTasks`), beside the payload shapes:
 
 | Task                  | Enqueued by                                                  | Job key                                | Payload                                                                                     |
 | --------------------- | ------------------------------------------------------------ | -------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `generate`            | The webhook ingest and the URL paste, through `persistence`. | `generate:{pull_request_id}`           | `installation_id` or `owner_user_id` + `grant_id`, with `pull_request_id` and `head_sha`.   |
 | `recover-generation`  | Every Claim, in the claim's own transaction.                 | `recover-generation:{pull_request_id}:{head_sha}` | The same payload.                                                                 |
+| `sync-entry`          | A run ahead of a write that ends it failed, a terminal post that failed transiently, lost its comment swap or stood down on an unread head, a sync that lost its own swap, and the webhook on a close or merge. | `sync-entry:{pull_request_id}:{head_sha}` | The installation payload. Ten attempts, so graphile's backoff outlasts a GitHub outage. |
 
 - **Debounce by job key.** The ingest upserts the `pull_request` and
   `generation` rows and enqueues `generate` on the same transaction with

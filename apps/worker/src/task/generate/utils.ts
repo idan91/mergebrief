@@ -23,6 +23,7 @@ import {
   BriefRecoveryFailures,
   type AnchorColumns,
   type CompleteBriefRecovery,
+  type GenerateTaskHelpers,
   type GenerationOrigin,
   type StoredBodyRecovery,
 } from "./types";
@@ -78,6 +79,14 @@ const UNEXPECTED_SHAPE_WARNING =
   "generate: stored brief body has an unexpected shape — narrative skipped";
 const NOT_JSON_WARNING =
   "generate: stored brief body is not valid JSON — narrative skipped";
+
+/** graphile runs the job no more after this attempt; no job means no retry is known. */
+export function isLastJobAttempt(job: GenerateTaskHelpers["job"]): boolean {
+  if (job === undefined) {
+    return false;
+  }
+  return job.attempts >= job.max_attempts;
+}
 
 /** Which of the head's claims a log line is about, against the budget. */
 export function buildAttemptFields(attempt: number): LogFields {

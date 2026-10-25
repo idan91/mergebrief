@@ -1,11 +1,29 @@
 import type { InstallationRepoClient } from "../client/types";
+import type { IssueComment } from "../operations/comments";
 import { CollaboratorPermissions } from "../operations/collaborator-permission/types";
 import type { RepositoryRef } from "../operations/pull-request/types";
-import { COMMIT_SHA_LENGTH } from "./consts";
+import { COMMIT_SHA_LENGTH, FAKE_APP_BOT_USER_ID } from "./consts";
 import { buildRepoReader, listOpenPullRequests } from "./repo-reader";
 import type { FakeRunner } from "./runners";
 import { answerNotFound, answerOk, type FakeAnswer } from "./utils";
-import type { FakeWorld } from "./world";
+import type { FakeWorld, RepoState } from "./world";
+
+/** The PR's live comments in id order, the order GitHub lists them. */
+function listThreadComments(
+  state: RepoState,
+  prNumber: number,
+): IssueComment[] {
+  const listed: IssueComment[] = [];
+  for (const [commentId, body] of state.comments) {
+    const thread = state.commentThreads.get(commentId);
+    if (thread?.prNumber === prNumber) {
+      listed.push({ commentId, authorId: thread.authorId, body });
+    }
+  }
+  return listed.toSorted((left, right) =>
+    Number(left.commentId - right.commentId),
+  );
+}
 
 export function buildInstallationRepoClient(
   world: FakeWorld,
@@ -64,6 +82,19 @@ export function buildInstallationRepoClient(
         },
       });
     },
+    listIssueComments(prNumber) {
+      return run({
+        operation: "listIssueComments",
+        input: { ...repo, prNumber },
+        answer: () => {
+          const state = world.findRepo(repo);
+          if (state?.pullRequests.has(prNumber) !== true) {
+            return answerNotFound("list comments");
+          }
+          return answerOk(listThreadComments(state, prNumber));
+        },
+      });
+    },
     postEntryComment(comment) {
       const input = { ...comment, ...repo };
       return run({
@@ -76,6 +107,10 @@ export function buildInstallationRepoClient(
           }
           const commentId = world.claimId("ISSUE_COMMENT");
           state.comments.set(commentId, input.body);
+          state.commentThreads.set(commentId, {
+            prNumber: input.prNumber,
+            authorId: FAKE_APP_BOT_USER_ID,
+          });
           return answerOk({ commentId });
         },
       });

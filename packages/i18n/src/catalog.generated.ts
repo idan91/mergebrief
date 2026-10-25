@@ -7,6 +7,9 @@ export type Catalog = typeof en & {
       heading: "No brief for {{shortSha}}: this instance reached its daily generation cap.";
       body: "Generation resumes at {{resetsAt}}. The next push after that is briefed as usual.";
     };
+    closed: (typeof en)["entryComment"]["closed"] & {
+      heading: "No brief for {{shortSha}}: this pull request is no longer open.";
+    };
     failed: (typeof en)["entryComment"]["failed"] & {
       heading: "No brief for {{shortSha}}: generation failed.";
     };

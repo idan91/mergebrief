@@ -8,7 +8,7 @@ import type {
 import { CollaboratorPermissions } from "../../../src/operations/collaborator-permission/types";
 import type { PrConversation } from "../../../src/operations/conversation";
 import type { ReviewCommentListing } from "../../../src/operations/review-comment-list";
-import { makeFakeGitHub } from "../../../src/testing";
+import { FAKE_APP_BOT_USER_ID, makeFakeGitHub } from "../../../src/testing";
 import {
   CredentialKinds,
   FakeFailures,
@@ -220,7 +220,10 @@ function arrangeRepository(github: FakeGitHub, operation: GitHubOperation) {
     { combinedSlug: "acme/frontend", name: "Frontend" },
   ]);
   if (operation !== "postEntryComment") {
-    github.addComment(REPO, 1001n, "Entry");
+    github.addComment(REPO, 1001n, "Entry", {
+      prNumber: 7,
+      authorId: FAKE_APP_BOT_USER_ID,
+    });
   }
   github.addBranch(REPO, "mergebrief/attachments");
 }

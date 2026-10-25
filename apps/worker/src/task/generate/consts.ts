@@ -12,6 +12,9 @@ export const AFTER_LEASE_MARGIN_SECONDS = 5;
 
 export const MS_PER_SECOND = 1000;
 
+/** The Entry sync waits this long, so a run's own post lands first and the sync finds it live. */
+export const ENTRY_SYNC_DELAY_SECONDS = 30;
+
 /** GitHub refuses to render the diff (too large); permanent per span. */
 export const HTTP_STATUS_NOT_ACCEPTABLE = 406;
 export const HTTP_STATUS_REQUEST_TIMEOUT = 408;

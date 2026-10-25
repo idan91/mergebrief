@@ -54,9 +54,13 @@ import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createGenerateTask,
   createRecoverGenerationTask,
+  createSyncEntryTask,
   type GenerateTaskDeps,
 } from "../../src/task/generate";
-import type { EntryCommentLink } from "../../src/task/entry-comment";
+import {
+  buildEntryCommentCappedBody,
+  type EntryCommentLink,
+} from "../../src/task/entry-comment";
 import type { GenerateTask } from "../../src/task/generate/types";
 import {
   createGitHubPort,
@@ -493,6 +497,37 @@ export async function storeAnotherRunsEntry(
   });
 }
 
+/** The id an Entry body seeded by `trackEntryBody` takes. */
+export const SEEDED_ENTRY_ID = 9_101n;
+
+/** The thread holds only `body`, tracked on the row as its Entry comment. */
+export async function trackEntryBody(
+  github: FakeGitHub,
+  pullRequestId: PullRequestRowId,
+  body: string,
+): Promise<void> {
+  for (const commentId of github.readComments(REPO).keys()) {
+    github.removeComment(REPO, commentId);
+  }
+  await storeAnotherRunsEntry(github, pullRequestId, {
+    id: SEEDED_ENTRY_ID,
+    body,
+  });
+}
+
+/** HEAD_1's capped Entry, whose reset time is a part no rebuilt body matches. */
+export async function trackCappedEntry(
+  github: FakeGitHub,
+  pullRequestId: PullRequestRowId,
+): Promise<void> {
+  const body = buildEntryCommentCappedBody(createI18n().t, {
+    ...ENTRY_PR_VIEW,
+    headSha: HEAD_1,
+    resetsAt: new Date(),
+  });
+  await trackEntryBody(github, pullRequestId, body);
+}
+
 /** Entry comment calls GitHub accepted, with the ids it answered: `post:<id>`, `delete:<id>`, `fetch:<id>`. */
 export function recordCommentCalls(github: FakeGitHub): string[] {
   const calls: string[] = [];
@@ -697,4 +732,9 @@ export function makeTask(overrides: TaskOverrides = {}): GenerateTask {
 /** The recovery task over the same defaults as `makeTask`. */
 export function makeRecoveryTask(overrides: TaskOverrides = {}): GenerateTask {
   return createRecoverGenerationTask(makeTaskDeps(overrides));
+}
+
+/** The Entry sync task over the same defaults as `makeTask`. */
+export function makeSyncEntryTask(overrides: TaskOverrides = {}): GenerateTask {
+  return createSyncEntryTask(makeTaskDeps(overrides));
 }

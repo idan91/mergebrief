@@ -3,7 +3,11 @@
 // and NEVER `status === "succeeded"` (the run finishes only after delta
 // warmup, well after the artifact is readable). Generation status drives the
 // waiting/failed/superseded display and the polling cadence only.
-import { LastReviewUnavailableReasons, type WaitReason } from "contract";
+import {
+  LastReviewUnavailableReasons,
+  WaitReasons,
+  type WaitReason,
+} from "contract";
 import { GenerationStatuses, type GenerationFailureCode } from "types";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
@@ -224,7 +228,10 @@ export function shouldPollMeta(meta: PrSummary): boolean {
     return true;
   }
   const status = meta.generation?.status;
-  if (isInFlight(status)) {
+  // A stalled head has no job left to run: it polls at the settled pace.
+  const stalled = meta.generation?.waitReason === WaitReasons.STALLED;
+  const inFlight = isInFlight(status) && !stalled;
+  if (inFlight) {
     return true;
   }
   const awaitsReplacement =

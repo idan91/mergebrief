@@ -2,9 +2,16 @@ import { WaitReasons, type WaitReason } from "contract";
 import type { TranslationKey } from "i18n";
 import { GenerationPhases, type GenerationPhase } from "types/generations";
 
+/** Reasons past the draft window, which outrank the draft-damping notice. */
+export const REASONS_OVER_NOTICE: ReadonlySet<WaitReason> = new Set([
+  WaitReasons.WAITING_FOR_SLOT,
+  WaitReasons.STALLED,
+]);
+
 export const WAIT_REASON_KEYS: Record<WaitReason, TranslationKey> = {
   [WaitReasons.DEBOUNCING]: "pulls.wait.debouncing",
   [WaitReasons.WAITING_FOR_SLOT]: "pulls.wait.waitingForSlot",
+  [WaitReasons.STALLED]: "pulls.wait.stalled",
 };
 
 /** Exhaustive over the stored vocabulary: a new phase fails this typecheck until it has a line. */

@@ -197,7 +197,9 @@ describe("generate task, claim recovery", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
     expect(row?.runId).toBeNull();
     expect(await countAttempts()).toBe(2);
-    expect(await readRecoveryJobs()).toEqual([]);
+    const successors = await readRecoveryJobs();
+    expect(successors).toHaveLength(1);
+    expect(Number(successors[0]?.["delay"])).toBeGreaterThan(LEASE_SECONDS);
 
     const original = stubGenerator();
     await makeTask({ generator: original })(payload);
@@ -518,7 +520,7 @@ describe("generate task, claim recovery", () => {
 
     await expect(
       makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
-    ).rejects.toThrow("502");
+    ).resolves.toBeUndefined();
 
     expect(await projection.get(target)).toEqual(before);
     expect(readLiveBodies(github)).toEqual(bodies);
@@ -691,13 +693,126 @@ describe("generate task, claim recovery", () => {
 
     await expect(
       makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT }),
-    ).rejects.toThrow("502");
+    ).resolves.toBeUndefined();
 
     const row = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatuses.PENDING);
     expect(readLiveBodies(github)).toEqual([generating]);
+  });
+
+  it("a takeover that dies is taken over by the job its claim queued", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    await claimTestRun(projection, makeTarget(pr, HEAD_1));
+    await leaveDeadHolder();
+    const killed = new AbortController();
+    let calledBack: () => void = () => {};
+    const generating = new Promise<void>((resolve) => {
+      calledBack = resolve;
+    });
+    const dying = makeRecoveryTask({
+      generator: stubHangingGenerator(async () => calledBack()),
+    })(payload, { job: FIRST_ATTEMPT, abortSignal: killed.signal });
+    await generating;
+
+    const successors = await readRecoveryJobs();
+    expect(successors).toHaveLength(1);
+    expect(Number(successors[0]?.["delay"])).toBeGreaterThan(LEASE_SECONDS);
+    await leaveDeadHolder();
+    const generator = stubGenerator();
+    await makeRecoveryTask({ generator })(payload, { job: FIRST_ATTEMPT });
+
+    expect(generator.calls).toEqual(["brief"]);
+    const row = await projection.get(makeTarget(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    killed.abort();
+    await expect(dying).rejects.toThrow("aborted");
+    const handedBack = await projection.get(makeTarget(pr, HEAD_1));
+    expect(handedBack?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("a takeover's shutdown hands the row to the next recovery job", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    await releaseTakeoverOnShutdown(github, payload);
+    const generator = stubGenerator();
+
+    await makeRecoveryTask({ github, generator })(payload, {
+      job: FIRST_ATTEMPT,
+    });
+
+    expect(generator.calls).toEqual(["brief"]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(row?.awaitsRecovery).toBe(false);
+  });
+
+  it("a takeover's transient failure posts nothing and its successor reruns", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await leaveDeadHolderWithEntry(github);
+    const failing = stubGenerator();
+    failing.failNextWith = makeConnectionError();
+    await expect(
+      makeRecoveryTask({ github, generator: failing })(payload, {
+        job: LAST_ATTEMPT,
+      }),
+    ).rejects.toThrow("Connection error");
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const failed = await projection.get(makeTarget(pr, HEAD_1));
+    expect(failed?.awaitsRecovery).toBe(true);
+    const [body] = readLiveBodies(github);
+    expect(body).toContain("Brief is generating for this push");
+    const generator = stubGenerator();
+
+    await makeRecoveryTask({ github, generator })(payload, {
+      job: FIRST_ATTEMPT,
+    });
+
+    expect(generator.calls).toEqual(["brief"]);
+    const row = await projection.get(makeTarget(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("a recovery retry leaves a cannot-help failure a regular run ended", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await harness.raw(
+      "update generation set status = 'failed', error_code = $1, claims = 1",
+      [GenerationFailureCodes.PROVIDER_REFUSAL],
+    );
+    const generator = stubGenerator();
+
+    await makeRecoveryTask({ generator })(payload, { job: SECOND_ATTEMPT });
+
+    expect(generator.calls).toEqual([]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.errorCode).toBe(GenerationFailureCodes.PROVIDER_REFUSAL);
+  });
+
+  it("a last attempt leaves the row a regular run's shutdown released", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await trigger(HEAD_1);
+    const shutdown = new AbortController();
+    await expect(
+      makeTask({
+        github,
+        generator: stubHangingGenerator(async () => shutdown.abort()),
+      })(payload, { job: FIRST_ATTEMPT, abortSignal: shutdown.signal }),
+    ).rejects.toThrow("aborted");
+    failFirstPullRequestRead(github);
+
+    await makeRecoveryTask({ github })(payload, { job: LAST_ATTEMPT });
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.PENDING);
+    expect(row?.claims).toBe(1);
   });
 
   it("a moved head over the row its shutdown released ends it superseded", async () => {

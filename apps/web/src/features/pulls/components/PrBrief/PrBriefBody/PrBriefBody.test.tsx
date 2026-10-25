@@ -10,6 +10,7 @@ import type { BriefAddressPort } from "@web/features/brief";
 import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
 import type { DbTimelineSelection } from "../../../utils/dbTimeline";
+import type { Mutable } from "types/utils";
 import type { GenerationSummary, PrSummary } from "../../../types";
 import { PrBriefBody, stateAnnouncement } from ".";
 
@@ -18,8 +19,11 @@ const SLOT_LINE =
 const DEBOUNCING_LINE =
   "Holding briefly in case more commits land. The brief starts generating shortly.";
 
-function makeMeta(generation: Partial<GenerationSummary>): PrSummary {
-  return {
+/** A pending generation by default; `undefined` leaves the PR with none. */
+function makeMeta(
+  generation: Partial<GenerationSummary> | undefined,
+): PrSummary {
+  const meta: Mutable<PrSummary> = {
     repoId: "424242",
     repoSlug: "octo/hello",
     prNumber: 7,
@@ -33,14 +37,17 @@ function makeMeta(generation: Partial<GenerationSummary>): PrSummary {
     viewerCanPush: false,
     appInstalled: true,
     behind: false,
-    generation: {
+    updatedAt: "2026-07-06T12:00:00.000Z",
+  };
+  if (generation !== undefined) {
+    meta.generation = {
       status: "pending",
       attempts: 0,
       updatedAt: "2026-07-06T12:00:00.000Z",
       ...generation,
-    },
-    updatedAt: "2026-07-06T12:00:00.000Z",
-  };
+    };
+  }
+  return meta;
 }
 
 function ignoreNavigation(): void {}
@@ -275,5 +282,23 @@ describe("PrBriefBody superseded announcement", () => {
     expect(stateAnnouncement(appI18n.t, { kind: "superseded" }, meta)).toBe(
       "A newer revision is on the way.",
     );
+  });
+});
+
+describe("PrBriefBody empty state on a draft its instance skips", () => {
+  const AWAITS_READY = appI18n.t("pulls.empty.awaitsReadyCopy");
+
+  it("tells a reader other than the author it waits for ready for review", () => {
+    const meta: PrSummary = {
+      ...makeMeta(undefined),
+      draft: true,
+      draftPolicy: { generate: false },
+    };
+
+    render(makeBodyFor(meta));
+
+    expect(getPageRegion().textContent).toBe(AWAITS_READY);
+    expect(screen.getAllByText(AWAITS_READY)).toHaveLength(2);
+    expect(screen.queryByText(/next push/)).toBeNull();
   });
 });

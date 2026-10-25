@@ -66,6 +66,8 @@ export type GenerationRow = typeof generation.$inferSelect;
 export interface GenerateJobTiming {
   readonly startsLater: boolean;
   readonly locked: boolean;
+  /** False once graphile spent the job's attempts: it stays queued and never runs. */
+  readonly hasAttemptsLeft: boolean;
 }
 
 /** The newest brief-kind row of a PR, and whether its head spent the claim limit. */
@@ -159,6 +161,8 @@ export interface GenerationClaim {
   readonly leaseLive: boolean;
   /** Zero once lapsed or unset. */
   readonly leaseRemainingMs: number;
+  /** A takeover handed the row back for the head's recovery job to rerun. */
+  readonly awaitsRecovery: boolean;
 }
 
 export type ClaimRunOutcome =
@@ -187,7 +191,14 @@ export type RunOutcome =
   | {
       readonly status: typeof GenerationStatuses.FAILED;
       readonly failure: GenerationFailure;
+      /** A takeover's failure the head's recovery job retries. */
+      readonly awaitsRecovery?: boolean;
     };
+
+interface ReleaseClaimOptions {
+  /** A takeover's release: the head's recovery job reruns the row. */
+  readonly awaitsRecovery?: boolean;
+}
 
 export interface ProjectedGeneration {
   readonly row: GenerationRow;
@@ -382,10 +393,10 @@ export interface GenerationProjection {
     outcome: RunOutcome,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * End a row a shutdown handed back: only a `pending` row no claim names,
-   * claimed since its last trigger, moves, in one statement, so a row
-   * claimed, gated, finished or re-projected since stays. `claim-lost`
-   * otherwise.
+   * End a row a takeover's shutdown handed back to the head's recovery job:
+   * only a `pending` row no claim names and still awaiting recovery moves, in
+   * one statement, so a row claimed, gated, finished or re-projected since,
+   * or one a regular run's shutdown released, stays. `claim-lost` otherwise.
    */
   endReleasedClaim(
     target: GenerationTarget,
@@ -395,6 +406,7 @@ export interface GenerationProjection {
   releaseClaim(
     target: GenerationTarget,
     runId: string,
+    options?: ReleaseClaimOptions,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * A rerun found the Brief already stored: a row no run holds that has not
@@ -579,7 +591,11 @@ function keepWhileHeld(column: PgColumn, reset: SQL | string | null): SQL {
   return sql`case when ${isProjectionHeld()} then ${column} else ${reset} end`;
 }
 
-const CLAIM_CLEARED = { runId: null, leaseExpiresAt: null } as const;
+const CLAIM_CLEARED = {
+  runId: null,
+  leaseExpiresAt: null,
+  awaitsRecovery: false,
+} as const;
 
 /**
  * Statuses no unclaimed mark moves: a head waiting for its trigger approval,
@@ -619,6 +635,7 @@ function buildTriggerReset(
     runId: keepWhileHeld(generation.runId, null),
     leaseExpiresAt: keepWhileHeld(generation.leaseExpiresAt, null),
     claims: keepWhileHeld(generation.claims, sql`0`),
+    awaitsRecovery: keepWhileHeld(generation.awaitsRecovery, sql`false`),
     updatedAt: new Date(),
   };
 }
@@ -809,7 +826,12 @@ function shapeFailure(failure: GenerationFailure) {
 
 function shapeRunEnd(outcome: RunOutcome): GenerationSet {
   if (outcome.status === GenerationStatuses.FAILED) {
-    return { ...shapeFailure(outcome.failure), ...CLAIM_CLEARED, phase: null };
+    return {
+      ...shapeFailure(outcome.failure),
+      ...CLAIM_CLEARED,
+      phase: null,
+      awaitsRecovery: outcome.awaitsRecovery === true,
+    };
   }
   return { ...TERMINAL_CLEARED, status: outcome.status };
 }
@@ -1044,6 +1066,7 @@ export function createGenerationProjection(
         runId,
         leaseExpiresAt: computeLeaseEnd(leaseMs),
         claims: sql`${generation.claims} + 1`,
+        awaitsRecovery: false,
       },
       { executor },
     );
@@ -1190,6 +1213,7 @@ export function createGenerationProjection(
           claimed: sql<boolean>`${generation.runId} is not null`,
           leaseLive: sql<boolean>`${isLeaseLive()}`,
           leaseRemainingMs: computeLeaseRemainingMs(),
+          awaitsRecovery: generation.awaitsRecovery,
         })
         .from(generation)
         .where(keyWhere(target))
@@ -1223,15 +1247,16 @@ export function createGenerationProjection(
     },
 
     async endReleasedClaim(target, outcome) {
-      const released = sql`(${generation.runId} is null and ${generation.status} = ${GenerationStatuses.PENDING} and ${generation.claims} > 0)`;
+      const released = sql`(${generation.runId} is null and ${generation.status} = ${GenerationStatuses.PENDING} and ${generation.awaitsRecovery})`;
       return transition(target, shapeRunEnd(outcome), { guard: released });
     },
 
-    async releaseClaim(target, runId) {
+    async releaseClaim(target, runId, options) {
       return fencedTransition(target, runId, {
         ...CLAIM_CLEARED,
         status: GenerationStatuses.PENDING,
         phase: null,
+        awaitsRecovery: options?.awaitsRecovery === true,
       });
     },
 
@@ -1331,7 +1356,11 @@ export function createGenerationProjection(
       if (job === undefined) {
         return undefined;
       }
-      return { startsLater: job.startsLater, locked: job.locked };
+      return {
+        startsLater: job.startsLater,
+        locked: job.locked,
+        hasAttemptsLeft: job.hasAttemptsLeft,
+      };
     },
 
     async readBriefClaims(pullRequestId) {

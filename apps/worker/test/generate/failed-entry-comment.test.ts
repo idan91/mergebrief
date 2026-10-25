@@ -21,7 +21,10 @@ import {
   PrStates,
   type GenerationFailureCode,
 } from "types";
-import { buildEntryCommentFailedBody } from "../../src/task/entry-comment";
+import {
+  buildEntryCommentClosedBody,
+  buildEntryCommentFailedBody,
+} from "../../src/task/entry-comment";
 import {
   BASE,
   captureLogger,
@@ -56,6 +59,8 @@ import {
   setUpHarness,
   storeAnotherRunsEntry,
   stubGenerator,
+  trackCappedEntry,
+  trackEntryBody,
   trigger,
 } from "./helpers";
 
@@ -922,6 +927,62 @@ describe("generate task, failed Entry comment", () => {
     expect(await readRowStatus(pr, HEAD_1)).toBe(GenerationStatuses.FAILED);
     expect(readLiveBodies(github)).toEqual([
       buildFailedBody(HEAD_1, GenerationFailureCodes.PROVIDER_REFUSAL),
+    ]);
+  });
+
+  it("a permanent failure replaces this head's capped body", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    await trackCappedEntry(github, pr.id);
+    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+
+    await makeTask({ github })(payload);
+
+    expect(readLiveBodies(github)).toEqual([
+      buildFailedBody(HEAD_1, GenerationFailureCodes.DIFF_TOO_LARGE),
+    ]);
+  });
+
+  it("a failure before the PR read replaces this head's capped body", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    await trackCappedEntry(github, pr.id);
+    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+
+    await expect(
+      makeTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    expect(readLiveBodies(github)).toEqual([
+      buildFailedBody(HEAD_1, GenerationFailureCodes.GITHUB_UNAVAILABLE),
+    ]);
+  });
+
+  it("a failure before the PR read leaves this head's closed body", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const closed = buildEntryCommentClosedBody(t, HEAD_1);
+    await trackEntryBody(github, pr.id, closed);
+    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+
+    await expect(
+      makeTask({ github })(payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    expect(readLiveBodies(github)).toEqual([closed]);
+  });
+
+  it("a failure whose head read fails replaces its own capped body", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    await trackCappedEntry(github, pr.id);
+    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    failHeadReadsAfterFirst(github);
+
+    await makeTask({ github })(payload);
+
+    expect(readLiveBodies(github)).toEqual([
+      buildFailedBody(HEAD_1, GenerationFailureCodes.DIFF_TOO_LARGE),
     ]);
   });
 

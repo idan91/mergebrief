@@ -144,12 +144,20 @@ function readReadyForReviewNoteKey(
   return ReadyForReviewNoteKeys[prState];
 }
 
+/** The facts that decide how a head nobody can rerun from here runs again. */
+export type RerunNoteInput = Pick<
+  FailedNoteInput,
+  "prState" | "appInstalled" | "awaitsReadyForReview"
+>;
+
+type NoRerunNoteInput = RerunNoteInput & Pick<FailedNoteInput, "errorCode">;
+
 function readNoRerunNoteKey({
   errorCode,
   appInstalled,
   prState,
   awaitsReadyForReview,
-}: FailedNoteInput): TranslationKey {
+}: NoRerunNoteInput): TranslationKey {
   if (!appInstalled) {
     return readUrlRerunNoteKey(errorCode);
   }
@@ -160,6 +168,20 @@ function readNoRerunNoteKey({
     return ExhaustedNoRerunNoteKeys[prState];
   }
   return NoRerunNoteKeys[prState];
+}
+
+/**
+ * A head whose queued job used every attempt reruns as an exhausted failure
+ * does: on any trigger on an open installation PR, on ready for review for a
+ * held draft, on a paste for a url row.
+ */
+export function readSpentHeadRerunNoteKey(
+  input: RerunNoteInput,
+): TranslationKey {
+  return readNoRerunNoteKey({
+    ...input,
+    errorCode: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
+  });
 }
 
 function readFixFirstNote(

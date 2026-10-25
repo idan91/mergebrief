@@ -10,7 +10,7 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { Result } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 import { HttpStatuses } from "types/http";
 
 export interface PostEntryCommentInput {
@@ -36,6 +36,22 @@ export interface PostedComment {
 export interface FetchedComment {
   readonly body: string;
 }
+
+/** One comment on a PR's conversation timeline. */
+export interface IssueComment {
+  readonly commentId: bigint;
+  /** GitHub's numeric user id; absent for a deleted account. */
+  readonly authorId?: bigint;
+  readonly body: string;
+}
+
+export interface ListIssueCommentsInput {
+  readonly owner: string;
+  readonly repo: string;
+  readonly prNumber: number;
+}
+
+const COMMENTS_PER_PAGE = 100;
 
 export interface FetchCommentInput {
   readonly owner: string;
@@ -68,6 +84,47 @@ export async function fetchComment(
     }
     return { ok: false, error: mapRequestError(error, "fetch comment") };
   }
+}
+
+/**
+ * Every comment on a PR's conversation timeline, oldest first, paginated to
+ * exhaustion. A comment whose id is past JavaScript's safe range fails the
+ * read whole, as a post would: a rounded id could delete another comment.
+ */
+export async function listIssueComments(
+  octokit: Octokit,
+  input: ListIssueCommentsInput,
+): Promise<Result<IssueComment[], GitHubApiError>> {
+  try {
+    const listed = await octokit.paginate(octokit.rest.issues.listComments, {
+      owner: input.owner,
+      repo: input.repo,
+      issue_number: input.prNumber,
+      per_page: COMMENTS_PER_PAGE,
+    });
+    const unsafe = listed.some((comment) => !Number.isSafeInteger(comment.id));
+    if (unsafe) {
+      return { ok: false, error: unexpectedResponseError("list comments") };
+    }
+    return { ok: true, value: listed.map(shapeIssueComment) };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "list comments") };
+  }
+}
+
+function shapeIssueComment(comment: {
+  readonly id: number;
+  readonly body?: string | undefined;
+  readonly user: { readonly id: number } | null;
+}): IssueComment {
+  const shaped: Mutable<IssueComment> = {
+    commentId: BigInt(comment.id),
+    body: comment.body ?? "",
+  };
+  if (comment.user !== null) {
+    shaped.authorId = BigInt(comment.user.id);
+  }
+  return shaped;
 }
 
 /**

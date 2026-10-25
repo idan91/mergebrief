@@ -589,6 +589,7 @@ describe("getGenerateJobTiming", () => {
     expect(await projection.getGenerateJobTiming(pullRequestId)).toEqual({
       startsLater: true,
       locked: false,
+      hasAttemptsLeft: true,
     });
   });
 
@@ -599,6 +600,7 @@ describe("getGenerateJobTiming", () => {
     expect(await projection.getGenerateJobTiming(pullRequestId)).toEqual({
       startsLater: false,
       locked: false,
+      hasAttemptsLeft: true,
     });
   });
 
@@ -610,7 +612,20 @@ describe("getGenerateJobTiming", () => {
     expect(await projection.getGenerateJobTiming(pullRequestId)).toEqual({
       startsLater: false,
       locked: true,
+      hasAttemptsLeft: true,
     });
+  });
+
+  it("reports a job graphile spent the attempts of", async () => {
+    const { harness, pullRequestId } = await triggerWithDebounce(0);
+    await harness.raw(
+      "update graphile_worker.jobs set attempts = max_attempts",
+    );
+    const projection = createGenerationProjection(harness.handle, CTX_A);
+
+    const timing = await projection.getGenerateJobTiming(pullRequestId);
+
+    expect(timing?.hasAttemptsLeft).toBe(false);
   });
 
   it("returns undefined when the queue holds no job for the PR", async () => {

@@ -2,14 +2,12 @@ import { useTranslation } from "react-i18next";
 import { EmptyBlock } from "@web/components/EmptyBlock";
 
 export interface EmptyCardProps {
-  /** Drafts-off notice (own-draft only); replaces the copy. */
+  /** Replaces the default copy where its next-push promise is false (`buildEmptyCopyOverride`). */
   copyOverride?: string | undefined;
 }
 
 export function EmptyCard({ copyOverride }: EmptyCardProps) {
   const { t } = useTranslation();
-  // The drafts-off notice replaces the default copy wholesale: the default
-  // promises generation "on the next push", wrong under that policy.
   const detail = copyOverride ?? t("pulls.empty.copy");
 
   return (

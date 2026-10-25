@@ -186,6 +186,7 @@ async function writeRevisionSpan(
     generator: spend.generator,
     chargeSpend: spend.chargeSpend,
     watch: context.watch,
+    stops: listRunStops(context),
     effort: deps.effort,
     wholePrChangedLines: countPrChangedLines(inputs.files),
     loadContext: inputs.loadContext,
@@ -233,6 +234,19 @@ function warnOnUnpaidTakeover(context: RunContext): void {
     "generate: the recovery run made no provider call, its claim still counts as an attempt",
     buildAttemptFields(run.attempt),
   );
+}
+
+/**
+ * A run standing on the pair's stored brief without a claim settles the row
+ * it found pending (a claim released at shutdown) or failed (an earlier
+ * attempt), whether its owed work landed, met the cap or failed for good.
+ */
+export async function settleStoredBriefRun(context: RunContext): Promise<void> {
+  const { projection, target, run, pickedUpAt } = context;
+  if (run.standsOnStoredBrief !== true) {
+    return;
+  }
+  await projection.settleStoredBrief(target, pickedUpAt);
 }
 
 /** A claimed run finishes through its claim; a stored-brief run settles the row. */

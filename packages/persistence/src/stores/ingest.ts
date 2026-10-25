@@ -37,6 +37,8 @@ import {
 import {
   addQueueJob,
   buildJobPayload,
+  ENTRY_SYNC_MAX_ATTEMPTS,
+  getEntrySyncJobKey,
   getRecoveryJobKey,
   readQueueJob,
 } from "./queue";
@@ -290,6 +292,16 @@ async function enqueueGenerateJob(
   });
 }
 
+/** The head the PR's newest trigger named; `undefined` with no brief row. */
+async function readCurrentHeadSha(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+): Promise<string | undefined> {
+  const current = await readCurrentBriefHead(tx, scope, pullRequestId);
+  return current?.row.headSha;
+}
+
 /** A rerun of these fails the same way and still spends. */
 function isRerunHopeless(row: GenerationRow): boolean {
   if (row.errorCode === null) {
@@ -457,6 +469,15 @@ export interface IngestRoutines {
     input: RequeueGenerateJobInput,
   ): Promise<RequeueOutcome>;
   /**
+   * Queue the head's Entry sync, `delaySeconds` out: a job that renders the
+   * Entry comment from the head's generation row, retried with graphile's
+   * backoff. One stays pending per head, a later call moving it. Without a
+   * head it syncs the PR's current one. An owner scope, a PR outside the
+   * scope and, with no head named, a PR with no brief row queue nothing. Throws `RangeError` on a
+   * negative or non-finite delay.
+   */
+  queueEntrySync(input: QueueEntrySyncInput): Promise<RequeueOutcome>;
+  /**
    * An approved PR's head still held `awaiting-trigger` goes back to
    * `pending` and its job is queued, as a Generate click would. The approval
    * and the row are read under the pull request's row lock; an unapproved,
@@ -491,6 +512,13 @@ export interface RequeueGenerateJobInput {
   readonly headSha: string;
   /** The url-box job's credential reference, as on `TriggerGenerationInput`. */
   readonly grantId?: GrantRowId;
+  readonly delaySeconds: number;
+}
+
+export interface QueueEntrySyncInput {
+  readonly pullRequestId: PullRequestRowId;
+  /** Absent syncs the PR's current head. */
+  readonly headSha?: string;
   readonly delaySeconds: number;
 }
 
@@ -694,6 +722,36 @@ export function createIngestRoutines(
           pullRequestId,
           input.delaySeconds,
         );
+        return { queued: true };
+      });
+    },
+
+    async queueEntrySync(input) {
+      assertDelaySeconds("delaySeconds", input.delaySeconds);
+      if (scope.ownerUserId !== null) {
+        return { queued: false };
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId } = input;
+        const inScope = await lockPullRequestInScope(tx, scope, pullRequestId);
+        if (!inScope) {
+          return { queued: false };
+        }
+        const headSha =
+          input.headSha ?? (await readCurrentHeadSha(tx, scope, pullRequestId));
+        if (headSha === undefined) {
+          return { queued: false };
+        }
+
+        await addQueueJob(tx, {
+          identifier: QueueTasks.SYNC_ENTRY,
+          payload: buildJobPayload(scope, undefined, pullRequestId, headSha),
+          key: getEntrySyncJobKey(pullRequestId, headSha),
+          delaySeconds: input.delaySeconds,
+          keyMode: JobKeyModes.REPLACE,
+          maxAttempts: ENTRY_SYNC_MAX_ATTEMPTS,
+        });
         return { queued: true };
       });
     },

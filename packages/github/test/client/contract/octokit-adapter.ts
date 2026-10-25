@@ -13,6 +13,7 @@ import type {
   ReviewerCredential,
   ReviewerGitHub,
 } from "../../../src/client/types";
+import { FAKE_APP_BOT_USER_ID } from "../../../src/testing/consts";
 import type { GitHubOperation } from "../../../src/testing/types";
 import {
   MINT_OK,
@@ -238,6 +239,9 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
     user: { login: "bob" },
   }),
   fetchComment: answerOk({ id: 1001, body: "Entry" }),
+  listIssueComments: answerOk([
+    { id: 1001, body: "Entry", user: { id: Number(FAKE_APP_BOT_USER_ID) } },
+  ]),
   postEntryComment: answerOk({ id: 1001 }),
   deleteComment: answerOk({}),
   // Every git-data step of the commit reads the field it needs from this one

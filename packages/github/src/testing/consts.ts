@@ -62,6 +62,9 @@ export const FIRST_IDS = {
 
 export const COMMIT_SHA_LENGTH = 40;
 
+/** The GitHub user id the App's bot account posts as. */
+export const FAKE_APP_BOT_USER_ID = 41_898_282n;
+
 export const SUBMITTED_STATES = {
   [ReviewEvents.APPROVE]: PullRequestReviewStates.APPROVED,
   [ReviewEvents.REQUEST_CHANGES]: PullRequestReviewStates.CHANGES_REQUESTED,

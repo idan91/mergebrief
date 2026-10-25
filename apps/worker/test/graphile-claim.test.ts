@@ -17,19 +17,37 @@ import {
   createDb,
   createGenerationProjection,
   createIngestRoutines,
+  createTenantRepository,
   ensureAppSchema,
   GenerationKinds,
+  isOwnerContext,
   parseTenantContext,
   TriggerOnDemandOutcomes,
   type PullRequestRowId,
+  type TenantContext,
 } from "persistence";
+import { createI18n } from "i18n";
+import type { FakeGitHub } from "github/testing";
 import { startTestTracing } from "logging/testing";
 import { readTestPostgresUrl } from "persistence/testing";
 import { GenerationFailureCodes, PrStates } from "types";
 import { describe, expect, it } from "vitest";
+import { buildEntryCommentGeneratingBody } from "../src/task/entry-comment";
+import { createSyncEntryTask } from "../src/task/generate";
+import { createGitHubPort } from "../src/task/github-port";
 import { parseGeneratePayload } from "../src/task/payload";
 import { buildTaskList } from "../src/task-list";
-import { HEAD_1, makeRepoId } from "./generate/helpers";
+import {
+  HEAD_1,
+  interceptInstallationRepo,
+  makeEntryLink,
+  makeGitHub,
+  makeRepoId,
+  PUBLIC_URL,
+  readLiveBodies,
+  REPO,
+  stubGenerator,
+} from "./generate/helpers";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 /** Far above any real installation id, so the fixture never meets one. */
@@ -45,6 +63,7 @@ function buildRecordingTaskList(generate: Task): TaskList {
   return buildTaskList({
     generate,
     recoverGeneration: failUnexpectedTask,
+    syncEntry: failUnexpectedTask,
     sweepAudit: failUnexpectedTask,
     sweepSessions: failUnexpectedTask,
     sweepPullRequests: failUnexpectedTask,
@@ -76,6 +95,93 @@ async function updateGenerateJob(
       params,
     ),
   );
+}
+
+/** The PR's sync job for the head, as graphile's view shows it; `undefined` when none holds the key. */
+async function readSyncJob(
+  utils: WorkerUtils,
+  pullRequestId: PullRequestRowId,
+): Promise<Record<string, unknown> | undefined> {
+  const params = [`sync-entry:${String(pullRequestId)}:${HEAD_1}`];
+  const read = await utils.withPgClient((client) =>
+    client.query<Record<string, unknown>>(
+      "select locked_at, attempts, max_attempts from graphile_worker.jobs where key = $1",
+      params,
+    ),
+  );
+  return read.rows[0];
+}
+
+/** Moves the head's sync job to now, through graphile's private table. */
+async function startSyncJobNow(
+  utils: WorkerUtils,
+  pullRequestId: PullRequestRowId,
+): Promise<void> {
+  const params = [`sync-entry:${String(pullRequestId)}:${HEAD_1}`];
+  await utils.withPgClient((client) =>
+    client.query(
+      "update graphile_worker._private_jobs set run_at = now() where key = $1",
+      params,
+    ),
+  );
+}
+
+const STALE_WINNER_ID = 9_301n;
+
+/** Another writer swaps the head's generating body onto the row inside the first Entry post. */
+function storeStaleWinnerOnFirstPost(
+  github: FakeGitHub,
+  repo: ReturnType<typeof createTenantRepository>,
+  pullRequestId: PullRequestRowId,
+): void {
+  let stored = false;
+  const winner = buildEntryCommentGeneratingBody(
+    createI18n().t,
+    makeEntryLink(HEAD_1),
+  );
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async postEntryComment(input) {
+      const posted = await client.postEntryComment(input);
+      if (posted.ok && !stored) {
+        stored = true;
+        github.addComment(REPO, STALE_WINNER_ID, winner);
+        const row = await repo.pullRequests.getById(pullRequestId);
+        await repo.pullRequests.swapEntryComment(pullRequestId, {
+          seen: row?.entryCommentId ?? null,
+          next: STALE_WINNER_ID,
+        });
+      }
+      return posted;
+    },
+  }));
+}
+
+function buildSyncTaskList(
+  ctx: TenantContext,
+  syncEntry: Task,
+  recordSync: () => void,
+): TaskList {
+  return buildTaskList({
+    generate: () => undefined,
+    recoverGeneration: failUnexpectedTask,
+    syncEntry: async (payload, helpers) => {
+      const parsed = parseGeneratePayload(payload);
+      const ours =
+        parsed.ok &&
+        !isOwnerContext(parsed.value.ctx) &&
+        parsed.value.ctx.installationId === ctx.installationId;
+      if (!ours) {
+        failUnexpectedTask();
+      }
+      recordSync();
+      await syncEntry(payload, helpers);
+    },
+    sweepAudit: failUnexpectedTask,
+    sweepSessions: failUnexpectedTask,
+    sweepPullRequests: failUnexpectedTask,
+    sweepWebhookDeliveries: failUnexpectedTask,
+  });
 }
 
 function listClaimedPullRequests(claimed: readonly unknown[]): string[] {
@@ -271,6 +377,90 @@ describe.skipIf(databaseUrl === undefined)("graphile enqueue to claim", () => {
       expect(listClaimedPullRequests(claimed)).toEqual(
         expect.arrayContaining([String(pullRequestId)]),
       );
+    } finally {
+      await utils.release();
+      await closeDb(handle);
+    }
+  });
+
+  it("a sync queued while its head's sync runs leaves a runnable successor", async () => {
+    const url = databaseUrl ?? "";
+    await prepareQueue(url);
+    const handle = createDb(url);
+    const utils = await makeWorkerUtils({
+      connectionString: url,
+      logger: SILENT_GRAPHILE_LOGGER,
+    });
+    const installationId = randomInt(
+      SMALLEST_FIXTURE_ID,
+      SMALLEST_FIXTURE_ID + FIXTURE_ID_SPAN,
+    );
+    const ctx = parseTenantContext({ installationId });
+    const repoId = makeRepoId(BigInt(installationId));
+    const ingest = createIngestRoutines(handle, ctx);
+    const github = makeGitHub(HEAD_1);
+    const generator = stubGenerator();
+    const syncEntry = createSyncEntryTask({
+      handle,
+      generator,
+      github: createGitHubPort(github),
+      publicBaseUrl: PUBLIC_URL,
+      translate: createI18n().t,
+    });
+    let syncRuns = 0;
+    const drainQueue = () =>
+      runOnce({
+        connectionString: url,
+        logger: SILENT_GRAPHILE_LOGGER,
+        taskList: buildSyncTaskList(ctx, syncEntry, () => {
+          syncRuns += 1;
+        }),
+      });
+    try {
+      const triggered = await ingest.triggerGeneration({
+        pullRequest: {
+          repoId,
+          prNumber: 7,
+          repoSlug: "acme/widget",
+          state: PrStates.OPEN,
+        },
+        headSha: HEAD_1,
+        debounceSeconds: 0,
+      });
+      const pullRequestId = triggered.pullRequest.id;
+      await createGenerationProjection(handle, ctx).markFailed(
+        {
+          pullRequestId,
+          kind: GenerationKinds.BRIEF,
+          headSha: HEAD_1,
+          baselineSha: null,
+        },
+        { code: GenerationFailureCodes.PROVIDER_TIMEOUT },
+      );
+      const repo = createTenantRepository(handle, ctx);
+      storeStaleWinnerOnFirstPost(github, repo, pullRequestId);
+      await ingest.queueEntrySync({
+        pullRequestId,
+        headSha: HEAD_1,
+        delaySeconds: 0,
+      });
+
+      await drainQueue();
+      const successor = await readSyncJob(utils, pullRequestId);
+      await startSyncJobNow(utils, pullRequestId);
+      await drainQueue();
+
+      expect(successor).toMatchObject({ locked_at: null, attempts: 0 });
+      expect(syncRuns).toBe(2);
+      expect(generator.calls).toEqual([]);
+      const bodies = readLiveBodies(github);
+      expect(bodies).toHaveLength(1);
+      expect(bodies[0]).toContain("generation failed");
+      const tracked = await repo.pullRequests.getById(pullRequestId);
+      expect(tracked?.entryCommentId).toBe(
+        [...github.readComments(REPO).keys()][0],
+      );
+      expect(await readSyncJob(utils, pullRequestId)).toBeUndefined();
     } finally {
       await utils.release();
       await closeDb(handle);

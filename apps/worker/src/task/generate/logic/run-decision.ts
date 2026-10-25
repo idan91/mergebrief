@@ -14,6 +14,7 @@ import {
   buildAfterLeaseRequest,
   scheduleClaimRecovery,
 } from "./claim-recovery";
+import { queueEntrySync } from "./entry-sync";
 import { postFailedEntry } from "./failed-entry";
 import { listRunStops, traceRunStep } from "./step-span";
 import { applySpendGate, refuseAtCap } from "./spend-gate";
@@ -23,8 +24,8 @@ import { applySpendGate, refuseAtCap } from "./spend-gate";
  * brief on a row no run claimed takes no claim: it meets the cap here as a
  * ceiling and is charged at its first paid call. A fresh run, a recovery run,
  * or any run over a row a claim still names projects itself if ingest did not
- * and claims the row under the cap (the claim queuing the head's recovery job
- * unless this run is one), or stands down when another run holds or finished
+ * and claims the row under the cap (every claim queuing the head's next
+ * recovery job), or stands down when another run holds or finished
  * it, a held one re-queuing its job for after the lease. `run.leaveRow` and
  * `run.runId` are settled here, before any provider call.
  */
@@ -82,6 +83,7 @@ async function decideUnclaimedStoredBriefRun(
   }
 
   run.leaveRow = true;
+  run.standsOnStoredBrief = true;
   const refused = await refuseAtCap(payload, context);
   if (refused) {
     return { kind: RunDecisionKinds.CAPPED, storedBrief };
@@ -93,7 +95,7 @@ async function decideUnclaimedStoredBriefRun(
  * The head's paid attempts since its last trigger are spent, and the job ends
  * without a retry. A stored brief settles the row; otherwise it ends `failed`
  * as `attempts-exhausted`, keeping a failure already there, and the failed
- * Entry names the failure the row keeps.
+ * Entry names the failure the row keeps, its sync queued first.
  */
 async function settleExhaustedRun(
   context: RunContext,
@@ -110,6 +112,7 @@ async function settleExhaustedRun(
     await projection.settleStoredBrief(target, pickedUpAt);
     return;
   }
+  await queueEntrySync(context);
   const exhausted = { code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED };
   if (projected?.status !== GenerationStatuses.FAILED) {
     const marked = await projection.markFailed(target, exhausted);

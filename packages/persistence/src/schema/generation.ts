@@ -8,6 +8,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   index,
   integer,
@@ -74,6 +75,12 @@ export const generation = pgTable(
     runId: uuid("run_id"),
     /** The claim lapses at this database time unless its holder renews it. */
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    /**
+     * A recovery takeover ended owing a retry (a transient failure or a
+     * shutdown): the head's next recovery job reruns the row. Any later claim,
+     * trigger or row write clears it.
+     */
+    awaitsRecovery: boolean("awaits_recovery").notNull().default(false),
     /**
      * When a trigger last named this head. Status writes never move it, so
      * it orders a PR's brief rows by the push that asked for them. A row no

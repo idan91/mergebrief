@@ -9,6 +9,10 @@
       "openLink": "Open this PR in MergeBrief",
       "footer": "Posted by MergeBrief. The instance operator sets the daily cap."
     },
+    "closed": {
+      "heading": "No brief for {{shortSha}}: this pull request is no longer open.",
+      "footer": "Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again."
+    },
     "failed": {
       "heading": "No brief for {{shortSha}}: generation failed.",
       "regenerateLink": "Regenerate from MergeBrief",
@@ -106,6 +110,8 @@
       "pending": "Pending: the brief will start generating shortly.",
       "debouncing": "Holding briefly in case more commits land. The brief starts generating shortly.",
       "waitingForSlot": "Other briefs are generating. This one starts when a slot frees up.",
+      "stalled": "Generation for this push stopped: its queued job used every attempt.",
+      "stalledDetail": "No brief is on the way for this push.",
       "generating": "Generating the brief…",
       "phase": {
         "fetching": "Fetching the pull request…",
@@ -157,7 +163,9 @@
     },
     "empty": {
       "heading": "No brief for this pull request yet",
-      "copy": "The next push (or a submitted review) is briefed as usual in a repository where the App is installed."
+      "copy": "The next push (or a submitted review) is briefed as usual in a repository where the App is installed.",
+      "notOpenCopy": "This pull request is no longer open, so no brief will generate.",
+      "awaitsReadyCopy": "Brief generation for draft pull requests is off on this instance, so nothing is generated until this pull request is marked ready for review."
     },
     "failed": {
       "heading": "Brief generation failed",

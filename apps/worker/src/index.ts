@@ -20,6 +20,7 @@ export type { StartWorkerOptions } from "./runner";
 export {
   createGenerateTask,
   createRecoverGenerationTask,
+  createSyncEntryTask,
 } from "./task/generate";
 export type { GenerateTaskDeps } from "./task/generate";
 

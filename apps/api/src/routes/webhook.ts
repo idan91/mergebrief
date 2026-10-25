@@ -156,6 +156,9 @@ const CONFIRMATION_TIMEOUT_MS = 5 * 1000;
  */
 const READY_FLIP_DEBOUNCE_SECONDS = 10;
 
+/** The close lands first, so the Entry sync reads the PR closed. */
+const CLOSE_ENTRY_SYNC_DELAY_SECONDS = 0;
+
 /** Hard cap for public webhook bodies: enough for GitHub JSON, bounded for DoS. */
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
 
@@ -249,9 +252,11 @@ async function handlePullRequest(
 ): Promise<void> {
   const { handle } = deps;
   if (event.action === PullRequestActions.CLOSED) {
-    // Terminal state write, NO enqueue; the close time is what the worker's
-    // retention sweep reads.
-    const recorded = await createIngestRoutines(handle, ctx).recordState(
+    // Terminal state write, no generation; the close time is what the
+    // worker's retention sweep reads. A tracked Entry comment may still
+    // promise a brief, so its head's Entry sync re-renders it.
+    const ingest = createIngestRoutines(handle, ctx);
+    const recorded = await ingest.recordState(
       shapePullRequestUpsert(event, {
         state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
         closedAt: event.closedAt ?? new Date(),
@@ -259,6 +264,13 @@ async function handlePullRequest(
     );
     if (!recorded.applied) {
       logSkippedEvent(log, event);
+      return;
+    }
+    if (recorded.pullRequest.entryCommentId !== null) {
+      await ingest.queueEntrySync({
+        pullRequestId: recorded.pullRequest.id,
+        delaySeconds: CLOSE_ENTRY_SYNC_DELAY_SECONDS,
+      });
     }
     return;
   }

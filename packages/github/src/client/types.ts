@@ -15,6 +15,7 @@ import type { CollaboratorPermission } from "../operations/collaborator-permissi
 import type { RepoCollaborators } from "../operations/collaborators";
 import type {
   FetchedComment,
+  IssueComment,
   PostEntryCommentInput,
   PostedComment,
 } from "../operations/comments";
@@ -289,6 +290,8 @@ export interface InstallationRepoClient extends RepoReader {
   listOpenPullRequests(): GitHubCall<OpenPullRequest[]>;
   /** `undefined` when the comment is gone. */
   fetchComment(commentId: bigint): GitHubCall<FetchedComment | undefined>;
+  /** Every comment on the PR's conversation, oldest first. */
+  listIssueComments(prNumber: number): GitHubCall<IssueComment[]>;
   postEntryComment(
     input: RepoScoped<PostEntryCommentInput>,
   ): GitHubCall<PostedComment>;

@@ -343,6 +343,7 @@ describe("readClaim", () => {
       claimed: false,
       leaseLive: false,
       leaseRemainingMs: 0,
+      awaitsRecovery: false,
     });
 
     readRunId(await claim(world));
@@ -356,6 +357,7 @@ describe("readClaim", () => {
       claimed: true,
       leaseLive: false,
       leaseRemainingMs: 0,
+      awaitsRecovery: false,
     });
   });
 
@@ -487,7 +489,37 @@ describe("fenced transitions", () => {
     expect(released.phase).toBeNull();
     expect(released.runId).toBeNull();
     expect(released.leaseExpiresAt).toBeNull();
+    expect(released.awaitsRecovery).toBe(false);
     expect(await countAttemptRows(world)).toBe(1);
+  });
+
+  it("a takeover's release and failure hand the row back, a claim clears it", async () => {
+    const world = await makeClaimWorld();
+    const runId = readRunId(await claim(world));
+    unwrap(
+      await world.gen.releaseClaim(world.target, runId, {
+        awaitsRecovery: true,
+      }),
+    );
+    expect((await world.gen.readClaim(world.target))?.awaitsRecovery).toBe(
+      true,
+    );
+
+    const retryId = readRunId(await claim(world));
+    expect((await world.gen.readClaim(world.target))?.awaitsRecovery).toBe(
+      false,
+    );
+    const failed = unwrap(
+      await world.gen.finishRun(world.target, retryId, {
+        ...FAILED_RUN,
+        awaitsRecovery: true,
+      }),
+    );
+    expect(failed.awaitsRecovery).toBe(true);
+    const marked = unwrap(
+      await world.gen.markFailed(world.target, FAILED_RUN.failure),
+    );
+    expect(marked.awaitsRecovery).toBe(false);
   });
 });
 
@@ -590,10 +622,14 @@ describe("endLapsedClaim", () => {
 });
 
 describe("endReleasedClaim", () => {
-  it("ends a pending row a shutdown released", async () => {
+  it("ends a pending row a takeover's shutdown handed back", async () => {
     const world = await makeClaimWorld();
     const runId = readRunId(await claim(world));
-    unwrap(await world.gen.releaseClaim(world.target, runId));
+    unwrap(
+      await world.gen.releaseClaim(world.target, runId, {
+        awaitsRecovery: true,
+      }),
+    );
 
     const ended = unwrap(
       await world.gen.endReleasedClaim(world.target, FAILED_RUN),
@@ -601,6 +637,16 @@ describe("endReleasedClaim", () => {
 
     expect(ended.status).toBe(GenerationStatuses.FAILED);
     expect(ended.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
+  });
+
+  it("refuses a pending row a regular run's shutdown released", async () => {
+    const world = await makeClaimWorld();
+    const runId = readRunId(await claim(world));
+    unwrap(await world.gen.releaseClaim(world.target, runId));
+
+    expectClaimLost(await world.gen.endReleasedClaim(world.target, FAILED_RUN));
+    const row = await world.gen.get(world.target);
+    expect(row?.status).toBe(GenerationStatuses.PENDING);
   });
 
   it("refuses a row a claim names", async () => {

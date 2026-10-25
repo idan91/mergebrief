@@ -1,10 +1,14 @@
+// @vitest-environment jsdom
 // The wait heading matrix: reason by damped notice while pending, phase while
 // running. Expected lines are the catalog's literal copy.
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { WaitReasons, type WaitReason } from "contract";
-import { appI18n } from "../../../../../i18n/I18nProvider";
+import { PrStates } from "types";
+import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 
-import { waitLabel } from ".";
+import type { RerunNoteInput } from "../failed-head";
+import { WaitCard, waitLabel } from ".";
 
 const t = appI18n.t;
 
@@ -15,6 +19,13 @@ const SLOT_LINE =
   "Other briefs are generating. This one starts when a slot frees up.";
 const GENERATING_LINE = "Generating the brief…";
 const DAMPED_NOTICE = "Pending: draft mode note.";
+const OPEN_INSTALLED: RerunNoteInput = {
+  prState: PrStates.OPEN,
+  appInstalled: true,
+  awaitsReadyForReview: false,
+};
+const STALLED_LINE =
+  "Generation for this push stopped: its queued job used every attempt.";
 
 interface PendingCase {
   readonly name: string;
@@ -59,6 +70,12 @@ const PENDING_CASES: readonly PendingCase[] = [
     waitReason: WaitReasons.WAITING_FOR_SLOT,
     pendingNotice: DAMPED_NOTICE,
     expected: SLOT_LINE,
+  },
+  {
+    name: "a stalled head wins over a damped notice",
+    waitReason: WaitReasons.STALLED,
+    pendingNotice: DAMPED_NOTICE,
+    expected: STALLED_LINE,
   },
 ];
 
@@ -124,5 +141,50 @@ describe("waitLabel while running", () => {
     });
 
     expect(label).toBe(GENERATING_LINE);
+  });
+});
+
+describe("WaitCard on a stalled head", () => {
+  it("names no brief coming and shows no spinner", () => {
+    render(
+      <I18nProvider>
+        <WaitCard
+          phase={undefined}
+          prNumber={7}
+          repoId="42"
+          span={undefined}
+          rerun={OPEN_INSTALLED}
+          status="pending"
+          waitReason={WaitReasons.STALLED}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByRole("heading").textContent).toBe(STALLED_LINE);
+    expect(
+      screen.getByText(/^No brief is on the way for this push\. A new push/),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("empty-block-spinner")).toBeNull();
+  });
+
+  it("points a stalled url row at a paste", () => {
+    const urlRow = { ...OPEN_INSTALLED, appInstalled: false };
+    render(
+      <I18nProvider>
+        <WaitCard
+          phase={undefined}
+          prNumber={7}
+          repoId="42"
+          rerun={urlRow}
+          span={undefined}
+          status="pending"
+          waitReason={WaitReasons.STALLED}
+        />
+      </I18nProvider>,
+    );
+
+    expect(
+      screen.getByText(/Paste this pull request's URL on the home page/),
+    ).toBeTruthy();
   });
 });

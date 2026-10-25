@@ -24,7 +24,7 @@ function makeInput(overrides: Partial<PrReviewInput> = {}): PrReviewInput {
     sessionReads: stubReads(),
     writes: {} as SessionWrites,
     sessionUnavailableReason: SESSION_REASON,
-    viewerIsAuthor: false,
+    meta: { viewerIsAuthor: false },
     ...overrides,
   };
 }
@@ -50,11 +50,14 @@ describe("buildPrReview", () => {
     expect(review.session).toBeUndefined();
   });
 
-  it("carries whether the viewer wrote the PR", () => {
-    const review = buildPrReview(makeInput({ viewerIsAuthor: true }));
+  it.each([true, false])(
+    "carries the meta's author flag %s to the review",
+    (viewerIsAuthor) => {
+      const review = buildPrReview(makeInput({ meta: { viewerIsAuthor } }));
 
-    expect(review.viewerIsAuthor).toBe(true);
-  });
+      expect(review.viewerIsAuthor).toBe(viewerIsAuthor);
+    },
+  );
 
   it("keeps the base-drift reason over the session's", () => {
     const readOnly = { reason: "base drift" };

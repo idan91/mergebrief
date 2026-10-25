@@ -23,6 +23,7 @@ import type { ReviewCommentListing } from "../operations/review-comment-list";
 import { FIRST_IDS } from "./consts";
 import type {
   CredentialKind,
+  FakeCommentThread,
   FakeCompare,
   FakeFactsHiding,
   FakeFailure,
@@ -50,6 +51,8 @@ export interface RepoState {
   readonly files: Map<string, RepoFileResult>;
   readonly fileFailures: Map<string, FakeFailure>;
   readonly comments: Map<bigint, string>;
+  /** Where a comment sits and who wrote it; a comment seeded without one is on no PR's listing. */
+  readonly commentThreads: Map<bigint, FakeCommentThread>;
   readonly branches: Set<string>;
   collaborators: RepoCollaborators;
   /** Keyed by lowercased login. */
@@ -125,6 +128,7 @@ function createRepoState(): RepoState {
     files: new Map(),
     fileFailures: new Map(),
     comments: new Map(),
+    commentThreads: new Map(),
     branches: new Set(),
     collaborators: { collaborators: [], hasMore: false },
     collaboratorPermissions: new Map(),
@@ -238,9 +242,13 @@ function buildArrange(state: WorldState): WorldArrange {
       state.teams.set(org.toLowerCase(), teams);
       state.accounts.set(org.toLowerCase(), org);
     },
-    addComment(repo, commentId, body) {
+    addComment(repo, commentId, body, thread) {
       reserveId(state, "ISSUE_COMMENT", commentId);
-      ensureRepo(state, repo).comments.set(commentId, body);
+      const repoState = ensureRepo(state, repo);
+      repoState.comments.set(commentId, body);
+      if (thread !== undefined) {
+        repoState.commentThreads.set(commentId, thread);
+      }
     },
     removeComment(repo, commentId) {
       ensureRepo(state, repo).comments.delete(commentId);

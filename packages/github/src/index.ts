@@ -130,11 +130,14 @@ export {
   postEntryComment,
   deleteComment,
   fetchComment,
+  listIssueComments,
 } from "./operations/comments";
 export type {
   PostEntryCommentInput,
   DeleteCommentInput,
   FetchCommentInput,
+  IssueComment,
+  ListIssueCommentsInput,
 } from "./operations/comments";
 export {
   fetchRepositoryById,

@@ -348,6 +348,16 @@ describe("shouldPollMeta", () => {
     ).toBe(false);
   });
 
+  it("a stalled head polls at the settled pace: no job is left to run", () => {
+    const stalled = generation({
+      status: "pending",
+      waitReason: WaitReasons.STALLED,
+    });
+
+    const stalledMeta = meta({ generation: stalled });
+    expect(shouldPollMeta(stalledMeta)).toBe(false);
+  });
+
   it("never polls a capped row: the skip is terminal, nothing is coming", () => {
     expect(
       shouldPollMeta(meta({ generation: generation({ status: "capped" }) })),

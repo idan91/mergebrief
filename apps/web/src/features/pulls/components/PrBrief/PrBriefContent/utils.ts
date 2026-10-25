@@ -5,6 +5,7 @@ import type {
   SessionWrites,
 } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils";
+import type { PrSummary } from "../../../types";
 
 export interface PrReviewInput {
   submitReview: SubmitReviewAction;
@@ -17,7 +18,8 @@ export interface PrReviewInput {
   sessionReads: SessionReadSource;
   writes: SessionWrites;
   sessionUnavailableReason: string;
-  viewerIsAuthor: boolean;
+  /** Whether the viewer wrote the PR: GitHub refuses their own Approve or Request changes. */
+  meta: Pick<PrSummary, "viewerIsAuthor">;
 }
 
 /**
@@ -33,7 +35,7 @@ export function buildPrReview(input: PrReviewInput): ReviewCapability {
     ownDraft: input.ownDraft,
     session,
     sessionReads: input.sessionReads,
-    viewerIsAuthor: input.viewerIsAuthor,
+    viewerIsAuthor: input.meta.viewerIsAuthor,
   };
   if (input.readOnly !== undefined) {
     review.readOnly = input.readOnly;

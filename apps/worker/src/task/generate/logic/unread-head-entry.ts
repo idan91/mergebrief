@@ -1,13 +1,13 @@
 import type { TFunction } from "i18next";
 import type { Logger } from "logging";
-import { buildHeadEntryBodies } from "../../entry-comment";
-import type { EntryCommentManager, UnreadHeadRead } from "../types";
+import { isHeadEntryBody } from "../../entry-comment";
+import type { EntryCommentManager, EntryWrite, UnreadHeadRead } from "../types";
 
 export interface UnreadHeadPost {
   readonly entryCommentManager: EntryCommentManager;
   readonly translate: TFunction;
-  /** The head's deep-link index, the one its own bodies carry. */
-  readonly headIndex: number;
+  /** The run's head, the one its own bodies name. */
+  readonly headSha: string;
   readonly log: Logger;
 }
 
@@ -20,14 +20,12 @@ export async function replaceOnUnreadHead(
   post: UnreadHeadPost,
   body: string,
   read: UnreadHeadRead,
-): Promise<void> {
-  const { entryCommentManager, translate, headIndex, log } = post;
+): Promise<EntryWrite> {
+  const { entryCommentManager, translate, headSha, log } = post;
   log.warn("generate: head unread, the Entry replaces only this head's body", {
     error: read.error,
   });
-  const ownBodies = buildHeadEntryBodies(
-    translate,
-    entryCommentManager.buildDeepLink(headIndex),
+  return entryCommentManager.replace(body, (live) =>
+    isHeadEntryBody(translate, live, headSha),
   );
-  await entryCommentManager.replace(body, ownBodies);
 }

@@ -158,7 +158,8 @@ async function postGeneratingEntry(
     entryCommentManager.buildDeepLink(headIndex),
   );
   if (head.kind === HeadReadings.UNREAD) {
-    const post = { entryCommentManager, translate, headIndex, log };
+    const { headSha } = inputs.prInfo;
+    const post = { entryCommentManager, translate, headSha, log };
     await replaceOnUnreadHead(post, generatingBody, head);
     return;
   }

@@ -1,0 +1,1 @@
+ALTER TABLE "generation" ADD COLUMN "awaits_recovery" boolean DEFAULT false NOT NULL;

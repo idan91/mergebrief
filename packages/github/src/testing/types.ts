@@ -73,6 +73,12 @@ export type FakeCredential =
     }
   | { readonly kind: typeof CredentialKinds.APP };
 
+/** The PR a seeded comment sits on, and its author's GitHub user id. */
+export interface FakeCommentThread {
+  readonly prNumber: number;
+  readonly authorId: bigint;
+}
+
 /** One request that reached the fake, in the order it arrived. */
 export interface FakeGitHubCall {
   readonly operation: GitHubOperation;
@@ -181,7 +187,13 @@ export interface FakeGitHubArrange {
   ): void;
   /** The teams an org shows the viewer. */
   addTeams(org: string, teams: readonly MentionableTeam[]): void;
-  addComment(repo: RepositoryRef, commentId: bigint, body: string): void;
+  /** A comment with a `thread` is on that PR's listing, by that author. */
+  addComment(
+    repo: RepositoryRef,
+    commentId: bigint,
+    body: string,
+    thread?: FakeCommentThread,
+  ): void;
   /** The comment is gone, as when someone deletes it on GitHub. */
   removeComment(repo: RepositoryRef, commentId: bigint): void;
   addBranch(repo: RepositoryRef, branch: string): void;

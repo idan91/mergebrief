@@ -14,6 +14,8 @@ export const WaitReasons = {
   DEBOUNCING: "debouncing",
   /** The job is due and no worker slot has claimed it. */
   WAITING_FOR_SLOT: "waiting-for-slot",
+  /** The job spent its attempts and no Takeover is queued: nothing will run the head. */
+  STALLED: "stalled",
 } as const;
 export type WaitReason = ValueOf<typeof WaitReasons>;
 

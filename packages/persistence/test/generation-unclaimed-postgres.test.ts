@@ -79,13 +79,44 @@ describe.skipIf(databaseUrl === undefined)(
       }
     }
 
-    it("ends a released pending row a claim was taken on", async () => {
+    it("ends a pending row a takeover handed back to recovery", async () => {
+      await runInUnclaimedWorld(async ({ gen, target, stage }) => {
+        await stage("claims = 1, awaits_recovery = true");
+
+        const ended = await gen.endReleasedClaim(target, FAILED_RUN);
+
+        expect(ended.ok && ended.value.status).toBe(GenerationStatuses.FAILED);
+        expect(ended.ok && ended.value.awaitsRecovery).toBe(false);
+      });
+    });
+
+    it("leaves a pending row a regular run's shutdown released", async () => {
       await runInUnclaimedWorld(async ({ gen, target, stage }) => {
         await stage("claims = 1");
 
         const ended = await gen.endReleasedClaim(target, FAILED_RUN);
 
-        expect(ended.ok && ended.value.status).toBe(GenerationStatuses.FAILED);
+        expect(!ended.ok && ended.error.code).toBe(
+          GenerationErrorCodes.CLAIM_LOST,
+        );
+        expect((await gen.get(target))?.status).toBe(
+          GenerationStatuses.PENDING,
+        );
+      });
+    });
+
+    it("a trigger clears a row's hand-back to recovery", async () => {
+      await runInUnclaimedWorld(async ({ gen, target, stage }) => {
+        await stage("claims = 1, awaits_recovery = true");
+
+        await gen.upsertPending(target);
+
+        const claim = await gen.readClaim(target);
+        expect(claim?.awaitsRecovery).toBe(false);
+        const ended = await gen.endReleasedClaim(target, FAILED_RUN);
+        expect(!ended.ok && ended.error.code).toBe(
+          GenerationErrorCodes.CLAIM_LOST,
+        );
       });
     });
 

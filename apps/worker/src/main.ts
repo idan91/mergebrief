@@ -34,6 +34,7 @@ import {
 import {
   createGenerateTask,
   createRecoverGenerationTask,
+  createSyncEntryTask,
   type GenerateTaskDeps,
 } from "./task/generate";
 import { createSweepAuditTask, SWEEP_AUDIT_CRONTAB } from "./task/sweep-audit";
@@ -235,6 +236,7 @@ async function main(): Promise<void> {
 
   const generate = createGenerateTask(generateDeps);
   const recoverGeneration = createRecoverGenerationTask(generateDeps);
+  const syncEntry = createSyncEntryTask(generateDeps);
 
   const sweepAudit = createSweepAuditTask({
     handle,
@@ -277,6 +279,7 @@ async function main(): Promise<void> {
       generate: (payload, helpers) => generate(payload, helpers),
       recoverGeneration: (payload, helpers) =>
         recoverGeneration(payload, helpers),
+      syncEntry: (payload, helpers) => syncEntry(payload, helpers),
       sweepAudit: () => sweepAudit(),
       sweepSessions: () => sweepSessions(),
       sweepPullRequests: () => sweepPullRequests(),

@@ -56,6 +56,13 @@ deprecation note here, removal only at a major.
   that still reads `briefAvailable` reports no brief while the brief exists;
   `headBriefStored` keeps the old meaning.
 
+- **Added** `stalled` to `generation.waitReason` on `read-pull`: the head
+  is `pending` but its queued job used every attempt and no takeover is
+  queued, so nothing runs it until a new trigger. A client that does not
+  know the value shows its generic pending line.
+- **Changed** `generation.waitReason` on `read-pull` is absent while a spent
+  job's takeover is scheduled or running (was `waiting-for-slot`).
+
 ## dev (2026-10-23)
 
 - **Changed** an instance config with no `spend.maxGenerationsPerDay` caps

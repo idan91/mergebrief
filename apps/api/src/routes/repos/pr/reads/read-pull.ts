@@ -69,10 +69,13 @@ async function readWaitReason(
     return undefined;
   }
 
-  const timing = await generations.getGenerateJobTiming(
-    latestGeneration.pullRequestId,
-  );
-  return deriveWaitReason(latestGeneration.status, timing);
+  const { pullRequestId, headSha, status } = latestGeneration;
+  const timing = await generations.getGenerateJobTiming(pullRequestId);
+  const spent = timing !== undefined && !timing.hasAttemptsLeft;
+  const takeover = spent
+    ? await generations.readTakeoverJob(pullRequestId, headSha)
+    : undefined;
+  return deriveWaitReason(status, timing, takeover);
 }
 
 /**

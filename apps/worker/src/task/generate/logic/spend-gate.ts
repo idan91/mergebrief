@@ -19,6 +19,7 @@ import {
   type SpendGateInputs,
 } from "../types";
 import { getAfterLeaseDelaySeconds } from "./claim-recovery";
+import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
 import { ClaimLostSignal } from "./supersession-watch";
 
 /** Control-flow signal: the cap refused a stored-brief run's first paid call. */
@@ -29,7 +30,8 @@ export class SpendCappedSignal extends Error {}
  * the claim happen in one store transaction under the instance advisory lock,
  * so a run never counts itself and N slots or processes cannot start past the
  * cap together. The claim queues the head's recovery job in the same
- * transaction, unless this run is one. A capped run leaves the projection
+ * transaction; a takeover's claim queues its successor, which ends the
+ * takeover job's own retries and carries them on. A capped run leaves the projection
  * terminal `capped` (or `failed`); a held or finished row is reported untouched.
  * A row that is gone (its pull request deleted) stands the run down.
  */
@@ -51,15 +53,13 @@ export async function applySpendGate(
   if (cap !== null) {
     claimInput.cap = cap;
   }
-  if (!inputs.recovering) {
-    const recovery: Mutable<RecoveryJobInput> = {
-      delaySeconds: getAfterLeaseDelaySeconds(CLAIM_LEASE_MS),
-    };
-    if (payload.grantId !== undefined) {
-      recovery.grantId = payload.grantId;
-    }
-    claimInput.recovery = recovery;
+  const recovery: Mutable<RecoveryJobInput> = {
+    delaySeconds: getAfterLeaseDelaySeconds(CLAIM_LEASE_MS),
+  };
+  if (payload.grantId !== undefined) {
+    recovery.grantId = payload.grantId;
   }
+  claimInput.recovery = recovery;
   const claim = await projection.claimRun(claimInput);
   if (!claim.ok) {
     throw new ClaimLostSignal(claim.error.message);
@@ -198,7 +198,8 @@ interface CappedRunFacts {
 /**
  * UPDATE ONLY: a capped PR never gets an Entry comment created for it, the
  * cap must not make MergeBrief louder on a thread than it was. A stored brief
- * still owes its ready Entry, which the caller posts.
+ * still owes its ready Entry, which the caller posts. A post that fails, or
+ * stands down on an unread head, queues the head's sync.
  */
 async function updateCappedEntry(
   payload: ParsedGeneratePayload,
@@ -222,18 +223,19 @@ async function updateCappedEntry(
     log.warn("generate: head unread, the capped Entry stands down", {
       error: head.error,
     });
+    await queueEntrySync({ deps, payload, log });
     return;
   }
 
-  await entryCommentManager.refresh(
-    buildEntryCommentCappedBody(deps.translate, {
-      publicBaseUrl: deps.publicBaseUrl,
-      repoId: prRow.repoId,
-      prNumber: prRow.prNumber,
-      headSha: payload.headSha,
-      resetsAt: facts.resetsAt,
-    }),
-  );
+  const cappedBody = buildEntryCommentCappedBody(deps.translate, {
+    publicBaseUrl: deps.publicBaseUrl,
+    repoId: prRow.repoId,
+    prNumber: prRow.prNumber,
+    headSha: payload.headSha,
+    resetsAt: facts.resetsAt,
+  });
+  const write = await entryCommentManager.refresh(cappedBody);
+  await queueEntrySyncOnLostWrite({ deps, payload, log }, write);
 }
 
 async function recordCappedRun(
