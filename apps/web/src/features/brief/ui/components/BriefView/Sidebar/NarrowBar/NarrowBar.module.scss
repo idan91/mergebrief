@@ -52,4 +52,11 @@
     font-size: var(--font-size-xl);
     font-weight: 600;
   }
+
+  @media (hover: none) {
+    /* :is(button) outranks IconButton's own display in either bundle order. */
+    .shortcutsTrigger:is(button) {
+      display: none;
+    }
+  }
 }

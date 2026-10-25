@@ -138,6 +138,7 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
           ) : null}
           {onOpenShortcuts === undefined ? null : (
             <Menu.Item
+              className={styles["shortcutsRow"]}
               glyph={
                 <Icon
                   className={glyphClass}
