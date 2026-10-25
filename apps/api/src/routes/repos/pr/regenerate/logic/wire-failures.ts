@@ -1,6 +1,10 @@
 import { ApiErrorCodes } from "contract";
-import { RegenerateOutcomes } from "persistence";
-import { Conflict, NotFound } from "../../../../../shared-errors/api-error";
+import { TriggerOnDemandOutcomes } from "persistence";
+import {
+  Conflict,
+  Forbidden,
+  NotFound,
+} from "../../../../../shared-errors/api-error";
 import { FailureKinds } from "../../../../../shared-errors/failures";
 import { resolveFreshRepositoryError } from "../../../logic/fresh-repository";
 import type { AccessFooting } from "../../../../../access/types";
@@ -11,15 +15,18 @@ export function throwRegenerateFailure(
   footing: AccessFooting,
 ): never {
   switch (failure.kind) {
-    case RegenerateOutcomes.HELD: {
+    case TriggerOnDemandOutcomes.HELD: {
       throw new Conflict(ApiErrorCodes.GENERATION_HELD);
     }
-    case RegenerateOutcomes.NOT_REGENERABLE: {
+    case TriggerOnDemandOutcomes.NOT_REGENERABLE: {
       throw new Conflict(ApiErrorCodes.GENERATION_NOT_REGENERABLE);
     }
-    case RegenerateOutcomes.NOT_FOUND:
+    case TriggerOnDemandOutcomes.NOT_FOUND:
     case "no-push-access": {
       throw new NotFound();
+    }
+    case TriggerOnDemandOutcomes.NEEDS_APPROVER: {
+      throw new Forbidden(ApiErrorCodes.HUMAN_ONLY);
     }
     case FailureKinds.GITHUB_DENIED: {
       throw resolveFreshRepositoryError(failure.error, footing);

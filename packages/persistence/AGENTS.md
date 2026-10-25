@@ -11,7 +11,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 What the layout can't show:
 
 - `schema/` is one drizzle file per table.
-- `stores/ingest.ts` is the transactional webhook→upsert→enqueue boundary, plus `requeueGenerateJob`, the worker's re-enqueue of a held run's job, `scheduleClaimRecovery`, which moves a head's `recover-generation` job past a live lease, and `regenerateFailedHead`, a pusher's fresh run of an open PR's current head that failed in a way a rerun can help, with no stored brief (claims reset, job replaced), installation scope only.
+- `stores/ingest.ts` is the transactional webhook→upsert→enqueue boundary, plus `requeueGenerateJob`, the worker's re-enqueue of a held run's job, `scheduleClaimRecovery`, which moves a head's `recover-generation` job past a live lease, and `triggerOnDemand`, a pusher's fresh run of an open PR's current head that failed in a way a rerun can help, with no stored brief, or that awaits its trigger with an approver named (claims reset, job replaced; an awaiting-trigger head also records the Trigger approval), installation scope only.
 - `stores/queue.ts` holds every `graphile_worker.add_job` call this package makes, the job payload builder, and `readQueueJob`, the one read of graphile's job table; ingest and `claimRun` (which queues the head's recovery job in the claim's transaction) both go through it.
 - `stores/url-box.ts` holds `resolveUrlBoxOwner`, which answers which owner holds a pasted PR.
 - `stores/webhook-delivery.ts` is the webhook delivery seen-set, keyed by the SHA-256 of the verified `X-Hub-Signature-256` header; the unsigned delivery id rides beside it for log correlation only.

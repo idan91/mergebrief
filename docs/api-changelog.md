@@ -25,8 +25,9 @@ deprecation note here, removal only at a major.
   otherwise), and answers
   `409 generation-held` while a run holds the head and
   `409 generation-not-regenerable` when the pull request is closed or merged,
-  the head did not fail, failed with `diff-too-large`, `output-secret` or
-  `provider-refusal`, or already has a stored brief.
+  the head neither failed nor waits for its trigger approval, failed with
+  `diff-too-large`, `output-secret` or `provider-refusal`, or already has a
+  stored brief.
 - **Added** `awaiting-trigger` to `generation.status` on `read-pull`,
   `list-inbox` and `read-generation-claims`: a pull request whose author the
   repository does not trust waits for a collaborator with push access to
@@ -34,6 +35,14 @@ deprecation note here, removal only at a major.
   `errorCode` is null on `read-pull` and `list-inbox`, absent on
   `read-generation-claims`, and no attempt is consumed. Clients that treat the
   status set as closed must accept the new value.
+- **Changed** `regenerate-brief` also acts on an `awaiting-trigger` head, a
+  pull request whose author's pushes wait for a collaborator. From a browser
+  session it confirms the caller's push access with GitHub at the click
+  (`404` without it, `502 github-unavailable` when GitHub cannot answer),
+  records the caller as the pull request's trigger approval and queues the
+  run, after which every push is briefed as usual. A Bearer token
+  on such a head gets `403 human-only` and writes nothing; a failed head
+  still accepts a token.
 - **Added** `viewerCanPush` on `read-pull`
   (`GET /api/repos/:repoId/pulls/:prNumber`): the viewer's push access alone,
   where `viewerCanResolve` is push or authorship. A client gates

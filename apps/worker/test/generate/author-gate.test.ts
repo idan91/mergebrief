@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   createArtifactStore,
   createGenerationProjection,
+  createIngestRoutines,
   createTenantRepository,
   parseScopeContext,
   type PullRequestRow,
 } from "persistence";
-import { claimTestRun } from "persistence/testing";
+import { approveTestTrigger, claimTestRun } from "persistence/testing";
 import { FakeFailures, type FakeGitHub } from "github/testing";
 import { RepoConfigPaths } from "repo-config";
 import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
@@ -128,10 +129,7 @@ function throwOnFirstCommentRead(github: FakeGitHub): void {
 }
 
 async function approveTrigger(pr: PullRequestRow): Promise<void> {
-  await createTenantRepository(harness.handle, ctx).pullRequests.approveTrigger(
-    pr.id,
-    makeReviewerId(900n),
-  );
+  await approveTestTrigger(harness.handle, ctx, pr.id, makeReviewerId(900n));
 }
 
 describe("generate task, author gate", () => {
@@ -579,8 +577,10 @@ describe("generate task, author gate", () => {
       async fetchRepoFile(file) {
         const gen = createGenerationProjection(harness.handle, ctx);
         await gen.markAwaitingTrigger(target);
-        await approveTrigger(pr);
-        await gen.upsertPending(target);
+        await createIngestRoutines(harness.handle, ctx).triggerOnDemand({
+          pullRequestId: pr.id,
+          approverId: makeReviewerId(900n),
+        });
         return client.fetchRepoFile(file);
       },
     }));

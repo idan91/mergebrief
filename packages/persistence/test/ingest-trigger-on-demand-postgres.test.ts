@@ -1,4 +1,4 @@
-// A claim landing between Regenerate's head read and its upsert cannot be
+// A claim landing between a Trigger's head read and its upsert cannot be
 // staged on PGlite, which runs one connection. This suite runs only against
 // a real Postgres named by MERGEBRIEF_TEST_POSTGRES_URL: skipped locally when
 // unset, red under CI.
@@ -8,7 +8,7 @@ import {
   createGenerationProjection,
   createIngestRoutines,
   createTenantRepository,
-  RegenerateOutcomes,
+  TriggerOnDemandOutcomes,
 } from "../src/index";
 import { readTestPostgresUrl } from "../src/testing";
 import { GenerationFailureCodes, PrStates } from "types";
@@ -25,7 +25,7 @@ const HOLD_MS = 300;
 const LATE_RUN_ID = "00000000-0000-4000-8000-000000000001";
 
 describe.skipIf(databaseUrl === undefined)(
-  "regenerateFailedHead on real Postgres",
+  "triggerOnDemand on real Postgres",
   () => {
     it("answers held when a claim lands between its read and its upsert", async () => {
       if (databaseUrl === undefined) {
@@ -64,19 +64,18 @@ describe.skipIf(databaseUrl === undefined)(
           [LATE_RUN_ID, failed.id],
         );
 
-        const regenerating = createIngestRoutines(
-          handle,
-          ctx,
-        ).regenerateFailedHead({ pullRequestId: pr.id });
+        const triggering = createIngestRoutines(handle, ctx).triggerOnDemand({
+          pullRequestId: pr.id,
+        });
         const whileUncommitted = await Promise.race([
-          regenerating,
+          triggering,
           waitMs(HOLD_MS),
         ]);
         await holding.query("commit");
-        const outcome = await regenerating;
+        const outcome = await triggering;
 
         expect(whileUncommitted).toBe("timer");
-        expect(outcome).toBe(RegenerateOutcomes.HELD);
+        expect(outcome).toBe(TriggerOnDemandOutcomes.HELD);
         const after = await gen.get(target);
         expect(after?.runId).toBe(LATE_RUN_ID);
         expect(after?.claims).toBe(failed.claims + 1);

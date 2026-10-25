@@ -20,7 +20,7 @@ import {
   ensureAppSchema,
   GenerationKinds,
   parseTenantContext,
-  RegenerateOutcomes,
+  TriggerOnDemandOutcomes,
   type PullRequestRowId,
 } from "persistence";
 import { startTestTracing } from "logging/testing";
@@ -262,12 +262,12 @@ describe.skipIf(databaseUrl === undefined)("graphile enqueue to claim", () => {
       await drainQueue();
       const claimedWhileSpent = listClaimedPullRequests(claimed);
 
-      const regenerated = await ingest.regenerateFailedHead({ pullRequestId });
+      const regenerated = await ingest.triggerOnDemand({ pullRequestId });
       await updateGenerateJob(utils, pullRequestId, "run_at = now()");
       await drainQueue();
 
       expect(claimedWhileSpent).not.toContain(String(pullRequestId));
-      expect(regenerated).toBe(RegenerateOutcomes.QUEUED);
+      expect(regenerated).toBe(TriggerOnDemandOutcomes.QUEUED);
       expect(listClaimedPullRequests(claimed)).toEqual(
         expect.arrayContaining([String(pullRequestId)]),
       );

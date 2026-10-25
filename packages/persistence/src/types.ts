@@ -144,18 +144,20 @@ export const JobKeyModes = {
 } as const;
 export type JobKeyMode = ValueOf<typeof JobKeyModes>;
 
-/** What asking for a fresh run of a PR's failed current head found. */
-export const RegenerateOutcomes = {
+/** What triggering the PR's current head on demand found: a failed head's rerun, or an awaiting head's approval. */
+export const TriggerOnDemandOutcomes = {
   /** Projected `pending` with a fresh claim budget, and the PR's job queued. */
   QUEUED: "queued",
   /** A live claim holds the head; nothing was written. */
   HELD: "held",
-  /** The PR is closed or merged, or its head is not failed, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
+  /** The PR is closed or merged, or its head neither failed nor awaits its trigger approval, failed in a way a rerun cannot help, or has its brief stored; nothing was written. */
   NOT_REGENERABLE: "not-regenerable",
   /** The PR is outside the scope, or the scope is an owner's; nothing was written. */
   NOT_FOUND: "not-found",
+  /** The head awaits a Trigger approval and the caller named no approver; nothing was written. */
+  NEEDS_APPROVER: "needs-approver",
 } as const;
-export type RegenerateOutcome = ValueOf<typeof RegenerateOutcomes>;
+export type TriggerOnDemandOutcome = ValueOf<typeof TriggerOnDemandOutcomes>;
 
 /** What charging a paid run that holds no claim to the day's cap found. */
 export const ChargeOutcomes = {

@@ -23,7 +23,7 @@ import {
   buildNextRowVersion,
   upsertPullRequestRow,
 } from "./pull-request-upsert";
-import { resolveScope, ScopeViolationError } from "./scope";
+import { resolveScope, ScopeViolationError, type RowScope } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
 import {
@@ -188,15 +188,6 @@ export interface PullRequestRepository {
     pullRequestId: PullRequestRowId,
     input: PullRequestStackInput,
   ): Promise<PullRequestRow | undefined>;
-  /**
-   * Record that a collaborator approved generation for the PR. The first
-   * approval stands: a later call writes nothing, `row_version` included,
-   * and returns the row as it is. `undefined` if no row in ctx's scope.
-   */
-  approveTrigger(
-    pullRequestId: PullRequestRowId,
-    reviewerId: ReviewerId,
-  ): Promise<PullRequestRow | undefined>;
 }
 
 export interface CheckpointRepository {
@@ -229,6 +220,44 @@ export interface TenantRepository {
   readonly archives: InboxArchiveStore;
   /** The reviewer's Review Session work, see `stores/review-session.ts`. */
   readonly reviewSessions: ReviewSessionRepository;
+}
+
+/**
+ * Record a collaborator's Trigger approval. The first approval stands: a
+ * later call writes nothing, `row_version` included, and returns the row
+ * as it is. `undefined` if no row in scope. Ingest runs it inside its own
+ * transaction.
+ */
+export async function approvePullRequestTrigger(
+  executor: Pick<ReturnType<typeof internal>, "update" | "select">,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  reviewerId: ReviewerId,
+): Promise<PullRequestRow | undefined> {
+  const inScope = and(
+    scope.matchesPullRequest(),
+    eq(pullRequest.id, pullRequestId),
+  );
+  const approved = await executor
+    .update(pullRequest)
+    .set({
+      triggerApprovedBy: reviewerId,
+      triggerApprovedAt: sql`now()`,
+      rowVersion: buildNextRowVersion(),
+      updatedAt: new Date(),
+    })
+    .where(and(inScope, isNull(pullRequest.triggerApprovedAt)))
+    .returning();
+  if (approved[0] !== undefined) {
+    return approved[0];
+  }
+
+  const current = await executor
+    .select()
+    .from(pullRequest)
+    .where(inScope)
+    .limit(1);
+  return current[0];
 }
 
 /**
@@ -369,33 +398,6 @@ export function createTenantRepository(
         )
         .returning();
       return rows[0];
-    },
-
-    async approveTrigger(pullRequestId, reviewerId) {
-      const inScope = and(
-        scope.matchesPullRequest(),
-        eq(pullRequest.id, pullRequestId),
-      );
-      const approved = await db
-        .update(pullRequest)
-        .set({
-          triggerApprovedBy: reviewerId,
-          triggerApprovedAt: sql`now()`,
-          rowVersion: buildNextRowVersion(),
-          updatedAt: new Date(),
-        })
-        .where(and(inScope, isNull(pullRequest.triggerApprovedAt)))
-        .returning();
-      if (approved[0] !== undefined) {
-        return approved[0];
-      }
-
-      const current = await db
-        .select()
-        .from(pullRequest)
-        .where(inScope)
-        .limit(1);
-      return current[0];
     },
   };
 

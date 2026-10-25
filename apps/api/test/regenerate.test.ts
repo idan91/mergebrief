@@ -1,9 +1,11 @@
 // POST /api/repos/:repoId/pulls/:prNumber/regenerate over PGlite: a pusher's
-// fresh run of the current head when it failed in a way a rerun can help.
+// fresh run of the current head when it failed in a way a rerun can help, or
+// when it awaits its Trigger approval.
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createArtifactStore,
   createGenerationProjection,
+  createIngestRoutines,
   createTenantRepository,
   type GenerationFailure,
   type KeyProvider,
@@ -42,7 +44,8 @@ import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
 const REPO_ID = 424242;
 const BRANDED_REPO_ID = brandRepoId(BigInt(REPO_ID));
 const HEAD = "a".repeat(40);
-const BASE = "b".repeat(40);
+const BASE = "c".repeat(40);
+const NEXT_HEAD = "b".repeat(40);
 const PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/regenerate`;
 const TENANT: ScopeContext = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -88,6 +91,58 @@ async function seedHead(
     return;
   }
   await claimTestRun(gen, target);
+}
+
+/** A head the webhook's author gate left waiting for a Trigger approval. */
+async function seedAwaitingHead(
+  harness: SharedPglite,
+  headSha = HEAD,
+): Promise<void> {
+  await createIngestRoutines(harness.handle, TENANT).triggerGeneration({
+    pullRequest: {
+      repoId: BRANDED_REPO_ID,
+      prNumber: PR_NUMBER,
+      repoSlug: REPO_SLUG,
+      state: PrStates.OPEN,
+    },
+    headSha,
+    debounceSeconds: 0,
+    requiresTriggerApproval: true,
+  });
+}
+
+/** The queued run takes the head's claim, as a worker does on pickup. */
+async function claimSeededHead(harness: SharedPglite): Promise<void> {
+  const pr = await createTenantRepository(
+    harness.handle,
+    TENANT,
+  ).pullRequests.getByNumber(BRANDED_REPO_ID, PR_NUMBER);
+  if (pr === undefined) {
+    throw new Error("expected the seeded pull request");
+  }
+  const gen = createGenerationProjection(harness.handle, TENANT);
+  await claimTestRun(gen, {
+    pullRequestId: pr.id,
+    kind: "brief",
+    headSha: HEAD,
+    baselineSha: null,
+  });
+}
+
+async function readApproval(
+  harness: SharedPglite,
+): Promise<Record<string, unknown> | undefined> {
+  const rows = await harness.raw(
+    "select trigger_approved_by::text as by, trigger_approved_at is not null as approved from pull_request",
+  );
+  return rows[0];
+}
+
+async function readStatuses(harness: SharedPglite): Promise<string[]> {
+  const rows = await harness.raw(
+    "select status from generation order by triggered_at",
+  );
+  return rows.map((row) => String(row["status"]));
 }
 
 async function readGenerateJobs(
@@ -153,6 +208,18 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
       ...UNUSED_INSTALLATION_DEPS,
     });
   });
+
+  async function postAsToken(): Promise<Response> {
+    const token = await seedApiToken(
+      harness.handle,
+      kp,
+      AccessLevels.EXTERNAL_WRITE,
+    );
+    return app.request(PATH, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
 
   async function postAsCookie(
     headers: Record<string, string> = SAME_ORIGIN_HEADERS,
@@ -311,25 +378,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
     expect(await readGenerateJobs(harness)).toHaveLength(0);
   });
 
-  it("queues a failed head for an external-write Bearer token", async () => {
-    arrangeFakeGate(fake, { repoId: REPO_ID });
-    await seedHead(harness, TENANT, "failed");
-    const token = await seedApiToken(
-      harness.handle,
-      kp,
-      AccessLevels.EXTERNAL_WRITE,
-    );
-
-    const res = await app.request(PATH, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    expect(res.status).toBe(202);
-    expect(await readStatus(harness)).toBe(GenerationStatuses.PENDING);
-    expect(await readGenerateJobs(harness)).toHaveLength(1);
-  });
-
   it("refuses a read-scoped Bearer token as scope-exceeded", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     await seedHead(harness, TENANT, "failed");
@@ -387,5 +435,145 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
 
     expect(res.status).toBe(403);
     expect(await readGenerateJobs(harness)).toHaveLength(0);
+  });
+
+  it("approves an awaiting-trigger head for a pusher and queues its job", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedAwaitingHead(harness);
+
+    const res = await postAsCookie();
+
+    expect(res.status).toBe(202);
+    expect(await readStatus(harness)).toBe(GenerationStatuses.PENDING);
+    expect(await readApproval(harness)).toEqual({
+      by: String(REVIEWER_ID),
+      approved: true,
+    });
+    const jobs = await readGenerateJobs(harness);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.["head"]).toBe(HEAD);
+  });
+
+  it("answers 409 generation-held to a second click once the run holds it", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedAwaitingHead(harness);
+    expect((await postAsCookie()).status).toBe(202);
+    await claimSeededHead(harness);
+
+    const res = await postAsCookie();
+
+    expect(res.status).toBe(409);
+    expect(await readCode(res)).toBe("generation-held");
+  });
+
+  it("answers 404 to a PR author without push and writes no approval", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID, push: false });
+    await seedAwaitingHead(harness);
+
+    const res = await postAsCookie();
+
+    expect(res.status).toBe(404);
+    expect(await readStatus(harness)).toBe(GenerationStatuses.AWAITING_TRIGGER);
+    expect(await readApproval(harness)).toEqual({ by: null, approved: false });
+  });
+
+  it("projects the approved PR's next gated push pending", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedAwaitingHead(harness);
+    expect((await postAsCookie()).status).toBe(202);
+
+    await seedAwaitingHead(harness, NEXT_HEAD);
+
+    expect(await readStatuses(harness)).toEqual([
+      GenerationStatuses.PENDING,
+      GenerationStatuses.PENDING,
+    ]);
+  });
+
+  it("approves only on push access GitHub confirms at the click", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedAwaitingHead(harness);
+    const headers = await signInWithWarmGate();
+    fake.addRepository({
+      repoId: BRANDED_REPO_ID,
+      fullName: REPO_SLUG,
+      private: true,
+      viewerCanPush: false,
+      viewerIsAdmin: false,
+    });
+
+    const res = await app.request(PATH, { method: "POST", headers });
+
+    expect(res.status).toBe(404);
+    expect(await readStatus(harness)).toBe(GenerationStatuses.AWAITING_TRIGGER);
+    expect(await readApproval(harness)).toEqual({ by: null, approved: false });
+  });
+
+  it("answers 502 when GitHub cannot confirm push access", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedAwaitingHead(harness);
+    const headers = await signInWithWarmGate();
+    fake.failOn("fetchRepositoryById", FakeFailures.SERVER_ERROR);
+
+    const res = await app.request(PATH, { method: "POST", headers });
+
+    expect(res.status).toBe(502);
+    expect(await readApproval(harness)).toEqual({ by: null, approved: false });
+  });
+
+  it("refuses an API token on an awaiting-trigger head as human-only", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedAwaitingHead(harness);
+    const jobsBefore = await harness.raw(
+      "select key, run_at from graphile_worker.jobs order by id",
+    );
+
+    const res = await postAsToken();
+
+    expect(res.status).toBe(403);
+    expect(await readCode(res)).toBe("human-only");
+    expect(await readStatus(harness)).toBe(GenerationStatuses.AWAITING_TRIGGER);
+    expect(await readApproval(harness)).toEqual({ by: null, approved: false });
+    expect(
+      await harness.raw(
+        "select key, run_at from graphile_worker.jobs order by id",
+      ),
+    ).toEqual(jobsBefore);
+  });
+
+  it("refuses an API token on an awaiting head without reading GitHub", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedAwaitingHead(harness);
+    const token = await seedApiToken(
+      harness.handle,
+      kp,
+      AccessLevels.EXTERNAL_WRITE,
+    );
+    const headers = { Authorization: `Bearer ${token}` };
+    const read = await app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`, {
+      headers,
+    });
+    expect(read.status).toBe(200);
+    fake.failOn("fetchRepositoryById", FakeFailures.SERVER_ERROR);
+    const callsBefore = fake.calls.length;
+
+    const res = await app.request(PATH, { method: "POST", headers });
+
+    expect(res.status).toBe(403);
+    expect(await readCode(res)).toBe("human-only");
+    expect(fake.calls).toHaveLength(callsBefore);
+    expect(await readApproval(harness)).toEqual({ by: null, approved: false });
+  });
+
+  it("still regenerates a failed head for an API token", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    await seedHead(harness, TENANT, "failed");
+
+    const res = await postAsToken();
+
+    expect(res.status).toBe(202);
+    expect(await readStatus(harness)).toBe(GenerationStatuses.PENDING);
+    expect(await readGenerateJobs(harness)).toHaveLength(1);
+    expect(await readApproval(harness)).toEqual({ by: null, approved: false });
   });
 });

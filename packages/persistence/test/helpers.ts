@@ -24,10 +24,10 @@ import {
   type TenantContext,
 } from "../src/index";
 import { parseTenantContext } from "../src/stores/scope-context";
-import { createTenantRepository } from "../src/stores/tenant";
 import { createMigratedPglite } from "../src/testing/pglite-snapshot";
 import { seedGrant } from "../src/testing/seed-grant";
 import {
+  approveTestTrigger,
   createPgliteHarness,
   type PgliteHarness,
   resetPgliteHarness,
@@ -394,8 +394,12 @@ export async function approveGatedPullRequest(
   shared: SharedPglite,
   pullRequestId: PullRequestRowId,
 ): Promise<void> {
-  const { pullRequests } = createTenantRepository(shared.handle, GATE_CTX);
-  await pullRequests.approveTrigger(pullRequestId, GATE_REVIEWER);
+  await approveTestTrigger(
+    shared.handle,
+    GATE_CTX,
+    pullRequestId,
+    GATE_REVIEWER,
+  );
 }
 
 /** Every graphile job queued so far, whatever its task. */

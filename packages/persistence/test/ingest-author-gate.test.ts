@@ -10,12 +10,11 @@ import {
 } from "../src/stores/ingest";
 import { createArtifactStore } from "../src/stores/artifact-store";
 import { createGenerationProjection } from "../src/stores/generation";
-import { createTenantRepository } from "../src/stores/tenant";
 import {
   parseTenantContext,
   type ScopeContext,
 } from "../src/stores/scope-context";
-import { claimTestRun } from "../src/testing";
+import { approveTestTrigger, claimTestRun } from "../src/testing";
 import { isGrantRowId, isPullRequestRowId, isReviewerId } from "../src/types";
 import {
   GenerationFailureCodes,
@@ -201,17 +200,20 @@ describe("triggerGeneration under the trigger approval gate", () => {
   });
 });
 
-describe("pullRequests.approveTrigger", () => {
+describe("approvePullRequestTrigger", () => {
   it("records the first approval and never moves it", async () => {
     const first = await trigger({ requiresTriggerApproval: true });
-    const { pullRequests } = createTenantRepository(shared.handle, GATE_CTX);
     const other = brandWith(isReviewerId, 4242n);
 
-    const approved = await pullRequests.approveTrigger(
+    const approved = await approveTestTrigger(
+      shared.handle,
+      GATE_CTX,
       first.pullRequest.id,
       GATE_REVIEWER,
     );
-    const again = await pullRequests.approveTrigger(
+    const again = await approveTestTrigger(
+      shared.handle,
+      GATE_CTX,
       first.pullRequest.id,
       other,
     );
@@ -224,13 +226,16 @@ describe("pullRequests.approveTrigger", () => {
 
   it("writes nothing on a PR already approved", async () => {
     const first = await trigger({ requiresTriggerApproval: true });
-    const { pullRequests } = createTenantRepository(shared.handle, GATE_CTX);
-    const approved = await pullRequests.approveTrigger(
+    const approved = await approveTestTrigger(
+      shared.handle,
+      GATE_CTX,
       first.pullRequest.id,
       GATE_REVIEWER,
     );
 
-    const again = await pullRequests.approveTrigger(
+    const again = await approveTestTrigger(
+      shared.handle,
+      GATE_CTX,
       first.pullRequest.id,
       brandWith(isReviewerId, 4242n),
     );
@@ -242,9 +247,10 @@ describe("pullRequests.approveTrigger", () => {
   it("returns undefined for a PR outside the scope and writes nothing", async () => {
     const first = await trigger();
     const otherCtx = parseTenantContext({ installationId: 101n });
-    const { pullRequests } = createTenantRepository(shared.handle, otherCtx);
 
-    const approved = await pullRequests.approveTrigger(
+    const approved = await approveTestTrigger(
+      shared.handle,
+      otherCtx,
       first.pullRequest.id,
       GATE_REVIEWER,
     );

@@ -18,6 +18,7 @@ import {
   type TenantContext,
   type TenantRepository,
 } from "../src/index";
+import { approveTestTrigger } from "../src/testing";
 import {
   isInstallationId,
   isRepoId,
@@ -66,7 +67,12 @@ describe("createTenantRepository row_version", () => {
     const commented = swapped.ok ? swapped.value : undefined;
     const drafted = await pullRequests.setDraft(inserted.id, true);
     const stacked = await pullRequests.recordStack(inserted.id, stack);
-    const approved = await pullRequests.approveTrigger(inserted.id, REVIEWER);
+    const approved = await approveTestTrigger(
+      handle,
+      CTX_A,
+      inserted.id,
+      REVIEWER,
+    );
     const versions = [
       inserted,
       upserted,

@@ -1,5 +1,5 @@
-// A pusher's Regenerate on a failed head: a fresh claim budget and the PR's
-// job queued again, or a refusal that writes nothing.
+// A pusher's click on a failed or awaiting-trigger head: a fresh claim budget
+// and the PR's job queued again, or a refusal that writes nothing.
 import { describe, expect, it } from "vitest";
 import {
   ClaimOutcomes,
@@ -7,8 +7,9 @@ import {
   createGenerationProjection,
   createIngestRoutines,
   createTenantRepository,
+  GenerationErrorCodes,
   MAX_GENERATION_ATTEMPTS,
-  RegenerateOutcomes,
+  TriggerOnDemandOutcomes,
   type ClaimOutcome,
   type GenerationFailure,
   type GenerationProjection,
@@ -17,6 +18,7 @@ import {
   type ScopeContext,
   type TenantContext,
 } from "../src/index";
+import { TRIGGER_ON_DEMAND_DELAY_SECONDS } from "../src/stores/ingest";
 import { claimTestRun, succeedTestRun } from "../src/testing";
 import {
   isInstallationId,
@@ -41,13 +43,14 @@ const ANY_DAY = {
   from: new Date(0),
   to: new Date("2100-01-01T00:00:00.000Z"),
 } as const;
-const REGENERATE_DELAY_SECONDS = 10;
 const DELAY_SLACK_SECONDS = 2;
+const APPROVER = brandWith(isReviewerId, 900n);
+const LATER_APPROVER = brandWith(isReviewerId, 901n);
 const TIMEOUT: GenerationFailure = {
   code: GenerationFailureCodes.PROVIDER_TIMEOUT,
 };
 
-interface RegenerateWorld {
+interface TriggerOnDemandWorld {
   readonly gen: GenerationProjection;
   readonly pullRequestId: PullRequestRowId;
   readonly target: ReturnType<typeof makeBriefTarget>;
@@ -55,7 +58,7 @@ interface RegenerateWorld {
 
 const shared = registerSharedPglite();
 
-async function makeWorld(headSha = HEAD): Promise<RegenerateWorld> {
+async function makeWorld(headSha = HEAD): Promise<TriggerOnDemandWorld> {
   const pr = await createTenantRepository(
     shared.handle,
     CTX,
@@ -71,7 +74,7 @@ async function makeWorld(headSha = HEAD): Promise<RegenerateWorld> {
 }
 
 async function failHead(
-  world: RegenerateWorld,
+  world: TriggerOnDemandWorld,
   failure: GenerationFailure = TIMEOUT,
 ): Promise<void> {
   const runId = await claimTestRun(world.gen, world.target);
@@ -84,7 +87,7 @@ async function failHead(
   }
 }
 
-async function readRow(world: RegenerateWorld): Promise<GenerationRow> {
+async function readRow(world: TriggerOnDemandWorld): Promise<GenerationRow> {
   const row = await world.gen.get(world.target);
   if (row === undefined) {
     throw new Error("expected the head's generation row");
@@ -98,7 +101,15 @@ async function readJobs(): Promise<Record<string, unknown>[]> {
   );
 }
 
-async function claimOutcome(world: RegenerateWorld): Promise<ClaimOutcome> {
+async function readJobRunAts(): Promise<Record<string, unknown>[]> {
+  return shared.harness.raw(
+    "select key, run_at from graphile_worker.jobs order by id",
+  );
+}
+
+async function claimOutcome(
+  world: TriggerOnDemandWorld,
+): Promise<ClaimOutcome> {
   const claimed = await world.gen.claimRun({
     target: world.target,
     ...LAPSED_LEASE,
@@ -121,7 +132,7 @@ async function closePullRequest(
   });
 }
 
-async function storeBrief(world: RegenerateWorld): Promise<void> {
+async function storeBrief(world: TriggerOnDemandWorld): Promise<void> {
   await createTenantRepository(shared.handle, CTX).pullRequests.upsert({
     repoId: brandWith(isRepoId, 777n),
     prNumber: 7,
@@ -142,20 +153,56 @@ async function storeBrief(world: RegenerateWorld): Promise<void> {
   });
 }
 
-function regenerate(world: RegenerateWorld, ctx: ScopeContext = CTX) {
-  return createIngestRoutines(shared.handle, ctx).regenerateFailedHead({
+function triggerOnDemand(
+  world: TriggerOnDemandWorld,
+  ctx: ScopeContext = CTX,
+  approverId = APPROVER,
+) {
+  return createIngestRoutines(shared.handle, ctx).triggerOnDemand({
     pullRequestId: world.pullRequestId,
+    approverId,
   });
 }
 
-describe("regenerateFailedHead", () => {
+/** A PR whose author owes a Trigger approval, as the webhook's gate leaves it. */
+async function makeGatedWorld(): Promise<TriggerOnDemandWorld> {
+  const triggered = await createIngestRoutines(
+    shared.handle,
+    CTX,
+  ).triggerGeneration({
+    pullRequest: {
+      repoId: brandWith(isRepoId, 777n),
+      prNumber: 7,
+      state: PrStates.OPEN,
+    },
+    headSha: HEAD,
+    debounceSeconds: 0,
+    requiresTriggerApproval: true,
+  });
+  const pullRequestId = triggered.pullRequest.id;
+  const gen = createGenerationProjection(shared.handle, CTX);
+  return { gen, pullRequestId, target: makeBriefTarget(pullRequestId, HEAD) };
+}
+
+async function readApproval(world: TriggerOnDemandWorld) {
+  const pr = await createTenantRepository(
+    shared.handle,
+    CTX,
+  ).pullRequests.getById(world.pullRequestId);
+  if (pr === undefined) {
+    throw new Error("expected the pull request row");
+  }
+  return { by: pr.triggerApprovedBy, at: pr.triggerApprovedAt };
+}
+
+describe("triggerOnDemand", () => {
   it("projects a failed head pending with no claims and queues its job", async () => {
     const world = await makeWorld();
     await failHead(world);
 
-    const outcome = await regenerate(world);
+    const outcome = await triggerOnDemand(world);
 
-    expect(outcome).toBe(RegenerateOutcomes.QUEUED);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.QUEUED);
     const row = await readRow(world);
     expect(row.status).toBe(GenerationStatuses.PENDING);
     expect(row.claims).toBe(0);
@@ -167,9 +214,9 @@ describe("regenerateFailedHead", () => {
     expect(jobs[0]?.["head"]).toBe(HEAD);
     const delay = Number(jobs[0]?.["delay"]);
     expect(delay).toBeGreaterThan(
-      REGENERATE_DELAY_SECONDS - DELAY_SLACK_SECONDS,
+      TRIGGER_ON_DEMAND_DELAY_SECONDS - DELAY_SLACK_SECONDS,
     );
-    expect(delay).toBeLessThanOrEqual(REGENERATE_DELAY_SECONDS);
+    expect(delay).toBeLessThanOrEqual(TRIGGER_ON_DEMAND_DELAY_SECONDS);
   });
 
   it("pulls a failed head's waiting retry job in to the short window", async () => {
@@ -181,12 +228,12 @@ describe("regenerateFailedHead", () => {
       delaySeconds: 600,
     });
 
-    await regenerate(world);
+    await triggerOnDemand(world);
 
     const jobs = await readJobs();
     expect(jobs).toHaveLength(1);
     expect(Number(jobs[0]?.["delay"])).toBeLessThanOrEqual(
-      REGENERATE_DELAY_SECONDS,
+      TRIGGER_ON_DEMAND_DELAY_SECONDS,
     );
   });
 
@@ -201,7 +248,7 @@ describe("regenerateFailedHead", () => {
     });
     expect(failed.ok).toBe(true);
 
-    expect(await regenerate(world)).toBe(RegenerateOutcomes.QUEUED);
+    expect(await triggerOnDemand(world)).toBe(TriggerOnDemandOutcomes.QUEUED);
 
     const claims = [];
     for (let claim = 0; claim <= MAX_GENERATION_ATTEMPTS; claim += 1) {
@@ -219,9 +266,9 @@ describe("regenerateFailedHead", () => {
     const runId = await claimTestRun(world.gen, world.target);
     const before = await readRow(world);
 
-    const outcome = await regenerate(world);
+    const outcome = await triggerOnDemand(world);
 
-    expect(outcome).toBe(RegenerateOutcomes.HELD);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.HELD);
     const after = await readRow(world);
     expect(after.runId).toBe(runId);
     expect(after.updatedAt).toEqual(before.updatedAt);
@@ -240,9 +287,9 @@ describe("regenerateFailedHead", () => {
       "update graphile_worker.jobs set locked_at = now() - interval '1 hour'",
     );
 
-    const outcome = await regenerate(world);
+    const outcome = await triggerOnDemand(world);
 
-    expect(outcome).toBe(RegenerateOutcomes.QUEUED);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.QUEUED);
     expect((await readRow(world)).status).toBe(GenerationStatuses.PENDING);
     const jobs = await readJobs();
     expect(jobs.map((job) => job["key"])).toEqual([
@@ -264,9 +311,9 @@ describe("regenerateFailedHead", () => {
     );
     const runId = await claimTestRun(world.gen, world.target);
 
-    const outcome = await regenerate(world);
+    const outcome = await triggerOnDemand(world);
 
-    expect(outcome).toBe(RegenerateOutcomes.HELD);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.HELD);
     expect((await readRow(world)).runId).toBe(runId);
     expect(await readJobs()).toHaveLength(1);
   });
@@ -275,9 +322,9 @@ describe("regenerateFailedHead", () => {
     const world = await makeWorld();
     await succeedTestRun(world.gen, world.target);
 
-    const outcome = await regenerate(world);
+    const outcome = await triggerOnDemand(world);
 
-    expect(outcome).toBe(RegenerateOutcomes.NOT_REGENERABLE);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.NOT_REGENERABLE);
     expect((await readRow(world)).status).toBe(GenerationStatuses.SUCCEEDED);
     expect(await readJobs()).toHaveLength(0);
   });
@@ -285,19 +332,21 @@ describe("regenerateFailedHead", () => {
   it.each([
     [
       "superseded",
-      (gen: GenerationProjection, target: RegenerateWorld["target"]) =>
+      (gen: GenerationProjection, target: TriggerOnDemandWorld["target"]) =>
         gen.markSuperseded(target),
     ],
     [
       "capped",
-      (gen: GenerationProjection, target: RegenerateWorld["target"]) =>
+      (gen: GenerationProjection, target: TriggerOnDemandWorld["target"]) =>
         gen.markCapped(target),
     ],
   ])("refuses a %s head as not regenerable", async (_status, settle) => {
     const world = await makeWorld();
     await settle(world.gen, world.target);
 
-    expect(await regenerate(world)).toBe(RegenerateOutcomes.NOT_REGENERABLE);
+    expect(await triggerOnDemand(world)).toBe(
+      TriggerOnDemandOutcomes.NOT_REGENERABLE,
+    );
     expect(await readJobs()).toHaveLength(0);
   });
 
@@ -309,7 +358,9 @@ describe("regenerateFailedHead", () => {
     const world = await makeWorld();
     await failHead(world, { code });
 
-    expect(await regenerate(world)).toBe(RegenerateOutcomes.NOT_REGENERABLE);
+    expect(await triggerOnDemand(world)).toBe(
+      TriggerOnDemandOutcomes.NOT_REGENERABLE,
+    );
     expect((await readRow(world)).errorCode).toBe(code);
     expect(await readJobs()).toHaveLength(0);
   });
@@ -321,7 +372,9 @@ describe("regenerateFailedHead", () => {
       await failHead(world);
       await closePullRequest(state);
 
-      expect(await regenerate(world)).toBe(RegenerateOutcomes.NOT_REGENERABLE);
+      expect(await triggerOnDemand(world)).toBe(
+        TriggerOnDemandOutcomes.NOT_REGENERABLE,
+      );
       const row = await readRow(world);
       expect(row.status).toBe(GenerationStatuses.FAILED);
       expect(row.errorCode).toBe(TIMEOUT.code);
@@ -334,7 +387,9 @@ describe("regenerateFailedHead", () => {
     await failHead(world);
     await storeBrief(world);
 
-    expect(await regenerate(world)).toBe(RegenerateOutcomes.NOT_REGENERABLE);
+    expect(await triggerOnDemand(world)).toBe(
+      TriggerOnDemandOutcomes.NOT_REGENERABLE,
+    );
     expect((await readRow(world)).status).toBe(GenerationStatuses.FAILED);
     expect(await readJobs()).toHaveLength(0);
   });
@@ -348,7 +403,9 @@ describe("regenerateFailedHead", () => {
       `update generation set triggered_at = now() + interval '1 second' where head_sha = '${HEAD}'`,
     );
 
-    expect(await regenerate(world)).toBe(RegenerateOutcomes.NOT_REGENERABLE);
+    expect(await triggerOnDemand(world)).toBe(
+      TriggerOnDemandOutcomes.NOT_REGENERABLE,
+    );
     expect((await readRow(world)).status).toBe(GenerationStatuses.FAILED);
   });
 
@@ -365,17 +422,17 @@ describe("regenerateFailedHead", () => {
     const outcome = await createIngestRoutines(
       shared.handle,
       CTX,
-    ).regenerateFailedHead({ pullRequestId: pr.id });
+    ).triggerOnDemand({ pullRequestId: pr.id, approverId: APPROVER });
 
-    expect(outcome).toBe(RegenerateOutcomes.NOT_REGENERABLE);
+    expect(outcome).toBe(TriggerOnDemandOutcomes.NOT_REGENERABLE);
   });
 
   it("answers not found for a pull request outside the scope", async () => {
     const world = await makeWorld();
     await failHead(world);
 
-    expect(await regenerate(world, OTHER_CTX)).toBe(
-      RegenerateOutcomes.NOT_FOUND,
+    expect(await triggerOnDemand(world, OTHER_CTX)).toBe(
+      TriggerOnDemandOutcomes.NOT_FOUND,
     );
     expect((await readRow(world)).status).toBe(GenerationStatuses.FAILED);
     expect(await readJobs()).toHaveLength(0);
@@ -388,9 +445,130 @@ describe("regenerateFailedHead", () => {
       ownerUserId: brandWith(isReviewerId, 42n),
     };
 
-    expect(await regenerate(world, ownerCtx)).toBe(
-      RegenerateOutcomes.NOT_FOUND,
+    expect(await triggerOnDemand(world, ownerCtx)).toBe(
+      TriggerOnDemandOutcomes.NOT_FOUND,
     );
     expect(await readJobs()).toHaveLength(0);
+  });
+
+  it("approves an awaiting-trigger head and queues its job", async () => {
+    const world = await makeGatedWorld();
+    expect((await readRow(world)).status).toBe(
+      GenerationStatuses.AWAITING_TRIGGER,
+    );
+
+    const outcome = await triggerOnDemand(world);
+
+    expect(outcome).toBe(TriggerOnDemandOutcomes.QUEUED);
+    expect((await readRow(world)).status).toBe(GenerationStatuses.PENDING);
+    const approval = await readApproval(world);
+    expect(approval.by).toBe(APPROVER);
+    expect(approval.at).toBeInstanceOf(Date);
+    const jobs = await readJobs();
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.["head"]).toBe(HEAD);
+    expect(Number(jobs[0]?.["delay"])).toBeLessThanOrEqual(
+      TRIGGER_ON_DEMAND_DELAY_SECONDS,
+    );
+  });
+
+  it("keeps the first approval when a later click approves again", async () => {
+    const world = await makeGatedWorld();
+    await triggerOnDemand(world);
+    const first = await readApproval(world);
+    // The hold refuses an approved PR, so the held row is staged directly.
+    await shared.harness.raw(
+      "update generation set status = 'awaiting-trigger'",
+    );
+
+    expect(await triggerOnDemand(world, CTX, LATER_APPROVER)).toBe(
+      TriggerOnDemandOutcomes.QUEUED,
+    );
+
+    expect(await readApproval(world)).toEqual(first);
+  });
+
+  it("refuses a closed pull request awaiting its trigger, approving nothing", async () => {
+    const world = await makeGatedWorld();
+    const jobsBefore = await readJobs();
+    await closePullRequest(PrStates.CLOSED);
+
+    expect(await triggerOnDemand(world)).toBe(
+      TriggerOnDemandOutcomes.NOT_REGENERABLE,
+    );
+    expect(await readApproval(world)).toEqual({ by: null, at: null });
+    expect((await readRow(world)).status).toBe(
+      GenerationStatuses.AWAITING_TRIGGER,
+    );
+    expect(await readJobs()).toHaveLength(jobsBefore.length);
+  });
+
+  it("keeps an approved head pending against an older bot run's hold", async () => {
+    const world = await makeWorld();
+    const first = await world.gen.markAwaitingTrigger(world.target);
+    expect(first.ok).toBe(true);
+    expect(await triggerOnDemand(world)).toBe(TriggerOnDemandOutcomes.QUEUED);
+
+    const stale = await world.gen.markAwaitingTrigger(world.target);
+
+    expect(!stale.ok && stale.error.code).toBe(
+      GenerationErrorCodes.TRIGGER_APPROVED,
+    );
+    expect((await readRow(world)).status).toBe(GenerationStatuses.PENDING);
+  });
+
+  it("approves a gated head past a job a dead worker left locked", async () => {
+    const world = await makeGatedWorld();
+    await shared.harness.raw(
+      "update graphile_worker.jobs set locked_at = now() - interval '1 hour'",
+    );
+
+    expect(await triggerOnDemand(world)).toBe(TriggerOnDemandOutcomes.QUEUED);
+
+    expect((await readApproval(world)).by).toBe(APPROVER);
+    expect((await readRow(world)).status).toBe(GenerationStatuses.PENDING);
+    const jobs = await readJobs();
+    expect(jobs.map((job) => job["key"])).toEqual([
+      null,
+      `generate:${world.pullRequestId}`,
+    ]);
+  });
+
+  it("writes no approval when it regenerates a failed head", async () => {
+    const world = await makeWorld();
+    await failHead(world);
+
+    expect(await triggerOnDemand(world)).toBe(TriggerOnDemandOutcomes.QUEUED);
+
+    expect(await readApproval(world)).toEqual({ by: null, at: null });
+  });
+
+  it("refuses an awaiting-trigger head when the caller names no approver", async () => {
+    const world = await makeGatedWorld();
+    const jobsBefore = await readJobRunAts();
+
+    const outcome = await createIngestRoutines(
+      shared.handle,
+      CTX,
+    ).triggerOnDemand({ pullRequestId: world.pullRequestId });
+
+    expect(outcome).toBe(TriggerOnDemandOutcomes.NEEDS_APPROVER);
+    expect(await readApproval(world)).toEqual({ by: null, at: null });
+    expect((await readRow(world)).status).toBe(
+      GenerationStatuses.AWAITING_TRIGGER,
+    );
+    expect(await readJobRunAts()).toEqual(jobsBefore);
+  });
+
+  it("regenerates a failed head for a caller that names no approver", async () => {
+    const world = await makeWorld();
+    await failHead(world);
+
+    const outcome = await createIngestRoutines(
+      shared.handle,
+      CTX,
+    ).triggerOnDemand({ pullRequestId: world.pullRequestId });
+
+    expect(outcome).toBe(TriggerOnDemandOutcomes.QUEUED);
   });
 });

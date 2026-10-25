@@ -15,7 +15,18 @@ import type {
   GenerationRow,
   GenerationTarget,
 } from "../stores/generation";
-import { ClaimOutcomes, type GenerationFailure } from "../types";
+import { resolveScope } from "../stores/scope";
+import type { ScopeContext } from "../stores/scope-context";
+import {
+  approvePullRequestTrigger,
+  type PullRequestRow,
+} from "../stores/tenant";
+import {
+  ClaimOutcomes,
+  type GenerationFailure,
+  type PullRequestRowId,
+  type ReviewerId,
+} from "../types";
 import {
   GenerationPhases,
   GenerationStatuses,
@@ -186,6 +197,21 @@ export async function failTestRun(
     throw new Error(finished.error.message);
   }
   return finished.value;
+}
+
+/** Record a collaborator's Trigger approval through the write a Generate click runs. */
+export async function approveTestTrigger(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  pullRequestId: PullRequestRowId,
+  reviewerId: ReviewerId,
+): Promise<PullRequestRow | undefined> {
+  return approvePullRequestTrigger(
+    internal(handle),
+    resolveScope(ctx),
+    pullRequestId,
+    reviewerId,
+  );
 }
 
 /**

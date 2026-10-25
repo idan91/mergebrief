@@ -1,9 +1,15 @@
-import type { RegenerateOutcome, RegenerateOutcomes } from "persistence";
+import type {
+  TriggerOnDemandOutcome,
+  TriggerOnDemandOutcomes,
+} from "persistence";
 import type { FreshRepositoryFailure } from "../../logic/fresh-repository";
 
 /** A refusal from the store; each one wrote nothing. */
 interface RegenerateRefusal {
-  readonly kind: Exclude<RegenerateOutcome, typeof RegenerateOutcomes.QUEUED>;
+  readonly kind: Exclude<
+    TriggerOnDemandOutcome,
+    typeof TriggerOnDemandOutcomes.QUEUED
+  >;
 }
 
 /** The fresh read says the viewer cannot push, so nothing is queued. */

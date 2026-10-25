@@ -29,7 +29,11 @@ import {
   upsertPullRequestRow,
   type UpsertExecutor,
 } from "./pull-request-upsert";
-import type { PullRequestRow, PullRequestUpsertInput } from "./tenant";
+import {
+  approvePullRequestTrigger,
+  type PullRequestRow,
+  type PullRequestUpsertInput,
+} from "./tenant";
 import {
   addQueueJob,
   buildJobPayload,
@@ -50,16 +54,18 @@ import {
 import {
   GenerationKinds,
   JobKeyModes,
-  RegenerateOutcomes,
+  TriggerOnDemandOutcomes,
   type BriefRowId,
   type GrantRowId,
   type PullRequestRowId,
-  type RegenerateOutcome,
+  type TriggerOnDemandOutcome,
+  type ReviewerId,
   type UncoveredWork,
 } from "../types";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
-const REGENERATE_DELAY_SECONDS = 10;
+/** How far out a Generate or Regenerate click queues the head's job. */
+export const TRIGGER_ON_DEMAND_DELAY_SECONDS = 10;
 
 /**
  * A head a live read stamped, cleared when this newer event reports another:
@@ -294,33 +300,37 @@ function isRerunHopeless(row: GenerationRow): boolean {
 }
 
 /**
- * Why the current head cannot take a fresh run, or `undefined` when it can.
- * A closed or merged PR has nothing left to generate for. Only a live claim
- * holds the head, as on a push: a dead worker's job stays locked for hours,
- * and a live one that has not claimed yet meets the reset row's fence. A head
- * whose brief is stored failed after it, and a fresh run there would claim
- * nothing.
+ * Why the current head cannot take a fresh run, or `undefined` when it can:
+ * a head waiting for its Trigger approval, or one that failed in a way a
+ * rerun can help. A closed or merged PR has nothing left to generate for.
+ * Only a live claim holds the head, as on a push: a dead worker's job stays
+ * locked for hours, and a live one that has not claimed yet meets the reset
+ * row's fence. A failed head whose brief is stored failed after it, and a
+ * fresh run there would claim nothing.
  */
-async function findRegenerateRefusal(
+async function findTriggerOnDemandRefusal(
   tx: IngestTransaction,
   scope: RowScope,
   prRow: PullRequestRow,
   head: ProjectedGeneration,
-): Promise<RegenerateOutcome | undefined> {
+): Promise<TriggerOnDemandOutcome | undefined> {
   if (prRow.state !== PrStates.OPEN) {
-    return RegenerateOutcomes.NOT_REGENERABLE;
+    return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }
   if (head.held) {
-    return RegenerateOutcomes.HELD;
+    return TriggerOnDemandOutcomes.HELD;
+  }
+  if (head.row.status === GenerationStatuses.AWAITING_TRIGGER) {
+    return undefined;
   }
   const failed = head.row.status === GenerationStatuses.FAILED;
   const regenerable = failed && !isRerunHopeless(head.row);
   if (!regenerable) {
-    return RegenerateOutcomes.NOT_REGENERABLE;
+    return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }
   const storedBrief = await findStoredBrief(tx, scope, prRow, head.row.headSha);
   if (storedBrief !== undefined) {
-    return RegenerateOutcomes.NOT_REGENERABLE;
+    return TriggerOnDemandOutcomes.NOT_REGENERABLE;
   }
   return undefined;
 }
@@ -455,20 +465,25 @@ export interface IngestRoutines {
    */
   releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
   /**
-   * A pusher's fresh run of the PR's failed current head: projected `pending`
-   * with its claims reset, and the job queued a few seconds out, replacing a
-   * waiting one; a locked job gets its key detached, as on a push. A closed or
-   * merged PR, a head under a live claim, a head that is not failed or whose
-   * failure class is cannot-help, a head whose brief is stored, and a PR
-   * outside an installation scope write nothing.
+   * A pusher's fresh run of the PR's current head: projected `pending` with
+   * its claims reset, and the job queued a few seconds out, replacing a
+   * waiting one; a locked job gets its key detached, as on a push. A head
+   * awaiting its trigger also records the approver's Trigger approval in the
+   * same transaction, and is refused when the caller named none; a failed
+   * head records none. A closed or merged PR, a head under a live claim, any
+   * other status, a failure whose class is cannot-help, a failed head whose
+   * brief is stored, and a PR outside an installation scope write nothing.
    */
-  regenerateFailedHead(
-    input: RegenerateFailedHeadInput,
-  ): Promise<RegenerateOutcome>;
+  triggerOnDemand(input: TriggerOnDemandInput): Promise<TriggerOnDemandOutcome>;
 }
 
-export interface RegenerateFailedHeadInput {
+export interface TriggerOnDemandInput {
   readonly pullRequestId: PullRequestRowId;
+  /**
+   * The pusher recorded as the PR's Trigger approver. Only a caller that may
+   * approve names one; without it an awaiting-trigger head is refused.
+   */
+  readonly approverId?: ReviewerId;
 }
 
 export interface RequeueGenerateJobInput {
@@ -711,7 +726,7 @@ export function createIngestRoutines(
           scope,
           { headSha, refreshRunAt: true },
           pullRequestId,
-          REGENERATE_DELAY_SECONDS,
+          TRIGGER_ON_DEMAND_DELAY_SECONDS,
         );
         return { queued: true };
       });
@@ -743,25 +758,37 @@ export function createIngestRoutines(
       });
     },
 
-    async regenerateFailedHead(input) {
+    async triggerOnDemand(input) {
       if (scope.ownerUserId !== null) {
-        return RegenerateOutcomes.NOT_FOUND;
+        return TriggerOnDemandOutcomes.NOT_FOUND;
       }
 
       return db.transaction(async (tx) => {
         const { pullRequestId } = input;
         const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
         if (prRow === undefined) {
-          return RegenerateOutcomes.NOT_FOUND;
+          return TriggerOnDemandOutcomes.NOT_FOUND;
         }
 
         const head = await readCurrentBriefHead(tx, scope, pullRequestId);
         if (head === undefined) {
-          return RegenerateOutcomes.NOT_REGENERABLE;
+          return TriggerOnDemandOutcomes.NOT_REGENERABLE;
         }
-        const refusal = await findRegenerateRefusal(tx, scope, prRow, head);
+        const refusal = await findTriggerOnDemandRefusal(
+          tx,
+          scope,
+          prRow,
+          head,
+        );
         if (refusal !== undefined) {
           return refusal;
+        }
+        const awaitingTrigger =
+          head.row.status === GenerationStatuses.AWAITING_TRIGGER;
+        const { approverId } = input;
+        const approverMissing = awaitingTrigger && approverId === undefined;
+        if (approverMissing) {
+          return TriggerOnDemandOutcomes.NEEDS_APPROVER;
         }
 
         const { headSha } = head.row;
@@ -772,7 +799,11 @@ export function createIngestRoutines(
           baselineSha: null,
         });
         if (projected.held) {
-          return RegenerateOutcomes.HELD;
+          return TriggerOnDemandOutcomes.HELD;
+        }
+        const approves = awaitingTrigger && approverId !== undefined;
+        if (approves) {
+          await approvePullRequestTrigger(tx, scope, pullRequestId, approverId);
         }
         await stampBriefTriggered(tx, scope, pullRequestId, headSha);
         await enqueueGenerateJob(
@@ -780,9 +811,9 @@ export function createIngestRoutines(
           scope,
           { headSha, refreshRunAt: true },
           pullRequestId,
-          REGENERATE_DELAY_SECONDS,
+          TRIGGER_ON_DEMAND_DELAY_SECONDS,
         );
-        return RegenerateOutcomes.QUEUED;
+        return TriggerOnDemandOutcomes.QUEUED;
       });
     },
 

@@ -13,11 +13,12 @@ import {
   isPullRequestRowId,
   isRepoId,
   parseTenantContext,
-  RegenerateOutcomes,
+  TriggerOnDemandOutcomes,
   type AppDatabase,
   type PullRequestRowId,
   type RepoId,
 } from "persistence";
+import { approveTestTrigger } from "persistence/testing";
 import { PrStates } from "types/pull-requests";
 import { AccessLevels } from "types/access-levels";
 import { startTestTracing, type TestTracing } from "logging/testing";
@@ -875,10 +876,12 @@ describe("POST /api/webhooks/github", () => {
 
     async function approvePullRequest(): Promise<void> {
       const pullRequestId = await readPullRequestRowId();
-      await createTenantRepository(
+      await approveTestTrigger(
         harness.handle,
         tenantCtx,
-      ).pullRequests.approveTrigger(pullRequestId, approverId);
+        pullRequestId,
+        approverId,
+      );
     }
 
     async function deliverAdmittedOpen(): Promise<void> {
@@ -1224,8 +1227,8 @@ describe("POST /api/webhooks/github", () => {
       const regenerated = await createIngestRoutines(
         harness.handle,
         tenantCtx,
-      ).regenerateFailedHead({ pullRequestId: await readPullRequestRowId() });
-      expect(regenerated).toBe(RegenerateOutcomes.QUEUED);
+      ).triggerOnDemand({ pullRequestId: await readPullRequestRowId() });
+      expect(regenerated).toBe(TriggerOnDemandOutcomes.QUEUED);
     });
 
     it("keeps a held head held when a later author read fails", async () => {
