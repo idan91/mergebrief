@@ -1,5 +1,6 @@
 // Closure-free BriefView logic: derivations extracted from the view hooks
 // so they are unit-testable directly, without rendering.
+import type { AttributeDisplayMeta } from "../../../model/utils/repo-config";
 import {
   type DiffSide,
   DiffSides,
@@ -609,4 +610,36 @@ export function resolveDiffViewToggle({
         : t("brief.diff.viewUnified"),
     );
   };
+}
+
+export type RepoPolicyCaptionInput = Pick<
+  AttributeDisplayMeta,
+  "source" | "deEmphasized" | "implication"
+>;
+
+/** The repo-policy captions beside a risk label, on one line; a second caption reads mid-line. */
+export function buildRepoPolicyCaption(
+  t: TFunction,
+  { source, deEmphasized, implication }: RepoPolicyCaptionInput,
+): string | undefined {
+  const captions: string[] = [];
+  if (source === "repo-policy") {
+    const lead =
+      implication === undefined || implication === ""
+        ? t("brief.riskBadge.repoPolicyLead")
+        : t("brief.riskBadge.repoPolicyWithImplication", { implication });
+    captions.push(lead);
+  }
+  if (deEmphasized) {
+    const followsLead = captions.length > 0;
+    captions.push(
+      followsLead
+        ? t("brief.riskBadge.deEmphasized", { context: "inline" })
+        : t("brief.riskBadge.deEmphasized"),
+    );
+  }
+  if (captions.length === 0) {
+    return undefined;
+  }
+  return captions.join(" · ");
 }

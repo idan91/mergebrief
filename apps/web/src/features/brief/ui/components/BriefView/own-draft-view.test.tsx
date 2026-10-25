@@ -174,7 +174,7 @@ describe("own-draft Brief view", () => {
   it("renders risk flags as a read-only mirror, no disposition controls", async () => {
     await renderBriefView({ markReady: vi.fn() });
     // The flags stay fully visible (the mirror)…
-    expect(screen.getAllByText("no-tests").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("No tests").length).toBeGreaterThan(0);
     // …but every disposition control is gone.
     expect(screen.queryByRole("button", { name: "Addressed" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^dismiss/i })).toBeNull();

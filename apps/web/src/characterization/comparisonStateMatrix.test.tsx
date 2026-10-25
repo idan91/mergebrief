@@ -395,7 +395,7 @@ describe("comparison state matrix characterization", () => {
     );
 
     expect(screen.getByText("Tighten validation")).toBeTruthy();
-    expect(screen.queryByText(/Changes only ·/)).toBeNull();
+    expect(screen.queryByText(/Changes since /)).toBeNull();
     const offButton = screen.getByRole("radio", { name: "Off" });
     expect((offButton as HTMLInputElement).checked).toBe(true);
   });
@@ -477,7 +477,7 @@ describe("comparison state matrix characterization", () => {
     // Changes+off has no product meaning and there's nothing to fall back to,
     // normalization keeps the page on Full Brief.
     expect(screen.getByText("Lonely group")).toBeTruthy();
-    expect(screen.queryByText(/Changes only ·/)).toBeNull();
+    expect(screen.queryByText(/Changes since /)).toBeNull();
     expect(
       (screen.getByRole("radio", { name: "Full brief" }) as HTMLInputElement)
         .checked,
@@ -536,9 +536,7 @@ describe("comparison state matrix characterization", () => {
       compare: "last-review",
     });
     await waitFor(() =>
-      expect(
-        screen.getByText(/Changes only · since your last review/),
-      ).toBeTruthy(),
+      expect(screen.getByText(/Changes since your last review/)).toBeTruthy(),
     );
   });
 });

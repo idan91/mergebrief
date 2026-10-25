@@ -12,7 +12,7 @@ function renderDisclosure() {
       coreAdded={318}
       coreDeleted={54}
     >
-      core lines
+      Core lines
     </CoreLinesDisclosure>,
   );
 }
@@ -20,18 +20,18 @@ function renderDisclosure() {
 describe("CoreLinesDisclosure", () => {
   it("renders a closed focusable trigger named by its visible content", () => {
     renderDisclosure();
-    const trigger = screen.getByRole("button", { name: "core lines" });
+    const trigger = screen.getByRole("button", { name: "Core lines" });
     expect(trigger.dataset["state"]).toBe("closed");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("opens on click with both scopes and the derivation caveat", () => {
     renderDisclosure();
-    const trigger = screen.getByRole("button", { name: "core lines" });
+    const trigger = screen.getByRole("button", { name: "Core lines" });
     fireEvent.click(trigger);
     expect(trigger.dataset["state"]).toBe("open");
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("all lines")).toBeTruthy();
+    expect(screen.getByText("All lines")).toBeTruthy();
     expect(screen.getByText("+318")).toBeTruthy();
     expect(screen.getByText("−54")).toBeTruthy();
     expect(screen.getByText("+412")).toBeTruthy();
@@ -44,7 +44,7 @@ describe("CoreLinesDisclosure", () => {
 
   it("a second activation collapses again", () => {
     renderDisclosure();
-    const trigger = screen.getByRole("button", { name: "core lines" });
+    const trigger = screen.getByRole("button", { name: "Core lines" });
     fireEvent.click(trigger);
     fireEvent.click(trigger);
     expect(trigger.dataset["state"]).toBe("closed");
@@ -53,7 +53,7 @@ describe("CoreLinesDisclosure", () => {
 
   it("Escape dismisses and the key never reaches page-level handlers", () => {
     renderDisclosure();
-    const trigger = screen.getByRole("button", { name: "core lines" });
+    const trigger = screen.getByRole("button", { name: "Core lines" });
     fireEvent.click(trigger);
     let leaked = false;
     const pageListener = () => {

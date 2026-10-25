@@ -27,7 +27,7 @@ test("a Changes Only deep link renders the comparison span", async ({
 
   // The revision narrative for this span, not the whole brief's story.
   await expect(page.locator("#main-content")).toContainText(
-    "Changes only · since the previous Brief",
+    "Changes since the previous brief",
   );
   await expect(page.locator("#main-content")).toContainText(
     "This revision extracts the chunk scroller",

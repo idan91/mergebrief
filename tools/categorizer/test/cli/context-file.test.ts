@@ -136,8 +136,8 @@ describe("describeUnreadPrimary", () => {
         status: "unread",
         reason: "unsupported",
       }),
-    ).toContain(
-      "error: https://github.com/o/r/issues/7 could not be read (unsupported)",
+    ).toBe(
+      "error: https://github.com/o/r/issues/7 could not be read (unsupported) \u2014 no GitHub reader is configured on this deployment",
     );
   });
 });

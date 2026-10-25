@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { compile } from "sass";
 import { describe, expect, it, vi } from "vitest";
+import { SYNTAX_PALETTE } from "@web/utils/diffTokens/palette";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { DiffRows } from ".";
+import tokenStyles from "./DiffCodeText/DiffCodeText.module.scss";
+import { DiffViews } from "./types";
 import { isFullWidthDiffRow } from "./utils";
 
 function stubRows(): DiffLine[] {
@@ -31,7 +37,9 @@ describe("DiffRows intra-line emphasis", () => {
 
   it("marks the emphasised runs of paired rows in unified view", () => {
     const view = renderRows({ emphasisByRow });
-    const marks = view.container.querySelectorAll("mark");
+    const marks = view.container.querySelectorAll(
+      '[data-testid="diff-emphasis"]',
+    );
 
     expect([...marks].map((mark) => mark.textContent)).toEqual([
       "gone",
@@ -43,12 +51,110 @@ describe("DiffRows intra-line emphasis", () => {
 
   it("marks the same runs inside the split cells", () => {
     const view = renderRows({ emphasisByRow, view: "split" });
-    const left = view.container.querySelector('td[data-side="left"] mark');
-    const right = view.container.querySelector('td[data-side="right"] mark');
+    const left = view.container.querySelector(
+      'td[data-side="left"] [data-testid="diff-emphasis"]',
+    );
+    const right = view.container.querySelector(
+      'td[data-side="right"] [data-testid="diff-emphasis"]',
+    );
 
     expect(left?.textContent).toBe("gone");
     expect(right?.textContent).toBe("fresh");
   });
+});
+
+const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
+const TOKEN_STYLESHEET = join(
+  TEST_DIRECTORY,
+  "DiffCodeText",
+  "DiffCodeText.module.scss",
+);
+const RULE = /([^{}]+)\{([^{}]*)\}/g;
+const LOCAL_CLASS = /\.([a-zA-Z_][\w-]*)/g;
+const LIFTED_TOKENS = ["keyword", "comment"] as const;
+
+function findClassId(token: string): number {
+  return SYNTAX_PALETTE.findIndex((entry) => entry.token === token);
+}
+
+/** One line per side whose single emphasised run holds a keyword and a comment token. */
+function stubEmphasisedPair() {
+  const sides = [
+    { line: { kind: "del", oldLine: 1 }, texts: ["return", " a; ", "// old"] },
+    { line: { kind: "add", newLine: 1 }, texts: ["return", " b; ", "// new"] },
+  ] as const;
+  const tokenKinds = ["keyword", "text", "comment"];
+  const rows: DiffLine[] = sides.map((side) => ({
+    ...side.line,
+    content: side.texts.join(""),
+  }));
+  const tokensByRow = new Map(
+    sides.map((side, index) => [
+      index,
+      side.texts.map((text, at) => ({
+        text,
+        classId: findClassId(tokenKinds[at] ?? "text"),
+      })),
+    ]),
+  );
+  const emphasisByRow = new Map(
+    rows.map((row, index) => [index, [{ from: 0, to: row.content.length }]]),
+  );
+  return { rows, tokensByRow, emphasisByRow };
+}
+
+/** Compiled rules that colour from `liftToken`, in the class names the module hands the component. */
+function readLiftSelectors(liftToken: string): string[] {
+  const { css } = compile(TOKEN_STYLESHEET);
+  const selectors: string[] = [];
+  for (const [, selector = "", body = ""] of css.matchAll(RULE)) {
+    if (body.includes(`var(${liftToken})`)) {
+      selectors.push(selector.trim());
+    }
+  }
+
+  return selectors.map((selector) =>
+    selector.replace(LOCAL_CLASS, (_whole, name: string) => {
+      return `.${tokenStyles[name] ?? name}`;
+    }),
+  );
+}
+
+/** `<token>:lifted` or `<token>:base` for each keyword and comment token inside an emphasised run. */
+function readEmphasisedTokenColours(container: HTMLElement): string[] {
+  const colours: string[] = [];
+  const runs = container.querySelectorAll('[data-testid="diff-emphasis"]');
+  for (const run of runs) {
+    for (const token of LIFTED_TOKENS) {
+      const span = run.querySelector(`span[class*="syn-${token}"]`);
+      const selectors = readLiftSelectors(`--emphasis-${token}`);
+      const lifted = selectors.some((selector) => span?.matches(selector));
+      colours.push(`${token}:${lifted ? "lifted" : "base"}`);
+    }
+  }
+
+  return colours;
+}
+
+describe("DiffRows emphasis contrast", () => {
+  it.each(Object.values(DiffViews))(
+    "lifts emphasised keyword and comment tokens in the %s view",
+    (diffView) => {
+      const { rows, ...props } = stubEmphasisedPair();
+      const view = render(
+        <table>
+          <DiffRows rows={rows} view={diffView} {...props} />
+        </table>,
+      );
+
+      expect(readEmphasisedTokenColours(view.container)).toEqual([
+        "keyword:lifted",
+        "comment:lifted",
+        "keyword:lifted",
+        "comment:lifted",
+      ]);
+    },
+  );
 });
 
 describe("DiffRows row slots", () => {

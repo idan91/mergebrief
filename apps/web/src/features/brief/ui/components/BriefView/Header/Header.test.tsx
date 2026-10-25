@@ -371,7 +371,7 @@ describe("stack chip", () => {
   it("points neighbour links at the in-app repo pull path", async () => {
     await renderHeader({ brief: briefWithStack(linear), repoId: "424242" });
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(
       screen.getByRole("link", { name: "#6 Parent" }).getAttribute("href"),
@@ -411,15 +411,15 @@ describe("state badge", () => {
 describe("Header menu and stats", () => {
   it("shows progress facts on the comparison row with core-lines LOC", async () => {
     await renderHeader();
-    expect(screen.getByText("chunks").textContent).toContain("1/2");
-    expect(screen.getByText("flags").textContent).toContain("0/1");
+    expect(screen.getByText("Chunks").textContent).toContain("1/2");
+    expect(screen.getByText("Flags").textContent).toContain("0/1");
     // The LOC cell is the core-lines disclosure trigger - a real button.
     const loc = screen.getByTestId("core-lines-disclosure");
-    expect(loc.textContent).toContain("core lines");
+    expect(loc.textContent).toContain("Core lines");
     expect(loc.textContent).toContain("+3");
     expect(loc.textContent).toContain("−1");
     fireEvent.click(loc);
-    expect(screen.getByText("all lines")).toBeTruthy();
+    expect(screen.getByText("All lines")).toBeTruthy();
     expect(screen.getByText(/derived from the diff/)).toBeTruthy();
   });
 
@@ -437,7 +437,7 @@ describe("Header menu and stats", () => {
     const jumpToGroup = vi.fn();
     await renderHeader({ jumpToGroup, model });
     const stat = screen.getByTestId("unattributed-disclosure");
-    expect(stat.textContent).toContain("unattributed");
+    expect(stat.textContent).toContain("Unattributed");
     expect(stat.textContent).toContain("+4");
     expect(stat.textContent).toContain("−2");
     fireEvent.click(stat);
@@ -619,9 +619,9 @@ describe("Header own-draft state", () => {
 
   it("shows a count-only flags stat in own-draft", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
-    const stat = screen.getByText("flags");
+    const stat = screen.getByText("Flags");
     // No resolved/total fraction - it would sit at a permanent 0/N.
-    expect(stat.textContent).toBe("flags1");
+    expect(stat.textContent).toBe("Flags1");
     expect(stat.textContent).not.toContain("/");
   });
 });

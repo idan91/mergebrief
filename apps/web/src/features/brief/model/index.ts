@@ -59,6 +59,7 @@ export {
 } from "./utils/validation";
 export {
   buildBriefViewModel,
+  getRiskAttributeLabel,
   type BriefViewModel,
   type RiskFlag,
 } from "./utils/view-model";

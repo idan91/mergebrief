@@ -437,9 +437,7 @@ describe("DB brief route", () => {
     );
     // The changes pane renders the DELTA core, not the degradation state.
     await waitFor(() =>
-      expect(
-        screen.getByText(/changes only · since your last review/i),
-      ).toBeTruthy(),
+      expect(screen.getByText(/changes since your last review/i)).toBeTruthy(),
     );
     expect(
       screen.getByText(/fixture delta summary since your checkpoint/i),

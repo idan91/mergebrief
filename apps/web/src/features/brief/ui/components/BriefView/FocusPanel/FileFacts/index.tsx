@@ -3,6 +3,10 @@ import { useTranslation } from "react-i18next";
 
 import type { BriefChunk } from "../../../../../model/types";
 import { isUnattributedRemainderChunk } from "../../../../../model/utils/remainder";
+import {
+  getConcernLabel,
+  getRoleLabel,
+} from "../../../../../model/utils/view-model";
 import type { AttributeDisplayMeta } from "../../../../../model/utils/repo-config";
 import { splitFilePath } from "../../utils";
 import { ChunkRisks } from "./ChunkRisks";
@@ -20,6 +24,8 @@ export function FileFacts({ chunk, riskMeta, showRisks }: FileFactsProps) {
   const headingId = useId();
   const path = splitFilePath(chunk.file);
   const remainderChunk = isUnattributedRemainderChunk(chunk);
+  const concernLabel = getConcernLabel(t, chunk.concern);
+  const roleLabel = getRoleLabel(t, chunk.role);
 
   return (
     <section aria-labelledby={headingId} className={styles["fileFacts"]}>
@@ -39,11 +45,11 @@ export function FileFacts({ chunk, riskMeta, showRisks }: FileFactsProps) {
         <dl className={styles["facts"]}>
           <div>
             <dt>{t("brief.focusPanel.concern")}</dt>
-            <dd>{chunk.concern}</dd>
+            <dd>{concernLabel}</dd>
           </div>
           <div>
             <dt>{t("brief.focusPanel.role")}</dt>
-            <dd>{chunk.role}</dd>
+            <dd>{roleLabel}</dd>
           </div>
         </dl>
       )}

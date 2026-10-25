@@ -6,7 +6,7 @@
 // absolute. Brief queries never go stale, so warm revision-nav samples hit
 // the cache and isolate the key={briefId} remount. Each metric prints one
 // `PERF_RESULT {json}` line for the PR body.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
 import { PERF_ROUTE_REV1, PERF_ROUTE_REV2 } from "./ids";
@@ -22,6 +22,24 @@ const groupHeading = (page: Page, revTag: string) =>
 
 async function settleOnRevision(page: Page, revTag: string): Promise<void> {
   await expect(groupHeading(page, revTag)).toBeVisible({ timeout: 30_000 });
+}
+
+/** A View option: the radio a reader picks and the label that takes the click. */
+interface ScopeOption {
+  radio: Locator;
+  label: Locator;
+}
+
+// The radio input sits under a styled option span that intercepts pointer
+// events: click the radio's own label, assert state on the radio.
+async function findScopeOption(page: Page, name: string): Promise<ScopeOption> {
+  const radio = page.getByRole("radio", { name, exact: true });
+  const id = await radio.getAttribute("id");
+  if (id === null) {
+    throw new Error(`the ${name} radio has no id for its label to name`);
+  }
+
+  return { radio, label: page.locator(`label[for="${id}"]`) };
 }
 
 test("revision navigation timing", async ({ page }) => {
@@ -72,36 +90,36 @@ test("scope flip timing", async ({ page }) => {
   });
   await settleOnRevision(page, "r2");
 
-  // The radio input sits under a styled option span that intercepts pointer
-  // events: click the visible label text, assert state on the input.
-  const changesRadio = page.getByText("Changes Only", { exact: true });
-  const fullRadio = page.getByText("Full brief", { exact: true });
-  const changesEyebrow = page.getByText(
-    "Changes Only · since the previous Brief",
-  );
+  const changes = await findScopeOption(page, "Changes only");
+  const full = await findScopeOption(page, "Full brief");
+  const changesEyebrow = page.getByText("Changes since the previous brief");
 
   // Warmup: both scope paths render once before timing.
-  await changesRadio.click();
+  await changes.label.click();
   await expect(changesEyebrow).toBeVisible({ timeout: 30_000 });
-  await fullRadio.click();
+  await expect(changes.radio).toBeChecked();
+  await full.label.click();
   await expect(changesEyebrow).toBeHidden({ timeout: 30_000 });
+  await expect(full.radio).toBeChecked();
 
   const toChanges: number[] = [];
   const toFull: number[] = [];
   for (let i = 0; i < SAMPLES; i += 1) {
     const changesStart = Date.now();
-    await changesRadio.click();
+    await changes.label.click();
     await expect(changesEyebrow).toBeVisible({ timeout: 30_000 });
     toChanges.push(Date.now() - changesStart);
+    await expect(changes.radio).toBeChecked();
 
     // Settle on a full-view-only signal: group headings exist in BOTH scopes
     // (ChangesOnlyView renders the same titles), so waiting on one would pass
     // against the stale changes-view DOM and time nothing. The eyebrow leaves
     // the tree in the same commit that renders the full view.
     const fullStart = Date.now();
-    await fullRadio.click();
+    await full.label.click();
     await expect(changesEyebrow).toBeHidden({ timeout: 30_000 });
     toFull.push(Date.now() - fullStart);
+    await expect(full.radio).toBeChecked();
   }
   report("lens-to-changes", toChanges);
   report("lens-to-full", toFull);
@@ -136,13 +154,12 @@ test("the hidden story pane keeps its windowed cards across a flip", async ({
   const deepCard = await firstVisible();
   expect(deepCard).not.toBeNull();
 
-  const changesRadio = page.getByText("Changes Only", { exact: true });
-  const fullRadio = page.getByText("Full brief", { exact: true });
-  const changesEyebrow = page.getByText(
-    "Changes Only · since the previous Brief",
-  );
-  await changesRadio.click();
+  const changes = await findScopeOption(page, "Changes only");
+  const full = await findScopeOption(page, "Full brief");
+  const changesEyebrow = page.getByText("Changes since the previous brief");
+  await changes.label.click();
   await expect(changesEyebrow).toBeVisible({ timeout: 30_000 });
+  await expect(changes.radio).toBeChecked();
 
   // The hidden pane still holds the deep window it was showing.
   const hiddenIds = await page.evaluate(() =>
@@ -152,8 +169,9 @@ test("the hidden story pane keeps its windowed cards across a flip", async ({
   );
   expect(hiddenIds).toContain(deepCard);
 
-  await fullRadio.click();
+  await full.label.click();
   await expect(changesEyebrow).toBeHidden({ timeout: 30_000 });
+  await expect(full.radio).toBeChecked();
   await page.waitForTimeout(500);
 
   // Router reset scroll to top; the story window must cover the viewport

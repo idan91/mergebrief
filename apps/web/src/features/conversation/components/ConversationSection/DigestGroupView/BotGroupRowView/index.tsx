@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { RowButton } from "@web/components/RowButton";
-import { botGroupChip } from "../../../../utils/chips";
+import {
+  deriveBotGroupState,
+  THREAD_STATE_LABEL_KEYS,
+} from "../../../../utils/chips";
 import type { DigestRow } from "../../../../utils/digest";
 import rowStyles from "../../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../../wiring";
@@ -34,12 +37,13 @@ export function BotGroupRowView({
   const { t } = useTranslation();
   const key = `${groupId}:${row.author}`;
   const expanded = expandedGroups.has(key);
-  const groupChip = botGroupChip(row);
+  const groupState = deriveBotGroupState(row);
+  const groupChipLabel = t(THREAD_STATE_LABEL_KEYS[groupState]);
   return (
     <li className={rowStyles["row"]}>
       <RowButton aria-expanded={expanded} onClick={() => toggleGroup(key)}>
-        <span className={rowStyles["chip"]} data-state={groupChip}>
-          {groupChip}
+        <span className={rowStyles["chip"]} data-state={groupState}>
+          {groupChipLabel}
         </span>
         <span className={rowStyles["rowAuthor"]}>
           @{row.author}

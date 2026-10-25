@@ -104,7 +104,7 @@ describe("FilterDisclosure panel", () => {
   it("stays open across chip clicks because filtering is iterative", () => {
     const { onChange } = renderDisclosure();
     fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
-    fireEvent.click(screen.getByRole("button", { name: /approved/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Approved/ }));
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("conversation-filter-panel")).not.toBeNull();
   });

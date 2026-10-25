@@ -40,7 +40,7 @@ describe("UnattributedDisclosure", () => {
     const trigger = screen.getByTestId("unattributed-disclosure");
     expect(trigger.dataset["state"]).toBe("closed");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(trigger.textContent).toContain("unattributed");
+    expect(trigger.textContent).toContain("Unattributed");
     expect(trigger.textContent).toContain("+4");
     expect(trigger.textContent).toContain("−2");
   });

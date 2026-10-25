@@ -173,16 +173,16 @@ describe("FocusPanel", () => {
     ).toBeTruthy();
     const facts = getFileFacts(panel);
     expect(facts.textContent).toContain("src/leak.ts");
-    expect(facts.textContent).toContain("implementation");
-    expect(facts.textContent).toContain("core");
-    expect(facts.textContent).toContain("no-tests");
+    expect(facts.textContent).toContain("Implementation");
+    expect(facts.textContent).toContain("Core");
+    expect(facts.textContent).toContain("No tests");
   });
 
   it("labels the category chips with their kind", () => {
     const { panel } = renderPanel("chunk-a", "g1");
 
     const dominant = panel.querySelector('[data-kind="dominant"]');
-    expect(dominant?.textContent).toBe("Dominant: bugfix");
+    expect(dominant?.textContent).toBe("Dominant: Bug fix");
   });
 
   it("heads the panel with the group position and its core lines", () => {
@@ -215,7 +215,7 @@ describe("FocusPanel", () => {
     );
 
     const dominant = panel.querySelector('[data-kind="dominant"]');
-    expect(dominant?.textContent).toBe("Dominant: logic refactor");
+    expect(dominant?.textContent).toBe("Dominant: Logic refactor");
     expect(panel.querySelector('[data-kind="uncertain"]')).toBeNull();
   });
 

@@ -36,7 +36,7 @@ describe("FocusShortcuts", () => {
     const list = document.getElementById(
       trigger.getAttribute("aria-controls") ?? "",
     );
-    expect(list?.textContent).toContain("viewed");
+    expect(list?.textContent).toContain("Viewed");
   });
 
   it("reveals on hover only after the delay", () => {

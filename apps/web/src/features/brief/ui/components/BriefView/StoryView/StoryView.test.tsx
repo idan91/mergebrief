@@ -181,8 +181,10 @@ describe("remainder stamps", () => {
     expect(
       within(region).queryByText(appI18n.t("brief.chunk.roleCore")),
     ).toBeNull();
-    expect(within(region).queryByText("implementation")).toBeNull();
-    expect(within(region).queryByText("bugfix")).toBeNull();
+    const concernLabel = appI18n.t("brief.concern.implementation");
+    expect(within(region).queryByText(concernLabel)).toBeNull();
+    const categoryLabel = appI18n.t("brief.category.bugfix");
+    expect(within(region).queryByText(categoryLabel)).toBeNull();
   });
 
   it("renders Focus without concern or role stamps on the remainder chunk", () => {

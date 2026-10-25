@@ -3,7 +3,11 @@ import { z } from "zod/v4";
 import { TicketTrackers, type Result } from "types";
 import { createI18n } from "i18n";
 import { ContextProviderTypes, type PrimarySnippet } from "brief-core";
-import { ReferenceLocations, type PrimaryTicket } from "brief-core/types";
+import {
+  ReferenceLocations,
+  TicketUnreadReasons,
+  type PrimaryTicket,
+} from "brief-core/types";
 
 /**
  * The `--context <file>` shape: the primary ticket's text, for any tracker
@@ -81,6 +85,23 @@ export function readContextFile(path: string): Result<PrimarySnippet, string> {
 const i18n = createI18n();
 
 /**
+ * The reason sentence, read mid-line. Only `unsupported` opens on a word the
+ * catalog capitalizes standalone; every other reason opens on the tracker.
+ */
+function readUnreadReason(ticket: PrimaryTicket, tracker: string): string {
+  if (ticket.reason === "") {
+    return "";
+  }
+  if (ticket.reason === TicketUnreadReasons.UNSUPPORTED) {
+    return i18n.t("brief.intent.reason.unsupported", {
+      tracker,
+      context: "inline",
+    });
+  }
+  return i18n.t(`brief.intent.reason.${ticket.reason}`, { tracker });
+}
+
+/**
  * The stderr line for an unread primary: `error: <key> could not be read
  * (<code>); <sentence>`, the same sentence the web copy renders. The run
  * still exits 0: the brief was generated, the read is absent.
@@ -88,9 +109,6 @@ const i18n = createI18n();
 export function describeUnreadPrimary(ticket: PrimaryTicket): string {
   const label = ticket.key === "" ? ticket.url : ticket.key;
   const tracker = i18n.t(`brief.intent.tracker.${ticket.tracker}`);
-  const reason =
-    ticket.reason === ""
-      ? ""
-      : i18n.t(`brief.intent.reason.${ticket.reason}`, { tracker });
+  const reason = readUnreadReason(ticket, tracker);
   return `error: ${label} could not be read (${ticket.reason}) — ${reason}`;
 }

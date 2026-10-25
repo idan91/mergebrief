@@ -96,7 +96,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   // GitHub has commits the behind row's brief does not cover: the warning
   // chip, and Regenerate leading its menu.
   const behindRow = rows.nth(4);
-  await expect(behindRow.getByText("new commits")).toBeVisible();
+  await expect(behindRow.getByText("New commits")).toBeVisible();
   // The actions answer only once the first-load fade has settled.
   await waitForFirstLoad(page);
   await behindRow.hover();
@@ -108,7 +108,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(
-    page.getByTestId("inbox-row").first().getByText("new commits"),
+    page.getByTestId("inbox-row").first().getByText("New commits"),
   ).toHaveCount(0);
 });
 

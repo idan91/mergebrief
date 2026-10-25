@@ -23,6 +23,14 @@ import type { UnknownValue } from "@web/utils/open-enum/types";
 import type { PostedComment } from "../../data/postedComment";
 import { WriteFailureKinds } from "../../data/request/types";
 
+/** A thread chip's GitHub state; outdated wins over resolved. */
+export const ThreadStates = {
+  OPEN: "open",
+  RESOLVED: "resolved",
+  OUTDATED: "outdated",
+} as const;
+export type ThreadState = ValueOf<typeof ThreadStates>;
+
 /** The element a thread row renders as: a list item, or a block where the host is no list. */
 export const ThreadRowElements = {
   LIST_ITEM: "li",

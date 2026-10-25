@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { appI18n } from "@web/i18n/I18nProvider";
 import type { Brief } from "../../../../../model/types";
 import { BriefDetailsPanel } from ".";
 
@@ -176,7 +177,7 @@ describe("BriefDetailsPanel sections for a full brief", () => {
       '[data-details-section="artifact"]',
     );
     const text = artifact?.textContent ?? "";
-    expect(text).toContain("brief");
+    expect(text).toContain("Brief");
     expect(text).toContain("_3");
     expect(text).toContain(`${"b".repeat(8)}..${"a".repeat(8)} · 2 commits`);
     // Full SHAs: this panel is the untruncated home.
@@ -184,7 +185,7 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     expect(text).toContain("a".repeat(40));
     expect(text).toContain("+137");
     expect(text).toContain("−76");
-    expect(text).toContain("core lines");
+    expect(text).toContain("Core lines");
     expect(text).toContain("+104");
     expect(text).toContain("−41");
     expect(text).toContain("Counts are derived from the diff.");
@@ -244,8 +245,8 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     );
     const text = section?.textContent ?? "";
     expect(text).toContain(".mergebrief/instructions.md");
-    expect(text).toContain("applied");
-    expect(text).toContain("not applied");
+    expect(text).toContain("Applied");
+    expect(text).toContain("Not applied");
     expect(text).toContain("1 de-emphasis rule dropped");
     expect(text).toContain("touches-auth");
     // Slimmed on purpose: bytes-of-budget and per-file blob SHAs dropped.
@@ -264,13 +265,13 @@ describe("BriefDetailsPanel sections for a delta artifact", () => {
       '[data-details-section="artifact"]',
     );
     const text = artifact?.textContent ?? "";
-    expect(text).toContain("delta");
+    expect(text).toContain("Delta brief");
     expect(text).toContain("_2");
     expect(text).toContain("_3");
     const spanArrow = artifact?.querySelector('[data-icon="arrow-up"]');
     expect(spanArrow?.getAttribute("data-rotation")).toBe("90");
     expect(text).toContain("c".repeat(40));
     expect(text).toContain("a".repeat(40));
-    expect(text).not.toContain("commit range");
+    expect(text).not.toContain(appI18n.t("brief.details.commitRange"));
   });
 });

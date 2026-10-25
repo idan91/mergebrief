@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { AttributeDisplayMeta } from "../../../../model/utils/repo-config";
 import { RiskBadge } from "../RiskBadge";
+import { buildRepoPolicyCaption } from "../utils";
 import styles from "./RiskDetailList.module.scss";
 
 export interface RiskDetailListProps {
@@ -18,24 +19,14 @@ export function RiskDetailList({ attrs, metaFor }: RiskDetailListProps) {
     <span className={styles["list"]}>
       {attrs.map((attr) => {
         const meta = metaFor(attr);
-        const captions = [
-          ...(meta?.source === "repo-policy"
-            ? [
-                meta.implication !== undefined
-                  ? t("brief.riskBadge.repoPolicyWithImplication", {
-                      implication: meta.implication,
-                    })
-                  : t("brief.riskBadge.repoPolicyLead"),
-              ]
-            : []),
-          ...(meta?.deEmphasized ? [t("brief.riskBadge.deEmphasized")] : []),
-        ];
+        const caption =
+          meta === undefined ? undefined : buildRepoPolicyCaption(t, meta);
         return (
           <span className={styles["row"]} key={attr}>
-            <RiskBadge meta={meta}>{attr}</RiskBadge>
-            {captions.length > 0 ? (
-              <span className={styles["caption"]}>{captions.join(" · ")}</span>
-            ) : null}
+            <RiskBadge attribute={attr} meta={meta} />
+            {caption === undefined ? null : (
+              <span className={styles["caption"]}>{caption}</span>
+            )}
           </span>
         );
       })}

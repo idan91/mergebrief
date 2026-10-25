@@ -515,9 +515,7 @@ describe("Changes Only rendering", () => {
         />,
       ),
     );
-    expect(
-      screen.getByText(/Changes only · since your last review/),
-    ).toBeTruthy();
+    expect(screen.getByText(/Changes since your last review/)).toBeTruthy();
     expect(
       screen.getByRole("heading", { name: "Guarded shared path" }),
     ).toBeTruthy();

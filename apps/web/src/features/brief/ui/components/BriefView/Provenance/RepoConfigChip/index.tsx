@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
 
-import type { RepoConfigContext } from "../../../../../model/utils/repo-config";
+import {
+  getRepoConfigOutcomeLabel,
+  type RepoConfigContext,
+} from "../../../../../model/utils/repo-config";
 import { SHORT_SHA_LENGTH } from "../../consts";
 import { RiskChipDisclosure } from "../../RiskChipDisclosure";
 import { Icon } from "@web/components/Icon";
@@ -26,39 +29,46 @@ export function RepoConfigChip({ repoConfig }: RepoConfigChipProps) {
       : t("brief.header.repoConfigChipAt", {
           sha: appliedSha.slice(0, SHORT_SHA_LENGTH),
         });
+  const { collisions } = repoConfig;
+  const collisionsLine =
+    collisions.length > 0
+      ? t("brief.details.collisionsLine", {
+          count: collisions.length,
+          names: collisions.join(", "),
+        })
+      : undefined;
+  const fileRows = repoConfig.files.map((file) => {
+    const outcomeLabel = getRepoConfigOutcomeLabel(t, file.outcome);
+    const shortBlobSha = file.blobSha
+      ? file.blobSha.slice(0, SHORT_SHA_LENGTH)
+      : undefined;
+    const { bytesUsed, bytesBudget } = file;
+    const hasBudget = bytesUsed !== undefined && bytesBudget !== undefined;
+    const budgetLine = hasBudget
+      ? t("brief.details.bytesUsed", { used: bytesUsed, budget: bytesBudget })
+      : undefined;
+    return { file, outcomeLabel, shortBlobSha, budgetLine };
+  });
 
   return (
     <RiskChipDisclosure
       detail={
         <span className={styles["table"]}>
-          {repoConfig.files.map((file) => (
+          {fileRows.map(({ file, outcomeLabel, shortBlobSha, budgetLine }) => (
             <span className={styles["row"]} key={file.path}>
               <code>{file.path}</code>
-              <span data-outcome={file.outcome}>{file.outcome}</span>
-              {file.blobSha ? (
-                <code>@ {file.blobSha.slice(0, SHORT_SHA_LENGTH)}</code>
+              <span data-outcome={file.outcome}>{outcomeLabel}</span>
+              {shortBlobSha !== undefined ? (
+                <code>@ {shortBlobSha}</code>
               ) : null}
-              {file.bytesUsed !== undefined &&
-              file.bytesBudget !== undefined ? (
-                <span>
-                  {t("brief.details.bytesUsed", {
-                    used: file.bytesUsed,
-                    budget: file.bytesBudget,
-                  })}
-                </span>
-              ) : null}
+              {budgetLine !== undefined ? <span>{budgetLine}</span> : null}
               {file.detail ? <i>{file.detail}</i> : null}
               {file.warning ? <i>{file.warning}</i> : null}
             </span>
           ))}
-          {repoConfig.collisions.length > 0 ? (
+          {collisionsLine !== undefined ? (
             <span className={styles["row"]}>
-              <i>
-                {t("brief.details.collisionsLine", {
-                  count: repoConfig.collisions.length,
-                  names: repoConfig.collisions.join(", "),
-                })}
-              </i>
+              <i>{collisionsLine}</i>
             </span>
           ) : null}
         </span>

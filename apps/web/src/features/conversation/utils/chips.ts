@@ -7,7 +7,11 @@ import {
 } from "types/conversation";
 import type { TranslationKey } from "i18n";
 import type { DigestRow } from "./digest";
-import { type ConversationThread } from "../types";
+import {
+  type ConversationThread,
+  type ThreadState,
+  ThreadStates,
+} from "../types";
 
 /** Review verdict chip text, the digest's own verdict vocabulary. */
 export const VERDICT_LABEL_KEYS: Readonly<
@@ -20,15 +24,23 @@ export const VERDICT_LABEL_KEYS: Readonly<
   [ReviewVerdictStates.DISMISSED]: "conversation.verdict.dismissed",
 };
 
+export const THREAD_STATE_LABEL_KEYS: Readonly<
+  Record<ThreadState, TranslationKey>
+> = {
+  [ThreadStates.OPEN]: "conversation.threadState.open",
+  [ThreadStates.RESOLVED]: "conversation.threadState.resolved",
+  [ThreadStates.OUTDATED]: "conversation.threadState.outdated",
+};
+
 /**
  * GitHub facts wear GitHub words. A resolved+outdated thread reads as
  * outdated: that is why it left the code view.
  */
-export function threadStateChip(thread: ConversationThread): string {
+export function deriveThreadState(thread: ConversationThread): ThreadState {
   if (thread.isOutdated) {
-    return "outdated";
+    return ThreadStates.OUTDATED;
   }
-  return thread.isResolved ? "resolved" : "open";
+  return thread.isResolved ? ThreadStates.RESOLVED : ThreadStates.OPEN;
 }
 
 /**
@@ -37,11 +49,11 @@ export function threadStateChip(thread: ConversationThread): string {
  * (outdated is WHY they left the code view); otherwise open wins over
  * resolved.
  */
-export function botGroupChip(
+export function deriveBotGroupState(
   row: Extract<DigestRow, { kind: "bot-group" }>,
-): string {
+): ThreadState {
   if (row.threads.every((threadRow) => threadRow.thread.isOutdated)) {
-    return "outdated";
+    return ThreadStates.OUTDATED;
   }
-  return row.openCount > 0 ? "open" : "resolved";
+  return row.openCount > 0 ? ThreadStates.OPEN : ThreadStates.RESOLVED;
 }

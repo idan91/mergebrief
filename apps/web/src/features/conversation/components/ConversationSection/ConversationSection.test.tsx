@@ -281,7 +281,7 @@ describe("ConversationSection", () => {
       plan: plan([{ kind: "ready", conversation: { ...data, reviews } }]),
     });
 
-    expect(await screen.findByText("changes requested")).toBeDefined();
+    expect(await screen.findByText("Changes requested")).toBeDefined();
     const marked = screen
       .getAllByTestId("mention")
       .map((node) => node.textContent);
@@ -307,10 +307,10 @@ describe("ConversationSection", () => {
     ).toBeDefined();
     expect(screen.getAllByText("@dana").length).toBeGreaterThan(0);
     for (const label of [
-      "approved",
-      "changes requested",
-      "commented",
-      "dismissed",
+      "Approved",
+      "Changes requested",
+      "Commented",
+      "Dismissed",
     ]) {
       expect(screen.queryByText(label)).toBeNull();
     }
@@ -318,9 +318,9 @@ describe("ConversationSection", () => {
 
   it("omits the count line without a cutoff and marks nothing", async () => {
     renderSection({ plan: plan([ready()]) });
-    await screen.findByText("changes requested");
+    await screen.findByText("Changes requested");
     expect(screen.queryByText(/since this brief was generated/)).toBeNull();
-    expect(screen.queryByText("new since this brief")).toBeNull();
+    expect(screen.queryByText("New since this brief")).toBeNull();
   });
 
   it("chips a postdating comment inside the expanded thread detail", async () => {
@@ -340,7 +340,7 @@ describe("ConversationSection", () => {
         name: /This null check looks inverted/,
       }),
     );
-    expect(await screen.findByText("new since this brief")).toBeDefined();
+    expect(await screen.findByText("New since this brief")).toBeDefined();
   });
 
   it("leaves the reviewer's own submit out of the count and the chip", async () => {
@@ -378,8 +378,8 @@ describe("ConversationSection", () => {
         name: /This null check looks inverted/,
       }),
     );
-    await screen.findByText("yours");
-    expect(screen.queryByText("new since this brief")).toBeNull();
+    await screen.findByText("Yours");
+    expect(screen.queryByText("New since this brief")).toBeNull();
   });
 
   it("expands a thread row via aria-expanded and jumps to its chunk", async () => {
@@ -459,7 +459,7 @@ describe("ConversationSection", () => {
     const botRow = await screen.findByRole("button", {
       name: /coderabbitai/,
     });
-    expect(botRow.textContent).toContain("outdated");
+    expect(botRow.textContent).toContain("Outdated");
   });
 
   it("shows the teaching empty state", async () => {
@@ -583,8 +583,8 @@ describe("ConversationSection", () => {
     await waitFor(() =>
       expect(props.markCommentsSubmitted).toHaveBeenCalledWith(["ghost-draft"]),
     );
-    // The own thread carries the "yours" tag.
-    expect(screen.getByText("yours")).toBeDefined();
+    // The own thread carries the "Yours" tag.
+    expect(screen.getByText("Yours")).toBeDefined();
   });
 });
 
@@ -668,7 +668,7 @@ describe("disclosure and focus behaviour", () => {
     const twist = toggle.querySelector('[data-icon="caret-down"]');
     expect(twist?.getAttribute("data-rotation")).toBe("270");
     // Collapsed: the digest is hidden, the summary is not.
-    expect(screen.queryByText("changes requested")).toBeNull();
+    expect(screen.queryByText("Changes requested")).toBeNull();
     fireEvent.click(toggle);
     expect(onToggle).toHaveBeenCalledTimes(1);
   });

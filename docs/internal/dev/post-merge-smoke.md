@@ -141,7 +141,7 @@ fake generator adapter exists.
    - PR-meta polling every ~4s (Network tab: `GET /api/repos/.../pulls/<N>`),
    - the Brief replaces the card the moment its artifact exists — while the
      worker log may still show delta warmup. If you catch that window, a
-     `comparisons warming…` chip sits bottom-right and clears on the terminal
+     `Comparisons warming…` chip sits bottom-right and clears on the terminal
      poll.
 5. **Expect in the URL:** `?rev=<n>` appears (revision pinning) once the
    brief renders.

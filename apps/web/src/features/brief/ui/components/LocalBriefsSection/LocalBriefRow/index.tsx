@@ -8,6 +8,7 @@ import {
   ChipTones,
   ChipVariants,
 } from "@web/components/Chip";
+import { getArtifactKindLabel } from "../../../../model/utils/view-model";
 import styles from "./LocalBriefRow.module.scss";
 import { describeLocalBriefRevision } from "./utils";
 
@@ -18,10 +19,7 @@ export interface LocalBriefRowProps {
 /** An Inbox row's two lines for a file artifact: title and kind, then repository, number and revision. */
 export function LocalBriefRow({ brief }: LocalBriefRowProps) {
   const { t } = useTranslation();
-  const kind =
-    brief.artifactKind === "delta"
-      ? t("shell.artifactDelta")
-      : t("shell.artifactBrief");
+  const kind = getArtifactKindLabel(t, brief.artifactKind);
   const revision = describeLocalBriefRevision(brief);
 
   return (

@@ -63,6 +63,9 @@ export function RiskSurface({
   const fileCount = rows.length;
   const flagCount = groupFlags.length;
   const heading = t("brief.group.riskSurface");
+  const selectedFlagsLabel = t("brief.group.selectedFlags", {
+    count: selectedCount,
+  });
 
   return (
     <div
@@ -89,10 +92,7 @@ export function RiskSurface({
               onClick={() => {
                 setEvidenceTarget({
                   flagIds: selectedIds,
-                  label: t("brief.group.flagsIn", {
-                    count: selectedCount,
-                    attr: heading,
-                  }),
+                  label: selectedFlagsLabel,
                 });
               }}
             >
@@ -104,10 +104,7 @@ export function RiskSurface({
               onClick={() => {
                 setDismissTarget({
                   flagIds: selectedIds,
-                  label: t("brief.group.flagsIn", {
-                    count: selectedCount,
-                    attr: heading,
-                  }),
+                  label: selectedFlagsLabel,
                 });
               }}
             >

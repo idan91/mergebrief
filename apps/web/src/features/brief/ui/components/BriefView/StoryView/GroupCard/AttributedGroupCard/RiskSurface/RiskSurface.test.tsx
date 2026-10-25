@@ -8,6 +8,8 @@ import type { Disposition } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
 import type { Brief, BriefChunk } from "../../../../../../../model/types";
 import {
+  getRiskAttributeInlineLabel,
+  getRiskAttributeLabel,
   buildBriefViewModel,
   isAttributedGroupView,
   type AttributedGroupView,
@@ -171,15 +173,17 @@ describe("RiskSurface chooser", () => {
       dispositions: { [dismissed.id]: DISMISSED },
       reopenFlag: reopen,
     });
+    const reopenDismissedName = `Reopen the ${getRiskAttributeInlineLabel(appI18n.t, dismissed.attr)} risk on ${dismissed.file}`;
     fireEvent.click(
       screen.getByRole("button", {
-        name: `Reopen the ${dismissed.attr} risk on ${dismissed.file}`,
+        name: reopenDismissedName,
       }),
     );
     expect(reopen).toHaveBeenCalledWith(dismissed);
+    const reopenOpenName = `Reopen the ${getRiskAttributeInlineLabel(appI18n.t, open.attr)} risk on ${open.file}`;
     expect(
       screen.queryByRole("button", {
-        name: `Reopen the ${open.attr} risk on ${open.file}`,
+        name: reopenOpenName,
       }),
     ).toBeNull();
   });
@@ -223,16 +227,18 @@ describe("RiskSurface chooser", () => {
     }
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: "1 resolved" }));
+    const reopenFirstFlagName = `Reopen the ${getRiskAttributeInlineLabel(appI18n.t, firstFlag.attr)} risk on ${firstFlag.file}`;
     fireEvent.click(
       screen.getByRole("button", {
-        name: `Reopen the ${firstFlag.attr} risk on ${firstFlag.file}`,
+        name: reopenFirstFlagName,
       }),
     );
     expect(screen.queryByRole("button", { name: "1 resolved" })).toBeNull();
     expect(screen.getByRole("button", { name: "src/leak.ts" })).toBeTruthy();
+    const reopenSecondFlagName = `Reopen the ${getRiskAttributeInlineLabel(appI18n.t, secondFlag.attr)} risk on ${secondFlag.file}`;
     fireEvent.click(
       screen.getByRole("button", {
-        name: `Reopen the ${secondFlag.attr} risk on ${secondFlag.file}`,
+        name: reopenSecondFlagName,
       }),
     );
     expect(screen.queryByRole("button", { name: /^Reopen the/ })).toBeNull();
@@ -262,7 +268,8 @@ describe("RiskSurface chooser", () => {
     if (sample === undefined) {
       throw new Error("expected a flag");
     }
-    fireEvent.click(screen.getByRole("button", { name: sample.attr }));
+    const attributeLabel = getRiskAttributeLabel(appI18n.t, sample.attr);
+    fireEvent.click(screen.getByRole("button", { name: attributeLabel }));
     expect(screen.getByText(appI18n.t("brief.risk.noTests"))).toBeTruthy();
   });
 
@@ -283,15 +290,17 @@ describe("RiskSurface chooser", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "1 resolved" }));
     expect(screen.getByText("Addressed")).toBeTruthy();
+    const reopenDismissedName = `Reopen the ${getRiskAttributeInlineLabel(appI18n.t, dismissed.attr)} risk on ${dismissed.file}`;
     fireEvent.click(
       screen.getByRole("button", {
-        name: `Reopen the ${dismissed.attr} risk on ${dismissed.file}`,
+        name: reopenDismissedName,
       }),
     );
     expect(reopenFlag).toHaveBeenCalledWith(dismissed);
+    const reopenAddressedName = `Reopen the ${getRiskAttributeInlineLabel(appI18n.t, addressed.attr)} risk on ${addressed.file}`;
     expect(
       screen.queryByRole("button", {
-        name: `Reopen the ${addressed.attr} risk on ${addressed.file}`,
+        name: reopenAddressedName,
       }),
     ).toBeNull();
   });
@@ -305,7 +314,7 @@ describe("RiskSurface chooser", () => {
     expect(screen.queryByRole("button", { name: /^Reopen the/ })).toBeNull();
     expect(screen.getByRole("heading", { name: "Risk surface" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "src/leak.ts" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "no-tests" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "No tests" })).toBeTruthy();
   });
 });
 

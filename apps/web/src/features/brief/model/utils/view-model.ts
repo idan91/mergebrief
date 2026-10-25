@@ -1,11 +1,13 @@
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import { ChangeGroupCategories, type ChangeGroupCategory } from "types";
+import { LocalBriefKinds, type LocalBriefKind } from "contract";
 import {
   type Concern,
   Concerns,
   type RiskSurfaceAttribute,
   RiskSurfaceAttributes,
+  type Role,
   Roles,
   type ChangeGroup,
   type LineRange,
@@ -148,7 +150,9 @@ const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
   [RiskSurfaceAttributes.RELEASE_IMMINENT]: "brief.risk.releaseImminent",
 };
 
-const CATEGORY_LABEL_KEYS: Record<ChangeGroupCategory, TranslationKey> = {
+// Category and risk labels also land mid-sentence, so every key here carries
+// an `_inline` variant; i18next types `{ context: "inline" }` only on those.
+const CATEGORY_LABEL_KEYS = {
   [ChangeGroupCategories.BUGFIX]: "brief.category.bugfix",
   [ChangeGroupCategories.LOGIC_REFACTOR]: "brief.category.logicRefactor",
   [ChangeGroupCategories.MOVE_WITH_EDITS]: "brief.category.moveWithEdits",
@@ -157,6 +161,51 @@ const CATEGORY_LABEL_KEYS: Record<ChangeGroupCategory, TranslationKey> = {
   [ChangeGroupCategories.NEW_FEATURE]: "brief.category.newFeature",
   [ChangeGroupCategories.DEPENDENCY_UPDATE]: "brief.category.dependencyUpdate",
   [ChangeGroupCategories.SCHEMA_CHANGE]: "brief.category.schemaChange",
+} as const satisfies Record<ChangeGroupCategory, TranslationKey>;
+
+const RISK_LABEL_KEYS = {
+  [RiskSurfaceAttributes.NO_TESTS]: "brief.riskLabel.noTests",
+  [RiskSurfaceAttributes.NO_TYPES]: "brief.riskLabel.noTypes",
+  [RiskSurfaceAttributes.LEGACY_AREA]: "brief.riskLabel.legacyArea",
+  [RiskSurfaceAttributes.DENSE_LOGIC]: "brief.riskLabel.denseLogic",
+  [RiskSurfaceAttributes.TOUCHES_AUTH]: "brief.riskLabel.touchesAuth",
+  [RiskSurfaceAttributes.MUTATES_STATE]: "brief.riskLabel.mutatesState",
+  [RiskSurfaceAttributes.REMOVES_VALIDATION]:
+    "brief.riskLabel.removesValidation",
+  [RiskSurfaceAttributes.RELAXES_PERMISSIONS]:
+    "brief.riskLabel.relaxesPermissions",
+  [RiskSurfaceAttributes.WIDENS_ERROR_HANDLING]:
+    "brief.riskLabel.widensErrorHandling",
+  [RiskSurfaceAttributes.ADDS_FEATURE_FLAG]: "brief.riskLabel.addsFeatureFlag",
+  [RiskSurfaceAttributes.NEW_DEPENDENCY]: "brief.riskLabel.newDependency",
+  [RiskSurfaceAttributes.NEW_ABSTRACTION]: "brief.riskLabel.newAbstraction",
+  [RiskSurfaceAttributes.COMMENT_CONTRADICTS_CODE]:
+    "brief.riskLabel.commentContradictsCode",
+  [RiskSurfaceAttributes.EXTERNAL_IO]: "brief.riskLabel.externalIo",
+  [RiskSurfaceAttributes.CROSS_SERVICE]: "brief.riskLabel.crossService",
+  [RiskSurfaceAttributes.SCHEMA_ADJACENT]: "brief.riskLabel.schemaAdjacent",
+  [RiskSurfaceAttributes.HOT_PATH]: "brief.riskLabel.hotPath",
+  [RiskSurfaceAttributes.WIDELY_IMPORTED]: "brief.riskLabel.widelyImported",
+  [RiskSurfaceAttributes.RELEASE_IMMINENT]: "brief.riskLabel.releaseImminent",
+} as const satisfies Record<RiskSurfaceAttribute, TranslationKey>;
+
+const CONCERN_LABEL_KEYS: Record<Concern, TranslationKey> = {
+  [Concerns.IMPLEMENTATION]: "brief.concern.implementation",
+  [Concerns.TEST]: "brief.concern.test",
+  [Concerns.DOC]: "brief.concern.doc",
+  [Concerns.SPEC]: "brief.concern.spec",
+  [Concerns.CONFIG]: "brief.concern.config",
+  [Concerns.GENERATED]: "brief.concern.generated",
+};
+
+const ROLE_LABEL_KEYS: Record<Role, TranslationKey> = {
+  [Roles.CORE]: "brief.chunk.roleCore",
+  [Roles.SUPPORTING]: "brief.chunk.roleSupporting",
+};
+
+const ARTIFACT_KIND_LABEL_KEYS: Record<LocalBriefKind, TranslationKey> = {
+  [LocalBriefKinds.BRIEF]: "shell.artifactBrief",
+  [LocalBriefKinds.DELTA]: "shell.artifactDelta",
 };
 
 const CONCERN_ORDER: Concern[] = [
@@ -326,6 +375,64 @@ export function getCategoryLabel(
   category: ChangeGroupCategory,
 ): CategoryLabel {
   return t(CATEGORY_LABEL_KEYS[category]);
+}
+
+/** The category label as it reads mid-sentence ("set to new feature"). */
+export function getCategoryInlineLabel(
+  t: TFunction,
+  category: ChangeGroupCategory,
+): CategoryLabel {
+  return t(CATEGORY_LABEL_KEYS[category], { context: "inline" });
+}
+
+function spaceAttributeName(attr: string): string {
+  return attr.replaceAll("-", " ");
+}
+
+/**
+ * A repo-defined attribute is a kebab identifier with no catalog label, so it
+ * reads by its own words: `pii-logging` becomes "Pii logging".
+ */
+export function humanizeAttributeName(attr: string): string {
+  const spaced = spaceAttributeName(attr);
+  const first = spaced[0];
+  if (first === undefined) {
+    return spaced;
+  }
+  return `${first.toUpperCase()}${spaced.slice(1)}`;
+}
+
+export function getRiskAttributeLabel(t: TFunction, attr: RiskKey): string {
+  if (isBuiltInAttribute(attr)) {
+    return t(RISK_LABEL_KEYS[attr]);
+  }
+  return humanizeAttributeName(attr);
+}
+
+/** The attribute label mid-sentence; a repo-defined one keeps its own case. */
+export function getRiskAttributeInlineLabel(
+  t: TFunction,
+  attr: RiskKey,
+): string {
+  if (isBuiltInAttribute(attr)) {
+    return t(RISK_LABEL_KEYS[attr], { context: "inline" });
+  }
+  return spaceAttributeName(attr);
+}
+
+export function getConcernLabel(t: TFunction, concern: Concern): string {
+  return t(CONCERN_LABEL_KEYS[concern]);
+}
+
+export function getRoleLabel(t: TFunction, role: Role): string {
+  return t(ROLE_LABEL_KEYS[role]);
+}
+
+export function getArtifactKindLabel(
+  t: TFunction,
+  kind: LocalBriefKind,
+): string {
+  return t(ARTIFACT_KIND_LABEL_KEYS[kind]);
 }
 
 /** How many risk chips a chunk header shows before collapsing into "+N". */

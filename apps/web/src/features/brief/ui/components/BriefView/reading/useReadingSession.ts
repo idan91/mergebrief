@@ -5,6 +5,7 @@
 import type { ReviewOutcome } from "types/reviews";
 import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { createI18n } from "i18n";
+import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
@@ -178,6 +179,7 @@ export function useReadingSession(
     position,
     viewStore,
   } = input;
+  const { t } = useTranslation();
   // Session/domain state lives in the per-brief Review Session store.
   const dispositions = useReviewSession((state) => state.dispositions);
   const dominants = useReviewSession((state) => state.dominants);
@@ -318,7 +320,7 @@ export function useReadingSession(
     );
     const remainderChunks = remainderGroup?.chunks ?? [];
 
-    return deriveUnresolvedItems({
+    return deriveUnresolvedItems(t, {
       chunks: brief.chunks,
       remainderChunks,
       flags: model.flags,
@@ -327,6 +329,7 @@ export function useReadingSession(
       comments: reviewComments,
     });
   }, [
+    t,
     brief.chunks,
     dispositions,
     model.flags,

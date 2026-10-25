@@ -57,12 +57,12 @@ describe("StackChip", () => {
       <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     expect(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" })
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" })
         .textContent,
     ).toBe("2/3");
     expect(
       screen
-        .getByRole("button", { name: "pull request 2 of 3 in the stack" })
+        .getByRole("button", { name: "Pull request 2 of 3 in the stack" })
         .querySelector("svg[aria-hidden='true']"),
     ).toBeTruthy();
   });
@@ -81,7 +81,7 @@ describe("StackChip", () => {
       <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(screen.getByRole("link", { name: /#12 Bottom/ })).toBeTruthy();
     expect(screen.getByRole("link", { name: /#14 Tip/ })).toBeTruthy();
@@ -101,7 +101,7 @@ describe("StackChip", () => {
       />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(
       screen.getByRole("link", { name: "#12 Bottom" }).getAttribute("href"),
@@ -113,7 +113,7 @@ describe("StackChip", () => {
       <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(
       screen.getByRole("link", { name: /#12 Bottom/ }).getAttribute("href"),
@@ -137,7 +137,7 @@ describe("StackChip", () => {
       />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(
       screen.getByText("Stack changed since this brief was generated"),
@@ -157,7 +157,7 @@ describe("StackChip", () => {
       <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(
       screen.queryByText("Stack changed since this brief was generated"),
@@ -174,7 +174,7 @@ describe("StackChip", () => {
       />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(screen.getByText("As of Sep 19, 2026")).toBeTruthy();
   });
@@ -189,7 +189,7 @@ describe("StackChip", () => {
       />,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(screen.getByText("At generation time")).toBeTruthy();
     expect(
@@ -208,7 +208,7 @@ describe("StackChip", () => {
       <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     const chip = screen.getByRole("button", {
-      name: "pull request 2 of 3 in the stack",
+      name: "Pull request 2 of 3 in the stack",
     });
     const hoverArea = chip.parentElement;
     if (hoverArea === null) {

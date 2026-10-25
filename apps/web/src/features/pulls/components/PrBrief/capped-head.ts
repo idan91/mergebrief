@@ -5,6 +5,8 @@
  * be waiting on tonight.
  */
 import type { TFunction } from "i18next";
+import type { PrSummary } from "../../types";
+import { isNoLongerOpen } from "../../utils/pr-state";
 
 export function readCapResetsAt(cappedAtIso: string): Date | undefined {
   const cappedAt = new Date(cappedAtIso);
@@ -42,4 +44,34 @@ export function buildCappedLabel(
   }
   // The template's datetime formatter renders in the ACTIVE locale.
   return t("pulls.capped.resumes", { resetsAt });
+}
+
+export interface CappedCardDetailInput {
+  readonly prState: PrSummary["state"];
+  readonly appInstalled: boolean;
+  /** A draft under a drafts-off instance: its next push queues nothing. */
+  readonly awaitsReadyForReview: boolean;
+}
+
+/**
+ * What the cap is and how this head gets a brief. A capped head never reruns
+ * on its own: a url row reruns on a paste whatever its state, an
+ * installation row on its next push while the PR is open, or on ready for
+ * review when it is a draft its instance does not generate.
+ */
+export function buildCappedCardDetail(
+  t: TFunction,
+  { prState, appInstalled, awaitsReadyForReview }: CappedCardDetailInput,
+): string {
+  const limit = t("pulls.capped.limit");
+  if (!appInstalled) {
+    return `${limit} ${t("pulls.capped.repasteNote")}`;
+  }
+  if (isNoLongerOpen(prState)) {
+    return `${limit} ${t("pulls.failed.notOpenNote")}`;
+  }
+  if (awaitsReadyForReview) {
+    return `${limit} ${t("pulls.capped.readyForReviewNote")}`;
+  }
+  return `${limit} ${t("pulls.capped.nextPush")}`;
 }

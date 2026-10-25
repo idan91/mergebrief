@@ -40,14 +40,14 @@ function renderPanel(overrides: Partial<ConversationFilterPanelProps> = {}) {
 describe("ConversationFilterPanel", () => {
   it("renders verdict chips with human counts and a bot secondary", () => {
     renderPanel();
-    const approved = screen.getByRole("button", { name: /approved/ });
-    expect(approved.textContent).toContain("approved");
+    const approved = screen.getByRole("button", { name: /Approved/ });
+    expect(approved.textContent).toContain("Approved");
     expect(approved.textContent).toContain("2");
     expect(approved.textContent).toContain("1 bot");
     // Zero bots means no visible bot secondary, only the sr-only sentence
     // mentions bots at all.
     expect(
-      screen.getByRole("button", { name: /changes requested/ }).textContent,
+      screen.getByRole("button", { name: /Changes requested/ }).textContent,
     ).not.toContain("0 bot;");
   });
 
@@ -56,19 +56,19 @@ describe("ConversationFilterPanel", () => {
     renderPanel({ filter });
     expect(
       screen
-        .getByRole("button", { name: /approved/ })
+        .getByRole("button", { name: /Approved/ })
         .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(
       screen
-        .getByRole("button", { name: /changes requested/ })
+        .getByRole("button", { name: /Changes requested/ })
         .getAttribute("aria-pressed"),
     ).toBe("false");
   });
 
   it("toggles a verdict and a reviewer through onChange", () => {
     const { onChange } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /approved/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Approved/ }));
     const afterVerdict = onChange.mock.calls[0]?.[0];
     if (afterVerdict === undefined) {
       throw new Error("no verdict change");
@@ -86,7 +86,7 @@ describe("ConversationFilterPanel", () => {
   it("tags bot reviewers and keeps them selectable", () => {
     const { onChange } = renderPanel();
     const bot = screen.getByRole("button", { name: /@coderabbitai/ });
-    expect(bot.textContent).toContain("bot");
+    expect(bot.textContent).toContain("Bot");
     fireEvent.click(bot);
     const next = onChange.mock.calls[0]?.[0];
     if (next === undefined) {
@@ -141,7 +141,7 @@ describe("ConversationFilterPanel", () => {
       filter: parseConversationFilter({ verdicts: "commented" }),
       verdicts: [],
     });
-    const chip = screen.getByRole("button", { name: /^commented/ });
+    const chip = screen.getByRole("button", { name: /^Commented/ });
     expect(chip.getAttribute("aria-pressed")).toBe("true");
     expect(
       screen.getByRole("checkbox", { name: /only each reviewer's latest/i }),
@@ -150,7 +150,7 @@ describe("ConversationFilterPanel", () => {
 
   it("drops the chip list entirely when it has no chips", () => {
     renderPanel({ verdicts: [] });
-    expect(screen.queryByRole("button", { name: /^approved/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Approved/ })).toBeNull();
     expect(screen.getByRole("button", { name: /@alice/ })).not.toBeNull();
     // The global toggle survives: it is not a verdict control.
     expect(

@@ -8,6 +8,7 @@ import { GenerationStatuses, type GenerationFailureCode } from "types";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
 import type { DbTimelineSelection } from "./dbTimeline";
+import { readSupersededStop } from "./pr-state";
 import { isOwnDraft } from "./ownDraft";
 import type { GenerationSummary, PrSummary } from "../types";
 
@@ -210,7 +211,7 @@ export function selectBriefRouteState(
 
 /**
  * Poll the PR-meta while something is (or may be) in flight: a non-terminal
- * generation, a superseded row (its replacement is pending momentarily), a
+ * generation, a superseded row whose replacement is queued, a
  * rendered brief whose generation is still finishing (the "comparisons
  * warming" chip clears on the terminal refetch), or the viewer's OWN DRAFT:
  * the draft flag can flip externally (marked ready on GitHub) and the
@@ -226,7 +227,11 @@ export function shouldPollMeta(meta: PrSummary): boolean {
   if (isInFlight(status)) {
     return true;
   }
-  if (status === GenerationStatuses.SUPERSEDED && !hasStoredHeadBrief(meta)) {
+  const awaitsReplacement =
+    status === GenerationStatuses.SUPERSEDED &&
+    !hasStoredHeadBrief(meta) &&
+    readSupersededStop(meta) === undefined;
+  if (awaitsReplacement) {
     return true;
   }
   // A pending lastReview comparison is also in-flight work (its delta may

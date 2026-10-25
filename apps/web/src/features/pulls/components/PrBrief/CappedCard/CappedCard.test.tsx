@@ -8,7 +8,12 @@ describe("CappedCard", () => {
   it("renders the cap heading and says the push is not retried on its own", () => {
     render(
       <I18nProvider>
-        <CappedCard cappedAt="2026-08-03T18:30:00.000Z" />
+        <CappedCard
+          appInstalled
+          awaitsReadyForReview={false}
+          cappedAt="2026-08-03T18:30:00.000Z"
+          prState="open"
+        />
       </I18nProvider>,
     );
     expect(

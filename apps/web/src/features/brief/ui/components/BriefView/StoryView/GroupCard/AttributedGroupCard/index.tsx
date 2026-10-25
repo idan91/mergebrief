@@ -11,6 +11,7 @@ import styles from "../GroupCard.module.scss";
 import { deriveGroupHeadingId } from "../../../utils";
 import type { GroupCardProps } from "../types";
 import {
+  getCategoryInlineLabel,
   getCategoryLabel,
   type AttributedGroupView,
 } from "../../../../../../model/utils/view-model";
@@ -54,8 +55,9 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
     category,
     label: getCategoryLabel(t, category),
   }));
-  const uncertainLabels = uncertainOptions.map((option) => option.label);
-  const between = uncertainLabels.join(t("brief.group.uncertainSeparator"));
+  const between = group.group.uncertainBetween
+    .map((category) => getCategoryInlineLabel(t, category))
+    .join(t("brief.group.uncertainSeparator"));
   const sinceMarker =
     sinceBaselineShortSha === undefined ? null : (
       <SinceMarker

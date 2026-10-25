@@ -28,7 +28,11 @@ import {
   useChunkReviewComments,
   useReviewSession,
 } from "@web/features/review/session";
-import { riskChipView } from "../../../../../model/utils/view-model";
+import {
+  getConcernLabel,
+  getRiskAttributeLabel,
+  riskChipView,
+} from "../../../../../model/utils/view-model";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { RiskBadge } from "../../RiskBadge";
 import { RiskChipDisclosure } from "../../RiskChipDisclosure";
@@ -104,6 +108,10 @@ function OverflowRiskChip({
   attrs: RiskKey[];
   riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
 }) {
+  const { t } = useTranslation();
+  const spokenAttributes = attrs
+    .map((attr) => getRiskAttributeLabel(t, attr))
+    .join(", ");
   return (
     <RiskChipDisclosure
       detail={
@@ -112,7 +120,7 @@ function OverflowRiskChip({
     >
       <RiskBadge>
         +{attrs.length}
-        <ScreenReaderOnly>{` ${attrs.join(", ")}`}</ScreenReaderOnly>
+        <ScreenReaderOnly>{` ${spokenAttributes}`}</ScreenReaderOnly>
       </RiskBadge>
     </RiskChipDisclosure>
   );
@@ -202,6 +210,7 @@ export const ChunkCard = memo(function ChunkCard({
   const tokenPlan = useTokenPlan();
   const diffRows = chunk.diff ?? NO_ROWS;
   const fileStatus = useMemo(() => resolveFileStatus(diffRows), [diffRows]);
+  const concernLabel = getConcernLabel(t, chunk.concern);
   const expansion = useExpandedRows({
     chunkId: chunk.id,
     path: chunk.file,
@@ -359,15 +368,11 @@ export const ChunkCard = memo(function ChunkCard({
                       }
                       key={risk}
                     >
-                      <RiskBadge meta={meta}>{risk}</RiskBadge>
+                      <RiskBadge attribute={risk} meta={meta} />
                     </RiskChipDisclosure>
                   );
                 }
-                return (
-                  <RiskBadge key={risk} meta={meta}>
-                    {risk}
-                  </RiskBadge>
-                );
+                return <RiskBadge attribute={risk} key={risk} meta={meta} />;
               })}
               {riskChips.overflow.length > 0 ? (
                 <OverflowRiskChip
@@ -381,7 +386,7 @@ export const ChunkCard = memo(function ChunkCard({
             <>
               <span className={styles["chip"]} data-concern={chunk.concern}>
                 <span className={styles["dot"]} />
-                {chunk.concern}
+                {concernLabel}
               </span>
               <RoleBadge role={chunk.role} />
               {fileStatus !== undefined ? (
@@ -487,7 +492,7 @@ export const ChunkCard = memo(function ChunkCard({
             reviewCommentLabel={
               hasLinkedAddressedComments
                 ? t("brief.chunk.addressed")
-                : t("brief.chunk.reviewComment")
+                : t("brief.chunk.reviewComment", { context: "inline" })
             }
           />
         </div>

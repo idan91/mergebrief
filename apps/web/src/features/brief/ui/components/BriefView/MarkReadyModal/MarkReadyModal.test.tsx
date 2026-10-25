@@ -60,7 +60,7 @@ describe("MarkReadyModal", () => {
     const { jumpToFlag } = renderModal();
     expect(screen.getByText("src/a.ts")).toBeTruthy();
     expect(screen.getByText("src/b.ts")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /touches-auth/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Touches auth/ }));
     expect(jumpToFlag).toHaveBeenCalledWith(FLAGS[1]);
   });
 
@@ -126,7 +126,7 @@ describe("MarkReadyModal", () => {
     // on the drafts instead.
     renderModal({ flags: [], unpostedDraftCount: 2 });
     expect(screen.queryByText(/these risk flags/i)).toBeNull();
-    expect(screen.queryByRole("button", { name: /no-tests/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /No tests/ })).toBeNull();
     expect(
       screen.getByText(/your unposted draft comments stay local/i),
     ).toBeTruthy();

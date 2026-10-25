@@ -154,7 +154,7 @@ describe("labelConcernShares", () => {
         name,
       })),
     ).toEqual([
-      { key: "doc", concern: "doc", name: "doc" },
+      { key: "doc", concern: "doc", name: "t:brief.concern.doc" },
       {
         key: "unattributed-remainder",
         concern: undefined,

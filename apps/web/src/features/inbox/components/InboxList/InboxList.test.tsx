@@ -372,7 +372,7 @@ describe("InboxList", () => {
         name: /GitHub has commits this brief does not cover\./,
       }),
     ).toBeTruthy();
-    expect(screen.getByText("new commits")).toBeTruthy();
+    expect(screen.getByText("New commits")).toBeTruthy();
   });
 
   it("j moves the keyboard cursor and Enter opens the row under it", async () => {

@@ -2,6 +2,7 @@
 // Local types avoid pulling the generator engine into the browser bundle; the
 // path matcher comes from its owner, which is browser-safe on its own subpath.
 // A lockstep test still pins the mirrored floor list.
+import type { TFunction } from "i18next";
 import { matchesGlob } from "brief-core/path-matching";
 import type { RepoConfigOutcome } from "repo-config";
 
@@ -53,6 +54,17 @@ const FLOOR_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);
 
 export function isFloorAttribute(attr: string): boolean {
   return FLOOR_SET.has(attr);
+}
+
+/** Every outcome but `applied` leaves the file out of the generation. */
+export function getRepoConfigOutcomeLabel(
+  t: TFunction,
+  outcome: RepoConfigOutcome,
+): string {
+  if (outcome === "applied") {
+    return t("brief.details.applied");
+  }
+  return t("brief.details.notApplied");
 }
 
 // ---------------------------------------------------------------------------

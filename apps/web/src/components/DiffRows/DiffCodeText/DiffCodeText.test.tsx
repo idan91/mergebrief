@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { getRoles, render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { DiffCodeText } from ".";
@@ -40,7 +40,7 @@ describe("DiffCodeText emphasis", () => {
         tokens={tokens}
       />,
     );
-    const mark = view.container.querySelector("mark");
+    const mark = view.container.querySelector('[data-testid="diff-emphasis"]');
 
     expect(view.container.textContent).toBe("const label");
     expect(mark?.textContent).toBe("label");
@@ -62,7 +62,9 @@ describe("DiffCodeText emphasis", () => {
         tokens={tokens}
       />,
     );
-    const marks = view.container.querySelectorAll("mark");
+    const marks = view.container.querySelectorAll(
+      '[data-testid="diff-emphasis"]',
+    );
 
     expect(marks).toHaveLength(1);
     expect(marks[0]?.textContent).toBe("?.c");
@@ -80,10 +82,13 @@ describe("DiffCodeText emphasis", () => {
         tokens={tokens}
       />,
     );
-    const spans = view.container.querySelectorAll("span");
+    const tokenSpans = view.container.querySelectorAll('span[class*="syn-"]');
 
-    expect(spans).toHaveLength(3);
-    expect(view.container.querySelector("mark")?.textContent).toBe("old");
+    expect(tokenSpans).toHaveLength(3);
+    expect(
+      view.container.querySelector('[data-testid="diff-emphasis"]')
+        ?.textContent,
+    ).toBe("old");
     expect(view.container.textContent).toBe("'old value'");
   });
 
@@ -92,9 +97,40 @@ describe("DiffCodeText emphasis", () => {
       <DiffCodeText content="a = 1" emphasis={[{ from: 4, to: 5 }]} />,
     );
 
-    expect(view.container.querySelectorAll("span")).toHaveLength(0);
-    expect(view.container.querySelector("mark")?.textContent).toBe("1");
+    expect(view.container.querySelectorAll('span[class*="syn-"]')).toHaveLength(
+      0,
+    );
+    expect(
+      view.container.querySelector('[data-testid="diff-emphasis"]')
+        ?.textContent,
+    ).toBe("1");
     expect(view.container.textContent).toBe("a = 1");
+  });
+});
+
+describe("DiffCodeText accessibility", () => {
+  function readRoleNames(container: HTMLElement): string[] {
+    return Object.keys(getRoles(container)).toSorted();
+  }
+
+  it("exposes no role with emphasis that the plain row lacks", () => {
+    const tokens = [
+      { text: "const", classId: 4 },
+      { text: " label", classId: 0 },
+    ];
+    const plain = render(<DiffCodeText content="const label" />);
+    const emphasised = render(
+      <DiffCodeText
+        content="const label"
+        emphasis={[{ from: 6, to: 11 }]}
+        tokens={tokens}
+      />,
+    );
+
+    expect(readRoleNames(emphasised.container)).toEqual(
+      readRoleNames(plain.container),
+    );
+    expect(emphasised.container.textContent).toBe("const label");
   });
 });
 

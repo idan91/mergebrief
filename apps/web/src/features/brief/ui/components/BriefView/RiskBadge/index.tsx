@@ -3,12 +3,17 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
+import type { RiskKey } from "../../../../model/types";
 import type { AttributeDisplayMeta } from "../../../../model/utils/repo-config";
+import { getRiskAttributeLabel } from "../../../../model/utils/view-model";
 import { Badge, BadgeColors } from "@web/components/Badge";
 import styles from "./RiskBadge.module.scss";
 
 export interface RiskBadgeProps {
-  children: ReactNode;
+  /** The attribute the chip names, shown by its display label. */
+  attribute?: RiskKey;
+  /** Follows the label: a count, a screen-reader note, or the +N overflow. */
+  children?: ReactNode;
   /**
    * Repo-policy chips get the outlined source variant plus the implication in
    * the expansion; de-emphasized chips render quiet. Absent = the plain
@@ -31,8 +36,10 @@ function deriveRepoPolicyTitle(
  * Children let the +N overflow share the same chip anatomy.
  * Repo-defined attributes vary data-source, not the chip structure.
  */
-export function RiskBadge({ children, meta }: RiskBadgeProps) {
+export function RiskBadge({ attribute, children, meta }: RiskBadgeProps) {
   const { t } = useTranslation();
+  const label =
+    attribute === undefined ? undefined : getRiskAttributeLabel(t, attribute);
   const repoDefined = meta?.source === "repo-policy";
   const implication = meta?.implication;
   const title = repoDefined ? deriveRepoPolicyTitle(t, implication) : undefined;
@@ -48,6 +55,7 @@ export function RiskBadge({ children, meta }: RiskBadgeProps) {
       }}
       title={title}
     >
+      {label}
       {children}
       {repoDefined ? (
         <ScreenReaderOnly>

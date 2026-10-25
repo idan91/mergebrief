@@ -1,5 +1,6 @@
+import { createInstance } from "i18next";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { createI18n, PSEUDO_LOCALE } from "../src/index";
+import { createI18n, en as enCatalog, PSEUDO_LOCALE } from "../src/index";
 import type { TranslationKey } from "../src/index";
 
 describe("createI18n", () => {
@@ -33,6 +34,34 @@ describe("createI18n", () => {
   });
 });
 
+describe("inline context", () => {
+  it("reads a label mid-sentence through its _inline variant", () => {
+    const i18n = createI18n();
+    expect(i18n.t("brief.category.newFeature")).toBe("New feature");
+    expect(i18n.t("brief.category.newFeature", { context: "inline" })).toBe(
+      "new feature",
+    );
+  });
+
+  it("falls back to the base label where a locale omits the variant", () => {
+    const i18n = createInstance();
+    void i18n.init({
+      resources: {
+        en: { translation: enCatalog },
+        de: {
+          translation: { brief: { category: { newFeature: "Neue Funktion" } } },
+        },
+      },
+      lng: "de",
+      fallbackLng: "en",
+      initAsync: false,
+    });
+    expect(i18n.t("brief.category.newFeature", { context: "inline" })).toBe(
+      "Neue Funktion",
+    );
+  });
+});
+
 describe("pseudo locale end-to-end", () => {
   it("renders accented, padded, bracketed copy", () => {
     const rendered = createI18n({ locale: PSEUDO_LOCALE }).t(
@@ -62,6 +91,20 @@ describe("typed keys", () => {
     expectTypeOf<"errors.not-found">().toMatchTypeOf<TranslationKey>();
     expectTypeOf<"generationError.unknown">().toMatchTypeOf<TranslationKey>();
     expectTypeOf<"errors.no-such-code">().not.toMatchTypeOf<TranslationKey>();
+  });
+
+  it("collapses an _inline variant onto its base key", () => {
+    expectTypeOf<"brief.category.newFeature">().toMatchTypeOf<TranslationKey>();
+    expectTypeOf<"brief.category.newFeature_inline">().not.toMatchTypeOf<TranslationKey>();
+  });
+
+  it("types the inline context only on a key that has the variant", () => {
+    const i18n = createI18n();
+    expect(i18n.t("brief.riskLabel.hotPath", { context: "inline" })).toBe(
+      "hot path",
+    );
+    // @ts-expect-error, a key without an _inline variant takes no inline context
+    expect(i18n.t("brief.concern.test", { context: "inline" })).toBe("Test");
   });
 
   it("rejects an unknown key at compile time", () => {

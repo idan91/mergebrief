@@ -29,7 +29,7 @@ function receipt(): Receipt {
         id: "flag:a",
         attr: "auth",
         file: "src/auth/token.ts",
-        evidenceLabel: "linked comment token.ts:+12",
+        evidenceLabel: "Linked comment token.ts:+12",
       },
     ],
     dismissed: [
@@ -132,10 +132,10 @@ describe("ReceiptAccordion", () => {
   it("groups the risk disposition with per-flag detail", () => {
     renderAccordion();
     expect(screen.getByText("Addressed risks")).toBeTruthy();
-    expect(screen.getByText(/auth · token\.ts/)).toBeTruthy();
-    expect(screen.getByText("linked comment token.ts:+12")).toBeTruthy();
+    expect(screen.getByText(/Auth · token\.ts/)).toBeTruthy();
+    expect(screen.getByText("Linked comment token.ts:+12")).toBeTruthy();
     expect(screen.getByText(/measured — bounded at 50 rows/)).toBeTruthy();
-    expect(screen.getByText(/not addressed, not dismissed/)).toBeTruthy();
+    expect(screen.getByText(/Not addressed, not dismissed/)).toBeTruthy();
   });
 
   it("marks mentions in dismiss reasons and comment lines the reviewer wrote", () => {

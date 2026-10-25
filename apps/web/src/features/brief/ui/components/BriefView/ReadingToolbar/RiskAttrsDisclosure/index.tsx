@@ -5,6 +5,7 @@ import { Popover } from "@web/components/Popover";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import { RiskBadge } from "../../RiskBadge";
+import type { AttributeDisplayMeta } from "../../../../../model/utils/repo-config";
 import type { AttributeRail } from "../../../../../model/utils/view-model";
 import { DISCLOSURE_OFFSET_PX } from "../consts";
 import styles from "./RiskAttrsDisclosure.module.scss";
@@ -27,6 +28,22 @@ export function RiskAttrsDisclosure({
 }: RiskAttrsDisclosureProps) {
   const { t } = useTranslation();
   const [cycle, setCycle] = useState<ReadonlyMap<string, number>>(new Map());
+  const chips = rail.entries.map((entry) => {
+    const ids = entry.groupIds;
+    const position = cycle.get(entry.attr) ?? 0;
+    const target = ids[position % ids.length];
+    const countSuffix = ` ×${String(ids.length)}`;
+    const jumpPosition = (position % ids.length) + 1;
+    const jumpLabel = t("brief.toolbar.srJumpToCarryingGroup", {
+      position: jumpPosition,
+      total: ids.length,
+    });
+    const badgeMeta: AttributeDisplayMeta | undefined =
+      entry.source === "repo-policy"
+        ? { source: "repo-policy", deEmphasized: false }
+        : undefined;
+    return { entry, position, target, countSuffix, jumpLabel, badgeMeta };
+  });
 
   return (
     <span className={styles["wrap"]}>
@@ -59,11 +76,15 @@ export function RiskAttrsDisclosure({
         </Popover.Trigger>
         <Popover.Content className={styles["panel"]}>
           <div className={styles["chips"]} data-attribute-jump-rail="">
-            {rail.entries.map((entry) => {
-              const ids = entry.groupIds;
-              const position = cycle.get(entry.attr) ?? 0;
-              const target = ids[position % ids.length];
-              return (
+            {chips.map(
+              ({
+                entry,
+                position,
+                target,
+                countSuffix,
+                jumpLabel,
+                badgeMeta,
+              }) => (
                 // oxlint-disable-next-line house/no-raw-button -- reset wrapper making the inner chip interactive: component chrome would double it
                 <button
                   className={styles["chipButton"]}
@@ -82,24 +103,13 @@ export function RiskAttrsDisclosure({
                     });
                   }}
                 >
-                  <RiskBadge
-                    meta={
-                      entry.source === "repo-policy"
-                        ? { source: "repo-policy", deEmphasized: false }
-                        : undefined
-                    }
-                  >
-                    {entry.attr} ×{ids.length}
-                    <ScreenReaderOnly>
-                      {t("brief.toolbar.srJumpToCarryingGroup", {
-                        position: (position % ids.length) + 1,
-                        total: ids.length,
-                      })}
-                    </ScreenReaderOnly>
+                  <RiskBadge attribute={entry.attr} meta={badgeMeta}>
+                    {countSuffix}
+                    <ScreenReaderOnly>{jumpLabel}</ScreenReaderOnly>
                   </RiskBadge>
                 </button>
-              );
-            })}
+              ),
+            )}
           </div>
         </Popover.Content>
       </Popover>

@@ -12,8 +12,12 @@ import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import { RowButton } from "@web/components/RowButton";
 import { Modal } from "@web/components/Modal";
-import type { RiskFlag } from "@web/features/brief/model/utils/view-model";
+import {
+  getRiskAttributeLabel,
+  type RiskFlag,
+} from "@web/features/brief/model/utils/view-model";
 import styles from "@web/components/Modal/Modal.module.scss";
+import { buildRepoPolicyCaption } from "../utils";
 
 export interface MarkReadyModalProps {
   open: boolean;
@@ -80,6 +84,11 @@ export function MarkReadyModal({
   const draftLabel = t("pulls.markReadyModal.postDrafts", {
     count: unpostedDraftCount,
   });
+  const flagRows = flags.map((flag) => ({
+    flag,
+    attributeLabel: getRiskAttributeLabel(t, flag.attr),
+    caption: buildRepoPolicyCaption(t, flag),
+  }));
   return (
     // Escape is gated on busy exactly like the buttons: dismissing the gate
     // mid-batch would drop the progress feedback while outward writes
@@ -100,7 +109,7 @@ export function MarkReadyModal({
             {t("pulls.markReadyModal.advisoryFlags")}
           </p>
           <div className={styles["unresolvedList"]}>
-            {flags.map((flag) => (
+            {flagRows.map(({ flag, attributeLabel, caption }) => (
               <RowButton
                 disabled={busy}
                 key={flag.id}
@@ -111,30 +120,12 @@ export function MarkReadyModal({
                   data-deemphasized={flag.deEmphasized ? "" : undefined}
                   data-source={flag.source}
                 >
-                  {flag.attr}
+                  {attributeLabel}
                 </span>
                 <b>{flag.file}</b>
-                {flag.source === "repo-policy" || flag.deEmphasized ? (
-                  <i data-kind="risk-caption">
-                    {[
-                      ...(flag.source === "repo-policy"
-                        ? [
-                            flag.implication
-                              ? t(
-                                  "pulls.markReadyModal.flagPolicyImplication",
-                                  {
-                                    implication: flag.implication,
-                                  },
-                                )
-                              : t("pulls.markReadyModal.flagPolicy"),
-                          ]
-                        : []),
-                      ...(flag.deEmphasized
-                        ? [t("pulls.markReadyModal.flagDeEmphasized")]
-                        : []),
-                    ].join(" · ")}
-                  </i>
-                ) : null}
+                {caption === undefined ? null : (
+                  <i data-kind="risk-caption">{caption}</i>
+                )}
               </RowButton>
             ))}
           </div>

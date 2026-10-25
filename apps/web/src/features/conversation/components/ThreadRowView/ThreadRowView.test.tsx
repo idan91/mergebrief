@@ -205,7 +205,7 @@ describe("ThreadRowView, host element", () => {
     row.digestLine = undefined;
     renderRow(row);
     expect(screen.getByTestId("thread-row").textContent).toContain(
-      "suggested change",
+      "Suggested change",
     );
   });
 });
@@ -218,7 +218,8 @@ describe("ThreadRowView, slim resolved rows", () => {
     // The faint literal label, NOT the chip component (chips carry data-state).
     expect(view.container.querySelector("[data-state]")).toBeNull();
     // No own-tag and no revision label crowd the settled line.
-    expect(screen.queryByText("yours")).toBeNull();
+    const ownTag = appI18n.t("conversation.yours");
+    expect(screen.queryByText(ownTag)).toBeNull();
     expect(screen.queryByText(/^at /)).toBeNull();
     // The excerpt is the row's digest line.
     expect(row.textContent).toContain(DIGEST_LINE);
@@ -230,8 +231,8 @@ describe("ThreadRowView, slim resolved rows", () => {
     );
     const row = screen.getByTestId("thread-row");
     expect(row.getAttribute("data-density")).toBe("full");
-    // threadStateChip truth is untouched: the chip reads outdated.
-    expect(screen.getByText("outdated").getAttribute("data-state")).toBe(
+    // deriveThreadState truth is untouched: the chip reads outdated.
+    expect(screen.getByText("Outdated").getAttribute("data-state")).toBe(
       "outdated",
     );
     expect(screen.getByText("at abc1234")).toBeDefined();
@@ -241,8 +242,9 @@ describe("ThreadRowView, slim resolved rows", () => {
     renderRow(threadRow({ isOwn: true }));
     const row = screen.getByTestId("thread-row");
     expect(row.getAttribute("data-density")).toBe("full");
-    expect(screen.getByText("open").getAttribute("data-state")).toBe("open");
-    expect(screen.getByText("yours")).toBeDefined();
+    expect(screen.getByText("Open").getAttribute("data-state")).toBe("open");
+    const ownTag = appI18n.t("conversation.yours");
+    expect(screen.getByText(ownTag)).toBeDefined();
   });
 
   it("restores the full row and detail when a resolved thread is expanded", () => {
@@ -267,13 +269,13 @@ describe("ThreadRowView, slim resolved rows", () => {
     expect(toggle).toHaveBeenCalledWith(9001);
   });
 
-  it("names the slim row by author and excerpt, not just “resolved”", () => {
+  it("names the slim row by author and excerpt, not just “Resolved”", () => {
     renderRow(threadRow({ isResolved: true, comments: 3 }));
     // Every settled row would otherwise share one name.
-    expect(screen.queryByRole("button", { name: "resolved" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Resolved" })).toBeNull();
     expect(
       screen.getByRole("button", {
-        name: /^resolved\s*@alice\s*The guard clause landed\.\s*3 comments$/,
+        name: /^Resolved\s*@alice\s*The guard clause landed\.\s*3 comments$/,
       }),
     ).toBeDefined();
   });

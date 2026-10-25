@@ -59,7 +59,7 @@ describe("TicketAlignment", () => {
     ).toBe(ALIGNED.response);
     expect(screen.getByText(/The diff adds that serializer/)).toBeTruthy();
     expect(screen.queryByText(/AI-inferred/)).toBeNull();
-    expect(screen.getByText("referenced in the PR description")).toBeTruthy();
+    expect(screen.getByText("Referenced in the PR description")).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
   });
 
@@ -92,7 +92,7 @@ describe("TicketAlignment", () => {
       />,
     );
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "no read — the ticket states no goal to check this PR against",
+      "No read — the ticket states no goal to check this PR against",
     );
   });
 
@@ -105,7 +105,7 @@ describe("TicketAlignment", () => {
       />,
     );
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "no read — the ticket states no goal to check this PR against",
+      "No read — the ticket states no goal to check this PR against",
     );
   });
 
@@ -122,11 +122,11 @@ describe("TicketAlignment", () => {
     expect(screen.getByText(READ_TICKET.header)).toBeTruthy();
     expect(screen.getByText("This PR")).toBeTruthy();
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "no read — the ticket scope is too broad to check against this PR",
+      "No read — the ticket scope is too broad to check against this PR",
     );
     expect(screen.queryByText("Ticket asks")).toBeNull();
     expect(screen.queryByTestId("ticket-alignment-read")).toBeNull();
-    expect(screen.getByText("referenced in the PR description")).toBeTruthy();
+    expect(screen.getByText("Referenced in the PR description")).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
   });
 
@@ -159,7 +159,7 @@ describe("TicketAlignment", () => {
     expect(screen.queryByText("This PR")).toBeNull();
     expect(screen.queryByText("Ticket asks")).toBeNull();
     expect(screen.queryByText(/AI-inferred/)).toBeNull();
-    expect(screen.getByText("referenced in the branch name")).toBeTruthy();
+    expect(screen.getByText("Referenced in the branch name")).toBeTruthy();
   });
 
   it("names the tracker in the reason sentence from the ticket's tracker", () => {
@@ -274,7 +274,7 @@ describe("TicketAlignment", () => {
       />,
     );
 
-    const foundIn = screen.getByText("referenced in the PR description");
+    const foundIn = screen.getByText("Referenced in the PR description");
     expect(foundIn.parentElement?.children).toHaveLength(1);
   });
 
@@ -304,6 +304,6 @@ describe("TicketAlignment", () => {
       />,
     );
 
-    expect(screen.getByText("referenced in the PR title")).toBeTruthy();
+    expect(screen.getByText("Referenced in the PR title")).toBeTruthy();
   });
 });

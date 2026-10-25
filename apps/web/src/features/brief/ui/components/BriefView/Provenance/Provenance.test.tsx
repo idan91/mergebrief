@@ -53,7 +53,7 @@ describe("repo-config origin chip", () => {
       '[data-details-section="repo-config"]',
     );
     expect(section?.textContent).toContain(".mergebrief/instructions.md");
-    expect(section?.textContent).toContain("applied");
+    expect(section?.textContent).toContain("Applied");
   });
 
   it("keeps the warning chip, with the applied sha in its label", () => {
@@ -72,7 +72,7 @@ describe("repo-config origin chip", () => {
       },
     });
     const chip = document.querySelector("[data-repo-config-chip]");
-    expect(chip?.textContent).toContain("repo config @ a1b2c3d");
+    expect(chip?.textContent).toContain("Repo config @ a1b2c3d");
   });
 
   it("renders NO chip when every file is absent and nothing collided", () => {

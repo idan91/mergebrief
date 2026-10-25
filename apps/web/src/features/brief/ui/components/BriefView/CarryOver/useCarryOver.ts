@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ProductActionIds } from "contract";
 
@@ -40,6 +41,7 @@ export function useCarryOver({
   model,
   jumpToItem,
 }: CarryOverParams): CarryOverView | null {
+  const { t } = useTranslation();
   const sessionActions = useReviewSessionActions();
   const flowActions = useReviewActions();
   const comments = useReviewSession((state) => state.reviewComments);
@@ -57,7 +59,7 @@ export function useCarryOver({
   // item, so the derivation runs only when one of its inputs actually moved.
   const items = useMemo(
     () =>
-      deriveCarriedItems({
+      deriveCarriedItems(t, {
         attention,
         chunks: model.groups.flatMap((group) => group.chunks),
         regions: getChunkRegions(model),
@@ -66,7 +68,7 @@ export function useCarryOver({
         comments,
         deletedMissingDrafts,
       }),
-    [attention, model, dispositions, comments, deletedMissingDrafts],
+    [t, attention, model, dispositions, comments, deletedMissingDrafts],
   );
 
   // A first-ever session carried nothing, and neither did a previous one that

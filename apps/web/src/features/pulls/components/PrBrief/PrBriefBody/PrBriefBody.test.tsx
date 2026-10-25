@@ -7,11 +7,11 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { WaitReasons } from "contract";
 import { afterEach, describe, expect, it } from "vitest";
 import type { BriefAddressPort } from "@web/features/brief";
-import { I18nProvider } from "../../../../../i18n/I18nProvider";
+import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 import { deriveBriefRouteState } from "../../../utils/briefRouteState";
 import type { DbTimelineSelection } from "../../../utils/dbTimeline";
 import type { GenerationSummary, PrSummary } from "../../../types";
-import { PrBriefBody } from ".";
+import { PrBriefBody, stateAnnouncement } from ".";
 
 const SLOT_LINE =
   "Other briefs are generating. This one starts when a slot frees up.";
@@ -243,4 +243,37 @@ describe("PrBriefBody awaiting trigger on a closed PR", () => {
       );
     },
   );
+});
+
+describe("PrBriefBody superseded announcement", () => {
+  it("says a closed installation PR stopped, not that a newer brief comes", () => {
+    const meta: PrSummary = {
+      ...makeMeta({ status: "superseded" }),
+      state: "closed",
+    };
+
+    expect(stateAnnouncement(appI18n.t, { kind: "superseded" }, meta)).toBe(
+      "Generation stopped. This pull request is no longer open.",
+    );
+  });
+
+  it("tells a skipped draft's reader to mark it ready for review", () => {
+    const meta: PrSummary = {
+      ...makeMeta({ status: "superseded" }),
+      draft: true,
+      draftPolicy: { generate: false },
+    };
+
+    expect(stateAnnouncement(appI18n.t, { kind: "superseded" }, meta)).toBe(
+      "Generation stopped. Marking this pull request ready for review queues a new run.",
+    );
+  });
+
+  it("keeps the newer-revision line while the PR is open", () => {
+    const meta = makeMeta({ status: "superseded" });
+
+    expect(stateAnnouncement(appI18n.t, { kind: "superseded" }, meta)).toBe(
+      "A newer revision is on the way.",
+    );
+  });
 });

@@ -47,7 +47,7 @@ describe("PrCommentRow body", () => {
     );
 
     expect(screen.getByRole("button").textContent).toContain(
-      "suggested change",
+      "Suggested change",
     );
   });
 

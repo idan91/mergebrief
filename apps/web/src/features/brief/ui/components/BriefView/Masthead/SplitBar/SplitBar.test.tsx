@@ -22,9 +22,9 @@ describe("SplitBar", () => {
     ).toEqual(["implementation", "test", null]);
     const legend = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(legend.map((item) => item.textContent)).toEqual([
-      "implementation50%",
-      "test30%",
-      "unattributed20%",
+      "Implementation50%",
+      "Test30%",
+      "Unattributed20%",
     ]);
   });
 

@@ -134,6 +134,18 @@ describe("InstancePanel", () => {
     expect(screen.getByText(/New pushes are skipped/)).toBeTruthy();
   });
 
+  it("names the push or paste that briefs a skipped PR, never a Regenerate", async () => {
+    answerSpend({ startedRuns: 50, cap: 50, ...DAY });
+    renderPanel();
+
+    await findSentence();
+    const note = screen.getByText(/New pushes are skipped/).textContent ?? "";
+
+    expect(note).toContain("is briefed as usual on its next push");
+    expect(note).toContain("when its URL is pasted again");
+    expect(note).not.toMatch(/regenerate/i);
+  });
+
   it("keeps the warning away while runs are left", async () => {
     answerSpend({ startedRuns: 46, cap: 50, ...DAY });
     renderPanel();

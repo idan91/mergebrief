@@ -44,6 +44,8 @@ export interface ReceiptAddressedFlag {
    * Consumers supply their own empty fallback.
    */
   evidenceLabel?: string;
+  /** The same label as it reads mid-line in the receipt text. */
+  evidenceLabelInline?: string;
 }
 
 export interface ReceiptDismissedFlag {
@@ -168,6 +170,13 @@ export function buildReceipt(
                 disposition.evidence,
                 snapshot.reviewComments,
                 brief.chunks,
+              ),
+              evidenceLabelInline: riskEvidenceLabel(
+                t,
+                disposition.evidence,
+                snapshot.reviewComments,
+                brief.chunks,
+                "inline",
               ),
             }
           : { id: flag.id, attr: flag.attr, file: flag.file },
@@ -468,7 +477,7 @@ function rawReceiptText(receipt: Receipt): string {
     addressed
       .map(
         (flag) =>
-          `      addressed: ${flag.attr} @ ${shortFile(flag.file)} — ${flag.evidenceLabel ?? "addressed without linked evidence"}`,
+          `      addressed: ${flag.attr} @ ${shortFile(flag.file)} — ${flag.evidenceLabelInline ?? "addressed without linked evidence"}`,
       )
       .join("\n"),
     dismissed

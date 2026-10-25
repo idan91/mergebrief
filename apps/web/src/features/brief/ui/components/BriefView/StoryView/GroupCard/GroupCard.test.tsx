@@ -22,7 +22,10 @@ import {
   type SessionWrites,
 } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
-import { buildBriefViewModel } from "../../../../../model/utils/view-model";
+import {
+  buildBriefViewModel,
+  getRiskAttributeInlineLabel,
+} from "../../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
@@ -121,7 +124,7 @@ describe("GroupCard header", () => {
     expect(card.textContent).toMatch(/Group 1 of \d+/);
     expect(card.textContent).not.toMatch(/Change-group \d|Step \d/);
     const dominant = card.querySelector('[data-kind="dominant"]');
-    expect(dominant?.textContent).toBe("Dominant: bugfix");
+    expect(dominant?.textContent).toBe("Dominant: Bug fix");
     expect(card.querySelector('[data-kind="uncertain"]')).not.toBeNull();
   });
 
@@ -130,12 +133,12 @@ describe("GroupCard header", () => {
     renderCard(writes);
     const card = screen.getByRole("article");
 
-    fireEvent.click(screen.getByRole("button", { name: "logic refactor" }));
+    fireEvent.click(screen.getByRole("button", { name: "Logic refactor" }));
 
     const dominant = card.querySelector('[data-kind="dominant"]');
-    expect(dominant?.textContent).toBe("Dominant: logic refactor");
+    expect(dominant?.textContent).toBe("Dominant: Logic refactor");
     expect(card.querySelector('[data-kind="uncertain"]')).toBeNull();
-    expect(screen.queryByRole("button", { name: "logic refactor" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Logic refactor" })).toBeNull();
     expect(writes.reclassify).toHaveBeenCalledTimes(1);
     expect(writes.reclassify).toHaveBeenCalledWith("g1", "logic-refactor");
   });
@@ -163,9 +166,10 @@ describe("GroupCard reopen a dismissed risk", () => {
     if (flag === undefined) {
       throw new Error("missing flag");
     }
+    const reopenFlagName = `Reopen the ${getRiskAttributeInlineLabel(appI18n.t, flag.attr)} risk on ${flag.file}`;
     fireEvent.click(
       screen.getByRole("button", {
-        name: `Reopen the ${flag.attr} risk on ${flag.file}`,
+        name: reopenFlagName,
       }),
     );
 

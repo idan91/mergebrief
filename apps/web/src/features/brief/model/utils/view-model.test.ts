@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ChangeGroupCategories } from "types";
+import { LocalBriefKinds } from "contract";
+import { Concerns, RiskSurfaceAttributes, Roles } from "brief-core/types";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { type Brief } from "../types";
 import { GroupViewKinds } from "./remainder";
@@ -8,7 +10,14 @@ import { parseBrief } from "./validation";
 import {
   buildAttributeRail,
   buildBriefViewModel,
+  getArtifactKindLabel,
+  getCategoryInlineLabel,
   getCategoryLabel,
+  getConcernLabel,
+  getRiskAttributeInlineLabel,
+  getRiskAttributeLabel,
+  getRoleLabel,
+  humanizeAttributeName,
   isAttributedGroupView,
   riskChipView,
   type AttributedGroupView,
@@ -95,14 +104,89 @@ function twoGroupBrief(readingOrder?: unknown): TwoGroupBrief {
   return brief;
 }
 
-describe("getCategoryLabel", () => {
-  it("labels every ChangeGroupCategory from the catalog", () => {
+function isSentenceCase(label: string): boolean {
+  const first = label[0] ?? "";
+  return first !== first.toLocaleLowerCase();
+}
+
+describe("vocabulary labels", () => {
+  it("labels every category in sentence case, and lowercase mid-sentence", () => {
     for (const category of Object.values(ChangeGroupCategories)) {
       const label = getCategoryLabel(appI18n.t, category);
-      const spokenKey = category.replaceAll("-", " ");
+      const inline = getCategoryInlineLabel(appI18n.t, category);
 
-      expect(label).toBe(spokenKey);
+      expect(isSentenceCase(label)).toBe(true);
+      expect(inline).toBe(label.toLocaleLowerCase());
     }
+    expect(getCategoryLabel(appI18n.t, ChangeGroupCategories.BUGFIX)).toBe(
+      "Bug fix",
+    );
+  });
+
+  it("labels every built-in risk attribute instead of its raw token", () => {
+    for (const attr of Object.values(RiskSurfaceAttributes)) {
+      const label = getRiskAttributeLabel(appI18n.t, attr);
+
+      expect(label).not.toBe(attr);
+      expect(isSentenceCase(label)).toBe(true);
+    }
+    expect(
+      getRiskAttributeLabel(appI18n.t, RiskSurfaceAttributes.HOT_PATH),
+    ).toBe("Hot path");
+  });
+
+  it("keeps an acronym capitalised in the inline risk label", () => {
+    const externalIo = RiskSurfaceAttributes.EXTERNAL_IO;
+
+    expect(getRiskAttributeLabel(appI18n.t, externalIo)).toBe("External I/O");
+    expect(getRiskAttributeInlineLabel(appI18n.t, externalIo)).toBe(
+      "external I/O",
+    );
+  });
+
+  it("humanizes a repo-defined attribute that has no catalog label", () => {
+    expect(getRiskAttributeLabel(appI18n.t, "pii-logging")).toBe("Pii logging");
+    expect(getRiskAttributeInlineLabel(appI18n.t, "pii-logging")).toBe(
+      "pii logging",
+    );
+    expect(humanizeAttributeName("billing")).toBe("Billing");
+    expect(humanizeAttributeName("")).toBe("");
+  });
+
+  it("capitalizes a repo-defined attribute the same under a Turkish locale", () => {
+    const localeUpper = String.prototype.toLocaleUpperCase;
+    const turkishUpper = vi
+      .spyOn(String.prototype, "toLocaleUpperCase")
+      .mockImplementation(function convertToTurkishUpper(this: string) {
+        return localeUpper.call(this, "tr-TR");
+      });
+    try {
+      expect("i".toLocaleUpperCase()).toBe("\u0130");
+      expect(humanizeAttributeName("internal-api")).toBe("Internal api");
+    } finally {
+      turkishUpper.mockRestore();
+    }
+  });
+
+  it("labels every concern and role in sentence case", () => {
+    for (const concern of Object.values(Concerns)) {
+      const label = getConcernLabel(appI18n.t, concern);
+      expect(isSentenceCase(label)).toBe(true);
+    }
+    expect(getConcernLabel(appI18n.t, Concerns.IMPLEMENTATION)).toBe(
+      "Implementation",
+    );
+    expect(getRoleLabel(appI18n.t, Roles.CORE)).toBe("Core");
+    expect(getRoleLabel(appI18n.t, Roles.SUPPORTING)).toBe("Supporting");
+  });
+
+  it("names the artifact kind instead of its stored value", () => {
+    expect(getArtifactKindLabel(appI18n.t, LocalBriefKinds.BRIEF)).toBe(
+      "Brief",
+    );
+    expect(getArtifactKindLabel(appI18n.t, LocalBriefKinds.DELTA)).toBe(
+      "Delta brief",
+    );
   });
 });
 

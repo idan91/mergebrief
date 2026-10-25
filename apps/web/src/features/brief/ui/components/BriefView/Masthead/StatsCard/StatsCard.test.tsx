@@ -56,7 +56,7 @@ describe("StatsCard", () => {
       null,
     ]);
     expect(rows[0]?.textContent).toContain("50%");
-    expect(rows[2]?.textContent).toContain("unattributed");
+    expect(rows[2]?.textContent).toContain("Unattributed");
   });
 
   it("drops the Split below two concerns", () => {

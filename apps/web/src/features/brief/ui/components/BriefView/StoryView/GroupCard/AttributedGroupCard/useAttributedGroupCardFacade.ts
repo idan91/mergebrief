@@ -8,7 +8,7 @@ import {
 } from "@web/features/review/session";
 import { useFlagSurface } from "../../../../../hooks/useFlagSurface";
 import {
-  getCategoryLabel,
+  getCategoryInlineLabel,
   type AttributedGroupView,
   type BriefViewModel,
   type RiskFlag,
@@ -42,7 +42,7 @@ export function useAttributedGroupCardFacade({
   const { announce } = useReviewActions();
 
   function chooseDominant(category: ChangeGroupCategory) {
-    const categoryLabel = getCategoryLabel(t, category);
+    const categoryLabel = getCategoryInlineLabel(t, category);
 
     actions.reclassifyGroup(group.id, category);
     announce(t("brief.story.dominantAnnounce", { category: categoryLabel }));

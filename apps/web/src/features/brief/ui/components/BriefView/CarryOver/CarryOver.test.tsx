@@ -412,7 +412,7 @@ describe("carry-over row", () => {
       session: buildCarriedDisposition("reopened-disposition"),
     });
     const item = screen.getByTestId("attention-item");
-    expect(within(item).getByText(FLAG_ATTRIBUTE)).toBeTruthy();
+    expect(within(item).getByText("No tests")).toBeTruthy();
     expect(screen.getByTestId("attention-jump").textContent).toBe(FLAG_FILE);
   });
 });

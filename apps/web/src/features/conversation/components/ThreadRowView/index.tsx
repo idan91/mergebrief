@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { RowButton } from "@web/components/RowButton";
-import { threadStateChip } from "../../utils/chips";
+import { THREAD_STATE_LABEL_KEYS, deriveThreadState } from "../../utils/chips";
 import type { DigestThreadRow } from "../../utils/digest";
 import rowStyles from "../../rows.module.scss";
 import { type ThreadRowElement, ThreadRowElements } from "../../types";
@@ -55,6 +55,8 @@ export function ThreadRowView({
   // those rows stay full. Expanding any thread restores the full row too.
   const slim = thread.isResolved && !thread.isOutdated && !expanded;
   const RowElement = element;
+  const threadState = deriveThreadState(thread);
+  const threadStateLabel = t(THREAD_STATE_LABEL_KEYS[threadState]);
 
   return (
     <RowElement
@@ -95,11 +97,8 @@ export function ThreadRowView({
           </>
         ) : (
           <>
-            <span
-              className={rowStyles["chip"]}
-              data-state={threadStateChip(thread)}
-            >
-              {threadStateChip(thread)}
+            <span className={rowStyles["chip"]} data-state={threadState}>
+              {threadStateLabel}
             </span>
             {author?.avatarUrl === undefined ? null : (
               // Decorative: the adjacent login carries the identity.

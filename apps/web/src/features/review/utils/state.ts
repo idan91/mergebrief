@@ -3,6 +3,7 @@ import { Roles } from "brief-core/types";
 import { AttentionItemKinds, type AttentionItemKind } from "contract";
 import {
   type BriefChunk,
+  getRiskAttributeLabel,
   isUnattributedRemainderChunk,
   type RiskFlag,
 } from "@web/features/brief/model";
@@ -107,38 +108,65 @@ export function getChunkRegion(chunk: BriefChunk): ChunkRegion {
   };
 }
 
+function addLabelContext<Params extends object>(
+  params: Params,
+  context: "inline" | undefined,
+): Params & { context?: "inline" } {
+  const options: Params & { context?: "inline" } = { ...params };
+  if (context !== undefined) {
+    options.context = context;
+  }
+  return options;
+}
+
+/**
+ * The label leads its own line by default; `"inline"` is the same label
+ * where it lands mid-line, as in the receipt text.
+ */
 export function riskEvidenceLabel(
   t: TFunction,
   evidence: HeldRiskEvidence,
   comments: ReviewComment[],
   chunks: BriefChunk[],
+  context?: "inline",
 ): string {
   if (evidence.kind === UnknownValues.UNKNOWN) {
-    return t("review.summary.evidenceUnknown");
+    return t("review.summary.evidenceUnknown", addLabelContext({}, context));
   }
   if (evidence.kind === DispositionEvidenceKinds.LINKED_COMMENT) {
     const comment = comments.find((item) => item.id === evidence.commentId);
     if (!comment) {
-      return t("review.summary.evidenceLinkedCommentMissing");
+      return t(
+        "review.summary.evidenceLinkedCommentMissing",
+        addLabelContext({}, context),
+      );
     }
-    return t("review.summary.evidenceLinkedComment", {
-      location: commentLocation(comment),
-    });
+    const location = commentLocation(comment);
+    return t(
+      "review.summary.evidenceLinkedComment",
+      addLabelContext({ location }, context),
+    );
   }
   if (evidence.kind === DispositionEvidenceKinds.CHUNK_REVIEWED) {
     const chunk = chunks.find((item) => item.id === evidence.chunkId);
-    return t("review.summary.evidenceChunkReviewed", {
-      file: chunk?.file ?? t("review.summary.evidenceSelectedChunk"),
-    });
+    const file = chunk?.file ?? t("review.summary.evidenceSelectedChunk");
+    return t(
+      "review.summary.evidenceChunkReviewed",
+      addLabelContext({ file }, context),
+    );
   }
   const note = evidence.note?.trim();
   if (note) {
-    return t("review.summary.evidenceManualWithNote", { note });
+    return t(
+      "review.summary.evidenceManualWithNote",
+      addLabelContext({ note }, context),
+    );
   }
-  return t("review.summary.evidenceManual");
+  return t("review.summary.evidenceManual", addLabelContext({}, context));
 }
 
 export function deriveUnresolvedItems(
+  t: TFunction,
   input: UnresolvedInput,
 ): UnresolvedItem[] {
   const items: UnresolvedItem[] = [];
@@ -149,7 +177,7 @@ export function deriveUnresolvedItems(
     const disposition = input.dispositions[flag.id] ?? {
       kind: DispositionKinds.OPEN,
     };
-    const label = `${flag.attr} @ ${flag.file}`;
+    const label = `${getRiskAttributeLabel(t, flag.attr)} @ ${flag.file}`;
     if (disposition.kind === DispositionKinds.OPEN) {
       items.push({
         id: `risk:${flag.id}`,
@@ -413,6 +441,7 @@ function isKnownAttentionItem(
 }
 
 function buildCarriedDispositionItem(
+  t: TFunction,
   input: CarriedInput,
   item: KnownAttentionItem,
 ): CarriedItem | undefined {
@@ -428,7 +457,7 @@ function buildCarriedDispositionItem(
   return {
     id: `carried:${item.kind}:${pending.id}`,
     kind: item.kind,
-    label: `${pending.attr} @ ${pending.file}`,
+    label: `${getRiskAttributeLabel(t, pending.attr)} @ ${pending.file}`,
     targetId: pending.chunkId,
     clearedBy: item.clearedBy,
     actionTargetId: pending.id,
@@ -448,12 +477,15 @@ function buildCarriedDispositionItem(
  * read off live state rather than tracked, so a write that fails and reverts
  * puts its item straight back.
  */
-export function deriveCarriedItems(input: CarriedInput): CarriedItem[] {
+export function deriveCarriedItems(
+  t: TFunction,
+  input: CarriedInput,
+): CarriedItem[] {
   return input.attention.filter(isKnownAttentionItem).flatMap((item) => {
     const derived =
       item.kind === AttentionItemKinds.ORPHANED_ANCHOR
         ? buildCarriedDraftItem(input, item)
-        : buildCarriedDispositionItem(input, item);
+        : buildCarriedDispositionItem(t, input, item);
     return derived === undefined ? [] : [derived];
   });
 }

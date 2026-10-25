@@ -86,7 +86,7 @@ describe("riskEvidenceLabel", () => {
         [reviewComment],
         [coreChunk],
       ),
-    ).toBe("linked comment src/a.ts:+12");
+    ).toBe("Linked comment src/a.ts:+12");
     expect(
       riskEvidenceLabel(
         appI18n.t,
@@ -94,7 +94,7 @@ describe("riskEvidenceLabel", () => {
         [reviewComment],
         [coreChunk],
       ),
-    ).toBe("reviewed related chunk src/a.ts");
+    ).toBe("Reviewed related chunk src/a.ts");
     expect(
       riskEvidenceLabel(
         appI18n.t,
@@ -102,13 +102,13 @@ describe("riskEvidenceLabel", () => {
         [reviewComment],
         [coreChunk],
       ),
-    ).toBe("manually verified: Checked the fallback path.");
+    ).toBe("Manually verified: Checked the fallback path.");
   });
 
   it("gives evidence of a kind this bundle predates a neutral label", () => {
     expect(
       riskEvidenceLabel(appI18n.t, { kind: "unknown" }, [], [coreChunk]),
-    ).toBe("evidence recorded");
+    ).toBe("Evidence recorded");
   });
 });
 
@@ -127,7 +127,7 @@ const remainderChunk = {
 describe("deriveUnresolvedItems", () => {
   it("finds open risks, evidence gaps, unread core, drafts and thin reasons", () => {
     expect(
-      deriveUnresolvedItems({
+      deriveUnresolvedItems(appI18n.t, {
         chunks: [coreChunk, supportingChunk],
         remainderChunks: [],
         flags: [riskFlag],
@@ -139,7 +139,7 @@ describe("deriveUnresolvedItems", () => {
       {
         id: "evidence:chunk-a-no-tests-0",
         kind: "missing-evidence",
-        label: "no-tests @ src/a.ts",
+        label: "No tests @ src/a.ts",
         targetId: "chunk-a",
       },
       {
@@ -159,7 +159,7 @@ describe("deriveUnresolvedItems", () => {
 
   it("finds open risks and thin dismissal reasons", () => {
     expect(
-      deriveUnresolvedItems({
+      deriveUnresolvedItems(appI18n.t, {
         chunks: [coreChunk],
         remainderChunks: [],
         flags: [riskFlag],
@@ -173,13 +173,13 @@ describe("deriveUnresolvedItems", () => {
       {
         id: "dismissal:chunk-a-no-tests-0",
         kind: "thin-dismissal",
-        label: "no-tests @ src/a.ts",
+        label: "No tests @ src/a.ts",
         targetId: "chunk-a",
       },
     ]);
 
     expect(
-      deriveUnresolvedItems({
+      deriveUnresolvedItems(appI18n.t, {
         chunks: [coreChunk],
         remainderChunks: [],
         flags: [riskFlag],
@@ -191,7 +191,7 @@ describe("deriveUnresolvedItems", () => {
       {
         id: "risk:chunk-a-no-tests-0",
         kind: "open-risk",
-        label: "no-tests @ src/a.ts",
+        label: "No tests @ src/a.ts",
         targetId: "chunk-a",
       },
     ]);
@@ -199,7 +199,7 @@ describe("deriveUnresolvedItems", () => {
 
   it("emits unreviewed-remainder for unread view-model remainder chunks", () => {
     expect(
-      deriveUnresolvedItems({
+      deriveUnresolvedItems(appI18n.t, {
         chunks: [coreChunk],
         remainderChunks: [remainderChunk],
         flags: [],
@@ -225,7 +225,7 @@ describe("deriveUnresolvedItems", () => {
 
   it("omits a reviewed remainder chunk", () => {
     expect(
-      deriveUnresolvedItems({
+      deriveUnresolvedItems(appI18n.t, {
         chunks: [coreChunk],
         remainderChunks: [remainderChunk],
         flags: [],
@@ -237,7 +237,7 @@ describe("deriveUnresolvedItems", () => {
   });
 
   it("never labels a remainder chunk as unreviewed-core", () => {
-    const items = deriveUnresolvedItems({
+    const items = deriveUnresolvedItems(appI18n.t, {
       chunks: [coreChunk, remainderChunk],
       remainderChunks: [remainderChunk],
       flags: [],
@@ -339,7 +339,8 @@ describe("deriveCarriedItems", () => {
       ...buildOrphanItem(),
       kind: "unknown",
     };
-    expect(deriveCarriedItems(buildCarriedInput([item]))).toEqual([]);
+    const input = buildCarriedInput([item]);
+    expect(deriveCarriedItems(appI18n.t, input)).toEqual([]);
   });
 
   it("renders nothing for an attention location this bundle predates", () => {
@@ -348,13 +349,13 @@ describe("deriveCarriedItems", () => {
       location: { kind: "unknown", filePath: "src/a.ts" },
     };
     const unplaceable = { comments: [], chunks: [supportingChunk] };
-    expect(deriveCarriedItems(buildCarriedInput([item], unplaceable))).toEqual(
-      [],
-    );
+    const input = buildCarriedInput([item], unplaceable);
+    expect(deriveCarriedItems(appI18n.t, input)).toEqual([]);
   });
 
   it("carries the server's clearing operations through untouched", () => {
-    const [item] = deriveCarriedItems(buildCarriedInput([buildOrphanItem()]));
+    const input = buildCarriedInput([buildOrphanItem()]);
+    const [item] = deriveCarriedItems(appI18n.t, input);
     expect(item?.clearedBy).toEqual([
       "reanchor-draft-comment",
       "delete-draft-comment",
@@ -366,6 +367,7 @@ describe("deriveCarriedItems", () => {
   it("clears an orphaned anchor when the draft is deleted or re-placed", () => {
     expect(
       deriveCarriedItems(
+        appI18n.t,
         buildCarriedInput([buildOrphanItem()], { comments: [] }),
       ),
     ).toEqual([]);
@@ -375,6 +377,7 @@ describe("deriveCarriedItems", () => {
     };
     expect(
       deriveCarriedItems(
+        appI18n.t,
         buildCarriedInput([buildOrphanItem()], { comments: [moved] }),
       ),
     ).toEqual([]);
@@ -382,6 +385,7 @@ describe("deriveCarriedItems", () => {
 
   it("keeps an orphan with no rendered file and marks it unplaceable", () => {
     const items = deriveCarriedItems(
+      appI18n.t,
       buildCarriedInput([buildOrphanItem()], {
         comments: [],
         chunks: [supportingChunk],
@@ -397,9 +401,9 @@ describe("deriveCarriedItems", () => {
       comments: [],
       chunks: [supportingChunk],
     });
-    expect(deriveCarriedItems(gone)).toHaveLength(1);
+    expect(deriveCarriedItems(appI18n.t, gone)).toHaveLength(1);
     expect(
-      deriveCarriedItems({
+      deriveCarriedItems(appI18n.t, {
         ...gone,
         deletedMissingDrafts: new Set(["comment-1"]),
       }),
@@ -419,12 +423,13 @@ describe("deriveCarriedItems", () => {
         endLine: 30,
       },
     };
-    expect(deriveCarriedItems(buildCarriedInput([shifted]))).toHaveLength(1);
+    const input = buildCarriedInput([shifted]);
+    expect(deriveCarriedItems(appI18n.t, input)).toHaveLength(1);
   });
 
   it("clears a reopened disposition once the flag is addressed or dismissed", () => {
     const item = buildDispositionItem("reopened-disposition");
-    const open = deriveCarriedItems(buildCarriedInput([item]));
+    const open = deriveCarriedItems(appI18n.t, buildCarriedInput([item]));
     expect(open).toHaveLength(1);
     expect(open[0]?.actionTargetId).toBe(riskFlag.id);
     for (const disposition of [
@@ -433,6 +438,7 @@ describe("deriveCarriedItems", () => {
     ] satisfies Disposition[]) {
       expect(
         deriveCarriedItems(
+          appI18n.t,
           buildCarriedInput([item], {
             dispositions: { [riskFlag.id]: disposition },
           }),
@@ -444,6 +450,7 @@ describe("deriveCarriedItems", () => {
   it("clears missing evidence once evidence lands or the flag is dismissed", () => {
     const item = buildDispositionItem("missing-evidence");
     const pending = deriveCarriedItems(
+      appI18n.t,
       buildCarriedInput([item], {
         dispositions: { [riskFlag.id]: { kind: "addressed" } },
       }),
@@ -455,6 +462,7 @@ describe("deriveCarriedItems", () => {
     ] satisfies Disposition[]) {
       expect(
         deriveCarriedItems(
+          appI18n.t,
           buildCarriedInput([item], {
             dispositions: { [riskFlag.id]: disposition },
           }),
@@ -466,6 +474,7 @@ describe("deriveCarriedItems", () => {
   it("drops a disposition item whose flag this Brief no longer raises", () => {
     expect(
       deriveCarriedItems(
+        appI18n.t,
         buildCarriedInput([buildDispositionItem("reopened-disposition")], {
           flags: [],
         }),

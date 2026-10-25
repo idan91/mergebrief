@@ -4,7 +4,10 @@ import type { Disposition } from "@web/features/review/session";
 import { LinkButton } from "@web/components/LinkButton";
 import { RiskBadge } from "../../../../../../RiskBadge";
 import { RiskChipDisclosure } from "../../../../../../RiskChipDisclosure";
-import type { RiskFlag } from "../../../../../../../../../model/utils/view-model";
+import {
+  getRiskAttributeInlineLabel,
+  type RiskFlag,
+} from "../../../../../../../../../model/utils/view-model";
 import { CatalogChipDetail } from "../../CatalogChipDetail";
 import { getFlagDispositionKind } from "../../utils";
 import styles from "./ResolvedFlagItem.module.scss";
@@ -25,23 +28,23 @@ export function ResolvedFlagItem({
   const { t } = useTranslation();
   const kind = getFlagDispositionKind(dispositions, flag.id);
   const showReopen = kind === "dismissed" && !flagsReadOnly;
+  const reopenLabel = t("brief.group.ariaLabelReopen", {
+    attr: getRiskAttributeInlineLabel(t, flag.attr),
+    file: flag.file,
+  });
   return (
     <span className={styles["resolvedItem"]}>
       <span className={styles["resolvedChip"]}>
         <RiskChipDisclosure detail={<CatalogChipDetail flag={flag} />}>
           <RiskBadge
+            attribute={flag.attr}
             meta={{ source: flag.source, deEmphasized: flag.deEmphasized }}
-          >
-            {flag.attr}
-          </RiskBadge>
+          />
         </RiskChipDisclosure>
       </span>
       {showReopen ? (
         <LinkButton
-          aria-label={t("brief.group.ariaLabelReopen", {
-            attr: flag.attr,
-            file: flag.file,
-          })}
+          aria-label={reopenLabel}
           className={styles["reopen"]}
           onClick={() => reopenFlag(flag)}
         >

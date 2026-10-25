@@ -1,20 +1,16 @@
 import { useTranslation } from "react-i18next";
-import { type Role, Roles } from "brief-core/types";
-import { Badge, BadgeColors } from "@web/components/Badge";
+import type { Role } from "brief-core/types";
+import { Badge } from "@web/components/Badge";
+
+import { getRoleLabel } from "../../../../../../model/utils/view-model";
+import { RoleBadgeColors } from "./consts";
 
 export interface RoleBadgeProps {
   role: Role;
 }
 
-/**
- * Core reads loud (Text 1), supporting reads quiet (Text 2): lightness, not
- * hue, so it doesn't collide with the concern-dot palette.
- */
 export function RoleBadge({ role }: RoleBadgeProps) {
   const { t } = useTranslation();
-  return role === Roles.CORE ? (
-    <Badge color={BadgeColors.TEXT}>{t("brief.chunk.roleCore")}</Badge>
-  ) : (
-    <Badge color={BadgeColors.NEUTRAL}>{t("brief.chunk.roleSupporting")}</Badge>
-  );
+  const label = getRoleLabel(t, role);
+  return <Badge color={RoleBadgeColors[role]}>{label}</Badge>;
 }

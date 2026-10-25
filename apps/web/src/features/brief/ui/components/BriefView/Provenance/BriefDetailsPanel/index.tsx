@@ -7,7 +7,11 @@ import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import type { Brief } from "../../../../../model/types";
-import type { RepoConfigContext } from "../../../../../model/utils/repo-config";
+import {
+  getRepoConfigOutcomeLabel,
+  type RepoConfigContext,
+} from "../../../../../model/utils/repo-config";
+import { getArtifactKindLabel } from "../../../../../model/utils/view-model";
 import { Icon } from "@web/components/Icon";
 import {
   IconNames,
@@ -215,6 +219,7 @@ function ArtifactSection({
     brief.baselineIndex !== null && brief.baselineIndex !== undefined;
   const hasHeadIndex =
     brief.headIndex !== null && brief.headIndex !== undefined;
+  const artifactKindLabel = getArtifactKindLabel(t, brief.artifactKind);
   return (
     <section className={styles["section"]} data-details-section="artifact">
       <h2 className={styles["heading"]}>
@@ -222,7 +227,7 @@ function ArtifactSection({
       </h2>
       <dl className={styles["facts"]}>
         <dt>{t("brief.details.kind")}</dt>
-        <dd>{brief.artifactKind}</dd>
+        <dd>{artifactKindLabel}</dd>
         {brief.artifactKind === LocalBriefKinds.BRIEF &&
         brief.index !== undefined ? (
           <>
@@ -358,6 +363,20 @@ function RepoConfigSection({
     repoConfig !== undefined &&
     (repoConfig.files.some((file) => file.outcome !== "absent") ||
       repoConfig.collisions.length > 0);
+  const presentFiles =
+    repoConfig?.files.filter((file) => file.outcome !== "absent") ?? [];
+  const presentRows = presentFiles.map((file) => {
+    const outcomeLabel = getRepoConfigOutcomeLabel(t, file.outcome);
+    return { file, outcomeLabel };
+  });
+  const collisions = repoConfig?.collisions ?? [];
+  const collisionsLine =
+    collisions.length > 0
+      ? t("brief.details.collisionsLine", {
+          count: collisions.length,
+          names: collisions.join(", "),
+        })
+      : undefined;
   return (
     <section className={styles["section"]} data-details-section="repo-config">
       <h2 className={styles["heading"]}>
@@ -369,27 +388,16 @@ function RepoConfigSection({
         // Slimmed on purpose: bytes-of-budget and per-file blob SHAs stay
         // out; the warning-state chip's own callout keeps the full table.
         <ul className={styles["configList"]}>
-          {repoConfig.files
-            .filter((file) => file.outcome !== "absent")
-            .map((file) => (
-              <li key={file.path}>
-                <code>{file.path}</code>
-                <span data-outcome={file.outcome}>
-                  {file.outcome === "applied"
-                    ? t("brief.details.applied")
-                    : t("brief.details.notApplied")}
-                </span>
-                {file.warning ? <i>{file.warning}</i> : null}
-              </li>
-            ))}
-          {repoConfig.collisions.length > 0 ? (
+          {presentRows.map(({ file, outcomeLabel }) => (
+            <li key={file.path}>
+              <code>{file.path}</code>
+              <span data-outcome={file.outcome}>{outcomeLabel}</span>
+              {file.warning ? <i>{file.warning}</i> : null}
+            </li>
+          ))}
+          {collisionsLine !== undefined ? (
             <li>
-              <i>
-                {t("brief.details.collisionsLine", {
-                  count: repoConfig.collisions.length,
-                  names: repoConfig.collisions.join(", "),
-                })}
-              </i>
+              <i>{collisionsLine}</i>
             </li>
           ) : null}
         </ul>

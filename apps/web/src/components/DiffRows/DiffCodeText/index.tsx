@@ -54,10 +54,16 @@ export function DiffCodeText({ content, tokens, emphasis }: DiffCodeTextProps) {
       return inner;
     }
 
+    // A span, not <mark>: the ring is a visual aid over text both paired
+    // lines already read in full, and the plain pass draws none.
     return (
-      <mark className={rowStyles["emphasis"]} key={segment.from}>
+      <span
+        className={rowStyles["emphasis"]}
+        data-testid="diff-emphasis"
+        key={segment.from}
+      >
         {inner}
-      </mark>
+      </span>
     );
   });
 }

@@ -60,7 +60,7 @@ describe("LocalBriefsSection", () => {
     expect(rows).toHaveLength(2);
     const delta = within(rows[1]!).getByRole("link");
     expect(delta.getAttribute("href")).toBe("/briefs/example-repo_7_22222222");
-    expect(within(rows[1]!).getByText("delta")).toBeTruthy();
+    expect(within(rows[1]!).getByText("Delta brief")).toBeTruthy();
     expect(within(rows[1]!).getByText("abcdef0 \u2192 2222222")).toBeTruthy();
     expect(within(rows[0]!).getByText("#7")).toBeTruthy();
   });

@@ -328,7 +328,7 @@ release`.
         converges to the reviewer view; `converted_to_draft` returns it
         WITHOUT regenerating;
       - post-now on an own-draft inline comment posts to GitHub (commit_id
-        pinned) and renders as a "yours" thread; the reviewer composer stays
+        pinned) and renders as a "Yours" thread; the reviewer composer stays
         private-until-submit (a "Post" button in the reviewer state is a
         hard regression).
 - [ ] Draft generation policy (edits to the `drafts:` block of

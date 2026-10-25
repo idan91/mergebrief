@@ -28,7 +28,6 @@ export type Catalog = typeof en & {
       viewingRevisionReadOnly: "Viewing revision {{index}} of {{total}}. Read-only.";
     };
     markReadyModal: (typeof en)["pulls"]["markReadyModal"] & {
-      flagPolicyImplication: "defined by repo policy — {{implication}}";
       statedAsks_one: "{{count}} stated ask not found in the diff";
       statedAsks_other: "{{count}} stated asks not found in the diff";
       intentTensions_one: "{{count}} intent tension flagged";
@@ -53,9 +52,9 @@ export type Catalog = typeof en & {
     header: (typeof en)["brief"]["header"] & {
       ariaLabelSubmitReview_one: "Submit review, {{count}} draft comment";
       ariaLabelSubmitReview_other: "Submit review, {{count}} draft comments";
-      repoConfigChipAt: "repo config @ {{sha}}";
+      repoConfigChipAt: "Repo config @ {{sha}}";
       branchPairAria: "{{head}} into {{base}}";
-      stackIndexAria: "pull request {{index}} of {{total}} in the stack";
+      stackIndexAria: "Pull request {{index}} of {{total}} in the stack";
       stackMember: "#{{number}} {{title}}";
       stackAsOf: "As of {{date}}";
       stackPrevious: "Previous PR in stack, #{{number}}: {{title}}";
@@ -66,17 +65,17 @@ export type Catalog = typeof en & {
       commits_other: "{{count}} commits";
       warnings_one: "{{count}} generation warning";
       warnings_other: "{{count}} generation warnings";
-      collisionsLine_one: "built-in wins over custom name: {{names}}";
-      collisionsLine_other: "built-in wins over custom names: {{names}}";
+      collisionsLine_one: "Built-in wins over custom name: {{names}}";
+      collisionsLine_other: "Built-in wins over custom names: {{names}}";
       bytesUsed: "{{used}} of {{budget}} bytes";
     };
     intent: (typeof en)["brief"]["intent"] & {
       showAll: "Show all {{count}}";
-      jumpToGroup: "go to change-group {{groupId}}";
-      jumpToGroupTitled: "go to change-group {{groupId}} — {{title}}";
+      jumpToGroup: "Go to change-group {{groupId}}";
+      jumpToGroupTitled: "Go to change-group {{groupId}} — {{title}}";
       deviations_one: "<0>{{count}}</0> deviation";
       deviations_other: "<0>{{count}}</0> deviations";
-      unavailable: "intent check unavailable — {{reason}}";
+      unavailable: "Intent check unavailable — {{reason}}";
       accomplished_one: "<0>{{count}}</0> accomplished";
       accomplished_other: "<0>{{count}}</0> accomplished";
       maskedFixes_one: "<0>{{count}}</0> masked fix";
@@ -91,7 +90,8 @@ export type Catalog = typeof en & {
         "no-credential": "{{tracker}} refused the read — no credential is configured for it on this deployment";
         timeout: "{{tracker}} did not answer in time";
         "rate-limited": "{{tracker}} rate-limited the read";
-        unsupported: "no {{tracker}} reader is configured on this deployment";
+        unsupported: "No {{tracker}} reader is configured on this deployment";
+        unsupported_inline: "no {{tracker}} reader is configured on this deployment";
       };
     };
     toolbar: (typeof en)["brief"]["toolbar"] & {
@@ -111,8 +111,8 @@ export type Catalog = typeof en & {
       ariaLabelGroupRiskSurface: "{{title}} — risk surface";
       groupOf: "Group {{index}} of {{total}}";
       chunkCounts: "{{core}} core · {{supporting}} supporting";
-      flagsIn_one: "{{count}} flag in {{attr}}";
-      flagsIn_other: "{{count}} flags in {{attr}}";
+      selectedFlags_one: "{{count}} selected flag";
+      selectedFlags_other: "{{count}} selected flags";
       ariaLabelReopen: "Reopen the {{attr}} risk on {{file}}";
       filesCount_one: "{{count}} file";
       filesCount_other: "{{count}} files";
@@ -183,7 +183,8 @@ export type Catalog = typeof en & {
       drafts_one: "{{count}} draft";
       drafts_other: "{{count}} drafts";
       addressedCount: "{{count}} addressed";
-      reviewCount: "{{count}} review";
+      reviewCount_one: "{{count}} review comment";
+      reviewCount_other: "{{count}} review comments";
       ariaLabelAddFileComment: "Add a comment on {{file}}";
     };
     focusPanel: (typeof en)["brief"]["focusPanel"] & {
@@ -222,9 +223,12 @@ export type Catalog = typeof en & {
   review: (typeof en)["review"] & {
     summary: (typeof en)["review"]["summary"] & {
       signature: "Reviewed with MergeBrief / review — summary: {{reviewedChunks}} chunks read, {{addressedRisks}} risks addressed, {{dismissedRisks}} dismissed.";
-      evidenceLinkedComment: "linked comment {{location}}";
-      evidenceChunkReviewed: "reviewed related chunk {{file}}";
-      evidenceManualWithNote: "manually verified: {{note}}";
+      evidenceLinkedComment: "Linked comment {{location}}";
+      evidenceLinkedComment_inline: "linked comment {{location}}";
+      evidenceChunkReviewed: "Reviewed related chunk {{file}}";
+      evidenceChunkReviewed_inline: "reviewed related chunk {{file}}";
+      evidenceManualWithNote: "Manually verified: {{note}}";
+      evidenceManualWithNote_inline: "manually verified: {{note}}";
     };
     submit: (typeof en)["review"]["submit"] & {
       receiptCommentsFold: "Inline comments ({{total}})";
@@ -232,8 +236,8 @@ export type Catalog = typeof en & {
     };
     comment: (typeof en)["review"]["comment"] & {
       anchorCross: "{{start}} → {{end}}";
-      addressesComments: "addresses comments {{ids}}";
-      replyTo: "reply to {{id}}";
+      addressesComments: "Addresses comments {{ids}}";
+      replyTo: "Reply to {{id}}";
       lines_one: "{{count}} line";
       lines_other: "{{count}} lines";
       tooLongToPost: "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.";
@@ -279,8 +283,8 @@ export type Catalog = typeof en & {
   tokens: (typeof en)["tokens"] & {
     ariaLabelRevoke: "Revoke {{name}}";
     nameTooLong: "Token names are capped at {{max}} characters.";
-    rowRevoked: "revoked {{when}}";
-    rowActive: "expires {{expires}} · last used {{lastUsed}}";
+    rowRevoked: "Revoked {{when}}";
+    rowActive: "Expires {{expires}} · last used {{lastUsed}}";
   };
   spend: (typeof en)["spend"] & {
     startedOfCap_one: "This instance has started <0>{{started}} of its {{count}}</0> run today.";

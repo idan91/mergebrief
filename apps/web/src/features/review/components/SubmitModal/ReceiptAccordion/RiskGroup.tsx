@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { MentionText } from "@web/components/Markdown/MentionText";
+import { getRiskAttributeLabel } from "@web/features/brief/model";
 
 import type { ReceiptRiskRow } from "../../../utils/receipt";
 import { shortFile } from "../../../utils/receipt";
@@ -19,16 +20,21 @@ export function RiskGroup({
   reviewerWroteDetail,
 }: RiskGroupProps) {
   const { t } = useTranslation();
+  const itemRows = items.map((item) => {
+    const attributeLabel = getRiskAttributeLabel(t, item.attr);
+    return { item, attributeLabel, file: shortFile(item.file) };
+  });
+
   return (
     <div className={styles["riskGroup"]}>
       <h3>{title}</h3>
       {items.length === 0 ? (
         <p className={styles["empty"]}>{t("review.summary.none")}</p>
       ) : null}
-      {items.map((item) => (
+      {itemRows.map(({ item, attributeLabel, file }) => (
         <div className={styles["itemRow"]} key={item.id}>
           <span>
-            {item.attr} · {shortFile(item.file)}
+            {attributeLabel} · {file}
           </span>
           <small>
             {reviewerWroteDetail ? (

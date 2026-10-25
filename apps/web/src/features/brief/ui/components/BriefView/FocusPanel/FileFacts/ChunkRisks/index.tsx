@@ -25,18 +25,14 @@ export function ChunkRisks({ chunk, riskMeta }: ChunkRisksProps) {
           {chunk.riskSurface.map((risk) => {
             const meta = riskMeta?.get(risk);
             if (!isDisclosedRisk(meta)) {
-              return (
-                <RiskBadge key={risk} meta={meta}>
-                  {risk}
-                </RiskBadge>
-              );
+              return <RiskBadge attribute={risk} key={risk} meta={meta} />;
             }
             return (
               <RiskChipDisclosure
                 detail={<RiskDetailList attrs={[risk]} metaFor={() => meta} />}
                 key={risk}
               >
-                <RiskBadge meta={meta}>{risk}</RiskBadge>
+                <RiskBadge attribute={risk} meta={meta} />
               </RiskChipDisclosure>
             );
           })}

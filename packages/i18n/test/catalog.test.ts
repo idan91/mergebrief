@@ -14,6 +14,7 @@ import {
 } from "./helpers";
 
 const LOCALES_DIR = fileURLToPath(new URL("../src/locales", import.meta.url));
+const INLINE_SUFFIX = "_inline";
 
 function localeFiles(): string[] {
   return readdirSync(LOCALES_DIR)
@@ -56,6 +57,16 @@ describe("hard-fail catalog gates", () => {
     for (const file of localeFiles()) {
       expect(checkLocale(parseLocale(file), en)).toEqual([]);
     }
+  });
+
+  it("gives every _inline variant its standalone base key", () => {
+    const flat = flattenCatalog(parseLocale("en.json"));
+    const orphans = Object.keys(flat).filter((key) => {
+      const base = key.slice(0, -INLINE_SUFFIX.length);
+      const orphaned = key.endsWith(INLINE_SUFFIX) && flat[base] === undefined;
+      return orphaned;
+    });
+    expect(orphans).toEqual([]);
   });
 
   it("pins every slot-bearing key to its slot count", () => {

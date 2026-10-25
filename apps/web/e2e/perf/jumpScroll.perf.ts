@@ -123,47 +123,88 @@ test("jump to far chunk timing", async ({ page }) => {
   }
 });
 
-test("scroll frame gaps", async ({ page }) => {
-  await gotoBrief(page, PERF_ROUTE_REV1, {
-    timeout: 90_000,
-  });
+/** Four seconds of frames at 60Hz: the traversal's length in frames. */
+const TRAVERSAL_FRAME_STEPS = 240;
+/** The slowest average frame a 240-step traversal may run, about 15fps. */
+const MEAN_FRAME_GAP_BUDGET_MS = 65;
 
-  // Scripted top-to-bottom scroll inside one rAF loop: every gap between
-  // consecutive frames is a sample. A long gap = a frame the main thread
-  // could not produce, the jank virtualization must not add to. Instant
-  // behavior per step: the CSS `scroll-behavior: smooth` would otherwise
-  // animate toward each step and the page would never traverse its real
-  // height inside the loop.
-  const gaps = await page.evaluate(async (durationMs: number) => {
+/** One scripted top-to-bottom traversal, read back from the page. */
+interface FrameTraversal {
+  gaps: number[];
+  advancedFrames: number;
+  bottomShortfallPx: number;
+  stepPx: number;
+}
+
+/**
+ * Steps the window one equal slice of its height per frame, top to bottom, so
+ * the sample count and each frame's scroll distance do not depend on how slow
+ * the frames are.
+ */
+function traverseByFrames(page: Page): Promise<FrameTraversal> {
+  return page.evaluate(async (frameSteps: number) => {
     window.scrollTo({ top: 0, behavior: "instant" });
-    return new Promise<number[]>((resolve) => {
-      const collected: number[] = [];
-      let last: number | null = null;
-      let start: number | null = null;
+    return new Promise<FrameTraversal>((resolve) => {
+      const gaps: number[] = [];
+      let last: number | undefined;
+      let step = 0;
+      let advancedFrames = 0;
+      let stepStartY = window.scrollY;
+      let stepPx = 0;
       const tick = (now: number) => {
-        start ??= now;
-        if (last !== null) {
-          collected.push(now - last);
+        if (last !== undefined) {
+          gaps.push(now - last);
         }
         last = now;
-        const progress = Math.min((now - start) / durationMs, 1);
+        const advanced = step > 0 && window.scrollY > stepStartY;
+        if (advanced) {
+          advancedFrames += 1;
+        }
         // Ceiling re-read per tick: revealing below-fold content grows the
         // real scrollHeight mid-traversal, and a stale total would stop the
         // loop short of the true bottom.
         const ceiling =
           document.documentElement.scrollHeight - window.innerHeight;
-        window.scrollTo({ top: progress * ceiling, behavior: "instant" });
-        if (progress >= 1) {
-          resolve(collected);
-        } else {
-          requestAnimationFrame(tick);
+        if (step === frameSteps) {
+          const bottomShortfallPx = ceiling - window.scrollY;
+          resolve({ gaps, advancedFrames, bottomShortfallPx, stepPx });
+          return;
         }
+        step += 1;
+        stepStartY = window.scrollY;
+        stepPx = ceiling / frameSteps;
+        window.scrollTo({ top: step * stepPx, behavior: "instant" });
+        requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     });
-  }, 4000);
+  }, TRAVERSAL_FRAME_STEPS);
+}
 
-  expect(gaps.length).toBeGreaterThan(50);
+test("scroll frame gaps", async ({ page }) => {
+  await gotoBrief(page, PERF_ROUTE_REV1, {
+    timeout: 90_000,
+  });
+
+  // Every gap between consecutive traversal frames is a sample. A long gap =
+  // a frame the main thread could not produce, the jank virtualization must
+  // not add to. Instant behavior per step: the CSS `scroll-behavior: smooth`
+  // would otherwise animate toward each step and the page would never
+  // traverse its real height inside the loop.
+  const traversal = await traverseByFrames(page);
+  const { gaps } = traversal;
+  const traversalMs = gaps.reduce((total, gap) => total + gap, 0);
+  const meanGapMs = traversalMs / gaps.length;
+
+  report("scroll-frame-samples", [gaps.length]);
+  report("scroll-traversal-ms", [traversalMs]);
+  report("scroll-mean-frame-gap", [meanGapMs]);
   report("scroll-p95-frame-gap", [p95(gaps)]);
   report("scroll-max-frame-gap", [Math.max(...gaps)]);
+
+  // A valid sample set: every step moved the window, and the last step landed
+  // at the bottom the page had grown to by then.
+  expect(traversal.advancedFrames).toBe(TRAVERSAL_FRAME_STEPS);
+  expect(traversal.bottomShortfallPx).toBeLessThanOrEqual(traversal.stepPx);
+  expect(meanGapMs).toBeLessThanOrEqual(MEAN_FRAME_GAP_BUDGET_MS);
 });

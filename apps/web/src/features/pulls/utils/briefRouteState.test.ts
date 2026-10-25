@@ -223,6 +223,27 @@ describe("deriveBriefRouteState", () => {
     );
   });
 
+  it("a closed installation PR's superseded row ends the fast poll", () => {
+    const superseded = generation({ status: "superseded" });
+    const closed = meta({ generation: superseded, state: "closed" });
+    const closedUrlRow = { ...closed, appInstalled: false };
+
+    expect(shouldPollMeta({ ...closed, appInstalled: true })).toBe(false);
+    expect(shouldPollMeta(closedUrlRow)).toBe(true);
+  });
+
+  it("a skipped draft's superseded row ends the fast poll", () => {
+    const superseded = generation({ status: "superseded" });
+    const heldDraft = meta({
+      generation: superseded,
+      appInstalled: true,
+      draft: true,
+      draftPolicy: { generate: false },
+    });
+
+    expect(shouldPollMeta(heldDraft)).toBe(false);
+  });
+
   it("an awaiting-trigger head reads its own state and ends the fast poll", () => {
     const awaiting = meta({
       generation: generation({ status: "awaiting-trigger" }),

@@ -29,6 +29,61 @@ async function openLeadingCards(page: Page): Promise<void> {
   });
 }
 
+/** Where the split tables put their comment anchors, counted per side. */
+interface AnchorPlacement {
+  leftLines: number;
+  rightLines: number;
+  singlyAnchoredLines: number;
+  crossedLines: number;
+  anchorsInLines: number;
+  anchorsInFillers: number;
+}
+
+function readAnchorPlacement(page: Page): Promise<AnchorPlacement> {
+  return page.locator('tbody[data-view="split"]').evaluateAll((bodies) => {
+    const placement = {
+      leftLines: 0,
+      rightLines: 0,
+      singlyAnchoredLines: 0,
+      crossedLines: 0,
+      anchorsInLines: 0,
+      anchorsInFillers: 0,
+    };
+    const crossedKinds: Record<string, string> = { left: "add", right: "del" };
+
+    for (const body of bodies) {
+      const lineCells = body.querySelectorAll<HTMLElement>(
+        "td[data-side][data-line-kind]:not([data-line-number])",
+      );
+      for (const cell of lineCells) {
+        const side = cell.dataset["side"] ?? "";
+        const anchors = cell.querySelectorAll("[data-comment-anchor]").length;
+        if (side === "left") {
+          placement.leftLines += 1;
+        } else {
+          placement.rightLines += 1;
+        }
+        if (anchors === 1) {
+          placement.singlyAnchoredLines += 1;
+        }
+        if (cell.dataset["lineKind"] === crossedKinds[side]) {
+          placement.crossedLines += 1;
+        }
+        placement.anchorsInLines += anchors;
+      }
+      for (const filler of body.querySelectorAll(
+        '[data-testid="diff-filler"]',
+      )) {
+        placement.anchorsInFillers += filler.querySelectorAll(
+          "[data-comment-anchor]",
+        ).length;
+      }
+    }
+
+    return placement;
+  });
+}
+
 test("split rows pair every side and hold the row grid", async ({ page }) => {
   await gotoBrief(page, SPLIT_ROUTE);
   await openLeadingCards(page);
@@ -37,22 +92,34 @@ test("split rows pair every side and hold the row grid", async ({ page }) => {
   const rows = await page.locator('tbody[data-view="split"] > tr').count();
   const sides = await page.locator("td[data-side]").count();
   const fillers = await page.getByTestId("diff-filler").count();
-  const anchors = await page.locator("[data-comment-anchor]").count();
+  const anchors = await page
+    .locator('tbody[data-view="split"] [data-comment-anchor]')
+    .count();
+  const placement = await readAnchorPlacement(page);
   const heights = await page
     .locator('tbody[data-view="split"] > tr')
     .evaluateAll((elements) =>
       elements.map((row) => Math.round(row.getBoundingClientRect().height)),
     );
+  const lineCells = placement.leftLines + placement.rightLines;
 
   report("split-tables", [tables]);
   report("split-rows", [rows]);
   report("split-side-cells", [sides]);
   report("split-filler-cells", [fillers]);
   report("split-anchors", [anchors]);
+  report("split-left-line-cells", [placement.leftLines]);
+  report("split-right-line-cells", [placement.rightLines]);
   report("split-row-height-px", heights);
 
-  // Read-only sides are this view's contract until the interaction PR.
-  expect(anchors).toBe(0);
+  // Each side anchors on its own line: one sign anchor per side line cell,
+  // none on a filler, and a side only ever holds its own half of the diff.
+  expect(placement.leftLines).toBeGreaterThan(0);
+  expect(placement.rightLines).toBeGreaterThan(0);
+  expect(placement.singlyAnchoredLines).toBe(lineCells);
+  expect(placement.anchorsInLines).toBe(anchors);
+  expect(placement.anchorsInFillers).toBe(0);
+  expect(placement.crossedLines).toBe(0);
   expect(tables).toBeGreaterThan(0);
   expect(rows).toBeGreaterThan(0);
   expect(fillers).toBeGreaterThan(0);

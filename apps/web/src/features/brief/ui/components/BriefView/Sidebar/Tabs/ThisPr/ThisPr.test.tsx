@@ -29,7 +29,7 @@ describe("ThisPr", () => {
     expect(row.textContent).toContain(
       `${first.coreChunks.length} core · ${first.supportingChunks.length} supporting`,
     );
-    expect(row.textContent).toContain("bugfix");
+    expect(row.textContent).toContain("Bug fix");
   });
 
   it("shows a move-with-edits group as move with edits", () => {
@@ -49,7 +49,7 @@ describe("ThisPr", () => {
     );
 
     const row = screen.getByRole("button", { name: new RegExp(firstName) });
-    expect(row.textContent).toContain("move with edits");
+    expect(row.textContent).toContain("Move with edits");
     expect(row.textContent).not.toContain("with-edits");
   });
 

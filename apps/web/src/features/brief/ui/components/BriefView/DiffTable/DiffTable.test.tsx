@@ -1715,7 +1715,9 @@ function renderPair(view: NonNullable<DiffTableProps["view"]>) {
 describe("DiffTable intra-line emphasis", () => {
   it("marks the changed characters of a del/add pair in unified view", () => {
     const view = renderPair("unified");
-    const marks = view.container.querySelectorAll("mark");
+    const marks = view.container.querySelectorAll(
+      '[data-testid="diff-emphasis"]',
+    );
 
     expect(view.container.querySelector("table")?.dataset["view"]).toBe(
       "unified",
@@ -1725,8 +1727,12 @@ describe("DiffTable intra-line emphasis", () => {
 
   it("marks the same characters inside the split cells", () => {
     const view = renderPair("split");
-    const left = view.container.querySelector('td[data-side="left"] mark');
-    const right = view.container.querySelector('td[data-side="right"] mark');
+    const left = view.container.querySelector(
+      'td[data-side="left"] [data-testid="diff-emphasis"]',
+    );
+    const right = view.container.querySelector(
+      'td[data-side="right"] [data-testid="diff-emphasis"]',
+    );
 
     expect(view.container.querySelector("table")?.dataset["view"]).toBe(
       "split",

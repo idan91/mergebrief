@@ -110,7 +110,7 @@ describe("BriefView, a reply posted from the brief", () => {
 
     await postReplyFrom(inlineRow);
 
-    expect(screen.queryByText("new since this brief")).toBeNull();
+    expect(screen.queryByText("New since this brief")).toBeNull();
   });
 
   it("is not marked new when posted from the Conversation section", async () => {
@@ -125,6 +125,6 @@ describe("BriefView, a reply posted from the brief", () => {
 
     await postReplyFrom(sectionRow);
 
-    expect(screen.queryByText("new since this brief")).toBeNull();
+    expect(screen.queryByText("New since this brief")).toBeNull();
   });
 });

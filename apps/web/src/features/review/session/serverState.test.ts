@@ -18,6 +18,7 @@ import { briefFixture } from "@web/features/brief/test-utils";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/model";
 import { isLineCommentAnchor, type ReviewComment } from "../utils/comments";
+import { appI18n } from "../../../i18n/I18nProvider";
 import { deriveUnresolvedItems } from "../utils/state";
 import {
   emptySessionPayload,
@@ -406,7 +407,7 @@ describe("sessionInitialState with a newer vocabulary", () => {
       evidence: { kind: "unknown" },
     });
 
-    const items = deriveUnresolvedItems({
+    const items = deriveUnresolvedItems(appI18n.t, {
       chunks: [],
       remainderChunks: [],
       flags: [firstFlag],

@@ -169,7 +169,7 @@ describe("the session read in the route loader", () => {
     expect(viewedCheckboxes().every((box) => box.disabled)).toBe(true);
     // And it SAYS so: a screen that silently refuses is worse than one that
     // explains. The chip rides the same posture as the controls.
-    expect(screen.getAllByText("read-only").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Read-only").length).toBeGreaterThan(0);
     // The review flow states the reason instead of opening.
     fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
     const advisory = screen.queryByRole("button", { name: /^continue$/i });

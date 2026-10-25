@@ -6,7 +6,7 @@
   .syn-comment {
     color: var(--syn-comment);
 
-    mark & {
+    [data-testid="diff-emphasis"] & {
       color: var(--emphasis-comment);
     }
   }
@@ -22,7 +22,7 @@
   .syn-keyword {
     color: var(--syn-keyword);
 
-    mark & {
+    [data-testid="diff-emphasis"] & {
       color: var(--emphasis-keyword);
     }
   }

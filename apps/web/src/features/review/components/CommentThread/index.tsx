@@ -6,7 +6,7 @@ import { RequestBounds } from "contract";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
-import { DiffSides, DraftCommentStatuses } from "types";
+import { DraftCommentStatuses } from "types";
 
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
@@ -24,6 +24,7 @@ import { commentLocation } from "../../utils/state";
 import { useReviewActions } from "../../session";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { MarkdownPreview } from "../MarkdownPreview";
+import { readSideSign } from "./utils";
 import styles from "./CommentThread.module.scss";
 
 interface StatusLabelKeys {
@@ -161,9 +162,16 @@ export function CommentThread({
   const editSuggestionSeed = isFileCommentAnchor(comment.anchor)
     ? undefined
     : comment.anchor.selectedText;
-  const collapsedWhere = isFileCommentAnchor(comment.anchor)
+  const leadsToggle = statusLabels === undefined;
+  const commentOn = leadsToggle
+    ? t("review.comment.commentOn")
+    : t("review.comment.commentOn", { context: "inline" });
+  const commentOnFile = leadsToggle
     ? t("review.comment.commentOnFile")
-    : `${t("review.comment.commentOn")}${(comment.anchor.startSide ?? comment.anchor.side) === DiffSides.NEW ? "+" : "-"}${comment.anchor.startLine}`;
+    : t("review.comment.commentOnFile", { context: "inline" });
+  const collapsedWhere = isFileCommentAnchor(comment.anchor)
+    ? commentOnFile
+    : `${commentOn}${readSideSign(comment.anchor)}${comment.anchor.startLine}`;
 
   if (comment.collapsed) {
     return (

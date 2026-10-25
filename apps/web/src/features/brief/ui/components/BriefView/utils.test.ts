@@ -11,6 +11,7 @@ import type { ConversationPlan } from "@web/features/conversation";
 import type { ProgressTotals } from "../../utils/progress";
 import type { BriefChunk, ComparisonMarks } from "../../../model/types";
 import {
+  buildRepoPolicyCaption,
   conversationGroupIds,
   countComparisonRuns,
   countIntentGaps,
@@ -873,5 +874,35 @@ describe("resolveDiffViewToggle", () => {
 
   it("stands down in the Changes scope", () => {
     expect(stubToggle("unified", true).toggle).toBeUndefined();
+  });
+});
+
+describe("buildRepoPolicyCaption", () => {
+  it("is absent for a built-in attribute shown at full weight", () => {
+    expect(
+      buildRepoPolicyCaption(t, { source: "built-in", deEmphasized: false }),
+    ).toBeUndefined();
+  });
+
+  it("opens a lone de-emphasis caption in sentence case", () => {
+    expect(
+      buildRepoPolicyCaption(t, { source: "built-in", deEmphasized: true }),
+    ).toBe("De-emphasized by repo policy");
+  });
+
+  it("lowers the de-emphasis caption after the policy lead", () => {
+    expect(
+      buildRepoPolicyCaption(t, { source: "repo-policy", deEmphasized: true }),
+    ).toBe("Defined by repo policy · de-emphasized by repo policy");
+  });
+
+  it("carries the repo's implication after the policy lead", () => {
+    expect(
+      buildRepoPolicyCaption(t, {
+        source: "repo-policy",
+        deEmphasized: false,
+        implication: "Logs must not carry PII",
+      }),
+    ).toMatch(/^Defined by repo policy.+Logs must not carry PII$/);
   });
 });

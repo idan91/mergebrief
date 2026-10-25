@@ -37,7 +37,7 @@ describe("OriginalDescription", () => {
     const toggle = screen.getByRole("button", {
       name: /original description/i,
     });
-    expect(toggle.textContent).toContain("empty");
+    expect(toggle.textContent).toContain("Empty");
     fireEvent.click(toggle);
     expect(screen.getByText("No PR description provided.")).toBeTruthy();
   });

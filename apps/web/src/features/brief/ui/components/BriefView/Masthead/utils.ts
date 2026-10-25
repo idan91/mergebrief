@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import { type Concern, Concerns, type ConcernRollup } from "brief-core/types";
 
+import { getConcernLabel } from "../../../../model/utils/view-model";
 import { CARD_MIN_PROPERTY, MIN_SPLIT_CONCERNS } from "./consts";
 import {
   SplitSegmentKinds,
@@ -195,7 +196,7 @@ export function labelConcernShares(
     return {
       key: share.concern,
       concern: share.concern,
-      name: share.concern,
+      name: getConcernLabel(t, share.concern),
       share,
     };
   });

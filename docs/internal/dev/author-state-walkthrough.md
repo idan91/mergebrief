@@ -72,7 +72,7 @@ Open the Brief as `AUTHOR` (deep-link or via the picker).
       (single or bulk) and no disposition popover.
 - [ ] **Chunk read-tracking still works** (mark chunks viewed; the header
       progress reflects chunks only, not flags — it can reach 100%). The flags
-      stat renders as a plain count ("flags 5"), not "0/5".
+      stat renders as a plain count ("Flags 5"), not "0/5".
 - [ ] **Terminal slot holds "Mark ready for review"** where Submit used to be.
 
 ## 3. Non-author sees the plain reviewer view
@@ -151,7 +151,7 @@ inline comment on a chunk as `AUTHOR`.
       pinned to the current head. On GitHub it renders as a review comment
       authored by you.
 - [ ] Back in the Brief, the draft **flips to a posted thread** with the
-      **"yours"** tag (identity-derived, the live-conversation path). The draft is cleared;
+      **"Yours"** tag (identity-derived, the live-conversation path). The draft is cleared;
       the soft gate's "unposted draft comments" count drops by one.
 - [ ] **Post is blocked** (with a visible reason, no silent no-op) while: the
       inline editor holds unsaved text ("save your edit first"); a post is

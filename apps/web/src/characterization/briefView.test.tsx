@@ -166,7 +166,7 @@ describe("brief screen characterization", () => {
     expect(panel.textContent).toContain(briefFixture.changeGroups[0]!.title);
     expect(panel.textContent).toContain(briefFixture.changeGroups[0]!.summary);
     expect(panel.textContent).toContain("Active chunk risks");
-    expect(panel.textContent).toContain("no-tests");
+    expect(panel.textContent).toContain("No tests");
 
     fireEvent.click(screen.getByRole("button", { name: "Hide context (S)" }));
 
@@ -280,7 +280,7 @@ describe("brief screen characterization", () => {
 
   it("marking a core chunk reviewed advances the chunks progress stat", async () => {
     await renderBriefView();
-    const stat = () => statText("chunks");
+    const stat = () => statText("Chunks");
     expect(stat()).toBe("0/2");
     fireEvent.click(screen.getAllByRole("checkbox", { name: /Viewed/i })[0]!);
     await waitFor(() => expect(stat()).toBe("1/2"));
@@ -288,7 +288,7 @@ describe("brief screen characterization", () => {
 
   it("dismissing selected flags advances the flags progress stat", async () => {
     await renderWritableScreen();
-    const stat = () => statText("flags");
+    const stat = () => statText("Flags");
     expect(stat()).toBe("0/2");
     fireEvent.click(screen.getByRole("checkbox", { name: /Select flags on/ }));
     fireEvent.click(screen.getByRole("button", { name: "Dismiss selected…" }));
@@ -304,7 +304,7 @@ describe("brief screen characterization", () => {
     // Same reason the composer never opens here, since there is no session to
     // record a dismissal in, so the affordance does not render at all.
     await renderBriefView();
-    expect(statText("flags")).toBe("0/2");
+    expect(statText("Flags")).toBe("0/2");
     expect(screen.queryByText("Dismiss…")).toBeNull();
   });
 
@@ -316,8 +316,8 @@ describe("brief screen characterization", () => {
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
     const section = document.querySelector("[data-attribute-jump-rail]");
     expect(section).not.toBeNull();
-    expect(section?.textContent).toContain("no-tests");
-    expect(section?.textContent).toContain("comment-contradicts-code");
+    expect(section?.textContent).toContain("No tests");
+    expect(section?.textContent).toContain("Comment contradicts code");
   });
 
   it("places the intent bar in the masthead's bar stack", async () => {
@@ -444,21 +444,25 @@ describe("brief screen characterization", () => {
     const bolded = [...document.querySelectorAll("b")].map(
       (node) => node.textContent,
     );
-    expect(bolded).toContain("bugfix vs logic refactor");
+    expect(bolded).toContain("bug fix vs logic refactor");
     // Whole sentence, so the separator spacing is pinned too, because losing the
     // space around the slot welds the categories to the preceding colon.
     expect(screen.getByText(/categorizer is split/).textContent).toBe(
-      "The categorizer is split on this group\u2019s intent: bugfix vs logic refactor. Your call; the receipt records the override.",
+      "The categorizer is split on this group\u2019s intent: bug fix vs logic refactor. Your call; the receipt records the override.",
     );
   });
 
   it("reclassifying an uncertain group records the override on the card", async () => {
     await renderWritableScreen();
-    expect(screen.queryByText("set by you · recorded on receipt")).toBeNull();
+    expect(
+      screen.queryByText("Set by you, recorded on the receipt"),
+    ).toBeNull();
     // The uncertain pick buttons offer the between-categories.
-    fireEvent.click(screen.getByRole("button", { name: "logic refactor" }));
+    fireEvent.click(screen.getByRole("button", { name: "Logic refactor" }));
     await waitFor(() =>
-      expect(screen.getByText("set by you · recorded on receipt")).toBeTruthy(),
+      expect(
+        screen.getByText("Set by you, recorded on the receipt"),
+      ).toBeTruthy(),
     );
   });
 });

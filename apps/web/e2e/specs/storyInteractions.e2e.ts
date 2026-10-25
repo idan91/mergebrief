@@ -51,7 +51,7 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
   // the second change group's first chunk), so the jump target is
   // unambiguous: the group lands with that chunk at the top of the
   // viewport, which is a layout fact only a real browser can judge.
-  const jump = page.getByRole("button", { name: /hot-path ×1/ });
+  const jump = page.getByRole("button", { name: /Hot path ×1/ });
   await expect(jump).toBeVisible();
   await expect(page.locator("article#c3")).not.toBeInViewport();
 

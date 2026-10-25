@@ -55,7 +55,7 @@ function AttentionRow({
         <span className={styles["kind"]}>{t(copy.title)}</span>
         <span className={styles["where"]}>
           {item.attribute === undefined ? null : (
-            <RiskBadge>{item.attribute}</RiskBadge>
+            <RiskBadge attribute={item.attribute} />
           )}
           <LinkButton
             className={styles["location"]}

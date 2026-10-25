@@ -9,7 +9,7 @@ import {
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
 import type { SessionSnapshot } from "../session";
-import { buildReceipt } from "./receipt";
+import { buildReceipt, receiptText } from "./receipt";
 
 const t = createI18n().t;
 
@@ -130,9 +130,30 @@ describe("buildReceipt", () => {
         attr: "no-tests",
         file: "src/leak.ts",
         evidence: { kind: "chunk-reviewed", chunkId: "chunk-a" },
-        evidenceLabel: "reviewed related chunk src/leak.ts",
+        evidenceLabel: "Reviewed related chunk src/leak.ts",
+        evidenceLabelInline: "reviewed related chunk src/leak.ts",
       },
     ]);
+  });
+
+  it("writes the evidence label mid-line in the receipt text", () => {
+    const receipt = buildReceipt(
+      t,
+      snapshot({
+        dispositions: {
+          [flagId]: {
+            kind: "addressed",
+            evidence: { kind: "chunk-reviewed", chunkId: "chunk-a" },
+          },
+        },
+      }),
+      briefFixture,
+      model,
+    );
+
+    expect(receiptText(receipt)).toContain(
+      "addressed: no-tests @ leak.ts — reviewed related chunk src/leak.ts",
+    );
   });
 
   it("keeps addressed-pending-evidence with no evidence key", () => {

@@ -232,7 +232,7 @@ describe("IntentBar", () => {
       screen.getByRole("link", { name: /^EPIC-9 ?\(opens in a new tab\)$/ }),
     ).toBeTruthy();
     expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
-      "no read \u2014 the ticket scope is too broad to check against this PR",
+      "No read \u2014 the ticket scope is too broad to check against this PR",
     );
     expect(screen.queryByText("Accomplished")).toBeNull();
   });
@@ -293,15 +293,15 @@ describe("IntentBar", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const button = screen.getByRole("button", {
-      name: "go to change-group g1 \u2014 Add the widget endpoint and its store",
+      name: "Go to change-group g1 \u2014 Add the widget endpoint and its store",
     });
     // The hover tooltip carries the same text as the accessible name.
     expect(button.getAttribute("title")).toBe(
-      "go to change-group g1 \u2014 Add the widget endpoint and its store",
+      "Go to change-group g1 \u2014 Add the widget endpoint and its store",
     );
     // A group with no known title keeps the plain label.
-    const bare = screen.getByRole("button", { name: "go to change-group g2" });
-    expect(bare.getAttribute("title")).toBe("go to change-group g2");
+    const bare = screen.getByRole("button", { name: "Go to change-group g2" });
+    expect(bare.getAttribute("title")).toBe("Go to change-group g2");
   });
 
   it("wires the go-to buttons to jumpToGroup on the TocBar path", () => {
@@ -309,11 +309,11 @@ describe("IntentBar", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={jumpToGroup} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     fireEvent.click(
-      screen.getByRole("button", { name: "go to change-group g1" }),
+      screen.getByRole("button", { name: "Go to change-group g1" }),
     );
     expect(jumpToGroup).toHaveBeenCalledWith("g1");
     fireEvent.click(
-      screen.getByRole("button", { name: "go to change-group g2" }),
+      screen.getByRole("button", { name: "Go to change-group g2" }),
     );
     expect(jumpToGroup).toHaveBeenCalledWith("g2");
   });
@@ -345,15 +345,15 @@ describe("IntentBar", () => {
     render(<IntentBar intentCheck={multi} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     // Single-group buttons stay a bare ↳ with no visible id text.
-    const bare = screen.getByRole("button", { name: "go to change-group g2" });
+    const bare = screen.getByRole("button", { name: "Go to change-group g2" });
     expect(bare.textContent).toBe("↳");
     // Multi-group claims disambiguate with a visible id per button.
     const labeled = screen.getByRole("button", {
-      name: "go to change-group g5",
+      name: "Go to change-group g5",
     });
     expect(labeled.textContent).toBe("↳g5");
     expect(
-      screen.getByRole("button", { name: "go to change-group g6" }).textContent,
+      screen.getByRole("button", { name: "Go to change-group g6" }).textContent,
     ).toBe("↳g6");
   });
 
@@ -718,8 +718,8 @@ describe("IntentBar alarm buckets", () => {
     expect(
       screen.getByRole("heading", { level: 3, name: "Needs a look" }),
     ).toBeTruthy();
-    expect(screen.getByText("nothing needs a look")).toBeTruthy();
-    expect(screen.queryByText("nothing checks out")).toBeNull();
+    expect(screen.getByText("Nothing needs a look")).toBeTruthy();
+    expect(screen.queryByText("Nothing checks out")).toBeNull();
 
     cleanup();
     const alarmOnly: IntentCheck = {
@@ -732,8 +732,8 @@ describe("IntentBar alarm buckets", () => {
     expect(
       screen.getByRole("heading", { level: 3, name: "Checks out" }),
     ).toBeTruthy();
-    expect(screen.getByText("nothing checks out")).toBeTruthy();
-    expect(screen.queryByText("nothing needs a look")).toBeNull();
+    expect(screen.getByText("Nothing checks out")).toBeTruthy();
+    expect(screen.queryByText("Nothing needs a look")).toBeNull();
   });
 
   it("keeps the empty lines out of two-populated-side and broad renders", () => {

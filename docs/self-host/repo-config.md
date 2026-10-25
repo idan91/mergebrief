@@ -23,7 +23,7 @@ change applies after merge.
 Every brief records exactly which config shaped it: per-file
 `path + blob SHA + outcome` (`applied` / `absent` / `invalid` /
 `over-budget` / `fetch-failed`) on the generation record and the brief, an
-understated "repo config @ sha" chip in the header (warning state on any
+understated "Repo config @ sha" chip in the header (warning state on any
 error, visible to author and reviewer), and a permanent copy on the
 Receipt.
 

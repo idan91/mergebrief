@@ -205,6 +205,25 @@ describe("CommentThread", () => {
     expect(screen.queryByText(/pending/i)).toBeNull();
   });
 
+  it.each([
+    ["unknown", "Comment on +3"],
+    [DraftCommentStatuses.DRAFT, "Draft comment on +3"],
+  ] as const)(
+    "a collapsed %s comment's toggle reads %s",
+    (status, toggleText) => {
+      render(
+        <CommentThread
+          comment={{ ...comment(status), collapsed: true }}
+          deleteComment={vi.fn()}
+          toggle={vi.fn()}
+          update={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole("button").textContent).toBe(toggleText);
+    },
+  );
+
   it("is read-only once submitted with a posted label", () => {
     renderThread(DraftCommentStatuses.SUBMITTED);
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();

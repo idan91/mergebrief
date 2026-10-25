@@ -99,7 +99,9 @@ export function GuestDiff({
         conversationComposer={review?.conversationComposer}
         fileThreads={review?.lineThreadsByFile?.get(chunk.file)}
         guest={guest}
-        reviewCommentLabel={t("brief.chunk.reviewComment")}
+        reviewCommentLabel={t("brief.chunk.reviewComment", {
+          context: "inline",
+        })}
         tokensByRow={tokensByRow}
         tokensPending={tokens.status === ChunkTokenStatuses.PENDING}
       />

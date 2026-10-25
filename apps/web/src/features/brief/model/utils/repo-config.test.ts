@@ -4,16 +4,34 @@
 import { describe, expect, it } from "vitest";
 import {
   FLOOR_ATTRIBUTES as SOURCE_FLOOR_ATTRIBUTES,
+  RepoConfigOutcomes,
   RepoConfigPaths,
 } from "repo-config";
+import { appI18n } from "../../../../i18n/I18nProvider";
 import {
   attributeDisplayMeta,
   FLOOR_ATTRIBUTES,
   floorFirst,
+  getRepoConfigOutcomeLabel,
   SLOT_PATHS,
   type RepoConfigContext,
 } from "./repo-config";
 import { repoConfigContextFixture as SNAPSHOT } from "../../test-utils/fixtures";
+
+describe("getRepoConfigOutcomeLabel", () => {
+  it("reads applied as applied and every other outcome as not applied", () => {
+    expect(
+      getRepoConfigOutcomeLabel(appI18n.t, RepoConfigOutcomes.APPLIED),
+    ).toBe("Applied");
+    for (const outcome of [
+      RepoConfigOutcomes.ABSENT,
+      RepoConfigOutcomes.INVALID,
+      RepoConfigOutcomes.OVER_BUDGET,
+    ]) {
+      expect(getRepoConfigOutcomeLabel(appI18n.t, outcome)).toBe("Not applied");
+    }
+  });
+});
 
 describe("attributeDisplayMeta", () => {
   it("no snapshot / no policy → plain built-in meta", () => {

@@ -191,7 +191,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     renderToolbar({ jumpToGroup: jump });
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
     expect(document.querySelector("[data-attribute-jump-rail]")).not.toBeNull();
-    const billing = screen.getByRole("button", { name: /touches-billing/ });
+    const billing = screen.getByRole("button", { name: /Touches billing/ });
     fireEvent.click(billing);
     fireEvent.click(billing);
     fireEvent.click(billing);
@@ -203,10 +203,10 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
     const panel = document.querySelector("[data-attribute-jump-rail]");
     const chips = [...(panel?.querySelectorAll("button") ?? [])];
-    expect(chips[0]?.textContent).toContain("touches-auth");
+    expect(chips[0]?.textContent).toContain("Touches auth");
     expect(
       screen
-        .getByText(/touches-billing/)
+        .getByText(/Touches billing/)
         .closest("[data-source]")
         ?.getAttribute("data-source"),
     ).toBe("repo-policy");

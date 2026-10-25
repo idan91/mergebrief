@@ -14,7 +14,7 @@ import type {
   DbTimelineSelection,
 } from "../../../utils/dbTimeline";
 import { awaitsReadyForReview } from "../../../utils/draft-policy";
-import { isNoLongerOpen } from "../../../utils/pr-state";
+import { isNoLongerOpen, readSupersededStop } from "../../../utils/pr-state";
 import { draftPolicyNotice } from "../../../utils/ownDraft";
 import type { PrSummary } from "../../../types";
 import { AwaitingTriggerCard } from "../AwaitingTriggerCard";
@@ -25,6 +25,7 @@ import { FailedCard } from "../FailedCard";
 import { PrBriefContent } from "../PrBriefContent";
 import { SupersededCard } from "../SupersededCard";
 import { WaitCard, waitLabel } from "../WaitCard";
+import { readSupersededAnnouncementKey } from "./utils";
 
 type BriefRouteState = ReturnType<typeof deriveBriefRouteState>;
 
@@ -79,7 +80,7 @@ export function stateAnnouncement(
         ? t("pulls.announce.awaitingTriggerNotOpen")
         : t("pulls.announce.awaitingTrigger");
     case "superseded":
-      return t("pulls.announce.superseded");
+      return t(readSupersededAnnouncementKey(meta));
     case "capped":
       return buildCappedLabel(t, state.cappedAt);
     case "empty":
@@ -141,6 +142,7 @@ function PrBriefBodyState({
   const { t } = useTranslation();
   const policyNotice = metaPolicyNotice(t, meta);
   const heldForReady = awaitsReadyForReview(meta);
+  const supersededStop = readSupersededStop(meta);
   switch (state.kind) {
     case "render":
       return (
@@ -211,13 +213,18 @@ function PrBriefBodyState({
     case "superseded":
       return (
         <main className="main" id="main-content" tabIndex={-1}>
-          <SupersededCard />
+          <SupersededCard stop={supersededStop} />
         </main>
       );
     case "capped":
       return (
         <main className="main" id="main-content" tabIndex={-1}>
-          <CappedCard cappedAt={state.cappedAt} />
+          <CappedCard
+            appInstalled={meta.appInstalled}
+            awaitsReadyForReview={heldForReady}
+            cappedAt={state.cappedAt}
+            prState={meta.state}
+          />
         </main>
       );
     case "empty":
