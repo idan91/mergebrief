@@ -9,10 +9,15 @@ import {
   utcDayBounds,
 } from "persistence";
 import { GenerationPhases, GenerationStatuses, type Mutable } from "types";
-import { entryCommentCappedBody } from "../../entry-comment";
+import { buildEntryCommentCappedBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
 import { CLAIM_LEASE_MS } from "../consts";
-import type { RunContext, SpendCharge, SpendGateInputs } from "../types";
+import {
+  HeadReadings,
+  type RunContext,
+  type SpendCharge,
+  type SpendGateInputs,
+} from "../types";
 import { getAfterLeaseDelaySeconds } from "./claim-recovery";
 import { ClaimLostSignal } from "./supersession-watch";
 
@@ -190,48 +195,61 @@ interface CappedRunFacts {
   readonly dayUtc: string;
 }
 
+/**
+ * UPDATE ONLY: a capped PR never gets an Entry comment created for it, the
+ * cap must not make MergeBrief louder on a thread than it was. A stored brief
+ * still owes its ready Entry, which the caller posts.
+ */
+async function updateCappedEntry(
+  payload: ParsedGeneratePayload,
+  inputs: SpendGateInputs,
+  facts: CappedRunFacts,
+): Promise<void> {
+  const { deps, prRow, entryCommentManager, existingBrief, watch, log } =
+    inputs;
+  const showsCapped =
+    entryCommentManager.getCurrentId() !== null &&
+    payload.grantId === undefined &&
+    existingBrief === undefined;
+  if (!showsCapped) {
+    return;
+  }
+  const head = await watch.readHead();
+  if (head.kind === HeadReadings.MOVED) {
+    return;
+  }
+  if (head.kind === HeadReadings.UNREAD) {
+    log.warn("generate: head unread, the capped Entry stands down", {
+      error: head.error,
+    });
+    return;
+  }
+
+  await entryCommentManager.refresh(
+    buildEntryCommentCappedBody(deps.translate, {
+      publicBaseUrl: deps.publicBaseUrl,
+      repoId: prRow.repoId,
+      prNumber: prRow.prNumber,
+      headSha: payload.headSha,
+      resetsAt: facts.resetsAt,
+    }),
+  );
+}
+
 async function recordCappedRun(
   payload: ParsedGeneratePayload,
   inputs: SpendGateInputs,
   facts: CappedRunFacts,
 ): Promise<void> {
-  const {
-    deps,
-    projection,
-    target,
-    prRow,
-    repoSlug,
-    entryCommentManager,
-    existingBrief,
-    pickedUpAt,
-    log,
-  } = inputs;
-  const { headSha } = payload;
-
+  const { projection, target, repoSlug, existingBrief, pickedUpAt, log } =
+    inputs;
   log.warn("generate: daily generation cap reached, skipping this run", {
     evt: "spend.cap.trip",
     repo: repoSlug,
     cap: facts.cap,
     dayUtc: facts.dayUtc,
   });
-  // A stored brief still owes its ready Entry, which the caller posts.
-  const showsCapped =
-    entryCommentManager.getCurrentId() !== null &&
-    payload.grantId === undefined &&
-    existingBrief === undefined;
-  if (showsCapped) {
-    // UPDATE ONLY: a capped PR never gets an Entry comment created for it,
-    // the cap must not make MergeBrief louder on a thread than it was.
-    await entryCommentManager.refresh(
-      entryCommentCappedBody(deps.translate, {
-        publicBaseUrl: deps.publicBaseUrl,
-        repoId: prRow.repoId,
-        prNumber: prRow.prNumber,
-        headSha,
-        resetsAt: facts.resetsAt,
-      }),
-    );
-  }
+  await updateCappedEntry(payload, inputs, facts);
 
   // A claimed run over a stored brief: the brief stands, only its follow-on
   // work was capped.

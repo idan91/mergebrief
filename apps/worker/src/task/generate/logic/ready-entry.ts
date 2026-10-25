@@ -1,10 +1,11 @@
-import { entryCommentBody } from "../../entry-comment";
-import { acquireRepoConfig } from "../../repo-config";
-import type { RunContext } from "../types";
+import { buildEntryCommentBody } from "../../entry-comment";
+import { HeadReadings, type RunContext } from "../types";
 import {
-  resolveEntryCommentAllowed,
   resolveReadyEntryAllowed,
+  resolveRunEntryCommentAllowed,
 } from "./entry-comment-gate";
+import { readEntryPostHead } from "./supersession-watch";
+import { replaceOnUnreadHead } from "./unread-head-entry";
 
 /**
  * The ready Entry, once the artifact exists. On a rerun over a stored brief
@@ -18,7 +19,7 @@ export async function postReadyEntry(
 ): Promise<void> {
   const { deps, payload, prInfo, source, watch, entryCommentManager, log } =
     context;
-  await watch.assertCurrent();
+  const head = await readEntryPostHead(watch);
   const readyEntryAllowed = await resolveReadyEntryAllowed(payload, {
     prInfo,
     source,
@@ -29,10 +30,16 @@ export async function postReadyEntry(
     return;
   }
 
-  const readyBody = entryCommentBody(
+  const readyBody = buildEntryCommentBody(
     deps.translate,
     entryCommentManager.buildDeepLink(headIndex),
   );
+  if (head.kind === HeadReadings.UNREAD) {
+    const translate = deps.translate;
+    const post = { entryCommentManager, translate, headIndex, log };
+    await replaceOnUnreadHead(post, readyBody, head);
+    return;
+  }
   const alreadyLive =
     context.existingBrief !== undefined &&
     (await entryCommentManager.matches(readyBody));
@@ -50,15 +57,6 @@ export async function postOwedReadyEntry(
   context: RunContext,
   headIndex: number,
 ): Promise<void> {
-  const { payload, prInfo, source, entryCommentManager, log } = context;
-  const repoConfig = prInfo.draft
-    ? await acquireRepoConfig(source, log)
-    : undefined;
-  const entryCommentAllowed = await resolveEntryCommentAllowed(payload, {
-    prInfo,
-    repoConfig,
-    entryCommentManager,
-    log,
-  });
+  const entryCommentAllowed = await resolveRunEntryCommentAllowed(context);
   await postReadyEntry(context, entryCommentAllowed, headIndex);
 }

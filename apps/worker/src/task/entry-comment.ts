@@ -4,6 +4,12 @@
 // The body carries no secrets: a public deep link and public SHAs. The
 // sentences come from the catalog; the Markdown around them is built here.
 import type { TFunction } from "i18next";
+import {
+  GenerationFailureClassByCode,
+  GenerationFailureClasses,
+  GenerationFailureCodes,
+  type GenerationFailureCode,
+} from "types/generations";
 
 const SHORT_SHA_LENGTH = 7;
 
@@ -20,27 +26,33 @@ export interface EntryCommentLink {
 }
 
 /** The revision deep link into the web app's DB-brief route. */
-export function entryCommentDeepLink(link: EntryCommentLink): string {
+export function buildEntryCommentDeepLink(link: EntryCommentLink): string {
   const origin = link.publicBaseUrl.replace(/\/+$/, "");
   return `${origin}/repos/${link.repoId}/pulls/${link.prNumber}?rev=${String(link.headIndex)}`;
 }
 
 /** The branded "ready" body posted once the brief artifact is readable. */
-export function entryCommentBody(t: TFunction, link: EntryCommentLink): string {
-  const deepLink = entryCommentDeepLink(link);
+export function buildEntryCommentBody(
+  t: TFunction,
+  link: EntryCommentLink,
+): string {
+  const deepLink = buildEntryCommentDeepLink(link);
   const shortSha = formatShortSha(link.headSha);
   const heading = `**[${t("entryComment.ready.link")}](${deepLink})** (${shortSha})`;
   const footer = formatFooter(t("entryComment.ready.footer"));
   return [heading, "", footer].join("\n");
 }
 
-/** Where a capped PR's comment points: the PR view, no span (none exists). */
+/** Where a body with no brief to deep-link points: the PR view, no span. */
 export interface EntryCommentPrLink {
   readonly publicBaseUrl: string;
   readonly repoId: bigint;
   readonly prNumber: number;
-  /** The head that was skipped, named so the thread knows which push. */
+  /** The head that got no brief, named so the thread knows which push. */
   readonly headSha: string;
+}
+
+export interface EntryCommentCappedLink extends EntryCommentPrLink {
   /** When generation resumes, as an ISO instant (the next UTC midnight). */
   readonly resetsAt: Date;
 }
@@ -49,15 +61,13 @@ export interface EntryCommentPrLink {
  * The capped body: this push got no brief because the instance hit its daily
  * generation cap. Used ONLY to UPDATE an Entry comment that already exists;
  * a capped PR never gets one created for it, so the cap can never make
- * MergeBrief louder on a thread than it already was. Spanless link: there is
- * no brief for this head to deep-link at.
+ * MergeBrief louder on a thread than it already was.
  */
-export function entryCommentCappedBody(
+export function buildEntryCommentCappedBody(
   t: TFunction,
-  link: EntryCommentPrLink,
+  link: EntryCommentCappedLink,
 ): string {
-  const origin = link.publicBaseUrl.replace(/\/+$/, "");
-  const url = `${origin}/repos/${link.repoId}/pulls/${link.prNumber}`;
+  const url = buildPrViewUrl(link);
   const shortSha = formatShortSha(link.headSha);
   const resetsAt = link.resetsAt.toISOString().replace(".000Z", "Z");
   const heading = `**${t("entryComment.capped.heading", { shortSha })}**`;
@@ -67,19 +77,60 @@ export function entryCommentCappedBody(
 }
 
 /**
+ * The failed body: this push's generation ended failed. Built from the code
+ * alone, never a failure's detail. A transient code links Regenerate on the
+ * revision this head's brief would take; every other code links that
+ * revision neutrally, so the codes the public reason collapses render one
+ * body and Regenerate is offered only where the signed-in UI decides it.
+ */
+export function buildEntryCommentFailedBody(
+  t: TFunction,
+  link: EntryCommentLink,
+  code: GenerationFailureCode,
+): string {
+  const shortSha = formatShortSha(link.headSha);
+  const heading = `**${t("entryComment.failed.heading", { shortSha })}**`;
+  const reason = t(`entryComment.failed.reason.${code}`);
+  const transient =
+    GenerationFailureClassByCode[code] === GenerationFailureClasses.TRANSIENT;
+  const linkText = transient
+    ? t("entryComment.failed.regenerateLink")
+    : t("entryComment.failed.openLink");
+  const body = `${reason} [${linkText}](${buildEntryCommentDeepLink(link)})`;
+  const footer = formatFooter(t("entryComment.failed.footer"));
+  return [heading, "", body, "", footer].join("\n");
+}
+
+/**
  * The "generating" body posted when a fresh generation starts. Same deep
  * link: the web app's diff-first wait UX renders the live diff immediately,
  * so the link is useful minutes before the Brief lands.
  */
-export function entryCommentGeneratingBody(
+export function buildEntryCommentGeneratingBody(
   t: TFunction,
   link: EntryCommentLink,
 ): string {
-  const deepLink = entryCommentDeepLink(link);
+  const deepLink = buildEntryCommentDeepLink(link);
   const shortSha = formatShortSha(link.headSha);
   const heading = `**[${t("entryComment.generating.link")}](${deepLink})** (${shortSha})`;
   const footer = formatFooter(t("entryComment.generating.footer"));
   return [heading, "", footer].join("\n");
+}
+
+/** The bodies naming this head that its run may leave live: generating and each failed one. */
+export function buildHeadEntryBodies(
+  t: TFunction,
+  link: EntryCommentLink,
+): string[] {
+  const failedBodies = Object.values(GenerationFailureCodes).map((code) =>
+    buildEntryCommentFailedBody(t, link, code),
+  );
+  return [buildEntryCommentGeneratingBody(t, link), ...failedBodies];
+}
+
+function buildPrViewUrl(link: EntryCommentPrLink): string {
+  const origin = link.publicBaseUrl.replace(/\/+$/, "");
+  return `${origin}/repos/${link.repoId}/pulls/${link.prNumber}`;
 }
 
 function formatShortSha(headSha: string): string {

@@ -25,6 +25,7 @@ import type {
   AuditEntry,
   BriefRowId,
   BriefSpanRow,
+  GenerationFailure,
   GenerationProjection,
   GenerationRow,
   GenerationTarget,
@@ -118,6 +119,33 @@ export type ClaimRenewer = () => Promise<boolean>;
  */
 export type SpendCharge = () => Promise<void>;
 
+export const HeadReadings = {
+  CURRENT: "current",
+  MOVED: "moved",
+  /** GitHub did not answer: the head may have moved. */
+  UNREAD: "unread",
+} as const;
+
+export interface CurrentHeadRead {
+  readonly kind: typeof HeadReadings.CURRENT;
+}
+
+export interface MovedHeadRead {
+  readonly kind: typeof HeadReadings.MOVED;
+}
+
+export interface UnreadHeadRead {
+  readonly kind: typeof HeadReadings.UNREAD;
+  /** Why the read gave no head. */
+  readonly error: string;
+}
+
+/** One fresh read of the PR's head against this run's. */
+export type HeadRead = CurrentHeadRead | MovedHeadRead | UnreadHeadRead;
+
+/** The head read an Entry post goes on with; a moved head ended the run. */
+export type EntryPostHeadRead = CurrentHeadRead | UnreadHeadRead;
+
 /**
  * Share one controller between pre-call head checks and streaming head polls.
  * Abort only on confirmed supersession or a lost claim; failed polls are best-effort.
@@ -126,6 +154,8 @@ export interface SupersessionWatch {
   readonly signal: AbortSignal;
   /** Throws `SupersededSignal` (after aborting) when the head moved. */
   assertCurrent(): Promise<void>;
+  /** A fresh head read; `moved` aborts, a lost claim throws `ClaimLostSignal`. */
+  readHead(): Promise<HeadRead>;
   /** The newer PR the abort was based on, the successor, already read. */
   getObserved(): PullRequestInfo | undefined;
   startPolling(): void;
@@ -229,13 +259,46 @@ export interface EntryCommentManagerInputs {
   readonly log: Logger;
 }
 
-/** The four operations over one live Entry comment id, plus a read of it. */
+export const LiveBodyKinds = {
+  /** No comment is tracked, or the tracked one is gone. */
+  NONE: "none",
+  READ: "read",
+  /** The read failed: what the thread holds is unknown. */
+  UNREAD: "unread",
+} as const;
+
+export interface NoLiveBody {
+  readonly kind: typeof LiveBodyKinds.NONE;
+}
+
+export interface ReadLiveBody {
+  readonly kind: typeof LiveBodyKinds.READ;
+  readonly body: string;
+}
+
+export interface UnreadLiveBody {
+  readonly kind: typeof LiveBodyKinds.UNREAD;
+}
+
+/** What the tracked Entry comment holds on GitHub right now. */
+export type LiveBody = NoLiveBody | ReadLiveBody | UnreadLiveBody;
+
+/** The operations over one live Entry comment id, plus a read of it. */
 export interface EntryCommentManager {
   getCurrentId(): bigint | null;
   buildDeepLink(headIndex: number): EntryCommentLink;
   remove(): Promise<void>;
   matches(body: string): Promise<boolean>;
   refresh(body: string): Promise<void>;
+  /**
+   * Post `body` when no comment is live and the PR row names none another
+   * run posted, or over a live one whose body is in `replaceable`; a live
+   * `body` is left unpinged and any other live body stays, as does one whose
+   * read failed.
+   */
+  replaceOrCreate(body: string, replaceable: readonly string[]): Promise<void>;
+  /** As `replaceOrCreate`, except no comment is created when none is live. */
+  replace(body: string, replaceable: readonly string[]): Promise<void>;
 }
 
 /**
@@ -251,6 +314,8 @@ export interface RunState {
   attempt?: number;
   /** Model calls this run made through its generator. */
   providerCalls: number;
+  /** The Entry gate once the run inputs resolved it; a later failure reuses it. */
+  entryCommentAllowed?: boolean;
 }
 
 /** The audit row's world: an owner-world row carries no installation. */
@@ -368,6 +433,30 @@ export interface JobFailureInputs {
   readonly log: Logger;
 }
 
+export const JobFailureOutcomes = {
+  /** The fenced write found the row held by another run or gone. */
+  CLAIM_LOST: "claim-lost",
+  PERMANENT: "permanent",
+  RETRYING: "retrying",
+  /** Transient, on graphile's last attempt: no retry follows. */
+  LAST_ATTEMPT: "last-attempt",
+} as const;
+export type JobFailureOutcome = ValueOf<typeof JobFailureOutcomes>;
+
+export interface JobFailureReport {
+  readonly outcome: JobFailureOutcome;
+  /** The failure as classified for the row. */
+  readonly failure: GenerationFailure;
+}
+
+/** How far the run got before it threw; the job's failure handling reads it. */
+export interface RunProgress {
+  /** Set once the row passed its guards and the source opened. */
+  scope?: RunScope;
+  /** Set once the first GitHub read built the run. */
+  context?: RunContext;
+}
+
 export interface SpendGateInputs {
   readonly deps: GenerateTaskDeps;
   readonly projection: GenerationProjection;
@@ -379,6 +468,7 @@ export interface SpendGateInputs {
   readonly prRow: PullRequestRow;
   /** The row's slug after the usable-slug guard narrowed it. */
   readonly repoSlug: string;
+  readonly watch: SupersessionWatch;
   readonly entryCommentManager: EntryCommentManager;
   readonly job: GenerateTaskHelpers["job"];
   readonly log: Logger;
@@ -434,6 +524,7 @@ export interface BriefGenerationInputs {
   readonly projection: GenerationProjection;
   readonly target: GenerationTarget;
   readonly runId: string;
+  readonly watch: SupersessionWatch;
   readonly entryCommentManager: EntryCommentManager;
   readonly entryCommentAllowed: boolean;
   readonly translate: TFunction;

@@ -33,8 +33,8 @@ import {
   makeTarget,
   makeTask,
   PR_REF,
-  PUBLIC_URL,
   pushHeadAfterFirstRead,
+  PUBLIC_URL,
   recordCommentCalls,
   REPO,
   runAfterEachPost,
@@ -120,6 +120,25 @@ function pointAtNotionPage(github: FakeGitHub): void {
       size: NOTION_SETTINGS.length,
     },
   );
+}
+
+/** `generator`, except the PR's head moves to HEAD_2 once the brief call returns. */
+function pushHeadAfterBriefCall(
+  generator: Generator,
+  github: FakeGitHub,
+): Generator {
+  return {
+    async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      const output = await generator.generate(req);
+      if (req.label === "brief") {
+        github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+      }
+      return output;
+    },
+    origin: (effort: Effort) => generator.origin(effort),
+  };
 }
 
 /** Another open PR in the repository, a stack neighbour of #7. */
@@ -746,9 +765,8 @@ describe("generate task", () => {
     const github = makeGitHub(HEAD_1);
     const commentCalls = recordCommentCalls(github);
     // Interleave: the PR row vanishes between the READY post and its
-    // setEntryComment (purge race), the only way the id-store can fail. The
-    // first post is the generating comment; the row must survive it (the
-    // brief write needs the parent).
+    // swapEntryComment (purge race). The first post is the generating
+    // comment; the row must survive it (the brief write needs the parent).
     let posts = 0;
     runAfterEachPost(github, async () => {
       posts += 1;
@@ -1016,14 +1034,14 @@ describe("generate task", () => {
   it("aborts superseded streams without retry or attempts changes", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    // Initial pre-flight check sees the job's head; every poll after sees the
-    // superseding push.
-    pushHeadAfterFirstRead(github, HEAD_2);
 
-    // The brief call hangs until the threaded signal aborts, the SDK-abort
-    // shape (APIUserAbortError) the worker must map to superseded.
+    // The push lands once the brief call is in flight, which hangs until the
+    // threaded signal aborts, the SDK-abort shape (APIUserAbortError) the
+    // worker must map to superseded.
     const task = makeTask({
-      generator: stubHangingGenerator(),
+      generator: stubHangingGenerator(async () => {
+        github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+      }),
       github,
       headPollIntervalMs: 5,
     });
@@ -1046,6 +1064,22 @@ describe("generate task", () => {
     ).toBeUndefined();
   });
 
+  it("a push before the generating post supersedes without a post", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    pushHeadAfterFirstRead(github, HEAD_2);
+    const generator = stubGenerator();
+
+    await makeTask({ generator, github })(payload);
+
+    expect(generator.calls).toEqual([]);
+    expect(listCommentCalls(github)).toEqual([]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
+  });
+
   it("supersedes between artifacts before spending on a delta", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     await createTenantRepository(
@@ -1059,10 +1093,12 @@ describe("generate task", () => {
     });
 
     const github = makeGitHub(HEAD_1);
-    // Pre-flight check passes; the pre-delta assertCurrent sees the new head.
-    pushHeadAfterFirstRead(github, HEAD_2);
+    // The push lands after the brief call; the next head check sees it.
     const generator = stubGenerator();
-    const task = makeTask({ generator, github });
+    const task = makeTask({
+      generator: pushHeadAfterBriefCall(generator, github),
+      github,
+    });
 
     await expect(task(payload)).resolves.toBeUndefined();
 

@@ -12,6 +12,7 @@ import {
   BASE,
   captureLogger,
   ctx,
+  FIRST_ATTEMPT,
   harness,
   HEAD_1,
   makeConnectionError,
@@ -20,6 +21,7 @@ import {
   makeReviewerId,
   makeTarget,
   makeTask,
+  SECOND_ATTEMPT,
   setUpHarness,
   stubGenerator,
   trigger,
@@ -29,12 +31,6 @@ setUpHarness();
 
 const LEASE_SECONDS = 120;
 const DELAY_BOUND_SECONDS = 30;
-const FIRST_ATTEMPT = {
-  attempts: 1,
-  max_attempts: 3,
-  run_at: new Date(),
-} as const;
-const SECOND_ATTEMPT = { ...FIRST_ATTEMPT, attempts: 2 } as const;
 
 async function readRecoveryJobs(): Promise<Record<string, unknown>[]> {
   return harness.raw(

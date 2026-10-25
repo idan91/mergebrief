@@ -26,6 +26,7 @@ export {
   AuditChannels,
   AuditOutcomes,
   ClaimStates,
+  EntryCommentSwapErrorCodes,
 } from "./types";
 export type {
   InstallationId,
@@ -47,6 +48,7 @@ export type {
   AuditOutcome,
   ClaimState,
   DraftAnchor,
+  EntryCommentSwapErrorCode,
 } from "./types";
 
 // --- version/: the one semver grammar for a MergeBrief version string ------
@@ -131,6 +133,9 @@ export type {
   PullRequestLifecycle,
   PullRequestStackInput,
   CheckpointSubmitInput,
+  EntryCommentSwapError,
+  EntryCommentSwapLost,
+  EntryCommentSwapNotFound,
 } from "./stores/tenant";
 
 export { resolveUrlBoxOwner } from "./stores/url-box";

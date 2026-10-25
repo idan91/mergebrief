@@ -7,6 +7,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createDb,
   createTenantRepository,
+  EntryCommentSwapErrorCodes,
   parseTenantContext,
   safeParseTenantContext,
   ScopeViolationError,
@@ -58,7 +59,11 @@ describe("createTenantRepository row_version", () => {
       inserted.id,
       readAt,
     );
-    const commented = await pullRequests.setEntryComment(inserted.id, 9001n);
+    const swapped = await pullRequests.swapEntryComment(inserted.id, {
+      seen: null,
+      next: 9001n,
+    });
+    const commented = swapped.ok ? swapped.value : undefined;
     const drafted = await pullRequests.setDraft(inserted.id, true);
     const stacked = await pullRequests.recordStack(inserted.id, stack);
     const approved = await pullRequests.approveTrigger(inserted.id, REVIEWER);
@@ -176,15 +181,21 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
     expect(foreign).toBeUndefined();
   });
 
-  it("setEntryComment on a PR outside the tenant returns undefined", async () => {
+  it("swapEntryComment on a PR outside the tenant answers not-found", async () => {
     const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
-    const result = await a.pullRequests.setEntryComment(bPr.id, 9001n);
+    const result = await a.pullRequests.swapEntryComment(bPr.id, {
+      seen: null,
+      next: 9001n,
+    });
 
-    expect(result).toBeUndefined();
+    expect(result).toEqual({
+      ok: false,
+      error: { code: EntryCommentSwapErrorCodes.NOT_FOUND },
+    });
     // B's PR is untouched.
     expect(
       (await b.pullRequests.getByNumber(REPO, 7))?.entryCommentId,
@@ -193,20 +204,58 @@ describe("createTenantRepository refuses cross-tenant child writes", () => {
 });
 
 describe("createTenantRepository entry comment rotation", () => {
-  it("setEntryComment stores and rotates the comment id", async () => {
+  it("swapEntryComment stores and rotates the comment id", async () => {
     const handle = shared.handle;
     const a = createTenantRepository(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
     expect(pr.entryCommentId).toBeNull();
 
-    const first = await a.pullRequests.setEntryComment(pr.id, 9001n);
-    expect(first?.entryCommentId).toBe(9001n);
+    const first = await a.pullRequests.swapEntryComment(pr.id, {
+      seen: null,
+      next: 9001n,
+    });
+    expect(first.ok && first.value.entryCommentId).toBe(9001n);
 
     // Rotation: a repost replaces the stored id in place.
-    const second = await a.pullRequests.setEntryComment(pr.id, 9002n);
-    expect(second?.entryCommentId).toBe(9002n);
+    const second = await a.pullRequests.swapEntryComment(pr.id, {
+      seen: 9001n,
+      next: 9002n,
+    });
+    expect(second.ok && second.value.entryCommentId).toBe(9002n);
     expect((await a.pullRequests.getById(pr.id))?.entryCommentId).toBe(9002n);
+  });
+
+  it("swapEntryComment refuses a moved row with the id it holds", async () => {
+    const handle = shared.handle;
+    const tenantA = createTenantRepository(handle, CTX_A);
+    const pr = await tenantA.pullRequests.upsert(upsertInput(7));
+    await tenantA.pullRequests.swapEntryComment(pr.id, {
+      seen: null,
+      next: 9001n,
+    });
+
+    const fromEmpty = await tenantA.pullRequests.swapEntryComment(pr.id, {
+      seen: null,
+      next: 9002n,
+    });
+    const fromOther = await tenantA.pullRequests.swapEntryComment(pr.id, {
+      seen: 9003n,
+      next: null,
+    });
+
+    const lost = {
+      ok: false,
+      error: {
+        code: EntryCommentSwapErrorCodes.SWAP_LOST,
+        entryCommentId: 9001n,
+      },
+    };
+    expect(fromEmpty).toEqual(lost);
+    expect(fromOther).toEqual(lost);
+    expect((await tenantA.pullRequests.getById(pr.id))?.entryCommentId).toBe(
+      9001n,
+    );
   });
 });
 

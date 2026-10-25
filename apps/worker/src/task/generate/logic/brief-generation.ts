@@ -8,19 +8,26 @@ import { checkBriefForWrite, STORED_BODY_VERSION } from "brief-core/artifact";
 import { GenerationKinds, type BriefWriteInput } from "persistence";
 import { GenerationPhases, type GenerationPhase } from "types/generations";
 import type { Mutable } from "types/utils";
-import { entryCommentGeneratingBody } from "../../entry-comment";
+import { buildEntryCommentGeneratingBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
 import { buildRepoConfigArtifact } from "../../repo-config";
-import type {
-  BriefGenerationInputs,
-  GeneratedBrief,
-  StoredBriefRecoveryInputs,
+import {
+  HeadReadings,
+  type BriefGenerationInputs,
+  type GeneratedBrief,
+  type StoredBriefRecoveryInputs,
 } from "../types";
-import { getAnchorColumns, getGenerationOrigin, recoverBrief } from "../utils";
+import {
+  deriveNextHeadIndex,
+  getAnchorColumns,
+  getGenerationOrigin,
+  recoverBrief,
+} from "../utils";
 import { decideAnchor } from "./anchor-decision";
 import { collectAllowedRiskNames, warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
-import { throwOnClaimLost } from "./supersession-watch";
+import { readEntryPostHead, throwOnClaimLost } from "./supersession-watch";
+import { replaceOnUnreadHead } from "./unread-head-entry";
 
 /**
  * The fresh-brief path: anchor decision, the generating Entry, brief-core's
@@ -37,9 +44,7 @@ export async function writeFreshBrief(
     effort,
     store,
     source,
-    entryCommentManager,
     entryCommentAllowed,
-    translate,
     priorBriefs,
     prevBrief,
     prevSpanFetch,
@@ -55,7 +60,7 @@ export async function writeFreshBrief(
   } = inputs;
   const { pullRequestId, headSha } = payload;
 
-  const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
+  const headIndex = deriveNextHeadIndex(priorBriefs);
   const { anchor, previous, chainGroupIds } = await decideAnchor(payload, {
     store,
     source,
@@ -70,11 +75,7 @@ export async function writeFreshBrief(
   });
   await advancePhase(inputs, GenerationPhases.GENERATING);
   if (entryCommentAllowed) {
-    const generatingBody = entryCommentGeneratingBody(
-      translate,
-      entryCommentManager.buildDeepLink(headIndex),
-    );
-    await entryCommentManager.refresh(generatingBody);
+    await postGeneratingEntry(inputs, headIndex);
   }
   const { links, primaryTicket } = await loadContext();
   const fetchedPr: FetchedPr = { locator, meta, diff, links };
@@ -143,6 +144,25 @@ export async function writeFreshBrief(
   const briefRef = { id: written.id, headIndex: written.headIndex };
 
   return { briefRef, generatedBrief: stamped };
+}
+
+/** A moved head ends the run; an unread one replaces only this head's body. */
+async function postGeneratingEntry(
+  inputs: BriefGenerationInputs,
+  headIndex: number,
+): Promise<void> {
+  const { watch, translate, entryCommentManager, log } = inputs;
+  const head = await readEntryPostHead(watch);
+  const generatingBody = buildEntryCommentGeneratingBody(
+    translate,
+    entryCommentManager.buildDeepLink(headIndex),
+  );
+  if (head.kind === HeadReadings.UNREAD) {
+    const post = { entryCommentManager, translate, headIndex, log };
+    await replaceOnUnreadHead(post, generatingBody, head);
+    return;
+  }
+  await entryCommentManager.refresh(generatingBody);
 }
 
 async function advancePhase(

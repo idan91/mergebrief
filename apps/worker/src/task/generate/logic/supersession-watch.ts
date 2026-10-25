@@ -3,7 +3,13 @@ import type { PullRequestInfo } from "github";
 import type { GenerationError } from "persistence";
 import type { Result } from "types/utils";
 import type { PullRequestSource } from "../../github-port";
-import type { ClaimRenewer, SupersessionWatch } from "../types";
+import {
+  HeadReadings,
+  type ClaimRenewer,
+  type EntryPostHeadRead,
+  type HeadRead,
+  type SupersessionWatch,
+} from "../types";
 
 /** Control-flow signal: the job's head is no longer the PR's head. */
 export class SupersededSignal extends Error {}
@@ -33,14 +39,40 @@ export function createSupersessionWatch(
   let seen: PullRequestInfo | undefined;
 
   async function hasHeadMoved(): Promise<boolean> {
+    const read = await fetchHead();
+    return read.kind === HeadReadings.MOVED;
+  }
+
+  async function fetchHead(): Promise<HeadRead> {
     const info = await source.fetchPullRequest();
-    if (!info.ok || info.value.headSha === headSha) {
-      return false;
+    if (!info.ok) {
+      return { kind: HeadReadings.UNREAD, error: info.error.message };
+    }
+    if (info.value.headSha === headSha) {
+      return { kind: HeadReadings.CURRENT };
     }
     // Retained so the supersession does not have to re-read GitHub to learn
     // the head it is standing down for.
     seen = info.value;
-    return true;
+    return { kind: HeadReadings.MOVED };
+  }
+
+  async function readHead(): Promise<HeadRead> {
+    const reason: unknown = controller.signal.reason;
+    if (reason instanceof ClaimLostSignal) {
+      throw reason;
+    }
+    let read: HeadRead;
+    try {
+      read = await fetchHead();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      read = { kind: HeadReadings.UNREAD, error: message };
+    }
+    if (read.kind === HeadReadings.MOVED) {
+      controller.abort();
+    }
+    return read;
   }
 
   async function keepClaim(): Promise<void> {
@@ -90,21 +122,13 @@ export function createSupersessionWatch(
       return seen;
     },
     async assertCurrent() {
-      const reason: unknown = controller.signal.reason;
-      if (reason instanceof ClaimLostSignal) {
-        throw reason;
-      }
-      let moved = false;
-      try {
-        moved = await hasHeadMoved();
-      } catch {
-        // Best-effort check; a fetch failure is not a supersession.
-      }
-      if (moved) {
-        controller.abort();
+      // Best-effort: an unread head is not a supersession.
+      const read = await readHead();
+      if (read.kind === HeadReadings.MOVED) {
         throw new SupersededSignal("head advanced (pre-call check)");
       }
     },
+    readHead,
     startPolling() {
       timer ??= setInterval(tick, intervalMs);
     },
@@ -115,6 +139,17 @@ export function createSupersessionWatch(
       }
     },
   };
+}
+
+/** The head a run going on posts its Entry on: a moved one throws `SupersededSignal`. */
+export async function readEntryPostHead(
+  watch: Pick<SupersessionWatch, "readHead">,
+): Promise<EntryPostHeadRead> {
+  const read = await watch.readHead();
+  if (read.kind === HeadReadings.MOVED) {
+    throw new SupersededSignal("head advanced (pre-post check)");
+  }
+  return read;
 }
 
 /** Wrap a Generator so every request carries the watch's abort signal. */

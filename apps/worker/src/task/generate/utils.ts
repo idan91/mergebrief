@@ -11,6 +11,7 @@ import type { LogFields, Logger } from "logging";
 import {
   GenerationKinds,
   MAX_GENERATION_ATTEMPTS,
+  type BriefSpanRow,
   type GenerationTarget,
   type PullRequestRow,
 } from "persistence";
@@ -60,6 +61,17 @@ export function getBriefTarget(
     headSha: payload.headSha,
     baselineSha: null,
   };
+}
+
+/**
+ * The index this run's brief takes. The generating Entry links to it, and the
+ * failed Entry replaces that body only while both build the same link.
+ */
+export function deriveNextHeadIndex(
+  priorBriefs: readonly BriefSpanRow[],
+): number {
+  const nextHeadIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
+  return nextHeadIndex;
 }
 
 const UNEXPECTED_SHAPE_WARNING =

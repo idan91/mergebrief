@@ -1135,9 +1135,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
       await createTenantRepository(
         harness.handle,
         CTX,
-      ).pullRequests.setEntryComment(
+      ).pullRequests.swapEntryComment(
         brandWith(isPullRequestRowId, first.pullRequest.id),
-        4242n,
+        { seen: null, next: 4242n },
       );
 
       const flipped = await trigger({

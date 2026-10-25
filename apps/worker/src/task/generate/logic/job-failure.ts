@@ -1,29 +1,39 @@
 import type { LogFields } from "logging";
-import { InvalidArtifactBodyError, ScopeViolationError } from "persistence";
+import {
+  InvalidArtifactBodyError,
+  ScopeViolationError,
+  type GenerationFailure,
+} from "persistence";
 import { GenerationStatuses } from "types/generations";
 import { classifyFailure, PermanentJobError } from "../../failure";
-import type { JobFailureInputs } from "../types";
+import {
+  JobFailureOutcomes,
+  type JobFailureInputs,
+  type JobFailureOutcome,
+  type JobFailureReport,
+} from "../types";
 import { emitProviderError } from "./errors";
 
 /**
  * Mark the run failed, unless the row is to be left alone, and emit its
- * events. Returns whether the job ends here: the caller returns normally on
- * a permanent failure, or on a claim lost to another run or to a deleted pull
- * request, whose retry would only meet `held` or no row; it rethrows
- * otherwise so graphile owns the backoff.
+ * events. The outcome tells the caller whether the job ends here: it returns
+ * normally on a permanent failure, or on a claim lost to another run or to a
+ * deleted pull request, whose retry would only meet `held` or no row; it
+ * rethrows otherwise so graphile owns the backoff.
  */
 export async function reportJobFailure(
   error: unknown,
   inputs: JobFailureInputs,
-): Promise<boolean> {
+): Promise<JobFailureReport> {
   const { deps, job, log } = inputs;
 
-  const claimKept = await recordFailure(error, inputs);
+  const failure = classifyFailure(error);
+  const claimKept = await recordFailure(failure, inputs);
   if (!claimKept) {
     log.warn(
       "generate: the generation row is held by another run or gone, standing down",
     );
-    return true;
+    return { outcome: JobFailureOutcomes.CLAIM_LOST, failure };
   }
 
   const message = error instanceof Error ? error.message : String(error);
@@ -51,30 +61,42 @@ export async function reportJobFailure(
       : `generate: failed (${message}) — handing to graphile for retry`,
     failFields,
   );
-  if (
+  const lastAttempt =
     attempt !== undefined &&
     maxAttempts !== undefined &&
-    attempt >= maxAttempts
-  ) {
+    attempt >= maxAttempts;
+  if (lastAttempt) {
     log.error("generate: retries exhausted", {
       evt: "job.retries.exhausted",
       attempt,
       maxAttempts,
     });
   }
-  return permanent;
+  return { outcome: selectOutcome(permanent, lastAttempt), failure };
+}
+
+function selectOutcome(
+  permanent: boolean,
+  lastAttempt: boolean,
+): JobFailureOutcome {
+  if (permanent) {
+    return JobFailureOutcomes.PERMANENT;
+  }
+  if (lastAttempt) {
+    return JobFailureOutcomes.LAST_ATTEMPT;
+  }
+  return JobFailureOutcomes.RETRYING;
 }
 
 /**
  * A claimed run fails through its claim; before the claim, an unclaimed mark.
- * False when the fenced write found the claim lost.
+ * False when either write found the row held by another run or gone.
  */
 async function recordFailure(
-  error: unknown,
+  failure: GenerationFailure,
   inputs: JobFailureInputs,
 ): Promise<boolean> {
   const { projection, target, leaveRow, runId } = inputs;
-  const failure = classifyFailure(error);
   if (runId !== undefined) {
     const finished = await projection.finishRun(target, runId, {
       status: GenerationStatuses.FAILED,
@@ -82,8 +104,9 @@ async function recordFailure(
     });
     return finished.ok;
   }
-  if (!leaveRow) {
-    await projection.markFailed(target, failure);
+  if (leaveRow) {
+    return true;
   }
-  return true;
+  const marked = await projection.markFailed(target, failure);
+  return marked.ok;
 }

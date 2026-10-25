@@ -88,6 +88,17 @@ export const UncoveredWorks = {
 } as const;
 export type UncoveredWork = ValueOf<typeof UncoveredWorks>;
 
+/** Why `swapEntryComment` wrote nothing. */
+export const EntryCommentSwapErrorCodes = {
+  /** The row holds another id than the one the caller saw: another writer swapped first. */
+  SWAP_LOST: "swap-lost",
+  /** No row in the caller's scope has the id. */
+  NOT_FOUND: "not-found",
+} as const;
+export type EntryCommentSwapErrorCode = ValueOf<
+  typeof EntryCommentSwapErrorCodes
+>;
+
 /**
  * Where a draft stands with a publish attempt. `in-doubt` is a claim older
  * than the lease: the attempt may or may not have reached GitHub.

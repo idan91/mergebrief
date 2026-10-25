@@ -26,8 +26,14 @@ import {
 import { resolveScope, ScopeViolationError } from "./scope";
 import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
-import type { PullRequestRowId, ReviewerId, RepoId } from "../types";
+import {
+  EntryCommentSwapErrorCodes,
+  type PullRequestRowId,
+  type ReviewerId,
+  type RepoId,
+} from "../types";
 import type { PrStates } from "types/pull-requests";
+import type { Result } from "types/utils";
 
 // ---------------------------------------------------------------------------
 // Row + input shapes.
@@ -35,6 +41,20 @@ import type { PrStates } from "types/pull-requests";
 
 export type PullRequestRow = typeof pullRequest.$inferSelect;
 export type CheckpointRow = typeof checkpoint.$inferSelect;
+
+/** Another writer swapped first; the row holds `entryCommentId` now. */
+export interface EntryCommentSwapLost {
+  readonly code: typeof EntryCommentSwapErrorCodes.SWAP_LOST;
+  readonly entryCommentId: bigint | null;
+}
+
+export interface EntryCommentSwapNotFound {
+  readonly code: typeof EntryCommentSwapErrorCodes.NOT_FOUND;
+}
+
+export type EntryCommentSwapError =
+  | EntryCommentSwapLost
+  | EntryCommentSwapNotFound;
 
 /**
  * Lifecycle pair, discriminated on `state` so the type system forbids a stale
@@ -136,14 +156,16 @@ export interface PullRequestRepository {
   /** Tenant-scoped read by row id (the worker's job-payload entry point). */
   getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
   /**
-   * Store/rotate the Entry comment id after a delete+repost cycle. A plain
-   * GitHub comment id (no branded type); `undefined` if no row in ctx's scope.
+   * Compare-and-set the Entry comment id: `next` is written only while the
+   * row still holds `seen`, so of two runs that both posted, one id is
+   * stored. A plain GitHub comment id (no branded type); `null` means none.
+   * A row holding another id refuses with `swap-lost` and the id it holds;
+   * no row in ctx's scope refuses with `not-found`.
    */
-  setEntryComment(
+  swapEntryComment(
     pullRequestId: PullRequestRowId,
-    /** `null` clears the stored id (entry comment deleted). */
-    entryCommentId: bigint | null,
-  ): Promise<PullRequestRow | undefined>;
+    swap: { readonly seen: bigint | null; readonly next: bigint | null },
+  ): Promise<Result<PullRequestRow, EntryCommentSwapError>>;
   /**
    * Flip the local `draft` mirror after a mark-ready mutation. A NARROW,
    * tenant-scoped update by row id, the caller already resolved the
@@ -270,19 +292,52 @@ export function createTenantRepository(
       return rows[0];
     },
 
-    async setEntryComment(pullRequestId, entryCommentId) {
+    async swapEntryComment(pullRequestId, { seen, next }) {
+      const holdsSeen =
+        seen === null
+          ? isNull(pullRequest.entryCommentId)
+          : eq(pullRequest.entryCommentId, seen);
       const rows = await db
         .update(pullRequest)
         .set({
-          entryCommentId,
+          entryCommentId: next,
           rowVersion: buildNextRowVersion(),
           updatedAt: new Date(),
         })
         .where(
-          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
+          and(
+            scope.matchesPullRequest(),
+            eq(pullRequest.id, pullRequestId),
+            holdsSeen,
+          ),
         )
         .returning();
-      return rows[0];
+      const swapped = rows[0];
+      if (swapped !== undefined) {
+        return { ok: true, value: swapped };
+      }
+
+      const held = await db
+        .select({ entryCommentId: pullRequest.entryCommentId })
+        .from(pullRequest)
+        .where(
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
+        )
+        .limit(1);
+      const current = held[0];
+      if (current === undefined) {
+        return {
+          ok: false,
+          error: { code: EntryCommentSwapErrorCodes.NOT_FOUND },
+        };
+      }
+      return {
+        ok: false,
+        error: {
+          code: EntryCommentSwapErrorCodes.SWAP_LOST,
+          entryCommentId: current.entryCommentId,
+        },
+      };
     },
 
     async setDraft(pullRequestId, draft) {

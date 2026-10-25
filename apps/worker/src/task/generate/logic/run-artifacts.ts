@@ -79,6 +79,7 @@ async function generateFreshBrief(
     projection: context.projection,
     target: context.target,
     runId: decision.runId,
+    watch: context.watch,
     entryCommentManager: context.entryCommentManager,
     entryCommentAllowed: inputs.entryCommentAllowed,
     translate: deps.translate,

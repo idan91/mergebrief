@@ -1,6 +1,11 @@
 import { RepoConfigOutcomes, RepoConfigPaths } from "repo-config";
 import type { ParsedGeneratePayload } from "../../payload";
-import type { EntryCommentGateInputs, ReadyEntryInputs } from "../types";
+import { acquireRepoConfig } from "../../repo-config";
+import type {
+  EntryCommentGateInputs,
+  ReadyEntryInputs,
+  RunContext,
+} from "../types";
 
 /**
  * Whether this run may post Entry comments. Url-box jobs never write to
@@ -38,6 +43,29 @@ export async function resolveEntryCommentAllowed(
   }
 
   return entryCommentAllowed;
+}
+
+/**
+ * The run's Entry gate: the one its inputs resolved, else resolved here for a
+ * run that ends before them, reading the repo config only on a draft.
+ */
+export async function resolveRunEntryCommentAllowed(
+  context: RunContext,
+): Promise<boolean> {
+  const { payload, prInfo, source, run, entryCommentManager, log } = context;
+  if (run.entryCommentAllowed !== undefined) {
+    return run.entryCommentAllowed;
+  }
+
+  const repoConfig = prInfo.draft
+    ? await acquireRepoConfig(source, log)
+    : undefined;
+  return resolveEntryCommentAllowed(payload, {
+    prInfo,
+    repoConfig,
+    entryCommentManager,
+    log,
+  });
 }
 
 /**

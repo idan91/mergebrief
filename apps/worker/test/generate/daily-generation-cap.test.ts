@@ -408,10 +408,12 @@ describe("generate task, daily generation cap", () => {
     const { pr, payload } = await trigger(HEAD_2);
     const github = makeGitHub(HEAD_2);
     // Clear the tracked comment: this PR has none on the thread.
-    await createTenantRepository(
-      harness.handle,
-      ctx,
-    ).pullRequests.setEntryComment(pr.id, null);
+    const { pullRequests } = createTenantRepository(harness.handle, ctx);
+    const tracked = await pullRequests.getById(pr.id);
+    await pullRequests.swapEntryComment(pr.id, {
+      seen: tracked?.entryCommentId ?? null,
+      next: null,
+    });
 
     await makeTask({ github, spend: { maxGenerationsPerDay: 1 } })(payload);
 

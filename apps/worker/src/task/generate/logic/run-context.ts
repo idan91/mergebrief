@@ -13,7 +13,13 @@ import { PermanentJobError } from "../../failure";
 import { splitRepoSlug, type PullRequestSource } from "../../github-port";
 import { scheduleUrlBoxRegeneration } from "../../url-box-regeneration";
 import { CLAIM_LEASE_MS, DEFAULT_HEAD_POLL_INTERVAL_MS } from "../consts";
-import type { AuditScope, RunContext, RunScope, RunStart } from "../types";
+import type {
+  AuditScope,
+  RunContext,
+  RunProgress,
+  RunScope,
+  RunStart,
+} from "../types";
 import { createEntryCommentManager } from "./entry-comment-manager";
 import { throwOnGitHubFailure } from "./errors";
 import {
@@ -27,17 +33,19 @@ interface GuardedPullRequest {
 }
 
 /**
- * Read the row, open its source and take the first GitHub read. Undefined
- * means the row is gone and the job drops; a terminal or moved PR throws
- * `SupersededSignal`.
+ * Read the row, open its source and take the first GitHub read, recording
+ * the scope in `progress` once the source opened. Undefined means the row is
+ * gone and the job drops; a terminal or moved PR throws `SupersededSignal`.
  */
 export async function openRun(
   start: RunStart,
+  progress: RunProgress,
 ): Promise<RunContext | undefined> {
   const scope = await openRunScope(start);
   if (scope === undefined) {
     return undefined;
   }
+  progress.scope = scope;
 
   const { payload, store, deps } = scope;
   const prInfo = await readLivePullRequest(scope);

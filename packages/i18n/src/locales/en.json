@@ -12,6 +12,7 @@
     "failed": {
       "heading": "Brief generation failed — no brief for {{shortSha}}.",
       "regenerateLink": "Regenerate from MergeBrief",
+      "openLink": "Open this push in MergeBrief",
       "footer": "Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again, or when it closes.",
       "reason": {
         "provider-auth": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",

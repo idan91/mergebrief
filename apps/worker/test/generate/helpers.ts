@@ -4,15 +4,18 @@ import { beforeAll, beforeEach } from "vitest";
 import {
   createEnvKeyProvider,
   createIngestRoutines,
+  createTenantRepository,
   GenerationKinds,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
+  MAX_GENERATION_ATTEMPTS,
   parseTenantContext,
   type GenerationTarget,
   type GrantRowId,
   type KeyProvider,
   type PullRequestRow,
+  type PullRequestRowId,
   type RepoId,
   type ReviewerId,
 } from "persistence";
@@ -45,7 +48,7 @@ import type {
   RepositoryRef,
   ReviewerRepoClient,
 } from "github";
-import { makeFakeGitHub, type FakeGitHub } from "github/testing";
+import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import {
   createGenerateTask,
   createRecoverGenerationTask,
@@ -62,6 +65,17 @@ export const HEAD_1 = "a".repeat(40);
 export const HEAD_2 = "b".repeat(40);
 export const BASE = "c".repeat(40);
 export const PUBLIC_URL = "https://brief.example";
+export const FIRST_ATTEMPT = {
+  attempts: 1,
+  max_attempts: MAX_GENERATION_ATTEMPTS,
+  run_at: new Date(),
+} as const;
+export const SECOND_ATTEMPT = { ...FIRST_ATTEMPT, attempts: 2 } as const;
+/** graphile's final attempt: no retry follows a failure here. */
+export const LAST_ATTEMPT = {
+  ...FIRST_ATTEMPT,
+  attempts: FIRST_ATTEMPT.max_attempts,
+} as const;
 
 const SMALL_DIFF = `diff --git a/a.ts b/a.ts
 --- a/a.ts
@@ -386,11 +400,34 @@ export function pushHeadAfterFirstRead(
   interceptReviewerRepo(github, (client) => wrapFirstHeadRead(client, onRead));
 }
 
+/** A newer head's Entry comment another run stored. */
+export const NEWER_COMMENT_ID = 9_001n;
+export const NEWER_BODY = "A newer head's Entry comment";
+
+/** The first head read answers; GitHub fails every later one. */
+export function failHeadReadsAfterFirst(github: FakeGitHub): void {
+  let reads = 0;
+  function onRead(): void {
+    reads += 1;
+    if (reads === 1) {
+      github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+    }
+  }
+  interceptInstallationRepo(github, (client) =>
+    wrapFirstHeadRead(client, onRead),
+  );
+}
+
 const COMMENT_OPERATIONS = new Set<string>([
   "postEntryComment",
   "deleteComment",
   "fetchComment",
 ]);
+
+/** The bodies of the comments live on the fake's PR #7 repository. */
+export function readLiveBodies(github: FakeGitHub): string[] {
+  return [...github.readComments(REPO).values()];
+}
 
 /** The Entry comment calls in order: `post`, `delete:<id>`, `fetch:<id>`. */
 export function listCommentCalls(github: FakeGitHub): string[] {
@@ -422,6 +459,21 @@ export function runAfterEachPost(
       return posted;
     },
   }));
+}
+
+/** Another slot's Entry post landing inside this run's round trip: its comment, swapped onto the row. */
+export async function storeAnotherRunsEntry(
+  github: FakeGitHub,
+  pullRequestId: PullRequestRowId,
+  comment: { readonly id: bigint; readonly body: string },
+): Promise<void> {
+  github.addComment(REPO, comment.id, comment.body);
+  const { pullRequests } = createTenantRepository(harness.handle, ctx);
+  const row = await pullRequests.getById(pullRequestId);
+  await pullRequests.swapEntryComment(pullRequestId, {
+    seen: row?.entryCommentId ?? null,
+    next: comment.id,
+  });
 }
 
 /** Entry comment calls GitHub accepted, with the ids it answered: `post:<id>`, `delete:<id>`, `fetch:<id>`. */

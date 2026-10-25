@@ -14,6 +14,7 @@ import {
   buildAfterLeaseRequest,
   scheduleClaimRecovery,
 } from "./claim-recovery";
+import { postFailedEntry } from "./failed-entry";
 import { listRunStops, traceRunStep } from "./step-span";
 import { applySpendGate, refuseAtCap } from "./spend-gate";
 
@@ -91,7 +92,8 @@ async function decideUnclaimedStoredBriefRun(
 /**
  * The head's paid attempts since its last trigger are spent, and the job ends
  * without a retry. A stored brief settles the row; otherwise it ends `failed`
- * as `attempts-exhausted`, keeping a failure already there.
+ * as `attempts-exhausted`, keeping a failure already there, and the failed
+ * Entry names the failure the row keeps.
  */
 async function settleExhaustedRun(
   context: RunContext,
@@ -108,11 +110,18 @@ async function settleExhaustedRun(
     await projection.settleStoredBrief(target, pickedUpAt);
     return;
   }
+  const exhausted = { code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED };
   if (projected?.status !== GenerationStatuses.FAILED) {
-    await projection.markFailed(target, {
-      code: GenerationFailureCodes.ATTEMPTS_EXHAUSTED,
-    });
+    const marked = await projection.markFailed(target, exhausted);
+    if (marked.ok) {
+      await postFailedEntry({ scope: context, context }, exhausted.code);
+    }
+    return;
   }
+  await postFailedEntry(
+    { scope: context, context },
+    projected.errorCode ?? exhausted.code,
+  );
 }
 
 /** A recovery run moves its own job past the lease; any other re-queues its head. */

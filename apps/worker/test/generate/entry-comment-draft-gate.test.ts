@@ -15,6 +15,7 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  interceptInstallationRepo,
   listCommentCalls,
   listRepoFilePaths,
   makeGitHub,
@@ -24,6 +25,7 @@ import {
   PR_REF,
   REPO,
   setUpHarness,
+  storeAnotherRunsEntry,
   stubGenerator,
   trigger,
 } from "./helpers";
@@ -233,6 +235,38 @@ describe("generate task, entry-comment draft gate", () => {
       HEAD_2,
     );
     expect(brief2).toBeDefined();
+  });
+
+  it("a sweep whose clear loses the swap keeps the winner's Entry tracked", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const task = makeTask({ github });
+    await task(payload);
+    optOut(github);
+    github.updatePullRequest(PR_REF, { draft: true, headSha: HEAD_2 });
+    const second = await trigger(HEAD_2);
+    const winner = { id: 9_001n, body: "Another run's Entry comment" };
+    let interleaved = false;
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async deleteComment(commentId) {
+        const deleted = await client.deleteComment(commentId);
+        if (!interleaved) {
+          interleaved = true;
+          await storeAnotherRunsEntry(github, second.pr.id, winner);
+        }
+        return deleted;
+      },
+    }));
+
+    await task(second.payload);
+
+    expect([...github.readComments(REPO).values()]).toEqual([winner.body]);
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(second.pr.id);
+    expect(row?.entryCommentId).toBe(winner.id);
   });
 
   it("preserves live Entries when settings fetching fails", async () => {

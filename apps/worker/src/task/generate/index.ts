@@ -6,6 +6,7 @@ import { parseGeneratePayload } from "../payload";
 import { shouldRecoverClaim } from "./logic/claim-recovery";
 import { traceProviderCalls } from "./logic/model-span";
 import { isRunSignal, listRunStops, traceRunStep } from "./logic/step-span";
+import { postFailedEntry } from "./logic/failed-entry";
 import { reportJobFailure } from "./logic/job-failure";
 import { postOwedReadyEntry, postReadyEntry } from "./logic/ready-entry";
 import {
@@ -26,12 +27,14 @@ import {
   SupersededSignal,
 } from "./logic/supersession-watch";
 import {
+  JobFailureOutcomes,
   RunDecisionKinds,
   type GenerateTask,
   type GenerateTaskDeps,
   type GenerateTaskHelpers,
   type GeneratingRun,
   type RunContext,
+  type RunProgress,
   type RunStart,
   type RunState,
   type SupersessionWatch,
@@ -56,7 +59,7 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
       return;
     }
     const run: RunStart = { ...start, recovering: false };
-    await runJob(run, async () => runGeneration(run));
+    await runJob(run, async (progress) => runGeneration(run, progress));
   };
 }
 
@@ -83,9 +86,9 @@ export function createRecoverGenerationTask(
     // Nothing before the run decision may mark the row.
     start.run.leaveRow = true;
     const isRetry = (helpers?.job?.attempts ?? 1) > 1;
-    await runJob(start, async () => {
+    await runJob(start, async (progress) => {
       if (await shouldRecoverClaim(start, isRetry)) {
-        await runGeneration(start);
+        await runGeneration(start, progress);
       }
     });
   };
@@ -123,12 +126,13 @@ function buildRunStart(
 /** Every failure, the recovery job's claim check included, settles in one place. */
 async function runJob(
   start: RunStart,
-  work: () => Promise<void>,
+  work: (progress: RunProgress) => Promise<void>,
 ): Promise<void> {
+  const progress: RunProgress = {};
   try {
-    await work();
+    await work(progress);
   } catch (error) {
-    await settleFailedRun(start, error);
+    await settleFailedRun(start, error, progress);
   }
 }
 
@@ -139,9 +143,13 @@ async function runJob(
  * abort releases the claim and rethrows so graphile returns the job to the
  * queue; anything else is a failure, swallowed when permanent or when its
  * fenced write finds the claim lost, and rethrown for graphile's retry
- * otherwise.
+ * otherwise. Only a failure no retry follows posts the failed Entry.
  */
-async function settleFailedRun(start: RunStart, error: unknown): Promise<void> {
+async function settleFailedRun(
+  start: RunStart,
+  error: unknown,
+  progress: RunProgress,
+): Promise<void> {
   const { projection, target, run, log } = start;
   if (error instanceof ClaimLostSignal) {
     log.warn(`generate: standing down, ${error.message}`);
@@ -161,7 +169,7 @@ async function settleFailedRun(start: RunStart, error: unknown): Promise<void> {
     throw error;
   }
 
-  const jobEnds = await reportJobFailure(error, {
+  const { outcome, failure } = await reportJobFailure(error, {
     deps: start.deps,
     projection,
     target,
@@ -170,7 +178,16 @@ async function settleFailedRun(start: RunStart, error: unknown): Promise<void> {
     job: start.job,
     log,
   });
-  if (!jobEnds) {
+  const endsFailed =
+    outcome === JobFailureOutcomes.PERMANENT ||
+    outcome === JobFailureOutcomes.LAST_ATTEMPT;
+  if (endsFailed && !run.leaveRow) {
+    await postFailedEntry(progress, failure.code);
+  }
+  const retried =
+    outcome === JobFailureOutcomes.RETRYING ||
+    outcome === JobFailureOutcomes.LAST_ATTEMPT;
+  if (retried) {
     throw error;
   }
 }
@@ -202,12 +219,15 @@ async function markRunSuperseded(start: RunStart): Promise<void> {
   }
 }
 
-async function runGeneration(start: RunStart): Promise<void> {
+async function runGeneration(
+  start: RunStart,
+  progress: RunProgress,
+): Promise<void> {
   const context = await traceRunStep(
     "generation.open",
     [start.shutdownSignal],
     async (span) => {
-      const opened = await openRun(start);
+      const opened = await openRun(start, progress);
       span.setAttributes({ "mergebrief.opened": opened !== undefined });
       return opened;
     },
@@ -215,6 +235,7 @@ async function runGeneration(start: RunStart): Promise<void> {
   if (context === undefined) {
     return;
   }
+  progress.context = context;
 
   const decision = await traceRunStep(
     "generation.decide",
@@ -302,6 +323,7 @@ async function generateArtifacts(
   const inputs = await traceRunStep("generation.inputs", stops, () =>
     prepareRunInputs(context, decision),
   );
+  context.run.entryCommentAllowed = inputs.entryCommentAllowed;
   const brief = await traceRunStep("brief.generate", stops, () =>
     produceBrief(context, decision, inputs, generator),
   );

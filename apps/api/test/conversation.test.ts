@@ -182,9 +182,12 @@ async function seedPullRequestWithEntryComment(
   const set = await createTenantRepository(
     handle,
     CTX,
-  ).pullRequests.setEntryComment(row.id, entryCommentId);
-  if (set === undefined) {
-    throw new Error("setEntryComment failed in seed");
+  ).pullRequests.swapEntryComment(row.id, {
+    seen: null,
+    next: entryCommentId,
+  });
+  if (!set.ok) {
+    throw new Error("swapEntryComment failed in seed");
   }
 }
 
