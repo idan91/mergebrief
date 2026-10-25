@@ -13,6 +13,21 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-24)
+
+- **Added** `regenerate-brief`,
+  `POST /api/repos/:repoId/pulls/:prNumber/regenerate`, classified
+  `external-write`: queues a fresh run of the pull request's current head
+  when it failed in a way a rerun can help, and answers `202` with no body.
+  The run spends model budget and ends in a PR comment. It needs push access,
+  which it confirms with GitHub at the request (`502 github-unavailable` when
+  GitHub cannot answer), and a repository in an App installation (404
+  otherwise), and answers
+  `409 generation-held` while a run holds the head and
+  `409 generation-not-regenerable` when the pull request is closed or merged,
+  the head did not fail, failed with `diff-too-large`, `output-secret` or
+  `provider-refusal`, or already has a stored brief.
+
 ## dev (2026-10-23)
 
 - **Changed** an instance config with no `spend.maxGenerationsPerDay` caps

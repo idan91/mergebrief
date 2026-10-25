@@ -39,6 +39,8 @@ export const ApiErrorCodes = {
   PENDING_REVIEW_HELD: "pending-review-held",
   PR_CHANGED_SINCE_READ: "pr-changed-since-read",
   PR_REWRITTEN_SINCE_READ: "pr-rewritten-since-read",
+  GENERATION_HELD: "generation-held",
+  GENERATION_NOT_REGENERABLE: "generation-not-regenerable",
   GITHUB_UNAVAILABLE: "github-unavailable",
   ARTIFACT_UNREADABLE: "artifact-unreadable",
   INTERNAL_ERROR: "internal-error",
@@ -114,6 +116,8 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.PENDING_REVIEW_HELD]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.GENERATION_HELD]: HttpStatuses.CONFLICT,
+  [ApiErrorCodes.GENERATION_NOT_REGENERABLE]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.GITHUB_UNAVAILABLE]: HttpStatuses.BAD_GATEWAY,
   [ApiErrorCodes.ARTIFACT_UNREADABLE]: HttpStatuses.INTERNAL_SERVER_ERROR,
   [ApiErrorCodes.INTERNAL_ERROR]: HttpStatuses.INTERNAL_SERVER_ERROR,
@@ -174,6 +178,10 @@ export const ApiErrorEnglishByCode = {
     "pull request changed since it was read",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]:
     "pull request was rewritten since it was read",
+  [ApiErrorCodes.GENERATION_HELD]:
+    "a brief is already generating for this push",
+  [ApiErrorCodes.GENERATION_NOT_REGENERABLE]:
+    "this push's brief cannot be regenerated",
   [ApiErrorCodes.GITHUB_UNAVAILABLE]: "github is unavailable or rate limited",
   [ApiErrorCodes.ARTIFACT_UNREADABLE]: "artifact unreadable",
   [ApiErrorCodes.INTERNAL_ERROR]: "internal error",

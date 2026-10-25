@@ -178,6 +178,12 @@ export const ProductOperations = {
     method: HttpMethods.POST,
     path: "/api/repos/:repoId/pulls/:prNumber/ready",
   },
+  [ProductActionIds.REGENERATE_BRIEF]: {
+    kind: OperationKinds.ACTION,
+    classification: AccessLevels.EXTERNAL_WRITE,
+    method: HttpMethods.POST,
+    path: "/api/repos/:repoId/pulls/:prNumber/regenerate",
+  },
   [ProductActionIds.CREATE_INLINE_COMMENT]: {
     kind: OperationKinds.ACTION,
     classification: AccessLevels.EXTERNAL_WRITE,

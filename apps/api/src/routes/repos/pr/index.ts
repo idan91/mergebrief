@@ -18,6 +18,7 @@ import type { AttachmentsRouteDeps } from "./attachments/types";
 import { deletePullRoute } from "./delete";
 import { readsRoutes } from "./reads";
 import { markReadyRoute } from "./ready";
+import { regenerateRoute } from "./regenerate";
 import { reviewSubmitRoute } from "./review";
 import { sessionRoutes } from "./session";
 
@@ -42,6 +43,7 @@ export function prRoutes(
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
+  app.route("/regenerate", regenerateRoute(deps));
   app.route("/attachments", attachmentsRoute(deps));
   app.route("/comments", commentWriteRoutes(deps, evictConversation));
   app.route("/conversation", conversation.router);

@@ -43,6 +43,7 @@ export type ProductQueryId = ValueOf<typeof ProductQueryIds>;
 export const ProductActionIds = {
   SUBMIT_REVIEW: "submit-review",
   MARK_READY: "mark-ready",
+  REGENERATE_BRIEF: "regenerate-brief",
   CREATE_INLINE_COMMENT: "create-inline-comment",
   REPLY_TO_COMMENT: "reply-to-comment",
   RESOLVE_THREAD: "resolve-thread",

@@ -170,6 +170,12 @@
   "reclassify-group": {
     "command": "mergebrief reclassify <number>"
   },
+  "regenerate-brief": {
+    "webOnly": {
+      "reason": "Regenerating is the brief page's recovery affordance; the CLI has no failed-card surface",
+      "owner": "idan"
+    }
+  },
   "reopen-risk": {
     "command": "mergebrief risk reopen <number>"
   },

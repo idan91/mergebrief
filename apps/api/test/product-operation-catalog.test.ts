@@ -107,6 +107,11 @@ const EXPECTED_POLICY = {
     "requiresStoredPullRequest",
   ],
   [ProductActionIds.RECLASSIFY_GROUP]: ["requiresStoredPullRequest"],
+  [ProductActionIds.REGENERATE_BRIEF]: [
+    "requiresPushAccess",
+    "requiresInstallation",
+    "requiresStoredPullRequest",
+  ],
   [ProductActionIds.REOPEN_RISK]: [
     "browserSessionOnly",
     "requiresStoredPullRequest",
