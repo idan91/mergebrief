@@ -13,7 +13,7 @@ import { useReading } from "./reading/useReading";
 import { useStoryCardTrack } from "./reading/useStoryCardTrack";
 import type { ChunkFooterWiring } from "./StoryView/ChunkFooter";
 import type { BriefViewProps } from "./types";
-import { resolveDiffViewToggle } from "./utils";
+import { buildAnnouncedRevisionNav, resolveDiffViewToggle } from "./utils";
 
 // Call order is effect order: each hook's effects run after the ones above
 // it, so a move here is a behaviour change.
@@ -90,6 +90,11 @@ export function useBriefViewFacade(props: BriefViewProps) {
     conversationWiring,
     toggleDiffView,
   });
+  const revisionNav = buildAnnouncedRevisionNav({
+    t,
+    revisionNav: readingState.revisionNav,
+    announceQuietly: flow.flowStore.getState().actions.announceQuietly,
+  });
   const chunkFooter: ChunkFooterWiring = {
     jumpToChunk: session.jumpToChunkFromShortcut,
     toggleViewed: markViewedFromShortcut,
@@ -104,6 +109,7 @@ export function useBriefViewFacade(props: BriefViewProps) {
     conversationWiring,
     ...comparison,
     ...readingState,
+    revisionNav,
     ...layout,
     ...flow,
     ...address,

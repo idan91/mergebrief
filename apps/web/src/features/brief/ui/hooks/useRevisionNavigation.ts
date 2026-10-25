@@ -1,9 +1,12 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import {
   ScrollMotions,
   ScrollPlacements,
 } from "../components/BriefView/scroll-to-target/engine/types";
+import { ROW_SCROLL_BAND_SHARE } from "../components/BriefView/scroll-to-target/engine/consts";
+import type { ScrollReading } from "../components/BriefView/scroll-to-target/engine/types";
+import { readScrollState } from "../components/BriefView/scroll-to-target/targets";
 import {
   ScrollHistories,
   ScrollTargetKinds,
@@ -27,8 +30,25 @@ import type { BriefChunk } from "../../model/types";
  * directly and routes an unmounted one through the chunk windows.
  */
 export interface RevisionNavigation {
-  jumpNext: () => void;
-  jumpPrev: () => void;
+  jumpNext: () => RevisionStep | undefined;
+  jumpPrev: () => RevisionStep | undefined;
+}
+
+/** One stepper move: the model target it lands on, and whether it wrapped. */
+export interface RevisionStep {
+  index: number;
+  wrapped: boolean;
+}
+
+/**
+ * The reading band's upper half in document coordinates, where a landed rail
+ * rests: from the pinned stack's bottom down to the band's middle.
+ */
+export interface ReadingBand {
+  top: number;
+  middle: number;
+  /** The viewport's bottom edge: a landed rail above it is still on screen. */
+  bottom: number;
 }
 
 export interface UseRevisionNavigationInput {
@@ -59,63 +79,157 @@ interface MountedRail {
   top: number;
 }
 
-/**
- * Pick the next/prev model-target index. Mounted rails decide by measured
- * position against the reading line; with none decisive, `fallbackAnchor`
- * (from the active chunk's ordinal) stands in. Wraps at the ends. Pure for
- * unit tests; the DOM-coupled measurement happens in the caller.
- */
-export function pickRevisionTargetIndex(input: {
+interface RevisionStepInput {
   targetCount: number;
-  mounted: readonly { index: number; top: number }[];
+  mounted: readonly MountedRail[];
   direction: 1 | -1;
-  readingLine: number;
+  band: ReadingBand;
+  /** The last step's target; it stays current while its rail is on screen. */
+  landedIndex?: number | undefined;
+  /** From the active chunk's ordinal; stands in when no mounted rail decides. */
   fallbackAnchor: number;
-}): number | undefined {
-  const { targetCount, mounted, direction, readingLine, fallbackAnchor } =
+}
+
+const BAND_EDGE_TOLERANCE_PX = 1;
+
+function findEdgeIndex(
+  rails: readonly MountedRail[],
+  lowest: boolean,
+): number | undefined {
+  if (rails.length === 0) {
+    return undefined;
+  }
+  const indexes = rails.map((rail) => rail.index);
+
+  return lowest ? Math.min(...indexes) : Math.max(...indexes);
+}
+
+function isRailBetween(
+  rail: MountedRail,
+  upper: number,
+  lower: number,
+): boolean {
+  const belowUpper = rail.top >= upper - BAND_EDGE_TOLERANCE_PX;
+  const aboveLower = rail.top <= lower + BAND_EDGE_TOLERANCE_PX;
+  const between = belowUpper && aboveLower;
+  return between;
+}
+
+function compareRestingDistance(
+  left: MountedRail,
+  right: MountedRail,
+  restingLine: number,
+): number {
+  const distance =
+    Math.abs(left.top - restingLine) - Math.abs(right.top - restingLine);
+  if (distance !== 0) {
+    return distance;
+  }
+  const indexOrder = left.index - right.index;
+  return indexOrder;
+}
+
+/** The rail in the band nearest where a landed rail rests, lower index on a tie. */
+function findRailInBand(
+  rails: readonly MountedRail[],
+  band: ReadingBand,
+): MountedRail | undefined {
+  const restingLine =
+    band.top + (band.middle - band.top) * 2 * ROW_SCROLL_BAND_SHARE;
+  const inBand = rails.filter((rail) =>
+    isRailBetween(rail, band.top, band.middle),
+  );
+
+  const nearestFirst = inBand.toSorted((left, right) =>
+    compareRestingDistance(left, right, restingLine),
+  );
+
+  return nearestFirst[0];
+}
+
+/**
+ * The rail the last step landed on, while it is mounted and on screen. The
+ * engine can leave it anywhere readable, or below the band at max scroll, so
+ * position alone can name a neighbour; a manual scroll away drops it.
+ */
+function findLandedRail(
+  rails: readonly MountedRail[],
+  band: ReadingBand,
+  landedIndex: number | undefined,
+): MountedRail | undefined {
+  const landed = rails.find((rail) => rail.index === landedIndex);
+  if (landed === undefined) {
+    return undefined;
+  }
+  return isRailBetween(landed, band.top, band.bottom) ? landed : undefined;
+}
+
+function stepFrom(from: number, direction: 1 | -1, last: number): RevisionStep {
+  if (direction === 1) {
+    return from >= last
+      ? { index: 0, wrapped: true }
+      : { index: from + 1, wrapped: false };
+  }
+
+  return from <= 0
+    ? { index: last, wrapped: true }
+    : { index: from - 1, wrapped: false };
+}
+
+/**
+ * Pick the next or previous model target. The rail the last step landed on,
+ * else a mounted rail resting in the reading band, is the current change, and
+ * the step goes by index from it.
+ * Otherwise mounted rails decide by position against the band, then
+ * `fallbackAnchor`. Wraps at the ends. Pure; the caller measures the DOM.
+ */
+export function pickRevisionStep(
+  input: RevisionStepInput,
+): RevisionStep | undefined {
+  const { targetCount, mounted, direction, band, landedIndex, fallbackAnchor } =
     input;
   if (targetCount === 0) {
     return undefined;
   }
   const last = targetCount - 1;
-  if (direction === 1) {
-    const below = mounted
-      .filter((rail) => rail.top > readingLine + 1)
-      .reduce<
-        number | null
-      >((min, rail) => (min === null || rail.index < min ? rail.index : min), null);
-    if (below !== null) {
-      return below;
-    }
-    const anchor = mounted
-      .filter((rail) => rail.top <= readingLine + 1)
-      .reduce<
-        number | null
-      >((max, rail) => (max === null || rail.index > max ? rail.index : max), null);
-    const from = anchor ?? fallbackAnchor;
-    return from >= last ? 0 : from + 1;
+
+  const landed = findLandedRail(mounted, band, landedIndex);
+  const current = landed ?? findRailInBand(mounted, band);
+  if (current !== undefined) {
+    return stepFrom(current.index, direction, last);
   }
-  const above = mounted
-    .filter((rail) => rail.top < readingLine - 1)
-    .reduce<
-      number | null
-    >((max, rail) => (max === null || rail.index > max ? rail.index : max), null);
-  if (above !== null) {
-    return above;
+
+  const upperEdge = band.top - BAND_EDGE_TOLERANCE_PX;
+  const lowerEdge = band.middle + BAND_EDGE_TOLERANCE_PX;
+  const above = mounted.filter((rail) => rail.top < upperEdge);
+  const below = mounted.filter((rail) => rail.top > lowerEdge);
+  const forward = direction === 1;
+  const ahead = findEdgeIndex(forward ? below : above, forward);
+  if (ahead !== undefined) {
+    return { index: ahead, wrapped: false };
   }
-  const anchor = mounted
-    .filter((rail) => rail.top >= readingLine - 1)
-    .reduce<
-      number | null
-    >((min, rail) => (min === null || rail.index < min ? rail.index : min), null);
-  const from = anchor ?? fallbackAnchor;
-  return from <= 0 ? last : from - 1;
+  const behind = findEdgeIndex(forward ? above : below, !forward);
+
+  return stepFrom(behind ?? fallbackAnchor, direction, last);
+}
+
+function deriveReadingBand(reading: ScrollReading): ReadingBand {
+  const top = reading.scrollY + reading.stackHeight;
+  const bandHeight = reading.viewportHeight - reading.stackHeight;
+  const middle = top + bandHeight / 2;
+  const bottom = reading.scrollY + reading.viewportHeight;
+
+  return { top, middle, bottom };
 }
 
 export function useRevisionNavigation(
   input: UseRevisionNavigationInput,
 ): RevisionNavigation {
   const { chunks, marks, getActiveChunkId, scrollToTarget } = input;
+  const lastStepIndex = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    lastStepIndex.current = undefined;
+  }, [chunks, marks]);
 
   const jump = useCallback(
     (direction: 1 | -1) => {
@@ -172,19 +286,22 @@ export function useRevisionNavigation(
         }
       }
 
-      const targetIndex = pickRevisionTargetIndex({
+      const reading = readScrollState(undefined);
+      const step = pickRevisionStep({
         targetCount: targets.length,
         mounted,
         direction,
-        readingLine: window.scrollY + 160,
+        band: deriveReadingBand(reading),
+        landedIndex: lastStepIndex.current,
         fallbackAnchor,
       });
-      if (targetIndex === undefined) {
-        return;
+      lastStepIndex.current = step?.index;
+      if (step === undefined) {
+        return undefined;
       }
-      const target = targets[targetIndex];
+      const target = targets[step.index];
       if (target === undefined) {
-        return;
+        return undefined;
       }
 
       scrollToTarget(
@@ -195,6 +312,7 @@ export function useRevisionNavigation(
         },
         RAIL_SCROLL,
       );
+      return step;
     },
     [chunks, getActiveChunkId, scrollToTarget, marks],
   );

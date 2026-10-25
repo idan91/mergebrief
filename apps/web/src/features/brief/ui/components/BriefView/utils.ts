@@ -43,7 +43,9 @@ import {
   OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
   SESSION_FROZEN_REASON_KEY,
 } from "./consts";
+import type { RevisionNavigation } from "../../hooks/useRevisionNavigation";
 import {
+  type AnnouncedRevisionNavInput,
   type ConversationReadOnly,
   type DiffViewToggleInput,
   type FilePathDirectory,
@@ -642,4 +644,28 @@ export function buildRepoPolicyCaption(
     return undefined;
   }
   return captions.join(" · ");
+}
+
+/** A wrap jumps to the far end; screen readers hear which end it reached. */
+export function buildAnnouncedRevisionNav({
+  t,
+  revisionNav,
+  announceQuietly,
+}: AnnouncedRevisionNavInput): RevisionNavigation {
+  return {
+    jumpNext: () => {
+      const step = revisionNav.jumpNext();
+      if (step?.wrapped === true) {
+        announceQuietly(t("brief.toolbar.changeStepperWrappedToFirst"));
+      }
+      return step;
+    },
+    jumpPrev: () => {
+      const step = revisionNav.jumpPrev();
+      if (step?.wrapped === true) {
+        announceQuietly(t("brief.toolbar.changeStepperWrappedToLast"));
+      }
+      return step;
+    },
+  };
 }

@@ -491,6 +491,12 @@ export interface UseViewShortcutsInput {
   toggleDiffView: (() => void) | undefined;
 }
 
+export interface AnnouncedRevisionNavInput {
+  t: TFunction;
+  revisionNav: RevisionNavigation;
+  announceQuietly: (message: string) => void;
+}
+
 export interface DiffViewToggleInput {
   t: TFunction;
   view: DiffView;

@@ -63,7 +63,7 @@ function renderToolbar(
     supportingCollapse: "none",
     toggleCollapseSupporting: () => {},
     comparison: comparisonState(0),
-    revisionNav: { jumpNext: () => {}, jumpPrev: () => {} },
+    revisionNav: { jumpNext: () => undefined, jumpPrev: () => undefined },
     ...overrides,
   };
   const store = createReadingPositionStore();

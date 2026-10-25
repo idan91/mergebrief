@@ -525,6 +525,8 @@
       "ariaLabelChangeStepperRevision": "Jump between changes in this revision",
       "ariaLabelPreviousChange": "Previous change",
       "ariaLabelNextChange": "Next change",
+      "changeStepperWrappedToFirst": "Wrapped around to the first change.",
+      "changeStepperWrappedToLast": "Wrapped around to the last change.",
       "startReadThroughShort": "Read-through",
       "startReadThrough": "Start read-through",
       "collapseShort": "Collapse",

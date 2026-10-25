@@ -41,6 +41,7 @@ import {
   buildReplyRecordingPlan,
   resolveDiffViewToggle,
   splitFilePath,
+  buildAnnouncedRevisionNav,
 } from "./utils";
 import {
   NO_REVIEW_REASON_KEY,
@@ -874,6 +875,44 @@ describe("resolveDiffViewToggle", () => {
 
   it("stands down in the Changes scope", () => {
     expect(stubToggle("unified", true).toggle).toBeUndefined();
+  });
+});
+
+describe("buildAnnouncedRevisionNav", () => {
+  function stubNav(wrapped: boolean) {
+    const announceQuietly = vi.fn();
+    const revisionNav = buildAnnouncedRevisionNav({
+      t,
+      revisionNav: {
+        jumpNext: () => ({ index: 0, wrapped }),
+        jumpPrev: () => ({ index: 4, wrapped }),
+      },
+      announceQuietly,
+    });
+    return { revisionNav, announceQuietly };
+  }
+
+  it("announces a forward wrap to the first change", () => {
+    const { revisionNav, announceQuietly } = stubNav(true);
+    revisionNav.jumpNext();
+    expect(announceQuietly).toHaveBeenCalledWith(
+      t("brief.toolbar.changeStepperWrappedToFirst"),
+    );
+  });
+
+  it("announces a backward wrap to the last change", () => {
+    const { revisionNav, announceQuietly } = stubNav(true);
+    revisionNav.jumpPrev();
+    expect(announceQuietly).toHaveBeenCalledWith(
+      t("brief.toolbar.changeStepperWrappedToLast"),
+    );
+  });
+
+  it("stays quiet on a step that does not wrap", () => {
+    const { revisionNav, announceQuietly } = stubNav(false);
+    revisionNav.jumpNext();
+    revisionNav.jumpPrev();
+    expect(announceQuietly).not.toHaveBeenCalled();
   });
 });
 

@@ -7,65 +7,65 @@ import { useScrollToTarget } from "../components/BriefView/scroll-to-target";
 import type { ComparisonMarkFiles } from "../../model/comparison/runs";
 import type { BriefChunk } from "../../model/types";
 import {
-  pickRevisionTargetIndex,
+  pickRevisionStep,
   useRevisionNavigation,
 } from "./useRevisionNavigation";
 
-describe("pickRevisionTargetIndex", () => {
+describe("pickRevisionStep", () => {
   const mounted = [
     { index: 0, top: 0 },
     { index: 1, top: 200 },
     { index: 2, top: 400 },
   ];
 
-  it("jumps forward to the first mounted rail past the reading line", () => {
+  it("jumps forward to the first mounted rail below the band", () => {
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 3,
         mounted,
         direction: 1,
-        readingLine: 100,
+        band: { top: 100, middle: 150, bottom: 200 },
         fallbackAnchor: -1,
       }),
-    ).toBe(1);
+    ).toEqual({ index: 1, wrapped: false });
   });
 
   it("steps to the UNMOUNTED next target when every mounted rail is above", () => {
-    // Mounted rails cover model indexes 0-2 of 6; the reading line is below
-    // them all; the next target exists but has no DOM yet.
+    // Mounted rails cover model indexes 0-2 of 6; the band is below them all;
+    // the next target exists but has no DOM yet.
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 6,
         mounted,
         direction: 1,
-        readingLine: 500,
+        band: { top: 500, middle: 600, bottom: 700 },
         fallbackAnchor: -1,
       }),
-    ).toBe(3);
+    ).toEqual({ index: 3, wrapped: false });
   });
 
   it("wraps forward from the last target", () => {
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 3,
         mounted,
         direction: 1,
-        readingLine: 500,
+        band: { top: 500, middle: 600, bottom: 700 },
         fallbackAnchor: -1,
       }),
-    ).toBe(0);
+    ).toEqual({ index: 0, wrapped: true });
   });
 
-  it("jumps backward to the nearest mounted rail above the reading line", () => {
+  it("jumps backward to the nearest mounted rail above the band", () => {
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 3,
         mounted,
         direction: -1,
-        readingLine: 300,
+        band: { top: 300, middle: 350, bottom: 400 },
         fallbackAnchor: -1,
       }),
-    ).toBe(1);
+    ).toEqual({ index: 1, wrapped: false });
   });
 
   it("steps to the unmounted previous target when mounted rails sit below", () => {
@@ -74,59 +74,194 @@ describe("pickRevisionTargetIndex", () => {
       { index: 4, top: 1200 },
     ];
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 6,
         mounted: deepMounted,
         direction: -1,
-        readingLine: 500,
+        band: { top: 500, middle: 600, bottom: 700 },
         fallbackAnchor: -1,
       }),
-    ).toBe(2);
+    ).toEqual({ index: 2, wrapped: false });
   });
 
   it("wraps backward from the first target", () => {
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 3,
         mounted,
         direction: -1,
-        readingLine: -50,
+        band: { top: -100, middle: -50, bottom: 0 },
         fallbackAnchor: -1,
       }),
-    ).toBe(2);
+    ).toEqual({ index: 2, wrapped: true });
   });
 
   it("anchors on the fallback when nothing is mounted", () => {
+    const band = { top: 100, middle: 150, bottom: 200 };
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 6,
         mounted: [],
         direction: 1,
-        readingLine: 100,
+        band,
         fallbackAnchor: 2,
       }),
-    ).toBe(3);
+    ).toEqual({ index: 3, wrapped: false });
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 6,
         mounted: [],
         direction: -1,
-        readingLine: 100,
+        band,
         fallbackAnchor: 2,
       }),
-    ).toBe(1);
+    ).toEqual({ index: 1, wrapped: false });
   });
 
   it("returns undefined with no targets at all", () => {
     expect(
-      pickRevisionTargetIndex({
+      pickRevisionStep({
         targetCount: 0,
         mounted: [],
         direction: 1,
-        readingLine: 100,
+        band: { top: 100, middle: 150, bottom: 200 },
         fallbackAnchor: -1,
       }),
     ).toBeUndefined();
+  });
+
+  describe("with a rail resting in the reading band", () => {
+    // An 800px viewport under a 110px stack: the band's middle is 455, and a
+    // landed rail may rest anywhere from 110 down to it.
+    const band = { top: 110, middle: 455, bottom: 800 };
+    const landed = [
+      { index: 0, top: 0 },
+      { index: 1, top: 440 },
+      { index: 2, top: 900 },
+    ];
+
+    it("steps forward past the rail in the band", () => {
+      expect(
+        pickRevisionStep({
+          targetCount: 3,
+          mounted: landed,
+          direction: 1,
+          band,
+          fallbackAnchor: -1,
+        }),
+      ).toEqual({ index: 2, wrapped: false });
+    });
+
+    it("steps back to the rail before the one in the band", () => {
+      expect(
+        pickRevisionStep({
+          targetCount: 3,
+          mounted: landed,
+          direction: -1,
+          band,
+          fallbackAnchor: -1,
+        }),
+      ).toEqual({ index: 0, wrapped: false });
+    });
+
+    it("reports a wrap forward from the last rail in the band", () => {
+      expect(
+        pickRevisionStep({
+          targetCount: 2,
+          mounted: landed.slice(0, 2),
+          direction: 1,
+          band,
+          fallbackAnchor: -1,
+        }),
+      ).toEqual({ index: 0, wrapped: true });
+    });
+
+    it("reports a wrap back from the first rail in the band", () => {
+      expect(
+        pickRevisionStep({
+          targetCount: 3,
+          mounted: [{ index: 0, top: 200 }],
+          direction: -1,
+          band,
+          fallbackAnchor: -1,
+        }),
+      ).toEqual({ index: 2, wrapped: true });
+    });
+  });
+
+  describe("with the rail the last step landed on", () => {
+    const band = { top: 110, middle: 455, bottom: 800 };
+
+    it("wraps forward from a last rail held below the band at max scroll", () => {
+      // The page cannot scroll the last rail up into the band.
+      expect(
+        pickRevisionStep({
+          targetCount: 3,
+          mounted: [
+            { index: 0, top: -500 },
+            { index: 1, top: 50 },
+            { index: 2, top: 600 },
+          ],
+          direction: 1,
+          band,
+          landedIndex: 2,
+          fallbackAnchor: -1,
+        }),
+      ).toEqual({ index: 0, wrapped: true });
+    });
+
+    describe("when two rails share the band", () => {
+      // The resting line is 340: the rail before the landed one sits nearer.
+      const dense = [
+        { index: 0, top: 0 },
+        { index: 1, top: 345 },
+        { index: 2, top: 389 },
+        { index: 3, top: 900 },
+      ];
+
+      it("steps forward past the landed rail", () => {
+        expect(
+          pickRevisionStep({
+            targetCount: 4,
+            mounted: dense,
+            direction: 1,
+            band,
+            landedIndex: 2,
+            fallbackAnchor: -1,
+          }),
+        ).toEqual({ index: 3, wrapped: false });
+      });
+
+      it("steps back exactly one from the landed rail", () => {
+        expect(
+          pickRevisionStep({
+            targetCount: 4,
+            mounted: dense,
+            direction: -1,
+            band,
+            landedIndex: 2,
+            fallbackAnchor: -1,
+          }),
+        ).toEqual({ index: 1, wrapped: false });
+      });
+    });
+
+    it("decides by position once the landed rail is scrolled off screen", () => {
+      expect(
+        pickRevisionStep({
+          targetCount: 3,
+          mounted: [
+            { index: 0, top: -500 },
+            { index: 1, top: 300 },
+            { index: 2, top: 900 },
+          ],
+          direction: 1,
+          band,
+          landedIndex: 0,
+          fallbackAnchor: -1,
+        }),
+      ).toEqual({ index: 2, wrapped: false });
+    });
   });
 });
 
@@ -216,33 +351,41 @@ function renderNavigation(
   host: NavigationHost = {},
 ) {
   const chunkWindows = { scrollToChunk: scrollTowardChunk };
-  const {
-    chunks = CHUNKS,
-    marks = MARKS,
-    getActiveChunkId = () => null,
-  } = host;
   return {
     scrollTowardChunk,
     openChunk,
-    ...renderHook(() => {
-      const { scrollToTarget } = useScrollToTarget({
-        briefId: "brief-a",
-        chunkWindows,
-        openChunk,
-        inChangesScope: false,
-        exitChangesScope: undefined,
-      });
-      return useRevisionNavigation({
-        chunks,
-        marks,
-        getActiveChunkId,
-        scrollToTarget,
-      });
-    }),
+    ...renderHook(
+      (current: NavigationHost) => {
+        const {
+          chunks = CHUNKS,
+          marks = MARKS,
+          getActiveChunkId = () => null,
+        } = current;
+        const { scrollToTarget } = useScrollToTarget({
+          briefId: "brief-a",
+          chunkWindows,
+          openChunk,
+          inChangesScope: false,
+          exitChangesScope: undefined,
+        });
+        return useRevisionNavigation({
+          chunks,
+          marks,
+          getActiveChunkId,
+          scrollToTarget,
+        });
+      },
+      { initialProps: host },
+    ),
   };
 }
 
-function jump(step: () => void) {
+/** jsdom rects are all 0, which is inside the band at scroll 0. */
+function placeAboveBand(rail: HTMLButtonElement) {
+  rail.getBoundingClientRect = () => ({ top: -100 }) as DOMRect;
+}
+
+function jump(step: () => unknown) {
   act(() => {
     step();
     vi.advanceTimersByTime(1);
@@ -266,12 +409,13 @@ describe("useRevisionNavigation", () => {
   });
 
   it("jumpNext steps past the mounted rails to the next model target", () => {
-    // jsdom rects are all 0, so both mounted rails sit above the reading
-    // line: the anchor is the deeper one (model index 1) and next resolves
-    // to the UNMOUNTED third target via the chunk jump.
+    // Both mounted rails sit above the band: the anchor is the deeper one
+    // (model index 1) and next resolves to the UNMOUNTED third target via
+    // the chunk jump.
     const rails = renderRails();
     for (const rail of rails) {
       rail.scrollIntoView = vi.fn();
+      placeAboveBand(rail);
     }
     const scrollTowardChunk = vi.fn(() => true);
     const { result } = renderNavigation(scrollTowardChunk);
@@ -281,10 +425,11 @@ describe("useRevisionNavigation", () => {
     expect(scrollTowardChunk).toHaveBeenCalledWith("c3");
   });
 
-  it("jumpPrev focuses the nearest mounted rail above the reading line", () => {
+  it("jumpPrev focuses the nearest mounted rail above the band", () => {
     const rails = renderRails();
     for (const rail of rails) {
       rail.scrollIntoView = vi.fn();
+      placeAboveBand(rail);
     }
     const { result } = renderNavigation();
 
@@ -294,6 +439,39 @@ describe("useRevisionNavigation", () => {
     expect(rails[1]?.scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ block: "center" }),
     );
+  });
+
+  it("jumpNext steps on from the rail it landed on", () => {
+    // jsdom rests both rails at one top in the band, the first by index
+    // nearer; only the landed rail tells them apart.
+    const rails = renderRails();
+    for (const rail of rails) {
+      rail.scrollIntoView = vi.fn();
+    }
+    const scrollTowardChunk = vi.fn(() => true);
+    const { result } = renderNavigation(scrollTowardChunk);
+
+    jump(() => result.current.jumpNext());
+    expect(document.activeElement).toBe(rails[1]);
+
+    jump(() => result.current.jumpNext());
+    expect(scrollTowardChunk).toHaveBeenCalledWith("c3");
+  });
+
+  it("forgets the landed rail when the comparison marks change", () => {
+    const rails = renderRails();
+    for (const rail of rails) {
+      rail.scrollIntoView = vi.fn();
+    }
+    const scrollTowardChunk = vi.fn(() => true);
+    const { result, rerender } = renderNavigation(scrollTowardChunk);
+    jump(() => result.current.jumpNext());
+
+    rerender({ marks: { files: [...MARKS.files] } });
+    jump(() => result.current.jumpNext());
+
+    expect(document.activeElement).toBe(rails[1]);
+    expect(scrollTowardChunk).not.toHaveBeenCalled();
   });
 
   it("routes an unmounted target through the window scroll, opening it first", () => {
