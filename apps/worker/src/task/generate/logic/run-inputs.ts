@@ -26,6 +26,7 @@ import { createTicketContextLoader } from "./ticket-context";
 export async function prepareRunInputs(
   context: RunContext,
   decision: GeneratingRun,
+  gateRepoConfig?: AcquiredRepoConfig,
 ): Promise<RunInputs> {
   const { deps, payload, source, prInfo, prRow, repo, prevBrief, log } =
     context;
@@ -43,7 +44,11 @@ export async function prepareRunInputs(
       ? undefined
       : await source.fetchCompareDiff(prevBrief.headSha, payload.headSha);
 
-  const repoConfig = await acquireRunRepoConfig(context, decision);
+  const repoConfig = await acquireRunRepoConfig(
+    context,
+    decision,
+    gateRepoConfig,
+  );
   const loadContext = createTicketContextLoader(payload, {
     deps,
     source,
@@ -79,17 +84,20 @@ export async function prepareRunInputs(
  * fetch-failed outcomes, and records them before generation so a failed or
  * superseded run keeps them. A draft run over a stored brief reads it for the
  * Entry gate only and records nothing: that config never shaped the brief.
+ * The config the author gate already read is reused, never fetched twice.
  */
 async function acquireRunRepoConfig(
   context: RunContext,
   decision: GeneratingRun,
+  gateRepoConfig: AcquiredRepoConfig | undefined,
 ): Promise<AcquiredRepoConfig | undefined> {
   const fresh = decision.kind === RunDecisionKinds.FRESH;
   if (!fresh && !context.prInfo.draft) {
     return undefined;
   }
 
-  const repoConfig = await acquireRepoConfig(context.source, context.log);
+  const repoConfig =
+    gateRepoConfig ?? (await acquireRepoConfig(context.source, context.log));
   if (decision.kind === RunDecisionKinds.FRESH) {
     const recorded = await context.projection.recordRepoConfig(
       context.target,

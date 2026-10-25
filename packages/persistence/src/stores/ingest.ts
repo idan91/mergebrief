@@ -19,6 +19,7 @@ import {
   projectAwaitingTrigger,
   projectPendingGeneration,
   readCurrentBriefHead,
+  releaseAwaitingTrigger,
   stampBriefTriggered,
   type GenerationRow,
   type ProjectedGeneration,
@@ -446,6 +447,14 @@ export interface IngestRoutines {
     input: RequeueGenerateJobInput,
   ): Promise<RequeueOutcome>;
   /**
+   * An approved PR's head still held `awaiting-trigger` goes back to
+   * `pending` and its job is queued, as a Generate click would. The approval
+   * and the row are read under the pull request's row lock; an unapproved,
+   * closed or merged PR, a head no longer held, an owner scope and a PR
+   * outside the scope write nothing.
+   */
+  releaseApprovedHold(input: ReleaseApprovedHoldInput): Promise<RequeueOutcome>;
+  /**
    * A pusher's fresh run of the PR's failed current head: projected `pending`
    * with its claims reset, and the job queued a few seconds out, replacing a
    * waiting one; a locked job gets its key detached, as on a push. A closed or
@@ -468,6 +477,11 @@ export interface RequeueGenerateJobInput {
   /** The url-box job's credential reference, as on `TriggerGenerationInput`. */
   readonly grantId?: GrantRowId;
   readonly delaySeconds: number;
+}
+
+export interface ReleaseApprovedHoldInput {
+  readonly pullRequestId: PullRequestRowId;
+  readonly headSha: string;
 }
 
 export interface RequeueOutcome {
@@ -664,6 +678,40 @@ export function createIngestRoutines(
           input,
           pullRequestId,
           input.delaySeconds,
+        );
+        return { queued: true };
+      });
+    },
+
+    async releaseApprovedHold(input) {
+      if (scope.ownerUserId !== null) {
+        return { queued: false };
+      }
+
+      return db.transaction(async (tx) => {
+        const { pullRequestId, headSha } = input;
+        const prRow = await lockPullRequestRow(tx, scope, pullRequestId);
+        const approvedOpen =
+          prRow?.state === PrStates.OPEN && prRow.triggerApprovedAt !== null;
+        if (!approvedOpen) {
+          return { queued: false };
+        }
+        const released = await releaseAwaitingTrigger(
+          tx,
+          scope,
+          pullRequestId,
+          headSha,
+        );
+        if (!released) {
+          return { queued: false };
+        }
+
+        await enqueueGenerateJob(
+          tx,
+          scope,
+          { headSha, refreshRunAt: true },
+          pullRequestId,
+          REGENERATE_DELAY_SECONDS,
         );
         return { queued: true };
       });

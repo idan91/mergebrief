@@ -1,5 +1,6 @@
 import type { LogFields } from "logging";
 import {
+  GenerationErrorCodes,
   InvalidArtifactBodyError,
   ScopeViolationError,
   type GenerationFailure,
@@ -7,7 +8,9 @@ import {
 import { GenerationStatuses } from "types/generations";
 import { classifyFailure, PermanentJobError } from "../../failure";
 import {
+  FailureRecords,
   JobFailureOutcomes,
+  type FailureRecord,
   type JobFailureInputs,
   type JobFailureOutcome,
   type JobFailureReport,
@@ -28,12 +31,13 @@ export async function reportJobFailure(
   const { deps, job, log } = inputs;
 
   const failure = classifyFailure(error);
-  const claimKept = await recordFailure(failure, inputs);
-  if (!claimKept) {
+  const record = await recordFailure(failure, inputs);
+  const rowKept = record !== FailureRecords.WRITTEN;
+  if (record === FailureRecords.LOST) {
     log.warn(
       "generate: the generation row is held by another run or gone, standing down",
     );
-    return { outcome: JobFailureOutcomes.CLAIM_LOST, failure };
+    return { outcome: JobFailureOutcomes.CLAIM_LOST, failure, rowKept };
   }
 
   const message = error instanceof Error ? error.message : String(error);
@@ -72,7 +76,7 @@ export async function reportJobFailure(
       maxAttempts,
     });
   }
-  return { outcome: selectOutcome(permanent, lastAttempt), failure };
+  return { outcome: selectOutcome(permanent, lastAttempt), failure, rowKept };
 }
 
 function selectOutcome(
@@ -89,24 +93,32 @@ function selectOutcome(
 }
 
 /**
- * A claimed run fails through its claim; before the claim, an unclaimed mark.
- * False when either write found the row held by another run or gone.
+ * A claimed run fails through its claim; before the claim, an unclaimed mark,
+ * which leaves a row awaiting its trigger approval or holding a stored brief
+ * even when the throw came before the run read it.
  */
 async function recordFailure(
   failure: GenerationFailure,
   inputs: JobFailureInputs,
-): Promise<boolean> {
+): Promise<FailureRecord> {
   const { projection, target, leaveRow, runId } = inputs;
   if (runId !== undefined) {
     const finished = await projection.finishRun(target, runId, {
       status: GenerationStatuses.FAILED,
       failure,
     });
-    return finished.ok;
+    return finished.ok ? FailureRecords.WRITTEN : FailureRecords.LOST;
   }
   if (leaveRow) {
-    return true;
+    return FailureRecords.KEPT;
   }
+
   const marked = await projection.markFailed(target, failure);
-  return marked.ok;
+  if (marked.ok) {
+    return FailureRecords.WRITTEN;
+  }
+  if (marked.error.code === GenerationErrorCodes.STATUS_KEPT) {
+    return FailureRecords.KEPT;
+  }
+  return FailureRecords.LOST;
 }

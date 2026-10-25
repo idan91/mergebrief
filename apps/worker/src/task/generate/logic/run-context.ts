@@ -3,6 +3,7 @@ import {
   createArtifactStore,
   createTenantRepository,
   isOwnerContext,
+  type GenerationRow,
   type PullRequestRow,
   type ScopeContext,
   type TenantRepository,
@@ -92,10 +93,12 @@ async function openRunScope(start: RunStart): Promise<RunScope | undefined> {
     return undefined;
   }
 
-  // A succeeded row is one ingest left alone for work over a stored brief:
-  // nothing before the run decision may mark it, nor a recovery run's row.
+  // A succeeded row is one ingest left alone for work over a stored brief,
+  // and an awaiting-trigger row waits for a collaborator: nothing before the
+  // run decision may mark either, nor a recovery run's row. A failure that
+  // moved an awaiting-trigger row would let the retry skip the author gate.
   const projected = await projection.get(target);
-  if (projected?.status === GenerationStatuses.SUCCEEDED) {
+  if (isRowLeftAlone(projected)) {
     run.leaveRow = true;
   }
   // Taken before the source opens: a url-box source may read the head while
@@ -121,6 +124,14 @@ async function openRunScope(start: RunStart): Promise<RunScope | undefined> {
     source,
     entryCommentManager,
   };
+}
+
+function isRowLeftAlone(projected: GenerationRow | undefined): boolean {
+  const status = projected?.status;
+  return (
+    status === GenerationStatuses.SUCCEEDED ||
+    status === GenerationStatuses.AWAITING_TRIGGER
+  );
 }
 
 async function readGuardedPullRequest(

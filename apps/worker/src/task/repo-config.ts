@@ -2,7 +2,7 @@
 // Failures must never reject acquisition: degrade to no config with explicit per-file outcomes.
 import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
 import type { Mutable } from "types/utils";
-import { RepoFileKinds } from "github";
+import { RepoFileKinds, type GitHubCallFailure } from "github";
 import {
   INSTRUCTIONS_BUDGET_BYTES,
   repoConfigArtifactSchema,
@@ -49,19 +49,26 @@ export interface AcquiredRepoConfig {
   /** Per-file outcome table, fetch-level outcomes already merged in. */
   readonly files: readonly RepoConfigFileOutcome[];
   readonly collisions: readonly string[];
+  /** Why the `settings.yaml` read failed; the author gate retries a transient one. */
+  readonly settingsFetchFailure?: GitHubCallFailure;
 }
 
 /** The no-config acquisition, also the fail-open fallback shape. */
 function nothingAcquired(
   files: readonly RepoConfigFileOutcome[],
+  settingsFetchFailure: GitHubCallFailure | undefined,
 ): AcquiredRepoConfig {
-  return {
+  const acquired: Mutable<AcquiredRepoConfig> = {
     repoContext: undefined,
     settings: undefined,
     policy: undefined,
     files,
     collisions: [],
   };
+  if (settingsFetchFailure !== undefined) {
+    acquired.settingsFetchFailure = settingsFetchFailure;
+  }
+  return acquired;
 }
 
 /**
@@ -97,7 +104,7 @@ export async function acquireRepoConfig(
               detail: "repo-config validation failed unexpectedly",
             }),
     );
-    return nothingAcquired(files);
+    return nothingAcquired(files, fetched.settingsFetchFailure);
   }
 }
 
@@ -109,6 +116,7 @@ interface FetchedSlots {
   };
   /** Fetch-level outcomes that pre-empt validation's view of a slot. */
   readonly overrides: ReadonlyMap<string, RepoConfigFileOutcome>;
+  readonly settingsFetchFailure?: GitHubCallFailure;
 }
 
 async function fetchSlots(
@@ -117,6 +125,7 @@ async function fetchSlots(
 ): Promise<FetchedSlots> {
   const inputs: FetchedSlots["inputs"] = {};
   const overrides = new Map<string, RepoConfigFileOutcome>();
+  const fetched: Mutable<FetchedSlots> = { inputs, overrides };
 
   const results = await Promise.all(
     SLOTS.map((slot) => source.fetchRepoFile(slot.path, slot.cap)),
@@ -128,6 +137,10 @@ async function fetchSlots(
       // `mapRequestError` product, sanitized by construction.
       const detail =
         result === undefined ? "no fetch result" : result.error.message;
+      const settingsFailed = result !== undefined && slot.key === "settings";
+      if (settingsFailed) {
+        fetched.settingsFetchFailure = result.error;
+      }
       overrides.set(slot.path, {
         path: slot.path,
         blobSha: null,
@@ -165,7 +178,7 @@ async function fetchSlots(
       blobSha: file.blobSha,
     };
   }
-  return { inputs, overrides };
+  return fetched;
 }
 
 function validateAndShape(
@@ -207,13 +220,17 @@ function validateAndShape(
   const inPlay = instructions !== undefined || customAttributes.length > 0;
   const repoContext = inPlay ? context : undefined;
 
-  return {
+  const acquired: Mutable<AcquiredRepoConfig> = {
     repoContext,
     settings: validated.settings,
     policy: validated.policy,
     files,
     collisions: validated.collisions,
   };
+  if (fetched.settingsFetchFailure !== undefined) {
+    acquired.settingsFetchFailure = fetched.settingsFetchFailure;
+  }
+  return acquired;
 }
 
 /**

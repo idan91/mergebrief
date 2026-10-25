@@ -20,18 +20,15 @@ import {
   GenerationStatuses,
   PrStates,
   type GenerationFailureCode,
-  type GenerationStatus,
 } from "types";
-import {
-  buildEntryCommentFailedBody,
-  type EntryCommentLink,
-} from "../../src/task/entry-comment";
+import { buildEntryCommentFailedBody } from "../../src/task/entry-comment";
 import {
   BASE,
   captureLogger,
   ctx,
   failHeadReadsAfterFirst,
   FIRST_ATTEMPT,
+  FIRST_BRIEF_INDEX,
   harness,
   HEAD_1,
   HEAD_2,
@@ -39,21 +36,22 @@ import {
   LAST_ATTEMPT,
   listCommentCalls,
   makeConnectionError,
+  makeEntryLink,
   makeGitHub,
   makeRecoveryTask,
   makeRepoId,
   makeReviewerId,
   makeTarget,
   makeTask,
-  SECOND_ATTEMPT,
   NEWER_BODY,
   NEWER_COMMENT_ID,
   PR_REF,
-  PUBLIC_URL,
   pushHeadAfterFirstRead,
   readLiveBodies,
+  readRowStatus,
   REPO,
   runAfterEachPost,
+  SECOND_ATTEMPT,
   seedViewerGrant,
   setUpHarness,
   storeAnotherRunsEntry,
@@ -64,21 +62,17 @@ import {
 setUpHarness();
 
 const { t } = createI18n();
-const FIRST_BRIEF_INDEX = 1;
 
 function buildFailedBody(
   headSha: string,
   code: GenerationFailureCode,
   headIndex = FIRST_BRIEF_INDEX,
 ): string {
-  const link: EntryCommentLink = {
-    publicBaseUrl: PUBLIC_URL,
-    repoId: makeRepoId(7n),
-    prNumber: 7,
-    headIndex,
-    headSha,
-  };
-  return buildEntryCommentFailedBody(t, link, code);
+  return buildEntryCommentFailedBody(
+    t,
+    makeEntryLink(headSha, headIndex),
+    code,
+  );
 }
 
 const HOLDER_RUN_ID = "00000000-0000-4000-8000-000000000000";
@@ -215,15 +209,6 @@ async function readStoredCommentId(
     throw new Error(`pull_request ${String(pr.id)} not found`);
   }
   return row.entryCommentId;
-}
-
-async function readRowStatus(
-  pr: TriggeredPullRequest,
-  headSha: string,
-): Promise<GenerationStatus | undefined> {
-  const projection = createGenerationProjection(harness.handle, ctx);
-  const row = await projection.get(makeTarget(pr, headSha));
-  return row?.status;
 }
 
 describe("generate task, failed Entry comment", () => {
@@ -757,6 +742,25 @@ describe("generate task, failed Entry comment", () => {
     expect(readLiveBodies(github)).toEqual([
       buildFailedBody(HEAD_1, GenerationFailureCodes.GITHUB_UNAVAILABLE),
     ]);
+  });
+
+  it("a pre-read failure leaves another head's on-demand body", async () => {
+    const older = await trigger(HEAD_1);
+    const newer = await trigger(HEAD_2, { requiresTriggerApproval: true });
+    const github = makeGitHub(HEAD_2);
+    await makeTask({ github })(newer.payload);
+    const [onDemand] = readLiveBodies(github);
+    expect(onDemand).toContain("Generate");
+    github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+
+    await expect(
+      makeTask({ github })(older.payload, { job: LAST_ATTEMPT }),
+    ).rejects.toThrow("502");
+
+    expect(await readRowStatus(older.pr, HEAD_1)).toBe(
+      GenerationStatuses.FAILED,
+    );
+    expect(readLiveBodies(github)).toEqual([onDemand]);
   });
 
   it("a last attempt failing before any PR read creates no comment", async () => {

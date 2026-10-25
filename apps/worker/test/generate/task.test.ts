@@ -23,6 +23,7 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  LAST_ATTEMPT,
   listCommentCalls,
   listRepoFilePaths,
   makeConnectionError,
@@ -38,6 +39,7 @@ import {
   recordCommentCalls,
   REPO,
   runAfterEachPost,
+  runWithPullRequestsOffline,
   seedViewerGrant,
   setUpHarness,
   stubGenerator,
@@ -1288,6 +1290,23 @@ describe("generate task", () => {
     expect(stale?.status).toBe(GenerationStatuses.SUPERSEDED);
     const current = await projection.get(makeTarget(second.pr, HEAD_2));
     expect(current?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("a last attempt whose first read throws keeps the briefed row", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    await makeTask({ github })(payload);
+    const task = makeTask({ github });
+
+    const run = runWithPullRequestsOffline(() =>
+      task(payload, { job: LAST_ATTEMPT }),
+    );
+    await expect(run).rejects.toThrow("Failed query");
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("a push after the last head check keeps its pending row", async () => {

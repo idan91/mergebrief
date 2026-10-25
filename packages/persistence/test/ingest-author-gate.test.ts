@@ -16,13 +16,7 @@ import {
   type ScopeContext,
 } from "../src/stores/scope-context";
 import { claimTestRun } from "../src/testing";
-import {
-  isGrantRowId,
-  isPullRequestRowId,
-  isRepoId,
-  isReviewerId,
-  type PullRequestRowId,
-} from "../src/types";
+import { isGrantRowId, isPullRequestRowId, isReviewerId } from "../src/types";
 import {
   GenerationFailureCodes,
   GenerationStatuses,
@@ -30,16 +24,18 @@ import {
   type Mutable,
 } from "types";
 import {
+  approveGatedPullRequest,
   brandWith,
+  countQueuedJobs,
   expectCheckViolation,
+  GATE_CTX,
+  GATE_HEAD_SHA,
+  GATE_REPO_ID,
+  GATE_REVIEWER,
   makeBriefTarget,
   registerSharedPglite,
 } from "./helpers";
 
-const CTX = parseTenantContext({ installationId: 100n });
-const REPO_ID = brandWith(isRepoId, 200n);
-const REVIEWER = brandWith(isReviewerId, 31337n);
-const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
 const BASE_SHA = "f95f852bd8fca8fcc58a9a2d6c842781e32a215e";
 
 const shared = registerSharedPglite();
@@ -52,12 +48,12 @@ interface TriggerOptions {
 async function trigger(options: TriggerOptions = {}): Promise<IngestOutcome> {
   const input: Mutable<TriggerGenerationInput> = {
     pullRequest: {
-      repoId: REPO_ID,
+      repoId: GATE_REPO_ID,
       prNumber: 7,
       baseSha: BASE_SHA,
       state: PrStates.OPEN,
     },
-    headSha: HEAD_SHA,
+    headSha: GATE_HEAD_SHA,
   };
   if (options.requiresTriggerApproval !== undefined) {
     input.requiresTriggerApproval = options.requiresTriggerApproval;
@@ -66,7 +62,7 @@ async function trigger(options: TriggerOptions = {}): Promise<IngestOutcome> {
     input.grantId = brandWith(isGrantRowId, 9n);
   }
 
-  const ingest = createIngestRoutines(shared.handle, options.ctx ?? CTX);
+  const ingest = createIngestRoutines(shared.handle, options.ctx ?? GATE_CTX);
   return ingest.triggerGeneration(input);
 }
 
@@ -75,16 +71,6 @@ function readGeneration(outcome: IngestOutcome) {
     throw new Error("expected a generation row on this trigger");
   }
   return outcome.generation;
-}
-
-async function countJobs(): Promise<number> {
-  const jobs = await shared.harness.raw("select id from graphile_worker.jobs");
-  return jobs.length;
-}
-
-async function approve(pullRequestId: PullRequestRowId): Promise<void> {
-  const { pullRequests } = createTenantRepository(shared.handle, CTX);
-  await pullRequests.approveTrigger(pullRequestId, REVIEWER);
 }
 
 describe("triggerGeneration under the trigger approval gate", () => {
@@ -97,7 +83,7 @@ describe("triggerGeneration under the trigger approval gate", () => {
     expect(row.runId).toBeNull();
     expect(row.triggeredAt).not.toBeNull();
     expect(outcome.queued).toBe(true);
-    expect(await countJobs()).toBe(1);
+    expect(await countQueuedJobs(shared)).toBe(1);
   });
 
   it("keeps a redelivered gated trigger at one row, one job, no attempt", async () => {
@@ -110,7 +96,7 @@ describe("triggerGeneration under the trigger approval gate", () => {
       GenerationStatuses.AWAITING_TRIGGER,
     );
     expect(readGeneration(second).attempts).toBe(0);
-    expect(await countJobs()).toBe(1);
+    expect(await countQueuedJobs(shared)).toBe(1);
   });
 
   it("keeps a pending head pending under a later gated trigger", async () => {
@@ -122,7 +108,7 @@ describe("triggerGeneration under the trigger approval gate", () => {
     expect(readGeneration(gated).status).toBe(GenerationStatuses.PENDING);
     expect(readGeneration(gated).attempts).toBe(readGeneration(first).attempts);
     expect(gated.queued).toBe(true);
-    expect(await countJobs()).toBe(1);
+    expect(await countQueuedJobs(shared)).toBe(1);
   });
 
   it("keeps a failed head's failure and queues no rerun when gated", async () => {
@@ -139,12 +125,12 @@ describe("triggerGeneration under the trigger approval gate", () => {
       GenerationFailureCodes.PROVIDER_TIMEOUT,
     );
     expect(gated.queued).toBe(false);
-    expect(await countJobs()).toBe(0);
+    expect(await countQueuedJobs(shared)).toBe(0);
   });
 
   it("projects pending once the PR carries an approval", async () => {
     const first = await trigger({ requiresTriggerApproval: true });
-    await approve(first.pullRequest.id);
+    await approveGatedPullRequest(shared, first.pullRequest.id);
 
     const second = await trigger({ requiresTriggerApproval: true });
 
@@ -162,10 +148,13 @@ describe("triggerGeneration under the trigger approval gate", () => {
 
   it("lets a stored brief for the pair cover the event before the gate", async () => {
     const first = await trigger();
-    const written = await createArtifactStore(shared.handle, CTX).briefs.write({
+    const written = await createArtifactStore(
+      shared.handle,
+      GATE_CTX,
+    ).briefs.write({
       pullRequestId: brandWith(isPullRequestRowId, first.pullRequest.id),
       baseSha: BASE_SHA,
-      headSha: HEAD_SHA,
+      headSha: GATE_HEAD_SHA,
       headIndex: 1,
       commitCount: 1,
       provider: "stub",
@@ -181,15 +170,15 @@ describe("triggerGeneration under the trigger approval gate", () => {
 
     expect(gated.coveredBy).toBe(written.id);
     expect(gated.generation).toBeUndefined();
-    expect(await countJobs()).toBe(0);
+    expect(await countQueuedJobs(shared)).toBe(0);
   });
 
   it("never re-projects a head a live run holds", async () => {
     const first = await trigger();
-    const projection = createGenerationProjection(shared.handle, CTX);
+    const projection = createGenerationProjection(shared.handle, GATE_CTX);
     await claimTestRun(
       projection,
-      makeBriefTarget(first.pullRequest.id, HEAD_SHA),
+      makeBriefTarget(first.pullRequest.id, GATE_HEAD_SHA),
     );
     await shared.harness.raw("delete from graphile_worker.jobs");
 
@@ -197,7 +186,7 @@ describe("triggerGeneration under the trigger approval gate", () => {
 
     expect(readGeneration(gated).status).toBe(GenerationStatuses.RUNNING);
     expect(gated.queued).toBe(false);
-    expect(await countJobs()).toBe(0);
+    expect(await countQueuedJobs(shared)).toBe(0);
   });
 
   it("never gates the url-box owner world", async () => {
@@ -215,30 +204,30 @@ describe("triggerGeneration under the trigger approval gate", () => {
 describe("pullRequests.approveTrigger", () => {
   it("records the first approval and never moves it", async () => {
     const first = await trigger({ requiresTriggerApproval: true });
-    const { pullRequests } = createTenantRepository(shared.handle, CTX);
+    const { pullRequests } = createTenantRepository(shared.handle, GATE_CTX);
     const other = brandWith(isReviewerId, 4242n);
 
     const approved = await pullRequests.approveTrigger(
       first.pullRequest.id,
-      REVIEWER,
+      GATE_REVIEWER,
     );
     const again = await pullRequests.approveTrigger(
       first.pullRequest.id,
       other,
     );
 
-    expect(approved?.triggerApprovedBy).toBe(REVIEWER);
+    expect(approved?.triggerApprovedBy).toBe(GATE_REVIEWER);
     expect(approved?.triggerApprovedAt).toBeInstanceOf(Date);
-    expect(again?.triggerApprovedBy).toBe(REVIEWER);
+    expect(again?.triggerApprovedBy).toBe(GATE_REVIEWER);
     expect(again?.triggerApprovedAt).toEqual(approved?.triggerApprovedAt);
   });
 
   it("writes nothing on a PR already approved", async () => {
     const first = await trigger({ requiresTriggerApproval: true });
-    const { pullRequests } = createTenantRepository(shared.handle, CTX);
+    const { pullRequests } = createTenantRepository(shared.handle, GATE_CTX);
     const approved = await pullRequests.approveTrigger(
       first.pullRequest.id,
-      REVIEWER,
+      GATE_REVIEWER,
     );
 
     const again = await pullRequests.approveTrigger(
@@ -257,7 +246,7 @@ describe("pullRequests.approveTrigger", () => {
 
     const approved = await pullRequests.approveTrigger(
       first.pullRequest.id,
-      REVIEWER,
+      GATE_REVIEWER,
     );
 
     expect(approved).toBeUndefined();
@@ -282,8 +271,8 @@ describe("pull_request trigger approval shape", () => {
 describe("generationProjection.markAwaitingTrigger", () => {
   it("moves a pending row to awaiting-trigger without an attempt", async () => {
     const first = await trigger();
-    const projection = createGenerationProjection(shared.handle, CTX);
-    const target = makeBriefTarget(first.pullRequest.id, HEAD_SHA);
+    const projection = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(first.pullRequest.id, GATE_HEAD_SHA);
 
     const marked = await projection.markAwaitingTrigger(target);
 
@@ -297,8 +286,8 @@ describe("generationProjection.markAwaitingTrigger", () => {
 
   it("refuses a row a live lease holds", async () => {
     const first = await trigger();
-    const projection = createGenerationProjection(shared.handle, CTX);
-    const target = makeBriefTarget(first.pullRequest.id, HEAD_SHA);
+    const projection = createGenerationProjection(shared.handle, GATE_CTX);
+    const target = makeBriefTarget(first.pullRequest.id, GATE_HEAD_SHA);
     await claimTestRun(projection, target);
 
     const marked = await projection.markAwaitingTrigger(target);

@@ -1,6 +1,7 @@
 import type { BriefSpanRow } from "persistence";
 import type { GenerationFailureCode } from "types/generations";
 import {
+  buildEntryCommentOnDemandBody,
   buildEntryCommentFailedBody,
   buildHeadEntryBodies,
 } from "../../entry-comment";
@@ -16,18 +17,21 @@ import { replaceOnUnreadHead } from "./unread-head-entry";
 
 interface FailedEntryBodies {
   readonly failedBody: string;
-  /** This head's generating body and its failed bodies, the live bodies the failed body replaces. */
-  readonly replaceable: readonly string[];
+  /** This head's generating and failed bodies. */
+  readonly headBodies: readonly string[];
+  /** Names no head, so only a run that read its head as current replaces it. */
+  readonly onDemandBody: string;
 }
 
 /**
  * The failed Entry, once this head's run ended `failed` for good. It replaces
  * this head's generating body or an earlier failed body of this head or, once
- * the run read the PR, creates the comment under the Entry gate; any other
- * live body, an older head's included, stays, and a stored brief keeps its
- * ready body. Before that read the gate is unknown, so it only replaces. A
- * moved or unread head leaves the comment to the newer head's run. A throw
- * only warns.
+ * the run read the PR and its head, the on-demand body, or creates the
+ * comment under the Entry gate; any other live body, an older head's
+ * included, stays, and a stored brief keeps its ready body. Before that read
+ * the gate is unknown, so it only replaces. A moved head leaves the comment to
+ * the newer head's run, and an unread one only replaces a body that names
+ * this head. A throw only warns.
  */
 export async function postFailedEntry(
   progress: RunProgress,
@@ -79,10 +83,10 @@ async function replaceOrCreateFailedBody(
     await replaceOnUnreadHead(post, bodies.failedBody, head);
     return;
   }
-  await context.entryCommentManager.replaceOrCreate(
-    bodies.failedBody,
-    bodies.replaceable,
-  );
+  await context.entryCommentManager.replaceOrCreate(bodies.failedBody, [
+    ...bodies.headBodies,
+    bodies.onDemandBody,
+  ]);
 }
 
 async function replaceFailedBody(
@@ -98,10 +102,7 @@ async function replaceFailedBody(
   }
 
   const bodies = buildFailedEntryBodies(scope, code, priorBriefs);
-  await scope.entryCommentManager.replace(
-    bodies.failedBody,
-    bodies.replaceable,
-  );
+  await scope.entryCommentManager.replace(bodies.failedBody, bodies.headBodies);
 }
 
 function buildFailedEntryBodies(
@@ -118,8 +119,11 @@ function buildFailedEntryBodies(
     headLink,
     code,
   );
-  const replaceable = buildHeadEntryBodies(deps.translate, headLink);
-  return { failedBody, replaceable };
+  return {
+    failedBody,
+    headBodies: buildHeadEntryBodies(deps.translate, headLink),
+    onDemandBody: buildEntryCommentOnDemandBody(deps.translate, headLink),
+  };
 }
 
 /** The brief may have landed during this run, after the context was read. */

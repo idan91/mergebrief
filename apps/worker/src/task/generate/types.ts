@@ -303,8 +303,9 @@ export interface EntryCommentManager {
 
 /**
  * What the run learned that its failure handling must honour. A run over a
- * succeeded row adds no attempt, so neither a failure nor a supersession
- * marks that row; the fresh path clears the flag once it claims the row.
+ * succeeded or awaiting-trigger row adds no attempt, so neither a failure nor
+ * a supersession marks that row; the fresh path clears the flag once it
+ * claims the row.
  */
 export interface RunState {
   leaveRow: boolean;
@@ -397,6 +398,25 @@ export interface StandDownRun {
   readonly kind: typeof RunDecisionKinds.STAND_DOWN;
 }
 
+export const AuthorGateKinds = {
+  PROCEED: "proceed",
+  /** The PR waits for a collaborator's Trigger approval; the run ends here. */
+  AWAITING_TRIGGER: "awaiting-trigger",
+} as const;
+
+/** The run may claim; a listed bot's run carries the config the gate read. */
+export interface ProceedingRun {
+  readonly kind: typeof AuthorGateKinds.PROCEED;
+  readonly repoConfig: AcquiredRepoConfig | undefined;
+}
+
+/** Nothing was claimed, recorded or spent. */
+export interface AwaitingTriggerRun {
+  readonly kind: typeof AuthorGateKinds.AWAITING_TRIGGER;
+}
+
+export type AuthorGateOutcome = ProceedingRun | AwaitingTriggerRun;
+
 export type GeneratingRun = FreshRun | StoredBriefRun;
 export type RunDecision = GeneratingRun | CappedRun | StandDownRun;
 
@@ -447,7 +467,19 @@ export interface JobFailureReport {
   readonly outcome: JobFailureOutcome;
   /** The failure as classified for the row. */
   readonly failure: GenerationFailure;
+  /** True when this failure wrote nothing to the row, which the run must then leave. */
+  readonly rowKept: boolean;
 }
+
+/** What a failure's row write did. */
+export const FailureRecords = {
+  WRITTEN: "written",
+  /** Nothing written: the run leaves the row, or its status is one no unclaimed mark moves. */
+  KEPT: "kept",
+  /** Another run holds the row, or it is gone. */
+  LOST: "lost",
+} as const;
+export type FailureRecord = ValueOf<typeof FailureRecords>;
 
 /** How far the run got before it threw; the job's failure handling reads it. */
 export interface RunProgress {

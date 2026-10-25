@@ -21,6 +21,7 @@ import {
   lte,
   ne,
   not,
+  notInArray,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -201,6 +202,10 @@ export interface ProjectedGeneration {
 export const GenerationErrorCodes = {
   /** The row is held by another run, by none when a holder was named, or is gone. */
   CLAIM_LOST: "claim-lost",
+  /** The row is `awaiting-trigger` or `succeeded`, which no unclaimed mark moves. */
+  STATUS_KEPT: "status-kept",
+  /** A collaborator approved the pull request's runs, so its head is not held. */
+  TRIGGER_APPROVED: "trigger-approved",
 } as const;
 export type GenerationErrorCode = ValueOf<typeof GenerationErrorCodes>;
 
@@ -266,7 +271,8 @@ export interface GenerationProjection {
    * untouched (unlike a re-queue) and clears `phase` + error columns (like
    * a finished run), so a superseded job never consumes a retry. Like every
    * unclaimed transition it writes only a row no live lease holds, and
-   * otherwise returns `claim-lost`.
+   * otherwise returns `claim-lost`; like every unclaimed mark it leaves an
+   * `awaiting-trigger` or `succeeded` row, returning `status-kept`.
    */
   markSuperseded(
     target: GenerationTarget,
@@ -283,14 +289,17 @@ export interface GenerationProjection {
   /**
    * Reflect `awaiting-trigger`, the terminal hold a PR waits in until a
    * collaborator approves its runs. Not a failure: `attempts` is untouched
-   * and `phase` + error columns are cleared, like `markCapped`.
+   * and `phase` + error columns are cleared, like `markCapped`. It holds the
+   * pull request's row lock, as an approval does, and reads the approval
+   * under it: an approved PR answers `trigger-approved`, a `succeeded` row
+   * `status-kept`, a row a live lease holds `claim-lost`.
    */
   markAwaitingTrigger(
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * Reflect `failed` with a typed failure, on a row no live lease holds. Any
-   * `detail` param is sanitized HERE (`sanitizeErrorDetail`: first line, URLs
+   * Reflect `failed` with a typed failure, on a row no live lease holds and
+   * no unclaimed mark keeps, as `markSuperseded` does. Any `detail` param is sanitized HERE (`sanitizeErrorDetail`: first line, URLs
    * redacted, 300-char cap), so callers cannot store an unsanitized reason.
    */
   markFailed(
@@ -572,6 +581,16 @@ function keepWhileHeld(column: PgColumn, reset: SQL | string | null): SQL {
 
 const CLAIM_CLEARED = { runId: null, leaseExpiresAt: null } as const;
 
+/**
+ * Statuses no unclaimed mark moves: a head waiting for its trigger approval,
+ * whose retry would otherwise skip the author gate, and a head whose brief is
+ * stored.
+ */
+const KEPT_STATUSES: readonly GenerationStatus[] = [
+  GenerationStatuses.AWAITING_TRIGGER,
+  GenerationStatuses.SUCCEEDED,
+];
+
 const TERMINAL_CLEARED = {
   ...CLAIM_CLEARED,
   phase: null,
@@ -690,6 +709,37 @@ export async function projectAwaitingTrigger(
     GenerationStatuses.AWAITING_TRIGGER,
     KEEP_STORED_ROW,
   );
+}
+
+/**
+ * An approved PR's held head goes back to `pending` with a fresh claim
+ * budget, as a trigger projects it. Only a row still `awaiting-trigger`
+ * moves; the caller holds the pull request's row lock and has read the
+ * approval under it.
+ */
+export async function releaseAwaitingTrigger(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<boolean> {
+  const pending = GenerationStatuses.PENDING;
+  const requeued = sql`${generation.attempts} + 1`;
+  const released = await executor
+    .update(generation)
+    .set(buildTriggerReset(pending, requeued))
+    .where(
+      and(
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.pullRequestId, pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, headSha),
+        isNull(generation.baselineSha),
+        eq(generation.status, GenerationStatuses.AWAITING_TRIGGER),
+      ),
+    )
+    .returning({ id: generation.id });
+  return released.length > 0;
 }
 
 /**
@@ -845,12 +895,96 @@ export function createGenerationProjection(
     });
   }
 
-  /** A transition on a row nobody holds: no claim, or one whose lease lapsed. */
-  async function unclaimedTransition(
+  /**
+   * The hold, in the pull request's lock order: an approval locks the PR row
+   * before it writes the head, so the approval this reads is the last one
+   * committed, and a click cannot land between the read and the write.
+   */
+  async function holdForApproval(
+    target: GenerationTarget,
+  ): Promise<Result<GenerationRow, GenerationError>> {
+    return db.transaction(async (tx) => {
+      const locked = await tx
+        .select({ triggerApprovedAt: pullRequest.triggerApprovedAt })
+        .from(pullRequest)
+        .where(
+          and(
+            scope.matchesPullRequest(),
+            eq(pullRequest.id, target.pullRequestId),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      const prRow = locked[0];
+      if (prRow === undefined) {
+        return failClaimLost(target);
+      }
+      if (prRow.triggerApprovedAt !== null) {
+        return fail(
+          GenerationErrorCodes.TRIGGER_APPROVED,
+          `pull request ${target.pullRequestId} is approved, ${target.headSha} is not held`,
+        );
+      }
+
+      const unsettled = ne(generation.status, GenerationStatuses.SUCCEEDED);
+      const held = await transition(
+        target,
+        { ...TERMINAL_CLEARED, status: GenerationStatuses.AWAITING_TRIGGER },
+        { executor: tx, guard: sql`(not ${isLeaseLive()} and ${unsettled})` },
+      );
+      if (held.ok) {
+        return held;
+      }
+      return readKeptStatus(tx, target, held);
+    });
+  }
+
+  /** A refused write on a kept status says so; any other refusal stands. */
+  async function readKeptStatus(
+    executor: GenerationExecutor,
+    target: GenerationTarget,
+    refused: Result<GenerationRow, GenerationError>,
+  ): Promise<Result<GenerationRow, GenerationError>> {
+    const rows = await executor
+      .select({ status: generation.status })
+      .from(generation)
+      .where(keyWhere(target))
+      .limit(1);
+    const status = rows[0]?.status;
+    const kept = status !== undefined && KEPT_STATUSES.includes(status);
+    if (kept) {
+      return fail(
+        GenerationErrorCodes.STATUS_KEPT,
+        `generation ${target.kind}@${target.headSha} is ${status}`,
+      );
+    }
+    return refused;
+  }
+
+  /** A terminal mark on a row nobody holds, refused on a status the mark must keep. */
+  async function applyUnclaimedMark(
     target: GenerationTarget,
     set: GenerationSet,
   ): Promise<Result<GenerationRow, GenerationError>> {
-    return transition(target, set, { guard: not(isLeaseLive()) });
+    const unkept = notInArray(generation.status, [...KEPT_STATUSES]);
+    const marked = await transition(target, set, {
+      guard: sql`(not ${isLeaseLive()} and ${unkept})`,
+    });
+    if (marked.ok) {
+      return marked;
+    }
+    return readKeptStatus(db, target, marked);
+  }
+
+  async function readRow(
+    target: GenerationTarget,
+  ): Promise<GenerationRow | undefined> {
+    const rows = await db
+      .select()
+      .from(generation)
+      .where(keyWhere(target))
+      .limit(1);
+    return rows[0];
   }
 
   async function claimRow(
@@ -994,7 +1128,7 @@ export function createGenerationProjection(
 
     async markSuperseded(target) {
       // Not a failure, so `attempts` is deliberately left untouched.
-      return unclaimedTransition(target, {
+      return applyUnclaimedMark(target, {
         ...TERMINAL_CLEARED,
         status: GenerationStatuses.SUPERSEDED,
       });
@@ -1003,21 +1137,18 @@ export function createGenerationProjection(
     async markCapped(target) {
       // Same abort semantics as markSuperseded: the run never started, so
       // `attempts` stays untouched and nothing is retried.
-      return unclaimedTransition(target, {
+      return applyUnclaimedMark(target, {
         ...TERMINAL_CLEARED,
         status: GenerationStatuses.CAPPED,
       });
     },
 
     async markAwaitingTrigger(target) {
-      return unclaimedTransition(target, {
-        ...TERMINAL_CLEARED,
-        status: GenerationStatuses.AWAITING_TRIGGER,
-      });
+      return holdForApproval(target);
     },
 
     async markFailed(target, failure) {
-      return unclaimedTransition(target, {
+      return applyUnclaimedMark(target, {
         ...shapeFailure(failure),
         ...CLAIM_CLEARED,
       });
@@ -1028,12 +1159,7 @@ export function createGenerationProjection(
     },
 
     async get(target) {
-      const rows = await db
-        .select()
-        .from(generation)
-        .where(keyWhere(target))
-        .limit(1);
-      return rows[0];
+      return readRow(target);
     },
 
     async countStartedRuns(input) {

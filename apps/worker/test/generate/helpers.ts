@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { beforeAll, beforeEach } from "vitest";
 import {
   createEnvKeyProvider,
+  createGenerationProjection,
   createIngestRoutines,
   createTenantRepository,
   GenerationKinds,
@@ -19,6 +20,7 @@ import {
   type RepoId,
   type ReviewerId,
 } from "persistence";
+import type { GenerationStatus } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import {
   createPgliteHarness,
@@ -54,6 +56,7 @@ import {
   createRecoverGenerationTask,
   type GenerateTaskDeps,
 } from "../../src/task/generate";
+import type { EntryCommentLink } from "../../src/task/entry-comment";
 import type { GenerateTask } from "../../src/task/generate/types";
 import {
   createGitHubPort,
@@ -444,6 +447,20 @@ export function listCommentCalls(github: FakeGitHub): string[] {
   });
 }
 
+/** Every `pull_request` query fails while `run` runs, as a dead pooled connection would; other tables still answer. */
+export async function runWithPullRequestsOffline<Value>(
+  run: () => Promise<Value>,
+): Promise<Value> {
+  await harness.raw("alter table pull_request rename to pull_request_offline");
+  try {
+    return await run();
+  } finally {
+    await harness.raw(
+      "alter table pull_request_offline rename to pull_request",
+    );
+  }
+}
+
 /** Runs `hook` after each accepted Entry post, before the post returns. */
 export function runAfterEachPost(
   github: FakeGitHub,
@@ -577,8 +594,16 @@ export interface TriggeredJob {
   payload: unknown;
 }
 
+export interface TriggerOptions {
+  /** The webhook's author gate: the PR author is not a trusted author. */
+  readonly requiresTriggerApproval?: boolean;
+}
+
 /** Enqueue via the REAL ingest boundary and return {pr row, job payload}. */
-export async function trigger(headSha: string): Promise<TriggeredJob> {
+export async function trigger(
+  headSha: string,
+  options: TriggerOptions = {},
+): Promise<TriggeredJob> {
   const outcome = await createIngestRoutines(
     harness.handle,
     ctx,
@@ -591,6 +616,7 @@ export async function trigger(headSha: string): Promise<TriggeredJob> {
     },
     headSha,
     debounceSeconds: 0,
+    ...options,
   });
   const jobs = await harness.raw(
     "select payload from graphile_worker.jobs where task_identifier = 'generate'",
@@ -612,6 +638,34 @@ export function makeTarget(
     headSha,
     baselineSha: null,
   };
+}
+
+/** The status the head's row holds now, or none when it has no row. */
+export async function readRowStatus(
+  pr: PullRequestRow,
+  headSha: string,
+): Promise<GenerationStatus | undefined> {
+  const projection = createGenerationProjection(harness.handle, ctx);
+  const row = await projection.get(makeTarget(pr, headSha));
+  return row?.status;
+}
+
+/** The `rev` the PR's first brief takes. */
+export const FIRST_BRIEF_INDEX = 1;
+
+/** The seeded PR #7's view in the Entry links a run builds. */
+export const ENTRY_PR_VIEW = {
+  publicBaseUrl: PUBLIC_URL,
+  repoId: makeRepoId(7n),
+  prNumber: 7,
+} as const;
+
+/** The Entry link a run builds for `headSha` on PR #7. */
+export function makeEntryLink(
+  headSha: string,
+  headIndex = FIRST_BRIEF_INDEX,
+): EntryCommentLink {
+  return { ...ENTRY_PR_VIEW, headIndex, headSha };
 }
 
 /** Deps a test varies; `github` is the fake the task's port binds. */

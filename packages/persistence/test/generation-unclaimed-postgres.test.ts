@@ -101,5 +101,37 @@ describe.skipIf(databaseUrl === undefined)(
         );
       });
     });
+
+    it.each([
+      GenerationStatuses.AWAITING_TRIGGER,
+      GenerationStatuses.SUCCEEDED,
+    ])("unclaimed marks keep a %s row", async (status) => {
+      await runInUnclaimedWorld(async ({ gen, target, stage }) => {
+        await stage(`status = '${status}'`);
+
+        const marks = [
+          await gen.markFailed(target, FAILED_RUN.failure),
+          await gen.markSuperseded(target),
+          await gen.markCapped(target),
+        ];
+
+        expect(marks.map((mark) => !mark.ok && mark.error.code)).toEqual([
+          GenerationErrorCodes.STATUS_KEPT,
+          GenerationErrorCodes.STATUS_KEPT,
+          GenerationErrorCodes.STATUS_KEPT,
+        ]);
+        expect((await gen.get(target))?.status).toBe(status);
+      });
+    });
+
+    it("markFailed still fails a pending row", async () => {
+      await runInUnclaimedWorld(async ({ gen, target }) => {
+        const marked = await gen.markFailed(target, FAILED_RUN.failure);
+
+        expect(marked.ok && marked.value.status).toBe(
+          GenerationStatuses.FAILED,
+        );
+      });
+    });
   },
 );

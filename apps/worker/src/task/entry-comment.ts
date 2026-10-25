@@ -13,20 +13,10 @@ import {
 
 const SHORT_SHA_LENGTH = 7;
 
-export interface EntryCommentLink {
-  /** The web deployment's public origin (`PUBLIC_BASE_URL`). */
-  readonly publicBaseUrl: string;
-  /** GitHub's immutable numeric repo id (the FE route key). */
-  readonly repoId: bigint;
-  readonly prNumber: number;
-  /** The brief's index on this PR, the `rev` the web route addresses. */
-  readonly headIndex: number;
-  /** Named in the body's short sha, never in the link. */
-  readonly headSha: string;
-}
-
 /** The revision deep link into the web app's DB-brief route. */
-export function buildEntryCommentDeepLink(link: EntryCommentLink): string {
+export function buildEntryCommentDeepLink(
+  link: EntryCommentRevisionLink,
+): string {
   const origin = link.publicBaseUrl.replace(/\/+$/, "");
   return `${origin}/repos/${link.repoId}/pulls/${link.prNumber}?rev=${String(link.headIndex)}`;
 }
@@ -43,16 +33,29 @@ export function buildEntryCommentBody(
   return [heading, "", footer].join("\n");
 }
 
-/** Where a body with no brief to deep-link points: the PR view, no span. */
-export interface EntryCommentPrLink {
+/** Where a body about the PR as a whole points: the PR view, no span. */
+export interface EntryCommentPrViewLink {
   readonly publicBaseUrl: string;
   readonly repoId: bigint;
   readonly prNumber: number;
-  /** The head that got no brief, named so the thread knows which push. */
+}
+
+/** Where a body about the PR's next brief points: the rev it takes, no head named. */
+export interface EntryCommentRevisionLink extends EntryCommentPrViewLink {
+  /** The brief's index on this PR, the `rev` the web route addresses. */
+  readonly headIndex: number;
+}
+
+/** Where a body about one head points: its revision, the head named in the body. */
+export interface EntryCommentLink extends EntryCommentRevisionLink {
+  /** Named in the body's short sha, never in the link. */
   readonly headSha: string;
 }
 
-export interface EntryCommentCappedLink extends EntryCommentPrLink {
+/** Where the capped body points: the PR view, with no brief to deep-link. */
+export interface EntryCommentCappedLink extends EntryCommentPrViewLink {
+  /** The head that got no brief, named so the thread knows which push. */
+  readonly headSha: string;
   /** When generation resumes, as an ISO instant (the next UTC midnight). */
   readonly resetsAt: Date;
 }
@@ -128,7 +131,23 @@ export function buildHeadEntryBodies(
   return [buildEntryCommentGeneratingBody(t, link), ...failedBodies];
 }
 
-function buildPrViewUrl(link: EntryCommentPrLink): string {
+/**
+ * The on-demand body: the PR's runs wait for a collaborator's Generate click.
+ * It links the rev the next brief takes, where the web shows Generate, and
+ * names no head, so a later push finds it live and does not re-ping. It says
+ * nothing about why the PR waits.
+ */
+export function buildEntryCommentOnDemandBody(
+  t: TFunction,
+  link: EntryCommentRevisionLink,
+): string {
+  const heading = `**${t("entryComment.onDemand.heading")}**`;
+  const body = `[${t("entryComment.onDemand.generateLink")}](${buildEntryCommentDeepLink(link)})`;
+  const footer = formatFooter(t("entryComment.onDemand.footer"));
+  return [heading, "", body, "", footer].join("\n");
+}
+
+function buildPrViewUrl(link: EntryCommentPrViewLink): string {
   const origin = link.publicBaseUrl.replace(/\/+$/, "");
   return `${origin}/repos/${link.repoId}/pulls/${link.prNumber}`;
 }

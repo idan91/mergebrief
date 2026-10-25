@@ -318,6 +318,7 @@ export type {
   IngestOutcome,
   RecordStateOptions,
   RegenerateFailedHeadInput,
+  ReleaseApprovedHoldInput,
   RequeueGenerateJobInput,
   RequeueOutcome,
   TriggerGenerationInput,

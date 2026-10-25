@@ -34,6 +34,11 @@
       "link": "Brief is generating for this push…",
       "footer": "Posted by MergeBrief — the link already shows the live diff; this comment is replaced when the brief is ready."
     },
+    "onDemand": {
+      "heading": "A brief for this pull request is available on demand.",
+      "generateLink": "Generate it in MergeBrief",
+      "footer": "Posted by MergeBrief. Replaced once a brief is generating."
+    },
     "ready": {
       "link": "Read the brief for this push",
       "footer": "Posted by MergeBrief — replaced on each settled push so it always links the latest revision."

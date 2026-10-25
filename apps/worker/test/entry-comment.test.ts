@@ -8,9 +8,9 @@ import {
   buildEntryCommentCappedBody,
   buildEntryCommentFailedBody,
   buildEntryCommentGeneratingBody,
+  buildEntryCommentOnDemandBody,
   type EntryCommentCappedLink,
   type EntryCommentLink,
-  type EntryCommentPrLink,
 } from "../src/task/entry-comment";
 
 const { t } = createI18n();
@@ -23,11 +23,12 @@ const LINK: EntryCommentLink = {
   headSha: "abcdef1234567890",
 };
 
-const PR_LINK: EntryCommentPrLink = {
+const CAPPED_LINK: EntryCommentCappedLink = {
   publicBaseUrl: "https://mb.example",
   repoId: 123n,
   prNumber: 7,
   headSha: "abcdef1234567890",
+  resetsAt: new Date("2026-10-25T00:00:00.000Z"),
 };
 
 /** The setup and secret codes whose public reason is one generic line. */
@@ -38,11 +39,6 @@ const PUBLICLY_COLLAPSED_CODES = [
   GenerationFailureCodes.GENERATION_CONFIG,
   GenerationFailureCodes.GITHUB_ACCESS,
 ];
-
-const CAPPED_LINK: EntryCommentCappedLink = {
-  ...PR_LINK,
-  resetsAt: new Date("2026-10-25T00:00:00.000Z"),
-};
 
 describe("entry comment bodies", () => {
   it("builds the ready body with the revision deep link", () => {
@@ -127,6 +123,25 @@ describe("entry comment bodies", () => {
         "GitHub will not serve a diff this large. [Open this push in MergeBrief](https://mb.example/repos/123/pulls/7?rev=2)",
         "",
         "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again, or when it closes.</sub>",
+      ].join("\n"),
+    );
+  });
+
+  it("links the on-demand body to the next brief's rev and names no head", () => {
+    const body = buildEntryCommentOnDemandBody(t, {
+      publicBaseUrl: "https://mb.example/",
+      repoId: 123n,
+      prNumber: 7,
+      headIndex: 2,
+    });
+
+    expect(body).toBe(
+      [
+        "**A brief for this pull request is available on demand.**",
+        "",
+        "[Generate it in MergeBrief](https://mb.example/repos/123/pulls/7?rev=2)",
+        "",
+        "<sub>Posted by MergeBrief. Replaced once a brief is generating.</sub>",
       ].join("\n"),
     );
   });

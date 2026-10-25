@@ -23,6 +23,8 @@ import {
   type GenerationTarget,
   type TenantContext,
 } from "../src/index";
+import { parseTenantContext } from "../src/stores/scope-context";
+import { createTenantRepository } from "../src/stores/tenant";
 import { createMigratedPglite } from "../src/testing/pglite-snapshot";
 import { seedGrant } from "../src/testing/seed-grant";
 import {
@@ -379,4 +381,25 @@ export async function makeGrant(
     keyRef: TEST_KEY_REF,
     refreshExpiresAt,
   });
+}
+
+/** The tenant, repository, approver and head the trigger-approval suites seed. */
+export const GATE_CTX = parseTenantContext({ installationId: 100n });
+export const GATE_REPO_ID = brandWith(isRepoId, 200n);
+export const GATE_REVIEWER = brandWith(isReviewerId, 31337n);
+export const GATE_HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
+
+/** The gate suites' approver records a Trigger approval on the pull request. */
+export async function approveGatedPullRequest(
+  shared: SharedPglite,
+  pullRequestId: PullRequestRowId,
+): Promise<void> {
+  const { pullRequests } = createTenantRepository(shared.handle, GATE_CTX);
+  await pullRequests.approveTrigger(pullRequestId, GATE_REVIEWER);
+}
+
+/** Every graphile job queued so far, whatever its task. */
+export async function countQueuedJobs(shared: SharedPglite): Promise<number> {
+  const jobs = await shared.harness.raw("select id from graphile_worker.jobs");
+  return jobs.length;
 }

@@ -6,12 +6,14 @@ import {
 } from "persistence";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { parseGeneratePayload } from "../payload";
+import type { AcquiredRepoConfig } from "../repo-config";
 import {
   endUnclaimedRecovery,
   isRecoveryRetry,
   shouldRecoverClaim,
   supersedeUnclaimedRecovery,
 } from "./logic/claim-recovery";
+import { applyAuthorGate } from "./logic/author-gate";
 import { traceProviderCalls } from "./logic/model-span";
 import { isRunSignal, listRunStops, traceRunStep } from "./logic/step-span";
 import { postFailedEntry } from "./logic/failed-entry";
@@ -35,6 +37,7 @@ import {
   SupersededSignal,
 } from "./logic/supersession-watch";
 import {
+  AuthorGateKinds,
   JobFailureOutcomes,
   RunDecisionKinds,
   type GenerateTask,
@@ -187,6 +190,9 @@ async function settleFailedRun(
     log,
   });
   const { outcome } = report;
+  if (report.rowKept) {
+    run.leaveRow = true;
+  }
   const endsFailed =
     outcome === JobFailureOutcomes.PERMANENT ||
     outcome === JobFailureOutcomes.LAST_ATTEMPT;
@@ -281,6 +287,10 @@ async function runGeneration(
     return;
   }
   progress.context = context;
+  const authorGate = await applyAuthorGate(context);
+  if (authorGate.kind === AuthorGateKinds.AWAITING_TRIGGER) {
+    return;
+  }
 
   const decision = await traceRunStep(
     "generation.decide",
@@ -300,7 +310,7 @@ async function runGeneration(
   if (decision.kind === RunDecisionKinds.STAND_DOWN) {
     return;
   }
-  await generateUnderWatch(context, decision);
+  await generateUnderWatch(context, decision, authorGate.repoConfig);
 }
 
 /**
@@ -312,6 +322,7 @@ async function runGeneration(
 async function generateUnderWatch(
   context: RunContext,
   decision: GeneratingRun,
+  gateRepoConfig: AcquiredRepoConfig | undefined,
 ): Promise<void> {
   const { deps, watch, shutdownSignal } = context;
   const generatorSignal =
@@ -322,7 +333,7 @@ async function generateUnderWatch(
   const traced = traceProviderCalls(bound, generatorSignal);
   const generator = countProviderCalls(traced, context.run);
   try {
-    await generateArtifacts(context, decision, generator);
+    await generateArtifacts(context, decision, generator, gateRepoConfig);
   } catch (error) {
     const outcome = resolveWatchOutcome(watch, error);
     if (outcome instanceof SupersededSignal) {
@@ -363,10 +374,11 @@ async function generateArtifacts(
   context: RunContext,
   decision: GeneratingRun,
   generator: Generator,
+  gateRepoConfig: AcquiredRepoConfig | undefined,
 ): Promise<void> {
   const stops = listRunStops(context);
   const inputs = await traceRunStep("generation.inputs", stops, () =>
-    prepareRunInputs(context, decision),
+    prepareRunInputs(context, decision, gateRepoConfig),
   );
   context.run.entryCommentAllowed = inputs.entryCommentAllowed;
   const brief = await traceRunStep("brief.generate", stops, () =>
