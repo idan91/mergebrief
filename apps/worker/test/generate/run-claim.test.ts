@@ -126,6 +126,22 @@ describe("generate task, run claim", () => {
     expect(await countAttempts()).toBe(1);
   });
 
+  it("stands down on an awaiting-trigger row with no claim or call", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const target = makeTarget(pr, HEAD_1);
+    await projection.markAwaitingTrigger(target);
+    const generator = stubGenerator();
+
+    await makeTask({ generator })(payload);
+
+    expect(generator.calls).toEqual([]);
+    expect(await countAttempts()).toBe(0);
+    const row = await projection.get(target);
+    expect(row?.status).toBe(GenerationStatuses.AWAITING_TRIGGER);
+    expect(row?.runId).toBeNull();
+  });
+
   it("at a cap of 1 the retry of a failed attempt is capped", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const failing = stubGenerator();

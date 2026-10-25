@@ -117,6 +117,8 @@ export const ClaimOutcomes = {
   CAPPED: "capped",
   /** The row already succeeded; there is nothing to claim. */
   FINISHED: "finished",
+  /** The head waits for a collaborator's trigger approval; nothing was written. */
+  AWAITING_TRIGGER: "awaiting-trigger",
   /** The head's paid attempts since its last trigger are spent; nothing was written. */
   EXHAUSTED: "exhausted",
 } as const;

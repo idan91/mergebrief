@@ -54,6 +54,7 @@ import {
   QueueTasks,
   TakeoverJobStates,
   type GenerationPhase,
+  type GenerationStatus,
   type Result,
   type ValueOf,
 } from "types";
@@ -175,6 +176,7 @@ export type ClaimRunOutcome =
     }
   | { readonly kind: typeof ClaimOutcomes.CAPPED; readonly startedRuns: number }
   | { readonly kind: typeof ClaimOutcomes.FINISHED }
+  | { readonly kind: typeof ClaimOutcomes.AWAITING_TRIGGER }
   | { readonly kind: typeof ClaimOutcomes.EXHAUSTED; readonly claims: number };
 
 /** How a claimed run ends. */
@@ -276,6 +278,14 @@ export interface GenerationProjection {
    * consumes no retry and shows no error text.
    */
   markCapped(
+    target: GenerationTarget,
+  ): Promise<Result<GenerationRow, GenerationError>>;
+  /**
+   * Reflect `awaiting-trigger`, the terminal hold a PR waits in until a
+   * collaborator approves its runs. Not a failure: `attempts` is untouched
+   * and `phase` + error columns are cleared, like `markCapped`.
+   */
+  markAwaitingTrigger(
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
@@ -551,18 +561,44 @@ const TERMINAL_CLEARED = {
 } as const;
 
 /**
- * The pending projection both ingest and the worker write. First call inserts
- * (`attempts = 0`); a re-queue of the same key conflicts (NULLS NOT DISTINCT),
- * increments `attempts` and clears `phase`, the error columns, `repo_config`
- * and the claim. A held row keeps every column, so a live run is never
- * clobbered and a dropped trigger is not a paid attempt; a `running` row whose
- * lease lapsed (a dead worker) is projected afresh. It never moves
- * `triggered_at`: ingest stamps that through `stampBriefTriggered`.
+ * A trigger's reset of a row already on the key: `status` with `attempts` as
+ * given, clearing `phase`, the error columns, `repo_config` and the claim. A
+ * held row keeps every column, so a live run is never clobbered and a dropped
+ * trigger is not a paid attempt; a `running` row whose lease lapsed (a dead
+ * worker) is projected afresh.
  */
-export async function projectPendingGeneration(
+function buildTriggerReset(
+  status: GenerationStatus,
+  attempts: SQL,
+): GenerationSet {
+  return {
+    status: keepWhileHeld(generation.status, status),
+    attempts: keepWhileHeld(generation.attempts, attempts),
+    phase: keepWhileHeld(generation.phase, null),
+    errorCode: keepWhileHeld(generation.errorCode, null),
+    errorParams: keepWhileHeld(generation.errorParams, null),
+    repoConfig: keepWhileHeld(generation.repoConfig, null),
+    runId: keepWhileHeld(generation.runId, null),
+    leaseExpiresAt: keepWhileHeld(generation.leaseExpiresAt, null),
+    claims: keepWhileHeld(generation.claims, sql`0`),
+    updatedAt: new Date(),
+  };
+}
+
+/** A no-op write, so the conflict still returns the row as stored. */
+const KEEP_STORED_ROW: GenerationSet = { status: sql`${generation.status}` };
+
+/**
+ * A trigger's projection: insert at `status` with `attempts = 0`, or apply
+ * `onConflict` to the row on the same key (NULLS NOT DISTINCT). It never
+ * moves `triggered_at`: ingest stamps that through `stampBriefTriggered`.
+ */
+async function projectTriggeredRow(
   executor: GenerationExecutor,
   scope: RowScope,
   target: GenerationTarget,
+  status: GenerationStatus,
+  onConflict: GenerationSet,
 ): Promise<ProjectedGeneration> {
   const rows = await executor
     .insert(generation)
@@ -572,7 +608,7 @@ export async function projectPendingGeneration(
       kind: target.kind,
       headSha: target.headSha,
       baselineSha: target.baselineSha,
-      status: GenerationStatuses.PENDING,
+      status,
     })
     .onConflictDoUpdate({
       target: [
@@ -582,21 +618,7 @@ export async function projectPendingGeneration(
         generation.headSha,
         generation.baselineSha,
       ],
-      set: {
-        status: keepWhileHeld(generation.status, GenerationStatuses.PENDING),
-        attempts: keepWhileHeld(
-          generation.attempts,
-          sql`${generation.attempts} + 1`,
-        ),
-        phase: keepWhileHeld(generation.phase, null),
-        errorCode: keepWhileHeld(generation.errorCode, null),
-        errorParams: keepWhileHeld(generation.errorParams, null),
-        repoConfig: keepWhileHeld(generation.repoConfig, null),
-        runId: keepWhileHeld(generation.runId, null),
-        leaseExpiresAt: keepWhileHeld(generation.leaseExpiresAt, null),
-        claims: keepWhileHeld(generation.claims, sql`0`),
-        updatedAt: new Date(),
-      },
+      set: onConflict,
     })
     .returning({
       ...getTableColumns(generation),
@@ -604,11 +626,51 @@ export async function projectPendingGeneration(
     });
   const projected = rows[0];
   if (projected === undefined) {
-    throw new Error("generation upsertPending returned no row");
+    throw new Error("generation projection returned no row");
   }
 
   const { held, ...row } = projected;
   return { row, held };
+}
+
+/**
+ * The pending projection both ingest and the worker write. A re-queue of the
+ * same key increments `attempts`.
+ */
+export async function projectPendingGeneration(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  target: GenerationTarget,
+): Promise<ProjectedGeneration> {
+  const pending = GenerationStatuses.PENDING;
+  const requeued = sql`${generation.attempts} + 1`;
+  return projectTriggeredRow(
+    executor,
+    scope,
+    target,
+    pending,
+    buildTriggerReset(pending, requeued),
+  );
+}
+
+/**
+ * Ingest's projection for a head whose PR still needs a collaborator's
+ * approval. Only a head's first projection waits: a row already on the key
+ * keeps every column, so no gate verdict moves a head an earlier trigger
+ * projected. Waiting is not an attempt.
+ */
+export async function projectAwaitingTrigger(
+  executor: GenerationExecutor,
+  scope: RowScope,
+  target: GenerationTarget,
+): Promise<ProjectedGeneration> {
+  return projectTriggeredRow(
+    executor,
+    scope,
+    target,
+    GenerationStatuses.AWAITING_TRIGGER,
+    KEEP_STORED_ROW,
+  );
 }
 
 /**
@@ -768,6 +830,9 @@ export function createGenerationProjection(
     if (current.status === GenerationStatuses.SUCCEEDED) {
       return { ok: true, value: { kind: ClaimOutcomes.FINISHED } };
     }
+    if (current.status === GenerationStatuses.AWAITING_TRIGGER) {
+      return { ok: true, value: { kind: ClaimOutcomes.AWAITING_TRIGGER } };
+    }
     if (current.leaseLive) {
       return {
         ok: true,
@@ -895,6 +960,13 @@ export function createGenerationProjection(
       return unclaimedTransition(target, {
         ...TERMINAL_CLEARED,
         status: GenerationStatuses.CAPPED,
+      });
+    },
+
+    async markAwaitingTrigger(target) {
+      return unclaimedTransition(target, {
+        ...TERMINAL_CLEARED,
+        status: GenerationStatuses.AWAITING_TRIGGER,
       });
     },
 

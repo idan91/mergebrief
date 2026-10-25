@@ -62,3 +62,8 @@ Per [ADR 0032](0032-repo-local-config-surface.md) (repo-config grill), two corre
 ### 2026-10-20: The Entry comment posts on drafts by default
 
 The 2026-07-16 default flipped on 2026-09-15 (ADR 0032 as amended): `entryCommentOnDrafts` defaults to `true` (`packages/repo-config/src/schemas.ts`), so the Entry posts on draft PRs unless the repo opts out with `false`, and an explicit `false` sweeps a lingering comment (`apps/worker/src/task/generate/logic/entry-comment-gate.ts`). In practice every PR opens as a draft and the Entry is the reader's way into the brief. #4's "only when ready" rule is the opt-out posture, not the default; url-box jobs never post.
+
+### 2026-10-24: An untrusted author's PR waits for a collaborator
+
+#2 amended: the Trigger stays eager-on-push for every PR whose author is on the repository's team (the reviewer trust rule) and for a bot the repository lists in `trustedBots`. Any other author's PR computes nothing on push: its head waits as `awaiting-trigger`, the Entry says a brief is available on demand, and a collaborator with push access starts the first brief from MergeBrief. That click is the approval and holds for the PR, so every later push computes eagerly again. The deep-link click itself is still navigation, never a trigger (#4).
+

@@ -6,7 +6,7 @@
 // within the scope in the same transaction, and every READ filters on the
 // queried table's own columns (`matchesChild` adds the owner world's PR
 // semi-join), which is safe because writes guarantee the marks match.
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { traceStore } from "./trace-store";
 import { type AppDatabase, internal } from "../db/handle";
 import { checkpoint } from "../schema/checkpoint";
@@ -166,6 +166,15 @@ export interface PullRequestRepository {
     pullRequestId: PullRequestRowId,
     input: PullRequestStackInput,
   ): Promise<PullRequestRow | undefined>;
+  /**
+   * Record that a collaborator approved generation for the PR. The first
+   * approval stands: a later call writes nothing, `row_version` included,
+   * and returns the row as it is. `undefined` if no row in ctx's scope.
+   */
+  approveTrigger(
+    pullRequestId: PullRequestRowId,
+    reviewerId: ReviewerId,
+  ): Promise<PullRequestRow | undefined>;
 }
 
 export interface CheckpointRepository {
@@ -305,6 +314,33 @@ export function createTenantRepository(
         )
         .returning();
       return rows[0];
+    },
+
+    async approveTrigger(pullRequestId, reviewerId) {
+      const inScope = and(
+        scope.matchesPullRequest(),
+        eq(pullRequest.id, pullRequestId),
+      );
+      const approved = await db
+        .update(pullRequest)
+        .set({
+          triggerApprovedBy: reviewerId,
+          triggerApprovedAt: sql`now()`,
+          rowVersion: buildNextRowVersion(),
+          updatedAt: new Date(),
+        })
+        .where(and(inScope, isNull(pullRequest.triggerApprovedAt)))
+        .returning();
+      if (approved[0] !== undefined) {
+        return approved[0];
+      }
+
+      const current = await db
+        .select()
+        .from(pullRequest)
+        .where(inScope)
+        .limit(1);
+      return current[0];
     },
   };
 

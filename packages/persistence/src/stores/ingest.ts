@@ -16,6 +16,7 @@ import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
 import {
   getGenerateJobKey,
+  projectAwaitingTrigger,
   projectPendingGeneration,
   stampBriefTriggered,
   type GenerationRow,
@@ -34,7 +35,13 @@ import {
 } from "./queue";
 import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
-import { GenerationStatuses, PrStates, QueueTasks, type Mutable } from "types";
+import {
+  GenerationStatuses,
+  PrStates,
+  QueueTasks,
+  type GenerationStatus,
+  type Mutable,
+} from "types";
 import {
   GenerationKinds,
   JobKeyModes,
@@ -146,6 +153,27 @@ async function owesCheckpointDelta(
     )
     .limit(1);
   return rows.length > 0;
+}
+
+/** A row a queued job still has work for; any other row is finished. */
+const WAITS_FOR_JOB: ReadonlySet<GenerationStatus> = new Set([
+  GenerationStatuses.PENDING,
+  GenerationStatuses.AWAITING_TRIGGER,
+]);
+
+/**
+ * The caller's trust decision gates only an installation row no collaborator
+ * has approved yet. A url-box paste is the viewer's own intent and never waits.
+ */
+function owesTriggerApproval(
+  scope: RowScope,
+  input: TriggerGenerationInput,
+  prRow: PullRequestRow,
+): boolean {
+  const installationRow = scope.ownerUserId === null;
+  const gated = installationRow && input.requiresTriggerApproval === true;
+  const owesApproval = gated && prRow.triggerApprovedAt === null;
+  return owesApproval;
 }
 
 type IngestTransaction = Parameters<
@@ -289,6 +317,15 @@ export interface TriggerGenerationInput {
    * submitted review. The job runs without a projection write.
    */
   readonly uncoveredWork?: UncoveredWork;
+  /**
+   * The PR's author needs a collaborator's approval before a brief is paid
+   * for. Until the PR carries one, a head with no row projects
+   * `awaiting-trigger` instead of `pending` and the job is queued as usual; a
+   * head with a row keeps it, queued only while it is `pending` or
+   * `awaiting-trigger`. The trust decision is the caller's; a stored brief
+   * for the pair still covers the event.
+   */
+  readonly requiresTriggerApproval?: boolean;
 }
 
 export interface IngestOutcome {
@@ -484,17 +521,24 @@ export function createIngestRoutines(
           }
         }
 
-        // 2. Project the brief generation as `pending`. A held head is
-        // never re-enqueued, refreshRunAt included: under N slots a fresh job
-        // for the same head would run beside the live one. The live run
-        // re-reads draft state before its ready Entry instead.
+        // 2. Project the brief generation as `pending`, or `awaiting-trigger`
+        // while the PR owes an approval. A held head is never re-enqueued,
+        // refreshRunAt included: under N slots a fresh job for the same head
+        // would run beside the live one. The live run re-reads draft state
+        // before its ready Entry instead. A gated trigger on a head that
+        // already has a row keeps it, and queues a job only while that row
+        // still waits for one, so a failed head keeps its failure.
         const value: Mutable<IngestOutcome> = {
           pullRequest: prRow,
           applied: true,
           queued: false,
         };
         if (storedBrief === undefined) {
-          const projected = await projectPendingGeneration(tx, scope, {
+          const gated = owesTriggerApproval(scope, input, prRow);
+          const project = gated
+            ? projectAwaitingTrigger
+            : projectPendingGeneration;
+          const projected = await project(tx, scope, {
             pullRequestId: prRow.id,
             kind: GenerationKinds.BRIEF,
             headSha: input.headSha,
@@ -505,6 +549,11 @@ export function createIngestRoutines(
           }
           value.generation = projected.row;
           if (projected.held) {
+            return value;
+          }
+          const keepsFinishedRow =
+            gated && !WAITS_FOR_JOB.has(projected.row.status);
+          if (keepsFinishedRow) {
             return value;
           }
         } else if (await isGenerateJobHeld(tx, prRow.id)) {

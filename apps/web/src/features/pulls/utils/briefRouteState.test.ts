@@ -222,6 +222,18 @@ describe("deriveBriefRouteState", () => {
     );
   });
 
+  it("an awaiting-trigger head reads empty and ends the fast poll", () => {
+    const awaiting = meta({
+      generation: generation({ status: "awaiting-trigger" }),
+      briefAvailable: false,
+    });
+
+    expect(deriveBriefRouteState(awaiting, undefined)).toEqual({
+      kind: "empty",
+    });
+    expect(shouldPollMeta(awaiting)).toBe(false);
+  });
+
   it("succeeded but artifact missing → empty, never an infinite wait", () => {
     const state = deriveBriefRouteState(
       meta({

@@ -61,6 +61,7 @@ describe("createTenantRepository row_version", () => {
     const commented = await pullRequests.setEntryComment(inserted.id, 9001n);
     const drafted = await pullRequests.setDraft(inserted.id, true);
     const stacked = await pullRequests.recordStack(inserted.id, stack);
+    const approved = await pullRequests.approveTrigger(inserted.id, REVIEWER);
     const versions = [
       inserted,
       upserted,
@@ -68,9 +69,12 @@ describe("createTenantRepository row_version", () => {
       commented,
       drafted,
       stacked,
+      approved,
     ];
 
-    expect(versions.map((row) => row?.rowVersion)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(versions.map((row) => row?.rowVersion)).toEqual([
+      0, 1, 2, 3, 4, 5, 6,
+    ]);
   });
 });
 

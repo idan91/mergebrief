@@ -129,10 +129,11 @@ export function deriveBriefRouteState(
     case GenerationStatuses.CAPPED:
       return { kind: "capped", cappedAt: generation.updatedAt };
     case GenerationStatuses.SUCCEEDED:
+    case GenerationStatuses.AWAITING_TRIGGER:
     case UnknownValues.UNKNOWN:
-      // Succeeded without a readable artifact, or a status this bundle
-      // predates: not a failure and nothing known to be coming, so the
-      // empty/activation state.
+      // Succeeded without a readable artifact, a head waiting on a
+      // collaborator, or a status this bundle predates: not a failure and
+      // nothing known to be coming, so the empty/activation state.
       return { kind: "empty" };
   }
 }

@@ -195,6 +195,20 @@ describe("claimRun", () => {
     expect(await claim(world)).toEqual({ kind: ClaimOutcomes.FINISHED });
     expect(await countAttemptRows(world)).toBe(0);
   });
+
+  it("refuses an awaiting-trigger row without a claim or an attempt", async () => {
+    const world = await makeClaimWorld();
+    unwrap(await world.gen.markAwaitingTrigger(world.target));
+
+    expect(await claim(world)).toEqual({
+      kind: ClaimOutcomes.AWAITING_TRIGGER,
+    });
+    const row = await world.gen.get(world.target);
+    expect(row?.status).toBe(GenerationStatuses.AWAITING_TRIGGER);
+    expect(row?.runId).toBeNull();
+    expect(row?.claims).toBe(0);
+    expect(await countAttemptRows(world)).toBe(0);
+  });
 });
 
 describe("claimRun attempt budget and recovery job", () => {

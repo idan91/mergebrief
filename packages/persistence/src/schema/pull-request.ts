@@ -88,6 +88,16 @@ export const pullRequest = pgTable(
      */
     stack: jsonb("stack").$type<unknown>(),
     stackReadAt: timestamp("stack_read_at", { withTimezone: true }),
+    /**
+     * The collaborator who first approved generation for a PR whose author
+     * needs approval, and when. Set once, never moved; CHECK-paired.
+     */
+    triggerApprovedBy: bigint("trigger_approved_by", {
+      mode: "bigint",
+    }).$type<ReviewerId>(),
+    triggerApprovedAt: timestamp("trigger_approved_at", {
+      withTimezone: true,
+    }),
     /** NULL while open; the retention sweep's one input once closed. */
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /**
@@ -132,6 +142,10 @@ export const pullRequest = pgTable(
       check(
         "pull_request_open_retention_shape",
         sql`${notOpen} or ${table.closedAt} is null`,
+      ),
+      check(
+        "pull_request_trigger_approval_shape",
+        sql`(${table.triggerApprovedBy} is null) = (${table.triggerApprovedAt} is null)`,
       ),
       check(
         "pull_request_owner_shape",

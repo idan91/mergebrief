@@ -77,7 +77,7 @@ pull_request
   UNIQUE (installation_id, repo_id, pr_number)
 ```
 
-Columns added since this block was grilled (`packages/persistence/src/schema/pull-request.ts`): `source` and `owner_user_id` (the url-box owner world, see Amendments; `installation_id` is nullable there), `base_sha`, `draft`, `author_login`, `github_updated_at`, `github_read_at`, `github_head_sha`, `github_unreachable_at`, `stack`, `stack_read_at`, and `row_version`, which every update bumps.
+Columns added since this block was grilled (`packages/persistence/src/schema/pull-request.ts`): `source` and `owner_user_id` (the url-box owner world, see Amendments; `installation_id` is nullable there), `base_sha`, `draft`, `author_login`, `github_updated_at`, `github_read_at`, `github_head_sha`, `github_unreachable_at`, `stack`, `stack_read_at`, `row_version`, which every update bumps, and the Trigger approval pair `trigger_approved_by` / `trigger_approved_at` (see Amendments).
 
 - **Clean mutable/immutable line:** `pull_request` is the one mutable lifecycle row; Brief/Delta/Checkpoint/Disposition and the other artifacts are immutable and **FK to it**.
 - **Simplifies child keys:** children carry `installation_id` (tenant filter, no join) + a `pull_request_id` FK, replacing the loose `(repo_id, pr_number)`. Brief key → `(installation_id, pull_request_id, base_sha, head_sha)`.
@@ -188,7 +188,7 @@ generation
   kind         text not null   -- brief | delta | revision-narrative
   head_sha     text not null
   baseline_sha text            -- null for brief; checkpoint for delta
-  status       text not null   -- pending | running | succeeded | failed | superseded | capped
+  status       text not null   -- pending | running | succeeded | failed | superseded | capped | awaiting-trigger
   phase        text            -- fetching | redacting | generating | writing (optional)
   error_code   text            -- failure vocabulary code, CHECK-constrained (migration 0017)
   error_params jsonb           -- the code's template params, detail pre-sanitized
@@ -196,7 +196,7 @@ generation
   created_at / updated_at
   UNIQUE (installation_id, pull_request_id, kind, head_sha, baseline_sha)   -- NULLS NOT DISTINCT
 ```
-`queued` was renamed `pending` (migration 0036) and `capped` added for a skip under the daily cap (migration 0015); the vocabulary is `GenerationStatuses` in `packages/types/src/generations.ts`. The row also carries `repo_config` (per-file repo-config origin, written before generation), the claim columns of the 2026-10-05 amendment and `triggered_at` (2026-10-19); `packages/persistence/src/schema/generation.ts` holds the CHECKs and indexes.
+`queued` was renamed `pending` (migration 0036), `capped` added for a skip under the daily cap (migration 0015) and `awaiting-trigger` for a head held until a collaborator approves its PR (migration 0069); the vocabulary is `GenerationStatuses` in `packages/types/src/generations.ts`. The row also carries `repo_config` (per-file repo-config origin, written before generation), the claim columns of the 2026-10-05 amendment and `triggered_at` (2026-10-19); `packages/persistence/src/schema/generation.ts` holds the CHECKs and indexes.
 - Justified because graphile **deletes succeeded jobs** (so "job gone" can't mean "done") and is internal/untenanted. The web tier polls `generation`: `succeeded` → fetch the immutable artifact; `failed` → error + retry; `running`+`phase` → determinate progress (ADR 0006 #10). Mutable process state; the `brief`/`delta` rows stay immutable results.
 - **No new locks, no DLQ.** (Amended, see Amendments.) Single-flight + the global concurrency cap live in graphile (`job_key` + advisory lock + worker `concurrency`); retries + the de-facto dead-letter are graphile's persisted failed jobs (`last_error`). `generation` only *reflects* — using it as a lock would be a second source of truth.
 
@@ -504,3 +504,7 @@ D15: `github_grant.user_id` (`bigint NOT NULL`) records the GitHub user the auth
 ### 2026-10-23: A dead grant is swept, and a dead token outlives it
 
 D15: `api_token.grant_id` is nullable with `ON DELETE SET NULL` (migration 0067). The hourly worker sweep deletes a grant that has had a token and now has no session and no live token (`revoked_at IS NULL` and `expires_at` NULL or ahead), sealed pair included, and revokes its access token at GitHub after the delete commits. The dead tokens keep their rows with a NULL `grant_id`, still listable as revoked, until the sweep hard-deletes a token 30 days after `revoked_at` or `expires_at`. A grant no row references yet, a sign-in between its two inserts, is left alone. The "dies with its last referent" rule still holds on every referent delete. The D15 note that a revoked token retains the encrypted pair until installation purge is superseded.
+
+### 2026-10-24: A head can wait for a collaborator's Trigger approval
+
+D5 and D10 (migration 0069): `generation.status` gains `awaiting-trigger`, a terminal hold that is not a failure and spends no attempt. Ingest writes it only at a head's first projection, when the PR's author needs approval; a claim refuses it, and no unclaimed mark moves it. `pull_request` gains `trigger_approved_by` (the approving reviewer's GitHub id) and `trigger_approved_at`, set once by the first Generate click and never moved, CHECK-paired by `pull_request_trigger_approval_shape` so both are null or both are set. Every write that puts a head into `awaiting-trigger` or releases it to `pending` takes the pull request's row lock and reads the approval under it, so an approval and a hold never interleave. The one writer that moves an awaiting row without the lock is the stored-brief settle (`settleStoredBrief`), which marks it `succeeded`: a stored brief already answers the head, so the approval does not matter.

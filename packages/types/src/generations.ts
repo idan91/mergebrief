@@ -2,8 +2,9 @@ import type { ValueOf } from "./utils";
 
 /**
  * `superseded` = a mid-call generation aborted because the PR head advanced;
- * `capped` = a skip because the instance hit its daily generation cap.
- * Neither is a failure; both are terminal and consume no attempt.
+ * `capped` = a skip because the instance hit its daily generation cap;
+ * `awaiting-trigger` = held until a collaborator approves the PR's runs.
+ * None is a failure; each is terminal and consumes no attempt.
  */
 export const GenerationStatuses = {
   PENDING: "pending",
@@ -12,6 +13,7 @@ export const GenerationStatuses = {
   FAILED: "failed",
   SUPERSEDED: "superseded",
   CAPPED: "capped",
+  AWAITING_TRIGGER: "awaiting-trigger",
 } as const;
 export type GenerationStatus = ValueOf<typeof GenerationStatuses>;
 
