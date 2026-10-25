@@ -288,8 +288,8 @@ release`.
       assertion` (first paint and the View/Compare normalization are
       covered by the seeded suite).
 - [ ] A real second revision: the compare bar's Previous brief highlights
-      through the marks and narrative endpoints, and the head-advance
-      banner never auto-swaps the page.
+      through the marks and narrative endpoints, and the Newer commits
+      chip never auto-swaps the page.
       `manual-until: a seeded second revision with marks and a narrative`.
 - [ ] The Revisions timeline: thread-jump into the conversation, and "Your
       last review" enabling only after a submitted checkpoint (the seeded

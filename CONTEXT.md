@@ -420,8 +420,12 @@ The chain of pull requests a PR belongs to, as GitHub links them: linear (each m
 _Avoid_: stacked diffs, train, dependency chain
 
 **Header**:
-The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the comparison row (View and Compare, the revision notices, and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
+The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the comparison row (View and Compare, the **Newer commits** chip, and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
 _Avoid_: top chrome, top bar (the CSS variable's name, not the concept), navbar
+
+**Newer commits**:
+The Brief page's one **Header** chip for when the **Brief** on screen trails the pull request: newer commits on GitHub, or the same head on a new base. A status segment names what the latest push is doing, an attached action names the next step (Go to new brief, Retry, Generate new brief), and an info button opens a popover with the full explanation. Absent while a **Brief** for the PR's head is stored on any base and GitHub has no newer commits, unless the head's run on the current base failed or awaits its **Trigger approval**.
+_Avoid_: stale chip, behind notice, latest-push notice, head-advance banner
 
 **Account menu**:
 The person-anchored menu at the end of every **Header**, holding what is about the signed-in user and never about the PR: identity, Settings, Language, Keyboard shortcuts, Sign out. Trigger is the GitHub avatar when signed in, a generic person icon while the viewer is unknown, and signed out the slot holds a Sign in button instead of a menu. No placeholder rows for what is not built. Distinct from the PR-scoped overflow menu (about this PR) and the **Sidebar** (about reading this PR).

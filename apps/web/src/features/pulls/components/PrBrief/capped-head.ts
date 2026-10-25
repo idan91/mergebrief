@@ -22,28 +22,46 @@ export function readCapResetsAt(cappedAtIso: string): Date | undefined {
   );
 }
 
+/** When the cap that skipped a head resets, and whether that has passed. */
+export interface CapReset {
+  readonly resetsAt: Date;
+  /** The window rolled over: the cap holds nothing back any more. */
+  readonly passed: boolean;
+}
+
+/** Absent for an unreadable skip time. */
+export function readCapReset(
+  cappedAtIso: string,
+  now: Date,
+): CapReset | undefined {
+  const resetsAt = readCapResetsAt(cappedAtIso);
+  if (resetsAt === undefined) {
+    return undefined;
+  }
+  const passed = resetsAt.getTime() <= now.getTime();
+  return { resetsAt, passed };
+}
+
 /**
  * The capped heading. The reset time renders in the VIEWER's zone (the
  * operator's UTC boundary is an implementation detail). An unparsable
  * timestamp degrades to the capless sentence rather than printing
- * "Invalid Date".
+ * "Invalid Date", and a reset that passed promises no future resume.
  */
 export function buildCappedLabel(
   t: TFunction,
   cappedAtIso: string,
   now: Date = new Date(),
 ): string {
-  const resetsAt = readCapResetsAt(cappedAtIso);
-  if (resetsAt === undefined) {
+  const reset = readCapReset(cappedAtIso, now);
+  if (reset === undefined) {
     return t("pulls.capped.reached");
   }
-  if (resetsAt.getTime() <= now.getTime()) {
-    // The window already rolled over: the cap is no longer holding anything
-    // back, so promising a future resume time would be a lie.
+  if (reset.passed) {
     return t("pulls.capped.resumed");
   }
   // The template's datetime formatter renders in the ACTIVE locale.
-  return t("pulls.capped.resumes", { resetsAt });
+  return t("pulls.capped.resumes", { resetsAt: reset.resetsAt });
 }
 
 export interface CappedCardDetailInput {

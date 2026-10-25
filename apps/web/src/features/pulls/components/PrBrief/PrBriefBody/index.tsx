@@ -24,7 +24,8 @@ import { EmptyCard } from "../EmptyCard";
 import { FailedCard } from "../FailedCard";
 import { PrBriefContent } from "../PrBriefContent";
 import { SupersededCard } from "../SupersededCard";
-import { WaitCard, waitLabel } from "../WaitCard";
+import { WaitCard } from "../WaitCard";
+import { waitLabel } from "../waiting-head";
 import { readEmptyCopyOverride, readSupersededAnnouncementKey } from "./utils";
 
 type BriefRouteState = ReturnType<typeof deriveBriefRouteState>;

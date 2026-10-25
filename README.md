@@ -82,8 +82,9 @@ pnpm app:host
 the host with `.env` loaded. Open http://localhost:3000, sign in with GitHub, paste a pull
 request URL on Home and click **Generate brief**. The worker generates the brief and stores it
 in Postgres; reopening the PR reads the stored brief at no extra cost. A pasted pull request gets
-no webhook, so after a new push it shows **New commits** with a **Regenerate** button; a
-repository with the GitHub App installed regenerates on every push.
+no webhook, so after a new push its page shows a **Newer commits** chip with a **Generate new
+brief** button; a repository with the GitHub App installed briefs a trusted author's pushes, or
+an approved pull request's, as above.
 
 `pnpm dev` runs only the api and the web app, with no worker, so nothing generates under it.
 

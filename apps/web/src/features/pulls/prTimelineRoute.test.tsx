@@ -196,10 +196,13 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
       timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
     );
-    const chip = await screen.findByTestId("stale-revision-chip");
-    // …and offers no action: the newest brief IS selected, so navigating
-    // would resolve back to this same span and change nothing.
-    expect(chip.tagName).toBe("SPAN");
+    const chip = await screen.findByTestId("newer-commits-chip");
+    expect(chip.textContent).toContain("Newer commits");
+    // …and offers no Go to new brief: the newest brief IS selected, so
+    // navigating would resolve back to this same span and change nothing.
+    expect(
+      screen.queryByRole("button", { name: /^go to new brief$/i }),
+    ).toBeNull();
   });
 
   it("shows no notice on the current head", async () => {
@@ -211,7 +214,7 @@ describe("DB brief route revision timeline", () => {
         screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
       ).toBeTruthy(),
     );
-    expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
+    expect(screen.queryByTestId("newer-commits-chip")).toBeNull();
   });
 
   it("the notice returns to the latest revision, keeping the scope", async () => {
@@ -219,7 +222,7 @@ describe("DB brief route revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&view=changes&thread=42`,
     );
     fireEvent.click(
-      await screen.findByRole("button", { name: /newer commits/i }),
+      await screen.findByRole("button", { name: /^go to new brief$/i }),
     );
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);

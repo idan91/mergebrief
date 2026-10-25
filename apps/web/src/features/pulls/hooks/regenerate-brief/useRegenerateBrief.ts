@@ -10,6 +10,10 @@ import { buildPrMetaQueryOptions } from "../../queries";
 import { regenerateBrief } from "../../transport/regenerate";
 import { RegenerateResultKinds, type RegenerateNoticeKeys } from "../../types";
 import {
+  useArrivalAnnouncement,
+  type RunArrival,
+} from "./useArrivalAnnouncement";
+import {
   readRegenerateNotice,
   RegenerateNotices,
   refreshesMeta,
@@ -20,6 +24,8 @@ export interface UseRegenerateBriefInput {
   readonly prNumber: number;
   /** The card's own copy per answer; Regenerate's by default. */
   readonly notices?: RegenerateNoticeKeys;
+  /** Once a queued run's brief lands, `notice` is announced in the same region. */
+  readonly arrival?: RunArrival;
 }
 
 export interface RegenerateBrief {
@@ -33,10 +39,12 @@ export function useRegenerateBrief({
   repoId,
   prNumber,
   notices = RegenerateNotices,
+  arrival,
 }: UseRegenerateBriefInput): RegenerateBrief {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { text, announce } = useAnnouncer();
+  const markQueued = useArrivalAnnouncement(arrival, announce);
   const [pending, setPending] = useState(false);
   const inFlight = useRef(false);
 
@@ -46,10 +54,14 @@ export function useRegenerateBrief({
     }
     inFlight.current = true;
     setPending(true);
+    const requestedHead = arrival?.head;
 
     void (async () => {
       try {
         const { kind } = await regenerateBrief(repoId, prNumber);
+        if (kind === RegenerateResultKinds.QUEUED) {
+          markQueued(requestedHead);
+        }
         if (refreshesMeta(kind)) {
           await queryClient.invalidateQueries({
             queryKey: buildPrMetaQueryOptions(repoId, prNumber).queryKey,

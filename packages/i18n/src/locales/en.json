@@ -147,13 +147,6 @@
         "unauthorized": "Your session expired. Sign in again to generate this brief.",
         "upstream": "MergeBrief could not start the brief. Try again in a moment.",
         "indeterminate": "MergeBrief could not confirm the brief started. Reload to see where it stands."
-      },
-      "notice": {
-        "label": "Latest push on demand",
-        "notOpenLabel": "Latest push not briefed",
-        "title": "The latest push waits for a collaborator with push access to generate its brief.",
-        "notOpenTitle": "The latest push got no brief, and none will be generated now that this pull request is no longer open.",
-        "queued": "Brief queued for the latest push."
       }
     },
     "superseded": {
@@ -308,36 +301,60 @@
       "windowMinutes_one": "about {{count}} minute",
       "windowMinutes_other": "about {{count}} minutes"
     },
-    "staleChip": {
-      "label": "Newer commits",
-      "action": "Go to newest",
-      "title": "This pull request has new commits since the revision you are reading. Comments will anchor to the revision you reviewed."
-    },
-    "behind": {
-      "label": "New commits",
-      "title": "GitHub has commits this brief does not cover.",
-      "regenerate": "Regenerate",
-      "queued": "Regenerate queued",
-      "arrived": "The new brief is ready."
-    },
     "latestPush": {
-      "failed": {
-        "label": "Latest push failed",
-        "title": "Generation for the latest push failed. The brief on screen covers an earlier push, or this push on an earlier base.",
-        "queued": "Rerun queued for the latest push."
-      },
-      "generating": {
-        "label": "Latest push generating",
-        "title": "The latest push's brief is generating. The brief on screen covers an earlier push."
-      },
       "capped": {
-        "label": "Latest push skipped",
-        "title": "The latest push was skipped because this instance reached its daily generation cap. The brief on screen covers an earlier push.",
         "resumes": "Generation resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}.",
         "resumed": "Generation has since resumed.",
         "resetUnknown": "Generation resumes at the daily reset.",
         "nextPush": "The next push after the reset is briefed as usual.",
         "repasteNote": "Paste this pull request's URL on the home page after the reset to retry it."
+      }
+    },
+    "newerCommits": {
+      "label": "Newer commits",
+      "newBaseLabel": "New base",
+      "infoLabel": "About newer commits",
+      "newBaseInfoLabel": "About the new base",
+      "lead": "This pull request has commits the brief you are reading does not cover.",
+      "newBaseLead": "The brief you are reading covers this push on an earlier base.",
+      "anchorNote": "Comments you leave here anchor to the revision you are reading.",
+      "status": {
+        "generating": "Generating new brief",
+        "stopped": "New brief stopped",
+        "onDemand": "New brief on demand",
+        "failed": "New brief failed",
+        "exhausted": "New brief out of attempts",
+        "skipped": "New brief skipped",
+        "none": "No new brief"
+      },
+      "action": {
+        "goToNewBrief": "Go to new brief",
+        "generate": "Generate new brief",
+        "generatePending": "Generating…",
+        "retry": "Retry",
+        "retryPending": "Retrying…",
+        "goToNewerBrief": "Go to newer brief"
+      },
+      "titles": {
+        "newBrief": "New brief ready",
+        "notGenerated": "New brief not generated"
+      },
+      "explain": {
+        "newBrief": "A brief for the newer commits is ready to read.",
+        "generating": "MergeBrief is generating the latest push's brief. Once it is ready, this chip takes you to it.",
+        "superseded": "A newer push replaced the one being briefed. The brief for the newest push comes next.",
+        "retry": "Retry to run it again.",
+        "capped": "This instance reached its daily generation cap, so this push was skipped.",
+        "pasted": "A pasted pull request is briefed only when someone asks. Generate the new brief to cover the newer commits.",
+        "pastedNoAction": "Paste this pull request's URL on the home page to generate the new brief.",
+        "waiting": "No run is queued for the newer commits yet.",
+        "newerBriefOlderPush": "A newer brief is ready to read. It does not cover the latest push.",
+        "newerBriefEarlierBase": "A newer brief is ready to read. It covers the latest push on an earlier base.",
+        "generateAfterReset": "Generate the new brief after the reset."
+      },
+      "announce": {
+        "queued": "New brief queued.",
+        "arrived": "The new brief is ready."
       }
     }
   },

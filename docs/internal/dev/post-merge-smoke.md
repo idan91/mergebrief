@@ -193,9 +193,9 @@ View/Compare params that are unrecognized or unavailable on the DB-backed
    **A "malformed" error state here would implicate the D13 parse synthesis
    — grab the response body.**
 4. While the second brief generates, keep the FIRST brief's pinned URL open:
-   **expect** the head-advance banner ("This pull request has new commits…")
-   with a button that navigates to the new span — the page must never swap
-   under you on its own.
+   **expect** the **Newer commits** chip, reading **Generating new brief**
+   until the second brief lands and then offering **Go to new brief**, which
+   navigates to the new span. The page must never swap under you on its own.
 
 ## 8. Access-control spot checks
 

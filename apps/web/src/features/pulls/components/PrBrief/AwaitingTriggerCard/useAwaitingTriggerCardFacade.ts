@@ -4,7 +4,7 @@ import { useRegenerateBrief } from "../../../hooks/regenerate-brief/useRegenerat
 import { isNoLongerOpen } from "../../../utils/pr-state";
 import { GenerateNotices, readOffersTrigger } from "../trigger-offer";
 import type { AwaitingTriggerCardProps } from ".";
-import { readAwaitingDetailKey } from "./utils";
+import { readAwaitingDetailKey } from "../awaiting-head";
 
 export function useAwaitingTriggerCardFacade({
   repoId,

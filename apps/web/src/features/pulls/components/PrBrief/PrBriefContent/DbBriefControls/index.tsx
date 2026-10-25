@@ -1,13 +1,10 @@
-// Scope and comparison controls + revision notices, rendered inside the sticky page
+// Scope and comparison controls + the Newer commits chip, rendered inside the sticky page
 // Header's control slot: the header measures itself into --top-bar-h, so the
 // controls stay reachable after the focus-to-heading selection effect.
 import { useTranslation } from "react-i18next";
 import { DbCompareBar, type DbCompareBarProps } from "./DbCompareBar";
-import { BehindNotice } from "./BehindNotice";
-import type { BehindNoticeState } from "./BehindNotice/useBehindNoticeFacade";
-import { LatestPushNotice } from "./LatestPushNotice";
-import type { LatestPushNoticeState } from "./LatestPushNotice/useLatestPushNotice";
-import { StaleRevisionChip } from "./StaleRevisionChip";
+import { NewerCommitsChip } from "./NewerCommitsChip";
+import type { NewerCommitsChipState } from "./NewerCommitsChip/types";
 import styles from "./DbBriefControls.module.scss";
 
 export interface DbBriefControlsProps {
@@ -20,81 +17,38 @@ export interface DbBriefControlsProps {
   note?: string | undefined;
   /** The selected revision is read-only (not the PR's current span). */
   readOnly?: boolean | undefined;
-  /** The rendered span is behind the PR head; absent when it is current. */
-  staleHead?: boolean | undefined;
-  /** Present only when a newer briefed revision exists to move to. */
-  onGoToNewest?: (() => void) | undefined;
-  /** The behind notice and its announcements; the notice itself is present only while GitHub is ahead. */
-  behind?: BehindNoticeState | undefined;
-  /** The latest push's notice and its announcements; the notice is present only while that push has no brief. */
-  latestPush?: LatestPushNoticeState | undefined;
+  /** The newer-commits chip and its announcements; the chip is present only while the brief on screen trails the PR. */
+  newerCommits: NewerCommitsChipState;
 }
 
 export function DbBriefControls({
   compare,
   note,
   readOnly,
-  staleHead,
-  onGoToNewest,
-  behind,
-  latestPush,
+  newerCommits,
 }: DbBriefControlsProps) {
   const { t } = useTranslation();
-  const showRevisionRegion =
-    staleHead === true ||
-    readOnly === true ||
-    behind?.notice !== undefined ||
-    latestPush?.notice !== undefined;
+  const { status } = newerCommits;
+  const showRevisionRegion = readOnly === true || status !== undefined;
   return (
     <>
-      {/* The notice leaves once the brief it asked for lands; its outcomes
+      {/* The chip leaves once the brief it asked for lands; its outcomes
           announce from here, which stays. */}
-      {behind === undefined ? null : (
-        <span
-          aria-atomic="true"
-          aria-live="polite"
-          className="sr-only"
-          role="status"
-        >
-          {behind.announcement}
-        </span>
-      )}
-      {latestPush === undefined ? null : (
-        <span
-          aria-atomic="true"
-          aria-live="polite"
-          className="sr-only"
-          role="status"
-        >
-          {latestPush.announcement}
-        </span>
-      )}
+      <span
+        aria-atomic="true"
+        aria-live="polite"
+        className="sr-only"
+        role="status"
+      >
+        {newerCommits.announcement}
+      </span>
       <div className={styles["comparisonRegion"]}>
         <DbCompareBar {...compare} />
         {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}
       </div>
       {showRevisionRegion ? (
         <div className={styles["revisionRow"]}>
-          {staleHead ? (
-            <StaleRevisionChip {...(onGoToNewest ? { onGoToNewest } : {})} />
-          ) : null}
-          {latestPush?.notice === undefined ? null : (
-            <LatestPushNotice
-              action={latestPush.notice.action}
-              detail={latestPush.notice.detail}
-              label={latestPush.notice.label}
-              title={latestPush.notice.title}
-            />
-          )}
-          {behind?.notice === undefined ? null : (
-            <BehindNotice
-              failure={behind.notice.failure}
-              pending={behind.notice.pending}
-              queued={behind.notice.queued}
-              queuedNotice={behind.notice.queuedNotice}
-              onRegenerate={behind.notice.onRegenerate}
-            />
-          )}
+          {status === undefined ? null : <NewerCommitsChip status={status} />}
           {readOnly ? (
             // Factual chip, not a verdict: the reachable REASON lives on the
             // disabled controls themselves (diff rows, submit).

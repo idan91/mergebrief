@@ -1,0 +1,78 @@
+@use "functions";
+
+@layer components {
+  .info {
+    color: var(--color-text-2);
+
+    &[aria-expanded="true"] {
+      color: var(--color-text-1);
+    }
+  }
+
+  // Above the header's fixed progress bar (51), which shares its stacking context.
+  .panel {
+    z-index: 52;
+    inline-size: min(functions.to-rem(320px), calc(100vw - 16px));
+    padding: functions.to-rem(12px) functions.to-rem(14px);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-float);
+    text-align: start;
+  }
+
+  .label {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+    margin: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+  }
+
+  .dot {
+    flex: none;
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: var(--radius-circle);
+    background: var(--color-warning);
+  }
+
+  .title {
+    margin: functions.to-rem(8px) 0 0;
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(6px);
+    margin-block-start: functions.to-rem(6px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    line-height: 1.45;
+    text-wrap: pretty;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .failure {
+    color: var(--color-negative);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(8px);
+    margin-block-start: functions.to-rem(12px);
+
+    &:empty {
+      display: none;
+    }
+  }
+}

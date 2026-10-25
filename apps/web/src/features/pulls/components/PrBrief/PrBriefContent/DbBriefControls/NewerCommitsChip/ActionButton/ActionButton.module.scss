@@ -1,0 +1,7 @@
+@use "functions";
+
+@layer components {
+  .action {
+    gap: functions.to-rem(5px);
+  }
+}

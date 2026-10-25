@@ -52,8 +52,7 @@ import {
   createSessionReads,
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
-import { useBehindNoticeFacade } from "./DbBriefControls/BehindNotice/useBehindNoticeFacade";
-import { useLatestPushNotice } from "./DbBriefControls/LatestPushNotice/useLatestPushNotice";
+import { useNewerCommits } from "./DbBriefControls/NewerCommitsChip/hooks/useNewerCommits";
 import { DbBriefControls } from "./DbBriefControls";
 import { WarmingChip } from "../WarmingChip";
 import { buildPrReview } from "./utils";
@@ -102,8 +101,13 @@ export function PrBriefContent({
   revisionPending,
 }: PrBriefContentProps) {
   const { t } = useTranslation();
-  const behind = useBehindNoticeFacade(meta, repoId, prNumber);
-  const latestPush = useLatestPushNotice(meta, repoId, prNumber);
+  const newerCommits = useNewerCommits({
+    meta,
+    repoId,
+    prNumber,
+    staleHead: staleHead === true,
+    onGoToNewest,
+  });
   const brief = useSuspenseQuery(
     buildDbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
@@ -334,10 +338,7 @@ export function PrBriefContent({
         timeline?.degraded ? t("pulls.content.revisionLinkGone") : undefined
       }
       readOnly={review.readOnly !== undefined}
-      staleHead={staleHead}
-      behind={behind}
-      latestPush={latestPush}
-      {...(onGoToNewest ? { onGoToNewest } : {})}
+      newerCommits={newerCommits}
     />
   );
   return (

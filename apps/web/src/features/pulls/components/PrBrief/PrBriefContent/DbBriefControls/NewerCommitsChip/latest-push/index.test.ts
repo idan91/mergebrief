@@ -1,13 +1,14 @@
+import { WaitReasons } from "contract";
 import { describe, expect, it } from "vitest";
 
-import { appI18n } from "../../../../../../../i18n/I18nProvider";
-import { makeGeneration, makeMeta } from "./test-utils";
+import { appI18n } from "../../../../../../../../i18n/I18nProvider";
+import { makeGeneration, makeMeta } from "../test-utils";
 import { LatestPushStates } from "./types";
 import {
   buildCappedPushDetail,
   buildFailedPushDetail,
   readLatestPushState,
-} from "./utils";
+} from ".";
 
 describe("readLatestPushState", () => {
   it("reads a failed latest push with no brief as failed", () => {
@@ -29,6 +30,15 @@ describe("readLatestPushState", () => {
       expect(readLatestPushState(meta)).toBe(LatestPushStates.GENERATING);
     },
   );
+
+  it("reads a pending head whose job spent its attempts as stalled", () => {
+    const generation = makeGeneration({
+      status: "pending",
+      waitReason: WaitReasons.STALLED,
+    });
+    const meta = makeMeta({ generation });
+    expect(readLatestPushState(meta)).toBe(LatestPushStates.STALLED);
+  });
 
   it("offers a rerun on a null-base row whose head brief the route ignores", () => {
     const nullBase = { briefAvailable: false, headBriefStored: true };

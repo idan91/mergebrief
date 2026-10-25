@@ -472,7 +472,7 @@ describe("DB brief route", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /newer commits/i }),
+        screen.getByRole("button", { name: /^go to new brief$/i }),
       ).toBeTruthy(),
     );
     // Still pinned: the OLD span's brief renders behind the banner.
@@ -759,8 +759,10 @@ describe("DB brief route, rev param", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?rev=1&l=c1`,
       [OLDER],
     );
-    const chip = await waitFor(() => screen.getByTestId("stale-revision-chip"));
-    fireEvent.click(chip);
+    const goToNewBrief = await screen.findByRole("button", {
+      name: /^go to new brief$/i,
+    });
+    fireEvent.click(goToNewBrief);
     // The pin effect writes the latest rev back; the link stays gone.
     await waitFor(() => expect(readSearch(router)).toEqual({ rev: 2 }));
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readAwaitingDetailKey } from "./utils";
+import { readAwaitingDetailKey } from "./awaiting-head";
 
 describe("readAwaitingDetailKey", () => {
   it.each([
