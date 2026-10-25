@@ -1,14 +1,14 @@
 /**
- * ENTRY POINT — the repo-config package's ONLY export (`package.json`
+ * ENTRY POINT, the repo-config package's ONLY export (`package.json`
  * `exports["."]`). Everything importable from `"repo-config"` is re-exported
  * here, grouped by the module it lives in. Map + invariants: `AGENTS.md`.
  *
- * The package: the `.mergebrief/` repo-local config surface — Zod schemas +
+ * The package: the `.mergebrief/` repo-local config surface. Zod schemas +
  * budget caps + the pure, source-agnostic `validateRepoConfig` (reject-whole,
  * collision resolution, outcome model) that the generator consumes.
  */
 
-// --- constants.ts — fixed paths, caps, vocabulary, outcome map --------------
+// --- constants.ts: fixed paths, caps, vocabulary, outcome map ---------------
 export {
   ATTRIBUTE_NAME_MAX_CHARS,
   ATTRIBUTE_NAME_PATTERN,
@@ -28,7 +28,7 @@ export {
 } from "./constants";
 export type { RepoConfigOutcome } from "./constants";
 
-// --- schemas.ts — Zod schemas + inferred types ------------------------------
+// --- schemas.ts: Zod schemas + inferred types -------------------------------
 export {
   customAttributeSchema,
   deEmphasisRuleSchema,
@@ -40,7 +40,7 @@ export {
   type RepoSettingsV1,
 } from "./schemas";
 
-// --- validate.ts — the pure validation contract -----------------------------
+// --- validate.ts: the pure validation contract ------------------------------
 export {
   validateRepoConfig,
   type RepoConfigFileInput,
@@ -51,7 +51,10 @@ export {
   type ValidatedRepoPolicy,
 } from "./validate";
 
-// --- origin.ts — the brief.repo_config artifact contract --------------------
+// --- trusted-bots.ts: the settings.yaml bot allow-list check ----------------
+export { isTrustedBot } from "./trusted-bots";
+
+// --- origin.ts: the brief.repo_config artifact contract ---------------------
 export {
   repoConfigArtifactSchema,
   repoConfigOriginSchema,

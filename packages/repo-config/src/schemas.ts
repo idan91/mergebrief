@@ -16,10 +16,35 @@ import {
   FLOOR_ATTRIBUTES,
   IMPLICATION_MAX_CHARS,
   MAX_CUSTOM_ATTRIBUTES,
+  MAX_TRUSTED_BOTS,
+  TRUSTED_BOT_LOGIN_PATTERN,
   UNSAFE_ATTRIBUTE_NAMES,
 } from "./constants";
 
 // --- settings.yaml (v1) -----------------------------------------------------
+
+type BotLogin = Lowercase<string>;
+
+function isLowercaseBotLogin(value: unknown): value is BotLogin {
+  const lowercased = typeof value === "string" && value === value.toLowerCase();
+  return lowercased;
+}
+
+/** GitHub logins are case-insensitive, so the parsed list holds them lowercased. */
+const botLoginSchema = z
+  .string()
+  .regex(TRUSTED_BOT_LOGIN_PATTERN)
+  .transform((login) => login.toLowerCase())
+  .pipe(z.custom<BotLogin>(isLowercaseBotLogin));
+
+function hasUniqueLogins(logins: readonly BotLogin[]): boolean {
+  return new Set(logins).size === logins.length;
+}
+
+const trustedBotsSchema = z
+  .array(botLoginSchema)
+  .max(MAX_TRUSTED_BOTS)
+  .refine(hasUniqueLogins, { error: "a trusted bot is listed twice" });
 
 /**
  * `settings.yaml` v1. `.strict()` so a typo'd key is rejected, not ignored;
@@ -34,6 +59,7 @@ export const settingsV1Schema = z
     entryCommentOnDrafts: z.boolean().default(true),
     tracker: TrackerConfigSchema.optional(),
     trackers: TrackerListSchema.optional(),
+    trustedBots: trustedBotsSchema.optional(),
   })
   .strict()
   .superRefine(refineTrackerSettings);

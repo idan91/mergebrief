@@ -124,6 +124,7 @@ const SAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set([
   "paths",
   "attribute",
   "entryCommentOnDrafts",
+  "trustedBots",
 ]);
 
 /**

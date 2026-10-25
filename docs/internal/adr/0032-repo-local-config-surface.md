@@ -181,3 +181,21 @@ operator sets a default and a code-owner may override it. The credential that
 reads a tracker (a Notion token) stays the operator's, in instance config under
 `contextSources:` (`packages/generators/src/config/context-sources.ts`). ADR
 0033 records the provider side.
+
+### 2026-10-25: settings.yaml lists the bots whose PRs run without a click
+
+`settings.yaml` v1 also carries `trustedBots:`, the bot logins whose pull
+requests generate without a Trigger approval
+(`packages/repo-config/src/schemas.ts`). Logins parse lowercased, at most 32
+entries; a login listed twice in any casing, like any bad entry, rejects the
+whole file per #5. A bot's pull request skips the webhook's author gate; the worker then
+generates only when the default branch's list names the bot
+(`isTrustedBot`, case-insensitive), and an unlisted bot's head waits for a
+collaborator's click.
+
+This is an exception to #4's fail-open fetch. An unread `settings.yaml`
+cannot vouch for a bot, so a bot's run never fails open into generation: a
+read a retry may clear is retried while the job has attempts left, and a
+refused read or the last attempt holds the head `awaiting-trigger`, as an
+unlisted bot's is. Failing open would spend on an author no one trusted;
+holding costs one click.

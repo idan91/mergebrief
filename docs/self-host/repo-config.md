@@ -10,7 +10,7 @@ repo's** briefs loudly when invalid, never the instance.
 ```
 .mergebrief/
   instructions.md    # text guidance to generation (semi-trusted, bounded)
-  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, trackers)
+  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, trackers, trustedBots)
   policy.yaml        # risk policy: custom attributes + display de-emphasis
   rules/             # RESERVED for future generated output; leave empty
 ```
@@ -106,6 +106,35 @@ trackers the repo uses:
   in the description, which is usually a pull request. Within that pool a
   closing keyword wins, then reading order, across boards alike.
 - An invalid block rejects the whole file, like any other key.
+
+### `trustedBots:`, bots whose PRs generate without a click
+
+```yaml
+version: 1
+trustedBots:
+  - renovate[bot]
+  - dependabot[bot]
+  - Copilot
+```
+
+A PR opened by a bot account gets a brief automatically only when the
+bot's login is on this list. Write the login exactly as GitHub shows it on
+the PR: a GitHub App bot carries the `[bot]` suffix (`renovate[bot]`, not
+`renovate`), and GitHub's Copilot coding agent is plain `Copilot`. The
+login before any suffix is at most 39 characters of letters, digits and
+hyphens. Case does not matter: `Renovate[bot]` and `renovate[bot]` name
+the same bot, and listing one bot twice in any casing rejects the whole
+file. At most 32 entries. A bad entry rejects the whole file, like any
+other key.
+
+The list is read from the default branch only, so a bot's PR cannot add
+the bot to it.
+
+A PR from an unlisted bot waits for a collaborator with push access. The
+PR's page in MergeBrief shows them a Generate button; one click generates
+the brief. MergeBrief also posts a comment on the PR saying a brief is
+available on demand, unless the PR is a draft and this file turns
+`entryCommentOnDrafts` off or cannot be read.
 
 ## `policy.yaml` (32 KB, versioned)
 

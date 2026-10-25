@@ -158,11 +158,6 @@
       "count": 1
     }
   },
-  "packages/repo-config/src/index.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    }
-  },
   "packages/repo-config/test/instructions.test.ts": {
     "house/test-title": {
       "count": 1

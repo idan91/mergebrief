@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { RepoConfigOutcomes, SETTINGS_MAX_BYTES } from "../src/constants";
+import {
+  GITHUB_LOGIN_MAX_CHARS,
+  MAX_TRUSTED_BOTS,
+  RepoConfigOutcomes,
+  SETTINGS_MAX_BYTES,
+} from "../src/constants";
 import { validateRepoConfig } from "../src/validate";
 import { padYamlToBytes, settingsFile, yaml } from "./helpers";
 
@@ -9,6 +14,10 @@ import { padYamlToBytes, settingsFile, yaml } from "./helpers";
  */
 function validate(content: string) {
   return validateRepoConfig({ settings: settingsFile(content) });
+}
+
+function makeBotLogins(count: number): string[] {
+  return Array.from({ length: count }, (_unused, index) => `bot-${index}[bot]`);
 }
 
 describe("settings.yaml validation", () => {
@@ -124,6 +133,98 @@ describe("settings.yaml validation", () => {
     const result = validate(yaml({ version: 1, ...block }));
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     expect(result.settings).toBeUndefined();
+  });
+
+  it("applies a trustedBots list and keeps file order", () => {
+    const trustedBots = ["renovate[bot]", "dependabot[bot]"];
+    const result = validate(yaml({ version: 1, trustedBots }));
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+    expect(result.settings?.trustedBots).toEqual(trustedBots);
+  });
+
+  it.each([
+    ["a GitHub App bot login", "renovate[bot]"],
+    ["a bot account login with no suffix", "copilot"],
+  ])("applies %s", (_label, login) => {
+    const result = validate(yaml({ version: 1, trustedBots: [login] }));
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+    expect(result.settings?.trustedBots).toEqual([login]);
+  });
+
+  it.each([
+    ["a suffix with no account name", "[bot]"],
+    ["an empty login", ""],
+    ["an off-charset bot login", "renovate bot[bot]"],
+    ["a doubled suffix", "renovate[bot][bot]"],
+    [
+      "an over-long bot login",
+      `${"a".repeat(GITHUB_LOGIN_MAX_CHARS + 1)}[bot]`,
+    ],
+    ["an over-long login", "a".repeat(GITHUB_LOGIN_MAX_CHARS + 1)],
+  ])("rejects the whole file for %s", (_label, login) => {
+    const result = validate(
+      yaml({ version: 1, trustedBots: ["dependabot[bot]", login] }),
+    );
+    expect(result.settings).toBeUndefined();
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+  });
+
+  it("stores a mixed-case trustedBots entry lowercased", () => {
+    const result = validate(
+      yaml({ version: 1, trustedBots: ["Dependabot[bot]", "Copilot"] }),
+    );
+    expect(result.settings?.trustedBots).toEqual([
+      "dependabot[bot]",
+      "copilot",
+    ]);
+  });
+
+  it("stores a trustedBots entry with a mixed-case suffix lowercased", () => {
+    const result = validate(
+      yaml({ version: 1, trustedBots: ["Renovate[Bot]"] }),
+    );
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+    expect(result.settings?.trustedBots).toEqual(["renovate[bot]"]);
+  });
+
+  it("applies a bot login at the account name length cap", () => {
+    const login = `${"a".repeat(GITHUB_LOGIN_MAX_CHARS)}[bot]`;
+    const result = validate(yaml({ version: 1, trustedBots: [login] }));
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+  });
+
+  it("applies a trustedBots list at exactly the entry cap", () => {
+    const trustedBots = makeBotLogins(MAX_TRUSTED_BOTS);
+    const result = validate(yaml({ version: 1, trustedBots }));
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+    expect(result.settings?.trustedBots).toHaveLength(MAX_TRUSTED_BOTS);
+  });
+
+  it("rejects the whole file one trustedBots entry past the cap", () => {
+    const trustedBots = makeBotLogins(MAX_TRUSTED_BOTS + 1);
+    const result = validate(yaml({ version: 1, trustedBots }));
+    expect(result.settings).toBeUndefined();
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+  });
+
+  it.each([
+    ["a repeated trusted bot", ["renovate[bot]", "renovate[bot]"]],
+    [
+      "a trusted bot repeated in another case",
+      ["renovate[bot]", "Renovate[bot]"],
+    ],
+  ])("rejects the whole file for %s", (_label, trustedBots) => {
+    const result = validate(yaml({ version: 1, trustedBots }));
+    expect(result.settings).toBeUndefined();
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+  });
+
+  it("rejects a misspelled trustedBots key", () => {
+    const result = validate(
+      yaml({ version: 1, trustedBot: ["renovate[bot]"] }),
+    );
+    expect(result.settings).toBeUndefined();
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
   });
 
   it("applies at exactly the byte cap", () => {

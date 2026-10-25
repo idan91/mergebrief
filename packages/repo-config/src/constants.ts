@@ -19,6 +19,8 @@ export const CRITERIA_MAX_CHARS = 4000;
 export const IMPLICATION_MAX_CHARS = 500;
 export const MAX_CUSTOM_ATTRIBUTES = 20;
 export const ATTRIBUTE_NAME_MAX_CHARS = 50;
+export const MAX_TRUSTED_BOTS = 32;
+export const GITHUB_LOGIN_MAX_CHARS = 39;
 export const BUDGET_WARN_FRACTION = 0.8;
 
 /**
@@ -28,6 +30,12 @@ export const BUDGET_WARN_FRACTION = 0.8;
  * (whole-file invalid).
  */
 export const ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
+/** A GitHub login, with the `[bot]` suffix a GitHub App bot carries or without it (`Copilot`). */
+export const TRUSTED_BOT_LOGIN_PATTERN = new RegExp(
+  `^[A-Za-z0-9-]{1,${GITHUB_LOGIN_MAX_CHARS}}(\\[bot\\])?$`,
+  "i",
+);
 
 /**
  * Floor risk attributes: can be neither suppressed nor de-emphasized. A

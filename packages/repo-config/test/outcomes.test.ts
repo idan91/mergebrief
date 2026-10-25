@@ -191,6 +191,28 @@ describe("validateRepoConfig error hygiene", () => {
     );
   });
 
+  it("names the trustedBots entry without echoing its login", () => {
+    const content = yaml({
+      version: 1,
+      trustedBots: ["renovate[bot]", `${CANARY} bot`],
+    });
+    const result = validateRepoConfig({ settings: settingsFile(content) });
+    expect(result.outcomes[1]?.detail).toBe(
+      "schema validation failed (trustedBots.1: invalid_format)",
+    );
+    assertNoCanary(result);
+  });
+
+  it("does not echo a login listed twice in trustedBots", () => {
+    const login = `${CANARY}[bot]`;
+    const content = yaml({ version: 1, trustedBots: [login, login] });
+    const result = validateRepoConfig({ settings: settingsFile(content) });
+    expect(result.outcomes[1]?.detail).toBe(
+      "schema validation failed (trustedBots: custom)",
+    );
+    assertNoCanary(result);
+  });
+
   it("does not echo a valid attribute NAME via a nested policy issue path", () => {
     // A well-formed (charset-valid) custom name is still author YAML content:
     // a nested criteria failure must not leak the name into detail.

@@ -56,5 +56,6 @@ risk-surface vocabulary for your repo's briefs:
 ## `settings.yaml`: workflow taste
 
 Version 1 (`version: 1` is required) takes `entryCommentOnDrafts` (default
-`true`) and the ticket tracker, as `tracker:` or a `trackers:` list. See
-`docs/self-host/repo-config.md` and `docs/self-host/trackers.md`.
+`true`), the ticket tracker, as `tracker:` or a `trackers:` list, and
+`trustedBots`, the bot logins whose PRs generate without a collaborator's
+click. See `docs/self-host/repo-config.md` and `docs/self-host/trackers.md`.

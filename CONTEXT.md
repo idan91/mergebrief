@@ -344,7 +344,7 @@ _Avoid_: send, post, finish (informal)
 _Avoid_: config (bare), settings (that is the repository's `settings.yaml`), env (the keys are named in the file, never held by it)
 
 **Repo config**:
-The `.mergebrief/` directory a repository commits, read from its default branch: `instructions.md` (**Repo instructions**), `settings.yaml` (workflow: `entryCommentOnDrafts`, `trackers`) and `policy.yaml` (**Custom attributes** and **De-emphasis**). A file that fails to fetch closes what it governs rather than guessing.
+The `.mergebrief/` directory a repository commits, read from its default branch: `instructions.md` (**Repo instructions**), `settings.yaml` (workflow: `entryCommentOnDrafts`, `trackers`, `trustedBots`) and `policy.yaml` (**Custom attributes** and **De-emphasis**). A file that fails to fetch closes what it governs rather than guessing.
 _Avoid_: repo YAML, repo settings (one file of it), project config
 
 **Repo instructions**:
