@@ -394,6 +394,7 @@
     },
     "details": {
       "ariaLabelTrigger": "Brief details",
+      "ariaLabelWarnings": "Generation warnings",
       "artifactHeading": "Artifact",
       "kind": "Kind",
       "briefIndex": "Brief index",

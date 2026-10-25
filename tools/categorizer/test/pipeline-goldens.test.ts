@@ -17,7 +17,7 @@ const CASES_DIR = fileURLToPath(new URL("../eval/cases", import.meta.url));
 const PAIRS_DIR = fileURLToPath(new URL("../eval/pair-cases", import.meta.url));
 const EFFORT: Effort = "medium";
 const JSON_INDENT = 2;
-const STITCH_WARNING_PREFIX = "⚠ anchored stitch issues: ";
+const STITCH_WARNING_PREFIX = "⚠ anchored stitch issues:\n";
 const STITCH_WARNING_FAMILIES = [
   ["claim", "claimed by the model output"],
   ["re-emit", "re-emitted without a new file"],
@@ -25,17 +25,17 @@ const STITCH_WARNING_FAMILIES = [
   ["departed", "the PR no longer changes it"],
 ] as const;
 const VALIDATION_WARNING_FAMILIES = [
-  ["unknown group", "⚠ unknown group issues: ", "names unknown group"],
-  ["overlap", "⚠ loc overlap issues: ", "both claim"],
-  ["ungrouped", "⚠ loc coverage issues: ", "file(s) in no group"],
-  ["unattributed", "⚠ loc coverage issues: ", "unattributed to any chunk"],
-  ["reading order", "⚠ reading order issues: ", "references unknown group"],
-  ["intent", "⚠ intent check issues: ", "has no valid group anchor"],
+  ["unknown group", "⚠ unknown group issues:\n", "names unknown group"],
+  ["overlap", "⚠ loc overlap issues:\n", "both claim"],
+  ["ungrouped", "⚠ loc coverage issues:\n", "file(s) in no group"],
+  ["unattributed", "⚠ loc coverage issues:\n", "unattributed to any chunk"],
+  ["reading order", "⚠ reading order issues:\n", "references unknown group"],
+  ["intent", "⚠ intent check issues:\n", "has no valid group anchor"],
 ] as const;
 const VALIDATION_SUBSTRINGS = VALIDATION_WARNING_FAMILIES.map(
   ([, , substring]) => substring,
 );
-const CHECK_PREFIX = /^⚠ (.+?) issues: /;
+const CHECK_PREFIX = /^⚠ (.+?) issues:\n/;
 const RISK_ATTRIBUTE_DROP = "dropped comment-contradicts-code";
 
 interface GoldenRun {

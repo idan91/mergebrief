@@ -1006,7 +1006,7 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
       "⚠ brief failed schema validation — retrying once with error feedback",
     );
     const stored = warnings.join("\n");
-    expect(stored).toContain("\n⚠ reading order issues: ");
+    expect(stored).toContain("\n⚠ reading order issues:\n");
     expect(stored).not.toContain("raw output saved to");
     expect(stored).not.toContain(failureDir);
     expect(logs.join("\n")).toContain(`raw output saved to ${failureDir}`);

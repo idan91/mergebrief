@@ -121,12 +121,12 @@ exports[`adversarial stitch goldens > pair-additive stitches the adversarial out
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; frozen group g1 claimed by the model output — unfrozen and re-examined",
-    "⚠ loc overlap issues: chunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both; chunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues: chunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -236,11 +236,11 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; frozen group g1 re-emitted without a new file — no claim evidence, carry kept",
-    "⚠ loc coverage issues: 12 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s); 1 file(s) in no group — packages/api/src/routes/health.ts",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ loc coverage issues:\\n12 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -437,14 +437,14 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; generated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
-    "⚠ unknown group issues: chunk c4 (packages/api/src/routes/status.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
-    "⚠ loc overlap issues: chunks c2 and c5 (packages/api/src/routes/health.ts) both claim added line(s) 4-17, 19 — counted in both; chunks c2 and c5 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ loc coverage issues: 2 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s); 1 file(s) in no group — packages/api/src/routes/status.ts",
-    "⚠ reading order issues: readingOrder references unknown group \\"t2\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned; doneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues: chunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap; group g2 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
+    "⚠ unknown group issues:\\nchunk c4 (packages/api/src/routes/status.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
+    "⚠ loc overlap issues:\\nchunks c2 and c5 (packages/api/src/routes/health.ts) both claim added line(s) 4-17, 19 — counted in both\\nchunks c2 and c5 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
+    "⚠ loc coverage issues:\\n2 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/status.ts",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -645,12 +645,12 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; frozen group g1 claimed by the model output — unfrozen and re-examined",
-    "⚠ loc overlap issues: chunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both; chunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues: chunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -760,12 +760,12 @@ exports[`adversarial stitch goldens > pair-meaning-changing stitches the adversa
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; frozen group g1 re-emitted without a new file — no claim evidence, carry kept",
-    "⚠ unknown group issues: chunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder; chunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
-    "⚠ loc coverage issues: 13 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s); 1 file(s) in no group — packages/api/src/routes/health.ts",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ unknown group issues:\\nchunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
+    "⚠ loc coverage issues:\\n13 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -986,12 +986,12 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; generated group reused frozen id g1 without its files — treated as a numbering slip, not a claim; frozen group g2 re-emitted without a new file — no claim evidence, carry kept",
-    "⚠ loc overlap issues: chunks c3 and c5 (packages/api/src/routes/version.ts) both claim added line(s) 1-10 — counted in both",
-    "⚠ reading order issues: readingOrder references unknown group \\"t2\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned; doneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues: chunk c3 (packages/api/src/routes/version.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap; group g3 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ loc overlap issues:\\nchunks c3 and c5 (packages/api/src/routes/version.ts) both claim added line(s) 1-10 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c3 (packages/api/src/routes/version.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g3 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -1163,12 +1163,12 @@ exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adver
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; frozen group g1 claimed by the model output — unfrozen and re-examined",
-    "⚠ loc overlap issues: chunks c2 and c4 (docs/plans/brief-143-stability-implementation.md) both claim added line(s) 1-167 — counted in both",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues: chunk c1 (docs/plans/brief-143-stability-spec.md): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (docs/plans/brief-143-stability-implementation.md) both claim added line(s) 1-167 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (docs/plans/brief-143-stability-spec.md): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -1240,11 +1240,11 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it",
-    "⚠ unknown group issues: chunk c2 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder; chunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
-    "⚠ loc coverage issues: 16 added / 1 removed changed line(s) unattributed to any chunk across 2 file(s); 2 file(s) in no group — packages/api/src/routes/health.ts, packages/logging/src/redact.ts",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it",
+    "⚠ unknown group issues:\\nchunk c2 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
+    "⚠ loc coverage issues:\\n16 added / 1 removed changed line(s) unattributed to any chunk across 2 file(s)\\n2 file(s) in no group — packages/api/src/routes/health.ts, packages/logging/src/redact.ts",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)"
   ],
   "index": 2,
   "intentCheck": {
@@ -1433,12 +1433,12 @@ exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial out
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; generated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
-    "⚠ loc overlap issues: chunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both; chunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues: readingOrder references unknown group \\"t2\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned; doneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues: chunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap; group g2 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -1601,12 +1601,12 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; frozen group g1 claimed by the model output — unfrozen and re-examined",
-    "⚠ loc overlap issues: chunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 1-16 — counted in both",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues: chunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 1-16 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -1716,12 +1716,12 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it; frozen group g1 re-emitted without a new file — no claim evidence, carry kept",
-    "⚠ unknown group issues: chunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder; chunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
-    "⚠ loc coverage issues: 1 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s); 1 file(s) in no group — packages/api/src/routes/health.ts",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ unknown group issues:\\nchunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
+    "⚠ loc coverage issues:\\n1 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -1847,10 +1847,10 @@ exports[`adversarial stitch goldens > pair-subtractive stitches the adversarial 
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ anchored stitch issues: generated chunk on packages/api/src/routes/health.ts dropped — the PR no longer changes it; frozen group g1 re-emitted without a new file — no claim evidence, carry kept",
-    "⚠ reading order issues: readingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues: doneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned; doneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/api/src/routes/health.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -2462,8 +2462,8 @@ exports[`brief goldens > button-under-split produces the recorded brief 1`] = `
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ loc coverage issues: 24 added / 7 removed changed line(s) unattributed to any chunk across 2 file(s)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ loc coverage issues:\\n24 added / 7 removed changed line(s) unattributed to any chunk across 2 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -2788,7 +2788,7 @@ exports[`brief goldens > copybutton-new-export produces the recorded brief 1`] =
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ text length issues: group g1 summary is 327 chars — exceeds the 250-char cap"
+    "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -3290,8 +3290,8 @@ exports[`brief goldens > delta-read-api-contract produces the recorded brief 1`]
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ loc coverage issues: 339 added / 1 removed changed line(s) unattributed to any chunk across 6 file(s)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ loc coverage issues:\\n339 added / 1 removed changed line(s) unattributed to any chunk across 6 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -3656,7 +3656,7 @@ exports[`brief goldens > intent-adversarial-ticket produces the recorded brief 1
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ text length issues: group g1 summary is 327 chars — exceeds the 250-char cap"
+    "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -3845,8 +3845,8 @@ exports[`brief goldens > intent-broad-epic produces the recorded brief 1`] = `
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ loc coverage issues: 24 added / 7 removed changed line(s) unattributed to any chunk across 2 file(s)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ loc coverage issues:\\n24 added / 7 removed changed line(s) unattributed to any chunk across 2 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -4085,7 +4085,7 @@ exports[`brief goldens > intent-legit-demotion produces the recorded brief 1`] =
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -4242,7 +4242,7 @@ exports[`brief goldens > intent-masked-fix produces the recorded brief 1`] = `
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -4431,8 +4431,8 @@ exports[`brief goldens > intent-none-no-ticket produces the recorded brief 1`] =
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ loc coverage issues: 24 added / 7 removed changed line(s) unattributed to any chunk across 2 file(s)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ loc coverage issues:\\n24 added / 7 removed changed line(s) unattributed to any chunk across 2 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -4757,7 +4757,7 @@ exports[`brief goldens > intent-precise-ticket produces the recorded brief 1`] =
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ text length issues: group g1 summary is 327 chars — exceeds the 250-char cap"
+    "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -5010,7 +5010,7 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ text length issues: group g1 summary is 327 chars — exceeds the 250-char cap"
+    "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -5664,8 +5664,8 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ loc coverage issues: 20 added / 8 removed changed line(s) unattributed to any chunk across 4 file(s)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ loc coverage issues:\\n20 added / 8 removed changed line(s) unattributed to any chunk across 4 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -5923,7 +5923,7 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -6069,7 +6069,7 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -6209,7 +6209,7 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -6355,7 +6355,7 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -6519,7 +6519,7 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -6693,7 +6693,7 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -6796,7 +6796,7 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -6938,7 +6938,7 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -7078,7 +7078,7 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -7224,8 +7224,8 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ loc coverage issues: 1 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ loc coverage issues:\\n1 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -7376,7 +7376,7 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -7551,8 +7551,8 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ reading order issues: readingOrder is missing group \\"g2\\"",
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g2\\"",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -7645,7 +7645,7 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -7778,8 +7778,8 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ reading order issues: readingOrder is missing group \\"g1\\"",
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap; group g2 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -7915,7 +7915,7 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -8060,7 +8060,7 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -8204,8 +8204,8 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ loc coverage issues: 1 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ loc coverage issues:\\n1 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -8362,7 +8362,7 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -8493,7 +8493,7 @@ exports[`brief goldens > pair-risk-add-new-file produces the recorded brief 1`] 
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -8630,7 +8630,7 @@ exports[`brief goldens > pair-risk-add-new-file produces the recorded brief 1`] 
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -8774,7 +8774,7 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -8916,7 +8916,7 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -9056,7 +9056,7 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
     "intentCheck": {
@@ -9163,7 +9163,7 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
       "provider": "canned"
     },
     "generationWarnings": [
-      "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
     "intentCheck": {
@@ -9969,8 +9969,8 @@ exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] =
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ loc coverage issues: 29 added / 38 removed changed line(s) unattributed to any chunk across 4 file(s); 1 file(s) in no group — packages/persistence/src/db/migrate.ts",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap; group g5 summary is 325 chars — exceeds the 250-char cap; group g6 summary is 296 chars — exceeds the 250-char cap"
+    "⚠ loc coverage issues:\\n29 added / 38 removed changed line(s) unattributed to any chunk across 4 file(s)\\n1 file(s) in no group — packages/persistence/src/db/migrate.ts",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g5 summary is 325 chars — exceeds the 250-char cap\\ngroup g6 summary is 296 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -10421,7 +10421,7 @@ exports[`brief goldens > repo-policy-scoped-attribute produces the recorded brie
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ text length issues: group g1 summary is 327 chars — exceeds the 250-char cap"
+    "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {
@@ -10666,8 +10666,8 @@ exports[`brief goldens > schema-change-provenance produces the recorded brief 1`
     "provider": "canned"
   },
   "generationWarnings": [
-    "⚠ loc coverage issues: 1 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
-    "⚠ text length issues: group g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ loc coverage issues:\\n1 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
   "intentCheck": {

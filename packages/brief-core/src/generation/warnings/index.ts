@@ -7,7 +7,7 @@ import {
 
 function formatGenerationWarning(warning: GenerationWarning): string {
   if (warning.kind === GenerationWarningKinds.VALIDATION) {
-    return `⚠ ${warning.check} issues: ${warning.issues.join("; ")}`;
+    return `⚠ ${warning.check} issues:\n${warning.issues.join("\n")}`;
   }
   return warning.message;
 }

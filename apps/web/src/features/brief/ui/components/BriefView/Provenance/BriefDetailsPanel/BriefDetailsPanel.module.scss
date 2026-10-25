@@ -138,12 +138,17 @@
     display: flex;
     flex-direction: column;
     gap: functions.to-rem(4px);
+    max-block-size: functions.to-rem(240px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     color: var(--color-warning);
     font-size: var(--font-size-md);
     line-height: 1.5;
+    overflow-wrap: anywhere;
 
     p {
       margin: 0;
+      white-space: pre-line;
     }
 
     &:focus-visible {

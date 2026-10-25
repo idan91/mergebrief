@@ -335,13 +335,15 @@ function GenerationSection({
         <p className={styles["caveat"]}>{t("brief.details.noOriginStamp")}</p>
       )}
       {warnings.length > 0 ? (
-        // The header chip's landing target, hence focusable.
+        // A capped scroll region, so a Tab stop; also the header chip's
+        // landing target.
         <div
+          aria-label={t("brief.details.ariaLabelWarnings")}
           className={styles["warnings"]}
           data-details-warnings=""
           ref={warningsRef}
-          role="note"
-          tabIndex={-1}
+          role="region"
+          tabIndex={0}
         >
           {warnings.map((warning) => (
             <p key={warning}>{warning}</p>

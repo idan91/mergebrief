@@ -107,7 +107,8 @@ describe("warnings-chip trigger", () => {
     renderPanel();
     fireEvent.click(warningsChip());
     const note = warningsNote();
-    expect(note?.getAttribute("role")).toBe("note");
+    expect(note?.getAttribute("role")).toBe("region");
+    expect(note?.getAttribute("aria-label")).toBe("Generation warnings");
     expect(note?.textContent).toContain("salvaged brief");
     expect(document.activeElement).toBe(note);
     expect(warningsChip().getAttribute("aria-expanded")).toBe("true");
@@ -203,6 +204,18 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     expect(text).toContain("claude-opus-4-8");
     expect(text).toContain("high");
     expect(text).toContain("salvaged brief");
+  });
+
+  it("keeps a multi-line warning in one paragraph inside a tab stop", () => {
+    const warning = "⚠ loc coverage issues:\nfirst issue\nsecond issue";
+    renderPanel({ ...baseBrief, generationWarnings: [warning] });
+    fireEvent.click(infoTrigger());
+
+    const note = warningsNote();
+    const paragraphs = note?.querySelectorAll("p") ?? [];
+    expect(paragraphs).toHaveLength(1);
+    expect(paragraphs[0]?.textContent).toBe(warning);
+    expect(note?.getAttribute("tabindex")).toBe("0");
   });
 
   it("Repo config: reports no-config when no snapshot is present", () => {
