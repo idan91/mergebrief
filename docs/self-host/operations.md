@@ -486,9 +486,11 @@ were sealed with. To rotate the key:
 1. Generate a new key (`openssl rand -base64 32`) and set it as
    `SESSION_KEY_V2` in `.env`, keeping `SESSION_KEY_V1`.
 2. Set `SESSION_KEY_REF=SESSION_KEY_V2`.
-3. Restart `api` and `worker`. New sign-ins and every token refresh now seal
-   under V2. The worker never seals; it opens each grant by its own
-   `key_ref`, so it only needs both keys present.
+3. Run `docker compose up -d`, which recreates `api` and `worker` with the
+   new `.env`; `docker compose restart` keeps the old environment. New
+   sign-ins and every token refresh now seal under V2. The worker never
+   seals; it opens each grant by its own `key_ref`, so it only needs both keys
+   present.
 4. Keep `SESSION_KEY_V1` set until this returns 0:
 
    ```sql
@@ -497,6 +499,168 @@ were sealed with. To rotate the key:
 
    Removing it earlier fails every user whose grant still names it with 500
    and `token.decrypt.fail` until you set it back; nobody is signed out.
+
+## Rotating secrets
+
+Every secret lives in `.env` (or your secret store) and is read once, at
+boot. `docker compose up -d` recreates each service whose environment
+changed, so it picks up a new value; `docker compose restart` keeps the old
+environment. The exception is a secret read from a file, such as
+`GITHUB_APP_PRIVATE_KEY_PATH` or `DATABASE_URL_FILE`: compose cannot see a
+file's contents change, so after replacing the file run
+`docker compose restart api worker`.
+
+`web` holds none of these secrets and never needs a restart for them.
+
+### The session key
+
+The session key seals one thing: each signed-in user's GitHub access and
+refresh token pair, on its `github_grant` row. Session cookies and API
+tokens are stored as SHA-256 hashes, so no key touches them, and no other
+column is encrypted.
+
+Rotate it under a new name, never in place. The steps are in
+[Tokens at rest](#tokens-at-rest): add `SESSION_KEY_V2`, point
+`SESSION_KEY_REF` at it, recreate `api` and `worker`, and keep
+`SESSION_KEY_V1` set until no grant names it. Nobody is signed out.
+
+Changing the value of `SESSION_KEY_V1` in place, or losing it, breaks every
+grant sealed under that name:
+
+- Every request from those users that needs GitHub answers 500, and the api
+  logs `token.decrypt.fail`. Their sessions and API tokens stay valid; only
+  the GitHub side fails.
+- Generating a pasted pull request for one of them fails until they sign in
+  again.
+- The worker's hourly sweep cannot revoke their tokens at GitHub. It logs
+  `grant.revoke.fail` with `code: credential-unreadable` and deletes the
+  grant anyway; GitHub expires the token on its own.
+
+The fix is to put the old value back and run `docker compose up -d`. If the
+old value is gone, each user recovers on their own: signing out and in again
+seals a new grant under the current key. A CLI token stays bound to the
+sign-in it was minted from, so each user also revokes their old CLI tokens
+in `/settings` and mints new ones.
+
+### The GitHub App private key
+
+`api` and `worker` both sign with it. GitHub accepts every private key the
+App holds, so you can rotate with no gap:
+
+1. On the App's settings page, under **Private keys**, choose
+   **Generate a private key**. The old key keeps working.
+2. Put the new PEM in `GITHUB_APP_PRIVATE_KEY`, or replace the file
+   `GITHUB_APP_PRIVATE_KEY_PATH` names.
+3. Run `docker compose up -d` (inline key) or
+   `docker compose restart api worker` (key file).
+4. Confirm a push to a pull request in an installed repository still
+   generates its brief.
+5. Delete the old key on the same settings page.
+
+An unreadable or empty key file refuses boot, but boot never shows the key
+to GitHub. A key GitHub does not accept fails at the first call that needs
+the App, so step 4 is the check.
+
+### The OAuth client secret
+
+`api` uses `GITHUB_OAUTH_CLIENT_SECRET` to finish a sign-in, to refresh a
+user's GitHub token and to revoke one; `worker` uses it to revoke the tokens
+its hourly sweep removes.
+
+1. On the App's settings page, under **Client secrets**, choose
+   **Generate a new client secret**. The old one keeps working.
+2. Set `GITHUB_OAUTH_CLIENT_SECRET` in `.env` and run `docker compose up -d`.
+3. Sign in from a private window to confirm.
+4. Delete the old secret on GitHub.
+
+Signed-in users notice nothing. If the secret in `.env` is one GitHub no
+longer accepts, every sign-in fails and the api logs
+`sign-in refused: GitHub refused the App's OAuth credentials` at `error`.
+Every token refresh fails too, logging `token.refresh.fail`: the request
+answers 500 and the session is kept.
+
+### The webhook secret
+
+The App holds one webhook secret, so GitHub and MergeBrief must change
+together. Deliveries GitHub sends while the two sides differ fail: the api
+answers 401, logs `webhook.verify.fail` and writes nothing.
+
+1. Generate a new secret: `openssl rand -hex 32`. Boot refuses one under 32
+   characters.
+2. Set it as the App's **Webhook secret** on GitHub, then at once set
+   `GITHUB_WEBHOOK_SECRET` in `.env` and run `docker compose up -d`. Only
+   `api` verifies deliveries, but `worker` parses the same variable, and
+   both are recreated.
+3. On the App's **Advanced** tab, open **Recent Deliveries** and redeliver
+   any that failed in between. GitHub never retries a failed delivery on its
+   own.
+
+A `webhook.verify.fail` rate that stays up after the rotation means one side
+did not move.
+
+### The Postgres password
+
+The bundled `postgres` image reads `POSTGRES_PASSWORD` only when it
+initializes an empty volume. After the first boot, changing `.env` alone
+leaves the role's password as it was, while compose builds the `api` and
+`worker` connection string from the new value, so both fail to connect.
+Change the role first:
+
+1. Generate a new password: `openssl rand -hex 24`. Use the output
+   verbatim; it lands in a connection string unescaped
+   ([compose.md](./compose.md#1-postgres-credentials)).
+2. Stop the services that hold connections:
+
+   ```sh
+   docker compose stop web api worker
+   ```
+
+3. Set the role's password from inside the container. `\password` prompts
+   twice, and keeps the value out of your shell history and the server log:
+
+   ```sh
+   docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+   # at the psql prompt:
+   \password
+   \q
+   ```
+
+4. Set `POSTGRES_PASSWORD` in `.env` to the same value. If `.env` also
+   carries a host `DATABASE_URL` for the bundled database
+   (`postgres://code_review:...@127.0.0.1:5432/...`, used by a host dev loop
+   or host tooling), update its password too.
+5. Run `docker compose up -d`. Compose recreates `postgres` with the new
+   environment, which the image ignores, and `api` and `worker` with the
+   connection string derived from it. The data stays in the volume.
+
+`POSTGRES_USER` and `POSTGRES_DB` are first-boot only in the same way;
+changing them later needs the matching `ALTER ROLE` or `ALTER DATABASE`, and
+is rarely worth it.
+
+On an external database, change the password at the provider, then update
+`DATABASE_URL` and run `docker compose up -d`, or update the file
+`DATABASE_URL_FILE` names and run `docker compose restart api worker`.
+
+### The URL fallback token
+
+`api` and `worker` each ask GitHub at boot whose token
+`MERGEBRIEF_URL_FALLBACK_TOKEN` is, and serve only that account. They read
+the variable only at boot, so a new token takes effect only when they are
+recreated.
+
+1. Make the new token on the same GitHub account as the old one. On another
+   account it serves only that account, and the previous owner's pasted
+   private pull requests lose the fallback.
+2. Set `MERGEBRIEF_URL_FALLBACK_TOKEN` in `.env` and run
+   `docker compose up -d`.
+3. Check the `api` and `worker` logs for the line
+   `URL fallback token serves its owner only`. A
+   `url-fallback-token.owner.fail` line instead means GitHub refused the
+   token; it serves nobody until you replace it and restart.
+4. Delete the old token on GitHub, under **Settings**, **Developer
+   settings**, **Personal access tokens**.
+
+A fine-grained token carries an expiry date; rotate it before that date.
 
 ## The audit log
 
@@ -652,6 +816,86 @@ If your network blocks github.com or release-assets.githubusercontent.com, where
 | --- | --- | --- |
 | `MERGEBRIEF_UPDATE_CHECK` | `true` | Fetch `version.json` from GitHub Releases at most once an hour to learn about newer releases. The request identifies nothing. Off: no banner, no log line, no `latest` in `/api/version`. |
 | `MERGEBRIEF_UPDATE_CHECK_URL` | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | Where `version.json` is fetched from. Point it at a mirror on a network that blocks github.com. An absolute `http` or `https` URL with no credentials in it, or boot is refused. |
+
+## Uninstalling
+
+Removing an instance touches three places: GitHub, the host, and each
+repository the App pushed images to. Work in this order, because the first
+step needs the instance running.
+
+1. **Take a last backup**, if you may want the data again
+   ([Backup](#backup)). After step 6 nothing brings it back.
+2. **Delete the attachment branches.** Each repository a reviewer attached
+   an image in holds a `mergebrief/attachments` branch the App pushed
+   ([attachments.md](./attachments.md)). Uninstalling the App leaves it in
+   place. While the instance still runs, a repository admin deletes it from
+   Home: the row menu of any pull request in that repository offers
+   **Delete attachment branch**. Once the App is gone, or for a repository
+   Home does not list, delete it on GitHub. To find the branches across an
+   account or organization:
+
+   ```sh
+   for repo in $(gh repo list <owner> --limit 1000 --json nameWithOwner --jq '.[].nameWithOwner'); do
+     gh api "repos/$repo/git/ref/heads/mergebrief/attachments" --silent 2>/dev/null && echo "$repo"
+   done
+   ```
+
+   and delete one with:
+
+   ```sh
+   gh api -X DELETE "repos/<owner>/<repo>/git/refs/heads/mergebrief/attachments"
+   ```
+
+   Every comment that embedded an image from the branch, on GitHub
+   included, then shows a broken image.
+
+3. **Uninstall the App from each account and organization** that installed
+   it: in that account's or organization's settings, open the App under its
+   installed GitHub Apps, choose **Configure**, then **Uninstall**. If the
+   instance is still running, it receives the uninstall and deletes that
+   installation's pull requests and briefs at once. The App's "brief ready"
+   comments on pull requests stay on GitHub; delete them there if you want
+   them gone.
+4. **Delete the App registration**: on the App's settings page,
+   **Advanced**, then **Delete GitHub App**.
+5. **Revoke the URL fallback token**, if you set
+   `MERGEBRIEF_URL_FALLBACK_TOKEN`: delete it on GitHub under **Settings**,
+   **Developer settings**, **Personal access tokens**, on the account that
+   owns it.
+6. **Remove the containers, then the data.** From the folder that holds
+   `docker-compose.yml`:
+
+   ```sh
+   docker compose down                        # stop and remove the containers
+   docker compose down --volumes --rmi all    # DESTRUCTIVE: also drops postgres_data and the images
+   ```
+
+   The second command deletes the `postgres_data` volume, and with it every
+   brief, review session, API token and audit row. It cannot be undone; only
+   a dump from step 1 brings the data back. On an external database, drop
+   the database through your provider instead; `--volumes` has nothing to
+   remove there.
+
+7. **Delete the host files**: `.env`, `mergebrief.config.yaml`, any private
+   key file, `docker-compose.override.yml` and the `secrets/` folder, which
+   holds the database URL with its password when you use `DATABASE_URL_FILE`.
+   On an external database, also drop or rotate that role. Treat old dumps
+   like `.env`: a dump holds every user's encrypted GitHub tokens, and `.env`
+   holds the key that opens them.
+
+### What each user can revoke
+
+A user leaving a running instance, or one who does not want to wait for the
+operator, can clear their own side:
+
+- **CLI tokens**: revoke each one in `/settings`.
+- **Sessions**: **Sign out**, then **Everywhere**. Once no session and no
+  live CLI token uses their sign-in, MergeBrief revokes their GitHub token
+  at GitHub and deletes its stored copy.
+- **The App's access to their account**: on GitHub, **Settings**,
+  **Applications**, **Authorized GitHub Apps**, then **Revoke** next to the
+  App. GitHub tells a running instance, which deletes every session, CLI
+  token and stored GitHub credential the user held there.
 
 ## See also
 

@@ -111,20 +111,9 @@ renames, or removes one) must update the mirrors in the same PR:
 - `packages/repo-config/src/constants.ts`: `FLOOR_ATTRIBUTES` and `PARKED_ATTRIBUTE_CANDIDATES`,
   when the token is a floor attribute or a parked candidate.
 
-Token changes touch the generation surface, so the eval harness applies
-(`pnpm -C tools/categorizer eval`; see `tools/categorizer/eval/README.md`).
-Verification for code-touching PRs, on the Node version in `.nvmrc`:
-
-```bash
-pnpm -C <member> typecheck && pnpm -C <member> test   # each app, package or tool you touched
-pnpm lint
-```
-
-Every member has its own suite, and the root `pnpm test` runs only `tools/categorizer`'s, so
-run each touched member's suite. `pnpm test` in a member enforces its coverage floor (75% of
-lines; `apps/api` holds 85%, `tools/categorizer` 60%), and a drop below it fails. `pnpm lint`
-runs oxlint, dependency-cruiser, knip, prettier, the web stylesheet lint and the repo's
-`check:*` gates in one chain; its exit code is the result.
+Token changes touch the generation surface, so [the eval harness](#the-eval-harness)
+applies. Verify the change with
+[the gates a pull request must pass](#gates-a-pull-request-must-pass).
 
 Docs-only PRs need no build step. Yes, the mirror step is manual for now; generating the
 code from the markdown is a welcome future contribution.
@@ -189,13 +178,95 @@ open an issue before starting one.
 
 ## Code contributions
 
-Bug fixes and features are welcome as pull requests. Run the verification commands
-above before opening one. For anything architectural, open an issue to discuss first; several tempting features
+Bug fixes and features are welcome as pull requests. Run
+[the gates](#gates-a-pull-request-must-pass) before opening one. For anything architectural, open an issue to discuss first; several tempting features
 (severity scores, AI-authored review comments, general-purpose bug hunting) are non-goals
 listed in [`docs/vision.md`](docs/vision.md), and a PR won't change that.
 
 A vulnerability never goes in a public issue or pull request. Report it privately as
 [`SECURITY.md`](./SECURITY.md) describes.
+
+## Development setup
+
+### Tools
+
+- **Node**, at the version `.nvmrc` names. CI reads the same file, and
+  `engines` in the root `package.json` states the range the tooling accepts.
+- **pnpm**, at the version the root `package.json` pins in `packageManager`.
+  This is a pnpm workspace: `apps/*`, `packages/*` and `tools/*`, each with
+  its own scripts. Run a member's script with `pnpm -C <member> <script>`,
+  for example `pnpm -C apps/api test`.
+- **Docker**, for the local Postgres and for the end-to-end suite.
+
+### Install and run
+
+```bash
+pnpm install
+cp .env.example .env
+```
+
+Fill in `.env` as the README's
+[Quickstart](./README.md#quickstart-local-dev-loop) describes: a dev GitHub
+App's credentials, `SESSION_KEY_V1`, a provider key, and a host
+`DATABASE_URL` for the compose Postgres. Then:
+
+- `pnpm app:host` starts the compose Postgres and runs the api, the worker
+  and the web app on your machine with `.env` loaded. This is the full
+  loop: briefs generate.
+- `pnpm dev` runs only the api and the web app. Nothing generates under it.
+- [`docs/dev/webhook-loop.md`](./docs/dev/webhook-loop.md) adds a tunnel so
+  real GitHub webhooks reach your machine.
+
+### Gates a pull request must pass
+
+Judge each by its exit code, not its output.
+
+- **`pnpm lint`** runs, in one chain that stops at the first failure:
+  oxlint (type-aware), dependency-cruiser, knip, `prettier --check`, the web
+  stylesheet lint, and five repository checks: `check:catalog` (the CLI's
+  operation map against the API's operation table), `check:config`,
+  `check:migrations`, `check:releases` and `check:baselines`. `pnpm format`
+  fixes formatting.
+- **`check:baselines`** compares your working tree with its merge base
+  against `main`. In a clone with no local `main`, set
+  `MERGEBRIEF_BASELINE_BASE=origin/main`; a base it cannot resolve fails
+  the gate.
+- **`pnpm -C <member> typecheck`** and **`pnpm -C <member> test`** for each
+  app, package or tool you touched. Root `pnpm test` runs only
+  `tools/categorizer`; `pnpm -r typecheck` and `pnpm -r test` run every
+  member.
+- **Coverage floors** ride inside each member's `test`: its vitest config
+  commits a lines threshold, and a drop below it fails. The standard is 75%;
+  `apps/api` holds 85% and `tools/categorizer` 60%. Never lower a floor to
+  absorb a drop.
+- **`pnpm -C apps/web test:e2e`** when you touch the web app or anything it
+  calls. Playwright's global setup starts its own Postgres container, so
+  Docker must be running; install the browser once with
+  `pnpm -C apps/web exec playwright install chromium`.
+- **`pnpm -C apps/web build`** when you touch web code that runs on both
+  server and client. Only the build catches a client import of server-only
+  code.
+- **`pnpm -C apps/cli build`** and **`pnpm -C apps/cli docs:check`** when
+  you touch the CLI. `pnpm -C apps/cli docs:appendix` rewrites the appendix
+  `docs:check` compares.
+- **Generated files** are committed, and CI fails on any drift. A change
+  under `apps/web/src/routes/` regenerates `routeTree.gen.ts` through
+  `pnpm -C apps/web build`; a change under `packages/persistence/src/schema/`
+  needs `pnpm -C packages/persistence generate`. Commit what they write.
+- **`pnpm audit --prod --audit-level=high`** when you add or bump a
+  dependency.
+
+The real-Postgres suites in `apps/api`, `apps/worker` and
+`packages/persistence` skip locally unless `MERGEBRIEF_TEST_POSTGRES_URL`
+points at a throwaway database; CI runs them.
+
+### The eval harness
+
+A change to the generation surface, such as the prompt, the output schema,
+its validators, or the vocabulary maps above, is checked against the eval
+harness before it lands. Do not run it yourself: it spends API credit on
+keys a fork does not have. Say in your pull request which eval cases your
+change could move and why, and the maintainer runs them.
 
 ## License and the DCO
 

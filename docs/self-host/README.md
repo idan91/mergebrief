@@ -56,7 +56,7 @@ its own.
 5. [configuration.md](./configuration.md): every variable and config key, its
    default, and what an empty or bad value does.
 6. [operations.md](./operations.md): upgrades, migrations, backup and restore,
-   retention, tokens at rest and the audit log.
+   retention, tokens at rest, rotating secrets, the audit log and uninstalling.
 7. [observability.md](./observability.md): the log line, the `evt` names to
    alert on, health endpoints and tracing.
 8. [troubleshooting.md](./troubleshooting.md): a symptom, its cause and the

@@ -174,3 +174,50 @@ tenant. A different account/org installing the App is a separate tenant.
 - **Production (self-hosters, later):** the intended path is the **App-manifest flow**: the
   instance generates the manifest, the operator confirms on GitHub, and identity is handed
   back automatically. Until that ships, the manual UI steps above are the reference.
+
+## Production registration checklist
+
+Run through this once the instance has its public address. Each line links
+to the section that explains it.
+
+- [ ] **`PUBLIC_BASE_URL` is the `https://` origin reviewers browse.** The
+      session cookie is `__Host-` prefixed and `Secure`, so over plain
+      `http://` on a real hostname sign-in does not persist
+      ([compose.md](./compose.md#2-terminate-tls-at-a-reverse-proxy)).
+- [ ] **Callback URL** is `PUBLIC_BASE_URL` followed by
+      `/api/auth/github/callback`, character for character. The api builds
+      the OAuth redirect from that value, so any difference is a
+      `redirect_uri` mismatch at sign-in ([Webhook](#webhook)).
+- [ ] **Webhook URL** is `PUBLIC_BASE_URL` followed by
+      `/api/webhooks/github`, publicly reachable, with **Active** checked
+      ([Webhook](#webhook)).
+- [ ] **Webhook secret** comes from `openssl rand -hex 32`, is different
+      from every other instance's, and matches `GITHUB_WEBHOOK_SECRET`.
+      Boot refuses a secret under 32 characters
+      ([compose.md](./compose.md#3-the-webhook-secret-is-the-only-gate-on-the-webhook-route)).
+- [ ] **Expire user authorization tokens** stays checked. Without it GitHub
+      issues no refresh token and every sign-in fails
+      ([Reviewer sign-in](#reviewer-sign-in)).
+- [ ] **Permissions** are exactly the four in
+      [Permissions](#permissions-least-privilege-exactly-these-four):
+      Contents and Pull requests read and write, Metadata read, and
+      organization Members read.
+- [ ] **Events**: only **Pull request** and **Pull request review**
+      ([Events to subscribe to](#events-to-subscribe-to)).
+- [ ] **Members is approved in every organization.** An organization that
+      installed the App before Members was added must approve the new
+      permission; until its owner does, team suggestions stay empty there.
+- [ ] **Credentials are in `.env`**, never the config file or the
+      repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
+      `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_OAUTH_CLIENT_ID`,
+      `GITHUB_OAUTH_CLIENT_SECRET` and `GITHUB_WEBHOOK_SECRET`
+      ([Identity / secrets](#identity--secrets-all-env-never-the-db-or-repo)).
+      Optionally `GITHUB_APP_SLUG`, so Home can link a viewer with no
+      installation to the install page.
+- [ ] **The App is installed** on each account and organization, with the
+      repositories you want briefed
+      ([Installing across multiple repos](#installing-across-multiple-repos)).
+
+Then work through
+[Hardening before real exposure](./compose.md#hardening-before-real-exposure):
+Postgres credentials, TLS, and a rate limit on the webhook route.
