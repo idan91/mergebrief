@@ -3,25 +3,38 @@ import { cleanup, screen } from "@testing-library/react";
 import type { LinkHTMLAttributes } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { I18nProvider } from "../i18n/I18nProvider";
+import { appI18n, I18nProvider } from "../i18n/I18nProvider";
 import { renderInRouter } from "../test/router";
 import { Route } from "./__root";
 
 type HeadLink = LinkHTMLAttributes<HTMLLinkElement>;
 
-async function resolveHeadLinks(): Promise<HeadLink[]> {
+async function resolveHead() {
   const head = Route.options.head;
   if (head === undefined) {
     throw new Error("the root route declares no head");
   }
-  const resolved = await head({
+  return head({
     loaderData: undefined,
     match: {},
     matches: [],
     params: {},
   } as never);
+}
+
+async function resolveHeadLinks(): Promise<HeadLink[]> {
+  const resolved = await resolveHead();
   const links = resolved.links ?? [];
   return links.filter((link) => link !== undefined);
+}
+
+async function resolveDescriptions(): Promise<string[]> {
+  const resolved = await resolveHead();
+  const meta = resolved.meta ?? [];
+  const descriptions = meta.filter(
+    (tag) => tag?.name === "description" || tag?.property === "og:description",
+  );
+  return descriptions.map((tag) => String(tag?.content));
 }
 
 describe("root route head", () => {
@@ -47,6 +60,20 @@ describe("root route head", () => {
 
     expect(hrefs.some((href) => href.includes("googleapis"))).toBe(false);
     expect(hrefs.some((href) => href.includes("gstatic"))).toBe(false);
+  });
+
+  it("reads both descriptions from the catalog", async () => {
+    const owned = appI18n.t("shell.headMeta.description");
+    const descriptions = await resolveDescriptions();
+
+    expect(descriptions).toEqual([owned, owned]);
+  });
+
+  it("describes the product as source-available, not open source", () => {
+    const owned = appI18n.t("shell.headMeta.description");
+
+    expect(owned).toContain("Source-available");
+    expect(owned).not.toMatch(/open[- ]source/i);
   });
 });
 

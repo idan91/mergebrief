@@ -11,57 +11,59 @@ import { Button } from "@web/components/Button";
 import { Footer } from "@web/components/Footer";
 import { StatePage } from "@web/components/StatePage";
 import { AccountMenu, useSyncViewerOnSignOut } from "@web/features/account";
-import { I18nProvider } from "../i18n/I18nProvider";
+import { appI18n, I18nProvider } from "../i18n/I18nProvider";
 import type { RouterContext } from "../router";
 import appStyles from "../styles/app.scss?url";
 import monoBodyFont from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url";
 import sansBodyFont from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover",
-      },
-      { title: "MergeBrief" },
-      {
-        name: "description",
-        content:
-          "MergeBrief turns a pull request into a brief that groups the changes, summarizes them in plain language and points at what needs a closer look. Open source, self-hosted, bring your own model key.",
-      },
-      {
-        property: "og:title",
-        content: "MergeBrief: understand a pull request before you review it",
-      },
-      {
-        property: "og:description",
-        content:
-          "MergeBrief turns a pull request into a brief that groups the changes, summarizes them in plain language and points at what needs a closer look. Open source, self-hosted, bring your own model key.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-    links: [
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-      {
-        rel: "preload",
-        as: "font",
-        type: "font/woff2",
-        href: sansBodyFont,
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "preload",
-        as: "font",
-        type: "font/woff2",
-        href: monoBodyFont,
-        crossOrigin: "anonymous",
-      },
-      { rel: "stylesheet", href: appStyles },
-    ],
-  }),
+  head: () => {
+    const description = appI18n.t("shell.headMeta.description");
+
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        {
+          name: "viewport",
+          content: "width=device-width, initial-scale=1, viewport-fit=cover",
+        },
+        { title: "MergeBrief" },
+        {
+          name: "description",
+          content: description,
+        },
+        {
+          property: "og:title",
+          content: "MergeBrief: understand a pull request before you review it",
+        },
+        {
+          property: "og:description",
+          content: description,
+        },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary" },
+      ],
+      links: [
+        { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+        {
+          rel: "preload",
+          as: "font",
+          type: "font/woff2",
+          href: sansBodyFont,
+          crossOrigin: "anonymous",
+        },
+        {
+          rel: "preload",
+          as: "font",
+          type: "font/woff2",
+          href: monoBodyFont,
+          crossOrigin: "anonymous",
+        },
+        { rel: "stylesheet", href: appStyles },
+      ],
+    };
+  },
   component: RootComponent,
   notFoundComponent: RootNotFound,
 });

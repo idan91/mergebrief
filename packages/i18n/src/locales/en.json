@@ -1432,6 +1432,9 @@
       "settings": "Settings",
       "localBrief": "Local brief"
     },
+    "headMeta": {
+      "description": "MergeBrief turns a pull request into a brief that groups the changes, summarizes them in plain language and points at what needs a closer look. Source-available and self-hosted. Bring your own model key."
+    },
     "markdownToolbar": {
       "bold": "Bold",
       "boldTitle": "Bold (Ctrl/Cmd+B)",
