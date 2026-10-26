@@ -2,6 +2,7 @@ import type { TFunction } from "i18next";
 
 import { PrStates } from "types";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
+import { buildBriefSearchParams } from "../../../../model/comparison/compare-state";
 import type {
   LinearPrStack,
   LivePrState,
@@ -18,6 +19,12 @@ import {
   type StackNeighbours,
   type StackView,
 } from "./types";
+
+/**
+ * A stack neighbour opens as its full brief: with no view named, a reviewer
+ * holding a checkpoint on it would land in Changes Only.
+ */
+const STACK_LANDING_SEARCH = buildBriefSearchParams("full", undefined);
 
 export function isLinearPrStack(stack: PrStack): stack is LinearPrStack {
   return "members" in stack;
@@ -100,6 +107,7 @@ export function resolveNeighbourTarget(
     return {
       kind: NeighbourTargetKinds.ROUTE,
       params: { repoId, prNumber: String(member.number) },
+      search: STACK_LANDING_SEARCH,
     };
   }
   const href = buildGithubPullUrl(repoSlug, member.number);

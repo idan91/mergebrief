@@ -73,6 +73,7 @@ describe("StackArrows", () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe("/repos/42/pulls/14"),
     );
+    expect(router.state.location.searchStr).toBe("?view=full");
   });
 
   it("disables the arrow at an end of the stack", async () => {

@@ -49,6 +49,7 @@ export function NeighbourLink({
         aria-label={label}
         className={rowClass}
         params={target.params}
+        search={target.search}
         title={label}
         to="/repos/$repoId/pulls/$prNumber"
       >

@@ -375,7 +375,7 @@ describe("stack chip", () => {
     );
     expect(
       screen.getByRole("link", { name: "#6 Parent" }).getAttribute("href"),
-    ).toBe("/repos/424242/pulls/6");
+    ).toBe("/repos/424242/pulls/6?view=full");
   });
 });
 

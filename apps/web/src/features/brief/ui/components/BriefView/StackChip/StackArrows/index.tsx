@@ -68,6 +68,7 @@ export function StackArrows({
       void navigate({
         to: "/repos/$repoId/pulls/$prNumber",
         params: target.params,
+        search: target.search,
       });
       return;
     }

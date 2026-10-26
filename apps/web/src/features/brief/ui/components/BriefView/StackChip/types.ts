@@ -1,5 +1,6 @@
 import type { ValueOf } from "types/utils";
 
+import type { BriefSearchParams } from "../../../../model/comparison/compare-state";
 import type { PrStack, PrStackMember } from "../../../../model/types";
 
 export const StackChipOpeners = {
@@ -32,7 +33,11 @@ export interface NeighbourRouteParams {
 }
 
 export type NeighbourTarget =
-  | { kind: typeof NeighbourTargetKinds.ROUTE; params: NeighbourRouteParams }
+  | {
+      kind: typeof NeighbourTargetKinds.ROUTE;
+      params: NeighbourRouteParams;
+      search: BriefSearchParams;
+    }
   | { kind: typeof NeighbourTargetKinds.GITHUB; href: string }
   | { kind: typeof NeighbourTargetKinds.NONE };
 

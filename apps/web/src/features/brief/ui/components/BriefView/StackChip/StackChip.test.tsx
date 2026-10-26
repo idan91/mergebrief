@@ -105,7 +105,7 @@ describe("StackChip", () => {
     );
     expect(
       screen.getByRole("link", { name: "#12 Bottom" }).getAttribute("href"),
-    ).toBe("/repos/424242/pulls/12");
+    ).toBe("/repos/424242/pulls/12?view=full");
   });
 
   it("rewrites the GitHub URL when repo identity is absent", async () => {

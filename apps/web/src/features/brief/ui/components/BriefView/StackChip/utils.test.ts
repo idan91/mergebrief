@@ -162,10 +162,11 @@ describe("resolveStackNeighbours", () => {
 describe("resolveNeighbourTarget", () => {
   const member = { number: 3, title: "c" };
 
-  it("prefers the app route when the repo is known", () => {
+  it("prefers the app route, landing on the full brief", () => {
     expect(resolveNeighbourTarget(member, "42", REPO_SLUG)).toEqual({
       kind: "route",
       params: { repoId: "42", prNumber: "3" },
+      search: { view: "full" },
     });
   });
 
