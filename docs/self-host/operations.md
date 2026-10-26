@@ -646,7 +646,7 @@ The answer drives three things: the banner every signed-in user sees when a newe
 
 To turn it off, set `MERGEBRIEF_UPDATE_CHECK=false`. The banner, the log line and the `latest` fields then never appear; nothing else changes. A `dev` build never checks.
 
-If your network blocks github.com, the check fails quietly: one `update.check.fail` line at `info` on the first failure after boot, `debug` after that, and `/api/version` carries no fresh `checkedAt`.
+If your network blocks github.com or release-assets.githubusercontent.com, where the release file redirects, the check fails quietly: one `update.check.fail` line at `info` on the first failure after boot, `debug` after that, and `/api/version` carries no fresh `checkedAt`.
 
 | Variable | Default | What it does |
 | --- | --- | --- |

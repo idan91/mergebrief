@@ -529,8 +529,8 @@ cross-revision stability rides an anchored minimal-edit rule. Both are
 prompt-enforced: strong models comply; weaker models over-write
 and rewrite. The pipeline never trims or retries: over-cap text is
 stamped on the artifact (`lengthViolations`) and surfaces two ways: a
-muted line on the Changes view ("Some brief text exceeds length
-guidance…") and `⚠ prose length` entries in `generationWarnings`. The
+muted line on the Changes view ("Some brief text is longer than the
+length guidance…") and `⚠ prose length` entries in `generationWarnings`. The
 hover callout clamps visually as a last resort. Anchored-edit drift
 (wholesale summary rewrites between revisions) has no mechanical guard at
 all; it is a model-quality property. If you see either persistently,

@@ -96,9 +96,10 @@ http://localhost:3000, and a background worker that briefs **the pushes to
 every PR** on the repos your GitHub App is installed on, debounced and under
 the instance's daily cap, with no manual step for an author the repository
 trusts. Any other author's PR waits for one Generate click from a
-collaborator with push access, and its later pushes run as usual. Setup
-details (App registration, env table, verification, hardening before you
-expose it):
+collaborator with push access, and its later pushes run as usual. Start with
+[`docs/self-host/README.md`](./docs/self-host/README.md): prerequisites, sizing
+and a reading order for every self-host page. Setup details (App registration,
+env table, verification, hardening before you expose it):
 [`docs/self-host/compose.md`](./docs/self-host/compose.md). Every environment
 variable, instance config key and CLI setting, with its default:
 [`docs/self-host/configuration.md`](./docs/self-host/configuration.md). Upgrades,
