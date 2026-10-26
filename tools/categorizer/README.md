@@ -34,7 +34,7 @@ cp .env.example .env
 # edit .env and set ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-`.env` is gitignored **and** denied to the Claude Code agent via `.claude/settings.json`, so the key stays out of version control and out of agent reads. The SDK loads it from the process environment at runtime.
+`.env` is gitignored, so the key stays out of version control. If you run a coding agent here, deny it reads of this file in the agent's settings, as the maintainers' Claude Code settings do. The SDK loads the key from the process environment at runtime.
 
 ## Usage
 

@@ -6,7 +6,7 @@ product
 
 ## Users
 
-Individual engineers and small teams who want a self-hosted code-review comprehension tool they can run with their own infrastructure and model key. They are reviewing PRs in the normal engineering flow, often under the pressure of AI-authored diff volume, and need to regain a reliable mental model before writing human review comments.
+Individual engineers and small teams who want a self-hosted code-review comprehension tool they can run with their own infrastructure and model key. They are reviewing PRs in the normal engineering flow, often under the pressure of high diff volume, and need to regain a reliable mental model before writing human review comments.
 
 ## Product Purpose
 

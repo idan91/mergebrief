@@ -1,6 +1,6 @@
 # packages/persistence: agent notes
 
-The persistence layer for the self-host backend. The schema follows the Postgres-schema decision record under `docs/internal/adr/`; code that diverges from it amends that record first.
+The persistence layer for the self-host backend. The schema follows the maintainers' Postgres-schema decision record; code that diverges from it amends that record first.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 

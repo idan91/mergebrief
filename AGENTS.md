@@ -99,16 +99,9 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - One finding means a sweep: before replying to a review comment, fix every occurrence in the stack.
 - A hands-off run never answers its own confirmation questions. Where a skill or a plan asks the owner something, such as commit strategy, which specialist skills apply, or a seam between phases, stop there and leave the question pending. Overnight or unattended framing widens the batch of work an agent may do; it never widens the set of decisions it may make alone.
 
-<!-- TODO: delete this section before release -->
-
 ## Ticket board
 
-Tickets live on the [MergeBrief Board](https://app.notion.com/p/3935e9400eeb803b9ccaf85b79a4b0b0) in Notion, keyed `BRIEF-nnn`.
-
-- A `BRIEF-nnn` reference means that ticket: open it on the board and read it before acting on it.
-- When work on a ticket starts, grilling and planning included, move it to `In progress`.
-- When every PR for the ticket is ready for review, move it to `In review`.
-- When every PR for the ticket is merged, move it to `Done`.
+A `BRIEF-nnn` reference names a ticket on the maintainers' board; read `docs/internal/ticket-board.md`, which the public release snapshot excludes, for the board link and status workflow before acting on it.
 
 ## Debt register
 

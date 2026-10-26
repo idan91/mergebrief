@@ -7,8 +7,8 @@
 A **source-available, self-hostable comprehension layer for code review.** It turns a pull
 request from a flat file-list into a **Brief**: changes re-unitized into categorized
 **Change-groups**, each with a plain-language summary and risk-surface attributes, and,
-across pushes, a **delta** of what moved. It restores *engagement and comprehension* to review in a world
-where most code is AI-authored, without becoming another bug-bot.
+across pushes, a **delta** of what moved. It restores *engagement and comprehension* to review, however the
+code was written, without becoming another bug-bot.
 
 It separates **AI assistance from AI authorship**: the tool provides structure and post-hoc
 verification (a **Receipt**, never an approval); the human writes the comment and makes the call.

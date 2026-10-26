@@ -10,3 +10,4 @@ Owner-only material. These files are tracked in the development repository and e
 - `mockup/`: the pre-product interview mockup.
 - `next-steps.md`, `oss-roadmap.md`: retired planning documents; the ticket board is the live plan.
 - `system-overview.md`: the first design snapshot; `docs/architecture.md` is the current one.
+- `ticket-board.md`: the board link and the ticket status workflow the root `AGENTS.md` points to.
