@@ -1,0 +1,50 @@
+name: Bug report
+description: Something in MergeBrief doesn't work the way the docs say it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem doesn't go here. Report it privately from this repository's Security tab ("Report a vulnerability"), as SECURITY.md describes.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag or image tag you run. `mergebrief auth status` prints the server's version.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How it runs
+      options:
+        - The shipped compose file
+        - The container image on its own
+        - The CLI only
+        - Something else (say below)
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a pull request that...
+        2. Open its brief...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant API, worker or web log lines. Remove tokens and secrets first.
+      render: text

@@ -153,12 +153,29 @@ docs) rests with the maintainer.** What you can rely on in exchange:
   have yet (usually repo context the engine can't see) are parked with the reason
   recorded, not rejected; see the worked examples in `risk-surface.md`.
 - **Token changes wait on a maintainer-run check.** Vocabulary PRs touch the generation
-  surface, so they merge only after the maintainer runs the eval harness (it needs API
+  surface, so they're applied only after the maintainer runs the eval harness (it needs API
   spend and keys that fork PRs can't have). That step is on the maintainer, not you.
 
 There are no auto-accept windows, votes, or response-time promises. Disputes are argued
 in the PR or issue: convincing the maintainer is the process. This model has recorded
 loosening triggers and will be revisited when the project earns a second maintainer.
+
+## How a pull request lands
+
+Day-to-day development happens in a private repository. This public repository
+receives one snapshot commit per release, exported from it, so a pull request here
+is never merged as-is. It goes like this:
+
+1. **Review happens here, in public.** Discussion, change requests and the accept or
+   reject reason all stay on your pull request.
+2. **An accepted change is applied upstream.** The maintainer applies it to the private
+   repository with a `Co-authored-by:` trailer naming you. The release commit here
+   carries every such trailer since the previous release, so GitHub credits you on it.
+3. **The pull request is closed with a link to the release that ships it.** Your change
+   reaches this repository inside that release's snapshot, not as a merge of your
+   branch. A closed pull request with a release link means it shipped.
+
+The close waits for the next release, so expect a gap after acceptance.
 
 ## Translations
 
@@ -172,10 +189,13 @@ open an issue before starting one.
 
 ## Code contributions
 
-Bug fixes and features are welcome through ordinary PRs. Run the verification commands
+Bug fixes and features are welcome as pull requests. Run the verification commands
 above before opening one. For anything architectural, open an issue to discuss first; several tempting features
 (severity scores, AI-authored review comments, general-purpose bug hunting) are non-goals
 listed in [`docs/vision.md`](docs/vision.md), and a PR won't change that.
+
+A vulnerability never goes in a public issue or pull request. Report it privately as
+[`SECURITY.md`](./SECURITY.md) describes.
 
 ## License and the DCO
 
