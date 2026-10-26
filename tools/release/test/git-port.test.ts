@@ -1,23 +1,15 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createGitPort, GitCommandError } from "../src/logic/git-port";
-import { makeNotesFile, makeTempRoot } from "./helpers";
-
-interface Repos {
-  readonly root: string;
-  readonly clone: string;
-  readonly head: string;
-}
-
-function runGit(cwd: string, args: readonly string[]): string {
-  return execFileSync("git", args, {
-    cwd,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-  });
-}
+import { type GitRepos, makeGitRepos, makeNotesFile, runGit } from "./helpers";
 
 const made: string[] = [];
 
@@ -28,30 +20,15 @@ afterEach(() => {
 });
 
 /** A bare remote with one tag, and a clone whose main holds a notes file. */
-function makeRepos(): Repos {
-  const root = makeTempRoot();
-  const remote = join(root, "remote.git");
-  const clone = join(root, "clone");
-  runGit(root, ["init", "--bare", "--quiet", "--initial-branch=main", remote]);
-  runGit(root, ["clone", "--quiet", remote, clone]);
-  runGit(clone, ["config", "user.email", "release@test"]);
-  runGit(clone, ["config", "user.name", "release test"]);
-  runGit(clone, ["config", "commit.gpgsign", "false"]);
-  runGit(clone, ["config", "tag.gpgsign", "false"]);
-  mkdirSync(join(clone, "docs", "releases"), { recursive: true });
-  writeFileSync(
-    join(clone, "docs", "releases", "0.1.0.md"),
-    makeNotesFile({}, "First.\n"),
-  );
-  runGit(clone, ["add", "."]);
-  runGit(clone, ["commit", "--quiet", "-m", "notes"]);
-  runGit(clone, ["push", "--quiet", "origin", "main"]);
-  runGit(clone, ["tag", "v0.0.9"]);
-  runGit(clone, ["push", "--quiet", "origin", "refs/tags/v0.0.9"]);
-  runGit(clone, ["tag", "-d", "v0.0.9"]);
-  const head = runGit(clone, ["rev-parse", "HEAD"]).trim();
-  made.push(root);
-  return { root, clone, head };
+function makeRepos(): GitRepos {
+  const repos = makeGitRepos({
+    "docs/releases/0.1.0.md": makeNotesFile({}, "First.\n"),
+  });
+  made.push(repos.root);
+  runGit(repos.clone, ["tag", "v0.0.9"]);
+  runGit(repos.clone, ["push", "--quiet", "origin", "refs/tags/v0.0.9"]);
+  runGit(repos.clone, ["tag", "-d", "v0.0.9"]);
+  return repos;
 }
 
 describe("the git port against a real repository", () => {
@@ -123,5 +100,50 @@ describe("the git port against a real repository", () => {
 
     expect(port.hasLocalTag("v0.1.0")).toBe(true);
     expect(port.listRemoteTags()).toEqual(["v0.0.9", "v0.1.0"]);
+  });
+
+  it("lists the paths a commit tracks, never the untracked ones", () => {
+    const repos = makeRepos();
+    writeFileSync(join(repos.clone, "untracked.txt"), "x\n");
+    const port = createGitPort(repos.clone);
+
+    expect(port.listTrackedPaths(repos.head)).toEqual([
+      "docs/releases/0.1.0.md",
+    ]);
+  });
+
+  it("archives only the named paths at the commit into a dir", () => {
+    const repos = makeRepos();
+    mkdirSync(join(repos.clone, "docs", "internal"), { recursive: true });
+    writeFileSync(join(repos.clone, "docs", "internal", "x.md"), "private\n");
+    writeFileSync(join(repos.clone, "[odd] name.md"), "odd\n");
+    runGit(repos.clone, ["add", "."]);
+    runGit(repos.clone, ["commit", "--quiet", "-m", "more"]);
+    const commit = runGit(repos.clone, ["rev-parse", "HEAD"]).trim();
+    writeFileSync(join(repos.clone, "[odd] name.md"), "edited after\n");
+    const out = join(repos.root, "out");
+    mkdirSync(out);
+    const port = createGitPort(repos.clone);
+
+    port.archiveTo(commit, out, ["docs/releases/0.1.0.md", "[odd] name.md"]);
+
+    const oddFile = join(out, "[odd] name.md");
+    const notesFile = join(out, "docs", "releases", "0.1.0.md");
+    const internalDir = join(out, "docs", "internal");
+    expect(readFileSync(oddFile, "utf8")).toBe("odd\n");
+    expect(existsSync(notesFile)).toBe(true);
+    expect(existsSync(internalDir)).toBe(false);
+  });
+
+  it("refuses to archive an empty path list and writes nothing", () => {
+    const repos = makeRepos();
+    const out = join(repos.root, "out");
+    mkdirSync(out);
+    const port = createGitPort(repos.clone);
+
+    expect(() => port.archiveTo(repos.head, out, [])).toThrow(
+      /at least one path/,
+    );
+    expect(readdirSync(out)).toEqual([]);
   });
 });

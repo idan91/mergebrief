@@ -1,8 +1,9 @@
 // The release tool's composition root: argv enters here, the repo root is
 // resolved from this file's location, and the exit code is the verdict.
 // Everything below takes its inputs as parameters and never commits.
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Mutable } from "types/utils";
 
@@ -10,6 +11,9 @@ import { RELEASES_DIR } from "./consts";
 import { type ParsedArgv, parseArgv, readValuedFlag } from "./logic/argv";
 import { checkReleases } from "./logic/check";
 import { type CutOptions, executeCut, planCut } from "./logic/cut";
+import { runExport } from "./logic/export";
+import { formatExportReport } from "./logic/export/report";
+import type { ExportOptions } from "./logic/export/types";
 import { createGitPort, GitCommandError } from "./logic/git-port";
 import { buildReleaseBody } from "./logic/release-body";
 import { pruneTree, stampTree } from "./logic/stamp";
@@ -37,6 +41,8 @@ const USAGE = [
   "  release release-body <tag> --out <file> the GitHub Release body for the tag",
   "  release cut <major|minor|patch> [--rc] [--at <ref>] [--push] [--dry-run]",
   "      tag the tip of main as fetched, or --at a commit on it; the notes file must be in it",
+  "  release export --version X.Y.Z --source <ref> --dry-run [--out <dir>]",
+  "      the public snapshot of a commit on main, written to --out (a new temp dir when absent) and checked",
 ].join("\n");
 
 const JSON_INDENT = 2;
@@ -283,6 +289,69 @@ function cutRelease(
   return ExitCodes.OK;
 }
 
+/** `--out` against the shell the root script ran in (pnpm -C moves the cwd), else a fresh temp dir. */
+function resolveOutDir(given: string | undefined): string {
+  if (given === undefined) {
+    const outPrefix = join(tmpdir(), "mergebrief-export-");
+    return mkdtempSync(outPrefix);
+  }
+  const invokedFrom = process.env["INIT_CWD"] ?? process.cwd();
+  return resolve(invokedFrom, given);
+}
+
+function runExportCommand(argv: readonly string[]): ExitCode {
+  const parsed = parseArgv(argv, {
+    valued: ["--version", "--source", "--out"],
+    boolean: ["--dry-run"],
+    maxPositionals: 0,
+  });
+  if (!parsed.ok) {
+    return refuseUsage(parsed.error);
+  }
+  const version = readValuedFlag(parsed.value, "--version");
+  const source = readValuedFlag(parsed.value, "--source");
+  const missingRequiredFlag = version === undefined || source === undefined;
+  if (missingRequiredFlag) {
+    return refuseUsage("export needs --version and --source");
+  }
+  if (!parsed.value.flags.has("--dry-run")) {
+    process.stderr.write(
+      "release: export without --dry-run would publish; publish lands in a later version\n",
+    );
+    return ExitCodes.REFUSED;
+  }
+
+  const out = resolveOutDir(readValuedFlag(parsed.value, "--out"));
+  try {
+    return exportTree({ version, source, out });
+  } catch (cause) {
+    if (!(cause instanceof GitCommandError)) {
+      throw cause;
+    }
+    process.stderr.write(`release: ${cause.message}\n`);
+    return ExitCodes.REFUSED;
+  }
+}
+
+function exportTree(options: ExportOptions): ExitCode {
+  const result = runExport(createGitPort(REPO_ROOT), options);
+  if (!result.ok) {
+    for (const line of result.error.reason.split("\n")) {
+      process.stderr.write(`release: ${line}\n`);
+    }
+    return ExitCodes.REFUSED;
+  }
+
+  process.stdout.write(formatExportReport(result.value));
+  if (result.value.linkHits.length > 0) {
+    process.stderr.write(
+      `release: shipped markdown names excluded paths; the tree is left at ${options.out}\n`,
+    );
+    return ExitCodes.REFUSED;
+  }
+  return ExitCodes.OK;
+}
+
 function main(argv: readonly string[]): ExitCode {
   const [command, ...rest] = argv;
   if (command === "check") {
@@ -302,6 +371,9 @@ function main(argv: readonly string[]): ExitCode {
   }
   if (command === "cut") {
     return runCut(rest);
+  }
+  if (command === "export") {
+    return runExportCommand(rest);
   }
   return refuseUsage();
 }

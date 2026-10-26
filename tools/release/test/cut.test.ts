@@ -52,6 +52,8 @@ function makeFakeGit(state: FakeGitState): FakeGit {
       }
       pushed.push(tag);
     },
+    listTrackedPaths: () => [],
+    archiveTo: () => undefined,
   };
   return {
     port,

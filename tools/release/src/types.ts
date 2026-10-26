@@ -79,7 +79,7 @@ export interface CutError {
   readonly reason: string;
 }
 
-/** The git the cut needs, injected so the plan is testable without a repo. */
+/** The git the cut and the export need, injected so their plans are testable without a repo. */
 export interface GitPort {
   /** Brings the remote default branch to a ref of its own; the one fetch a cut does. */
   fetchDefaultBranch(): void;
@@ -90,6 +90,9 @@ export interface GitPort {
   hasLocalTag(tag: string): boolean;
   createTag(tag: string, commit: string): void;
   pushTag(tag: string): void;
+  listTrackedPaths(commit: string): readonly string[];
+  /** Writes exactly `paths` as `commit` holds them into `dir`; never reads the checkout. */
+  archiveTo(commit: string, dir: string, paths: readonly string[]): void;
 }
 
 export interface StampError {

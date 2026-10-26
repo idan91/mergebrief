@@ -24,6 +24,7 @@
     "check:migrations": "pnpm -C packages/persistence check:migrations",
     "check:releases": "pnpm -C tools/release check",
     "release": "pnpm -C tools/release cut",
+    "release:export": "pnpm -C tools/release export",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

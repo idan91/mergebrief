@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -47,4 +48,37 @@ export function makeNotesDir(files: Readonly<Record<string, string>>): string {
     writeFileSync(join(dir, name), content);
   }
   return dir;
+}
+
+export function runGit(cwd: string, args: readonly string[]): string {
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+}
+
+export interface GitRepos {
+  readonly root: string;
+  readonly clone: string;
+  readonly head: string;
+}
+
+/** A bare `remote.git` and a `clone` whose main holds `tree`, pushed. */
+export function makeGitRepos(tree: Tree): GitRepos {
+  const root = makeTempRoot();
+  const remote = join(root, "remote.git");
+  const clone = join(root, "clone");
+  runGit(root, ["init", "--bare", "--quiet", "--initial-branch=main", remote]);
+  runGit(root, ["clone", "--quiet", remote, clone]);
+  runGit(clone, ["config", "user.email", "release@test"]);
+  runGit(clone, ["config", "user.name", "release test"]);
+  runGit(clone, ["config", "commit.gpgsign", "false"]);
+  runGit(clone, ["config", "tag.gpgsign", "false"]);
+  writeTree(clone, tree);
+  runGit(clone, ["add", "."]);
+  runGit(clone, ["commit", "--quiet", "-m", "tree"]);
+  runGit(clone, ["push", "--quiet", "origin", "main"]);
+  const head = runGit(clone, ["rev-parse", "HEAD"]).trim();
+  return { root, clone, head };
 }

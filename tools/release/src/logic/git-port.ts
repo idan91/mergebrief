@@ -1,9 +1,16 @@
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { DEFAULT_BRANCH, DEFAULT_BRANCH_REF, GIT_REMOTE } from "../consts";
 import type { GitPort } from "../types";
 
 const TAG_REF_PREFIX = "refs/tags/";
+
+const MAX_OUTPUT_BYTES = 256 * 1024 * 1024;
+
+const NUL = "\0";
 
 const CREDENTIALS_IN_URL = /:\/\/[^/@\s]+@/g;
 
@@ -37,10 +44,45 @@ function runGit(cwd: string, args: readonly string[]): string {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: MAX_OUTPUT_BYTES,
     });
   } catch (cause) {
     const stderr = isExecError(cause) ? String(cause.stderr ?? "") : "";
     throw new GitCommandError(args, stderr);
+  }
+}
+
+/** `git archive` of exactly `paths`, unpacked by tar; the tarball lives outside `dir`. */
+function archivePaths(
+  cwd: string,
+  commit: string,
+  dir: string,
+  paths: readonly string[],
+): void {
+  if (paths.length === 0) {
+    throw new Error(
+      "archive needs at least one path; git archive with none writes the whole commit",
+    );
+  }
+  const scratchPrefix = join(tmpdir(), "release-archive-");
+  const scratch = mkdtempSync(scratchPrefix);
+  const tarball = join(scratch, "tree.tar");
+  try {
+    runGit(cwd, [
+      "--literal-pathspecs",
+      "archive",
+      "--format=tar",
+      `--output=${tarball}`,
+      commit,
+      "--",
+      ...paths,
+    ]);
+    execFileSync("tar", ["-xf", tarball], {
+      cwd: dir,
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 }
 
@@ -105,6 +147,20 @@ export function createGitPort(cwd: string): GitPort {
         GIT_REMOTE,
         `${TAG_REF_PREFIX}${tag}`,
       ]);
+    },
+    listTrackedPaths(commit) {
+      const listed = runGit(cwd, [
+        "ls-tree",
+        "-r",
+        "-z",
+        "--name-only",
+        commit,
+      ]);
+      const paths = listed.split(NUL).filter((path) => path.length > 0);
+      return paths;
+    },
+    archiveTo(commit, dir, paths) {
+      archivePaths(cwd, commit, dir, paths);
     },
   };
 }
