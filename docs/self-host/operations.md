@@ -37,7 +37,7 @@ The examples below use an instance on 1.4.0 and a newest release of 1.6.0.
   release it knows of ([cli.md](./cli.md#versions)).
 - **GitHub itself.** On the repository page, **Watch**, then **Custom**,
   then **Releases** emails you on every release. Any feed reader can follow
-  `https://github.com/Idan91/code-review/releases.atom`.
+  `https://github.com/Idan91/mergebrief/releases.atom`.
 
 The first five come from [the update check](#the-update-check). Turn it off
 and only GitHub tells you.
@@ -69,7 +69,7 @@ Run these in the folder that holds `docker-compose.yml` and `.env`
 DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
 docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=custom "$POSTGRES_DB"' > "$DUMP" \
   && docker compose exec -T postgres pg_restore --list < "$DUMP" > /dev/null \
-  && curl -fsSLo docker-compose.yml https://github.com/Idan91/code-review/releases/download/v1.6.0/docker-compose.yml \
+  && curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v1.6.0/docker-compose.yml \
   && docker compose pull api web worker \
   && docker compose stop api web worker \
   && docker compose up -d --wait
@@ -187,7 +187,7 @@ then fetch the release's compose file and pull the images, which needs no
 credential and stops at the first failure:
 
 ```sh
-curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/code-review/releases/download/v1.6.0/docker-compose.external-db.yml \
+curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v1.6.0/docker-compose.external-db.yml \
   && docker compose pull api web worker
 ```
 
@@ -249,7 +249,7 @@ as in the upgrade step.
   restore:
 
   ```sh
-  curl -fsSLo docker-compose.yml https://github.com/Idan91/code-review/releases/download/v1.5.0/docker-compose.yml
+  curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v1.5.0/docker-compose.yml
   docker compose up -d --wait
   ```
 
@@ -307,7 +307,7 @@ drops the old data:
 
 ```sh
 test -s "${DUMP:-}" \
-  && curl -fsSLo docker-compose.next.yml https://github.com/Idan91/code-review/releases/download/v2.0.0/docker-compose.yml \
+  && curl -fsSLo docker-compose.next.yml https://github.com/Idan91/mergebrief/releases/download/v2.0.0/docker-compose.yml \
   && docker compose down \
   && docker volume rm mergebrief_postgres_data \
   && mv docker-compose.next.yml docker-compose.yml \
@@ -651,7 +651,7 @@ If your network blocks github.com, the check fails quietly: one `update.check.fa
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `MERGEBRIEF_UPDATE_CHECK` | `true` | Fetch `version.json` from GitHub Releases at most once an hour to learn about newer releases. The request identifies nothing. Off: no banner, no log line, no `latest` in `/api/version`. |
-| `MERGEBRIEF_UPDATE_CHECK_URL` | `https://github.com/Idan91/code-review/releases/latest/download/version.json` | Where `version.json` is fetched from. Point it at a mirror on a network that blocks github.com. An absolute `http` or `https` URL with no credentials in it, or boot is refused. |
+| `MERGEBRIEF_UPDATE_CHECK_URL` | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | Where `version.json` is fetched from. Point it at a mirror on a network that blocks github.com. An absolute `http` or `https` URL with no credentials in it, or boot is refused. |
 
 ## See also
 

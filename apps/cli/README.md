@@ -31,7 +31,7 @@ but never required for compatibility.
    ```
 
    ```json
-   {"profile":"default","baseUrl":"https://mergebrief.your-org.example","tokenConfigured":true,"cli":{"version":"1.2.0"},"server":{"reachable":true,"authenticated":true,"version":"1.4.0","latest":"1.6.0","releaseNotesUrl":"https://github.com/Idan91/code-review/releases/tag/v1.6.0","checkedAt":"2026-10-03T10:00:00.000Z","breaking":false,"security":false}}
+   {"profile":"default","baseUrl":"https://mergebrief.your-org.example","tokenConfigured":true,"cli":{"version":"1.2.0"},"server":{"reachable":true,"authenticated":true,"version":"1.4.0","latest":"1.6.0","releaseNotesUrl":"https://github.com/Idan91/mergebrief/releases/tag/v1.6.0","checkedAt":"2026-10-03T10:00:00.000Z","breaking":false,"security":false}}
    ```
 
 4. **First read**: your Inbox, every installation you reach (no repo

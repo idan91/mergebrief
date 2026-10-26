@@ -50,7 +50,7 @@ describe("the Release body", () => {
     );
 
     expect(body).toContain(
-      "https://github.com/Idan91/code-review/blob/v0.2.0/docs/self-host/operations.md#the-upgrade-step",
+      "https://github.com/Idan91/mergebrief/blob/v0.2.0/docs/self-host/operations.md#the-upgrade-step",
     );
     expect(body).toContain("#backup");
     expect(body).toContain("#rolling-back");

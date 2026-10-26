@@ -90,7 +90,7 @@ COPY --chown=node:node LICENSE ./LICENSE
 # unchanged tree reuses that layer.
 ARG MERGEBRIEF_VERSION=dev
 ARG MERGEBRIEF_REVISION=unknown
-LABEL org.opencontainers.image.source="https://github.com/Idan91/code-review" \
+LABEL org.opencontainers.image.source="https://github.com/Idan91/mergebrief" \
   org.opencontainers.image.licenses="FSL-1.1-ALv2" \
   org.opencontainers.image.version="${MERGEBRIEF_VERSION}" \
   org.opencontainers.image.revision="${MERGEBRIEF_REVISION}"

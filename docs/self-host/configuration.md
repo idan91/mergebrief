@@ -109,7 +109,7 @@ it.
 | `MERGEBRIEF_ATTACHMENT_QUOTA_MB` | api | `30` | no | Megabytes one reviewer may attach per window: a whole number of at least 10, the size limit of one file. Empty takes the default. |
 | `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | `10` | no | The window's length in minutes: a positive whole number. Empty takes the default. Each `api` replica counts on its own ([attachments.md](./attachments.md#upload-quota)). |
 | `MERGEBRIEF_UPDATE_CHECK` | api | `true` | no | Boolean. `false` stops the hourly fetch of `version.json` and with it the version notice ([The update check](./operations.md#the-update-check)). Empty takes the default. |
-| `MERGEBRIEF_UPDATE_CHECK_URL` | api | `https://github.com/Idan91/code-review/releases/latest/download/version.json` | no | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. Empty refuses boot. |
+| `MERGEBRIEF_UPDATE_CHECK_URL` | api | `https://github.com/Idan91/mergebrief/releases/latest/download/version.json` | no | A mirror of `version.json`: an absolute `http` or `https` URL with no credentials in it. Empty refuses boot. |
 
 ### Retention and audit
 

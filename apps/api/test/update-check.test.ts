@@ -98,7 +98,7 @@ describe("update check", () => {
       version: "1.4.0",
       latest: "1.6.0",
       releaseNotesUrl:
-        "https://github.com/Idan91/code-review/releases/tag/v1.6.0",
+        "https://github.com/Idan91/mergebrief/releases/tag/v1.6.0",
       checkedAt: BOOT.toISOString(),
       breaking: true,
       security: true,

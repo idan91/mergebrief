@@ -62,7 +62,7 @@ describe("version.json from the notes files", () => {
 
     expect(manifest.latest).toBe("0.2.1");
     expect(manifest.releaseNotesUrl).toBe(
-      "https://github.com/Idan91/code-review/releases/tag/v0.2.1",
+      "https://github.com/Idan91/mergebrief/releases/tag/v0.2.1",
     );
   });
 
@@ -77,21 +77,21 @@ describe("version.json from the notes files", () => {
         date: "2026-11-09",
         breaking: false,
         security: true,
-        notesUrl: "https://github.com/Idan91/code-review/releases/tag/v0.2.1",
+        notesUrl: "https://github.com/Idan91/mergebrief/releases/tag/v0.2.1",
       },
       {
         version: "0.2.0",
         date: "2026-11-01",
         breaking: true,
         security: false,
-        notesUrl: "https://github.com/Idan91/code-review/releases/tag/v0.2.0",
+        notesUrl: "https://github.com/Idan91/mergebrief/releases/tag/v0.2.0",
       },
       {
         version: "0.1.0",
         date: "2026-10-03",
         breaking: false,
         security: false,
-        notesUrl: "https://github.com/Idan91/code-review/releases/tag/v0.1.0",
+        notesUrl: "https://github.com/Idan91/mergebrief/releases/tag/v0.1.0",
       },
     ]);
   });

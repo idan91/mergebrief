@@ -41,8 +41,8 @@ deliberately refuses to be (no hosted SaaS, no moat-building, no AI-authored rev
 With Docker installed:
 
 ```bash
-git clone https://github.com/Idan91/code-review.git
-cd code-review
+git clone https://github.com/Idan91/mergebrief.git
+cd mergebrief
 cp .env.example .env    # GitHub App creds + your Anthropic key
 docker compose up -d
 ```
@@ -66,8 +66,8 @@ and Docker for Postgres. The api, worker and web processes run on your machine; 
 runs in a container.
 
 ```bash
-git clone https://github.com/Idan91/code-review.git
-cd code-review
+git clone https://github.com/Idan91/mergebrief.git
+cd mergebrief
 pnpm install
 
 cp .env.example .env

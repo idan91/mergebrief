@@ -6,14 +6,14 @@ worker that generates Briefs as pull requests are pushed.
 
 ```sh
 mkdir mergebrief && cd mergebrief
-curl -fsSLo docker-compose.yml https://github.com/Idan91/code-review/releases/download/v1.6.0/docker-compose.yml
-curl -fsSLo .env.example https://github.com/Idan91/code-review/releases/download/v1.6.0/.env.example
+curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v1.6.0/docker-compose.yml
+curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v1.6.0/.env.example
 cp .env.example .env      # fill in (see the env table below)
 docker compose up -d --wait
 ```
 
 Replace `v1.6.0` with the release you want; the
-[releases page](https://github.com/Idan91/code-review/releases) lists them.
+[releases page](https://github.com/Idan91/mergebrief/releases) lists them.
 
 > **Set `POSTGRES_PASSWORD` in `.env` before the first `up`** if this
 > instance will ever be reachable beyond your own machine. Postgres writes

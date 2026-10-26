@@ -1,5 +1,5 @@
 export const DEFAULT_UPDATE_CHECK_URL =
-  "https://github.com/Idan91/code-review/releases/latest/download/version.json";
+  "https://github.com/Idan91/mergebrief/releases/latest/download/version.json";
 
 export const BOOT_DELAY_MS = 60 * 1000;
 

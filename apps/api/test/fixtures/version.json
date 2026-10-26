@@ -1,27 +1,27 @@
 {
   "latest": "1.6.0",
-  "releaseNotesUrl": "https://github.com/Idan91/code-review/releases/tag/v1.6.0",
+  "releaseNotesUrl": "https://github.com/Idan91/mergebrief/releases/tag/v1.6.0",
   "releases": [
     {
       "version": "1.6.0",
       "date": "2026-10-01",
       "breaking": true,
       "security": false,
-      "notesUrl": "https://github.com/Idan91/code-review/releases/tag/v1.6.0"
+      "notesUrl": "https://github.com/Idan91/mergebrief/releases/tag/v1.6.0"
     },
     {
       "version": "1.5.0",
       "date": "2026-09-15",
       "breaking": false,
       "security": true,
-      "notesUrl": "https://github.com/Idan91/code-review/releases/tag/v1.5.0"
+      "notesUrl": "https://github.com/Idan91/mergebrief/releases/tag/v1.5.0"
     },
     {
       "version": "1.4.0",
       "date": "2026-09-01",
       "breaking": false,
       "security": false,
-      "notesUrl": "https://github.com/Idan91/code-review/releases/tag/v1.4.0"
+      "notesUrl": "https://github.com/Idan91/mergebrief/releases/tag/v1.4.0"
     }
   ]
 }

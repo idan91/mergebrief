@@ -24,7 +24,7 @@ export const COMPOSE_PATHS = [
 
 export const REPOSITORY = {
   owner: "Idan91",
-  name: "code-review",
+  name: "mergebrief",
 } as const;
 
 export const REPOSITORY_URL = `https://github.com/${REPOSITORY.owner}/${REPOSITORY.name}`;
