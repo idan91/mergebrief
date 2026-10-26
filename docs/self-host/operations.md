@@ -532,7 +532,7 @@ Two knobs, both instance environment variables:
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `AUDIT_RETENTION_DAYS` | unset (keep forever) | How long the daily sweep keeps rows. Minimum 30. |
-| `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way; that is not configurable. |
+| `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way; that is not configurable. An empty value reads as `false`. |
 
 Erasing one person's rows is a query, not a feature:
 
@@ -651,10 +651,12 @@ If your network blocks github.com, the check fails quietly: one `update.check.fa
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `MERGEBRIEF_UPDATE_CHECK` | `true` | Fetch `version.json` from GitHub Releases at most once an hour to learn about newer releases. The request identifies nothing. Off: no banner, no log line, no `latest` in `/api/version`. |
-| `MERGEBRIEF_UPDATE_CHECK_URL` | `https://github.com/Idan91/code-review/releases/latest/download/version.json` | Where `version.json` is fetched from. Point it at a mirror on a network that blocks github.com. An absolute `http` or `https` URL, or boot is refused. |
+| `MERGEBRIEF_UPDATE_CHECK_URL` | `https://github.com/Idan91/code-review/releases/latest/download/version.json` | Where `version.json` is fetched from. Point it at a mirror on a network that blocks github.com. An absolute `http` or `https` URL with no credentials in it, or boot is refused. |
 
 ## See also
 
+- [configuration.md](./configuration.md): every environment variable,
+  instance config key and CLI setting, with defaults and accepted values.
 - [compose.md](./compose.md): services, environment, hardening before
   exposure (TLS, the webhook secret, Postgres credentials).
 - [observability.md](./observability.md): the log event contract, health

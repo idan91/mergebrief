@@ -110,9 +110,13 @@ Postgres section below.)
 Compose loads `.env` into `api` and `worker` (`env_file`) and uses it for
 `${...}` interpolation everywhere. `web` gets no `env_file`: it is the
 internet-facing tier and holds no credentials, so compose sets what it reads
-on it directly: `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN` and the tracing
-`OTEL_*` variables except the OTLP headers. Leave a variable OUT entirely (don't set it empty) when it
+on it directly: `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN` and six tracing
+variables, the two OTLP endpoints, `OTEL_RESOURCE_ATTRIBUTES`, the sampler
+pair and `OTEL_SDK_DISABLED`. Every other `OTEL_*` variable in `.env`,
+`OTEL_TRACES_EXPORTER` included, reaches `api` and `worker` only. Leave a variable OUT entirely (don't set it empty) when it
 doesn't apply: several loaders distinguish unset from empty.
+[configuration.md](./configuration.md) lists every variable each process
+reads, with what an empty value does.
 
 | var | needed by | notes |
 |---|---|---|
@@ -137,13 +141,13 @@ doesn't apply: several loaders distinguish unset from empty.
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned: the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24`, since the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
 | `DATABASE_URL` | none | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input when the database is external ([below](#external-postgres-managed-database)). Non-loopback hosts must carry `sslmode=verify-full` or `sslmode=disable` or boot is refused ([TLS](#tls-verify-full-or-disable-sslmode-in-the-dsn)) |
 | `DATABASE_URL_FILE` | api, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
-| `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
+| `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`; empty reads as `false`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
 | `DATABASE_POOL_MAX` | api, worker | optional, default `10` (empty included); the size of each Postgres pool. An api process opens one pool and a worker two (its store and its job queue). A request waits up to 10 seconds for a free connection, then fails. (api replicas + 2 x worker count) x this value must stay under Postgres `max_connections` ([operations.md](./operations.md#running-more-than-one-api)). A whole number of at least 2 (the job queue keeps one connection for its listener and needs another to work), or api and worker refuse boot |
 | `MERGEBRIEF_API_HOST` / `MERGEBRIEF_API_PORT` | api | optional; where the API listens. Compose sets `0.0.0.0:3001` so `web` can reach it; the default is loopback |
 | `MERGEBRIEF_API_ORIGIN` | web | optional; where `/api/*` is proxied. Compose sets `http://api:3001`; the default is the API's loopback default |
 | `MERGEBRIEF_UPDATE_CHECK` | api | optional, default `true` (empty included); the hourly fetch of the release file that drives the version notice ([operations.md](./operations.md#the-update-check)). `false` turns it off; a token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
 | `MERGEBRIEF_UPDATE_CHECK_URL` | api | optional; a mirror of `version.json` for a network that blocks github.com. An absolute http(s) URL with no credentials in it, or api refuses boot |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` / `MERGEBRIEF_ATTACHMENT_QUOTA_MB` / `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | optional, defaults `10` / `30` / `10` (empty included); what one reviewer may attach per window, per api replica ([attachments.md](./attachments.md#upload-quota)). Positive whole numbers; anything else refuses boot |
+| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` / `MERGEBRIEF_ATTACHMENT_QUOTA_MB` / `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | optional, defaults `10` / `30` / `10` (empty included); what one reviewer may attach per window, per api replica ([attachments.md](./attachments.md#upload-quota)). Positive whole numbers, and the megabytes at least `10`, the size limit of one file; anything else refuses boot |
 
 ### Who owns which setting
 
