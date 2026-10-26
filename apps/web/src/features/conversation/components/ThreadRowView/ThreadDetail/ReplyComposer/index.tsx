@@ -61,8 +61,6 @@ const COMBO_KEYS = {
 } as const satisfies Record<string, TranslationKey>;
 
 export interface ReplyComposerProps {
-  /** Writes are off: the box takes no text and the actions refuse. */
-  readOnlyReason?: string | undefined;
   threadId: number;
   post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   onPosted: () => void;
@@ -89,7 +87,6 @@ export interface ReplyComposerProps {
 }
 
 export function ReplyComposer({
-  readOnlyReason,
   threadId,
   post,
   onPosted,
@@ -133,18 +130,15 @@ export function ReplyComposer({
   const overCap = local.length > RequestBounds.BODY_LENGTH;
   // An image still going up: the body would ship its placeholder.
   const uploading = hasUploadPlaceholder(local);
-  const blocked =
-    pending ||
-    uploading ||
-    local.trim() === "" ||
-    overCap ||
-    readOnlyReason !== undefined;
+  const blocked = pending || uploading || local.trim() === "" || overCap;
 
   // Quote-reply prefill appends to the LOCAL draft only, same persistence
   // path as typing. Skipped while a post is in flight: the composer is
   // read-only and a mutation would diverge from the captured request body.
   const textareaElement = useRef<HTMLTextAreaElement | null>(null);
-  const consumedQuoteNonce = useRef(0);
+  // A quote the reader already took survives a remount (writes switching
+  // back on); seeding with its nonce keeps it from landing twice.
+  const consumedQuoteNonce = useRef(quote?.nonce ?? 0);
   useEffect(() => {
     if (quote === undefined || quote.nonce === consumedQuoteNonce.current) {
       return;
@@ -282,7 +276,7 @@ export function ReplyComposer({
         labelVisible
         mentionSuggestions={mentions.mentionSuggestions}
         onMentionQueryChange={mentions.onMentionQueryChange}
-        readOnly={pending || readOnlyReason !== undefined}
+        readOnly={pending}
         value={local}
         announce={announce}
         announceQuietly={announceQuietly}
@@ -299,9 +293,6 @@ export function ReplyComposer({
         // outward write is never implicit.
         onSubmit={() => submit(false)}
       />
-      {readOnlyReason !== undefined ? (
-        <p className={rowStyles["error"]}>{readOnlyReason}</p>
-      ) : null}
       {overCap || error !== null ? (
         <p className={rowStyles["error"]} id={`${inputId}-error`} role="alert">
           {overCap

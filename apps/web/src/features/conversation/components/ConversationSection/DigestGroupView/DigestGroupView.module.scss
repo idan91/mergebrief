@@ -23,7 +23,10 @@
      target floor. */
   .groupJump {
     display: inline-flex;
+    max-inline-size: 100%;
     align-items: center;
+    overflow-wrap: anywhere;
+    text-align: start;
     min-height: functions.to-rem(24px);
     padding-block: functions.to-rem(4px);
     padding-inline: functions.to-rem(2px);

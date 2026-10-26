@@ -33,6 +33,10 @@
     }
   }
 
+  .rowButton[data-variant="row"][data-density="full"] {
+    flex-wrap: wrap;
+  }
+
   /* The slim resolved row: a settled thread earns one faint line, not a
      framed row. `center`, not the full row's `baseline`, is deliberate: the
      mono-xs label/count against the sans-sm author/excerpt mis-centers on a

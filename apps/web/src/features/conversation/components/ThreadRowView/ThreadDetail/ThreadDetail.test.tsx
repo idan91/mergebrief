@@ -5,6 +5,7 @@ import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -84,7 +85,25 @@ const providerBrief: Brief = {
   concernView: [],
 };
 
-function threadRow(isResolved = false): DigestThreadRow {
+function threadRow(isResolved = false, withReply = false): DigestThreadRow {
+  const comments: ConversationThread["comments"][number][] = [
+    {
+      commentId: THREAD_ID,
+      author: { login: "alice", isBot: false },
+      body: "This null check looks inverted.",
+      createdAt: "2026-07-01T10:00:00Z",
+      url: "https://example.test/c/9001",
+    },
+  ];
+  if (withReply) {
+    comments.push({
+      commentId: THREAD_ID + 1,
+      author: { login: "bob", isBot: false },
+      body: "Flipped it.",
+      createdAt: "2026-07-01T11:00:00Z",
+      url: "https://example.test/c/9002",
+    });
+  }
   const thread: ConversationThread = {
     rootCommentId: THREAD_ID,
     path: "src/a.ts",
@@ -93,15 +112,7 @@ function threadRow(isResolved = false): DigestThreadRow {
     subjectType: "LINE",
     isResolved,
     isOutdated: false,
-    comments: [
-      {
-        commentId: THREAD_ID,
-        author: { login: "alice", isBot: false },
-        body: "This null check looks inverted.",
-        createdAt: "2026-07-01T10:00:00Z",
-        url: "https://example.test/c/9001",
-      },
-    ],
+    comments,
     hasMoreComments: false,
   };
   return {
@@ -131,6 +142,9 @@ interface RenderOptions {
   mentionSource?: ThreadComposerWiring["mentionSource"];
   reply?: ReplyResult | (() => Promise<ReplyResult>);
   resolve?: ResolveThreadResult | (() => Promise<ResolveThreadResult>);
+  /** Writes are off on this instance or page. */
+  readOnlyReason?: string;
+  withReply?: boolean;
 }
 
 function renderDetail(options: RenderOptions = {}) {
@@ -172,6 +186,9 @@ function renderDetail(options: RenderOptions = {}) {
   if (options.mentionSource !== undefined) {
     composer.mentionSource = options.mentionSource;
   }
+  if (options.readOnlyReason !== undefined) {
+    composer.readOnlyReason = options.readOnlyReason;
+  }
   if (resolution !== undefined) {
     composer.resolution = resolution;
   }
@@ -189,8 +206,9 @@ function renderDetail(options: RenderOptions = {}) {
   flowStore.setState({
     actions: { ...flowStore.getState().actions, announce },
   });
-  const view = render(
-    <QueryClientProvider client={new QueryClient()}>
+  const queryClient = new QueryClient();
+  const buildTree = () => (
+    <QueryClientProvider client={queryClient}>
       <ReviewSessionProvider
         briefId={BRIEF_ID}
         model={buildBriefViewModel(providerBrief)}
@@ -199,12 +217,17 @@ function renderDetail(options: RenderOptions = {}) {
           <ThreadDetail
             composer={composer}
             jumpToChunk={vi.fn()}
-            row={threadRow(options.isResolved ?? false)}
+            row={threadRow(
+              options.isResolved ?? false,
+              options.withReply ?? false,
+            )}
           />
         </ReviewFlowProvider>
       </ReviewSessionProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const view = render(buildTree());
+  const rerenderDetail = () => view.rerender(buildTree());
   const harness: Harness = {
     announce,
     post,
@@ -213,7 +236,7 @@ function renderDetail(options: RenderOptions = {}) {
     refetchCapability,
     calls,
   };
-  return { ...harness, view };
+  return { ...harness, composer, rerenderDetail, view };
 }
 
 function type(text: string) {
@@ -668,6 +691,24 @@ function getReplyTextarea(): HTMLTextAreaElement {
 }
 
 describe("ThreadDetail, quote reply", () => {
+  it("a read-only thread shows why, with no reply box or quote action", () => {
+    renderDetail({ readOnlyReason: "Writes are off on this instance." });
+
+    expect(screen.getByText("Writes are off on this instance.")).toBeTruthy();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Quote reply/ })).toBeNull();
+  });
+
+  it("stacks replies under the root comment", () => {
+    renderDetail({ withReply: true });
+
+    const replies = screen.getByTestId("thread-replies");
+    expect(replies.textContent).toContain("Flipped it.");
+    expect(replies.textContent).not.toContain(
+      "This null check looks inverted.",
+    );
+  });
+
   it("Quote reply prefills the reply box with the quoted comment", () => {
     renderDetail();
     const quoteButton = screen
@@ -710,6 +751,44 @@ describe("ThreadDetail, quote reply", () => {
     expect(getReplyTextarea().value).toBe(
       "> This null check looks inverted.\n\n",
     );
+  });
+  it("adds a taken quote only once when writes switch back on", () => {
+    const { composer, rerenderDetail } = renderDetail();
+    const quoteButton = screen
+      .getAllByRole("button", { name: /Quote reply to @/ })
+      .at(0);
+    if (quoteButton === undefined) {
+      throw new Error("Quote reply not rendered");
+    }
+    fireEvent.click(quoteButton);
+
+    composer.readOnlyReason = "Writes are off on this instance.";
+    rerenderDetail();
+    delete composer.readOnlyReason;
+    rerenderDetail();
+
+    expect(getReplyTextarea().value).toBe(
+      "> This null check looks inverted.\n\n",
+    );
+  });
+
+  it("leaves R alone on a read-only thread", () => {
+    renderDetail({ readOnlyReason: "Writes are off on this instance." });
+    const commentText = screen
+      .getAllByText("This null check looks inverted.")
+      .find((element) => element.tagName === "P");
+    if (commentText === undefined) {
+      throw new Error("comment body not found");
+    }
+    const range = document.createRange();
+    range.selectNodeContents(commentText);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+
+    const keyDown = createEvent.keyDown(window, { key: "r" });
+    fireEvent(window, keyDown);
+
+    expect(keyDown.defaultPrevented).toBe(false);
   });
 });
 

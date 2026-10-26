@@ -2,8 +2,6 @@ import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@web/components/Button";
-import { Markdown } from "@web/components/Markdown";
-import { formatDate, renderedLocale } from "@web/i18n/locale";
 import type { DigestThreadRow } from "../../../utils/digest";
 import { ThreadPlacementKinds } from "../../../utils/anchor";
 import rowStyles from "../../../rows.module.scss";
@@ -13,6 +11,7 @@ import { buildThreadMentionSource } from "../../../utils/mentions";
 import { NO_OWN_REVIEWS, postdatesBrief } from "../../../utils/postdate";
 import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer";
+import { ThreadComment } from "./ThreadComment";
 import { ThreadResolveAction } from "./ThreadResolveAction";
 import { useThreadResolution } from "./useThreadResolution";
 
@@ -33,8 +32,7 @@ export function ThreadDetail({
   composer,
   hideJump = false,
 }: ThreadDetailProps) {
-  const { i18n, t } = useTranslation();
-  const locale = renderedLocale(i18n.resolvedLanguage);
+  const { t } = useTranslation();
   const { thread, placement } = row;
   const ownReviewIds = row.ownReviewIds ?? NO_OWN_REVIEWS;
   // This detail is the nearest common ancestor of the flow's two consumers:
@@ -66,6 +64,7 @@ export function ThreadDetail({
       nonce: (current?.nonce ?? 0) + 1,
     }));
   };
+  const readOnly = composer.readOnlyReason !== undefined;
   const selectionRef = useRef<() => string | null>(() => null);
   // Both ends must sit inside THIS detail: an anchored-inside selection
   // dragged past the thread would otherwise quote unrelated page content
@@ -73,6 +72,7 @@ export function ThreadDetail({
   selectionRef.current = () => {
     const selection = window.getSelection();
     if (
+      readOnly ||
       selection === null ||
       selection.isCollapsed ||
       !detailRef.current?.contains(selection.anchorNode) ||
@@ -83,6 +83,13 @@ export function ThreadDetail({
     return selection.toString();
   };
   const selectionInsideDetail = () => selectionRef.current();
+  const buildQuote = (body: string) =>
+    readOnly ? undefined : () => pushQuote(selectionInsideDetail() ?? body);
+  const [rootEntry, ...replyEntries] = thread.comments.map((comment) => ({
+    comment,
+    afterBrief: postdatesBrief(comment, row.briefGeneratedAt, ownReviewIds),
+    quote: buildQuote(comment.body),
+  }));
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
@@ -148,61 +155,27 @@ export function ThreadDetail({
   };
   return (
     <div className={rowStyles["detail"]} ref={detailRef}>
-      {thread.comments.map((comment) => (
-        <article
-          aria-label={t("conversation.ariaLabelComment", {
-            login: comment.author.login,
-          })}
-          className={rowStyles["comment"]}
-          key={comment.commentId}
-        >
-          <header className={rowStyles["commentHead"]}>
-            {comment.author.avatarUrl === undefined ? null : (
-              // Decorative. The adjacent login carries the identity.
-              <img
-                alt=""
-                className={rowStyles["commentAvatar"]}
-                decoding="async"
-                loading="lazy"
-                src={comment.author.avatarUrl}
-              />
-            )}
-            <span className={rowStyles["author"]}>
-              @{comment.author.login}
-              {comment.author.isBot ? (
-                <span className={rowStyles["botTag"]}>
-                  {t("conversation.botTag")}
-                </span>
-              ) : null}
-            </span>
-            <time dateTime={comment.createdAt}>
-              {formatDate(comment.createdAt, locale)}
-            </time>
-            {postdatesBrief(comment, row.briefGeneratedAt, ownReviewIds) ? (
-              <span className={rowStyles["chip"]} data-state="after-brief">
-                {t("conversation.afterThisBrief")}
-              </span>
-            ) : null}
-            <Button
-              aria-label={t("conversation.ariaLabelQuoteReply", {
-                login: comment.author.login,
-              })}
-              className={rowStyles["quoteAction"]}
-              variant="quiet"
-              onClick={() => pushQuote(selectionInsideDetail() ?? comment.body)}
-            >
-              {t("conversation.quoteReply")}
-            </Button>
-          </header>
-          <Markdown
-            content={comment.body}
-            filePath={thread.path}
-            renderHtml
-            renderMentions
-            renderSuggestions
-          />
-        </article>
-      ))}
+      {rootEntry === undefined ? null : (
+        <ThreadComment
+          afterBrief={rootEntry.afterBrief}
+          comment={rootEntry.comment}
+          filePath={thread.path}
+          quote={rootEntry.quote}
+        />
+      )}
+      {replyEntries.length > 0 ? (
+        <div className={rowStyles["replies"]} data-testid="thread-replies">
+          {replyEntries.map((entry) => (
+            <ThreadComment
+              afterBrief={entry.afterBrief}
+              comment={entry.comment}
+              filePath={thread.path}
+              key={entry.comment.commentId}
+              quote={entry.quote}
+            />
+          ))}
+        </div>
+      ) : null}
       {thread.hasMoreComments ? (
         <p className={rowStyles["note"]}>{t("conversation.longerThread")}</p>
       ) : null}
@@ -220,25 +193,28 @@ export function ThreadDetail({
           </Button>
         ) : null}
       </div>
-      <ReplyComposer
-        readOnlyReason={composer.readOnlyReason}
-        mentionSource={mentionSource}
-        quote={quote}
-        onPosted={composer.onPosted}
-        post={composer.post}
-        // The combo closes an open thread. Never offered on a resolved one
-        // (Unresolve is that thread's action) nor without the capability.
-        resolveAfterPost={
-          resolution.available && !thread.isResolved
-            ? resolution.resolveAfterReply
-            : undefined
-        }
-        // Focus destination when the combo button retires mid-flow: the
-        // standalone control is mounted for the whole combo (both outcomes
-        // leave it on screen), and on a partial it IS the retry path.
-        focusResolveAction={focusResolveAction}
-        threadId={thread.rootCommentId}
-      />
+      {readOnly ? (
+        <p className={rowStyles["note"]}>{composer.readOnlyReason}</p>
+      ) : (
+        <ReplyComposer
+          mentionSource={mentionSource}
+          quote={quote}
+          onPosted={composer.onPosted}
+          post={composer.post}
+          // The combo closes an open thread. Never offered on a resolved one
+          // (Unresolve is that thread's action) nor without the capability.
+          resolveAfterPost={
+            resolution.available && !thread.isResolved
+              ? resolution.resolveAfterReply
+              : undefined
+          }
+          // Focus destination when the combo button retires mid-flow: the
+          // standalone control is mounted for the whole combo (both outcomes
+          // leave it on screen), and on a partial it IS the retry path.
+          focusResolveAction={focusResolveAction}
+          threadId={thread.rootCommentId}
+        />
+      )}
       {resolution.available ? (
         <ThreadResolveAction
           error={resolution.error}
