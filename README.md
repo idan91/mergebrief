@@ -1,7 +1,7 @@
 # MergeBrief
 
 A source-available, self-hostable **comprehension layer for code review.** It turns a pull request
-from a flat file-list into a **Brief**: changes re-unitized into categorized **Change-groups**,
+from a flat file-list into a **brief**: changes re-unitized into categorized **Change-groups**,
 each with a plain-language summary and **Risk Surface** attributes: facts worth a closer look,
 never a verdict.
 
@@ -9,6 +9,28 @@ MergeBrief doesn't try to spot bugs. It organizes the review itself: the author 
 with its story already told, the reviewer follows that story instead of reconstructing it from
 the diff, attention lands where it's needed, and it takes fewer review iterations to reach a
 confident merge.
+
+## See it work
+
+**Delta view.** Come back to a PR after new pushes and the brief shows what changed since
+your last review, with the comments each change addresses.
+
+<!-- recording: delta view -->
+
+**Chunk stepping.** Move through a Change-group one chunk at a time from the keyboard,
+marking each one viewed as you go.
+
+<!-- recording: chunk stepping -->
+
+**Risks.** Each chunk lists the Risk Surface attributes that fired on it. You mark each
+flag addressed or dismissed with a reason, and the Receipt records it.
+
+<!-- recording: risks -->
+
+**Threads.** The PR's GitHub conversations sit next to the chunks they belong to, and you
+reply or resolve them in place.
+
+<!-- recording: threads -->
 
 ## Why this, and not [CodeRabbit](https://www.coderabbit.ai/) or another AI review bot?
 
@@ -18,7 +40,8 @@ one-off summary.** Every Change-group gets a Category from a fixed vocabulary
 (`pure-move`, `schema-change`, `lib-bump`, `logic-refactor`, …), so the same kind of change is
 recognizable across every PR you ever review.
 
-- **Open and self-hostable.** One core, `docker compose up`, your infrastructure, your data.
+- **Self-hostable and source-available.** One core, `docker compose up`, your infrastructure,
+  your data. The source is public under `FSL-1.1-ALv2` (see [License](#license)).
 - **BYOK, no per-seat cost, no telemetry.** Your model key, your spend. Self-hosted instances
   send nothing back to us, by design. Beyond the GitHub API and your model provider, the
   outbound requests are the update check, the links a PR cites and any ticket tracker you
@@ -55,7 +78,9 @@ trusts. Any other author's PR waits for one Generate click from a
 collaborator with push access, and its later pushes run as usual. Setup
 details (App registration, env table, verification, hardening before you
 expose it):
-[`docs/self-host/compose.md`](./docs/self-host/compose.md). Upgrades,
+[`docs/self-host/compose.md`](./docs/self-host/compose.md). Every environment
+variable, instance config key and CLI setting, with its default:
+[`docs/self-host/configuration.md`](./docs/self-host/configuration.md). Upgrades,
 migrations, and backup/restore:
 [`docs/self-host/operations.md`](./docs/self-host/operations.md).
 
@@ -133,7 +158,7 @@ Deploy-side setup: [docs/self-host/cli.md](docs/self-host/cli.md).
 
 | | |
 |---|---|
-| **Story view** | The Brief grouped by Change-group: what changed and why, step by step |
+| **Story view** | The brief grouped by Change-group: what changed and why, step by step |
 | **Concern split** | How the PR's attention divides by artifact (implementation, test, doc, spec, config, generated): how much is real change and how much is scaffolding |
 | **Changes only** | On a later push, only what changed between two revisions of the PR |
 | **Risk Surface** | Factual attributes per chunk (`no-tests`, `touches-auth`, `comment-contradicts-code`, …), each checkable in seconds, never a severity score |
@@ -142,11 +167,11 @@ Deploy-side setup: [docs/self-host/cli.md](docs/self-host/cli.md).
 ## Project layout
 
 ```
-apps/web/                     the web app (Inbox, Brief renderer, review session); holds no credentials
+apps/web/                     the web app (Inbox, brief renderer, review session); holds no credentials
 apps/api/                     the HTTP API: webhooks, GitHub sign-in, reviewer reads and writes
 apps/worker/                  the generation worker: drains the Postgres job queue, writes briefs
 apps/cli/                     `mergebrief`, the HTTP client for humans and agents
-packages/brief-core/          the engine: Brief schema, vocabulary, prompt, delta and anchoring
+packages/brief-core/          the engine: brief schema, vocabulary, prompt, delta and anchoring
 packages/generators/          the model backends behind one generator port
 packages/contract/            the HTTP contract the API, web app and CLI share
 packages/persistence/         the Postgres data layer and job queue
@@ -171,7 +196,7 @@ infrastructure, with your own API key**. Beyond the GitHub API, your model provi
 the outbound reads described above, nothing leaves your network, and there is no
 telemetry. What it stores is deliberately minimal:
 
-- **Stored:** generated Briefs and revision summaries (descriptions *of* your code), review
+- **Stored:** generated briefs and revision summaries (descriptions *of* your code), review
   positions (which commit each reviewer last reviewed), and encrypted login sessions.
 - **Not stored:** your code. Diffs are fetched live from GitHub per session and thrown away.
 - **Also not stored:** comment text (comments live on GitHub), emails, or IP addresses.
@@ -186,14 +211,31 @@ something was erased without retaining *what*.
 
 ## Status
 
-This is an early-stage, actively developed self-hosted project, not a finished product. The
-domain model is documented in [`CONTEXT.md`](./CONTEXT.md), and how the pieces fit together
-in [`docs/architecture.md`](docs/architecture.md).
+MergeBrief is pre-1.0 and under active development. Expect rough edges and changes between
+releases. A release whose upgrade needs more than the documented steps is flagged breaking
+in its notes; [`docs/self-host/operations.md`](./docs/self-host/operations.md) covers
+upgrades and rollback. The domain model is in [`CONTEXT.md`](./CONTEXT.md), and how the
+pieces fit together is in [`docs/architecture.md`](./docs/architecture.md).
 
 ## Contributing
 
-The taxonomy is the contribution surface: an ESLint-rules-style commons of review knowledge,
-kept in plain markdown. Proposing a Category or a Risk-Surface attribute starts as a docs change. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+Development happens in a private repository, and each release is exported to this
+public repository as a snapshot.
+
+Contributions are still welcome here as ordinary pull requests, and review happens in
+public on the PR. An accepted change is applied upstream, credited to you with a
+`Co-authored-by:` trailer, and ships in the next release. The PR is then closed with a
+link to that release.
+
+The taxonomy is the main contribution surface: Categories and Risk Surface attributes,
+kept in plain markdown, so proposing one starts as a docs change. The evidence bars, the
+review process and the license terms for contributions are in
+[`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+## Security
+
+Report vulnerabilities privately, never in a public issue.
+[`SECURITY.md`](./SECURITY.md) has the reporting channels and what is supported.
 
 ## License
 
