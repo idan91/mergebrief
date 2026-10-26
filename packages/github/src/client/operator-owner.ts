@@ -73,7 +73,7 @@ export async function resolveOperatorTokenOwner(
     if (owner.ok) {
       ownerId = owner.value.reviewerId;
       lookupPending = false;
-      log.info("URL-box token serves its owner only", {
+      log.info("URL fallback token serves its owner only", {
         ownerId: String(ownerId),
       });
       return;
@@ -83,8 +83,8 @@ export async function resolveOperatorTokenOwner(
     if (REFUSAL_CODES.has(code)) {
       lookupPending = false;
       log.error(
-        "GitHub refused MERGEBRIEF_URL_BOX_TOKEN, so it serves nobody; fix the token and restart",
-        { evt: "url-box-token.owner.fail", status, code },
+        "GitHub refused MERGEBRIEF_URL_FALLBACK_TOKEN, so it serves nobody; fix the token and restart",
+        { evt: "url-fallback-token.owner.fail", status, code },
       );
       return;
     }
@@ -92,7 +92,7 @@ export async function resolveOperatorTokenOwner(
     const retryInMs = deriveRetryDelay(failedLookups);
     failedLookups += 1;
     log.warn(
-      "URL-box token owner lookup failed; the token serves nobody until a retry succeeds",
+      "URL fallback token owner lookup failed; the token serves nobody until a retry succeeds",
       { status, code, retryInMs },
     );
     scheduleRetry(lookUpOwner, retryInMs);

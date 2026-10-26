@@ -125,7 +125,7 @@ reads, with what an empty value does.
 | `GITHUB_WEBHOOK_SECRET` | api, worker | HMAC for inbound deliveries, which only `api` receives; the worker parses the same GitHub config. `openssl rand -hex 32`; under 32 characters refuses boot |
 | `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api, worker | reviewer login; the worker uses them to revoke a dead grant's token at GitHub after its hourly sweep, and refuses boot without them |
 | `GITHUB_APP_SLUG` | api, worker | optional; the App's URL name, the last segment of `https://github.com/apps/<slug>`. Set, Home links a viewer with no reachable installation to its install page; unset, that line carries no link |
-| `MERGEBRIEF_URL_BOX_TOKEN` | api, worker | optional; an operator GitHub token (fine-grained, Contents and Pull requests read) that reads a pasted private PR the App is not installed on, tried only after the reviewer's own token is denied. It serves only the GitHub account that owns it, so make it on your own account. `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` is no longer read: set, it logs one warning and is ignored |
+| `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | optional; a GitHub token (fine-grained, Contents and Pull requests read) that reads a pasted private PR the App is not installed on, tried only after the reviewer's own token is denied. It serves only the GitHub account that owns it, so make it on your own account. `MERGEBRIEF_URL_BOX_TOKEN` and `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` are no longer read: set, each logs one warning and is ignored |
 | `SESSION_KEY_V1` | api, worker | `openssl rand -base64 32`; the worker opens grants with it for pasted PRs and for the hourly sweep's GitHub revokes. Both services read the same `.env` |
 | `SESSION_KEY_REF` | api | optional; the env var name new GitHub tokens are sealed under, default `SESSION_KEY_V1`. A value that is not an env var name refuses boot. See [Tokens at rest](./operations.md#tokens-at-rest) for rotation |
 | `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it. An absolute http(s) URL with no credentials in it, or api and worker refuse boot |
@@ -360,12 +360,12 @@ The compose defaults are tuned for a loopback-only, single-operator machine.
 Before pointing a domain (or leaving a tunnel up long-term) at an instance,
 work through this section.
 
-If `MERGEBRIEF_URL_BOX_TOKEN` is set, it serves only the GitHub account that
+If `MERGEBRIEF_URL_FALLBACK_TOKEN` is set, it serves only the GitHub account that
 owns it: at boot the api and worker ask GitHub whose token it is, and every
 other reviewer gets the instance as if no token were set. A PAT made on a bot
 or machine account therefore serves no person; make it on your own account.
 If GitHub refuses the token (revoked, expired, or not a user token), it
-serves nobody and the `url-box-token.owner.fail` line names the fix: replace
+serves nobody and the `url-fallback-token.owner.fail` line names the fix: replace
 the token and restart. If GitHub cannot answer, the token serves nobody until
 a background retry succeeds. Once a brief is open on the token, diff and file
 reads are limited to the commits MergeBrief recorded for that pull request.

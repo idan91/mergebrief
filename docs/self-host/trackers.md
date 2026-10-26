@@ -71,7 +71,7 @@ ticket.
 | Where | Credential | Reach |
 | --- | --- | --- |
 | Worker (App installation) | the installation token already minted for the job | every repository the installation covers |
-| Worker (URL-box job) | the viewer's token, or the operator PAT fallback when the job's owner owns `MERGEBRIEF_URL_BOX_TOKEN` | whatever that token can read |
+| Worker (URL job) | the viewer's token, or `MERGEBRIEF_URL_FALLBACK_TOKEN` when the job's owner owns it | whatever that token can read |
 | `categorize` and `delta` dev CLIs | `gh`: `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
 
 **No permission change.** GitHub authorizes `Get an issue` under

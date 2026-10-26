@@ -196,6 +196,7 @@ describe("loadConfig", () => {
   describe("the operator token", () => {
     const OPERATOR_TOKEN = "github_pat_OPERATOR_FIXTURE";
     const REMOVED_KEY = "MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS";
+    const RENAMED_KEY = "MERGEBRIEF_URL_BOX_TOKEN";
 
     function loadWithWarnings(env: Record<string, string>): {
       readonly config: GitHubConfig;
@@ -211,7 +212,7 @@ describe("loadConfig", () => {
     it("parses the token alone", () => {
       const { config, warnings } = loadWithWarnings({
         ...BASE_ENV,
-        MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
+        MERGEBRIEF_URL_FALLBACK_TOKEN: OPERATOR_TOKEN,
       });
 
       expect(config.operatorToken).toBe(OPERATOR_TOKEN);
@@ -220,7 +221,7 @@ describe("loadConfig", () => {
 
     it("leaves the operator token absent when it is empty", () => {
       const config = ok(
-        loadConfig({ ...BASE_ENV, MERGEBRIEF_URL_BOX_TOKEN: "" }),
+        loadConfig({ ...BASE_ENV, MERGEBRIEF_URL_FALLBACK_TOKEN: "" }),
       );
 
       expect(config.operatorToken).toBeUndefined();
@@ -236,7 +237,7 @@ describe("loadConfig", () => {
     ])("warns once about the removed reviewer list $name", ({ token }) => {
       const { config, warnings } = loadWithWarnings({
         ...BASE_ENV,
-        MERGEBRIEF_URL_BOX_TOKEN: token,
+        MERGEBRIEF_URL_FALLBACK_TOKEN: token,
         [REMOVED_KEY]: "583231,not-an-id",
       });
 
@@ -249,8 +250,30 @@ describe("loadConfig", () => {
     it("stays silent about an empty removed reviewer list", () => {
       const { warnings } = loadWithWarnings({
         ...BASE_ENV,
-        MERGEBRIEF_URL_BOX_TOKEN: OPERATOR_TOKEN,
+        MERGEBRIEF_URL_FALLBACK_TOKEN: OPERATOR_TOKEN,
         [REMOVED_KEY]: "",
+      });
+
+      expect(warnings).toEqual([]);
+    });
+
+    it("ignores the renamed token key and names its replacement", () => {
+      const { config, warnings } = loadWithWarnings({
+        ...BASE_ENV,
+        [RENAMED_KEY]: OPERATOR_TOKEN,
+      });
+
+      expect(config.operatorToken).toBeUndefined();
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain(RENAMED_KEY);
+      expect(warnings[0]).toContain("MERGEBRIEF_URL_FALLBACK_TOKEN");
+      expect(warnings[0]).not.toContain(OPERATOR_TOKEN);
+    });
+
+    it("stays silent about an empty renamed token key", () => {
+      const { warnings } = loadWithWarnings({
+        ...BASE_ENV,
+        [RENAMED_KEY]: "",
       });
 
       expect(warnings).toEqual([]);

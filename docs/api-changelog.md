@@ -13,6 +13,14 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-26)
+
+- **Renamed** the env var `MERGEBRIEF_URL_BOX_TOKEN` to
+  `MERGEBRIEF_URL_FALLBACK_TOKEN`, and the api and worker log event
+  `evt: "url-box-token.owner.fail"` to `evt: "url-fallback-token.owner.fail"`
+  (same level and fields). The old key, set and non-empty, logs one warning
+  naming the new key and is ignored. No response shape changes.
+
 ## dev (2026-10-24)
 
 - **Added** `regenerate-brief`,

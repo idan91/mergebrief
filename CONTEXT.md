@@ -189,7 +189,7 @@ _Avoid_: world, door, origin (collides with **Generation origin**)
 
 **URL**:
 A **Source** value (stored `url`, key `URL`): a pull request one **Reviewer** added by pasting its URL. It belongs to that reviewer, no webhook reports on it, and its jobs read GitHub through the reviewer's **Grant**. Ownership is not exclusive: any reviewer GitHub lets read the repository opens its stored **Brief**; only the **Inbox** list is owner-only. "Box" names a spot on the screen, not a concept; the input on Home gets no term.
-_Avoid_: pasted-URL, url-box (survives only in identifiers such as `UrlBoxGenerateJobPayload` and `MERGEBRIEF_URL_BOX_TOKEN`), twin
+_Avoid_: pasted-URL, url-box (survives only in identifiers such as `UrlBoxGenerateJobPayload`), twin
 
 **Grant**:
 One GitHub user-to-server authorization: the one row holding a reviewer's encrypted GitHub token pair. Sessions and API tokens reference it rather than copy it, and it dies with its last referent. A **URL** pull request's job carries a grant reference, never token material.
@@ -496,7 +496,7 @@ _Avoid_: script (bare), dev package
 ### Releases and upgrades
 
 **Operator**:
-The person who runs an **Instance**: installs it, upgrades it, backs up its database, reads its log. In the app, a GitHub user the Instance's config lists under `operators` by numeric user id; an Operator reads instance-wide state no repository access scopes, such as the day's spend. Every other signed-in user sees the **Version notice** too, and the upgrade step runs on the host. The operator token (`MERGEBRIEF_URL_BOX_TOKEN`) belongs to whoever runs the Instance, but owning it grants nothing here: only the `operators` list makes a user an Operator.
+The person who runs an **Instance**: installs it, upgrades it, backs up its database, reads its log. In the app, a GitHub user the Instance's config lists under `operators` by numeric user id; an Operator reads instance-wide state no repository access scopes, such as the day's spend. Every other signed-in user sees the **Version notice** too, and the upgrade step runs on the host. The URL fallback token (`MERGEBRIEF_URL_FALLBACK_TOKEN`) belongs to whoever runs the Instance, but owning it grants nothing here: only the `operators` list makes a user an Operator.
 _Avoid_: admin (no such role; repo admin is GitHub's per-repository permission), self-hoster (informal only), maintainer (that is the project's)
 
 **Release**:

@@ -69,7 +69,7 @@ export interface AppDeps {
   /** Audit knobs from persistence config; omitted = private writes on. */
   readonly audit?: AuditEmitConfig;
   /**
-   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`), serving only its
+   * Operator PAT backstop (`MERGEBRIEF_URL_FALLBACK_TOKEN`), serving only its
    * owner. Absent disables the fallback.
    */
   readonly operatorToken?: OwnedOperatorToken | undefined;

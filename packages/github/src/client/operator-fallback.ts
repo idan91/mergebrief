@@ -84,10 +84,13 @@ export function createRepoReadRunner(
     }
     // The operator's own key is what GitHub rejected; its 401 would send the
     // reviewer to sign in again, which cannot repair it.
-    fallback.log.warn("operator token rejected by GitHub", {
-      owner: fallback.reads.repo.owner,
-      repo: fallback.reads.repo.repo,
-    });
+    fallback.log.warn(
+      "URL fallback token rejected by GitHub, check MERGEBRIEF_URL_FALLBACK_TOKEN",
+      {
+        owner: fallback.reads.repo.owner,
+        repo: fallback.reads.repo.repo,
+      },
+    );
     return ownResult;
   };
 }

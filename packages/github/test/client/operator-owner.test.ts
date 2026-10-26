@@ -99,7 +99,7 @@ describe("resolveOperatorTokenOwner", () => {
       expect(retries).toEqual([]);
       expect(log.error).toHaveBeenCalledTimes(1);
       expect(log.error.mock.calls[0]?.[1]).toEqual({
-        evt: "url-box-token.owner.fail",
+        evt: "url-fallback-token.owner.fail",
         status: refusal.status,
         code: refusal.code,
       });

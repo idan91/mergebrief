@@ -23,7 +23,7 @@ export interface GitHubConfig {
   readonly oauthClientSecret: string;
   /** The App's URL name (`github.com/apps/<slug>`); absent, Home offers no Install link. */
   readonly appSlug: string | undefined;
-  /** `MERGEBRIEF_URL_BOX_TOKEN`; absent, no operator token. */
+  /** `MERGEBRIEF_URL_FALLBACK_TOKEN`; absent, no operator token. */
   readonly operatorToken?: OperatorToken | undefined;
 }
 
@@ -62,7 +62,11 @@ const APP_SLUG_PATTERN = /^[a-z0-9-]+$/;
 const WEBHOOK_SECRET_MIN_LENGTH = 32;
 
 const REMOVED_REVIEWERS_KEY = "MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS";
-const REMOVED_REVIEWERS_WARNING = `${REMOVED_REVIEWERS_KEY} is no longer read: the URL-box token now serves only the GitHub account that owns it. Remove the key.`;
+const REMOVED_REVIEWERS_WARNING = `${REMOVED_REVIEWERS_KEY} is no longer read: the URL fallback token now serves only the GitHub account that owns it. Remove the key.`;
+
+const FALLBACK_TOKEN_KEY = "MERGEBRIEF_URL_FALLBACK_TOKEN";
+const RENAMED_TOKEN_KEY = "MERGEBRIEF_URL_BOX_TOKEN";
+const RENAMED_TOKEN_WARNING = `${RENAMED_TOKEN_KEY} is no longer read: rename it to ${FALLBACK_TOKEN_KEY}.`;
 
 /** Compose expands an unset `${KEY:-}` to an empty string; that is unset too. */
 function readEmptyAsUnset(value: unknown): unknown {
@@ -106,10 +110,7 @@ const ConfigSchema = z
         .regex(APP_SLUG_PATTERN, "GITHUB_APP_SLUG must be the App's URL name")
         .optional(),
     ),
-    MERGEBRIEF_URL_BOX_TOKEN: z.preprocess(
-      readEmptyAsUnset,
-      z.string().optional(),
-    ),
+    [FALLBACK_TOKEN_KEY]: z.preprocess(readEmptyAsUnset, z.string().optional()),
   })
   .superRefine((data, ctx) => {
     const hasKey = data.GITHUB_APP_PRIVATE_KEY !== undefined;
@@ -208,6 +209,10 @@ export function loadConfig(
   if (removedReviewers !== undefined) {
     options.onWarning?.(REMOVED_REVIEWERS_WARNING);
   }
+  const renamedToken = readEmptyAsUnset(env[RENAMED_TOKEN_KEY]);
+  if (renamedToken !== undefined) {
+    options.onWarning?.(RENAMED_TOKEN_WARNING);
+  }
 
   const parsed = ConfigSchema.safeParse(env);
   if (!parsed.success) {
@@ -239,7 +244,7 @@ export function loadConfig(
       oauthClientId: parsed.data.GITHUB_OAUTH_CLIENT_ID,
       oauthClientSecret: parsed.data.GITHUB_OAUTH_CLIENT_SECRET,
       appSlug: parsed.data.GITHUB_APP_SLUG,
-      operatorToken: parseOperatorToken(parsed.data.MERGEBRIEF_URL_BOX_TOKEN),
+      operatorToken: parseOperatorToken(parsed.data[FALLBACK_TOKEN_KEY]),
     },
   };
 }

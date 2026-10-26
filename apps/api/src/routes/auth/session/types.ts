@@ -28,7 +28,7 @@ export interface AuthRouteDeps {
   readonly auth: AuthDeps;
   readonly draftPolicy?: DraftPolicy;
   /**
-   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`), serving only its
+   * Operator PAT backstop (`MERGEBRIEF_URL_FALLBACK_TOKEN`), serving only its
    * owner. Read only through `resolveOperatorTokenFor`. Absent disables the
    * fallback everywhere.
    */

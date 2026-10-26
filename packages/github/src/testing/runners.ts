@@ -182,10 +182,13 @@ async function runWithFallback<Value>(
   if (!isUnauthorized(operator)) {
     return operator;
   }
-  fallback.log.warn("operator token rejected by GitHub", {
-    owner: fallback.reads.repo.owner,
-    repo: fallback.reads.repo.repo,
-  });
+  fallback.log.warn(
+    "URL fallback token rejected by GitHub, check MERGEBRIEF_URL_FALLBACK_TOKEN",
+    {
+      owner: fallback.reads.repo.owner,
+      repo: fallback.reads.repo.repo,
+    },
+  );
   return ownResult;
 }
 

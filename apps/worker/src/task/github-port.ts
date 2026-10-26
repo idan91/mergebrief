@@ -230,7 +230,7 @@ function resolveOperatorTokenFor(
     return operatorToken.token;
   }
   if (operatorToken.isLookupPending()) {
-    throw new TransientJobError("url-box token owner lookup pending", {
+    throw new TransientJobError("URL fallback token owner lookup pending", {
       failure: { code: GenerationFailureCodes.GITHUB_UNAVAILABLE },
     });
   }
@@ -404,7 +404,7 @@ export function createGitHubPort(
     async openUrlBoxPullRequestSource(request) {
       if (urlBox === undefined) {
         throw buildPermanentAccessFailure(
-          "url-box job with no viewer credential path configured",
+          "URL job with no viewer credential path configured",
         );
       }
       return openUrlBoxSource(binders, urlBox, request);

@@ -73,8 +73,10 @@ export async function scheduleUrlBoxRegeneration(
   });
   const head = info.headSha.slice(0, 8);
   if (outcome.coveredBy !== undefined) {
-    input.log.info(`generate: url-box head advanced to ${head}, brief stored`);
+    input.log.info(
+      `generate: URL pull request head advanced to ${head}, brief stored`,
+    );
     return;
   }
-  input.log.info(`generate: url-box head advanced, queued ${head}`);
+  input.log.info(`generate: URL pull request head advanced, queued ${head}`);
 }

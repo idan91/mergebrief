@@ -48,7 +48,7 @@ async function readPastedPullRequest(
     return fallback;
   }
   deps.log.warn(
-    "url-box fallback token rejected by GitHub, check the operator PAT",
+    "URL fallback token rejected by GitHub, check MERGEBRIEF_URL_FALLBACK_TOKEN",
   );
   return viewer;
 }

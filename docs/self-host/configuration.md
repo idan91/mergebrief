@@ -66,7 +66,7 @@ it.
 | `GITHUB_OAUTH_CLIENT_ID` | api, worker | none | yes | The App's OAuth client id, for reviewer sign-in. The worker uses it to revoke a dead grant's token at GitHub. |
 | `GITHUB_OAUTH_CLIENT_SECRET` | api, worker | none | yes | The App's OAuth client secret. |
 | `GITHUB_APP_SLUG` | api, worker | unset | no | The App's URL name, the last segment of `https://github.com/apps/<slug>`: lowercase letters, digits and hyphens. Set, Home links a viewer with no reachable installation to the install page. Empty reads as unset. |
-| `MERGEBRIEF_URL_BOX_TOKEN` | api, worker | unset | no | An operator GitHub token tried after a reviewer's own token is denied on a pasted pull request. It serves only the GitHub account that owns it ([compose.md](./compose.md#hardening-before-real-exposure)). Empty reads as unset. |
+| `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | unset | no | A GitHub token tried after a reviewer's own token is denied on a pasted pull request. It serves only the GitHub account that owns it ([compose.md](./compose.md#hardening-before-real-exposure)). Empty reads as unset. |
 | `SESSION_KEY_REF` | api | `SESSION_KEY_V1` | no | The NAME of the variable new GitHub tokens are sealed under: an uppercase letter, then uppercase letters, digits or underscores. Anything else refuses boot. Empty takes the default. |
 | `SESSION_KEY_V1` (or the name `SESSION_KEY_REF` gives) | api, worker | none | api: yes | Base64 of exactly 32 bytes (`openssl rand -base64 32`). `api` resolves the variable `SESSION_KEY_REF` names at boot and refuses when it is missing, not base64, or the wrong length. Each stored grant names its own key variable, and both services open it by that name when they need it, so a rotated-out key stays set until no grant names it ([Tokens at rest](./operations.md#tokens-at-rest)). |
 
@@ -216,6 +216,7 @@ passes none of them to `web`.
 | --- | --- |
 | `GENERATOR_API_KEY_ENV` | Removed. Set at all, even empty, the worker refuses boot and points at `generator.apiKeyEnv`. |
 | `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Ignored; MergeBrief sets the export timeout itself. |
+| `MERGEBRIEF_URL_BOX_TOKEN` | Renamed to `MERGEBRIEF_URL_FALLBACK_TOKEN`. Set and non-empty, `api` and `worker` log one warning naming the new key and ignore it. |
 | `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` | Removed. Set and non-empty, `api` and `worker` log one warning and ignore it. |
 | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_ADMIN_KEY` | Ignored by the API providers; `generator.baseUrl` is the only way to change the host ([generators.md](./generators.md#the-six-providers)). |
 
