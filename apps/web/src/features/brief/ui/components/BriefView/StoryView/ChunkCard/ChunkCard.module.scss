@@ -13,14 +13,16 @@
     // itself scrolls away under the head.
     &[data-reviewed] {
       .head,
-      .body {
+      .body,
+      .notice {
         border-color: var(--color-outline-2);
       }
     }
 
     &[data-current] {
       .head,
-      .body {
+      .body,
+      .notice {
         border-color: var(--color-cursor-ring);
       }
     }
@@ -28,6 +30,11 @@
     &[data-state="collapsed"] .head {
       border-end-start-radius: var(--radius-panel);
       border-end-end-radius: var(--radius-panel);
+    }
+
+    &[data-state="collapsed"][data-large] .head {
+      border-end-start-radius: 0;
+      border-end-end-radius: 0;
     }
 
     &[data-state="open"] .head {

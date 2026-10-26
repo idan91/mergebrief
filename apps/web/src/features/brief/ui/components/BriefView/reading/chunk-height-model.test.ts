@@ -7,6 +7,7 @@ import {
   EMPTY_DIFF_NOTE_PX,
   estimateChunkCardHeight,
   estimateNarrativeCardHeight,
+  LARGE_CHUNK_NOTICE_PX,
   NARRATIVE_CARD_OVERHEAD_PX,
 } from "./chunk-height-model";
 
@@ -24,6 +25,15 @@ describe("estimateChunkCardHeight", () => {
     expect(estimateChunkCardHeight({ diffRowCount: 0, open: false })).toBe(
       COLLAPSED_CARD_HEIGHT_PX,
     );
+  });
+
+  it("adds the large-diff notice to a closed large card only", () => {
+    expect(
+      estimateChunkCardHeight({ diffRowCount: 900, open: false, large: true }),
+    ).toBe(COLLAPSED_CARD_HEIGHT_PX + LARGE_CHUNK_NOTICE_PX);
+    expect(
+      estimateChunkCardHeight({ diffRowCount: 900, open: true, large: true }),
+    ).toBe(900 * DIFF_ROW_HEIGHT_PX + CHUNK_CARD_OVERHEAD_PX);
   });
 
   it("prices a diff-less open card as chrome plus the unavailable note", () => {

@@ -49,7 +49,11 @@ import {
   CHUNK_WINDOW_INDEX_ATTR,
   useGroupWindow,
 } from "../reading/useGroupWindow";
-import { deriveGroupSectionId, type SidebarLayout } from "../utils";
+import {
+  deriveGroupSectionId,
+  isLargeChunk,
+  type SidebarLayout,
+} from "../utils";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
@@ -356,6 +360,7 @@ function WindowedChunkList({
       return estimateChunkCardHeight({
         diffRowCount: diffRowCounts[index] ?? 0,
         open: openChunks.has(chunk.id),
+        large: isLargeChunk(chunk),
       });
     },
     [group.chunks, openChunks, diffRowCounts],

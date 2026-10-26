@@ -183,6 +183,8 @@ export type Catalog = typeof en & {
       viewingBrief: "Viewing brief {{index}} of {{total}}.";
     };
     chunk: (typeof en)["brief"]["chunk"] & {
+      largeDiffHidden_one: "{{count, number}} changed line hidden";
+      largeDiffHidden_other: "{{count, number}} changed lines hidden";
       drafts_one: "{{count}} draft";
       drafts_other: "{{count}} drafts";
       addressedCount: "{{count}} addressed";

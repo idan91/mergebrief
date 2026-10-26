@@ -39,6 +39,7 @@ import type { ProgressTotals } from "../../utils/progress";
 import { type BriefChunk, type ComparisonMarks } from "../../../model/types";
 import { getShortSha } from "../../../model/utils/short-sha";
 import {
+  LARGE_CHUNK_CHANGED_LINES,
   NO_REVIEW_REASON_KEY,
   OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
   SESSION_FROZEN_REASON_KEY,
@@ -188,6 +189,31 @@ export function groupStartIndexes(
     offset += group.chunks.length;
   }
   return boundaries;
+}
+
+export function countChangedLines(chunk: Pick<BriefChunk, "loc">): number {
+  return chunk.loc.added + chunk.loc.deleted;
+}
+
+export function isLargeChunk(chunk: Pick<BriefChunk, "loc">): boolean {
+  return countChangedLines(chunk) > LARGE_CHUNK_CHANGED_LINES;
+}
+
+export function listLargeChunkIds(
+  chunks: readonly Pick<BriefChunk, "id" | "loc">[],
+): Set<string> {
+  const largeChunks = chunks.filter(isLargeChunk);
+  return new Set(largeChunks.map((chunk) => chunk.id));
+}
+
+export function listInitiallyOpenChunkIds(
+  groups: readonly {
+    chunks: readonly Pick<BriefChunk, "id" | "loc">[];
+  }[],
+): string[] {
+  const chunks = groups.flatMap((group) => group.chunks);
+  const openChunks = chunks.filter((chunk) => !isLargeChunk(chunk));
+  return openChunks.map((chunk) => chunk.id);
 }
 
 /** Chunk ids in the rendered reading order, group by group. */

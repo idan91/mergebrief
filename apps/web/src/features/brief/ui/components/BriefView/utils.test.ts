@@ -28,6 +28,8 @@ import {
   groupStartIndexes,
   hasRemovedLines,
   listChunkIds,
+  listInitiallyOpenChunkIds,
+  listLargeChunkIds,
   markReadyBatchBusyLabel,
   markReadyBatchFailureCopy,
   resolveRiskEvidence,
@@ -226,6 +228,35 @@ describe("listChunkIds", () => {
       { chunks: [{ id: "c3" }] },
     ];
     expect(listChunkIds(groups)).toEqual(["c2", "c1", "c3"]);
+  });
+});
+
+describe("listInitiallyOpenChunkIds", () => {
+  it("leaves out a chunk past the large-diff limit", () => {
+    const groups = [
+      {
+        chunks: [
+          { id: "small", loc: { added: 12, deleted: 3 } },
+          { id: "at-limit", loc: { added: 700, deleted: 50 } },
+          { id: "past-limit", loc: { added: 700, deleted: 51 } },
+        ],
+      },
+      { chunks: [{ id: "lockfile", loc: { added: 2_140, deleted: 0 } }] },
+    ];
+
+    expect(listInitiallyOpenChunkIds(groups)).toEqual(["small", "at-limit"]);
+  });
+});
+
+describe("listLargeChunkIds", () => {
+  it("collects only the chunks past the large-diff limit", () => {
+    const chunks = [
+      { id: "at-limit", loc: { added: 700, deleted: 50 } },
+      { id: "past-limit", loc: { added: 700, deleted: 51 } },
+      { id: "lockfile", loc: { added: 2_140, deleted: 0 } },
+    ];
+
+    expect([...listLargeChunkIds(chunks)]).toEqual(["past-limit", "lockfile"]);
   });
 });
 

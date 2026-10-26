@@ -32,6 +32,9 @@ export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [
   },
 ];
 
+/** A chunk with more changed lines than this starts closed, like GitHub's large diffs. */
+export const LARGE_CHUNK_CHANGED_LINES = 750;
+
 /** The re-anchor banner's hint; inert rows in other files point at it. */
 export const REANCHOR_HINT_ID = "reanchor-hint";
 

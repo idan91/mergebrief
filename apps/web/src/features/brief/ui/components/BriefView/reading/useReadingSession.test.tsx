@@ -8,14 +8,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReviewSessionProvider } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
-import { buildBriefViewModel } from "../../../../model/utils/view-model";
+import type { Brief } from "../../../../model/types";
+import {
+  buildBriefViewModel,
+  type BriefViewModel,
+} from "../../../../model/utils/view-model";
 import { ScrollHistories } from "../scroll-to-target/types";
 import type { ScopeExitOptions } from "../types";
 import { createBriefViewStore } from "../store";
 import {
   deriveGroupHeadingId,
   deriveGroupSectionId,
-  listChunkIds,
+  listInitiallyOpenChunkIds,
 } from "../utils";
 import {
   createReadingPositionStore,
@@ -65,6 +69,8 @@ interface HostProps {
   compareViewFull?: boolean;
   exitChangesScope?: ((options: ScopeExitOptions) => void) | undefined;
   initialFocusMode?: boolean;
+  brief?: Brief;
+  viewModel?: BriefViewModel;
 }
 
 function SessionHost({
@@ -74,19 +80,21 @@ function SessionHost({
   compareViewFull = true,
   exitChangesScope,
   initialFocusMode = false,
+  brief = briefFixture,
+  viewModel = model,
 }: HostProps) {
   onRender();
   const [viewStore] = useState(() =>
     createBriefViewStore({
-      openChunkIds: listChunkIds(model.groups),
+      openChunkIds: listInitiallyOpenChunkIds(viewModel.groups),
       focusMode: initialFocusMode,
     }),
   );
   const session = useReadingSession({
-    brief: briefFixture,
+    brief,
     briefId: "fixture-brief",
     compareViewFull,
-    model,
+    model: viewModel,
     ownDraftActive: false,
     repoConfig: null,
     position,
@@ -306,5 +314,80 @@ describe("useReadingSession heading jump from Changes scope", () => {
 
     expect(chunk.scrollIntoView).toHaveBeenCalledTimes(1);
     expect(section.scrollIntoView).not.toHaveBeenCalled();
+  });
+});
+
+describe("useReadingSession large chunk jumps", () => {
+  const LARGE_CHUNK_ID = "chunk-b";
+  const SMALL_CHUNK_ID = "chunk-a";
+  const largeBrief: Brief = {
+    ...briefFixture,
+    chunks: briefFixture.chunks.map((chunk) =>
+      chunk.id === LARGE_CHUNK_ID
+        ? { ...chunk, loc: { added: 900, deleted: 0 } }
+        : chunk,
+    ),
+  };
+  const largeModel = buildBriefViewModel(largeBrief);
+
+  function renderLargeSession(initialFocusMode: boolean) {
+    let latest: UseReadingSessionValue | null = null;
+    render(
+      <ReviewSessionProvider briefId="fixture-brief" model={largeModel}>
+        <SessionHost
+          brief={largeBrief}
+          initialFocusMode={initialFocusMode}
+          onRender={() => {}}
+          onSession={(value) => {
+            latest = value;
+          }}
+          position={createReadingPositionStore()}
+          viewModel={largeModel}
+        />
+      </ReviewSessionProvider>,
+    );
+    return function readSession(): UseReadingSessionValue {
+      if (!latest) {
+        throw new Error("session not captured");
+      }
+      return latest;
+    };
+  }
+
+  it("opens a large chunk that a wayfinding jump targets", () => {
+    vi.useFakeTimers();
+    const readSession = renderLargeSession(false);
+    expect(readSession().openChunks.has(LARGE_CHUNK_ID)).toBe(false);
+
+    act(() => {
+      readSession().jumpToChunk(LARGE_CHUNK_ID);
+    });
+
+    expect(readSession().openChunks.has(LARGE_CHUNK_ID)).toBe(true);
+  });
+
+  it("keeps a card the reader closed shut on a wayfinding jump", () => {
+    vi.useFakeTimers();
+    const readSession = renderLargeSession(false);
+
+    act(() => {
+      readSession().toggleChunk(SMALL_CHUNK_ID);
+    });
+    act(() => {
+      readSession().jumpToChunk(SMALL_CHUNK_ID);
+    });
+
+    expect(readSession().openChunks.has(SMALL_CHUNK_ID)).toBe(false);
+  });
+
+  it("opens a large next chunk when focus mode marks one reviewed", () => {
+    vi.useFakeTimers();
+    const readSession = renderLargeSession(true);
+
+    act(() => {
+      readSession().markReviewed(SMALL_CHUNK_ID);
+    });
+
+    expect(readSession().openChunks.has(LARGE_CHUNK_ID)).toBe(true);
   });
 });

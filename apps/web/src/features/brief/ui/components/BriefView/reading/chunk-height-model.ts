@@ -15,10 +15,15 @@ export const CHUNK_CARD_OVERHEAD_PX = 96;
 /** A collapsed card renders its head only. */
 export const COLLAPSED_CARD_HEIGHT_PX = 56;
 
+/** The large-diff notice under a closed large card's head. */
+export const LARGE_CHUNK_NOTICE_PX = 52;
+
 export interface ChunkCardSizeInput {
   /** Rendered diff rows (`chunk.diff.length`), 0 for a missing diff. */
   diffRowCount: number;
   open: boolean;
+  /** Past the large-diff limit: a closed card shows the notice. */
+  large?: boolean;
 }
 
 /** The "diff unavailable" note a diff-less open card renders instead of rows. */
@@ -26,7 +31,9 @@ export const EMPTY_DIFF_NOTE_PX = 40;
 
 export function estimateChunkCardHeight(input: ChunkCardSizeInput): number {
   if (!input.open) {
-    return COLLAPSED_CARD_HEIGHT_PX;
+    return input.large === true
+      ? COLLAPSED_CARD_HEIGHT_PX + LARGE_CHUNK_NOTICE_PX
+      : COLLAPSED_CARD_HEIGHT_PX;
   }
   if (input.diffRowCount === 0) {
     return CHUNK_CARD_OVERHEAD_PX + EMPTY_DIFF_NOTE_PX;

@@ -50,6 +50,7 @@ import {
   deriveGroupHeadingId,
   groupStartIndexes,
   listChunkIds,
+  listLargeChunkIds,
   toggleSetMember,
 } from "../utils";
 import { useScrollToTarget } from "../scroll-to-target";
@@ -201,6 +202,10 @@ export function useReadingSession(
   );
 
   const chunkIds = useMemo(() => listChunkIds(model.groups), [model.groups]);
+  const largeChunkIds = useMemo(
+    () => listLargeChunkIds(readingOrderedChunks),
+    [readingOrderedChunks],
+  );
   const groupBoundaries = useMemo(
     () => groupStartIndexes(model.groups),
     [model.groups],
@@ -432,7 +437,7 @@ export function useReadingSession(
           setActivePosition(next);
           scrollToTarget(
             { kind: ScrollTargetKinds.CHUNK, chunkId: next },
-            SMOOTH_UNDER_STACK,
+            { ...SMOOTH_UNDER_STACK, open: true },
           );
         }
         return;
@@ -464,20 +469,22 @@ export function useReadingSession(
     ) => {
       setActivePosition(chunkId);
       // Focus mode must open the target, every other card is display:none,
-      // so a collapsed target would show nothing. Outside focus mode a
+      // so a collapsed target would show nothing. A large chunk starts
+      // closed only to spare the page, so a jump to one opens it. Any other
       // collapsed card is the user's triage: wayfinding jumps (toc, group
       // stepper, risk attrs) scroll to it WITHOUT re-expanding.
+      const opensTarget = focusModeRef.current || largeChunkIds.has(chunkId);
       scrollToTarget(
         { kind: ScrollTargetKinds.CHUNK, chunkId },
         {
           motion: deriveScrollMotion(behavior),
           history,
-          open: focusModeRef.current,
+          open: opensTarget,
           placement,
         },
       );
     },
-    [focusModeRef, scrollToTarget, setActivePosition],
+    [focusModeRef, largeChunkIds, scrollToTarget, setActivePosition],
   );
   // Plain handlers from here down: no consumer memoizes on their identity
   // (the memo boundaries live at ChunkCard/GroupCard, whose props stay the

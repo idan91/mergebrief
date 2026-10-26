@@ -169,6 +169,38 @@ describe("ChunkCard file status", () => {
     );
   });
 
+  it("offers Show diff on a closed large chunk", () => {
+    const { toggleChunk } = renderCard({
+      chunk: { ...chunk, loc: { added: 2_100, deleted: 40 } },
+      open: false,
+    });
+
+    expect(screen.getByTestId("large-chunk-notice").textContent).toContain(
+      "2,140 changed lines hidden",
+    );
+    const showDiff = screen.getByRole("button", { name: /^Show diff/ });
+    expect(showDiff.textContent).toBe(`Show diff ${chunk.file}`);
+    fireEvent.click(showDiff);
+
+    expect(toggleChunk).toHaveBeenCalledWith(chunk.id);
+    expect(document.activeElement).toBe(screen.getByTestId("chunk-toggle"));
+  });
+
+  it("shows no large-diff notice once the chunk is open", () => {
+    renderCard({
+      chunk: { ...chunk, loc: { added: 2_100, deleted: 40 } },
+      open: true,
+    });
+
+    expect(screen.queryByTestId("large-chunk-notice")).toBeNull();
+  });
+
+  it("shows no large-diff notice on a closed small chunk", () => {
+    renderCard({ open: false });
+
+    expect(screen.queryByTestId("large-chunk-notice")).toBeNull();
+  });
+
   it("marks nothing on an ordinary chunk", () => {
     renderCard();
 

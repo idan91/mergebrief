@@ -4,7 +4,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import type { ViewParam } from "../../../model/comparison/compare-state";
 import type { BriefViewModel } from "../../../model/utils/view-model";
 import type { MarkReadyBatch } from "./types";
-import { listChunkIds } from "./utils";
+import { listInitiallyOpenChunkIds } from "./utils";
 
 /** The screen state one Brief owns; the next Brief starts from a fresh copy. */
 export interface BriefViewState {
@@ -113,7 +113,7 @@ export function useCreateBriefViewStore(
   const mounting = current === undefined;
   const focusMode = mounting && input.initialFocusMode;
   const store = createBriefViewStore({
-    openChunkIds: listChunkIds(input.model.groups),
+    openChunkIds: listInitiallyOpenChunkIds(input.model.groups),
     focusMode,
   });
   storeRef.current = { briefId, store };

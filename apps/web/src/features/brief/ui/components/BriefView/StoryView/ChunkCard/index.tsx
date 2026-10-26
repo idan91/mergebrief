@@ -47,6 +47,7 @@ import {
   IconSizes,
 } from "@web/components/Icon/types";
 import { FileStatusBadge } from "./FileStatusBadge";
+import { LargeChunkNotice } from "./LargeChunkNotice";
 import {
   splitInlineRows,
   type DigestRow,
@@ -62,6 +63,7 @@ import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare } from "../../types";
 import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
 import { useReadingPosition } from "../../reading/reading-position";
+import { countChangedLines, isLargeChunk } from "../../utils";
 import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {
@@ -198,6 +200,9 @@ export const ChunkCard = memo(function ChunkCard({
   // pair's first mousedown). The dblclick compensator must know what the
   // pair actually did, not infer it from selection presence.
   const togglesThisPair = useRef(0);
+  const toggleRef = useRef<HTMLButtonElement | null>(null);
+  const large = isLargeChunk(chunk);
+  const changedLines = countChangedLines(chunk);
   // Selected per chunk so this card re-renders only when ITS slice changes,
   // instead of trusting a parent-built map whose array identities churn on
   // every comment interaction anywhere.
@@ -272,6 +277,7 @@ export const ChunkCard = memo(function ChunkCard({
     <article
       className={styles["chunk"]}
       data-current={active ? "" : undefined}
+      data-large={large ? "" : undefined}
       data-reviewed={reviewed ? "" : undefined}
       data-state={open ? "open" : "collapsed"}
       data-testid="brief-chunk"
@@ -284,6 +290,7 @@ export const ChunkCard = memo(function ChunkCard({
         {/* oxlint-disable-next-line house/no-raw-button -- disclosure with a user-select: text requirement no shared component models */}
         <button
           className={styles["toggle"]}
+          ref={toggleRef}
           type="button"
           aria-expanded={open}
           data-testid="chunk-toggle"
@@ -438,6 +445,17 @@ export const ChunkCard = memo(function ChunkCard({
       </div>
       {!open ? (
         <ScreenReaderOnly>{t("brief.chunk.collapsed")}</ScreenReaderOnly>
+      ) : null}
+      {!open && large ? (
+        <LargeChunkNotice
+          className={styles["notice"]}
+          file={chunk.file}
+          changedLines={changedLines}
+          showDiff={() => {
+            toggleChunk(chunk.id);
+            toggleRef.current?.focus();
+          }}
+        />
       ) : null}
       {open ? (
         <div className={styles["body"]}>
