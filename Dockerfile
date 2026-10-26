@@ -36,7 +36,7 @@ FROM workspace AS builder
 RUN pnpm install --frozen-lockfile \
   --filter api... \
   --filter worker... \
-  --filter @code-review/web...
+  --filter web...
 
 # `vite build` produces dist/server/server.js and dist/client; `src/serve.ts`
 # serves them at runtime: the whole web tier, no CDN.
@@ -51,7 +51,7 @@ RUN cpu="$TARGETARCH" \
   && pnpm install --frozen-lockfile --prod --ignore-scripts \
   --filter api... \
   --filter worker... \
-  --filter @code-review/web...
+  --filter web...
 
 # Vite arrives only as the TanStack build plugins' optional peer, which pnpm
 # satisfies from web's own dev dependency. Nothing at runtime imports it: the

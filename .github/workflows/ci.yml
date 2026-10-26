@@ -20,7 +20,7 @@ env:
   # thin aliases for package scripts (`test` = categorizer, `typecheck` =
   # apps/web), so leaving it selected would re-run those suites under a
   # second name on any docs- or config-only change.
-  WORKSPACE_ROOT_PROJECT: code-review
+  WORKSPACE_ROOT_PROJECT: mergebrief-monorepo
 
 jobs:
   lint:
@@ -241,7 +241,7 @@ jobs:
               --filter "...[$BASE]" list --depth -1 --json | jq -r '.[].name')"
             if grep -qx 'api' <<<"$selected"; then
               echo "API changed; adding its HTTP consumers to the selection."
-              filters+=(--filter "@code-review/web" --filter "mergebrief")
+              filters+=(--filter "web" --filter "mergebrief")
             fi
           fi
 
@@ -328,7 +328,7 @@ jobs:
             list --depth -1 --json | jq -r '.[].name')"
           printf 'Affected packages:\n%s\n' "$selected"
 
-          if grep -qxE '@code-review/web|api' <<<"$selected"; then
+          if grep -qxE 'web|api' <<<"$selected"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
