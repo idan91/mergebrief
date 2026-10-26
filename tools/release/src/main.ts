@@ -23,6 +23,8 @@ import type {
   RepositorySlug,
 } from "./logic/export/types";
 import { createGitPort, GitCommandError } from "./logic/git-port";
+import { runLicenses } from "./logic/licenses";
+import { createPnpmLicensesPort } from "./logic/licenses/pnpm-port";
 import { describeCrash, redactStreamOutput } from "./logic/redacted-output";
 import { findCredentialedRemoteFlag } from "./logic/remote-url";
 import { buildReleaseBody } from "./logic/release-body";
@@ -54,6 +56,7 @@ const USAGE = [
   `      then published as one commit and tag; a publish needs ${PUBLISH_TOKEN_ENV} set, a dry run pushes nothing;`,
   "      --emit runs no gate and writes the release bundle and plan.json for other jobs to gate and push,",
   "      --expect-commit refuses a gated rebuild that is not the emitted commit",
+  "  release licenses                        every production dependency's license is allowed or excepted by name",
 ].join("\n");
 
 const JSON_INDENT = 2;
@@ -415,6 +418,13 @@ function main(argv: readonly string[]): ExitCode {
   }
   if (command === "export") {
     return runExportCommand(rest);
+  }
+  if (command === "licenses") {
+    return runLicenses(rest, {
+      port: createPnpmLicensesPort(REPO_ROOT),
+      writeOut: (text) => process.stdout.write(text),
+      writeError: (text) => process.stderr.write(text),
+    });
   }
   return refuseUsage();
 }
