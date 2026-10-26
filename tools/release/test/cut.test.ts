@@ -52,6 +52,8 @@ function makeFakeGit(state: FakeGitState): FakeGit {
       }
       pushed.push(tag);
     },
+    listPublicTags: () => [],
+    commitScratchRepo: () => undefined,
     listTrackedPaths: () => [],
     archiveTo: () => undefined,
   };

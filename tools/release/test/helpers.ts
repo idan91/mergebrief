@@ -2,6 +2,9 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import type { Result } from "types/utils";
+
+import type { CommandRunner, CommandSpec, GitPort } from "../src/types";
 
 /** File contents by path relative to the temp root. */
 export type Tree = Readonly<Record<string, string>>;
@@ -81,4 +84,45 @@ export function makeGitRepos(tree: Tree): GitRepos {
   runGit(clone, ["push", "--quiet", "origin", "main"]);
   const head = runGit(clone, ["rev-parse", "HEAD"]).trim();
   return { root, clone, head };
+}
+
+/** A GitPort whose every method is inert; a test overrides the ones it reads. */
+export function stubGitPort(overrides: Partial<GitPort> = {}): GitPort {
+  return {
+    fetchDefaultBranch: () => undefined,
+    listRemoteTags: () => [],
+    listPublicTags: () => [],
+    commitScratchRepo: () => undefined,
+    resolveCommit: () => undefined,
+    isOnDefaultBranch: () => false,
+    readFileAt: () => undefined,
+    hasLocalTag: () => false,
+    createTag: () => undefined,
+    pushTag: () => undefined,
+    listTrackedPaths: () => [],
+    archiveTo: () => undefined,
+    ...overrides,
+  };
+}
+
+export interface RecordedRunner {
+  readonly runner: CommandRunner;
+  readonly specs: CommandSpec[];
+}
+
+/** A runner that records each spec and answers with the next queued outcome, exit 0 once they run out. */
+export function stubCommandRunner(
+  outcomes: readonly Result<number, string>[] = [],
+  onRun?: (spec: CommandSpec) => void,
+): RecordedRunner {
+  const specs: CommandSpec[] = [];
+  const queue = [...outcomes];
+  const runner: CommandRunner = {
+    run(spec) {
+      specs.push(spec);
+      onRun?.(spec);
+      return queue.shift() ?? { ok: true, value: 0 };
+    },
+  };
+  return { runner, specs };
 }

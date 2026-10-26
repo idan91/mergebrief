@@ -17,14 +17,85 @@ const CREDENTIALS_IN_URL = /:\/\/[^/@\s]+@/g;
 /** A git command that exited non-zero; `detail` is git's own last line, credentials stripped. */
 export class GitCommandError extends Error {
   readonly detail: string;
+  /** All of git's stderr, credentials stripped. */
+  readonly stderr: string;
 
   constructor(args: readonly string[], stderr: string) {
-    const lastLine = stderr.trim().split("\n").at(-1) ?? "";
-    const detail = lastLine.replace(CREDENTIALS_IN_URL, "://<redacted>@");
+    const redacted = stderr
+      .trim()
+      .replace(CREDENTIALS_IN_URL, "://<redacted>@");
+    const detail = redacted.split("\n").at(-1) ?? "";
     super(`git ${args.join(" ")}: ${detail}`);
     this.name = "GitCommandError";
     this.detail = detail;
+    this.stderr = redacted;
   }
+}
+
+// What git prints when nothing public answers at a URL: GitHub's missing or
+// private repository, a path that is no repository, or an anonymous read
+// asked for credentials it is not allowed to prompt for.
+const REPOSITORY_NOT_FOUND = [
+  /repository '[^']*' not found/i,
+  /does not appear to be a git repository/,
+  /could not read Username/,
+  /unable to get password from user/,
+] as const;
+
+export function isRepositoryNotFound(stderr: string): boolean {
+  return REPOSITORY_NOT_FOUND.some((pattern) => pattern.test(stderr));
+}
+
+function parseTagRefs(listed: string): readonly string[] {
+  const lines = listed.split("\n");
+  const refs = lines.map((line) => line.split("\t")[1] ?? "");
+  const tags = refs
+    .filter((ref) => ref.startsWith(TAG_REF_PREFIX))
+    .map((ref) => ref.slice(TAG_REF_PREFIX.length));
+  return tags;
+}
+
+function listUrlTags(cwd: string, url: string): readonly string[] | undefined {
+  try {
+    const listed = runGit(cwd, [
+      "-c",
+      "credential.interactive=false",
+      "ls-remote",
+      "--tags",
+      "--refs",
+      url,
+    ]);
+    return parseTagRefs(listed);
+  } catch (cause) {
+    const notFound =
+      cause instanceof GitCommandError && isRepositoryNotFound(cause.stderr);
+    if (notFound) {
+      return undefined;
+    }
+    throw cause;
+  }
+}
+
+const SCRATCH_IDENTITY = [
+  "-c",
+  "user.name=release scratch",
+  "-c",
+  "user.email=release@localhost",
+  "-c",
+  "commit.gpgsign=false",
+] as const;
+
+function commitEveryFile(dir: string): void {
+  runGit(dir, ["init", "--quiet", "--initial-branch=main"]);
+  runGit(dir, ["add", "--all", "--force"]);
+  runGit(dir, [
+    ...SCRATCH_IDENTITY,
+    "commit",
+    "--quiet",
+    "--no-verify",
+    "-m",
+    "export tree",
+  ]);
 }
 
 /** What execFileSync throws on a non-zero exit, as far as this port reads it. */
@@ -104,12 +175,13 @@ export function createGitPort(cwd: string): GitPort {
     },
     listRemoteTags() {
       const listed = runGit(cwd, ["ls-remote", "--tags", "--refs", GIT_REMOTE]);
-      const tags = listed
-        .split("\n")
-        .map((line) => line.split("\t")[1] ?? "")
-        .filter((ref) => ref.startsWith(TAG_REF_PREFIX))
-        .map((ref) => ref.slice(TAG_REF_PREFIX.length));
-      return tags;
+      return parseTagRefs(listed);
+    },
+    listPublicTags(url) {
+      return listUrlTags(cwd, url);
+    },
+    commitScratchRepo(dir) {
+      commitEveryFile(dir);
     },
     resolveCommit(ref) {
       const resolved = tryGit(cwd, [

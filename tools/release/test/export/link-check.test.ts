@@ -99,6 +99,33 @@ describe("finding internal links in one markdown file", () => {
   });
 });
 
+describe("lines that state the exclusion rule", () => {
+  it("lets the root ticket-board pointer name its private file", () => {
+    const text =
+      "A `BRIEF-nnn` reference names a ticket on the maintainers' board; read `docs/internal/ticket-board.md`, which the public release snapshot excludes, for the board link and status workflow before acting on it.\n";
+
+    expect(findInternalLinks("AGENTS.md", text)).toEqual([]);
+  });
+
+  it("passes the eval README naming the private case dirs it keeps", () => {
+    const text = [
+      "internal-doc text, private process) lives in `private-cases/<id>/` or",
+      "`private-pair-cases/<id>/`, same shape as its public peer. These dirs",
+      "`test/pipeline-goldens-private.test.ts` and its snapshot. The eval CLI",
+    ].join("\n");
+
+    expect(findInternalLinks("tools/categorizer/eval/README.md", text)).toEqual(
+      [],
+    );
+  });
+
+  it("still reports the repo path of a private case dir in prose", () => {
+    const text = "See `tools/categorizer/eval/private-cases/x/`.\n";
+
+    expect(findInternalLinks("docs/x.md", text)).toHaveLength(1);
+  });
+});
+
 describe("checking the shipped markdown in a tree", () => {
   it("scans the listed markdown files and skips symlinks", () => {
     const root = makeTempRoot();

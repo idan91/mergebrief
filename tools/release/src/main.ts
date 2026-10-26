@@ -7,12 +7,12 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Mutable } from "types/utils";
 
-import { RELEASES_DIR } from "./consts";
+import { RELEASES_DIR, REPOSITORY, REPOSITORY_URL } from "./consts";
 import { type ParsedArgv, parseArgv, readValuedFlag } from "./logic/argv";
 import { checkReleases } from "./logic/check";
+import { createCommandRunner } from "./logic/command-runner";
 import { type CutOptions, executeCut, planCut } from "./logic/cut";
 import { runExport } from "./logic/export";
-import { formatExportReport } from "./logic/export/report";
 import type { ExportOptions } from "./logic/export/types";
 import { createGitPort, GitCommandError } from "./logic/git-port";
 import { buildReleaseBody } from "./logic/release-body";
@@ -321,9 +321,18 @@ function runExportCommand(argv: readonly string[]): ExitCode {
     return ExitCodes.REFUSED;
   }
 
-  const out = resolveOutDir(readValuedFlag(parsed.value, "--out"));
+  const options: ExportOptions = {
+    version,
+    source,
+    out: resolveOutDir(readValuedFlag(parsed.value, "--out")),
+    dryRun: true,
+    publicRepository: {
+      slug: `${REPOSITORY.owner}/${REPOSITORY.name}`,
+      url: `${REPOSITORY_URL}.git`,
+    },
+  };
   try {
-    return exportTree({ version, source, out });
+    return exportTree(options);
   } catch (cause) {
     if (!(cause instanceof GitCommandError)) {
       throw cause;
@@ -334,7 +343,14 @@ function runExportCommand(argv: readonly string[]): ExitCode {
 }
 
 function exportTree(options: ExportOptions): ExitCode {
-  const result = runExport(createGitPort(REPO_ROOT), options);
+  const result = runExport(
+    {
+      git: createGitPort(REPO_ROOT),
+      runner: createCommandRunner(process.env),
+      print: (text) => process.stdout.write(text),
+    },
+    options,
+  );
   if (!result.ok) {
     for (const line of result.error.reason.split("\n")) {
       process.stderr.write(`release: ${line}\n`);
@@ -342,13 +358,17 @@ function exportTree(options: ExportOptions): ExitCode {
     return ExitCodes.REFUSED;
   }
 
-  process.stdout.write(formatExportReport(result.value));
-  if (result.value.linkHits.length > 0) {
+  const { verdicts, passed } = result.value.gates;
+  if (!passed) {
+    const stopped = verdicts.at(-1)?.name ?? "unknown";
     process.stderr.write(
-      `release: shipped markdown names excluded paths; the tree is left at ${options.out}\n`,
+      `release: export stopped at gate ${stopped}; the tree is left at ${options.out}\n`,
     );
     return ExitCodes.REFUSED;
   }
+  process.stdout.write(
+    `release: every gate passed; the tree is at ${options.out}\n`,
+  );
   return ExitCodes.OK;
 }
 

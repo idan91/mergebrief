@@ -31,6 +31,13 @@ export const REPOSITORY_URL = `https://github.com/${REPOSITORY.owner}/${REPOSITO
 
 export const NPM_PACKAGE = "mergebrief";
 
+/** The secret scanner the export runs over its tree, pinned to the multi-arch index digest. */
+export const GITLEAKS_IMAGE =
+  "ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f";
+
+/** The allowlist both secret scans read: the export's, from the tree it scans, and CI's on the PR diff. */
+export const GITLEAKS_CONFIG = ".github/gitleaks.toml";
+
 /** Where tags are read from and pushed to; the publishing repository's remote. */
 export const GIT_REMOTE = "origin";
 

@@ -8,8 +8,18 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createGitPort, GitCommandError } from "../src/logic/git-port";
-import { type GitRepos, makeGitRepos, makeNotesFile, runGit } from "./helpers";
+import {
+  createGitPort,
+  GitCommandError,
+  isRepositoryNotFound,
+} from "../src/logic/git-port";
+import {
+  type GitRepos,
+  makeGitRepos,
+  makeNotesFile,
+  makeTempRoot,
+  runGit,
+} from "./helpers";
 
 const made: string[] = [];
 
@@ -145,5 +155,44 @@ describe("the git port against a real repository", () => {
       /at least one path/,
     );
     expect(readdirSync(out)).toEqual([]);
+  });
+
+  it("lists a repository URL's tags and says when none answers there", () => {
+    const repos = makeRepos();
+    const empty = join(repos.root, "empty.git");
+    runGit(repos.root, ["init", "--bare", "--quiet", empty]);
+    const remote = join(repos.root, "remote.git");
+    const missing = join(repos.root, "missing.git");
+    const port = createGitPort(repos.clone);
+
+    expect(port.listPublicTags(remote)).toEqual(["v0.0.9"]);
+    expect(port.listPublicTags(empty)).toEqual([]);
+    expect(port.listPublicTags(missing)).toBeUndefined();
+  });
+
+  it("reads GitHub's missing-repository line as not found", () => {
+    expect(
+      isRepositoryNotFound(
+        "fatal: repository 'https://github.com/Idan91/mergebrief.git/' not found",
+      ),
+    ).toBe(true);
+    expect(isRepositoryNotFound("fatal: unable to access: timeout")).toBe(
+      false,
+    );
+  });
+
+  it("commits every file of a plain dir into a scratch repository", () => {
+    const root = makeTempRoot();
+    made.push(root);
+    writeFileSync(join(root, ".gitignore"), "ignored.txt\n");
+    writeFileSync(join(root, "ignored.txt"), "tracked anyway\n");
+    writeFileSync(join(root, "a.md"), "a\n");
+    const port = createGitPort(root);
+
+    port.commitScratchRepo(root);
+
+    const listed = runGit(root, ["ls-files"]).trim();
+    expect(listed.split("\n")).toEqual([".gitignore", "a.md", "ignored.txt"]);
+    expect(runGit(root, ["status", "--porcelain"])).toBe("");
   });
 });

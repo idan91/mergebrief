@@ -3,8 +3,13 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runExport } from "../../src/logic/export";
 import { createGitPort } from "../../src/logic/git-port";
-import { LinkHitKinds } from "../../src/logic/export/types";
-import { makeGitRepos, type Tree } from "../helpers";
+import { GateNames } from "../../src/logic/export/types";
+import {
+  makeGitRepos,
+  makeNotesFile,
+  stubCommandRunner,
+  type Tree,
+} from "../helpers";
 
 const made: string[] = [];
 
@@ -14,9 +19,10 @@ afterEach(() => {
   }
 });
 
-const SHIPPABLE: Tree = {
+const CLEAN: Tree = {
   "README.md": "Read [the guide](docs/guide.md).\n",
-  "docs/guide.md": "See [the ADR](internal/adr.md).\n",
+  "docs/guide.md": "Plain.\n",
+  "docs/releases/0.1.0.md": makeNotesFile({}, "First.\n"),
   "docs/internal/adr.md": "private\n",
   ".claude/settings.json": "{}\n",
 };
@@ -25,40 +31,63 @@ function exportTree(tree: Tree, version = "0.1.0") {
   const repos = makeGitRepos(tree);
   made.push(repos.root);
   const out = join(repos.root, "out");
-  const result = runExport(createGitPort(repos.clone), {
-    version,
-    source: "main",
-    out,
-  });
-  return { repos, out, result };
+  const printed: string[] = [];
+  const git = createGitPort(repos.clone);
+  const result = runExport(
+    {
+      git: { ...git, listPublicTags: () => [] },
+      runner: stubCommandRunner().runner,
+      print: (text) => printed.push(text),
+    },
+    {
+      version,
+      source: "main",
+      out,
+      dryRun: true,
+      publicRepository: { slug: "Idan91/mergebrief", url: "unused" },
+    },
+  );
+  return { repos, out, result, printed };
 }
 
 describe("running the export", () => {
-  it("writes the shipped tree and reports counts and link hits", () => {
-    const { repos, out, result } = exportTree(SHIPPABLE);
+  it("writes the shipped tree and passes every gate over it", () => {
+    const { repos, out, result, printed } = exportTree(CLEAN);
 
     const entries = readdirSync(out).toSorted();
     const internalDir = join(out, "docs", "internal");
     expect(entries).toEqual(["README.md", "docs"]);
     expect(existsSync(internalDir)).toBe(false);
-    expect(result.ok && result.value).toMatchObject({
+    expect(result.ok && result.value.header).toMatchObject({
       version: "0.1.0",
       commit: repos.head,
-      out,
-      fileCount: 2,
-      linkHits: [{ path: "docs/guide.md", line: 1, kind: LinkHitKinds.LINK }],
+      fileCount: 3,
     });
-    expect(result.ok && result.value.excluded).toContainEqual({
-      prefix: "docs/internal/",
-      count: 1,
+    expect(result.ok && result.value.gates.passed).toBe(true);
+    expect(printed[0]).toMatch(/^export 0\.1\.0 \(dry run\)\n/);
+    const verdictLines = printed.slice(1);
+    const verdictLabels = verdictLines.map((text) => text.split(":")[0]);
+    expect(verdictLabels).toEqual([
+      "gate paths",
+      "gate gitleaks",
+      "gate notes",
+      "gate build",
+    ]);
+  });
+
+  it("stops at the paths gate when shipped markdown links inward", () => {
+    const { result } = exportTree({
+      ...CLEAN,
+      "docs/guide.md": "See [the ADR](internal/adr.md).\n",
     });
+
+    const verdicts = result.ok ? result.value.gates.verdicts : [];
+    expect(verdicts.map((verdict) => verdict.name)).toEqual([GateNames.PATHS]);
+    expect(result.ok && result.value.gates.passed).toBe(false);
   });
 
   it("refuses an unclassified top-level path before writing", () => {
-    const { out, result } = exportTree({
-      ...SHIPPABLE,
-      "notes/todo.md": "x\n",
-    });
+    const { out, result } = exportTree({ ...CLEAN, "notes/todo.md": "x\n" });
 
     expect(result).toEqual({
       ok: false,
@@ -68,7 +97,7 @@ describe("running the export", () => {
   });
 
   it("refuses a version outside the release grammar", () => {
-    const { result } = exportTree(SHIPPABLE, "0.1");
+    const { result } = exportTree(CLEAN, "0.1");
 
     expect(!result.ok && result.error.reason).toBe(
       "--version 0.1 is not X.Y.Z or X.Y.Z-rc.N",

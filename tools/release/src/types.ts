@@ -1,4 +1,4 @@
-import type { ValueOf } from "types/utils";
+import type { Result, ValueOf } from "types/utils";
 
 /** `major.minor.patch`, plus the candidate number when the tag is an rc. */
 export interface ReleaseVersion {
@@ -90,9 +90,26 @@ export interface GitPort {
   hasLocalTag(tag: string): boolean;
   createTag(tag: string, commit: string): void;
   pushTag(tag: string): void;
+  /** The tags a repository URL holds; `undefined` when no repository answers at it. */
+  listPublicTags(url: string): readonly string[] | undefined;
+  /** Makes `dir` a one-commit repository of every file in it, so git-reading gates run there. */
+  commitScratchRepo(dir: string): void;
   listTrackedPaths(commit: string): readonly string[];
   /** Writes exactly `paths` as `commit` holds them into `dir`; never reads the checkout. */
   archiveTo(commit: string, dir: string, paths: readonly string[]): void;
+}
+
+export interface CommandSpec {
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly cwd: string;
+  /** Laid over the environment the runner was built with. */
+  readonly env?: Readonly<Record<string, string>>;
+}
+
+/** Spawns a gate's tool; the value is the exit code, the error why it could not start. */
+export interface CommandRunner {
+  run(spec: CommandSpec): Result<number, string>;
 }
 
 export interface StampError {
