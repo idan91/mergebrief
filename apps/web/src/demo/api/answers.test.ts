@@ -221,7 +221,22 @@ describe("answerDemoRequest reads", () => {
         (thread) => thread.isOutdated && thread.anchorSha === FIXTURE_REV1_HEAD,
       ),
     ).toBe(true);
-    expect(conversation.reviews).toHaveLength(1);
+    expect(conversation.reviews).toHaveLength(2);
+  });
+
+  it("serves a bot reviewer's threads, some open and some resolved", async () => {
+    const conversation = prConversationSchema.parse(
+      await readPullOperation(ProductQueryIds.READ_CONVERSATION).json(),
+    );
+
+    const botThreads = conversation.threads.filter(
+      (thread) => thread.comments[0]?.author.isBot === true,
+    );
+    expect(botThreads.filter((thread) => thread.isResolved)).toHaveLength(2);
+    expect(botThreads.filter((thread) => !thread.isResolved)).toHaveLength(2);
+    expect(conversation.reviews.some((review) => review.author.isBot)).toBe(
+      true,
+    );
   });
 
   it("serves settings reads the demo viewer can open", async () => {

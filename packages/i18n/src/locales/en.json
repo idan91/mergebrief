@@ -1231,7 +1231,6 @@
     "noneYet": "No conversation yet. Comments appear here as teammates review.",
     "tooLarge": "This conversation is too large to show in full. Some items are only on GitHub.",
     "botTag": "Bot",
-    "threadsOpen": "{{threads}} threads · {{open}} open",
     "afterThisBrief": "New since this brief",
     "filterVerdict": "Verdict",
     "filterReviewer": "Reviewer",

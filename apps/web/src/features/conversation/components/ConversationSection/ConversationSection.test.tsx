@@ -419,7 +419,7 @@ describe("ConversationSection", () => {
   it("aggregates bot threads into one disclosure per bot author", async () => {
     renderSection({ plan: plan([ready()]) });
     const botRow = await screen.findByRole("button", {
-      name: /coderabbitai.*1 threads.*0 open/,
+      name: /coderabbitai.*1 thread .*0 open/,
     });
     fireEvent.click(botRow);
     expect(

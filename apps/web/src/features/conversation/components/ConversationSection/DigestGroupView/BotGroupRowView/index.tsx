@@ -52,8 +52,8 @@ export function BotGroupRowView({
           </span>
         </span>
         <span className={rowStyles["rowLine"]}>
-          {t("conversation.threadsOpen", {
-            threads: row.threads.length,
+          {t("conversation.summaryThreads", {
+            count: row.threads.length,
             open: row.openCount,
           })}
         </span>

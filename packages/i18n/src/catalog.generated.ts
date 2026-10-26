@@ -269,7 +269,6 @@ export type Catalog = typeof en & {
     replyTooLong: "This reply is longer than GitHub allows ({{max, number}} characters). Shorten it to post.";
     afterBrief_one: "{{count}} new comment since this brief was generated";
     afterBrief_other: "{{count}} new comments since this brief was generated";
-    threadsOpen: "{{threads}} threads · {{open}} open";
     comments_one: "{{count}} comment";
     comments_other: "{{count}} comments";
     atRevision: "at {{label}}";
