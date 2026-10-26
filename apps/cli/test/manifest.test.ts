@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
+import type { Options } from "tsup";
 import { describe, expect, it } from "vitest";
+
+import cliBuild from "../tsup.config";
 
 const manifest: {
   version: string;
@@ -26,6 +29,12 @@ describe("the published manifest", () => {
   it("ships dist only, under the fair source license", () => {
     expect(manifest.files).toEqual(["dist"]);
     expect(manifest.license).toBe("FSL-1.1-ALv2");
+  });
+
+  it("ships the directory the build writes, notices included", () => {
+    const { outDir } = cliBuild as Options;
+
+    expect(manifest.files).toContain(outDir);
   });
 
   it("names the bin without a ./ prefix, which npm 11 strips on publish", () => {
