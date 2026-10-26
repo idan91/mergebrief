@@ -7,14 +7,25 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Mutable } from "types/utils";
 
-import { RELEASES_DIR, REPOSITORY, REPOSITORY_URL } from "./consts";
+import {
+  PUBLISH_TOKEN_ENV,
+  RELEASES_DIR,
+  REPOSITORY,
+  REPOSITORY_URL,
+} from "./consts";
 import { type ParsedArgv, parseArgv, readValuedFlag } from "./logic/argv";
 import { checkReleases } from "./logic/check";
 import { createCommandRunner } from "./logic/command-runner";
 import { type CutOptions, executeCut, planCut } from "./logic/cut";
 import { runExport } from "./logic/export";
-import type { ExportOptions } from "./logic/export/types";
+import type {
+  ExportOptions,
+  PublicRepository,
+  RepositorySlug,
+} from "./logic/export/types";
 import { createGitPort, GitCommandError } from "./logic/git-port";
+import { describeCrash, redactStreamOutput } from "./logic/redacted-output";
+import { findCredentialedRemoteFlag } from "./logic/remote-url";
 import { buildReleaseBody } from "./logic/release-body";
 import { pruneTree, stampTree } from "./logic/stamp";
 import { formatReleaseVersion } from "./logic/version";
@@ -24,6 +35,7 @@ import {
   BumpLevels,
   type ExitCode,
   ExitCodes,
+  type GitPort,
   type NotesError,
 } from "./types";
 
@@ -41,11 +53,14 @@ const USAGE = [
   "  release release-body <tag> --out <file> the GitHub Release body for the tag",
   "  release cut <major|minor|patch> [--rc] [--at <ref>] [--push] [--dry-run]",
   "      tag the tip of main as fetched, or --at a commit on it; the notes file must be in it",
-  "  release export --version X.Y.Z --source <ref> --dry-run [--out <dir>]",
-  "      the public snapshot of a commit on main, written to --out (a new temp dir when absent) and checked",
+  "  release export --version X.Y.Z --source <ref> [--dry-run] [--out <dir>] [--public-remote <url>]",
+  "      the public snapshot of a commit on main, written to --out (a new temp dir when absent), checked,",
+  `      then published as one commit and tag; a publish needs ${PUBLISH_TOKEN_ENV} set, a dry run pushes nothing`,
 ].join("\n");
 
 const JSON_INDENT = 2;
+/** Node's own exit code for an uncaught error, kept for the crashes caught below. */
+const CRASH_EXIT_CODE = 1;
 
 function refuseUsage(reason?: string): ExitCode {
   if (reason !== undefined) {
@@ -257,7 +272,7 @@ function cutRelease(
   level: BumpLevel,
   modes: CutModes,
 ): ExitCode {
-  const git = createGitPort(REPO_ROOT);
+  const git = createGitPort(REPO_ROOT, process.env);
   const options: Mutable<CutOptions> = {
     level,
     candidate: parsed.flags.has("--rc"),
@@ -299,9 +314,25 @@ function resolveOutDir(given: string | undefined): string {
   return resolve(invokedFrom, given);
 }
 
+function isRepositorySlug(value: string): value is RepositorySlug {
+  return value.includes("/");
+}
+
+/** The repository the release goes to; `--public-remote` points a rehearsal at a scratch remote instead. */
+function resolvePublicRepository(given: string | undefined): PublicRepository {
+  if (given !== undefined) {
+    const slug: RepositorySlug = isRepositorySlug(given) ? given : `./${given}`;
+    return { slug, url: given };
+  }
+  return {
+    slug: `${REPOSITORY.owner}/${REPOSITORY.name}`,
+    url: `${REPOSITORY_URL}.git`,
+  };
+}
+
 function runExportCommand(argv: readonly string[]): ExitCode {
   const parsed = parseArgv(argv, {
-    valued: ["--version", "--source", "--out"],
+    valued: ["--version", "--source", "--out", "--public-remote"],
     boolean: ["--dry-run"],
     maxPositionals: 0,
   });
@@ -314,38 +345,53 @@ function runExportCommand(argv: readonly string[]): ExitCode {
   if (missingRequiredFlag) {
     return refuseUsage("export needs --version and --source");
   }
-  if (!parsed.value.flags.has("--dry-run")) {
+  const credentialedFlag = findCredentialedRemoteFlag(parsed.value);
+  if (credentialedFlag !== undefined) {
+    return refuseUsage(
+      `${credentialedFlag} must not carry credentials in its URL`,
+    );
+  }
+  const dryRun = parsed.value.flags.has("--dry-run");
+  const token = process.env[PUBLISH_TOKEN_ENV];
+  const tokenMissing = !dryRun && (token === undefined || token.length === 0);
+  if (tokenMissing) {
     process.stderr.write(
-      "release: export without --dry-run would publish; publish lands in a later version\n",
+      `release: export without --dry-run publishes and needs ${PUBLISH_TOKEN_ENV} in the environment\n`,
     );
     return ExitCodes.REFUSED;
   }
 
-  const options: ExportOptions = {
+  const options: Mutable<ExportOptions> = {
     version,
     source,
     out: resolveOutDir(readValuedFlag(parsed.value, "--out")),
-    dryRun: true,
-    publicRepository: {
-      slug: `${REPOSITORY.owner}/${REPOSITORY.name}`,
-      url: `${REPOSITORY_URL}.git`,
-    },
+    dryRun,
+    publicRepository: resolvePublicRepository(
+      readValuedFlag(parsed.value, "--public-remote"),
+    ),
   };
+  const forwardsToken = !dryRun && token !== undefined;
+  if (forwardsToken) {
+    options.token = token;
+  }
+  const git = createGitPort(REPO_ROOT, process.env);
   try {
-    return exportTree(options);
+    return exportTree(git, options);
   } catch (cause) {
     if (!(cause instanceof GitCommandError)) {
       throw cause;
     }
     process.stderr.write(`release: ${cause.message}\n`);
     return ExitCodes.REFUSED;
+  } finally {
+    git.discardScratchObjects();
   }
 }
 
-function exportTree(options: ExportOptions): ExitCode {
+function exportTree(git: GitPort, options: ExportOptions): ExitCode {
   const result = runExport(
     {
-      git: createGitPort(REPO_ROOT),
+      git,
       runner: createCommandRunner(process.env),
       print: (text) => process.stdout.write(text),
     },
@@ -366,9 +412,11 @@ function exportTree(options: ExportOptions): ExitCode {
     );
     return ExitCodes.REFUSED;
   }
-  process.stdout.write(
-    `release: every gate passed; the tree is at ${options.out}\n`,
-  );
+  const commit = result.value.publish?.commit ?? "";
+  const done = options.dryRun
+    ? `every gate passed and ${commit} is what a publish would push`
+    : `published ${options.version} as ${commit}`;
+  process.stdout.write(`release: ${done}; the tree is at ${options.out}\n`);
   return ExitCodes.OK;
 }
 
@@ -398,4 +446,11 @@ function main(argv: readonly string[]): ExitCode {
   return refuseUsage();
 }
 
-process.exitCode = main(process.argv.slice(2));
+redactStreamOutput(process.stdout);
+redactStreamOutput(process.stderr);
+try {
+  process.exitCode = main(process.argv.slice(2));
+} catch (cause) {
+  process.stderr.write(`release: ${describeCrash(cause)}\n`);
+  process.exitCode = CRASH_EXIT_CODE;
+}

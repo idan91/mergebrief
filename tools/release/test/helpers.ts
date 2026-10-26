@@ -61,6 +61,12 @@ export function runGit(cwd: string, args: readonly string[]): string {
   });
 }
 
+/** git's stdout with the trailing newline trimmed, for a one-value read. */
+export function readGitOutput(cwd: string, args: readonly string[]): string {
+  const output = runGit(cwd, args);
+  return output.trim();
+}
+
 export interface GitRepos {
   readonly root: string;
   readonly clone: string;
@@ -95,12 +101,24 @@ export function stubGitPort(overrides: Partial<GitPort> = {}): GitPort {
     commitScratchRepo: () => undefined,
     resolveCommit: () => undefined,
     isOnDefaultBranch: () => false,
+    isAncestor: () => false,
     readFileAt: () => undefined,
     hasLocalTag: () => false,
     createTag: () => undefined,
     pushTag: () => undefined,
     listTrackedPaths: () => [],
     archiveTo: () => undefined,
+    readCommitterDate: () => "2026-10-25T22:19:08Z",
+    writeTree: () => "",
+    verifyTreeMatchesDir: () => [],
+    commitTree: () => "",
+    writeAnnotatedTag: () => "",
+    countTreeChanges: () => ({ added: 0, edited: 0, deleted: 0 }),
+    fetchPublic: () => ({ tags: new Map() }),
+    pushPublic: () => undefined,
+    listRecords: () => ({ ok: true, value: [] }),
+    pushRecord: () => undefined,
+    discardScratchObjects: () => undefined,
     ...overrides,
   };
 }

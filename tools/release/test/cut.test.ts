@@ -9,7 +9,7 @@ import {
   type GitPort,
 } from "../src/types";
 import { DEFAULT_BRANCH_REF } from "../src/consts";
-import { makeNotesFile } from "./helpers";
+import { makeNotesFile, stubGitPort } from "./helpers";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const NOTES = makeNotesFile({}, "## What changed\n\nOne line.\n");
@@ -34,6 +34,7 @@ function makeFakeGit(state: FakeGitState): FakeGit {
   const pushed: string[] = [];
   const fake = { fetched: 0 };
   const port: GitPort = {
+    ...stubGitPort(),
     fetchDefaultBranch: () => {
       fake.fetched += 1;
     },
@@ -41,6 +42,7 @@ function makeFakeGit(state: FakeGitState): FakeGit {
     resolveCommit: (ref) =>
       ref === DEFAULT_BRANCH_REF || ref === COMMIT ? COMMIT : undefined,
     isOnDefaultBranch: () => state.onMain ?? true,
+    isAncestor: () => true,
     readFileAt: (_commit, path) => state.files?.[path],
     hasLocalTag: (tag) => state.localTags?.includes(tag) ?? false,
     createTag: (tag) => {
@@ -52,10 +54,6 @@ function makeFakeGit(state: FakeGitState): FakeGit {
       }
       pushed.push(tag);
     },
-    listPublicTags: () => [],
-    commitScratchRepo: () => undefined,
-    listTrackedPaths: () => [],
-    archiveTo: () => undefined,
   };
   return {
     port,

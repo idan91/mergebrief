@@ -1,6 +1,6 @@
 import type { Result, ValueOf } from "types/utils";
 
-import type { CommandRunner, GitPort } from "../../types";
+import type { CommandRunner, GitPort, TreeChangeCounts } from "../../types";
 
 /** What ships and what stays private: top-level entries, then path prefixes. */
 export interface ExportPaths {
@@ -56,7 +56,7 @@ export interface MaterializeInput {
   readonly out: string;
 }
 
-/** `owner/name`, as messages print it. */
+/** `owner/name`, or a rehearsal remote's URL or path, as messages print it. */
 export type RepositorySlug = `${string}/${string}`;
 
 /** The repository a release is published to: the notes gate reads its tags. */
@@ -72,6 +72,8 @@ export interface ExportOptions {
   readonly out: string;
   readonly dryRun: boolean;
   readonly publicRepository: PublicRepository;
+  /** Required by a publish, absent in a dry run. */
+  readonly token?: string;
 }
 
 export interface GateDeps {
@@ -134,7 +136,49 @@ export interface GateRun {
   readonly passed: boolean;
 }
 
+export const PublishActions = {
+  PUSH_COMMIT: "push-commit",
+  PUSH_TAG: "push-tag",
+  PUSH_RECORD: "push-record",
+} as const;
+export type PublishAction = ValueOf<typeof PublishActions>;
+
+export interface PublishInput {
+  /** `X.Y.Z` or `X.Y.Z-rc.N`, no `v`. */
+  readonly version: string;
+  /** The source commit's SHA. */
+  readonly source: string;
+  readonly shipped: readonly string[];
+  readonly out: string;
+  readonly dryRun: boolean;
+  readonly publicRepository: PublicRepository;
+  readonly token?: string | undefined;
+}
+
+/** What a publish would do, every object already built; the dry run prints it and stops. */
+export interface PublishPlan {
+  readonly version: string;
+  readonly source: string;
+  /** The previous release commit; absent for the first release. */
+  readonly parent?: string;
+  readonly commit: string;
+  readonly tag: string;
+  readonly tagObject: string;
+  readonly record: string;
+  readonly recordObject: string;
+  readonly changes: TreeChangeCounts;
+  readonly actions: readonly PublishAction[];
+  readonly notices: readonly string[];
+}
+
+export interface PublishTarget {
+  readonly url: string;
+  readonly token: string;
+}
+
 export interface ExportOutcome {
   readonly header: ExportHeader;
   readonly gates: GateRun;
+  /** Absent when a gate failed. */
+  readonly publish?: PublishPlan;
 }

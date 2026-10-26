@@ -34,6 +34,25 @@ describe("the command runner", () => {
     });
   });
 
+  it("never hands a gate's tool a credential from either env", () => {
+    const leaky = createCommandRunner({
+      ...process.env,
+      MERGEBRIEF_PUBLISH_TOKEN: "ghs_publish",
+      GITHUB_TOKEN: "ghs_actions",
+    });
+    const script =
+      "const seen = Object.keys(process.env).filter((name) => /TOKEN|SECRET|_KEY$/.test(name)); process.exit(seen.length === 0 && process.env.PATH ? 0 : 1)";
+
+    const ran = leaky.run({
+      command: process.execPath,
+      args: ["-e", script],
+      cwd: tmpdir(),
+      env: { NPM_TOKEN: "npm_x" },
+    });
+
+    expect(ran).toEqual({ ok: true, value: 0 });
+  });
+
   it("says why a command could not start", () => {
     const started = runner.run({
       command: "no-such-command-anywhere",

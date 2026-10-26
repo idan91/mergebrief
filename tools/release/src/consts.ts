@@ -62,3 +62,18 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=cust
   && docker compose pull api web worker \\
   && docker compose stop api web worker \\
   && docker compose up -d --wait`;
+
+/** Author and committer of every public release commit and tag; never a personal address. */
+export const RELEASE_IDENTITY = {
+  name: "Idan Ram",
+  email: "44946814+Idan91@users.noreply.github.com",
+} as const;
+
+/** The private annotated tag that records a release: `public/vX.Y.Z` on the source commit. */
+export const PUBLIC_RECORD_TAG_PREFIX = "public/v";
+
+/** The variable the publish token enters through; read at the composition root, re-exported to git's credential helper only. */
+export const PUBLISH_TOKEN_ENV = "MERGEBRIEF_PUBLISH_TOKEN";
+
+/** The one branch the public repository holds release commits on. */
+export const PUBLIC_BRANCH_REF = `refs/heads/${DEFAULT_BRANCH}`;

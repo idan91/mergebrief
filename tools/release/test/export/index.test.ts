@@ -32,7 +32,7 @@ function exportTree(tree: Tree, version = "0.1.0") {
   made.push(repos.root);
   const out = join(repos.root, "out");
   const printed: string[] = [];
-  const git = createGitPort(repos.clone);
+  const git = createGitPort(repos.clone, process.env);
   const result = runExport(
     {
       git: { ...git, listPublicTags: () => [] },
@@ -65,7 +65,7 @@ describe("running the export", () => {
     });
     expect(result.ok && result.value.gates.passed).toBe(true);
     expect(printed[0]).toMatch(/^export 0\.1\.0 \(dry run\)\n/);
-    const verdictLines = printed.slice(1);
+    const verdictLines = printed.slice(1, -1);
     const verdictLabels = verdictLines.map((text) => text.split(":")[0]);
     expect(verdictLabels).toEqual([
       "gate paths",
@@ -73,6 +73,8 @@ describe("running the export", () => {
       "gate notes",
       "gate build",
     ]);
+    expect(printed.at(-1)).toMatch(/^publish 0\.1\.0 \(dry run\)\n/);
+    expect(printed.at(-1)).toContain("  actions  push commit ");
   });
 
   it("stops at the paths gate when shipped markdown links inward", () => {

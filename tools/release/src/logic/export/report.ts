@@ -4,6 +4,9 @@ import {
   type LinkHit,
   type LinkHitKind,
   LinkHitKinds,
+  type PublishAction,
+  PublishActions,
+  type PublishPlan,
 } from "./types";
 
 const HIT_VERBS: Readonly<Record<LinkHitKind, string>> = {
@@ -17,10 +20,17 @@ export function formatLinkHit(hit: LinkHit): string {
   return `${hit.path}:${hit.line}: ${HIT_VERBS[hit.kind]} ${hit.target}`;
 }
 
-/** The dry run's header: what was read, what the tree holds, what stayed private. */
-export function formatExportHeader(header: ExportHeader): string {
+function formatMode(dryRun: boolean): string {
+  return dryRun ? "dry run" : "publish";
+}
+
+/** The run's header: what was read, what the tree holds, what stayed private. */
+export function formatExportHeader(
+  header: ExportHeader,
+  dryRun: boolean,
+): string {
   const lines = [
-    `export ${header.version} (dry run)`,
+    `export ${header.version} (${formatMode(dryRun)})`,
     `  source   ${header.commit}`,
     `  tree     ${header.out}`,
     `  files    ${header.fileCount}`,
@@ -40,4 +50,44 @@ export function formatGateVerdict(verdict: GateVerdict): string {
   const under = outcome.ok ? outcome.value.notices : outcome.error.details;
   const lines = [head, ...under.map((line) => `${DETAIL_INDENT}${line}`)];
   return `${lines.join("\n")}\n`;
+}
+
+const NO_PARENT = "none, first release";
+
+function describeAction(plan: PublishPlan, action: PublishAction): string {
+  const described: Readonly<Record<PublishAction, string>> = {
+    [PublishActions.PUSH_COMMIT]: `commit ${plan.commit} to main`,
+    [PublishActions.PUSH_TAG]: `tag ${plan.tag}`,
+    [PublishActions.PUSH_RECORD]: `record ${plan.record}`,
+  };
+  return described[action];
+}
+
+/** What a publish would do: the commit it built, the tag, the changes and the pushes still owed. */
+export function formatPublishPlan(plan: PublishPlan, dryRun: boolean): string {
+  const { added, edited, deleted } = plan.changes;
+  const actions =
+    plan.actions.length === 0
+      ? `nothing to push, ${plan.version} is published`
+      : plan.actions
+          .map((action) => `push ${describeAction(plan, action)}`)
+          .join(", ");
+  const lines = [
+    `publish ${plan.version} (${formatMode(dryRun)})`,
+    `  source   ${plan.source}`,
+    `  parent   ${plan.parent ?? NO_PARENT}`,
+    `  commit   ${plan.commit}`,
+    `  tag      ${plan.tag}`,
+    `  changes  ${added} added, ${edited} edited, ${deleted} deleted`,
+    ...plan.notices.map((notice) => `${DETAIL_INDENT}${notice}`),
+    `  actions  ${actions}`,
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+export function formatPublishedAction(
+  plan: PublishPlan,
+  action: PublishAction,
+): string {
+  return `pushed ${describeAction(plan, action)}\n`;
 }
