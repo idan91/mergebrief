@@ -102,6 +102,7 @@ function BriefViewContent(props: BriefViewProps) {
     changesPaneMounted,
     storyPaneMounted,
     chunkWindowsRef,
+    scrollToTop,
     queueJumpFromChanges,
     queueChunkJumpFromChanges,
     submitOpen,
@@ -429,6 +430,7 @@ function BriefViewContent(props: BriefViewProps) {
                       groups={model.groups}
                       jumpToGroup={session.jumpToGroup}
                       jumpToGroupHeading={session.jumpToGroupHeading}
+                      scrollToTop={scrollToTop}
                       pending={pendingShown}
                       state={sidebar}
                       toggleShortcuts={session.toggleShortcuts}

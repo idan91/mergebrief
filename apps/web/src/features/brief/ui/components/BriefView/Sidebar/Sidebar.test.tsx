@@ -40,6 +40,7 @@ interface HarnessProps {
   jumpToGroup?: (groupId: string) => void;
   jumpToGroupHeading?: (groupId: string) => void;
   toggleShortcuts?: () => void;
+  scrollToTop?: () => void;
   conversationGroupIds?: ReadonlySet<string>;
   band?: ViewportBand;
   pending?: boolean;
@@ -58,6 +59,7 @@ function Harness({
   jumpToGroup = noop,
   jumpToGroupHeading = noop,
   toggleShortcuts = noop,
+  scrollToTop = noop,
   conversationGroupIds,
   band = "desktop",
   pending = false,
@@ -80,6 +82,7 @@ function Harness({
         groups={model.groups}
         jumpToGroup={jumpToGroup}
         jumpToGroupHeading={jumpToGroupHeading}
+        scrollToTop={scrollToTop}
         pending={pending}
         state={state}
         toggleShortcuts={toggleShortcuts}
@@ -304,18 +307,16 @@ describe("Sidebar", () => {
     expect(current).toHaveLength(2);
   });
 
-  it("scroll-to-top scrolls the window and ? toggles the shortcuts", () => {
-    const scrollTo = vi.fn();
-    vi.stubGlobal("scrollTo", scrollTo);
+  it("scroll-to-top scrolls the page and ? toggles the shortcuts", () => {
+    const scrollToTop = vi.fn();
     const toggleShortcuts = vi.fn();
-    renderSidebar({ toggleShortcuts });
+    renderSidebar({ scrollToTop, toggleShortcuts });
 
     fireEvent.click(screen.getByRole("button", { name: "Scroll to top" }));
     fireEvent.click(screen.getByRole("button", { name: "Keyboard shortcuts" }));
 
-    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+    expect(scrollToTop).toHaveBeenCalledTimes(1);
     expect(toggleShortcuts).toHaveBeenCalledTimes(1);
-    vi.unstubAllGlobals();
   });
 
   it("gates its motion on a frame after mount", async () => {

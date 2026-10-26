@@ -8,7 +8,6 @@ import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
-import { prefersReducedMotion } from "@web/utils/motion";
 import type { RevisionTimelinePlan } from "../../../../model/types";
 import type { GroupView } from "../../../../model/utils/view-model";
 import { useReadingPosition } from "../reading/reading-position";
@@ -29,13 +28,6 @@ import type { SidebarState } from "./useSidebarState";
 import { isSidebarTab, resolveShownTab } from "./utils";
 import styles from "./Sidebar.module.scss";
 
-function scrollWindowToTop(): void {
-  window.scrollTo({
-    top: 0,
-    behavior: prefersReducedMotion() ? "auto" : "smooth",
-  });
-}
-
 /** The control names and shows the view a click switches to. */
 const DIFF_VIEW_SWITCH_LABELS = {
   [DiffViews.SPLIT]: "brief.sidebar.diffViewToSplit",
@@ -47,6 +39,7 @@ export interface SidebarProps {
   jumpToGroup: (groupId: string) => void;
   /** The keyboard scroll to target: scrolls to and focuses the group heading. */
   jumpToGroupHeading: (groupId: string) => void;
+  scrollToTop: () => void;
   conversationGroupIds?: ReadonlySet<string> | undefined;
   state: SidebarState;
   band: ViewportBand;
@@ -71,6 +64,7 @@ export function Sidebar({
   groups,
   jumpToGroup,
   jumpToGroupHeading,
+  scrollToTop,
   conversationGroupIds,
   state,
   band,
@@ -226,7 +220,7 @@ export function Sidebar({
           expanded={expanded}
           groups={groups}
           jumpToGroup={jumpToGroup}
-          scrollToTop={scrollWindowToTop}
+          scrollToTop={scrollToTop}
           toggle={state.toggle}
           toggleShortcuts={toggleShortcuts}
         />
@@ -279,7 +273,7 @@ export function Sidebar({
             callout="left"
             label={t("brief.sidebar.scrollToTop")}
             size="md"
-            onClick={scrollWindowToTop}
+            onClick={scrollToTop}
           >
             <Icon name={IconNames.ARROW_UP} size={IconSizes.MD} />
           </IconButton>

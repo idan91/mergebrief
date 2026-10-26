@@ -362,7 +362,7 @@ function WindowedChunkList({
   );
 
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
-  const { scrollToKey } = window;
+  const { scrollToKey, holdScrollCompensation } = window;
 
   const registry = useChunkWindows();
   useEffect(() => {
@@ -374,8 +374,9 @@ function WindowedChunkList({
         const key = keyByChunkId.get(chunkId);
         return key !== undefined && scrollToKey(key);
       },
+      holdScrollCompensation,
     });
-  }, [keyByChunkId, registry, scrollToKey]);
+  }, [holdScrollCompensation, keyByChunkId, registry, scrollToKey]);
 
   // Focus-pin bookkeeping: focusin bubbles, so the list container sees every
   // focus landing inside a card; the pin lifts when focus leaves the list.

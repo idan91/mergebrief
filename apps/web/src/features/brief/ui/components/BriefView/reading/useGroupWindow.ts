@@ -15,6 +15,10 @@ export const SSR_VIEWPORT_RECT = {
 
 const DEFAULT_OVERSCAN = 4;
 
+function refuseScrollCompensation(): boolean {
+  return false;
+}
+
 /**
  * The attribute every windowed card wrapper carries. The NAME is fixed by
  * the virtualizer (its `indexAttribute` default drives measurement); the
@@ -56,6 +60,12 @@ export interface GroupWindow {
   indexOfKey: (key: string) => number;
   /** Scroll the window toward a key; false = absent key or hidden pane. */
   scrollToKey: (key: string) => boolean;
+  /**
+   * Held, a card measured above the fold keeps its delta instead of moving
+   * the page by it: that compensation is an instant scroll, and an instant
+   * scroll cancels a smooth one in flight.
+   */
+  holdScrollCompensation: (held: boolean) => void;
 }
 
 /** Latest-value holders so DOM observer callbacks never close over stale renders. */
@@ -228,6 +238,16 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     [keyIndex, virtualizer],
   );
 
+  // `undefined` restores the library's own rule.
+  const holdScrollCompensation = useCallback(
+    (held: boolean) => {
+      virtualizer.shouldAdjustScrollPositionOnItemSizeChange = held
+        ? refuseScrollCompensation
+        : undefined;
+    },
+    [virtualizer],
+  );
+
   return {
     listRef: setListEl,
     measureElement,
@@ -237,5 +257,6 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     active,
     indexOfKey,
     scrollToKey,
+    holdScrollCompensation,
   };
 }

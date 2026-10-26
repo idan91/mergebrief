@@ -13,11 +13,14 @@ import { createContext, useContext, type ReactNode } from "react";
 export interface ChunkWindowRegistration {
   /** True when this window owns the chunk AND accepted the scroll. */
   scrollToChunk: (chunkId: string) => boolean;
+  /** Held, a card measured above the fold no longer moves the page. */
+  holdScrollCompensation: (held: boolean) => void;
 }
 
 export interface ChunkWindowRegistry {
   register: (registration: ChunkWindowRegistration) => () => void;
   scrollToChunk: (chunkId: string) => boolean;
+  holdScrollCompensation: (held: boolean) => void;
 }
 
 export function createChunkWindowRegistry(): ChunkWindowRegistry {
@@ -36,6 +39,11 @@ export function createChunkWindowRegistry(): ChunkWindowRegistry {
         }
       }
       return false;
+    },
+    holdScrollCompensation(held) {
+      for (const registration of registrations) {
+        registration.holdScrollCompensation(held);
+      }
     },
   };
 }

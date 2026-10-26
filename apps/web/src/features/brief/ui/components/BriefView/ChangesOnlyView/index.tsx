@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   Concerns,
   type RevisionNarrativeSkipReason,
@@ -14,6 +14,7 @@ import { Markdown } from "@web/components/Markdown";
 import { useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
 import { estimateNarrativeCardHeight } from "../reading/chunk-height-model";
+import { useChunkWindows } from "../reading/chunk-windows";
 import { useGroupWindow } from "../reading/useGroupWindow";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import { getCategoryLabel } from "../../../../model/utils/view-model";
@@ -283,8 +284,8 @@ function deriveNarrativeHostId(chunk: RevisionNarrativeChunk): string {
  * Windowed narrative cards, same shape as the story pane's chunk column:
  * absolute cards in a totalSize column, explicit inline-size (absolute cards
  * have no intrinsic width). The card hosting the composer stays mounted
- * offscreen, as a story card does. No jump registry, nothing navigates to a
- * narrative card by id.
+ * offscreen, as a story card does. It joins the window registry only for
+ * the scroll-compensation hold: nothing navigates to a narrative card by id.
  */
 function WindowedNarrativeList({
   brief,
@@ -325,6 +326,19 @@ function WindowedNarrativeList({
     [chunks, spanRows],
   );
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
+  const { holdScrollCompensation } = window;
+
+  const registry = useChunkWindows();
+  useEffect(() => {
+    if (!registry) {
+      return;
+    }
+    return registry.register({
+      scrollToChunk: () => false,
+      holdScrollCompensation,
+    });
+  }, [holdScrollCompensation, registry]);
+
   return (
     <div
       ref={window.listRef}

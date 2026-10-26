@@ -8,6 +8,7 @@ import { useCreateBriefViewStore } from "../store";
 import type { ReadingState, UseReadingInput } from "../types";
 import { createChunkWindowRegistry } from "./chunk-windows";
 import { useCreateReadingPositionStore } from "./reading-position";
+import { scrollPageToTop } from "./scroll-to-top";
 import { useReadingSession } from "./useReadingSession";
 
 export function useReading({
@@ -64,8 +65,13 @@ export function useReading({
     scrollToTarget: session.scrollToTarget,
   });
 
+  const scrollToTop = useCallback(() => {
+    scrollPageToTop(chunkWindowsRef.current);
+  }, []);
+
   return {
     chunkWindowsRef,
+    scrollToTop,
     readingPosition,
     expansion,
     viewStore,

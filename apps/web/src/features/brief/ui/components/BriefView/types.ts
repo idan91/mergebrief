@@ -317,6 +317,8 @@ export interface UseReadingInput {
 
 export interface ReadingState {
   chunkWindowsRef: RefObject<ChunkWindowRegistry>;
+  /** The sidebar's scroll to top, holding every window's compensation. */
+  scrollToTop: () => void;
   readingPosition: ReadingPositionStore;
   expansion: ExpansionStore;
   viewStore: BriefViewStore;
