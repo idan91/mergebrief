@@ -53,7 +53,7 @@ function makeContext(tree: Tree, overrides: Partial<GateContext> = {}) {
     dir,
     version: "0.1.0-rc.1",
     shipped: Object.keys(tree),
-    dryRun: true,
+    requiresPublicRepository: false,
     publicRepository: PUBLIC,
     ...overrides,
   };
@@ -216,7 +216,7 @@ describe("the notes gate", () => {
 
   it("refuses a missing public repo when publishing", () => {
     const git = stubGitPort({ listPublicTags: () => undefined });
-    const context = makeContext(CLEAN_TREE, { dryRun: false });
+    const context = makeContext(CLEAN_TREE, { requiresPublicRepository: true });
 
     expect(checkNotesGate(context, git)).toEqual({
       ok: false,

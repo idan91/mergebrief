@@ -46,13 +46,28 @@ describe("the release check", () => {
   });
 
   it("reports the highest stable tag as latest", () => {
-    const result = checkReleases(makeCleanDir(), "v0.2.0");
+    const result = checkReleases(makeCleanDir(), "v0.2.0", ["v0.1.0"]);
 
     expect(result.ok && result.value.tag).toEqual({
       version: "0.2.0",
       channel: ReleaseChannels.STABLE,
       isHighestStable: true,
-      isHighest: false,
+      isHighest: true,
+    });
+  });
+
+  it("places a candidate as newest when its stable file is already merged", () => {
+    const dir = makeNotesDir({
+      "0.1.0-rc.1.md": makeNotesFile({}, BODY),
+      "0.1.0.md": makeNotesFile({}, BODY),
+    });
+
+    const result = checkReleases(dir, "v0.1.0-rc.1", []);
+
+    expect(result.ok && result.value.tag).toMatchObject({
+      channel: ReleaseChannels.RC,
+      isHighest: true,
+      isHighestStable: false,
     });
   });
 
@@ -87,11 +102,19 @@ describe("the release check", () => {
   });
 
   it("never reports an older stable tag or a candidate as latest", () => {
-    expect(checkReleases(makeCleanDir(), "v0.1.0")).toMatchObject({
+    expect(checkReleases(makeCleanDir(), "v0.1.0", ["v0.2.0"])).toMatchObject({
       value: { tag: { isHighestStable: false } },
     });
-    expect(checkReleases(makeCleanDir(), "v0.3.0-rc.1")).toMatchObject({
-      value: { tag: { channel: ReleaseChannels.RC, isHighestStable: false } },
+    expect(
+      checkReleases(makeCleanDir(), "v0.3.0-rc.1", ["v0.3.0-rc.2"]),
+    ).toMatchObject({
+      value: {
+        tag: {
+          channel: ReleaseChannels.RC,
+          isHighestStable: false,
+          isHighest: false,
+        },
+      },
     });
   });
 });

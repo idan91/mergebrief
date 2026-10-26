@@ -32,7 +32,7 @@ function exportTree(tree: Tree, version = "0.1.0") {
   made.push(repos.root);
   const out = join(repos.root, "out");
   const printed: string[] = [];
-  const git = createGitPort(repos.clone, process.env);
+  const git = createGitPort(repos.clone, { env: process.env });
   const result = runExport(
     {
       git: { ...git, listPublicTags: () => [] },
@@ -63,7 +63,7 @@ describe("running the export", () => {
       commit: repos.head,
       fileCount: 3,
     });
-    expect(result.ok && result.value.gates.passed).toBe(true);
+    expect(result.ok && result.value.gates?.passed).toBe(true);
     expect(printed[0]).toMatch(/^export 0\.1\.0 \(dry run\)\n/);
     const verdictLines = printed.slice(1, -1);
     const verdictLabels = verdictLines.map((text) => text.split(":")[0]);
@@ -83,9 +83,9 @@ describe("running the export", () => {
       "docs/guide.md": "See [the ADR](internal/adr.md).\n",
     });
 
-    const verdicts = result.ok ? result.value.gates.verdicts : [];
+    const verdicts = result.ok ? (result.value.gates?.verdicts ?? []) : [];
     expect(verdicts.map((verdict) => verdict.name)).toEqual([GateNames.PATHS]);
-    expect(result.ok && result.value.gates.passed).toBe(false);
+    expect(result.ok && result.value.gates?.passed).toBe(false);
   });
 
   it("refuses an unclassified top-level path before writing", () => {

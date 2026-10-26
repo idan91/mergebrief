@@ -35,6 +35,16 @@ describe("argument errors never echo URL credentials", () => {
     expect(run.output).not.toContain(SECRET);
   });
 
+  it("redacts an unknown assigned private remote flag", () => {
+    const run = runMain([...EXPORT_ARGS, `--private-remote=${SECRET_URL}`]);
+
+    expect(run.status).toBe(ExitCodes.USAGE);
+    expect(run.output).toContain(
+      "unknown flag --private-remote=https://<redacted>@",
+    );
+    expect(run.output).not.toContain(SECRET);
+  });
+
   it("redacts an unexpected positional URL", () => {
     const run = runMain([...EXPORT_ARGS, SECRET_URL]);
 

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { buildVersionManifest } from "../src/logic/version-json";
 import { readReleaseNotes } from "../src/logic/notes";
-import type { ReleaseNotes, VersionManifest } from "../src/types";
+import type {
+  ReleaseNotes,
+  ReleaseVersion,
+  VersionManifest,
+} from "../src/types";
 import { makeNotesDir, makeNotesFile } from "./helpers";
 
 // A hand copy of apps/api/src/update-check/schemas.ts, the consumer; an app
@@ -25,6 +29,7 @@ const VersionManifestSchema = z.object({
 });
 
 const BODY = "## Highlights\n\nNotes.\n";
+const THROUGH_NEWEST: ReleaseVersion = { major: 0, minor: 2, patch: 1 };
 
 function unwrap(
   result: ReturnType<typeof buildVersionManifest>,
@@ -51,7 +56,9 @@ function readFixture(): readonly ReleaseNotes[] {
 
 describe("version.json from the notes files", () => {
   it("names the highest stable version as latest and links its Release page", () => {
-    const manifest = unwrap(buildVersionManifest(readFixture()));
+    const manifest = unwrap(
+      buildVersionManifest(readFixture(), THROUGH_NEWEST),
+    );
 
     expect(manifest.latest).toBe("0.2.1");
     expect(manifest.releaseNotesUrl).toBe(
@@ -60,7 +67,9 @@ describe("version.json from the notes files", () => {
   });
 
   it("lists stable releases newest first with flags and no candidate", () => {
-    const manifest = unwrap(buildVersionManifest(readFixture()));
+    const manifest = unwrap(
+      buildVersionManifest(readFixture(), THROUGH_NEWEST),
+    );
 
     expect(manifest.releases).toEqual([
       {
@@ -88,7 +97,9 @@ describe("version.json from the notes files", () => {
   });
 
   it("parses under the api's own manifest schema", () => {
-    const manifest = unwrap(buildVersionManifest(readFixture()));
+    const manifest = unwrap(
+      buildVersionManifest(readFixture(), THROUGH_NEWEST),
+    );
 
     const parsed = VersionManifestSchema.safeParse(
       JSON.parse(JSON.stringify(manifest)),
@@ -100,11 +111,26 @@ describe("version.json from the notes files", () => {
     expect(entries).toEqual([true, true, true]);
   });
 
+  it("leaves out a stable file merged ahead of the tag", () => {
+    const through: ReleaseVersion = { major: 0, minor: 2, patch: 0 };
+
+    const manifest = unwrap(buildVersionManifest(readFixture(), through));
+
+    expect(manifest.latest).toBe("0.2.0");
+    expect(manifest.releases.map((entry) => entry.version)).toEqual([
+      "0.2.0",
+      "0.1.0",
+    ]);
+  });
+
   it("refuses a set with no stable release", () => {
     const dir = makeNotesDir({ "0.1.0-rc.1.md": makeNotesFile({}, BODY) });
     const read = readReleaseNotes(dir);
 
-    const manifest = buildVersionManifest(read.ok ? read.value : []);
+    const manifest = buildVersionManifest(
+      read.ok ? read.value : [],
+      THROUGH_NEWEST,
+    );
 
     expect(!manifest.ok && manifest.error).toContain("stable");
   });

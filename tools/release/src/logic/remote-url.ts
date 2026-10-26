@@ -7,7 +7,7 @@ const URL_USERINFO_ALL = new RegExp(URL_USERINFO.source, "g");
 const REDACTED_USERINFO = "://<redacted>@";
 
 /** The export flags that name a git remote by URL. */
-export const REMOTE_FLAGS = ["--public-remote"] as const;
+export const REMOTE_FLAGS = ["--public-remote", "--private-remote"] as const;
 
 /** `scheme://user:secret@host` or `scheme://token@host`. */
 export function hasUrlCredentials(url: string): boolean {

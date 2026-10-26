@@ -1,0 +1,293 @@
+name: Publish
+
+# Publishes one release from this private repository in three jobs.
+# `plan` runs only the release tool from main: it builds the release commit
+# and tags for `source` with `pnpm release:export --emit`, no gate, and
+# hands their SHAs on as outputs. `gates` rebuilds the same release with
+# every gate and refuses unless it lands on exactly the planned commit; it
+# holds no credential and its artifact-free verdict is all that is trusted.
+# `publish` runs no repository code: it checks the bundle against plan's
+# outputs, mints the publishing App's token and pushes with plain git, the
+# release commit and `vX.Y.Z` to the public repository, then the
+# `public/vX.Y.Z` record here. The public repository's own release.yml
+# takes it from the tag. Private only: the export manifest excludes this
+# file.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, X.Y.Z or X.Y.Z-rc.N; its notes file must be in the source."
+        required: true
+        type: string
+      source:
+        description: "Commit or ref on main to export."
+        required: true
+        default: "main"
+        type: string
+
+permissions: {}
+
+# Publishes run one at a time and are never cancelled: a cancelled run can
+# stop between the public push and the record, which the next run resumes.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan the release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # contents: read clones main with its tags; nothing here can write.
+    permissions:
+      contents: read
+    outputs:
+      public-url: ${{ steps.read.outputs.public-url }}
+      version: ${{ steps.read.outputs.version }}
+      source: ${{ steps.read.outputs.source }}
+      commit: ${{ steps.read.outputs.commit }}
+      tree: ${{ steps.read.outputs.tree }}
+      tag-object: ${{ steps.read.outputs.tag-object }}
+      record-object: ${{ steps.read.outputs.record-object }}
+      actions: ${{ steps.read.outputs.actions }}
+
+    steps:
+      # The tool runs from main whatever the dispatch picked; the source is
+      # read from git by SHA, never from this checkout. Full history and
+      # tags: the release body credits co-authors since the previous record.
+      - name: Check out the release tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          # A publishing workflow restores no cache: a poisoned entry would
+          # ship in the release.
+          package-manager-cache: false
+
+      # Only the tool's own dependencies, from main's lockfile, and none of
+      # their install scripts: nothing but the tool runs in this job.
+      - name: Install the release tool
+        run: pnpm install --frozen-lockfile --filter release... --ignore-scripts
+
+      # The checkout keeps no credential, so main and the records are read
+      # from the clone itself; the public repository is read anonymously.
+      - name: Plan and emit
+        env:
+          VERSION: ${{ inputs.version }}
+          SOURCE: ${{ inputs.source }}
+        run: >-
+          pnpm release:export --version "$VERSION" --source "$SOURCE"
+          --emit "$RUNNER_TEMP/release" --private-remote "$GITHUB_WORKSPACE"
+
+      - name: Read the planned SHAs
+        id: read
+        run: |
+          set -euo pipefail
+          plan="$RUNNER_TEMP/release/plan.json"
+          {
+            echo "public-url=$(jq -er .publicUrl "$plan")"
+            echo "version=$(jq -er .version "$plan")"
+            echo "source=$(jq -er .source "$plan")"
+            echo "commit=$(jq -er .commit "$plan")"
+            echo "tree=$(jq -er .tree "$plan")"
+            echo "tag-object=$(jq -er .tagObject "$plan")"
+            echo "record-object=$(jq -er .recordObject "$plan")"
+            echo "actions=$(jq -er '.actions | join(" ")' "$plan")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Keep the planned release for the publish job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release
+          path: ${{ runner.temp }}/release
+          retention-days: 1
+          if-no-files-found: error
+
+  gates:
+    name: Gate the planned commit
+    needs: plan
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # contents: read clones main with its tags; nothing here can write.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the release tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install the release tool
+        run: pnpm install --frozen-lockfile --filter release... --ignore-scripts
+
+      # Every gate over the planned source; the rebuilt commit is a function
+      # of git alone, so a match means the gates checked what ships.
+      - name: Run every gate on the planned commit
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+          SOURCE: ${{ needs.plan.outputs.source }}
+          COMMIT: ${{ needs.plan.outputs.commit }}
+        run: >-
+          pnpm release:export --version "$VERSION" --source "$SOURCE"
+          --dry-run --expect-commit "$COMMIT"
+          --private-remote "$GITHUB_WORKSPACE"
+
+  publish:
+    name: Push the release
+    needs: [plan, gates]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The publishing App's secrets live in this environment only.
+    environment: publish
+    permissions:
+      contents: write # the `public/v*` record push to this repository
+    env:
+      PUBLIC_URL: https://github.com/Idan91/mergebrief.git
+
+    steps:
+      # A full clone holds the record's source commit; nothing in it runs.
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch the planned release
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release
+          path: ${{ runner.temp }}/release
+
+      # The plan job's outputs are the truth; the artifact only carries the
+      # objects. The plan must have read the repository this job pushes to,
+      # so consts.ts and PUBLIC_URL cannot name two repositories. The bundle must hold exactly the planned refs, and once
+      # unbundled each object must be the planned one, so nothing the gates
+      # job ran can change what is pushed.
+      - name: Check the bundle against the plan
+        id: check
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          PLANNED_URL: ${{ needs.plan.outputs.public-url }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source }}
+          COMMIT: ${{ needs.plan.outputs.commit }}
+          TREE: ${{ needs.plan.outputs.tree }}
+          TAG_OBJECT: ${{ needs.plan.outputs.tag-object }}
+          RECORD_OBJECT: ${{ needs.plan.outputs.record-object }}
+          ACTIONS: ${{ needs.plan.outputs.actions }}
+        run: |
+          set -euo pipefail
+          bundle="$RUNNER_TEMP/release/release.bundle"
+          refuse() { echo "publish: $1" >&2; exit 1; }
+
+          [[ "$PLANNED_URL" == "$PUBLIC_URL" ]] || refuse "planned against $PLANNED_URL, pushing to $PUBLIC_URL"
+          [[ "$VERSION" == "${VERSION_INPUT#v}" ]] || refuse "planned $VERSION, dispatched $VERSION_INPUT"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]] || refuse "planned version $VERSION is not X.Y.Z or X.Y.Z-rc.N"
+          for sha in "$SOURCE_SHA" "$COMMIT" "$TREE" "$TAG_OBJECT" "$RECORD_OBJECT"; do
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || refuse "planned SHA '$sha' is malformed"
+          done
+
+          expected=$(printf '%s refs/heads/main\n%s refs/tags/v%s\n%s refs/tags/public/v%s\n' \
+            "$COMMIT" "$TAG_OBJECT" "$VERSION" "$RECORD_OBJECT" "$VERSION" | sort)
+          heads=$(git bundle list-heads "$bundle" | sort)
+          [[ "$heads" == "$expected" ]] || refuse "bundle refs differ from the plan"
+          git bundle unbundle "$bundle" > /dev/null
+
+          [[ "$(git cat-file -t "$COMMIT")" == commit ]] || refuse "planned commit $COMMIT is not in the bundle"
+          [[ "$(git rev-parse "${COMMIT}^{tree}")" == "$TREE" ]] || refuse "commit $COMMIT does not hold the planned tree $TREE"
+          [[ "$(git cat-file -t "$TAG_OBJECT")" == tag ]] || refuse "planned tag $TAG_OBJECT is not a tag object"
+          [[ "$(git rev-parse "${TAG_OBJECT}^{commit}")" == "$COMMIT" ]] || refuse "tag $TAG_OBJECT does not point at $COMMIT"
+          [[ "$(git cat-file -t "$RECORD_OBJECT")" == tag ]] || refuse "planned record $RECORD_OBJECT is not a tag object"
+          [[ "$(git rev-parse "${RECORD_OBJECT}^{commit}")" == "$SOURCE_SHA" ]] || refuse "record $RECORD_OBJECT does not point at the source $SOURCE_SHA"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main || refuse "source $SOURCE_SHA is not on main"
+
+          push_commit=false; push_tag=false; push_record=false
+          for action in $ACTIONS; do
+            case "$action" in
+              push-commit) push_commit=true ;;
+              push-tag) push_tag=true ;;
+              push-record) push_record=true ;;
+              *) refuse "unknown planned action $action" ;;
+            esac
+          done
+          public=false
+          if [[ "$push_commit" == true || "$push_tag" == true ]]; then public=true; fi
+          {
+            echo "push-commit=$push_commit"
+            echo "push-tag=$push_tag"
+            echo "push-record=$push_record"
+            echo "push-public=$public"
+          } >> "$GITHUB_OUTPUT"
+
+      # The release commit adds and edits `.github/workflows/*`; GitHub
+      # refuses that push to an App token without `workflows`.
+      - name: Mint the publishing token
+        id: app-token
+        if: steps.check.outputs.push-public == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.PUBLISH_APP_ID }}
+          private-key: ${{ secrets.PUBLISH_APP_PRIVATE_KEY }}
+          owner: Idan91
+          repositories: mergebrief
+          permission-contents: write
+          permission-workflows: write
+
+      # The token reaches git through a helper that reads it from this
+      # step's environment, never argv, the URL or git config. Plain pushes:
+      # main only fast-forwards and a tag never moves.
+      - name: Push the commit and tag to the public repository
+        if: steps.check.outputs.push-public == 'true'
+        env:
+          PUBLISH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          COMMIT: ${{ needs.plan.outputs.commit }}
+          TAG_OBJECT: ${{ needs.plan.outputs.tag-object }}
+          PUSH_COMMIT: ${{ steps.check.outputs.push-commit }}
+          PUSH_TAG: ${{ steps.check.outputs.push-tag }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2016
+          helper='!f() { echo username=x-access-token; echo "password=${PUBLISH_TOKEN}"; }; f'
+          push() { git -c credential.helper= -c "credential.helper=$helper" push --no-follow-tags "$PUBLIC_URL" "$1"; }
+          if [[ "$PUSH_COMMIT" == true ]]; then push "${COMMIT}:refs/heads/main"; fi
+          if [[ "$PUSH_TAG" == true ]]; then push "${TAG_OBJECT}:refs/tags/v${VERSION}"; fi
+
+      - name: Push the record to this repository
+        if: steps.check.outputs.push-record == 'true'
+        env:
+          RECORD_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          RECORD_OBJECT: ${{ needs.plan.outputs.record-object }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2016
+          helper='!f() { echo username=x-access-token; echo "password=${RECORD_TOKEN}"; }; f'
+          git -c credential.helper= -c "credential.helper=$helper" push --no-follow-tags origin "${RECORD_OBJECT}:refs/tags/public/v${VERSION}"

@@ -91,3 +91,10 @@ export function formatPublishedAction(
 ): string {
   return `pushed ${describeAction(plan, action)}\n`;
 }
+
+export const GATES_SKIPPED =
+  "no gate ran: an emit only plans; gate this commit with --dry-run --expect-commit\n";
+
+export function formatEmitted(dir: string): string {
+  return `emitted the release bundle and plan to ${dir}\n`;
+}

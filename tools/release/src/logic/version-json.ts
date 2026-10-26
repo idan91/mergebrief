@@ -2,18 +2,25 @@ import type { Result } from "types/utils";
 
 import type {
   ReleaseNotes,
+  ReleaseVersion,
   VersionManifest,
   VersionManifestRelease,
 } from "../types";
 import { buildReleasePageUrl } from "./release-body";
-import { formatReleaseVersion, isStableVersion } from "./version";
+import {
+  compareReleaseVersions,
+  formatReleaseVersion,
+  isStableVersion,
+} from "./version";
 
-/** `latest` and `releases[]` over the stable notes files, newest first. */
+/** `latest` and `releases[]` over the stable notes files up to `through`, newest first; a file merged ahead of its tag is left out. */
 export function buildVersionManifest(
   notes: readonly ReleaseNotes[],
+  through: ReleaseVersion,
 ): Result<VersionManifest, string> {
   const releases = notes
     .filter((entry) => isStableVersion(entry.version))
+    .filter((entry) => compareReleaseVersions(entry.version, through) <= 0)
     .map(shapeManifestRelease);
   const newest = releases[0];
   if (newest === undefined) {

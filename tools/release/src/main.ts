@@ -16,7 +16,6 @@ import {
 import { type ParsedArgv, parseArgv, readValuedFlag } from "./logic/argv";
 import { checkReleases } from "./logic/check";
 import { createCommandRunner } from "./logic/command-runner";
-import { type CutOptions, executeCut, planCut } from "./logic/cut";
 import { runExport } from "./logic/export";
 import type {
   ExportOptions,
@@ -28,11 +27,9 @@ import { describeCrash, redactStreamOutput } from "./logic/redacted-output";
 import { findCredentialedRemoteFlag } from "./logic/remote-url";
 import { buildReleaseBody } from "./logic/release-body";
 import { pruneTree, stampTree } from "./logic/stamp";
-import { formatReleaseVersion } from "./logic/version";
+import { formatReleaseVersion, parseReleaseVersion } from "./logic/version";
 import { buildVersionManifest } from "./logic/version-json";
 import {
-  type BumpLevel,
-  BumpLevels,
   type ExitCode,
   ExitCodes,
   type GitPort,
@@ -45,17 +42,18 @@ const NOTES_DIR = join(REPO_ROOT, RELEASES_DIR);
 const USAGE = [
   "usage:",
   "  release check [--tag vX.Y.Z] [--known-tags v1,v2] [--json]",
-  "      every notes file parses; the tag has one and is placed against the published tags",
+  "      every notes file parses; the tag has one and is placed against the published tags, never the notes files",
   "  release stamp <version>                 write the version into the shipped manifests",
   "  release prune-manifest                  drop private and dependencies from the stamped CLI manifest, after the build",
   "  release version-json <tag> [--known-tags v1,v2] --out <file>",
-  "      version.json over every stable notes file; the tag must be the highest stable",
+  "      version.json over the stable notes files up to the tag; the tag must be the highest stable published",
   "  release release-body <tag> --out <file> the GitHub Release body for the tag",
-  "  release cut <major|minor|patch> [--rc] [--at <ref>] [--push] [--dry-run]",
-  "      tag the tip of main as fetched, or --at a commit on it; the notes file must be in it",
-  "  release export --version X.Y.Z --source <ref> [--dry-run] [--out <dir>] [--public-remote <url>]",
+  "  release export --version X.Y.Z --source <ref> [--dry-run [--expect-commit <sha>] | --emit <dir>]",
+  "                 [--out <dir>] [--public-remote <url>] [--private-remote <url>]",
   "      the public snapshot of a commit on main, written to --out (a new temp dir when absent), checked,",
-  `      then published as one commit and tag; a publish needs ${PUBLISH_TOKEN_ENV} set, a dry run pushes nothing`,
+  `      then published as one commit and tag; a publish needs ${PUBLISH_TOKEN_ENV} set, a dry run pushes nothing;`,
+  "      --emit runs no gate and writes the release bundle and plan.json for other jobs to gate and push,",
+  "      --expect-commit refuses a gated rebuild that is not the emitted commit",
 ].join("\n");
 
 const JSON_INDENT = 2;
@@ -175,13 +173,16 @@ function runVersionJson(argv: readonly string[]): ExitCode {
   if (!read.ok) {
     return reportNotesErrors(read.error);
   }
-  if (read.value.tag?.isHighestStable !== true) {
+  const through = parseReleaseVersion(tag);
+  const latestStable =
+    read.value.tag?.isHighestStable === true && through !== undefined;
+  if (!latestStable) {
     process.stderr.write(
       `release: ${tag} is not the highest stable release; version.json is written for the latest release only\n`,
     );
     return ExitCodes.REFUSED;
   }
-  const manifest = buildVersionManifest(read.value.notes);
+  const manifest = buildVersionManifest(read.value.notes, through);
   if (!manifest.ok) {
     process.stderr.write(`release: ${manifest.error}\n`);
     return ExitCodes.REFUSED;
@@ -227,91 +228,18 @@ function runReleaseBody(argv: readonly string[]): ExitCode {
   return ExitCodes.OK;
 }
 
-function isBumpLevel(value: string): value is BumpLevel {
-  const levels: readonly string[] = Object.values(BumpLevels);
-  const known = levels.includes(value);
-  return known;
+/** A path against the shell the root script ran in; pnpm -C moves the cwd. */
+function resolveInvokedPath(given: string): string {
+  const invokedFrom = process.env["INIT_CWD"] ?? process.cwd();
+  return resolve(invokedFrom, given);
 }
 
-function runCut(argv: readonly string[]): ExitCode {
-  const parsed = parseArgv(argv, {
-    valued: ["--at"],
-    boolean: ["--rc", "--push", "--dry-run"],
-    maxPositionals: 1,
-  });
-  const level = parsed.ok ? parsed.value.positionals[0] : undefined;
-  const usage = !parsed.ok || level === undefined || !isBumpLevel(level);
-  if (usage) {
-    const reason = parsed.ok ? "cut needs major, minor or patch" : parsed.error;
-    return refuseUsage(reason);
-  }
-  const dryRun = parsed.value.flags.has("--dry-run");
-  const push = parsed.value.flags.has("--push");
-  if (dryRun && push) {
-    return refuseUsage("--dry-run and --push exclude each other");
-  }
-
-  try {
-    return cutRelease(parsed.value, level, { dryRun, push });
-  } catch (cause) {
-    if (!(cause instanceof GitCommandError)) {
-      throw cause;
-    }
-    process.stderr.write(`release: ${cause.message}\n`);
-    return ExitCodes.REFUSED;
-  }
-}
-
-interface CutModes {
-  readonly dryRun: boolean;
-  readonly push: boolean;
-}
-
-function cutRelease(
-  parsed: ParsedArgv,
-  level: BumpLevel,
-  modes: CutModes,
-): ExitCode {
-  const git = createGitPort(REPO_ROOT, process.env);
-  const options: Mutable<CutOptions> = {
-    level,
-    candidate: parsed.flags.has("--rc"),
-  };
-  const at = readValuedFlag(parsed, "--at");
-  if (at !== undefined) {
-    options.ref = at;
-  }
-  const plan = planCut(git, options);
-  if (!plan.ok) {
-    process.stderr.write(`release: ${plan.error.reason}\n`);
-    return ExitCodes.REFUSED;
-  }
-
-  const summary = `${plan.value.tag} at ${plan.value.commit} (${plan.value.notesPath} ok)`;
-  if (modes.dryRun) {
-    process.stdout.write(`release: would tag ${summary}\n`);
-    return ExitCodes.OK;
-  }
-  const done = executeCut(git, plan.value, modes.push);
-  if (!done.ok) {
-    process.stderr.write(`release: ${done.error.reason}\n`);
-    return ExitCodes.REFUSED;
-  }
-  const next = modes.push
-    ? "pushed; the release workflow is running"
-    : `push it with: git push origin ${plan.value.tag}`;
-  process.stdout.write(`release: tagged ${summary}; ${next}\n`);
-  return ExitCodes.OK;
-}
-
-/** `--out` against the shell the root script ran in (pnpm -C moves the cwd), else a fresh temp dir. */
 function resolveOutDir(given: string | undefined): string {
   if (given === undefined) {
     const outPrefix = join(tmpdir(), "mergebrief-export-");
     return mkdtempSync(outPrefix);
   }
-  const invokedFrom = process.env["INIT_CWD"] ?? process.cwd();
-  return resolve(invokedFrom, given);
+  return resolveInvokedPath(given);
 }
 
 function isRepositorySlug(value: string): value is RepositorySlug {
@@ -330,9 +258,33 @@ function resolvePublicRepository(given: string | undefined): PublicRepository {
   };
 }
 
+/** Why the export's mode flags cannot go together, if they cannot. */
+function findModeConflict(parsed: ParsedArgv): string | undefined {
+  const dryRun = parsed.flags.has("--dry-run");
+  const emitDir = readValuedFlag(parsed, "--emit");
+  const emitWithDryRun = emitDir !== undefined && dryRun;
+  if (emitWithDryRun) {
+    return "--emit runs no gate and pushes nothing; drop --dry-run";
+  }
+  const expectedCommit = readValuedFlag(parsed, "--expect-commit");
+  const expectWithoutDryRun = expectedCommit !== undefined && !dryRun;
+  if (expectWithoutDryRun) {
+    return "--expect-commit checks a gated dry run; pass --dry-run";
+  }
+  return undefined;
+}
+
 function runExportCommand(argv: readonly string[]): ExitCode {
   const parsed = parseArgv(argv, {
-    valued: ["--version", "--source", "--out", "--public-remote"],
+    valued: [
+      "--version",
+      "--source",
+      "--out",
+      "--emit",
+      "--expect-commit",
+      "--public-remote",
+      "--private-remote",
+    ],
     boolean: ["--dry-run"],
     maxPositionals: 0,
   });
@@ -351,7 +303,13 @@ function runExportCommand(argv: readonly string[]): ExitCode {
       `${credentialedFlag} must not carry credentials in its URL`,
     );
   }
-  const dryRun = parsed.value.flags.has("--dry-run");
+  const conflict = findModeConflict(parsed.value);
+  if (conflict !== undefined) {
+    return refuseUsage(conflict);
+  }
+  const emit = readValuedFlag(parsed.value, "--emit");
+  const expectCommit = readValuedFlag(parsed.value, "--expect-commit");
+  const dryRun = parsed.value.flags.has("--dry-run") || emit !== undefined;
   const token = process.env[PUBLISH_TOKEN_ENV];
   const tokenMissing = !dryRun && (token === undefined || token.length === 0);
   if (tokenMissing) {
@@ -374,7 +332,16 @@ function runExportCommand(argv: readonly string[]): ExitCode {
   if (forwardsToken) {
     options.token = token;
   }
-  const git = createGitPort(REPO_ROOT, process.env);
+  if (emit !== undefined) {
+    options.emit = resolveInvokedPath(emit);
+  }
+  if (expectCommit !== undefined) {
+    options.expectCommit = expectCommit;
+  }
+  const git = createGitPort(REPO_ROOT, {
+    env: process.env,
+    privateRemote: readValuedFlag(parsed.value, "--private-remote"),
+  });
   try {
     return exportTree(git, options);
   } catch (cause) {
@@ -404,20 +371,29 @@ function exportTree(git: GitPort, options: ExportOptions): ExitCode {
     return ExitCodes.REFUSED;
   }
 
-  const { verdicts, passed } = result.value.gates;
-  if (!passed) {
-    const stopped = verdicts.at(-1)?.name ?? "unknown";
+  const { gates } = result.value;
+  if (gates !== undefined && !gates.passed) {
+    const stopped = gates.verdicts.at(-1)?.name ?? "unknown";
     process.stderr.write(
       `release: export stopped at gate ${stopped}; the tree is left at ${options.out}\n`,
     );
     return ExitCodes.REFUSED;
   }
   const commit = result.value.publish?.commit ?? "";
-  const done = options.dryRun
-    ? `every gate passed and ${commit} is what a publish would push`
-    : `published ${options.version} as ${commit}`;
-  process.stdout.write(`release: ${done}; the tree is at ${options.out}\n`);
+  process.stdout.write(
+    `release: ${describeDone(options, commit)}; the tree is at ${options.out}\n`,
+  );
   return ExitCodes.OK;
+}
+
+function describeDone(options: ExportOptions, commit: string): string {
+  if (options.emit !== undefined) {
+    return `planned ${commit} with no gate run; the bundle and plan are at ${options.emit}`;
+  }
+  if (options.dryRun) {
+    return `every gate passed and ${commit} is what a publish would push`;
+  }
+  return `published ${options.version} as ${commit}`;
 }
 
 function main(argv: readonly string[]): ExitCode {
@@ -436,9 +412,6 @@ function main(argv: readonly string[]): ExitCode {
   }
   if (command === "release-body") {
     return runReleaseBody(rest);
-  }
-  if (command === "cut") {
-    return runCut(rest);
   }
   if (command === "export") {
     return runExportCommand(rest);

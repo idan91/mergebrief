@@ -42,29 +42,12 @@ function makeRepos(): GitRepos {
 }
 
 describe("the git port against a real repository", () => {
-  it("lists the remote's tags, not the local ones", () => {
+  it("resolves a ref to its commit", () => {
     const repos = makeRepos();
-    runGit(repos.clone, ["tag", "v9.9.9"]);
-
-    const port = createGitPort(repos.clone, process.env);
-
-    expect(port.listRemoteTags()).toEqual(["v0.0.9"]);
-    expect(port.hasLocalTag("v9.9.9")).toBe(true);
-    expect(port.hasLocalTag("v0.0.9")).toBe(false);
-  });
-
-  it("resolves a ref to its commit and reads a file at it", () => {
-    const repos = makeRepos();
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     expect(port.resolveCommit("HEAD")).toBe(repos.head);
     expect(port.resolveCommit("no-such-ref")).toBeUndefined();
-    expect(port.readFileAt(repos.head, "docs/releases/0.1.0.md")).toContain(
-      "First.",
-    );
-    expect(
-      port.readFileAt(repos.head, "docs/releases/0.2.0.md"),
-    ).toBeUndefined();
   });
 
   it("knows whether one commit contains another", () => {
@@ -73,7 +56,7 @@ describe("the git port against a real repository", () => {
     runGit(repos.clone, ["add", "."]);
     runGit(repos.clone, ["commit", "--quiet", "-m", "later"]);
     const later = runGit(repos.clone, ["rev-parse", "HEAD"]).trim();
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     expect(port.isAncestor(repos.head, later)).toBe(true);
     expect(port.isAncestor(repos.head, repos.head)).toBe(true);
@@ -87,7 +70,7 @@ describe("the git port against a real repository", () => {
     runGit(repos.clone, ["add", "."]);
     runGit(repos.clone, ["commit", "--quiet", "-m", "side"]);
     const side = runGit(repos.clone, ["rev-parse", "HEAD"]).trim();
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     port.fetchDefaultBranch();
 
@@ -103,7 +86,7 @@ describe("the git port against a real repository", () => {
       "origin",
       "https://user:secret@example.invalid/repo.git",
     ]);
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     const failure = (): void => {
       port.fetchDefaultBranch();
@@ -114,21 +97,10 @@ describe("the git port against a real repository", () => {
     expect(failure).not.toThrow(/secret/);
   });
 
-  it("creates a tag at the commit and pushes it to the remote", () => {
-    const repos = makeRepos();
-    const port = createGitPort(repos.clone, process.env);
-
-    port.createTag("v0.1.0", repos.head);
-    port.pushTag("v0.1.0");
-
-    expect(port.hasLocalTag("v0.1.0")).toBe(true);
-    expect(port.listRemoteTags()).toEqual(["v0.0.9", "v0.1.0"]);
-  });
-
   it("lists the paths a commit tracks, never the untracked ones", () => {
     const repos = makeRepos();
     writeFileSync(join(repos.clone, "untracked.txt"), "x\n");
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     expect(port.listTrackedPaths(repos.head)).toEqual([
       "docs/releases/0.1.0.md",
@@ -146,7 +118,7 @@ describe("the git port against a real repository", () => {
     writeFileSync(join(repos.clone, "[odd] name.md"), "edited after\n");
     const out = join(repos.root, "out");
     mkdirSync(out);
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     port.archiveTo(commit, out, ["docs/releases/0.1.0.md", "[odd] name.md"]);
 
@@ -162,7 +134,7 @@ describe("the git port against a real repository", () => {
     const repos = makeRepos();
     const out = join(repos.root, "out");
     mkdirSync(out);
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     expect(() => port.archiveTo(repos.head, out, [])).toThrow(
       /at least one path/,
@@ -176,7 +148,7 @@ describe("the git port against a real repository", () => {
     runGit(repos.root, ["init", "--bare", "--quiet", empty]);
     const remote = join(repos.root, "remote.git");
     const missing = join(repos.root, "missing.git");
-    const port = createGitPort(repos.clone, process.env);
+    const port = createGitPort(repos.clone, { env: process.env });
 
     expect(port.listPublicTags(remote)).toEqual(["v0.0.9"]);
     expect(port.listPublicTags(empty)).toEqual([]);
@@ -200,7 +172,7 @@ describe("the git port against a real repository", () => {
     writeFileSync(join(root, ".gitignore"), "ignored.txt\n");
     writeFileSync(join(root, "ignored.txt"), "tracked anyway\n");
     writeFileSync(join(root, "a.md"), "a\n");
-    const port = createGitPort(root, process.env);
+    const port = createGitPort(root, { env: process.env });
 
     port.commitScratchRepo(root);
 

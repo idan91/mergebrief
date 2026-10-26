@@ -60,25 +60,6 @@ export interface VersionManifest {
   readonly releases: readonly VersionManifestRelease[];
 }
 
-export const BumpLevels = {
-  MAJOR: "major",
-  MINOR: "minor",
-  PATCH: "patch",
-} as const;
-export type BumpLevel = ValueOf<typeof BumpLevels>;
-
-/** What `cut` will do, computed before any tag is written. */
-export interface CutPlan {
-  readonly version: string;
-  readonly tag: string;
-  readonly commit: string;
-  readonly notesPath: string;
-}
-
-export interface CutError {
-  readonly reason: string;
-}
-
 export interface GitIdentity {
   readonly name: string;
   readonly email: string;
@@ -123,19 +104,20 @@ export interface TreeChangeCounts {
   readonly deleted: number;
 }
 
-/** The git the cut and the export need, injected so their plans are testable without a repo. */
+/** One ref a release bundle carries. */
+export interface BundleRef {
+  readonly ref: string;
+  readonly sha: string;
+}
+
+/** The git the export needs, injected so its plan is testable without a repo. */
 export interface GitPort {
-  /** Brings the remote default branch to a ref of its own; the one fetch a cut does. */
+  /** Brings the remote default branch to a ref of its own, so the source is checked against main as fetched. */
   fetchDefaultBranch(): void;
-  listRemoteTags(): readonly string[];
   resolveCommit(ref: string): string | undefined;
   isOnDefaultBranch(commit: string): boolean;
   /** Whether `ancestor` is `descendant` or in its history. */
   isAncestor(ancestor: string, descendant: string): boolean;
-  readFileAt(commit: string, path: string): string | undefined;
-  hasLocalTag(tag: string): boolean;
-  createTag(tag: string, commit: string): void;
-  pushTag(tag: string): void;
   /** The tags a repository URL holds; `undefined` when no repository answers at it. */
   listPublicTags(url: string): readonly string[] | undefined;
   /** Makes `dir` a one-commit repository of every file in it, so git-reading gates run there. */
@@ -163,13 +145,19 @@ export interface GitPort {
     parent: string | undefined,
     commit: string,
   ): TreeChangeCounts;
-  /** Reads the public repository's refs and brings its main commit local; `undefined` when none answers. */
-  fetchPublic(url: string, token: string | undefined): PublicRefs | undefined;
+  /** Reads the public repository's refs anonymously and brings its main commit local; `undefined` when none answers. */
+  fetchPublic(url: string): PublicRefs | undefined;
   /** A plain push of `refspecs`, never forced. */
   pushPublic(url: string, token: string, refspecs: readonly string[]): void;
   /** Every `public/v*` record the remote holds; a malformed one is the refusal naming it. */
   listRecords(): Result<readonly PublicRecord[], string>;
   pushRecord(version: string, tagObject: string): void;
+  /** Writes `refs` and the objects they reach, minus what `excluding` reaches, as a bundle at `file`. */
+  writeBundle(
+    file: string,
+    refs: readonly BundleRef[],
+    excluding: string,
+  ): void;
   /** Deletes the objects publish wrote outside the repository's own store. */
   discardScratchObjects(): void;
 }

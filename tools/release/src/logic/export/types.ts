@@ -74,6 +74,10 @@ export interface ExportOptions {
   readonly publicRepository: PublicRepository;
   /** Required by a publish, absent in a dry run. */
   readonly token?: string;
+  /** An absolute dir, absent or empty: no gate runs, and the release bundle and plan land there for other jobs to gate and push. */
+  readonly emit?: string;
+  /** The commit an emit planned; a gated dry run refuses a rebuild that differs, so the gates checked what ships. */
+  readonly expectCommit?: string;
 }
 
 export interface GateDeps {
@@ -108,7 +112,8 @@ export interface GateContext {
   /** `X.Y.Z` or `X.Y.Z-rc.N`, no `v`. */
   readonly version: string;
   readonly shipped: readonly string[];
-  readonly dryRun: boolean;
+  /** A publish or an emit refuses a public repo that does not answer; a plain dry run plans against an empty one. */
+  readonly requiresPublicRepository: boolean;
   readonly publicRepository: PublicRepository;
 }
 
@@ -150,9 +155,8 @@ export interface PublishInput {
   readonly source: string;
   readonly shipped: readonly string[];
   readonly out: string;
-  readonly dryRun: boolean;
+  readonly requiresPublicRepository: boolean;
   readonly publicRepository: PublicRepository;
-  readonly token?: string | undefined;
 }
 
 /** What a publish would do, every object already built; the dry run prints it and stops. */
@@ -162,6 +166,7 @@ export interface PublishPlan {
   /** The previous release commit; absent for the first release. */
   readonly parent?: string;
   readonly commit: string;
+  readonly tree: string;
   readonly tag: string;
   readonly tagObject: string;
   readonly record: string;
@@ -176,9 +181,25 @@ export interface PublishTarget {
   readonly token: string;
 }
 
+/** `plan.json` beside the bundle: what the push job checks the bundle against and pushes, in order. */
+export interface EmittedPlan {
+  /** The public repository the plan read; the push job refuses to push anywhere else. */
+  readonly publicUrl: string;
+  readonly version: string;
+  readonly source: string;
+  readonly commit: string;
+  readonly tree: string;
+  readonly tag: string;
+  readonly tagObject: string;
+  readonly record: string;
+  readonly recordObject: string;
+  readonly actions: readonly PublishAction[];
+}
+
 export interface ExportOutcome {
   readonly header: ExportHeader;
-  readonly gates: GateRun;
+  /** Absent for an emit, which runs no gate. */
+  readonly gates?: GateRun;
   /** Absent when a gate failed. */
   readonly publish?: PublishPlan;
 }

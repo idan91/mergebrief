@@ -106,11 +106,11 @@ function readPublicState(
   input: PublishInput,
 ): Result<PublicState, ExportError> {
   const { slug, url } = input.publicRepository;
-  const refs = git.fetchPublic(url, input.token);
+  const refs = git.fetchPublic(url);
   if (refs !== undefined) {
     return { ok: true, value: { refs, notices: [] } };
   }
-  if (!input.dryRun) {
+  if (input.requiresPublicRepository) {
     return refuse(`public repo ${slug} not found; a publish needs it`);
   }
   const notice = `public repo ${slug} not found; planning against an empty repository (dry run only)`;
@@ -269,6 +269,7 @@ export function planPublish(
     version: input.version,
     source: input.source,
     commit,
+    tree: tree.value,
     tag,
     tagObject,
     record: recordName,

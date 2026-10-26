@@ -96,16 +96,11 @@ export function makeGitRepos(tree: Tree): GitRepos {
 export function stubGitPort(overrides: Partial<GitPort> = {}): GitPort {
   return {
     fetchDefaultBranch: () => undefined,
-    listRemoteTags: () => [],
     listPublicTags: () => [],
     commitScratchRepo: () => undefined,
     resolveCommit: () => undefined,
     isOnDefaultBranch: () => false,
     isAncestor: () => false,
-    readFileAt: () => undefined,
-    hasLocalTag: () => false,
-    createTag: () => undefined,
-    pushTag: () => undefined,
     listTrackedPaths: () => [],
     archiveTo: () => undefined,
     readCommitterDate: () => "2026-10-25T22:19:08Z",
@@ -120,6 +115,7 @@ export function stubGitPort(overrides: Partial<GitPort> = {}): GitPort {
     pushPublic: () => undefined,
     listRecords: () => ({ ok: true, value: [] }),
     pushRecord: () => undefined,
+    writeBundle: () => undefined,
     discardScratchObjects: () => undefined,
     ...overrides,
   };

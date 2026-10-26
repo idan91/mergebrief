@@ -20,6 +20,7 @@ import {
 } from "../consts";
 import type {
   AnnotatedTagInputs,
+  BundleRef,
   GitIdentity,
   GitPort,
   PublicRecord,
@@ -126,26 +127,14 @@ const NO_SIGNING = ["-c", "commit.gpgsign=false"] as const;
 // nor the URL ever carries it; `credential.helper=` first drops every
 // configured helper.
 const TOKEN_HELPER = `!f() { echo username=x-access-token; echo "password=$${PUBLISH_TOKEN_ENV}"; }; f`;
+const TOKEN_HELPER_ARGS = [
+  "-c",
+  "credential.helper=",
+  "-c",
+  `credential.helper=${TOKEN_HELPER}`,
+] as const;
+const ANONYMOUS_ARGS = ["-c", "credential.interactive=false"] as const;
 const NO_PROMPT_ENV = { GIT_TERMINAL_PROMPT: "0" } as const;
-
-function buildCredentialArgs(token: string | undefined): readonly string[] {
-  if (token === undefined) {
-    return ["-c", "credential.interactive=false"];
-  }
-  return [
-    "-c",
-    "credential.helper=",
-    "-c",
-    `credential.helper=${TOKEN_HELPER}`,
-  ];
-}
-
-function buildCredentialEnv(token: string | undefined): ChildEnv {
-  if (token === undefined) {
-    return NO_PROMPT_ENV;
-  }
-  return { ...NO_PROMPT_ENV, [PUBLISH_TOKEN_ENV]: token };
-}
 
 /** What execFileSync throws on a non-zero exit, as far as this port reads it. */
 interface ExecError {
@@ -159,9 +148,9 @@ function isExecError(cause: unknown): cause is ExecError {
 }
 
 interface GitRunOptions {
-  readonly input?: string;
   /** The whole environment of the child, never the parent's by default. */
   readonly env: ChildEnv;
+  readonly input?: string;
 }
 
 function runGit(
@@ -206,8 +195,8 @@ function listUrlTags(
   try {
     const listed = runGit(
       cwd,
-      [...buildCredentialArgs(undefined), "ls-remote", "--tags", "--refs", url],
-      { env },
+      [...ANONYMOUS_ARGS, "ls-remote", "--tags", "--refs", url],
+      { env: { ...env, ...NO_PROMPT_ENV } },
     );
     return parseTagRefs(listed);
   } catch (cause) {
@@ -525,25 +514,25 @@ function readPublicRefs(listed: string): PublicRefs {
   return refs;
 }
 
+/** Reads anonymously: the public repository is public, and only a push ever carries the token. */
 function fetchPublicRefs(
   cwd: string,
   scratch: ScratchObjects,
   url: string,
-  token: string | undefined,
 ): PublicRefs | undefined {
-  const credentials = buildCredentialArgs(token);
+  const env = { ...scratch.buildEnv(), ...NO_PROMPT_ENV };
   let listed: string;
   try {
     listed = runGit(
       cwd,
       [
-        ...credentials,
+        ...ANONYMOUS_ARGS,
         "ls-remote",
         url,
         PUBLIC_BRANCH_REF,
         `${TAG_REF_PREFIX}v*`,
       ],
-      { env: { ...scratch.buildEnv(), ...buildCredentialEnv(token) } },
+      { env },
     );
   } catch (cause) {
     const notFound =
@@ -559,7 +548,7 @@ function fetchPublicRefs(
     runGit(
       cwd,
       [
-        ...credentials,
+        ...ANONYMOUS_ARGS,
         "fetch",
         "--quiet",
         "--no-tags",
@@ -567,7 +556,7 @@ function fetchPublicRefs(
         url,
         PUBLIC_BRANCH_REF,
       ],
-      { env: { ...scratch.buildEnv(), ...buildCredentialEnv(token) } },
+      { env },
     );
   }
   return refs;
@@ -598,11 +587,12 @@ function readRecord(
 function listRecordsOf(
   cwd: string,
   scratch: ScratchObjects,
+  privateRemote: string,
 ): Result<readonly PublicRecord[], string> {
   const env = scratch.buildEnv();
   const listed = runGit(
     cwd,
-    ["ls-remote", GIT_REMOTE, `${RECORD_REF_PREFIX}*`],
+    ["ls-remote", privateRemote, `${RECORD_REF_PREFIX}*`],
     { env },
   );
   const refs = parseRemoteRefs(listed);
@@ -618,7 +608,7 @@ function listRecordsOf(
       "--quiet",
       "--no-tags",
       "--no-write-fetch-head",
-      GIT_REMOTE,
+      privateRemote,
       ...tagObjects.map(({ ref }) => ref),
     ],
     { env },
@@ -642,24 +632,56 @@ function listRecordsOf(
   return { ok: true, value: records };
 }
 
-/** The real git under `cwd`; every child starts from `baseEnv` with credential-shaped names removed, and tags are read from the remote, never from local refs alone. */
-export function createGitPort(cwd: string, baseEnv: ChildEnv): GitPort {
-  const env = stripCredentialVariables(baseEnv);
+/** A bundle of `refs` that leaves out everything `excluding` reaches, written from a throwaway bare repository so no ref lands here. */
+function bundleRefs(
+  scratch: ScratchObjects,
+  file: string,
+  refs: readonly BundleRef[],
+  excluding: string,
+): void {
+  const repoPrefix = join(tmpdir(), "release-bundle-");
+  const repo = mkdtempSync(repoPrefix);
+  const env = scratch.buildEnv();
+  try {
+    runGit(repo, ["init", "--bare", "--quiet"], { env });
+    for (const { ref, sha } of refs) {
+      runGit(repo, ["update-ref", ref, sha], { env });
+    }
+    runGit(
+      repo,
+      [
+        "bundle",
+        "create",
+        "--quiet",
+        file,
+        ...refs.map(({ ref }) => ref),
+        `^${excluding}`,
+      ],
+      { env },
+    );
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+}
+
+export interface GitPortOptions {
+  /** The parent's environment; every child gets it with credential-shaped variables removed. */
+  readonly env: ChildEnv;
+  /** Where main and the records are read and the record pushed; `origin` unless a credential-free clone stands in. */
+  readonly privateRemote?: string | undefined;
+}
+
+/** The real git under `cwd`; tags are read from the remote, never from local refs alone. */
+export function createGitPort(cwd: string, options: GitPortOptions): GitPort {
+  const env = stripCredentialVariables(options.env);
+  const privateRemote = options.privateRemote ?? GIT_REMOTE;
   const scratch = createScratchObjects(cwd, env);
   return {
     fetchDefaultBranch() {
       const refspec = `+refs/heads/${DEFAULT_BRANCH}:${DEFAULT_BRANCH_REF}`;
-      runGit(cwd, ["fetch", "--quiet", "--no-tags", GIT_REMOTE, refspec], {
+      runGit(cwd, ["fetch", "--quiet", "--no-tags", privateRemote, refspec], {
         env,
       });
-    },
-    listRemoteTags() {
-      const listed = runGit(
-        cwd,
-        ["ls-remote", "--tags", "--refs", GIT_REMOTE],
-        { env },
-      );
-      return parseTagRefs(listed);
     },
     listPublicTags(url) {
       return listUrlTags(cwd, env, url);
@@ -693,24 +715,6 @@ export function createGitPort(cwd: string, baseEnv: ChildEnv): GitPort {
         descendant,
       ]);
       return contained !== undefined;
-    },
-    readFileAt(commit, path) {
-      return tryGit(cwd, env, ["show", `${commit}:${path}`]);
-    },
-    hasLocalTag(tag) {
-      const listed = tryGit(cwd, env, ["tag", "--list", tag]) ?? "";
-      const found = listed.trim().length > 0;
-      return found;
-    },
-    createTag(tag, commit) {
-      runGit(cwd, ["tag", tag, commit], { env });
-    },
-    pushTag(tag) {
-      runGit(
-        cwd,
-        ["push", "--no-follow-tags", GIT_REMOTE, `${TAG_REF_PREFIX}${tag}`],
-        { env },
-      );
     },
     listTrackedPaths(commit) {
       const listed = runGit(
@@ -774,30 +778,33 @@ export function createGitPort(cwd: string, baseEnv: ChildEnv): GitPort {
     countTreeChanges(parent, commit) {
       return countChanges(cwd, scratch.buildEnv(), parent, commit);
     },
-    fetchPublic(url, token) {
-      return fetchPublicRefs(cwd, scratch, url, token);
+    fetchPublic(url) {
+      return fetchPublicRefs(cwd, scratch, url);
     },
     pushPublic(url, token, refspecs) {
       runGit(
         cwd,
-        [
-          ...buildCredentialArgs(token),
-          "push",
-          "--no-follow-tags",
-          url,
-          ...refspecs,
-        ],
-        { env: { ...scratch.buildEnv(), ...buildCredentialEnv(token) } },
+        [...TOKEN_HELPER_ARGS, "push", "--no-follow-tags", url, ...refspecs],
+        {
+          env: {
+            ...scratch.buildEnv(),
+            ...NO_PROMPT_ENV,
+            [PUBLISH_TOKEN_ENV]: token,
+          },
+        },
       );
     },
     listRecords() {
-      return listRecordsOf(cwd, scratch);
+      return listRecordsOf(cwd, scratch, privateRemote);
     },
     pushRecord(version, tagObject) {
       const refspec = `${tagObject}:${RECORD_REF_PREFIX}${version}`;
-      runGit(cwd, ["push", "--no-follow-tags", GIT_REMOTE, refspec], {
+      runGit(cwd, ["push", "--no-follow-tags", privateRemote, refspec], {
         env: scratch.buildEnv(),
       });
+    },
+    writeBundle(file, refs, excluding) {
+      bundleRefs(scratch, file, refs, excluding);
     },
     discardScratchObjects() {
       scratch.discard();

@@ -120,7 +120,7 @@ export function scanSecretsGate(
 /**
  * The tree's notes file for the version, and the public repo's answer. The
  * gate places nothing: release.yml places the tag when it publishes. Until
- * that repo exists a dry run reads it as holding no tags; a publish refuses.
+ * that repo exists a dry run reads it as holding no tags; a publish or an emit refuses.
  */
 export function checkNotesGate(
   context: GateContext,
@@ -130,7 +130,7 @@ export function checkNotesGate(
   const tags = git.listPublicTags(url);
   const notices: string[] = [];
   if (tags === undefined) {
-    if (!context.dryRun) {
+    if (context.requiresPublicRepository) {
       return failGate(`public repo ${slug} not found; a publish needs it`);
     }
     notices.push(

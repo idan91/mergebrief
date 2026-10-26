@@ -26,17 +26,21 @@ export function resolveExportSource(
   return { ok: true, value: commit };
 }
 
-function checkOutDir(out: string): Result<void, ExportError> {
-  const stats = statSync(out, { throwIfNoEntry: false });
+/** `dir` created when absent; refused when it is a file or holds anything. */
+export function prepareEmptyDir(
+  dir: string,
+  flag: "--out" | "--emit",
+): Result<void, ExportError> {
+  const stats = statSync(dir, { throwIfNoEntry: false });
   if (stats === undefined) {
-    mkdirSync(out, { recursive: true });
+    mkdirSync(dir, { recursive: true });
     return { ok: true, value: undefined };
   }
   if (!stats.isDirectory()) {
-    return { ok: false, error: { reason: `${out} is not a dir` } };
+    return { ok: false, error: { reason: `${dir} is not a dir` } };
   }
-  if (readdirSync(out).length > 0) {
-    const reason = `${out} is not empty; pass a new or empty --out dir`;
+  if (readdirSync(dir).length > 0) {
+    const reason = `${dir} is not empty; pass a new or empty ${flag} dir`;
     return { ok: false, error: { reason } };
   }
   return { ok: true, value: undefined };
@@ -51,7 +55,7 @@ export function materializeTree(
     const reason = `${input.commit} ships no path; nothing to export`;
     return { ok: false, error: { reason } };
   }
-  const ready = checkOutDir(input.out);
+  const ready = prepareEmptyDir(input.out, "--out");
   if (!ready.ok) {
     return ready;
   }

@@ -36,7 +36,7 @@ describe("resolving the export source", () => {
     const repos = makeRepos();
 
     const resolved = resolveExportSource(
-      createGitPort(repos.clone, process.env),
+      createGitPort(repos.clone, { env: process.env }),
       "main",
     );
 
@@ -47,7 +47,7 @@ describe("resolving the export source", () => {
     const repos = makeRepos();
 
     const resolved = resolveExportSource(
-      createGitPort(repos.clone, process.env),
+      createGitPort(repos.clone, { env: process.env }),
       "nope",
     );
 
@@ -66,7 +66,7 @@ describe("resolving the export source", () => {
     const side = runGit(repos.clone, ["rev-parse", "HEAD"]).trim();
 
     const resolved = resolveExportSource(
-      createGitPort(repos.clone, process.env),
+      createGitPort(repos.clone, { env: process.env }),
       "side",
     );
 
@@ -85,11 +85,14 @@ describe("materializing the tree", () => {
     writeFileSync(join(repos.clone, "untracked.md"), "leak\n");
     const out = join(repos.root, "out");
 
-    const done = materializeTree(createGitPort(repos.clone, process.env), {
-      commit: repos.head,
-      shipped: ["README.md"],
-      out,
-    });
+    const done = materializeTree(
+      createGitPort(repos.clone, { env: process.env }),
+      {
+        commit: repos.head,
+        shipped: ["README.md"],
+        out,
+      },
+    );
 
     expect(done.ok).toBe(true);
     const docsDir = join(out, "docs");
@@ -103,11 +106,14 @@ describe("materializing the tree", () => {
     mkdirSync(out);
     writeFileSync(join(out, "stale.md"), "x\n");
 
-    const done = materializeTree(createGitPort(repos.clone, process.env), {
-      commit: repos.head,
-      shipped: ["README.md"],
-      out,
-    });
+    const done = materializeTree(
+      createGitPort(repos.clone, { env: process.env }),
+      {
+        commit: repos.head,
+        shipped: ["README.md"],
+        out,
+      },
+    );
 
     expect(done).toEqual({
       ok: false,
@@ -120,11 +126,14 @@ describe("materializing the tree", () => {
     const out = join(repos.root, "out.txt");
     writeFileSync(out, "x\n");
 
-    const done = materializeTree(createGitPort(repos.clone, process.env), {
-      commit: repos.head,
-      shipped: ["README.md"],
-      out,
-    });
+    const done = materializeTree(
+      createGitPort(repos.clone, { env: process.env }),
+      {
+        commit: repos.head,
+        shipped: ["README.md"],
+        out,
+      },
+    );
 
     expect(!done.ok && done.error.reason).toBe(`${out} is not a dir`);
   });
@@ -133,11 +142,14 @@ describe("materializing the tree", () => {
     const repos = makeRepos();
     const out = join(repos.root, "out");
 
-    const done = materializeTree(createGitPort(repos.clone, process.env), {
-      commit: repos.head,
-      shipped: [],
-      out,
-    });
+    const done = materializeTree(
+      createGitPort(repos.clone, { env: process.env }),
+      {
+        commit: repos.head,
+        shipped: [],
+        out,
+      },
+    );
 
     expect(!done.ok && done.error.reason).toBe(
       `${repos.head} ships no path; nothing to export`,

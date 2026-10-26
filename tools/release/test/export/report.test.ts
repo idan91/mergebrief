@@ -17,6 +17,7 @@ const PLAN: PublishPlan = {
   version: "0.1.0",
   source: "0123456789abcdef0123456789abcdef01234567",
   commit: "89abcdef0123456789abcdef0123456789abcdef",
+  tree: "456789abcdef0123456789abcdef0123456789ab",
   tag: "v0.1.0",
   tagObject: "tttt",
   record: "public/v0.1.0",

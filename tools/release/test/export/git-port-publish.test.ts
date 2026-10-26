@@ -49,7 +49,7 @@ function makePort(tree: Tree = TREE) {
     "--initial-branch=main",
     bare,
   ]);
-  const port = createGitPort(repos.clone, process.env);
+  const port = createGitPort(repos.clone, { env: process.env });
   return { repos, bare, port };
 }
 
@@ -276,7 +276,7 @@ describe("talking to the public remote", () => {
   it("reads an empty public repository as no main and no tags", () => {
     const { bare, port } = makePort();
 
-    expect(port.fetchPublic(bare, undefined)).toEqual({ tags: new Map() });
+    expect(port.fetchPublic(bare)).toEqual({ tags: new Map() });
   });
 
   it("reads main and the peeled v tags once releases exist", () => {
@@ -295,7 +295,7 @@ describe("talking to the public remote", () => {
     ]);
     runGit(bare, ["tag", "other", "main"]);
 
-    const refs = port.fetchPublic(bare, TOKEN);
+    const refs = port.fetchPublic(bare);
 
     expect(refs).toEqual({ main: commit, tags: new Map([["v0.1.0", commit]]) });
   });
@@ -305,7 +305,7 @@ describe("talking to the public remote", () => {
 
     const missing = join(repos.root, "missing.git");
 
-    expect(port.fetchPublic(missing, undefined)).toBeUndefined();
+    expect(port.fetchPublic(missing)).toBeUndefined();
   });
 
   it("refuses a non fast-forward push instead of forcing it", () => {
@@ -382,7 +382,15 @@ describe("the private release records", () => {
       value: [{ version: "0.1.0", source: repos.head, publicCommit: commit }],
     });
     expect(runGit(repos.clone, ["tag", "--list"])).toBe("");
-    expect(port.listRemoteTags()).toEqual(["public/v0.1.0"]);
+    const remoteTags = runGit(repos.clone, [
+      "ls-remote",
+      "--tags",
+      "--refs",
+      "origin",
+    ]);
+    expect(remoteTags.trim()).toMatch(
+      /^[0-9a-f]{40}\trefs\/tags\/public\/v0\.1\.0$/,
+    );
   });
 
   it("refuses a record tag whose message names no public commit", () => {
@@ -402,6 +410,22 @@ describe("the private release records", () => {
       error:
         "refs/tags/public/v0.1.0 is not a release record; fix the tag by hand",
     });
+  });
+});
+
+describe("a stand-in private remote", () => {
+  it("reads main and the records there when origin cannot answer", () => {
+    const { repos } = makePort();
+    runGit(repos.clone, ["remote", "set-url", "origin", "/nonexistent.git"]);
+    const port = createGitPort(repos.clone, {
+      env: process.env,
+      privateRemote: join(repos.root, "remote.git"),
+    });
+
+    port.fetchDefaultBranch();
+
+    expect(port.isOnDefaultBranch(repos.head)).toBe(true);
+    expect(port.listRecords()).toEqual({ ok: true, value: [] });
   });
 });
 

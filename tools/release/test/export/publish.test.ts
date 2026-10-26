@@ -8,8 +8,15 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { z } from "zod/v4";
 import { runExport } from "../../src/logic/export";
-import type { ExportOutcome } from "../../src/logic/export/types";
+import type { Mutable } from "types/utils";
+import {
+  type EmittedPlan,
+  type ExportOptions,
+  type ExportOutcome,
+  PublishActions,
+} from "../../src/logic/export/types";
 import { createGitPort, GitCommandError } from "../../src/logic/git-port";
 import type { GitPort } from "../../src/types";
 import {
@@ -64,7 +71,7 @@ function makeLab(tree: Tree = FIRST): Lab {
     clone: repos.clone,
     origin: join(repos.root, "remote.git"),
     bare,
-    git: createGitPort(repos.clone, process.env),
+    git: createGitPort(repos.clone, { env: process.env }),
   };
 }
 
@@ -96,26 +103,35 @@ interface RunOptions {
   readonly version?: string;
   readonly source?: string;
   readonly dryRun?: boolean;
+  readonly emit?: string;
+  readonly expectCommit?: string;
   readonly git?: GitPort;
 }
 
 function runPublish(lab: Lab, options: RunOptions = {}) {
   const printed: string[] = [];
   const out = join(lab.root, `out-${printed.length}-${Date.now()}`);
+  const exportOptions: Mutable<ExportOptions> = {
+    version: options.version ?? "0.1.0",
+    source: options.source ?? "main",
+    out,
+    dryRun: options.dryRun ?? false,
+    publicRepository: { slug: "scratch/public", url: lab.bare },
+    token: TOKEN,
+  };
+  if (options.emit !== undefined) {
+    exportOptions.emit = options.emit;
+  }
+  if (options.expectCommit !== undefined) {
+    exportOptions.expectCommit = options.expectCommit;
+  }
   const result = runExport(
     {
       git: options.git ?? lab.git,
       runner: stubCommandRunner().runner,
       print: (text) => printed.push(text),
     },
-    {
-      version: options.version ?? "0.1.0",
-      source: options.source ?? "main",
-      out,
-      dryRun: options.dryRun ?? false,
-      publicRepository: { slug: "scratch/public", url: lab.bare },
-      token: TOKEN,
-    },
+    exportOptions,
   );
   const outcome: ExportOutcome | undefined = result.ok
     ? result.value
@@ -146,6 +162,218 @@ function failPushOnce(git: GitPort, pattern: RegExp): GitPort {
     },
   };
 }
+
+/** A port whose `git` is a wrapper on PATH logging, per call, whether the token was in its env. */
+function makeLoggedPort(lab: Lab): { git: GitPort; log: string } {
+  const real = execFileSync("sh", ["-c", "command -v git"], {
+    encoding: "utf8",
+  }).trim();
+  const bin = join(lab.root, "bin");
+  const log = join(lab.root, "git.log");
+  mkdirSync(bin);
+  writeFileSync(
+    join(bin, "git"),
+    `#!/bin/sh\nprintf '%s\\t%s\\n' "\${MERGEBRIEF_PUBLISH_TOKEN:+token}" "$*" >> "${log}"\nexec "${real}" "$@"\n`,
+  );
+  chmodSync(join(bin, "git"), 0o755);
+  const env = {
+    ...process.env,
+    PATH: `${bin}:${process.env["PATH"] ?? ""}`,
+    MERGEBRIEF_PUBLISH_TOKEN: TOKEN,
+    GITHUB_TOKEN: "ghs_actions",
+  };
+  return { git: createGitPort(lab.clone, { env }), log };
+}
+
+const EmittedPlanSchema = z.strictObject({
+  publicUrl: z.string(),
+  version: z.string(),
+  source: z.string(),
+  commit: z.string(),
+  tree: z.string(),
+  tag: z.string(),
+  tagObject: z.string(),
+  record: z.string(),
+  recordObject: z.string(),
+  actions: z.array(z.enum(PublishActions)),
+}) satisfies z.ZodType<EmittedPlan>;
+
+/** What publish.yml's publish job does with the artifact: plain git in a full clone, no tool. */
+function pushEmitted(lab: Lab, dir: string): EmittedPlan {
+  const planPath = join(dir, "plan.json");
+  const planText = readFileSync(planPath, "utf8");
+  const plan = EmittedPlanSchema.parse(JSON.parse(planText));
+  const job = join(lab.root, `job-${Date.now()}`);
+  runGit(lab.root, ["clone", "--quiet", lab.origin, job]);
+  runGit(job, ["bundle", "unbundle", join(dir, "release.bundle")]);
+  runGit(job, ["push", "--quiet", lab.bare, `${plan.commit}:refs/heads/main`]);
+  runGit(job, [
+    "push",
+    "--quiet",
+    lab.bare,
+    `${plan.tagObject}:refs/tags/${plan.tag}`,
+  ]);
+  runGit(job, [
+    "push",
+    "--quiet",
+    "origin",
+    `${plan.recordObject}:refs/tags/${plan.record}`,
+  ]);
+  return plan;
+}
+
+describe("emitting a release for a credential-free push", () => {
+  it("writes a bundle and plan whose plain push a rerun finds complete", () => {
+    const lab = makeLab();
+    const emit = join(lab.root, "emit");
+
+    const { outcome } = runPublish(lab, { dryRun: true, emit });
+
+    const plan = pushEmitted(lab, emit);
+    expect(plan).toEqual({
+      publicUrl: lab.bare,
+      version: "0.1.0",
+      source: runGit(lab.clone, ["rev-parse", "HEAD"]).trim(),
+      commit: outcome?.publish?.commit,
+      tree: runGit(lab.bare, ["rev-parse", "main^{tree}"]).trim(),
+      tag: "v0.1.0",
+      tagObject: outcome?.publish?.tagObject,
+      record: "public/v0.1.0",
+      recordObject: outcome?.publish?.recordObject,
+      actions: ["push-commit", "push-tag", "push-record"],
+    });
+    const rerun = runPublish(lab);
+    expect(rerun.outcome?.publish?.actions).toEqual([]);
+    expect(readGitOutput(lab.bare, ["rev-parse", "main"])).toBe(plan.commit);
+  });
+
+  it("carries the previous release commits, never the private history", () => {
+    const lab = makeLab();
+    runPublish(lab);
+    commitAndPush(
+      lab.clone,
+      { "docs/releases/0.2.0.md": makeNotesFile({}, "Second.\n") },
+      "second",
+    );
+    const emit = join(lab.root, "emit");
+
+    runPublish(lab, { version: "0.2.0", dryRun: true, emit });
+
+    const empty = join(lab.root, "empty");
+    runGit(lab.root, ["init", "--quiet", empty]);
+    runGit(empty, ["bundle", "unbundle", join(emit, "release.bundle")]);
+    const plan = pushEmitted(lab, emit);
+    runGit(empty, ["update-ref", "refs/heads/main", plan.commit]);
+    expect(readGitOutput(empty, ["rev-list", "--count", "main"])).toBe("2");
+    expect(
+      runGit(empty, ["fsck", "--connectivity-only", "--no-dangling", "main"]),
+    ).toBe("");
+    const readSource = (): string =>
+      runGit(empty, ["cat-file", "-e", plan.source]);
+    expect(readSource).toThrow(/Command failed: git cat-file/);
+    expect(readGitOutput(lab.bare, ["rev-list", "--count", "main"])).toBe("2");
+  });
+
+  it("plans and emits without running a single gate", () => {
+    const lab = makeLab({
+      ...FIRST,
+      "README.md": "Read [the adr](docs/internal/adr.md).\n",
+    });
+    const emit = join(lab.root, "emit");
+
+    const { outcome, printed } = runPublish(lab, { dryRun: true, emit });
+
+    expect(outcome?.gates).toBeUndefined();
+    expect(outcome?.publish?.actions).toHaveLength(3);
+    expect(printed).not.toMatch(/^gate /m);
+    expect(printed).toContain("no gate ran");
+  });
+
+  it("refuses an emit dir that is not empty before running a gate", () => {
+    const lab = makeLab();
+    const emit = join(lab.root, "emit");
+    mkdirSync(emit);
+    writeFileSync(join(emit, "stale.json"), "{}\n");
+
+    const { result, printed } = runPublish(lab, { dryRun: true, emit });
+
+    expect(!result.ok && result.error.reason).toBe(
+      `${emit} is not empty; pass a new or empty --emit dir`,
+    );
+    expect(printed).not.toContain("gate ");
+  });
+
+  it("refuses to plan an emit against a public repo that does not answer", () => {
+    const lab = makeLab();
+    rmSync(lab.bare, { recursive: true, force: true });
+    const emit = join(lab.root, "emit");
+
+    const { result } = runPublish(lab, { dryRun: true, emit });
+
+    expect(!result.ok && result.error.reason).toBe(
+      "public repo scratch/public not found; a publish needs it",
+    );
+  });
+});
+
+describe("gating the planned commit", () => {
+  it("passes a gated rebuild that matches the planned commit", () => {
+    const lab = makeLab();
+    const planned = runPublish(lab, {
+      dryRun: true,
+      emit: join(lab.root, "emit"),
+    });
+    const commit = planned.outcome?.publish?.commit ?? "";
+
+    const { outcome } = runPublish(lab, { dryRun: true, expectCommit: commit });
+
+    expect(outcome?.gates?.passed).toBe(true);
+    expect(outcome?.publish?.commit).toBe(commit);
+  });
+
+  it("refuses a gated rebuild that differs from the planned commit", () => {
+    const lab = makeLab();
+    const planned = "0".repeat(40);
+
+    const { result } = runPublish(lab, { dryRun: true, expectCommit: planned });
+
+    expect(!result.ok && result.error.reason).toMatch(
+      /^rebuilt [0-9a-f]{40}, not the planned 0{40}; the gates checked another commit$/,
+    );
+  });
+
+  it("refuses a gated rebuild when no public repository answers", () => {
+    const lab = makeLab();
+    rmSync(lab.bare, { recursive: true, force: true });
+
+    const { outcome } = runPublish(lab, {
+      dryRun: true,
+      expectCommit: "0".repeat(40),
+    });
+
+    expect(outcome?.gates?.passed).toBe(false);
+  });
+});
+
+describe("the publish token's reach", () => {
+  it("reaches git for the public pushes and for no other command", () => {
+    const lab = makeLab();
+    const { git, log } = makeLoggedPort(lab);
+
+    const { outcome } = runPublish(lab, { git });
+
+    expect(outcome?.publish?.actions).toHaveLength(3);
+    const logText = readFileSync(log, "utf8");
+    const calls = logText.trim().split("\n");
+    const withToken = calls.filter((call) => call.startsWith("token\t"));
+    expect(withToken).toHaveLength(2);
+    for (const call of withToken) {
+      expect(call).toContain(` push --no-follow-tags ${lab.bare} `);
+    }
+    expect(calls.length).toBeGreaterThan(withToken.length + 10);
+    expect(calls.join("\n")).not.toContain(TOKEN);
+  });
+});
 
 describe("publishing releases", () => {
   it("gives two releases two public commits, the second with its changes", () => {
@@ -409,7 +637,7 @@ describe("publishing releases", () => {
 
     const { outcome, printed } = runPublish(lab);
 
-    expect(outcome?.gates.passed).toBe(false);
+    expect(outcome?.gates?.passed).toBe(false);
     expect(outcome?.publish).toBeUndefined();
     expect(printed).toContain(
       "public repo scratch/public not found; a publish needs it",
@@ -523,31 +751,9 @@ describe("ordering releases", () => {
   });
 });
 
-/** A port whose `git` is a wrapper on PATH logging, per call, whether the token was in its env. */
-function makeLoggedPort(lab: Lab): { git: GitPort; log: string } {
-  const real = execFileSync("sh", ["-c", "command -v git"], {
-    encoding: "utf8",
-  }).trim();
-  const bin = join(lab.root, "bin");
-  const log = join(lab.root, "git.log");
-  mkdirSync(bin);
-  writeFileSync(
-    join(bin, "git"),
-    `#!/bin/sh\nprintf '%s\\t%s\\n' "\${MERGEBRIEF_PUBLISH_TOKEN:+token}" "$*" >> "${log}"\nexec "${real}" "$@"\n`,
-  );
-  chmodSync(join(bin, "git"), 0o755);
-  const env = {
-    ...process.env,
-    PATH: `${bin}:${process.env["PATH"] ?? ""}`,
-    MERGEBRIEF_PUBLISH_TOKEN: TOKEN,
-    GITHUB_TOKEN: "ghs_actions",
-  };
-  return { git: createGitPort(lab.clone, env), log };
-}
-
 /** One export through a port of its own, its scratch store discarded after, as each CLI run does. */
 function runFresh(lab: Lab, options: RunOptions = {}) {
-  const git = createGitPort(lab.clone, process.env);
+  const git = createGitPort(lab.clone, { env: process.env });
   try {
     return runPublish(lab, { ...options, git });
   } finally {
@@ -603,22 +809,6 @@ describe("each export in a process of its own", () => {
     );
   });
 
-  it("hands the token to git for the public remote and nothing else", () => {
-    const lab = makeLab();
-    const { git, log } = makeLoggedPort(lab);
-
-    const { outcome } = runPublish(lab, { git });
-
-    expect(outcome?.publish?.actions).toHaveLength(3);
-    const calls = readFileSync(log, "utf8").trim().split("\n");
-    const withToken = calls.filter((call) => call.startsWith("token\t"));
-    expect(withToken.length).toBeGreaterThan(0);
-    for (const call of withToken) {
-      expect(call).toContain(lab.bare);
-    }
-    expect(calls.length).toBeGreaterThan(withToken.length + 10);
-    expect(calls.join("\n")).not.toContain(TOKEN);
-  });
   it("names the rerun release's own commit when main drifted after it", () => {
     const lab = makeLab();
     runFresh(lab);

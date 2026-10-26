@@ -18,9 +18,11 @@ import {
 } from "./version";
 
 /**
- * Every notes file parses; with a tag, the tag's file exists and is placed
- * against the notes files and the tags already published, so a hotfix cut
- * from an older branch never reports itself as the highest stable version.
+ * Every notes file parses; with a tag, the tag's file exists and the tag is
+ * placed against the tags already published plus itself. Notes files never
+ * place it: a stable file merged before its candidate ships leaves the
+ * candidate the newest tag, and a hotfix tagged after a newer release is
+ * never the highest stable version.
  */
 export function checkReleases(
   dir: string,
@@ -71,7 +73,7 @@ function placeTag(
   const known = knownTags
     .map((knownTag) => parseReleaseVersion(knownTag))
     .filter((parsed) => parsed !== undefined);
-  const everyVersion = [...notes.map((entry) => entry.version), ...known];
+  const everyVersion = [...known, version];
   const highestStable = pickHighestStable(everyVersion);
   const isHighestStable =
     highestStable !== undefined &&
