@@ -6,6 +6,9 @@ import { FIXTURE_PR_PATH } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
 import { collectPageFaults } from "../support/console";
 
+/** A sign-in wall, never a server error: crawlers and monitors read the status. */
+const SIGNED_OUT_STATUS = 401;
+
 test("signed out shows the pitch, the picture and Sign in, never the URL box", async ({
   page,
 }, testInfo) => {
@@ -55,8 +58,7 @@ test("a signed-out deep link signs in and returns to the brief", async ({
   request,
 }, testInfo) => {
   const response = await page.goto(`${FIXTURE_PR_PATH}?rev=1`);
-  const status = String(response?.status());
-  testInfo.annotations.push({ type: "status", description: status });
+  expect(response?.status()).toBe(SIGNED_OUT_STATUS);
 
   const main = page.getByRole("main");
   await expect(

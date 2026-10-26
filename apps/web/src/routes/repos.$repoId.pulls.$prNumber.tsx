@@ -7,7 +7,10 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 
+import { HttpStatuses } from "types";
+
 import { ApiError, ApiErrorCodes } from "../data/apiFetch";
+import { applySsrResponseStatus } from "../data/ssr-response-status";
 import { appI18n } from "../i18n/I18nProvider";
 import { buildSignInHref } from "@web/data/sign-in";
 import { useBriefAddress } from "@web/features/brief";
@@ -59,8 +62,15 @@ function isNotFoundError(error: unknown): boolean {
   return error instanceof ApiError && error.code === ApiErrorCodes.NOT_FOUND;
 }
 
+function isSignedOutError(error: unknown): boolean {
+  return error instanceof ApiError && error.code === ApiErrorCodes.SIGNED_OUT;
+}
+
 /** A missing PR/brief becomes a real 404 on SSR, not a 500. */
-function mapLoaderError(error: unknown, returnTo: string): never {
+async function mapLoaderError(
+  error: unknown,
+  returnTo: string,
+): Promise<never> {
   // A signed-out session stays signed out: only a live session GitHub
   // refused goes back through sign-in.
   if (error instanceof ApiError && error.code === ApiErrorCodes.UNAUTHORIZED) {
@@ -68,6 +78,11 @@ function mapLoaderError(error: unknown, returnTo: string): never {
   }
   if (isNotFoundError(error)) {
     throw notFound();
+  }
+  // The error component renders the sign-in wall; the document must not
+  // answer the router's 500 for it.
+  if (isSignedOutError(error)) {
+    await applySsrResponseStatus(HttpStatuses.UNAUTHORIZED);
   }
   throw error;
 }
@@ -77,16 +92,16 @@ function mapLoaderError(error: unknown, returnTo: string): never {
  * The cached error entry is dropped: the query is retry:false with staleTime
  * Infinity, so `useSuspenseQuery` would throw it instead of refetching.
  */
-function dropMissingBriefPrefetch(
+async function dropMissingBriefPrefetch(
   queryClient: QueryClient,
   reason: unknown,
   repoId: string,
   prNumber: number,
   span: Span,
   returnTo: string,
-): void {
+): Promise<void> {
   if (!isNotFoundError(reason)) {
-    mapLoaderError(reason, returnTo);
+    await mapLoaderError(reason, returnTo);
   }
 
   queryClient.removeQueries({
@@ -151,10 +166,10 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           prefetchSession(context.queryClient, repoId, prNumber, explicit),
         ]);
         if (metaResult.status === "rejected") {
-          mapLoaderError(metaResult.reason, location.href);
+          return await mapLoaderError(metaResult.reason, location.href);
         }
         if (briefResult.status === "rejected") {
-          dropMissingBriefPrefetch(
+          await dropMissingBriefPrefetch(
             context.queryClient,
             briefResult.reason,
             repoId,
@@ -190,7 +205,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       }
       return pickPageTitleInput(meta);
     } catch (error) {
-      mapLoaderError(error, location.href);
+      return await mapLoaderError(error, location.href);
     } finally {
       await versionPrefetch;
     }
