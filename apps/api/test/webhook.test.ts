@@ -47,6 +47,7 @@ import {
   registerSharedPglite,
   type SharedPglite,
 } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 // Dummy auth deps: the webhook tests never exercise the OAuth/session routes,
 // but `createApp` now requires the bundle. A throwaway 32-byte key keeps the
@@ -1988,6 +1989,7 @@ describe("POST /api/webhooks/github", () => {
         provider: "stub",
         model: "stub",
         effort: "low",
+        bodyVersion: STORED_BODY_VERSION,
         body: "{}",
         usedGroupIds: [],
       });

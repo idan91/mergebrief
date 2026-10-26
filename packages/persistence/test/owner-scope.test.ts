@@ -40,6 +40,7 @@ import {
   recordStatements,
   registerSharedPglite,
 } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const shared = registerSharedPglite();
 
@@ -58,7 +59,12 @@ function upsertInput(prNumber: number) {
   return { repoId: REPO, prNumber, repoSlug: "acme/widgets", ...OPEN };
 }
 
-const ORIGIN = { provider: "anthropic", model: "m", effort: "high" } as const;
+const ORIGIN = {
+  provider: "anthropic",
+  model: "m",
+  effort: "high",
+  bodyVersion: STORED_BODY_VERSION,
+} as const;
 
 describe("owner-scoped pull_request rows", () => {
   it("stamps owner_user_id, source url, and a NULL installation_id", async () => {

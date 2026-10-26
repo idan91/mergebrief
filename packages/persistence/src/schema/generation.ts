@@ -117,9 +117,6 @@ export const generation = pgTable(
         table.pullRequestId,
         table.createdAt,
       ),
-      // The daily cap's count runs under the instance-wide start lock; this
-      // keeps that locked section an index scan over the day's rows.
-      index("generation_created_at_idx").on(table.createdAt),
       check("generation_kind_check", isOneOf(table.kind, GENERATION_KINDS)),
       check(
         "generation_status_check",

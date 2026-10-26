@@ -34,6 +34,7 @@ import {
   type TenantFixture,
 } from "./helpers";
 import { readTestPostgresUrl } from "../src/testing";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const databaseUrl = readTestPostgresUrl(process.env);
 const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);
@@ -75,6 +76,7 @@ async function seedBrief(
     provider: "anthropic",
     model: "test",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: '{"changeGroups":[],"chunks":[]}',
     carriedChunkIds: [],
     anchorState: "anchored",

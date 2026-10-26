@@ -38,6 +38,7 @@ import {
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 import { registerSharedPglite } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const REPO_ID = 424242;
 
@@ -353,6 +354,7 @@ describe("the per-repo gate across two installations", () => {
       provider: "anthropic",
       model: "claude",
       effort: "high",
+      bodyVersion: STORED_BODY_VERSION,
       body: JSON.stringify({
         changeGroups: [],
         chunks: [{ id: "c1", file: "src/app.ts" }],

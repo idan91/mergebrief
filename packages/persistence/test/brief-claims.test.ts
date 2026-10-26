@@ -26,6 +26,7 @@ import {
 } from "../src/types";
 import { claimTestRun, type PgliteHarness } from "../src/testing";
 import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -82,6 +83,7 @@ async function storeBrief(
     provider: "stub",
     model: "stub",
     effort: "low",
+    bodyVersion: STORED_BODY_VERSION,
     body: "{}",
     usedGroupIds: [],
   });

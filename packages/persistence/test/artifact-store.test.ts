@@ -28,6 +28,7 @@ import {
   recordStatements,
   registerSharedPglite,
 } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const shared = registerSharedPglite();
 
@@ -37,7 +38,12 @@ const REPO: RepoId = brandWith(isRepoId, 777n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
-const PROV = { provider: "anthropic", model: "opus", effort: "high" } as const;
+const PROV = {
+  provider: "anthropic",
+  model: "opus",
+  effort: "high",
+  bodyVersion: STORED_BODY_VERSION,
+} as const;
 
 function validMarks(baselineSha: string, headSha: string) {
   return {
@@ -422,6 +428,7 @@ describe("createSpanArtifactAccess owns the stamped columns", () => {
     provider: "anthropic",
     model: "opus",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: "{}",
     byteSize: 2,
   };
@@ -931,7 +938,7 @@ describe("createArtifactStore.hunkSpans the carry-over hop", () => {
   });
 });
 
-const BODY_VERSION = 3;
+const NOT_NULL_VIOLATION = "23502";
 
 async function makeOpenPullRequestStore(prNumber: number) {
   const handle = shared.handle;
@@ -944,107 +951,91 @@ async function makeOpenPullRequestStore(prNumber: number) {
   return { store, pr };
 }
 
+async function writeStampedArtifacts(prNumber: number, bodyVersion: number) {
+  const { store, pr } = await makeOpenPullRequestStore(prNumber);
+  const brief = await store.briefs.write({
+    pullRequestId: pr.id,
+    baseSha: "base",
+    headSha: "head",
+    headIndex: 0,
+    commitCount: 1,
+    ...PROV,
+    body: "brief",
+    usedGroupIds: [],
+    bodyVersion,
+  });
+  const delta = await store.deltas.write({
+    pullRequestId: pr.id,
+    baselineSha: "chk",
+    headSha: "head",
+    ...PROV,
+    body: "delta",
+    bodyVersion,
+  });
+  const narrative = await store.revisionNarratives.write({
+    pullRequestId: pr.id,
+    briefId: brief.id,
+    prevHeadSha: "prev",
+    headSha: "head",
+    ...PROV,
+    body: "narrative",
+    bodyVersion,
+  });
+  return { store, pr, brief, delta, narrative };
+}
+
 describe("createArtifactStore body version stamp", () => {
-  it("brief: keeps the stamp, NULL when omitted or rewritten without", async () => {
-    const { store, pr } = await makeOpenPullRequestStore(21);
-    const span = {
-      pullRequestId: pr.id,
-      baseSha: "base",
-      headSha: "head",
-      headIndex: 0,
-      commitCount: 1,
-      ...PROV,
-      body: "brief",
-      usedGroupIds: [],
-    };
+  it.each(["brief", "delta", "revision_narrative"])(
+    "%s: the column refuses an unstamped row",
+    async (table) => {
+      const written = await writeStampedArtifacts(21, 1);
+      const rowIds = {
+        brief: written.brief.id,
+        delta: written.delta.id,
+        revision_narrative: written.narrative.id,
+      };
+      const rowId = rowIds[table as keyof typeof rowIds];
 
-    const stamped = await store.briefs.write({
-      ...span,
-      bodyVersion: BODY_VERSION,
-    });
-    expect(stamped.bodyVersion).toBe(BODY_VERSION);
+      await expect(
+        shared.client.query(
+          `update ${table} set body_version = null where id = $1`,
+          [rowId.toString()],
+        ),
+      ).rejects.toMatchObject({ code: NOT_NULL_VIOLATION });
+    },
+  );
+
+  it("a rewrite replaces each artifact's stamp", async () => {
+    const { store, pr, brief } = await writeStampedArtifacts(22, 1);
+
+    const rewritten = await writeStampedArtifacts(22, 2);
+
+    expect(rewritten.brief.bodyVersion).toBe(2);
+    expect(rewritten.delta.bodyVersion).toBe(2);
+    expect(rewritten.narrative.bodyVersion).toBe(2);
+    expect(rewritten.brief.id).toBe(brief.id);
     const read = await store.briefs.get(pr.id, "base", "head");
-    expect(read?.bodyVersion).toBe(BODY_VERSION);
-
-    const rewritten = await store.briefs.write(span);
-    expect(rewritten.bodyVersion).toBeNull();
-    const reread = await store.briefs.get(pr.id, "base", "head");
-    expect(reread?.bodyVersion).toBeNull();
-
-    const omitted = await store.briefs.write({
-      ...span,
-      baseSha: "base-2",
-      headIndex: 1,
-    });
-    expect(omitted.bodyVersion).toBeNull();
+    expect(read?.bodyVersion).toBe(2);
   });
 
-  it("delta: keeps the stamp, NULL when omitted or rewritten without", async () => {
-    const { store, pr } = await makeOpenPullRequestStore(22);
-    const span = {
-      pullRequestId: pr.id,
-      baselineSha: "chk",
-      headSha: "head",
-      ...PROV,
-      body: "delta",
-    };
-
-    const stamped = await store.deltas.write({
-      ...span,
-      bodyVersion: BODY_VERSION,
-    });
-    expect(stamped.bodyVersion).toBe(BODY_VERSION);
-    const read = await store.deltas.get(pr.id, "chk", "head");
-    expect(read?.bodyVersion).toBe(BODY_VERSION);
-
-    const rewritten = await store.deltas.write(span);
-    expect(rewritten.bodyVersion).toBeNull();
-    const reread = await store.deltas.get(pr.id, "chk", "head");
-    expect(reread?.bodyVersion).toBeNull();
-
-    const omitted = await store.deltas.write({ ...span, baselineSha: "chk-2" });
-    expect(omitted.bodyVersion).toBeNull();
-  });
-
-  it("narrative: keeps the stamp, NULL when omitted or rewritten without", async () => {
+  it("a write without a stamp does not compile and is refused", async () => {
     const { store, pr } = await makeOpenPullRequestStore(23);
-    const brief = await store.briefs.write({
-      pullRequestId: pr.id,
-      baseSha: "base",
-      headSha: "head",
-      headIndex: 1,
-      commitCount: 1,
-      ...PROV,
-      body: "brief",
-      usedGroupIds: [],
-    });
-    const span = {
-      pullRequestId: pr.id,
-      briefId: brief.id,
-      prevHeadSha: "prev",
-      headSha: "head",
-      ...PROV,
-      body: "narrative",
-    };
 
-    const stamped = await store.revisionNarratives.write({
-      ...span,
-      bodyVersion: BODY_VERSION,
-    });
-    expect(stamped.bodyVersion).toBe(BODY_VERSION);
-    const read = await store.revisionNarratives.get(pr.id, "prev", "head");
-    expect(read?.bodyVersion).toBe(BODY_VERSION);
-
-    const rewritten = await store.revisionNarratives.write(span);
-    expect(rewritten.bodyVersion).toBeNull();
-    const reread = await store.revisionNarratives.get(pr.id, "prev", "head");
-    expect(reread?.bodyVersion).toBeNull();
-
-    const omitted = await store.revisionNarratives.write({
-      ...span,
-      prevHeadSha: "prev-2",
-    });
-    expect(omitted.bodyVersion).toBeNull();
+    await expect(
+      // @ts-expect-error bodyVersion is required on every artifact write
+      store.briefs.write({
+        pullRequestId: pr.id,
+        baseSha: "base",
+        headSha: "head",
+        headIndex: 0,
+        commitCount: 1,
+        provider: PROV.provider,
+        model: PROV.model,
+        effort: PROV.effort,
+        body: "brief",
+        usedGroupIds: [],
+      }),
+    ).rejects.toMatchObject({ cause: { code: NOT_NULL_VIOLATION } });
   });
 });
 

@@ -49,6 +49,7 @@ import {
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 import { registerSharedPglite } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const REPO_ID = 424242;
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
@@ -123,6 +124,7 @@ async function seedOwnerBrief(handle: AppDatabase): Promise<void> {
     provider: "p",
     model: "m",
     effort: "e",
+    bodyVersion: STORED_BODY_VERSION,
     body: "{}",
     usedGroupIds: [],
   });

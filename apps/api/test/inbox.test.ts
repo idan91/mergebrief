@@ -48,6 +48,7 @@ import {
   stubTokenRefreshAnswer,
 } from "./reviewer-github";
 import { registerSharedPglite } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const OPERATOR_PAT = "ghp_OPERATOR_PAT";
 const OTHER_INSTALLATION_ID = 111222;
@@ -189,6 +190,7 @@ async function seedBrief(
     provider: "p",
     model: "m",
     effort: "e",
+    bodyVersion: STORED_BODY_VERSION,
     body,
     usedGroupIds: [],
   });

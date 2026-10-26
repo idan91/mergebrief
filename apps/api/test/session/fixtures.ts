@@ -22,6 +22,7 @@ import {
   brandRepoId,
   brandReviewerId,
 } from "../fixtures";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 export const REPO_ID = 424242;
 
@@ -84,6 +85,7 @@ export async function seedBrief(
     provider: "anthropic",
     model: "claude",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body,
     carriedChunkIds,
     // The carry suite's chain must read as descended, or reclassifications

@@ -39,6 +39,7 @@ import {
 } from "../src/types";
 import { PrStates } from "types/pull-requests";
 import { brandWith, registerSharedPglite } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const shared = registerSharedPglite();
 
@@ -113,6 +114,7 @@ async function seedBrief(
     provider: "stub",
     model: "stub",
     effort: "low",
+    bodyVersion: STORED_BODY_VERSION,
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
     usedGroupIds: [],
   });

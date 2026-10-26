@@ -1,6 +1,7 @@
 // Phase 6: delta bodies, verbatim: the "your last review" compare content.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 import { UNKNOWN_ORIGIN } from "../consts";
 import { DeltaMetaSchema } from "../schemas";
 import type { IngestRun, ResolvedPullRequests } from "../types";
@@ -44,6 +45,7 @@ export async function writeDeltas(
       provider: origin.provider,
       model: origin.model,
       effort: origin.effort,
+      bodyVersion: STORED_BODY_VERSION,
       body,
     });
 

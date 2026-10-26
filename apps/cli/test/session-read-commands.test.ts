@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
-import { BASE_URL } from "./harness/consts";
+import { BASE_URL, FIXTURE_BODY_VERSION } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
 import { expectRefusedBeforeRequest, runCliOffline } from "./harness/offline";
 import { runCli } from "../src/program";
@@ -153,6 +153,7 @@ describe("session read commands over the real api app", () => {
       provider: "anthropic",
       model: "claude-fable-5",
       effort: "high",
+      bodyVersion: FIXTURE_BODY_VERSION,
       body: "{}",
       repoConfig: REPO_CONFIG,
       usedGroupIds: [],
@@ -176,6 +177,7 @@ describe("session read commands over the real api app", () => {
       provider: "anthropic",
       model: "claude-fable-5",
       effort: "high",
+      bodyVersion: FIXTURE_BODY_VERSION,
       body: JSON.stringify({ artifactKind: "narrative" }),
     });
   }

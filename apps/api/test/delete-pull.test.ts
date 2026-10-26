@@ -38,6 +38,7 @@ import {
 } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
 import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -90,6 +91,7 @@ async function seedBriefedPr(
     provider: "p",
     model: "m",
     effort: "e",
+    bodyVersion: STORED_BODY_VERSION,
     body: "{}",
     usedGroupIds: [],
   });

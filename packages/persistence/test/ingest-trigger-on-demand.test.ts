@@ -28,6 +28,7 @@ import {
 } from "../src/types";
 import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
 import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const CTX: TenantContext = {
   installationId: brandWith(isInstallationId, 1000n),
@@ -148,6 +149,7 @@ async function storeBrief(world: TriggerOnDemandWorld): Promise<void> {
     provider: "anthropic",
     model: "opus",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: "stored",
     usedGroupIds: [],
   });

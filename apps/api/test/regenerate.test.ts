@@ -40,6 +40,7 @@ import {
 } from "./reviewer-github";
 import { seedApiToken, seedSignIn } from "./sign-in";
 import { registerSharedPglite, type SharedPglite } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const REPO_ID = 424242;
 const BRANDED_REPO_ID = brandRepoId(BigInt(REPO_ID));
@@ -186,6 +187,7 @@ async function storeHeadBrief(harness: SharedPglite): Promise<void> {
     provider: "anthropic",
     model: "opus",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: "stored",
     usedGroupIds: [],
   });

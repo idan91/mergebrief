@@ -38,6 +38,7 @@ import {
 } from "./reviewer-github";
 import { seedSignIn } from "./sign-in";
 import { registerSharedPglite } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const REPO_ID = 424242;
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
@@ -83,6 +84,7 @@ async function seedBrief(
     provider: "anthropic",
     model: "claude",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: seed.body ?? BRIEF_BODY,
     usedGroupIds: [],
   };
@@ -215,6 +217,7 @@ describe("stored artifact reads", () => {
       provider: "anthropic",
       model: "claude",
       effort: "high",
+      bodyVersion: STORED_BODY_VERSION,
       body: DELTA_BODY,
     });
 
@@ -257,6 +260,7 @@ describe("stored artifact reads", () => {
       provider: "anthropic",
       model: "claude",
       effort: "high",
+      bodyVersion: STORED_BODY_VERSION,
     });
 
     const res = await get("/narrative?prevHead=head-1&head=head-2");

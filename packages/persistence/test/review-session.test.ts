@@ -48,6 +48,7 @@ import {
   expectCheckViolation,
   registerSharedPglite,
 } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 /**
  * The handle plus the PGlite client behind it: the raw client is how these
@@ -109,6 +110,7 @@ async function seedBrief(
     provider: "anthropic",
     model: "test",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body,
     usedGroupIds: [],
   });

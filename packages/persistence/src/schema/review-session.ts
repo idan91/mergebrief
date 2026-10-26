@@ -12,14 +12,13 @@ import {
   integer,
   pgTable,
   text,
-  timestamp,
   unique,
 } from "drizzle-orm/pg-core";
 import type { BriefRowId, ReviewSessionId, ReviewerId } from "../types";
 import { ReviewOutcomes, type ReviewOutcome } from "types/reviews";
 import { brief } from "./brief";
 import { isOneOf } from "./checks";
-import { tenantColumns } from "./columns";
+import { stampColumns, tenantColumns } from "./columns";
 
 const REVIEW_OUTCOMES = Object.values(ReviewOutcomes);
 
@@ -48,9 +47,7 @@ export const reviewSession = pgTable(
      * 0 is a first-ever session, or a previous one that carried nothing.
      */
     carriedItemCount: integer("carried_item_count").notNull().default(0),
-    begunAt: timestamp("begun_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...stampColumns(),
   },
   (table) => [
     unique("review_session_natural_key")

@@ -55,6 +55,7 @@ import {
   AccessLevels,
 } from "types";
 import { brandWith, registerSharedPglite } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const shared = registerSharedPglite();
 
@@ -103,6 +104,7 @@ const ORIGIN = {
   provider: "anthropic",
   model: "claude-fable-5",
   effort: "high",
+  bodyVersion: STORED_BODY_VERSION,
 } as const;
 
 function artifact(body: string): {

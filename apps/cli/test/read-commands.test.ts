@@ -27,7 +27,7 @@ import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { runDelta, runGroups } from "../src/commands/read/run";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
-import { BASE_URL } from "./harness/consts";
+import { BASE_URL, FIXTURE_BODY_VERSION } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
 import {
   OFFLINE_REPO_ID,
@@ -224,6 +224,7 @@ describe("read commands over the real api app", () => {
       provider: "anthropic",
       model: "claude-fable-5",
       effort: "high",
+      bodyVersion: FIXTURE_BODY_VERSION,
       body: BRIEF_BODY,
       usedGroupIds: [],
     });
@@ -394,6 +395,7 @@ describe("read commands over the real api app", () => {
       provider: "anthropic",
       model: "claude-fable-5",
       effort: "high",
+      bodyVersion: FIXTURE_BODY_VERSION,
       body: deltaBody,
     });
     await login();

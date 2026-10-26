@@ -722,6 +722,9 @@ importers:
 
   tools/ingest-briefs:
     dependencies:
+      brief-core:
+        specifier: workspace:*
+        version: link:../../packages/brief-core
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence

@@ -35,6 +35,7 @@ import {
 import { GenerationPhases, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import { brandWith, registerSharedPglite, writeJobRunAt } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const CTX = parseTenantContext({ installationId: 100n });
 const REPO_ID = brandWith(isRepoId, 200n);
@@ -1042,6 +1043,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         provider: "stub",
         model: "stub",
         effort: "low",
+        bodyVersion: STORED_BODY_VERSION,
         body: "{}",
         usedGroupIds: [],
       });
@@ -1153,6 +1155,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         provider: "stub",
         model: "stub",
         effort: "low",
+        bodyVersion: STORED_BODY_VERSION,
         body: "{}",
       });
 

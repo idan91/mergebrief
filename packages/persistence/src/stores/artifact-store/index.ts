@@ -69,10 +69,10 @@ function deriveSessionRecordCounts(body: string): SessionRecordCounts {
 
 interface BodyInput extends Origin {
   readonly body: string;
-  readonly bodyVersion?: number;
+  readonly bodyVersion: number;
 }
 
-/** The origin trio, the body with its size, and the version stamp (NULL when omitted). */
+/** The origin trio, the body with its size, and the version stamp. */
 function shapeBodyColumns(input: BodyInput) {
   return {
     provider: input.provider,
@@ -80,7 +80,7 @@ function shapeBodyColumns(input: BodyInput) {
     effort: input.effort,
     body: input.body,
     byteSize: measureByteSize(input.body),
-    bodyVersion: input.bodyVersion ?? null,
+    bodyVersion: input.bodyVersion,
   };
 }
 

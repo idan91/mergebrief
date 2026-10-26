@@ -21,6 +21,7 @@ import {
   registerSharedPglite,
   writeGenerationTriggeredAt,
 } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const shared = registerSharedPglite();
 
@@ -30,7 +31,12 @@ const REPO_1: RepoId = brandWith(isRepoId, 111n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
-const ORIGIN = { provider: "anthropic", model: "claude", effort: "high" };
+const ORIGIN = {
+  provider: "anthropic",
+  model: "claude",
+  effort: "high",
+  bodyVersion: STORED_BODY_VERSION,
+};
 const OLDER = new Date("2026-01-01T00:00:00Z");
 const NEWER = new Date("2026-01-01T00:01:00Z");
 const NEWEST = new Date("2026-01-01T00:02:00Z");

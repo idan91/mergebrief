@@ -57,6 +57,7 @@ import {
   registerSharedPglite,
   type SharedPglite,
 } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 // Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });
@@ -226,6 +227,7 @@ async function seedBrief(
     provider: "anthropic",
     model: "claude",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: "{}",
     usedGroupIds: [],
   });

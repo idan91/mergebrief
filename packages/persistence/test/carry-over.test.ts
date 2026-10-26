@@ -9,7 +9,7 @@ import {
   ReviewSessionErrorCodes,
   ScopeViolationError,
 } from "../src/index";
-import type { FlagKey } from "brief-core/artifact";
+import { type FlagKey, STORED_BODY_VERSION } from "brief-core/artifact";
 import type {
   AppDatabase,
   BriefWriteInput,
@@ -94,6 +94,7 @@ async function seedBrief(
     provider: "anthropic",
     model: "test",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: EMPTY_BRIEF_BODY,
     carriedChunkIds,
     usedGroupIds: [],

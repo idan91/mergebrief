@@ -1,4 +1,5 @@
 // Phase 3: brief bodies, verbatim.
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 import { UNKNOWN_ORIGIN } from "../consts";
 import type {
   IngestRun,
@@ -47,6 +48,7 @@ export async function writeBriefs(
       provider: origin.provider,
       model: origin.model,
       effort: origin.effort,
+      bodyVersion: STORED_BODY_VERSION,
       body: brief.body,
       usedGroupIds: chainGroupIds.get(brief.name) ?? [],
     });

@@ -32,7 +32,7 @@ import {
   buildReanchorPayload,
 } from "../src/commands/session-write/utils";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
-import { BASE_URL } from "./harness/consts";
+import { BASE_URL, FIXTURE_BODY_VERSION } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
 import {
   expectRefusedBeforeRequest,
@@ -187,6 +187,7 @@ describe("session write commands over the real api app", () => {
       provider: "anthropic",
       model: "claude-fable-5",
       effort: "high",
+      bodyVersion: FIXTURE_BODY_VERSION,
       body: JSON.stringify({
         changeGroups: [],
         chunks: [{ id: "chunk-1", file: "src/app.ts" }],

@@ -66,6 +66,7 @@ import {
   registerSharedPglite,
   type SharedPglite,
 } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 vi.setConfig({ testTimeout: 10_000 });
 
@@ -163,6 +164,7 @@ async function seedDraft(
     provider: "anthropic",
     model: "claude",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: "{}",
     usedGroupIds: [],
   });
@@ -268,6 +270,7 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     provider: "anthropic",
     model: "claude",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: JSON.stringify({ changeGroups: [], chunks: [] }),
     usedGroupIds: [],
   });

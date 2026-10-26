@@ -1,6 +1,7 @@
 // Shared column groups. Each helper returns FRESH builders: Drizzle column
 // builders are stateful and must not be shared across tables. Noun names on
 // purpose; they read as column groups at the spread site.
+import type { NotNull } from "drizzle-orm";
 import {
   bigint,
   integer,
@@ -10,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { InstallationId } from "../types";
 
-type BodyVersionColumn = PgIntegerBuilderInitial<"body_version">;
+type BodyVersionColumn = NotNull<PgIntegerBuilderInitial<"body_version">>;
 
 /** The surrogate identity PK; `TId` brands it where the id is critical. */
 export function idColumn<TId extends bigint = bigint>() {
@@ -42,9 +43,9 @@ export function stampColumns() {
   };
 }
 
-/** The body's shape version; NULL for a body written before versioning or by an older writer. */
+/** The body's shape version, stamped by every writer with the shape it wrote. */
 export function bodyVersionColumn(): BodyVersionColumn {
-  return integer("body_version");
+  return integer("body_version").notNull();
 }
 
 /** Inline `body` plus `byte_size` and `created_at`; erasure stays one FK cascade. */

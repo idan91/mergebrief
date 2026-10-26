@@ -4,6 +4,7 @@
 // `graphile_worker` schema is not this script's to install: the API installs
 // it at boot, which happens before any test can enqueue.
 import { createHash } from "node:crypto";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 import { ingestBriefDirectory } from "ingest-briefs";
 import {
   closeDb,
@@ -104,6 +105,7 @@ async function writeBrief(
     headIndex,
     commitCount: SEED_COMMIT_COUNT,
     body: JSON.stringify(body),
+    bodyVersion: STORED_BODY_VERSION,
     usedGroupIds: body.changeGroups.map((group) => group.id),
   });
   if (!isBriefRowId(written.id)) {

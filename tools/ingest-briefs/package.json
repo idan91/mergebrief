@@ -13,6 +13,7 @@
     "ingest": "tsx src/main.ts"
   },
   "dependencies": {
+    "brief-core": "workspace:*",
     "persistence": "workspace:*",
     "types": "workspace:*",
     "zod": "^4.6.5"

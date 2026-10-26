@@ -49,6 +49,7 @@ import {
 } from "./reviewer-github";
 import { ACCESS_TOKEN, seedSignIn } from "./sign-in";
 import { registerSharedPglite } from "./shared-pglite";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -166,6 +167,7 @@ async function seedBrief(
     provider: "anthropic",
     model: "claude",
     effort: "high",
+    bodyVersion: STORED_BODY_VERSION,
     body: BRIEF_BODY,
     usedGroupIds: [],
   };

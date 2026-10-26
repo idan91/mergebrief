@@ -2,6 +2,7 @@
 // anchoring brief is the SAME-index brief ingested in phase 3.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 import type { BriefSpanRow, PullRequestRowId } from "persistence";
 import { NARRATIVE_FILE, UNKNOWN_ORIGIN } from "../consts";
 import { NarrativeMetaSchema } from "../schemas";
@@ -83,6 +84,7 @@ export async function writeNarratives(
       provider: origin.provider,
       model: origin.model,
       effort: origin.effort,
+      bodyVersion: STORED_BODY_VERSION,
       body,
     });
 

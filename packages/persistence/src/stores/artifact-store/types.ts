@@ -45,8 +45,8 @@ export interface Origin {
 }
 
 interface BodyVersionStamp {
-  /** Omitted stores NULL on a rewrite too: a stale stamp must not outlive its body. */
-  readonly bodyVersion?: number;
+  /** The body shape version this writer wrote; a rewrite replaces it with the body. */
+  readonly bodyVersion: number;
 }
 
 export interface BriefWriteInput extends Origin, BodyVersionStamp {

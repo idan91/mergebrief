@@ -34,6 +34,7 @@ import {
   makeBriefTarget,
   registerSharedPglite,
 } from "./helpers";
+import { STORED_BODY_VERSION } from "brief-core/artifact";
 
 const BASE_SHA = "f95f852bd8fca8fcc58a9a2d6c842781e32a215e";
 
@@ -159,6 +160,7 @@ describe("triggerGeneration under the trigger approval gate", () => {
       provider: "stub",
       model: "stub",
       effort: "low",
+      bodyVersion: STORED_BODY_VERSION,
       body: "{}",
       usedGroupIds: [],
     });

@@ -38,16 +38,17 @@ export const brief = pgTable(
     effort: text("effort").notNull(),
     /**
      * Repo-config origin and policy snapshot, JSON; the FE renders display
-     * weight from THIS snapshot, never live policy. Null before the feature.
+     * weight from THIS snapshot, never live policy. NULL when the run read no
+     * repo config, or when a non-generation writer made the row.
      */
     repoConfig: text("repo_config"),
-    /** 'anchored' | 'fresh-restart' | 'none', CHECK-constrained; null before the feature. */
+    /** 'anchored' | 'fresh-restart' | 'none', CHECK-constrained; NULL from a non-generation writer. */
     anchorState: text("anchor_state"),
     /** Non-null exactly when `anchor_state = 'fresh-restart'` (CHECK). */
     anchorReason: text("anchor_reason"),
     /**
      * The chunk ids carried from the previous Brief, which is what makes a
-     * read mark carry with no line math; null before the column.
+     * read mark carry with no line math; NULL from a non-generation writer.
      */
     carriedChunkIds: text("carried_chunk_ids").array(),
     /**

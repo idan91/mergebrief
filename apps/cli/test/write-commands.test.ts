@@ -24,7 +24,7 @@ import { ExitCodes } from "../src/exit";
 import { requireSpan } from "../src/commands/options";
 import { buildSubmitPayload } from "../src/commands/write/run";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
-import { BASE_URL } from "./harness/consts";
+import { BASE_URL, FIXTURE_BODY_VERSION } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
 import {
   expectRefusedBeforeRequest,
@@ -225,6 +225,7 @@ describe("write commands over the real api app", () => {
       provider: "anthropic",
       model: "claude",
       effort: "high",
+      bodyVersion: FIXTURE_BODY_VERSION,
       body: "{}",
       usedGroupIds: [],
     });
