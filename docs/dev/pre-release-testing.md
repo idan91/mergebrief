@@ -96,7 +96,7 @@ Not gates yet:
       harness itself is human-run and never enters CI (live spend).
       `manual-forever: live spend`.
 
-How the release itself is cut: [`releasing.md`](./releasing.md).
+How a release is published: [`releasing.md`](./releasing.md).
 
 ---
 

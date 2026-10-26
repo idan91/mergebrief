@@ -29,7 +29,7 @@ pnpm -C tools/release test          # temp trees, one per refusal
 pnpm check:releases                 # the gate over docs/releases
 pnpm release:export --version 0.1.0 --source origin/main --dry-run --out /tmp/export   # the public tree, every gate, the commit a publish would push
 pnpm release:export --version 0.1.0 --source origin/main --emit /tmp/release   # no gate: release.bundle and plan.json, as publish.yml's plan job writes them
-MERGEBRIEF_PUBLISH_TOKEN="$(gh auth token)" pnpm release:export --version 0.1.0 --source origin/main   # the release itself; Idan runs it
+MERGEBRIEF_PUBLISH_TOKEN="$(gh auth token)" pnpm release:export --version 0.1.0 --source <sha>   # the release itself, from the SHA resolved once and kept for retries; Idan runs it
 pnpm -C tools/release version-json v0.1.0 --out /tmp/version.json && pnpm -C tools/release release-body v0.1.0 --out /tmp/body.md
 pnpm -C tools/release stamp 0.1.0 && pnpm -C apps/cli build && pnpm -C tools/release prune-manifest && git diff --stat && git checkout -- apps/cli/package.json docker-compose.yml docker-compose.external-db.yml
 ```
