@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -33,7 +33,12 @@ import {
   type InvocationUsage,
 } from "./report";
 import { runCase } from "./run";
-import { evaluatePairCase, loadPairCases, selectCases } from "./pairs";
+import {
+  evaluatePairCase,
+  loadPairCases,
+  selectCases,
+  type PairCase,
+} from "./pairs";
 import { persistRunBriefs } from "./specimens";
 import { withUsageSink } from "./usageSink";
 
@@ -48,6 +53,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const CASES_DIR = join(here, "cases");
 /** Revision-pair source, one pair = TWO generations per run. */
 const PAIRS_DIR = join(here, "pair-cases");
+/** Cases that embed private material; the public snapshot leaves them out. */
+const PRIVATE_CASES_DIR = join(here, "private-cases");
+const PRIVATE_PAIRS_DIR = join(here, "private-pair-cases");
 const OUT_DIR = "out";
 /** The generator the committed baselines are keyed to. */
 const DEFAULT_CONFIG_PATH = join(
@@ -166,6 +174,64 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     };
   }
   return { ok: true, value: args };
+}
+
+export interface CaseSetDirs {
+  casesDir: string;
+  pairsDir: string;
+  privateCasesDir: string;
+  privatePairsDir: string;
+}
+
+export interface CaseSets {
+  singles: EvalCase[];
+  pairs: PairCase[];
+}
+
+function compareCaseIds(left: { id: string }, right: { id: string }): number {
+  return left.id.localeCompare(right.id);
+}
+
+async function loadPrivateCases(
+  privateCasesDir: string,
+): Promise<Result<EvalCase[], string>> {
+  if (!existsSync(privateCasesDir)) {
+    return { ok: true, value: [] };
+  }
+
+  return loadCases(privateCasesDir);
+}
+
+/** A missing private dir is an empty source: the public snapshot has none. */
+export async function loadCaseSets(
+  dirs: CaseSetDirs,
+): Promise<Result<CaseSets, string>> {
+  const cases = await loadCases(dirs.casesDir);
+  if (!cases.ok) {
+    return cases;
+  }
+  const privateCases = await loadPrivateCases(dirs.privateCasesDir);
+  if (!privateCases.ok) {
+    return privateCases;
+  }
+  const pairs = await loadPairCases(dirs.pairsDir);
+  if (!pairs.ok) {
+    return pairs;
+  }
+  const privatePairs = await loadPairCases(dirs.privatePairsDir);
+  if (!privatePairs.ok) {
+    return privatePairs;
+  }
+
+  const singles = [...cases.value, ...privateCases.value];
+  const allPairs = [...pairs.value, ...privatePairs.value];
+  return {
+    ok: true,
+    value: {
+      singles: singles.toSorted(compareCaseIds),
+      pairs: allPairs.toSorted(compareCaseIds),
+    },
+  };
 }
 
 function loadEnv(): void {
@@ -308,17 +374,21 @@ async function main(): Promise<void> {
 
   // Load BOTH case sets unfiltered, then select, `--case` may name a single
   // OR a revision-pair case; an id in neither is the error.
-  const allCases = await loadCases(CASES_DIR);
-  if (!allCases.ok) {
-    console.error(allCases.error);
+  const caseSets = await loadCaseSets({
+    casesDir: CASES_DIR,
+    pairsDir: PAIRS_DIR,
+    privateCasesDir: PRIVATE_CASES_DIR,
+    privatePairsDir: PRIVATE_PAIRS_DIR,
+  });
+  if (!caseSets.ok) {
+    console.error(caseSets.error);
     process.exit(2);
   }
-  const allPairs = await loadPairCases(PAIRS_DIR);
-  if (!allPairs.ok) {
-    console.error(allPairs.error);
-    process.exit(2);
-  }
-  const selected = selectCases(allCases.value, allPairs.value, args.caseId);
+  const selected = selectCases(
+    caseSets.value.singles,
+    caseSets.value.pairs,
+    args.caseId,
+  );
   if (!selected.ok) {
     console.error(selected.error);
     process.exit(2);

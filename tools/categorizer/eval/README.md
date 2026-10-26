@@ -107,6 +107,15 @@ case before believing a demotion.
 checked-in diff must be publishable. No third-party diffs without a
 license decision.
 
+**Private cases.** A case whose fixture embeds private material (plan or
+internal-doc text, private process) lives in `private-cases/<id>/` or
+`private-pair-cases/<id>/`, same shape as its public peer. These dirs
+stay private: the public source snapshot leaves them out, together with
+`test/pipeline-goldens-private.test.ts` and its snapshot. The eval CLI
+loads all four dirs, so `--case` finds a private id, and a missing
+private dir is an empty list, so a public checkout runs without them.
+Today: `delta-read-api-contract` and `pair-real-brief143-docs`.
+
 Seed sources: `copybutton-new-export` (a `cross-service` false-positive
 probe) ·
 `button-under-split` (sub-file intent splitting; its diff also carries
@@ -116,8 +125,8 @@ the dormant `unresolved-reference` probe: App.tsx switches
 silently stops being passed) · `pure-move-persistence` ·
 `multi-package-types` · `schema-change-provenance`.
 
-Added post-seed: `delta-read-api-contract` (a positive `cross-service`
-probe: modified EXISTING wire contracts from a real PR in this repo;
+Added post-seed: `delta-read-api-contract` (private; a positive
+`cross-service` probe: modified EXISTING wire contracts from a real PR in this repo;
 baselined at 1/5, the under-fire measured after the false-positive fix,
 which a future description re-tune targets); the first four `intent-*`
 cases (the intent check: precise/broad/none specificity boundaries plus
@@ -225,8 +234,8 @@ Source set: one synthetic pair per change-impact category: `pair-additive`,
 `pair-subtractive`, `pair-new-material`, `pair-boundary-restructure`,
 `pair-ask-edit`, `pair-rebase-noise`, `pair-intent-transition`, with
 authored diffs over own-repo file shapes (difflib-generated, hunk-correct;
-PR locators are placeholders), plus `pair-real-brief143-docs`, a real pair
-built verbatim from this repo's history (daed6dae → db2fe83e → 472b6d7a).
+PR locators are placeholders), plus `pair-real-brief143-docs` (private), a
+real pair built verbatim from this repo's history (daed6dae → db2fe83e → 472b6d7a).
 `pair-risk-add-new-file` is `pair-risk-add` with the route added by the PR,
 so the chunk that lost its guard removes no lines.
 Mechanical rows (untouched survival, frozen attrs, coverage, id carry,
@@ -267,7 +276,7 @@ summary parsing and spec pair 3's summary rows are only partially pinned
 `pair-subtractive`'s group-death property rather than a chunk-level one.
 
 Cost expectation: ~$0.16/generation on `anthropic:claude-opus-4-8`
-(2026-07-25 measurement) → a full 12-pair × 5-run recording ≈ 120
-generations ≈ **$19** on top of the single-case suite; a scoped
+(2026-07-25 measurement) → a full 12-pair (11 public, 1 private) × 5-run
+recording ≈ 120 generations ≈ **$19** on top of the single-case suite; a scoped
 `--case` pair recording ≈ 10 generations ≈ **$1.60**. Measure, don't
 trust cached totals.

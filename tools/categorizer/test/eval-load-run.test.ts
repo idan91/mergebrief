@@ -23,7 +23,6 @@ describe("the shipped case set", () => {
     expect(loaded.value.map((c) => c.id)).toEqual([
       "button-under-split",
       "copybutton-new-export",
-      "delta-read-api-contract",
       "intent-adversarial-ticket",
       "intent-broad-epic",
       "intent-legit-demotion",

@@ -1,0 +1,1127 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [],
+    "regenerated": [
+      "g1"
+    ]
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches docs/plans/brief-143-stability-spec.md, docs/plans/brief-143-stability-implementation.md. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler",
+      "title": "Claims g1",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 194,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "docs/plans/brief-143-stability-spec.md",
+      "id": "c1",
+      "loc": {
+        "added": 194,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 167,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "docs/plans/brief-143-stability-implementation.md",
+      "id": "c2",
+      "loc": {
+        "added": 167,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 167,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "docs/plans/brief-143-stability-implementation.md",
+      "id": "c4",
+      "loc": {
+        "added": 167,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "supporting"
+    }
+  ],
+  "commitRange": {
+    "base": "daed6dae31998c5848708e1b3da11b1df390629a",
+    "commitCount": 2,
+    "head": "472b6d7ab2a568183a1c6b7c988cabb6a7438fdd"
+  },
+  "concernView": [
+    {
+      "added": 528,
+      "concern": "implementation",
+      "deleted": 0
+    }
+  ],
+  "diffTotals": {
+    "added": 361,
+    "deleted": 0
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (docs/plans/brief-143-stability-implementation.md) both claim added line(s) 1-167 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (docs/plans/brief-143-stability-spec.md): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g1"
+        ],
+        "intent": "Canned unstated work in g1",
+        "quote": "",
+        "sourceUrl": ""
+      }
+    ],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "precise",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "Adds the cross-revision stability locked spec, then a follow-up commit adds the 6-PR implementation plan derived from it.",
+    "number": 9011,
+    "repo": "Idan91/code-review",
+    "sha": "472b6d7ab2a568183a1c6b7c988cabb6a7438fdd",
+    "title": "BRIEF-143 planning docs: locked spec and implementation plan",
+    "url": "https://github.com/Idan91/code-review/pull/9011"
+  },
+  "summary": "Canned adversarial brief over 4 chunk(s).",
+  "unattributed": []
+}"
+`;
+
+exports[`anchoring goldens > 'pair-real-brief143-docs' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1"
+  ],
+  "reLook": [],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > skips reserved chain ids when descent mints a group id 1`] = `
+"{
+  "caseId": "pair-real-brief143-docs",
+  "chained": {
+    "baseGroupIds": [
+      "g1"
+    ],
+    "carriedChunkIds": [
+      "c1"
+    ],
+    "carriedGroupIds": [
+      "g1"
+    ],
+    "frozenGroupIds": [
+      "g1"
+    ],
+    "groupIds": [
+      "g1",
+      "g3"
+    ],
+    "previousGroupIds": [
+      "g1",
+      "g2"
+    ],
+    "reLook": [],
+    "regeneratedGroupIds": [
+      "g3"
+    ]
+  }
+}"
+`;
+
+exports[`brief goldens > delta-read-api-contract produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches docs/plans/brief-21-delta-view.md. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fille",
+      "title": "Changes under docs/plans",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches packages/api/src/routes/pr-view.ts, packages/api/src/routes/reads.ts, packages/api/src/routes/webhook.ts.",
+      "title": "Changes under packages/api/src/routes",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches packages/api/test/pulls.test.ts, packages/api/test/reads.test.ts.",
+      "title": "Changes under packages/api/test",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/drizzle/0006_pull-request-base-sha.sql.",
+      "title": "Changes under packages/persistence/drizzle",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/drizzle/meta/0006_snapshot.json, packages/persistence/drizzle/meta/_journal.json.",
+      "title": "Changes under packages/persistence/drizzle/meta",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/src/artifact-store.ts, packages/persistence/src/ingest.ts, packages/persistence/src/tenant.ts.",
+      "title": "Changes under packages/persistence/src",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/src/schema/pull-request.ts.",
+      "title": "Changes under packages/persistence/src/schema",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/test/ingest.test.ts, packages/persistence/test/list-reads.test.ts.",
+      "title": "Changes under packages/persistence/test",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 241,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "docs/plans/brief-21-delta-view.md",
+      "id": "c1",
+      "loc": {
+        "added": 241,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 7
+        },
+        {
+          "end": 39,
+          "start": 35
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/pr-view.ts",
+      "id": "c2",
+      "loc": {
+        "added": 7,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 8,
+          "start": 7
+        },
+        {
+          "end": 35,
+          "start": 35
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 31,
+          "start": 28
+        },
+        {
+          "end": 34,
+          "start": 34
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/reads.ts",
+      "id": "c3",
+      "loc": {
+        "added": 5,
+        "deleted": 4
+      },
+      "removedRanges": [
+        {
+          "end": 153,
+          "start": 151
+        },
+        {
+          "end": 334,
+          "start": 334
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 85,
+          "start": 85
+        },
+        {
+          "end": 135,
+          "start": 134
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/webhook.ts",
+      "id": "c4",
+      "loc": {
+        "added": 3,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 136,
+          "start": 136
+        },
+        {
+          "end": 146,
+          "start": 146
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "packages/api/test/pulls.test.ts",
+      "id": "c5",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 358,
+          "start": 358
+        },
+        {
+          "end": 373,
+          "start": 373
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 250,
+          "start": 230
+        },
+        {
+          "end": 396,
+          "start": 358
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "packages/api/test/reads.test.ts",
+      "id": "c6",
+      "loc": {
+        "added": 60,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "packages/persistence/drizzle/0006_pull-request-base-sha.sql",
+      "id": "c7",
+      "loc": {
+        "added": 1,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1274,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "packages/persistence/drizzle/meta/0006_snapshot.json",
+      "id": "c8",
+      "loc": {
+        "added": 1274,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 52,
+          "start": 46
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "packages/persistence/drizzle/meta/_journal.json",
+      "id": "c9",
+      "loc": {
+        "added": 7,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 223,
+          "start": 218
+        },
+        {
+          "end": 477,
+          "start": 462
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "packages/persistence/src/artifact-store.ts",
+      "id": "c10",
+      "loc": {
+        "added": 22,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 155,
+          "start": 155
+        },
+        {
+          "end": 167,
+          "start": 164
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "packages/persistence/src/ingest.ts",
+      "id": "c11",
+      "loc": {
+        "added": 5,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 168,
+          "start": 163
+        },
+        {
+          "end": 298,
+          "start": 298
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "packages/persistence/src/tenant.ts",
+      "id": "c12",
+      "loc": {
+        "added": 7,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 30,
+          "start": 23
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "packages/persistence/src/schema/pull-request.ts",
+      "id": "c13",
+      "loc": {
+        "added": 8,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 63,
+          "start": 63
+        },
+        {
+          "end": 71,
+          "start": 71
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "packages/persistence/test/ingest.test.ts",
+      "id": "c14",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 81,
+          "start": 58
+        },
+        {
+          "end": 194,
+          "start": 178
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "packages/persistence/test/list-reads.test.ts",
+      "id": "c15",
+      "loc": {
+        "added": 41,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 154,
+          "start": 154
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "73efc0da4f321049862fc8b885593c2b889f253f",
+    "commitCount": 6,
+    "head": "ffa070bc44f37ab0839bbad6e7de28d0c26c0b27"
+  },
+  "concernView": [
+    {
+      "added": 1685,
+      "concern": "implementation",
+      "deleted": 10
+    }
+  ],
+  "diffTotals": {
+    "added": 2024,
+    "deleted": 11
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n339 added / 1 removed changed line(s) unattributed to any chunk across 6 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "### Overview\\nPR 1 of BRIEF-21 (delta view over the read API — plan: \`docs/plans/brief-21-delta-view.md\`). Pure read-side: the worker already warms delta cores per checkpoint SHA; this exposes them and derives the reviewer-personal \\"since my last review\\" comparison.\\n\\nNote: local \`main\` is one docs commit ahead of \`origin/main\` (\`bb6d7a7\` — the BRIEF-21 plan); the PR diff includes it until that is pushed.\\n\\n### Changelog\\n- **persistence:** lean \`deltas.existsForSpan\` availability probe (mirrors the marks/narrative probes — never loads the body).\\n- **api:** \`GET /api/repos/:repoId/pulls/:prNumber/delta?baseline&head\` behind the existing per-repo authz gate — Zod-validated span (no-\`:\` rule shared with the diff route), 404 collapse identical to the sibling artifact reads, body served as stored, \`no-store\`.\\n- **api:** PR-meta grows \`comparisons.lastReview\`, a per-reviewer union derived from the requesting session's \`checkpoint\` row:\\n  - marks exist → \`{ deltaAvailable, baselineSha, baselineIndex? }\` (marks-only is an OFFER — the worker skips the delta core on huge spans, absence is the signal);\\n  - no marks + non-terminal delta generation for the exact span → \`{ unavailable: \\"pending\\" }\`;\\n  - no marks otherwise → \`{ unavailable: \\"baseline-unavailable\\" }\`;\\n  - field ABSENT when the reviewer never submitted, no brief/head exists, or the checkpoint IS the current head (empty span — nothing to compare; a judgment call beyond the plan's letter, flagged for review).\\n  - Reason vocab is API-layer only (\`as const\` + \`ValueOf\`) — never stored, no DB migration.\\n- **fold-in (BRIEF-19 follow-up, decided at the LOC gate):** nullable \`pull_request.base_sha\` + migration 0006; refreshed by both upsert paths from \`pull_request\` events, preserved when a review event omits it; PR-meta \`baseSha\` falls back to the row so the span is known before any brief lands.\\n\\n### Tests\\n- persistence: \`existsForSpan\` reflect/lean/tenancy; \`base_sha\` refresh/preserve on both upsert paths.\\n- api: delta GET 200/404/400 (+ cross-repo \`:\` rejection, authz positive-cache interplay); \`lastReview\` — absent without checkpoint, own-checkpoint scoping (another reviewer / another tenant never drives it), marks-only vs marks+delta tiers, pending vs baseline-unavailable split (incl. terminal-failure flip-back), empty-span absence; PR-meta \`baseSha\` pre-brief.\\n\\nHand-written diff ≈ 458 LOC (the rest is the generated drizzle snapshot). Compose smoke deferred to the stack's end-to-end pass (checkpoint rows need hand-seeding until BRIEF-23).",
+    "number": 45,
+    "repo": "Idan91/code-review",
+    "sha": "ffa070bc44f37ab0839bbad6e7de28d0c26c0b27",
+    "title": "[BRIEF-21] feat: Delta Read API + Per-Reviewer lastReview On PR-Meta",
+    "url": "https://github.com/Idan91/code-review/pull/45"
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 15 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 67,
+          "start": 67
+        }
+      ],
+      "file": "packages/api/src/routes/pr-view.ts",
+      "removedRanges": [
+        {
+          "end": 63,
+          "start": 63
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 36,
+          "start": 36
+        },
+        {
+          "end": 70,
+          "start": 65
+        },
+        {
+          "end": 183,
+          "start": 163
+        },
+        {
+          "end": 260,
+          "start": 235
+        },
+        {
+          "end": 386,
+          "start": 386
+        },
+        {
+          "end": 511,
+          "start": 415
+        }
+      ],
+      "file": "packages/api/src/routes/reads.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 360,
+          "start": 360
+        },
+        {
+          "end": 376,
+          "start": 375
+        },
+        {
+          "end": 613,
+          "start": 450
+        }
+      ],
+      "file": "packages/api/test/pulls.test.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 308,
+          "start": 307
+        }
+      ],
+      "file": "packages/persistence/src/tenant.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 149,
+          "start": 138
+        }
+      ],
+      "file": "packages/persistence/test/ingest.test.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 211,
+          "start": 208
+        },
+        {
+          "end": 216,
+          "start": 216
+        }
+      ],
+      "file": "packages/persistence/test/list-reads.test.ts",
+      "removedRanges": []
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches docs/plans/brief-143-stability-spec.md. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned ",
+        "title": "Changes under docs/plans",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 194,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "docs/plans/brief-143-stability-spec.md",
+        "id": "c1",
+        "loc": {
+          "added": 194,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "daed6dae31998c5848708e1b3da11b1df390629a",
+      "commitCount": 1,
+      "head": "db2fe83eb8b92f4c3a6f57fc0f11b571fb224eb8"
+    },
+    "concernView": [
+      {
+        "added": 194,
+        "concern": "implementation",
+        "deleted": 0
+      }
+    ],
+    "diffTotals": {
+      "added": 194,
+      "deleted": 0
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 1,
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "pr": {
+      "description": "Adds the cross-revision stability locked spec, then a follow-up commit adds the 6-PR implementation plan derived from it.",
+      "number": 9011,
+      "repo": "Idan91/code-review",
+      "sha": "db2fe83eb8b92f4c3a6f57fc0f11b571fb224eb8",
+      "title": "BRIEF-143 planning docs: locked spec and implementation plan",
+      "url": "https://github.com/Idan91/code-review/pull/9011"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g1",
+        "why": "follows the diff order"
+      }
+    ],
+    "summary": "Canned brief over 1 changed file(s).",
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g1"
+      ],
+      "regenerated": [
+        "g2"
+      ]
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches docs/plans/brief-143-stability-spec.md. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned ",
+        "title": "Changes under docs/plans",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "Touches docs/plans/brief-143-stability-implementation.md, docs/plans/brief-143-stability-spec.md. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler",
+        "title": "Changes under docs/plans",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 194,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "docs/plans/brief-143-stability-spec.md",
+        "id": "c1",
+        "loc": {
+          "added": 194,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 167,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "docs/plans/brief-143-stability-implementation.md",
+        "id": "c2",
+        "loc": {
+          "added": 167,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "daed6dae31998c5848708e1b3da11b1df390629a",
+      "commitCount": 2,
+      "head": "472b6d7ab2a568183a1c6b7c988cabb6a7438fdd"
+    },
+    "concernView": [
+      {
+        "added": 361,
+        "concern": "implementation",
+        "deleted": 0
+      }
+    ],
+    "diffTotals": {
+      "added": 361,
+      "deleted": 0
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 2,
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      },
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g2 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "pr": {
+      "description": "Adds the cross-revision stability locked spec, then a follow-up commit adds the 6-PR implementation plan derived from it.",
+      "number": 9011,
+      "repo": "Idan91/code-review",
+      "sha": "472b6d7ab2a568183a1c6b7c988cabb6a7438fdd",
+      "title": "BRIEF-143 planning docs: locked spec and implementation plan",
+      "url": "https://github.com/Idan91/code-review/pull/9011"
+    },
+    "summary": "Canned brief over 2 changed file(s).",
+    "unattributed": []
+  }
+}"
+`;
+
+exports[`request goldens > delta-read-api-contract sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 25979,
+      "sha256": "1c0a92e48bb0e2e59c36e97bb573473efbb7cb8d58270628a05d2ec8a347660c"
+    },
+    "user": {
+      "bytes": 88483,
+      "sha256": "1a440ffb2273a410f7c14ac1a43ea243cfa9baf5412db2750991ceceed413a40"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > pair-real-brief143-docs sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 25979,
+      "sha256": "1c0a92e48bb0e2e59c36e97bb573473efbb7cb8d58270628a05d2ec8a347660c"
+    },
+    "user": {
+      "bytes": 10525,
+      "sha256": "7f2e5b3aa2714749f0a8ace269d9cea841ff925a29686043f3ebc80394ac4e4b"
+    }
+  },
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 30507,
+      "sha256": "05ee850259d20063179bf12d498ffc439880a11b118e59d821ebd7b9175cf603"
+    },
+    "user": {
+      "bytes": 20983,
+      "sha256": "de7509435ba39bad66212134a3469d88339657a245c1b7cfa7deda722e4d0f34"
+    }
+  }
+]"
+`;

@@ -131,6 +131,8 @@
         "scripts/*.ts",
         "eval/cases/*/expected.ts",
         "eval/pair-cases/*/expected.ts",
+        "eval/private-cases/*/expected.ts",
+        "eval/private-pair-cases/*/expected.ts",
         "test/fixtures/*/expected.ts",
       ],
     },
