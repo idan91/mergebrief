@@ -411,7 +411,7 @@ module.exports = {
     exclude: {
       path: [
         "\\.gen\\.",
-        "^(apps|packages|tools)/[^/]+/dist/",
+        "^(apps|packages|tools)/[^/]+/dist(-demo)?/",
         "^apps/web/e2e/",
         "^tools/oxlint-plugin-house/test/fixtures/",
         "^packages/persistence/drizzle/",

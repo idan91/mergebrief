@@ -1,7 +1,9 @@
+import type { TFunction } from "i18next";
+
 import type { PrSearchChange } from "../../search/types";
 import type { PrSummary } from "../../types";
 import type { DbTimelineSelection } from "../../utils/dbTimeline";
-import type { RevisionPosture, RevisionSpan } from "./types";
+import type { ReadOnlyReason, RevisionPosture, RevisionSpan } from "./types";
 
 const SPAN_SEPARATOR = " ";
 const SPANS_SEPARATOR = "\n";
@@ -34,6 +36,21 @@ export function deriveRevisionPosture(
     staleHead,
     newerRevisionSelectable,
   };
+}
+
+/** The demo build reads only; otherwise base drift alone takes writes away. */
+export function deriveReadOnlyReason(
+  t: TFunction,
+  posture: Pick<RevisionPosture, "baseDrift">,
+  demoBuild: boolean,
+): ReadOnlyReason | undefined {
+  if (demoBuild) {
+    return { reason: t("brief.demoReadOnlyReason") };
+  }
+  if (posture.baseDrift) {
+    return { reason: t("brief.baseDriftReason") };
+  }
+  return undefined;
 }
 
 /** Full-span identity: duplicate-head revisions differ only by base. */

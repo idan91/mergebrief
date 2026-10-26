@@ -33,6 +33,7 @@ secrets/
 
 # Build output
 dist/
+dist-demo/
 build/
 out/
 *.tsbuildinfo

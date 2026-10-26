@@ -46,6 +46,7 @@ import {
 } from "../features/inbox/types";
 import { readInboxEmptiness } from "../features/inbox/utils";
 import { appI18n } from "../i18n/I18nProvider";
+import { isDemoBuild } from "@web/utils/demo-build";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./index.module.scss";
 import sharedStyles from "./routeShared.module.scss";
@@ -127,6 +128,8 @@ function Home() {
   const state = inbox.data;
   const listShown = state.kind === InboxStates.READY;
   const shortcuts = useHomeShortcuts(listShown);
+  // The hosted demo has no generator behind it, so the box would only refuse.
+  const urlBox = isDemoBuild() ? null : <UrlBox />;
 
   let content: ReactNode;
   if (state.kind === InboxStates.SIGNED_OUT) {
@@ -141,11 +144,13 @@ function Home() {
             return result.data?.kind === InboxStates.READY;
           }}
         />
-        <UrlBox />
+        {urlBox}
       </div>
     );
   } else {
-    content = <SignedInHome page={state.page} search={search} />;
+    content = (
+      <SignedInHome page={state.page} search={search} urlBox={urlBox} />
+    );
   }
 
   // One shell for every state, so the main landmark survives a state change
@@ -204,9 +209,11 @@ function HomeShell({ children, shortcuts }: HomeShellProps) {
 export interface SignedInHomeProps {
   page: InboxPage;
   search: InboxSearch;
+  /** Absent in the hosted demo, which cannot generate. */
+  urlBox: ReactNode;
 }
 
-function SignedInHome({ page, search }: SignedInHomeProps) {
+function SignedInHome({ page, search, urlBox }: SignedInHomeProps) {
   const state = useInboxSearchState(search, page.total, page.pageSize);
   const controls = useControlsFacade(page, search, state.choices, state.write);
   const changedCount = countChangedFilters(search);
@@ -253,7 +260,7 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
           counts={page.counts}
           empty={emptiness === InboxEmptinesses.EMPTY}
         />
-        <UrlBox />
+        {urlBox}
         {noInstallation ? (
           <NoInstallationLine installUrl={page.installUrl} />
         ) : null}

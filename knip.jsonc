@@ -38,6 +38,12 @@
         "src/serve.ts",
         "src/instrument.ts",
         "src/start.ts",
+        // The hosted demo's entries: Start resolves them through
+        // `vite.demo.config.ts`, and the build script is a pnpm script.
+        "src/demo/client.tsx",
+        "src/demo/server.ts",
+        "vite.demo.config.ts",
+        "scripts/*.ts",
         "src/routes/**/*.tsx",
         "src/features/*/index.tsx",
         "src/features/*/utils/index.ts",

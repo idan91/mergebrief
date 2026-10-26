@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { buildBriefSearchParams } from "@web/features/brief/model";
+import { isDemoBuild } from "@web/utils/demo-build";
 import { buildPrMetaQueryOptions } from "../../queries";
 import { readExplicitSpan, readRevisionRequest } from "../../search";
 import {
@@ -15,7 +16,11 @@ import { resolveDbTimeline } from "../../utils/dbTimeline";
 import type { PrBriefPage, UsePrBriefPageInput } from "./types";
 import { useConversationFilterParams } from "./useConversationFilterParams";
 import { useRevisionWrites } from "./useRevisionWrites";
-import { deriveRevisionPosture, deriveSelectedSpanKey } from "./utils";
+import {
+  deriveReadOnlyReason,
+  deriveRevisionPosture,
+  deriveSelectedSpanKey,
+} from "./utils";
 
 /**
  * Re-anchors onto the brief only when focus was left nowhere. A pick from
@@ -80,9 +85,8 @@ export function usePrBriefPage({
   const posture = deriveRevisionPosture(meta, timeline, renderedHead);
   // An inline literal busts every ChunkCard's memo boundary per poll tick.
   const readOnly = useMemo(
-    () =>
-      posture.baseDrift ? { reason: t("brief.baseDriftReason") } : undefined,
-    [posture.baseDrift, t],
+    () => deriveReadOnlyReason(t, posture, isDemoBuild()),
+    [posture, t],
   );
   const searchParams = useMemo(
     () => buildBriefSearchParams(view, compare, diff, focus),

@@ -51,7 +51,11 @@ export {
 } from "./utils/remainder";
 export type { RepoConfigContext } from "./utils/repo-config";
 export { buildRevisionTimeline } from "./utils/revision-timeline";
-export { briefContextSchema, parseComparisonMarks } from "./schemas";
+export {
+  briefContextSchema,
+  parseComparisonMarks,
+  parseFileDiffPatches,
+} from "./schemas";
 export {
   parseBrief,
   parseDeltaBrief,

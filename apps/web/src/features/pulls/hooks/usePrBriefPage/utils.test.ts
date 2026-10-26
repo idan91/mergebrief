@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -6,6 +7,7 @@ import type {
 } from "../../utils/dbTimeline";
 import {
   buildRevisionSpansKey,
+  deriveReadOnlyReason,
   deriveRevisionPosture,
   deriveSelectedSpanKey,
   findJumpRevision,
@@ -157,5 +159,30 @@ describe("findJumpRevision", () => {
 
     expect(findJumpRevision(spans, "head-1")).toBe(2);
     expect(findJumpRevision(spans, "head-9")).toBeUndefined();
+  });
+});
+
+describe("deriveReadOnlyReason", () => {
+  const translate = ((key: string) => key) as unknown as TFunction;
+  const drifted = { baseDrift: true };
+  const current = { baseDrift: false };
+
+  it("names the demo ahead of base drift", () => {
+    expect(deriveReadOnlyReason(translate, drifted, true)).toEqual({
+      reason: "brief.demoReadOnlyReason",
+    });
+    expect(deriveReadOnlyReason(translate, current, true)).toEqual({
+      reason: "brief.demoReadOnlyReason",
+    });
+  });
+
+  it("names base drift on a superseded base", () => {
+    expect(deriveReadOnlyReason(translate, drifted, false)).toEqual({
+      reason: "brief.baseDriftReason",
+    });
+  });
+
+  it("stays writable on the current base outside the demo", () => {
+    expect(deriveReadOnlyReason(translate, current, false)).toBeUndefined();
   });
 });

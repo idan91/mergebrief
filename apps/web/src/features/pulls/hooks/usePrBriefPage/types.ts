@@ -17,13 +17,18 @@ export interface UsePrBriefPageInput {
   navigate: NavigateSearch<PrBriefSearch>;
 }
 
+/** Why the screen takes no writes, shown where the writes would be. */
+export interface ReadOnlyReason {
+  reason: string;
+}
+
 /** Everything the PR page shows except the address port and router state. */
 export interface PrBriefPage {
   meta: PrSummary;
   state: BriefRouteState;
   timeline: DbTimelineSelection | undefined;
-  /** Base drift only: the rendered anchors may land wrong on GitHub. */
-  readOnly: { reason: string } | undefined;
+  /** The demo build, or base drift: the rendered anchors may land wrong on GitHub. */
+  readOnly: ReadOnlyReason | undefined;
   /** Head mismatch: writable behind the receipt's ack. */
   staleHead: boolean;
   searchParams: BriefSearchParams;

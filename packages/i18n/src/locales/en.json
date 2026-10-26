@@ -1012,7 +1012,8 @@
       "fileGone": "This file is no longer in this brief, so the draft can only be deleted.",
       "actionReanchorArmed": "Cancel re-anchor"
     },
-    "baseDriftReason": "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review."
+    "baseDriftReason": "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.",
+    "demoReadOnlyReason": "This brief is a public demo. Commenting, addressing flags and submitting a review are off."
   },
   "review": {
     "outcome": {
