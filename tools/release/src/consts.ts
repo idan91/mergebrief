@@ -72,6 +72,13 @@ export const RELEASE_IDENTITY = {
 /** The private annotated tag that records a release: `public/vX.Y.Z` on the source commit. */
 export const PUBLIC_RECORD_TAG_PREFIX = "public/v";
 
+/** Trailers these addresses signed are the maintainer's own or an agent's, never a contributor's. */
+export const CO_AUTHOR_DROP_EMAILS = [
+  RELEASE_IDENTITY.email,
+  "noreply@anthropic.com",
+  "cursoragent@cursor.com",
+] as const;
+
 /** The variable the publish token enters through; read at the composition root, re-exported to git's credential helper only. */
 export const PUBLISH_TOKEN_ENV = "MERGEBRIEF_PUBLISH_TOKEN";
 

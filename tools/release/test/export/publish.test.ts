@@ -189,6 +189,25 @@ describe("publishing releases", () => {
     );
   });
 
+  it("credits contributors since the previous release in the commit body", () => {
+    const lab = makeLab();
+    runPublish(lab);
+    commitAndPush(
+      lab.clone,
+      { "docs/releases/0.2.0.md": makeNotesFile({}, "Second.\n") },
+      "contribution\n\nCo-authored-by: Ann Example <ann@example.org>\nCo-authored-by: Idan Ram <44946814+Idan91@users.noreply.github.com>",
+    );
+
+    runPublish(lab, { version: "0.2.0" });
+
+    expect(runGit(lab.bare, ["cat-file", "commit", "main"])).toMatch(
+      /\n\nRelease 0\.2\.0\n\nCo-authored-by: Ann Example <ann@example\.org>\n$/,
+    );
+    expect(runGit(lab.bare, ["cat-file", "commit", "main^"])).toMatch(
+      /\n\nRelease 0\.1\.0\n$/,
+    );
+  });
+
   it("pushes nothing on a rerun and reports the same commit", () => {
     const lab = makeLab();
     const first = runPublish(lab);
@@ -316,7 +335,7 @@ describe("publishing releases", () => {
     const recorded = readGitOutput(lab.bare, ["rev-parse", "main"]);
     const git: GitPort = {
       ...lab.git,
-      readCommitterDate: () => "2020-01-01T00:00:00Z",
+      listCoAuthorTrailers: () => ["Zed Example <zed@example.org>"],
     };
 
     const { result } = runPublish(lab, { git });
@@ -325,6 +344,46 @@ describe("publishing releases", () => {
       new RegExp(
         `^0\\.1\\.0 rebuilt as [0-9a-f]{7} differs from recorded ${recorded.slice(0, 7)}$`,
       ),
+    );
+  });
+
+  it("refuses when public main is not the last release commit", () => {
+    const lab = makeLab();
+    runPublish(lab);
+    const released = runGit(lab.bare, ["rev-parse", "main"]).trim();
+    const stray = join(lab.root, "stray");
+    runGit(lab.root, ["clone", "--quiet", lab.bare, stray]);
+    runGit(stray, ["config", "user.email", "stray@test"]);
+    runGit(stray, ["config", "user.name", "stray"]);
+    writeFileSync(join(stray, "STRAY.md"), "stray\n");
+    runGit(stray, ["add", "STRAY.md"]);
+    runGit(stray, ["commit", "--quiet", "-m", "stray"]);
+    runGit(stray, ["push", "--quiet", "origin", "main"]);
+    const drifted = runGit(lab.bare, ["rev-parse", "main"]).trim();
+    commitAndPush(
+      lab.clone,
+      { "docs/releases/0.2.0.md": makeNotesFile({}, "Second.\n") },
+      "second",
+    );
+
+    const { result } = runPublish(lab, { version: "0.2.0" });
+
+    expect(!result.ok && result.error.reason).toBe(
+      `public main at ${drifted.slice(0, 7)} is not the last release commit ${released.slice(0, 7)}; reconcile first`,
+    );
+    expect(readGitOutput(lab.bare, ["rev-parse", "main"])).toBe(drifted);
+    expect(readGitOutput(lab.origin, ["tag", "--list"])).toBe("public/v0.1.0");
+  });
+
+  it("refuses a public main that no release recorded", () => {
+    const lab = makeLab();
+    runGit(lab.clone, ["push", "--quiet", lab.bare, "HEAD:refs/heads/main"]);
+    const head = runGit(lab.clone, ["rev-parse", "HEAD"]).trim();
+
+    const { result } = runPublish(lab);
+
+    expect(!result.ok && result.error.reason).toBe(
+      `public main at ${head.slice(0, 7)} is not a release commit; reconcile first`,
     );
   });
 
@@ -496,6 +555,33 @@ function runFresh(lab: Lab, options: RunOptions = {}) {
   }
 }
 
+/** A commit on public main that no release made, pushed from a clone of it; its SHA. */
+function pushStrayCommit(lab: Lab, orphan = false): string {
+  const stray = join(lab.root, "stray");
+  runGit(lab.root, ["clone", "--quiet", lab.bare, stray]);
+  runGit(stray, ["config", "user.email", "stray@test"]);
+  runGit(stray, ["config", "user.name", "stray"]);
+  if (orphan) {
+    runGit(stray, ["switch", "--quiet", "--orphan", "unrelated"]);
+  }
+  writeFileSync(join(stray, "STRAY.md"), "stray\n");
+  runGit(stray, ["add", "STRAY.md"]);
+  runGit(stray, ["commit", "--quiet", "-m", "stray"]);
+  const sha = readGitOutput(stray, ["rev-parse", "HEAD"]);
+  runGit(stray, ["push", "--quiet", "origin", "HEAD:refs/heads/stray"]);
+  runGit(lab.bare, ["update-ref", "refs/heads/main", sha]);
+  runGit(lab.bare, ["update-ref", "-d", "refs/heads/stray"]);
+  return sha;
+}
+
+function commitSecondRelease(lab: Lab): void {
+  commitAndPush(
+    lab.clone,
+    { "docs/releases/0.2.0.md": makeNotesFile({}, "Second.\n") },
+    "second",
+  );
+}
+
 describe("each export in a process of its own", () => {
   it("fetches the candidate from public main to build the stable on it", () => {
     const lab = makeLab();
@@ -532,5 +618,51 @@ describe("each export in a process of its own", () => {
     }
     expect(calls.length).toBeGreaterThan(withToken.length + 10);
     expect(calls.join("\n")).not.toContain(TOKEN);
+  });
+  it("names the rerun release's own commit when main drifted after it", () => {
+    const lab = makeLab();
+    runFresh(lab);
+    commitSecondRelease(lab);
+    const second = runFresh(lab, { version: "0.2.0" });
+    const drifted = pushStrayCommit(lab);
+    const secondCommit = second.outcome?.publish?.commit ?? "";
+
+    const { result } = runFresh(lab, { version: "0.2.0" });
+
+    expect(!result.ok && result.error.reason).toBe(
+      `public main at ${drifted.slice(0, 7)} is not the last release commit ${secondCommit.slice(0, 7)}; reconcile first`,
+    );
+  });
+
+  it("refuses a deleted public main, naming the last release commit", () => {
+    const lab = makeLab();
+    const first = runFresh(lab);
+    runGit(lab.bare, ["update-ref", "-d", "refs/heads/main"]);
+    commitSecondRelease(lab);
+    const firstCommit = first.outcome?.publish?.commit ?? "";
+    const before = `${readRefs(lab.bare)}${readRefs(lab.origin)}`;
+
+    const { result } = runFresh(lab, { version: "0.2.0" });
+
+    expect(!result.ok && result.error.reason).toBe(
+      `public main is missing; the last release commit is ${firstCommit.slice(0, 7)}; reconcile first`,
+    );
+    expect(`${readRefs(lab.bare)}${readRefs(lab.origin)}`).toBe(before);
+  });
+
+  it("refuses unrelated history on public main before building", () => {
+    const lab = makeLab();
+    const first = runFresh(lab);
+    const unrelated = pushStrayCommit(lab, true);
+    commitSecondRelease(lab);
+    const firstCommit = first.outcome?.publish?.commit ?? "";
+    const before = `${readRefs(lab.bare)}${readRefs(lab.origin)}`;
+
+    const { result } = runFresh(lab, { version: "0.2.0" });
+
+    expect(!result.ok && result.error.reason).toBe(
+      `public main at ${unrelated.slice(0, 7)} is not the last release commit ${firstCommit.slice(0, 7)}; reconcile first`,
+    );
+    expect(`${readRefs(lab.bare)}${readRefs(lab.origin)}`).toBe(before);
   });
 });

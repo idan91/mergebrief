@@ -145,11 +145,18 @@ export interface GitPort {
   archiveTo(commit: string, dir: string, paths: readonly string[]): void;
   /** ISO 8601 with offset. */
   readCommitterDate(commit: string): string;
+  /** Every `Co-authored-by` value on `(fromExclusive, to]`, or on all of `to`'s history. */
+  listCoAuthorTrailers(
+    fromExclusive: string | undefined,
+    to: string,
+  ): readonly string[];
   /** A tree of exactly `paths` as `commit` holds them, built from the object db; returns its SHA. */
   writeTree(commit: string, paths: readonly string[]): string;
   /** The paths where `dir` and `tree` differ in content, mode or presence; empty when they match. */
   verifyTreeMatchesDir(tree: string, dir: string): readonly string[];
   commitTree(inputs: ReleaseCommitInputs): string;
+  /** Whether the object is readable here, the repository's store and the scratch store included. */
+  hasObject(sha: string): boolean;
   /** Writes the tag object only, no ref; returns its SHA. */
   writeAnnotatedTag(inputs: AnnotatedTagInputs): string;
   countTreeChanges(

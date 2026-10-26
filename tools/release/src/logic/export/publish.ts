@@ -12,7 +12,11 @@ import type {
   ReleaseVersion,
 } from "../../types";
 import { compareReleaseVersions, parseReleaseVersion } from "../version";
-import { buildReleaseCommitInputs, formatReleaseMessage } from "./commit";
+import {
+  buildReleaseCommitInputs,
+  collectCoAuthorTrailers,
+  formatReleaseMessage,
+} from "./commit";
 import {
   type ExportError,
   type PublishAction,
@@ -113,6 +117,19 @@ function readPublicState(
   return { ok: true, value: { refs: NO_PUBLIC_REFS, notices: [notice] } };
 }
 
+function describeDrift(
+  main: string | undefined,
+  parent: string | undefined,
+): string {
+  if (parent === undefined) {
+    return `public main at ${shorten(main ?? "")} is not a release commit; reconcile first`;
+  }
+  if (main === undefined) {
+    return `public main is missing; the last release commit is ${shorten(parent)}; reconcile first`;
+  }
+  return `public main at ${shorten(main)} is not the last release commit ${shorten(parent)}; reconcile first`;
+}
+
 function buildTree(
   git: GitPort,
   input: PublishInput,
@@ -132,6 +149,7 @@ function buildTree(
 interface PlanContext {
   readonly input: PublishInput;
   readonly record: PublicRecord | undefined;
+  readonly parent: string | undefined;
   readonly refs: PublicRefs;
   readonly commit: string;
 }
@@ -139,7 +157,7 @@ interface PlanContext {
 function planActions(
   context: PlanContext,
 ): Result<readonly PublishAction[], ExportError> {
-  const { input, record, refs, commit } = context;
+  const { input, record, parent, refs, commit } = context;
   const tag = `v${input.version}`;
   const actions: PublishAction[] = [];
 
@@ -151,6 +169,9 @@ function planActions(
     );
   }
   if (refs.main !== commit) {
+    if (refs.main !== parent) {
+      return refuse(describeDrift(refs.main, record?.publicCommit ?? parent));
+    }
     actions.push(PublishActions.PUSH_COMMIT);
   }
 
@@ -202,21 +223,29 @@ export function planPublish(
     return publicState;
   }
   const { refs, notices } = publicState.value;
+  const parentMissing = parent !== undefined && !git.hasObject(parent);
+  if (parentMissing) {
+    return refuse(describeDrift(refs.main, record?.publicCommit ?? parent));
+  }
 
   const tree = buildTree(git, input);
   if (!tree.ok) {
     return tree;
   }
   const date = git.readCommitterDate(input.source);
+  const trailers = collectCoAuthorTrailers(
+    git.listCoAuthorTrailers(latest.value?.record.source, input.source),
+  );
   const inputs = buildReleaseCommitInputs({
     treeSha: tree.value,
     parent,
     sourceCommitterDate: date,
     version: input.version,
+    trailers,
   });
   const commit = git.commitTree(inputs);
 
-  const actions = planActions({ input, record, refs, commit });
+  const actions = planActions({ input, record, parent, refs, commit });
   if (!actions.ok) {
     return actions;
   }
@@ -224,7 +253,7 @@ export function planPublish(
   const tagObject = git.writeAnnotatedTag({
     name: tag,
     target: commit,
-    message: formatReleaseMessage(input.version),
+    message: formatReleaseMessage(input.version, []),
     tagger: RELEASE_IDENTITY,
     date,
   });

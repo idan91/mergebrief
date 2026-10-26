@@ -96,6 +96,28 @@ describe("reading the source commit", () => {
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/,
     );
   });
+
+  it("lists co-author values over a range, or over all history", () => {
+    const { repos, port } = makePort();
+    commitFiles(
+      repos.clone,
+      { "a.txt": "a\n" },
+      "a\n\nCo-authored-by: Ann Example <ann@example.org>\nCo-authored-by: Bob Example <bob@example.org>",
+    );
+    const tip = commitFiles(
+      repos.clone,
+      { "b.txt": "b\n" },
+      "b\n\nCo-authored-by: Ann Example <ann@example.org>",
+    );
+
+    expect(port.listCoAuthorTrailers(repos.head, tip)).toEqual([
+      "Ann Example <ann@example.org>",
+      "Ann Example <ann@example.org>",
+      "Bob Example <bob@example.org>",
+    ]);
+    expect(port.listCoAuthorTrailers(undefined, tip)).toHaveLength(3);
+    expect(port.listCoAuthorTrailers(undefined, repos.head)).toEqual([]);
+  });
 });
 
 describe("building the release tree", () => {
@@ -221,6 +243,18 @@ describe("building the release commit", () => {
     expect(runGit(bare, ["cat-file", "-p", tag])).toContain(
       `object ${commit}\ntype commit\ntag v0.1.0\n`,
     );
+  });
+
+  it("knows an object only while the store or the repository holds it", () => {
+    const { repos, port } = makePort();
+    const commit = port.commitTree(makeInputs(port, repos.head));
+
+    const before = port.hasObject(commit);
+    port.discardScratchObjects();
+
+    expect(before).toBe(true);
+    expect(port.hasObject(repos.head)).toBe(true);
+    expect(port.hasObject(commit)).toBe(false);
   });
 
   it("discards the scratch objects, so a later push cannot find them", () => {

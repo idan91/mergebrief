@@ -729,6 +729,24 @@ export function createGitPort(cwd: string, baseEnv: ChildEnv): GitPort {
         env,
       }).trim();
     },
+    listCoAuthorTrailers(fromExclusive, to) {
+      const range =
+        fromExclusive === undefined ? to : `${fromExclusive}..${to}`;
+      const listed = runGit(
+        cwd,
+        [
+          "log",
+          "--format=%(trailers:key=Co-authored-by,valueonly,unfold)",
+          range,
+        ],
+        { env },
+      );
+      const lines = listed.split("\n");
+      const values = lines
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      return values;
+    },
     writeTree(commit, paths) {
       return writeTreeOf(cwd, scratch, commit, paths);
     },
@@ -737,6 +755,14 @@ export function createGitPort(cwd: string, baseEnv: ChildEnv): GitPort {
     },
     commitTree(inputs) {
       return commitTreeWith(cwd, scratch, inputs);
+    },
+    hasObject(sha) {
+      try {
+        runGit(cwd, ["cat-file", "-e", sha], { env: scratch.buildEnv() });
+        return true;
+      } catch {
+        return false;
+      }
     },
     writeAnnotatedTag(inputs) {
       const tag = runGit(cwd, ["mktag"], {
