@@ -32,7 +32,28 @@ reply or resolve them in place.
 
 <!-- recording: threads -->
 
-## Why this, and not [CodeRabbit](https://www.coderabbit.ai/) or another AI review bot?
+## After your bot reviewer
+
+Keep the AI review bot you already run. It reads the diff first and posts what it finds; its
+threads show up in the brief's Conversation section, grouped per bot. MergeBrief is for what is
+left after that: the part of review a person still does, and answers for.
+
+- **What the checks would miss.** Each chunk carries **Risk Surface** attributes, facts such
+  as `touches-auth` or `removes-validation` that say where to look closer, and the brief gives
+  a **Reading order** across its Change-groups, foundations first.
+- **Does it do what it says.** The **Intent check** compares the PR title, its description
+  and the linked GitHub issue or Notion ticket, when there is one, with what the diff does:
+  what was stated but is missing, what was done but never stated. **Ticket alignment** says
+  whether the diff serves the ticket's goal.
+- **Re-approving after new commits.** Your **Checkpoint** is the commit you last submitted a
+  review on. The **Delta Brief** shows what changed since then, and each risk you addressed or
+  dismissed comes back with its **Carry-over status**: settled if its code is untouched,
+  reopened if it changed.
+- **A person answers for it.** The **Receipt** records what you read and how you handled each
+  flag, and the review you post to GitHub ends with one **Signature line** of those counts.
+  No approval badge, no score.
+
+## Why this, and not another AI review bot?
 
 Most AI review tools treat a PR generically: summarize it, maybe flag a few "potential issues."
 MergeBrief is built around a different idea: **a stable, cross-PR taxonomy is more valuable than a
