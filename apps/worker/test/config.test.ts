@@ -101,6 +101,28 @@ describe("loadConfig", () => {
     });
   });
 
+  it("carries the instance's siblingRepos, off when the config is silent", () => {
+    const path = configFile(
+      "trackers:\n  - kind: github\n    siblingRepos: true\n",
+    );
+    const on = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    const off = loadConfig(VALID_ENV);
+    expect(on.ok && on.value.siblingRepos).toBe(true);
+    expect(off.ok && off.value.siblingRepos).toBe(false);
+  });
+
+  it("refuses boot on a siblingRepos that is not a boolean", () => {
+    const path = configFile(
+      "trackers:\n  - kind: github\n    siblingRepos: yes please\n",
+    );
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues.join(";")).toContain("siblingRepos");
+  });
+
   it("refuses boot on a broken instance config with per-field issues", () => {
     const path = configFile("generator:\n  provider: gemini\n");
     const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });

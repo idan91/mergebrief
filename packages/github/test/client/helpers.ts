@@ -53,29 +53,48 @@ function holdUntilAborted(signal: AbortSignal | null | undefined) {
   });
 }
 
-/** A fetch that answers every request through `route` and records it. */
+function isRedirectStatus(status: number): boolean {
+  const redirect = status >= 300 && status < 400;
+  return redirect;
+}
+
+/**
+ * A fetch that answers every request through `route` and records it. A 3xx
+ * carrying `location` is followed as fetch follows it, unless the request
+ * set `redirect` to `manual` (answered as is) or `error` (rejected).
+ */
 export function stubGitHubFetch(route: RouteHandler): GitHubFetchStub {
   const requests: RecordedRequest[] = [];
-  const stubbed = vi.fn(
-    async (input: string | URL | Request, init?: RequestInit) => {
-      const url = new URL(input instanceof Request ? input.url : input);
-      const request = {
-        method: init?.method ?? "GET",
-        path: url.pathname,
-        authorization: readAuthorization(init),
-      };
-      requests.push(request);
-      const answer = route(request);
-      if (answer === undefined) {
-        return holdUntilAborted(init?.signal);
-      }
-      return new Response(JSON.stringify(answer.body), {
-        status: answer.status,
-        headers: { "content-type": "application/json", ...answer.headers },
-      });
-    },
-  );
-  return { fetch: stubbed, requests };
+  async function answerRequest(
+    input: string | URL | Request,
+    init?: RequestInit,
+  ): Promise<Response> {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const request = {
+      method: init?.method ?? "GET",
+      path: url.pathname,
+      authorization: readAuthorization(init),
+    };
+    requests.push(request);
+    const answer = route(request);
+    if (answer === undefined) {
+      return holdUntilAborted(init?.signal);
+    }
+
+    const location = answer.headers?.["location"];
+    const followed = isRedirectStatus(answer.status) && location !== undefined;
+    if (followed && init?.redirect === "error") {
+      throw new TypeError("fetch failed", { cause: "unexpected redirect" });
+    }
+    if (followed && init?.redirect !== "manual") {
+      return answerRequest(new URL(location, url), init);
+    }
+    return new Response(JSON.stringify(answer.body), {
+      status: answer.status,
+      headers: { "content-type": "application/json", ...answer.headers },
+    });
+  }
+  return { fetch: vi.fn(answerRequest), requests };
 }
 
 /** The real user-octokit construction, unthrottled, over a stubbed fetch. */

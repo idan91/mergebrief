@@ -220,6 +220,7 @@ async function main(): Promise<void> {
     translate: createI18n().t,
     spend: config.value.spend,
     trackerRoot,
+    siblingRepos: config.value.siblingRepos,
     revisionNarrative: config.value.revisionNarrative,
     hugeSpanRatio: config.value.hugeSpanRatio,
     log: logger,

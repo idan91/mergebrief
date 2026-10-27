@@ -8,6 +8,7 @@ import {
   type ContextReadFailure,
   type PrimarySnippet,
 } from "../../types";
+import { isPathSegment } from "../../../github/pr-url";
 import { refuseTrackerRead } from "../refusal";
 import type { PrimaryRead, SharedRootDeps, TicketReference } from "../types";
 import type { GitHubTransport, IssueLocator, IssueRecord } from "./transport";
@@ -32,6 +33,9 @@ function parseIssueLocator(url: string): IssueLocator | undefined {
     return undefined;
   }
   const [, owner = "", repo = "", number = ""] = match;
+  if (!isPathSegment(owner) || !isPathSegment(repo)) {
+    return undefined;
+  }
   return { owner, repo, number: Number(number) };
 }
 

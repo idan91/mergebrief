@@ -34,6 +34,14 @@ Two halves of configuration:
   link chaser so it is never fetched twice.
 - **Metadata only.** The read sees the PR title, description and branch
   name to resolve the reference. It never sends the diff anywhere.
+- **Only what the reviewer sees.** References and links come from the
+  description as GitHub renders it. Text GitHub hides counts for nothing:
+  HTML comments, link reference definitions, HTML tags and their attributes,
+  images, link titles, reference labels, fence info strings and table cells
+  past the header's columns. Where telling hidden text from shown text would
+  take a full Markdown parse, the worker skips more, never less. A GitHub or
+  Notion URL counts only where a link starts: at the start of the text, after
+  whitespace or `<`, or as a Markdown link target, never inside another URL.
 - **Text, capped.** The ticket body is injected as untrusted text under the
   same 20,000-character cap as chased links; fence markers inside it are
   stripped. Comments are not read.
@@ -43,7 +51,7 @@ Two halves of configuration:
 ## Links in the description
 
 Beside the primary ticket, the worker fetches up to five other http(s) links
-from the PR description as context, each capped at 20,000 characters. It skips
+from the visible PR description as context, each capped at 20,000 characters. It skips
 a link with credentials in it, a `localhost` or `.local` host, and any private,
 link-local, reserved or cloud-metadata address. A host name is checked again at
 connect time against every address it resolves to. Redirects are not followed.
@@ -70,7 +78,7 @@ ticket.
 
 | Where | Credential | Reach |
 | --- | --- | --- |
-| Worker (App installation) | the installation token already minted for the job | every repository the installation covers |
+| Worker (App installation) | the installation token already minted for the job | the pull request's repository and its `issuesRepo`; every repository the installation covers with `siblingRepos: true` |
 | Worker (URL job) | the viewer's token, or `MERGEBRIEF_URL_FALLBACK_TOKEN` when the job's owner owns it | whatever that token can read |
 | `categorize` and `delta` dev CLIs | `gh`: `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
 
@@ -81,8 +89,36 @@ off.
 
 Installation reach, in practice:
 
-- A ticket in a **sibling repository** of the same installation
-  (`owner/repo#N`, an issue URL, or `tracker.issuesRepo`) reads fine.
+- By default an installation job reads issues only in the pull request's
+  own repository and the `issuesRepo` its tracker list names. A ticket in
+  any other **sibling repository** of the installation (`owner/repo#N` or an
+  issue URL) is `not-found`, unsent, so a PR author cannot make the brief
+  quote an issue from a repository they cannot see.
+- `issuesRepo` comes from the repo's `.mergebrief/settings.yaml` when that
+  file names trackers, else from the instance's `trackers:` list. Whoever
+  can write the repo's default branch can point it at any repository the
+  installation covers; trust it as you trust the rest of the repo's settings.
+- To read sibling repositories, turn `siblingRepos` on in the instance
+  config's `github` tracker entry:
+
+  ```yaml
+  # mergebrief.config.yaml
+  trackers:
+    - kind: github
+      siblingRepos: true # default false
+  ```
+
+  It is instance-only: it applies to every repo on the instance, whatever
+  that repo's own tracker list says, and a `.mergebrief/settings.yaml` that
+  sets it is rejected whole. A value other than `true` or `false` refuses
+  boot.
+- A ticket **transferred** to another repository is `not-found` under
+  every binding, `siblingRepos: true` included: GitHub answers the old
+  address with a 301 to the new repository, and the worker refuses the
+  redirect without following it, so a bound checked against the old
+  repository never lets the new one's text through. The same holds for a
+  reference, or an `issuesRepo`, that still names a **renamed** repository
+  by its old name: use the current name.
 - A ticket in a **private repository outside** the installation is
   `not-found`: GitHub answers 404, not 403, so the brief cannot tell
   "does not exist" from "cannot see".
@@ -96,7 +132,7 @@ Installation reach, in practice:
 
 | Reason | GitHub said | CLI equivalent |
 | --- | --- | --- |
-| `not-found` | 404, or the number is a pull request | `gh` reported `HTTP 404` |
+| `not-found` | 404, a 301 for a transferred issue or a renamed repository, or the number is a pull request | `gh` reported `HTTP 404` |
 | `no-credential` | 401, or a 403 that is not a rate limit | `gh` exit 4 (not logged in), or `HTTP 401` / `HTTP 403` |
 | `rate-limited` | 429, or a 403 carrying rate-limit headers | `gh` reported `HTTP 429`, or a 403 whose text says rate limit |
 | `timeout` | no answer inside the read's budget, or a 5xx | same, or `gh` exited for another reason |
@@ -108,8 +144,9 @@ one `warn` with `{ tracker, reason, key }`.
 ### Local runs
 
 `categorize` and `delta` read the issue through `gh api`, so the same
-login that fetches the PR fetches the ticket. `--context <file>` replaces
-the fetch entirely for a ticket `gh` cannot reach.
+login that fetches the PR fetches the ticket, and `gh` follows a
+transferred issue to its new repository. `--context <file>` replaces the
+fetch entirely for a ticket `gh` cannot reach.
 
 ## Notion
 
@@ -131,7 +168,8 @@ only the one page the PR names.
 ### 2. Share the board with the integration
 
 Sharing a page grants its children, so share the board **database** once and
-every row is readable. On the board: `•••` → **Connections** → add the
+every row is readable. Notion reach is whatever you share with the
+integration: any repo's PR can name a shared page and have it read. On the board: `•••` → **Connections** → add the
 integration. A ticket that links to a second database (a related board, a
 parent epic elsewhere) needs that database shared too.
 
@@ -199,7 +237,9 @@ block, nested blocks indented, capped at 20,000 characters. Property names
 every people property contributes its names. Formulas, relations and rollups
 are left out.
 
-Every read is fresh, under a 10-second budget for the whole page. Notion's
+Every read is fresh, under a 10-second budget for the whole page and at most
+50 child-block requests; a page nested deeper keeps what was read. Requests
+never follow a redirect. Notion's
 rate limit (about three requests a second per integration) is never retried
 inside a generation: a `429` is reported and the brief proceeds without the
 ticket.

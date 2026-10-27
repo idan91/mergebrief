@@ -23,6 +23,7 @@ export type NotionFetch = (
     headers: Record<string, string>;
     body?: string;
     signal: AbortSignal;
+    redirect?: "error";
   },
 ) => Promise<Response>;
 
@@ -160,10 +161,12 @@ async function requestHttp(
     Authorization: `Bearer ${session.token}`,
     "Notion-Version": NOTION_API_VERSION,
   };
+  // A redirect is refused, so the bearer never follows one to another host.
   const init: Parameters<NotionFetch>[1] = {
     method: call.method,
     headers,
     signal: session.signal,
+    redirect: "error",
   };
   if (call.body !== undefined) {
     headers["Content-Type"] = "application/json";

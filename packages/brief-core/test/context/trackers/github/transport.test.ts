@@ -219,10 +219,13 @@ describe("GitHubTransports.INSTALLATION", () => {
     expect(calls).toEqual([LOCATOR]);
   });
 
-  it("is not-found outside the bound repo, without calling the API", async () => {
+  it("is not-found outside the bound repos, without calling the API", async () => {
     const calls: unknown[] = [];
     const transport = createInstallationTransport(stubApi(calls), {
-      onlyRepo: { owner: "acme", repo: "other" },
+      onlyRepos: [
+        { owner: "acme", repo: "other" },
+        { owner: "acme", repo: "tracker" },
+      ],
     });
     const result = await transport.readIssue(LOCATOR, signal);
     expect(result.ok).toBe(false);
@@ -236,12 +239,24 @@ describe("GitHubTransports.INSTALLATION", () => {
   it("reads a bound repo named in different letter case", async () => {
     const calls: unknown[] = [];
     const transport = createInstallationTransport(stubApi(calls), {
-      onlyRepo: { owner: "Acme", repo: "Widget" },
+      onlyRepos: [{ owner: "Acme", repo: "Widget" }],
     });
     await expect(transport.readIssue(LOCATOR, signal)).resolves.toEqual({
       ok: true,
       value: ISSUE,
     });
     expect(calls).toEqual([LOCATOR]);
+  });
+
+  it("reads any one of several bound repos", async () => {
+    const calls: unknown[] = [];
+    const transport = createInstallationTransport(stubApi(calls), {
+      onlyRepos: [
+        { owner: "acme", repo: "tracker" },
+        { owner: "acme", repo: "widget" },
+      ],
+    });
+    const result = await transport.readIssue(LOCATOR, signal);
+    expect(result.ok).toBe(true);
   });
 });

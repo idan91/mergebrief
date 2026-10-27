@@ -25,6 +25,8 @@ import {
 const MAX_TICKET_CHARS = 20_000;
 /** Nested blocks past this depth are kept as read; nothing below is fetched. */
 const MAX_BLOCK_DEPTH = 8;
+/** Empty containers cost a call each; past this many the walk keeps what it read. */
+const MAX_CHILD_LIST_CALLS = 50;
 
 const HEADER_SEPARATOR = " · ";
 /** Property names whose select/status value joins the header line, in order. */
@@ -224,6 +226,9 @@ class BodyCollector {
   /** Children requests that answered; zero means the page itself was unreadable. */
   pagesRead = 0;
 
+  /** Children requests sent, answered or not. */
+  listCalls = 0;
+
   add(line: string): void {
     this.lines.push(line);
     this.length += line.length + 1;
@@ -245,7 +250,7 @@ function shouldDescend(block: NotionBlock, depth: number): boolean {
 /**
  * Walk a block tree depth-first, one line per block, children indented.
  * Pages of 100 are followed; the walk stops at the char cap, the depth cap,
- * or the first failed call, keeping what was read.
+ * the child-list call cap, or the first failed call, keeping what was read.
  */
 async function collectBlockLines(
   client: NotionClient,
@@ -255,6 +260,10 @@ async function collectBlockLines(
 ): Promise<ReadResult<void>> {
   let cursor: string | undefined;
   do {
+    if (collector.listCalls >= MAX_CHILD_LIST_CALLS) {
+      return { ok: true, value: undefined };
+    }
+    collector.listCalls += 1;
     const page = await client.transport.listBlockChildren(
       client.session,
       blockId,

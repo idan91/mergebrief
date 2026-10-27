@@ -198,6 +198,15 @@ describe("extractLinks", () => {
       "https://a.example/five",
     ]);
   });
+
+  it.each([
+    ["strong emphasis", "Fixes **https://a.example/one**"],
+    ["underscore emphasis", "Fixes _https://a.example/one_"],
+    ["strikethrough", "Fixes ~https://a.example/one~"],
+    ["emphasis after a period", "see *https://a.example/one.*"],
+  ])("trims the closing delimiters of %s", (_shape, body) => {
+    expect(extractLinks(body)).toEqual(["https://a.example/one"]);
+  });
 });
 
 describe("the URL context provider", () => {

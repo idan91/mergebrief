@@ -1,6 +1,6 @@
 import type { Result, TicketTracker } from "types";
 import type { ConfigError, ContextSourcesConfig } from "generators";
-import type { TrackerConfig } from "generators/trackers";
+import type { RepoName, TrackerConfig } from "generators/trackers";
 import type { ReferenceLocation } from "../../types";
 import type {
   ContextProviderDeps,
@@ -10,11 +10,6 @@ import type {
 import type { GitHubTransport } from "./github/transport";
 import type { NotionTransport } from "./notion/transport";
 
-export interface TicketReferenceRepo {
-  readonly owner: string;
-  readonly repo: string;
-}
-
 /** The pure parser's input: PR text plus what the deployment can resolve. */
 export interface TicketReferenceInput {
   readonly title: string;
@@ -22,7 +17,7 @@ export interface TicketReferenceInput {
   /** Head branch name; "" when unknown. */
   readonly branch: string;
   /** The PR's own repo: where a bare `#N` resolves without `issuesRepo`. */
-  readonly repo: TicketReferenceRepo;
+  readonly repo: RepoName;
   /** The repo's trackers, in file order; empty means keys never match. */
   readonly trackers: readonly TrackerConfig[];
   /** The trackers this root can read; a tracker whose URLs are plain links without a read checks for its kind here. */

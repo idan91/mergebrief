@@ -9,11 +9,56 @@ import {
   type ContextFetch,
   type TrackerRootDeps,
 } from "brief-core";
-import { resolveEffectiveTrackers } from "generators/trackers";
+import {
+  findIssuesRepo,
+  resolveEffectiveTrackers,
+  type RepoName,
+  type TrackerConfig,
+} from "generators/trackers";
 import { createInstallationIssueApi } from "../../issue-api";
 import type { ParsedGeneratePayload } from "../../payload";
 import { acquireRepoConfig } from "../../repo-config";
 import type { TicketContextInputs, TicketContextLoader } from "../types";
+
+interface TransportBinding {
+  readonly source: TicketContextInputs["source"];
+  readonly locator: TicketContextInputs["locator"];
+  readonly trackers: readonly TrackerConfig[];
+  /** Runs on the viewer's grant, not the installation's. */
+  readonly urlBox: boolean;
+  readonly siblingRepos: boolean;
+}
+
+/**
+ * GitHub's reach for one job. A url-box job runs on the viewer's grant: it
+ * stays inside the PR's repo and is offered no deployment credential, so
+ * the repo's settings cannot borrow the operator's Notion integration. An
+ * installation job reads its repo and `issuesRepo`, every repo the
+ * installation reaches only where the instance allows sibling repos.
+ */
+function bindTrackerTransports(
+  binding: TransportBinding,
+): TrackerRootDeps["transports"] {
+  const issues = createInstallationIssueApi(binding.source);
+  if (binding.urlBox) {
+    const onlyRepos = [binding.locator];
+    return {
+      github: GitHubTransports.INSTALLATION.create(issues, { onlyRepos }),
+    };
+  }
+
+  const notion = NotionTransports.HTTP.create();
+  if (binding.siblingRepos) {
+    return { github: GitHubTransports.INSTALLATION.create(issues), notion };
+  }
+  const onlyRepos: RepoName[] = [binding.locator];
+  const issuesRepo = findIssuesRepo(binding.trackers);
+  if (issuesRepo !== undefined) {
+    onlyRepos.push(issuesRepo);
+  }
+  const github = GitHubTransports.INSTALLATION.create(issues, { onlyRepos });
+  return { github, notion };
+}
 
 /**
  * The ticket context, fetched on first use and shared by every core: a rerun
@@ -43,27 +88,17 @@ export function createTicketContextLoader(
   };
   async function fetchTicketContext(): Promise<ContextFetch> {
     const config = repoConfig ?? (await acquireRepoConfig(source, log));
-    // A url-box job runs on the viewer's grant: GitHub stays inside the
-    // PR's repo and no deployment credential is offered, so the repo's
-    // settings cannot borrow the operator's Notion integration.
-    const transports: TrackerRootDeps["transports"] =
-      payload.grantId === undefined
-        ? {
-            github: GitHubTransports.INSTALLATION.create(
-              createInstallationIssueApi(source),
-            ),
-            notion: NotionTransports.HTTP.create(),
-          }
-        : {
-            github: GitHubTransports.INSTALLATION.create(
-              createInstallationIssueApi(source),
-              { onlyRepo: locator },
-            ),
-          };
     const trackers = resolveEffectiveTrackers(
       config?.settings,
       trackerRoot.trackers ?? [],
     );
+    const transports = bindTrackerTransports({
+      source,
+      locator,
+      trackers,
+      urlBox: payload.grantId !== undefined,
+      siblingRepos: deps.siblingRepos === true,
+    });
     const reads = resolveTrackerReads(trackers, {
       ...trackerRoot,
       transports,

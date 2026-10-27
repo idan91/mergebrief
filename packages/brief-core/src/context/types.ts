@@ -1,8 +1,8 @@
 import type { Result, TicketTracker, ValueOf } from "types";
 import type { Log } from "../github/types";
 import type { ReferenceLocation, TicketUnreadReason } from "../types";
-import type { TicketReference, TicketReferenceRepo } from "./trackers/types";
-import type { TrackerConfig } from "generators/trackers";
+import type { TicketReference } from "./trackers/types";
+import type { RepoName, TrackerConfig } from "generators/trackers";
 
 /** Provider vocabulary. Each token is a registry entry, never a flag. */
 export const ContextProviderTypes = {
@@ -34,11 +34,13 @@ export interface ContextReadFailure {
  * every provider sees the same one.
  */
 export interface ContextQuery {
+  /** The title without hidden characters. */
   readonly title: string;
+  /** The description as the reviewer sees it: hidden markup and hidden characters removed. */
   readonly body: string;
   /** Head branch name; "" when unknown. */
   readonly headRef: string;
-  readonly repo: TicketReferenceRepo;
+  readonly repo: RepoName;
   readonly trackers: readonly TrackerConfig[];
   /** The one ticket this PR is about, when a reference was found. */
   readonly primary?: TicketReference | undefined;

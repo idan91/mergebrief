@@ -302,7 +302,8 @@ The harness providers are refused in the shipped image
 | `trackers[].kind` | | `notion` or `github`. A `notion` entry refuses boot unless `contextSources` carries a `notion` entry whose token is set. |
 | `trackers[].keyPrefix` | | `notion` only, required: a letter followed by up to 19 letters, digits or underscores. |
 | `trackers[].databaseId` | | `notion` only, required: the database or data source id, 32 hex characters with or without dashes. |
-| `trackers[].issuesRepo` | the pull request's repository | `github` only, optional: `owner/name`, where a bare `#N` resolves. |
+| `trackers[].issuesRepo` | the pull request's repository | `github` only, optional: `owner/name`, where a bare `#N` resolves. `.` and `..` are refused as either part. |
+| `trackers[].siblingRepos` | `false` | `github` only, instance config only: `true` lets issue references resolve in every repository the installation covers, not only the pull request's repository and its `issuesRepo` ([trackers.md](./trackers.md#credential-and-reach)). Anything but `true` or `false` refuses boot. |
 
 ## Repo-local files (`.mergebrief/`)
 

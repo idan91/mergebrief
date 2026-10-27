@@ -87,6 +87,17 @@ describe("collectTicketReferences: shapes", () => {
     });
   });
 
+  it.each([
+    ["a dot-dot repo", "o/..#1"],
+    ["a dot-dot owner", "../x#1"],
+    ["a dot repo", "o/.#1"],
+    ["a dot-dot repo URL", "https://github.com/o/../issues/1"],
+    ["a dot owner URL", "https://github.com/./r/issues/1"],
+  ])("%s is not a reference", (_shape, body) => {
+    const references = collectTicketReferences(makeInput({ body }));
+    expect(references).toEqual([]);
+  });
+
   it("GitHub issue URLs always match; pull URLs never do", () => {
     const refs = collectTicketReferences(
       makeInput({
@@ -240,6 +251,116 @@ describe("collectTicketReferences: shapes", () => {
     );
     expect(refs).toHaveLength(1);
     expect(refs[0]?.foundIn).toBe("description");
+  });
+});
+
+describe("collectTicketReferences: standalone links", () => {
+  const ISSUE_URL = "https://github.com/o/r/issues/1";
+  const NOTION_PAGE_URL =
+    "https://www.notion.so/3cf5e9400eeb81f9bed9e1474c2cb4d4";
+
+  it.each([
+    ["at the start", `${ISSUE_URL} is the ticket`],
+    ["after whitespace", `see\t${ISSUE_URL}`],
+    ["as a Markdown link target", `[the ticket](${ISSUE_URL})`],
+    ["as an autolink", `<${ISSUE_URL}>`],
+    ["in parentheses", `the ticket (${ISSUE_URL})`],
+    ["in strong emphasis", `Fixes **${ISSUE_URL}**`],
+    ["in underscore emphasis", `Fixes _${ISSUE_URL}_`],
+    ["in strikethrough", `Fixes ~${ISSUE_URL}~`],
+    ["after a parenthesis glued to a word", `ticket(${ISSUE_URL})`],
+    ["at the start of a table cell", `| T |\n|---|\n|${ISSUE_URL}|`],
+    ["as a link whose label is the URL", `[${ISSUE_URL}](${ISSUE_URL})`],
+  ])("a GitHub issue URL counts %s", (_where, body) => {
+    const refs = collectTicketReferences(makeInput({ body }));
+    expect(refs.map((r) => r.url)).toEqual([ISSUE_URL]);
+  });
+
+  it.each([
+    ["embedded in a query", `https://evil.example/?u=${ISSUE_URL}`],
+    ["embedded in a path", `https://evil.example/${ISSUE_URL}`],
+    ["glued to a word", `ticket:${ISSUE_URL}`],
+    ["inside a Markdown link label", `[${ISSUE_URL}](https://evil.example)`],
+    ["on a lookalike host", "https://github.com.evil.example/o/r/issues/1"],
+    ["behind userinfo", "https://github.com@evil.example/o/r/issues/1"],
+    ["inside userinfo", `https://${ISSUE_URL}@evil.example/`],
+    ["inside a path's parentheses", `see https://evil.example/a(${ISSUE_URL})`],
+    [
+      "inside a link target's parentheses",
+      `[docs](https://evil.example/a(${ISSUE_URL}))`,
+    ],
+    [
+      "after a bracket inside a URL",
+      `see https://evil.example/a](${ISSUE_URL})`,
+    ],
+    [
+      "after a no-break space inside a URL",
+      `see https://evil.example/?u=\u00a0${ISSUE_URL}`,
+    ],
+    [
+      "after a bracket inside a www link",
+      `see www.evil.example/a](${ISSUE_URL})`,
+    ],
+    [
+      "after a bracket inside an ftp link",
+      `see ftp://evil.example/a](${ISSUE_URL})`,
+    ],
+    ["after a > inside a URL", `see https://evil.example/a>](${ISSUE_URL})`],
+    ["after a pipe inside a URL", `see https://evil.example/a|${ISSUE_URL}`],
+    [
+      "after emphasis inside a URL",
+      `see https://evil.example/a_*~${ISSUE_URL}`,
+    ],
+    [
+      "after an escaped bracket's URL",
+      `\\[https://evil.example/a](${ISSUE_URL})`,
+    ],
+  ])("a GitHub issue URL %s is not a reference", (_where, body) => {
+    const references = collectTicketReferences(makeInput({ body }));
+    expect(references).toEqual([]);
+  });
+
+  it.each([
+    ["embedded in a query", `https://evil.example/?u=${NOTION_PAGE_URL}`],
+    ["on a lookalike host", `https://notion.so.evil.example/${"3".repeat(32)}`],
+    ["inside userinfo", `https://${NOTION_PAGE_URL}@evil.example/`],
+    [
+      "inside a path's parentheses",
+      `https://evil.example/a(${NOTION_PAGE_URL})`,
+    ],
+    [
+      "after a bracket inside a URL",
+      `https://evil.example/a](${NOTION_PAGE_URL})`,
+    ],
+    [
+      "after a bracket inside a www link",
+      `www.evil.example/a](${NOTION_PAGE_URL})`,
+    ],
+  ])("a Notion page URL %s is not a reference", (_where, body) => {
+    const refs = collectTicketReferences(
+      makeInput({ body, readable: ["github", "notion"] }),
+    );
+    expect(refs).toEqual([]);
+  });
+
+  it("a Notion page URL in strong emphasis is a reference", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        body: `**${NOTION_PAGE_URL}**`,
+        readable: ["github", "notion"],
+      }),
+    );
+    expect(refs.map((r) => r.url)).toEqual([NOTION_PAGE_URL]);
+  });
+
+  it("a Notion page URL as a Markdown link target is a reference", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        body: `[spec](${NOTION_PAGE_URL})`,
+        readable: ["github", "notion"],
+      }),
+    );
+    expect(refs.map((r) => r.url)).toEqual([NOTION_PAGE_URL]);
   });
 });
 

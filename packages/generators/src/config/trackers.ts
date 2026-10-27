@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import { TicketTrackers } from "types/trackers";
-import type { Result } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 
 /** Key prefixes are short identifier words; anything else refuses the block. */
@@ -8,7 +8,8 @@ const KEY_PREFIX = /^[A-Za-z][A-Za-z0-9_]{0,19}$/;
 /** Notion hands out ids bare (URL) or dashed (the "Copy data source ID" button). */
 const NOTION_ID =
   /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-const OWNER_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+/** `.` and `..` are never an owner or repo: either would rewrite the API route. */
+const OWNER_REPO = /^(?!\.\.?\/)[A-Za-z0-9_.-]+\/(?!\.\.?$)[A-Za-z0-9_.-]+$/;
 
 /**
  * One tracker entry, the same shape in the instance config's `trackers:`
@@ -16,25 +17,61 @@ const OWNER_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
  * `github` entry adds nothing but where a bare `#N` resolves. `databaseId`
  * takes the board's database id or its data source id.
  */
+const NotionTrackerSchema = z
+  .object({
+    kind: z.literal(TicketTrackers.NOTION),
+    keyPrefix: z.string().regex(KEY_PREFIX),
+    databaseId: z
+      .string()
+      .regex(NOTION_ID)
+      .transform((id) => id.replaceAll("-", "")),
+  })
+  .strict();
+const GitHubTrackerSchema = z
+  .object({
+    kind: z.literal(TicketTrackers.GITHUB),
+    issuesRepo: z.string().regex(OWNER_REPO).optional(),
+  })
+  .strict();
+
 export const TrackerConfigSchema = z.discriminatedUnion("kind", [
-  z
-    .object({
-      kind: z.literal(TicketTrackers.NOTION),
-      keyPrefix: z.string().regex(KEY_PREFIX),
-      databaseId: z
-        .string()
-        .regex(NOTION_ID)
-        .transform((id) => id.replaceAll("-", "")),
-    })
-    .strict(),
-  z
-    .object({
-      kind: z.literal(TicketTrackers.GITHUB),
-      issuesRepo: z.string().regex(OWNER_REPO).optional(),
-    })
-    .strict(),
+  NotionTrackerSchema,
+  GitHubTrackerSchema,
 ]);
 export type TrackerConfig = z.infer<typeof TrackerConfigSchema>;
+
+/**
+ * The instance config's entry, which alone may carry `siblingRepos`: whether
+ * an issue reference resolves in any repo the installation can read, rather
+ * than only the PR's own repo and its `issuesRepo`.
+ */
+const InstanceTrackerConfigSchema = z.discriminatedUnion("kind", [
+  NotionTrackerSchema,
+  GitHubTrackerSchema.extend({ siblingRepos: z.boolean().optional() }).strict(),
+]);
+type InstanceTrackerConfig = z.infer<typeof InstanceTrackerConfigSchema>;
+
+/** A repository named by owner and name. */
+export interface RepoName {
+  readonly owner: string;
+  readonly repo: string;
+}
+
+/** The `issuesRepo` a list's github entry names, when it names one. */
+export function findIssuesRepo(
+  trackers: readonly TrackerConfig[],
+): RepoName | undefined {
+  const github = trackers.find(
+    (tracker) => tracker.kind === TicketTrackers.GITHUB,
+  );
+  const configured =
+    github?.kind === TicketTrackers.GITHUB ? github.issuesRepo : undefined;
+  if (configured === undefined) {
+    return undefined;
+  }
+  const [owner = "", repo = ""] = configured.split("/");
+  return { owner, repo };
+}
 
 /** A deployment rarely spans more boards than this; the cap bounds the scan per location. */
 export const MAX_TRACKERS = 8;
@@ -129,16 +166,46 @@ export function refineTrackerSettings(
 }
 
 const trackersBlockSchema = z
-  .object({ trackers: TrackerListSchema })
+  .object({
+    trackers: z.array(InstanceTrackerConfigSchema).min(1).max(MAX_TRACKERS),
+  })
   .superRefine(refineTrackerSettings);
+
+/** The instance config's `trackers:` block: the boards, and the instance's issue reach. */
+export interface InstanceTrackers {
+  readonly trackers: TrackerConfig[];
+  /** Off unless the github entry sets it. */
+  readonly siblingRepos: boolean;
+}
+
+/** The entry as every repo's list holds it: `siblingRepos` stays with the instance. */
+function stripInstanceFields(entry: InstanceTrackerConfig): TrackerConfig {
+  if (entry.kind === TicketTrackers.NOTION) {
+    return entry;
+  }
+  const github: Mutable<TrackerConfig> = { kind: TicketTrackers.GITHUB };
+  if (entry.issuesRepo !== undefined) {
+    github.issuesRepo = entry.issuesRepo;
+  }
+  return github;
+}
 
 /** Parse the instance config's raw `trackers` root value; issues name fields, never values. */
 export function validateTrackersBlock(
   block: unknown,
-): Result<TrackerConfig[], ConfigError> {
+): Result<InstanceTrackers, ConfigError> {
   const parsed = trackersBlockSchema.safeParse({ trackers: block });
   if (parsed.success) {
-    return { ok: true, value: parsed.data.trackers };
+    const entries = parsed.data.trackers;
+    const github = entries.find(
+      (entry) => entry.kind === TicketTrackers.GITHUB,
+    );
+    const siblingRepos =
+      github?.kind === TicketTrackers.GITHUB && github.siblingRepos === true;
+    return {
+      ok: true,
+      value: { trackers: entries.map(stripInstanceFields), siblingRepos },
+    };
   }
 
   return configError(

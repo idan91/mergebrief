@@ -1,10 +1,15 @@
 import { TicketTrackers } from "types/trackers";
 import { ReferenceLocations, type ReferenceLocation } from "../../../types";
 import type { TrackerConfig } from "generators/trackers";
+import {
+  createEmbeddedUrlCheck,
+  trimTrailingPunctuation,
+} from "../../embedded-urls";
 import type { ReferenceHit, TicketReferenceInput } from "../types";
 
+/** Only where a link starts: at the start, after whitespace or `<`, after `*`, `_`, `~` or `(`, or at a table cell's `|`. */
 const NOTION_URL =
-  /https?:\/\/(?:[a-z0-9-]+\.)?notion\.(?:so|site|com)\/[^\s<>()[\]"']*/gi;
+  /(?<=^|[\s<*_~(|])https?:\/\/(?:[a-z0-9-]+\.)?notion\.(?:so|site|com)\/[^\s<>()[\]"']*/gi;
 const HEX32 = /[0-9a-f]{32}/gi;
 
 function buildNotionUrl(pageId: string): string {
@@ -72,9 +77,13 @@ function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
     return [];
   }
   const hits: ReferenceHit[] = [];
+  const isEmbedded = createEmbeddedUrlCheck(text);
 
   for (const match of text.matchAll(NOTION_URL)) {
-    const pageId = parseNotionPageId(match[0].replace(/[.,;:]+$/, ""));
+    if (isEmbedded(match.index)) {
+      continue;
+    }
+    const pageId = parseNotionPageId(trimTrailingPunctuation(match[0]));
     if (pageId === undefined) {
       continue;
     }

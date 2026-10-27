@@ -105,6 +105,7 @@ describe("settings.yaml validation", () => {
     ],
     ["an unknown tracker key", { kind: "github", issueRepo: "acme/tracker" }],
     ["a bad issuesRepo", { kind: "github", issuesRepo: "acme" }],
+    ["the instance-only siblingRepos", { kind: "github", siblingRepos: true }],
   ])("rejects the whole file for %s", (_label, tracker) => {
     const result = validate(yaml({ version: 1, tracker }));
     expect(result.settings).toBeUndefined();

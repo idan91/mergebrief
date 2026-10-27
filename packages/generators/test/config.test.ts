@@ -42,6 +42,7 @@ describe("loadGeneratorConfig from env", () => {
       spend: { maxGenerationsPerDay: 300 },
       contextSources: [],
       trackers: [],
+      siblingRepos: false,
       source: null,
     });
   });
@@ -314,6 +315,14 @@ describe("loadGeneratorConfigFile", () => {
     ]);
   });
 
+  it("reads siblingRepos off the instance's github tracker entry", () => {
+    const result = loadGeneratorConfigFile(
+      configFile("trackers:\n  - kind: github\n    siblingRepos: true\n"),
+    );
+    expect(result.ok && result.value.siblingRepos).toBe(true);
+    expect(result.ok && result.value.trackers).toEqual([{ kind: "github" }]);
+  });
+
   it("defaults trackers to none when the block is absent", () => {
     const result = loadGeneratorConfigFile(
       configFile("generator:\n  provider: anthropic\n"),
@@ -323,6 +332,7 @@ describe("loadGeneratorConfigFile", () => {
       return;
     }
     expect(result.value.trackers).toEqual([]);
+    expect(result.value.siblingRepos).toBe(false);
   });
 
   it("refuses boot on a trackers list that names one prefix twice", () => {

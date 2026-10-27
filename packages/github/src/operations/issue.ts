@@ -1,7 +1,12 @@
 // Issue read primitive: the fields the ticket-alignment read shows the model.
 // Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
-import { mapRequestError, type GitHubApiError } from "../errors";
+import { HttpStatuses } from "types/http";
+import {
+  GitHubApiErrorCodes,
+  mapRequestError,
+  type GitHubApiError,
+} from "../errors";
 import type { Result } from "types/utils";
 
 export interface IssueRef {
@@ -34,7 +39,20 @@ function readLabelName(label: IssueLabel): string {
   return label.name ?? "";
 }
 
-/** Fetch one issue by number. A PR number resolves too; see `isPullRequest`. */
+function buildMovedIssueError(status: number): GitHubApiError {
+  return {
+    code: GitHubApiErrorCodes.NOT_FOUND,
+    status,
+    message: "failed to fetch issue: issue moved to another repository",
+  };
+}
+
+/**
+ * Fetch one issue by number. A PR number resolves too; see `isPullRequest`.
+ * A transferred issue answers 301 to its new repository, which a caller's
+ * repository bound never saw, so the redirect is refused unfollowed and
+ * reads as not-found.
+ */
 export async function fetchIssue(
   octokit: Octokit,
   ref: IssueRef,
@@ -44,7 +62,12 @@ export async function fetchIssue(
       owner: ref.owner,
       repo: ref.repo,
       issue_number: ref.number,
+      request: { redirect: "manual" },
     });
+    const status: number = response.status;
+    if (status !== HttpStatuses.OK) {
+      return { ok: false, error: buildMovedIssueError(status) };
+    }
     const data = response.data;
 
     const labels = data.labels.map(readLabelName).filter((name) => name !== "");

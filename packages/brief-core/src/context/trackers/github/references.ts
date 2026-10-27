@@ -1,13 +1,23 @@
 import { TicketTrackers } from "types/trackers";
+import { findIssuesRepo, type RepoName } from "generators/trackers";
 import { ReferenceLocations, type ReferenceLocation } from "../../../types";
+import { isPathSegment } from "../../../github/pr-url";
+import { createEmbeddedUrlCheck } from "../../embedded-urls";
 import type { ReferenceHit, TicketReferenceInput } from "../types";
 
-/** GitHub caps logins at 39 chars and repo names at 100; the bounds keep backtracking constant per position. */
+/**
+ * GitHub caps logins at 39 chars and repo names at 100; the bounds keep
+ * backtracking constant per position. A URL counts only where a link
+ * starts: at the start, after whitespace or `<`, after a GFM autolink's
+ * delimiters `*`, `_`, `~` or `(`, or at a table cell's `|`. Closing `_`
+ * delimiters end the URL; a `_` running on into a name does not.
+ */
 const GITHUB_ISSUE_URL =
-  /https?:\/\/github\.com\/([A-Za-z0-9_.-]{1,39})\/([A-Za-z0-9_.-]{1,100})\/issues\/(\d{1,12})(?![\w-])/g;
+  /(?<=^|[\s<*_~(|])https?:\/\/github\.com\/([A-Za-z0-9_.-]{1,39})\/([A-Za-z0-9_.-]{1,100})\/issues\/(\d{1,12})(?![A-Za-z0-9-]|_+[A-Za-z0-9-])/g;
 const OWNER_REPO_HASH =
   /(?<![\w/.-])([A-Za-z0-9_.-]{1,39})\/([A-Za-z0-9_.-]{1,100})#(\d{1,12})(?!\w)/g;
-const BARE_HASH = /(?<![\w/#])#(\d{1,12})(?!\w)/g;
+/** A `#N` glued to a name is part of `owner/repo#N`, never a bare reference. */
+const BARE_HASH = /(?<![\w/#.-])#(\d{1,12})(?!\w)/g;
 /**
  * `12-fix` or `feature/12-fix`: the number leads the branch or sits under
  * one type prefix, the shapes GitHub's "create a branch" and the common
@@ -20,21 +30,14 @@ function buildIssueUrl(owner: string, repo: string, number: number): string {
 }
 
 /** Where a bare `#N` resolves: `issuesRepo` when the block names one, else the PR's own repo. */
-function resolveIssuesRepo(input: TicketReferenceInput): {
-  owner: string;
-  repo: string;
-} {
-  const github = input.trackers.find(
-    (tracker) => tracker.kind === TicketTrackers.GITHUB,
-  );
-  const configured =
-    github?.kind === TicketTrackers.GITHUB ? github.issuesRepo : undefined;
-  if (configured === undefined) {
-    return input.repo;
-  }
+function resolveIssuesRepo(input: TicketReferenceInput): RepoName {
+  return findIssuesRepo(input.trackers) ?? input.repo;
+}
 
-  const [owner = "", repo = ""] = configured.split("/");
-  return { owner, repo };
+/** `.` and `..` match the name grammar but would rewrite the API route. */
+function isRepoName(owner: string, repo: string): boolean {
+  const segmentsSafe = isPathSegment(owner) && isPathSegment(repo);
+  return segmentsSafe;
 }
 
 function buildHit(
@@ -62,19 +65,27 @@ function collectMentions(
   const hits: ReferenceHit[] = [];
   const own = resolveIssuesRepo(input);
 
+  const isEmbedded = createEmbeddedUrlCheck(text);
   for (const match of text.matchAll(GITHUB_ISSUE_URL)) {
-    hits.push(
-      buildHit(match.index, match[1] ?? "", match[2] ?? "", Number(match[3])),
-    );
+    const owner = match[1] ?? "";
+    const repo = match[2] ?? "";
+    if (isEmbedded(match.index) || !isRepoName(owner, repo)) {
+      continue;
+    }
+    const number = Number(match[3]);
+    hits.push(buildHit(match.index, owner, repo, number));
   }
   if (!short) {
     return hits;
   }
 
   for (const match of text.matchAll(OWNER_REPO_HASH)) {
-    hits.push(
-      buildHit(match.index, match[1] ?? "", match[2] ?? "", Number(match[3])),
-    );
+    const owner = match[1] ?? "";
+    const repo = match[2] ?? "";
+    if (isRepoName(owner, repo)) {
+      const number = Number(match[3]);
+      hits.push(buildHit(match.index, owner, repo, number));
+    }
   }
   for (const match of text.matchAll(BARE_HASH)) {
     hits.push(buildHit(match.index, own.owner, own.repo, Number(match[1])));

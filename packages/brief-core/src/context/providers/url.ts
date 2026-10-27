@@ -3,6 +3,7 @@ import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { Agent as HttpAgent, get as httpGet } from "node:http";
 import { Agent as HttpsAgent, get as httpsGet } from "node:https";
 import type { Result } from "types/utils";
+import { trimTrailingPunctuation } from "../embedded-urls";
 import { canonicalizeTicketUrl } from "../references";
 import {
   ContextProviderTypes,
@@ -234,11 +235,11 @@ function fetchText(
   });
 }
 
-/** Distinct http(s) URLs in the PR description, trimmed of trailing punctuation. */
+/** Distinct http(s) URLs in the PR description, trimmed of trailing punctuation and emphasis delimiters. */
 export function extractLinks(body: string): string[] {
   const seen = new Set<string>();
   for (const raw of body.match(URL_IN_TEXT) ?? []) {
-    const url = raw.replace(/[.,;:]+$/, "");
+    const url = trimTrailingPunctuation(raw);
     if (!seen.has(url)) {
       seen.add(url);
     }

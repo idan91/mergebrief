@@ -174,11 +174,15 @@ describe("createGitHubRead", () => {
     );
   });
 
-  it("refuses a reference whose URL is not a GitHub issue URL", async () => {
+  it.each([
+    ["not a GitHub issue URL", "https://example.com/acme/widget/issues/42"],
+    ["a dot-dot repo segment", "https://github.com/acme/../issues/42"],
+    ["a dot owner segment", "https://github.com/./widget/issues/42"],
+  ])("refuses a reference whose URL is %s", async (_shape, url) => {
     const calls: IssueLocator[] = [];
     const provider = readWith(stubReaderReturning(ISSUE, calls));
     const result = await provider.readPrimary(
-      { ...REFERENCE, url: "https://example.com/acme/widget/issues/42" },
+      { ...REFERENCE, url },
       stubDeps(),
     );
     expect(calls).toEqual([]);

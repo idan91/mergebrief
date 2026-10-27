@@ -72,7 +72,8 @@ generator:
 # trackers: the FIFTH root block: the boards every repo on this instance
 # reads tickets from, one entry per board. A repo whose own
 # .mergebrief/settings.yaml names trackers replaces this list. Same entry
-# shape as the repo file; see self-host/repo-config.md.
+# shape as the repo file, plus the github entry's instance-only
+# siblingRepos; see self-host/repo-config.md and self-host/trackers.md.
 # trackers:
 #   - kind: notion
 #     keyPrefix: ACME

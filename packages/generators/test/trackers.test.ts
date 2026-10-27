@@ -45,8 +45,18 @@ describe("validateTrackersBlock", () => {
       { ...BRIEF, databaseId: "1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9" },
       { kind: "github", issuesRepo: "acme/tracker" },
     ]);
-    expect(result.ok && result.value[0]).toMatchObject({
+    expect(result.ok && result.value.trackers[0]).toMatchObject({
       databaseId: "1a2b3c4d5e6f40718293a4b5c6d7e8f9",
+    });
+  });
+
+  it("keeps sibling repos off unless the github entry turns them on", () => {
+    const off = validateTrackersBlock([{ kind: "github" }]);
+    const on = validateTrackersBlock([{ kind: "github", siblingRepos: true }]);
+    expect(off.ok && off.value.siblingRepos).toBe(false);
+    expect(on.ok && on.value).toEqual({
+      trackers: [{ kind: "github" }],
+      siblingRepos: true,
     });
   });
 
@@ -56,6 +66,10 @@ describe("validateTrackersBlock", () => {
     ["two github entries", [{ kind: "github" }, { kind: "github" }]],
     ["one prefix on two boards", [BRIEF, { ...DS, keyPrefix: "brief" }]],
     ["an unknown kind", [{ kind: "jira", keyPrefix: "X" }]],
+    ["a dot-dot issuesRepo", [{ kind: "github", issuesRepo: "o/.." }]],
+    ["a dot issuesRepo owner", [{ kind: "github", issuesRepo: "./x" }]],
+    ["a non-boolean siblingRepos", [{ kind: "github", siblingRepos: "yes" }]],
+    ["siblingRepos on a notion entry", [{ ...BRIEF, siblingRepos: true }]],
   ])("refuses %s", (_label, block) => {
     expect(validateTrackersBlock(block).ok).toBe(false);
   });

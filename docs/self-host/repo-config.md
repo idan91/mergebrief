@@ -72,6 +72,11 @@ trackers:
 every existing file keeps working unchanged. A file carries one spelling or
 the other, never both.
 
+A pull request reads issues in its own repository and in `issuesRepo`, so
+whoever writes this file chooses that second repository. Reaching any other
+repository takes the instance's `siblingRepos`, which this file cannot set
+([trackers.md](trackers.md#credential-and-reach)).
+
 An instance whose repos share boards lists them once in
 `mergebrief.config.yaml`'s `trackers:` instead (see
 [generators.md](generators.md)). A repo file that names any tracker

@@ -12,6 +12,7 @@ import type { Effort, GenerateRequest, Generator } from "generators";
 import { createI18n } from "i18n";
 import { createLogger } from "logging";
 import { RepoConfigPaths } from "repo-config";
+import type { SharedRootDeps } from "brief-core";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
 import type { AppClient, PullRequestInfo } from "github";
 import { FakeFailures, type FakeGitHub } from "github/testing";
@@ -157,6 +158,17 @@ function arrangeOpenPullRequest(
 
 setUpHarness();
 
+/** An issue in another repo of the installation, which the PR author may not see. */
+const SIBLING_ISSUE = {
+  title: "Secret roadmap",
+  state: "open",
+  stateReason: null,
+  labels: [],
+  milestone: null,
+  body: "Not for the public brief.",
+  isPullRequest: false,
+} as const;
+
 describe("generate task", () => {
   it("reads and stamps the primary issue through the job's GitHub source", async () => {
     const { pr, payload } = await trigger(HEAD_1);
@@ -196,53 +208,126 @@ describe("generate task", () => {
     });
   });
 
-  it("keeps a url-box read inside the PR's own repo", async () => {
-    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
-    const pr = await createTenantRepository(
-      harness.handle,
-      ownerCtx,
-    ).pullRequests.upsert({
-      repoId: makeRepoId(7n),
-      prNumber: 7,
-      repoSlug: "acme/widget",
-      state: PrStates.OPEN,
-    });
-    await createGenerationProjection(harness.handle, ownerCtx).upsertPending(
-      makeTarget(pr, HEAD_1),
-    );
-    const payload = {
-      owner_user_id: "555",
-      grant_id: String(await seedViewerGrant()),
-      pull_request_id: String(pr.id),
-      head_sha: HEAD_1,
-    };
+  it.each([false, true])(
+    "keeps a url-box read in the PR's repo when siblingRepos is %s",
+    async (siblingRepos) => {
+      const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+      const pr = await createTenantRepository(
+        harness.handle,
+        ownerCtx,
+      ).pullRequests.upsert({
+        repoId: makeRepoId(7n),
+        prNumber: 7,
+        repoSlug: "acme/widget",
+        state: PrStates.OPEN,
+      });
+      await createGenerationProjection(harness.handle, ownerCtx).upsertPending(
+        makeTarget(pr, HEAD_1),
+      );
+      const payload = {
+        owner_user_id: "555",
+        grant_id: String(await seedViewerGrant()),
+        pull_request_id: String(pr.id),
+        head_sha: HEAD_1,
+      };
+      const github = makeGitHub(HEAD_1);
+      github.updatePullRequest(PR_REF, {
+        body: "fixes acme/private-tracker#42",
+      });
+      github.addIssue(
+        { owner: "acme", repo: "private-tracker", number: 42 },
+        SIBLING_ISSUE,
+      );
+      const task = makeTask({ github, siblingRepos });
+
+      await task(payload);
+
+      const brief = await createArtifactStore(
+        harness.handle,
+        ownerCtx,
+      ).briefs.get(pr.id, BASE, HEAD_1);
+      const body = brief?.body ?? "{}";
+      expect(JSON.parse(body)).toMatchObject({
+        intentCheck: {
+          primaryTicket: { status: "unread", reason: "not-found" },
+        },
+      });
+      expect(body).not.toContain("Secret roadmap");
+    },
+  );
+
+  it("reads no sibling repo's issue for an installation job by default", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     github.updatePullRequest(PR_REF, { body: "fixes acme/private-tracker#42" });
     github.addIssue(
       { owner: "acme", repo: "private-tracker", number: 42 },
-      {
-        title: "Secret roadmap",
-        state: "open",
-        stateReason: null,
-        labels: [],
-        milestone: null,
-        body: "Not for the public brief.",
-        isPullRequest: false,
-      },
+      SIBLING_ISSUE,
     );
-    const task = makeTask({ github });
 
-    await task(payload);
+    await makeTask({ github })(payload);
 
-    const brief = await createArtifactStore(
-      harness.handle,
-      ownerCtx,
-    ).briefs.get(pr.id, BASE, HEAD_1);
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
     const body = brief?.body ?? "{}";
     expect(JSON.parse(body)).toMatchObject({
       intentCheck: { primaryTicket: { status: "unread", reason: "not-found" } },
     });
     expect(body).not.toContain("Secret roadmap");
+  });
+
+  it("reads the configured issues repo for an installation job", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "fixes #42" });
+    github.addIssue(
+      { owner: "acme", repo: "private-tracker", number: 42 },
+      SIBLING_ISSUE,
+    );
+    const trackerRoot: SharedRootDeps = {
+      env: {},
+      contextSources: [],
+      trackers: [{ kind: "github", issuesRepo: "acme/private-tracker" }],
+    };
+
+    await makeTask({ github, trackerRoot })(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: { status: "read", title: "Secret roadmap" },
+      },
+    });
+  });
+
+  it("reads a sibling repo's issue when the instance allows sibling repos", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.updatePullRequest(PR_REF, { body: "fixes acme/private-tracker#42" });
+    github.addIssue(
+      { owner: "acme", repo: "private-tracker", number: 42 },
+      SIBLING_ISSUE,
+    );
+
+    await makeTask({ github, siblingRepos: true })(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: { status: "read", title: "Secret roadmap" },
+      },
+    });
   });
 
   it("never offers a url-box job the deployment's Notion integration", async () => {

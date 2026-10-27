@@ -22,6 +22,10 @@ import type { TicketReference } from "../../../../src/context/trackers/types";
 import { TicketUnreadReasons } from "../../../../src/types";
 
 const TOKEN = "ntn_secret_value_never_shown";
+/** The walk's cap on child-list calls per read. */
+const MAX_CHILD_LIST_CALLS = 50;
+/** More toggles than the cap, each with an empty child list. */
+const TOGGLE_COUNT = 80;
 const DATABASE_ID = "a".repeat(32);
 const DATA_SOURCE_ID = "d".repeat(32);
 const PAGE_ID = "3cf5e9400eeb81f9bed9e1474c2cb4d4";
@@ -38,6 +42,7 @@ interface Call {
   readonly url: string;
   readonly headers: Record<string, string>;
   readonly body: unknown;
+  readonly redirect: string | undefined;
 }
 
 /** A recorded Notion: routes keyed `METHOD /path` (query string ignored). */
@@ -51,6 +56,7 @@ function stubFetch(routes: Record<string, Recorded | Recorded[]>) {
       headers: Record<string, string>;
       body?: string;
       signal: AbortSignal;
+      redirect?: string;
     },
   ): Promise<Response> => {
     const method = init.method ?? "GET";
@@ -60,6 +66,7 @@ function stubFetch(routes: Record<string, Recorded | Recorded[]>) {
       url,
       headers: init.headers,
       body: init.body === undefined ? undefined : JSON.parse(init.body),
+      redirect: init.redirect,
     });
     const route = routes[key];
     if (route === undefined) {
@@ -549,6 +556,42 @@ describe("createNotionRead", () => {
       expect(call.headers["Notion-Version"]).toBe("2025-09-03");
     }
     expect(calls[3]?.headers["Content-Type"]).toBe("application/json");
+  });
+
+  it("refuses to follow a redirect on every request", async () => {
+    const { calls } = await readThroughProvider(KEY_ROUTES, makeKeyReference());
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.map((call) => call.redirect)).toEqual(
+      calls.map(() => "error"),
+    );
+  });
+
+  it("stops the block walk at 50 child-list calls", async () => {
+    const toggles = Array.from({ length: TOGGLE_COUNT }, (_, index) => ({
+      ...makeBlock(`t${index}`, "toggle", ""),
+      has_children: true,
+    }));
+    const routes: Record<string, Recorded> = {
+      [`GET /v1/pages/${PAGE_ID}`]: { status: 200, body: PAGE },
+      [`GET /v1/blocks/${PAGE_ID_DASHED}/children`]: {
+        status: 200,
+        body: makeListPage(toggles),
+      },
+    };
+    for (const toggle of toggles) {
+      routes[`GET /v1/blocks/${toggle.id}/children`] = {
+        status: 200,
+        body: makeListPage([]),
+      };
+    }
+
+    const { result, calls } = await readThroughProvider(
+      routes,
+      makeUrlReference(),
+    );
+    expect(result.ok).toBe(true);
+    const blockCalls = calls.filter((call) => call.url.includes("/children"));
+    expect(blockCalls).toHaveLength(MAX_CHILD_LIST_CALLS);
   });
 
   it("omits empty header pieces and reads the page's key on the URL path", async () => {

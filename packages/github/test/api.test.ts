@@ -1263,6 +1263,7 @@ describe("fetchIssue", () => {
 
   it("extracts title, state, labels, milestone and body", async () => {
     const issuesGet = vi.fn().mockResolvedValue({
+      status: 200,
       data: {
         title: "Add the thing",
         state: "closed",
@@ -1278,6 +1279,7 @@ describe("fetchIssue", () => {
       owner: "o",
       repo: "r",
       issue_number: 12,
+      request: { redirect: "manual" },
     });
     expect(result).toEqual({
       ok: true,
@@ -1295,6 +1297,7 @@ describe("fetchIssue", () => {
 
   it("normalizes a null body, milestone and state_reason", async () => {
     const issuesGet = vi.fn().mockResolvedValue({
+      status: 200,
       data: {
         title: "t",
         state: "open",
@@ -1317,6 +1320,7 @@ describe("fetchIssue", () => {
 
   it("flags a payload carrying pull_request as a pull request", async () => {
     const issuesGet = vi.fn().mockResolvedValue({
+      status: 200,
       data: {
         title: "a PR",
         state: "open",

@@ -1,3 +1,4 @@
+import type { RepoName } from "generators/trackers";
 import type { Result } from "types/utils";
 import { TicketUnreadReasons } from "../../../../types";
 import type { ContextReadFailure } from "../../../types";
@@ -12,17 +13,12 @@ export interface InstallationIssueApi {
 }
 
 export interface InstallationBounds {
-  /** When set, only this repo's issues are read; any other is not-found. */
-  readonly onlyRepo?:
-    | { readonly owner: string; readonly repo: string }
-    | undefined;
+  /** When set, only these repos' issues are read; any other is not-found. */
+  readonly onlyRepos?: readonly RepoName[] | undefined;
 }
 
 /** GitHub owner and repo names ignore letter case. */
-function isSameRepository(
-  left: Pick<IssueLocator, "owner" | "repo">,
-  right: Pick<IssueLocator, "owner" | "repo">,
-): boolean {
+function isSameRepository(left: RepoName, right: RepoName): boolean {
   const sameOwner = left.owner.toLowerCase() === right.owner.toLowerCase();
   const sameName = left.repo.toLowerCase() === right.repo.toLowerCase();
   const sameRepository = sameOwner && sameName;
@@ -32,7 +28,9 @@ function isSameRepository(
 /**
  * The worker's transport over one job's credential. A url-box job reads
  * with the viewer's token for an instance-wide brief, so it stays inside
- * the PR's own repo: a private tracker the viewer can see must not leak.
+ * the PR's own repo: a private tracker the viewer can see must not leak. An
+ * installation job stays inside the PR's repo and its `issuesRepo` unless
+ * the instance allows sibling repos.
  */
 export function createInstallationTransport(
   api: InstallationIssueApi,
@@ -40,15 +38,16 @@ export function createInstallationTransport(
 ): GitHubTransport {
   return {
     async readIssue(locator, signal) {
-      const { onlyRepo } = bounds;
+      const { onlyRepos } = bounds;
       const outside =
-        onlyRepo !== undefined && !isSameRepository(locator, onlyRepo);
+        onlyRepos !== undefined &&
+        !onlyRepos.some((repo) => isSameRepository(locator, repo));
       if (outside) {
         return {
           ok: false,
           error: {
             reason: TicketUnreadReasons.NOT_FOUND,
-            detail: "outside this pull request's repository",
+            detail: "outside the repositories this pull request reads",
           },
         };
       }

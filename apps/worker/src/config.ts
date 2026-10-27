@@ -48,6 +48,8 @@ export interface WorkerConfig {
   readonly contextSources: ContextSourcesConfig;
   /** The instance's default boards; a repo's own settings replace them. */
   readonly trackers: readonly TrackerConfig[];
+  /** Whether issue references resolve beyond the PR's repo and its `issuesRepo`; off by default. */
+  readonly siblingRepos: boolean;
   /** `SERVER_VERSION`, recorded in `instance_version` at boot; `dev` when unset. */
   readonly serverVersion: string;
   /** `REVISION_NARRATIVE_ENABLED`; on when unset. */
@@ -260,6 +262,7 @@ export function loadConfig(
       spend: generatorConfig.value.spend,
       contextSources: generatorConfig.value.contextSources,
       trackers: generatorConfig.value.trackers,
+      siblingRepos: generatorConfig.value.siblingRepos,
       serverVersion: knobs.value.serverVersion,
       revisionNarrative: knobs.value.revisionNarrative,
       hugeSpanRatio: knobs.value.hugeSpanRatio,

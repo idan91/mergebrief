@@ -142,3 +142,6 @@ generator:
 #     databaseId: 4935e9400eeb80b0ad46000b1ce17b37
 #   - kind: github
 #     issuesRepo: owner/name   # optional: where a bare #N resolves
+#     # Instance only: true reads issues in every repo the installation
+#     # covers; false (the default) reads the PR's repo and issuesRepo only.
+#     siblingRepos: false

@@ -38,6 +38,8 @@ export interface LoadedGeneratorConfig {
   contextSources: ContextSourcesConfig;
   /** The boards every repo on this instance reads by default; a repo's own settings replace the list. */
   trackers: readonly TrackerConfig[];
+  /** Whether issue references resolve beyond the PR's repo and its `issuesRepo`; the instance's, whatever a repo's list says. */
+  siblingRepos: boolean;
   /** The file the config came from; null for zero-config defaults. */
   source: string | null;
 }
@@ -55,6 +57,7 @@ export function loadGeneratorConfig(
         spend: DEFAULT_SPEND_POLICY,
         contextSources: DEFAULT_CONTEXT_SOURCES,
         trackers: DEFAULT_TRACKERS,
+        siblingRepos: false,
         source: null,
       },
     };
@@ -90,6 +93,7 @@ export function loadGeneratorConfigFile(
         spend: DEFAULT_SPEND_POLICY,
         contextSources: DEFAULT_CONTEXT_SOURCES,
         trackers: DEFAULT_TRACKERS,
+        siblingRepos: false,
         source: path,
       },
     };
@@ -164,6 +168,7 @@ export function loadGeneratorConfigFile(
   // here so a bad entry stops boot rather than every generation.
   const trackersBlock = root["trackers"];
   let trackers = DEFAULT_TRACKERS;
+  let siblingRepos = false;
   if (trackersBlock !== undefined) {
     const validated = validateTrackersBlock(trackersBlock);
     if (!validated.ok) {
@@ -171,7 +176,7 @@ export function loadGeneratorConfigFile(
         validated.error.issues.map((issue) => `trackers.${issue}`),
       );
     }
-    trackers = validated.value;
+    ({ trackers, siblingRepos } = validated.value);
   }
 
   const block = root["generator"];
@@ -183,6 +188,7 @@ export function loadGeneratorConfigFile(
         spend,
         contextSources,
         trackers,
+        siblingRepos,
         source: path,
       },
     };
@@ -201,6 +207,7 @@ export function loadGeneratorConfigFile(
       spend,
       contextSources,
       trackers,
+      siblingRepos,
       source: path,
     },
   };
