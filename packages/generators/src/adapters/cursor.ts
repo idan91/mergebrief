@@ -303,6 +303,17 @@ function renderSubtype(subtype: string): string {
   return KNOWN_RESULT_SUBTYPES.has(subtype) ? subtype : "an unrecognized error";
 }
 
+// An `is_error: true` envelope may still carry `subtype: "success"`.
+function renderErrorSubtype(subtype: string): string {
+  if (subtype === "") {
+    return "an error";
+  }
+  if (subtype === "success") {
+    return "an error with subtype success";
+  }
+  return renderSubtype(subtype);
+}
+
 /** The stream-json events the adapter reads. Everything else is ignored. */
 interface CursorResultEnvelope {
   subtype: string;
@@ -464,7 +475,7 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
   if (envelope.isError) {
     throw new GeneratorError(
       GeneratorErrorKinds.OPAQUE,
-      `${command} reported ${envelope.subtype === "" ? "an error" : renderSubtype(envelope.subtype)} for ${label}`,
+      `${command} reported ${renderErrorSubtype(envelope.subtype)} for ${label}`,
     );
   }
   if (envelope.result === "") {

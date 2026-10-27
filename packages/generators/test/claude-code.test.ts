@@ -15,7 +15,7 @@ import {
   interpretClaudeAuthStatus,
 } from "../src/adapters/claudeCode";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
-import type { GenerateRequest } from "../src/contract/generator";
+import type { GenerateRequest, TokenUsage } from "../src/contract/generator";
 import {
   GeneratorWarningKinds,
   type GeneratorWarning,
@@ -223,6 +223,15 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     });
   });
 
+  it("names an is_error envelope with subtype success as an error", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "error-success-subtype" });
+    const promise = generator.generate(request());
+    await expect(promise).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.OPAQUE,
+    });
+    await expect(promise).rejects.toThrow(/an error with subtype success/);
+  });
+
   it("classifies a silent hang as a timeout", async () => {
     const generator = makeGenerator(
       { SHIM_SCENARIO: "hang" },
@@ -368,6 +377,131 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     });
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(existsSync(join(scriptDir, "stdin-1.txt"))).toBe(true);
+  });
+});
+
+function stubScriptedUsageRun(turn: Record<string, unknown>): {
+  generator: ClaudeCodeGenerator;
+  req: GenerateRequest<typeof Schema>;
+  usages: TokenUsage[];
+} {
+  const scriptDir = tempDir("claude-code-usage-");
+  writeFileSync(join(scriptDir, "turns.json"), JSON.stringify([turn]));
+  const generator = makeGenerator({
+    SHIM_SCENARIO: "scripted",
+    SHIM_SCRIPT_DIR: scriptDir,
+  });
+  const usages: TokenUsage[] = [];
+  const req = request();
+  req.onUsage = (usage) => usages.push(usage);
+  return { generator, req, usages };
+}
+
+describe("ClaudeCodeGenerator usage reporting", () => {
+  it("reports the envelope's tokens, thinking, cost and limits once", async () => {
+    const { generator, req, usages } = stubScriptedUsageRun({
+      output: '{"ok":true}',
+      envelopeFields: {
+        total_cost_usd: 0.42,
+        usage: {
+          input_tokens: 1200,
+          output_tokens: 900,
+          cache_read_input_tokens: 300,
+          cache_creation_input_tokens: 50,
+          output_tokens_details: { thinking_tokens: 400 },
+        },
+        modelUsage: {
+          "claude-opus-4-8": {
+            inputTokens: 1200,
+            outputTokens: 900,
+            costUSD: 0.42,
+            contextWindow: 200000,
+            maxOutputTokens: 32000,
+          },
+        },
+      },
+    });
+
+    await expect(generator.generate(req)).resolves.toEqual({ ok: true });
+
+    expect(usages).toEqual([
+      {
+        inputTokens: 1200,
+        outputTokens: 900,
+        cacheReadTokens: 300,
+        cacheWriteTokens: 50,
+        reasoningTokens: 400,
+        costUsd: 0.42,
+        contextWindowTokens: 200000,
+        maxOutputTokens: 32000,
+      },
+    ]);
+  });
+
+  it("falls back to the modelUsage entry when usage is null", async () => {
+    const { generator, req, usages } = stubScriptedUsageRun({
+      output: '{"ok":true}',
+      envelopeFields: {
+        usage: null,
+        total_cost_usd: null,
+        modelUsage: {
+          "claude-opus-4-8": {
+            inputTokens: 7,
+            outputTokens: 8,
+            thinkingTokens: 3,
+            costUSD: 0.05,
+          },
+        },
+      },
+    });
+
+    await generator.generate(req);
+
+    expect(usages).toEqual([
+      {
+        inputTokens: 7,
+        outputTokens: 8,
+        cacheReadTokens: 0,
+        reasoningTokens: 3,
+        costUsd: 0.05,
+      },
+    ]);
+  });
+
+  it("reads drifted usage fields as zeros without throwing", async () => {
+    const { generator, req, usages } = stubScriptedUsageRun({
+      output: '{"ok":true}',
+      noModelUsage: true,
+      envelopeFields: {
+        total_cost_usd: "free",
+        usage: {
+          input_tokens: "lots",
+          output_tokens: -3,
+          output_tokens_details: null,
+        },
+      },
+    });
+
+    await expect(generator.generate(req)).resolves.toEqual({ ok: true });
+
+    expect(usages).toEqual([
+      { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 },
+    ]);
+  });
+
+  it("reports usage from an error envelope before it throws", async () => {
+    const { generator, req, usages } = stubScriptedUsageRun({
+      output: "",
+      errorSubtype: "error_during_execution",
+    });
+
+    await expect(generator.generate(req)).rejects.toBeInstanceOf(
+      GeneratorError,
+    );
+
+    expect(usages).toEqual([
+      { inputTokens: 10, outputTokens: 20, cacheReadTokens: 0, costUsd: 0.01 },
+    ]);
   });
 });
 

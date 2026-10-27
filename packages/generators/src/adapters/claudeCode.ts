@@ -14,7 +14,12 @@ import {
   schemaFeedbackMessage,
   type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
-import type { GenerateRequest, Generator, Logger } from "../contract/generator";
+import type {
+  GenerateRequest,
+  Generator,
+  Logger,
+  TokenUsage,
+} from "../contract/generator";
 import {
   GeneratorWarningKinds,
   type GeneratorWarningSink,
@@ -67,6 +72,17 @@ const KNOWN_RESULT_SUBTYPES = new Set([
 
 function renderSubtype(subtype: string): string {
   return KNOWN_RESULT_SUBTYPES.has(subtype) ? subtype : "an unrecognized error";
+}
+
+// The CLI refuses an oversized prompt with `is_error: true` under `subtype: "success"`.
+function renderErrorSubtype(subtype: string): string {
+  if (subtype === "") {
+    return "an error";
+  }
+  if (subtype === "success") {
+    return "an error with subtype success";
+  }
+  return renderSubtype(subtype);
 }
 
 /**
@@ -144,6 +160,10 @@ interface ResultEnvelope {
   hasStructuredOutput: boolean;
   structuredOutput: unknown;
   modelUsage: string[] | null;
+  /** The run's `usage`, `modelUsage` and `total_cost_usd` as sent, read only through `readRunUsage`. */
+  rawUsage: unknown;
+  rawModelUsage: unknown;
+  rawCostUsd: unknown;
 }
 
 export class ClaudeCodeGenerator implements Generator {
@@ -241,7 +261,7 @@ export class ClaudeCodeGenerator implements Generator {
           runArgs.signal = req.signal;
         }
         const run = await runHarnessProcess(runArgs);
-        return this.interpret(req.label, run, log, req.onWarning);
+        return this.interpret(req.label, run, log, req.onWarning, req.onUsage);
       },
     };
     if (req.salvageFields) {
@@ -271,6 +291,7 @@ export class ClaudeCodeGenerator implements Generator {
     run: HarnessRunResult,
     log: Logger,
     onWarning: GeneratorWarningSink | undefined,
+    onUsage: ((usage: TokenUsage) => void) | undefined,
   ): { raw: string; parsed?: unknown; invalidReason?: string } {
     if (run.timedOut) {
       throw harnessTimeoutError(label, run);
@@ -307,6 +328,13 @@ export class ClaudeCodeGenerator implements Generator {
       );
     }
 
+    // One report per CLI run, summed over its API requests; billed even when
+    // the run reported an error after the envelope.
+    const usage = readRunUsage(envelope, this.model);
+    if (usage !== undefined) {
+      onUsage?.(usage);
+    }
+
     this.verifyServedModel(envelope, log, onWarning);
 
     if (envelope.subtype === "error_max_structured_output_retries") {
@@ -325,7 +353,7 @@ export class ClaudeCodeGenerator implements Generator {
     if (envelope.isError) {
       throw new GeneratorError(
         GeneratorErrorKinds.OPAQUE,
-        `${this.command} reported ${envelope.subtype === "" ? "an error" : renderSubtype(envelope.subtype)} for ${label}`,
+        `${this.command} reported ${renderErrorSubtype(envelope.subtype)} for ${label}`,
       );
     }
     if (envelope.hasStructuredOutput) {
@@ -424,10 +452,103 @@ function parseEventLine(line: string): StreamEvent | null {
           typeof modelUsage === "object" && modelUsage !== null
             ? Object.keys(modelUsage)
             : null,
+        rawUsage: Reflect.get(value, "usage"),
+        rawModelUsage: modelUsage,
+        rawCostUsd: Reflect.get(value, "total_cost_usd"),
       },
     };
   }
   return null;
+}
+
+function readField(source: unknown, key: string): unknown {
+  if (typeof source !== "object" || source === null) {
+    return undefined;
+  }
+  return Reflect.get(source, key);
+}
+
+function parseCount(value: unknown): number | undefined {
+  if (typeof value !== "number") {
+    return undefined;
+  }
+  const isCount = Number.isFinite(value) && value >= 0;
+  if (!isCount) {
+    return undefined;
+  }
+  return value;
+}
+
+function readCount(source: unknown, key: string): number | undefined {
+  return parseCount(readField(source, key));
+}
+
+function readModelEntry(modelUsage: unknown, model: string): unknown {
+  if (typeof modelUsage !== "object" || modelUsage === null) {
+    return undefined;
+  }
+  if (Object.hasOwn(modelUsage, model)) {
+    return Reflect.get(modelUsage, model);
+  }
+  return Object.values(modelUsage)[0];
+}
+
+/**
+ * Maps the result envelope's `usage` (API casing) and `modelUsage` entry
+ * (camelCase) onto one report; a missing count reads as 0 and an absent
+ * optional field stays absent. Undefined when the envelope carries neither.
+ */
+function readRunUsage(
+  envelope: ResultEnvelope,
+  model: string,
+): TokenUsage | undefined {
+  const usage = envelope.rawUsage;
+  const entry = readModelEntry(envelope.rawModelUsage, model);
+  const hasUsage = typeof usage === "object" && usage !== null;
+  const hasUsageSource = hasUsage || entry !== undefined;
+  if (!hasUsageSource) {
+    return undefined;
+  }
+
+  const report: TokenUsage = {
+    inputTokens:
+      readCount(usage, "input_tokens") ?? readCount(entry, "inputTokens") ?? 0,
+    outputTokens:
+      readCount(usage, "output_tokens") ??
+      readCount(entry, "outputTokens") ??
+      0,
+    cacheReadTokens:
+      readCount(usage, "cache_read_input_tokens") ??
+      readCount(entry, "cacheReadInputTokens") ??
+      0,
+  };
+  const cacheWriteTokens =
+    readCount(usage, "cache_creation_input_tokens") ??
+    readCount(entry, "cacheCreationInputTokens");
+  if (cacheWriteTokens !== undefined) {
+    report.cacheWriteTokens = cacheWriteTokens;
+  }
+  const outputDetails = readField(usage, "output_tokens_details");
+  const reasoningTokens =
+    readCount(outputDetails, "thinking_tokens") ??
+    readCount(entry, "thinkingTokens");
+  if (reasoningTokens !== undefined) {
+    report.reasoningTokens = reasoningTokens;
+  }
+  const costUsd =
+    parseCount(envelope.rawCostUsd) ?? readCount(entry, "costUSD");
+  if (costUsd !== undefined) {
+    report.costUsd = costUsd;
+  }
+  const contextWindowTokens = readCount(entry, "contextWindow");
+  if (contextWindowTokens !== undefined) {
+    report.contextWindowTokens = contextWindowTokens;
+  }
+  const maxOutputTokens = readCount(entry, "maxOutputTokens");
+  if (maxOutputTokens !== undefined) {
+    report.maxOutputTokens = maxOutputTokens;
+  }
+  return report;
 }
 
 // Boot-probe billing checks: a version-floor warning and a billing-route

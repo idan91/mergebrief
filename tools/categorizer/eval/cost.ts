@@ -56,6 +56,7 @@ const perTok = (tokens: number, perMTok: number): number =>
  */
 const INPUT_EXCLUDES_CACHE: ReadonlySet<string> = new Set<Provider>([
   Providers.ANTHROPIC,
+  Providers.CLAUDE_CODE,
 ]);
 
 /** `key` is the invocation's `provider:model`; pricing semantics follow

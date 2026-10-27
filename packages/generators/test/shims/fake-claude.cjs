@@ -222,6 +222,9 @@ if (scenario === "scripted") {
         result: script.output,
         structured_output: parsed,
       });
+      if (script.envelopeFields) {
+        Object.assign(envelope, script.envelopeFields);
+      }
       // Envelope-drift arm: an older/newer CLI without modelUsage.
       if (script.noModelUsage) {
         delete envelope.modelUsage;
@@ -363,6 +366,13 @@ switch (scenario) {
         error: "authentication_failed",
       });
       process.stderr.write("authentication_failed\n");
+      process.exit(1);
+    });
+    break;
+  case "error-success-subtype":
+    drainStdinThen(() => {
+      init();
+      emit(resultEnvelope({ is_error: true, result: "" }));
       process.exit(1);
     });
     break;

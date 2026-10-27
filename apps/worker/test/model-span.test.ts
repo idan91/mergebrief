@@ -107,6 +107,16 @@ describe("traceProviderCalls", () => {
     expect(call?.attributes["gen_ai.usage.input_tokens"]).toBe(100);
   });
 
+  it("adds cache reads to a claude-code input total", async () => {
+    tracing = startTestTracing();
+    const claudeCode = stubReportingGenerator(undefined, "claude-code");
+
+    await traceProviderCalls(claudeCode).generate(makeRequest());
+
+    const [call] = tracing.readFinishedSpans();
+    expect(call?.attributes["gen_ai.usage.input_tokens"]).toBe(4000);
+  });
+
   it("keeps an OpenAI-compatible input total, cache reads already inside", async () => {
     tracing = startTestTracing();
     const openai = stubReportingGenerator(undefined, "openai");

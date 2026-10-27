@@ -216,6 +216,18 @@
     }
   }
 
+  // The card reaches past .main's --main-gutter to sit closer to the screen
+  // edge. The bleed lives here because the chunk list's virtualizer writes
+  // an inline inline-size on every wrapper above the card.
+  @media (width < 760px) {
+    :global(.main) .chunk {
+      --chunk-bleed: calc(var(--main-gutter) - var(--space-2));
+
+      inline-size: calc(100% + 2 * var(--chunk-bleed));
+      margin-inline: calc(-1 * var(--chunk-bleed));
+    }
+  }
+
   @media (width <= 760px) {
     .head {
       flex-wrap: wrap;

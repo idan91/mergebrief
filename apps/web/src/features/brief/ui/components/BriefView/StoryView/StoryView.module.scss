@@ -67,6 +67,12 @@
     }
   }
 
+  @media (width < 760px) {
+    :global(.main) .group > * {
+      align-self: stretch;
+    }
+  }
+
   // No :has(): it would re-run on every scroll-spy data-current toggle and
   // tank scroll performance.
   [data-zen="on"] .group:not([data-active-group]) {

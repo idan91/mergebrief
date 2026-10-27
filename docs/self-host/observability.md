@@ -175,11 +175,13 @@ A store span is named for the method a caller reached and changes when
 that method is renamed, so it is outside the stable contract above: key a
 monitor on a business-step name instead.
 
-Token counts come from the provider's own accounting. The API adapters and
-the cursor CLI report them; the other CLI adapters report none. For Anthropic
-and OpenAI-compatible providers the input total counts cache reads and
-writes, as the GenAI convention defines it; cursor's counts are exported as
-it reports them. With tracing on, an OpenAI-compatible provider is asked to
+Token counts come from the provider's own accounting. The API adapters, the
+claude CLI and the cursor CLI report them; codex reports none. A CLI reports
+once per run with the run's total, so for the two CLIs
+`mergebrief.provider_requests` counts CLI runs, not the API requests inside
+each. For Anthropic, OpenAI-compatible providers and the claude CLI the input
+total counts cache reads and writes, as the GenAI convention defines it;
+cursor's counts are exported as it reports them. With tracing on, an OpenAI-compatible provider is asked to
 include usage in its stream; one that rejects the option is asked again
 without it and reports no usage. With tracing off the request is unchanged.
 

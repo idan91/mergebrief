@@ -6,8 +6,8 @@ export type Logger = (message: string) => void;
 
 /**
  * Token counts for ONE provider request, in that provider's own accounting:
- * Anthropic's `inputTokens` EXCLUDES cache reads and writes, OpenAI-compatible
- * ones INCLUDE cache reads, cursor-agent's are unverified.
+ * Anthropic's and claude-code's `inputTokens` EXCLUDE cache reads and writes,
+ * OpenAI-compatible ones INCLUDE cache reads, cursor-agent's are unverified.
  */
 export interface TokenUsage {
   inputTokens: number;
@@ -18,6 +18,10 @@ export interface TokenUsage {
   cacheWriteTokens?: number;
   /** Absent when unreported: a reported 0 means the effort was not honored. */
   reasoningTokens?: number;
+  /** The provider's list-price figure for the request, not a metered charge. Absent when unreported. */
+  costUsd?: number;
+  contextWindowTokens?: number;
+  maxOutputTokens?: number;
 }
 
 export interface GenerateRequest<S extends z.ZodType> {
@@ -32,8 +36,8 @@ export interface GenerateRequest<S extends z.ZodType> {
   signal?: AbortSignal;
   log?: Logger;
   /**
-   * Once per provider request that reports usage, retries included. The CLI
-   * adapters without per-call usage never call it; it must not throw.
+   * Once per provider request reporting usage, retries included; claude-code
+   * and cursor report once per CLI run, codex never. It must not throw.
    */
   onUsage?: (usage: TokenUsage) => void;
   /** Once per degradation this generation survived; the `log` line still fires. */

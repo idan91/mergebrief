@@ -4,6 +4,10 @@ import { traceStep, type SpanAttributes, type SpanHandle } from "logging";
 const GEN_AI_OPERATION = "chat";
 /** Reported for a provider with no effort knob. */
 const NO_EFFORT = "none";
+const CACHE_APART_PROVIDERS: ReadonlySet<string> = new Set<string>([
+  Providers.ANTHROPIC,
+  Providers.CLAUDE_CODE,
+]);
 
 interface UsageTotals {
   requests: number;
@@ -50,9 +54,10 @@ export function traceProviderCalls(
         "mergebrief.generation.effort": origin.effort ?? NO_EFFORT,
       };
       const spanName = `${GEN_AI_OPERATION} ${origin.model}`;
-      // GenAI's input total includes cache reads and writes; Anthropic reports
-      // both apart from its input count, OpenAI-compatible providers inside it.
-      const cacheTokensApart = origin.provider === Providers.ANTHROPIC;
+      // GenAI's input total includes cache reads and writes; Anthropic and
+      // claude-code report both apart from the input count, OpenAI-compatible
+      // providers inside it.
+      const cacheTokensApart = CACHE_APART_PROVIDERS.has(origin.provider);
       return traceStep(
         spanName,
         attributes,
