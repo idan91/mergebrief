@@ -52,10 +52,11 @@ export const Roles = {
 } as const;
 
 /**
- * Risk surface - 19 factual attributes (never verdicts). Attaches to a chunk.
- * Three buckets: about the code / about the change / about the blast radius.
+ * Risk surface the model observes - 19 factual attributes (never verdicts).
+ * Attaches to a chunk. Three buckets: about the code / about the change /
+ * about the blast radius.
  */
-export const RiskSurfaceAttributes = {
+export const ModelRiskSurfaceAttributes = {
   // about the CODE
   NO_TESTS: "no-tests",
   NO_TYPES: "no-types",
@@ -81,6 +82,21 @@ export const RiskSurfaceAttributes = {
 } as const;
 
 /**
+ * Attributes the pipeline sets from the diff itself, after validation. The
+ * model's schema and prompt never offer them, so it can neither emit nor
+ * drop one, and the Unattributed remainder may carry them.
+ */
+export const CodeSetRiskAttributes = {
+  // about the CHANGE
+  ADDS_SECRET: "adds-secret",
+} as const;
+
+export const RiskSurfaceAttributes = {
+  ...ModelRiskSurfaceAttributes,
+  ...CodeSetRiskAttributes,
+} as const;
+
+/**
  * Custom-attribute names double as json_schema enum tokens and prompt text,
  * so their charset is a security control, not a style preference: kebab-case
  * identifiers only, ≤ 50 chars. `repo-config` enforces the same shape at the
@@ -95,6 +111,9 @@ export const CUSTOM_ATTRIBUTE_NAME_MAX_CHARS = 50;
 export type Concern = ValueOf<typeof Concerns>;
 export type Role = ValueOf<typeof Roles>;
 export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;
+export type ModelRiskSurfaceAttribute = ValueOf<
+  typeof ModelRiskSurfaceAttributes
+>;
 export type Specificity = ValueOf<typeof Specificities>;
 export type RevisionNarrativeSkipReason = ValueOf<
   typeof RevisionNarrativeSkipReasons
@@ -113,10 +132,14 @@ const roleEnum = z.enum(Roles);
  * enumerated statically - the enum enforces it at parse time.
  */
 function riskTokenEnum(customNames: readonly string[]): z.ZodType<string> {
-  return z.enum([...Object.values(RiskSurfaceAttributes), ...customNames]);
+  return z.enum([...Object.values(ModelRiskSurfaceAttributes), ...customNames]);
 }
 
-const riskSurfaceEnum = riskTokenEnum([]);
+/** What a model may emit: the code-set attributes are never offered. */
+const modelRiskEnum = riskTokenEnum([]);
+/** What a stored chunk may carry: every built-in attribute. */
+const storedRiskEnum: z.ZodType<string> = z.enum(RiskSurfaceAttributes);
+const codeSetRiskEnum: z.ZodType<string> = z.enum(CodeSetRiskAttributes);
 
 // --- Brief shape ----------------------------------------------------------
 
@@ -209,7 +232,7 @@ function buildRiskNoteSchema(riskToken: z.ZodType<string>) {
   });
 }
 
-export const RiskNoteSchema = buildRiskNoteSchema(riskSurfaceEnum);
+export const RiskNoteSchema = buildRiskNoteSchema(storedRiskEnum);
 
 /**
  * The model-facing chunk shape: attribution only (concern, role, ranges) ,
@@ -268,9 +291,8 @@ const ChunkLocSchema = z
 const buildChunkSchema = (riskToken: z.ZodType<string>) =>
   buildChunkGenerationSchema(riskToken).extend({ loc: ChunkLocSchema });
 
-export const ChunkGenerationSchema =
-  buildChunkGenerationSchema(riskSurfaceEnum);
-export const ChunkSchema = buildChunkSchema(riskSurfaceEnum);
+export const ChunkGenerationSchema = buildChunkGenerationSchema(modelRiskEnum);
+export const ChunkSchema = buildChunkSchema(storedRiskEnum);
 
 export const ChangeGroupSchema = z.object({
   id: z
@@ -332,6 +354,12 @@ export const UnattributedFileSchema = z.object({
   removedRanges: z
     .array(LineRangeSchema)
     .describe("old-side changed lines no chunk claims"),
+  riskSurface: z
+    .array(codeSetRiskEnum)
+    .optional()
+    .describe(
+      "code-set attributes only: the remainder carries no model-observed attribute",
+    ),
 });
 
 /**

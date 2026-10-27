@@ -61,7 +61,7 @@ How a prior comment is placed once head has moved. A shipped **Comment** (GitHub
 _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comments)
 
 **Chunk**:
-A contiguous run of changed lines sharing **one Concern and one Change-group**, the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC. Lines in the **Unattributed remainder** are still chunks: they belong to that group and carry no Concern, no Role, no Risk Surface and no inherited Categorization: only their file, ranges and LoC.
+A contiguous run of changed lines sharing **one Concern and one Change-group**, the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC. Lines in the **Unattributed remainder** are still chunks: they belong to that group and carry no Concern, no Role, no inherited Categorization and no Risk Surface the model observes: only their file, ranges and LoC, plus `adds-secret` when an added line holds a credential, which the pipeline sets without reading intent.
 _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
 _Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree; until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
@@ -76,7 +76,7 @@ A cluster of chunks that together accomplish one coherent piece of work (e.g., "
 _Avoid_: chapter (Linear's narrative-only term), story, cluster, section
 
 **Unattributed remainder**:
-The set of changed lines no attributed **Chunk** claimed. Stored on the **Brief** as per-file line ranges; the page shows them as remainder chunks in one last **Change-group**, the one exception to the intent boundary: no Summary, no Categorization, never split, never merged into an intent group. Its name and one-line note are fixed system copy, not model output; its chunks carry no Concern, Role or Risk Surface. In the **Split** it is one last segment beside the Concerns, never a Concern itself.
+The set of changed lines no attributed **Chunk** claimed. Stored on the **Brief** as per-file line ranges; the page shows them as remainder chunks in one last **Change-group**, the one exception to the intent boundary: no Summary, no Categorization, never split, never merged into an intent group. Its name and one-line note are fixed system copy, not model output; its chunks carry no Concern or Role, and no Risk Surface beyond `adds-secret`, which the pipeline sets. In the **Split** it is one last segment beside the Concerns, never a Concern itself.
 _Avoid_: coverage gap, orphan lines, residue, unattributed (bare noun)
 
 **Category**:
@@ -120,7 +120,7 @@ The set of factual attributes attached to a chunk. Attributes only, never verdic
 _Avoid_: critical area, hot spot, risky code, severity tag
 
 **Flag**:
-A single AI-surfaced item from the brief that requires reviewer attention: a **Risk Surface** attribute firing on a specific **Chunk**. The code, the operations and the **Signature line** call it a risk (`dismiss-risk`, `address-risk`, `reopen-risk`, "risks addressed"); unvisited-playbook-item flags are parked with the playbook layer.
+A single item from the brief that requires reviewer attention: a **Risk Surface** attribute firing on a specific **Chunk**, which the model surfaces or, for `adds-secret`, the pipeline sets. The code, the operations and the **Signature line** call it a risk (`dismiss-risk`, `address-risk`, `reopen-risk`, "risks addressed"); unvisited-playbook-item flags are parked with the playbook layer.
 _Avoid_: issue, warning, finding
 
 **Risk note**:
@@ -276,7 +276,7 @@ The merge step of **Anchored generation**: carry frozen groups verbatim, judge t
 _Avoid_: merge (bare), splice, assemble
 
 **Schema floor**:
-The guarantee every generator adapter runs output through: validate against the output schema, salvage droppable enum slips, retry once with feedback, then dump the raw output and throw `schema-floor`, which the worker stores as the `output-invalid` failure. Native provider schema enforcement is a bonus layer, never the mechanism. Distinct from **Floor**, the three risk attributes a repository cannot quiet.
+The guarantee every generator adapter runs output through: validate against the output schema, salvage droppable enum slips, retry once with feedback, then dump the raw output and throw `schema-floor`, which the worker stores as the `output-invalid` failure. Native provider schema enforcement is a bonus layer, never the mechanism. Distinct from **Floor**, the four risk attributes a repository cannot quiet.
 _Avoid_: validation (one step of it), floor (bare; that is the display **Floor**), output guard
 
 **Eval harness**:
@@ -376,7 +376,7 @@ Display-weight tuning from `policy.yaml`: a `deEmphasize` rule names a non-floor
 _Avoid_: hide, suppress, mute (nothing is removed)
 
 **Floor**:
-The three risk attributes that can never be de-emphasized: `touches-auth`, `removes-validation`, `relaxes-permissions` (declared in `docs/vocabulary/risk-surface.md`). A `deEmphasize` rule naming one invalidates the whole policy file. A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted: the combination is the signal. A display guarantee, not the **Schema floor** (a generation guarantee) and not a test coverage floor.
+The four risk attributes that can never be de-emphasized: `touches-auth`, `removes-validation`, `relaxes-permissions`, `adds-secret` (declared in `docs/vocabulary/risk-surface.md`). A `deEmphasize` rule naming one invalidates the whole policy file. A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted: the combination is the signal. A display guarantee, not the **Schema floor** (a generation guarantee) and not a test coverage floor.
 _Avoid_: severity tier, critical attributes (the floor is a display guarantee, not a score), floor (bare, where the Schema floor could be meant)
 
 **Jump-rail**:

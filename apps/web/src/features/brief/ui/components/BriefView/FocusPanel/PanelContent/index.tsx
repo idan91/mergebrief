@@ -45,6 +45,8 @@ export function PanelContent({
   const flagCount = model.flagsByGroup.get(group.id)?.length ?? 0;
   const chunkRiskMeta = chunk ? model.riskMetaByChunk.get(chunk.id) : undefined;
   const attributed = isAttributedGroupView(group);
+  const chunkCarriesRisk = (chunk?.riskSurface.length ?? 0) > 0;
+  const showsChunkRisks = attributed || chunkCarriesRisk;
   const closeButton = (
     <IconButton label={t("brief.focusPanel.hide")} onClick={hide}>
       <Icon name={IconNames.X} size={IconSizes.MD} />
@@ -91,7 +93,7 @@ export function PanelContent({
           <FileFacts
             chunk={chunk}
             riskMeta={chunkRiskMeta}
-            showRisks={attributed}
+            showRisks={showsChunkRisks}
           />
         ) : null}
       </div>

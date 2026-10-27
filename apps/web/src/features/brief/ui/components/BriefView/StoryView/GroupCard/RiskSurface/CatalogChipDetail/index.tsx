@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   riskFlagDescription,
   type RiskFlag,
-} from "../../../../../../../../model/utils/view-model";
+} from "../../../../../../../model/utils/view-model";
 import styles from "./CatalogChipDetail.module.scss";
 
 export interface CatalogChipDetailProps {

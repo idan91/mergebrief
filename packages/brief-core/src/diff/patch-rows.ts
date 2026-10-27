@@ -11,6 +11,8 @@ export interface PatchRow {
   newLine?: number;
   /** Position of the row's hunk in the patch, from zero. */
   hunk: number;
+  /** The patch line the row came from, from zero. */
+  patchLine: number;
 }
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
@@ -20,7 +22,7 @@ export function parsePatchRows(patch: string): PatchRow[] {
   let oldLine = 0;
   let newLine = 0;
   let hunk = -1;
-  for (const line of patch.split("\n")) {
+  for (const [patchLine, line] of patch.split("\n").entries()) {
     const header = HUNK_HEADER.exec(line);
     if (header) {
       oldLine = Number(header[1]);
@@ -40,13 +42,13 @@ export function parsePatchRows(patch: string): PatchRow[] {
     const marker = line[0];
     const content = line.slice(1);
     if (marker === "+") {
-      rows.push({ content, newLine, hunk });
+      rows.push({ content, newLine, hunk, patchLine });
       newLine += 1;
     } else if (marker === "-") {
-      rows.push({ content, oldLine, hunk });
+      rows.push({ content, oldLine, hunk, patchLine });
       oldLine += 1;
     } else {
-      rows.push({ content, oldLine, newLine, hunk });
+      rows.push({ content, oldLine, newLine, hunk, patchLine });
       oldLine += 1;
       newLine += 1;
     }

@@ -1,6 +1,7 @@
 import type { z } from "zod/v4";
 import { GenerationSchema } from "generators/generation";
 import { BriefSchema, PrRefSchema, RevisionNarrativeSchema } from "../../types";
+import { StoredUnattributedReadSchema } from "../schemas";
 import {
   ArtifactIssueCodes,
   type ArtifactIssue,
@@ -21,7 +22,7 @@ const BRIEF_SECTIONS: BriefSectionSchemas = {
   anchoring: BriefSchema.shape.anchoring,
   generationWarnings: BriefSchema.shape.generationWarnings,
   lengthViolations: BriefSchema.shape.lengthViolations,
-  unattributed: BriefSchema.shape.unattributed,
+  unattributed: StoredUnattributedReadSchema,
   diffTotals: BriefSchema.shape.diffTotals,
   readingOrder: BriefSchema.shape.readingOrder,
   intentCheck: BriefSchema.shape.intentCheck,

@@ -199,6 +199,7 @@ function PreviousBriefChanges({
     (chunk) =>
       !brief.changeGroups.some((g) => g.id === chunk.briefChangeGroupId),
   );
+  const modelChunks = model.groups.flatMap((group) => group.chunks);
 
   return (
     <div className={styles["changesOnly"]}>
@@ -227,7 +228,7 @@ function PreviousBriefChanges({
               </span>
             </div>
             <SectionFlags
-              chunks={brief.chunks}
+              chunks={modelChunks}
               flags={model.flags}
               group={group}
               jumpToChunk={jumpToChunk}
@@ -537,6 +538,7 @@ function LastReviewChanges({
     );
   }
   const model = buildBriefViewModel(delta);
+  const fullModelChunks = fullModel.groups.flatMap((group) => group.chunks);
   return (
     <div className={styles["changesOnly"]}>
       <div className={styles["eyebrow"]}>
@@ -560,7 +562,7 @@ function LastReviewChanges({
               </span>
             </div>
             <SectionFlags
-              chunks={brief.chunks}
+              chunks={fullModelChunks}
               flags={fullModel.flags}
               group={group}
               jumpToChunk={jumpToChunk}

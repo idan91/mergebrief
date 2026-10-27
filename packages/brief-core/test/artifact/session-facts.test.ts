@@ -126,6 +126,30 @@ describe("readBriefSessionFacts", () => {
     expect(facts.markableChunkCount).toBe(4);
   });
 
+  it("reads a flag an unattributed file carries, over its whole span", () => {
+    const unattributed = [
+      {
+        file: "src/secret.ts",
+        addedRanges: [{ start: 3, end: 4 }],
+        removedRanges: [{ start: 2, end: 2 }],
+        riskSurface: ["adds-secret"],
+      },
+      { file: "src/plain.ts", addedRanges: [{ start: 1, end: 1 }] },
+      { file: 7 },
+    ];
+
+    const facts = readFactsOrThrow({ ...BODY, unattributed });
+
+    expect(facts.flags).toContainEqual({
+      filePath: "src/secret.ts",
+      attribute: "adds-secret",
+      regionStart: 2,
+      regionEnd: 4,
+    });
+    expect(facts.flags).toHaveLength(3);
+    expect(facts.markableChunkCount).toBe(5);
+  });
+
   it("counts no unattributed files from a broken section", () => {
     const facts = readFactsOrThrow({ ...BODY, unattributed: "lost" });
 

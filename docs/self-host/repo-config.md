@@ -161,8 +161,8 @@ deEmphasize:                       # optional display tuning: quiet, never suppr
 - **De-emphasis, never suppression**: detection always runs and every
   attribute lands in the artifact and Receipt; de-emphasis only quiets the
   render and drops the attribute from the jump-rail. The floor attributes,
-  `touches-auth`, `removes-validation`, `relaxes-permissions`, cannot be
-  de-emphasized, and a quiet attribute co-firing with a floor attribute
+  `touches-auth`, `removes-validation`, `relaxes-permissions`, `adds-secret`,
+  cannot be de-emphasized, and a quiet attribute co-firing with a floor attribute
   renders loud.
 - Glob scope language: `**` spans directories, `*` within a segment, `?`
   one character.

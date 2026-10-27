@@ -138,8 +138,38 @@ const DELTA: Brief = {
   ],
 };
 
+/** A full brief whose secret sits on a file no change group claims. */
+const REMAINDER_BRIEF: Brief = {
+  ...FULL_BRIEF,
+  unattributed: [
+    {
+      file: "src/key.ts",
+      addedRanges: [{ start: 4, end: 4 }],
+      removedRanges: [],
+      riskSurface: ["adds-secret"],
+    },
+  ],
+};
+
+const REMAINDER_NARRATIVE: RevisionNarrative = {
+  ...NARRATIVE,
+  chunks: [
+    ...NARRATIVE.chunks,
+    {
+      id: "rc3",
+      briefChangeGroupId: "g1",
+      file: "src/key.ts",
+      addedRanges: [{ start: 4, end: 4 }],
+      removedRanges: [],
+      summary: "Adds a key to the config file.",
+    },
+  ],
+};
+
 interface RenderOptions {
   compare?: "previous-brief" | "last-review";
+  brief?: Brief;
+  narrative?: RevisionNarrative;
 }
 
 interface ProbeProps {
@@ -166,6 +196,8 @@ function SessionProbe({ onActions, onDispositions }: ProbeProps) {
 
 function renderSection(options: RenderOptions = {}) {
   const compare = options.compare ?? "previous-brief";
+  const brief = options.brief ?? FULL_BRIEF;
+  const narrative = options.narrative ?? NARRATIVE;
   const flowStore = createReviewFlowStore(
     {
       saveComment: vi.fn(),
@@ -176,7 +208,7 @@ function renderSection(options: RenderOptions = {}) {
     },
     appI18n.t,
   );
-  const model = buildBriefViewModel(FULL_BRIEF);
+  const model = buildBriefViewModel(brief);
   const jumpToChunk = vi.fn();
   let sessionActions: ReviewSessionActions | undefined;
   let dispositionKinds: Record<string, string> = {};
@@ -195,13 +227,13 @@ function renderSection(options: RenderOptions = {}) {
                 }}
               />
               <ChangesOnlyView
-                brief={FULL_BRIEF}
+                brief={brief}
                 compare={compare}
                 delta={compare === "last-review" ? DELTA : null}
                 jumpToChunk={jumpToChunk}
                 marks={null}
                 model={model}
-                narrative={compare === "previous-brief" ? NARRATIVE : null}
+                narrative={compare === "previous-brief" ? narrative : null}
                 skipReason={null}
               />
             </ReviewPostureProvider>
@@ -268,6 +300,12 @@ describe("flags on a Changes section", () => {
     renderSection();
 
     expect(screen.getByRole("button", { name: "src/c.ts" })).toBeTruthy();
+  });
+
+  it("shows a remainder flag on a section that touches its file", () => {
+    renderSection({ brief: REMAINDER_BRIEF, narrative: REMAINDER_NARRATIVE });
+
+    expect(screen.getByRole("button", { name: "src/key.ts" })).toBeTruthy();
   });
 
   it("shows the flags under a Your last review section too", () => {

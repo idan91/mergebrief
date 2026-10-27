@@ -9,7 +9,7 @@ import type {
 import type { RepoContext } from "../../src/generation/repo-context";
 import type { GenerationWarning } from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github/types";
-import type { Brief } from "../../src/types";
+import { RiskSurfaceAttributes, type Brief } from "../../src/types";
 import { FakeGenerator } from "../helpers";
 
 const OVER_CAP_SUMMARY = "s".repeat(300);
@@ -452,6 +452,24 @@ describe("generateBrief, an anchored run", () => {
     expect(byId.get("c9")?.riskSurface).toEqual([]);
     expect(findIssues(result.warnings, "repo attrs")).toEqual([
       expect.stringContaining("chunk c9 (src/b.ts)"),
+    ]);
+  });
+
+  it("strips a carried chunk's adds-secret the diff no longer supports", async () => {
+    const previousBrief = await makePreviousBrief();
+    const stale: Brief = {
+      ...previousBrief,
+      chunks: previousBrief.chunks.map((chunk) => ({
+        ...chunk,
+        riskSurface: [RiskSurfaceAttributes.ADDS_SECRET],
+      })),
+    };
+
+    const result = await runAnchored(revisedOutput, stale);
+
+    expect(result.brief.chunks.map((chunk) => chunk.riskSurface)).toEqual([
+      [],
+      [],
     ]);
   });
 

@@ -74,7 +74,7 @@ export function hydrateRemainderGroup(
       loc: { added: fileAdded, deleted: fileDeleted },
       addedRanges: file.addedRanges,
       removedRanges: file.removedRanges,
-      riskSurface: [],
+      riskSurface: file.riskSurface ?? [],
     };
     if (file.diff !== undefined) {
       chunk.diff = file.diff;

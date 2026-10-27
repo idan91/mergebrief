@@ -142,6 +142,7 @@ const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
   [RiskSurfaceAttributes.NEW_ABSTRACTION]: "brief.risk.newAbstraction",
   [RiskSurfaceAttributes.COMMENT_CONTRADICTS_CODE]:
     "brief.risk.commentContradictsCode",
+  [RiskSurfaceAttributes.ADDS_SECRET]: "brief.risk.addsSecret",
   [RiskSurfaceAttributes.EXTERNAL_IO]: "brief.risk.externalIo",
   [RiskSurfaceAttributes.CROSS_SERVICE]: "brief.risk.crossService",
   [RiskSurfaceAttributes.SCHEMA_ADJACENT]: "brief.risk.schemaAdjacent",
@@ -181,6 +182,7 @@ const RISK_LABEL_KEYS = {
   [RiskSurfaceAttributes.NEW_ABSTRACTION]: "brief.riskLabel.newAbstraction",
   [RiskSurfaceAttributes.COMMENT_CONTRADICTS_CODE]:
     "brief.riskLabel.commentContradictsCode",
+  [RiskSurfaceAttributes.ADDS_SECRET]: "brief.riskLabel.addsSecret",
   [RiskSurfaceAttributes.EXTERNAL_IO]: "brief.riskLabel.externalIo",
   [RiskSurfaceAttributes.CROSS_SERVICE]: "brief.riskLabel.crossService",
   [RiskSurfaceAttributes.SCHEMA_ADJACENT]: "brief.riskLabel.schemaAdjacent",
@@ -250,15 +252,7 @@ export function buildBriefViewModel(
   // un-quiet rule all resolve from the artifact's snapshot.
   const riskMetaByChunk = new Map<string, Map<string, AttributeDisplayMeta>>();
   for (const chunk of brief.chunks) {
-    const chunkFiresFloor = chunk.riskSurface.some(isFloorAttribute);
-    const metaByAttr = new Map<string, AttributeDisplayMeta>();
-    for (const attr of chunk.riskSurface) {
-      metaByAttr.set(
-        attr,
-        attributeDisplayMeta(repoConfig, attr, chunk.file, chunkFiresFloor),
-      );
-    }
-    riskMetaByChunk.set(chunk.id, metaByAttr);
+    riskMetaByChunk.set(chunk.id, buildChunkRiskMeta(repoConfig, chunk));
   }
 
   const sourceOrderGroups = brief.changeGroups.map((group, index) => {
@@ -294,6 +288,12 @@ export function buildBriefViewModel(
     brief.readingOrder,
   );
   const groups = appendRemainderGroup(attributed, brief, chunkToGroup);
+  const remainderChunks = groups
+    .filter((group) => !isAttributedGroupView(group))
+    .flatMap((group) => group.chunks);
+  for (const chunk of remainderChunks) {
+    riskMetaByChunk.set(chunk.id, buildChunkRiskMeta(repoConfig, chunk));
+  }
 
   const coreOnly = brief.chunks.filter((chunk) => chunk.role === Roles.CORE);
   const unattributed = buildUnattributedView(brief.unattributed);
@@ -301,7 +301,7 @@ export function buildBriefViewModel(
   const flags: RiskFlag[] = [];
   const flagsById = new Map<string, RiskFlag>();
   const flagsByGroup = new Map<string, RiskFlag[]>();
-  for (const chunk of brief.chunks) {
+  for (const chunk of [...brief.chunks, ...remainderChunks]) {
     const groupId = chunkToGroup.get(chunk.id) ?? "g1";
     for (const [index, attr] of chunk.riskSurface.entries()) {
       const note = chunk.riskNotes?.find((n) => n.attr === attr)?.note;
@@ -519,6 +519,25 @@ function orderGroupsByReadingOrder(
   // isPermutation guarantees every step resolves; this is a defensive
   // fallback in case that invariant is ever violated.
   return ordered.length === groups.length ? ordered : groups;
+}
+
+/** Source, de-emphasis and the floor co-fire un-quiet rule, per attribute a chunk carries. */
+function buildChunkRiskMeta(
+  repoConfig: RepoConfigContext | null | undefined,
+  chunk: BriefChunk,
+): Map<string, AttributeDisplayMeta> {
+  const chunkFiresFloor = chunk.riskSurface.some(isFloorAttribute);
+  const metaByAttr = new Map<string, AttributeDisplayMeta>();
+  for (const attr of chunk.riskSurface) {
+    const meta = attributeDisplayMeta(
+      repoConfig,
+      attr,
+      chunk.file,
+      chunkFiresFloor,
+    );
+    metaByAttr.set(attr, meta);
+  }
+  return metaByAttr;
 }
 
 function appendRemainderGroup(

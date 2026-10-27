@@ -45,6 +45,7 @@ export const FLOOR_ATTRIBUTES = [
   "touches-auth",
   "removes-validation",
   "relaxes-permissions",
+  "adds-secret",
 ] as const;
 
 export const PARKED_ATTRIBUTE_CANDIDATES = [

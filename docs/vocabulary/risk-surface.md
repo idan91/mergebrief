@@ -8,7 +8,7 @@ This file is the source of truth for the Risk Surface vocabulary. The Brief sche
 
 **Status:** starter set. Expand when real PRs show a gap (see "When to Add a New Attribute").
 
-**Floor attributes.** Three attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions`, marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
+**Floor attributes.** Four attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions`, `adds-secret`, marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
 
 ---
 
@@ -113,6 +113,12 @@ A comment or docstring in the diff appears to disagree with what the adjacent co
 - **Reviewer implication:** reviewer reads both and resolves which side is right: fix the
   code or fix the comment. Checkable in seconds; the flag routes attention, never asserts
   which side is wrong.
+
+### `adds-secret`
+**Floor: yes**. Cannot be de-emphasized by repo policy.
+An added line in the chunk holds a credential in a recognizable format: a private key block, a fixed-prefix provider token, a JWT, or a password inside a URL.
+- **Detect:** code-set, never model-observed. After validation the pipeline runs the same patterns that redact the prompt over the raw diff and sets the attribute on every chunk whose added lines hold a match. The model never sees the value, so it is never offered this attribute and cannot emit or drop it. A credential on a removed line does not fire it (removing it is the fix). It is the one attribute the Unattributed remainder can carry, because the pipeline needs no reading of intent to set it.
+- **Reviewer implication:** treat the credential as leaked: rotate it, then ask for it to come out of the repository and its history. Merging only spreads it further.
 
 ---
 

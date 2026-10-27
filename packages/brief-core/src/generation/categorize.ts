@@ -66,6 +66,7 @@ import type {
   PrimaryTicketOutcome,
 } from "../context/types";
 import { toPrimaryTicket } from "../context/primary";
+import { flagAddedSecrets } from "./added-secrets";
 import { attributeSafe } from "./fences";
 import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
@@ -696,9 +697,13 @@ export async function categorizeDelta(
   collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));
   const trio = validateRiskAttributes(chunksWithLoc, fileDiffs);
   collector.reportIssues("risk attrs", trio.issues);
+  const flagged = flagAddedSecrets(trio.chunks, [], fileDiffs);
 
   // Warn-only length floor, same posture as the full brief.
-  const textLength = validateTextLength(generated.changedGroups, trio.chunks);
+  const textLength = validateTextLength(
+    generated.changedGroups,
+    flagged.chunks,
+  );
   collector.reportIssues("text length", textLength.issues);
 
   const summary = removeUnseenLinks(generated.summary, user);
@@ -715,7 +720,7 @@ export async function categorizeDelta(
     ...generated,
     summary: summary.text,
     commentsAddressed: commentsAddressed.text,
-    chunks: trio.chunks,
+    chunks: flagged.chunks,
     pr: buildPrRef(input.locator, input.meta, input.meta.sha),
     baselineSha: input.baselineSha,
     headSha: input.headSha,

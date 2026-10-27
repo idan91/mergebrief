@@ -5,19 +5,20 @@ import type {
   ReviewFlowActions,
 } from "@web/features/review/session";
 import { Button } from "@web/components/Button";
+import { resolveGroupName } from "../../../../../../model/utils/resolve-group-name";
 import type {
-  AttributedGroupView,
+  GroupView,
   RiskFlag,
-} from "../../../../../../../model/utils/view-model";
-import { useReadingPositionIfMounted } from "../../../../reading/reading-position";
-import cardStyles from "../../GroupCard.module.scss";
+} from "../../../../../../model/utils/view-model";
+import { useReadingPositionIfMounted } from "../../../reading/reading-position";
+import cardStyles from "../GroupCard.module.scss";
 import { FileRow } from "./FileRow";
 import { ResolvedFold } from "./ResolvedFold";
 import styles from "./RiskSurface.module.scss";
 import { getChunkFile, groupFlagsByFile } from "./utils";
 
 export interface RiskSurfaceProps {
-  group: AttributedGroupView;
+  group: GroupView;
   groupFlags: RiskFlag[];
   /** The files to list rows in; the group's own chunk order by default. */
   fileOrder?: string[] | undefined;
@@ -63,15 +64,16 @@ export function RiskSurface({
   const fileCount = rows.length;
   const flagCount = groupFlags.length;
   const heading = t("brief.group.riskSurface");
+  const regionLabel = t("brief.group.ariaLabelGroupRiskSurface", {
+    title: resolveGroupName(t, group),
+  });
   const selectedFlagsLabel = t("brief.group.selectedFlags", {
     count: selectedCount,
   });
 
   return (
     <div
-      aria-label={t("brief.group.ariaLabelGroupRiskSurface", {
-        title: group.group.title,
-      })}
+      aria-label={regionLabel}
       className={cardStyles["body"]}
       role="region"
       tabIndex={0}

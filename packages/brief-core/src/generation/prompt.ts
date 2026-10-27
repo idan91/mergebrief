@@ -1,10 +1,11 @@
 import { ChangeGroupCategories, type ChangeGroupCategory } from "types";
 import {
   Concerns,
+  ModelRiskSurfaceAttributes,
   RiskSurfaceAttributes,
   type Brief,
   type Concern,
-  type RiskSurfaceAttribute,
+  type ModelRiskSurfaceAttribute,
 } from "../types";
 import { REPO_INSTRUCTION_CLASSES, type RepoContext } from "./repo-context";
 import { stripKnownProseFences } from "./fences";
@@ -48,7 +49,7 @@ const CONCERN_DESCRIPTIONS: Record<Concern, string> = {
     "generated / vendored output (lockfiles, bundles) — supporting",
 };
 
-const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
+const RISK_DESCRIPTIONS: Record<ModelRiskSurfaceAttribute, string> = {
   // about the CODE
   [RiskSurfaceAttributes.NO_TESTS]:
     "the changed code path has no test coverage in the repo",
@@ -272,7 +273,7 @@ ${STYLE_FILES_CORE_RULE}
 
 Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own text: if you note a risk in the summary (a changed contract with existing consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in your text without flagging it on a chunk.**
 
-${bullets(RiskSurfaceAttributes, RISK_DESCRIPTIONS)}
+${bullets(ModelRiskSurfaceAttributes, RISK_DESCRIPTIONS)}
 
 Firing discipline for the observational trio (all three are about the change itself — never about who or what authored it):
 
@@ -411,7 +412,7 @@ ${STYLE_FILES_CORE_RULE}
 
 Attach an attribute only when the incremental diff supports it — and **be consistent with your own text: if you note a risk in the summary or \`wholePrImpact\` (a changed contract with existing consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it. Never describe a risk without flagging it on a chunk.**
 
-${bullets(RiskSurfaceAttributes, RISK_DESCRIPTIONS)}
+${bullets(ModelRiskSurfaceAttributes, RISK_DESCRIPTIONS)}
 
 Firing discipline for the observational trio (about the change itself — never about who or what authored it): \`new-dependency\` fires only when a manifest gains a new direct dependency (a version-only bump is the \`lib-bump\` / \`dependency-update\` Category, not this attribute); \`new-abstraction\` fires on the *existence* of a new named abstraction only, never on relocations (\`pure-move\` / \`move-with-edits\`); \`comment-contradicts-code\` fires only when BOTH the comment and the code are visible in the incremental diff — else stay silent. \`removes-validation\` fires only when the diff deletes or rewrites an existing check — a chunk that only ADDS lines almost never qualifies.
 

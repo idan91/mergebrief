@@ -8,7 +8,7 @@ import type {
   AttributedGroupView,
   RiskFlag,
 } from "../../../../../model/utils/view-model";
-import { RiskSurface } from "../../StoryView/GroupCard/AttributedGroupCard/RiskSurface";
+import { RiskSurface } from "../../StoryView/GroupCard/RiskSurface";
 import styles from "./SectionFlags.module.scss";
 
 export interface SectionFlagsProps {

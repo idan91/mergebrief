@@ -11,6 +11,7 @@ import {
   type ReviewSessionActions,
 } from "@web/features/review/session";
 import { I18nProvider } from "../../../../../../i18n/I18nProvider";
+import { RiskSurfaceAttributes } from "brief-core/types";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import {
@@ -33,6 +34,12 @@ const brief = {
       addedRanges: [{ start: 1, end: 3 }],
       removedRanges: [{ start: 2, end: 2 }],
       diff: [{ kind: "add" as const, content: "leftover()", newLine: 1 }],
+    },
+    {
+      file: "src/key.ts",
+      addedRanges: [{ start: 4, end: 4 }],
+      removedRanges: [],
+      riskSurface: [RiskSurfaceAttributes.ADDS_SECRET],
     },
   ],
 };
@@ -282,6 +289,14 @@ describe("FocusPanel", () => {
     expect(panel.textContent).not.toMatch(/\d+ flags?/);
     expect(panel.textContent).not.toContain("Concern");
     expect(panel.querySelector('[data-kind="dominant"]')).toBeNull();
+  });
+
+  it("shows the risks a remainder chunk carries", () => {
+    const { group } = findRemainder();
+    const secret = group.chunks.find((chunk) => chunk.file === "src/key.ts");
+    const { panel } = renderPanel(secret?.id ?? "", group.id);
+
+    expect(within(getFileFacts(panel)).getByText("Adds a secret")).toBeTruthy();
   });
 
   it("moves focus to the tab on hide and to the heading on show", () => {

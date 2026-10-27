@@ -1,3 +1,4 @@
+import { flagAddedSecrets } from "../added-secrets";
 import type { PrFile } from "../../github/types";
 import type {
   Brief,
@@ -154,10 +155,13 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
     acceptsRevisionDroppedChecks: args.acceptsRevisionDroppedChecks,
   });
   warnings.reportIssues("risk attrs", risks.issues);
+  const flagged = flagAddedSecrets(risks.chunks, unattributed, [
+    ...context.fileDiffs,
+  ]);
 
-  const textLength = validateTextLength(groups, risks.chunks);
+  const textLength = validateTextLength(groups, flagged.chunks);
   warnings.reportIssues("text length", textLength.issues);
-  warnings.reportIssues("partition", validatePartition(groups, risks.chunks));
+  warnings.reportIssues("partition", validatePartition(groups, flagged.chunks));
   const summary = removeUnseenLinks(args.brief.summary, context.prompt);
   warnings.reportIssues(
     "unseen links",
@@ -173,9 +177,9 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
   const brief: Brief = {
     ...rest,
     summary: summary.text,
-    chunks: risks.chunks,
-    concernView: buildConcernView(risks.chunks),
-    unattributed,
+    chunks: flagged.chunks,
+    concernView: buildConcernView(flagged.chunks),
+    unattributed: flagged.unattributed,
   };
 
   if (readingOrder !== undefined) {

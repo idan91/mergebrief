@@ -10,6 +10,7 @@ import {
   RevisionNarrativeSkipReasons,
   RiskNoteSchema,
   RiskSurfaceAttributes,
+  UnattributedFileSchema,
   type Brief,
   type RevisionNarrativeSkipped,
 } from "../types";
@@ -77,11 +78,21 @@ export const StoredChunkReadSchema = ChunkSchema.extend({
   changeGroupId: z.string().optional(),
 });
 
+/** A remainder file's risk names stay open like a chunk's, so one a newer release wrote never drops the section. */
+export const StoredUnattributedReadSchema = z
+  .array(
+    UnattributedFileSchema.extend({
+      riskSurface: z.array(readRiskToken).optional(),
+    }),
+  )
+  .optional();
+
 export const StoredBriefReadSchema = BriefSchema.extend({
   index: BriefSchema.shape.index.optional(),
   commitRange: BriefSchema.shape.commitRange.optional(),
   generation: BriefSchema.shape.generation.optional(),
   chunks: z.array(StoredChunkReadSchema),
+  unattributed: StoredUnattributedReadSchema,
 });
 
 export const StoredDeltaBriefReadSchema = DeltaBriefSchema.extend({
@@ -91,6 +102,14 @@ export const StoredDeltaBriefReadSchema = DeltaBriefSchema.extend({
 const sessionFactsRangeSchema = z.object({
   start: z.number(),
   end: z.number(),
+});
+
+/** One unattributed file as a session reads it; an entry that fails is counted but carries no flag. */
+export const StoredSessionFactsRemainderSchema = z.object({
+  file: z.string(),
+  addedRanges: z.array(sessionFactsRangeSchema).default([]),
+  removedRanges: z.array(sessionFactsRangeSchema).default([]),
+  riskSurface: z.array(z.string()).default([]),
 });
 
 /**

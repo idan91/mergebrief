@@ -1101,6 +1101,44 @@ describe("the review work operations", () => {
     ]);
   });
 
+  it.each([true, false])(
+    "decides a flag only an unattributed file carries, stored counts %s",
+    async (stored) => {
+      const secret = {
+        filePath: "src/left.ts",
+        attribute: "adds-secret",
+        regionStart: 2,
+        regionEnd: 5,
+      };
+      const remainderOnly = JSON.stringify({
+        changeGroups: [{ id: "g1" }],
+        chunks: [{ id: "c1", file: "src/app.ts" }],
+        unattributed: [
+          {
+            file: secret.filePath,
+            addedRanges: [{ start: 2, end: 5 }],
+            riskSurface: [secret.attribute],
+          },
+        ],
+      });
+      const { client, sessions, key } = await openWorld(remainderOnly);
+      if (!stored) {
+        await client.query(
+          `update brief set session_chunk_count = null,
+             session_group_count = null, session_flag_count = null
+           where id = $1`,
+          [key.briefId.toString()],
+        );
+      }
+
+      const decided = await sessions.decideRisks(key, [
+        makeDismissal(secret, "rotated"),
+      ]);
+
+      expect(decided).toEqual({ ok: true, value: 1 });
+    },
+  );
+
   it("refuses a decision list past the flags and leaves no session", async () => {
     const { client, sessions, key } = await openWorld();
     const other = { ...FLAG, attribute: "no-tests" };

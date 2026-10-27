@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Disposition } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
-import type { Brief, BriefChunk } from "../../../../../../../model/types";
+import type { Brief, BriefChunk } from "../../../../../../model/types";
 import {
   getRiskAttributeInlineLabel,
   getRiskAttributeLabel,
@@ -14,11 +14,11 @@ import {
   isAttributedGroupView,
   type AttributedGroupView,
   type RiskFlag,
-} from "../../../../../../../model/utils/view-model";
+} from "../../../../../../model/utils/view-model";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
-} from "../../../../reading/reading-position";
+} from "../../../reading/reading-position";
 import { RiskSurface } from ".";
 
 const DISMISSED: Disposition = {

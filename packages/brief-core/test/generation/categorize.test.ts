@@ -22,6 +22,7 @@ import {
 } from "generators";
 import {
   IntentCheckGenerationSchema,
+  RiskSurfaceAttributes,
   type Brief,
   type BriefGeneration,
   type CommitRange,
@@ -76,6 +77,22 @@ const pr: FetchedPr = {
   diff: "diff --git a/src/a.ts b/src/a.ts\n",
   links: [],
 };
+
+/** src/schema.ts adds a token on line 2, src/logic.ts adds two plain lines. */
+function makeSecretDiff(): string {
+  return [
+    "diff --git a/src/schema.ts b/src/schema.ts",
+    "@@ -0,0 +1,3 @@",
+    "+export const a = 1;",
+    `+export const token = "${FAKE_SECRETS[SecretKinds.GITHUB_TOKEN]}";`,
+    "+export const b = 2;",
+    "diff --git a/src/logic.ts b/src/logic.ts",
+    "@@ -0,0 +1,2 @@",
+    "+export const c = 3;",
+    "+export const d = 4;",
+    "",
+  ].join("\n");
+}
 
 const commitRange = {
   base: "base0000000000000",
@@ -602,6 +619,44 @@ describe("categorize, intent check validation", () => {
     expect(user).toContain('+const key = "[redacted:aws-access-key-id]";');
   });
 
+  it("flags the chunk that adds a credential and nothing else", async () => {
+    const brief = await generateFreshBrief(
+      { ...pr, diff: makeSecretDiff() },
+      1,
+      commitRange,
+      makeFakeGenerator(twoGroupBriefGen),
+    );
+
+    expect(brief.chunks.map((chunk) => chunk.riskSurface)).toEqual([
+      [RiskSurfaceAttributes.ADDS_SECRET],
+      [],
+    ]);
+  });
+
+  it("flags the unattributed lines that add a credential", async () => {
+    const [schemaChunk, logicChunk] = twoGroupBriefGen.chunks;
+    const brief = await generateFreshBrief(
+      { ...pr, diff: makeSecretDiff() },
+      1,
+      commitRange,
+      makeFakeGenerator({
+        ...twoGroupBriefGen,
+        chunks: [
+          { ...schemaChunk, addedRanges: [{ start: 1, end: 1 }] },
+          logicChunk,
+        ],
+      }),
+    );
+
+    expect(brief.chunks.map((chunk) => chunk.riskSurface)).toEqual([[], []]);
+    expect(brief.unattributed).toEqual([
+      expect.objectContaining({
+        file: "src/schema.ts",
+        riskSurface: [RiskSurfaceAttributes.ADDS_SECRET],
+      }),
+    ]);
+  });
+
   it("redacts a credential in a linked page's URL", async () => {
     const token = FAKE_SECRETS[SecretKinds.GITHUB_TOKEN];
     const linkedPr: FetchedPr = {
@@ -1037,6 +1092,24 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
     );
 
     expect(delta.generationWarnings).toContain(rejected);
+  });
+
+  it("flags the delta chunk whose added lines add a credential", async () => {
+    const delta = await categorizeDelta(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff: makeSecretDiff(),
+      },
+      makeFakeGenerator(deltaBriefGen),
+    );
+
+    expect(delta.chunks.map((chunk) => chunk.riskSurface)).toEqual([
+      [RiskSurfaceAttributes.ADDS_SECRET],
+      [],
+    ]);
   });
 
   it("strips forged fences from the delta prompt's PR text and diff", async () => {

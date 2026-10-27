@@ -6,13 +6,13 @@ import type {
   ReviewFlowActions,
 } from "@web/features/review/session";
 import { LinkButton } from "@web/components/LinkButton";
-import { RiskBadge } from "../../../../../RiskBadge";
-import { RiskChipDisclosure } from "../../../../../RiskChipDisclosure";
+import { RiskBadge } from "../../../../RiskBadge";
+import { RiskChipDisclosure } from "../../../../RiskChipDisclosure";
 import {
   getRiskAttributeInlineLabel,
   getRiskAttributeLabel,
   type RiskFlag,
-} from "../../../../../../../../model/utils/view-model";
+} from "../../../../../../../model/utils/view-model";
 import { CatalogChipDetail } from "../CatalogChipDetail";
 import {
   capitalizeSentence,

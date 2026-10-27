@@ -173,6 +173,20 @@ describe("readStoredBrief", () => {
     ]);
   });
 
+  it("keeps a remainder file whose risk name a newer release wrote", () => {
+    const file = {
+      file: "src/a.ts",
+      addedRanges: [{ start: 1, end: 2 }],
+      removedRanges: [],
+      riskSurface: ["adds-future-secret"],
+    };
+
+    const read = readBodyOrThrow(makeBodyWith({ unattributed: [file] }));
+
+    expect(read.brief.unattributed).toEqual([file]);
+    expect(read.issues).toEqual([]);
+  });
+
   it("moves a chunk whose changeGroupId is empty into the remainder", () => {
     const read = readBodyOrThrow(makeBodyWithChunk({ changeGroupId: "" }));
 

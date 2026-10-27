@@ -136,6 +136,42 @@ describe("buildReceipt", () => {
     ]);
   });
 
+  it("names the remainder file a chunk-reviewed remainder flag rests on", () => {
+    const brief: Brief = {
+      ...remainderBrief(),
+      unattributed: [
+        {
+          file: "src/key.ts",
+          addedRanges: [{ start: 4, end: 4 }],
+          removedRanges: [],
+          riskSurface: ["adds-secret"],
+        },
+      ],
+    };
+    const remainderModel = buildBriefViewModel(brief);
+    const secret = remainderModel.flags.find(
+      (flag) => flag.attr === "adds-secret",
+    )!;
+
+    const receipt = buildReceipt(
+      t,
+      snapshot({
+        dispositions: {
+          [secret.id]: {
+            kind: "addressed",
+            evidence: { kind: "chunk-reviewed", chunkId: secret.chunkId },
+          },
+        },
+      }),
+      brief,
+      remainderModel,
+    );
+
+    expect(receipt.addressed[0]?.evidenceLabel).toBe(
+      "Reviewed related chunk src/key.ts",
+    );
+  });
+
   it("writes the evidence label mid-line in the receipt text", () => {
     const receipt = buildReceipt(
       t,

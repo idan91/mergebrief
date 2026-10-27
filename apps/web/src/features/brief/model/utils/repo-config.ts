@@ -48,6 +48,7 @@ export const FLOOR_ATTRIBUTES = [
   "touches-auth",
   "removes-validation",
   "relaxes-permissions",
+  "adds-secret",
 ] as const;
 
 const FLOOR_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);

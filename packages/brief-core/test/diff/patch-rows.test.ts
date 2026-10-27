@@ -26,12 +26,12 @@ describe("parsePatchRows", () => {
     const rows = parsePatchRows(patch);
 
     expect(rows).toEqual([
-      { content: "ctx", oldLine: 3, newLine: 3, hunk: 0 },
-      { content: "old", oldLine: 4, hunk: 0 },
-      { content: "new1", newLine: 4, hunk: 0 },
-      { content: "new2", newLine: 5, hunk: 0 },
-      { content: "tail", oldLine: 5, newLine: 6, hunk: 0 },
-      { content: "late", newLine: 21, hunk: 1 },
+      { content: "ctx", oldLine: 3, newLine: 3, hunk: 0, patchLine: 4 },
+      { content: "old", oldLine: 4, hunk: 0, patchLine: 5 },
+      { content: "new1", newLine: 4, hunk: 0, patchLine: 6 },
+      { content: "new2", newLine: 5, hunk: 0, patchLine: 7 },
+      { content: "tail", oldLine: 5, newLine: 6, hunk: 0, patchLine: 9 },
+      { content: "late", newLine: 21, hunk: 1, patchLine: 12 },
     ]);
   });
 

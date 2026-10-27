@@ -1,15 +1,24 @@
-import { StoredSessionFactsReadSchema } from "./schemas";
+import {
+  StoredSessionFactsReadSchema,
+  StoredSessionFactsRemainderSchema,
+} from "./schemas";
 import type {
   BriefSessionFactsRead,
   ChunkRegion,
+  FlagKey,
   StoredSessionFactsChunk,
 } from "./types";
 import { readStored } from "./utils";
 
 const UNIT_REGION: ChunkRegion = { start: 1, end: 1 };
 
-/** The chunk's whole diff span, the region its flags' Dispositions anchor on. */
-function deriveChunkRegion(chunk: StoredSessionFactsChunk): ChunkRegion {
+type RangedLines = Pick<
+  StoredSessionFactsChunk,
+  "file" | "addedRanges" | "removedRanges" | "riskSurface"
+>;
+
+/** The lines' whole diff span, the region their flags' Dispositions anchor on. */
+function deriveChunkRegion(chunk: RangedLines): ChunkRegion {
   const bounds = [...chunk.addedRanges, ...chunk.removedRanges];
   if (bounds.length === 0) {
     return UNIT_REGION;
@@ -19,6 +28,17 @@ function deriveChunkRegion(chunk: StoredSessionFactsChunk): ChunkRegion {
     start: Math.min(...bounds.map((range) => range.start)),
     end: Math.max(...bounds.map((range) => range.end)),
   };
+}
+
+/** One flag per attribute over the lines' whole span; for an unattributed file that is the span its remainder chunk shows. */
+function listFlagKeys(lines: RangedLines): FlagKey[] {
+  const region = deriveChunkRegion(lines);
+  return lines.riskSurface.map((attribute) => ({
+    filePath: lines.file,
+    attribute,
+    regionStart: region.start,
+    regionEnd: region.end,
+  }));
 }
 
 /**
@@ -32,15 +52,11 @@ export function readBriefSessionFacts(json: string): BriefSessionFactsRead {
   }
 
   const { changeGroups, chunks, unattributed } = parsed.value;
-  const flags = chunks.flatMap((chunk) => {
-    const region = deriveChunkRegion(chunk);
-    return chunk.riskSurface.map((attribute) => ({
-      filePath: chunk.file,
-      attribute,
-      regionStart: region.start,
-      regionEnd: region.end,
-    }));
+  const remainder = unattributed.flatMap((entry) => {
+    const read = StoredSessionFactsRemainderSchema.safeParse(entry);
+    return read.success ? [read.data] : [];
   });
+  const flags = [...chunks, ...remainder].flatMap(listFlagKeys);
   const facts = {
     chunkIds: chunks.map((chunk) => chunk.id),
     groupIds: changeGroups.map((group) => group.id),

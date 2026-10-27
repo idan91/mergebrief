@@ -147,6 +147,7 @@ export function buildReceipt(
   model: BriefViewModel,
   repoConfig?: RepoConfigContext | null,
 ): Receipt {
+  const chunks = model.groups.flatMap((group) => group.chunks);
   const flagIds = model.flags.map((flag) => flag.id);
   const counts = riskDispositionCounts(snapshot.dispositions, flagIds);
 
@@ -169,13 +170,13 @@ export function buildReceipt(
                 t,
                 disposition.evidence,
                 snapshot.reviewComments,
-                brief.chunks,
+                chunks,
               ),
               evidenceLabelInline: riskEvidenceLabel(
                 t,
                 disposition.evidence,
                 snapshot.reviewComments,
-                brief.chunks,
+                chunks,
                 "inline",
               ),
             }
@@ -231,10 +232,7 @@ export function buildReceipt(
     },
     progress: {
       reviewedChunks: snapshot.reviewedChunkIds.length,
-      chunkTotal: model.groups.reduce(
-        (total, group) => total + group.chunks.length,
-        0,
-      ),
+      chunkTotal: chunks.length,
       flagTotal: model.flags.length,
     },
     counts,

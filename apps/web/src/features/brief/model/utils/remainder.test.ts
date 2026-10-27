@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Concerns, Roles } from "brief-core/types";
+import { Concerns, RiskSurfaceAttributes, Roles } from "brief-core/types";
 import { type UnattributedFile } from "../types";
 import {
   GroupViewKinds,
@@ -128,6 +128,19 @@ describe("hydrateRemainderGroup", () => {
       riskSurface: [],
     });
     expect(chunk?.diff).toEqual(orphanFile.diff);
+  });
+
+  it("carries a code-set flag onto the leftover file's chunk", () => {
+    const flagged: UnattributedFile = {
+      ...orphanFile,
+      riskSurface: [RiskSurfaceAttributes.ADDS_SECRET],
+    };
+
+    const hydration = hydrateRemainderGroup([flagged], new Set());
+
+    expect(hydration?.chunks[0]?.riskSurface).toEqual([
+      RiskSurfaceAttributes.ADDS_SECRET,
+    ]);
   });
 
   it("keeps persisted file order across two leftover files", () => {

@@ -922,6 +922,34 @@ describe("preview, what carries, per subject", () => {
     ]);
   });
 
+  it("settles a disposition whose flag now fires on an unattributed file", async () => {
+    const { world, current } = await twoBriefs(["c5"]);
+    const [flag] = FIRING;
+    const remainderOnly = JSON.stringify({
+      changeGroups: [],
+      chunks: [],
+      unattributed: [
+        {
+          file: flag?.filePath,
+          addedRanges: [{ start: flag?.regionStart, end: flag?.regionEnd }],
+          riskSurface: [flag?.attribute],
+        },
+      ],
+    });
+
+    await seedBriefBody(world, current, remainderOnly);
+    const view = await unwrapPreview(
+      createTenantRepository(world.handle, CTX).reviewSessions.preview({
+        briefId: current,
+        reviewerId: REVIEWER,
+      }),
+    );
+
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({ carryStatus: "settled" }),
+    ]);
+  });
+
   it("drops a disposition whose flag no longer fires", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 

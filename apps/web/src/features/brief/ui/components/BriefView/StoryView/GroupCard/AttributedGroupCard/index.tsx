@@ -15,7 +15,7 @@ import {
   getCategoryLabel,
   type AttributedGroupView,
 } from "../../../../../../model/utils/view-model";
-import { RiskSurface } from "./RiskSurface";
+import { RiskSurface } from "../RiskSurface";
 import { useAttributedGroupCardFacade } from "./useAttributedGroupCardFacade";
 
 export interface AttributedGroupCardProps extends Omit<

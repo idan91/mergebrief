@@ -590,6 +590,38 @@ describe("buildAttributeRail, jump-rail", () => {
 });
 
 describe("buildBriefViewModel, unattributed", () => {
+  it("registers a flag an unattributed file carries as a session flag", () => {
+    const parsed = parseBriefBody({
+      ...twoGroupBrief(),
+      unattributed: [
+        {
+          file: "src/secret.ts",
+          addedRanges: [{ start: 3, end: 4 }],
+          removedRanges: [],
+          riskSurface: [RiskSurfaceAttributes.ADDS_SECRET],
+        },
+      ],
+    });
+    if (!parsed.ok) {
+      throw new Error("expected a parsed brief");
+    }
+
+    const model = buildBriefViewModel(parsed.value);
+    const flag = model.flags.find(
+      (candidate) => candidate.attr === RiskSurfaceAttributes.ADDS_SECRET,
+    );
+
+    expect(flag).toMatchObject({
+      file: "src/secret.ts",
+      groupId: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    });
+    expect(model.flagsById.get(flag?.id ?? "")).toBe(flag);
+    expect(
+      model.flagsByGroup.get(GroupViewKinds.UNATTRIBUTED_REMAINDER),
+    ).toEqual([flag]);
+    expect(model.riskMetaByChunk.get(flag?.chunkId ?? "")).toBeDefined();
+  });
+
   it("includes per-file counts and totals in the brief totals", () => {
     const parsed = parseBriefBody({
       ...twoGroupBrief(),
