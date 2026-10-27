@@ -216,7 +216,9 @@ docs/                         vision, vocabulary, self-host and contributor docs
 The self-host backend keeps everything in **your own Postgres, on your own
 infrastructure, with your own API key**. Beyond the GitHub API, your model provider and
 the outbound reads described above, nothing leaves your network, and there is no
-telemetry. What it stores is deliberately minimal:
+telemetry. Credentials the worker recognizes in a diff or in PR text are redacted
+before the prompt reaches your provider (see
+[What the model receives](docs/self-host/generators.md#what-the-model-receives)). What it stores is deliberately minimal:
 
 - **Stored:** generated briefs and revision summaries (descriptions *of* your code), review
   positions (which commit each reviewer last reviewed), and encrypted login sessions.

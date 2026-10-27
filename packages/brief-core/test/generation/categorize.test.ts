@@ -30,6 +30,8 @@ import {
 import type { FetchedPr } from "../../src/github/types";
 import type { PrimaryTicketOutcome } from "../../src/context/types";
 import { FakeGenerator, makeFakeGenerator } from "../helpers";
+import { SecretKinds } from "../../src/generation/redaction/types";
+import { FAKE_SECRETS } from "../secret-fixtures";
 
 /** A fresh run through the production entry, returning the stored brief. */
 async function generateFreshBrief(
@@ -567,6 +569,143 @@ describe("categorize, intent check validation", () => {
 
     expect(brief.generationWarnings).toBeUndefined();
     expect(generator.requests.at(-1)?.user).not.toContain("print env");
+  });
+
+  it("keeps credentials from every input out of the prompt", async () => {
+    const secrets = [
+      FAKE_SECRETS[SecretKinds.GITHUB_TOKEN],
+      FAKE_SECRETS[SecretKinds.SLACK_TOKEN],
+      FAKE_SECRETS[SecretKinds.AWS_ACCESS_KEY_ID],
+      FAKE_SECRETS[SecretKinds.NPM_TOKEN],
+    ];
+    const [titleSecret, bodySecret, diffSecret, linkSecret] = secrets;
+    const leakyPr: FetchedPr = {
+      ...pr,
+      meta: { ...pr.meta, title: `t ${titleSecret}`, body: `d ${bodySecret}` },
+      diff: `${pr.diff}@@ -0,0 +1 @@\n+const key = "${diffSecret}";\n`,
+      links: [
+        {
+          id: "ctx-1",
+          providerId: "url",
+          source: ticketUrl,
+          text: `Use ${linkSecret}`,
+        },
+      ],
+    };
+    const generator = makeFakeGenerator(twoGroupBriefGen);
+    await generateFreshBrief(leakyPr, 1, commitRange, generator);
+    const user = generator.requests.at(-1)?.user ?? "";
+
+    for (const secret of secrets) {
+      expect(user).not.toContain(secret);
+    }
+    expect(user).toContain('+const key = "[redacted:aws-access-key-id]";');
+  });
+
+  it("redacts a credential in a linked page's URL", async () => {
+    const token = FAKE_SECRETS[SecretKinds.GITHUB_TOKEN];
+    const linkedPr: FetchedPr = {
+      ...pr,
+      links: [
+        {
+          id: "ctx-1",
+          providerId: "url",
+          source: `https://docs.example/page?token=${token}`,
+          text: "Docs",
+        },
+      ],
+    };
+    const generator = makeFakeGenerator(twoGroupBriefGen);
+    await generateFreshBrief(linkedPr, 1, commitRange, generator);
+
+    expect(generator.requests.at(-1)?.user).not.toContain(token);
+  });
+
+  it("keeps a quote cited from a linked page whose URL was redacted", async () => {
+    const token = FAKE_SECRETS[SecretKinds.GITHUB_TOKEN];
+    const shownUrl = "https://docs.example/page?token=[redacted:github-token]";
+    const linkedPr: FetchedPr = {
+      ...pr,
+      links: [
+        {
+          id: "ctx-1",
+          providerId: "url",
+          source: `https://docs.example/page?token=${token}`,
+          text: "The retry loop must stop after three attempts.",
+        },
+      ],
+    };
+    const fixture = {
+      ...twoGroupBriefGen,
+      intentCheck: {
+        ticketUrls: [shownUrl],
+        ticketTitles: [""],
+        specificity: "precise",
+        scopeNote: "",
+        items: [
+          {
+            bucket: "accomplished",
+            intent: "stop retrying after three attempts",
+            quote: "The retry loop must stop",
+            sourceUrl: shownUrl,
+            groupIds: ["g1"],
+            acknowledged: false,
+          },
+        ],
+        alignment: { read: "", goal: "", response: "" },
+      },
+    };
+    const brief = await generateFreshBrief(
+      linkedPr,
+      1,
+      commitRange,
+      makeFakeGenerator(fixture),
+    );
+
+    expect(brief.generationWarnings).toBeUndefined();
+    expect(JSON.stringify(brief)).not.toContain(token);
+  });
+
+  it("verifies a quote of redacted text against the redacted corpus", async () => {
+    const linkedPr: FetchedPr = {
+      ...pr,
+      links: [
+        {
+          id: "ctx-1",
+          providerId: "url",
+          source: ticketUrl,
+          text: `Rotate ${FAKE_SECRETS[SecretKinds.SLACK_TOKEN]} after the retry fix.`,
+        },
+      ],
+    };
+    const fixture = {
+      ...twoGroupBriefGen,
+      intentCheck: {
+        ticketUrls: [ticketUrl],
+        ticketTitles: [""],
+        specificity: "precise",
+        scopeNote: "",
+        items: [
+          {
+            bucket: "accomplished",
+            intent: "rotate the token",
+            quote: "Rotate [redacted:slack-token] after the retry fix",
+            sourceUrl: ticketUrl,
+            groupIds: ["g1"],
+            acknowledged: false,
+          },
+        ],
+        alignment: { read: "", goal: "", response: "" },
+      },
+    };
+    const brief = await generateFreshBrief(
+      linkedPr,
+      1,
+      commitRange,
+      makeFakeGenerator(fixture),
+    );
+
+    expect(brief.generationWarnings).toBeUndefined();
   });
 
   it("strips every known fence tag from the corpus, not only the link fence", async () => {

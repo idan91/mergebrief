@@ -1,4 +1,5 @@
 import {
+  countPullRequestSecrets,
   generateBrief,
   type Brief,
   type FetchedPr,
@@ -81,6 +82,10 @@ export async function writeFreshBrief(
   const fetchedPr: FetchedPr = { locator, meta, diff, links };
   if (primaryTicket !== undefined) {
     fetchedPr.primaryTicket = primaryTicket;
+  }
+  const secretKinds = countPullRequestSecrets(fetchedPr);
+  if (Object.keys(secretKinds).length > 0) {
+    log.debug("generate: secrets redacted from the prompt", { secretKinds });
   }
   const options: GenerateBriefOptions = {
     pr: fetchedPr,

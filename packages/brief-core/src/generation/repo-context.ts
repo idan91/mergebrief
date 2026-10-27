@@ -15,6 +15,8 @@ import {
   stripFenceTags,
   stripKnownFences,
 } from "./fences";
+import { redactProseSecrets } from "./redaction";
+import { removeHiddenCharacters } from "./untrusted-text";
 
 /** UTF-8 byte length used for every budget decision in this module. */
 function byteLength(text: string): number {
@@ -95,6 +97,11 @@ export function stripForgedRepoFences(text: string): string {
   return stripFenceTags(text, REPO_FENCE_TAGS);
 }
 
+/** Default-branch text bound for the prompt: hidden chars out, so none splits a credential, then redaction and the fence strip. */
+function redactRepoText(text: string): string {
+  return stripFences(redactProseSecrets(text, removeHiddenCharacters).text);
+}
+
 /**
  * Render the fenced `<repo_instructions path sha>` block for the user message's
  * data section. Returns the block, or `undefined` plus a warning when the
@@ -112,7 +119,7 @@ export function renderRepoInstructions(
   const path = attributeSafe(instructions.path);
   const sha = attributeSafe(instructions.blobSha);
   return {
-    block: `<repo_instructions path="${path}" sha="${sha}">\n${stripFences(instructions.content)}\n</repo_instructions>`,
+    block: `<repo_instructions path="${path}" sha="${sha}">\n${redactRepoText(instructions.content)}\n</repo_instructions>`,
   };
 }
 
@@ -133,14 +140,14 @@ export function renderCustomAttributes(
       const lines = [
         // Names are gated by `sanitizeCustomAttributes` upstream; the strip
         // here is belt-and-braces for any future caller that skips the gate.
-        `- \`${stripFences(attr.name)}\`: ${stripFences(attr.criteria)}`,
+        `- \`${stripFences(attr.name)}\`: ${redactRepoText(attr.criteria)}`,
         ...(attr.implication === undefined
           ? []
-          : [`  implication: ${stripFences(attr.implication)}`]),
+          : [`  implication: ${redactRepoText(attr.implication)}`]),
         ...(attr.paths === undefined || attr.paths.length === 0
           ? []
           : [
-              `  paths: ${attr.paths.map((p) => `\`${stripFences(p)}\``).join(", ")}`,
+              `  paths: ${attr.paths.map((p) => `\`${redactRepoText(p)}\``).join(", ")}`,
             ]),
       ];
       return lines.join("\n");

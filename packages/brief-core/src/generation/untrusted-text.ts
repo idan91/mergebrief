@@ -1,7 +1,6 @@
 import { stripKnownFences, stripKnownProseFences } from "./fences";
-
-/** Invisible to a reader, read by a model: zero-width, bidi, variation selectors, Unicode tags. */
-const HIDDEN_CHARS = /[\p{Default_Ignorable_Code_Point}\p{Bidi_Control}]/gu;
+import { HIDDEN_CHARS } from "./hidden-chars";
+import { redactDiffSecrets, redactProseSecrets } from "./redaction";
 
 /** Up to the block a construct sits in, nested: block-quote markers, list markers, indent. */
 const CONTAINER_PREFIX = String.raw`(?:[ \t>]|[-+*][ \t]|\d{1,9}[.)][ \t])*`;
@@ -73,17 +72,22 @@ export function removeHiddenCharacters(text: string): string {
   return text.replace(HIDDEN_CHARS, "");
 }
 
+function escapeHiddenCharacters(text: string): string {
+  return text.replace(HIDDEN_CHARS, formatCodePoint);
+}
+
 /** For prose, the prompt and the quote corpus alike. */
 export function sanitizeUntrustedText(text: string): string {
   const lines = text.replace(/\r\n?/g, "\n");
-  const visible = removeHiddenMarkup(lines).replace(HIDDEN_CHARS, "");
-  return stripKnownProseFences(visible);
+  const visible = removeHiddenMarkup(lines);
+  const redacted = redactProseSecrets(visible, removeHiddenCharacters);
+  return stripKnownProseFences(redacted.text);
 }
 
-/** For a diff: escapes stay on their line so ranges hold; HTML comments are code here. */
+/** For a diff: escapes and redaction markers stay on their line so ranges hold; HTML comments are code here. */
 export function sanitizeUntrustedDiff(diff: string): string {
-  const visible = diff.replace(HIDDEN_CHARS, formatCodePoint);
-  return stripKnownFences(visible);
+  const redacted = redactDiffSecrets(diff, escapeHiddenCharacters);
+  return stripKnownFences(redacted.text);
 }
 
 /**

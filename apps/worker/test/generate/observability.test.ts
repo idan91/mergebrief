@@ -20,12 +20,19 @@ import {
   makeGitHub,
   makeTarget,
   makeTask,
+  PR_REF,
   setUpHarness,
   stubGenerator,
   trigger,
 } from "./helpers";
 
 const OTHER_INSTALLATION = 4242;
+const REDACTION_LINE = "generate: secrets redacted from the prompt";
+
+/** Assembled from parts so the CI secrets scan never reads a token here. */
+function makeFakeSlackToken(): string {
+  return ["xoxb", "1234567890", "0987654321", "AbCdEfGhIjKlMnOp"].join("-");
+}
 
 setUpHarness();
 
@@ -53,6 +60,34 @@ describe("generate task, observability", () => {
     expect(
       readLines().some((line) => line["evt"] === "job.retries.exhausted"),
     ).toBe(false);
+  });
+
+  it("logs redaction counts at debug and never the value", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    const token = makeFakeSlackToken();
+    github.updatePullRequest(PR_REF, { body: `Rotate ${token}` });
+    const { logger, readLines } = captureLogger({ LOG_LEVEL: "debug" });
+
+    await makeTask({ github, log: logger })(payload);
+
+    const line = readLines().find((entry) => entry["msg"] === REDACTION_LINE);
+    expect(line).toMatchObject({
+      level: "debug",
+      secretKinds: { "slack-token": 1 },
+    });
+    expect(JSON.stringify(readLines())).not.toContain(token);
+  });
+
+  it("logs no redaction line when the prompt holds no secret", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const { logger, readLines } = captureLogger({ LOG_LEVEL: "debug" });
+
+    await makeTask({ github: makeGitHub(HEAD_1), log: logger })(payload);
+
+    expect(readLines().some((entry) => entry["msg"] === REDACTION_LINE)).toBe(
+      false,
+    );
   });
 
   it("logs generation.complete with the model call duration", async () => {

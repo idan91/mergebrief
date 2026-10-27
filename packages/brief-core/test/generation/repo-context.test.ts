@@ -12,6 +12,8 @@ import {
   renderRepoInstructions,
 } from "../../src/generation/repo-context";
 import { matchesGlob } from "../../src/path-matching";
+import { SecretKinds } from "../../src/generation/redaction/types";
+import { FAKE_SECRETS } from "../secret-fixtures";
 
 describe("REPO_INSTRUCTION_CLASSES", () => {
   it("names the load-bearing classes", () => {
@@ -27,6 +29,23 @@ describe("REPO_INSTRUCTION_CLASSES", () => {
     expect(mustIgnore).toContain("risk-surface attributes");
     expect(mustIgnore).toContain("verdicts");
     expect(mustIgnore).toContain("agent");
+  });
+});
+
+describe("renderCustomAttributes", () => {
+  it("redacts a credential in criteria, implication and paths", () => {
+    const token = FAKE_SECRETS[SecretKinds.SLACK_TOKEN];
+    const block = renderCustomAttributes([
+      {
+        name: "calls-billing",
+        criteria: `calls billing with ${token}`,
+        implication: `rotate ${token}`,
+        paths: [`src/${token}/**`],
+      },
+    ]);
+
+    expect(block).not.toContain(token);
+    expect(block).toContain("calls billing with [redacted:slack-token]");
   });
 });
 
@@ -47,6 +66,25 @@ describe("renderRepoInstructions", () => {
     );
     expect(rendered.block.endsWith("</repo_instructions>")).toBe(true);
     expect(rendered.block).toContain(base.content);
+  });
+
+  it("redacts a credential in the instructions", () => {
+    const token = FAKE_SECRETS[SecretKinds.SLACK_TOKEN];
+    const rendered = renderRepoInstructions({
+      ...base,
+      content: `Ping ${token}`,
+    });
+
+    expect(rendered.block).toContain("Ping [redacted:slack-token]");
+    expect(rendered.block).not.toContain(token);
+  });
+
+  it("redacts a credential a zero-width char splits in the instructions", () => {
+    const token = FAKE_SECRETS[SecretKinds.SLACK_TOKEN];
+    const split = `${token.slice(0, 6)}\u200B${token.slice(6)}`;
+    const rendered = renderRepoInstructions({ ...base, content: split });
+
+    expect(rendered.block).toContain("[redacted:slack-token]");
   });
 
   it("strips embedded fence tags so content cannot break out", () => {

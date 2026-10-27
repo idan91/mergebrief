@@ -508,6 +508,21 @@ billing. And it verified attribution, not cost: the envelope's
 which account was billed; your balance and usage page are the only real
 check.
 
+## What the model receives
+
+Before a prompt is built, the worker redacts the credentials it can recognize
+with high confidence. That covers the diff and every piece of PR text the prompt
+carries: title, description, linked pages, tickets, review comments,
+`.mergebrief/instructions.md` and the custom attributes in `policy.yaml`. It recognizes private key blocks, GitHub, GitLab,
+Slack, Stripe, npm, Anthropic and OpenAI tokens, AWS access key ids, Google API
+keys, JWTs and the password in a URL. Each becomes a marker such as
+`[redacted:github-token]` on the same line, so the brief's line references still
+match the diff you review, which is never redacted.
+
+This is best effort, not data-loss prevention. A secret with no recognizable
+format, such as a `password=` assignment, reaches your model provider as
+written. Treat a credential committed to a pull request as leaked and rotate it.
+
 ## When something degrades
 
 Salvage (a dropped invalid enum entry), the one feedback retry, a

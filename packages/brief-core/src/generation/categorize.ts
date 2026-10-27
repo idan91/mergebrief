@@ -67,6 +67,7 @@ import type {
 } from "../context/types";
 import { toPrimaryTicket } from "../context/primary";
 import { attributeSafe } from "./fences";
+import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
   restoreRawPaths,
@@ -135,6 +136,11 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
   return ref;
 }
 
+/** A link's URL as the prompt shows it; the quote checks key on the same string. */
+function renderLinkUrl(source: string): string {
+  return attributeSafe(redactProseSecrets(source).text);
+}
+
 /**
  * Render the untrusted linked-context section, fenced so it reads as data.
  * The body strip is the same `sanitizeUntrustedText` the verification corpus
@@ -146,7 +152,7 @@ function renderLinked(links: readonly ContextSnippet[]): string {
   }
   return links
     .map((l) => {
-      const url = attributeSafe(l.source);
+      const url = renderLinkUrl(l.source);
       return `<linked_context url="${url}">\n${sanitizeUntrustedText(l.text)}\n</linked_context>`;
     })
     .join("\n\n");
@@ -437,11 +443,11 @@ function buildIntentSources(
   pr: FetchedPr,
   primaryText: string,
 ): Pick<BriefValidationContext, "injectedUrls" | "corpus"> {
-  const injectedUrls = pr.links.map((link) => link.source);
+  const injectedUrls = pr.links.map((link) => renderLinkUrl(link.source));
   const corpus = [
     { url: "", content: buildDescriptionCorpus(pr.meta) },
     ...pr.links.map((link) => ({
-      url: link.source,
+      url: renderLinkUrl(link.source),
       content: sanitizeUntrustedText(link.text),
     })),
   ];

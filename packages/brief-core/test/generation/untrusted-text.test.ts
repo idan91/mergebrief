@@ -4,6 +4,10 @@ import {
   sanitizeUntrustedDiff,
   sanitizeUntrustedText,
 } from "../../src/generation/untrusted-text";
+import { SecretKinds } from "../../src/generation/redaction/types";
+import { FAKE_SECRETS, makeFakePemBlock } from "../secret-fixtures";
+
+const GITHUB_TOKEN = FAKE_SECRETS[SecretKinds.GITHUB_TOKEN];
 
 describe("sanitizeUntrustedText", () => {
   it.each([
@@ -169,6 +173,24 @@ describe("sanitizeUntrustedText", () => {
 
     expect(sanitizeUntrustedText(text)).toBe(text);
   });
+
+  it("redacts a credential before the text reaches the prompt", () => {
+    expect(sanitizeUntrustedText(`Use ${GITHUB_TOKEN} here`)).toBe(
+      "Use [redacted:github-token] here",
+    );
+  });
+
+  it("redacts a credential a hidden char glues onto a word", () => {
+    expect(sanitizeUntrustedText(`x\u200B${GITHUB_TOKEN}`)).toBe(
+      "x[redacted:github-token]",
+    );
+  });
+
+  it("redacts a credential a zero-width char splits", () => {
+    const split = `${GITHUB_TOKEN.slice(0, 8)}\u200B${GITHUB_TOKEN.slice(8)}`;
+
+    expect(sanitizeUntrustedText(split)).toBe("[redacted:github-token]");
+  });
 });
 
 describe("sanitizeUntrustedDiff", () => {
@@ -204,6 +226,68 @@ describe("sanitizeUntrustedDiff", () => {
 
     expect(sanitized).not.toMatch(/review_comment/);
     expect(sanitized.split("\n")).toHaveLength(2);
+  });
+
+  it("redacts a key block, line count unchanged", () => {
+    const diff = `${makeFakePemBlock("+").join("\n")}\n`;
+
+    const sanitized = sanitizeUntrustedDiff(diff);
+
+    expect(sanitized).toContain("+[redacted:private-key]");
+    expect(sanitized.split("\n")).toHaveLength(diff.split("\n").length);
+  });
+
+  it("redacts a token a zero-width char splits, line count unchanged", () => {
+    const split = `${GITHUB_TOKEN.slice(0, 8)}\u200B${GITHUB_TOKEN.slice(8)}`;
+    const diff = `+const t = "${split}";\n+// \u200Bnote`;
+
+    expect(sanitizeUntrustedDiff(diff)).toBe(
+      '+const t = "[redacted:github-token][U+200B]";\n+// [U+200B]note',
+    );
+  });
+
+  it("keeps hidden-char escapes beside a redacted token", () => {
+    const diff = `+k = "${GITHUB_TOKEN}"; if (role !== "admin\u202E\u2066") {`;
+
+    expect(sanitizeUntrustedDiff(diff)).toBe(
+      '+k = "[redacted:github-token]"; if (role !== "admin[U+202E][U+2066]") {',
+    );
+  });
+
+  it("keeps escapes beside a token a zero-width char splits", () => {
+    const split = `${GITHUB_TOKEN.slice(0, 8)}\u200B${GITHUB_TOKEN.slice(8)}`;
+    const diff = `+k = "${split}"; x = "\u202E";`;
+
+    expect(sanitizeUntrustedDiff(diff)).toBe(
+      '+k = "[redacted:github-token][U+200B]"; x = "[U+202E]";',
+    );
+  });
+
+  it("redacts a token a hidden char glues onto a word", () => {
+    const diff = `+k = "x\u200B${GITHUB_TOKEN}";`;
+
+    expect(sanitizeUntrustedDiff(diff)).toBe(
+      '+k = "x[U+200B][redacted:github-token]";',
+    );
+  });
+
+  it("redacts a token a hidden char both glues and splits", () => {
+    const split = `${GITHUB_TOKEN.slice(0, 20)}\u200B${GITHUB_TOKEN.slice(20)}`;
+
+    expect(sanitizeUntrustedDiff(`+k = "x\u200B${split}";`)).toBe(
+      '+k = "x[U+200B][redacted:github-token][U+200B]";',
+    );
+    expect(sanitizeUntrustedText(`x\u200B${split}`)).toBe(
+      "x[redacted:github-token]",
+    );
+  });
+
+  it("shows a bidi char inside a redacted token after its marker", () => {
+    const split = `${GITHUB_TOKEN.slice(0, 8)}\u202E${GITHUB_TOKEN.slice(8)}`;
+
+    expect(sanitizeUntrustedDiff(`+k = "${split}";`)).toBe(
+      '+k = "[redacted:github-token][U+202E]";',
+    );
   });
 
   it("strips a forged fence from added lines", () => {

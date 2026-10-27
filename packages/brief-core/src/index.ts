@@ -58,6 +58,7 @@ export {
   type OpenPullRequest,
 } from "./pr-stack";
 export { generateBrief } from "./generation/brief";
+export { countPullRequestSecrets } from "./generation/redaction";
 export type {
   GenerateBriefOptions,
   PreviousBriefInput,
