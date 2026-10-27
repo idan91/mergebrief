@@ -26,6 +26,8 @@ import {
   type PullRequestRowId,
   type TenantContext,
 } from "persistence";
+import { createBuiltInContextProviders } from "brief-core";
+import { DEFAULT_LINK_FETCH } from "generators";
 import { createI18n } from "i18n";
 import type { FakeGitHub } from "github/testing";
 import { startTestTracing } from "logging/testing";
@@ -403,6 +405,7 @@ describe.skipIf(databaseUrl === undefined)("graphile enqueue to claim", () => {
     const syncEntry = createSyncEntryTask({
       handle,
       generator,
+      contextProviders: createBuiltInContextProviders(DEFAULT_LINK_FETCH),
       github: createGitHubPort(github),
       publicBaseUrl: PUBLIC_URL,
       translate: createI18n().t,

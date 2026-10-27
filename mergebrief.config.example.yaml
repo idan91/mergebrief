@@ -112,6 +112,18 @@ generator:
 # operators:
 #   - 583231
 
+# --- Link fetch (the links a PR description cites) ---------------------------
+# The worker fetches up to five links from a PR description as context.
+# public (default) fetches any link that passes the address checks; off fetches
+# none; allowlist fetches only links whose host is listed, exact lowercase
+# names, no wildcard. A listed host still passes every address check. The real
+# control against internal services on routable addresses is an egress policy;
+# see docs/self-host/configuration.md.
+# linkFetch:
+#   mode: allowlist
+#   hosts:
+#     - docs.example.com
+
 # --- Context sources (ticket trackers needing a credential) -----------------
 # The URL and GitHub Issues providers are built in and need no entry; this
 # block lists the providers that need a deployment credential. Omit it for the

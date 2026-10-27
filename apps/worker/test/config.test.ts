@@ -133,6 +133,29 @@ describe("loadConfig", () => {
     expect(result.error.issues.join(";")).toContain("unknown provider");
   });
 
+  it("composes the instance config's linkFetch block", () => {
+    const path = configFile(
+      "linkFetch:\n  mode: allowlist\n  hosts:\n    - docs.example.com\n",
+    );
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    expect(result.ok && result.value.linkFetch).toEqual({
+      mode: "allowlist",
+      hosts: ["docs.example.com"],
+    });
+  });
+
+  it("refuses boot on a bad linkFetch block", () => {
+    const path = configFile("linkFetch:\n  mode: allowlist\n");
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues).toContain(
+      'linkFetch: "hosts": the allowlist mode needs at least one host',
+    );
+  });
+
   it("refuses boot when the removed GENERATOR_API_KEY_ENV is still set", () => {
     // Loud migration: a stale deployment believes it controls the key
     // source, and silently ignoring it falls back to the default var.

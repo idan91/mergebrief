@@ -3,6 +3,7 @@ import {
   loadGeneratorConfig,
   type ContextSourcesConfig,
   type GeneratorConfig,
+  type LinkFetchPolicy,
   type SpendPolicy,
   type TrackerConfig,
 } from "generators";
@@ -50,6 +51,8 @@ export interface WorkerConfig {
   readonly trackers: readonly TrackerConfig[];
   /** Whether issue references resolve beyond the PR's repo and its `issuesRepo`; off by default. */
   readonly siblingRepos: boolean;
+  /** What the generic link fetcher may read; public when the block is absent. */
+  readonly linkFetch: LinkFetchPolicy;
   /** `SERVER_VERSION`, recorded in `instance_version` at boot; `dev` when unset. */
   readonly serverVersion: string;
   /** `REVISION_NARRATIVE_ENABLED`; on when unset. */
@@ -263,6 +266,7 @@ export function loadConfig(
       contextSources: generatorConfig.value.contextSources,
       trackers: generatorConfig.value.trackers,
       siblingRepos: generatorConfig.value.siblingRepos,
+      linkFetch: generatorConfig.value.linkFetch,
       serverVersion: knobs.value.serverVersion,
       revisionNarrative: knobs.value.revisionNarrative,
       hugeSpanRatio: knobs.value.hugeSpanRatio,

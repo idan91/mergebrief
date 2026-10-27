@@ -8,11 +8,16 @@ import {
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import type { z } from "zod/v4";
-import type { Effort, GenerateRequest, Generator } from "generators";
+import {
+  DEFAULT_LINK_FETCH,
+  type Effort,
+  type GenerateRequest,
+  type Generator,
+} from "generators";
 import { createI18n } from "i18n";
 import { createLogger } from "logging";
 import { RepoConfigPaths } from "repo-config";
-import type { SharedRootDeps } from "brief-core";
+import { createBuiltInContextProviders, type SharedRootDeps } from "brief-core";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
 import type { AppClient, PullRequestInfo } from "github";
 import { FakeFailures, type FakeGitHub } from "github/testing";
@@ -1499,6 +1504,7 @@ describe("generate task", () => {
       publicBaseUrl: PUBLIC_URL,
       translate: createI18n().t,
       generator,
+      contextProviders: createBuiltInContextProviders(DEFAULT_LINK_FETCH),
       github: createGitHubPort(createAppGitHubBinders(refusingApp)),
     });
 

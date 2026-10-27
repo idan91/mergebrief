@@ -24,6 +24,7 @@ import {
 import {
   createGenerator,
   DEFAULT_CONTEXT_SOURCES,
+  DEFAULT_LINK_FETCH,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
   type Effort,
@@ -79,7 +80,9 @@ export async function generateAndWriteDelta(
   effort?: Effort,
   trackers: readonly TrackerConfig[] = [],
   fetchOptions: FetchContextSnippetsOptions = {},
-  contextProviders: readonly ContextProvider[] = createCliContextProviders(),
+  contextProviders: readonly ContextProvider[] = createCliContextProviders(
+    DEFAULT_LINK_FETCH,
+  ),
 ): Promise<DeltaBrief> {
   const locator = parsePrUrl(url);
 
@@ -204,6 +207,7 @@ async function main(): Promise<void> {
             generator: defaultGeneratorConfig,
             trackers: [],
             contextSources: DEFAULT_CONTEXT_SOURCES,
+            linkFetch: DEFAULT_LINK_FETCH,
           },
         };
   if (!loaded.ok) {
@@ -254,7 +258,7 @@ async function main(): Promise<void> {
     loaded.value.generator.effort,
     trackers,
     { ...fetchOptions, reads: reads.value },
-    createCliContextProviders(),
+    createCliContextProviders(loaded.value.linkFetch),
   );
 
   console.log("");

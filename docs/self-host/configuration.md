@@ -254,6 +254,7 @@ the variable that holds it.
 | `operators` | api; worker validates | nobody | The GitHub user ids of the instance's Operators. |
 | `contextSources` | worker | built-in sources only | Ticket sources that need a credential. |
 | `trackers` | worker | none: GitHub issues only | The boards every repository reads tickets from. |
+| `linkFetch` | worker | `mode: public` | Which links in a PR description the worker may fetch. |
 | `x-*` | nobody | | Any root key starting with `x-` is ignored. |
 
 Any other root key refuses boot in `worker`. `api` reads only `drafts`,
@@ -304,6 +305,38 @@ The harness providers are refused in the shipped image
 | `trackers[].databaseId` | | `notion` only, required: the database or data source id, 32 hex characters with or without dashes. |
 | `trackers[].issuesRepo` | the pull request's repository | `github` only, optional: `owner/name`, where a bare `#N` resolves. `.` and `..` are refused as either part. |
 | `trackers[].siblingRepos` | `false` | `github` only, instance config only: `true` lets issue references resolve in every repository the installation covers, not only the pull request's repository and its `issuesRepo` ([trackers.md](./trackers.md#credential-and-reach)). Anything but `true` or `false` refuses boot. |
+
+### `linkFetch`
+
+The worker fetches up to five links from a PR description as context
+([trackers.md](./trackers.md#links-in-the-description)). This block narrows
+which ones. It does not touch the primary ticket, which the tracker reads.
+
+| Key | Default | Accepts |
+| --- | --- | --- |
+| `linkFetch.mode` | `public` | `public`: any link that passes the address and port checks. `off`: no link is fetched. `allowlist`: only links whose host is listed in `hosts`. |
+| `linkFetch.hosts` | | `allowlist` only, and required there: exact lowercase host names such as `docs.example.com`, with no scheme, port, path or wildcard. Write an international name in its `xn--` form. Each subdomain needs its own entry. A listed host still passes every address and port check. |
+
+```yaml
+linkFetch:
+  mode: allowlist
+  hosts:
+    - docs.example.com
+    - wiki.example.com
+```
+
+The address checks refuse private, loopback, link-local and reserved
+ranges, but they cannot tell an internal service on a routable address
+from the public internet: a service on a public IPv4 address or a cloud
+IPv6 range answers like any website, and the text it returns reaches the
+prompt and can be quoted in the brief. If the worker can reach such
+services, restrict its egress at the network: a network policy, security
+group or firewall rule that lets the worker reach only GitHub, the model
+provider, your ticket trackers and the hosts you want linked. Link fetches
+ignore `HTTP_PROXY` and `NODE_USE_ENV_PROXY`, so a forward proxy works here
+only as a gateway the network routes the worker through. `linkFetch` with
+`off` or `allowlist` is the in-app control; the network policy is the one
+that holds.
 
 ## Repo-local files (`.mergebrief/`)
 

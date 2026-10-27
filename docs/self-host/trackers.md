@@ -52,11 +52,16 @@ Two halves of configuration:
 
 Beside the primary ticket, the worker fetches up to five other http(s) links
 from the visible PR description as context, each capped at 20,000 characters. It skips
-a link with credentials in it, a `localhost` or `.local` host, and any private,
-link-local, reserved or cloud-metadata address. A host name is checked again at
-connect time against every address it resolves to. Redirects are not followed.
+a link with credentials in it, a port other than 80 or 443, a `localhost` or
+`.local` host, and any private, link-local, reserved, multicast, documentation
+or cloud-metadata address. A host name resolves through the DNS servers
+directly, never `/etc/hosts`, and is checked again at connect time against
+every address it resolves to. Redirects are not followed, and only a text
+body (`text/*`, JSON or XML) sent without a content encoding is read.
 Link fetches always connect directly and never use node's env proxy
-(`NODE_USE_ENV_PROXY`).
+(`NODE_USE_ENV_PROXY`). The instance's `linkFetch` block turns link fetches
+off or limits them to listed hosts
+([configuration.md](./configuration.md#linkfetch)).
 
 ## GitHub Issues
 

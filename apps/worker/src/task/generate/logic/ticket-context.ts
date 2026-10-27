@@ -1,6 +1,5 @@
 import {
   buildContextQuery,
-  createBuiltInContextProviders,
   fetchContextSnippets,
   GitHubTransports,
   listReadableTrackers,
@@ -119,7 +118,7 @@ export function createTicketContextLoader(
         trackers,
         readable,
       }),
-      deps.contextProviders ?? createBuiltInContextProviders(),
+      deps.contextProviders,
       coreMessageLog,
       { reads: reads.ok ? reads.value : {} },
     );

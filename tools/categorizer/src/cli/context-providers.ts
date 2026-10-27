@@ -1,5 +1,9 @@
 import type { Result } from "types/utils";
-import type { ConfigError, ContextSourcesConfig } from "generators";
+import type {
+  ConfigError,
+  ContextSourcesConfig,
+  LinkFetchPolicy,
+} from "generators";
 import {
   createBuiltInContextProviders,
   GitHubTransports,
@@ -33,8 +37,10 @@ export function createCliRootDeps(
 }
 
 /** The generic sources the CLIs run beside the tracker read: the URL chaser. */
-export function createCliContextProviders(): ContextProvider[] {
-  return createBuiltInContextProviders();
+export function createCliContextProviders(
+  linkFetch: LinkFetchPolicy,
+): ContextProvider[] {
+  return createBuiltInContextProviders(linkFetch);
 }
 
 /**

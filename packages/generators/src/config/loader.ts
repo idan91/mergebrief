@@ -6,6 +6,8 @@ import {
   type ContextSourcesConfig,
 } from "./context-sources";
 import { validateDraftsBlock } from "./instancePolicy";
+import { DEFAULT_LINK_FETCH, validateLinkFetchBlock } from "./link-fetch";
+import type { LinkFetchPolicy } from "./link-fetch/types";
 import { validateOperatorsBlock } from "./operators";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
@@ -40,6 +42,8 @@ export interface LoadedGeneratorConfig {
   trackers: readonly TrackerConfig[];
   /** Whether issue references resolve beyond the PR's repo and its `issuesRepo`; the instance's, whatever a repo's list says. */
   siblingRepos: boolean;
+  /** What the generic link fetcher may read; public when the block is absent. */
+  linkFetch: LinkFetchPolicy;
   /** The file the config came from; null for zero-config defaults. */
   source: string | null;
 }
@@ -58,6 +62,7 @@ export function loadGeneratorConfig(
         contextSources: DEFAULT_CONTEXT_SOURCES,
         trackers: DEFAULT_TRACKERS,
         siblingRepos: false,
+        linkFetch: DEFAULT_LINK_FETCH,
         source: null,
       },
     };
@@ -94,6 +99,7 @@ export function loadGeneratorConfigFile(
         contextSources: DEFAULT_CONTEXT_SOURCES,
         trackers: DEFAULT_TRACKERS,
         siblingRepos: false,
+        linkFetch: DEFAULT_LINK_FETCH,
         source: path,
       },
     };
@@ -108,6 +114,7 @@ export function loadGeneratorConfigFile(
       key === "operators" ||
       key === "contextSources" ||
       key === "trackers" ||
+      key === "linkFetch" ||
       key.startsWith("x-")
     ) {
       continue;
@@ -179,6 +186,18 @@ export function loadGeneratorConfigFile(
     ({ trackers, siblingRepos } = validated.value);
   }
 
+  // The link fetcher runs per job; a bad policy refuses boot rather than
+  // leaving the fetcher open where the operator believes it is narrowed.
+  const linkFetchBlock = root["linkFetch"];
+  let linkFetch = DEFAULT_LINK_FETCH;
+  if (linkFetchBlock !== undefined) {
+    const validated = validateLinkFetchBlock(linkFetchBlock);
+    if (!validated.ok) {
+      return validated;
+    }
+    linkFetch = validated.value;
+  }
+
   const block = root["generator"];
   if (block === undefined) {
     return {
@@ -189,6 +208,7 @@ export function loadGeneratorConfigFile(
         contextSources,
         trackers,
         siblingRepos,
+        linkFetch,
         source: path,
       },
     };
@@ -208,6 +228,7 @@ export function loadGeneratorConfigFile(
       contextSources,
       trackers,
       siblingRepos,
+      linkFetch,
       source: path,
     },
   };

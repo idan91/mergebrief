@@ -6,14 +6,35 @@ import {
   type AddressInfo,
   type LookupFunction,
 } from "node:net";
-import { describe, expect, it } from "vitest";
+import { gzipSync } from "node:zlib";
+import {
+  DEFAULT_LINK_FETCH,
+  LinkFetchModes,
+  type LinkFetchPolicy,
+} from "generators";
+import type { Mutable } from "types/utils";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { createBuiltInContextProviders } from "../../src/context/registry";
 import {
   createUrlContextProvider,
-  createValidatingLookup,
   extractLinks,
-  isPublicUrl,
-  type AddressResolver,
 } from "../../src/context/providers/url";
+import {
+  DNS_CANCEL_MARGIN_MS,
+  LINK_LOOKUP_BOUNDS,
+} from "../../src/context/providers/url/consts";
+import {
+  boundAddressResolver,
+  createValidatingLookup,
+  isPublicUrl,
+  queryAllAddresses,
+} from "../../src/context/providers/url/guard";
+import { fetchText } from "../../src/context/providers/url/fetch-text";
+import type {
+  AddressResolver,
+  DnsRecordResolver,
+  UrlContextProviderOptions,
+} from "../../src/context/providers/url/types";
 import {
   ContextProviderTypes,
   type ContextQuery,
@@ -156,6 +177,37 @@ describe("isPublicUrl, the SSRF pre-filter", () => {
     expect(isPublicUrl(url)).toBe(false);
   });
 
+  it.each([
+    "http://[2002:7f00:1::1]/",
+    "http://[2001::1]/",
+    "http://[2001:0:4136:e378::1]/",
+    "http://[2001:1ff::1]/",
+    "http://[3fff::1]/",
+    "http://[2001:db8::1]/",
+    "http://[5f00::1]/",
+    "http://[100::1]/",
+    "http://[ff02::1]/",
+    "http://[::ffff:0:7f00:1]/",
+    "http://[::ffff:0:a9fe:a9fe]/",
+    "http://224.0.0.1/",
+    "http://239.255.255.250/",
+    "http://192.88.99.1/",
+    "http://192.0.2.1/",
+    "http://198.51.100.1/",
+    "http://203.0.113.1/",
+  ])("blocks the special-purpose address %s", (url) => {
+    expect(isPublicUrl(url)).toBe(false);
+  });
+
+  it.each([
+    "https://example.com:8443/",
+    "http://example.com:6379/",
+    "https://example.com:22/",
+    "http://example.com:0/",
+  ])("blocks the non-default port in %s", (url) => {
+    expect(isPublicUrl(url)).toBe(false);
+  });
+
   it("blocks the Azure WireServer address", () => {
     expect(isPublicUrl("http://168.63.129.16/machine")).toBe(false);
   });
@@ -177,6 +229,10 @@ describe("isPublicUrl, the SSRF pre-filter", () => {
     "https://198.20.0.1/",
     "https://[2606:4700::1]/",
     "https://[::ffff:8.8.8.8]/",
+    "https://example.com:443/",
+    "http://example.com:80/",
+    "http://example.com:443/",
+    "https://[2001:200::1]/",
   ])("allows the public URL %s", (url) => {
     expect(isPublicUrl(url)).toBe(true);
   });
@@ -210,7 +266,9 @@ describe("extractLinks", () => {
 });
 
 describe("the URL context provider", () => {
-  const provider = createUrlContextProvider();
+  const provider = createUrlContextProvider({
+    linkFetch: DEFAULT_LINK_FETCH,
+  });
 
   it("is the URL provider and skips a blocked link without failing", async () => {
     const logs: string[] = [];
@@ -268,6 +326,24 @@ describe("the URL context provider", () => {
     expect(logs).toEqual([]);
   });
 
+  it("refuses a non-web port before any lookup", async () => {
+    const asked: string[] = [];
+    const logs: string[] = [];
+    const guarded = createUrlContextProvider({
+      linkFetch: DEFAULT_LINK_FETCH,
+      resolveAddresses: stubResolver([PUBLIC_RECORD], asked),
+    });
+
+    const outcome = await guarded.fetch(
+      makeQuery("see http://docs.example:6379/"),
+      stubDeps(logs),
+    );
+
+    expect(outcome).toEqual({ ok: true, value: [] });
+    expect(asked).toEqual([]);
+    expect(logs.some((line) => line.includes("blocked"))).toBe(true);
+  });
+
   it("returns nothing for a body with no links", async () => {
     const outcome = await provider.fetch(makeQuery("plain"), stubDeps());
     expect(outcome).toEqual({ ok: true, value: [] });
@@ -282,7 +358,9 @@ describe("the URL context provider", () => {
     const logs: string[] = [];
     const { server, port } = await listenOnLoopback(requests);
     const guarded = createUrlContextProvider({
+      linkFetch: DEFAULT_LINK_FETCH,
       resolveAddresses: stubResolver(records),
+      allowedPorts: new Set([port]),
     });
 
     const outcome = await guarded.fetch(
@@ -315,6 +393,7 @@ describe("the URL context provider", () => {
       http.globalAgent = new HttpAgent(proxyOptions);
       https.globalAgent = new HttpsAgent(proxyOptions);
       const guarded = createUrlContextProvider({
+        linkFetch: DEFAULT_LINK_FETCH,
         resolveAddresses: stubResolver([LOOPBACK_RECORD], asked),
       });
 
@@ -336,6 +415,88 @@ describe("the URL context provider", () => {
   );
 });
 
+describe("the linkFetch policy", () => {
+  const body =
+    "see https://docs.example/a and https://other.example/b and https://docs.example.evil/c";
+
+  async function fetchUnderPolicy(linkFetch: LinkFetchPolicy) {
+    const asked: string[] = [];
+    const logs: string[] = [];
+    const provider = createUrlContextProvider({
+      linkFetch,
+      resolveAddresses: stubResolver([LOOPBACK_RECORD], asked),
+    });
+    const outcome = await provider.fetch(makeQuery(body), stubDeps(logs));
+    return { outcome, asked, logs };
+  }
+
+  it("fetches nothing when the policy is off", async () => {
+    const { outcome, asked, logs } = await fetchUnderPolicy({
+      mode: LinkFetchModes.OFF,
+      hosts: [],
+    });
+
+    expect(outcome).toEqual({ ok: true, value: [] });
+    expect(asked).toEqual([]);
+    expect(logs).toEqual(["linked context: link fetch is off, skipping 3"]);
+  });
+
+  it("asks only for the hosts on the allowlist", async () => {
+    const { asked, logs } = await fetchUnderPolicy({
+      mode: LinkFetchModes.ALLOWLIST,
+      hosts: ["docs.example"],
+    });
+
+    expect(asked).toEqual(["docs.example"]);
+    expect(
+      logs.filter((line) => line.includes("not on the link fetch allowlist")),
+    ).toHaveLength(2);
+  });
+
+  it("matches an allowlisted host in any case", async () => {
+    const asked: string[] = [];
+    const provider = createUrlContextProvider({
+      linkFetch: { mode: LinkFetchModes.ALLOWLIST, hosts: ["docs.example"] },
+      resolveAddresses: stubResolver([LOOPBACK_RECORD], asked),
+    });
+
+    await provider.fetch(makeQuery("see https://DOCS.Example/a"), stubDeps());
+
+    expect(asked).toEqual(["docs.example"]);
+  });
+
+  it("still refuses a blocked address on an allowlisted host", async () => {
+    const { outcome, logs } = await fetchUnderPolicy({
+      mode: LinkFetchModes.ALLOWLIST,
+      hosts: ["docs.example"],
+    });
+
+    expect(outcome).toEqual({ ok: true, value: [] });
+    expect(logs.some((line) => line.includes("private address"))).toBe(true);
+  });
+
+  it("asks for every public link when the policy is public", async () => {
+    const { asked } = await fetchUnderPolicy(DEFAULT_LINK_FETCH);
+
+    expect(asked).toEqual([
+      "docs.example",
+      "other.example",
+      "docs.example.evil",
+    ]);
+  });
+});
+
+describe("the linkFetch policy at each caller", () => {
+  it("is required, never defaulted to public", () => {
+    expectTypeOf(createBuiltInContextProviders).parameters.toEqualTypeOf<
+      [LinkFetchPolicy]
+    >();
+    expectTypeOf<
+      UrlContextProviderOptions["linkFetch"]
+    >().toEqualTypeOf<LinkFetchPolicy>();
+  });
+});
+
 describe("createValidatingLookup, the connect-time check", () => {
   it.each([
     ["every record", true],
@@ -350,6 +511,26 @@ describe("createValidatingLookup, the connect-time check", () => {
   );
 
   it.each([
+    { address: "2002:7f00:1::1", family: 6 },
+    { address: "2001:0:4136:e378::1", family: 6 },
+    { address: "3fff::1", family: 6 },
+    { address: "2001:db8::1", family: 6 },
+    { address: "5f00::1", family: 6 },
+    { address: "100::1", family: 6 },
+    { address: "ff02::1", family: 6 },
+    { address: "::ffff:0:7f00:1", family: 6 },
+    { address: "224.0.0.1", family: 4 },
+    { address: "192.88.99.1", family: 4 },
+    { address: "192.0.2.1", family: 4 },
+    { address: "198.51.100.1", family: 4 },
+    { address: "203.0.113.1", family: 4 },
+  ])("refuses a name resolving to $address", async (record) => {
+    const lookup = createValidatingLookup(stubResolver([record]));
+    const outcome = await attemptConnection(lookup, true);
+    expect(outcome).toEqual({ errorCode: "ESSRFBLOCKED" });
+  });
+
+  it.each([
     ["every record", true],
     ["one record", false],
   ])(
@@ -362,4 +543,417 @@ describe("createValidatingLookup, the connect-time check", () => {
       expect(outcome).toEqual({ errorCode: "ESSRFBLOCKED" });
     },
   );
+});
+
+interface StubResponse {
+  readonly headers: Record<string, string>;
+  readonly body: Buffer | string;
+}
+
+async function listenWithResponse(response: StubResponse) {
+  const server = createServer((_, reply) => {
+    reply.writeHead(200, response.headers);
+    reply.end(response.body);
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = server.address() as AddressInfo;
+  return { server, port };
+}
+
+// The test's own listener sits on loopback, past the guard on purpose.
+function stubLoopbackLookup(
+  _hostname: Parameters<LookupFunction>[0],
+  options: Parameters<LookupFunction>[1],
+  callback: Parameters<LookupFunction>[2],
+): void {
+  if (options.all === true) {
+    callback(null, [LOOPBACK_RECORD]);
+    return;
+  }
+  callback(null, LOOPBACK_RECORD.address, LOOPBACK_RECORD.family);
+}
+
+async function fetchStubbedResponse(response: StubResponse) {
+  const { server, port } = await listenWithResponse(response);
+  try {
+    return await fetchText(
+      `http://docs.example:${port}/page`,
+      new AbortController().signal,
+      stubLoopbackLookup,
+    );
+  } finally {
+    server.close();
+  }
+}
+
+describe("fetchText, the body reader", () => {
+  it.each([
+    "text/html; charset=utf-8",
+    "text/plain",
+    "application/json",
+    "application/xml",
+    "application/problem+json",
+    "application/atom+xml",
+    "TEXT/MARKDOWN",
+  ])("reads a %s body", async (contentType) => {
+    const outcome = await fetchStubbedResponse({
+      headers: { "content-type": contentType },
+      body: "readable",
+    });
+    expect(outcome).toEqual({ text: "readable" });
+  });
+
+  it.each([
+    "application/octet-stream",
+    "image/png",
+    "application/pdf",
+    "application/zip",
+  ])("skips a %s body", async (contentType) => {
+    const outcome = await fetchStubbedResponse({
+      headers: { "content-type": contentType },
+      body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    });
+    expect(outcome).toEqual({ error: "non-text content type" });
+  });
+
+  it("skips a body with no content type", async () => {
+    const outcome = await fetchStubbedResponse({
+      headers: {},
+      body: "untyped",
+    });
+    expect(outcome).toEqual({ error: "non-text content type" });
+  });
+
+  it("skips a gzip body even under a text content type", async () => {
+    const outcome = await fetchStubbedResponse({
+      headers: { "content-type": "text/html", "content-encoding": "gzip" },
+      body: gzipSync("compressed"),
+    });
+    expect(outcome).toEqual({ error: "encoded body" });
+  });
+});
+
+interface LookupAnswer {
+  readonly hostname: string;
+  readonly errorCode?: string;
+  readonly addresses: LookupAddress[];
+}
+
+function askResolver(
+  resolve: AddressResolver,
+  hostname: string,
+): Promise<LookupAnswer> {
+  return new Promise((settle) => {
+    resolve(hostname, (error, addresses) => {
+      const answer: Mutable<LookupAnswer> = { hostname, addresses };
+      if (error) {
+        answer.errorCode = error.code ?? "";
+      }
+      settle(answer);
+    });
+  });
+}
+
+function stubSilentResolver(asked: string[] = []): AddressResolver {
+  return (hostname) => {
+    asked.push(hostname);
+  };
+}
+
+describe("boundAddressResolver, the lookup bounds", () => {
+  const LOOKUP_DEADLINE_MS = 50;
+
+  it("times out a resolver that never answers", async () => {
+    const bounded = boundAddressResolver(stubSilentResolver(), {
+      timeoutMs: LOOKUP_DEADLINE_MS,
+      maxConcurrent: 2,
+    });
+
+    const answer = await askResolver(bounded, "silent.example");
+
+    expect(answer).toEqual({
+      hostname: "silent.example",
+      addresses: [],
+      errorCode: "ELOOKUPTIMEOUT",
+    });
+  });
+
+  it("answers a parallel lookup while a silent one holds a slot", async () => {
+    const silent = stubSilentResolver();
+    const answering = stubResolver([PUBLIC_RECORD]);
+    const bounded = boundAddressResolver(
+      (hostname, callback) => {
+        const resolve = hostname === "silent.example" ? silent : answering;
+        resolve(hostname, callback);
+      },
+      { timeoutMs: 1_000, maxConcurrent: 2 },
+    );
+
+    void askResolver(bounded, "silent.example");
+    const answer = await askResolver(bounded, "docs.example");
+
+    expect(answer).toEqual({
+      hostname: "docs.example",
+      addresses: [PUBLIC_RECORD],
+    });
+  });
+
+  it("holds lookups past the cap until a slot frees", async () => {
+    const asked: string[] = [];
+    const silent = stubSilentResolver(asked);
+    const bounded = boundAddressResolver(
+      (hostname, callback) => {
+        if (hostname !== "a.example") {
+          silent(hostname, callback);
+          return;
+        }
+        asked.push(hostname);
+        setTimeout(() => callback(null, [PUBLIC_RECORD]), 10);
+      },
+      { timeoutMs: LOOKUP_DEADLINE_MS, maxConcurrent: 2 },
+    );
+
+    const answers = Promise.all(
+      ["a.example", "b.example", "c.example"].map((hostname) =>
+        askResolver(bounded, hostname),
+      ),
+    );
+    const askedBeforeAnswer = [...asked];
+    const settled = await answers;
+
+    expect(askedBeforeAnswer).toEqual(["a.example", "b.example"]);
+    expect(asked).toEqual(["a.example", "b.example", "c.example"]);
+    expect(settled.map((answer) => answer.errorCode)).toEqual([
+      undefined,
+      "ELOOKUPTIMEOUT",
+      "ELOOKUPTIMEOUT",
+    ]);
+  });
+
+  it("never sends a lookup whose deadline passed in the queue", async () => {
+    vi.useFakeTimers();
+    try {
+      const asked: string[] = [];
+      const bounded = boundAddressResolver(stubSilentResolver(asked), {
+        timeoutMs: LOOKUP_DEADLINE_MS,
+        maxConcurrent: 1,
+      });
+
+      const answers = Promise.all(
+        ["a.example", "b.example", "c.example"].map((hostname) =>
+          askResolver(bounded, hostname),
+        ),
+      );
+      await vi.advanceTimersByTimeAsync(LOOKUP_DEADLINE_MS);
+      const settled = await answers;
+
+      expect(asked).toEqual(["a.example"]);
+      expect(settled.map((answer) => answer.errorCode)).toEqual([
+        "ELOOKUPTIMEOUT",
+        "ELOOKUPTIMEOUT",
+        "ELOOKUPTIMEOUT",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores an answer that arrives after the deadline", async () => {
+    const bounded = boundAddressResolver(
+      (_, callback) => {
+        setTimeout(() => callback(null, [LOOPBACK_RECORD]), 80);
+      },
+      { timeoutMs: LOOKUP_DEADLINE_MS, maxConcurrent: 1 },
+    );
+    const calls: LookupAnswer[] = [];
+
+    await new Promise<void>((done) => {
+      bounded("late.example", (error, addresses) => {
+        calls.push({
+          hostname: "late.example",
+          addresses,
+          errorCode: error?.code ?? "",
+        });
+      });
+      setTimeout(done, 120);
+    });
+
+    expect(calls).toEqual([
+      { hostname: "late.example", addresses: [], errorCode: "ELOOKUPTIMEOUT" },
+    ]);
+  });
+});
+
+type RecordsCallback = Parameters<DnsRecordResolver["resolve4"]>[1];
+
+interface FamilyReply {
+  readonly errorCode?: string;
+  readonly records?: string[];
+}
+
+interface StubDnsResolver extends DnsRecordResolver {
+  readonly cancelled: () => number;
+}
+
+function makeDnsError(code: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(code), { code });
+}
+
+// A missing reply stays silent until cancel, which fails it as c-ares does.
+function stubDnsResolver(replies: {
+  readonly ipv4?: FamilyReply;
+  readonly ipv6?: FamilyReply;
+}): StubDnsResolver {
+  const pending: RecordsCallback[] = [];
+  let cancelCount = 0;
+
+  function reply(answer: FamilyReply | undefined, callback: RecordsCallback) {
+    if (answer === undefined) {
+      pending.push(callback);
+      return;
+    }
+    queueMicrotask(() => {
+      if (answer.errorCode !== undefined) {
+        callback(makeDnsError(answer.errorCode), []);
+        return;
+      }
+      callback(null, answer.records ?? []);
+    });
+  }
+
+  return {
+    resolve4: (_, callback) => reply(replies.ipv4, callback),
+    resolve6: (_, callback) => reply(replies.ipv6, callback),
+    cancel: () => {
+      cancelCount += 1;
+      for (const callback of pending.splice(0)) {
+        callback(makeDnsError("ECANCELLED"), []);
+      }
+    },
+    cancelled: () => cancelCount,
+  };
+}
+
+function askDns(resolver: DnsRecordResolver): Promise<LookupAnswer> {
+  return askResolver(
+    (hostname, callback) => queryAllAddresses(resolver, hostname, callback),
+    "docs.example",
+  );
+}
+
+describe("queryAllAddresses, the c-ares lookup", () => {
+  it("answers with one family when the other errors", async () => {
+    const resolver = stubDnsResolver({
+      ipv4: { records: [PUBLIC_RECORD.address] },
+      ipv6: { errorCode: "ENODATA" },
+    });
+
+    const answer = await askDns(resolver);
+
+    expect(answer).toEqual({
+      hostname: "docs.example",
+      addresses: [PUBLIC_RECORD],
+    });
+  });
+
+  it("fails when both families error", async () => {
+    const resolver = stubDnsResolver({
+      ipv4: { errorCode: "ENOTFOUND" },
+      ipv6: { errorCode: "ENODATA" },
+    });
+
+    const answer = await askDns(resolver);
+
+    expect(answer).toEqual({
+      hostname: "docs.example",
+      addresses: [],
+      errorCode: "ENOTFOUND",
+    });
+    expect(resolver.cancelled()).toBe(0);
+  });
+
+  it("cancels both silent queries inside the lookup deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const resolver = stubDnsResolver({});
+      const cancelAt = LINK_LOOKUP_BOUNDS.timeoutMs - DNS_CANCEL_MARGIN_MS;
+
+      const answer = askDns(resolver);
+      await vi.advanceTimersByTimeAsync(cancelAt - 1);
+      const cancelledBeforeDeadline = resolver.cancelled();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(cancelledBeforeDeadline).toBe(0);
+      expect(resolver.cancelled()).toBe(1);
+      expect(await answer).toEqual({
+        hostname: "docs.example",
+        addresses: [],
+        errorCode: "ECANCELLED",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("queryAllAddresses under the lookup bounds", () => {
+  /** Holds the only slot this long before the lookup under test starts. */
+  const SLOT_HELD_MS = 1_000;
+
+  function stubAnswerWithoutAaaa(): StubDnsResolver {
+    return stubDnsResolver({ ipv4: { records: [PUBLIC_RECORD.address] } });
+  }
+
+  it("keeps the A answer when the AAAA query stays silent", async () => {
+    vi.useFakeTimers();
+    try {
+      const bounded = boundAddressResolver(
+        (hostname, callback) =>
+          queryAllAddresses(stubAnswerWithoutAaaa(), hostname, callback),
+        LINK_LOOKUP_BOUNDS,
+      );
+
+      const answer = askResolver(bounded, "docs.example");
+      await vi.advanceTimersByTimeAsync(LINK_LOOKUP_BOUNDS.timeoutMs);
+
+      expect(await answer).toEqual({
+        hostname: "docs.example",
+        addresses: [PUBLIC_RECORD],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the A answer of a lookup that waited for a slot", async () => {
+    vi.useFakeTimers();
+    try {
+      const bounded = boundAddressResolver(
+        (hostname, callback) => {
+          if (hostname === "slow.example") {
+            setTimeout(
+              () => callback(makeDnsError("ENOTFOUND"), []),
+              SLOT_HELD_MS,
+            );
+            return;
+          }
+          queryAllAddresses(stubAnswerWithoutAaaa(), hostname, callback);
+        },
+        { ...LINK_LOOKUP_BOUNDS, maxConcurrent: 1 },
+      );
+
+      void askResolver(bounded, "slow.example");
+      const answer = askResolver(bounded, "docs.example");
+      await vi.advanceTimersByTimeAsync(LINK_LOOKUP_BOUNDS.timeoutMs);
+
+      expect(await answer).toEqual({
+        hostname: "docs.example",
+        addresses: [PUBLIC_RECORD],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

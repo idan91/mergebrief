@@ -37,6 +37,7 @@ import { ghPrSource, isCommitish, type PrSource } from "../github";
 import {
   createGenerator,
   DEFAULT_CONTEXT_SOURCES,
+  DEFAULT_LINK_FETCH,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
   type Effort,
@@ -147,7 +148,7 @@ async function buildInputs(
         }),
   ]);
   const contextProviders =
-    options.contextProviders ?? createCliContextProviders();
+    options.contextProviders ?? createCliContextProviders(DEFAULT_LINK_FETCH);
   const query = buildContextQuery({
     title: meta.title,
     body: meta.body,
@@ -601,6 +602,7 @@ async function main(): Promise<void> {
             generator: defaultGeneratorConfig,
             trackers: [],
             contextSources: DEFAULT_CONTEXT_SOURCES,
+            linkFetch: DEFAULT_LINK_FETCH,
           },
         };
   if (!loaded.ok) {
@@ -641,7 +643,7 @@ async function main(): Promise<void> {
   const options: GenerateOptions = {
     trackers,
     suppliedPrimary,
-    contextProviders: createCliContextProviders(),
+    contextProviders: createCliContextProviders(loaded.value.linkFetch),
     reads: reads.value,
     revisionNarrative: parseRevisionNarrativeFlag(
       process.env["REVISION_NARRATIVE_ENABLED"],

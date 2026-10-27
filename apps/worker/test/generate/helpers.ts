@@ -29,6 +29,7 @@ import {
 } from "persistence/testing";
 import type { z } from "zod/v4";
 import {
+  DEFAULT_LINK_FETCH,
   GeneratorError,
   GeneratorErrorKinds,
   type Effort,
@@ -38,7 +39,7 @@ import {
 import { createI18n } from "i18n";
 import { createLogger, type Logger } from "logging";
 import type { Mutable } from "types/utils";
-import type { CompareFiles } from "brief-core";
+import { createBuiltInContextProviders, type CompareFiles } from "brief-core";
 import type {
   InstallationRepoClient,
   OwnedOperatorToken,
@@ -719,6 +720,7 @@ function makeTaskDeps(overrides: TaskOverrides): GenerateTaskDeps {
     publicBaseUrl: PUBLIC_URL,
     translate: createI18n().t,
     generator: stubGenerator(),
+    contextProviders: createBuiltInContextProviders(DEFAULT_LINK_FETCH),
     ...rest,
     github: openTestPort(github, operatorToken),
   };

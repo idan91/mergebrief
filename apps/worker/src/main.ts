@@ -4,6 +4,7 @@
 // at boot, never limp into draining jobs it cannot complete.
 import {
   checkConfiguredTrackerReads,
+  createBuiltInContextProviders,
   NotionTransports,
   resolveTrackerReads,
 } from "brief-core";
@@ -219,6 +220,7 @@ async function main(): Promise<void> {
     publicBaseUrl: config.value.publicBaseUrl,
     translate: createI18n().t,
     spend: config.value.spend,
+    contextProviders: createBuiltInContextProviders(config.value.linkFetch),
     trackerRoot,
     siblingRepos: config.value.siblingRepos,
     revisionNarrative: config.value.revisionNarrative,

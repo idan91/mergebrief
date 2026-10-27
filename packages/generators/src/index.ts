@@ -80,6 +80,12 @@ export {
   type ContextSourcesConfig,
   type NotionContextSourceConfig,
 } from "./config/context-sources";
+export { DEFAULT_LINK_FETCH } from "./config/link-fetch";
+export {
+  LinkFetchModes,
+  type LinkFetchMode,
+  type LinkFetchPolicy,
+} from "./config/link-fetch/types";
 export {
   DEFAULT_TRACKERS,
   MAX_TRACKERS,

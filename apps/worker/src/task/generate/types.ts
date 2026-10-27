@@ -78,8 +78,8 @@ export interface GenerateTaskDeps {
    * harnesses omit it: a config file with no `spend` block means 300.
    */
   readonly spend?: SpendPolicy;
-  /** The context providers main.ts built; absent → the built-ins only. */
-  readonly contextProviders?: readonly ContextProvider[];
+  /** The context providers main.ts built from the instance's `linkFetch` policy. */
+  readonly contextProviders: readonly ContextProvider[];
   /** What main.ts offers every tracker's read; GitHub's transport is bound per job. */
   readonly trackerRoot?: SharedRootDeps;
   /** The instance's `siblingRepos`; absent means off: an installation job reads its own repo and `issuesRepo` only. */
