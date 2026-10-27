@@ -118,11 +118,13 @@ generator:
 # none; allowlist fetches only links whose host is listed, exact lowercase
 # names, no wildcard. A listed host still passes every address check. The real
 # control against internal services on routable addresses is an egress policy;
-# see docs/self-host/configuration.md.
+# see docs/self-host/configuration.md. maxTotalChars (default 40000) caps the
+# linked text one prompt carries across every link.
 # linkFetch:
 #   mode: allowlist
 #   hosts:
 #     - docs.example.com
+#   maxTotalChars: 40000
 
 # --- Context sources (ticket trackers needing a credential) -----------------
 # The URL and GitHub Issues providers are built in and need no entry; this

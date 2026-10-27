@@ -11,6 +11,7 @@ import {
   type ContextReadFailure,
   type ProviderSnippet,
 } from "../../types";
+import { truncateToCodeUnits } from "../../utils";
 import {
   LINK_LOOKUP_BOUNDS,
   LINK_PORTS,
@@ -24,7 +25,7 @@ import {
   isPublicUrl,
   resolveAllAddresses,
 } from "./guard";
-import type { UrlContextProviderOptions } from "./types";
+import type { LinkedTextFit, UrlContextProviderOptions } from "./types";
 
 /** Strip credentials from a URL for safe logging/display; redact if unparseable. */
 function displayUrl(raw: string): string {
@@ -48,6 +49,29 @@ export function extractLinks(body: string): string[] {
     }
   }
   return [...seen].slice(0, MAX_LINKS);
+}
+
+/**
+ * Fill one prompt's linked-text budget in description order: the link that
+ * crosses it is cut to what remains, every later link is left out.
+ */
+export function fitLinkedTextBudget(
+  snippets: readonly ProviderSnippet[],
+  maxTotalChars: number,
+): LinkedTextFit {
+  const kept: ProviderSnippet[] = [];
+  const skipped: string[] = [];
+  let remaining = maxTotalChars;
+  for (const snippet of snippets) {
+    if (remaining <= 0) {
+      skipped.push(snippet.source);
+      continue;
+    }
+    const text = truncateToCodeUnits(snippet.text, remaining);
+    kept.push(text === snippet.text ? snippet : { ...snippet, text });
+    remaining -= text.length;
+  }
+  return { kept, skipped };
 }
 
 interface LinkFetchDeps {
@@ -122,10 +146,12 @@ async function fetchUrlSnippets(
       };
     }),
   );
-  return {
-    ok: true,
-    value: results.filter((r): r is ProviderSnippet => r !== null),
-  };
+  const fetched = results.filter((r): r is ProviderSnippet => r !== null);
+  const fitted = fitLinkedTextBudget(fetched, policy.maxTotalChars);
+  for (const source of fitted.skipped) {
+    log(`linked context: ${source} past the linked text budget, skipping`);
+  }
+  return { ok: true, value: fitted.kept };
 }
 
 /**

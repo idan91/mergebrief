@@ -51,7 +51,8 @@ Two halves of configuration:
 ## Links in the description
 
 Beside the primary ticket, the worker fetches up to five other http(s) links
-from the visible PR description as context, each capped at 20,000 characters. It skips
+from the visible PR description as context. A longer page is cut at 20,000 characters,
+and all of them together at `linkFetch.maxTotalChars` (40,000 by default). It skips
 a link with credentials in it, a port other than 80 or 443, a `localhost` or
 `.local` host, and any private, link-local, reserved, multicast, documentation
 or cloud-metadata address. A host name resolves through the DNS servers

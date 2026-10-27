@@ -43,7 +43,7 @@ describe("loadGeneratorConfig from env", () => {
       contextSources: [],
       trackers: [],
       siblingRepos: false,
-      linkFetch: { mode: "public", hosts: [] },
+      linkFetch: { mode: "public", hosts: [], maxTotalChars: 40_000 },
       source: null,
     });
   });

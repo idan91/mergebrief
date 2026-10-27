@@ -316,6 +316,7 @@ which ones. It does not touch the primary ticket, which the tracker reads.
 | --- | --- | --- |
 | `linkFetch.mode` | `public` | `public`: any link that passes the address and port checks. `off`: no link is fetched. `allowlist`: only links whose host is listed in `hosts`. |
 | `linkFetch.hosts` | | `allowlist` only, and required there: exact lowercase host names such as `docs.example.com`, with no scheme, port, path or wildcard. Write an international name in its `xn--` form. Each subdomain needs its own entry. A listed host still passes every address and port check. |
+| `linkFetch.maxTotalChars` | `40000` | A whole number above zero: the most linked-page text one prompt carries. Links fill it in the order the description lists them. The link that crosses it is cut, and later links are left out. Each page is also cut at 20,000 characters on its own. The primary ticket has its own limit and does not count. |
 
 ```yaml
 linkFetch:

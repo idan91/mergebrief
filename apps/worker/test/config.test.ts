@@ -141,6 +141,7 @@ describe("loadConfig", () => {
     expect(result.ok && result.value.linkFetch).toEqual({
       mode: "allowlist",
       hosts: ["docs.example.com"],
+      maxTotalChars: 40_000,
     });
   });
 

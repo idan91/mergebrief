@@ -35,7 +35,7 @@ describe("validateLinkFetchBlock", () => {
     (mode) => {
       expect(validateLinkFetchBlock({ mode })).toEqual({
         ok: true,
-        value: { mode, hosts: [] },
+        value: { mode, hosts: [], maxTotalChars: 40_000 },
       });
     },
   );
@@ -43,7 +43,7 @@ describe("validateLinkFetchBlock", () => {
   it("defaults an empty block to public", () => {
     expect(validateLinkFetchBlock({})).toEqual({
       ok: true,
-      value: { mode: LinkFetchModes.PUBLIC, hosts: [] },
+      value: { mode: LinkFetchModes.PUBLIC, hosts: [], maxTotalChars: 40_000 },
     });
   });
 
@@ -57,6 +57,7 @@ describe("validateLinkFetchBlock", () => {
       value: {
         mode: LinkFetchModes.ALLOWLIST,
         hosts: ["docs.example.com", "wiki.example.org"],
+        maxTotalChars: 40_000,
       },
     });
   });
@@ -116,6 +117,7 @@ describe("the linkFetch root key", () => {
     expect(loaded.ok && loaded.value.linkFetch).toEqual({
       mode: LinkFetchModes.PUBLIC,
       hosts: [],
+      maxTotalChars: 40_000,
     });
   });
 
@@ -128,6 +130,7 @@ describe("the linkFetch root key", () => {
     expect(loaded.ok && loaded.value.linkFetch).toEqual({
       mode: LinkFetchModes.ALLOWLIST,
       hosts: ["docs.example.com"],
+      maxTotalChars: 40_000,
     });
   });
 
@@ -142,5 +145,23 @@ describe("the linkFetch root key", () => {
     expect(loaded.error.issues).toEqual([
       'linkFetch: "mode": must be one of public, off, allowlist',
     ]);
+  });
+});
+
+describe("the linked text budget", () => {
+  it("defaults to 40,000 characters", () => {
+    const result = validateLinkFetchBlock({});
+
+    expect(result.ok && result.value.maxTotalChars).toBe(40_000);
+  });
+
+  it("takes an operator's own budget", () => {
+    const result = validateLinkFetchBlock({ maxTotalChars: 12_000 });
+
+    expect(result.ok && result.value.maxTotalChars).toBe(12_000);
+  });
+
+  it.each([0, -1, 1.5, "40000"])("refuses a budget of %j", (maxTotalChars) => {
+    expect(readIssues({ maxTotalChars })).toContain("maxTotalChars");
   });
 });

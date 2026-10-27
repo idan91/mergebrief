@@ -8,6 +8,7 @@ import {
   type ContextProviderDeps,
   type PrimarySnippet,
 } from "../../types";
+import { truncateToCodeUnits } from "../../utils";
 import { refuseTrackerRead } from "../refusal";
 import { resolveTokenByName } from "../tokens";
 import type { PrimaryRead, SharedRootDeps, TicketReference } from "../types";
@@ -235,7 +236,7 @@ class BodyCollector {
   }
 
   render(): string {
-    return this.lines.join("\n").slice(0, MAX_TICKET_CHARS);
+    return truncateToCodeUnits(this.lines.join("\n"), MAX_TICKET_CHARS);
   }
 }
 

@@ -9,6 +9,7 @@ import {
   type PrimarySnippet,
 } from "../../types";
 import { isPathSegment } from "../../../github/pr-url";
+import { truncateToCodeUnits } from "../../utils";
 import { refuseTrackerRead } from "../refusal";
 import type { PrimaryRead, SharedRootDeps, TicketReference } from "../types";
 import type { GitHubTransport, IssueLocator, IssueRecord } from "./transport";
@@ -91,7 +92,7 @@ async function readPrimaryIssue(
     value: {
       providerId: ContextProviderTypes.GITHUB_ISSUES,
       source: reference.url,
-      text: record.body.slice(0, MAX_SNIPPET_CHARS),
+      text: truncateToCodeUnits(record.body, MAX_SNIPPET_CHARS),
       tracker: TicketTrackers.GITHUB,
       key: "",
       title: record.title,

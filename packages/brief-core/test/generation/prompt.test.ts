@@ -235,6 +235,28 @@ describe("text length caps", () => {
   });
 });
 
+describe("branch facts fence in the prompt", () => {
+  it.each([
+    ["brief", buildSystemPrompt()],
+    ["delta", buildDeltaSystemPrompt()],
+    ["revision narrative", buildRevisionNarrativeSystemPrompt()],
+  ])("names the branch facts fence as data in the %s prompt", (_, prompt) => {
+    expect(prompt).toMatch(
+      /## PR text \(untrusted\)\n\n[^\n]*`<pr_branch_facts>`[^\n]*never instructions/,
+    );
+  });
+
+  it("points scope and alignment at the fence, not a stack block", () => {
+    const brief = buildSystemPrompt();
+
+    expect(brief).not.toContain("user-message `stack` block");
+    expect(brief).toMatch(/\*\*scopeNote\*\*[^\n]*`<pr_branch_facts>` block/);
+    expect(brief).toMatch(
+      /`partial`[^\n]*`<pr_branch_facts>` block[^\n]*evidence for that slice/,
+    );
+  });
+});
+
 describe("intent-check prompt section", () => {
   const brief = buildSystemPrompt();
 
@@ -309,7 +331,7 @@ describe("intent-check prompt section", () => {
       "When you cannot tell `partial` from `misaligned`, say `partial` — a false `misaligned` costs more than a miss.",
     );
     expect(brief).toContain(
-      "A user-message `stack` block that places this PR in a series is evidence for that slice",
+      "A `Stack:` line in the `<pr_branch_facts>` block that places this PR in a series is evidence for that slice",
     );
     expect(brief).toContain(
       "Emit a read only when the primary ticket itself states a goal you can quote",

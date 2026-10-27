@@ -6,6 +6,7 @@ import {
 import { Agent as HttpsAgent, get as httpsGet } from "node:https";
 import type { LookupFunction } from "node:net";
 import { MAX_SNIPPET_CHARS } from "../../types";
+import { truncateToCodeUnits } from "../../utils";
 import { LINK_TIMEOUT_MS, TEXT_MEDIA_TYPE } from "./consts";
 import type { FetchTextResult } from "./types";
 
@@ -34,8 +35,8 @@ function findUnreadableBodyReason(
  * GET a URL's body as text, validating the connection address at connect time
  * (closes DNS-rebinding TOCTOU) and not following redirects (a 3xx is treated
  * as a skip, so a public URL can't bounce us to an internal one). Only a
- * text-like, unencoded body is read; anything else is dropped unread. Body is capped
- * at MAX_SNIPPET_CHARS.
+ * text-like, unencoded body is read; anything else is dropped unread. A longer
+ * body is cut at MAX_SNIPPET_CHARS, not dropped.
  */
 export function fetchText(
   rawUrl: string,
@@ -77,8 +78,9 @@ export function fetchText(
           }
           body += chunk;
           if (body.length >= MAX_SNIPPET_CHARS) {
-            body = body.slice(0, MAX_SNIPPET_CHARS);
-            req.destroy(); // stop reading once we have enough
+            // Resolve first: destroying fires `aborted`, never `end`.
+            resolve({ text: truncateToCodeUnits(body, MAX_SNIPPET_CHARS) });
+            req.destroy();
           }
         });
         res.on("end", () => resolve({ text: body }));

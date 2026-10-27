@@ -18,6 +18,7 @@ import { createBuiltInContextProviders } from "../../src/context/registry";
 import {
   createUrlContextProvider,
   extractLinks,
+  fitLinkedTextBudget,
 } from "../../src/context/providers/url";
 import {
   DNS_CANCEL_MARGIN_MS,
@@ -37,8 +38,19 @@ import type {
 } from "../../src/context/providers/url/types";
 import {
   ContextProviderTypes,
+  MAX_SNIPPET_CHARS,
   type ContextQuery,
+  type ProviderSnippet,
 } from "../../src/context/types";
+
+// The real reader by default; the guard refuses every loopback test server.
+vi.mock(
+  "../../src/context/providers/url/fetch-text",
+  async (importOriginal) => {
+    const actual = await importOriginal<{ fetchText: typeof fetchText }>();
+    return { ...actual, fetchText: vi.fn(actual.fetchText) };
+  },
+);
 
 function makeQuery(body: string): ContextQuery {
   return {
@@ -415,6 +427,44 @@ describe("the URL context provider", () => {
   );
 });
 
+describe("the linked text budget in the provider", () => {
+  it("cuts the crossing link and logs the one past the budget", async () => {
+    const pages: Record<string, string> = {
+      "https://a.example/": "a".repeat(20),
+      "https://b.example/": "b".repeat(20),
+    };
+    const servePage: typeof fetchText = async (url) => ({
+      text: pages[url] ?? "",
+    });
+    vi.mocked(fetchText)
+      .mockImplementationOnce(servePage)
+      .mockImplementationOnce(servePage);
+    const logs: string[] = [];
+    const provider = createUrlContextProvider({
+      linkFetch: { ...DEFAULT_LINK_FETCH, maxTotalChars: 15 },
+    });
+
+    const outcome = await provider.fetch(
+      makeQuery("see https://a.example/ and https://b.example/"),
+      stubDeps(logs),
+    );
+
+    expect(outcome).toEqual({
+      ok: true,
+      value: [
+        {
+          providerId: ContextProviderTypes.URL,
+          source: "https://a.example/",
+          text: "a".repeat(15),
+        },
+      ],
+    });
+    expect(logs).toContain(
+      "linked context: https://b.example/ past the linked text budget, skipping",
+    );
+  });
+});
+
 describe("the linkFetch policy", () => {
   const body =
     "see https://docs.example/a and https://other.example/b and https://docs.example.evil/c";
@@ -432,6 +482,7 @@ describe("the linkFetch policy", () => {
 
   it("fetches nothing when the policy is off", async () => {
     const { outcome, asked, logs } = await fetchUnderPolicy({
+      ...DEFAULT_LINK_FETCH,
       mode: LinkFetchModes.OFF,
       hosts: [],
     });
@@ -443,6 +494,7 @@ describe("the linkFetch policy", () => {
 
   it("asks only for the hosts on the allowlist", async () => {
     const { asked, logs } = await fetchUnderPolicy({
+      ...DEFAULT_LINK_FETCH,
       mode: LinkFetchModes.ALLOWLIST,
       hosts: ["docs.example"],
     });
@@ -456,7 +508,11 @@ describe("the linkFetch policy", () => {
   it("matches an allowlisted host in any case", async () => {
     const asked: string[] = [];
     const provider = createUrlContextProvider({
-      linkFetch: { mode: LinkFetchModes.ALLOWLIST, hosts: ["docs.example"] },
+      linkFetch: {
+        ...DEFAULT_LINK_FETCH,
+        mode: LinkFetchModes.ALLOWLIST,
+        hosts: ["docs.example"],
+      },
       resolveAddresses: stubResolver([LOOPBACK_RECORD], asked),
     });
 
@@ -467,6 +523,7 @@ describe("the linkFetch policy", () => {
 
   it("still refuses a blocked address on an allowlisted host", async () => {
     const { outcome, logs } = await fetchUnderPolicy({
+      ...DEFAULT_LINK_FETCH,
       mode: LinkFetchModes.ALLOWLIST,
       hosts: ["docs.example"],
     });
@@ -544,6 +601,8 @@ describe("createValidatingLookup, the connect-time check", () => {
     },
   );
 });
+
+const STREAM_GAP_MS = 30;
 
 interface StubResponse {
   readonly headers: Record<string, string>;
@@ -624,6 +683,41 @@ describe("fetchText, the body reader", () => {
       body: "untyped",
     });
     expect(outcome).toEqual({ error: "non-text content type" });
+  });
+
+  it("keeps the first snippet-cap chars of a body that streams past it", async () => {
+    const piece = "a".repeat(MAX_SNIPPET_CHARS / 2 + 1);
+    const server = createServer((_, reply) => {
+      reply.writeHead(200, { "content-type": "text/plain" });
+      reply.write(piece);
+      setTimeout(() => reply.write(piece), STREAM_GAP_MS);
+      setTimeout(() => reply.end(piece), STREAM_GAP_MS * 2);
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const outcome = await fetchText(
+        `http://docs.example:${port}/page`,
+        new AbortController().signal,
+        stubLoopbackLookup,
+      );
+      expect(outcome).toEqual({ text: "a".repeat(MAX_SNIPPET_CHARS) });
+    } finally {
+      server.close();
+    }
+  });
+
+  it("never splits a surrogate pair at the snippet cap", async () => {
+    const lead = "a".repeat(MAX_SNIPPET_CHARS - 1);
+    const outcome = await fetchStubbedResponse({
+      headers: { "content-type": "text/plain; charset=utf-8" },
+      body: `${lead}\u{1F600}${"b".repeat(MAX_SNIPPET_CHARS)}`,
+    });
+
+    expect(outcome).toEqual({ text: lead });
   });
 
   it("skips a gzip body even under a text content type", async () => {
@@ -955,5 +1049,48 @@ describe("queryAllAddresses under the lookup bounds", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("fitLinkedTextBudget", () => {
+  function makeSnippet(source: string, length: number): ProviderSnippet {
+    return {
+      providerId: ContextProviderTypes.URL,
+      source,
+      text: "x".repeat(length),
+    };
+  }
+  const snippets = [
+    makeSnippet("https://a.example/", 20_000),
+    makeSnippet("https://b.example/", 20_000),
+    makeSnippet("https://c.example/", 20_000),
+  ];
+
+  it("cuts the link that crosses the budget and skips the rest", () => {
+    const fitted = fitLinkedTextBudget(snippets, 30_000);
+
+    expect(fitted.kept.map((snippet) => snippet.text.length)).toEqual([
+      20_000, 10_000,
+    ]);
+    expect(fitted.skipped).toEqual(["https://c.example/"]);
+  });
+
+  it("never splits a surrogate pair at the budget", () => {
+    const straddling: ProviderSnippet = {
+      providerId: ContextProviderTypes.URL,
+      source: "https://d.example/",
+      text: `${"x".repeat(9)}\u{1F600}tail`,
+    };
+
+    const fitted = fitLinkedTextBudget([straddling], 10);
+
+    expect(fitted.kept.map((snippet) => snippet.text)).toEqual(["x".repeat(9)]);
+  });
+
+  it("keeps every link whole under a larger budget", () => {
+    const fitted = fitLinkedTextBudget(snippets, 100_000);
+
+    expect(fitted.kept).toEqual(snippets);
+    expect(fitted.skipped).toEqual([]);
   });
 });

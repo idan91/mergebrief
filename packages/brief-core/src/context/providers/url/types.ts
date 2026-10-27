@@ -1,5 +1,6 @@
 import type { LookupAddress } from "node:dns";
 import type { LinkFetchPolicy } from "generators";
+import type { ProviderSnippet } from "../../types";
 
 export interface BlockedSubnet {
   readonly prefix: string;
@@ -40,4 +41,10 @@ export interface UrlContextProviderOptions {
   readonly resolveAddresses?: AddressResolver;
   /** The ports a link may name; production always takes `LINK_PORTS`. */
   readonly allowedPorts?: ReadonlySet<number>;
+}
+
+/** Linked snippets inside one prompt's character budget, and the sources it left out. */
+export interface LinkedTextFit {
+  readonly kept: ProviderSnippet[];
+  readonly skipped: string[];
 }

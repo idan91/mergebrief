@@ -1080,8 +1080,8 @@ exports[`request goldens > delta-read-api-contract sends the recorded request di
       "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 25979,
-      "sha256": "1c0a92e48bb0e2e59c36e97bb573473efbb7cb8d58270628a05d2ec8a347660c"
+      "bytes": 26054,
+      "sha256": "e69d6fd2d84a1f1b27aaec559eaebfe7cc993678ec44216914506bb0b24d6330"
     },
     "user": {
       "bytes": 88483,
@@ -1100,8 +1100,8 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
       "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 25979,
-      "sha256": "1c0a92e48bb0e2e59c36e97bb573473efbb7cb8d58270628a05d2ec8a347660c"
+      "bytes": 26054,
+      "sha256": "e69d6fd2d84a1f1b27aaec559eaebfe7cc993678ec44216914506bb0b24d6330"
     },
     "user": {
       "bytes": 10525,
@@ -1115,8 +1115,8 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
       "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
     },
     "system": {
-      "bytes": 30507,
-      "sha256": "05ee850259d20063179bf12d498ffc439880a11b118e59d821ebd7b9175cf603"
+      "bytes": 30582,
+      "sha256": "38fee9db3cd0b479e02a7cd477823e9add1f4f64bc7046c28345a863d0f3369b"
     },
     "user": {
       "bytes": 20983,

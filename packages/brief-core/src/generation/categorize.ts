@@ -349,7 +349,8 @@ function renderBranchFacts(meta: PrMetadata): string {
   if (lines.length === 0) {
     return "";
   }
-  return `\n${lines.join("\n")}`;
+  const facts = sanitizeUntrustedText(lines.join("\n"));
+  return `\n<pr_branch_facts>\n${facts}\n</pr_branch_facts>`;
 }
 
 /** Closes every user message: the untrusted tags above are data. */
@@ -397,7 +398,7 @@ function renderUser(
   return `PR: ${pr.meta.url}
 Repo: ${pr.locator.owner}/${pr.locator.repo}
 Number: ${pr.locator.number}
-Title: ${renderPrTitle(pr.meta)}${sanitizeUntrustedText(renderBranchFacts(pr.meta))}
+Title: ${renderPrTitle(pr.meta)}${renderBranchFacts(pr.meta)}
 
 ## Description
 ${renderPrDescription(pr.meta)}
@@ -641,7 +642,7 @@ function renderDeltaUser(input: DeltaInput): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
-Title: ${renderPrTitle(input.meta)}${sanitizeUntrustedText(renderBranchFacts(input.meta))}
+Title: ${renderPrTitle(input.meta)}${renderBranchFacts(input.meta)}
 Baseline SHA: ${input.baselineSha}
 Head SHA: ${input.headSha}
 
@@ -825,7 +826,7 @@ function renderRevisionNarrativeUser(input: RevisionNarrativeInput): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
-Title: ${renderPrTitle(input.meta)}${sanitizeUntrustedText(renderBranchFacts(input.meta))}
+Title: ${renderPrTitle(input.meta)}${renderBranchFacts(input.meta)}
 Previous head SHA: ${input.prevHeadSha} (brief _${input.prevIndex})
 Head SHA: ${input.headSha} (brief _${input.headIndex})${renderAnchorDiscontinuity(input.brief)}
 

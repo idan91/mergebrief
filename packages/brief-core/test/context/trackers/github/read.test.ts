@@ -118,6 +118,19 @@ describe("createGitHubRead", () => {
     expect(result.value.text).toHaveLength(MAX_SNIPPET_CHARS);
   });
 
+  it("never splits a surrogate pair at the snippet cap", async () => {
+    const lead = "x".repeat(MAX_SNIPPET_CHARS - 1);
+    const provider = readWith(
+      stubReaderReturning({ ...ISSUE, body: `${lead}\u{1F600}tail` }),
+    );
+    const result = await provider.readPrimary(REFERENCE, stubDeps());
+    expect(result?.ok).toBe(true);
+    if (!result?.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.value.text).toBe(lead);
+  });
+
   it("treats a pull request hit as not found", async () => {
     const provider = readWith(
       stubReaderReturning({ ...ISSUE, isPullRequest: true }),

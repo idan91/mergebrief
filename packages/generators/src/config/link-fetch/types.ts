@@ -12,4 +12,6 @@ export interface LinkFetchPolicy {
   readonly mode: LinkFetchMode;
   /** Exact lowercase hostnames, matched against the link's own host. */
   readonly hosts: readonly string[];
+  /** Characters of linked text one prompt carries, across every fetched link. */
+  readonly maxTotalChars: number;
 }

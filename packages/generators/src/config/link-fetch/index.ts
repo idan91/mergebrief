@@ -4,14 +4,19 @@ import { configError, type ConfigError } from "../../contract/errors";
 import { renderKey } from "../readRoot";
 import { LinkFetchModes, type LinkFetchPolicy } from "./types";
 
+/** Two full linked pages: a token bound, set well under any model's window. */
+const DEFAULT_MAX_TOTAL_CHARS = 40_000;
+
 export const DEFAULT_LINK_FETCH: LinkFetchPolicy = {
   mode: LinkFetchModes.PUBLIC,
   hosts: [],
+  maxTotalChars: DEFAULT_MAX_TOTAL_CHARS,
 };
 
 const HOSTNAME = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/;
 const HOST_ISSUE =
   "must be an exact lowercase hostname, no scheme, port, path or wildcard";
+const BUDGET_ISSUE = "must be a whole number of characters above zero";
 const MODE_ISSUE = `must be one of ${Object.values(LinkFetchModes).join(", ")}`;
 
 const linkFetchBlockSchema = z
@@ -21,6 +26,11 @@ const linkFetchBlockSchema = z
         .enum(LinkFetchModes, { error: MODE_ISSUE })
         .default(LinkFetchModes.PUBLIC),
       hosts: z.array(z.string().regex(HOSTNAME, HOST_ISSUE)).optional(),
+      maxTotalChars: z
+        .number({ error: BUDGET_ISSUE })
+        .int({ error: BUDGET_ISSUE })
+        .positive({ error: BUDGET_ISSUE })
+        .default(DEFAULT_MAX_TOTAL_CHARS),
     },
     { error: "must be a mapping" },
   )
@@ -70,6 +80,6 @@ export function validateLinkFetchBlock(
   if (!parsed.success) {
     return configError(parsed.error.issues.map(describeIssue));
   }
-  const { mode, hosts = [] } = parsed.data;
-  return { ok: true, value: { mode, hosts } };
+  const { mode, hosts = [], maxTotalChars } = parsed.data;
+  return { ok: true, value: { mode, hosts, maxTotalChars } };
 }
