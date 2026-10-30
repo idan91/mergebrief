@@ -1,7 +1,8 @@
 import type { PrStack } from "../../../../../model/types";
 import { ForkLists } from "../ForkLists";
 import { NeighbourList } from "../NeighbourList";
-import { isLinearPrStack } from "../utils";
+import { StackBase } from "../StackBase";
+import { deriveChainRows, isLinearPrStack } from "../utils";
 
 export interface StackListsProps {
   stack: PrStack;
@@ -20,14 +21,19 @@ export function StackLists({
   listLabel,
 }: StackListsProps) {
   if (isLinearPrStack(stack)) {
+    const rows = deriveChainRows(stack.members, currentNumber);
     return (
-      <NeighbourList
-        currentNumber={currentNumber}
-        label={listLabel}
-        members={stack.members}
-        repoSlug={repoSlug}
-        repoId={repoId}
-      />
+      <>
+        <NeighbourList
+          label={listLabel}
+          repoSlug={repoSlug}
+          repoId={repoId}
+          rows={rows}
+        />
+        {stack.baseRef === undefined ? null : (
+          <StackBase baseRef={stack.baseRef} />
+        )}
+      </>
     );
   }
   return (

@@ -1,4 +1,8 @@
-import { LastReviewUnavailableReasons, WaitReasons } from "contract";
+import {
+  LastReviewUnavailableReasons,
+  PrStackMemberStates,
+  WaitReasons,
+} from "contract";
 import { z } from "zod/v4";
 import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
 
@@ -155,11 +159,14 @@ export const prSummarySchema = dropNullKeys(
 export const prStackMemberSchema = z.object({
   number: z.number(),
   title: z.string(),
+  state: buildOpenEnumSchema(PrStackMemberStates).exactOptional(),
+  headRef: z.string().exactOptional(),
 });
 
 export const linearPrStackSchema = z.object({
   members: z.array(prStackMemberSchema),
   index: z.number(),
+  baseRef: z.string().exactOptional(),
 });
 
 /** The wire union discriminates on `members`: a chain carries them, so their presence rules a fork out. */
@@ -167,6 +174,7 @@ export const forkPrStackSchema = z
   .object({
     parent: prStackMemberSchema.optional(),
     children: z.array(prStackMemberSchema),
+    baseRef: z.string().exactOptional(),
     members: z.never().exactOptional(),
   })
   .transform(({ members: _absent, ...fork }) => fork satisfies ForkPrStack);

@@ -59,6 +59,8 @@ export type Catalog = typeof en & {
       branchPairAria: "{{head}} into {{base}}";
       stackIndexAria: "Pull request {{index}} of {{total}} in the stack";
       stackMember: "#{{number}} {{title}}";
+      stackMemberBranch: "#{{number}} · {{branch}}";
+      stackMemberDetail: "{{member}}, {{detail}}";
       stackAsOf: "As of {{date}}";
       stackPrevious: "Previous PR in stack, #{{number}}: {{title}}";
       stackNext: "Next PR in stack, #{{number}}: {{title}}";

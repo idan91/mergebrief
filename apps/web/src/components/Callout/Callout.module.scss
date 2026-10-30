@@ -26,6 +26,24 @@
   padding: functions.to-rem(7px) functions.to-rem(10px);
 }
 
+.callout[data-flush] {
+  width: max-content;
+  max-width: none;
+  padding: 0;
+}
+
+.callout[data-surface="ground"] {
+  // Chrome snaps a 1.5px border to 1px; the half pixel rides a ring under the float.
+  --callout-ground-ring: 0 0 0 0.5px var(--color-outline-2);
+
+  background: var(--color-focus-ground);
+  box-shadow: var(--callout-ground-ring), var(--shadow-float);
+
+  .arrow {
+    fill: var(--color-focus-ground);
+  }
+}
+
 // floating-ui arrow (SVG): same surface as the callout; hairline via the
 // component's stroke prop.
 .arrow {

@@ -2,14 +2,22 @@
 
 @layer components {
   .list {
-    display: flex;
-    flex-direction: column;
+    // Tracks the two-line row in StackMemberRow.module.scss plus its hairline.
+    --stack-row-h: #{functions.to-rem(56px)};
+    --stack-visible-rows: 6.5;
+
+    max-block-size: min(
+      calc(var(--stack-row-h) * var(--stack-visible-rows)),
+      var(--stack-list-viewport-cap)
+    );
     margin: 0;
     padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: var(--stack-row-h);
     list-style: none;
-
-    // Compact Callout padding is 10px inline; pull rules to the panel edge.
-    margin-inline: functions.to-rem(-10px);
+    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-width: thin;
   }
 
   .item {
@@ -17,6 +25,15 @@
 
     &:last-child {
       border-block-end: 0;
+    }
+
+    &[data-current] {
+      position: sticky;
+      z-index: 1;
+      inset-block: 0;
+      container-type: scroll-state;
+      border-block-end-color: transparent;
+      background: var(--color-surface-3);
     }
   }
 }

@@ -6,8 +6,8 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { ForkPrStack, LinearPrStack } from "../../../../model/types";
 import { StackChip } from ".";
@@ -52,6 +52,8 @@ async function renderChip(
 }
 
 describe("StackChip", () => {
+  afterEach(cleanup);
+
   it("shows the linear index over total", async () => {
     await renderChip(
       <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
@@ -89,6 +91,83 @@ describe("StackChip", () => {
     expect(current).toBeTruthy();
     expect(current?.closest("a")).toBeNull();
     expect(current?.getAttribute("aria-label")).toBe("#13 Middle");
+  });
+
+  it("lists the tip first with each row numbered from the base", async () => {
+    await renderChip(
+      <StackChip
+        currentNumber={13}
+        repoSlug="o/r"
+        repoId="424242"
+        stack={LINEAR}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
+    );
+    const items = screen.getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "3Tip#14",
+      "2Middle#13",
+      "1Bottom#12",
+    ]);
+    expect(items[1]?.hasAttribute("data-current")).toBe(true);
+    expect(items[0]?.hasAttribute("data-current")).toBe(false);
+  });
+
+  it("names the base branch under the list when the live read knows it", async () => {
+    const live: LinearPrStack = { ...LINEAR, baseRef: "main" };
+    await renderChip(
+      <StackChip currentNumber={13} repoSlug="o/r" stack={live} />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
+    );
+    const base = screen.getByText("Base");
+    expect(base.nextElementSibling?.textContent).toBe("main");
+    expect(base.closest("ol")).toBeNull();
+  });
+
+  it("shows no base line for a recorded or snapshotted stack", async () => {
+    await renderChip(
+      <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
+    );
+    expect(screen.queryByText("Base")).toBeNull();
+  });
+
+  it("names a fork's base under its children", async () => {
+    const live: ForkPrStack = { ...FORK, baseRef: "develop" };
+    await renderChip(
+      <StackChip currentNumber={14} repoSlug="o/r" stack={live} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Stacked" }));
+    expect(screen.getByText("Base").nextElementSibling?.textContent).toBe(
+      "develop",
+    );
+  });
+
+  it("lists a fork's parent and children under their lead-ins", async () => {
+    await renderChip(
+      <StackChip
+        currentNumber={14}
+        repoSlug="o/r"
+        repoId="424242"
+        stack={FORK}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Stacked" }));
+    expect(screen.getByText("Stacked on")).toBeTruthy();
+    expect(screen.getByText("Stacked with")).toBeTruthy();
+    const items = screen.getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Bottom#12",
+      "Tip#14",
+      "Fork sibling#15",
+    ]);
+    expect(items[1]?.hasAttribute("data-current")).toBe(true);
   });
 
   it("links a neighbour through the in-app repo pull route", async () => {

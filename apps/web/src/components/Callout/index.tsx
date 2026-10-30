@@ -18,6 +18,7 @@ import { useRef, type ReactNode } from "react";
 
 import { prefersReducedMotion } from "../../utils/motion";
 import styles from "./Callout.module.scss";
+import { CalloutSurfaces, type CalloutSurface } from "./types";
 
 export interface CalloutProps {
   /** Element the callout anchors to; the parent mounts on hover/focus. */
@@ -28,6 +29,10 @@ export interface CalloutProps {
   fit?: boolean;
   /** Label density: the padding of a one-line name, not a card. */
   compact?: boolean;
+  /** The content owns its padding and width: a list whose rows run to the edge. */
+  flush?: boolean;
+  /** Raised card by default; `ground` sits lower with a stronger edge. */
+  surface?: CalloutSurface;
   /**
    * The panel holds a control (not just a description). Drops `role="tooltip"`
    * and lets Tab reach the portaled content; the parent owns return-focus.
@@ -61,6 +66,8 @@ function CalloutRoot({
   placement = "top",
   fit = false,
   compact = false,
+  flush = false,
+  surface = CalloutSurfaces.RAISED,
   interactive = false,
   onClose,
   children,
@@ -102,6 +109,8 @@ function CalloutRoot({
       className={styles["callout"]}
       data-compact={compact ? "" : undefined}
       data-fit={fit ? "" : undefined}
+      data-flush={flush ? "" : undefined}
+      data-surface={surface}
       ref={refs.setFloating}
       role={interactive ? undefined : "tooltip"}
       style={{ ...floatingStyles, ...transitionStyles }}

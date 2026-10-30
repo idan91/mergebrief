@@ -21,7 +21,15 @@ function pr(
   headRepo: RepoIdentity = UPSTREAM,
   baseRepo: RepoIdentity = UPSTREAM,
 ): OpenPullRequest {
-  return { number, title, headRef, baseRef, headRepo, baseRepo };
+  return {
+    number,
+    title,
+    draft: false,
+    headRef,
+    baseRef,
+    headRepo,
+    baseRepo,
+  };
 }
 
 const ROOT = pr(12, "Bottom", "feature/a", "main");

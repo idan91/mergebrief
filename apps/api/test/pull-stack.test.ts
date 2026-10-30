@@ -47,7 +47,7 @@ const RECORDED_AT = new Date("2026-09-19T12:00:00Z");
 const INSIDE_TTL_MS = 9_000;
 const PAST_TTL_MS = 11_000;
 
-type GitHubPullState = "open" | "closed";
+type GitHubPullState = "open" | "draft" | "closed";
 
 /** A pull request GitHub holds, titled `PR <number>` unless named. */
 function arrangePull(
@@ -63,7 +63,8 @@ function arrangePull(
     baseRef: refs.base,
     headRepo: REPO,
     baseRepo: REPO,
-    state,
+    state: state === "closed" ? "closed" : "open",
+    draft: state === "draft",
     merged: state === "closed",
   };
   fake.addPullRequest({ ...REPO, prNumber }, { info });
@@ -161,7 +162,7 @@ describe("live stack read", () => {
     await seedOpenRow(harness.handle);
     arrangePull(fake, 6, { head: "feature/base", base: "main" });
     arrangePull(fake, PR_NUMBER, { head: "feature/mid", base: "feature/base" });
-    arrangePull(fake, 8, { head: "feature/tip", base: "feature/mid" });
+    arrangePull(fake, 8, { head: "feature/tip", base: "feature/mid" }, "draft");
     const lookups = spyPullRequestLookups(harness);
 
     const res = await readStack();
@@ -171,11 +172,17 @@ describe("live stack read", () => {
     expect(await res.json()).toEqual({
       stack: {
         members: [
-          { number: 6, title: "PR 6" },
-          { number: PR_NUMBER, title: `PR ${String(PR_NUMBER)}` },
-          { number: 8, title: "PR 8" },
+          { number: 6, title: "PR 6", state: "open", headRef: "feature/base" },
+          {
+            number: PR_NUMBER,
+            title: `PR ${String(PR_NUMBER)}`,
+            state: "open",
+            headRef: "feature/mid",
+          },
+          { number: 8, title: "PR 8", state: "draft", headRef: "feature/tip" },
         ],
         index: 2,
+        baseRef: "main",
       },
     });
     expect(fake.listCalls("fetchPullRequest")).toEqual([]);
@@ -212,6 +219,35 @@ describe("live stack read", () => {
       asOf: expect.any(String),
     });
     expect(fake.listCalls("fetchPullRequest")).toHaveLength(1);
+  });
+
+  it("decorates a PR the cached open list predates from its own fetch", async () => {
+    await seedOpenRow(harness.handle);
+    arrangePull(fake, PR_NUMBER, { head: "feature/7", base: "main" }, "closed");
+    arrangePull(fake, 18, { head: "feature/18", base: "feature/7" });
+    const app = buildApp();
+    expect((await readStack(app)).status).toBe(200);
+
+    arrangePull(fake, PR_NUMBER, { head: "feature/7", base: "main" }, "draft");
+    clockOffsetMs += INSIDE_TTL_MS;
+    const res = await readStack(app);
+
+    expect(await res.json()).toEqual({
+      stack: {
+        members: [
+          {
+            number: PR_NUMBER,
+            title: `PR ${String(PR_NUMBER)}`,
+            state: "draft",
+            headRef: "feature/7",
+          },
+          { number: 18, title: "PR 18", state: "open", headRef: "feature/18" },
+        ],
+        index: 1,
+        baseRef: "main",
+      },
+    });
+    expect(fake.listCalls("listOpenPullRequests")).toHaveLength(1);
   });
 
   it("re-reads the open list once the cached copy is ten seconds old", async () => {
@@ -268,10 +304,16 @@ describe("live stack read", () => {
     expect(await res.json()).toEqual({
       stack: {
         members: [
-          { number: PR_NUMBER, title: `PR ${String(PR_NUMBER)}` },
-          { number: 8, title: "PR 8" },
+          {
+            number: PR_NUMBER,
+            title: `PR ${String(PR_NUMBER)}`,
+            state: "open",
+            headRef: "feature/mid",
+          },
+          { number: 8, title: "PR 8", state: "open", headRef: "feature/tip" },
         ],
         index: 1,
+        baseRef: "main",
       },
     });
     const warned = logging
@@ -339,10 +381,16 @@ describe("live stack read", () => {
     expect(await res.json()).toEqual({
       stack: {
         members: [
-          { number: PR_NUMBER, title: `PR ${String(PR_NUMBER)}` },
-          { number: 8, title: "PR 8" },
+          {
+            number: PR_NUMBER,
+            title: `PR ${String(PR_NUMBER)}`,
+            state: "open",
+            headRef: "feature/mid",
+          },
+          { number: 8, title: "PR 8", state: "open", headRef: "feature/tip" },
         ],
         index: 1,
+        baseRef: "main",
       },
     });
     const after = await readRow(harness.handle);

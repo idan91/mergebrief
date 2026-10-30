@@ -3,6 +3,16 @@ import type { TFunction } from "i18next";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import type { ValueOf } from "types/utils";
 
+/** The PR state as the header's badge and the stack rows draw it: draft and merged are their own words. */
+export const PrStateBadgeVariants = {
+  OPEN: "open",
+  DRAFT: "draft",
+  MERGED: "merged",
+  CLOSED: "closed",
+} as const;
+
+export type PrStateBadgeVariant = ValueOf<typeof PrStateBadgeVariants>;
+
 import type {
   ConversationPlan,
   ThreadComposerWiring,

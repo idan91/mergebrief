@@ -41,6 +41,14 @@ export type NeighbourTarget =
   | { kind: typeof NeighbourTargetKinds.GITHUB; href: string }
   | { kind: typeof NeighbourTargetKinds.NONE };
 
+/** One line of the stack list, in display order. */
+export interface StackRow {
+  member: PrStackMember;
+  /** 1-based place in the chain, counted from its base; a fork's rows have none. */
+  position?: number;
+  current: boolean;
+}
+
 /** The PRs either side of this one in a linear stack; absent at an end. */
 export interface StackNeighbours {
   previous?: PrStackMember;

@@ -28,6 +28,7 @@ export interface RepoIdentity {
 export interface OpenPullRequest {
   number: number;
   title: string;
+  draft: boolean;
   headRef: string;
   baseRef: string;
   headRepo: RepoIdentity;

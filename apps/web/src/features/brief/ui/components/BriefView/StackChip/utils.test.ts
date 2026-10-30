@@ -1,11 +1,18 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
 
 import {
+  centreCurrentRow,
+  deriveChainRows,
+  deriveForkRows,
   isLinearPrStack,
   isSameStack,
+  resolveCentredScrollTop,
+  resolveMemberStateVariant,
   resolveNeighbourTarget,
   resolveStackArrow,
+  resolveStackMemberLabel,
   resolveStackNeighbours,
   resolveStackView,
 } from "./utils";
@@ -196,5 +203,114 @@ describe("resolveStackArrow", () => {
       REPO_SLUG,
     );
     expect(view.label).toBe("Previous PR in stack, #1: a (opens in a new tab)");
+  });
+});
+
+describe("deriveChainRows", () => {
+  it("lists the tip first and numbers each row from the base", () => {
+    expect(deriveChainRows(STACK.members, 2)).toEqual([
+      { member: { number: 3, title: "c" }, position: 3, current: false },
+      { member: { number: 2, title: "b" }, position: 2, current: true },
+      { member: { number: 1, title: "a" }, position: 1, current: false },
+    ]);
+  });
+
+  it("marks no row current for a PR outside the chain", () => {
+    const rows = deriveChainRows(STACK.members, 9);
+    expect(rows.every((row) => !row.current)).toBe(true);
+  });
+});
+
+describe("deriveForkRows", () => {
+  it("keeps the given order and numbers nothing", () => {
+    expect(deriveForkRows(fork.children, 4)).toEqual([
+      { member: { number: 3, title: "c" }, current: false },
+      { member: { number: 4, title: "d" }, current: true },
+    ]);
+  });
+});
+
+describe("resolveMemberStateVariant", () => {
+  it("maps open and draft to their glyphs and draws nothing otherwise", () => {
+    expect(resolveMemberStateVariant("open")).toBe("open");
+    expect(resolveMemberStateVariant("draft")).toBe("draft");
+    expect(resolveMemberStateVariant("unknown")).toBeUndefined();
+    expect(resolveMemberStateVariant(undefined)).toBeUndefined();
+  });
+});
+
+describe("resolveStackMemberLabel", () => {
+  const member = { number: 8, title: "Tip" };
+
+  it("is number and title when the live read adds nothing", () => {
+    expect(resolveStackMemberLabel(t, member)).toBe("#8 Tip");
+  });
+
+  it("adds the state, then the branch, when the live read knows them", () => {
+    const live = { ...member, state: "draft" as const, headRef: "f/tip" };
+    expect(resolveStackMemberLabel(t, live)).toBe("#8 Tip, Draft, f/tip");
+  });
+
+  it("leaves out a state this bundle predates", () => {
+    const live = { ...member, state: "unknown" as const };
+    expect(resolveStackMemberLabel(t, live)).toBe("#8 Tip");
+  });
+});
+
+describe("resolveCentredScrollTop", () => {
+  it("puts the row in the middle of the viewport", () => {
+    expect(resolveCentredScrollTop(560, 56, 364)).toBe(406);
+  });
+
+  it("never scrolls above the top", () => {
+    expect(resolveCentredScrollTop(56, 56, 364)).toBe(0);
+    expect(resolveCentredScrollTop(0, 56, 364)).toBe(0);
+  });
+
+  it("is zero when the viewport holds the row without scrolling", () => {
+    expect(resolveCentredScrollTop(154, 56, 364)).toBe(0);
+  });
+});
+
+const ROW_HEIGHT = 56;
+const VIEWPORT_HEIGHT = 364;
+
+function stubLayout(element: HTMLElement, property: string, value: number) {
+  Object.defineProperty(element, property, { configurable: true, value });
+}
+
+function makeScroller(rowCount: number, currentIndex: number): HTMLElement {
+  const scroller = document.createElement("ol");
+  stubLayout(scroller, "clientHeight", VIEWPORT_HEIGHT);
+  for (let index = 0; index < rowCount; index += 1) {
+    const row = document.createElement("li");
+    const link = document.createElement("a");
+    if (index === currentIndex) {
+      link.setAttribute("aria-current", "page");
+    }
+    row.append(link);
+    stubLayout(row, "offsetHeight", ROW_HEIGHT);
+    stubLayout(row, "offsetTop", 0);
+    scroller.append(row);
+  }
+  return scroller;
+}
+
+describe("centreCurrentRow", () => {
+  it("measures the rows above, not the stuck row's own offset", () => {
+    const scroller = makeScroller(10, 7);
+
+    centreCurrentRow(scroller);
+
+    expect(scroller.scrollTop).toBe(238);
+  });
+
+  it("leaves a list with no current row where it is", () => {
+    const scroller = makeScroller(10, -1);
+    scroller.scrollTop = 40;
+
+    centreCurrentRow(scroller);
+
+    expect(scroller.scrollTop).toBe(40);
   });
 });

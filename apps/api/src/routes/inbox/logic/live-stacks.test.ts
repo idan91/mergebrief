@@ -64,6 +64,7 @@ function makeOpen(number: number, head: string, base: string): OpenPullRequest {
   return {
     number,
     title: `PR ${number}`,
+    draft: false,
     headRef: head,
     baseRef: base,
     headRepo: repo,

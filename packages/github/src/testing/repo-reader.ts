@@ -95,6 +95,7 @@ export function listOpenPullRequests(
     open.push({
       number: prNumber,
       title: info.title,
+      draft: info.draft,
       headRef: info.headRef,
       baseRef: info.baseRef ?? "",
       headRepo: info.headRepo ?? { owner: repo.owner, repo: repo.repo },

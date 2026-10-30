@@ -1,0 +1,106 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .row {
+    // 14px sits between the lg and xl steps: the list title the prototype settled on.
+    --stack-title-size: #{functions.to-rem(14px)};
+    --stack-current-edge: inset 2px 0 0 var(--color-accent);
+
+    // Edge shadows for the stuck row; --shadow-float is sized for a whole panel.
+    --stack-stuck-shadow-down: 0 8px 14px -8px rgb(0 0 0 / 80%);
+    --stack-stuck-shadow-up: 0 -8px 14px -8px rgb(0 0 0 / 80%);
+
+    display: grid;
+    grid-template-columns: functions.to-rem(28px) minmax(0, 1fr) 16px;
+    gap: functions.to-rem(10px);
+    align-items: center;
+    padding-block: functions.to-rem(9px);
+    padding-inline: functions.to-rem(12px) functions.to-rem(14px);
+    color: var(--color-text-1);
+    text-decoration: none;
+    transition: background-color var(--motion-fast) var(--ease-out);
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    &:is(a):hover {
+      background: color-mix(in srgb, var(--color-text-1) 6%, transparent);
+    }
+
+    &:is(a):active {
+      background: color-mix(in srgb, var(--color-text-1) 9%, transparent);
+    }
+
+    &[aria-current] {
+      background: var(--color-surface-3);
+      box-shadow: var(--stack-current-edge);
+      cursor: default;
+      transition: box-shadow var(--motion-base) var(--ease-out);
+
+      .title {
+        font-weight: 600;
+      }
+
+      .position {
+        color: var(--color-accent);
+      }
+
+      @container scroll-state(stuck: top) {
+        box-shadow: var(--stack-current-edge), var(--stack-stuck-shadow-down);
+      }
+
+      @container scroll-state(stuck: bottom) {
+        box-shadow: var(--stack-current-edge), var(--stack-stuck-shadow-up);
+      }
+    }
+  }
+
+  .position {
+    color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(3px);
+    min-inline-size: 0;
+  }
+
+  .title {
+    overflow: hidden;
+    font-size: var(--stack-title-size);
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meta {
+    overflow: hidden;
+    color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .state {
+    display: grid;
+    grid-column: 3;
+    place-items: center;
+    color: var(--color-text-3);
+
+    &[data-state="open"] {
+      color: var(--color-positive);
+    }
+  }
+}

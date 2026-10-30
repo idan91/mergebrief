@@ -807,6 +807,64 @@ describe("pullStackSchema", () => {
   });
 });
 
+describe("pullStackSchema live details", () => {
+  const chain = {
+    members: [
+      { number: 6, title: "Base", state: "open", headRef: "feature/base" },
+      { number: 7, title: "Tip", state: "draft", headRef: "feature/tip" },
+    ],
+    index: 1,
+    baseRef: "main",
+  };
+
+  it("carries each member's state and branch and the stack's base", () => {
+    expect(parseWithSchema(pullStackSchema, { stack: chain })).toEqual({
+      ok: true,
+      value: { stack: chain },
+    });
+    const fork = {
+      parent: chain.members[0],
+      children: [chain.members[1]],
+      baseRef: "main",
+    };
+    expect(parseWithSchema(pullStackSchema, { stack: fork })).toEqual({
+      ok: true,
+      value: { stack: fork },
+    });
+  });
+
+  it("reads a state this bundle predates as unknown", () => {
+    const members = [{ number: 6, title: "Base", state: "merged" }];
+    expect(
+      parseWithSchema(pullStackSchema, { stack: { members, index: 1 } }),
+    ).toEqual({
+      ok: true,
+      value: {
+        stack: {
+          members: [{ number: 6, title: "Base", state: UnknownValues.UNKNOWN }],
+          index: 1,
+        },
+      },
+    });
+  });
+
+  it("refuses a branch or base that is not a string", () => {
+    const members = [{ number: 6, title: "Base", headRef: 6 }];
+    expect(
+      parseWithSchema(pullStackSchema, { stack: { members, index: 1 } }).ok,
+    ).toBe(false);
+    expect(
+      parseWithSchema(pullStackSchema, {
+        stack: {
+          members: [{ number: 6, title: "Base" }],
+          index: 1,
+          baseRef: 1,
+        },
+      }).ok,
+    ).toBe(false);
+  });
+});
+
 const SCHEMA_PINS = {
   GenerationSummary: true satisfies Equals<
     z.output<typeof generationSummarySchema>,

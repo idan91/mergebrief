@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { Callout } from "@web/components/Callout";
+import { CalloutSurfaces } from "@web/components/Callout/types";
 import { Chip } from "@web/components/Chip";
 import { formatDate, renderedLocale } from "@web/i18n/locale";
 import type { PrStack } from "../../../../model/types";
@@ -72,7 +73,13 @@ export function StackChip({
         {visibleLabel}
       </Chip>
       {open && triggerEl ? (
-        <Callout anchor={triggerEl} compact fit interactive onClose={close}>
+        <Callout
+          anchor={triggerEl}
+          flush
+          interactive
+          onClose={close}
+          surface={CalloutSurfaces.GROUND}
+        >
           <span
             aria-label={panelAriaLabel}
             className={styles["panel"]}

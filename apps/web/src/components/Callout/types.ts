@@ -1,4 +1,13 @@
 import type { PointerEvent } from "react";
+import type { ValueOf } from "types/utils";
+
+/** The card surface, or the darker ground with a stronger edge for a list panel. */
+export const CalloutSurfaces = {
+  RAISED: "raised",
+  GROUND: "ground",
+} as const;
+
+export type CalloutSurface = ValueOf<typeof CalloutSurfaces>;
 
 export interface CalloutHover {
   readonly open: boolean;

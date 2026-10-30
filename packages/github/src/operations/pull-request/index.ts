@@ -142,6 +142,7 @@ function mapListedPullRequest(
   return {
     number: item.number,
     title: item.title,
+    draft: item.draft ?? false,
     headRef: item.head.ref,
     baseRef: item.base.ref,
     headRepo: {

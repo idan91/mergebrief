@@ -227,6 +227,7 @@ const OPEN_PULL_REQUESTS = defineCase({
     {
       number: 7,
       title: "Add widgets",
+      draft: false,
       headRef: "feature",
       baseRef: "main",
       headRepo: { owner: "acme", repo: "widgets" },

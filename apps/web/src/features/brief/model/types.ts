@@ -4,7 +4,7 @@ import type {
   LineRange,
   UnattributedFile as StoredUnattributedFile,
 } from "brief-core/types";
-import type { LocalBriefKind } from "contract";
+import type { LocalBriefKind, PrStackMemberState } from "contract";
 import type { ComparisonBaselineLabel, PrState, ValueOf } from "types";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 import type { PostedComment } from "../../../data/postedComment";
@@ -22,19 +22,26 @@ export interface LivePrState {
   stack?: PullStack;
 }
 
+/** `state` and `headRef` ride the live read only; a snapshot or record holds number and title. */
 export interface PrStackMember {
   number: number;
   title: string;
+  state?: PrStackMemberState | UnknownValue;
+  headRef?: string;
 }
 
 export interface LinearPrStack {
   members: PrStackMember[];
   index: number;
+  /** The branch the bottom member targets; the live read only. */
+  baseRef?: string;
 }
 
 export interface ForkPrStack {
   parent?: PrStackMember | undefined;
   children: PrStackMember[];
+  /** The branch the parent, else this PR, targets; the live read only. */
+  baseRef?: string;
 }
 
 export type PrStack = LinearPrStack | ForkPrStack;

@@ -169,12 +169,14 @@ export {
   SignInFailures,
   type SignInFailure,
 } from "./sign-in";
-export type {
-  ForkPrStackView,
-  LinearPrStackView,
-  PrStackMemberView,
-  PrStackView,
-  PullStackView,
+export {
+  PrStackMemberStates,
+  type ForkPrStackView,
+  type LinearPrStackView,
+  type PrStackMemberState,
+  type PrStackMemberView,
+  type PrStackView,
+  type PullStackView,
 } from "./stack";
 export {
   LastReviewUnavailableReasons,

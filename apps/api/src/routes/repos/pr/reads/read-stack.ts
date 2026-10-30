@@ -21,12 +21,14 @@ import {
   shapeRecordedStack,
   shapeStoredStack,
 } from "./logic/last-stack";
+import { shapeLiveStack } from "./logic/live-stack";
 import type { ReadStackDeps, StackFailure } from "./types";
 
 interface StackSelfRead {
   readonly self: PrStackSelf;
   /** GitHub's answer, not the row's state: a lost webhook leaves a row open. */
   readonly open: boolean;
+  readonly draft: boolean;
 }
 
 function wrapDenied(error: GitHubCallFailure) {
@@ -61,7 +63,7 @@ async function listOpenPulls(
   return listed;
 }
 
-/** The PR's own refs: from the open list, else one fetch for a closed PR. */
+/** The PR's own refs: from the open list, else one fetch for a closed PR or one the list predates. */
 async function resolveStackSelf(
   reader: ReviewerRepoClient,
   prNumber: number,
@@ -69,7 +71,10 @@ async function resolveStackSelf(
 ): Promise<Result<StackSelfRead, StackFailure>> {
   const listed = open.find((item) => item.number === prNumber);
   if (listed !== undefined) {
-    return { ok: true, value: { self: listed, open: true } };
+    return {
+      ok: true,
+      value: { self: listed, open: true, draft: listed.draft },
+    };
   }
 
   const fetched = await reader.fetchPullRequest(prNumber);
@@ -81,15 +86,17 @@ async function resolveStackSelf(
     value: {
       self: shapeFetchedSelf(prNumber, fetched.value),
       open: fetched.value.state === "open",
+      draft: fetched.value.draft,
     },
   };
 }
 
 /**
  * The PR's stack as GitHub has it now, on the viewer's binding. A resolve is
- * folded into the row's record: an open PR serves the live resolve, a closed
- * one the record. An operator pass gets no stack and no GitHub call: the
- * open list names every PR in a repository the reader cannot see.
+ * folded into the row's record: an open PR serves the live resolve with each
+ * member's state and branch, a closed one the record. An operator pass gets
+ * no stack and no GitHub call: the open list names every PR in a repository
+ * the reader cannot see.
  */
 export async function readStack(
   deps: ReadStackDeps,
@@ -114,7 +121,7 @@ export async function readStack(
     return selfRead;
   }
 
-  const { self, open: selfOpen } = selfRead.value;
+  const { self, open: selfOpen, draft } = selfRead.value;
   const stack = resolvePrStack(self, open.value);
   if (stack === undefined) {
     return { ok: true, value: shapeStoredStack(access.row, selfOpen) };
@@ -128,7 +135,10 @@ export async function readStack(
     new Date(now),
   );
   if (selfOpen) {
-    return { ok: true, value: { stack } };
+    return {
+      ok: true,
+      value: shapeLiveStack(stack, { ...self, draft }, open.value),
+    };
   }
   return { ok: true, value: shapeRecordedStack(record) };
 }

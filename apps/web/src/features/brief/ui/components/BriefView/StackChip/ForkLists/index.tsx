@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import type { ForkPrStack } from "../../../../../model/types";
 import { NeighbourList } from "../NeighbourList";
+import { StackBase } from "../StackBase";
+import { deriveForkRows } from "../utils";
 import styles from "./ForkLists.module.scss";
 
 export interface ForkListsProps {
@@ -19,29 +21,28 @@ export function ForkLists({
 }: ForkListsProps) {
   const { t } = useTranslation();
   const parentMembers = stack.parent === undefined ? [] : [stack.parent];
+  const parentRows = deriveForkRows(parentMembers, currentNumber);
+  const childRows = deriveForkRows(stack.children, currentNumber);
   const stackedOn = t("brief.header.stackedOn");
   const stackedWith = t("brief.header.stackedWith");
 
   return (
     <>
-      {parentMembers.length > 0 ? (
+      {parentRows.length > 0 ? (
         <>
           <span className={styles["leadIn"]}>{stackedOn}</span>
           <NeighbourList
-            currentNumber={currentNumber}
-            members={parentMembers}
             repoSlug={repoSlug}
             repoId={repoId}
+            rows={parentRows}
           />
         </>
       ) : null}
       <span className={styles["leadIn"]}>{stackedWith}</span>
-      <NeighbourList
-        currentNumber={currentNumber}
-        members={stack.children}
-        repoSlug={repoSlug}
-        repoId={repoId}
-      />
+      <NeighbourList repoSlug={repoSlug} repoId={repoId} rows={childRows} />
+      {stack.baseRef === undefined ? null : (
+        <StackBase baseRef={stack.baseRef} />
+      )}
     </>
   );
 }

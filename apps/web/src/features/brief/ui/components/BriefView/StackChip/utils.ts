@@ -1,7 +1,11 @@
 import type { TFunction } from "i18next";
 
+import { PrStackMemberStates, type PrStackMemberState } from "contract";
 import { PrStates } from "types";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
+import { UnknownValues } from "@web/utils/open-enum/types";
+import { PR_STATE_BADGE_LABEL_KEYS } from "../consts";
+import { PrStateBadgeVariants, type PrStateBadgeVariant } from "../types";
 import { buildBriefSearchParams } from "../../../../model/comparison/compare-state";
 import type {
   LinearPrStack,
@@ -17,6 +21,7 @@ import {
   type StackArrowView,
   type StackDirection,
   type StackNeighbours,
+  type StackRow,
   type StackView,
 } from "./types";
 
@@ -177,4 +182,105 @@ export function resolveStackArrow(
     return { label: `${named}${t("a11y.opensInNewTab")}`, target, disabled };
   }
   return { label: named, target, disabled };
+}
+
+const MEMBER_STATE_VARIANTS: Record<PrStackMemberState, PrStateBadgeVariant> = {
+  [PrStackMemberStates.OPEN]: PrStateBadgeVariants.OPEN,
+  [PrStackMemberStates.DRAFT]: PrStateBadgeVariants.DRAFT,
+};
+
+/** The glyph a member's state draws; none for a recorded member or a state this bundle predates. */
+export function resolveMemberStateVariant(
+  state: PrStackMember["state"],
+): PrStateBadgeVariant | undefined {
+  if (state === undefined || state === UnknownValues.UNKNOWN) {
+    return undefined;
+  }
+  return MEMBER_STATE_VARIANTS[state];
+}
+
+/**
+ * A member's accessible name: number and title, then its state and branch
+ * when the live read knows them, since the row's label replaces its content.
+ */
+export function resolveStackMemberLabel(
+  t: TFunction,
+  member: PrStackMember,
+): string {
+  let label: string = t("brief.header.stackMember", {
+    number: member.number,
+    title: member.title,
+  });
+  const stateVariant = resolveMemberStateVariant(member.state);
+  if (stateVariant !== undefined) {
+    const detail = t(PR_STATE_BADGE_LABEL_KEYS[stateVariant]);
+    label = t("brief.header.stackMemberDetail", { member: label, detail });
+  }
+  if (member.headRef !== undefined) {
+    label = t("brief.header.stackMemberDetail", {
+      member: label,
+      detail: member.headRef,
+    });
+  }
+  return label;
+}
+
+/** A chain's rows tip first, each numbered from the base, as the list shows them. */
+export function deriveChainRows(
+  members: readonly PrStackMember[],
+  currentNumber: number,
+): StackRow[] {
+  const rows = members.map(
+    (member, index): StackRow => ({
+      member,
+      position: index + 1,
+      current: member.number === currentNumber,
+    }),
+  );
+  return rows.toReversed();
+}
+
+/** A fork's parent or children as given: siblings have no place to number. */
+export function deriveForkRows(
+  members: readonly PrStackMember[],
+  currentNumber: number,
+): StackRow[] {
+  return members.map((member) => ({
+    member,
+    current: member.number === currentNumber,
+  }));
+}
+
+/** The scroll offset that centres a row of `rowHeight` starting at `rowTop`, never above the top. */
+export function resolveCentredScrollTop(
+  rowTop: number,
+  rowHeight: number,
+  viewportHeight: number,
+): number {
+  const centred = rowTop - (viewportHeight - rowHeight) / 2;
+  return Math.max(0, centred);
+}
+
+/**
+ * Centre the current row in its scroller. The row's top is the sum of the
+ * rows before it: the current row is sticky, so its own offsetTop reports
+ * where it is stuck, not where it sits.
+ */
+export function centreCurrentRow(scroller: HTMLElement): void {
+  const current = scroller.querySelector("[aria-current]")?.closest("li");
+  if (!(current instanceof HTMLElement)) {
+    return;
+  }
+
+  let rowTop = 0;
+  let sibling = current.previousElementSibling;
+  while (sibling instanceof HTMLElement) {
+    rowTop += sibling.offsetHeight;
+    sibling = sibling.previousElementSibling;
+  }
+  scroller.scrollTop = resolveCentredScrollTop(
+    rowTop,
+    current.offsetHeight,
+    scroller.clientHeight,
+  );
 }

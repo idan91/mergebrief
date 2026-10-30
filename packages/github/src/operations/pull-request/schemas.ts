@@ -8,6 +8,7 @@ export const gitHubRepoSchema = z.object({
 export const openPullRequestSchema = z.object({
   number: z.number().int(),
   title: z.string(),
+  draft: z.boolean().optional(),
   head: z.object({
     ref: z.string(),
     repo: gitHubRepoSchema.nullable(),

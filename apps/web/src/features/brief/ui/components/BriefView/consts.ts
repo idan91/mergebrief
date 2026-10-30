@@ -1,6 +1,26 @@
 import type { TranslationKey } from "i18n";
 
+import { IconNames, type IconName } from "@web/components/Icon/types";
 import type { ShortcutSection } from "@web/components/ShortcutsModal";
+import { PrStateBadgeVariants, type PrStateBadgeVariant } from "./types";
+
+/** The state glyphs, the same drawings Home's row end uses. */
+export const PR_STATE_BADGE_ICONS: Record<PrStateBadgeVariant, IconName> = {
+  [PrStateBadgeVariants.OPEN]: IconNames.GIT_PULL_REQUEST,
+  [PrStateBadgeVariants.DRAFT]: IconNames.CIRCLE_DASHED,
+  [PrStateBadgeVariants.MERGED]: IconNames.GIT_MERGE,
+  [PrStateBadgeVariants.CLOSED]: IconNames.X_CIRCLE,
+};
+
+export const PR_STATE_BADGE_LABEL_KEYS: Record<
+  PrStateBadgeVariant,
+  TranslationKey
+> = {
+  [PrStateBadgeVariants.OPEN]: "brief.stateBadge.open",
+  [PrStateBadgeVariants.DRAFT]: "brief.stateBadge.draft",
+  [PrStateBadgeVariants.MERGED]: "brief.stateBadge.merged",
+  [PrStateBadgeVariants.CLOSED]: "brief.stateBadge.closed",
+};
 
 // Esc is listed in both sections on purpose: one line says one thing.
 export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [

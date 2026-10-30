@@ -1,16 +1,13 @@
 import type { PrRef } from "brief-core/types";
-import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@web/components/Icon";
-import {
-  IconNames,
-  IconSizes,
-  type IconName,
-} from "@web/components/Icon/types";
+import { IconSizes } from "@web/components/Icon/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import { PrStates, type ValueOf } from "types";
+import { PrStates } from "types";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import type { LivePrState } from "../../../../model/types";
+import { PR_STATE_BADGE_ICONS, PR_STATE_BADGE_LABEL_KEYS } from "../consts";
+import { PrStateBadgeVariants, type PrStateBadgeVariant } from "../types";
 import styles from "./StateBadge.module.scss";
 
 export interface StateBadgeProps {
@@ -24,30 +21,6 @@ export interface StateBadgeProps {
   live?: LivePrState | undefined;
 }
 
-const BadgeVariants = {
-  OPEN: "open",
-  DRAFT: "draft",
-  MERGED: "merged",
-  CLOSED: "closed",
-} as const;
-
-type BadgeVariant = ValueOf<typeof BadgeVariants>;
-
-/** The status glyph ahead of the word, the same drawings Home's row end uses. */
-const BADGE_ICON: Record<BadgeVariant, IconName> = {
-  [BadgeVariants.OPEN]: IconNames.GIT_PULL_REQUEST,
-  [BadgeVariants.DRAFT]: IconNames.CIRCLE_DASHED,
-  [BadgeVariants.MERGED]: IconNames.GIT_MERGE,
-  [BadgeVariants.CLOSED]: IconNames.X_CIRCLE,
-};
-
-const BADGE_LABEL_KEYS: Record<BadgeVariant, TranslationKey> = {
-  [BadgeVariants.OPEN]: "brief.stateBadge.open",
-  [BadgeVariants.DRAFT]: "brief.stateBadge.draft",
-  [BadgeVariants.MERGED]: "brief.stateBadge.merged",
-  [BadgeVariants.CLOSED]: "brief.stateBadge.closed",
-};
-
 /**
  * GitHub conventions: merged wins over closed (a merged PR's wire state IS
  * closed), draft supersedes open. The live DB vocabulary folds merged INTO
@@ -57,33 +30,35 @@ const BADGE_LABEL_KEYS: Record<BadgeVariant, TranslationKey> = {
 function badgeVariant(
   pr: PrRef,
   live: LivePrState | undefined,
-): BadgeVariant | null {
+): PrStateBadgeVariant | null {
   if (live) {
     if (live.state === UnknownValues.UNKNOWN) {
       return null;
     }
     if (live.state === PrStates.MERGED) {
-      return BadgeVariants.MERGED;
+      return PrStateBadgeVariants.MERGED;
     }
     if (live.state === PrStates.CLOSED) {
-      return BadgeVariants.CLOSED;
+      return PrStateBadgeVariants.CLOSED;
     }
-    const openVariant = live.draft ? BadgeVariants.DRAFT : BadgeVariants.OPEN;
+    const openVariant = live.draft
+      ? PrStateBadgeVariants.DRAFT
+      : PrStateBadgeVariants.OPEN;
     return openVariant;
   }
   if (pr.state === undefined) {
     return null;
   }
   if (pr.merged === true) {
-    return BadgeVariants.MERGED;
+    return PrStateBadgeVariants.MERGED;
   }
   if (pr.state === "closed") {
-    return BadgeVariants.CLOSED;
+    return PrStateBadgeVariants.CLOSED;
   }
   if (pr.draft === true) {
-    return BadgeVariants.DRAFT;
+    return PrStateBadgeVariants.DRAFT;
   }
-  return BadgeVariants.OPEN;
+  return PrStateBadgeVariants.OPEN;
 }
 
 /**
@@ -97,14 +72,14 @@ export function StateBadge({ pr, live }: StateBadgeProps) {
   if (variant === null) {
     return null;
   }
-  const label = t(BADGE_LABEL_KEYS[variant]);
+  const label = t(PR_STATE_BADGE_LABEL_KEYS[variant]);
   return (
     <span
       className={styles["badge"]}
       data-state-badge=""
       data-variant={variant}
     >
-      <Icon name={BADGE_ICON[variant]} size={IconSizes.SM} />
+      <Icon name={PR_STATE_BADGE_ICONS[variant]} size={IconSizes.SM} />
       <ScreenReaderOnly>{t("brief.stateBadge.pullRequest")}</ScreenReaderOnly>
       {label}
     </span>

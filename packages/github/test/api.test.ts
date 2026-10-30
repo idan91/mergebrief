@@ -788,11 +788,12 @@ describe("fetchPullRequest / fetchDiff", () => {
 });
 
 describe("listOpenPullRequests", () => {
-  it("maps number, title, branch refs, and repository identity", async () => {
+  it("maps number, title, draft, branch refs and repository identity", async () => {
     const paginate = vi.fn().mockResolvedValue([
       {
         number: 12,
         title: "Bottom of the stack",
+        draft: true,
         head: {
           ref: "feature/a",
           repo: { name: "r", owner: { login: "o" } },
@@ -828,6 +829,7 @@ describe("listOpenPullRequests", () => {
       {
         number: 12,
         title: "Bottom of the stack",
+        draft: true,
         headRef: "feature/a",
         baseRef: "main",
         headRepo: { owner: "o", repo: "r" },
@@ -836,6 +838,7 @@ describe("listOpenPullRequests", () => {
       {
         number: 13,
         title: "Middle",
+        draft: false,
         headRef: "feature/b",
         baseRef: "feature/a",
         headRepo: { owner: "o", repo: "r" },
@@ -881,6 +884,7 @@ describe("listOpenPullRequests", () => {
       {
         number: 10,
         title: "From a fork",
+        draft: false,
         headRef: "main",
         baseRef: "main",
         headRepo: { owner: "contributor", repo: "fork" },
