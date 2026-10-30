@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 
 import { Callout } from "@web/components/Callout";
+import { isInsideCallout } from "@web/components/Callout/utils";
 import styles from "./RiskChipDisclosure.module.scss";
 
 export interface RiskChipDisclosureProps {
@@ -46,7 +47,11 @@ export function RiskChipDisclosure({
     if (anchor === null) {
       return;
     }
-    const close = () => setAnchor(null);
+    const close = (event: Event) => {
+      if (!isInsideCallout(event.target)) {
+        setAnchor(null);
+      }
+    };
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [anchor]);

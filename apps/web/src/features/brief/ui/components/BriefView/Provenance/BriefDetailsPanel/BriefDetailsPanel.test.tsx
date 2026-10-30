@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "@web/i18n/I18nProvider";
 import type { Brief } from "../../../../../model/types";
@@ -71,6 +71,19 @@ const warningsChip = () =>
 const warningsNote = () => document.querySelector("[data-details-warnings]");
 const panelId = () => infoTrigger().getAttribute("aria-controls");
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/** Every callout scroller reports content taller than its zero-height box. */
+function stubOverflowingCallout() {
+  vi.spyOn(Element.prototype, "scrollHeight", "get").mockImplementation(
+    function measure(this: Element) {
+      return this.parentElement?.hasAttribute("data-callout") ? 900 : 0;
+    },
+  );
+}
+
 describe("BriefDetailsPanel disclosure semantics", () => {
   it("click opens, aria-expanded/controls track, click again closes", () => {
     renderPanel();
@@ -99,6 +112,22 @@ describe("BriefDetailsPanel disclosure semantics", () => {
     fireEvent.keyDown(document.body, { key: "z" });
     expect(onWindowKeyDown).toHaveBeenCalledTimes(1);
     window.removeEventListener("keydown", onWindowKeyDown);
+  });
+
+  it("Escape from the scrolling content returns focus to the trigger", () => {
+    stubOverflowingCallout();
+    renderPanel();
+    fireEvent.click(infoTrigger());
+    const content = document.querySelector<HTMLElement>(
+      "[data-callout] > [tabindex='0']",
+    );
+    expect(content).not.toBeNull();
+    content?.focus();
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(warningsNote()).toBeNull();
+    expect(document.activeElement).toBe(infoTrigger());
   });
 });
 

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Callout } from "@web/components/Callout";
+import { CALLOUT_ROOT_SELECTOR } from "@web/components/Callout/consts";
 import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
@@ -66,8 +67,10 @@ export function BriefDetailsPanel({
     // Focus return: if focus lives inside the portal (a chip landing put it
     // there), the unmount would drop it on <body>, so send it back to the
     // trigger that opened the panel instead.
-    const panelEl = document.getElementById(detailId);
-    const focusWasInside = panelEl?.contains(document.activeElement) ?? false;
+    const callout = document
+      .getElementById(detailId)
+      ?.closest(CALLOUT_ROOT_SELECTOR);
+    const focusWasInside = callout?.contains(document.activeElement) ?? false;
     setOpen(false);
     setLanding(null);
     landedRef.current = false;
@@ -158,7 +161,7 @@ export function BriefDetailsPanel({
           <span aria-hidden="true">i</span>
         </IconButton>
         {open && triggerEl ? (
-          <Callout anchor={triggerEl} fit onClose={close}>
+          <Callout anchor={triggerEl} fit interactive onClose={close}>
             <span className={styles["panel"]} id={detailId}>
               <ArtifactSection
                 brief={brief}

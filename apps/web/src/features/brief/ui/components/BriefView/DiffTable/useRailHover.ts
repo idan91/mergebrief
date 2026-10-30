@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { isInsideCallout } from "@web/components/Callout/utils";
 import type { ComparisonRun } from "../../../../model/comparison/runs";
 
 export interface RailHover {
@@ -23,7 +24,11 @@ export function useRailHover() {
     if (!railHover) {
       return;
     }
-    const close = () => setRailHover(null);
+    const close = (event: Event) => {
+      if (!isInsideCallout(event.target)) {
+        setRailHover(null);
+      }
+    };
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [railHover]);

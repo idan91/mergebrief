@@ -8,17 +8,19 @@ import {
   offset,
   safePolygon,
   shift,
+  size,
   useFloating,
   useHover,
   useInteractions,
   useTransitionStyles,
   type Placement,
 } from "@floating-ui/react";
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { prefersReducedMotion } from "../../utils/motion";
 import styles from "./Callout.module.scss";
 import { CalloutSurfaces, type CalloutSurface } from "./types";
+import { useContentTabStop } from "./useContentTabStop";
 
 export interface CalloutProps {
   /** Element the callout anchors to; the parent mounts on hover/focus. */
@@ -36,6 +38,7 @@ export interface CalloutProps {
   /**
    * The panel holds a control (not just a description). Drops `role="tooltip"`
    * and lets Tab reach the portaled content; the parent owns return-focus.
+   * Content taller than the viewport cap becomes a tab stop to scroll by key.
    */
   interactive?: boolean;
   /**
@@ -48,9 +51,9 @@ export interface CalloutProps {
 }
 
 /**
- * Element-anchored hover callout, positioned by floating-ui: flips and
- * shifts to stay inside the viewport, tracks the anchor while scrolling,
- * and points at it with an arrow. Mounted = open; the parent owns the
+ * Element-anchored hover callout, positioned by floating-ui: flips, shifts
+ * and caps its height to stay inside the viewport, tracks the anchor while
+ * scrolling, and points at it with an arrow. Mounted = open; the parent owns the
  * open state and gets `onClose` when hover leaves.
  */
 /** How far the callout slides in from, toward its anchor. */
@@ -60,6 +63,9 @@ const ENTER_SLIDE: Record<string, string> = {
   left: "translateX(4px)",
   right: "translateX(-4px)",
 };
+
+/** The gap the callout keeps from the viewport edge. */
+const VIEWPORT_MARGIN_PX = 8;
 
 function CalloutRoot({
   anchor,
@@ -73,6 +79,8 @@ function CalloutRoot({
   children,
 }: CalloutProps) {
   const arrowRef = useRef<SVGSVGElement | null>(null);
+  const [contentEl, setContentEl] = useState<HTMLSpanElement | null>(null);
+  useContentTabStop(interactive ? contentEl : null);
   const { refs, floatingStyles, context } = useFloating({
     open: true,
     onOpenChange: (open) => {
@@ -89,7 +97,13 @@ function CalloutRoot({
     middleware: [
       offset(10),
       flip(),
-      shift({ padding: 8 }),
+      shift({ padding: VIEWPORT_MARGIN_PX }),
+      size({
+        padding: VIEWPORT_MARGIN_PX,
+        apply({ availableHeight, elements }) {
+          elements.floating.style.maxBlockSize = `${String(Math.max(0, availableHeight))}px`;
+        },
+      }),
       arrow({ element: arrowRef }),
     ],
   });
@@ -107,6 +121,7 @@ function CalloutRoot({
   const floating = (
     <span
       className={styles["callout"]}
+      data-callout=""
       data-compact={compact ? "" : undefined}
       data-fit={fit ? "" : undefined}
       data-flush={flush ? "" : undefined}
@@ -125,7 +140,9 @@ function CalloutRoot({
         stroke="#2b2b32"
         strokeWidth={1}
       />
-      {children}
+      <span className={styles["content"]} ref={setContentEl}>
+        {children}
+      </span>
     </span>
   );
   return (

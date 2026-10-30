@@ -16,3 +16,10 @@ export interface CalloutHover {
   readonly show: () => void;
   readonly close: () => void;
 }
+
+export interface ContentTabStopState {
+  /** The scroller should be a tab stop: it overflows or holds focus. */
+  readonly tabStop: boolean;
+  /** floating-ui has parked the portal's tabbables: focus last left it. */
+  readonly portalParked: boolean;
+}

@@ -10,6 +10,8 @@ import {
 
 import { Button } from "@web/components/Button";
 import { Callout } from "@web/components/Callout";
+import { CALLOUT_ROOT_SELECTOR } from "@web/components/Callout/consts";
+import { isInsideCallout } from "@web/components/Callout/utils";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import { resolveGroupName } from "../../../../model/utils/resolve-group-name";
@@ -62,8 +64,9 @@ export function UnattributedDisclosure({
       }
       event.stopPropagation();
       const active = document.activeElement;
+      const callout = panelRef.current?.closest(CALLOUT_ROOT_SELECTOR);
       const heldInPanel =
-        active instanceof Node && (panelRef.current?.contains(active) ?? false);
+        active instanceof Node && (callout?.contains(active) ?? false);
       setAnchor(null);
       if (!heldInPanel) {
         return;
@@ -80,7 +83,11 @@ export function UnattributedDisclosure({
     if (anchor === null) {
       return;
     }
-    const close = () => setAnchor(null);
+    const close = (event: Event) => {
+      if (!isInsideCallout(event.target)) {
+        setAnchor(null);
+      }
+    };
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [anchor]);
@@ -97,7 +104,7 @@ export function UnattributedDisclosure({
     if (triggerRef.current?.contains(node)) {
       return true;
     }
-    if (panelRef.current?.contains(node)) {
+    if (panelRef.current?.closest(CALLOUT_ROOT_SELECTOR)?.contains(node)) {
       return true;
     }
     return (

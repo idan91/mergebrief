@@ -71,6 +71,20 @@ describe("UnattributedDisclosure", () => {
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
+  it("stays open while its own content scrolls and closes on a page scroll", () => {
+    renderDisclosure();
+    const trigger = screen.getByTestId("unattributed-disclosure");
+    fireEvent.click(trigger);
+
+    fireEvent.scroll(
+      screen.getByText(appI18n.t("brief.unattributed.calloutNote")),
+    );
+    expect(trigger.dataset["state"]).toBe("open");
+
+    fireEvent.scroll(window);
+    expect(trigger.dataset["state"]).toBe("closed");
+  });
+
   it("keeps the callout open when focus moves to Jump", () => {
     renderDisclosure();
     const trigger = screen.getByTestId("unattributed-disclosure");

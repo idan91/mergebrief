@@ -361,10 +361,6 @@
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-reserve-bottom: 0px;
 
-    // The viewport share one stack list may take; StackChip halves it while
-    // the generation-time list shares the panel.
-    --stack-list-viewport-cap: 60dvh;
-
     color-scheme: dark light;
   }
 

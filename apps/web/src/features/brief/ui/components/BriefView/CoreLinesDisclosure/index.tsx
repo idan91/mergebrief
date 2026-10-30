@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Callout } from "@web/components/Callout";
+import { isInsideCallout } from "@web/components/Callout/utils";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import styles from "./CoreLinesDisclosure.module.scss";
 
@@ -63,7 +64,11 @@ export function CoreLinesDisclosure({
     if (anchor === null) {
       return;
     }
-    const close = () => setAnchor(null);
+    const close = (event: Event) => {
+      if (!isInsideCallout(event.target)) {
+        setAnchor(null);
+      }
+    };
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [anchor]);

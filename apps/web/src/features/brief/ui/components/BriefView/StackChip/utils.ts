@@ -284,3 +284,34 @@ export function centreCurrentRow(scroller: HTMLElement): void {
     scroller.clientHeight,
   );
 }
+
+/**
+ * Centre the current row now and again whenever the scroller resizes, until
+ * the reader scrolls it: a scroll landing anywhere but the last centring is
+ * theirs. Returns the teardown.
+ */
+export function keepCurrentRowCentred(scroller: HTMLElement): () => void {
+  let centredTop = scroller.scrollTop;
+  let readerScrolled = false;
+  const centre = () => {
+    if (readerScrolled) {
+      return;
+    }
+    centreCurrentRow(scroller);
+    centredTop = scroller.scrollTop;
+  };
+  const noteScroll = () => {
+    if (scroller.scrollTop !== centredTop) {
+      readerScrolled = true;
+    }
+  };
+
+  centre();
+  scroller.addEventListener("scroll", noteScroll);
+  const observer = new ResizeObserver(centre);
+  observer.observe(scroller);
+  return () => {
+    observer.disconnect();
+    scroller.removeEventListener("scroll", noteScroll);
+  };
+}

@@ -1,15 +1,20 @@
 @use "functions";
 
 @layer components {
+  // A flex item's base size ignores its own max-block-size, so a bare list
+  // would shrink by its uncapped length; the frame's base is the capped list.
+  .frame {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+  }
+
   .list {
     // Tracks the two-line row in StackMemberRow.module.scss plus its hairline.
     --stack-row-h: #{functions.to-rem(56px)};
     --stack-visible-rows: 6.5;
 
-    max-block-size: min(
-      calc(var(--stack-row-h) * var(--stack-visible-rows)),
-      var(--stack-list-viewport-cap)
-    );
+    max-block-size: calc(var(--stack-row-h) * var(--stack-visible-rows));
     margin: 0;
     padding: 0;
     overflow-y: auto;

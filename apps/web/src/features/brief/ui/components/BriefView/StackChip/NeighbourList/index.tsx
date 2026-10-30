@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 
 import type { StackRow } from "../types";
 import { StackMemberRow } from "../StackMemberRow";
-import { centreCurrentRow } from "../utils";
+import { keepCurrentRowCentred } from "../utils";
 import styles from "./NeighbourList.module.scss";
 
 export interface NeighbourListProps {
@@ -14,8 +14,9 @@ export interface NeighbourListProps {
 }
 
 /**
- * The stack's rows in a capped scroller that opens with the current row
- * centred and keeps it pinned to an edge once scrolled away.
+ * The stack's rows in a capped scroller that centres the current row on
+ * open and whenever the callout resizes it until the reader scrolls, and
+ * keeps it pinned to an edge once scrolled away.
  */
 export function NeighbourList({
   rows,
@@ -26,22 +27,25 @@ export function NeighbourList({
   const scrollerRef = useRef<HTMLOListElement | null>(null);
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
-    if (scroller) {
-      centreCurrentRow(scroller);
+    if (!scroller) {
+      return undefined;
     }
+    return keepCurrentRowCentred(scroller);
   }, []);
 
   return (
-    <ol aria-label={label} className={styles["list"]} ref={scrollerRef}>
-      {rows.map((row) => (
-        <li
-          className={styles["item"]}
-          data-current={row.current ? "" : undefined}
-          key={row.member.number}
-        >
-          <StackMemberRow repoId={repoId} repoSlug={repoSlug} row={row} />
-        </li>
-      ))}
-    </ol>
+    <span className={styles["frame"]}>
+      <ol aria-label={label} className={styles["list"]} ref={scrollerRef}>
+        {rows.map((row) => (
+          <li
+            className={styles["item"]}
+            data-current={row.current ? "" : undefined}
+            key={row.member.number}
+          >
+            <StackMemberRow repoId={repoId} repoSlug={repoSlug} row={row} />
+          </li>
+        ))}
+      </ol>
+    </span>
   );
 }
