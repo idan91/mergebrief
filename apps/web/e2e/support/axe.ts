@@ -7,6 +7,9 @@ const BLOCKING_IMPACTS = new Set(["serious", "critical"]);
 /** A full-page scan runs past 20s on a two-core CI runner. */
 const AXE_SCAN_BUDGET_MS = 30_000;
 
+/** How long a page may take to land its code and finish its entrance fades. */
+const SETTLE_BUDGET_MS = 20_000;
+
 interface AxeViolation {
   id: string;
   impact?: string | null | undefined;
@@ -38,7 +41,8 @@ export async function expectNoSeriousAxeViolations(
   testInfo: TestInfo,
   stateName: string,
 ): Promise<void> {
-  testInfo.setTimeout(testInfo.timeout + AXE_SCAN_BUDGET_MS);
+  testInfo.setTimeout(testInfo.timeout + AXE_SCAN_BUDGET_MS + SETTLE_BUDGET_MS);
+  await waitForSettledPaint(page);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
@@ -62,4 +66,27 @@ export async function expectNoSeriousAxeViolations(
     blocking.map(describe),
     `serious/critical axe violations on "${stateName}"`,
   ).toEqual([]);
+}
+
+/**
+ * Axe reads contrast through opacity, so it scans only once every loading
+ * skeleton has given way to code and every finite animation, such as the
+ * code's fade in over its skeleton, has run out.
+ */
+async function waitForSettledPaint(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const loading = document.querySelector("[aria-busy='true']") !== null;
+      const fading = document
+        .getAnimations()
+        .some(
+          (animation) =>
+            animation.playState === "running" &&
+            animation.effect?.getTiming().iterations !== Infinity,
+        );
+      return !loading && !fading;
+    },
+    undefined,
+    { timeout: SETTLE_BUDGET_MS },
+  );
 }

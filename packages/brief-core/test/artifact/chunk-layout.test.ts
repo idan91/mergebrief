@@ -31,6 +31,34 @@ describe("ChunkLayoutBodySchema", () => {
     expect(ChunkLayoutBodySchema.safeParse(body).success).toBe(true);
   });
 
+  it("refuses row runs carrying code text", () => {
+    const body = {
+      chunks: { c1: { ...makeCounts(), rowRuns: "h1c2 const a = 1;" } },
+      files: {},
+    };
+
+    expect(ChunkLayoutBodySchema.safeParse(body).success).toBe(false);
+  });
+
+  it.each(["x3", "c0", "c", "3c", "c01"])(
+    "refuses the row run %s",
+    (rowRuns) => {
+      const body = { chunks: { c1: { ...makeCounts(), rowRuns } }, files: {} };
+
+      expect(ChunkLayoutBodySchema.safeParse(body).success).toBe(false);
+    },
+  );
+
+  it("refuses split widths with the wrong bucket count", () => {
+    const splitLineWidths = { counts: [1, 2], overflowColumns: 0 };
+    const body = {
+      chunks: { c1: { ...makeCounts(), splitLineWidths } },
+      files: {},
+    };
+
+    expect(ChunkLayoutBodySchema.safeParse(body).success).toBe(false);
+  });
+
   it("refuses a body without its files section", () => {
     const body = { chunks: { c1: makeCounts() } };
 

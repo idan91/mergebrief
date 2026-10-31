@@ -1,0 +1,167 @@
+@use "functions";
+
+// Track `DiffRows`: 14px cell padding and the 16px sign slot before the code.
+$cell-pad: functions.to-rem(14px);
+$sign: functions.to-rem(16px);
+$bar-h: 8px;
+$sign-arm: 7px;
+$sign-stroke: 1.5px;
+
+@layer components {
+  .text {
+    --skeleton-row: calc(var(--font-size-lg) * 1.7);
+    --skeleton-ink: color-mix(in srgb, var(--color-text-1) 7%, transparent);
+    --skeleton-ink-strong: var(--skeleton-ink);
+    --skeleton-hue-ink: 13%;
+    --skeleton-rule-strength: 42%;
+    --skeleton-tint: 4%;
+    --skeleton-hatch-fill: color-mix(
+      in srgb,
+      var(--color-background) 70%,
+      var(--color-surface-1)
+    );
+    --skeleton-hatch: repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--color-outline-2) 55%, transparent) 6px 7px
+    );
+
+    position: relative;
+    min-inline-size: 0;
+
+    &::after {
+      position: absolute;
+      inset-block-start: calc((var(--skeleton-row) - #{$bar-h}) / 2);
+      inset-inline-start: calc(
+        #{$cell-pad + $sign} + var(--skeleton-indent) * 1ch
+      );
+      inline-size: min(
+        calc(var(--skeleton-columns) * 1ch),
+        calc(100% - #{$cell-pad * 2 + $sign} - var(--skeleton-indent) * 1ch)
+      );
+      block-size: $bar-h;
+      border-radius: var(--radius-xs);
+      background: var(--skeleton-ink);
+      content: "";
+    }
+
+    &[data-variant="empty"] {
+      background-color: var(--skeleton-hatch-fill);
+      background-image: var(--skeleton-hatch);
+
+      &::after {
+        display: none;
+      }
+    }
+  }
+
+  .wrap {
+    position: absolute;
+    inset-block-start: calc(
+      var(--skeleton-row) * (var(--skeleton-line) + 0.5) - #{$bar-h * 0.5}
+    );
+    inset-inline-start: $cell-pad;
+    inline-size: min(
+      calc(var(--skeleton-columns) * 1ch),
+      calc(100% - #{$cell-pad * 2})
+    );
+    block-size: $bar-h;
+    border-radius: var(--radius-xs);
+    background: var(--skeleton-ink);
+  }
+
+  [data-ink="neutral"] .text {
+    --skeleton-ink: color-mix(in srgb, var(--color-text-1) 6%, transparent);
+    --skeleton-ink-strong: color-mix(
+      in srgb,
+      var(--color-text-1) 10%,
+      transparent
+    );
+  }
+
+  [data-layer="shine"] .text {
+    --skeleton-ink: color-mix(in srgb, var(--color-text-1) 15%, transparent);
+    --skeleton-hue-ink: 26%;
+    --skeleton-rule-strength: 0%;
+    --skeleton-tint: 0%;
+    --skeleton-hatch-fill: transparent;
+    --skeleton-hatch: none;
+  }
+
+  [data-ink="neutral"] [data-layer="shine"] .text {
+    --skeleton-ink: color-mix(in srgb, var(--color-text-1) 13%, transparent);
+    --skeleton-ink-strong: color-mix(
+      in srgb,
+      var(--color-text-1) 20%,
+      transparent
+    );
+  }
+
+  [data-ink="neutral"] .text::after {
+    background: linear-gradient(
+      to right,
+      var(--skeleton-ink-strong) 0 calc(var(--skeleton-token-first) * 1ch),
+      transparent 0 calc((var(--skeleton-token-first) + 1) * 1ch),
+      var(--skeleton-ink) 0 calc(var(--skeleton-token-second) * 1ch),
+      transparent 0 calc((var(--skeleton-token-second) + 1) * 1ch),
+      var(--skeleton-ink) 0
+    );
+  }
+
+  .text[data-variant="added"] {
+    --skeleton-hue: var(--color-positive);
+  }
+
+  .text[data-variant="removed"] {
+    --skeleton-hue: var(--color-negative);
+  }
+
+  .text:is([data-variant="added"], [data-variant="removed"]) {
+    --skeleton-rule: color-mix(
+      in srgb,
+      var(--skeleton-hue) var(--skeleton-rule-strength),
+      transparent
+    );
+
+    // Earned: the 2px change edge `DiffRows` paints, in the side's hue.
+    --skeleton-edge-rule: inset 2px 0 0 var(--skeleton-rule);
+
+    box-shadow: var(--skeleton-edge-rule);
+    background-image:
+      linear-gradient(var(--skeleton-rule), var(--skeleton-rule)),
+      linear-gradient(var(--skeleton-rule), var(--skeleton-rule));
+    background-repeat: no-repeat;
+    background-position:
+      calc(#{$cell-pad} + 1px)
+        calc(var(--skeleton-row) / 2 - #{$sign-stroke * 0.5}),
+      calc(#{$cell-pad} + 4px)
+        calc(var(--skeleton-row) / 2 - #{$sign-arm * 0.5});
+    background-size:
+      $sign-arm $sign-stroke,
+      $sign-stroke $sign-arm;
+
+    &::after,
+    .wrap {
+      background: color-mix(
+        in srgb,
+        var(--skeleton-hue) var(--skeleton-hue-ink),
+        transparent
+      );
+    }
+  }
+
+  .text[data-variant="removed"] {
+    background-size:
+      $sign-arm $sign-stroke,
+      0 0;
+  }
+
+  [data-view="split"]
+    > .text:is([data-variant="added"], [data-variant="removed"]) {
+    background-color: color-mix(
+      in srgb,
+      var(--skeleton-hue) var(--skeleton-tint),
+      transparent
+    );
+  }
+}

@@ -1,7 +1,8 @@
 import { DiffLineKinds } from "types/diff-lines";
 import { resolveFileStatus } from "./logic/file-status";
 import { findExpansionGaps } from "./logic/gaps";
-import { measureLineWidths } from "./logic/line-widths";
+import { measureLineWidths, measureSplitLineWidths } from "./logic/line-widths";
+import { encodeRowRuns } from "./logic/row-runs";
 import { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./logic/parse";
 import { sliceChunkDiff } from "./logic/slice";
 import { countSplitRows } from "./logic/split-rows";
@@ -12,6 +13,7 @@ import {
   type ChunkLayoutCounts,
   type ChunkRanges,
   type ExpansionGap,
+  type LineWidthHistogram,
   type ParsedDiffLine,
 } from "./types";
 
@@ -19,12 +21,18 @@ export { HUNK_HEADER } from "./consts";
 export { resolveFileStatus } from "./logic/file-status";
 export { findExpansionGaps } from "./logic/gaps";
 export { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./logic/parse";
+export { readRowRuns } from "./logic/row-runs";
 export { sliceChunkDiff } from "./logic/slice";
 export { countSplitRows } from "./logic/split-rows";
-export { LINE_WIDTH_BUCKET_EDGES, SLICE_CONTEXT_ROWS } from "./consts";
+export {
+  CHUNK_ROW_RUNS,
+  LINE_WIDTH_BUCKET_EDGES,
+  SLICE_CONTEXT_ROWS,
+} from "./consts";
 export {
   ExpansionDirections,
   FileStatuses,
+  RowRunKinds,
   type BriefLayoutSource,
   type ChunkLayoutBody,
   type ChunkLayoutCounts,
@@ -34,6 +42,7 @@ export {
   type ExpansionGap,
   type FileStatus,
   type LineWidthHistogram,
+  type RowRun,
   type ParsedDiffLine,
 } from "./types";
 
@@ -49,16 +58,24 @@ export function countChunkLayout(
   const slice = sliceChunkDiff(fileRows, chunk);
   const hunkRows = slice.filter((row) => row.kind === DiffLineKinds.HUNK);
   const wholeFile = resolveFileStatus(slice) !== undefined;
+  const expandIndexes = wholeFile
+    ? new Set<number>()
+    : findExpandRowIndexes(slice, findExpansionGaps(slice));
 
-  return {
+  const counts: ChunkLayoutCounts = {
     rows: slice.length,
     hunkRows: hunkRows.length,
-    expandRows: wholeFile
-      ? 0
-      : countExpandRows(slice, findExpansionGaps(slice)),
+    expandRows: expandIndexes.size,
     splitRows: countSplitRows(slice),
     lineWidths: measureLineWidths(slice),
+    rowRuns: encodeRowRuns(slice, expandIndexes),
   };
+  const splitLineWidths = measureSplitLineWidths(slice);
+  if (!isSameHistogram(splitLineWidths, counts.lineWidths)) {
+    counts.splitLineWidths = splitLineWidths;
+  }
+
+  return counts;
 }
 
 /**
@@ -91,6 +108,16 @@ export function countBriefChunkLayouts(
   return { chunks, files };
 }
 
+function isSameHistogram(
+  first: LineWidthHistogram,
+  second: LineWidthHistogram,
+): boolean {
+  const sameCounts = first.counts.every(
+    (rows, bucket) => rows === second.counts[bucket],
+  );
+  return sameCounts && first.overflowColumns === second.overflowColumns;
+}
+
 function readFileRows(
   file: string,
   patches: ReadonlyMap<string, string>,
@@ -115,10 +142,10 @@ function readFileRows(
  * right under one; every other row index holding an edge draws a row of its
  * own above that index, the end of the rows included.
  */
-function countExpandRows(
+function findExpandRowIndexes(
   slice: readonly ParsedDiffLine[],
   gaps: readonly ExpansionGap[],
-): number {
+): ReadonlySet<number> {
   const ownRows = new Set<number>();
 
   for (const gap of gaps) {
@@ -134,5 +161,5 @@ function countExpandRows(
     }
   }
 
-  return ownRows.size;
+  return ownRows;
 }

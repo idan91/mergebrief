@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useId, useMemo, useRef } from "react";
+import { useId, useMemo, useRef, useState, type AnimationEvent } from "react";
 
 import type { LineSelection } from "@web/features/review/utils";
 
@@ -35,6 +35,7 @@ import {
 } from "../../../../model/chunk-layout/useChunkLayout";
 import { estimateReservedRowsHeight } from "../reading/chunk-height-model";
 import { resolveChunkView } from "../utils";
+import { countLineDigits } from "./SkeletonRows/utils";
 import type { GuestRowReason } from "../../../../model/types";
 import {
   buildExpandedRowView,
@@ -288,7 +289,21 @@ export function useDiffTableFacade({
   const reserved = readReservedCounts(layout, chunk);
   const storedCounts = readStoredCounts(layout?.counts, chunk);
   const skeletonView = resolveChunkView(diffView, chunk, guest !== undefined);
+  const skeletonDigits = countLineDigits(chunk);
+  const [settling, setSettling] = useState(
+    () => chunk.diff === undefined && reserved !== undefined,
+  );
   const diffRows = model.split ? model.pairs.length : rows.length;
+  // The code eases in only where it replaces a skeleton this card drew;
+  // a card that mounts with its code paints it at once. The state clears
+  // when the fade ends: unhiding a `display: none` pane restarts every
+  // animation still applied, so a lasting state would replay the fade.
+  const viewportState = settling ? "arrived" : undefined;
+  const handleViewportAnimationEnd = (event: AnimationEvent<HTMLElement>) => {
+    if (event.target === event.currentTarget) {
+      setSettling(false);
+    }
+  };
   const viewportStyle: DiffViewportStyle = { "--diff-rows": diffRows };
   if (storedCounts !== undefined) {
     const reservedHeight = estimateReservedRowsHeight(
@@ -303,7 +318,10 @@ export function useDiffTableFacade({
     rows,
     reserved,
     skeletonView,
+    skeletonDigits,
+    viewportState,
     viewportStyle,
+    handleViewportAnimationEnd,
     rowRefs,
     hasExpandedRows,
     edgesByRow,

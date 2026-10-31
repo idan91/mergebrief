@@ -54,6 +54,12 @@ const COUNTS = {
 
 const LAYOUT = { chunks: { c1: COUNTS }, files: { "src/orphan.ts": COUNTS } };
 
+const WITH_ROW_RUNS = {
+  ...COUNTS,
+  splitLineWidths: { counts: [2, 2, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+  rowRuns: "h1c2r1a1c2e1",
+};
+
 async function openPullRequest(ctx: TenantContext | OwnerContext) {
   const repo = createTenantRepository(shared.handle, ctx);
   return repo.pullRequests.upsert({
@@ -127,6 +133,39 @@ describe("createArtifactStore.chunkLayouts", () => {
     expect(read?.briefId).toBe(briefId);
     expect(readBody(read)).toEqual(LAYOUT);
     expect(read?.byteSize).toBe(Buffer.byteLength(read?.body ?? "", "utf8"));
+  });
+
+  it("keeps a card's row runs and split widths beside its counts", async () => {
+    const pr = await openPullRequest(CTX_A);
+    const store = createArtifactStore(shared.handle, CTX_A);
+    const layout = {
+      chunks: { c1: WITH_ROW_RUNS },
+      files: { "src/a.ts": COUNTS },
+    };
+    await writeBrief(store, pr.id, {
+      headSha: HEAD,
+      headIndex: 1,
+      chunkLayout: layout,
+    });
+
+    const read = await store.chunkLayouts.get(pr.id, BASE, HEAD);
+
+    expect(readBody(read)).toEqual(layout);
+  });
+
+  it("refuses row runs carrying code text and writes neither row", async () => {
+    const pr = await openPullRequest(CTX_A);
+    const store = createArtifactStore(shared.handle, CTX_A);
+    const leaky = { ...WITH_ROW_RUNS, rowRuns: "h1 const a = 1;" };
+
+    await expect(
+      writeBrief(store, pr.id, {
+        headSha: HEAD,
+        headIndex: 1,
+        chunkLayout: { chunks: { c1: leaky }, files: {} },
+      }),
+    ).rejects.toBeInstanceOf(InvalidArtifactBodyError);
+    expect(await store.briefs.get(pr.id, BASE, HEAD)).toBe(undefined);
   });
 
   it("replaces the sidecar when the brief is rewritten", async () => {

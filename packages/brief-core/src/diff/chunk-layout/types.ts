@@ -77,6 +77,23 @@ export interface LineWidthHistogram {
   overflowColumns: number;
 }
 
+/** One run's kind in a chunk rowRuns: a sliced row's kind, or an expand control's own row. */
+export const RowRunKinds = {
+  HUNK: "h",
+  CONTEXT: "c",
+  ADDED: "a",
+  REMOVED: "r",
+  NOTE: "n",
+  EXPAND: "e",
+} as const;
+export type RowRunKind = ValueOf<typeof RowRunKinds>;
+
+/** Rows of one kind in a row, in the order the card draws them. */
+export interface RowRun {
+  kind: RowRunKind;
+  length: number;
+}
+
 /** What a chunk's card draws, counted from its sliced rows. */
 export interface ChunkLayoutCounts {
   /** Sliced rows, hunk headers and notes included. */
@@ -88,6 +105,19 @@ export interface ChunkLayoutCounts {
   /** Rows the split view paints: a deletion run and the additions after it pair up. */
   splitRows: number;
   lineWidths: LineWidthHistogram;
+  /**
+   * The rows the split view paints, by their wider side: a paired row is as
+   * tall as its taller cell. Absent where no pair makes it differ from
+   * `lineWidths`, which it then equals.
+   */
+  splitLineWidths?: LineWidthHistogram;
+  /**
+   * The card's rows as runs of one kind, `<kind><length>` each, with an
+   * expand control's own row a run before the row it opens above: the
+   * shape a skeleton draws before the code lands, and never code text.
+   * The worker always stores it; counts the page estimates have none.
+   */
+  rowRuns?: string;
 }
 
 /**

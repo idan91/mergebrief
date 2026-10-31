@@ -21,7 +21,7 @@ export const TALL_ROW_EXTRA_PX = 9;
 /**
  * Columns a code cell fits before a line wraps, a fixed middle of the
  * widths readers use: measured 147 at 1920px and about 105 at 1440px for
- * the unified cell (7.8px a glyph), a split half just under half of that.
+ * the unified cell (7.8px a glyph), and 70 and 48 for a split half.
  * Fixed because the server and the client must reserve the same height.
  */
 export const UNIFIED_CODE_COLUMNS = 125;
@@ -98,40 +98,111 @@ export function estimateReservedRowsHeight(
   if (counts.rows === 0) {
     return EMPTY_DIFF_NOTE_PX;
   }
-  const codeRows = view === DiffViews.SPLIT ? counts.splitRows : counts.rows;
   const tallRows = counts.hunkRows + counts.expandRows;
-  const columns =
-    view === DiffViews.SPLIT ? SPLIT_CODE_COLUMNS : UNIFIED_CODE_COLUMNS;
-  const rows =
-    codeRows +
-    counts.expandRows +
-    countWrappedLines(counts.lineWidths, columns);
 
-  return rows * DIFF_ROW_HEIGHT_PX + tallRows * TALL_ROW_EXTRA_PX;
+  return (
+    countReservedLines(counts, view) * DIFF_ROW_HEIGHT_PX +
+    tallRows * TALL_ROW_EXTRA_PX
+  );
 }
 
-/** Extra lines the histogram's rows take past `columns`; a bucket wraps at its midpoint. */
+/**
+ * The lines a card's rows take in a view: the rows it paints, the expand
+ * controls drawn as rows of their own, and the lines long code wraps into.
+ */
+export function countReservedLines(
+  counts: ChunkLayoutCounts,
+  view: DiffView,
+): number {
+  const codeRows = view === DiffViews.SPLIT ? counts.splitRows : counts.rows;
+
+  return codeRows + counts.expandRows + countViewWrappedLines(counts, view);
+}
+
+/**
+ * Extra lines a view's code rows wrap into. A split row is as tall as its
+ * taller side, so the split view reads the rows bucketed by their wider
+ * side; counts carry none where no pair makes them differ, and the
+ * unified widths stand.
+ */
+export function countViewWrappedLines(
+  counts: ChunkLayoutCounts,
+  view: DiffView,
+): number {
+  const { histogram, columns } = resolveWrapHistogram(counts, view);
+
+  return countWrappedLines(histogram, columns);
+}
+
+export interface WrapHistogram {
+  histogram: LineWidthHistogram;
+  columns: number;
+}
+
+/** The histogram a view wraps its code rows by, and the columns it wraps at. */
+export function resolveWrapHistogram(
+  counts: ChunkLayoutCounts,
+  view: DiffView,
+): WrapHistogram {
+  if (view === DiffViews.SPLIT) {
+    return {
+      histogram: counts.splitLineWidths ?? counts.lineWidths,
+      columns: SPLIT_CODE_COLUMNS,
+    };
+  }
+  return { histogram: counts.lineWidths, columns: UNIFIED_CODE_COLUMNS };
+}
+
+/** Extra lines the histogram's rows take past `columns`. */
 export function countWrappedLines(
   histogram: LineWidthHistogram,
   columns: number,
 ): number {
-  let extra = 0;
+  const extra = listBucketWraps(histogram, columns).reduce(
+    (total, bucket) => total + bucket.rows * bucket.extraLines,
+    0,
+  );
+
+  return Math.max(extra, 0);
+}
+
+export interface BucketWrap {
+  /** Rows in the bucket. */
+  rows: number;
+  /** Columns a row of the bucket is taken to span: its midpoint, the open bucket's mean. */
+  columns: number;
+  /** Lines each of its rows takes past its first. */
+  extraLines: number;
+}
+
+/** Every bucket's rows and the lines each wraps into, narrowest first. */
+export function listBucketWraps(
+  histogram: LineWidthHistogram,
+  columns: number,
+): BucketWrap[] {
+  const buckets: BucketWrap[] = [];
   let lowerEdge = 0;
 
   LINE_WIDTH_BUCKET_EDGES.forEach((edge, index) => {
-    const rows = histogram.counts[index] ?? 0;
     const midpoint = (lowerEdge + edge) / 2;
-    extra += rows * (Math.ceil(midpoint / columns) - 1);
+    buckets.push({
+      rows: histogram.counts[index] ?? 0,
+      columns: midpoint,
+      extraLines: Math.ceil(midpoint / columns) - 1,
+    });
     lowerEdge = edge;
   });
 
   const overflowRows = histogram.counts[LINE_WIDTH_BUCKET_EDGES.length] ?? 0;
-  if (overflowRows > 0) {
-    const meanWidth = histogram.overflowColumns / overflowRows;
-    extra += overflowRows * (Math.ceil(meanWidth / columns) - 1);
-  }
+  const meanWidth =
+    overflowRows > 0 ? histogram.overflowColumns / overflowRows : 0;
+  buckets.push({
+    rows: overflowRows,
+    columns: meanWidth,
+    extraLines: Math.max(Math.ceil(meanWidth / columns) - 1, 0),
+  });
 
-  return Math.max(extra, 0);
+  return buckets;
 }
 
 /** Narrative card chrome: the head with its action, summary paragraph, margins. */

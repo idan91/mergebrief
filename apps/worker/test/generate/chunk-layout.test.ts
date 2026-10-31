@@ -83,6 +83,8 @@ describe("generate task, chunk layout sidecar", () => {
     expect(row?.briefId).toBe(brief?.id);
     expect(body?.chunks["c1"]?.rows).toBe(4);
     expect(body?.chunks["c1"]?.hunkRows).toBe(1);
+    expect(body?.chunks["c1"]?.rowRuns).toBe("h1c1a1c1e1");
+    expect(body?.chunks["c1"]?.splitLineWidths).toBeUndefined();
     expect(body).toEqual(
       countBriefChunkLayouts(SMALL_DIFF, {
         chunks: STUB_CHUNKS,

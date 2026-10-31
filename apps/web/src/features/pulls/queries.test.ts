@@ -260,6 +260,21 @@ describe("buildDbBriefLayoutQueryOptions queryFn", () => {
     await expect(runLayout()).resolves.toEqual({ body: LAYOUT });
   });
 
+  it("parses a card's stored row runs and split widths", async () => {
+    const withRowRuns = {
+      ...COUNTS,
+      splitLineWidths: {
+        counts: [2, 1, 0, 0, 0, 0, 0, 0, 0],
+        overflowColumns: 0,
+      },
+      rowRuns: "h1c1a1c1e1",
+    };
+    const layout = { chunks: { c1: withRowRuns }, files: {} };
+    resolveBodyText({ layout });
+
+    await expect(runLayout()).resolves.toEqual({ body: layout });
+  });
+
   it("reads a brief without stored counts as no layout", async () => {
     resolveBodyText({ layout: null });
     await expect(runLayout()).resolves.toEqual({});

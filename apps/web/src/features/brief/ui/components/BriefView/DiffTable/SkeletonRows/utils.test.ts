@@ -1,69 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ChunkLayoutCounts } from "brief-core/chunk-layout";
-import { DiffViews } from "@web/components/DiffRows/types";
 import {
   alignShine,
-  MAX_SKELETON_ROWS,
-  planSkeletonRows,
+  countLineDigits,
   resolveShineDelay,
   SHINE_CYCLE_MS,
 } from "./utils";
-
-function makeCounts(
-  overrides: Partial<ChunkLayoutCounts> = {},
-): ChunkLayoutCounts {
-  return {
-    rows: 10,
-    hunkRows: 2,
-    expandRows: 1,
-    splitRows: 7,
-    lineWidths: { counts: [10, 0, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
-    ...overrides,
-  };
-}
-
-describe("planSkeletonRows", () => {
-  it("plans the unified rows plus the expand rows, tall ones spread out", () => {
-    const { rows } = planSkeletonRows(makeCounts(), DiffViews.UNIFIED);
-
-    expect(rows).toHaveLength(11);
-    expect(rows.filter((row) => row.tall).map((row) => row.index)).toEqual([
-      0, 3, 7,
-    ]);
-  });
-
-  it("plans the split view from its paired rows", () => {
-    expect(planSkeletonRows(makeCounts(), DiffViews.SPLIT).rows).toHaveLength(
-      8,
-    );
-  });
-
-  it("keeps bar widths fixed per row index", () => {
-    const first = planSkeletonRows(makeCounts(), DiffViews.UNIFIED);
-    const second = planSkeletonRows(makeCounts(), DiffViews.UNIFIED);
-
-    expect(first.rows.map((row) => row.width)).toEqual(
-      second.rows.map((row) => row.width),
-    );
-  });
-
-  it("caps a very long card's rows and fills the rest of its well", () => {
-    const plan = planSkeletonRows(
-      makeCounts({ rows: 5000 }),
-      DiffViews.UNIFIED,
-    );
-
-    expect(plan.rows).toHaveLength(MAX_SKELETON_ROWS);
-    expect(plan.filled).toBe(true);
-  });
-
-  it("leaves a card that fits under the cap without a fill", () => {
-    expect(planSkeletonRows(makeCounts(), DiffViews.UNIFIED).filled).toBe(
-      false,
-    );
-  });
-});
 
 describe("resolveShineDelay", () => {
   it("steps a later sweep to the phase the first one has reached", () => {
@@ -107,5 +49,20 @@ describe("alignShine", () => {
     alignShine(stubShine(written), SHINE_CYCLE_MS + 250);
 
     expect(written.get("--shine-delay")).toBe("-250ms");
+  });
+});
+
+describe("countLineDigits", () => {
+  it("counts the digits of the last line the slice reaches", () => {
+    const ranges = {
+      addedRanges: [{ start: 990, end: 998 }],
+      removedRanges: [{ start: 12, end: 14 }],
+    };
+
+    expect(countLineDigits(ranges)).toBe(4);
+  });
+
+  it("draws two digits at the least", () => {
+    expect(countLineDigits({ addedRanges: [], removedRanges: [] })).toBe(2);
   });
 });

@@ -58,6 +58,19 @@ const LAYOUT_BODY = {
   chunks: { c1: LAYOUT_COUNTS },
   files: { "src/orphan.ts": LAYOUT_COUNTS },
 };
+const ROW_RUNS_LAYOUT_BODY = {
+  chunks: {
+    c1: {
+      ...LAYOUT_COUNTS,
+      splitLineWidths: {
+        counts: [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        overflowColumns: 0,
+      },
+      rowRuns: "h1c1a1c1e1",
+    },
+  },
+  files: { "src/orphan.ts": LAYOUT_COUNTS },
+};
 const PULL_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`;
 
 async function seedPullRequest(
@@ -160,6 +173,25 @@ describe("stored artifact reads", () => {
     expect(await readCode(missing)).toBe("not-found");
     expect(lookups.count()).toBe(2);
     expect(listCallsPastGate(fake)).toEqual([]);
+  });
+
+  it("serves a card's row runs and split widths as stored", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    const pr = await seedPullRequest(harness.handle);
+    const briefId = await seedBrief(harness.handle, pr, {
+      base: "base1",
+      head: "head1",
+    });
+    await createArtifactStore(harness.handle, CTX).chunkLayouts.backfill({
+      pullRequestId: pr.id,
+      briefId,
+      body: ROW_RUNS_LAYOUT_BODY,
+    });
+
+    const res = await get("/brief-layout?base=base1&head=head1");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ layout: ROW_RUNS_LAYOUT_BODY });
   });
 
   it("400s a brief query missing its head", async () => {

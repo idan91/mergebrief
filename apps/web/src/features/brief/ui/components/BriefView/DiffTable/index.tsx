@@ -62,11 +62,20 @@ export function DiffTable(props: DiffTableProps) {
     railHover,
     reserved,
     skeletonView,
+    skeletonDigits,
+    viewportState,
     viewportStyle,
+    handleViewportAnimationEnd,
   } = table;
   const waitsOnCode = chunk.diff === undefined && reserved !== undefined;
   if (waitsOnCode) {
-    return <SkeletonRows counts={reserved} view={skeletonView} />;
+    return (
+      <SkeletonRows
+        counts={reserved}
+        digits={skeletonDigits}
+        view={skeletonView}
+      />
+    );
   }
   if (!chunk.diff || chunk.diff.length === 0) {
     return (
@@ -322,7 +331,12 @@ export function DiffTable(props: DiffTableProps) {
           {t(GUEST_REASON_KEYS[reason])}
         </ScreenReaderOnly>
       ))}
-      <div className={styles["viewport"]} style={viewportStyle}>
+      <div
+        className={styles["viewport"]}
+        data-state={viewportState}
+        style={viewportStyle}
+        onAnimationEnd={handleViewportAnimationEnd}
+      >
         <table
           className={styles["diff"]}
           ref={table.tableRef}

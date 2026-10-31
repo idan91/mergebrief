@@ -8,6 +8,10 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
@@ -217,6 +221,19 @@ function renderTable(
   return { view, openCommentComposer, flowStore, setProps };
 }
 
+const TEST_DIR = dirname(fileURLToPath(import.meta.url));
+const STYLESHEET = readFileSync(
+  join(TEST_DIR, "DiffTable.module.scss"),
+  "utf8",
+);
+const SETTLES_WITH_MOTION_ONLY =
+  /@media \(prefers-reduced-motion: no-preference\) \{\s*\.viewport\[data-state="arrived"\] \{\s*animation: ink-settle/;
+
+/** jsdom has no AnimationEvent, so React binds `onAnimationEnd` to the webkit name. */
+function fireAnimationEnd(element: Element): void {
+  element.dispatchEvent(new Event("webkitAnimationEnd", { bubbles: true }));
+}
+
 const RESERVED_COUNTS: ChunkLayoutCounts = {
   rows: 6,
   hunkRows: 1,
@@ -287,7 +304,9 @@ describe("DiffTable before the code lands", () => {
     const skeleton = screen.getByTestId("skeleton-rows");
     expect(skeleton.getAttribute("aria-busy")).toBe("true");
     expect(
-      skeleton.children[1]?.querySelectorAll("[data-variant='tall']"),
+      skeleton.children[1]?.querySelectorAll(
+        "[data-variant='hunk'], [data-variant='expand']",
+      ),
     ).toHaveLength(2);
     expect(skeleton.children[1]?.children).toHaveLength(7);
     expect(view.container.textContent).not.toContain("Diff unavailable");
@@ -337,6 +356,74 @@ describe("DiffTable before the code lands", () => {
     expect(container.querySelector("table")?.dataset["view"]).toBe(
       DiffViews.UNIFIED,
     );
+  });
+
+  it("eases the code in where it replaces the card's skeleton", () => {
+    const { view, setProps } = renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: RESERVED_COUNTS }), codePending: true },
+    );
+    expect(screen.getByTestId("skeleton-rows")).toBeDefined();
+
+    setProps({ chunk: chunk() });
+
+    const viewport = view.container.querySelector("table")?.parentElement;
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+    expect(viewport?.getAttribute("data-state")).toBe("arrived");
+  });
+
+  it("clears the settle state on fade end so unhiding cannot replay it", () => {
+    const { view, setProps } = renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: RESERVED_COUNTS }), codePending: true },
+    );
+    setProps({ chunk: chunk() });
+    const viewport = screen.getByRole("table").parentElement as HTMLElement;
+    expect(viewport.getAttribute("data-state")).toBe("arrived");
+
+    act(() => fireAnimationEnd(viewport));
+    view.container.hidden = true;
+    setProps({});
+    view.container.hidden = false;
+    setProps({});
+
+    expect(viewport.hasAttribute("data-state")).toBe(false);
+  });
+
+  it("keeps settling when an animation inside the table ends first", () => {
+    const { setProps } = renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: RESERVED_COUNTS }), codePending: true },
+    );
+    setProps({ chunk: chunk() });
+    const table = screen.getByRole("table");
+
+    act(() => fireAnimationEnd(table));
+
+    expect(table.parentElement?.getAttribute("data-state")).toBe("arrived");
+  });
+
+  it("paints the code at once on a card that mounted with it", () => {
+    const { view } = renderTable({ chunk: chunk() }, {}, undefined, undefined, {
+      counts: storeCounts({ c1: RESERVED_COUNTS }),
+      codePending: true,
+    });
+
+    const viewport = view.container.querySelector("table")?.parentElement;
+    expect(viewport?.hasAttribute("data-state")).toBe(false);
+  });
+
+  it("eases the code in only when the reader allows motion", () => {
+    expect(STYLESHEET).toMatch(SETTLES_WITH_MOTION_ONLY);
   });
 
   it("keeps the unavailable note once the diff request settled", () => {

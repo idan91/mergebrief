@@ -58,6 +58,18 @@
     container-type: inline-size;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    .viewport[data-state="arrived"] {
+      animation: ink-settle var(--motion-base) var(--ease-out);
+    }
+  }
+
+  @keyframes ink-settle {
+    from {
+      opacity: 0.35;
+    }
+  }
+
   .diff {
     // Earned: the sibling span frame's edge, the same inset the spanned
     // gutter cells paint, and its rule, a step below; the spanned comment

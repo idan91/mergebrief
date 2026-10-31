@@ -15,6 +15,14 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-27)
 
+- **Added** two optional fields to each card's counts on `read-brief-layout`:
+  `rowRuns`, the card's rows as runs of one kind (`<kind><length>`, kinds
+  `h` hunk header, `c` context, `a` added, `r` removed, `n` note, `e` an
+  expand control's own row), and `splitLineWidths`, the split view's rows
+  bucketed by their wider side, absent where it equals `lineWidths`. A
+  layout stored before them is removed, so the brief reads as one with no
+  layout until a run over it stores a new one; clients that read the counts
+  alone are unaffected.
 - **Added** optional `packageSourceFiles` on the `read-delta` body
   (`GET /api/repos/:repoId/pulls/:prNumber/delta`): head paths of the span's
   files that `changes-package-source` fires on but no delta chunk carries (a

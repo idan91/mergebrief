@@ -7,31 +7,40 @@ $shine-band: 0.3;
 $shine-sweep-end: 80%;
 $shine-cycle: 1600ms;
 
-// The bar widths `BAR_WIDTHS_PERCENT` cycles through, in the same order.
-$bar-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
-$row-padding: functions.to-rem(14px);
-$gutter-size: functions.to-rem(64px);
+// Track the code row and text cell modules: the rail, cell padding, sign
+// slot and split number cell the fill repeats past the drawn rows.
+$rail: functions.to-rem(14px);
+$cell-pad: functions.to-rem(14px);
+$sign: functions.to-rem(16px);
+$split-number: functions.to-rem(42px);
+$bar-h: 8px;
+$fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
 
-@function fill-layers($inset) {
-  $row: var(--fill-row);
-  $cycle: list.length($bar-widths);
-  $bar-start: $row-padding * 2 + $gutter-size;
-  $gutter: "linear-gradient(transparent calc(#{$row} * 0.3), var(--fill-gutter) 0 calc(#{$row} * 0.7), transparent 0)";
-  $layers: list.append(
-    (),
-    string.unquote(
-      "#{$gutter} #{$row-padding} 0 / #{$gutter-size} #{$row} repeat-y"
-    ),
-    $separator: comma
-  );
+@function fill-layers($number-starts, $text-start) {
+  $row: var(--skeleton-row);
+  $cycle: list.length($fill-widths);
+  $text-room: "(100% - #{$text-start} - #{$cell-pad})";
+  $layers: ();
 
-  @for $index from 1 through $cycle {
-    $share: math.div(list.nth($bar-widths, $index), 100);
-    $bar: "linear-gradient(transparent calc(#{$row} * #{$index - 0.7}), var(--fill-bar) 0 calc(#{$row} * #{$index - 0.3}), transparent 0)";
-    $size: "calc((100% - #{$inset}) * #{$share}) calc(#{$row} * #{$cycle})";
+  @each $start in $number-starts {
+    $bar: "linear-gradient(transparent calc((#{$row} - #{$bar-h}) / 2), var(--skeleton-ink-number) 0 calc((#{$row} + #{$bar-h}) / 2), transparent 0)";
     $layers: list.append(
       $layers,
-      string.unquote("#{$bar} #{$bar-start} 0 / #{$size} repeat-y"),
+      string.unquote(
+        "#{$bar} #{$start} 0 / calc(var(--skeleton-digits) * 1ch) #{$row} repeat-y"
+      ),
+      $separator: comma
+    );
+  }
+
+  @for $index from 1 through $cycle {
+    $share: math.div(list.nth($fill-widths, $index), 100);
+    $top: "#{$row} * #{$index - 1}";
+    $bar: "linear-gradient(transparent calc(#{$top} + (#{$row} - #{$bar-h}) / 2), var(--skeleton-ink) 0 calc(#{$top} + (#{$row} + #{$bar-h}) / 2), transparent 0)";
+    $size: "calc(#{$text-room} * #{$share}) calc(#{$row} * #{$cycle})";
+    $layers: list.append(
+      $layers,
+      string.unquote("#{$bar} #{$text-start} 0 / #{$size} repeat-y"),
       $separator: comma
     );
   }
@@ -40,8 +49,8 @@ $gutter-size: functions.to-rem(64px);
 }
 
 @layer components {
-  // The reserved rows height, whatever the bar count: a card past the
-  // placeholder cap still measures at its estimate.
+  // The block size is the only height the page reads: a card past the row
+  // cap, or one whose rows fall short of it, still measures at its estimate.
   .skeleton {
     position: relative;
     box-sizing: border-box;
@@ -51,61 +60,64 @@ $gutter-size: functions.to-rem(64px);
     contain-intrinsic-block-size: auto var(--skeleton-block-size, auto);
     border-block-start: 1px solid var(--color-outline-1);
     background: var(--color-well);
-  }
-
-  // Row heights track `DiffRows.module.scss` (22px code row) and the expand
-  // lane (31px): the chunk height model reserves exactly these.
-  .row {
-    display: flex;
-    align-items: center;
-    gap: functions.to-rem(14px);
-    block-size: calc(var(--font-size-lg) * 1.7);
-    padding-inline: functions.to-rem(14px);
-  }
-
-  .row[data-variant="tall"] {
-    block-size: calc(var(--font-size-lg) * 1.7 + 9px);
-    background: var(--color-surface-2);
-  }
-
-  .gutter {
-    flex: none;
-    inline-size: functions.to-rem(64px);
-    block-size: 40%;
-    border-radius: var(--radius-xs);
-    background: color-mix(in srgb, var(--color-text-1) 4%, transparent);
-  }
-
-  .bar {
-    block-size: 40%;
-    border-radius: var(--radius-xs);
-    background: color-mix(in srgb, var(--color-text-1) 7%, transparent);
-  }
-
-  .skeleton[data-view="split"] .bar {
-    flex: 0 1 auto;
-    max-inline-size: calc(50% - functions.to-rem(78px));
+    font-family: var(--mono);
+    font-size: var(--font-size-lg);
+    line-height: 1.7;
   }
 
   .fill {
-    --fill-row: calc(var(--font-size-lg) * 1.7);
-    --fill-gutter: color-mix(in srgb, var(--color-text-1) 4%, transparent);
-    --fill-bar: color-mix(in srgb, var(--color-text-1) 7%, transparent);
+    --skeleton-row: calc(var(--font-size-lg) * 1.7);
+    --skeleton-number-width: calc(
+      var(--skeleton-digits) * 1ch + #{$cell-pad * 2}
+    );
+    --skeleton-divider: var(--color-outline-1);
+    --skeleton-ink: color-mix(in srgb, var(--color-text-1) 6%, transparent);
+    --skeleton-ink-number: color-mix(
+      in srgb,
+      var(--color-text-1) 4.5%,
+      transparent
+    );
 
     position: relative;
     block-size: var(--skeleton-block-size);
-    background: fill-layers($row-padding * 2);
+  }
+
+  .shineTrack .fill {
+    --skeleton-divider: transparent;
+    --skeleton-ink: color-mix(in srgb, var(--color-text-1) 13%, transparent);
+    --skeleton-ink-number: color-mix(
+      in srgb,
+      var(--color-text-1) 10%,
+      transparent
+    );
+  }
+
+  .skeleton[data-view="unified"] .fill {
+    background: fill-layers(
+      (
+        $rail + $cell-pad,
+        calc(#{$rail + $cell-pad} + var(--skeleton-number-width))
+      ),
+      calc(#{$rail + $cell-pad + $sign} + var(--skeleton-number-width) * 2)
+    );
   }
 
   .skeleton[data-view="split"] .fill {
-    background: none;
+    background: linear-gradient(
+        var(--skeleton-divider),
+        var(--skeleton-divider)
+      )
+      no-repeat 50% 0 / 1px 100%;
 
     &::before,
     &::after {
       position: absolute;
       inset-block: 0;
       inline-size: 50%;
-      background: fill-layers(($row-padding * 2 + $gutter-size) * 2);
+      background: fill-layers(
+        ($rail + $cell-pad),
+        $rail + $split-number + $cell-pad + $sign
+      );
       content: "";
     }
 
@@ -134,30 +146,13 @@ $gutter-size: functions.to-rem(64px);
     animation: shine-band $shine-cycle linear var(--shine-delay, 0ms) infinite;
   }
 
-  // The track cancels the band's travel exactly, so its bars sit on the
-  // bars below while the band moves: both keyframes keep the same offsets
-  // and easing. The delay falls back to zero so a server-rendered skeleton
+  // The track cancels the band's travel exactly, so its rows sit on the rows
+  // below while the band moves: both keyframes keep the same offsets and
+  // easing. The delay falls back to zero so a server-rendered skeleton
   // sweeps from the first paint, before any script runs.
   .shineTrack {
     inline-size: math.div(100%, $shine-band);
     animation: shine-track $shine-cycle linear var(--shine-delay, 0ms) infinite;
-  }
-
-  .shineTrack .row {
-    background: none;
-  }
-
-  .shineTrack .gutter {
-    background: color-mix(in srgb, var(--color-text-1) 9%, transparent);
-  }
-
-  .shineTrack .bar {
-    background: color-mix(in srgb, var(--color-text-1) 15%, transparent);
-  }
-
-  .shineTrack .fill {
-    --fill-gutter: color-mix(in srgb, var(--color-text-1) 9%, transparent);
-    --fill-bar: color-mix(in srgb, var(--color-text-1) 15%, transparent);
   }
 
   @keyframes shine-band {

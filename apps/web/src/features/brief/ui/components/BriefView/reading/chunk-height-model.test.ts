@@ -200,4 +200,25 @@ describe("estimateReservedRowsHeight", () => {
       }),
     ).toBe(estimateChunkCardHeight({ diffRowCount: 0, open: true }));
   });
+
+  it("wraps a split row once for its wider side, not once per side", () => {
+    const counts = makeCounts({
+      lineWidths: { counts: [8, 0, 0, 0, 2, 0, 0, 0, 0], overflowColumns: 0 },
+      splitLineWidths: {
+        counts: [7, 0, 0, 0, 1, 0, 0, 0, 0],
+        overflowColumns: 0,
+      },
+    });
+
+    expect(estimateReservedRowsHeight(counts, DiffViews.SPLIT)).toBe(282);
+    expect(estimateReservedRowsHeight(counts, DiffViews.UNIFIED)).toBe(304);
+  });
+
+  it("wraps the split view by the unified widths when no pair differs", () => {
+    const counts = makeCounts({
+      lineWidths: { counts: [8, 0, 0, 0, 2, 0, 0, 0, 0], overflowColumns: 0 },
+    });
+
+    expect(estimateReservedRowsHeight(counts, DiffViews.SPLIT)).toBe(348);
+  });
 });

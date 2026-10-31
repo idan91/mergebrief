@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import {
+  CHUNK_ROW_RUNS,
   LINE_WIDTH_BUCKET_EDGES,
   type ChunkLayoutBody,
   type ChunkLayoutCounts,
@@ -170,6 +171,8 @@ export const ChunkLayoutCountsSchema = z
     expandRows: layoutCountSchema,
     splitRows: layoutCountSchema,
     lineWidths: lineWidthHistogramSchema,
+    splitLineWidths: lineWidthHistogramSchema.exactOptional(),
+    rowRuns: z.string().regex(CHUNK_ROW_RUNS).exactOptional(),
   })
   .strict();
 
