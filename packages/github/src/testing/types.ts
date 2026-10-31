@@ -150,6 +150,8 @@ export interface FakePullRequest {
 export interface FakeCompare {
   readonly diff?: string;
   readonly files?: CompareFiles;
+  /** Absent answers the span's base itself, as for a head branched off the base tip. */
+  readonly mergeBase?: string;
 }
 
 /** A path at a ref; an absent ref is the default branch. */

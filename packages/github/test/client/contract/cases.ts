@@ -104,6 +104,13 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
     },
   }),
   defineCase({
+    operation: "fetchMergeBase",
+    operatorReach: true,
+    call: (client: RepoReader) =>
+      client.fetchMergeBase({ base: BASE_SHA, head: HEAD_SHA }),
+    expected: BASE_SHA,
+  }),
+  defineCase({
     operation: "fetchRepoFile",
     operatorReach: true,
     call: (client: RepoReader) =>

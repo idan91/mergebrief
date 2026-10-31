@@ -306,14 +306,86 @@ describe("getRepoFile", () => {
     });
   });
 
+  it("reads a file the contents API served without content from its blob", async () => {
+    const text = "lockfileVersion: '9.0'\n";
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        fileResponse(text, { content: "", encoding: "none" }),
+      )
+      .mockResolvedValueOnce({
+        data: { content: githubBase64(text), encoding: "base64" },
+      });
+    const result = await getRepoFile(mockOctokit(request), {
+      owner: "o",
+      repo: "r",
+      path: "pnpm-lock.yaml",
+      ref: "abc",
+      maxBytes: 1024,
+    });
+
+    expect(request).toHaveBeenLastCalledWith(
+      "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+      { owner: "o", repo: "r", file_sha: "abc123def456" },
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        kind: RepoFileKinds.FILE,
+        content: text,
+        blobSha: "abc123def456",
+        size: Buffer.byteLength(text, "utf8"),
+      },
+    });
+  });
+
+  it("re-guards a blob read on its decoded byte count", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        fileResponse("x", { content: "", encoding: "none", size: 1 }),
+      )
+      .mockResolvedValueOnce({
+        data: { content: githubBase64("x".repeat(64)), encoding: "base64" },
+      });
+    const result = await getRepoFile(mockOctokit(request), {
+      owner: "o",
+      repo: "r",
+      path: "f",
+      maxBytes: 8,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { kind: RepoFileKinds.TOO_LARGE, size: 64 },
+    });
+  });
+
+  it("rejects a blob read that is not base64", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        fileResponse("x", { content: "", encoding: "none" }),
+      )
+      .mockResolvedValueOnce({ data: { content: "x", encoding: "utf-8" } });
+    const result = await getRepoFile(mockOctokit(request), {
+      owner: "o",
+      repo: "r",
+      path: "f",
+      maxBytes: 1024,
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
   it("rejects a non-base64 encoding as a sanitized error", async () => {
     const request = vi.fn().mockResolvedValue({
       data: {
         type: "file",
         size: 100,
         sha: "s",
-        content: "",
-        encoding: "none",
+        content: "x",
+        encoding: "utf-8",
       },
     });
     const result = await getRepoFile(mockOctokit(request), {

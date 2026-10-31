@@ -241,6 +241,8 @@ export interface CheckpointDeltasInputs {
   readonly effort: Effort | undefined;
   readonly briefHeadIndex: number;
   readonly wholePrChangedLines: number;
+  /** The run's abort sources: a lockfile read stops with them. */
+  readonly stops: readonly (AbortSignal | undefined)[];
   readonly loadContext: TicketContextLoader;
   readonly log: Logger;
 }
@@ -626,6 +628,8 @@ export interface BriefGenerationInputs {
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
   readonly repoConfig: AcquiredRepoConfig | undefined;
+  /** The run's abort sources: a lockfile read stops with them. */
+  readonly stops: readonly (AbortSignal | undefined)[];
   readonly loadContext: TicketContextLoader;
   /** The signal-bound generator: the model call must honour the watch's abort. */
   readonly generator: Generator;

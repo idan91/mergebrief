@@ -8,7 +8,6 @@ import {
   type DraftBriefOptions,
 } from "../categorize";
 import { validateFinalBrief } from "../final-validation";
-import { summarizeLockfiles } from "../package-sources";
 import { decideCallPlan } from "../size";
 import type { CallPlan } from "../size/types";
 import { createWarningCollector, formatGenerationWarnings } from "../warnings";
@@ -66,10 +65,7 @@ export async function generateBrief(
 ): Promise<GenerateBriefOutput> {
   const { pr, previous } = options;
   const log = options.log ?? discardLog;
-  const lockfileSummaries = summarizeLockfiles(
-    pr.meta.files.map((file) => file.path),
-    options.lockfiles,
-  );
+  const lockfileSummaries = options.lockfileSummaries ?? new Map();
   const warnings = createWarningCollector(log);
   const callPlan = decideCallPlan({ diff: pr.diff });
   log(describeCallPlan(callPlan));

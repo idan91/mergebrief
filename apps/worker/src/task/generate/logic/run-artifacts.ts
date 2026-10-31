@@ -99,6 +99,7 @@ async function generateFreshBrief(
     meta: inputs.meta,
     repoConfig: inputs.repoConfig,
     loadContext: inputs.loadContext,
+    stops: listRunStops(context),
     generator,
     coreMessageLog: inputs.coreMessageLog,
     log: context.log,
@@ -150,6 +151,7 @@ export async function writeFollowOnArtifacts(
         briefHeadIndex: brief.briefRef.headIndex,
         wholePrChangedLines: countPrChangedLines(inputs.files),
         loadContext: inputs.loadContext,
+        stops: listRunStops(context),
         log,
       });
       span.setAttributes({ "mergebrief.deltas_written": written });

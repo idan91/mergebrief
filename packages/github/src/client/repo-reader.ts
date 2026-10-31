@@ -5,6 +5,7 @@ import {
   fetchCompareDiff,
   fetchCompareFiles,
   fetchDiff,
+  fetchMergeBase,
   fetchPullRequest,
   fetchPullRequestFiles,
 } from "../operations/pull-request";
@@ -56,6 +57,13 @@ export function buildRepoReader(
       return run(
         (octokit) => fetchCompareFiles(octokit, { ...span, ...repo }),
         "fetch compare files",
+        { commits: [span.base, span.head] },
+      );
+    },
+    fetchMergeBase(span) {
+      return run(
+        (octokit) => fetchMergeBase(octokit, { ...span, ...repo }),
+        "fetch merge base",
         { commits: [span.base, span.head] },
       );
     },

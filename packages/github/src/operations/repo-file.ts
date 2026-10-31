@@ -72,6 +72,14 @@ const contentsFileSchema = z.object({
   submodule_git_url: z.string().optional(),
 });
 
+// A file over 1 MB comes back with no content and encoding "none"; the blob
+// API serves its bytes, base64, up to 100 MB.
+const OMITTED_CONTENT_ENCODING = "none";
+const blobSchema = z.object({
+  content: z.string(),
+  encoding: z.literal("base64"),
+});
+
 /** GitHub line-wraps base64; strip whitespace, then demand canonical base64. */
 const BASE64_BODY = /^[A-Za-z0-9+/]*={0,2}$/;
 
@@ -106,6 +114,46 @@ type RepoContentsParams = {
   path: string;
   ref?: string;
 };
+
+/** The blob's base64 body, for a file the contents API served without one. */
+async function readBlobContent(
+  octokit: Octokit,
+  input: GetRepoFileInput,
+  sha: string,
+): Promise<Result<string, GitHubApiError>> {
+  let body: unknown;
+  try {
+    const response = await octokit.request(
+      "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+      { owner: input.owner, repo: input.repo, file_sha: sha },
+    );
+    body = response.data;
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "fetch repo file") };
+  }
+  const parsed = blobSchema.safeParse(body);
+  if (!parsed.success) {
+    return { ok: false, error: unexpectedResponseError("fetch repo file") };
+  }
+  return { ok: true, value: parsed.data.content };
+}
+
+/** The base64 body of a file payload, read from its blob when the contents API omitted it. */
+async function readBase64Content(
+  octokit: Octokit,
+  input: GetRepoFileInput,
+  file: z.infer<typeof contentsFileSchema>,
+): Promise<Result<string, GitHubApiError>> {
+  const { sha, content, encoding } = file;
+  const omitted = encoding === OMITTED_CONTENT_ENCODING && content === "";
+  if (omitted) {
+    return readBlobContent(octokit, input, sha);
+  }
+  if (encoding !== "base64" || content === undefined) {
+    return { ok: false, error: unexpectedResponseError("fetch repo file") };
+  }
+  return { ok: true, value: content };
+}
 
 /**
  * Fetch one repo file's decoded content via the contents API. A 404 stays
@@ -157,17 +205,18 @@ export async function getRepoFile(
   ) {
     return { ok: false, error: notABlobError("fetch repo file") };
   }
-  const { size, sha, content, encoding } = parsed.data;
+  const { size, sha } = parsed.data;
   if (size > input.maxBytes) {
     return {
       ok: true,
       value: { kind: RepoFileKinds.TOO_LARGE, blobSha: sha, size },
     };
   }
-  if (encoding !== "base64" || content === undefined) {
-    return { ok: false, error: unexpectedResponseError("fetch repo file") };
+  const content = await readBase64Content(octokit, input, parsed.data);
+  if (!content.ok) {
+    return content;
   }
-  const decoded = decodeBase64Utf8(content);
+  const decoded = decodeBase64Utf8(content.value);
   if (decoded === undefined) {
     // Malformed base64 or non-UTF-8 bytes. Permanent for these bytes, so it
     // is its own code rather than the transport failure a caller retries.

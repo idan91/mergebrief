@@ -32,7 +32,7 @@ import {
 import type { FetchedPr } from "../../src/github/types";
 import type { PrimaryTicketOutcome } from "../../src/context/types";
 import { FakeGenerator, makeFakeGenerator } from "../helpers";
-import { makePnpmLockfile, makeSides } from "./shortened/helpers";
+import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
 import { SecretKinds } from "../../src/generation/redaction/types";
 import { FAKE_SECRETS } from "../secret-fixtures";
 
@@ -1135,7 +1135,7 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
         },
       ],
     };
-    const runDelta = (lockfiles?: DeltaInput["lockfiles"]) => {
+    const runDelta = (summaries?: DeltaInput["lockfileSummaries"]) => {
       const input: DeltaInput = {
         locator: pr.locator,
         meta: pr.meta,
@@ -1143,22 +1143,23 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
         headSha: pr.meta.sha,
         incrementalDiff: lockfileDiff,
       };
-      if (lockfiles !== undefined) {
-        input.lockfiles = lockfiles;
+      if (summaries !== undefined) {
+        input.lockfileSummaries = summaries;
       }
       return categorizeDelta(input, makeFakeGenerator(generation));
     };
     const keepsHost = new Map([
       [
         lockfile,
-        makeSides(
+        summarizeTexts(
+          lockfile,
           makePnpmLockfile({
             "left-pad@1.3.0": "resolution: {integrity: sha512-a}",
           }),
           makePnpmLockfile({
             "left-pad@1.3.1": "resolution: {integrity: sha512-b}",
           }),
-        ),
+        )!,
       ],
     ]);
 

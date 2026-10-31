@@ -32,6 +32,7 @@ import {
 } from "../helpers";
 import {
   ATTACHMENT_COMMIT_SHA,
+  BASE_SHA,
   DIFF,
   HEAD_SHA,
   OPERATOR_READS,
@@ -106,6 +107,7 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
     status: "ahead",
     files: [{ filename: "src/a.ts", status: "modified" }],
   }),
+  fetchMergeBase: answerOk({ merge_base_commit: { sha: BASE_SHA } }),
   fetchRepoFile: answerOk({
     type: "file",
     size: 5,

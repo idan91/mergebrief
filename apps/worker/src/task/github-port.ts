@@ -86,6 +86,17 @@ export interface PullRequestSource {
    * head must never be able to weaken its own scrutiny.
    */
   fetchRepoFile(path: string, maxBytes: number): GitHubCall<RepoFileResult>;
+  /**
+   * One repo file at a commit, read only as data: a changed lockfile at a
+   * span's base or head. Never a source of configuration.
+   */
+  fetchRepoFileAt(
+    path: string,
+    ref: string,
+    maxBytes: number,
+  ): GitHubCall<RepoFileResult>;
+  /** The commit a `base...head` diff is taken from: where a changed lockfile's base side is read. */
+  fetchMergeBase(base: string, head: string): GitHubCall<string>;
   /** Absent on a url-box job: the viewer's token never writes. */
   readonly entryComments?: EntryComments;
 }
@@ -188,6 +199,9 @@ function bindPullRequestReads(
       reader.fetchCheckedCompareDiff({ base, head, expectedFileCount }),
     fetchCompareFiles: (base, head) => reader.fetchCompareFiles({ base, head }),
     fetchRepoFile: (path, maxBytes) => reader.fetchRepoFile({ path, maxBytes }),
+    fetchRepoFileAt: (path, ref, maxBytes) =>
+      reader.fetchRepoFile({ path, ref, maxBytes }),
+    fetchMergeBase: (base, head) => reader.fetchMergeBase({ base, head }),
   };
 }
 

@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   changesPackageSource,
   flagPackageSourceChanges,
+  listChangedLockfiles,
   listRegistryConfigFiles,
   readPackageSourceContext,
-  summarizeLockfiles,
 } from "../../src/generation/package-sources";
+import { summarizeLockfile } from "../../src/generation/shortened";
 import type { LockfileSummary } from "../../src/generation/shortened/types";
 import {
   BriefGenerationSchema,
@@ -311,10 +312,7 @@ describe("changesPackageSource", () => {
     if (before === undefined) {
       sides.before = { kind: "unavailable" };
     }
-    const [summary] = summarizeLockfiles(
-      ["pnpm-lock.yaml"],
-      new Map([["pnpm-lock.yaml", sides]]),
-    ).values();
+    const summary = summarizeLockfile("pnpm-lock.yaml", sides);
 
     expect(summary && changesPackageSource(summary, NO_CONFIG_CHANGE)).toBe(
       true,
@@ -560,12 +558,42 @@ describe("changesPackageSource on berry workspaces", () => {
   });
 });
 
-describe("summarizeLockfiles", () => {
-  it("reads a lockfile with no contents as unavailable", () => {
-    const summaries = summarizeLockfiles(["yarn.lock", "src/a.ts"], undefined);
+describe("listChangedLockfiles", () => {
+  it("lists each package lockfile with its status and rename source", () => {
+    const diff = [
+      "diff --git a/old/yarn.lock b/new/yarn.lock",
+      "similarity index 90%",
+      "rename from old/yarn.lock",
+      "rename to new/yarn.lock",
+      "diff --git a/package-lock.json b/package-lock.json",
+      "new file mode 100644",
+      "--- /dev/null",
+      "+++ b/package-lock.json",
+      "@@ -0,0 +1 @@",
+      "+{}",
+      "diff --git a/apps/web/pnpm-lock.yaml b/apps/web/pnpm-lock.yaml",
+      "deleted file mode 100644",
+      "--- a/apps/web/pnpm-lock.yaml",
+      "+++ /dev/null",
+      "@@ -1 +0,0 @@",
+      "-x",
+      "diff --git a/Cargo.lock b/Cargo.lock",
+      "--- a/Cargo.lock",
+      "+++ b/Cargo.lock",
+      "@@ -1 +1 @@",
+      "-a",
+      "+b",
+      "",
+    ].join("\n");
 
-    expect([...summaries]).toEqual([
-      ["yarn.lock", { format: "yarn", unread: "unavailable" }],
+    expect(listChangedLockfiles(diff)).toEqual([
+      {
+        path: "new/yarn.lock",
+        status: "renamed",
+        previousPath: "old/yarn.lock",
+      },
+      { path: "package-lock.json", status: "added" },
+      { path: "apps/web/pnpm-lock.yaml", status: "deleted" },
     ]);
   });
 });
@@ -671,6 +699,100 @@ describe("listRegistryConfigFiles", () => {
     ],
   ])("lists a registry config renamed %s", (_label, file, patch) => {
     expect(listRegistryConfigFiles([{ file, patch }])).toEqual(new Set([file]));
+  });
+});
+
+describe("listChangedLockfiles path check", () => {
+  it("confirms a path holding a space, which git ends with a TAB", () => {
+    const diff = [
+      "diff --git a/new dir/pnpm-lock.yaml b/new dir/pnpm-lock.yaml",
+      "index a308b08..b5a4b19 100644",
+      "--- a/new dir/pnpm-lock.yaml\t",
+      "+++ b/new dir/pnpm-lock.yaml\t",
+      "@@ -3,4 +3,4 @@ lockfileVersion: 9.0",
+      " packages:",
+      " ",
+      "   left-pad@1.3.0:",
+      "-    resolution: {integrity: sha512-c}",
+      "+    resolution: {integrity: sha512-d}",
+      "",
+    ].join("\n");
+
+    expect(listChangedLockfiles(diff)).toEqual([
+      { path: "new dir/pnpm-lock.yaml", status: "modified" },
+    ]);
+  });
+
+  it("confirms a rename between paths holding a space", () => {
+    const diff = [
+      "diff --git a/my app/pnpm-lock.yaml b/new dir/pnpm-lock.yaml",
+      "similarity index 57%",
+      "rename from my app/pnpm-lock.yaml",
+      "rename to new dir/pnpm-lock.yaml",
+      "index 8da4ec7..a308b08 100644",
+      "--- a/my app/pnpm-lock.yaml\t",
+      "+++ b/new dir/pnpm-lock.yaml\t",
+      "@@ -3,4 +3,4 @@ lockfileVersion: 9.0",
+      " packages:",
+      " ",
+      "   left-pad@1.3.0:",
+      "-    resolution: {integrity: sha512-b}",
+      "+    resolution: {integrity: sha512-c}",
+      "",
+    ].join("\n");
+
+    expect(listChangedLockfiles(diff)).toEqual([
+      {
+        path: "new dir/pnpm-lock.yaml",
+        status: "renamed",
+        previousPath: "my app/pnpm-lock.yaml",
+      },
+    ]);
+  });
+
+  it("leaves out a lockfile whose header misreads its path", () => {
+    const diff = [
+      "diff --git a/x b/pnpm-lock.yaml b/x b/pnpm-lock.yaml",
+      "--- a/x b/pnpm-lock.yaml",
+      "+++ b/x b/pnpm-lock.yaml",
+      "@@ -1 +1 @@",
+      "-a",
+      "+b",
+      "",
+    ].join("\n");
+
+    expect(listChangedLockfiles(diff)).toEqual([]);
+  });
+
+  it("leaves out a path an unconfirmed patch shares", () => {
+    const diff = [
+      "diff --git a/package-lock.json b/package-lock.json",
+      "--- a/package-lock.json",
+      "+++ b/package-lock.json",
+      "@@ -1 +1 @@",
+      "-a",
+      "+b",
+      "diff --git a/a b/package-lock.json b/a b/package-lock.json",
+      "--- a/a b/package-lock.json",
+      "+++ b/a b/package-lock.json",
+      "@@ -1 +1 @@",
+      "-a",
+      "+b",
+      "",
+    ].join("\n");
+
+    expect(listChangedLockfiles(diff)).toEqual([]);
+  });
+
+  it("leaves out a pure rename whose rename line names another path", () => {
+    const diff = [
+      "diff --git a/old/yarn.lock b/new/yarn.lock",
+      "rename from old/yarn.lock",
+      "rename to other/yarn.lock",
+      "",
+    ].join("\n");
+
+    expect(listChangedLockfiles(diff)).toEqual([]);
   });
 });
 

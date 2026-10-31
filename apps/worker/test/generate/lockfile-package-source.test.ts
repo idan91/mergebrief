@@ -1,0 +1,549 @@
+import { describe, expect, it } from "vitest";
+import { FakeFailures } from "github/testing";
+import { TransientJobError } from "../../src/task/failure";
+import {
+  createArtifactStore,
+  createTenantRepository,
+  type PullRequestRowId,
+} from "persistence";
+import {
+  BASE,
+  buildRepoFile,
+  captureLogger,
+  ctx,
+  harness,
+  HEAD_1,
+  HEAD_2,
+  makeGitHub,
+  makePullRequestInfo,
+  makeReviewerId,
+  makeTask,
+  PR_REF,
+  REPO,
+  setUpHarness,
+  stubGenerator,
+  trigger,
+} from "./helpers";
+
+setUpHarness();
+
+const LOCKFILE = "pnpm-lock.yaml";
+const CHANGES_PACKAGE_SOURCE = "changes-package-source";
+
+const DIFF = `diff --git a/a.ts b/a.ts
+--- a/a.ts
++++ b/a.ts
+@@ -1,2 +1,3 @@
+ line
++added
+ line2
+diff --git a/${LOCKFILE} b/${LOCKFILE}
+--- a/${LOCKFILE}
++++ b/${LOCKFILE}
+@@ -1,2 +1,2 @@
+ lockfileVersion: '9.0'
+-old
++new
+`;
+
+const ADDED_DIFF = `diff --git a/${LOCKFILE} b/${LOCKFILE}
+new file mode 100644
+--- /dev/null
++++ b/${LOCKFILE}
+@@ -0,0 +1 @@
++lockfileVersion: '9.0'
+`;
+
+function makePnpmLockfile(key: string, resolution: string): string {
+  return [
+    "lockfileVersion: '9.0'",
+    "packages:",
+    `  ${key}:`,
+    `    resolution: ${resolution}`,
+    "snapshots:",
+    `  ${key}: {}`,
+    "",
+  ].join("\n");
+}
+
+const REGISTRY = "{integrity: sha512-a}";
+/** One more lockfile than a span reads. */
+const LOCKFILES_PAST_CAP = 21;
+/** Twenty lockfile children fork one after another. */
+const PAST_CAP_TIMEOUT_MS = 60_000;
+const MERGE_BASE = "d".repeat(40);
+/** Long enough for the child to fill its heap cap and be killed. */
+const HEAP_EXHAUSTION_TIMEOUT_MS = 60_000;
+const FLOW_ITEMS = 64;
+/** Just under the byte cap. */
+const HOSTILE_LOCKFILE_BYTES = 8_000_000;
+
+/**
+ * A lockfile inside every limit the pre-parse check holds (one flow level,
+ * 64 items a line, lines under the cap) whose four million nodes still
+ * exhaust the child's heap.
+ */
+function makeHeapExhaustingLockfile(): string {
+  const items = Array.from({ length: FLOW_ITEMS }, () => "a").join(",");
+  const lines = ["lockfileVersion: '9.0'", "packages:"];
+  let bytes = 0;
+  for (let index = 0; bytes < HOSTILE_LOCKFILE_BYTES; index += 1) {
+    const line = `  k${index}: [${items}]`;
+    lines.push(line);
+    bytes += line.length + 1;
+  }
+  return lines.join("\n");
+}
+const MIRROR = "{tarball: https://mirror.example/foo.tgz}";
+
+function arrangeLockfile(before: string, after: string) {
+  const github = makeGitHub(HEAD_1);
+  github.addPullRequest(PR_REF, {
+    info: makePullRequestInfo(HEAD_1),
+    files: [
+      { path: "a.ts", additions: 1, deletions: 0 },
+      { path: LOCKFILE, additions: 1, deletions: 1 },
+    ],
+    diff: DIFF,
+  });
+  github.addRepoFile(
+    REPO,
+    { path: LOCKFILE, ref: BASE },
+    buildRepoFile(before, "sha-base"),
+  );
+  github.addRepoFile(
+    REPO,
+    { path: LOCKFILE, ref: HEAD_1 },
+    buildRepoFile(after, "sha-head"),
+  );
+  return github;
+}
+
+async function readLockfileRisks(prId: PullRequestRowId): Promise<unknown> {
+  return readLockfileRisksAt(prId, LOCKFILE);
+}
+
+async function readLockfileRisksAt(
+  prId: PullRequestRowId,
+  path: string | undefined,
+): Promise<unknown> {
+  const stored = await createArtifactStore(harness.handle, ctx).briefs.get(
+    prId,
+    BASE,
+    HEAD_1,
+  );
+  const body = JSON.parse(stored?.body ?? "{}") as {
+    unattributed?: { file: string; riskSurface?: string[] }[];
+  };
+  return body.unattributed?.find((file) => file.file === path)?.riskSurface;
+}
+
+describe("generate task, changes-package-source from lockfile contents", () => {
+  it("reads the lockfile at base and head and flags a moved source", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = arrangeLockfile(
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+      makePnpmLockfile("foo@1.0.0", MIRROR),
+    );
+
+    await makeTask({ github })(payload);
+
+    const reads = github
+      .listCalls("fetchRepoFile")
+      .map((call) => call.input as { path: string; ref?: string })
+      .filter((input) => input.path === LOCKFILE)
+      .map((input) => input.ref);
+    expect(reads).toHaveLength(2);
+    expect(reads).toEqual(expect.arrayContaining([BASE, HEAD_1]));
+    expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
+  });
+
+  it("flags a lockfile the diff names but no commit holds", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.addPullRequest(PR_REF, {
+      info: makePullRequestInfo(HEAD_1),
+      files: [{ path: LOCKFILE, additions: 1, deletions: 1 }],
+      diff: DIFF,
+    });
+
+    await makeTask({ github })(payload);
+
+    expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
+  });
+
+  it.each([
+    ["an off-registry entry", MIRROR, [CHANGES_PACKAGE_SOURCE]],
+    ["only registry entries", REGISTRY, undefined],
+  ])(
+    "reads an added lockfile holding %s",
+    async (_label, resolution, risks) => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const github = makeGitHub(HEAD_1);
+      github.addPullRequest(PR_REF, {
+        info: makePullRequestInfo(HEAD_1),
+        files: [{ path: LOCKFILE, additions: 1, deletions: 0 }],
+        diff: ADDED_DIFF,
+      });
+      github.addRepoFile(
+        REPO,
+        { path: LOCKFILE, ref: HEAD_1 },
+        buildRepoFile(makePnpmLockfile("foo@1.0.0", resolution), "sha-head"),
+      );
+
+      await makeTask({ github })(payload);
+
+      expect(await readLockfileRisks(pr.id)).toEqual(risks);
+    },
+  );
+
+  it.each([
+    ["a server error", FakeFailures.SERVER_ERROR],
+    ["a rate limit", FakeFailures.RATE_LIMITED],
+  ])("retries on %s reading the base side", async (_label, failure) => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = arrangeLockfile(
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+    );
+    github.failRepoFile(REPO, { path: LOCKFILE, ref: BASE }, failure);
+
+    await expect(makeTask({ github })(payload)).rejects.toThrow(
+      TransientJobError,
+    );
+
+    const stored = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(stored).toBeUndefined();
+  });
+
+  it.each([
+    ["a symlink", FakeFailures.NOT_A_BLOB],
+    ["bytes that are not UTF-8", FakeFailures.NOT_TEXT],
+  ])("flags a head lockfile GitHub serves as %s", async (_label, failure) => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = arrangeLockfile(
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+    );
+    github.failRepoFile(REPO, { path: LOCKFILE, ref: HEAD_1 }, failure);
+
+    await makeTask({ github })(payload);
+
+    expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
+  });
+
+  it("retries on a transient failure reading the merge base", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = arrangeLockfile(
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+    );
+    github.failOn("fetchMergeBase", FakeFailures.SERVER_ERROR);
+
+    await expect(makeTask({ github })(payload)).rejects.toThrow(
+      TransientJobError,
+    );
+  });
+
+  it("flags a lockfile whose merge base is refused for good", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = arrangeLockfile(
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+    );
+    github.failOn("fetchMergeBase", FakeFailures.NOT_FOUND);
+
+    await makeTask({ github })(payload);
+
+    expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
+  });
+
+  it(
+    "flags a lockfile whose summary child runs out of heap",
+    async () => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const github = arrangeLockfile(
+        makePnpmLockfile("foo@1.0.0", REGISTRY),
+        makeHeapExhaustingLockfile(),
+      );
+      const { logger, readLines } = captureLogger();
+
+      await makeTask({ github, log: logger })(payload);
+
+      const childFailure = readLines().find((line) =>
+        String(line["msg"]).includes("lockfile summary child failed"),
+      );
+      expect(childFailure?.["reason"]).toBe("crashed");
+      expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
+    },
+    HEAP_EXHAUSTION_TIMEOUT_MS,
+  );
+
+  it("reads the base side at the merge base the diff is taken from", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = arrangeLockfile(
+      makePnpmLockfile("foo@1.0.0", MIRROR),
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+    );
+    github.addCompare(
+      REPO,
+      { base: BASE, head: HEAD_1 },
+      { mergeBase: MERGE_BASE },
+    );
+    github.addRepoFile(
+      REPO,
+      { path: LOCKFILE, ref: MERGE_BASE },
+      buildRepoFile(makePnpmLockfile("foo@1.0.0", REGISTRY), "sha-merge-base"),
+    );
+
+    await makeTask({ github })(payload);
+
+    const reads = github
+      .listCalls("fetchRepoFile")
+      .map((call) => call.input as { path: string; ref?: string })
+      .filter((input) => input.path === LOCKFILE)
+      .map((input) => input.ref);
+    expect(reads).toEqual(expect.arrayContaining([MERGE_BASE, HEAD_1]));
+    expect(reads).not.toContain(BASE);
+    expect(await readLockfileRisks(pr.id)).toBeUndefined();
+  });
+
+  it("leaves a version bump on the same host unflagged", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = arrangeLockfile(
+      makePnpmLockfile("foo@1.0.0", REGISTRY),
+      makePnpmLockfile("foo@1.1.0", REGISTRY),
+    );
+
+    await makeTask({ github })(payload);
+
+    expect(await readLockfileRisks(pr.id)).toBeUndefined();
+  });
+
+  it("reads a delta span's lockfile at its merge base for its chunk", async () => {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = makeGitHub(HEAD_1);
+    const task = makeTask({ generator, github });
+    await task(first.payload);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: HEAD_1,
+      submittedAt: new Date(),
+    });
+    const span = { base: HEAD_1, head: HEAD_2 };
+    github.addCompare(REPO, span, {
+      diff: DIFF,
+      files: { files: [], complete: false },
+      mergeBase: MERGE_BASE,
+    });
+    github.addRepoFile(
+      REPO,
+      { path: LOCKFILE, ref: MERGE_BASE },
+      buildRepoFile(makePnpmLockfile("foo@1.0.0", REGISTRY), "sha-merge-base"),
+    );
+    github.addRepoFile(
+      REPO,
+      { path: LOCKFILE, ref: HEAD_2 },
+      buildRepoFile(makePnpmLockfile("foo@1.1.0", REGISTRY), "sha-head"),
+    );
+    const brief = generator.outputs["brief"] as { changeGroups: object[] };
+    generator.outputs["delta"] = {
+      summary: "bumps foo",
+      commentsAddressed: "",
+      changedGroups: brief.changeGroups,
+      chunks: [
+        {
+          id: "c1",
+          changeGroupId: "g1",
+          file: LOCKFILE,
+          concern: "generated",
+          role: "supporting",
+          addedRanges: [{ start: 2, end: 2 }],
+          removedRanges: [{ start: 2, end: 2 }],
+          riskSurface: [],
+          summary: "bumps foo",
+          addressesComments: [],
+        },
+      ],
+      wholePrImpact: "",
+    };
+
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    const mergeBases = github
+      .listCalls("fetchMergeBase")
+      .map((call) => call.input);
+    const reads = github
+      .listCalls("fetchRepoFile")
+      .map((call) => call.input as { path: string; ref?: string })
+      .filter((input) => input.path === LOCKFILE)
+      .map((input) => input.ref);
+    const row = await createArtifactStore(harness.handle, ctx).deltas.get(
+      second.pr.id,
+      HEAD_1,
+      HEAD_2,
+    );
+    const body = JSON.parse(row?.body ?? "{}") as {
+      chunks?: { file: string; riskSurface: string[] }[];
+    };
+    expect(mergeBases).toContainEqual(expect.objectContaining(span));
+    expect(reads).toEqual([MERGE_BASE, HEAD_2]);
+    expect(body.chunks?.map((chunk) => chunk.riskSurface)).toEqual([[]]);
+  });
+
+  it("reads a renamed lockfile's base side by its previous path", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const previousPath = "app/pnpm-lock.yaml";
+    const github = makeGitHub(HEAD_1);
+    github.addPullRequest(PR_REF, {
+      info: makePullRequestInfo(HEAD_1),
+      files: [{ path: LOCKFILE, additions: 1, deletions: 1 }],
+      diff: [
+        `diff --git a/${previousPath} b/${LOCKFILE}`,
+        "similarity index 90%",
+        `rename from ${previousPath}`,
+        `rename to ${LOCKFILE}`,
+        `--- a/${previousPath}`,
+        `+++ b/${LOCKFILE}`,
+        "@@ -1,2 +1,2 @@",
+        " lockfileVersion: '9.0'",
+        "-old",
+        "+new",
+        "",
+      ].join("\n"),
+    });
+    github.addRepoFile(
+      REPO,
+      { path: previousPath, ref: BASE },
+      buildRepoFile(makePnpmLockfile("foo@1.0.0", REGISTRY), "sha-base"),
+    );
+    github.addRepoFile(
+      REPO,
+      { path: LOCKFILE, ref: HEAD_1 },
+      buildRepoFile(makePnpmLockfile("foo@1.1.0", REGISTRY), "sha-head"),
+    );
+
+    await makeTask({ github })(payload);
+
+    const reads = github
+      .listCalls("fetchRepoFile")
+      .map((call) => call.input as { path: string; ref?: string })
+      .filter((input) => input.path.endsWith(LOCKFILE));
+    expect(reads).toEqual([
+      expect.objectContaining({ path: previousPath, ref: BASE }),
+      expect.objectContaining({ path: LOCKFILE, ref: HEAD_1 }),
+    ]);
+    expect(await readLockfileRisks(pr.id)).toBeUndefined();
+  });
+
+  it("reads a rename into a lockfile name as a new lockfile", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const previousPath = `${LOCKFILE}.orig`;
+    const github = makeGitHub(HEAD_1);
+    github.addPullRequest(PR_REF, {
+      info: makePullRequestInfo(HEAD_1),
+      files: [{ path: LOCKFILE, additions: 1, deletions: 1 }],
+      diff: [
+        `diff --git a/${previousPath} b/${LOCKFILE}`,
+        "similarity index 90%",
+        `rename from ${previousPath}`,
+        `rename to ${LOCKFILE}`,
+        `--- a/${previousPath}`,
+        `+++ b/${LOCKFILE}`,
+        "@@ -1,2 +1,2 @@",
+        " lockfileVersion: '9.0'",
+        "-old",
+        "+new",
+        "",
+      ].join("\n"),
+    });
+    github.addRepoFile(
+      REPO,
+      { path: previousPath, ref: BASE },
+      buildRepoFile(makePnpmLockfile("foo@1.0.0", MIRROR), "sha-base"),
+    );
+    github.addRepoFile(
+      REPO,
+      { path: LOCKFILE, ref: HEAD_1 },
+      buildRepoFile(makePnpmLockfile("foo@1.0.0", MIRROR), "sha-head"),
+    );
+
+    await makeTask({ github })(payload);
+
+    const reads = github
+      .listCalls("fetchRepoFile")
+      .map((call) => call.input as { path: string; ref?: string })
+      .filter((input) => input.path.startsWith(LOCKFILE));
+    expect(reads).toEqual([
+      expect.objectContaining({ path: LOCKFILE, ref: HEAD_1 }),
+    ]);
+    expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
+  });
+
+  it(
+    "flags a lockfile past the read cap without reading it",
+    async () => {
+      const { pr, payload } = await trigger(HEAD_1);
+      const paths = Array.from(
+        { length: LOCKFILES_PAST_CAP },
+        (_unused, index) => `pkg${index}/${LOCKFILE}`,
+      );
+      const diff = paths
+        .map((path) =>
+          [
+            `diff --git a/${path} b/${path}`,
+            `--- a/${path}`,
+            `+++ b/${path}`,
+            "@@ -1,2 +1,2 @@",
+            " lockfileVersion: '9.0'",
+            "-old",
+            "+new",
+            "",
+          ].join("\n"),
+        )
+        .join("");
+      const github = makeGitHub(HEAD_1);
+      github.addPullRequest(PR_REF, {
+        info: makePullRequestInfo(HEAD_1),
+        files: paths.map((path) => ({ path, additions: 1, deletions: 1 })),
+        diff,
+      });
+      for (const path of paths) {
+        for (const ref of [BASE, HEAD_1]) {
+          github.addRepoFile(
+            REPO,
+            { path, ref },
+            buildRepoFile(
+              makePnpmLockfile("foo@1.0.0", REGISTRY),
+              `sha-${ref}`,
+            ),
+          );
+        }
+      }
+      const pastCap = paths.at(-1);
+
+      await makeTask({ github })(payload);
+
+      const readPaths = github
+        .listCalls("fetchRepoFile")
+        .map((call) => (call.input as { path: string }).path);
+      expect(readPaths).not.toContain(pastCap);
+      expect(await readLockfileRisksAt(pr.id, pastCap)).toEqual([
+        CHANGES_PACKAGE_SOURCE,
+      ]);
+      expect(await readLockfileRisksAt(pr.id, paths[0])).toBeUndefined();
+    },
+    PAST_CAP_TIMEOUT_MS,
+  );
+});

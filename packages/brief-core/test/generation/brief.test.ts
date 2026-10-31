@@ -11,7 +11,7 @@ import type { GenerationWarning } from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github/types";
 import { RiskSurfaceAttributes, type Brief } from "../../src/types";
 import { FakeGenerator } from "../helpers";
-import { makePnpmLockfile, makeSides } from "./shortened/helpers";
+import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
 
 const OVER_CAP_SUMMARY = "s".repeat(300);
 const BILLING_ATTRIBUTE = "touches-billing";
@@ -703,14 +703,15 @@ describe("generateBrief, an anchored run", () => {
     const keepsHost = new Map([
       [
         lockfile,
-        makeSides(
+        summarizeTexts(
+          lockfile,
           makePnpmLockfile({
             "left-pad@1.3.0": "resolution: {integrity: sha512-a}",
           }),
           makePnpmLockfile({
             "left-pad@1.3.1": "resolution: {integrity: sha512-b}",
           }),
-        ),
+        )!,
       ],
     ]);
     const readLockFlags = (result: GenerateBriefOutput) =>
@@ -721,7 +722,7 @@ describe("generateBrief, an anchored run", () => {
     });
     const quiet = await runAnchored(revisedOutput, previous.brief, {
       pr: lockPr,
-      lockfiles: keepsHost,
+      lockfileSummaries: keepsHost,
     });
 
     expect(readLockFlags(previous)).toEqual([

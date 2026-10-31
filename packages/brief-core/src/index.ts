@@ -59,6 +59,11 @@ export {
 } from "./pr-stack";
 export { generateBrief } from "./generation/brief";
 export { countPullRequestSecrets } from "./generation/redaction";
+export {
+  listChangedLockfiles,
+  type ChangedLockfile,
+} from "./generation/package-sources";
+export { DiffFileStatuses } from "./diff/hunk-index/types";
 export type {
   GenerateBriefOptions,
   PreviousBriefInput,

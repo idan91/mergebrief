@@ -15,6 +15,7 @@ import type { CheckpointDeltasInputs } from "../types";
 import { getGenerationOrigin } from "../utils";
 import { warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
+import { readLockfileSummaries } from "./lockfile-summaries";
 import { resolveDeltaSpanDiff } from "./revision-artifacts";
 
 /**
@@ -105,6 +106,14 @@ export async function generateCheckpointDeltas(
 
     // oxlint-disable-next-line no-await-in-loop -- one shared load, memoized
     const { links, primaryTicket } = await inputs.loadContext();
+    // oxlint-disable-next-line no-await-in-loop -- one span's lockfiles at a time
+    const lockfileSummaries = await readLockfileSummaries(
+      source,
+      incrementalDiff,
+      { base: baselineSha, head: headSha },
+      log,
+      inputs.stops,
+    );
     const deltaInput: DeltaInput = {
       locator,
       meta,
@@ -115,6 +124,7 @@ export async function generateCheckpointDeltas(
       incrementalDiff,
       links,
       primaryTicket,
+      lockfileSummaries,
     };
     // Supersession gate and spend charge BEFORE each delta spend.
     // oxlint-disable-next-line no-await-in-loop

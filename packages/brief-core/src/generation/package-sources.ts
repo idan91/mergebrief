@@ -1,6 +1,11 @@
-import type { FileDiff } from "../diff/file-diff";
+import { splitDiffByFile, type FileDiff } from "../diff/file-diff";
+import { indexDiff } from "../diff/hunk-index";
+import {
+  DiffFileStatuses,
+  type DiffFileStatus,
+} from "../diff/hunk-index/types";
 import { RiskSurfaceAttributes, type UnattributedFile } from "../types";
-import { detectLockfile, summarizeLockfile } from "./shortened";
+import { detectLockfile } from "./shortened";
 import type {
   PackageChanges,
   PackageVersion,
@@ -8,8 +13,6 @@ import type {
 import { REGISTRY_HOST, toRegistryIdentity } from "./shortened/lockfiles/utils";
 import {
   LockfileFormats,
-  LockfileSideKinds,
-  type LockfileSides,
   type LockfileSummary,
   type PackageLockfileSummary,
 } from "./shortened/types";
@@ -21,11 +24,6 @@ const PUBLIC_REGISTRIES = [
   toRegistryIdentity("https://registry.npmjs.org"),
   toRegistryIdentity("https://registry.yarnpkg.com"),
 ];
-
-const UNAVAILABLE_SIDES: LockfileSides = {
-  before: { kind: LockfileSideKinds.UNAVAILABLE },
-  after: { kind: LockfileSideKinds.UNAVAILABLE },
-};
 
 /** Files that set the registry a lockfile names only by omission. */
 const REGISTRY_CONFIG_FILES: ReadonlySet<string> = new Set([
@@ -47,6 +45,14 @@ export interface PackageSourceContext {
 interface FiledChunk {
   readonly file: string;
   readonly riskSurface: readonly string[];
+}
+
+/** A pnpm, npm or yarn lockfile a diff changes, keyed as its chunks are. */
+export interface ChangedLockfile {
+  path: string;
+  status: DiffFileStatus;
+  /** The path at base, on a rename. */
+  previousPath?: string;
 }
 
 export interface PackageSourceFlags<Chunk extends FiledChunk> {
@@ -163,6 +169,8 @@ const GIT_CHAR_ESCAPES: Readonly<Record<string, string>> = {
 };
 const OCTAL_RADIX = 8;
 const HUNK_START = "@@";
+/** git ends a `---` or `+++` line with a TAB when its path holds a space. */
+const PATH_END_TAB = "\t";
 
 /** A path's file name, read through git's quoting: no lockfile or config name holds a quoted character. */
 function readBasename(path: string): string {
@@ -310,25 +318,6 @@ export function changesPackageSource(
 }
 
 /**
- * One summary per lockfile among `paths`, read from its contents in
- * `lockfiles`; a lockfile with no contents there reads as unavailable.
- */
-export function summarizeLockfiles(
-  paths: readonly string[],
-  lockfiles: ReadonlyMap<string, LockfileSides> | undefined,
-): Map<string, LockfileSummary> {
-  const summaries = new Map<string, LockfileSummary>();
-  for (const path of new Set(paths)) {
-    const sides = lockfiles?.get(path) ?? UNAVAILABLE_SIDES;
-    const summary = summarizeLockfile(path, sides);
-    if (summary !== undefined) {
-      summaries.set(path, summary);
-    }
-  }
-  return summaries;
-}
-
-/**
  * Case-folded, unlike the summary's exact name: npm, pnpm and yarn open a
  * lockfile in another case on a case-insensitive file system, and with no
  * summary under that name it fires as unread.
@@ -336,6 +325,75 @@ export function summarizeLockfiles(
 function isPackageLockfile(path: string): boolean {
   const format = detectLockfile(readFoldedBasename(path));
   return format !== undefined && format !== LockfileFormats.OTHER;
+}
+
+function trimPathEndTab(line: string): string {
+  return line.endsWith(PATH_END_TAB) ? line.slice(0, -1) : line;
+}
+
+/**
+ * Whether the patch's own `---`/`+++` lines, or its `rename to` line when it
+ * has none, name the path its `diff --git` header was read as. That header
+ * splits at the last ` b/`, which a path holding one misreads.
+ */
+function confirmsPath(
+  lockfile: ChangedLockfile,
+  headerLines: string[],
+): boolean {
+  const lines = new Set(headerLines.map(trimPathEndTab));
+  const basePath = lockfile.previousPath ?? lockfile.path;
+  const hasFileLines = headerLines.some((line) => line.startsWith("+++ "));
+  if (!hasFileLines) {
+    return lines.has(`rename to ${lockfile.path}`);
+  }
+  const headNamed =
+    lockfile.status === DiffFileStatuses.DELETED ||
+    lines.has(`+++ b/${lockfile.path}`);
+  const baseNamed =
+    lockfile.status === DiffFileStatuses.ADDED ||
+    lines.has(`--- a/${basePath}`);
+  return headNamed && baseNamed;
+}
+
+/** The lockfile one patch changes, or nothing when its path is not confirmed. */
+function readChangedLockfile(
+  path: string,
+  patch: string,
+): ChangedLockfile | undefined {
+  const [indexed] = indexDiff(patch);
+  if (indexed === undefined) {
+    return undefined;
+  }
+  const lockfile: ChangedLockfile = { path, status: indexed.status };
+  if (indexed.previousPath !== undefined) {
+    lockfile.previousPath = indexed.previousPath;
+  }
+  return confirmsPath(lockfile, indexed.headerLines) ? lockfile : undefined;
+}
+
+/**
+ * Every pnpm, npm or yarn lockfile `diff` changes whose path its patch
+ * confirms, for the rule to read. A path left out has no summary, so it
+ * fires; a path two patches share is left out, since chunks key by path.
+ */
+export function listChangedLockfiles(diff: string): ChangedLockfile[] {
+  const lockfiles = new Map<string, ChangedLockfile>();
+  const unconfirmed = new Set<string>();
+  for (const fileDiff of splitDiffByFile(diff)) {
+    if (!isPackageLockfile(fileDiff.file)) {
+      continue;
+    }
+    const lockfile = readChangedLockfile(fileDiff.file, fileDiff.patch);
+    const shared = lockfiles.has(fileDiff.file);
+    if (lockfile === undefined || shared) {
+      unconfirmed.add(fileDiff.file);
+      continue;
+    }
+    lockfiles.set(fileDiff.file, lockfile);
+  }
+  return [...lockfiles.values()].filter(
+    (lockfile) => !unconfirmed.has(lockfile.path),
+  );
 }
 
 /**

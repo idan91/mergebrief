@@ -55,6 +55,15 @@ function readCompare<Value>(
   return answerOk(value);
 }
 
+function readMergeBase(
+  world: FakeWorld,
+  span: CompareDiffRef,
+): FakeAnswer<string> {
+  const key = getCompareKey(span.base, span.head);
+  const compare = world.findRepo(span)?.compares.get(key);
+  return answerOk(compare?.mergeBase ?? span.base);
+}
+
 /** The arranged diff, refused as the real check refuses one short of its files. */
 function readCheckedCompareDiff(
   world: FakeWorld,
@@ -184,6 +193,15 @@ export function buildRepoReader(
         input,
         reach: { commits: [span.base, span.head] },
         answer: () => readCompare(world, input, (compare) => compare.files),
+      });
+    },
+    fetchMergeBase(span) {
+      const input = { ...span, ...bound };
+      return run({
+        operation: "fetchMergeBase",
+        input,
+        reach: { commits: [span.base, span.head] },
+        answer: () => readMergeBase(world, input),
       });
     },
     async fetchRepoFile(file) {

@@ -3,7 +3,7 @@ import type { AnchorPlan, CompareFiles } from "../../anchoring/types";
 import type { FetchedPr } from "../../github/types";
 import type { Brief, CommitRange } from "../../types";
 import type { RepoContext } from "../repo-context";
-import type { LockfileSides } from "../shortened/types";
+import type { LockfileSummary } from "../shortened/types";
 import type { GenerationWarning } from "../warnings/types";
 
 /** The brief a revision anchors on, plus what the plan reads about the push. */
@@ -29,8 +29,11 @@ export interface GenerateBriefOptions {
   readonly repoContext?: RepoContext | undefined;
   readonly log?: Logger;
   readonly previous?: PreviousBriefInput | undefined;
-  /** Each changed lockfile's full text at the PR's base and head, keyed by head path; a renamed one is read at base by its previous path. */
-  readonly lockfiles?: ReadonlyMap<string, LockfileSides> | undefined;
+  /**
+   * Each changed lockfile's package summary at the PR's base and head, keyed
+   * by head path. A lockfile missing here sets `changes-package-source`.
+   */
+  readonly lockfileSummaries?: ReadonlyMap<string, LockfileSummary> | undefined;
 }
 
 export interface BriefAnchoring {

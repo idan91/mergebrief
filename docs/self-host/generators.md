@@ -250,6 +250,10 @@ Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`. Prefer one
 worker and more slots: a slot is cheaper than a process. A second worker
 buys restart isolation, not throughput slots could not give you.
 
+A slot whose run reads a changed lockfile also forks one short-lived child
+process for it, its heap capped at 512 MB, so plan that much memory per
+slot on top of the provider's cost.
+
 What a slot costs depends on the provider class:
 
 - **API providers** (`anthropic`, `openai`, `openrouter`) hold one

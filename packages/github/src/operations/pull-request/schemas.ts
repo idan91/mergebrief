@@ -34,4 +34,8 @@ export const compareFilesSchema = z.object({
     .optional(),
 });
 
+export const compareMergeBaseSchema = z.object({
+  merge_base_commit: z.object({ sha: z.string().min(1) }),
+});
+
 export type OpenPullRequestRow = z.infer<typeof openPullRequestSchema>;

@@ -116,7 +116,13 @@
     "packages/repo-config": { "entry": ["src/index.ts"] },
     "packages/types": { "entry": ["src/index.ts"] },
     "apps/worker": {
-      "entry": ["src/index.ts", "src/main.ts", "src/instrument.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/main.ts",
+        "src/instrument.ts",
+        // Forked by path as the lockfile child process, never imported.
+        "src/task/generate/logic/lockfile-summaries/summary-child.ts",
+      ],
     },
     "tools/baselines": { "entry": ["src/main.ts"] },
     "tools/ingest-briefs": { "entry": ["src/index.ts", "src/main.ts"] },

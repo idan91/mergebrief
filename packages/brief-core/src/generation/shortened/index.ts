@@ -37,6 +37,16 @@ import {
   type ShortenedKind,
 } from "./types";
 
+export { LOCKFILE_MAX_BYTES } from "./consts";
+export { LockfileReadFailures } from "./lockfiles/types";
+export {
+  LockfileFormats,
+  LockfileSideKinds,
+  type LockfileSide,
+  type LockfileSides,
+  type LockfileSummary,
+} from "./types";
+
 const VERSION_TOKEN = /^[^\s\p{Cc}]{1,1024}$/u;
 
 const LOCKFILE_READERS: Record<PackageLockfileFormat, ReadLockfile> = {
@@ -126,7 +136,27 @@ export function summarizeLockfile(
   if (sides.before.kind !== LockfileSideKinds.ABSENT) {
     summary.baseHosts = listKnownHosts(before.value);
   }
-  return summary;
+  // A copy: a substring of the text pins the whole text while a summary lives.
+  return structuredClone(summary);
+}
+
+/**
+ * The summary of a lockfile whose read failed before its parsers ran, or
+ * whose parse could not finish, naming why; `other` and no summary as
+ * `summarizeLockfile` reads them.
+ */
+export function summarizeUnreadLockfile(
+  path: string,
+  failure: LockfileReadFailure,
+): LockfileSummary | undefined {
+  const format = detectLockfile(path);
+  if (format === undefined) {
+    return undefined;
+  }
+  if (format === LockfileFormats.OTHER) {
+    return { format };
+  }
+  return { format, unread: failure };
 }
 
 function listKnownHosts(entries: readonly LockfileEntry[]): string[] {

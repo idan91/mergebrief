@@ -12,7 +12,8 @@
     "./pr-url": "./src/github/pr-url.ts",
     "./gh-exec": "./src/github/exec.ts",
     "./remap": "./src/diff/remap.ts",
-    "./path-matching": "./src/path-matching.ts"
+    "./path-matching": "./src/path-matching.ts",
+    "./shortened": "./src/generation/shortened/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

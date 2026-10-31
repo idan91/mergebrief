@@ -15,6 +15,7 @@ import { GitHubAccountTypes } from "../../types";
 
 import {
   compareFilesSchema,
+  compareMergeBaseSchema,
   gitHubRepoSchema,
   openPullRequestListSchema,
   type OpenPullRequestRow,
@@ -268,6 +269,33 @@ export async function fetchCompareCommitCount(
       error: mapRequestError(error, "fetch compare commit count"),
     };
   }
+}
+
+/**
+ * The merge base of a `base...head` span: the commit a three-dot diff, the
+ * PR diff included, is taken from. `per_page: 1` keeps the response minimal.
+ */
+export async function fetchMergeBase(
+  octokit: Octokit,
+  ref: CompareDiffRef,
+): Promise<Result<string, GitHubApiError>> {
+  let body: unknown;
+  try {
+    const response = await octokit.rest.repos.compareCommitsWithBasehead({
+      owner: ref.owner,
+      repo: ref.repo,
+      basehead: `${ref.base}...${ref.head}`,
+      per_page: 1,
+    });
+    body = response.data;
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "fetch merge base") };
+  }
+  const parsed = compareMergeBaseSchema.safeParse(body);
+  if (!parsed.success) {
+    return { ok: false, error: unexpectedResponseError("fetch merge base") };
+  }
+  return { ok: true, value: parsed.data.merge_base_commit.sha };
 }
 
 /**

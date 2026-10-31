@@ -224,6 +224,8 @@ export interface RepoReader {
   ): GitHubCall<string>;
   /** Operator fallback: only when base and head are both known commits. */
   fetchCompareFiles(span: RepoScoped<CompareDiffRef>): GitHubCall<CompareFiles>;
+  /** Operator fallback: only when base and head are both known commits. */
+  fetchMergeBase(span: RepoScoped<CompareDiffRef>): GitHubCall<string>;
   /** Operator fallback: only at a known commit `ref`; never without one. */
   fetchRepoFile(
     input: RepoScoped<GetRepoFileInput>,

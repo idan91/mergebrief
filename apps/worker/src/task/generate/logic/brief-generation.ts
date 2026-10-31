@@ -27,6 +27,7 @@ import {
 import { decideAnchor } from "./anchor-decision";
 import { collectAllowedRiskNames, warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
+import { readLockfileSummaries } from "./lockfile-summaries";
 import { readEntryPostHead, throwOnClaimLost } from "./supersession-watch";
 import { replaceOnUnreadHead } from "./unread-head-entry";
 
@@ -83,6 +84,13 @@ export async function writeFreshBrief(
   if (primaryTicket !== undefined) {
     fetchedPr.primaryTicket = primaryTicket;
   }
+  const lockfileSummaries = await readLockfileSummaries(
+    source,
+    diff,
+    { base: prInfo.baseSha, head: headSha },
+    log,
+    inputs.stops,
+  );
   const secretKinds = countPullRequestSecrets(fetchedPr);
   if (Object.keys(secretKinds).length > 0) {
     log.debug("generate: secrets redacted from the prompt", { secretKinds });
@@ -100,6 +108,7 @@ export async function writeFreshBrief(
     repoContext: repoConfig?.repoContext,
     log: coreMessageLog,
     previous,
+    lockfileSummaries,
   };
   const { brief, anchoring } = await runGenerator(
     () => generateBrief(options),

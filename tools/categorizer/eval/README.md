@@ -98,6 +98,13 @@ case before believing a demotion.
   regexes match planted markers in fixture-authored ticket text, not
   free model text. A throwing predicate counts as a fail with a note.
   Empty lists are rejected.
+
+A fixture carries the diff, never a lockfile's full text at base and head,
+so the harness passes no lockfile contents and every changed pnpm, npm or
+yarn lockfile reads unread: its chunks carry `changes-package-source`
+whether or not a package moved. The worker reads both sides and flags a
+lockfile only for a real source change, so an eval property on that
+attribute over a lockfile measures the harness, not production.
 - `baseline.json`: pass counts from main, keyed `provider:model`.
   Cross-key comparison is refused; the committed key is the default
   config's, `claude-code:claude-opus-5-5`. Re-baselining is an explicit
