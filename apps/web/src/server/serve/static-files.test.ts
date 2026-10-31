@@ -7,7 +7,6 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { ETAG_HASH_LENGTH } from "./consts";
 import {
   indexStaticFiles,
-  readAcceptedCodings,
   serveStaticFiles,
   type StaticFiles,
 } from "./static-files";
@@ -152,15 +151,5 @@ describe("serveStaticFiles", () => {
 
     expect(unknownPath).toBeUndefined();
     expect(posted).toBeUndefined();
-  });
-});
-
-describe("readAcceptedCodings", () => {
-  it("keeps every listed coding and drops one weighted q=0", () => {
-    expect(readAcceptedCodings("gzip, br;q=0")).toEqual(new Set(["gzip"]));
-    expect(readAcceptedCodings("br;q=0.5, GZIP;q=1.0")).toEqual(
-      new Set(["br", "gzip"]),
-    );
-    expect(readAcceptedCodings("")).toEqual(new Set());
   });
 });

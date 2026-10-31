@@ -16,6 +16,7 @@ import { nameRequestSpan } from "logging";
 import { checkApiReadiness, handleHealthRequest } from "./server/health";
 import { getServerLogger } from "./server/logger";
 import { getApiTransport } from "./server/api/transport";
+import { compressDiffReply } from "./server/api/compression";
 import { apiUnavailable, requestApi } from "./server/api/proxy";
 import { answerInternalError } from "./server/json-answer";
 import { isRefusedPath } from "./server/refused-paths";
@@ -71,8 +72,10 @@ async function proxyToApi(
     return apiUnavailable(503);
   }
   // The raw request straight through: the exact bytes GitHub signed reach
-  // the webhook route's HMAC check unmodified.
-  return requestApi(stamped, transport);
+  // the webhook route's HMAC check unmodified. Only this browser hop
+  // compresses: an SSR read consumes its Response in process, undecoded.
+  const reply = await requestApi(stamped, transport);
+  return compressDiffReply(stamped, reply);
 }
 
 const serverEntry: ServerEntry = {

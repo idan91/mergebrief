@@ -7,6 +7,15 @@ const MINTED_ID = "00000000-0000-4000-8000-000000000001";
 
 const rendered = vi.hoisted(() => ({ requests: [] as Request[] }));
 
+vi.mock("./server/api/transport", () => ({
+  getApiTransport: () => ({}),
+}));
+
+vi.mock("./server/api/proxy", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  requestApi: () => Promise.resolve(new Response("+a\n", { status: 200 })),
+}));
+
 vi.mock("@tanstack/react-start/server", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   createStartHandler: () => (request: Request) => {
@@ -43,5 +52,17 @@ describe("server entry", () => {
       "web request failed",
       expect.objectContaining(failureFields),
     );
+  });
+
+  it("gzips a proxied diff read for a browser that accepts it", async () => {
+    const inbound = new Request("http://localhost/api/repos/1/pulls/2/diff", {
+      headers: { "accept-encoding": "gzip" },
+    });
+
+    const response = await serverEntry.fetch(inbound);
+
+    expect(response.headers.get("content-encoding")).toBe("gzip");
+    const body = response.body?.pipeThrough(new DecompressionStream("gzip"));
+    expect(await new Response(body).text()).toBe("+a\n");
   });
 });
