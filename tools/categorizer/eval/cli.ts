@@ -1,8 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod/v4";
 import {
   createGenerator,
+  Efforts,
   loadGeneratorConfigFile,
   Providers,
   type Effort,
@@ -11,7 +13,13 @@ import {
   type TokenUsage,
 } from "generators";
 import type { Result } from "types/utils";
-import { generateBrief, parseChangedRanges } from "brief-core";
+import {
+  CallPlanKinds,
+  decideCallPlan,
+  generateBrief,
+  parseChangedRanges,
+} from "brief-core";
+import { OutlineForms, type OutlineForm } from "brief-core/types";
 import { extractConfigFlag } from "../src/cli/config";
 import {
   BaselineModes,
@@ -44,9 +52,11 @@ import { withUsageSink } from "./usageSink";
 
 /**
  * `pnpm -C tools/categorizer eval`, the generation regression runner, taking
- * --config, --case, --runs, --rebaseline, --no-baseline and --prices. Exit 0 is
- * clean, 1 is at least one regression, 2 is a config or usage error. On-demand
- * only, never wired into CI, every run is live generation spend.
+ * --config, --case, --runs, --rebaseline, --no-baseline, --prices and the
+ * multi-call knobs (--force-multi-call, --force-outline, --effort-grouping,
+ * --effort-detail). Exit 0 is clean, 1 is at least one regression, 2 is a
+ * config or usage error. On-demand only, never wired into CI, every run is
+ * live generation spend.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -77,6 +87,41 @@ const SUBSCRIPTION_PROVIDERS: ReadonlySet<string> = new Set<Provider>([
   Providers.CURSOR,
 ]);
 const DEFAULT_RUNS = 5;
+const USAGE =
+  "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--no-baseline] [--pair-fresh] [--prices <json>] [--force-multi-call] [--force-outline <form>] [--effort-grouping <effort>] [--effort-detail <effort>]";
+
+/**
+ * Knobs that steer a single case's generation off the production path:
+ * the multi-call route, the outline form the grouping reads and the per-call
+ * efforts. A pair case runs unchanged. Never a baseline source.
+ */
+export interface GenerationKnobs {
+  forceMultiCall: boolean;
+  forcedOutlineForm?: OutlineForm;
+  groupingEffort?: Effort;
+  detailEffort?: Effort;
+}
+
+const OutlineFormSchema = z.enum(OutlineForms);
+const EffortSchema = z.enum(Efforts);
+
+type MultiCallOnlyFlag =
+  | "--force-outline"
+  | "--effort-grouping"
+  | "--effort-detail";
+type ValuedFlag = "--case" | "--runs" | "--prices" | MultiCallOnlyFlag;
+const VALUED_FLAGS: ReadonlySet<string> = new Set<ValuedFlag>([
+  "--case",
+  "--runs",
+  "--prices",
+  "--force-outline",
+  "--effort-grouping",
+  "--effort-detail",
+]);
+
+function isValuedFlag(flag: string): flag is ValuedFlag {
+  return VALUED_FLAGS.has(flag);
+}
 
 export interface EvalArgs {
   configPath: string | null;
@@ -96,6 +141,7 @@ export interface EvalArgs {
    * one that still passes is vacuous. Never combinable with --rebaseline.
    */
   pairFresh: boolean;
+  knobs: GenerationKnobs;
 }
 
 function parseRunsValue(value: string): Result<number, string> {
@@ -106,9 +152,54 @@ function parseRunsValue(value: string): Result<number, string> {
   return { ok: true, value: runs };
 }
 
-function resolveValuedFlag(
-  flag: "--case" | "--runs" | "--prices",
+function parseOutlineForm(value: string): Result<OutlineForm, string> {
+  const parsed = OutlineFormSchema.safeParse(value);
+  if (!parsed.success) {
+    const forms = Object.values(OutlineForms).join(", ");
+    return { ok: false, error: `--force-outline must be one of ${forms}` };
+  }
+  return { ok: true, value: parsed.data };
+}
+
+function parseEffortValue(
+  flag: "--effort-grouping" | "--effort-detail",
   value: string,
+): Result<Effort, string> {
+  const parsed = EffortSchema.safeParse(value);
+  if (!parsed.success) {
+    const efforts = Object.values(Efforts).join(", ");
+    return { ok: false, error: `${flag} must be one of ${efforts}` };
+  }
+  return { ok: true, value: parsed.data };
+}
+
+function resolveKnobFlag(
+  flag: MultiCallOnlyFlag,
+  value: string,
+  knobs: GenerationKnobs,
+): Result<GenerationKnobs, string> {
+  if (flag === "--force-outline") {
+    const form = parseOutlineForm(value);
+    if (!form.ok) {
+      return form;
+    }
+    return { ok: true, value: { ...knobs, forcedOutlineForm: form.value } };
+  }
+
+  const effort = parseEffortValue(flag, value);
+  if (!effort.ok) {
+    return effort;
+  }
+  if (flag === "--effort-grouping") {
+    return { ok: true, value: { ...knobs, groupingEffort: effort.value } };
+  }
+  return { ok: true, value: { ...knobs, detailEffort: effort.value } };
+}
+
+function resolveValuedFlag(
+  flag: ValuedFlag,
+  value: string,
+  knobs: GenerationKnobs,
 ): Result<Partial<EvalArgs>, string> {
   if (flag === "--case") {
     return { ok: true, value: { caseId: value } };
@@ -116,12 +207,108 @@ function resolveValuedFlag(
   if (flag === "--prices") {
     return { ok: true, value: { pricesPath: value } };
   }
-
-  const runs = parseRunsValue(value);
-  if (!runs.ok) {
-    return runs;
+  if (flag === "--runs") {
+    const runs = parseRunsValue(value);
+    if (!runs.ok) {
+      return runs;
+    }
+    return { ok: true, value: { runs: runs.value } };
   }
-  return { ok: true, value: { runs: runs.value } };
+
+  const resolved = resolveKnobFlag(flag, value, knobs);
+  if (!resolved.ok) {
+    return resolved;
+  }
+  return { ok: true, value: { knobs: resolved.value } };
+}
+
+/** The knobs that steer only a multi-call run, named by the flags that set them. */
+function listMultiCallOnlyFlags(knobs: GenerationKnobs): MultiCallOnlyFlag[] {
+  const flags: MultiCallOnlyFlag[] = [];
+  if (knobs.forcedOutlineForm !== undefined) {
+    flags.push("--force-outline");
+  }
+  if (knobs.groupingEffort !== undefined) {
+    flags.push("--effort-grouping");
+  }
+  if (knobs.detailEffort !== undefined) {
+    flags.push("--effort-detail");
+  }
+  return flags;
+}
+
+/** Every set knob as its flag reads on the command line, value included. */
+export function listKnobFlags(knobs: GenerationKnobs): string[] {
+  const flags: string[] = [];
+  if (knobs.forceMultiCall) {
+    flags.push("--force-multi-call");
+  }
+  if (knobs.forcedOutlineForm !== undefined) {
+    flags.push(`--force-outline ${knobs.forcedOutlineForm}`);
+  }
+  if (knobs.groupingEffort !== undefined) {
+    flags.push(`--effort-grouping ${knobs.groupingEffort}`);
+  }
+  if (knobs.detailEffort !== undefined) {
+    flags.push(`--effort-detail ${knobs.detailEffort}`);
+  }
+  return flags;
+}
+
+function hasGenerationKnob(knobs: GenerationKnobs): boolean {
+  return knobs.forceMultiCall || listMultiCallOnlyFlags(knobs).length > 0;
+}
+
+/**
+ * A stderr note for a case the call plan answers in one call while a knob
+ * that steers only a multi-call run is set; undefined when every knob takes
+ * effect. Printed before any spend and carried into the report, so a run
+ * whose knobs never applied cannot read as an experiment that ran.
+ */
+export function describeIdleKnobs(
+  caseId: string,
+  diff: string,
+  knobs: GenerationKnobs,
+): string | undefined {
+  const flags = listMultiCallOnlyFlags(knobs);
+  if (knobs.forceMultiCall || flags.length === 0) {
+    return undefined;
+  }
+  const plan = decideCallPlan({ diff });
+  if (plan.kind !== CallPlanKinds.SINGLE) {
+    return undefined;
+  }
+  return `note: ${caseId}: ${flags.join(", ")} steer only a multi-call run and the call plan answers this case in one call, so they have no effect here; add --force-multi-call to exercise them`;
+}
+
+/**
+ * Every stderr note on a knob that will not take effect: pair cases run on
+ * the production path, and a one-call single case ignores the multi-call
+ * knobs.
+ */
+function listIdleKnobNotes(
+  singleCases: readonly EvalCase[],
+  pairCases: readonly PairCase[],
+  knobs: GenerationKnobs,
+): string[] {
+  const notes: string[] = [];
+  if (pairCases.length > 0 && hasGenerationKnob(knobs)) {
+    notes.push(
+      "note: the multi-call knobs steer single cases only; pair cases run on the production path",
+    );
+  }
+
+  for (const evalCase of singleCases) {
+    const idle = describeIdleKnobs(
+      evalCase.id,
+      evalCase.fixture.pr.diff,
+      knobs,
+    );
+    if (idle !== undefined) {
+      notes.push(idle);
+    }
+  }
+  return notes;
 }
 
 export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
@@ -137,6 +324,7 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     noBaseline: false,
     pricesPath: join(here, "prices.json"),
     pairFresh: false,
+    knobs: { forceMultiCall: false },
   };
   while (rest.length > 0) {
     const flag = rest.shift();
@@ -146,12 +334,14 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
       args.noBaseline = true;
     } else if (flag === "--pair-fresh") {
       args.pairFresh = true;
-    } else if (flag === "--case" || flag === "--runs" || flag === "--prices") {
+    } else if (flag === "--force-multi-call") {
+      args.knobs = { ...args.knobs, forceMultiCall: true };
+    } else if (flag !== undefined && isValuedFlag(flag)) {
       const value = rest.shift();
       if (value === undefined || value.startsWith("-")) {
         return { ok: false, error: `${flag} needs a value` };
       }
-      const valued = resolveValuedFlag(flag, value);
+      const valued = resolveValuedFlag(flag, value, args.knobs);
       if (!valued.ok) {
         return valued;
       }
@@ -171,6 +361,13 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
       ok: false,
       error:
         "--no-baseline characterizes without a baseline; --rebaseline writes one — pick one",
+    };
+  }
+  if (args.rebaseline && hasGenerationKnob(args.knobs)) {
+    return {
+      ok: false,
+      error:
+        "the multi-call knobs steer generation off the production path and are never a baseline source",
     };
   }
   return { ok: true, value: args };
@@ -275,6 +472,7 @@ async function evaluateCase(
   evalCase: EvalCase,
   generator: Generator,
   effort: Effort,
+  knobs: GenerationKnobs,
   runs: number,
   key: string,
   baselineMode: BaselineMode,
@@ -292,6 +490,11 @@ async function evaluateCase(
       generator,
       effort,
       repoContext: fixture.repoContext,
+      gitAttributes: fixture.gitAttributes,
+      forceMultiCall: knobs.forceMultiCall,
+      forcedOutlineForm: knobs.forcedOutlineForm,
+      groupingEffort: knobs.groupingEffort,
+      detailEffort: knobs.detailEffort,
       multiCallHooks: {},
     });
     return generated.brief;
@@ -356,9 +559,7 @@ async function main(): Promise<void> {
   const parsed = parseEvalArgs(process.argv.slice(2));
   if (!parsed.ok) {
     console.error(parsed.error);
-    console.error(
-      "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--no-baseline] [--pair-fresh] [--prices <json>]",
-    );
+    console.error(USAGE);
     process.exit(2);
   }
   const args = parsed.value;
@@ -453,12 +654,17 @@ async function main(): Promise<void> {
 
   const outcomes: CaseOutcome[] = [];
   const skippedRebaselines: string[] = [];
+  const knobNotes = listIdleKnobNotes(singleCases, pairCases, args.knobs);
+  for (const note of knobNotes) {
+    console.error(note);
+  }
   for (const evalCase of singleCases) {
     // oxlint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
     const evaluated = await evaluateCase(
       evalCase,
       metered,
       generator.value.effort,
+      args.knobs,
       args.runs,
       key,
       baselineMode,
@@ -524,6 +730,8 @@ async function main(): Promise<void> {
     cases: outcomes,
     usage,
     costUsd,
+    knobs: listKnobFlags(args.knobs),
+    knobNotes,
   });
 
   mkdirSync(OUT_DIR, { recursive: true });

@@ -11,7 +11,26 @@ pnpm -C tools/categorizer eval --rebaseline    # rewrite baseline.json (review +
 pnpm -C tools/categorizer eval --no-baseline   # characterize a key with no committed baseline (cross-model runs)
 pnpm -C tools/categorizer eval --config <mergebrief.config.yaml>   # non-default generator (cross-key, so add --no-baseline)
 pnpm -C tools/categorizer eval --prices <json> # non-default price table
+pnpm -C tools/categorizer eval --case multi-package-types --force-multi-call   # a small case through the multi-call route
+pnpm -C tools/categorizer eval --case next-60530 --force-outline headers      # the grouping reads a fixed outline form
+pnpm -C tools/categorizer eval --effort-grouping high --effort-detail medium  # per-call efforts on a multi-call run
 ```
+
+The multi-call knobs (`--force-multi-call`, `--force-outline <form>`,
+`--effort-grouping <effort>`, `--effort-detail <effort>`) steer a single
+case's generation off the production path: `--force-multi-call` routes a
+PR the call plan would answer in one call through the grouping and detail
+calls; `--force-outline` fixes the outline form the grouping reads (`full`,
+`lines-40`, `lines-20`, `lines-12`, `lines-6`, `lines-2`, `headers`,
+`files`); the effort knobs set the grouping and detail calls' efforts,
+each falling back to the generator's effort. Pair cases run unchanged.
+On a case the call plan answers in one call, `--force-outline` and the
+effort knobs have no effect, and the CLI says so on stderr before any
+spend; add `--force-multi-call` to exercise them.
+A knobbed run compares against the committed baseline as usual but can
+never write one: `--rebaseline` refuses the combination. Its report names
+the knobs in the markdown header, the terminal lines and the JSON
+(`knobs`, `knobNotes`), so a pasted report shows it left the production path.
 
 The default generator is `mergebrief.eval.claude-code.yaml`:
 `claude-code:claude-opus-5-5`, billed to the subscription the local

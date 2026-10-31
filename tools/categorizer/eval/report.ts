@@ -56,6 +56,10 @@ export interface ReportInput {
   usage: InvocationUsage | null;
   /** Priced total, when the eval price config has a row for `key`. */
   costUsd: number | null;
+  /** The off-production knobs this invocation set, as their flags read. */
+  knobs?: readonly string[];
+  /** Notes on a set knob that a case ran without. */
+  knobNotes?: readonly string[];
 }
 
 /** `no-baseline` = property (or whole case) has nothing to compare against. */
@@ -84,6 +88,8 @@ export interface EvalReportJson {
   cases: CaseReportEntry[];
   usage: InvocationUsage | null;
   costUsd: number | null;
+  knobs: string[];
+  knobNotes: string[];
   regressions: number;
 }
 
@@ -113,6 +119,8 @@ export function buildReport(input: ReportInput): BuiltReport {
     cases,
     usage: input.usage,
     costUsd: input.costUsd,
+    knobs: [...(input.knobs ?? [])],
+    knobNotes: [...(input.knobNotes ?? [])],
     regressions,
   };
   const lines = renderLines(input, cases, regressions);
@@ -171,7 +179,7 @@ function renderLines(
   cases: CaseReportEntry[],
   regressions: number,
 ): string[] {
-  const lines: string[] = [];
+  const lines = listKnobLines(input);
   const propertyCount = cases.reduce((n, c) => n + c.properties.length, 0);
   let anythingLoud = false;
   for (const entry of cases) {
@@ -233,6 +241,17 @@ function renderLines(
   return lines;
 }
 
+function listKnobLines(input: ReportInput): string[] {
+  const knobs = input.knobs ?? [];
+  if (knobs.length === 0) {
+    return [];
+  }
+  return [
+    `knobs: ${knobs.join(", ")}, off the production path the baseline measures`,
+    ...(input.knobNotes ?? []),
+  ];
+}
+
 function describeRegressionOutcome(
   regressions: number,
   anythingLoud: boolean,
@@ -277,8 +296,10 @@ function renderMarkdown(
 ): string {
   void cases;
   void regressions;
+  const knobs = input.knobs ?? [];
+  const knobLabel = knobs.length > 0 ? `, knobs: ${knobs.join(", ")}` : "";
   return [
-    `### Eval report (${input.key})`,
+    `### Eval report (${input.key}${knobLabel})`,
     "",
     "```",
     ...terminalLines,

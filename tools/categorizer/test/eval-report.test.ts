@@ -190,4 +190,46 @@ describe("buildReport", () => {
     expect(report.terminal).toContain("2 generation failures");
     expect(report.terminal).toMatch(/insufficient-runs/i);
   });
+
+  it("names the knobs and their idle notes in every report form", () => {
+    const report = buildReport({
+      key: "anthropic:m",
+      billing: { kind: "api" },
+      cases: [outcome()],
+      usage: null,
+      costUsd: null,
+      knobs: ["--effort-grouping high"],
+      knobNotes: ["note: tiny: --effort-grouping steer only a multi-call run"],
+    });
+
+    expect(report.markdown.split("\n")[0]).toBe(
+      "### Eval report (anthropic:m, knobs: --effort-grouping high)",
+    );
+    expect(report.terminal).toContain(
+      "knobs: --effort-grouping high, off the production path the baseline measures",
+    );
+    expect(report.terminal).toContain(
+      "note: tiny: --effort-grouping steer only a multi-call run",
+    );
+    expect(report.json.knobs).toEqual(["--effort-grouping high"]);
+    expect(report.json.knobNotes).toEqual([
+      "note: tiny: --effort-grouping steer only a multi-call run",
+    ]);
+  });
+
+  it("keeps a production-path report free of knob lines", () => {
+    const report = buildReport({
+      key: "anthropic:m",
+      billing: { kind: "api" },
+      cases: [outcome()],
+      usage: null,
+      costUsd: null,
+    });
+
+    expect(report.markdown.split("\n")[0]).toBe(
+      "### Eval report (anthropic:m)",
+    );
+    expect(report.terminal).not.toContain("knobs:");
+    expect(report.json.knobs).toEqual([]);
+  });
 });

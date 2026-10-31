@@ -1,5 +1,5 @@
 import type { RevisionChangeFile } from "brief-core";
-import type { Brief, LineRange } from "brief-core/types";
+import { OutlineForms, type Brief, type LineRange } from "brief-core/types";
 import type { EvalProperty } from "../properties";
 
 /**
@@ -208,5 +208,16 @@ export function buildLockfileShortening(
           )
         );
       }),
+  };
+}
+
+/** The grouping call read an outline form: the case is too large for the full diff. */
+export function buildOutlineFormRead(): EvalProperty {
+  return {
+    id: "outline-form-read",
+    description: "the grouping call read an outline form, not the full diff",
+    check: (brief) =>
+      brief.outlineForm !== undefined &&
+      brief.outlineForm !== OutlineForms.FULL,
   };
 }

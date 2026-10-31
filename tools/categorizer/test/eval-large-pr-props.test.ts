@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { Brief, Chunk } from "brief-core/types";
+import { OutlineForms, type Brief, type Chunk } from "brief-core/types";
 import {
   buildLockfileShortening,
+  buildOutlineFormRead,
   buildPartitionProperties,
 } from "../eval/cases/large-pr-props";
 import type { EvalProperty } from "../eval/properties";
@@ -201,5 +202,22 @@ describe("buildLockfileShortening", () => {
 
     expect(property.check(makeBrief({ chunks: [fullRead] }))).toBe(false);
     expect(property.check(makeBrief({ chunks: [] }))).toBe(false);
+  });
+});
+
+describe("buildOutlineFormRead", () => {
+  const property = buildOutlineFormRead();
+
+  it("passes a brief grouped over an outline form", () => {
+    const brief = makeBrief({ outlineForm: OutlineForms.LINES_6 });
+
+    expect(property.check(brief)).toBe(true);
+  });
+
+  it("fails a brief grouped over the full diff or never grouped", () => {
+    const fullRead = makeBrief({ outlineForm: OutlineForms.FULL });
+
+    expect(property.check(fullRead)).toBe(false);
+    expect(property.check(makeBrief({}))).toBe(false);
   });
 });

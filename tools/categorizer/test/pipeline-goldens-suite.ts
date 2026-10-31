@@ -118,6 +118,7 @@ function makeOptions(
     generator,
     effort: EFFORT,
     repoContext: fixture.repoContext,
+    gitAttributes: fixture.gitAttributes,
     multiCallHooks: {},
   };
 }
