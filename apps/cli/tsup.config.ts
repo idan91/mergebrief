@@ -1,5 +1,6 @@
 // Single-file bundle: everything, commander, zod and the workspace packages
-// (`i18n`, `contract`, `types`) included, bundles into dist/mergebrief.js.
+// (`i18n`, `contract`, `types` and the brief-core leaves) included, bundles
+// into dist/mergebrief.js.
 // The shebang lives in src/bin.ts and survives the bundle.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

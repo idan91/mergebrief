@@ -64,6 +64,12 @@ describe("MarkReadyModal", () => {
     expect(jumpToFlag).toHaveBeenCalledWith(FLAGS[1]);
   });
 
+  it("names a flagged path with a bidi override by a visible escape", () => {
+    renderModal({ flags: [{ ...FLAGS[0]!, file: "src/\u202Etxt.exe" }] });
+
+    expect(screen.getByText("src/[U+202E]txt.exe")).toBeTruthy();
+  });
+
   it("marks ready anyway with ONE click", () => {
     const { markReadyAnyway, close } = renderModal();
     fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));

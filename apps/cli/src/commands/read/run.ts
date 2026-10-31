@@ -2,6 +2,7 @@
 // hunk filter), `delta`. Passthrough by default; `delta` is one of the
 // CLI-synthesized shapes. One command may make two API reads (`delta` =
 // pr-meta → delta; `diff --group` = brief + diff).
+import { formatDisplayPath, formatDisplayText } from "brief-core/hidden-chars";
 import { ProductOperations, ProductQueryIds } from "contract";
 import { z } from "zod/v4";
 import type { ApiClient } from "../../client";
@@ -287,9 +288,10 @@ export async function runDiff(
     if (filtered.missingFiles.length > 0) {
       // Fail LOUD: a silently under-shown group is worse than an error, the
       // brief and the live diff disagree about files.
+      const missingFiles = filtered.missingFiles.map(formatDisplayPath);
       throw new CliError(
         ExitCodes.GENERIC,
-        `group "${options.group}" references files missing from the live diff (${filtered.missingFiles.join(", ")}). The brief may lag a push; retry after regeneration`,
+        `group "${options.group}" references files missing from the live diff (${missingFiles.join(", ")}). The brief may lag a push; retry after regeneration`,
       );
     }
     text = filtered.diff;
@@ -402,10 +404,12 @@ export async function runCollaborators(
 // Minimal TTY renderings, explicitly NON-contractual.
 // ---------------------------------------------------------------------------
 
+/** A server field as a TTY line shows it: text escaped so it cannot drive the terminal. */
 function asDisplay(value: unknown): string {
-  return typeof value === "string" || typeof value === "number"
-    ? String(value)
-    : "?";
+  if (typeof value === "string") {
+    return formatDisplayText(value);
+  }
+  return typeof value === "number" ? String(value) : "?";
 }
 
 function renderPrList(bodyText: string, io: CommandIo): void {

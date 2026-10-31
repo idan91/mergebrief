@@ -463,6 +463,121 @@ describe("groups over a scripted api", () => {
   });
 });
 
+describe("TTY renderings over a scripted api", () => {
+  const SPOOFED_TITLE = "Fix \u202Etxt.exe \u001B[2Jgone";
+  const ESCAPED_TITLE = "Fix [U+202E]txt.exe [U+001B][2Jgone";
+
+  it("escapes a PR title's bidi override and terminal controls", async () => {
+    const result = await runCliOffline(["pr"], {
+      routes: [
+        {
+          method: "GET",
+          path: "/api/inbox",
+          body: JSON.stringify({
+            items: [
+              {
+                repoSlug: "acme/app",
+                prNumber: 7,
+                title: SPOOFED_TITLE,
+                state: "open",
+              },
+              {
+                repoSlug: "acme/app",
+                prNumber: 8,
+                title: "תיקון באג",
+                state: "open",
+              },
+            ],
+          }),
+        },
+      ],
+    });
+
+    expect(result.out).toBe(
+      `acme/app#7\t${ESCAPED_TITLE}\topen\nacme/app#8\tתיקון באג\topen\n`,
+    );
+  });
+
+  it("escapes a group title's bidi override and terminal controls", async () => {
+    const span = `base=${BASE_SHA}&head=${HEAD_SHA}`;
+    const pull = `/api/repos/${OFFLINE_REPO_ID}/pulls/7`;
+    const result = await runCliOffline(["groups", "7"], {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: pull,
+          body: JSON.stringify({
+            baseSha: BASE_SHA,
+            headSha: HEAD_SHA,
+            briefAvailable: true,
+            comparisons: {},
+          }),
+        },
+        {
+          method: "GET",
+          path: `${pull}/brief?${span}`,
+          body: JSON.stringify({
+            changeGroups: [{ id: "grp-1", title: SPOOFED_TITLE }],
+          }),
+        },
+      ],
+    });
+
+    expect(result.out).toBe(`grp-1\t${ESCAPED_TITLE}\n`);
+  });
+});
+
+describe("diff --group over a scripted api", () => {
+  function runMissingFiles(file: string) {
+    const span = `base=${BASE_SHA}&head=${HEAD_SHA}`;
+    const pull = `/api/repos/${OFFLINE_REPO_ID}/pulls/7`;
+    return runCliOffline(["diff", "7", "--group", "grp-1"], {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: pull,
+          body: JSON.stringify({
+            baseSha: BASE_SHA,
+            headSha: HEAD_SHA,
+            briefAvailable: true,
+            comparisons: {},
+          }),
+        },
+        {
+          method: "GET",
+          path: `${pull}/brief?${span}`,
+          body: JSON.stringify({
+            chunks: [
+              {
+                changeGroupId: "grp-1",
+                file,
+                addedRanges: [{ start: 1, end: 1 }],
+                removedRanges: [],
+              },
+            ],
+          }),
+        },
+        { method: "GET", path: `${pull}/diff?${span}`, body: RAW_DIFF },
+      ],
+    });
+  }
+
+  it("names a missing file with a bidi override by a visible escape", async () => {
+    const result = await runMissingFiles("src/\u202Etxt.exe");
+
+    expect(result.code).toBe(ExitCodes.GENERIC);
+    expect(result.err[0]).toContain("(src/[U+202E]txt.exe)");
+  });
+
+  it("names a missing Hebrew path as it is", async () => {
+    const result = await runMissingFiles("docs/שלום.md");
+
+    expect(result.err[0]).toContain("(docs/שלום.md)");
+  });
+});
+
 describe("groups on a head briefed only on a base the PR has left", () => {
   it("reads the brief at the meta's span", async () => {
     const paths: string[] = [];

@@ -156,6 +156,26 @@ describe("deriveUnresolvedItems", () => {
     ]);
   });
 
+  it("labels a path with a bidi override by a visible escape", () => {
+    const file = "src/\u202Etxt.exe";
+    const items = deriveUnresolvedItems(appI18n.t, {
+      chunks: [{ ...coreChunk, file }],
+      remainderChunks: [],
+      flags: [{ ...riskFlag, file }],
+      dispositions: {},
+      reviewedChunkIds: new Set(),
+      comments: [
+        { ...reviewComment, anchor: { ...reviewComment.anchor, file } },
+      ],
+    });
+
+    expect(items.map((item) => item.label)).toEqual([
+      "No tests @ src/[U+202E]txt.exe",
+      "src/[U+202E]txt.exe",
+      "src/[U+202E]txt.exe:+12",
+    ]);
+  });
+
   it("finds open risks and thin dismissal reasons", () => {
     expect(
       deriveUnresolvedItems(appI18n.t, {

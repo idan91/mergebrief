@@ -66,7 +66,7 @@ export function FileRow({
     const showReopen = kind === "dismissed" && !flagsReadOnly;
     const reopenLabel = t("brief.group.ariaLabelReopen", {
       attr: getRiskAttributeInlineLabel(t, flag.attr),
-      file: flag.file,
+      file: row.displayFile,
     });
     return { flag, dim, showReopen, reopenLabel };
   });
@@ -89,7 +89,7 @@ export function FileRow({
       ) : (
         <label className={styles["check"]}>
           <input
-            aria-label={t("brief.group.selectFile", { file: row.file })}
+            aria-label={t("brief.group.selectFile", { file: row.displayFile })}
             checked={allSelected}
             disabled={openIds.length === 0}
             suppressHydrationWarning
@@ -101,10 +101,10 @@ export function FileRow({
       <div className={styles["identity"]}>
         <LinkButton
           className={styles["path"]}
-          title={row.file}
+          title={row.displayFile}
           onClick={() => jumpToChunk(jumpChunkId)}
         >
-          <bdi dir="ltr">{row.file}</bdi>
+          <bdi dir="ltr">{row.displayFile}</bdi>
         </LinkButton>
       </div>
       <div className={styles["chipsRow"]}>

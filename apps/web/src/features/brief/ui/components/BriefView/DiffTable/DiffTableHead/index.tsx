@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import styles from "./DiffTableHead.module.scss";
@@ -19,6 +20,7 @@ export function DiffTableHead({
   overlayActive,
 }: DiffTableHeadProps) {
   const { t } = useTranslation();
+  const caption = t("brief.diff.caption", { file: formatDisplayPath(file) });
 
   return (
     <>
@@ -32,9 +34,7 @@ export function DiffTableHead({
           <col className={styles["code"]} />
         </colgroup>
       ) : null}
-      <ScreenReaderOnly as="caption">
-        {t("brief.diff.caption", { file })}
-      </ScreenReaderOnly>
+      <ScreenReaderOnly as="caption">{caption}</ScreenReaderOnly>
       <ScreenReaderOnly as="thead">
         <tr>
           <th aria-hidden={overlayActive ? undefined : true} scope="col">

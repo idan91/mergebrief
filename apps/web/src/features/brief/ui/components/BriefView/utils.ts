@@ -10,6 +10,7 @@ import {
   type ValueOf,
 } from "types";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import {
@@ -578,15 +579,16 @@ export function hasRemovedLines(narrative: RevisionNarrative | null): boolean {
 
 /** Each directory keeps its trailing slash, so a break can follow it. */
 export function splitFilePath(path: string): FilePathParts {
-  const cut = path.lastIndexOf("/") + 1;
+  const shown = formatDisplayPath(path);
+  const cut = shown.lastIndexOf("/") + 1;
   const directories: FilePathDirectory[] = [];
   let key = "";
 
-  for (const part of path.slice(0, cut).split("/").slice(0, -1)) {
+  for (const part of shown.slice(0, cut).split("/").slice(0, -1)) {
     key += `${part}/`;
     directories.push({ key, text: `${part}/` });
   }
-  return { directories, basename: path.slice(cut) };
+  return { directories, basename: shown.slice(cut) };
 }
 
 /** A missing review outranks a read-only one, which outranks a frozen session. */

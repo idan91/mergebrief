@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 
 import {
   getRepoConfigOutcomeLabel,
@@ -47,25 +48,28 @@ export function RepoConfigChip({ repoConfig }: RepoConfigChipProps) {
     const budgetLine = hasBudget
       ? t("brief.details.bytesUsed", { used: bytesUsed, budget: bytesBudget })
       : undefined;
-    return { file, outcomeLabel, shortBlobSha, budgetLine };
+    const displayPath = formatDisplayPath(file.path);
+    return { file, displayPath, outcomeLabel, shortBlobSha, budgetLine };
   });
 
   return (
     <RiskChipDisclosure
       detail={
         <span className={styles["table"]}>
-          {fileRows.map(({ file, outcomeLabel, shortBlobSha, budgetLine }) => (
-            <span className={styles["row"]} key={file.path}>
-              <code>{file.path}</code>
-              <span data-outcome={file.outcome}>{outcomeLabel}</span>
-              {shortBlobSha !== undefined ? (
-                <code>@ {shortBlobSha}</code>
-              ) : null}
-              {budgetLine !== undefined ? <span>{budgetLine}</span> : null}
-              {file.detail ? <i>{file.detail}</i> : null}
-              {file.warning ? <i>{file.warning}</i> : null}
-            </span>
-          ))}
+          {fileRows.map(
+            ({ file, displayPath, outcomeLabel, shortBlobSha, budgetLine }) => (
+              <span className={styles["row"]} key={file.path}>
+                <code>{displayPath}</code>
+                <span data-outcome={file.outcome}>{outcomeLabel}</span>
+                {shortBlobSha !== undefined ? (
+                  <code>@ {shortBlobSha}</code>
+                ) : null}
+                {budgetLine !== undefined ? <span>{budgetLine}</span> : null}
+                {file.detail ? <i>{file.detail}</i> : null}
+                {file.warning ? <i>{file.warning}</i> : null}
+              </span>
+            ),
+          )}
           {collisionsLine !== undefined ? (
             <span className={styles["row"]}>
               <i>{collisionsLine}</i>

@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { Markdown } from "@web/components/Markdown";
 import type {
   AddressedReviewComment,
@@ -33,14 +34,18 @@ export interface ReviewCommentsProps {
 
 export function ReviewComments({ comments, label }: ReviewCommentsProps) {
   const { t } = useTranslation();
+  const rows = comments.map((comment) => ({
+    comment,
+    displayFile: formatDisplayPath(comment.file),
+  }));
   return (
     <div className={styles["comments"]}>
-      {comments.map((comment) => (
+      {rows.map(({ comment, displayFile }) => (
         <details className={styles["comment"]} key={comment.id}>
           <summary>
             <span>@{comment.author}</span>
             <b>
-              {comment.file}
+              {displayFile}
               {addressedCommentRange(comment)}
             </b>
             <em>

@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { RiskSurfaceAttributes } from "brief-core/types";
 import { RiskBadge } from "../../RiskBadge";
 import styles from "./PackageSourceFiles.module.scss";
@@ -13,6 +14,10 @@ export interface PackageSourceFilesProps {
 export function PackageSourceFiles({ files }: PackageSourceFilesProps) {
   const { t } = useTranslation();
   const labelId = useId();
+  const fileRows = files.map((file) => ({
+    file,
+    displayFile: formatDisplayPath(file),
+  }));
   return (
     <section aria-labelledby={labelId}>
       <div className={styles["eyebrow"]} id={labelId}>
@@ -20,9 +25,9 @@ export function PackageSourceFiles({ files }: PackageSourceFilesProps) {
       </div>
       <p>{t("brief.delta.packageSourceFilesNote")}</p>
       <ul className={styles["files"]}>
-        {files.map((file) => (
+        {fileRows.map(({ file, displayFile }) => (
           <li key={file}>
-            <bdi>{file}</bdi>
+            <bdi>{displayFile}</bdi>
           </li>
         ))}
       </ul>

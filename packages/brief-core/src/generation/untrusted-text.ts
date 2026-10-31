@@ -1,5 +1,5 @@
 import { stripKnownFences, stripKnownProseFences } from "./fences";
-import { HIDDEN_CHARS } from "./hidden-chars";
+import { escapeHiddenCharacters, HIDDEN_CHARS } from "../hidden-chars";
 import { redactDiffSecrets, redactProseSecrets } from "./redaction";
 
 /** Up to the block a construct sits in, nested: block-quote markers, list markers, indent. */
@@ -199,11 +199,6 @@ function removeHiddenMarkup(text: string): string {
   return kept.join("");
 }
 
-function formatCodePoint(char: string): string {
-  const code = char.codePointAt(0) ?? 0;
-  return `[U+${code.toString(16).toUpperCase().padStart(4, "0")}]`;
-}
-
 export function removeHiddenCharacters(text: string): string {
   return text.replace(HIDDEN_CHARS, "");
 }
@@ -211,10 +206,6 @@ export function removeHiddenCharacters(text: string): string {
 /** Line breaks as Markdown reads them, so a line pattern sees every one. */
 export function normalizeLineBreaks(text: string): string {
   return text.replace(/\r\n?/g, "\n");
-}
-
-function escapeHiddenCharacters(text: string): string {
-  return text.replace(HIDDEN_CHARS, formatCodePoint);
 }
 
 /** For prose, the prompt and the quote corpus alike. */

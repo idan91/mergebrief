@@ -309,6 +309,16 @@ describe("RawSpanDiff toggle", () => {
     });
   });
 
+  it("names a file with a bidi override by a visible escape", async () => {
+    const body = DIFF.replaceAll("src/a.ts", "src/\u202Etxt.exe");
+    renderRaw(diffQuery("prev", "head", body));
+    fireEvent.click(toggleButton());
+
+    await waitFor(() => {
+      expect(screen.getByText("src/[U+202E]txt.exe")).toBeTruthy();
+    });
+  });
+
   it("anchors a comment on a right-side row to the chunk owning its line", async () => {
     const { container, openCommentComposer } = renderRaw(
       diffQuery("chk", "head"),

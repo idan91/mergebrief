@@ -74,7 +74,7 @@ const BRIEF_FIXTURES = "^apps/web/src/features/brief/test-utils/fixtures\\.ts$";
 // The files behind the leaf subpaths of brief-core and generators: what a
 // member other than the worker and the tools may name by value.
 const LEAF_SUBPATH_FILES = [
-  "^packages/brief-core/src/(types|path-matching)\\.ts$",
+  "^packages/brief-core/src/(types|path-matching|hidden-chars)\\.ts$",
   "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout)/",
   "^packages/brief-core/src/(github/pr-url|diff/remap)\\.ts$",
   "^packages/generators/src/contract/generation\\.ts$",
@@ -119,6 +119,14 @@ module.exports = {
         "The shared path matcher is in the browser bundle: it pulls in no runtime code. A type-only import is erased and stays legal.",
       severity: "error",
       from: { path: "^packages/brief-core/src/path-matching\\.ts$" },
+      to: { path: ".*", dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "hidden-chars-imports-nothing",
+      comment:
+        "The hidden-character escapes are in the browser bundle: they pull in no runtime code. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/hidden-chars\\.ts$" },
       to: { path: ".*", dependencyTypesNot: ["type-only"] },
     },
     {
@@ -258,6 +266,18 @@ module.exports = {
       severity: "error",
       from: { path: LEAF_SUBPATH_FILES },
       to: { reachable: true, path: GENERATION_GRAPH },
+    },
+    {
+      name: "cli-imports-only-brief-core-leaves",
+      comment:
+        "The CLI bundle inlines every import: of brief-core it takes only the two leaves that import nothing beyond types, type-only imports included.",
+      severity: "error",
+      from: { path: "^apps/cli/" },
+      to: {
+        path: "^packages/brief-core/",
+        pathNot:
+          "^packages/brief-core/src/(hidden-chars\\.ts$|diff/chunk-layout/)",
+      },
     },
     {
       name: "contract-imports-no-runtime",

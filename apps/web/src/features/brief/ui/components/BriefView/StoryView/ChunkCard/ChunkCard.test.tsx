@@ -259,6 +259,16 @@ describe("ChunkCard selectable file path", () => {
     expect(within(toggle).getByText(".npmrc").closest("bdi")?.dir).toBe("ltr");
   });
 
+  it("shows a bidi override in the path as a visible escape", () => {
+    renderCard({ chunk: { ...chunk, file: "src/\u202Etxt.exe" } });
+
+    const toggle = screen.getByTestId("chunk-toggle");
+    expect(within(toggle).getByText("src/[U+202E]txt.exe")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /copy file path/i }).title).toBe(
+      "src/[U+202E]txt.exe",
+    );
+  });
+
   it("copies the full file path without toggling the chunk", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {

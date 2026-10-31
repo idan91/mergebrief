@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 
 import type { Disposition } from "@web/features/review/session";
 import { LinkButton } from "@web/components/LinkButton";
@@ -30,7 +31,7 @@ export function ResolvedFlagItem({
   const showReopen = kind === "dismissed" && !flagsReadOnly;
   const reopenLabel = t("brief.group.ariaLabelReopen", {
     attr: getRiskAttributeInlineLabel(t, flag.attr),
-    file: flag.file,
+    file: formatDisplayPath(flag.file),
   });
   return (
     <span className={styles["resolvedItem"]}>

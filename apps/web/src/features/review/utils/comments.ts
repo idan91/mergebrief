@@ -1,4 +1,5 @@
 import { type DiffLine } from "@web/utils/diffTokens/types";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { RequestBounds } from "contract";
 import type { TFunction } from "i18next";
 
@@ -334,13 +335,13 @@ export function commentAnchorLabel(
       start: `${getSignForSide(anchor.startSide)}${anchor.startLine}`,
       end: `${sign}${anchor.endLine}`,
     });
-    return `${anchor.file} · ${range}`;
+    return `${formatDisplayPath(anchor.file)} · ${range}`;
   }
   const range =
     anchor.startLine === anchor.endLine
       ? `${sign}${anchor.startLine}`
       : `${sign}${anchor.startLine}-${anchor.endLine}`;
-  return `${anchor.file} · ${range}`;
+  return `${formatDisplayPath(anchor.file)} · ${range}`;
 }
 
 function lineForSide(

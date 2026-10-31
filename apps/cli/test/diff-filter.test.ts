@@ -150,6 +150,87 @@ describe("filterDiffByChunks", () => {
     expect(diff).toContain("rename to src/a.ts");
   });
 
+  it("matches a git-quoted path by the path it encodes", () => {
+    const spelling =
+      "packages/kit/test/apps/basics/src/routes/encoded/\\345\\217\\215\\345\\272\\224/+page.js";
+    const chunk: ChunkSpan = {
+      file: "packages/kit/test/apps/basics/src/routes/encoded/反应/+page.js",
+      addedRanges: [{ start: 2, end: 2 }],
+      removedRanges: [],
+    };
+    const input =
+      `diff --git "a/${spelling}" "b/${spelling}"\n` +
+      `--- "a/${spelling}"\n` +
+      `+++ "b/${spelling}"\n` +
+      hunk(1, 2, 1, 2, [
+        " export function load() {",
+        "-  return 1;",
+        "+  return 2;",
+      ]);
+
+    const { diff, missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+    expect(diff).toContain(`+++ "b/${spelling}"`);
+    expect(diff).toContain("+  return 2;");
+  });
+
+  it("matches a deleted git-quoted file by its old-side path", () => {
+    const chunk: ChunkSpan = {
+      file: "docs/反应.md",
+      addedRanges: [],
+      removedRanges: [{ start: 1, end: 1 }],
+    };
+    const input =
+      'diff --git "a/docs/\\345\\217\\215\\345\\272\\224.md" "b/docs/\\345\\217\\215\\345\\272\\224.md"\n' +
+      '--- "a/docs/\\345\\217\\215\\345\\272\\224.md"\n' +
+      "+++ /dev/null\n" +
+      hunk(1, 1, 0, 0, ["-gone"]);
+
+    const { missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+  });
+
+  it("keeps git's spelling for a quoted name that decodes to a control", () => {
+    const chunk: ChunkSpan = {
+      file: '"b/x\\ny"',
+      addedRanges: [{ start: 1, end: 1 }],
+      removedRanges: [],
+    };
+    const input =
+      'diff --git "a/x\\ny" "b/x\\ny"\n' +
+      '--- "a/x\\ny"\n' +
+      '+++ "b/x\\ny"\n' +
+      hunk(1, 1, 1, 1, ["-one", "+two"]);
+
+    const { missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+  });
+
+  it.each([
+    ["a control", "x\\ny"],
+    ["a bidi override", "src/\\342\\200\\256txt.exe"],
+    ["a byte that is no UTF-8", "docs/caf\\351.txt"],
+  ])("matches a deleted file whose quoted name holds %s", (_, spelling) => {
+    const chunk: ChunkSpan = {
+      file: `"b/${spelling}"`,
+      addedRanges: [],
+      removedRanges: [{ start: 1, end: 1 }],
+    };
+    const input =
+      `diff --git "a/${spelling}" "b/${spelling}"\n` +
+      `--- "a/${spelling}"\n` +
+      "+++ /dev/null\n" +
+      hunk(1, 1, 0, 0, ["-gone"]);
+
+    const { diff, missingFiles } = filterDiffByChunks(input, [chunk]);
+
+    expect(missingFiles).toEqual([]);
+    expect(diff).toContain("-gone");
+  });
+
   it("parses single-line hunks whose counts are omitted", () => {
     const chunk: ChunkSpan = {
       file: "src/d.ts",

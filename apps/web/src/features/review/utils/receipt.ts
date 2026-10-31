@@ -1,5 +1,6 @@
 import type { TranslationKey } from "i18n";
 import type { TFunction } from "i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import {
   OutlineForms,
   ShortenedReadings,
@@ -338,20 +339,21 @@ export function buildReceipt(
  * prints no side sign.
  */
 export function receiptCommentLabel(comment: ReceiptComment): string {
+  const file = formatDisplayPath(comment.file);
   if (comment.kind === CommentAnchorKinds.FILE) {
-    return comment.file;
+    return file;
   }
   const sign = comment.side === DiffSides.NEW ? "+" : "-";
   if (comment.startSide !== undefined && comment.startSide !== comment.side) {
     const startSign = comment.startSide === DiffSides.NEW ? "+" : "-";
-    const crossSideLabel = `${comment.file}:${startSign}${comment.startLine}→${sign}${comment.endLine}`;
+    const crossSideLabel = `${file}:${startSign}${comment.startLine}→${sign}${comment.endLine}`;
     return crossSideLabel;
   }
   const range =
     comment.startLine === comment.endLine
       ? `${sign}${comment.startLine}`
       : `${sign}${comment.startLine}-${comment.endLine}`;
-  const label = `${comment.file}:${range}`;
+  const label = `${file}:${range}`;
   return label;
 }
 
@@ -468,17 +470,18 @@ function renderDeEmphasisLine(
 
 /** The last path segment, which is how the receipt names a file. */
 export function shortFile(path: string): string {
-  const parts = path.split("/");
-  return parts.at(-1) ?? path;
+  const shown = formatDisplayPath(path);
+  return shown.split("/").at(-1) ?? shown;
 }
 
 function renderCommentLine(label: string, comment: ReceiptComment): string {
+  const file = formatDisplayPath(comment.file);
   if (comment.kind === CommentAnchorKinds.FILE) {
-    return `      ${label}: ${comment.file}: ${comment.firstLine}`;
+    return `      ${label}: ${file}: ${comment.firstLine}`;
   }
   const range =
     comment.endLine === comment.startLine ? "" : `-${comment.endLine}`;
-  return `      ${label}: ${comment.file}:${comment.startLine}${range}: ${comment.firstLine}`;
+  return `      ${label}: ${file}:${comment.startLine}${range}: ${comment.firstLine}`;
 }
 
 function renderProgressLines(receipt: Receipt): string[] {
@@ -519,7 +522,7 @@ function renderRepoConfigBlock(
       file.blobSha === null || file.blobSha === ""
         ? ""
         : ` @ ${file.blobSha.slice(0, 7)}`;
-    return `      ${file.path}: ${file.outcome}${sha}`;
+    return `      ${formatDisplayPath(file.path)}: ${file.outcome}${sha}`;
   });
   // The empty join is deliberate: a config with no files keeps the blank line
   // the frozen format has always emitted there.
@@ -575,7 +578,9 @@ function listGenerationLines(
     );
     if (files.length > 0) {
       lines.push(`      ${READ_AS_LINE_LABELS[readAs]}:`);
-      lines.push(...files.map((entry) => ({ file: entry.file })));
+      lines.push(
+        ...files.map((entry) => ({ file: formatDisplayPath(entry.file) })),
+      );
     }
   }
   return lines;

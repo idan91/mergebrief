@@ -14,6 +14,7 @@
     "./remap": "./src/diff/remap.ts",
     "./chunk-layout": "./src/diff/chunk-layout/index.ts",
     "./path-matching": "./src/path-matching.ts",
+    "./hidden-chars": "./src/hidden-chars.ts",
     "./shortened": "./src/generation/shortened/index.ts"
   },
   "scripts": {

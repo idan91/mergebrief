@@ -109,6 +109,17 @@ describe("buildConversationDigest", () => {
     expect(groups[0]?.chunkId).toBe("c1");
   });
 
+  it("labels a chunk group by its path with hidden characters escaped", () => {
+    const file = "src/\u202Etxt.exe";
+    const groups = buildConversationDigest(t, {
+      conversation: conversation([thread({ path: file, line: 10 })]),
+      chunks: [chunk("c9", file)],
+      ownThreadIds: new Set(),
+    });
+
+    expect(groups[0]?.label).toBe("src/[U+202E]txt.exe");
+  });
+
   it("sorts unresolved before resolved within a group, then reading order", () => {
     const resolved = thread({ line: 10, isResolved: true });
     const openLate = thread({ line: 12 });

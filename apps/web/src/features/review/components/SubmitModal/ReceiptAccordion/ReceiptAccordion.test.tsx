@@ -188,6 +188,15 @@ describe("ReceiptAccordion", () => {
     expect(screen.getByText("Race on refresh.")).toBeTruthy();
   });
 
+  it("anchors a comment on a path with a bidi override by an escape", () => {
+    const [first] = receipt().comments;
+    renderAccordion({
+      comments: [{ ...first!, file: "src/\u202Etxt.exe" }],
+    });
+
+    expect(screen.getByText("src/[U+202E]txt.exe:+3-5")).toBeTruthy();
+  });
+
   it("shows the empty-comments copy when nothing is drafted", () => {
     renderAccordion({ comments: [] });
     expect(screen.getByText(/no draft comments in this preview/i)).toBeTruthy();

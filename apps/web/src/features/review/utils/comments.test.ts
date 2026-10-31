@@ -238,6 +238,21 @@ describe("postCommentBlockedReason", () => {
 });
 
 describe("commentAnchorLabel", () => {
+  it("shows a bidi override in the file as a visible escape", () => {
+    expect(
+      commentAnchorLabel(t, {
+        kind: CommentAnchorKinds.LINE,
+        chunkId: "c1",
+        file: "src/\u202Etxt.exe",
+        side: DiffSides.NEW,
+        startLine: 4,
+        endLine: 4,
+        rowIds: [],
+        selectedText: "",
+      }),
+    ).toBe("src/[U+202E]txt.exe · +4");
+  });
+
   it("includes the file and selected line range", () => {
     expect(
       commentAnchorLabel(t, {

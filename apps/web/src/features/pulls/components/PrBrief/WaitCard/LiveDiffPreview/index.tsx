@@ -10,6 +10,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 
 import { DiffRows } from "@web/components/DiffRows";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
@@ -133,10 +134,11 @@ const FileDisclosure = memo(function FileDisclosure({
   const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
     onToggle(file, event.currentTarget.open);
   };
+  const displayFile = formatDisplayPath(file);
 
   return (
     <details className={styles["diffFile"]} onToggle={handleToggle} open={open}>
-      <summary>{file}</summary>
+      <summary>{displayFile}</summary>
       <FileDiffTable file={file} open={open} rows={rows} />
     </details>
   );
@@ -164,12 +166,11 @@ function FileDiffTable({ file, rows, open }: FileDiffTableProps) {
   });
   const tokensByRow =
     tokens.status === ChunkTokenStatuses.READY ? tokens.tokensByRow : undefined;
+  const caption = t("brief.diff.caption", { file: formatDisplayPath(file) });
 
   return (
     <table className={styles["diffTable"]}>
-      <ScreenReaderOnly as="caption">
-        {t("brief.diff.caption", { file })}
-      </ScreenReaderOnly>
+      <ScreenReaderOnly as="caption">{caption}</ScreenReaderOnly>
       <ScreenReaderOnly as="thead">
         <tr>
           <th scope="col">{t("brief.diff.colOld")}</th>

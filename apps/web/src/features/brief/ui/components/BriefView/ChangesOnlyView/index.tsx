@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { useCallback, useEffect, useMemo } from "react";
 import {
   Concerns,
@@ -494,13 +495,14 @@ export interface CardHeadProps {
 
 function CardHead({ describedBy, file, jumpToChunk, ownerId }: CardHeadProps) {
   const { t } = useTranslation();
+  const displayFile = formatDisplayPath(file);
   return (
     <div className={styles["chunkHead"]}>
-      <div className={styles["chunkFile"]}>{file}</div>
+      <div className={styles["chunkFile"]}>{displayFile}</div>
       {ownerId === undefined ? null : (
         <IconButton
           aria-describedby={describedBy}
-          aria-label={t("brief.changes.showInFullAria", { file })}
+          aria-label={t("brief.changes.showInFullAria", { file: displayFile })}
           callout="right"
           className={styles["chunkJump"]}
           label={t("brief.changes.showInFull")}

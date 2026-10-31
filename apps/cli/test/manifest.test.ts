@@ -18,6 +18,7 @@ const manifest: {
 describe("the published manifest", () => {
   it("lists exactly the bundled runtime deps, which the stamp strips", () => {
     expect(Object.keys(manifest.dependencies ?? {})).toEqual([
+      "brief-core",
       "commander",
       "contract",
       "i18n",

@@ -1,5 +1,5 @@
 import type { FetchedPr } from "../../github/types";
-import { HIDDEN_CHARS } from "../hidden-chars";
+import { HIDDEN_CHARS } from "../../hidden-chars";
 import {
   HUNK_HEADER_RANGES,
   KEY_ARMOR_LINE,

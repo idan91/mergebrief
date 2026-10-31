@@ -1,6 +1,7 @@
 // Bot groups collapse but remain accessible; sorting never uses their stated severity.
 // Outdated threads need revision labels because anchor-time coordinates are untrusted.
 // Unanchored fresh threads and PR-level comments belong in the general group.
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import type { PrLevelCommentView } from "contract";
 import { ReviewCommentSides, type Mutable, type ValueOf } from "types";
 import type { BriefChunk } from "../../brief/model";
@@ -265,7 +266,7 @@ function collectDigestGroups(
     groups.push({
       id: `chunk:${chunk.id}`,
       kind: DigestGroupKinds.CHUNK,
-      label: chunk.file,
+      label: formatDisplayPath(chunk.file),
       chunkId: chunk.id,
       rows: toRows(rows.toSorted(compareRows)),
     });

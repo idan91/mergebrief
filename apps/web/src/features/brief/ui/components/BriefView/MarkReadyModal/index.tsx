@@ -8,6 +8,7 @@
 // and records nothing. The zero-flag bypass lives in the caller: the modal
 // shows iff flags exist.
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { Button } from "@web/components/Button";
 import { LinkButton } from "@web/components/LinkButton";
 import { RowButton } from "@web/components/RowButton";
@@ -86,6 +87,7 @@ export function MarkReadyModal({
   });
   const flagRows = flags.map((flag) => ({
     flag,
+    displayFile: formatDisplayPath(flag.file),
     attributeLabel: getRiskAttributeLabel(t, flag.attr),
     caption: buildRepoPolicyCaption(t, flag),
   }));
@@ -109,7 +111,7 @@ export function MarkReadyModal({
             {t("pulls.markReadyModal.advisoryFlags")}
           </p>
           <div className={styles["unresolvedList"]}>
-            {flagRows.map(({ flag, attributeLabel, caption }) => (
+            {flagRows.map(({ flag, displayFile, attributeLabel, caption }) => (
               <RowButton
                 disabled={busy}
                 key={flag.id}
@@ -122,7 +124,7 @@ export function MarkReadyModal({
                 >
                   {attributeLabel}
                 </span>
-                <b>{flag.file}</b>
+                <b>{displayFile}</b>
                 {caption === undefined ? null : (
                   <i data-kind="risk-caption">{caption}</i>
                 )}

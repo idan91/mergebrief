@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { Roles } from "brief-core/types";
 import { AttentionItemKinds, type AttentionItemKind } from "contract";
 import {
@@ -143,7 +144,10 @@ export function riskEvidenceLabel(
   }
   if (evidence.kind === DispositionEvidenceKinds.CHUNK_REVIEWED) {
     const chunk = chunks.find((item) => item.id === evidence.chunkId);
-    const file = chunk?.file ?? t("review.summary.evidenceSelectedChunk");
+    const file =
+      chunk === undefined
+        ? t("review.summary.evidenceSelectedChunk")
+        : formatDisplayPath(chunk.file);
     return t(
       "review.summary.evidenceChunkReviewed",
       addLabelContext({ file }, context),
@@ -171,7 +175,7 @@ export function deriveUnresolvedItems(
     const disposition = input.dispositions[flag.id] ?? {
       kind: DispositionKinds.OPEN,
     };
-    const label = `${getRiskAttributeLabel(t, flag.attr)} @ ${flag.file}`;
+    const label = `${getRiskAttributeLabel(t, flag.attr)} @ ${formatDisplayPath(flag.file)}`;
     if (disposition.kind === DispositionKinds.OPEN) {
       items.push({
         id: `risk:${flag.id}`,
@@ -214,7 +218,7 @@ export function deriveUnresolvedItems(
       items.push({
         id: `core:${chunk.id}`,
         kind: UnresolvedItemKinds.UNREVIEWED_CORE,
-        label: chunk.file,
+        label: formatDisplayPath(chunk.file),
         targetId: chunk.id,
       });
     }
@@ -227,7 +231,7 @@ export function deriveUnresolvedItems(
     items.push({
       id: `remainder:${chunk.id}`,
       kind: UnresolvedItemKinds.UNREVIEWED_REMAINDER,
-      label: chunk.file,
+      label: formatDisplayPath(chunk.file),
       targetId: chunk.id,
     });
   }
@@ -412,10 +416,11 @@ function hasDraftMovedFromAttention(
 function formatAttentionLocationLabel(
   location: KnownAttentionItem["location"],
 ): string {
+  const filePath = formatDisplayPath(location.filePath);
   if (location.kind === CommentAnchorKinds.FILE) {
-    return location.filePath;
+    return filePath;
   }
-  const lineLabel = `${location.filePath}:${String(location.startLine)}`;
+  const lineLabel = `${filePath}:${String(location.startLine)}`;
   return lineLabel;
 }
 
@@ -451,12 +456,12 @@ function buildCarriedDispositionItem(
   return {
     id: `carried:${item.kind}:${pending.id}`,
     kind: item.kind,
-    label: `${getRiskAttributeLabel(t, pending.attr)} @ ${pending.file}`,
+    label: `${getRiskAttributeLabel(t, pending.attr)} @ ${formatDisplayPath(pending.file)}`,
     targetId: pending.chunkId,
     clearedBy: item.clearedBy,
     actionTargetId: pending.id,
     unplaceable: false,
-    locationLabel: pending.file,
+    locationLabel: formatDisplayPath(pending.file),
     attribute: pending.attr,
   };
 }
@@ -523,19 +528,20 @@ export function isThinReason(reason: string): boolean {
 
 export function commentLocation(comment: ReviewComment): string {
   const { anchor } = comment;
+  const file = formatDisplayPath(anchor.file);
   if (isFileCommentAnchor(anchor)) {
-    return anchor.file;
+    return file;
   }
   const sign = anchor.side === DiffSides.NEW ? "+" : "-";
   if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
     const startSign = anchor.startSide === DiffSides.NEW ? "+" : "-";
-    const crossSideLabel = `${anchor.file}:${startSign}${anchor.startLine}→${sign}${anchor.endLine}`;
+    const crossSideLabel = `${file}:${startSign}${anchor.startLine}→${sign}${anchor.endLine}`;
     return crossSideLabel;
   }
   const range =
     anchor.startLine === anchor.endLine
       ? `${sign}${anchor.startLine}`
       : `${sign}${anchor.startLine}-${anchor.endLine}`;
-  const label = `${anchor.file}:${range}`;
+  const label = `${file}:${range}`;
   return label;
 }

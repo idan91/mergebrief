@@ -4,6 +4,13 @@
 // `addedRanges` join the hunk's NEW side, `removedRanges` its OLD side. Chunk
 // files absent from the diff are reported so the command can fail loud rather
 // than silently under-show.
+import {
+  HUNK_HEADER,
+  parsePatchPaths,
+  POST_SIDE_PREFIX,
+  PRE_SIDE_PREFIX,
+  readGitPath,
+} from "brief-core/chunk-layout";
 
 /** The slice of a brief chunk the filter needs (new-side file path). */
 export interface ChunkSpan {
@@ -35,18 +42,16 @@ interface FileSection {
   readonly hunks: Hunk[];
 }
 
-const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
-
-function parsePath(line: string, prefix: string): string | undefined {
+/** The path a `---` or `+++` line names past `side`, git's C-quoting decoded; `/dev/null` names none. */
+function parsePath(
+  line: string,
+  prefix: string,
+  side: string,
+): string | undefined {
   if (!line.startsWith(prefix)) {
     return undefined;
   }
-  const raw = line.slice(prefix.length).trimEnd();
-  if (raw === "/dev/null") {
-    return undefined;
-  }
-  // Strip the a/ | b/ prefix git puts on both sides.
-  return raw.replace(/^[ab]\//, "");
+  return readGitPath(line.slice(prefix.length).trimEnd(), side);
 }
 
 function parseSections(diffText: string): FileSection[] {
@@ -100,11 +105,11 @@ function parseSections(diffText: string): FileSection[] {
     }
     // Still in the file header.
     current.header.push(line);
-    const newPath = parsePath(line, "+++ ");
+    const newPath = parsePath(line, "+++ ", POST_SIDE_PREFIX);
     if (newPath !== undefined) {
       current.newPath = newPath;
     } else if (current.newPath === undefined) {
-      const oldPath = parsePath(line, "--- ");
+      const oldPath = parsePath(line, "--- ", PRE_SIDE_PREFIX);
       if (oldPath !== undefined) {
         current.newPath = oldPath; // deletion: /dev/null new side
       }
@@ -112,6 +117,18 @@ function parseSections(diffText: string): FileSection[] {
   }
   closeHunk();
   return sections;
+}
+
+/**
+ * The path the brief's chunks name this file by: its header's post path, as
+ * the brief's own split reads it. A name git keeps quoted spells its `---`
+ * line with `a/` and its header's post side with `b/`.
+ */
+function readChunkPath(section: FileSection): string | undefined {
+  if (section.newPath === undefined) {
+    return undefined;
+  }
+  return parsePatchPaths(section.header.join("\n"))?.post ?? section.newPath;
 }
 
 function rangesIntersect(
@@ -149,12 +166,13 @@ export function filterDiffByChunks(
   const out: string[] = [];
 
   for (const section of sections) {
+    const chunkPath = readChunkPath(section);
     const fileChunks =
-      section.newPath === undefined ? undefined : byFile.get(section.newPath);
-    if (fileChunks === undefined || section.newPath === undefined) {
+      chunkPath === undefined ? undefined : byFile.get(chunkPath);
+    if (fileChunks === undefined || chunkPath === undefined) {
       continue;
     }
-    seenFiles.add(section.newPath);
+    seenFiles.add(chunkPath);
     const kept = section.hunks.filter((h) =>
       fileChunks.some(
         (chunk) =>

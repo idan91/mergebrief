@@ -1,9 +1,11 @@
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import type { Disposition } from "@web/features/review/session";
 import type { BriefChunk } from "../../../../../../model/types";
 import type { RiskFlag } from "../../../../../../model/utils/view-model";
 
 export interface FileFlagRow {
   file: string;
+  displayFile: string;
   flags: RiskFlag[];
   openFlags: RiskFlag[];
   resolvedFlags: RiskFlag[];
@@ -50,6 +52,7 @@ export function groupFlagsByFile(
     );
     rows.push({
       file,
+      displayFile: formatDisplayPath(file),
       flags: fileFlags,
       openFlags,
       resolvedFlags,

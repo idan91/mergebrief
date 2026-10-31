@@ -256,6 +256,25 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     ).toContain("No .mergebrief configuration");
   });
 
+  it("Repo config rows show a bidi override in a path as an escape", () => {
+    renderPanel(baseBrief, {
+      files: [
+        {
+          path: ".mergebrief/\u202Edm.instructions",
+          blobSha: "a1",
+          outcome: "applied",
+        },
+      ],
+      collisions: [],
+      policy: null,
+    });
+    fireEvent.click(infoTrigger());
+
+    expect(
+      screen.getByText(".mergebrief/[U+202E]dm.instructions"),
+    ).toBeTruthy();
+  });
+
   it("Repo config rows show file, applied and warning, never bytes or sha", () => {
     renderPanel(baseBrief, {
       files: [

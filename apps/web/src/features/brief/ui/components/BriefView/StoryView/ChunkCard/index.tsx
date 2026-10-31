@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { memo, useMemo, useRef } from "react";
 import { resolveFileStatus } from "brief-core/chunk-layout";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 
 import { CopyButton } from "@web/components/CopyButton";
 import { IconButton } from "@web/components/IconButton";
@@ -244,8 +245,9 @@ export const ChunkCard = memo(function ChunkCard({
     chunkTokens.status === ChunkTokenStatuses.READY
       ? chunkTokens.tokensByRow
       : undefined;
+  const displayFile = formatDisplayPath(chunk.file);
   const addFileCommentLabel = t("brief.chunk.ariaLabelAddFileComment", {
-    file: chunk.file,
+    file: displayFile,
   });
 
   const riskChips = riskChipView(chunk.riskSurface);
@@ -350,13 +352,14 @@ export const ChunkCard = memo(function ChunkCard({
             />
           </span>
           <span className={styles["file"]}>
-            <bdi dir="ltr">{chunk.file}</bdi>
+            <bdi dir="ltr">{displayFile}</bdi>
           </span>
         </button>
         <CopyButton
           className={styles["copyPath"]}
           label={t("brief.chunk.copyFilePath")}
           text={chunk.file}
+          title={displayFile}
         />
         {shareChunk !== undefined ? (
           <CopyButton
@@ -442,7 +445,7 @@ export const ChunkCard = memo(function ChunkCard({
             onChange={() => markReviewed(chunk.id)}
           />
           <span>{t("brief.chunk.viewed")}</span>
-          <ScreenReaderOnly>{` ${chunk.file}`}</ScreenReaderOnly>
+          <ScreenReaderOnly>{` ${displayFile}`}</ScreenReaderOnly>
         </label>
         <IconButton
           aria-label={addFileCommentLabel}
@@ -461,7 +464,7 @@ export const ChunkCard = memo(function ChunkCard({
       {!open && large ? (
         <LargeChunkNotice
           className={styles["notice"]}
-          file={chunk.file}
+          file={displayFile}
           changedLines={changedLines}
           showDiff={() => {
             toggleChunk(chunk.id);

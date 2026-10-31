@@ -4,6 +4,7 @@
 // or revision resets it to off. The span diff is fetched when the toggle
 // first opens.
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import { useReviewActions, useReviewFlow } from "@web/features/review/session";
 import { useQuery } from "@tanstack/react-query";
@@ -189,6 +190,7 @@ function SpanFile({ chunk, openByDefault, review }: SpanFileProps) {
   const hostsComposer = useReviewFlow(
     (state) => state.composerHost === chunk.id,
   );
+  const displayFile = formatDisplayPath(chunk.file);
   const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
     if (!event.currentTarget.open && hostsComposer) {
       cancelComposer();
@@ -201,7 +203,7 @@ function SpanFile({ chunk, openByDefault, review }: SpanFileProps) {
       onToggle={handleToggle}
       open={openByDefault}
     >
-      <summary className={styles["fileName"]}>{chunk.file}</summary>
+      <summary className={styles["fileName"]}>{displayFile}</summary>
       <GuestDiff
         chunk={chunk}
         review={review}

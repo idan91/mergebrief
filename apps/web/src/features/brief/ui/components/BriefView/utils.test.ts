@@ -856,6 +856,17 @@ describe("splitFilePath", () => {
     });
   });
 
+  it("shows a bidi override in a path as a visible escape", () => {
+    expect(splitFilePath("src/\u202Etxt.exe")).toEqual({
+      directories: [{ key: "src/", text: "src/" }],
+      basename: "[U+202E]txt.exe",
+    });
+  });
+
+  it("keeps Hebrew letters in a path as they are", () => {
+    expect(splitFilePath("docs/שלום.md").basename).toBe("שלום.md");
+  });
+
   it("has no directory parts for a root file", () => {
     expect(splitFilePath("README.md")).toEqual({
       directories: [],

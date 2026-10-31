@@ -20,6 +20,7 @@ import {
 export { HUNK_HEADER } from "./consts";
 export { resolveFileStatus } from "./logic/file-status";
 export { findExpansionGaps } from "./logic/gaps";
+export { parsePatchPaths, readGitPath } from "./logic/header-paths";
 export { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./logic/parse";
 export { readRowRuns } from "./logic/row-runs";
 export { sliceChunkDiff } from "./logic/slice";
@@ -27,6 +28,8 @@ export { countSplitRows } from "./logic/split-rows";
 export {
   CHUNK_ROW_RUNS,
   LINE_WIDTH_BUCKET_EDGES,
+  POST_SIDE_PREFIX,
+  PRE_SIDE_PREFIX,
   SLICE_CONTEXT_ROWS,
 } from "./consts";
 export {

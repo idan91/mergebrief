@@ -105,6 +105,17 @@ describe("RiskSurface chooser", () => {
     expect(screen.queryByText(/attributes, not verdicts/)).toBeNull();
   });
 
+  it("shows a bidi override in a flagged path as a visible escape", () => {
+    const [core, ...rest] = briefFixture.chunks;
+    renderSurface({
+      ...briefFixture,
+      chunks: [{ ...core!, file: "src/\u202Etxt.exe" }, ...rest],
+    });
+
+    const row = screen.getByRole("button", { name: "src/[U+202E]txt.exe" });
+    expect(row.title).toBe("src/[U+202E]txt.exe");
+  });
+
   it("keeps one row when two chunks share a path", () => {
     renderSurface(twoChunkSamePathBrief());
     expect(screen.getAllByRole("button", { name: "src/leak.ts" })).toHaveLength(

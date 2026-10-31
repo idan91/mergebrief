@@ -42,10 +42,10 @@ export function ResolvedFold({
             <li className={styles["resolvedFile"]} key={row.file}>
               <LinkButton
                 className={styles["path"]}
-                title={row.file}
+                title={row.displayFile}
                 onClick={() => jumpToChunk(pickPathJumpChunkId(row))}
               >
-                <bdi dir="ltr">{row.file}</bdi>
+                <bdi dir="ltr">{row.displayFile}</bdi>
               </LinkButton>
               <div className={styles["resolvedMeta"]}>
                 {row.flags.map((flag) => (

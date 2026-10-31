@@ -30,6 +30,7 @@
     "prepublishOnly": "tsx scripts/refuse-sentinel-publish.ts"
   },
   "dependencies": {
+    "brief-core": "workspace:*",
     "commander": "^14.0.2",
     "contract": "workspace:*",
     "i18n": "workspace:*",

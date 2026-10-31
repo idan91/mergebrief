@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { Markdown } from "@web/components/Markdown";
 import type { AddressedReviewComment } from "@web/features/brief/model";
 import { addressedCommentRange } from "../AddressedComments";
@@ -14,6 +15,7 @@ export function AddressedDiffComment({
   label,
 }: AddressedDiffCommentProps) {
   const { t } = useTranslation();
+  const displayFile = formatDisplayPath(comment.file);
   return (
     <details className={styles["comment"]}>
       <summary className={styles["head"]}>
@@ -21,7 +23,7 @@ export function AddressedDiffComment({
           @{comment.author} {label}
         </span>
         <span>
-          {comment.file}
+          {displayFile}
           {addressedCommentRange(comment)}
         </span>
       </summary>

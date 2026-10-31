@@ -1,5 +1,6 @@
 import { LocalBriefKinds } from "contract";
 import { useTranslation } from "react-i18next";
+import { formatDisplayPath } from "brief-core/hidden-chars";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Callout } from "@web/components/Callout";
@@ -372,7 +373,8 @@ function RepoConfigSection({
     repoConfig?.files.filter((file) => file.outcome !== "absent") ?? [];
   const presentRows = presentFiles.map((file) => {
     const outcomeLabel = getRepoConfigOutcomeLabel(t, file.outcome);
-    return { file, outcomeLabel };
+    const displayPath = formatDisplayPath(file.path);
+    return { file, displayPath, outcomeLabel };
   });
   const collisions = repoConfig?.collisions ?? [];
   const collisionsLine =
@@ -393,9 +395,9 @@ function RepoConfigSection({
         // Slimmed on purpose: bytes-of-budget and per-file blob SHAs stay
         // out; the warning-state chip's own callout keeps the full table.
         <ul className={styles["configList"]}>
-          {presentRows.map(({ file, outcomeLabel }) => (
+          {presentRows.map(({ file, displayPath, outcomeLabel }) => (
             <li key={file.path}>
-              <code>{file.path}</code>
+              <code>{displayPath}</code>
               <span data-outcome={file.outcome}>{outcomeLabel}</span>
               {file.warning ? <i>{file.warning}</i> : null}
             </li>

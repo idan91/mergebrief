@@ -89,6 +89,13 @@ describe("LiveDiffPreview", () => {
     expect(files.map((file) => readDisclosureOpen(file))).toEqual([true, true]);
   });
 
+  it("names a file with a bidi override by a visible escape", () => {
+    renderPreview(["src/\u202Etxt.exe", "docs/שלום.md"]);
+
+    expect(screen.getByText("src/[U+202E]txt.exe")).toBeTruthy();
+    expect(screen.getByText("docs/שלום.md")).toBeTruthy();
+  });
+
   it("asks for tokens per open file at five files or fewer", () => {
     renderPreview(["src/a.ts", "src/b.ts"]);
 

@@ -365,6 +365,32 @@ describe("receipt generation record", () => {
     expect(hasLineWith(lines, "saw no code lines")).toBe(false);
   });
 
+  it("names a file read shortened with its hidden characters escaped", () => {
+    const [first] = briefFixture.chunks;
+    const brief: Brief = {
+      ...makeMultiCallBrief(),
+      chunks: [
+        {
+          ...first!,
+          id: "chunk-a",
+          file: "dist/\u202Ejs.exe",
+          readAs: "counts-only",
+        },
+      ],
+    };
+
+    const receipt = buildReceipt(
+      t,
+      snapshot(),
+      brief,
+      buildBriefViewModel(brief),
+    );
+
+    expect(listReceiptLines(receipt)).toContainEqual({
+      file: "dist/[U+202E]js.exe",
+    });
+  });
+
   it("names each file read shortened by its repo-relative path", () => {
     const [first] = briefFixture.chunks;
     const brief: Brief = {
