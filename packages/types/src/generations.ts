@@ -40,6 +40,8 @@ export const GenerationFailureCodes = {
   PROVIDER_REFUSAL: "provider-refusal",
   OUTPUT_INVALID: "output-invalid",
   OUTPUT_SECRET: "output-secret",
+  /** The output reached its token cap before it finished; a rerun is cut the same way. */
+  OUTPUT_CUT: "output-cut",
   GENERATION_CONFIG: "generation-config",
   GITHUB_ACCESS: "github-access",
   DIFF_TOO_LARGE: "diff-too-large",
@@ -71,6 +73,7 @@ export const GenerationFailureClassByCode = {
     GenerationFailureClasses.CANNOT_HELP,
   [GenerationFailureCodes.OUTPUT_INVALID]: GenerationFailureClasses.TRANSIENT,
   [GenerationFailureCodes.OUTPUT_SECRET]: GenerationFailureClasses.CANNOT_HELP,
+  [GenerationFailureCodes.OUTPUT_CUT]: GenerationFailureClasses.CANNOT_HELP,
   [GenerationFailureCodes.GENERATION_CONFIG]:
     GenerationFailureClasses.FIX_FIRST,
   [GenerationFailureCodes.GITHUB_ACCESS]: GenerationFailureClasses.FIX_FIRST,

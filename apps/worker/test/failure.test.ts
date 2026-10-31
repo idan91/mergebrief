@@ -55,6 +55,7 @@ describe("classifyFailure", () => {
     [GeneratorErrorKinds.TIMEOUT, GenerationFailureCodes.PROVIDER_TIMEOUT],
     [GeneratorErrorKinds.SCHEMA_FLOOR, GenerationFailureCodes.OUTPUT_INVALID],
     [GeneratorErrorKinds.REFUSAL, GenerationFailureCodes.PROVIDER_REFUSAL],
+    [GeneratorErrorKinds.OUTPUT_CUT, GenerationFailureCodes.OUTPUT_CUT],
   ])("maps GeneratorError kind %s to %s", (kind, code) => {
     expect(classifyFailure(new GeneratorError(kind, "boom"))).toEqual({
       code,

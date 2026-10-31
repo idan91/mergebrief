@@ -12,6 +12,8 @@ export const GeneratorErrorKinds = {
   TIMEOUT: "timeout",
   SCHEMA_FLOOR: "schema-floor",
   REFUSAL: "refusal",
+  /** The output reached its token cap before it finished: no salvage, no feedback retry. */
+  OUTPUT_CUT: "output-cut",
   CLI_MISSING: "cli-missing",
   OPAQUE: "opaque",
 } as const;

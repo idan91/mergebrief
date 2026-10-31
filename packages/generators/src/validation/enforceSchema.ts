@@ -44,6 +44,12 @@ export interface FloorAttempt {
    * as a completed generation. The raw still feeds retry feedback/dumps.
    */
   salvageable?: boolean;
+  /**
+   * The output stopped at its token cap (Anthropic `max_tokens`, OpenAI
+   * `length`): the floor fails it as `output-cut` with no salvage and no
+   * feedback retry, since a retry at the same cap is cut the same way.
+   */
+  cut?: boolean;
 }
 
 export interface RunWithSchemaFloorArgs<S extends z.ZodType> {
@@ -172,6 +178,22 @@ function tryParseStructuredText<S extends z.ZodType>(
   }
 }
 
+function failCutAttempt<S extends z.ZodType>(
+  args: RunWithSchemaFloorArgs<S>,
+  raw: string,
+): GeneratorError {
+  const message = `${args.label} reached its output token cap before it finished`;
+  const dumpPath = dumpFailure(
+    args.failureDir,
+    args.label,
+    { raw, error: message },
+    args.redact ?? ((text) => text),
+  );
+  const dumpNote = dumpPath ? ` (raw output saved to ${dumpPath})` : "";
+  args.log?.(`⚠ ${message}${dumpNote}`);
+  return new GeneratorError(GeneratorErrorKinds.OUTPUT_CUT, message);
+}
+
 export async function runWithSchemaFloor<S extends z.ZodType>(
   args: RunWithSchemaFloorArgs<S>,
 ): Promise<z.infer<S>> {
@@ -187,6 +209,9 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
       raw,
       parsed: outcome.parsed === undefined ? tryJsonParse(raw) : outcome.parsed,
     });
+    if (outcome.cut === true) {
+      throw failCutAttempt(args, raw);
+    }
     let parseError: unknown;
 
     if (outcome.invalidReason !== undefined) {

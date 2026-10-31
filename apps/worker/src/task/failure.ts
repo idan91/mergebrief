@@ -98,6 +98,8 @@ export function classifyFailure(error: unknown): GenerationFailure {
         return { code: GenerationFailureCodes.OUTPUT_INVALID };
       case GeneratorErrorKinds.REFUSAL:
         return { code: GenerationFailureCodes.PROVIDER_REFUSAL };
+      case GeneratorErrorKinds.OUTPUT_CUT:
+        return { code: GenerationFailureCodes.OUTPUT_CUT };
       case GeneratorErrorKinds.CONFIG:
       case GeneratorErrorKinds.CLI_MISSING:
         // Config absorbs cli-missing: both are operator-fixable setup.

@@ -205,6 +205,63 @@ describe("ClaudeCodeGenerator spawn env", () => {
   });
 });
 
+describe("ClaudeCodeGenerator output cap", () => {
+  const EchoSchema = z.object({
+    leakedVars: z.array(z.string()),
+    envNames: z.array(z.string()),
+    home: z.string(),
+  });
+
+  function echoEnv(maxOutputTokens?: number) {
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "env-echo",
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: "999",
+    });
+    const req: GenerateRequest<typeof EchoSchema> = {
+      schema: EchoSchema,
+      system: "s",
+      user: "u",
+      effort: "medium",
+      label: "env",
+    };
+    if (maxOutputTokens !== undefined) {
+      req.maxOutputTokens = maxOutputTokens;
+    }
+    return generator.generate(req);
+  }
+
+  it("sets the CLI's output cap only for a request that names one", async () => {
+    const uncapped = await echoEnv();
+    const capped = await echoEnv(128000);
+
+    expect(uncapped.envNames).not.toContain("CLAUDE_CODE_MAX_OUTPUT_TOKENS");
+    expect(capped.envNames).toContain("CLAUDE_CODE_MAX_OUTPUT_TOKENS");
+  });
+
+  it("fails a max_tokens stop as output-cut without a retry", async () => {
+    const scriptDir = tempDir("claude-code-cut-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([
+        {
+          output: '{"ok":true}',
+          envelopeFields: { stop_reason: "max_tokens" },
+        },
+        { output: '{"ok":true}' },
+      ]),
+    );
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "scripted",
+      SHIM_SCRIPT_DIR: scriptDir,
+    });
+
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.OUTPUT_CUT,
+    });
+    expect(existsSync(join(scriptDir, "argv-1.json"))).toBe(false);
+  });
+});
+
 describe("ClaudeCodeGenerator envelope classification", () => {
   it("maps an api_retry auth category to kind auth when the run dies", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "api-retry-auth" });

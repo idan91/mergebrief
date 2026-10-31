@@ -12,6 +12,7 @@ import {
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
+  type FloorAttempt,
   type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
 import type {
@@ -104,6 +105,9 @@ function renderCategory(category: string): string {
 
 /** Same default as the SDK adapter, the stamp must name a real model. */
 const DEFAULT_MODEL = "claude-opus-4-8";
+/** The CLI's own output cap, set only for a request that names one. */
+const OUTPUT_CAP_VAR = "CLAUDE_CODE_MAX_OUTPUT_TOKENS";
+const CUT_STOP_REASON = "max_tokens";
 
 /**
  * `modelUsage` keys are untrusted CLI output: a key reaches a log line, a
@@ -152,6 +156,8 @@ interface ResultEnvelope {
   subtype: string;
   isError: boolean;
   result: string;
+  /** The last API turn's stop reason; `max_tokens` means the output was cut. */
+  stopReason: string | null;
   /**
    * Presence tracked separately from value: `structured_output: null` is a
    * schema-valid answer for null-accepting schemas, distinct from the field
@@ -260,6 +266,11 @@ export class ClaudeCodeGenerator implements Generator {
         if (req.signal) {
           runArgs.signal = req.signal;
         }
+        if (req.maxOutputTokens !== undefined) {
+          runArgs.requestEnv = {
+            [OUTPUT_CAP_VAR]: String(req.maxOutputTokens),
+          };
+        }
         const run = await runHarnessProcess(runArgs);
         return this.interpret(req.label, run, log, req.onWarning, req.onUsage);
       },
@@ -292,7 +303,7 @@ export class ClaudeCodeGenerator implements Generator {
     log: Logger,
     onWarning: GeneratorWarningSink | undefined,
     onUsage: ((usage: TokenUsage) => void) | undefined,
-  ): { raw: string; parsed?: unknown; invalidReason?: string } {
+  ): FloorAttempt {
     if (run.timedOut) {
       throw harnessTimeoutError(label, run);
     }
@@ -336,6 +347,10 @@ export class ClaudeCodeGenerator implements Generator {
     }
 
     this.verifyServedModel(envelope, log, onWarning);
+
+    if (envelope.stopReason === CUT_STOP_REASON) {
+      return { raw: envelope.result, cut: true };
+    }
 
     if (envelope.subtype === "error_max_structured_output_retries") {
       // The CLI exhausted its own enforcement retries, but our floor is
@@ -439,6 +454,7 @@ function parseEventLine(line: string): StreamEvent | null {
     const subtype = Reflect.get(value, "subtype");
     const isError = Reflect.get(value, "is_error");
     const result = Reflect.get(value, "result");
+    const stopReason = Reflect.get(value, "stop_reason");
     const modelUsage = Reflect.get(value, "modelUsage");
     return {
       type: "result",
@@ -446,6 +462,7 @@ function parseEventLine(line: string): StreamEvent | null {
         subtype: typeof subtype === "string" ? subtype : "",
         isError: isError === true,
         result: typeof result === "string" ? result : "",
+        stopReason: typeof stopReason === "string" ? stopReason : null,
         hasStructuredOutput: Reflect.has(value, "structured_output"),
         structuredOutput: Reflect.get(value, "structured_output"),
         modelUsage:
@@ -567,6 +584,7 @@ export const CLAUDE_CLI_ENV: HarnessCliEnv = {
     DISABLE_AUTOUPDATER: "1",
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
   },
+  requestVars: [OUTPUT_CAP_VAR],
 };
 
 /** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */

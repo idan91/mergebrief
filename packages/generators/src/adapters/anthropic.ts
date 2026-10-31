@@ -55,7 +55,8 @@ export interface AnthropicStreamingClient {
  * The shared schema floor owns validation regardless of native structured-output enforcement.
  */
 const DEFAULT_MODEL = "claude-opus-4-8";
-const MAX_TOKENS = 32000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 64000;
+const CUT_STOP_REASON: Anthropic.StopReason = "max_tokens";
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 
 export interface AnthropicClientOptions {
@@ -149,11 +150,17 @@ export class AnthropicGenerator implements Generator {
         if ("sdkParseFailure" in outcome) {
           // The SDK's eager JSON.parse rejected (non-JSON output): hand the
           // delta-accumulated raw to the pipeline as a failed attempt so
-          // salvage/retry/dump still run.
+          // salvage/retry/dump still run, unless the stream stopped at the cap.
+          if (outcome.stopReason === CUT_STOP_REASON) {
+            return { raw: outcome.raw, cut: true };
+          }
           return { raw: outcome.raw, invalidReason: outcome.sdkParseFailure };
         }
 
         const response = outcome.response;
+        if (response.stop_reason === CUT_STOP_REASON) {
+          return { raw: textContent(response), cut: true };
+        }
         if (response.stop_reason === "refusal") {
           throw new GeneratorError(
             GeneratorErrorKinds.REFUSAL,
@@ -199,14 +206,18 @@ export class AnthropicGenerator implements Generator {
     log: Logger,
   ): Promise<
     | { response: AnthropicStreamResponse }
-    | { sdkParseFailure: string; raw: string }
+    | {
+        sdkParseFailure: string;
+        raw: string;
+        stopReason: Anthropic.StopReason | undefined;
+      }
   > {
     // The request options' `signal` aborts the HTTP stream itself, the SDK
     // rejects with APIUserAbortError and no further output tokens are billed.
     const stream = this.client.messages.stream(
       {
         model: this.model,
-        max_tokens: MAX_TOKENS,
+        max_tokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
         thinking: { type: "adaptive" },
         output_config: {
           // Schema only, never a client parse callback (see class docs).
@@ -234,6 +245,7 @@ export class AnthropicGenerator implements Generator {
       `${((Date.now() - start) / 1000).toFixed(0)}s`;
     let phase: "thinking" | "writing" = "thinking";
     let collected = "";
+    let stopReason: Anthropic.StopReason | undefined;
     // Usage accumulated from stream events: the fallback source when the
     // SDK's eager parse rejects finalMessage(), the truncated attempt is
     // the EXPENSIVE one, and its spend must not vanish from onUsage sums.
@@ -255,6 +267,7 @@ export class AnthropicGenerator implements Generator {
           cacheWrite: event.message.usage.cache_creation_input_tokens ?? 0,
         };
       } else if (event.type === "message_delta") {
+        stopReason = event.delta.stop_reason ?? undefined;
         // Cumulative per the API: overwrite, never add.
         if (streamUsage.current) {
           streamUsage.current.output = event.usage.output_tokens;
@@ -296,7 +309,7 @@ export class AnthropicGenerator implements Generator {
             cacheWriteTokens: streamUsage.current.cacheWrite,
           });
         }
-        return { sdkParseFailure: error.message, raw: collected };
+        return { sdkParseFailure: error.message, raw: collected, stopReason };
       }
       // Recognized SDK failures adopt the shared taxonomy; anything
       // unrecognized, most importantly aborts, propagates UNTOUCHED.

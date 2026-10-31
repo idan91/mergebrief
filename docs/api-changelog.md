@@ -28,6 +28,10 @@ deprecation note here, removal only at a major.
   and the daily cap it ran against. Every other `capped` row keeps
   `errorParams` null. Clients that read `errorParams.detail` alone are
   unaffected.
+- **Added** `output-cut` to `generation.errorCode`: the model's output
+  reached its token cap before it finished. A rerun is cut the same way, so
+  `regenerate-brief` refuses it as `409 generation-not-regenerable`. Clients
+  that treat the code set as closed must accept the new value.
 - **Added** `largeRuns { runs, units }` to `read-spend`, present on a day
   with a run that took more than one unit. `startedRuns` now counts units:
   one per run, plus one per part of a large pull request briefed in parts.

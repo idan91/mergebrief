@@ -209,6 +209,45 @@ describe("runWithSchemaFloor", () => {
     expect(calls).toBe(1);
   });
 
+  it("fails a cut attempt as output-cut with no salvage and no retry", async () => {
+    let calls = 0;
+    const run = runWithSchemaFloor({
+      schema: z.object({ tags: z.array(z.enum(["a"])) }),
+      label: "cut",
+      failureDir: dir,
+      salvageFields: ["tags"],
+      attempt: async () => {
+        calls++;
+        return { raw: JSON.stringify({ tags: ["a", "b"] }), cut: true };
+      },
+    });
+
+    const error = await run.catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(GeneratorError);
+    expect(error).toMatchObject({ kind: GeneratorErrorKinds.OUTPUT_CUT });
+    expect(calls).toBe(1);
+    expect(readdirSync(dir)).toHaveLength(1);
+  });
+
+  it("screens a cut attempt before it fails", async () => {
+    const screened: string[] = [];
+    const run = runWithSchemaFloor({
+      schema: Schema,
+      label: "cut-screen",
+      failureDir: dir,
+      screenAttempt: (attempt) => {
+        screened.push(attempt.raw);
+      },
+      attempt: async () => ({ raw: '{"title":"par', cut: true }),
+    });
+
+    await expect(run).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.OUTPUT_CUT,
+    });
+    expect(screened).toEqual(['{"title":"par']);
+  });
+
   it("lets transport rejections through untouched", async () => {
     const boom = new Error("transport exploded");
     await expect(

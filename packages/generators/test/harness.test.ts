@@ -561,10 +561,52 @@ describe("spawn env: only the allowlist reaches the CLI", () => {
     expect(echo.envNames).not.toContain("UNLISTED_VAR");
   });
 
+  it("sets a request var the CLI lists, never one from the root env", async () => {
+    const cliEnv: HarnessCliEnv = {
+      ...SHIM_CLI_ENV,
+      requestVars: ["FAKE_CLI_CAP"],
+    };
+    const runWith = (requestEnv?: Record<string, string>) => {
+      const args: HarnessRunArgs = {
+        command: process.execPath,
+        argv: [FAKE_CLAUDE],
+        stdin: "prompt body",
+        timeouts: CLEAN_EXIT_TIMEOUTS,
+        cliEnv,
+        env: { SHIM_SCENARIO: "env-echo", FAKE_CLI_CAP: "from-root" },
+      };
+      if (requestEnv !== undefined) {
+        args.requestEnv = requestEnv;
+      }
+      return runHarnessProcess(args);
+    };
+
+    const fromRoot = readEnvEcho(await runWith());
+    const fromRequest = readEnvEcho(await runWith({ FAKE_CLI_CAP: "64000" }));
+
+    expect(fromRoot.envNames).not.toContain("FAKE_CLI_CAP");
+    expect(fromRequest.envNames).toContain("FAKE_CLI_CAP");
+  });
+
+  it("refuses a request var the CLI does not list", async () => {
+    const refused = runHarnessProcess({
+      command: process.execPath,
+      argv: [FAKE_CLAUDE],
+      stdin: "prompt body",
+      timeouts: CLEAN_EXIT_TIMEOUTS,
+      cliEnv: SHIM_CLI_ENV,
+      env: { SHIM_SCENARIO: "env-echo" },
+      requestEnv: { ANTHROPIC_BASE_URL: "https://elsewhere.example" },
+    });
+
+    await expect(refused).rejects.toThrow(/ANTHROPIC_BASE_URL/);
+  });
+
   it("lists no billing redirect or host secret var on any allowlist", () => {
     const allowlists = [
       HARNESS_BASE_ENV_VARS,
       CLAUDE_CLI_ENV.passVars,
+      CLAUDE_CLI_ENV.requestVars ?? [],
       CODEX_CLI_ENV.passVars,
       CURSOR_CLI_ENV.passVars,
     ];

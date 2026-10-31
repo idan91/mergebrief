@@ -82,6 +82,8 @@ export interface HarnessRunArgs {
   /** The composition root's env; only the allowlist below reaches the child. */
   env: Record<string, string | undefined>;
   cliEnv: HarnessCliEnv;
+  /** This request's own settings, by a name the CLI's `requestVars` lists. */
+  requestEnv?: Readonly<Record<string, string>>;
   cwd?: string;
   log?: Logger;
   /** Cap on accumulated stdout, UTF-16 code units. Default 16M. */
@@ -129,7 +131,7 @@ export async function runHarnessProcess(
       StdioPipe,
       StdioPipe
     > = {
-      env: envForSpawn(args.env, args.cliEnv),
+      env: envForSpawn(args.env, args.cliEnv, args.requestEnv),
       stdio: ["pipe", "pipe", "pipe"],
       detached: true,
     };
@@ -473,13 +475,23 @@ export interface HarnessCliEnv {
   readonly passVars: readonly string[];
   /** Set on every spawn: the CLI's update and telemetry off switches. */
   readonly fixedVars: Readonly<Record<string, string>>;
+  /** Vars one request may set, never read from the root env. */
+  readonly requestVars?: readonly string[];
 }
 
 /** Spawn env: the allowlist only, undefined values dropped (spawn needs strings). */
 function envForSpawn(
   env: Record<string, string | undefined>,
   cliEnv: HarnessCliEnv,
+  requestEnv: Readonly<Record<string, string>> = {},
 ): Record<string, string> {
+  const requestVars = new Set(cliEnv.requestVars);
+  for (const name of Object.keys(requestEnv)) {
+    if (!requestVars.has(name)) {
+      throw new Error(`harness: ${name} is not a request var this CLI takes`);
+    }
+  }
+
   const allowed = new Set<string>([
     ...HARNESS_BASE_ENV_VARS,
     ...cliEnv.passVars,
@@ -491,5 +503,5 @@ function envForSpawn(
       out[key] = value;
     }
   }
-  return { ...out, ...cliEnv.fixedVars };
+  return { ...out, ...cliEnv.fixedVars, ...requestEnv };
 }

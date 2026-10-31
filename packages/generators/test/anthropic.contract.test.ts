@@ -40,17 +40,27 @@ const ABORT_ERROR = Object.assign(new Error("Request was aborted."), {
 /** A scripted turn for the stub client, extending the contract's vocabulary. */
 type StubTurn =
   | ContractTurn
-  | { sdkParseRejection: { deltas: string[]; message: string } }
+  | {
+      sdkParseRejection: {
+        deltas: string[];
+        message: string;
+        stopReason?: Anthropic.StopReason;
+      };
+    }
+  | { cut: string }
   | { rejectWith: unknown };
 
 interface StubClient {
   client: AnthropicStreamingClient;
-  requests: { messages: { role: string; content: unknown }[] }[];
+  requests: {
+    messages: { role: string; content: unknown }[];
+    maxTokens: number;
+  }[];
   streamOptions: ({ signal?: AbortSignal } | undefined)[];
 }
 
 function stubClient(turns: readonly StubTurn[]): StubClient {
-  const requests: { messages: { role: string; content: unknown }[] }[] = [];
+  const requests: StubClient["requests"] = [];
   const streamOptions: ({ signal?: AbortSignal } | undefined)[] = [];
   const client = {
     messages: {
@@ -64,6 +74,7 @@ function stubClient(turns: readonly StubTurn[]): StubClient {
             role: m.role,
             content: m.content,
           })),
+          maxTokens: body.max_tokens,
         });
         const turn = turns[requests.length - 1];
         if (!turn) {
@@ -97,7 +108,26 @@ function stubClient(turns: readonly StubTurn[]): StubClient {
                 } satisfies Anthropic.RawContentBlockDeltaEvent;
                 listener?.(event);
               }
+              const stopReason = turn.sdkParseRejection.stopReason;
+              if (stopReason !== undefined) {
+                listener?.({
+                  type: "message_delta",
+                  delta: {
+                    stop_reason: stopReason,
+                    stop_sequence: null,
+                    container: null,
+                  },
+                  usage: { output_tokens: 1 },
+                } as Anthropic.RawMessageDeltaEvent);
+              }
               throw new AnthropicError(turn.sdkParseRejection.message);
+            }
+            if ("cut" in turn) {
+              return {
+                stop_reason: "max_tokens",
+                usage: { input_tokens: 1, output_tokens: 1 },
+                content: [{ type: "text", text: turn.cut }],
+              };
             }
             if ("refusal" in turn) {
               return {
@@ -305,6 +335,37 @@ describe("AnthropicGenerator request shape", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  it("caps the output at 64000 tokens by default", async () => {
+    const stub = stubClient([{ raw: contractPayloads.valid }]);
+    const generator = new AnthropicGenerator(stub.client, dir);
+
+    await generator.generate({
+      schema: ContractSchema,
+      system: "sys",
+      user: "usr",
+      effort: "medium",
+      label: "default-cap",
+    });
+
+    expect(stub.requests[0]?.maxTokens).toBe(64000);
+  });
+
+  it("sends the request's own output cap", async () => {
+    const stub = stubClient([{ raw: contractPayloads.valid }]);
+    const generator = new AnthropicGenerator(stub.client, dir);
+
+    await generator.generate({
+      schema: ContractSchema,
+      system: "sys",
+      user: "usr",
+      effort: "medium",
+      label: "grouping-cap",
+      maxOutputTokens: 128000,
+    });
+
+    expect(stub.requests[0]?.maxTokens).toBe(128000);
+  });
+
   it("threads the request signal into the SDK stream options", async () => {
     const stub = stubClient([{ raw: contractPayloads.valid }]);
     const controller = new AbortController();
@@ -337,5 +398,58 @@ describe("AnthropicGenerator request shape", () => {
       role: "assistant",
       content: contractPayloads.invalid,
     });
+  });
+});
+
+describe("AnthropicGenerator output cut", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "anthropic-cut-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  function generateFrom(turns: readonly StubTurn[]) {
+    const stub = stubClient(turns);
+    const generator = new AnthropicGenerator(stub.client, dir);
+    const run = generator.generate({
+      schema: ContractSchema,
+      system: "sys",
+      user: "usr",
+      effort: "medium",
+      label: "cut",
+    });
+    return { stub, run };
+  }
+
+  it("fails a max_tokens stop as output-cut without a retry", async () => {
+    const { stub, run } = generateFrom([
+      { cut: contractPayloads.valid.slice(0, 10) },
+      { raw: contractPayloads.valid },
+    ]);
+
+    await expect(run).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.OUTPUT_CUT,
+    });
+    expect(stub.requests).toHaveLength(1);
+  });
+
+  it("fails an SDK parse rejection after a max_tokens stop as output-cut", async () => {
+    const { stub, run } = generateFrom([
+      {
+        sdkParseRejection: {
+          deltas: [contractPayloads.valid.slice(0, 10)],
+          message: "Failed to parse structured output: SyntaxError",
+          stopReason: "max_tokens",
+        },
+      },
+      { raw: contractPayloads.valid },
+    ]);
+
+    await expect(run).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.OUTPUT_CUT,
+    });
+    expect(stub.requests).toHaveLength(1);
   });
 });

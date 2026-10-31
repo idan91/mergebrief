@@ -59,6 +59,8 @@ export interface OpenAiChatRequest {
     };
   };
   reasoning_effort?: Effort;
+  /** Sent only when the request names a cap: no default change for these providers. */
+  max_completion_tokens?: number;
   stream: true;
   /** Sent iff the caller passed onUsage, zero wire change for callers that
    * don't observe usage. */
@@ -216,11 +218,14 @@ export class OpenAiCompatibleCore implements Generator {
             `Model refused to produce the ${req.label}.`,
           );
         }
+        if (outcome.finishReason === "length") {
+          return { raw: outcome.raw, cut: true };
+        }
         if (outcome.finishReason !== "stop") {
           // Only "stop" is a completed generation. EOF without a terminal
-          // finish_reason is a truncated response; "length" and
-          // "content_filter" end AFTER partial output, content that
-          // happens to parse must never pass the floor as complete.
+          // finish_reason is a truncated response; "content_filter" ends
+          // AFTER partial output, content that happens to parse must never
+          // pass the floor as complete.
           return {
             raw: outcome.raw,
             invalidReason: `Stream for ${req.label} ended with finish_reason=${renderFinishReason(outcome.finishReason)} (incomplete or filtered response).`,
@@ -299,6 +304,9 @@ export class OpenAiCompatibleCore implements Generator {
 
     if (this.effortSupported !== false) {
       body.reasoning_effort = req.effort;
+    }
+    if (req.maxOutputTokens !== undefined) {
+      body.max_completion_tokens = req.maxOutputTokens;
     }
     const requestsUsage = req.onUsage !== undefined && this.usageSupported;
     if (requestsUsage) {

@@ -152,7 +152,29 @@ function request() {
   };
 }
 
+function sseFinishing(content: string, finishReason: string): Response {
+  const events = [
+    `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content }, finish_reason: null }] })}\n\n`,
+    `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: finishReason }] })}\n\n`,
+    "data: [DONE]\n\n",
+  ].join("");
+  return new Response(events, {
+    status: 200,
+    headers: { "content-type": "text/event-stream" },
+  });
+}
+
 describe("OpenAiCompatibleCore request construction", () => {
+  it("sends no output cap unless the request names one", async () => {
+    const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
+
+    await generator.generate(request());
+    await generator.generate({ ...request(), maxOutputTokens: 128000 });
+
+    expect(recorded.bodies[0]).not.toHaveProperty("max_completion_tokens");
+    expect(recorded.bodies[1]?.["max_completion_tokens"]).toBe(128000);
+  });
+
   it("sends strict json_schema, reasoning_effort, and system/user messages", async () => {
     const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
@@ -447,10 +469,10 @@ describe("OpenAiCompatibleCore truncated streams", () => {
     expect(calls).toBe(2); // truncated attempt failed, retry recovered
   });
 
-  it("never salvages truncated output, even with a droppable enum slip", async () => {
-    // finish_reason=length + salvageable payload: without the salvageable
-    // gate the floor would drop the bad enum and return the FRAGMENT as a
-    // completed generation. It must retry instead.
+  it("fails a length finish as output-cut, never salvaging the fragment", async () => {
+    // finish_reason=length + salvageable payload: salvage would return the
+    // FRAGMENT as a completed generation, and a retry at the same cap is
+    // cut the same way.
     const SalvageSchema = z.object({
       title: z.string(),
       tags: z.array(z.enum(["bugfix"])),
@@ -493,15 +515,26 @@ describe("OpenAiCompatibleCore truncated streams", () => {
         label: "salvage-trunc",
         salvageFields: ["tags"],
       }),
-    ).resolves.toEqual({ title: "t", tags: ["bugfix"] });
-    expect(calls).toBe(2); // retried, never salvaged the truncated first arm
+    ).rejects.toMatchObject({ kind: GeneratorErrorKinds.OUTPUT_CUT });
+    expect(calls).toBe(1);
   });
 
-  it.each(["length", "content_filter"])(
+  it("fails schema-valid output ending with finish_reason=length as cut", async () => {
+    const { generator, recorded } = await coreWith(() =>
+      sseFinishing('{"ok":true}', "length"),
+    );
+
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKinds.OUTPUT_CUT,
+    });
+    expect(recorded.bodies).toHaveLength(1);
+  });
+
+  it.each(["content_filter"])(
     "treats schema-valid output ending with finish_reason=%s as failed",
     async (reason) => {
-      // Valid JSON + a non-stop terminal reason: truncated/filtered output
-      // must fail the attempt (retry), never complete the generation.
+      // Valid JSON + a filtered terminal reason: the output must fail the
+      // attempt (retry), never complete the generation.
       let calls = 0;
       const fixtureFetch: typeof fetch = async (input) => {
         const models = modelsOk(getRequestUrl(input));

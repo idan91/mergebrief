@@ -10,6 +10,8 @@ import { PrStates } from "types/pull-requests";
 import type { z } from "zod/v4";
 import {
   DEFAULT_LINK_FETCH,
+  GeneratorError,
+  GeneratorErrorKinds,
   type Effort,
   type GenerateRequest,
   type Generator,
@@ -1516,6 +1518,23 @@ describe("generate task", () => {
     expect(row?.status).toBe(GenerationStatuses.FAILED);
     expect(row?.errorCode).toBe(GenerationFailureCodes.GITHUB_UNAVAILABLE);
     expect(generator.calls).toEqual([]);
+  });
+
+  it("fails a cut brief for good as output-cut, with no retry", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.failNextWith = new GeneratorError(
+      GeneratorErrorKinds.OUTPUT_CUT,
+      "brief reached its output token cap before it finished",
+    );
+
+    await expect(makeTask({ generator })(payload)).resolves.toBeUndefined();
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
+    expect(row?.errorCode).toBe(GenerationFailureCodes.OUTPUT_CUT);
   });
 
   it("rethrows transient failures but retains deterministic ones as failed", async () => {
