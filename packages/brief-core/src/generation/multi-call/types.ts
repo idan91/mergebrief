@@ -43,3 +43,29 @@ export interface ResolvedHunkMap {
   readonly unlistedHunkIds: readonly HunkId[];
   readonly unlistedFileIds: readonly FileId[];
 }
+
+/** One group's hunks inside a detail batch, in diff order. */
+export interface BatchPart {
+  readonly groupId: string;
+  readonly hunkIds: readonly HunkId[];
+}
+
+/** One detail call's worth of hunks: whole groups in reading order, or one part of an oversized group. */
+export interface DetailBatch {
+  readonly index: number;
+  readonly parts: readonly BatchPart[];
+  readonly hunkCount: number;
+  /** Present on a half of a batch whose answer was cut. */
+  readonly half?: 1 | 2;
+}
+
+export interface DetailBatchPlanInput {
+  /** Every group id in reading order, then the groups the order left out. */
+  readonly groupIds: readonly string[];
+  readonly hunksByGroup: ReadonlyMap<string, readonly HunkId[]>;
+  /** Each hunk's estimated input tokens as a detail call renders it; a hunk absent here weighs nothing. */
+  readonly hunkTokens: ReadonlyMap<HunkId, number>;
+  /** Override the batch limits; tests only. */
+  readonly maxHunks?: number;
+  readonly maxTokens?: number;
+}
