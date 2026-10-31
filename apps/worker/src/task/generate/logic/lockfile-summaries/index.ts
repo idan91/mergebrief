@@ -107,10 +107,15 @@ async function readMergeBase(
   return read.value;
 }
 
+function getDirectory(path: string): string {
+  return path.slice(0, path.lastIndexOf("/") + 1);
+}
+
 /**
  * Where the lockfile's base side sits, or nothing for a new lockfile. A
- * rename from a file that is not the same kind of lockfile is new to the
- * package manager, so it has no base side to compare against.
+ * rename from another folder, or from a file that is not the same kind of
+ * lockfile, is new to the package manager, so it has no base side to
+ * compare against.
  */
 function readBasePath(lockfile: ChangedLockfile): string | undefined {
   if (lockfile.status === DiffFileStatuses.ADDED) {
@@ -122,7 +127,9 @@ function readBasePath(lockfile: ChangedLockfile): string | undefined {
   }
   const format = detectLockfile(path);
   const sameLockfile =
-    format !== undefined && detectLockfile(previousPath) === format;
+    format !== undefined &&
+    detectLockfile(previousPath) === format &&
+    getDirectory(previousPath) === getDirectory(path);
   return sameLockfile ? previousPath : undefined;
 }
 

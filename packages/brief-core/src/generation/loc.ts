@@ -102,11 +102,34 @@ export function subtractRanges(a: LineRange[], b: LineRange[]): LineRange[] {
 
 type ChunkRanges = Pick<Chunk, "file" | "addedRanges" | "removedRanges">;
 
+/**
+ * The changed ranges by path, entries under one path merged: git writes a
+ * typechange as a deletion and a creation of the same path.
+ */
+export function mergeChangedFiles(
+  changedFiles: readonly RevisionChangeFile[],
+): Map<string, RevisionChangeFile> {
+  const changedByFile = new Map<string, RevisionChangeFile>();
+  for (const changed of changedFiles) {
+    const known = changedByFile.get(changed.file);
+    changedByFile.set(changed.file, {
+      file: changed.file,
+      addedRanges: [...(known?.addedRanges ?? []), ...changed.addedRanges],
+      removedRanges: [
+        ...(known?.removedRanges ?? []),
+        ...changed.removedRanges,
+      ],
+    });
+  }
+  return changedByFile;
+}
+
 function indexChanged(
   files: RevisionChangeFile[],
 ): Map<string, { added: LineRange[]; removed: LineRange[] }> {
+  const merged = [...mergeChangedFiles(files).values()];
   return new Map(
-    files.map((f) => [
+    merged.map((f) => [
       f.file,
       { added: normalize(f.addedRanges), removed: normalize(f.removedRanges) },
     ]),
@@ -148,7 +171,8 @@ export function deriveUnattributed(
   chunks: ChunkRanges[],
   changedFiles: RevisionChangeFile[],
 ): UnattributedFile[] {
-  return changedFiles.flatMap((file) => {
+  const merged = [...mergeChangedFiles(changedFiles).values()];
+  return merged.flatMap((file) => {
     const claimed = chunks.filter((c) => c.file === file.file);
     const addedRanges = subtractRanges(
       file.addedRanges,
@@ -258,8 +282,9 @@ export function crossCheckFileTotals(
   prFiles: Pick<PrFile, "path" | "additions" | "deletions">[],
 ): string[] {
   const issues: string[] = [];
+  const merged = [...mergeChangedFiles(changedFiles).values()];
   const derivedByFile = new Map(
-    changedFiles.map((f) => [
+    merged.map((f) => [
       f.file,
       {
         added: countLines(f.addedRanges),

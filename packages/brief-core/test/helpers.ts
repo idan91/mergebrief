@@ -17,6 +17,25 @@ import {
   type RevisionNarrativeSkipped,
 } from "../src/types";
 
+/** A file turned into a symlink: git writes a deletion and a creation under one path. */
+export const FILE_TO_SYMLINK_DIFF = [
+  "diff --git a/config.json b/config.json",
+  "deleted file mode 100644",
+  "--- a/config.json",
+  "+++ /dev/null",
+  "@@ -1,3 +0,0 @@",
+  "-a",
+  "-b",
+  "-c",
+  "diff --git a/config.json b/config.json",
+  "new file mode 120000",
+  "--- /dev/null",
+  "+++ b/config.json",
+  "@@ -0,0 +1 @@",
+  "+shared/config.json",
+  "",
+].join("\n");
+
 const pr = {
   repo: "o/r",
   number: 1,

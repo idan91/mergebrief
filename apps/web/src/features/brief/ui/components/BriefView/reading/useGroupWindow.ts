@@ -241,13 +241,19 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
         return false;
       }
       const index = keyIndex.get(key);
-      if (index === undefined) {
+      const offset =
+        index === undefined
+          ? undefined
+          : virtualizer.getOffsetForIndex(index, "start")?.[0];
+      if (offset === undefined) {
         return false;
       }
       pinJump(key);
+      // An offset, not an index: the library chases an index's moving offset
+      // for seconds and would scroll the page back off the caller's target.
       // "instant": measurement adjustments cancel in-flight smooth scrolls,
       // and "auto" would defer to the page's smooth CSS.
-      virtualizer.scrollToIndex(index, { align: "start", behavior: "instant" });
+      virtualizer.scrollToOffset(offset, { behavior: "instant" });
       return true;
     },
     [keyIndex, virtualizer, pinJump],

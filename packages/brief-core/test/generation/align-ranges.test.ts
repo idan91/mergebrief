@@ -8,6 +8,7 @@ import {
   type WarningCollector,
 } from "../../src/generation/warnings/types";
 import type { LineRange } from "../../src/types";
+import { FILE_TO_SYMLINK_DIFF } from "../helpers";
 
 interface StubChunk {
   file: string;
@@ -53,26 +54,7 @@ const SPLIT_BY_CONTEXT = parseChangedRanges(
   ].join("\n"),
 );
 
-/** A file turned into a symlink: git writes a deletion and a creation under one path. */
-const FILE_TO_SYMLINK = parseChangedRanges(
-  [
-    "diff --git a/config.json b/config.json",
-    "deleted file mode 100644",
-    "--- a/config.json",
-    "+++ /dev/null",
-    "@@ -1,3 +0,0 @@",
-    "-a",
-    "-b",
-    "-c",
-    "diff --git a/config.json b/config.json",
-    "new file mode 120000",
-    "--- /dev/null",
-    "+++ b/config.json",
-    "@@ -0,0 +1 @@",
-    "+shared/config.json",
-    "",
-  ].join("\n"),
-);
+const FILE_TO_SYMLINK = parseChangedRanges(FILE_TO_SYMLINK_DIFF);
 
 describe("alignChunkRanges", () => {
   it("keeps both sides of a file turned into a symlink", () => {

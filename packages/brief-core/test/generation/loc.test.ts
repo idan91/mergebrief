@@ -11,12 +11,18 @@ import {
   subtractRanges,
   unattributedTotals,
 } from "../../src/generation/loc";
-import type { RevisionChangeFile } from "../../src/diff/revchanges";
+import {
+  parseChangedRanges,
+  type RevisionChangeFile,
+} from "../../src/diff/revchanges";
 import type { LineRange } from "../../src/types";
+import { FILE_TO_SYMLINK_DIFF } from "../helpers";
 
 function ranges(...pairs: [number, number][]): LineRange[] {
   return pairs.map(([start, end]) => ({ start, end }));
 }
+
+const FILE_TO_SYMLINK = parseChangedRanges(FILE_TO_SYMLINK_DIFF);
 
 function changed(
   file: string,
@@ -139,6 +145,20 @@ describe("deriveChunkLoc", () => {
     expect(chunk?.loc).toEqual({ added: 0, deleted: 0 });
   });
 
+  it("counts both sides of a file turned into a symlink", () => {
+    const [chunk] = deriveChunkLoc(
+      [
+        {
+          file: "config.json",
+          addedRanges: ranges([1, 1]),
+          removedRanges: ranges([1, 3]),
+        },
+      ],
+      FILE_TO_SYMLINK,
+    );
+    expect(chunk?.loc).toEqual({ added: 1, deleted: 3 });
+  });
+
   it("preserves the chunk's other fields", () => {
     const [chunk] = deriveChunkLoc(
       [
@@ -160,6 +180,16 @@ describe("deriveUnattributed", () => {
     changed("a.ts", ranges([10, 19]), ranges([5, 8])),
     changed("b.ts", ranges([1, 4])),
   ];
+
+  it("lists a file turned into a symlink once with both sides", () => {
+    expect(deriveUnattributed([], FILE_TO_SYMLINK)).toEqual([
+      {
+        file: "config.json",
+        addedRanges: ranges([1, 1]),
+        removedRanges: ranges([1, 3]),
+      },
+    ]);
+  });
 
   it("returns empty when chunks cover every changed line", () => {
     expect(
@@ -400,6 +430,14 @@ describe("crossCheckFileTotals", () => {
         [],
         [{ path: "bin.png", additions: 0, deletions: 0 }],
       ),
+    ).toEqual([]);
+  });
+
+  it("matches gh's counts for a file turned into a symlink", () => {
+    expect(
+      crossCheckFileTotals(FILE_TO_SYMLINK, [
+        { path: "config.json", additions: 1, deletions: 3 },
+      ]),
     ).toEqual([]);
   });
 

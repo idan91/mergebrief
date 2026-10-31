@@ -5,7 +5,7 @@
 // (measured heights, scroll to target) belongs to the perf specs.
 import { act, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { intersectionObservers } from "@web/test/setup";
 import { useGroupWindow, type GroupWindowOptions } from "./useGroupWindow";
@@ -29,6 +29,11 @@ function reportIntersection(
     {} as IntersectionObserver,
   );
 }
+
+/** Where the caller moved the page after the jump: deep inside the target card. */
+const JUMP_CALLER_TOP = 25_000;
+/** Tall enough that no jump in these tests clamps to the page's end. */
+const PAGE_HEIGHT = 100_000;
 
 const KEYS = Array.from(
   { length: 40 },
@@ -219,6 +224,63 @@ describe("useGroupWindow", () => {
       reportIntersection(observer, false);
     });
     expect(current().items).toHaveLength(0);
+  });
+
+  it("leaves the page to the caller once a jump's target offset moves", () => {
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: PAGE_HEIGHT,
+    });
+    onTestFinished(() => {
+      Reflect.deleteProperty(document.documentElement, "scrollHeight");
+      vi.unstubAllGlobals();
+    });
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => frames.push(callback)),
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const moveTo = (top: number) => {
+      vi.stubGlobal("scrollY", top);
+      window.dispatchEvent(new Event("scroll"));
+    };
+    const scrollTo = vi.fn((options: ScrollToOptions) => {
+      moveTo(options.top ?? 0);
+    });
+    vi.stubGlobal("scrollTo", scrollTo);
+    let latest: ReturnType<typeof useGroupWindow> | undefined;
+    const renderWith = (options: GroupWindowOptions) => (
+      <Harness
+        options={options}
+        onWindow={(window) => {
+          latest = window;
+        }}
+      />
+    );
+    const view = render(
+      renderWith({ chunkKeys: KEYS, estimateChunk: () => 600 }),
+    );
+    scrollTo.mockClear();
+
+    act(() => {
+      latest?.scrollToKey(KEYS[30] ?? "");
+    });
+    moveTo(JUMP_CALLER_TOP);
+    view.rerender(
+      renderWith({
+        chunkKeys: [...KEYS, "late.ts#c40"],
+        estimateChunk: () => 700,
+      }),
+    );
+    act(() => {
+      for (const frame of frames.splice(0)) {
+        frame(0);
+      }
+    });
+
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(window.scrollY).toBe(JUMP_CALLER_TOP);
   });
 
   it("releases a jump into a near group once the group goes far", () => {

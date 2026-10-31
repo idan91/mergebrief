@@ -3,6 +3,10 @@
 // (`src/testing/pglite-snapshot`) and wraps it as the opaque `AppDatabase` the
 // repository consumes; the real-Postgres suites share the tenant fixture below.
 import { randomBytes, randomInt } from "node:crypto";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { and, eq } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
@@ -356,6 +360,31 @@ export async function virginPglite(): Promise<PGlite> {
     }
   });
   return client;
+}
+
+interface MigrationJournal {
+  readonly entries: readonly { readonly tag: string }[];
+}
+
+const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
+
+/** The checked-in migrations with the journal cut before `tag`; removed when the test finishes. */
+export async function copyMigrationsBefore(tag: string): Promise<string> {
+  const folder = await mkdtemp(join(tmpdir(), "mb-migrations-"));
+  onTestFinished(() => rm(folder, { recursive: true }));
+  await cp(MIGRATIONS_FOLDER, folder, { recursive: true });
+
+  const journalPath = join(folder, "meta", "_journal.json");
+  const journal = JSON.parse(
+    await readFile(journalPath, "utf8"),
+  ) as MigrationJournal;
+  const cut = journal.entries.findIndex((entry) => entry.tag === tag);
+  expect(cut).toBeGreaterThan(0);
+  await writeFile(
+    journalPath,
+    JSON.stringify({ ...journal, entries: journal.entries.slice(0, cut) }),
+  );
+  return folder;
 }
 
 /** A well-formed run id no attempt row holds. */

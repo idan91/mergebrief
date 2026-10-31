@@ -1,6 +1,6 @@
 import type { RevisionChangeFile } from "../diff/revchanges";
 import type { Chunk, LineRange } from "../types";
-import { countLines, intersectRanges } from "./loc";
+import { countLines, intersectRanges, mergeChangedFiles } from "./loc";
 import {
   GenerationWarningKinds,
   type WarningCollector,
@@ -53,28 +53,6 @@ function groupByFile<C extends ChunkRanges>(
     byFile.set(chunk.file, fileChunks);
   }
   return byFile;
-}
-
-/**
- * The changed ranges by path, entries under one path merged: git writes a
- * typechange as a deletion and a creation of the same path.
- */
-function mergeChangedFiles(
-  changedFiles: readonly RevisionChangeFile[],
-): Map<string, RevisionChangeFile> {
-  const changedByFile = new Map<string, RevisionChangeFile>();
-  for (const changed of changedFiles) {
-    const known = changedByFile.get(changed.file);
-    changedByFile.set(changed.file, {
-      file: changed.file,
-      addedRanges: [...(known?.addedRanges ?? []), ...changed.addedRanges],
-      removedRanges: [
-        ...(known?.removedRanges ?? []),
-        ...changed.removedRanges,
-      ],
-    });
-  }
-  return changedByFile;
 }
 
 /** Each chunked file's sides; a file the diff does not change has no changed line. */

@@ -95,6 +95,30 @@ function makeHeapExhaustingLockfile(): string {
   return lines.join("\n");
 }
 const MIRROR = "{tarball: https://mirror.example/foo.tgz}";
+const NPM_MIRROR = "https://mirror.example/foo/-/foo-1.0.0.tgz";
+
+function makeNpmLockfile(resolved: string): string {
+  return JSON.stringify({
+    lockfileVersion: 3,
+    packages: { "": {}, "node_modules/foo": { version: "1.0.0", resolved } },
+  });
+}
+
+function makeRenameDiff(previousPath: string, path: string): string {
+  return [
+    `diff --git a/${previousPath} b/${path}`,
+    "similarity index 90%",
+    `rename from ${previousPath}`,
+    `rename to ${path}`,
+    `--- a/${previousPath}`,
+    `+++ b/${path}`,
+    "@@ -1,2 +1,2 @@",
+    " lockfileVersion: '9.0'",
+    "-old",
+    "+new",
+    "",
+  ].join("\n");
+}
 
 function arrangeLockfile(before: string, after: string) {
   const github = makeGitHub(HEAD_1);
@@ -402,36 +426,60 @@ describe("generate task, changes-package-source from lockfile contents", () => {
     expect(body.chunks?.map((chunk) => chunk.riskSurface)).toEqual([[]]);
   });
 
-  it("reads a renamed lockfile's base side by its previous path", async () => {
+  it("reads a lockfile renamed in its folder by its previous path", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const previousPath = "app/pnpm-lock.yaml";
+    const previousPath = "app/npm-shrinkwrap.json";
+    const path = "app/package-lock.json";
+    const lockfile = makeNpmLockfile(NPM_MIRROR);
     const github = makeGitHub(HEAD_1);
     github.addPullRequest(PR_REF, {
       info: makePullRequestInfo(HEAD_1),
-      files: [{ path: LOCKFILE, additions: 1, deletions: 1 }],
-      diff: [
-        `diff --git a/${previousPath} b/${LOCKFILE}`,
-        "similarity index 90%",
-        `rename from ${previousPath}`,
-        `rename to ${LOCKFILE}`,
-        `--- a/${previousPath}`,
-        `+++ b/${LOCKFILE}`,
-        "@@ -1,2 +1,2 @@",
-        " lockfileVersion: '9.0'",
-        "-old",
-        "+new",
-        "",
-      ].join("\n"),
+      files: [{ path, additions: 1, deletions: 1 }],
+      diff: makeRenameDiff(previousPath, path),
     });
     github.addRepoFile(
       REPO,
       { path: previousPath, ref: BASE },
-      buildRepoFile(makePnpmLockfile("foo@1.0.0", REGISTRY), "sha-base"),
+      buildRepoFile(lockfile, "sha-base"),
+    );
+    github.addRepoFile(
+      REPO,
+      { path, ref: HEAD_1 },
+      buildRepoFile(lockfile, "sha-head"),
+    );
+
+    await makeTask({ github })(payload);
+
+    const reads = github
+      .listCalls("fetchRepoFile")
+      .map((call) => call.input as { path: string; ref?: string })
+      .filter((input) => input.path.startsWith("app/"));
+    expect(reads).toEqual([
+      expect.objectContaining({ path: previousPath, ref: BASE }),
+      expect.objectContaining({ path, ref: HEAD_1 }),
+    ]);
+    expect(await readLockfileRisksAt(pr.id, path)).toBeUndefined();
+  });
+
+  it("reads a lockfile moved from another folder as a new lockfile", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const previousPath = `examples/x/${LOCKFILE}`;
+    const lockfile = makePnpmLockfile("foo@1.0.0", MIRROR);
+    const github = makeGitHub(HEAD_1);
+    github.addPullRequest(PR_REF, {
+      info: makePullRequestInfo(HEAD_1),
+      files: [{ path: LOCKFILE, additions: 1, deletions: 1 }],
+      diff: makeRenameDiff(previousPath, LOCKFILE),
+    });
+    github.addRepoFile(
+      REPO,
+      { path: previousPath, ref: BASE },
+      buildRepoFile(lockfile, "sha-base"),
     );
     github.addRepoFile(
       REPO,
       { path: LOCKFILE, ref: HEAD_1 },
-      buildRepoFile(makePnpmLockfile("foo@1.1.0", REGISTRY), "sha-head"),
+      buildRepoFile(lockfile, "sha-head"),
     );
 
     await makeTask({ github })(payload);
@@ -440,11 +488,11 @@ describe("generate task, changes-package-source from lockfile contents", () => {
       .listCalls("fetchRepoFile")
       .map((call) => call.input as { path: string; ref?: string })
       .filter((input) => input.path.endsWith(LOCKFILE));
+    expect(github.listCalls("fetchMergeBase")).toEqual([]);
     expect(reads).toEqual([
-      expect.objectContaining({ path: previousPath, ref: BASE }),
       expect.objectContaining({ path: LOCKFILE, ref: HEAD_1 }),
     ]);
-    expect(await readLockfileRisks(pr.id)).toBeUndefined();
+    expect(await readLockfileRisks(pr.id)).toEqual([CHANGES_PACKAGE_SOURCE]);
   });
 
   it("reads a rename into a lockfile name as a new lockfile", async () => {
