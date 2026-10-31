@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import type { LinkHTMLAttributes } from "react";
 import {
   createFileRoute,
   notFound,
@@ -15,6 +16,8 @@ import { appI18n } from "../i18n/I18nProvider";
 import { buildSignInHref } from "@web/data/sign-in";
 import { useBriefAddress } from "@web/features/brief";
 import {
+  prefetchSpanDiff,
+  readDiffPreloadPath,
   resolveDbTimeline,
   selectBriefRouteState,
   type Span,
@@ -112,12 +115,29 @@ async function dropMissingBriefPrefetch(
   });
 }
 
-function pickPageTitleInput(meta: PrSummary): PrPageTitleInput {
-  return {
+interface PrRouteLoaderData extends PrPageTitleInput {
+  /** The span diff the first load's document asks the browser to fetch now. */
+  diffPreloadPath?: string;
+}
+
+function buildLoaderData(
+  meta: PrSummary,
+  repoId: string,
+  span: Span | undefined,
+): PrRouteLoaderData {
+  const data: PrRouteLoaderData = {
     title: meta.title,
     prNumber: meta.prNumber,
     repoSlug: meta.repoSlug,
   };
+  const diffPreloadPath =
+    span === undefined
+      ? undefined
+      : readDiffPreloadPath(repoId, meta.prNumber, span);
+  if (diffPreloadPath !== undefined) {
+    data.diffPreloadPath = diffPreloadPath;
+  }
+  return data;
 }
 
 function prefetchSession(
@@ -155,7 +175,7 @@ function prefetchBriefLayout(
 export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: parsePrSearch,
   loaderDeps: ({ search }) => readRevisionRequest(search),
-  loader: async ({ context, params, deps, location }) => {
+  loader: async ({ context, params, deps, location, preload }) => {
     const repoId = assertRepoId(params.repoId);
     const prNumber = parsePrNumber(params.prNumber);
     const explicit =
@@ -168,18 +188,26 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     });
     try {
       if (explicit !== undefined) {
+        const briefRead = context.queryClient.ensureQueryData(
+          buildDbBriefQueryOptions(
+            repoId,
+            prNumber,
+            explicit.base,
+            explicit.head,
+          ),
+        );
+        prefetchSpanDiff(context.queryClient, {
+          repoId,
+          prNumber,
+          span: explicit,
+          preload,
+          brief: briefRead,
+        });
         const [metaResult, briefResult] = await Promise.allSettled([
           context.queryClient.ensureQueryData(
             buildPrMetaQueryOptions(repoId, prNumber),
           ),
-          context.queryClient.ensureQueryData(
-            buildDbBriefQueryOptions(
-              repoId,
-              prNumber,
-              explicit.base,
-              explicit.head,
-            ),
-          ),
+          briefRead,
           prefetchSession(context.queryClient, repoId, prNumber, explicit),
           prefetchBriefLayout(context.queryClient, repoId, prNumber, explicit),
         ]);
@@ -196,7 +224,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
             location.href,
           );
         }
-        return pickPageTitleInput(metaResult.value);
+        return buildLoaderData(metaResult.value, repoId, explicit);
       }
       const meta = await context.queryClient.ensureQueryData(
         buildPrMetaQueryOptions(repoId, prNumber),
@@ -209,15 +237,23 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
         rev: deps.rev,
       });
       if (state.kind === "render") {
-        await Promise.all([
-          context.queryClient.ensureQueryData(
-            buildDbBriefQueryOptions(
-              repoId,
-              prNumber,
-              state.span.base,
-              state.span.head,
-            ),
+        const briefRead = context.queryClient.ensureQueryData(
+          buildDbBriefQueryOptions(
+            repoId,
+            prNumber,
+            state.span.base,
+            state.span.head,
           ),
+        );
+        prefetchSpanDiff(context.queryClient, {
+          repoId,
+          prNumber,
+          span: state.span,
+          preload,
+          brief: briefRead,
+        });
+        await Promise.all([
+          briefRead,
           prefetchSession(context.queryClient, repoId, prNumber, state.span),
           prefetchBriefLayout(
             context.queryClient,
@@ -227,7 +263,8 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           ),
         ]);
       }
-      return pickPageTitleInput(meta);
+      const renderedSpan = state.kind === "render" ? state.span : undefined;
+      return buildLoaderData(meta, repoId, renderedSpan);
     } catch (error) {
       return await mapLoaderError(error, location.href);
     } finally {
@@ -239,7 +276,19 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       return {};
     }
 
-    return { meta: [{ title: buildPrPageTitle(appI18n.t, loaderData) }] };
+    const meta = [{ title: buildPrPageTitle(appI18n.t, loaderData) }];
+    if (loaderData.diffPreloadPath === undefined) {
+      return { meta };
+    }
+    // Fetch mode and credentials match the diff read's own `fetch`, or the
+    // browser downloads the diff twice.
+    const preloadLink: LinkHTMLAttributes<HTMLLinkElement> = {
+      rel: "preload",
+      as: "fetch",
+      href: loaderData.diffPreloadPath,
+      crossOrigin: "use-credentials",
+    };
+    return { meta, links: [preloadLink] };
   },
   component: PrBriefRoute,
   errorComponent: PrBriefErrorRoute,

@@ -49,6 +49,26 @@ export default defineConfig(
     server: {
       port: 3000,
       allowedHosts: resolveDevAllowedHosts(),
+      // Transforms the route graph while the api and worker boot, so the first
+      // page after `pnpm app:host` does not wait on cold transforms.
+      warmup: {
+        clientFiles: [
+          "./src/router.tsx",
+          "./src/routes/*.tsx",
+          "./src/routes/repos.$repoId.pulls.$prNumber.tsx",
+          "./src/features/*/index.tsx",
+          "./src/features/brief/ui/components/**/index.tsx",
+          "./src/utils/diffTokens/worker.ts",
+          "!**/*.test.*",
+        ],
+        ssrFiles: [
+          "./src/server.ts",
+          "./src/router.tsx",
+          "./src/routes/*.tsx",
+          "./src/routes/repos.$repoId.pulls.$prNumber.tsx",
+          "!**/*.test.*",
+        ],
+      },
     },
   }),
 );

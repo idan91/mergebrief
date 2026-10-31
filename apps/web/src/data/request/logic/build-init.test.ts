@@ -79,13 +79,14 @@ describe("buildInit", () => {
     ).toEqual({ method: "POST", body: image });
   });
 
-  it("forwards headers, the signal and the 401 options", () => {
+  it("forwards headers, the signal, credentials and the 401 options", () => {
     const controller = new AbortController();
     expect(
       buildInit(ProductActionIds.REVOKE_SESSIONS, {
         params: {},
         headers: { "x-trial": "yes" },
         signal: controller.signal,
+        credentials: "include",
         unauthorizedIsSignedOut: true,
         unauthorizedLeavesForSignIn: false,
       }),
@@ -93,6 +94,7 @@ describe("buildInit", () => {
       method: "DELETE",
       headers: { "x-trial": "yes" },
       signal: controller.signal,
+      credentials: "include",
       unauthorizedIsSignedOut: true,
       unauthorizedLeavesForSignIn: false,
     });

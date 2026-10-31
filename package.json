@@ -9,6 +9,7 @@
   "scripts": {
     "app:docker": "docker compose up -d",
     "app:host": "docker compose up -d postgres && docker compose stop api web worker && set -a && . ./.env && set +a && concurrently -k -n api,worker,web -c magenta,blue,green \"pnpm -C apps/api start\" \"pnpm -C apps/worker start\" \"pnpm -C apps/web dev\"",
+    "app:host:prod": "docker compose up -d postgres && docker compose stop api web worker && set -a && . ./.env && set +a && pnpm -C apps/web build && concurrently -k -n api,worker,web -c magenta,blue,green \"pnpm -C apps/api start\" \"pnpm -C apps/worker start\" \"MERGEBRIEF_WEB_HOST=127.0.0.1 pnpm -C apps/web start\"",
     "dev": "concurrently -k -n api,web -c magenta,green \"pnpm -C apps/api start\" \"pnpm -C apps/web dev\"",
     "build": "pnpm -C apps/web build",
     "typecheck": "pnpm -C apps/web typecheck",

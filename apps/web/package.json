@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "start": "NODE_ENV=production node --import tsx --import ./src/instrument.ts src/serve.ts",
     "build:demo": "tsx scripts/build-demo.ts",
     "lint": "stylelint \"src/**/*.{css,scss}\"",
     "typecheck": "tsc --noEmit",

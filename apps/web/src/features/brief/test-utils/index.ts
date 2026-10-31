@@ -3,6 +3,7 @@ export {
   briefSummaryFixture,
   makeChunk,
   makeRowRefs,
+  stubFileRowsCache,
 } from "./fixtures";
 export {
   FixtureBriefView,

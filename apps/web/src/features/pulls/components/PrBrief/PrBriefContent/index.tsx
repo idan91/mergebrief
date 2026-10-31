@@ -21,10 +21,10 @@ import {
   type ScopeExitOptions,
 } from "@web/features/brief";
 import {
-  attachSlicedDiffs,
   buildBriefSearchParams,
   buildChunkLayoutCounts,
   CompareParams,
+  countBriefFiles,
   createFileRowsCache,
   resolveBriefSearch,
   stripDefaultSearch,
@@ -122,8 +122,9 @@ export function PrBriefContent({
   );
   // The live diff arrives client-side and attaches per-chunk rows; while it
   // loads, chunks legally render without a diff (the renderer degrades).
+  const fileCount = useMemo(() => countBriefFiles(brief), [brief]);
   const diff = useQuery(
-    buildPrDiffQueryOptions(repoId, prNumber, span.base, span.head),
+    buildPrDiffQueryOptions(repoId, prNumber, span.base, span.head, fileCount),
   );
   // The worker's per-chunk counts, prefetched by the loader: a diff-less
   // card reserves its height from them until the diff lands. Absent for a
@@ -164,9 +165,10 @@ export function PrBriefContent({
       }),
     [prNumber, repoId, span.base, span.head],
   );
-  // One parse per file for the page: the slices below and the hunk-edge
-  // expansion inside the screen read the same rows, so the cache identity
-  // has to hold across renders.
+  // One parse per file for the page: the cards' slices and the hunk-edge
+  // expansion read the same rows, so the cache identity has to hold across
+  // renders. The brief itself never changes when the diff lands: each card
+  // attaches its own rows through the cache.
   // A failed diff settles as an empty cache, so a line link stops waiting
   // for rows that will not come and lands on its owner's card instead.
   const fileRows = useMemo(() => {
@@ -176,10 +178,6 @@ export function PrBriefContent({
     return diff.isError ? createFileRowsCache(new Map()) : undefined;
   }, [diff.data, diff.isError]);
   const diffLanding = useDiffRetryLanding(diff, findMainContent);
-  const assembled = useMemo(
-    () => (fileRows === undefined ? brief : attachSlicedDiffs(brief, fileRows)),
-    [brief, fileRows],
-  );
   const layoutCounts = useMemo(
     () => buildChunkLayoutCounts(layout.data?.body),
     [layout.data?.body],
@@ -311,7 +309,7 @@ export function PrBriefContent({
           },
         };
   const reading = useBriefReading({
-    brief: assembled,
+    brief,
     briefId,
     fileRows,
     chunkLayout,

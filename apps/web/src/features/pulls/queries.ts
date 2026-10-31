@@ -21,7 +21,8 @@ import { HttpStatuses, type ComparisonBaselineLabel } from "types";
 import { z } from "zod/v4";
 
 import { ApiError, ApiErrorCodes } from "../../data/apiFetch";
-import { request, requestText } from "../../data/request";
+import { buildPath, request, requestText } from "../../data/request";
+import type { ApiRequest } from "../../data/request/types";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
   briefContextSchema,
@@ -48,6 +49,8 @@ import {
   pullStackSchema,
 } from "./schemas";
 import type { PrSummary, StoredBriefLayout } from "./types";
+import { isFullCommitSha } from "@web/utils/commit-sha";
+import { buildBriefReadHeaders } from "./utils/brief-read-headers";
 import { resolveOutagePollMs } from "./utils/poll-backoff";
 
 /** A stored body is checked only for being an object; its reader parses the rest. */
@@ -113,6 +116,7 @@ async function readDbBrief(
   const body = await requestText(ProductQueryIds.READ_BRIEF, {
     params,
     query: { base, head },
+    headers: buildBriefReadHeaders(),
   });
   // Route loaders SSR-prefetch this read, so the sink is what keeps a
   // repair on a STORED Brief from shipping with zero signal. The browser
@@ -486,34 +490,73 @@ export function buildDbRevisionNarrativeQueryOptions(
   });
 }
 
+/**
+ * `include`, same cookies as the default on this same-origin read, because
+ * the first load's `crossorigin="use-credentials"` preload only serves a
+ * fetch of the same credentials mode.
+ */
+function buildPrDiffRequest(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): ApiRequest<typeof ProductQueryIds.READ_DIFF> {
+  return {
+    params: { repoId, prNumber },
+    query: { base, head },
+    credentials: "include",
+  };
+}
+
 function readPrDiff(
   repoId: string,
   prNumber: number,
   base: string,
   head: string,
 ): Promise<string> {
-  return requestText(ProductQueryIds.READ_DIFF, {
-    params: { repoId, prNumber },
-    query: { base, head },
-  });
+  const args = buildPrDiffRequest(repoId, prNumber, base, head);
+  return requestText(ProductQueryIds.READ_DIFF, args);
 }
 
+/** The exact path the span diff read fetches, for a preload that must match it. */
+export function buildPrDiffPath(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): string {
+  const args = buildPrDiffRequest(repoId, prNumber, base, head);
+  return buildPath(ProductQueryIds.READ_DIFF, args);
+}
+
+/** Past this many changed files a diff is very large: about the api's 1 MB large-cache line. */
+export const LARGE_DIFF_FILE_COUNT = 300;
+const LIVE_DIFF_STALE_MS = 60_000;
+const DIFF_GC_MS = 30 * 60 * 1000;
+const LARGE_DIFF_GC_MS = 5 * 60 * 1000;
+
 /**
- * The LIVE span diff (text). Server-side it is per-session cached ~60s and
- * never persisted; match that staleness here. The client slices it per chunk
- * with the shared `diffSlicing` module.
+ * The span diff (text), never persisted. A span between two full SHAs never
+ * changes, so it is fresh for the page's life, as the brief is; a span naming
+ * a branch matches the api's ~60s cache. A very large diff, or one whose size
+ * the caller does not know, leaves memory sooner.
  */
 export function buildPrDiffQueryOptions(
   repoId: string,
   prNumber: number,
   base: string,
   head: string,
+  fileCount?: number,
 ) {
   const queryKey: QueryKey = ["pr-diff", repoId, prNumber, base, head];
+  const pinned = isFullCommitSha(base) && isFullCommitSha(head);
+  const sized = fileCount !== undefined && fileCount <= LARGE_DIFF_FILE_COUNT;
   return queryOptions({
     queryKey,
     queryFn: () => readPrDiff(repoId, prNumber, base, head),
-    staleTime: 60_000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: pinned ? Number.POSITIVE_INFINITY : LIVE_DIFF_STALE_MS,
+    refetchOnWindowFocus: !pinned,
+    refetchOnReconnect: !pinned,
+    gcTime: sized ? DIFF_GC_MS : LARGE_DIFF_GC_MS,
   });
 }

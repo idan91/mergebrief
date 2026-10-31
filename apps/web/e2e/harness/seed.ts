@@ -45,6 +45,8 @@ import {
   E2E_REPO_ID,
   E2E_REPO_SLUG,
   E2E_SESSION_COOKIE,
+  E2E_SEED_LATEST_HEAD,
+  E2E_SEED_OLDER_HEAD,
   E2E_SESSION_KEY,
   E2E_STATE_VIEWERS,
   FIXTURE_DIR,
@@ -53,8 +55,6 @@ import {
 import { buildSeedBrief, SEED_ORIGIN } from "./seed-brief";
 
 const MINUTE_MS = 60_000;
-const OLDER_HEAD = "3333333300001111222233334444555566667777";
-const LATEST_HEAD = "4444444400001111222233334444555566667777";
 const SEED_BASE_SHA = "0000000099998888777766665555444433332222";
 const SEED_COMMIT_COUNT = 1;
 
@@ -184,12 +184,24 @@ async function seedInboxRow(
   };
 
   if (row.state === InboxSeedStates.UPDATED) {
-    const older = await writeBrief(handle, ctx, pullRequest, OLDER_HEAD, 1);
+    const older = await writeBrief(
+      handle,
+      ctx,
+      pullRequest,
+      E2E_SEED_OLDER_HEAD,
+      1,
+    );
     await openSession(handle, ctx, older, viewer, true);
-    await writeBrief(handle, ctx, pullRequest, LATEST_HEAD, 2);
+    await writeBrief(handle, ctx, pullRequest, E2E_SEED_LATEST_HEAD, 2);
     return;
   }
-  const latest = await writeBrief(handle, ctx, pullRequest, LATEST_HEAD, 1);
+  const latest = await writeBrief(
+    handle,
+    ctx,
+    pullRequest,
+    E2E_SEED_LATEST_HEAD,
+    1,
+  );
   if (row.state === InboxSeedStates.IN_PROGRESS) {
     await openSession(handle, ctx, latest, viewer, false);
   }

@@ -10,6 +10,7 @@ import {
   apiErrorSerializationAdapter,
   apiJsonFromResponse,
   errorFromResponse,
+  opaqueErrorSerializationAdapter,
   type ApiErrorCode,
 } from "./apiFetch";
 
@@ -109,30 +110,51 @@ type WebWireCode = Exclude<ApiErrorCode, "malformed">;
 true satisfies Equals<WebWireCode, WireErrorCode>;
 
 describe("apiErrorSerializationAdapter", () => {
-  it("rebuilds an ApiError with its code, status and path", () => {
+  it("rebuilds an ApiError with its code and status, never its path", () => {
     const error = new ApiError(
       ApiErrorCodes.NOT_FOUND,
       404,
       "/api/local-briefs/missing",
     );
+    const serialized = JSON.stringify(
+      apiErrorSerializationAdapter.toSerializable(error),
+    );
 
     const restored = runSerializationRoundTrip(error);
 
+    expect(serialized).not.toContain("/api/local-briefs/missing");
     expect(restored).toBeInstanceOf(ApiError);
     expect(restored).toMatchObject({
       code: ApiErrorCodes.NOT_FOUND,
       status: 404,
-      path: "/api/local-briefs/missing",
+      path: "",
     });
-    expect(restored.message).toBe(error.message);
   });
 
-  it("claims only ApiError, leaving other errors to the default", () => {
+  it("claims only ApiError, leaving other errors to the opaque adapter", () => {
     const apiError = new ApiError(ApiErrorCodes.NOT_FOUND, 404, "/x");
 
     expect(apiErrorSerializationAdapter.test(apiError)).toBe(true);
     expect(apiErrorSerializationAdapter.test(new Error("not-found"))).toBe(
       false,
     );
+    expect(opaqueErrorSerializationAdapter.test(apiError)).toBe(false);
+  });
+});
+
+describe("opaqueErrorSerializationAdapter", () => {
+  it("ships any other error without its message", () => {
+    const error = new TypeError("failed reading /api/repos/1/pulls/2");
+    const serialized = JSON.stringify(
+      opaqueErrorSerializationAdapter.toSerializable(error),
+    );
+
+    expect(opaqueErrorSerializationAdapter.test(error)).toBe(true);
+    expect(serialized).not.toContain("/api/repos");
+    expect(
+      opaqueErrorSerializationAdapter.fromSerializable({ opaque: true }),
+    ).toMatchObject({
+      message: "",
+    });
   });
 });

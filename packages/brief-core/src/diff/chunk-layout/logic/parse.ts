@@ -77,52 +77,75 @@ function parseHunkLine(line: string): HunkStarts {
   };
 }
 
+/** Where a file header can start: a line start, so every later one follows a newline. */
+const FILE_HEADER_START = "diff --git ";
+const NEXT_FILE_HEADER = `\n${FILE_HEADER_START}`;
+const DELETED_POST_LINE = "\n+++ /dev/null";
+
+interface OpenFile {
+  start: number;
+  pre: string;
+  post: string;
+}
+
 /**
  * Split a multi-file unified diff into per-file patch bodies, keyed by the
  * POST-change path (chunks reference files by their new name); a deleted
- * file (post side `/dev/null`) keys by its pre-change path.
+ * file (post side `/dev/null`) keys by its pre-change path. Only a line that
+ * matches the full header starts a file; a lookalike stays in its file.
  */
 export function splitUnifiedDiffByFile(
   diff: string,
 ): ReadonlyMap<string, string> {
   const files = new Map<string, string>();
-  if (diff.length === 0) {
-    return files;
-  }
+  let open: OpenFile | undefined;
+  let lineStart = diff.startsWith(FILE_HEADER_START)
+    ? 0
+    : findNextHeaderLine(diff, 0);
 
-  let currentKey: string | undefined;
-  let currentLines: string[] = [];
-  let sawDevNullPost = false;
-  let pendingPrePath: string | undefined;
-
-  const flush = (): void => {
-    if (currentKey !== undefined) {
-      // Deleted file: the post path in the `diff --git` header is the same as
-      // the pre path, but `+++ /dev/null` marks it; keep the pre path key.
-      const key =
-        sawDevNullPost && pendingPrePath !== undefined
-          ? pendingPrePath
-          : currentKey;
-      files.set(key, currentLines.join("\n"));
-    }
-    currentLines = [];
-    sawDevNullPost = false;
-  };
-
-  for (const line of diff.split("\n")) {
-    const header = DIFF_FILE_HEADER.exec(line);
-    if (header?.groups) {
-      flush();
-      currentKey = header.groups["post"];
-      pendingPrePath = header.groups["pre"];
-    }
-    if (currentKey !== undefined) {
-      if (line.startsWith("+++ /dev/null")) {
-        sawDevNullPost = true;
+  while (lineStart !== -1) {
+    const header = matchFileHeader(diff, lineStart);
+    if (header !== undefined) {
+      if (open !== undefined) {
+        storeFile(files, open, diff.slice(open.start, lineStart - 1));
       }
-      currentLines.push(line);
+      open = { start: lineStart, pre: header.pre, post: header.post };
     }
+    lineStart = findNextHeaderLine(diff, lineStart);
   }
-  flush();
+
+  if (open !== undefined) {
+    storeFile(files, open, diff.slice(open.start));
+  }
   return files;
+}
+
+function findNextHeaderLine(diff: string, from: number): number {
+  const newline = diff.indexOf(NEXT_FILE_HEADER, from);
+  return newline === -1 ? -1 : newline + 1;
+}
+
+function matchFileHeader(
+  diff: string,
+  lineStart: number,
+): { pre: string; post: string } | undefined {
+  const lineEnd = diff.indexOf("\n", lineStart);
+  const line = diff.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
+  const groups = DIFF_FILE_HEADER.exec(line)?.groups;
+  const pre = groups?.["pre"];
+  const post = groups?.["post"];
+  if (pre === undefined || post === undefined) {
+    return undefined;
+  }
+  return { pre, post };
+}
+
+/** Deleted file: the header's post path equals the pre path, but `+++ /dev/null` marks it. */
+function storeFile(
+  files: Map<string, string>,
+  open: OpenFile,
+  patch: string,
+): void {
+  const key = patch.includes(DELETED_POST_LINE) ? open.pre : open.post;
+  files.set(key, patch);
 }

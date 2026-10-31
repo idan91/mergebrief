@@ -9,6 +9,9 @@ const FIXTURE_DIR = process.env.MERGEBRIEF_E2E_FIXTURES;
 const REPO_ID = process.env.MERGEBRIEF_E2E_REPO_ID ?? "424242";
 const REPO_SLUG =
   process.env.MERGEBRIEF_E2E_REPO_SLUG ?? "mergebrief/e2e-fixture";
+const CODELESS_HEADS = new Set(
+  JSON.parse(process.env.MERGEBRIEF_E2E_CODELESS_HEADS ?? "[]"),
+);
 const INBOX = JSON.parse(
   process.env.MERGEBRIEF_E2E_INBOX ?? '{"installations":[],"urlRows":[]}',
 );
@@ -140,6 +143,17 @@ function findInstallationRepo(id) {
     }
   }
   return undefined;
+}
+
+/**
+ * The seeded rows carry briefs but no code, and a hover over one reads its
+ * span diff ahead of the click, so their heads answer an empty diff rather
+ * than a 404 the console would log. Any other unknown head still fails.
+ */
+function isCodelessHeadCompare(pathname) {
+  const compare =
+    /^\/repos\/[^/]+\/[^/]+\/compare\/[^.]+\.\.\.(?<head>.+)$/.exec(pathname);
+  return compare !== null && CODELESS_HEADS.has(compare.groups.head);
 }
 
 /** The Inbox's live read names its query; the conversation read does not. */
@@ -292,6 +306,15 @@ globalThis.fetch = async (input, init) => {
       size: text.length,
       encoding: "base64",
       content: Buffer.from(text, "utf8").toString("base64"),
+    });
+  }
+  if (isCodelessHeadCompare(pathname)) {
+    return new Response("", {
+      status: 200,
+      headers: {
+        "content-type": "application/vnd.github.v3.diff; charset=utf-8",
+        date: new Date().toUTCString(),
+      },
     });
   }
   const compare = new RegExp(

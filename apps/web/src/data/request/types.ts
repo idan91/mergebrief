@@ -30,6 +30,7 @@ export interface ApiRequest<Id extends ProductOperationId> {
   readonly body?: object | Blob;
   readonly headers?: Readonly<Record<string, string>>;
   readonly signal?: AbortSignal;
+  readonly credentials?: RequestCredentials;
   readonly unauthorizedIsSignedOut?: boolean;
   readonly unauthorizedLeavesForSignIn?: boolean;
 }

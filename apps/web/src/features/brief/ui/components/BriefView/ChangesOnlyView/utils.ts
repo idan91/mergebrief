@@ -1,3 +1,7 @@
+import {
+  attachChunkListRows,
+  type FileRowsCache,
+} from "../../../../model/file-rows/cache";
 import type {
   LengthViolation,
   LineRange,
@@ -239,9 +243,13 @@ export function collectNarrativeRows(
   chunk: RevisionNarrativeChunk,
   t: TFunction,
   spanRows: readonly DiffLine[] = [],
+  fileRows?: FileRowsCache,
 ): NarrativeRows {
   const candidates: OriginRow[] = [];
-  const fileChunks = chunksForFile(brief, chunk.file);
+  const fileChunks = attachChunkListRows(
+    chunksForFile(brief, chunk.file),
+    fileRows,
+  );
   for (const briefChunk of fileChunks) {
     briefChunk.diff?.forEach((row, index) => {
       const shown =

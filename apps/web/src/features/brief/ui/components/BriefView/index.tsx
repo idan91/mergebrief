@@ -4,6 +4,10 @@ import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { ExpansionProvider } from "../../../model/expansion/useExpansion";
 import { ExpansionSourceProvider } from "../../../model/expansion/useExpansionSource";
 import { FileRowsProvider } from "../../../model/file-rows/useFileRows";
+import {
+  attachChunkListRows,
+  attachModelRows,
+} from "../../../model/file-rows/cache";
 import { ChunkLayoutProvider } from "../../../model/chunk-layout/useChunkLayout";
 import { useHeldCardPosition } from "./reading/useHeldCardPosition";
 import { ReviewPostureProvider } from "../../hooks/useReviewPosture";
@@ -62,10 +66,16 @@ export function BriefView({
   review,
   conversation,
 }: BriefViewProps) {
+  // Restored drafts resolve their lines against the rows; the screen keeps
+  // the stable model, so a landed diff re-renders only the cards.
+  const sessionModel = useMemo(
+    () => attachModelRows(reading.model, reading.fileRows),
+    [reading.model, reading.fileRows],
+  );
   return (
     <ReviewSessionProvider
       briefId={reading.briefId}
-      model={reading.model}
+      model={sessionModel}
       reads={review?.sessionReads}
       session={review?.session}
       writes={review?.writes}
@@ -148,10 +158,13 @@ function BriefViewContent(props: BriefViewProps) {
   const chunkSizes = useMemo(
     () =>
       deriveChunkSizes(
-        model.groups.flatMap((group) => group.chunks),
+        attachChunkListRows(
+          model.groups.flatMap((group) => group.chunks),
+          fileRows,
+        ),
         chunkLayout?.counts,
       ),
-    [model.groups, chunkLayout?.counts],
+    [model.groups, chunkLayout?.counts, fileRows],
   );
   useHeldCardPosition(
     chunkLayout?.codePending === true,

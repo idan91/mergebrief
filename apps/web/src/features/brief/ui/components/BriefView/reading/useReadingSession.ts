@@ -31,6 +31,10 @@ import {
   type ProgressTotals,
 } from "../../../utils/progress";
 import type { Brief } from "../../../../model/types";
+import {
+  attachChunkListRows,
+  type FileRowsCache,
+} from "../../../../model/file-rows/cache";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import type {
   BriefViewModel,
@@ -86,6 +90,8 @@ function readingLineOffset(): number {
 
 export interface UseReadingSessionInput {
   brief: Brief;
+  /** The PR diff's rows once it has landed. */
+  fileRows?: FileRowsCache | undefined;
   briefId: string;
   /** Whether the FULL-brief view is active (gates scroll-spy). */
   compareViewFull: boolean;
@@ -123,7 +129,7 @@ export interface UseReadingSessionValue {
   snapshot: SessionSnapshot;
   receipt: Receipt;
   // reading order,
-  /** Chunks in the RENDERED (grouped) order, the sequence J/K walks. */
+  /** Chunks in the RENDERED (grouped) order, the sequence J/K walks, with their rows. */
   readingOrderedChunks: GroupView["chunks"];
   chunkIds: string[];
   /** Index into `chunkIds` where each group starts (Shift+J/Shift+K). */
@@ -172,6 +178,7 @@ export function useReadingSession(
     brief,
     briefId,
     compareViewFull,
+    fileRows,
     model,
     ownDraftActive,
     repoConfig,
@@ -196,15 +203,19 @@ export function useReadingSession(
   const actions = useReviewSessionActions();
   // RENDERED (grouped) order, not raw brief order, the StoryView lays chunks
   // out by group, so J/K must follow the same sequence.
-  const readingOrderedChunks = useMemo(
+  const groupedChunks = useMemo(
     () => model.groups.flatMap((group) => group.chunks),
     [model.groups],
+  );
+  const readingOrderedChunks = useMemo(
+    () => attachChunkListRows(groupedChunks, fileRows),
+    [groupedChunks, fileRows],
   );
 
   const chunkIds = useMemo(() => listChunkIds(model.groups), [model.groups]);
   const largeChunkIds = useMemo(
-    () => listLargeChunkIds(readingOrderedChunks),
-    [readingOrderedChunks],
+    () => listLargeChunkIds(groupedChunks),
+    [groupedChunks],
   );
   const groupBoundaries = useMemo(
     () => groupStartIndexes(model.groups),
@@ -240,10 +251,10 @@ export function useReadingSession(
   // manual toggles keep it honest.
   const supportingChunkIds = useMemo(
     () =>
-      readingOrderedChunks
+      groupedChunks
         .filter((chunk) => chunk.role === "supporting")
         .map((chunk) => chunk.id),
-    [readingOrderedChunks],
+    [groupedChunks],
   );
   const collapsedSupportingCount = supportingChunkIds.filter(
     (id) => !openChunks.has(id),

@@ -1496,6 +1496,11 @@
       "heading": "This page doesn't exist.",
       "home": "Go Home"
     },
+    "pageFailed": {
+      "heading": "This page failed to load.",
+      "detail": "Something went wrong showing this page. Reload to try again.",
+      "home": "Go Home"
+    },
     "skipToContent": "Skip to content",
     "backToBriefs": "Back to briefs",
     "ariaLabelBreadcrumb": "Breadcrumb",

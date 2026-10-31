@@ -38,8 +38,8 @@ export {
   type RevisionTimelineView,
 } from "./types";
 export { briefErrorDetail, prBriefErrorDetail } from "./utils/brief-errors";
-export { attachSlicedDiffs } from "./utils/diff-slicing";
 export { createFileRowsCache } from "./file-rows/cache";
+export { countBriefFiles } from "./utils/brief-files";
 export {
   buildChunkLayoutCounts,
   type ChunkLayoutState,

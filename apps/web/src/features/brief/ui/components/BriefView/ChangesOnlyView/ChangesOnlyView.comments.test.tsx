@@ -19,6 +19,7 @@ import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { type Brief, type BriefChunk } from "../../../../model/types";
 import { FileRowsProvider } from "../../../../model/file-rows/useFileRows";
 import type { FileRowsCache } from "../../../../model/file-rows/cache";
+import { stubFileRowsCache } from "../../../../test-utils/fixtures";
 import { buildLineOwnersByFile } from "../../../../model/utils/line-owner";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
@@ -166,24 +167,21 @@ const DELTA: Brief = {
   chunks: [DELTA_CHUNK],
 } as unknown as Brief;
 
-const FILE_ROWS_CACHE: FileRowsCache = {
-  isEmpty: false,
-  getFileRows: (path) => (path === "src/a.ts" ? OWNER.diff : undefined),
-};
+const FILE_ROWS_CACHE: FileRowsCache = stubFileRowsCache((path) =>
+  path === "src/a.ts" ? OWNER.diff : undefined,
+);
 
 /** Previous head to head: lines 20 and 21 of the previous head went away. */
-const SPAN_ROWS_CACHE: FileRowsCache = {
-  isEmpty: false,
-  getFileRows: (path) =>
-    path === "src/a.ts"
-      ? [
-          { kind: "hunk", content: "@@ -19,3 +19,1 @@" },
-          { kind: "ctx", content: "keep();", oldLine: 19, newLine: 19 },
-          { kind: "del", content: "stale(a);", oldLine: 20 },
-          { kind: "del", content: "stale(b);", oldLine: 21 },
-        ]
-      : undefined,
-};
+const SPAN_ROWS_CACHE: FileRowsCache = stubFileRowsCache((path) =>
+  path === "src/a.ts"
+    ? [
+        { kind: "hunk", content: "@@ -19,3 +19,1 @@" },
+        { kind: "ctx", content: "keep();", oldLine: 19, newLine: 19 },
+        { kind: "del", content: "stale(a);", oldLine: 20 },
+        { kind: "del", content: "stale(b);", oldLine: 21 },
+      ]
+    : undefined,
+);
 
 function stubThread(line: number): DigestThreadRow {
   return {
@@ -502,10 +500,7 @@ describe("Previous Brief narrative cards take comments", () => {
   });
 
   it("keeps the removed-lines count while the span has no rows for the file", () => {
-    const elsewhere: FileRowsCache = {
-      isEmpty: false,
-      getFileRows: () => undefined,
-    };
+    const elsewhere = stubFileRowsCache(() => undefined);
     renderChanges({ narrativeSpanRows: elsewhere });
 
     expect(screen.getByText("−2 lines removed")).toBeTruthy();

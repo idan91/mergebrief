@@ -1,4 +1,6 @@
+import { useTranslation } from "react-i18next";
 import {
+  useMemo,
   useRef,
   useState,
   type FocusEvent,
@@ -8,7 +10,12 @@ import {
 
 import type { BriefChunk } from "../../../../model/types";
 import { useReadingPosition } from "../reading/reading-position";
-import { deriveChunkMarks, findMarkIndex, moveRovingIndex } from "./utils";
+import {
+  deriveChunkMarks,
+  deriveMarkName,
+  findMarkIndex,
+  moveRovingIndex,
+} from "./utils";
 
 export interface ChunkStripFacadeOptions {
   groupId: string;
@@ -36,7 +43,12 @@ export function useChunkStripFacade({
   const markRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const pointerPressed = useRef(false);
 
-  const marks = deriveChunkMarks(chunks);
+  const { t } = useTranslation();
+  const marks = useMemo(() => deriveChunkMarks(chunks), [chunks]);
+  const markNames = useMemo(
+    () => marks.map((mark) => deriveMarkName(t, mark, marks.length)),
+    [marks, t],
+  );
   const activeIndex = marks.findIndex((mark) => mark.id === activeChunkId);
   const restingIndex = activeIndex === -1 ? 0 : activeIndex;
   const focusIndex = findMarkIndex(marks, focusId);
@@ -94,6 +106,7 @@ export function useChunkStripFacade({
 
   return {
     marks,
+    markNames,
     activeIndex,
     tabStop,
     peekIndex,

@@ -77,6 +77,9 @@ export function dispatchToApi(
   if (init?.signal !== undefined) {
     request.signal = init.signal;
   }
+  if (init?.credentials !== undefined) {
+    request.credentials = init.credentials;
+  }
   return requestApi(new Request(`${deps.origin}${path}`, request), deps);
 }
 

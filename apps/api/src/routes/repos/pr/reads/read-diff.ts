@@ -1,27 +1,33 @@
-import type { Result } from "types/utils";
+import type { RepositoryRef } from "github";
+import type { Logger } from "logging";
 import type { PullRequestAccess } from "../../../../access/types";
 import { FailureKinds } from "../../../../shared-errors/failures";
-import { commitShaSchema } from "../../../wire-bounds";
 import { parseOwnerAndName } from "../../utils";
 import { DIFF_FETCH_DEADLINE_MS, SPAN_DIFF_CACHE_LIMITS } from "./consts";
 import { buildDiffCacheKey } from "./logic/keys";
 import { measureHeldBytes } from "./logic/held-bytes";
 import type { DiffQuery } from "./schemas";
-import type { DiffFailure, ReadDiffDeps } from "./types";
+import {
+  DiffLifetimes,
+  type DiffLifetime,
+  type DiffRead,
+  type ReadDiffDeps,
+} from "./types";
+import { commitShaSchema } from "../../../wire-bounds";
 
 /**
  * The LIVE diff for the requested `base...head` span, never the whole PR,
  * read on the viewer's binding by the gate's verified slug and cached per
- * session, NEVER persisted. The read stops attempting at its deadline, and a
- * body short of its declared length is refused. Behind an operator pass the
- * binding falls back only when both refs are full SHAs recorded for the
- * granted PR.
+ * session, NEVER persisted. Concurrent reads of one cache key share one
+ * GitHub call. The read stops attempting at its deadline, and a body short of
+ * its declared length is refused. Behind an operator pass the binding falls
+ * back only when both refs are full SHAs recorded for the granted PR.
  */
 export async function readDiff(
   deps: ReadDiffDeps,
   access: PullRequestAccess,
   query: DiffQuery,
-): Promise<Result<string, DiffFailure>> {
+): Promise<DiffRead> {
   const repo = parseOwnerAndName(access.repoFullName);
   if (repo === undefined) {
     return { ok: false, error: { kind: "not-found" } };
@@ -40,7 +46,47 @@ export async function readDiff(
   if (cached !== undefined) {
     return { ok: true, value: cached };
   }
+  const inFlight = deps.diffFetches.get(cacheKey);
+  if (inFlight !== undefined) {
+    return inFlight;
+  }
 
+  const fetching = fetchDiff(deps, access, repo, query, cacheKey).finally(
+    () => {
+      deps.diffFetches.delete(cacheKey);
+    },
+  );
+  deps.diffFetches.set(cacheKey, fetching);
+  return fetching;
+}
+
+/**
+ * Reads the span's diff so the page's own read lands on the cache. Never
+ * rejects: a failure caches nothing and reaches no caller.
+ */
+export async function warmDiff(
+  deps: ReadDiffDeps,
+  access: PullRequestAccess,
+  query: DiffQuery,
+  log: Logger,
+): Promise<void> {
+  try {
+    const read = await readDiff(deps, access, query);
+    if (!read.ok) {
+      log.debug("span diff warm refused", { failure: read.error.kind });
+    }
+  } catch (error) {
+    log.debug("span diff warm failed", { err: error });
+  }
+}
+
+async function fetchDiff(
+  deps: ReadDiffDeps,
+  access: PullRequestAccess,
+  repo: RepositoryRef,
+  query: DiffQuery,
+  cacheKey: string,
+): Promise<DiffRead> {
   const span = {
     base: query.base,
     head: query.head,
@@ -52,39 +98,37 @@ export async function readDiff(
     return { ok: false, error: { kind: FailureKinds.GITHUB_DENIED, error } };
   }
 
-  const pinned = isCommitPinnedSpan(query);
-  cacheDiff(
-    deps,
-    access.session.sessionTokenHash,
-    cacheKey,
-    diff.value,
-    pinned,
-  );
+  const lifetime = resolveDiffLifetime(query);
+  const viewer = access.session.sessionTokenHash;
+  cacheDiff(deps, viewer, cacheKey, diff.value, lifetime);
   return diff;
 }
 
-function isCommitPinnedSpan(query: DiffQuery): boolean {
-  const baseIsSha = commitShaSchema.safeParse(query.base).success;
-  return baseIsSha && commitShaSchema.safeParse(query.head).success;
+/** Both refs full SHAs: GitHub can never answer that span differently. */
+function resolveDiffLifetime(query: DiffQuery): DiffLifetime {
+  const pinned =
+    commitShaSchema.safeParse(query.base).success &&
+    commitShaSchema.safeParse(query.head).success;
+  return pinned ? DiffLifetimes.SHA_PINNED : DiffLifetimes.LIVE;
 }
 
-/** A diff past the small cache's entry cap goes to the large-diff cache, and
- * only when both refs are commit SHAs: a branch ref's diff moves on push,
+/** A diff past the small cache's entry cap goes to the large-diff cache,
+ * and only when both refs are commit SHAs: a branch ref's diff moves on push,
  * and that cache outlives the debounce. */
 function cacheDiff(
   deps: ReadDiffDeps,
   viewer: string,
   cacheKey: string,
   diff: string,
-  commitPinned: boolean,
+  lifetime: DiffLifetime,
 ): void {
   const storedAt = Date.now();
   const bytes = measureHeldBytes(diff);
   if (bytes <= SPAN_DIFF_CACHE_LIMITS.maxEntryBytes) {
-    deps.diffCache.set(cacheKey, diff, bytes, storedAt);
+    deps.diffCache.set(cacheKey, diff, bytes, storedAt, lifetime);
     return;
   }
-  if (commitPinned) {
-    deps.largeDiffCache.set(viewer, cacheKey, diff, bytes, storedAt);
+  if (lifetime === DiffLifetimes.SHA_PINNED) {
+    deps.largeDiffCache.set(viewer, cacheKey, diff, bytes, storedAt, lifetime);
   }
 }

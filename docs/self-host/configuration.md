@@ -126,7 +126,7 @@ it.
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
 | `LOG_LEVEL` | api, worker, web, migrate | `info` | no | `error`, `warn`, `info` or `debug`, lowercase. Anything else refuses boot. Empty takes the default. |
-| `NODE_ENV` | api, worker, web, migrate | unset | no | `development` switches log output to pino-pretty, which the image does not ship, so the logger cannot start there. In `api`, `production` also turns off `MERGEBRIEF_OUT_DIR`. |
+| `NODE_ENV` | api, worker, web, migrate | `production` in the image; unset in a source checkout | no | `production` makes `web` render pages with the production builds of React and its router; anything else renders with their development builds, which cost up to 1.6x the CPU per page on a large brief. `development` switches log output to pino-pretty, which the image does not ship, so the logger cannot start there. In `api`, `production` also turns off `MERGEBRIEF_OUT_DIR`. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | api, worker, web | unset (tracing off) | no | The OTLP base URL; `/v1/traces` is appended. An `http` or `https` URL, or boot refuses. |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | api, worker, web | unset | no | The full traces URL. Wins over the base endpoint. |
 | `OTEL_EXPORTER_OTLP_HEADERS` | api, worker, web | unset | no | `key=value,key=value`, values percent-encoded. A malformed entry refuses boot while an endpoint is set. Compose does not pass it to `web`. |

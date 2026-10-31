@@ -30,6 +30,7 @@ import type { ComparisonQuery } from "../../../../../model/comparison/comparison
 import { FileRowsProvider } from "../../../../../model/file-rows/useFileRows";
 import { type Brief, type BriefChunk } from "../../../../../model/types";
 import type { FileRowsCache } from "../../../../../model/file-rows/cache";
+import { stubFileRowsCache } from "../../../../../test-utils/fixtures";
 import { buildLineOwnersByFile } from "../../../../../model/utils/line-owner";
 import { buildBriefViewModel } from "../../../../../model/utils/view-model";
 import { DiffTable } from "../../DiffTable";
@@ -97,10 +98,9 @@ const BRIEF: Brief = {
   concernView: [],
 };
 
-const FILE_ROWS_CACHE: FileRowsCache = {
-  isEmpty: false,
-  getFileRows: (path) => (path === "src/a.ts" ? FILE_ROWS : undefined),
-};
+const FILE_ROWS_CACHE: FileRowsCache = stubFileRowsCache((path) =>
+  path === "src/a.ts" ? FILE_ROWS : undefined,
+);
 
 function diffQuery(
   base: string,
@@ -120,10 +120,7 @@ const THREAD_COMPOSER = {
   onPosted: vi.fn(),
 };
 
-const NO_DIFF_CACHE: FileRowsCache = {
-  isEmpty: true,
-  getFileRows: () => undefined,
-};
+const NO_DIFF_CACHE: FileRowsCache = stubFileRowsCache(() => undefined, true);
 
 function stubThread(
   side: ReviewCommentSide,

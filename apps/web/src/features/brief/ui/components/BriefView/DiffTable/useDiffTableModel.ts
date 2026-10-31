@@ -10,6 +10,8 @@ import {
 import { type DiffView, DiffViews } from "@web/components/DiffRows/types";
 import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../../model/types";
+import { attachChunkListRows } from "../../../../model/file-rows/cache";
+import { useFileRows } from "../../../../model/file-rows/useFileRows";
 import type { FileLineOwners } from "../../../../model/utils/line-owner";
 import { resolveSpanOwner } from "../../../../model/utils/line-owner";
 import { groupSiblingSpans } from "../../../../model/utils/sibling-spans";
@@ -147,9 +149,16 @@ export function useDiffTableModel({
     [spanOwnerByRow],
   );
   const ownerChunks = guest?.owners?.chunks ?? lineOwners?.chunks;
+  const fileRows = useFileRows();
   const ownerChunkById = useMemo(
-    () => new Map(ownerChunks?.map((owner) => [owner.id, owner])),
-    [ownerChunks],
+    () =>
+      new Map(
+        attachChunkListRows(ownerChunks ?? [], fileRows).map((owner) => [
+          owner.id,
+          owner,
+        ]),
+      ),
+    [ownerChunks, fileRows],
   );
   // Once per row set, not per render: a drag re-renders the table on every
   // row the pointer crosses, and the owner's diff scan is per span row.

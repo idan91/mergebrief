@@ -1,5 +1,10 @@
 import { createTtlCache } from "../../../../ttl-cache";
-import type { LargeDiffCache, LargeDiffCacheLimits, SizedDiff } from "../types";
+import {
+  DiffLifetimes,
+  type LargeDiffCache,
+  type LargeDiffCacheLimits,
+  type SizedDiff,
+} from "../types";
 import { readSizedBytes } from "./held-bytes";
 
 /**
@@ -32,7 +37,7 @@ export function createLargeDiffCache(
       return diffs.get(key, now)?.diff;
     },
 
-    set(viewer, key, diff, bytes, now) {
+    set(viewer, key, diff, bytes, now, lifetime) {
       if (bytes > limits.maxEntryBytes) {
         return;
       }
@@ -47,7 +52,11 @@ export function createLargeDiffCache(
           diffs.delete(oldest);
         }
       }
-      diffs.set(key, { diff, bytes }, now + limits.ttlMs, now);
+      const ttlMs =
+        lifetime === DiffLifetimes.SHA_PINNED
+          ? limits.shaPinnedTtlMs
+          : limits.ttlMs;
+      diffs.set(key, { diff, bytes }, now + ttlMs, now);
       keys.push(key);
       keysByViewer.set(viewer, keys);
     },

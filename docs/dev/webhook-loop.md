@@ -70,6 +70,25 @@ web tier's server entry (`apps/web/src/server.ts`) proxies `/api/*` to it, strea
 body so the HMAC still verifies over the bytes GitHub signed. Point the tunnel at the web
 origin as before: nothing about the public URL changes.
 
+Do not judge load time on a dev server. A large brief opens 2 to 3x slower there than in
+production: React's development build records every render for its performance track, and
+Vite serves about 1,150 unbundled modules after a 7 to 10 s cold start. `pnpm app:host` runs
+the dev web tier with hot reload; `pnpm app:host:prod` runs the same api and worker beside a
+production build of the web tier on 127.0.0.1. The web `start` script sets `NODE_ENV=production`,
+so the server render loads React's production build, as the image does. That is the one to time:
+
+```sh
+pnpm app:host:prod  # postgres, root .env, builds apps/web, then api :3001, worker, web 127.0.0.1:3000
+```
+
+Then open the brief in Chrome with DevTools' Network panel and read the
+`/api/repos/<id>/pulls/<n>/diff` request's start and end, and the Performance panel's long tasks
+after it lands. With the api already running, this restarts only the web tier:
+
+```sh
+pnpm -C apps/web build && MERGEBRIEF_WEB_HOST=127.0.0.1 pnpm -C apps/web start
+```
+
 ## 4. Open a public tunnel
 
 ```sh

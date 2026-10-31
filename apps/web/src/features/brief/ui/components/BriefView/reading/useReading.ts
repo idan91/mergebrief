@@ -17,7 +17,7 @@ export function useReading({
   ownDraftActive,
 }: UseReadingInput): ReadingState {
   const { reading, address, pr } = props;
-  const { brief, briefId, model, repoConfig } = reading;
+  const { brief, briefId, fileRows, model, repoConfig } = reading;
   const repoId = pr?.repoId;
 
   const chunkWindowsRef = useRef(createChunkWindowRegistry());
@@ -30,6 +30,7 @@ export function useReading({
   const session = useReadingSession({
     brief,
     briefId,
+    fileRows,
     compareViewFull: overlay.compareState.view === "full",
     model,
     ownDraftActive,

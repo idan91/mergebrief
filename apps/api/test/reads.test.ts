@@ -19,6 +19,7 @@ import {
   type KeyProvider,
   type BriefWriteInput,
 } from "persistence";
+import { WARM_SPAN_DIFF_HEADER } from "contract";
 import { PrStates, AccessLevels } from "types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -482,6 +483,120 @@ describe("reviewer read API + authz gate", () => {
     function listDiffCalls() {
       return fake.listCalls("fetchCheckedCompareDiff");
     }
+
+    function readBriefWarming(cookie: string, base: string, head: string) {
+      return app.request(briefPath(base, head), {
+        headers: {
+          Cookie: `__Host-mergebrief_session=${cookie}`,
+          [WARM_SPAN_DIFF_HEADER]: "1",
+        },
+      });
+    }
+
+    async function mintLinkedBearer(cookieHash: string): Promise<string> {
+      const resolved = await createSessionAuth(harness.handle).findSession(
+        cookieHash,
+      );
+      if (resolved === undefined) {
+        throw new Error("seeded session not found");
+      }
+      const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
+      await createTokenAuth(harness.handle).mintToken({
+        scope: AccessLevels.READ,
+        userId: brandReviewerId(BigInt(REVIEWER_ID)),
+        name: "cli-agent",
+        tokenHash: hashSha256Hex(bearer),
+        grantId: resolved.session.grantId,
+        expiresAt: null,
+      });
+      return bearer;
+    }
+
+    /** The brief read's warm has called GitHub and settled. */
+    async function waitForSettledWarm(): Promise<void> {
+      await vi.waitFor(() => {
+        expect(listDiffCalls()).toHaveLength(1);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    it("warms the span diff cache when the brief is read", async () => {
+      stubGate(fake);
+      fake.addCompare(
+        REPO,
+        { base: "base1", head: "head1" },
+        { diff: DIFF_TEXT },
+      );
+      const cookie = await signInWithRow();
+      await seedBrief(harness.handle, "base1", "head1");
+
+      const brief = await readBriefWarming(cookie, "base1", "head1");
+      await waitForSettledWarm();
+      const diff = await readDiff(cookie, "base1", "head1");
+
+      expect(brief.status).toBe(200);
+      expect(await diff.text()).toBe(DIFF_TEXT);
+      expect(listDiffCalls()).toHaveLength(1);
+    });
+
+    it("warms nothing for a brief read that does not ask", async () => {
+      stubGate(fake);
+      const cookie = await signInWithRow();
+      await seedBrief(harness.handle, "base1", "head1");
+
+      const brief = await app.request(briefPath("base1", "head1"), {
+        headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      });
+
+      expect(brief.status).toBe(200);
+      expect(listDiffCalls()).toEqual([]);
+    });
+
+    it("warms nothing for a Bearer brief read that asks", async () => {
+      stubGate(fake);
+      const { cookieHash } = await seedSignIn(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      await seedBrief(harness.handle, "base1", "head1");
+      const bearer = await mintLinkedBearer(cookieHash);
+
+      const brief = await app.request(briefPath("base1", "head1"), {
+        headers: {
+          Authorization: `Bearer ${bearer}`,
+          [WARM_SPAN_DIFF_HEADER]: "1",
+        },
+      });
+
+      expect(brief.status).toBe(200);
+      expect(listDiffCalls()).toEqual([]);
+    });
+
+    it("warms nothing for a brief whose span names a cross-repo ref", async () => {
+      stubGate(fake);
+      const cookie = await signInWithRow();
+      await seedBrief(harness.handle, "fork:base1", "head1");
+
+      const brief = await readBriefWarming(cookie, "fork:base1", "head1");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(brief.status).toBe(200);
+      expect(listDiffCalls()).toEqual([]);
+    });
+
+    it("answers the brief when its diff warm fails and caches nothing", async () => {
+      stubGate(fake);
+      fake.failOn("fetchCheckedCompareDiff", FakeFailures.SERVER_ERROR);
+      const cookie = await signInWithRow();
+      await seedBrief(harness.handle, "base1", "head1");
+
+      const brief = await readBriefWarming(cookie, "base1", "head1");
+      await waitForSettledWarm();
+      const diff = await readDiff(cookie, "base1", "head1");
+
+      expect(brief.status).toBe(200);
+      expect(await brief.text()).toBe(BRIEF_BODY);
+      expect(diff.status).toBe(502);
+      expect(listDiffCalls()).toHaveLength(2);
+    });
 
     it("proxies the requested base...head diff rather than the whole PR", async () => {
       stubGate(fake);

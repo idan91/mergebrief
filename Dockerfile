@@ -101,6 +101,12 @@ ENV SERVER_VERSION=${MERGEBRIEF_VERSION}
 # names `docker compose run --rm api migrate` as the manual step.
 ENV MERGEBRIEF_RUNTIME=compose-worker
 
+# Final stage only: on an install stage pnpm would skip devDependencies. The
+# web tier's server render loads react, react-dom and the TanStack packages
+# from node_modules, and each picks its development or production build from
+# this at runtime.
+ENV NODE_ENV=production
+
 # The image's unprivileged user; no service needs a root capability.
 USER node
 

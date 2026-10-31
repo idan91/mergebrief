@@ -98,23 +98,21 @@ describe("attachSlicedDiffs", () => {
     ]);
   });
 
-  it("slices a chunk's rows on first read and keeps them", () => {
+  it("parses and slices a chunk's rows on first read and keeps them", () => {
     let parses = 0;
-    const cache = createFileRowsCache(splitUnifiedDiffByFile(MULTI_FILE_DIFF));
-    const counting = {
-      isEmpty: cache.isEmpty,
-      getFileRows: (path: string) => {
-        parses += 1;
-        return cache.getFileRows(path);
-      },
+    const patches = new Map(splitUnifiedDiffByFile(MULTI_FILE_DIFF));
+    const readPatch = patches.get.bind(patches);
+    patches.get = (path: string) => {
+      parses += 1;
+      return readPatch(path);
     };
     const brief = attachSlicedDiffs(
       stubBrief([stubChunk({ addedRanges: [{ start: 1, end: 1 }] })]),
-      counting,
+      createFileRowsCache(patches),
     );
     const chunk = brief.chunks[0];
 
-    expect(parses).toBe(1);
+    expect(parses).toBe(0);
     expect(Object.keys(chunk ?? {})).toContain("diff");
     const first = chunk?.diff;
     expect(first?.map((row) => row.content)).toEqual([
@@ -124,6 +122,7 @@ describe("attachSlicedDiffs", () => {
       "const b = 2;",
     ]);
     expect(chunk?.diff).toBe(first);
+    expect(parses).toBe(1);
   });
 
   it("lets a caller replace a sliced chunk's rows", () => {

@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 
 import type { BriefChunk } from "../../../../model/types";
 import { useChunkStripFacade } from "./useChunkStripFacade";
-import { deriveMarkName } from "./utils";
 import styles from "./ChunkStrip.module.scss";
 
 export interface ChunkStripProps {
@@ -37,13 +36,12 @@ export function ChunkStrip({ groupId, chunks, jumpToChunk }: ChunkStripProps) {
           const current = index === facade.activeIndex;
           const peeked = index === facade.peekIndex;
           const isTabStop = index === facade.tabStop;
-          const name = deriveMarkName(t, mark, total);
 
           return (
             // oxlint-disable-next-line house/no-raw-button -- a bare 24px position mark: the bar is its ::before, no label box
             <button
               aria-current={current ? "true" : undefined}
-              aria-label={name}
+              aria-label={facade.markNames[index]}
               className={styles["mark"]}
               data-state={peeked ? "peek" : undefined}
               key={mark.id}

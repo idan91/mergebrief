@@ -3,7 +3,11 @@
 // narrative), and
 // the LIVE reads (span diff, file range, stack) on the viewer's binding,
 // cached per session and NEVER persisted.
-import { ProductQueryIds, type PullMetaView } from "contract";
+import {
+  ProductQueryIds,
+  WARM_SPAN_DIFF_HEADER,
+  type PullMetaView,
+} from "contract";
 import type { Handler } from "hono";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
@@ -21,7 +25,7 @@ import {
   type ProductRouter,
 } from "../../../../product-operations/product-router";
 import { NotFound } from "../../../../shared-errors/api-error";
-import type { AuthRouteDeps } from "../../../auth/session/types";
+import { AuthChannels, type AuthRouteDeps } from "../../../auth/session/types";
 import type { LiveFactsReader } from "../../../live-read/types";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import {
@@ -45,7 +49,7 @@ import {
 } from "./read-artifact";
 import { createLargeDiffCache } from "./logic/large-diff-cache";
 import { createSpanDiffCache } from "./logic/span-diff-cache";
-import { readDiff } from "./read-diff";
+import { readDiff, warmDiff } from "./read-diff";
 import { readFileRange } from "./read-file-range";
 import { readGenerationClaims } from "./read-generation-claims";
 import { readPull } from "./read-pull";
@@ -100,6 +104,33 @@ function createArtifactHandler<Schema extends z.ZodType>(
       throw new NotFound();
     }
 
+    return c.body(read.value, HttpStatuses.OK, STORED_JSON);
+  };
+}
+
+/**
+ * A brief that answers starts its span's diff read when the page's server
+ * render asks: a hover preload or a CLI read must not spend a GitHub call.
+ */
+function createReadBriefHandler(
+  deps: AuthRouteDeps,
+  diffReads: ReadDiffDeps,
+): Handler<PullRequestEnv> {
+  return async (c) => {
+    const query = parseQuery(c, briefQuerySchema, ["base", "head"]);
+    const access = c.get("pullRequestAccess");
+    const read = await readBrief(deps.handle, access, query);
+    if (!read.ok) {
+      throw new NotFound();
+    }
+
+    const warmRequested =
+      c.req.header(WARM_SPAN_DIFF_HEADER) !== undefined &&
+      access.session.channel === AuthChannels.COOKIE;
+    const diffQuery = diffQuerySchema.safeParse(query);
+    if (warmRequested && diffQuery.success) {
+      void warmDiff(diffReads, access, diffQuery.data, c.get("logger"));
+    }
     return c.body(read.value, HttpStatuses.OK, STORED_JSON);
   };
 }
@@ -189,17 +220,28 @@ function createReadStackHandler(
 }
 
 /**
+ * The span diff's caches and in-flight calls, created once per `createApp`
+ * and shared by the diff read and the brief read's warm.
+ */
+function createDiffReads(): ReadDiffDeps {
+  return {
+    // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
+    diffCache: createSpanDiffCache(SPAN_DIFF_CACHE_LIMITS),
+    // Same keys, for diffs past the small cache's entry cap.
+    largeDiffCache: createLargeDiffCache(LARGE_DIFF_CACHE_LIMITS),
+    diffFetches: new Map(),
+  };
+}
+
+/**
  * The reads that go to GitHub live: the span diff, the file range and the
- * stack. Their caches are created here, once per `createApp`.
+ * stack. The file and stack caches are created here, once per `createApp`.
  */
 function declareLiveReads(
   app: ProductRouter<PullRequestEnv>,
   deps: AuthRouteDeps,
+  diffReads: ReadDiffDeps,
 ): void {
-  // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
-  const diffCache = createSpanDiffCache(SPAN_DIFF_CACHE_LIMITS);
-  // Same keys, for diffs past the small cache's entry cap.
-  const largeDiffCache = createLargeDiffCache(LARGE_DIFF_CACHE_LIMITS);
   // key `${sessionHash}:${repoId}:${ref}:${path}` → the SPLIT blob, so the
   // second edge of one file costs neither a GitHub call nor a re-split.
   const fileCache = createTtlCache<readonly string[]>(
@@ -219,7 +261,7 @@ function declareLiveReads(
       requiresStoredPullRequest: true,
     },
     "/diff",
-    createReadDiffHandler({ diffCache, largeDiffCache }),
+    createReadDiffHandler(diffReads),
   );
   app.query(
     {
@@ -251,6 +293,7 @@ export function readsRoutes(
   deps: AuthRouteDeps,
 ): ProductRouter<PullRequestEnv> {
   const app = productRouter<PullRequestEnv>();
+  const diffReads = createDiffReads();
   app.query(
     {
       id: ProductQueryIds.READ_PULL,
@@ -285,7 +328,7 @@ export function readsRoutes(
       requiresStoredPullRequest: true,
     },
     "/brief",
-    createArtifactHandler(deps, briefQuerySchema, ["base", "head"], readBrief),
+    createReadBriefHandler(deps, diffReads),
   );
   app.query(
     {
@@ -372,6 +415,6 @@ export function readsRoutes(
       readBriefLayout,
     ),
   );
-  declareLiveReads(app, deps);
+  declareLiveReads(app, deps, diffReads);
   return app;
 }

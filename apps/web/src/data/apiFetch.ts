@@ -53,17 +53,20 @@ export class ApiError extends Error {
   }
 }
 
-/** An `ApiError` as SSR dehydration carries it: every constructor argument. */
+/** An `ApiError` as SSR dehydration carries it: code and status, never the path. */
 interface SerializedApiError {
   readonly code: ApiErrorCode;
   readonly status: number;
-  readonly path: string;
 }
+
+/** The path a dehydrated `ApiError` carries: none, so the page never ships it. */
+const DEHYDRATED_PATH = "";
 
 /**
  * Start's default dehydrates any `Error` as a bare `Error(message)`, so a
  * loader's `ApiError` would hydrate without its class or `code`, and the
  * error screen's copy would change from the server render to the generic one.
+ * The screens read only the code; the request path stays on the server.
  */
 export const apiErrorSerializationAdapter = createSerializationAdapter<
   ApiError,
@@ -71,13 +74,26 @@ export const apiErrorSerializationAdapter = createSerializationAdapter<
 >({
   key: "api-error",
   test: (value): value is ApiError => value instanceof ApiError,
-  toSerializable: (error) => ({
-    code: error.code,
-    status: error.status,
-    path: error.path,
-  }),
+  toSerializable: (error) => ({ code: error.code, status: error.status }),
   fromSerializable: (value) =>
-    new ApiError(value.code, value.status, value.path),
+    new ApiError(value.code, value.status, DEHYDRATED_PATH),
+});
+
+/** Any other error, as dehydration carries it: without its message. */
+interface SerializedOpaqueError {
+  readonly opaque: true;
+}
+
+/** Start's default would ship the message, which can carry a path or input. */
+export const opaqueErrorSerializationAdapter = createSerializationAdapter<
+  Error,
+  SerializedOpaqueError
+>({
+  key: "opaque-error",
+  test: (value): value is Error =>
+    value instanceof Error && !(value instanceof ApiError),
+  toSerializable: () => ({ opaque: true }),
+  fromSerializable: () => new Error(),
 });
 
 // Fallback for a body that carries no code (a proxy error page, a legacy
@@ -137,6 +153,8 @@ export interface ApiFetchInit {
   /** A Blob is the image upload, sent from the browser only. */
   readonly body?: string | Blob;
   readonly signal?: AbortSignal;
+  /** A read a `<link rel="preload">` started must match its credentials mode. */
+  readonly credentials?: RequestCredentials;
   /**
    * The caller reads a 401 as the signed-out state it renders, so the
    * browser stays put. Every other read's 401 GitHub answered for a live

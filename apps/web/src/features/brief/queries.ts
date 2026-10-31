@@ -22,6 +22,7 @@ import {
 } from "../../data/apiFetch";
 import { request, requestText } from "../../data/request";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
+import { isFullCommitSha } from "../../utils/commit-sha";
 import { FileRangeResultKinds } from "./model/expansion/types";
 import type { Brief, ComparisonMarks, FileDiffPatch } from "./model/types";
 import {
@@ -290,8 +291,6 @@ export function buildLocalBriefsQueryOptions() {
   });
 }
 
-const HEAD_SHA = /^[\da-f]{40}$/;
-
 // Annotated, not inferred: the annotation is the compile-time proof that what
 // this parser answers is the shape the contract promises.
 const fileRangeSchema: z.ZodType<FileRangeView> = z
@@ -384,7 +383,7 @@ export function buildFileRangeQueryOptions(params: FileRangeParams) {
 
 /** Whether this range is one the route will serve at all. */
 export function isFileRangeReadable(params: FileRangeParams): boolean {
-  if (!HEAD_SHA.test(params.ref)) {
+  if (!isFullCommitSha(params.ref)) {
     return false;
   }
   if (params.from < 1 || params.to < params.from) {

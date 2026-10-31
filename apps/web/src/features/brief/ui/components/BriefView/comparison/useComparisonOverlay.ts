@@ -25,6 +25,7 @@ import type { ComparisonOverlayState } from "../../../../model/comparison/compar
 import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
 import { attachSpanDiffs } from "../../../../model/utils/diff-slicing";
 import {
+  attachChunkListRows,
   createFileRowsCache,
   type FileRowsCache,
 } from "../../../../model/file-rows/cache";
@@ -48,6 +49,8 @@ type ActivePlanSlot =
 
 export interface UseComparisonOverlayInput {
   brief: Brief;
+  /** The PR diff's rows once it has landed; the run count reads them. */
+  fileRows?: FileRowsCache | undefined;
   comparisonPlan: BriefComparisonPlan | undefined;
   /** Raw View/Compare URL params. */
   searchParams: BriefSearchParams;
@@ -100,7 +103,7 @@ export interface UseComparisonOverlayValue {
 export function useComparisonOverlay(
   input: UseComparisonOverlayInput,
 ): UseComparisonOverlayValue {
-  const { brief, comparisonPlan, searchParams } = input;
+  const { brief, comparisonPlan, fileRows, searchParams } = input;
   const planPrevious = comparisonPlan?.previousBrief;
   const planLastReview = comparisonPlan?.lastReview;
   const availability = useMemo(
@@ -252,11 +255,15 @@ export function useComparisonOverlay(
       source: comparisonSource,
       skipReason,
       available,
-      runCount: countComparisonRuns(brief.chunks, effectiveMarks),
+      runCount: countComparisonRuns(
+        attachChunkListRows(brief.chunks, fileRows),
+        effectiveMarks,
+      ),
     };
   }, [
     activeCompare,
     brief.chunks,
+    fileRows,
     compareState.view,
     comparisonSource,
     marks,

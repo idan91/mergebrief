@@ -32,6 +32,7 @@ import {
 } from "../../../../model/comparison/types";
 import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
 import type { FileRowsCache } from "../../../../model/file-rows/cache";
+import { useFileRows } from "../../../../model/file-rows/useFileRows";
 import { DiffTimeoutNotice } from "../../DiffTimeoutNotice";
 import { DeltaContext } from "../DeltaContext";
 import {
@@ -409,11 +410,12 @@ function NarrativeChunkCard({
   spanRows,
 }: NarrativeChunkCardProps) {
   const { t } = useTranslation();
+  const fileRows = useFileRows();
   const fileSpanRows = spanRows?.getFileRows(chunk.file);
   // The snippet key and the guest input derive from these identities.
   const narrative = useMemo(
-    () => collectNarrativeRows(brief, chunk, t, fileSpanRows),
-    [brief, chunk, fileSpanRows, t],
+    () => collectNarrativeRows(brief, chunk, t, fileSpanRows, fileRows),
+    [brief, chunk, fileSpanRows, fileRows, t],
   );
   const host = useMemo<BriefChunk>(
     () => ({

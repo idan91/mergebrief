@@ -1,13 +1,18 @@
 import type { LargeDiffCacheLimits, SpanDiffCacheLimits } from "./types";
 
 const MEBIBYTE = 1024 * 1024;
-/** Keys are never reused, so count and bytes both bound it; the diff is live,
- * so the short TTL only debounces. */
+const MINUTE_MS = 60 * 1000;
+/** A span between two full SHAs cannot change at GitHub; access is still
+ * checked on every request, so only the bytes live longer. */
+const SHA_PINNED_TTL_MS = 30 * MINUTE_MS;
+/** Keys are never reused, so count and bytes both bound it; a span naming a
+ * branch is live, so its short TTL only debounces. */
 export const SPAN_DIFF_CACHE_LIMITS = {
   maxEntryBytes: 1_000_000,
   maxBytes: 128 * MEBIBYTE,
   maxEntries: 2_000,
-  ttlMs: 60 * 1000,
+  ttlMs: MINUTE_MS,
+  shaPinnedTtlMs: SHA_PINNED_TTL_MS,
 } as const satisfies SpanDiffCacheLimits;
 /** Holds only spans pinned to two commit SHAs, whose diff never changes. */
 export const LARGE_DIFF_CACHE_LIMITS = {
@@ -15,7 +20,8 @@ export const LARGE_DIFF_CACHE_LIMITS = {
   maxBytes: 256 * MEBIBYTE,
   maxEntries: 256,
   maxEntriesPerViewer: 4,
-  ttlMs: 10 * 60 * 1000,
+  ttlMs: 10 * MINUTE_MS,
+  shaPinnedTtlMs: SHA_PINNED_TTL_MS,
 } as const satisfies LargeDiffCacheLimits;
 /** Attempts on a span diff stop here, inside the web tier's 30 s upstream budget. */
 export const DIFF_FETCH_DEADLINE_MS = 25_000;

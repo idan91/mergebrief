@@ -161,6 +161,9 @@ export function buildStorageState(cookie: string): StorageState {
 export const E2E_REPO_ID = readEnvNumber("MERGEBRIEF_E2E_REPO_ID", 424242);
 export const E2E_REPO_SLUG =
   process.env["MERGEBRIEF_E2E_REPO_SLUG"] ?? "mergebrief/e2e-fixture";
+/** The heads the seed writes briefs at with no fixture diff behind them. */
+export const E2E_SEED_OLDER_HEAD = "3333333300001111222233334444555566667777";
+export const E2E_SEED_LATEST_HEAD = "4444444400001111222233334444555566667777";
 
 const fixtureDirOverride = process.env["MERGEBRIEF_E2E_FIXTURE_DIR"];
 export const FIXTURE_DIR =
@@ -227,6 +230,10 @@ export function buildApiServerEnv(): Record<string, string> {
     MERGEBRIEF_E2E_FIXTURES: FIXTURE_DIR,
     MERGEBRIEF_E2E_REPO_ID: String(E2E_REPO_ID),
     MERGEBRIEF_E2E_REPO_SLUG: E2E_REPO_SLUG,
+    MERGEBRIEF_E2E_CODELESS_HEADS: JSON.stringify([
+      E2E_SEED_OLDER_HEAD,
+      E2E_SEED_LATEST_HEAD,
+    ]),
     MERGEBRIEF_E2E_OUTDATED_THREADS: JSON.stringify([
       {
         rootCommentId: FIXTURE_BRIEFED_ANCHOR_THREAD_ID,

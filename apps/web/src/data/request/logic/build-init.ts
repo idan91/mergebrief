@@ -65,6 +65,9 @@ export function buildInit<Id extends ProductOperationId>(
   if (args.signal !== undefined) {
     init.signal = args.signal;
   }
+  if (args.credentials !== undefined) {
+    init.credentials = args.credentials;
+  }
   if (args.unauthorizedIsSignedOut !== undefined) {
     init.unauthorizedIsSignedOut = args.unauthorizedIsSignedOut;
   }

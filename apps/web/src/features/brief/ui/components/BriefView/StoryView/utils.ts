@@ -57,7 +57,8 @@ export function countStoryChunkRows(
       return NO_STORY_ROWS;
     }
 
-    const base = chunk.diff ?? NO_DIFF;
+    const withRows = fileRows?.attachChunkRows(chunk) ?? chunk;
+    const base = withRows.diff ?? NO_DIFF;
     const chunkView = resolveChunkView(diffView, chunk, false);
     const expanded = countExpandedRows(
       expandedEdges,

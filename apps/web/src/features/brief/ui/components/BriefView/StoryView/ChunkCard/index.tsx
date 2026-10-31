@@ -20,6 +20,7 @@ import type {
   RiskKey,
 } from "../../../../../model/types";
 import { useExpandedRows } from "../../../../../model/expansion/useExpandedRows";
+import { useChunkWithRows } from "../../../../../model/file-rows/useFileRows";
 import type {
   FileLineOwners,
   LineTarget,
@@ -169,7 +170,7 @@ function isSameSnapshot(
 const NO_ROWS: DiffLine[] = [];
 
 export const ChunkCard = memo(function ChunkCard({
-  chunk,
+  chunk: briefChunk,
   diffView = DiffViews.UNIFIED,
   comparison,
   open,
@@ -187,6 +188,7 @@ export const ChunkCard = memo(function ChunkCard({
   shareChunk,
 }: ChunkCardProps) {
   const { t } = useTranslation();
+  const chunk = useChunkWithRows(briefChunk);
   const reviewed = useReviewSession((state) =>
     state.reviewedChunks.has(chunk.id),
   );

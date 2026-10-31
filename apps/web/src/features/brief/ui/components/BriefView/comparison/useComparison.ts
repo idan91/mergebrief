@@ -10,7 +10,7 @@ export function useComparison({
   reading,
   address,
 }: UseComparisonInput): ComparisonState {
-  const { brief, model, comparisonPlan } = reading;
+  const { brief, model, comparisonPlan, fileRows } = reading;
   const { searchParams } = address;
 
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
@@ -19,6 +19,7 @@ export function useComparison({
   const overlay = useComparisonOverlay({
     brief,
     comparisonPlan,
+    fileRows,
     searchParams,
   });
   const { sinceReviewMarks } = overlay;

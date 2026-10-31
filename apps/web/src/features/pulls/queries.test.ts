@@ -476,6 +476,81 @@ describe("buildPrStackQueryOptions polling", () => {
   });
 });
 
+describe("buildPrDiffQueryOptions", () => {
+  const pinnedBase = "a".repeat(40);
+  const pinnedHead = "b".repeat(40);
+  const minuteMs = 60 * 1000;
+  let stopObserving: (() => void) | undefined;
+
+  afterEach(() => {
+    stopObserving?.();
+    stopObserving = undefined;
+    focusManager.setFocused(undefined);
+    vi.useRealTimers();
+  });
+
+  function observeDiff(base: string, head: string): void {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    client.mount();
+    const observer = new QueryObserver(
+      client,
+      buildPrDiffQueryOptions("424242", 7, base, head),
+    );
+    const unsubscribe = observer.subscribe(() => undefined);
+    stopObserving = () => {
+      unsubscribe();
+      client.unmount();
+      client.clear();
+    };
+  }
+
+  async function refocusAfter(ms: number): Promise<void> {
+    await vi.advanceTimersByTimeAsync(0);
+    focusManager.setFocused(false);
+    await vi.advanceTimersByTimeAsync(ms);
+    focusManager.setFocused(true);
+    await vi.advanceTimersByTimeAsync(0);
+  }
+
+  it("never rereads a diff pinned to two full SHAs on window focus", async () => {
+    vi.useFakeTimers();
+    apiFetchMock.mockReset();
+    answerText(200, "diff --git a/f b/f");
+    observeDiff(pinnedBase, pinnedHead);
+
+    await refocusAfter(10 * minuteMs);
+
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rereads a span naming a branch on focus once it is stale", async () => {
+    vi.useFakeTimers();
+    apiFetchMock.mockReset();
+    answerText(200, "diff --git a/f b/f");
+    observeDiff("main", pinnedHead);
+
+    await refocusAfter(2 * minuteMs);
+
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a diff of a few hundred files for thirty minutes", () => {
+    const options = buildPrDiffQueryOptions("424242", 7, "b", "h", 300);
+
+    expect(options.gcTime).toBe(30 * minuteMs);
+  });
+
+  it("keeps a very large or unsized diff for five minutes", () => {
+    const large = buildPrDiffQueryOptions("424242", 7, "b", "h", 301);
+    const unsized = buildPrDiffQueryOptions("424242", 7, "b", "h");
+
+    expect(large.gcTime).toBe(5 * minuteMs);
+    expect(unsized.gcTime).toBe(5 * minuteMs);
+  });
+});
+
 describe("createSessionReads", () => {
   const span = ["424242", 7, "base-1", "head-1"] as const;
   let stopObserving: (() => void) | undefined;
@@ -659,11 +734,6 @@ describe("the pull reads take their path from the operation row", () => {
       buildDbRevisionNarrativeQueryOptions("424242", 7, "head-0", "head-1"),
       `${pull}/narrative?prevHead=head-0&head=head-1`,
     ],
-    [
-      "diff",
-      buildPrDiffQueryOptions("424242", 7, "base-1", "head-1"),
-      `${pull}/diff?base=base-1&head=head-1`,
-    ],
   ])("reads the %s at its row's path", async (_read, options, path) => {
     apiFetchMock.mockReset();
     resolveBodyText({});
@@ -671,6 +741,18 @@ describe("the pull reads take their path from the operation row", () => {
     await runQuery(options).catch(() => undefined);
 
     expect(apiFetchMock).toHaveBeenCalledWith(path, { method: "GET" });
+  });
+
+  it("reads the diff at its row's path as the preload link fetches it", async () => {
+    apiFetchMock.mockReset();
+    answerText(200, "diff --git a/f b/f");
+
+    await runQuery(buildPrDiffQueryOptions("424242", 7, "base-1", "head-1"));
+
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      `${pull}/diff?base=base-1&head=head-1`,
+      { method: "GET", credentials: "include" },
+    );
   });
 });
 

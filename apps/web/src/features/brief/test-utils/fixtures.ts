@@ -4,6 +4,8 @@ import { Concerns, Roles } from "brief-core/types";
 import { type RowRef, RowRefKinds } from "../model/expansion/types";
 import { type Brief, type BriefChunk } from "../model/types";
 import type { RepoConfigContext } from "../model/utils/repo-config";
+import type { FileRowsCache } from "../model/file-rows/cache";
+import type { DiffLine } from "@web/utils/diffTokens/types";
 
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by
@@ -137,3 +139,19 @@ export const repoConfigContextFixture: RepoConfigContext = {
     ],
   },
 };
+
+/**
+ * A rows cache over `getFileRows`. Attaching hands each chunk back as it is:
+ * a fixture chunk carries its own rows.
+ */
+export function stubFileRowsCache(
+  getFileRows: (path: string) => DiffLine[] | undefined,
+  isEmpty = false,
+): FileRowsCache {
+  return {
+    isEmpty,
+    getFileRows,
+    attachChunkRows: (chunk) => chunk,
+    attachEntryRows: (entry) => entry,
+  };
+}

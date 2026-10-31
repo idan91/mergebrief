@@ -1,5 +1,10 @@
 import { createTtlCache } from "../../../../ttl-cache";
-import type { SizedDiff, SpanDiffCache, SpanDiffCacheLimits } from "../types";
+import {
+  DiffLifetimes,
+  type SizedDiff,
+  type SpanDiffCache,
+  type SpanDiffCacheLimits,
+} from "../types";
 import { readSizedBytes } from "./held-bytes";
 
 /** A TTL cache bounded by entry count and by the summed bytes it holds. */
@@ -16,11 +21,15 @@ export function createSpanDiffCache(
       return diffs.get(key, now)?.diff;
     },
 
-    set(key, diff, bytes, now) {
+    set(key, diff, bytes, now, lifetime) {
       if (bytes > limits.maxEntryBytes) {
         return;
       }
-      diffs.set(key, { diff, bytes }, now + limits.ttlMs, now);
+      const ttlMs =
+        lifetime === DiffLifetimes.SHA_PINNED
+          ? limits.shaPinnedTtlMs
+          : limits.ttlMs;
+      diffs.set(key, { diff, bytes }, now + ttlMs, now);
     },
   };
 }

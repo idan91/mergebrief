@@ -34,6 +34,7 @@ import {
 } from "../../../../model/expansion/useExpansionSource";
 import { FileRowsProvider } from "../../../../model/file-rows/useFileRows";
 import type { FileRowsCache } from "../../../../model/file-rows/cache";
+import { stubFileRowsCache } from "../../../../test-utils/fixtures";
 import type {
   FileLineOwners,
   LineTarget,
@@ -534,7 +535,7 @@ describe("DiffTable expansion into a sibling hunk", () => {
     { kind: "ctx", content: "keep", oldLine: 15, newLine: 13 },
     ...(stubChunk().diff ?? []),
   ];
-  const cache: FileRowsCache = { isEmpty: false, getFileRows: () => fileRows };
+  const cache: FileRowsCache = stubFileRowsCache(() => fileRows);
 
   it("shows the hunk's add and del rows without reading the file", async () => {
     const { view, queryClient } = renderHarness(
@@ -580,7 +581,7 @@ describe("DiffTable expansion into a sibling hunk", () => {
     ];
     const { view, queryClient, expansion } = renderHarness(
       { chunk: short, view: "unified" },
-      { fileRows: { isEmpty: false, getFileRows: () => covered } },
+      { fileRows: stubFileRowsCache(() => covered) },
     );
     fireEvent.click(
       screen.getByRole("button", { name: "Show all 12 hidden lines above" }),
@@ -636,7 +637,7 @@ describe("DiffTable sibling spans", () => {
     { kind: "add", content: "stray", newLine: 16 },
     ...(stubChunk().diff ?? []),
   ];
-  const cache: FileRowsCache = { isEmpty: false, getFileRows: () => fileRows };
+  const cache: FileRowsCache = stubFileRowsCache(() => fileRows);
   const lineOwners: FileLineOwners = {
     chunks: [stubChunk(), sibling, remainder],
     owners: new Map([
@@ -905,7 +906,7 @@ describe("DiffTable sibling spans", () => {
     };
     const harness = renderHarness(
       { chunk: stubChunk(), view: "split", lineOwners: owners },
-      { fileRows: { isEmpty: false, getFileRows: () => replaced } },
+      { fileRows: stubFileRowsCache(() => replaced) },
     );
     seedRange(harness.queryClient, 10, 29, 80);
     fireEvent.click(
@@ -1039,7 +1040,7 @@ describe("DiffTable sibling spans", () => {
         },
       },
       undefined,
-      { isEmpty: false, getFileRows: () => rows },
+      stubFileRowsCache(() => rows),
     );
     const middle = findSpanRow(view.container, "12");
     const first = findSpanRow(view.container, "11").querySelector(

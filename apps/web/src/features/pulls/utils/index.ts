@@ -14,4 +14,9 @@ export {
   type DbTimelinePoint,
   type RevisionRequest,
 } from "./dbTimeline";
+export {
+  prefetchSpanDiff,
+  readDiffPreloadPath,
+  type SpanDiffPrefetch,
+} from "./diff-prefetch";
 export { isNoLongerOpen } from "./pr-state";

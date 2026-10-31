@@ -58,16 +58,19 @@ const NOTHING_SETTLED: SettledTokens = {
 export function useTokenRequestState(
   input: TokenRequestInput,
 ): ChunkTokensState {
+  const enabled = input.enabled ?? true;
+  const tokenizableInput =
+    enabled &&
+    isTokenizableInput(input.filePath, input.rowCount, input.admitted);
+  // An input that cannot colour reads the server snapshot on the client too,
+  // so hydration does not re-render every rowless card when the worker check
+  // flips to true.
   const workerAvailable = useSyncExternalStore(
     subscribeToNothing,
-    canTokenizeChunks,
+    tokenizableInput ? canTokenizeChunks : readServerSnapshot,
     readServerSnapshot,
   );
-  const enabled = input.enabled ?? true;
-  const tokenizable =
-    enabled &&
-    workerAvailable &&
-    isTokenizableInput(input.filePath, input.rowCount, input.admitted);
+  const tokenizable = tokenizableInput && workerAvailable;
   const { requestKey } = input;
   const [settled, setSettled] = useState<SettledTokens>(NOTHING_SETTLED);
   // The client does not cache a grammar-load failure so the next request can

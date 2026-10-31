@@ -1,6 +1,9 @@
 import { createCsrfMiddleware, createStart } from "@tanstack/react-start";
 
-import { apiErrorSerializationAdapter } from "./data/apiFetch";
+import {
+  apiErrorSerializationAdapter,
+  opaqueErrorSerializationAdapter,
+} from "./data/apiFetch";
 
 // A start instance replaces Start's default request middleware, which is
 // exactly this guard: server functions keep their same-origin check.
@@ -10,5 +13,8 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [csrfMiddleware],
-  serializationAdapters: [apiErrorSerializationAdapter],
+  serializationAdapters: [
+    apiErrorSerializationAdapter,
+    opaqueErrorSerializationAdapter,
+  ],
 }));

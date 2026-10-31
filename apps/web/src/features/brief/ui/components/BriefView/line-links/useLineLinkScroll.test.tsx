@@ -18,6 +18,7 @@ import {
   FixtureBriefView,
   mountBriefHost,
   mountBriefView,
+  stubFileRowsCache,
 } from "@web/features/brief/test-utils";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefSearchParams } from "../../../../model/comparison/compare-state";
@@ -70,12 +71,10 @@ function stubFileRows(): DiffLine[] {
   return rows;
 }
 
-function stubFileRowsCache(): FileRowsCache {
-  return {
-    isEmpty: false,
-    getFileRows: (path: string) =>
-      path === "src/leak.ts" ? stubFileRows() : undefined,
-  };
+function stubLeakFileRows(): FileRowsCache {
+  return stubFileRowsCache((path) =>
+    path === "src/leak.ts" ? stubFileRows() : undefined,
+  );
 }
 
 async function renderWithLink(link: string) {
@@ -135,7 +134,7 @@ describe("line link scroll from Changes scope", () => {
   it("reads a folded line, leaves the scope once and selects it", async () => {
     const { exits } = await renderInChangesScope(
       "chunk-a.R4",
-      stubFileRowsCache(),
+      stubLeakFileRows(),
     );
 
     const row = await waitFor(() => {

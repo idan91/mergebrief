@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 
 import { buildFileRangeQueryKey } from "../../queries";
-import { makeRowRefs } from "../../test-utils/fixtures";
+import { makeRowRefs, stubFileRowsCache } from "../../test-utils/fixtures";
 import { RowRefKinds } from "./types";
 import { useExpandedRows } from "./useExpandedRows";
 import { createExpansionStore, ExpansionProvider } from "./useExpansion";
@@ -117,10 +117,7 @@ describe("useExpandedRows", () => {
       { kind: "add", content: "n2", newLine: 27 },
       ...rows,
     ];
-    const cache: FileRowsCache = {
-      isEmpty: false,
-      getFileRows: () => fileRows,
-    };
+    const cache = stubFileRowsCache(() => fileRows);
     const { queryClient, expansion, wrapper } = setup(SOURCE, cache);
     const { result } = renderHook(
       () => useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows }),

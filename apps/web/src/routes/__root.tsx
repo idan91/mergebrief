@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@web/components/Button";
 import { Footer } from "@web/components/Footer";
+import { PageError } from "@web/components/PageError";
 import { StatePage } from "@web/components/StatePage";
 import { AccountMenu, useSyncViewerOnSignOut } from "@web/features/account";
 import { appI18n, I18nProvider } from "../i18n/I18nProvider";
@@ -64,7 +65,9 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       ],
     };
   },
+  shellComponent: RootDocument,
   component: RootComponent,
+  errorComponent: PageError,
   notFoundComponent: RootNotFound,
 });
 
@@ -72,12 +75,10 @@ function RootComponent() {
   useSyncViewerOnSignOut();
 
   return (
-    <RootDocument>
-      <I18nProvider>
-        <Outlet />
-        <Footer />
-      </I18nProvider>
-    </RootDocument>
+    <I18nProvider>
+      <Outlet />
+      <Footer />
+    </I18nProvider>
   );
 }
 

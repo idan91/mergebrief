@@ -122,8 +122,8 @@ services:
         condition: service_healthy
     # No `env_file` on purpose. This tier is the internet-facing one and it
     # holds no credentials, so `.env` never reaches its process environment.
-    # What it needs is set below; LOG_LEVEL and NODE_ENV fall back to their
-    # defaults, which is what this service wants anyway.
+    # What it needs is set below; LOG_LEVEL falls back to its default and
+    # NODE_ENV to the image's `production`, which this service wants.
     environment:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
       MERGEBRIEF_API_ORIGIN: http://api:3001
