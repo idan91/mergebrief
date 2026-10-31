@@ -1,6 +1,8 @@
 import { summarizeLockfile } from "../../../src/generation/shortened";
+import { parseGitAttributes } from "../../../src/generation/shortened/gitattributes";
 import {
   LockfileSideKinds,
+  type LinguistRule,
   type LockfileSide,
   type LockfileSides,
   type LockfileSummary,
@@ -26,4 +28,10 @@ export function summarizeTexts(
   after: string | undefined,
 ): LockfileSummary | undefined {
   return summarizeLockfile(path, makeSides(before, after));
+}
+
+/** The rules a `.gitattributes` sets, none when the reader refuses it, as the pipeline reads them. */
+export function readGitAttributeRules(gitattributes: string): LinguistRule[] {
+  const parsed = parseGitAttributes(gitattributes);
+  return parsed.ok ? parsed.value : [];
 }

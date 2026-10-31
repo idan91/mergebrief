@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { indexDiff } from "../../../src/diff/hunk-index";
+import type { IndexedFile } from "../../../src/diff/hunk-index/types";
+import { splitDiffByFile } from "../../../src/diff/file-diff";
+import { flagAddedSecrets } from "../../../src/generation/added-secrets";
 import {
+  buildShortenedChunk,
   detectLockfile,
   renderLockfileSummary,
+  renderShortenedFile,
+  shortenFile,
   summarizeLockfile,
 } from "../../../src/generation/shortened";
 import { LOCKFILE_MAX_BYTES } from "../../../src/generation/shortened/consts";
-import { makeSides, summarizeTexts } from "./helpers";
+import { readLinguistAttributesByPath } from "../../../src/generation/shortened/gitattributes";
+import { SecretKinds } from "../../../src/generation/redaction/types";
+import { FAKE_SECRETS } from "../../secret-fixtures";
+import { makeSides, readGitAttributeRules, summarizeTexts } from "./helpers";
 
 const PNPM = (packages: string) =>
   `lockfileVersion: '9.0'\npackages:\n${packages}`;
@@ -350,5 +359,194 @@ describe("renderLockfileSummary", () => {
     expect(renderLockfileSummary(file, { format: "other" })).toEqual([
       "go.sum (modified, +2 -0, lockfile)",
     ]);
+  });
+});
+
+const RULES = readGitAttributeRules(
+  ["dist/** linguist-generated", "third_party/** linguist-vendored"].join("\n"),
+);
+
+const generatedDiff = [
+  "diff --git a/dist/app.js b/dist/app.js",
+  "index 111..222 100644",
+  "--- a/dist/app.js",
+  "+++ b/dist/app.js",
+  "@@ -1,3 +1,4 @@ (function () {",
+  " var a = 1;",
+  "-var b = 2;",
+  "+var b = 3;",
+  `+var token = "${FAKE_SECRETS[SecretKinds.GITHUB_TOKEN]}";`,
+  " var c = 4;",
+  "@@ -40,2 +41,2 @@ function tail() {",
+  "-  return a;",
+  "+  return b;",
+  "",
+].join("\n");
+
+const lockfileDiff = [
+  "diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml",
+  "--- a/pnpm-lock.yaml",
+  "+++ b/pnpm-lock.yaml",
+  "@@ -1,2 +1,2 @@ packages:",
+  "-  react@18.2.0:",
+  "+  react@18.3.1:",
+  "",
+].join("\n");
+
+function makePnpmLockfile(reactVersion: string): string {
+  return [
+    "lockfileVersion: '9.0'",
+    "packages:",
+    `  react@${reactVersion}:`,
+    "    resolution: {integrity: sha512-react}",
+    "snapshots:",
+    `  react@${reactVersion}: {}`,
+    "",
+  ].join("\n");
+}
+
+const LOCKFILE_SUMMARY = summarizeTexts(
+  "pnpm-lock.yaml",
+  makePnpmLockfile("18.2.0"),
+  makePnpmLockfile("18.3.1"),
+);
+
+function shortenWithRules(file: IndexedFile) {
+  const attributes = readLinguistAttributesByPath([file.path], RULES);
+  return shortenFile(file, attributes.byPath.get(file.path), undefined);
+}
+
+describe("shortenFile", () => {
+  it("reads a parsed lockfile as a package summary", () => {
+    const file = indexOne(lockfileDiff);
+    const shortened = shortenFile(file, undefined, LOCKFILE_SUMMARY);
+
+    expect(shortened).toMatchObject({
+      kind: "lockfile",
+      readAs: "package-summary",
+    });
+  });
+
+  it("reads a lockfile of another ecosystem as counts only", () => {
+    const file = indexOne(
+      "diff --git a/Cargo.lock b/Cargo.lock\n@@ -1 +1 @@\n-a\n+b\n",
+    );
+
+    const summary = summarizeTexts("Cargo.lock", "a", "b");
+
+    expect(shortenFile(file, undefined, summary)).toMatchObject({
+      kind: "lockfile",
+      readAs: "counts-only",
+    });
+  });
+
+  it("reads a lockfile whose contents were not read as counts only", () => {
+    const file = indexOne(lockfileDiff);
+    const summary = summarizeTexts("pnpm-lock.yaml", "packages: [", "");
+    const shortened = shortenFile(file, undefined, summary);
+
+    expect(shortened).toMatchObject({
+      kind: "lockfile",
+      readAs: "counts-only",
+    });
+    expect(shortened && renderShortenedFile(shortened)).toEqual([
+      "pnpm-lock.yaml (modified, +1 -1, lockfile)",
+      "  package changes not read: unparseable",
+    ]);
+  });
+
+  it("reads generated and vendored files as counts only", () => {
+    const vendored = indexOne(
+      "diff --git a/third_party/x.c b/third_party/x.c\n@@ -1 +1 @@\n-a\n+b\n",
+    );
+
+    expect(shortenWithRules(indexOne(generatedDiff))).toMatchObject({
+      kind: "generated",
+      readAs: "counts-only",
+    });
+    expect(shortenWithRules(vendored)).toMatchObject({
+      kind: "vendored",
+      readAs: "counts-only",
+    });
+  });
+
+  it("leaves any other file to be read in full", () => {
+    const file = indexOne(
+      "diff --git a/src/a.ts b/src/a.ts\n@@ -1 +1 @@\n-a\n+b\n",
+    );
+
+    expect(shortenWithRules(file)).toBeUndefined();
+  });
+});
+
+describe("renderShortenedFile", () => {
+  it("renders a generated file as its counts and hunk headers", () => {
+    const shortened = shortenWithRules(indexOne(generatedDiff));
+
+    expect(shortened && renderShortenedFile(shortened)).toEqual([
+      "dist/app.js (modified, +3 -2, generated)",
+      "  @@ -1,3 +1,4 @@ (function () {",
+      "  @@ -40,2 +41,2 @@ function tail() {",
+    ]);
+  });
+
+  it("renders a parsed lockfile as its package changes", () => {
+    const file = indexOne(lockfileDiff);
+    const shortened = shortenFile(file, undefined, LOCKFILE_SUMMARY);
+
+    expect(shortened && renderShortenedFile(shortened)).toEqual([
+      "pnpm-lock.yaml (modified, +1 -1, lockfile)",
+      "  updated react 18.2.0 -> 18.3.1",
+    ]);
+  });
+});
+
+describe("buildShortenedChunk", () => {
+  it("writes a supporting generated chunk over every changed line", () => {
+    const shortened = shortenWithRules(indexOne(generatedDiff));
+    if (shortened === undefined) {
+      throw new Error("fixture is not shortened");
+    }
+
+    expect(
+      buildShortenedChunk(shortened, { id: "c9", changeGroupId: "g2" }),
+    ).toEqual({
+      id: "c9",
+      changeGroupId: "g2",
+      file: "dist/app.js",
+      concern: "generated",
+      role: "supporting",
+      addedRanges: [
+        { start: 2, end: 3 },
+        { start: 41, end: 41 },
+      ],
+      removedRanges: [
+        { start: 2, end: 2 },
+        { start: 40, end: 40 },
+      ],
+      riskSurface: [],
+      loc: { added: 3, deleted: 2 },
+      readAs: "counts-only",
+    });
+  });
+
+  it("still flags a secret the shortened rendering never shows", () => {
+    const shortened = shortenWithRules(indexOne(generatedDiff));
+    if (shortened === undefined) {
+      throw new Error("fixture is not shortened");
+    }
+    const chunk = buildShortenedChunk(shortened, {
+      id: "c1",
+      changeGroupId: "g1",
+    });
+
+    const flagged = flagAddedSecrets(
+      [chunk],
+      [],
+      splitDiffByFile(generatedDiff),
+    );
+
+    expect(renderShortenedFile(shortened).join("\n")).not.toContain("token");
+    expect(flagged.chunks[0]?.riskSurface).toEqual(["adds-secret"]);
   });
 });

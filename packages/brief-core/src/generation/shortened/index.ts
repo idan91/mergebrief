@@ -1,4 +1,6 @@
 import type { IndexedFile } from "../../diff/hunk-index/types";
+import { changedRangesFromFileDiffs } from "../../diff/revchanges";
+import { Concerns, Roles, ShortenedReadings, type Chunk } from "../../types";
 import { readNpmLockfile } from "./lockfiles/npm";
 import { readPnpmLockfile } from "./lockfiles/pnpm";
 import {
@@ -22,12 +24,17 @@ import {
 import {
   LockfileFormats,
   LockfileSideKinds,
+  ShortenedKinds,
+  type LinguistAttributes,
   type LockfileFormat,
   type LockfileSide,
   type LockfileSides,
   type LockfileSummary,
   type PackageLockfileFormat,
   type PackageLockfileSummary,
+  type ShortenedChunkIds,
+  type ShortenedFile,
+  type ShortenedKind,
 } from "./types";
 
 const VERSION_TOKEN = /^[^\s\p{Cc}]{1,1024}$/u;
@@ -204,12 +211,16 @@ function renderPackageChanges(changes: PackageChanges): string[] {
   return lines.map((line) => `${SUMMARY_LINE_INDENT}${line}`);
 }
 
+function renderShortenedTitle(file: IndexedFile, kind: ShortenedKind): string {
+  return `${file.path} (${file.status}, +${file.added} -${file.removed}, ${kind})`;
+}
+
 /** A title line with the file's status and counts, then one line per package change. */
 export function renderLockfileSummary(
   file: IndexedFile,
   summary: LockfileSummary,
 ): string[] {
-  const title = `${file.path} (${file.status}, +${file.added} -${file.removed}, lockfile)`;
+  const title = renderShortenedTitle(file, ShortenedKinds.LOCKFILE);
   if (summary.format === LockfileFormats.OTHER) {
     return [title];
   }
@@ -225,4 +236,80 @@ export function renderLockfileSummary(
     return [title, `${SUMMARY_LINE_INDENT}no package changes`];
   }
   return [title, ...lines];
+}
+
+/**
+ * How a multi-call run reads `file` when not in full. A lockfile, given the
+ * summary `summarizeLockfile` reads for it, reads by its package changes
+ * when they were read and by its counts alone otherwise; a file
+ * `.gitattributes` marks generated or vendored reads by its counts alone. A
+ * lockfile wins over the attributes, and absent attributes read as neither.
+ * Nothing for a file read in full.
+ */
+export function shortenFile(
+  file: IndexedFile,
+  attributes: LinguistAttributes | undefined,
+  lockfile: LockfileSummary | undefined,
+): ShortenedFile | undefined {
+  if (lockfile !== undefined) {
+    const readAs =
+      "changes" in lockfile
+        ? ShortenedReadings.PACKAGE_SUMMARY
+        : ShortenedReadings.COUNTS_ONLY;
+    return { file, kind: ShortenedKinds.LOCKFILE, readAs, lockfile };
+  }
+
+  if (attributes?.generated === true) {
+    const kind = ShortenedKinds.GENERATED;
+    return { file, kind, readAs: ShortenedReadings.COUNTS_ONLY };
+  }
+  if (attributes?.vendored === true) {
+    const kind = ShortenedKinds.VENDORED;
+    return { file, kind, readAs: ShortenedReadings.COUNTS_ONLY };
+  }
+  return undefined;
+}
+
+/** The lines a multi-call prompt carries in place of the file's patch. */
+export function renderShortenedFile(shortened: ShortenedFile): string[] {
+  const { file, kind, lockfile } = shortened;
+  if (lockfile !== undefined) {
+    return renderLockfileSummary(file, lockfile);
+  }
+
+  const headers = file.hunks.flatMap((hunk) =>
+    hunk.header === undefined ? [] : [`${SUMMARY_LINE_INDENT}${hunk.header}`],
+  );
+  return [renderShortenedTitle(file, kind), ...headers];
+}
+
+/**
+ * The one chunk code writes for a shortened file: every changed line, concern
+ * `generated`, role `supporting`, no risk attribute. The pipeline's own
+ * attributes (`adds-secret`) are set later from the full patch.
+ */
+export function buildShortenedChunk(
+  shortened: ShortenedFile,
+  ids: ShortenedChunkIds,
+): Chunk {
+  const { file } = shortened;
+  const patch = file.hunks
+    .flatMap((hunk) =>
+      hunk.header === undefined ? [] : [hunk.header, ...hunk.lines],
+    )
+    .join("\n");
+  const [ranges] = changedRangesFromFileDiffs([{ file: file.path, patch }]);
+
+  return {
+    id: ids.id,
+    changeGroupId: ids.changeGroupId,
+    file: file.path,
+    concern: Concerns.GENERATED,
+    role: Roles.SUPPORTING,
+    addedRanges: ranges?.addedRanges ?? [],
+    removedRanges: ranges?.removedRanges ?? [],
+    riskSurface: [],
+    loc: { added: file.added, deleted: file.removed },
+    readAs: shortened.readAs,
+  };
 }

@@ -123,6 +123,7 @@ export type ModelRiskSurfaceAttribute = ValueOf<
   typeof ModelRiskSurfaceAttributes
 >;
 export type Specificity = ValueOf<typeof Specificities>;
+export type ShortenedReading = ValueOf<typeof ShortenedReadings>;
 export type RevisionNarrativeSkipReason = ValueOf<
   typeof RevisionNarrativeSkipReasons
 >;
@@ -295,9 +296,23 @@ const ChunkLocSchema = z
     "derived, never model-produced: |chunk ranges ∩ the diff's changed lines| per side",
   );
 
-/** The stored chunk shape: the generation chunk plus the derived `loc`. */
+/** How a multi-call run read a shortened file's chunk; absent means read in full. */
+export const ShortenedReadings = {
+  PACKAGE_SUMMARY: "package-summary",
+  COUNTS_ONLY: "counts-only",
+} as const;
+
+/** The stored chunk shape: the generation chunk plus the derived `loc` and `readAs`. */
 const buildChunkSchema = (riskToken: z.ZodType<string>) =>
-  buildChunkGenerationSchema(riskToken).extend({ loc: ChunkLocSchema });
+  buildChunkGenerationSchema(riskToken).extend({
+    loc: ChunkLocSchema,
+    readAs: z
+      .enum(ShortenedReadings)
+      .optional()
+      .describe(
+        "derived, never model-produced: how a multi-call run read a lockfile, generated or vendored file; absent when read in full",
+      ),
+  });
 
 export const ChunkGenerationSchema = buildChunkGenerationSchema(modelRiskEnum);
 export const ChunkSchema = buildChunkSchema(storedRiskEnum);

@@ -1,4 +1,6 @@
 import type { ValueOf } from "types/utils";
+import type { IndexedFile } from "../../diff/hunk-index/types";
+import type { ShortenedReading } from "../../types";
 import type { LockfileReadFailure, PackageChanges } from "./lockfiles/types";
 
 export const LockfileFormats = {
@@ -63,3 +65,51 @@ export type LockfileSummary =
   | PackageLockfileSummary
   | UnreadLockfileSummary
   | OtherLockfileSummary;
+
+/** Why a multi-call run reads a file shortened instead of in full. */
+export const ShortenedKinds = {
+  LOCKFILE: "lockfile",
+  GENERATED: "generated",
+  VENDORED: "vendored",
+} as const;
+export type ShortenedKind = ValueOf<typeof ShortenedKinds>;
+
+/** One `.gitattributes` line's linguist settings; an absent attribute is left as the earlier rules had it. */
+export interface LinguistRule {
+  /** A `matchesGlob` pattern anchored at the repository root. */
+  pattern: string;
+  generated?: boolean;
+  vendored?: boolean;
+}
+
+/** Why a `.gitattributes` gives no rule at all: the last rule wins, so a dropped one could mark hand-written code generated. */
+export const GitAttributesRefusals = {
+  TOO_LARGE: "too-large",
+  OVER_RULE_BUDGET: "over-rule-budget",
+  UNAPPLIED_UNSET: "unapplied-unset",
+} as const;
+export type GitAttributesRefusal = ValueOf<typeof GitAttributesRefusals>;
+
+export interface LinguistAttributes {
+  generated: boolean;
+  vendored: boolean;
+}
+
+export interface LinguistAttributeLookup {
+  byPath: Map<string, LinguistAttributes>;
+  /** Paths the match budget never reached: absent from `byPath`, so each reads in full. */
+  unresolvedPathCount: number;
+}
+
+export interface ShortenedFile {
+  file: IndexedFile;
+  kind: ShortenedKind;
+  readAs: ShortenedReading;
+  /** Present when the file is a lockfile. */
+  lockfile?: LockfileSummary;
+}
+
+export interface ShortenedChunkIds {
+  id: string;
+  changeGroupId: string;
+}
