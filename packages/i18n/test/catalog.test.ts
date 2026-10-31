@@ -131,6 +131,7 @@ const LEAKING_WORDS =
 const PUBLIC_COLLAPSED_CODES = [
   GenerationFailureCodes.PROVIDER_AUTH,
   GenerationFailureCodes.PROVIDER_REFUSAL,
+  GenerationFailureCodes.PROVIDER_SPEND_LIMIT,
   GenerationFailureCodes.OUTPUT_SECRET,
   GenerationFailureCodes.GENERATION_CONFIG,
   GenerationFailureCodes.GITHUB_ACCESS,

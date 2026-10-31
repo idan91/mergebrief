@@ -1537,6 +1537,22 @@ describe("generate task", () => {
     expect(row?.errorCode).toBe(GenerationFailureCodes.OUTPUT_CUT);
   });
 
+  it("fails a spend-limited brief for good, with no retry", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.failNextWith = new GeneratorError(
+      GeneratorErrorKinds.PROVIDER_SPEND_LIMIT,
+      "429 spend limit reached",
+    );
+
+    await expect(makeTask({ generator })(payload)).resolves.toBeUndefined();
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    expect(row?.errorCode).toBe(GenerationFailureCodes.PROVIDER_SPEND_LIMIT);
+  });
+
   it("rethrows transient failures but retains deterministic ones as failed", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();

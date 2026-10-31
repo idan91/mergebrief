@@ -29,6 +29,7 @@
         "provider-timeout": "The model provider timed out before finishing.",
         "provider-unavailable": "The model provider could not be reached.",
         "provider-refusal": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
+        "provider-spend-limit": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
         "output-invalid": "The model returned output that could not be read as a brief.",
         "output-secret": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
         "output-cut": "The brief ran past the model's output length limit before it finished.",
@@ -100,6 +101,7 @@
     "provider-timeout": "The model provider timed out before finishing.",
     "provider-unavailable": "The model provider could not be reached.",
     "provider-refusal": "The model declined to summarize this pull request.",
+    "provider-spend-limit": "The model provider refused the request because the account reached a spend limit: one the operator set, or the account tier's monthly cap.",
     "output-invalid": "The model returned output that could not be read as a brief.",
     "output-secret": "Generation stopped: the output contained a value this instance treats as secret. Your operator has been told.",
     "output-cut": "The brief ran past the model's output length limit and was cut off before it finished. Generating again would be cut the same way.",
@@ -193,7 +195,8 @@
         "generationConfig": "An operator needs to fix this instance's generator configuration before a rerun can succeed.",
         "githubAccess": "The MergeBrief App needs read access to this repository's contents before a rerun can succeed.",
         "githubAccessUrl": "MergeBrief needs read access to this repository's contents on GitHub before a rerun can succeed.",
-        "providerAuth": "An operator needs to update this instance's model provider credentials before a rerun can succeed."
+        "providerAuth": "An operator needs to update this instance's model provider credentials before a rerun can succeed.",
+        "providerSpendLimit": "An operator needs to raise the model provider account's spend limit before a rerun can succeed: a limit they set on the provider's Billing page, or the tier's monthly cap with a tier increase. The tier cap also lifts on the 1st of the month."
       },
       "regenerate": {
         "action": "Regenerate brief",

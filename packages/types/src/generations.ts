@@ -38,6 +38,8 @@ export const GenerationFailureCodes = {
   PROVIDER_TIMEOUT: "provider-timeout",
   PROVIDER_UNAVAILABLE: "provider-unavailable",
   PROVIDER_REFUSAL: "provider-refusal",
+  /** The provider account reached a spend limit; a rerun helps once it is raised or resets. */
+  PROVIDER_SPEND_LIMIT: "provider-spend-limit",
   OUTPUT_INVALID: "output-invalid",
   OUTPUT_SECRET: "output-secret",
   /** The output reached its token cap before it finished; a rerun is cut the same way. */
@@ -71,6 +73,8 @@ export const GenerationFailureClassByCode = {
     GenerationFailureClasses.TRANSIENT,
   [GenerationFailureCodes.PROVIDER_REFUSAL]:
     GenerationFailureClasses.CANNOT_HELP,
+  [GenerationFailureCodes.PROVIDER_SPEND_LIMIT]:
+    GenerationFailureClasses.FIX_FIRST,
   [GenerationFailureCodes.OUTPUT_INVALID]: GenerationFailureClasses.TRANSIENT,
   [GenerationFailureCodes.OUTPUT_SECRET]: GenerationFailureClasses.CANNOT_HELP,
   [GenerationFailureCodes.OUTPUT_CUT]: GenerationFailureClasses.CANNOT_HELP,

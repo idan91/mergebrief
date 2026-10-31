@@ -32,6 +32,12 @@ deprecation note here, removal only at a major.
   reached its token cap before it finished. A rerun is cut the same way, so
   `regenerate-brief` refuses it as `409 generation-not-regenerable`. Clients
   that treat the code set as closed must accept the new value.
+- **Added** `provider-spend-limit` to `generation.errorCode`: the model
+  provider refused the request because its account reached a spend limit,
+  either one the operator set or the account tier's monthly cap. The run
+  fails without a retry; generating again helps once the limit is raised or
+  resets. Clients that treat the code set as closed must accept the new
+  value.
 - **Added** `largeRuns { runs, units }` to `read-spend`, present on a day
   with a run that took more than one unit. `startedRuns` now counts units:
   one per run, plus one per part of a large pull request briefed in parts.

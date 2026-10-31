@@ -4,7 +4,7 @@ import Anthropic, {
   RetryableError,
   type ClientOptions,
 } from "@anthropic-ai/sdk";
-import type { z } from "zod/v4";
+import { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import {
@@ -57,6 +57,32 @@ export interface AnthropicStreamingClient {
 const DEFAULT_MODEL = "claude-opus-4-8";
 const DEFAULT_MAX_OUTPUT_TOKENS = 64000;
 const CUT_STOP_REASON: Anthropic.StopReason = "max_tokens";
+const HTTP_BAD_REQUEST = 400;
+const HTTP_TOO_MANY_REQUESTS = 429;
+const SPEND_CAP_ERROR_CODE = "enforced_spend_limit_reached";
+/** The documented openings of the 400 for a spend limit the operator set. */
+const OWN_SPEND_LIMIT_MESSAGE_PREFIXES = [
+  "You have reached your specified API usage limits",
+  "You have reached your specified workspace API usage limits",
+] as const;
+
+/**
+ * The body of a 429 for the tier's monthly spend cap. Its `error.type` is
+ * `rate_limit_error`, as for a rate limit; only `details.error_code` differs.
+ */
+const SpendCapBodySchema = z.object({
+  error: z.object({
+    details: z.object({ error_code: z.literal(SPEND_CAP_ERROR_CODE) }),
+  }),
+});
+
+/** The body of a 400; a spend limit the operator set says so only in `message`. */
+const InvalidRequestBodySchema = z.object({
+  error: z.object({
+    type: z.literal("invalid_request_error"),
+    message: z.string(),
+  }),
+});
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 
 export interface AnthropicClientOptions {
@@ -369,6 +395,15 @@ function classifySdkError(error: unknown): unknown {
       cause: error,
     });
   }
+  if (isSpendLimitError(status, error)) {
+    return new GeneratorError(
+      GeneratorErrorKinds.PROVIDER_SPEND_LIMIT,
+      message,
+      {
+        cause: error,
+      },
+    );
+  }
   if (status === 400 || status === 404) {
     return new GeneratorError(GeneratorErrorKinds.CONFIG, message, {
       cause: error,
@@ -382,6 +417,28 @@ function classifySdkError(error: unknown): unknown {
   return new GeneratorError(GeneratorErrorKinds.OPAQUE, message, {
     cause: error,
   });
+}
+
+/**
+ * The tier's spend cap (a 429 naming it) or a limit the operator set (a 400
+ * whose message opens as documented). The SDK error's `error` holds the body.
+ */
+function isSpendLimitError(status: number, error: object): boolean {
+  const body = Reflect.get(error, "error");
+  if (status === HTTP_TOO_MANY_REQUESTS) {
+    return SpendCapBodySchema.safeParse(body).success;
+  }
+  if (status !== HTTP_BAD_REQUEST) {
+    return false;
+  }
+  const invalidRequest = InvalidRequestBodySchema.safeParse(body);
+  if (!invalidRequest.success) {
+    return false;
+  }
+  const bodyMessage = invalidRequest.data.error.message;
+  return OWN_SPEND_LIMIT_MESSAGE_PREFIXES.some((prefix) =>
+    bodyMessage.startsWith(prefix),
+  );
 }
 
 /**

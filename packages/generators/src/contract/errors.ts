@@ -9,6 +9,8 @@ export const GeneratorErrorKinds = {
   AUTH: "auth",
   CONFIG: "config",
   PROVIDER_TRANSIENT: "provider-transient",
+  /** The provider account reached a spend limit: no retry helps until it is raised or resets. */
+  PROVIDER_SPEND_LIMIT: "provider-spend-limit",
   TIMEOUT: "timeout",
   SCHEMA_FLOOR: "schema-floor",
   REFUSAL: "refusal",

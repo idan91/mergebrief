@@ -50,7 +50,7 @@ changes get a breaking-change entry in
 | `webhook.delivery.duplicate` | debug | api | `deliveryId`, `reqId` | no: a signed pull request or review delivery with a signature already processed in the last 72 hours was skipped; a GitHub manual redelivery of a successful delivery lands here |
 | `job.fail` | error | worker | `prId`, `headSha`, `permanent`, `attempt`, `maxAttempts` | yes |
 | `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt`, `maxAttempts` | **THE worker alert**: the queue gave up on this job, or the head spent its claims and its row ends `failed` as `attempts-exhausted`. From the `sync-entry` job it means the PR's Entry comment may still not match its brief state |
-| `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
+| `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; `kind: provider-spend-limit` = the provider account reached a spend limit (the line carries no `status`), alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | api | `reqId`, `reviewerId`, `kind` | yes: a reviewer session or API token could not rotate its GitHub credentials. `kind` names GitHub's OAuth error (or `expiration-not-enabled`) when GitHub refused the App's own credentials or settings: fix the App, the session is kept. `kind: seal-failed` means GitHub rotated but the session key could not seal the new pair |
 | `token.decrypt.fail` | error | api | `reqId`, `reviewerId` | yes: the session key cannot open a stored GitHub token, the access token on a request or the refresh token during a rotation. The session is kept and every request that needs GitHub answers 500 until the key matches the one that sealed it. A ciphertext moved from another grant row or column fails the same way ([Tokens at rest](./operations.md#tokens-at-rest)) |
 | `token.refresh.unavailable` | warn | api | `reqId`, `reviewerId`, `refreshTokenPossiblyConsumed` | on **sustained rate**: GitHub did not answer a token rotation within 10 seconds or answered with an outage, or another refresh held the same grant for over 2 seconds. Every session and token is kept and the request answers 502. `refreshTokenPossiblyConsumed: true` means GitHub may have rotated before the call failed, so a later `token.refresh.fail` retiring the same reviewer's grant can trace back to it |
@@ -305,6 +305,9 @@ groups:
       - alert: ProviderAuthBroken
         expr: sum(count_over_time({service="worker"} | json | evt = `provider.error` | status =~ `401|403` [15m])) > 0
         labels: { severity: critical }
+      - alert: ProviderSpendLimitReached
+        expr: sum(count_over_time({service="worker"} | json | evt = `provider.error` | kind = `provider-spend-limit` [15m])) > 0
+        labels: { severity: critical }
       - alert: WebhookVerifyFailSustained
         # sustained rate, not raw hits; scanners will trip a >0 rule daily
         expr: sum(rate({service="api"} | json | evt = `webhook.verify.fail` [30m])) > 0.05
@@ -325,7 +328,8 @@ Point the agent's docker log collection at the compose services; the JSON
 lines auto-parse. Two settings matter: map `level` as the log status
 remapper (string labels, not numbers), and facet `evt`. Monitors then key
 off `@evt:job.retries.exhausted` (any occurrence),
-`@evt:provider.error @status:(401 OR 403)` (any), and a rate-based monitor
+`@evt:provider.error @status:(401 OR 403)` (any),
+`@evt:provider.error @kind:provider-spend-limit` (any), and a rate-based monitor
 on `@evt:webhook.verify.fail`.
 
 Traces go to the same Agent through its OTLP receiver. Run it beside the

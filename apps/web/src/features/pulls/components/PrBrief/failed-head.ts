@@ -54,6 +54,8 @@ export const FixFirstNoteKeys: Partial<
   Record<GenerationFailureCode, TranslationKey>
 > = {
   [GenerationFailureCodes.PROVIDER_AUTH]: "pulls.failed.fixFirst.providerAuth",
+  [GenerationFailureCodes.PROVIDER_SPEND_LIMIT]:
+    "pulls.failed.fixFirst.providerSpendLimit",
   [GenerationFailureCodes.GENERATION_CONFIG]:
     "pulls.failed.fixFirst.generationConfig",
   [GenerationFailureCodes.GITHUB_ACCESS]: "pulls.failed.fixFirst.githubAccess",

@@ -1,0 +1,3 @@
+-- widens generation_error_code_check
+ALTER TABLE "generation" DROP CONSTRAINT "generation_error_code_check";--> statement-breakpoint
+ALTER TABLE "generation" ADD CONSTRAINT "generation_error_code_check" CHECK ("generation"."error_code" is null or "generation"."error_code" in ('provider-auth', 'provider-rate-limit', 'provider-timeout', 'provider-unavailable', 'provider-refusal', 'provider-spend-limit', 'output-invalid', 'output-secret', 'output-cut', 'generation-config', 'github-access', 'diff-too-large', 'github-unavailable', 'attempts-exhausted', 'unknown'));

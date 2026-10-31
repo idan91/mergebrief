@@ -230,6 +230,102 @@ describe("AnthropicGenerator SDK error classification", () => {
     expect(error).toMatchObject({ kind, cause: sdkError });
   });
 
+  /** A 429 as the SDK raises it: `error` holds the whole response body. */
+  function stubRateLimit429(details?: Record<string, string>): Error {
+    const body: Record<string, unknown> = {
+      type: "rate_limit_error",
+      message: "You have reached your API usage limits.",
+    };
+    if (details !== undefined) {
+      body["details"] = details;
+    }
+    return Object.assign(new Error("429 rate_limit_error"), {
+      status: 429,
+      type: "rate_limit_error",
+      error: { type: "error", error: body, request_id: "req_test" },
+    });
+  }
+
+  it("maps a 429 naming the enforced spend limit to provider-spend-limit", async () => {
+    const sdkError = stubRateLimit429({
+      error_code: "enforced_spend_limit_reached",
+    });
+
+    const error = await rejectionFor(sdkError);
+
+    expect(error).toMatchObject({
+      kind: GeneratorErrorKinds.PROVIDER_SPEND_LIMIT,
+      cause: sdkError,
+    });
+  });
+
+  it("keeps a rate_limit_error 429 without that code transient", async () => {
+    const error = await rejectionFor(stubRateLimit429());
+
+    expect(error).toMatchObject({
+      kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
+    });
+  });
+
+  it("never decides a spend limit from the error type alone", async () => {
+    const sdkError = Object.assign(new Error("429"), {
+      status: 429,
+      type: "enforced_spend_limit_reached",
+    });
+
+    const error = await rejectionFor(sdkError);
+
+    expect(error).toMatchObject({
+      kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
+    });
+  });
+
+  /** A 400 as the SDK raises it: `error` holds the whole response body. */
+  function stubInvalidRequest400(message: string): Error {
+    return Object.assign(new Error(`400 ${message}`), {
+      status: 400,
+      type: "invalid_request_error",
+      error: {
+        type: "error",
+        error: { type: "invalid_request_error", message },
+        request_id: "req_test",
+      },
+    });
+  }
+
+  it.each([
+    {
+      limit: "an organization",
+      message:
+        "You have reached your specified API usage limits. You will regain access on 2026-11-01 at 00:00 UTC.",
+    },
+    {
+      limit: "a workspace",
+      message:
+        "You have reached your specified workspace API usage limits. You will regain access on 2026-11-01 at 00:00 UTC.",
+    },
+  ])(
+    "maps a 400 for $limit spend limit to provider-spend-limit",
+    async ({ message }) => {
+      const sdkError = stubInvalidRequest400(message);
+
+      const error = await rejectionFor(sdkError);
+
+      expect(error).toMatchObject({
+        kind: GeneratorErrorKinds.PROVIDER_SPEND_LIMIT,
+        cause: sdkError,
+      });
+    },
+  );
+
+  it("keeps any other invalid_request_error 400 a config failure", async () => {
+    const error = await rejectionFor(
+      stubInvalidRequest400("max_tokens: must be at most 64000"),
+    );
+
+    expect(error).toMatchObject({ kind: GeneratorErrorKinds.CONFIG });
+  });
+
   it("maps a connection-level failure to provider-transient", async () => {
     const connectionError = new APIConnectionError({
       cause: new Error("boom"),

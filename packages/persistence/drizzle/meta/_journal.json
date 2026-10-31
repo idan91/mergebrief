@@ -512,6 +512,13 @@
       "when": 1793141216844,
       "tag": "0073_output-cut-failure-code",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1793142128795,
+      "tag": "0074_provider-spend-limit-failure-code",
+      "breakpoints": true
     }
   ]
 }
