@@ -20,6 +20,14 @@
   initial-value: 0px;
 }
 
+@property --main-gutter {
+  inherits: true;
+  /* stylelint-disable-next-line length-zero-no-unit --
+     @property's initial-value must match the declared <length> syntax. */
+  initial-value: 0px;
+  syntax: "<length>";
+}
+
 @property --progress-scale {
   inherits: false;
   initial-value: 0;
