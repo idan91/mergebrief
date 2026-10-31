@@ -1,4 +1,5 @@
 import type { FileDiff } from "../diff/file-diff";
+import { HUNK_HEADER } from "../diff/patch-rows";
 import { REMOVED_TAG_MARK } from "./fences";
 import {
   inAttributeScope,
@@ -653,8 +654,6 @@ const TOML_NON_DEP_KEYS = new Set([
 /** A value that looks like a version/range/source spec rather than text. */
 const VERSION_SHAPED =
   /^(?:[\^~]|[<>]=?|==?|\d|\*|workspace:|npm:|file:|link:|git\+|git:|https?:\/\/)/;
-
-const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
 /** Section context visible in the patch when a candidate line is scanned. */
 interface SectionContext {

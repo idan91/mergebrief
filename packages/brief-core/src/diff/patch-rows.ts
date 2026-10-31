@@ -15,7 +15,7 @@ export interface PatchRow {
   patchLine: number;
 }
 
-const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
+export const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
 export function parsePatchRows(patch: string): PatchRow[] {
   const rows: PatchRow[] = [];
