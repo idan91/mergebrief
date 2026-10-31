@@ -118,6 +118,12 @@ const fullRegenerationOption = z.enum(FullRegenerations).optional();
 /** Runs every brief through the multi-call path whatever the diff's size; off by default. */
 const forceMultiCallOption = z.boolean().optional();
 
+/**
+ * Detail calls a multi-call run keeps in flight at once; the DEFAULT (8)
+ * lives at the worker's consumption site like effort's.
+ */
+const detailConcurrencyOption = z.number().int().min(1).optional();
+
 const ANTHROPIC_BASE_URL_VERSION_ISSUE =
   "anthropic takes the gateway host root with no /v1 (the SDK appends /v1/messages)";
 
@@ -152,6 +158,7 @@ const anthropicOptions = z
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
     "force-multi-call": forceMultiCallOption,
+    detailConcurrency: detailConcurrencyOption,
   })
   .strict();
 
@@ -175,6 +182,7 @@ const claudeCodeOptions = z
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
     "force-multi-call": forceMultiCallOption,
+    detailConcurrency: detailConcurrencyOption,
   })
   .strict();
 
@@ -192,6 +200,7 @@ const codexOptions = z
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
     "force-multi-call": forceMultiCallOption,
+    detailConcurrency: detailConcurrencyOption,
   })
   .strict();
 
@@ -221,6 +230,7 @@ const cursorOptions = z
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
     "force-multi-call": forceMultiCallOption,
+    detailConcurrency: detailConcurrencyOption,
   })
   .strict();
 
@@ -244,6 +254,7 @@ const openaiOptions = z
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
     "force-multi-call": forceMultiCallOption,
+    detailConcurrency: detailConcurrencyOption,
   })
   .strict();
 
@@ -267,6 +278,7 @@ const openrouterOptions = z
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
     "force-multi-call": forceMultiCallOption,
+    detailConcurrency: detailConcurrencyOption,
   })
   .strict();
 

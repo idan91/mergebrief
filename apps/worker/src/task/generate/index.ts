@@ -37,6 +37,7 @@ import {
 } from "./logic/run-context";
 import { decideRun } from "./logic/run-decision";
 import { prepareRunInputs } from "./logic/run-inputs";
+import { routeRunToLargePool } from "./logic/pool-routing";
 import { SpendCappedSignal } from "./logic/spend-gate";
 import {
   bindAbortSignal,
@@ -47,12 +48,15 @@ import {
   AuthorGateKinds,
   JobFailureOutcomes,
   RunDecisionKinds,
+  RunPools,
   type GenerateTask,
   type GenerateTaskDeps,
   type GenerateTaskHelpers,
+  type GenerateTaskOptions,
   type GeneratingRun,
   type JobFailureReport,
   type RunContext,
+  type RunPool,
   type RunProgress,
   type RunStart,
   type RunState,
@@ -65,20 +69,25 @@ import {
   isLastJobAttempt,
 } from "./utils";
 
-export type { GenerateTaskDeps } from "./types";
+export type { GenerateTaskDeps, GenerateTaskOptions } from "./types";
 
 /**
  * Build the generate task. The returned function is graphile's `Task` shape;
- * tests call it directly with a payload (helpers optional).
+ * tests call it directly with a payload (helpers optional). The large pool's
+ * task is the same function told its pool, so it never re-routes.
  */
-export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
+export function createGenerateTask(
+  deps: GenerateTaskDeps,
+  options: GenerateTaskOptions = {},
+): GenerateTask {
   const log = deps.log ?? createNoopLogger();
+  const pool = options.pool ?? RunPools.NORMAL;
 
   return async function generate(
     rawPayload: unknown,
     helpers?: GenerateTaskHelpers,
   ): Promise<void> {
-    const start = buildRunStart(deps, log, rawPayload, helpers);
+    const start = buildRunStart(deps, log, rawPayload, helpers, pool);
     if (start === undefined) {
       return;
     }
@@ -95,14 +104,16 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
  */
 export function createRecoverGenerationTask(
   deps: GenerateTaskDeps,
+  options: GenerateTaskOptions = {},
 ): GenerateTask {
   const log = deps.log ?? createNoopLogger();
+  const pool = options.pool ?? RunPools.NORMAL;
 
   return async function recoverGeneration(
     rawPayload: unknown,
     helpers?: GenerateTaskHelpers,
   ): Promise<void> {
-    const opened = buildRunStart(deps, log, rawPayload, helpers);
+    const opened = buildRunStart(deps, log, rawPayload, helpers, pool);
     if (opened === undefined) {
       return;
     }
@@ -162,6 +173,7 @@ function buildRunStart(
   log: Logger,
   rawPayload: unknown,
   helpers: GenerateTaskHelpers | undefined,
+  pool: RunPool,
 ): Omit<RunStart, "recovering"> | undefined {
   const parsed = parseGeneratePayload(rawPayload);
   if (!parsed.ok) {
@@ -183,6 +195,7 @@ function buildRunStart(
     }),
     job: helpers?.job,
     shutdownSignal: helpers?.abortSignal,
+    pool,
   };
 }
 
@@ -378,6 +391,21 @@ async function runGeneration(
   progress.context = context;
   const authorGate = await applyAuthorGate(context);
   if (authorGate.kind === AuthorGateKinds.AWAITING_TRIGGER) {
+    return;
+  }
+  const routed = await traceRunStep(
+    "generation.route",
+    listRunStops(context),
+    async (span) => {
+      const moved = await routeRunToLargePool(context);
+      span.setAttributes({
+        "mergebrief.pool": context.pool,
+        "mergebrief.routed": moved,
+      });
+      return moved;
+    },
+  );
+  if (routed) {
     return;
   }
 

@@ -240,15 +240,39 @@ restarts.
 
 ## Worker slots
 
-Two dials, both env, both optional:
+Three dials, all env, all optional:
 
 - `WORKER_CONCURRENCY`: generate jobs one worker process drains at once.
   Default 1.
+- `WORKER_LARGE_CONCURRENCY`: slots of the large pool, which drains the
+  multi-call runs (a pull request past one call's input, see below).
+  Default 1.
 - `WORKER_COUNT`: worker containers compose starts. Default 1.
 
-Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`. Prefer one
-worker and more slots: a slot is cheaper than a process. A second worker
-buys restart isolation, not throughput slots could not give you.
+Concurrent generations = `WORKER_COUNT` x (`WORKER_CONCURRENCY` +
+`WORKER_LARGE_CONCURRENCY`). Prefer one worker and more slots: a slot is
+cheaper than a process. A second worker buys restart isolation, not
+throughput slots could not give you.
+
+### The large pool
+
+A pull request GitHub reports with more than 120 changed files, or whose
+changed lines add up past one call's input (about 11,900 lines at the 67
+bytes a changed line measures), is briefed in several model calls: a
+grouping call, then detail calls, up to `generator.detailConcurrency` of
+them in flight at once (default 8). Such a run would hold a normal slot for
+many minutes with several streams open, so the worker routes it to its own
+pool before anything is claimed or spent: a normal-pool job that reads those
+counts moves itself to the large pool and ends; the large pool's job runs
+whatever it was given, so a wrong guess runs where it landed. The large
+pool's one default slot serializes the large runs behind each other while
+the normal slots keep answering ordinary pushes. A second large slot costs
+up to `detailConcurrency` more streams at the provider; lower
+`detailConcurrency` before raising the slot count on a provider rate limit.
+
+A large run's spend is counted in units, one per model call, against the
+same daily cap as every other run, so `WORKER_LARGE_CONCURRENCY` never lets
+the instance past it.
 
 A slot whose run reads a changed lockfile also forks one short-lived child
 process for it, its heap capped at 512 MB, so plan that much memory per

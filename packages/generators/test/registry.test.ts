@@ -325,6 +325,52 @@ describe("effort on the generator block", () => {
   });
 });
 
+describe("detailConcurrency on the generator block", () => {
+  const minimalBlocks = [
+    { provider: Providers.ANTHROPIC },
+    { provider: Providers.CLAUDE_CODE },
+    { provider: Providers.CODEX },
+    { provider: Providers.OPENAI, model: "gpt-5.2" },
+    { provider: Providers.OPENROUTER, model: "anthropic/claude-opus-4.8" },
+  ] as const;
+
+  it.each(minimalBlocks)(
+    "parses a whole number of at least 1 on $provider",
+    (block) => {
+      const parsed = GeneratorConfigSchema.safeParse({
+        ...block,
+        detailConcurrency: 4,
+      });
+      expect(parsed.success).toBe(true);
+      if (!parsed.success) {
+        return;
+      }
+      expect(parsed.data.detailConcurrency).toBe(4);
+    },
+  );
+
+  it("leaves detailConcurrency undefined when omitted", () => {
+    const parsed = GeneratorConfigSchema.safeParse(minimalBlocks[0]);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+      return;
+    }
+    expect(parsed.data.detailConcurrency).toBeUndefined();
+  });
+
+  it.each([0, -1, 2.5, "8"])("rejects %j naming detailConcurrency", (value) => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      detailConcurrency: value,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues.join("; ")).toContain("detailConcurrency");
+  });
+});
+
 describe("full-regeneration on the generator block", () => {
   // Minimal valid block per adapter; openai/openrouter require a model.
   const minimalBlocks = [

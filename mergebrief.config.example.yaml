@@ -43,6 +43,12 @@ generator:
   # deliberate divergence (docs/self-host/generators.md).
   # effort: medium
 
+  # Detail calls a multi-call run (a PR past one call's input) keeps in
+  # flight at once. Default: 8. Lower it for a provider rate limit; it
+  # multiplies the streams one large slot holds (docs/self-host/generators.md,
+  # "Worker slots").
+  # detailConcurrency: 8
+
   # --- API providers (anthropic / openai / openrouter) ---------------------
   # NAME of the env var holding the key. Defaults: ANTHROPIC_API_KEY /
   # OPENAI_API_KEY / OPENROUTER_API_KEY.

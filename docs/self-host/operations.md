@@ -779,10 +779,13 @@ larger ones (64 MiB at most each, four per viewer, kept 10 minutes).
 
 Each replica also opens its own Postgres pool of up to `DATABASE_POOL_MAX`
 connections (default 10), and each worker opens two such pools, one for
-its store and one for its job queue. The api replica count plus twice the
-worker count, times that value, must stay under Postgres `max_connections`.
-The value is at least 2: the job queue keeps one connection for its
-listener for the life of the worker and needs another to claim jobs.
+its store and one for its job queue, plus a third for the large pool's job
+queue at `WORKER_LARGE_CONCURRENCY` + 2 connections. The budget is
+`api replicas x DATABASE_POOL_MAX + worker count x (2 x DATABASE_POOL_MAX +
+WORKER_LARGE_CONCURRENCY + 2)`, which must stay under Postgres
+`max_connections`. The value is at least 2: a job queue keeps one
+connection for its listener for the life of the worker and needs another
+to claim jobs.
 
 How requests spread under compose alone: `web` calls `http://api:3001`,
 Docker's DNS answers that name with every replica in rotating order, and

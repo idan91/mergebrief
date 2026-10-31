@@ -256,8 +256,12 @@ The unit of queued work the worker picks up to drive one **Generation**. A Job i
 _Avoid_: task, generation (the record), queued generation
 
 **Slot**:
-One concurrent **Job** a worker process admits. The slot count is the operator's throughput knob; one slot serializes every Brief behind whichever Job holds it.
+One concurrent **Job** a worker process admits. The slot count is the operator's throughput knob; one slot serializes every Brief behind whichever Job holds it. A worker holds two pools of slots: the normal pool, and the **Large pool**.
 _Avoid_: thread, concurrency (as a noun for the thing), lane
+
+**Large pool**:
+The **Slot**s that run the Briefs predicted to take several model calls (a PR past 120 changed files or past one call's input, read off GitHub's counts before anything is claimed). A **Job** in the normal pool that predicts one moves itself there and ends; a Job in the Large pool runs whatever it was given. One slot by default, so large Briefs wait behind each other while ordinary pushes keep their slots.
+_Avoid_: large queue, big-PR lane, second worker
 
 **Queued**:
 Said of a **Job** waiting on its debounce or on a free **Slot**, never of a **Generation**. A Generation whose Job has started is running.

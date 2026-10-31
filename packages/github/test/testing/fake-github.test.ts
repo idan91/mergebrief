@@ -42,6 +42,8 @@ function makeGitHubWithPullRequest(
       htmlUrl: "https://github.com/acme/widgets/pull/7",
       commitCount: 1,
       changedFiles: 1,
+      additions: 8,
+      deletions: 2,
       authorLogin: "octocat",
       authorIsBot: false,
       closedAt: null,

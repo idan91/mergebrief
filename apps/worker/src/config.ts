@@ -14,6 +14,7 @@ import {
   type ResolveDsnOptions,
 } from "persistence";
 import type { Result, ValueOf } from "types/utils";
+import { DEFAULT_DETAIL_CONCURRENCY } from "./task/generate/consts";
 
 // ---------------------------------------------------------------------------
 // Public config shape.
@@ -29,6 +30,10 @@ export interface WorkerConfig {
   /** Slots the runner drains jobs into (WORKER_CONCURRENCY). A slot is one
    * in-flight generation: an API stream, or a CLI child for CLI providers. */
   readonly concurrency: number;
+  /** Slots of the large pool, which drains the multi-call runs (WORKER_LARGE_CONCURRENCY). */
+  readonly largeConcurrency: number;
+  /** Detail calls a multi-call run keeps in flight at once (`generator.detailConcurrency`). */
+  readonly detailConcurrency: number;
   /** Audit retention window the scheduled sweep enforces; null = keep forever
    * (the default). Validated; floor included; by persistence's loader. */
   readonly auditRetentionDays: number | null;
@@ -84,6 +89,8 @@ export interface ConfigError {
 const DEFAULT_CONCURRENCY = 1;
 /** Zero slots would drain nothing, so the knob's floor is one. */
 const MIN_CONCURRENCY = 1;
+/** One large slot: a multi-call run holds up to `detailConcurrency` streams by itself. */
+const DEFAULT_LARGE_CONCURRENCY = 1;
 
 const DEFAULT_REVISION_NARRATIVE = true;
 
@@ -93,6 +100,7 @@ const FALSE_TOKENS: ReadonlySet<string> = new Set(["false", "0", "no", "off"]);
 /** The worker's own knobs, parsed beside the loaders other packages own. */
 interface WorkerKnobs {
   readonly concurrency: number;
+  readonly largeConcurrency: number;
   readonly publicBaseUrl: string;
   readonly serverVersion: string;
   readonly revisionNarrative: RevisionNarrativeConfig;
@@ -103,9 +111,12 @@ interface WorkerKnobs {
  * Read the slot count. Unset and empty both mean the default: compose passes an
  * unset variable through as an empty string.
  */
-function parseConcurrency(raw: string | undefined): Result<number, string> {
+function parseConcurrency(
+  raw: string | undefined,
+  defaultSlots: number,
+): Result<number, string> {
   if (raw === undefined || raw.trim() === "") {
-    return { ok: true, value: DEFAULT_CONCURRENCY };
+    return { ok: true, value: defaultSlots };
   }
 
   const slots = Number(raw);
@@ -157,7 +168,14 @@ function parseFlag(
 function parseWorkerKnobs(
   env: Readonly<Record<string, string | undefined>>,
 ): Result<WorkerKnobs, readonly string[]> {
-  const concurrency = parseConcurrency(env["WORKER_CONCURRENCY"]);
+  const concurrency = parseConcurrency(
+    env["WORKER_CONCURRENCY"],
+    DEFAULT_CONCURRENCY,
+  );
+  const largeConcurrency = parseConcurrency(
+    env["WORKER_LARGE_CONCURRENCY"],
+    DEFAULT_LARGE_CONCURRENCY,
+  );
   const publicBaseUrl = parsePublicBaseUrl(env["PUBLIC_BASE_URL"]);
   const serverVersion = parseServerVersion(env["SERVER_VERSION"]);
   const narrative = parseFlag(
@@ -168,6 +186,7 @@ function parseWorkerKnobs(
 
   const allParsed =
     concurrency.ok &&
+    largeConcurrency.ok &&
     publicBaseUrl.ok &&
     serverVersion.ok &&
     narrative.ok &&
@@ -177,6 +196,7 @@ function parseWorkerKnobs(
       ok: true,
       value: {
         concurrency: concurrency.value,
+        largeConcurrency: largeConcurrency.value,
         publicBaseUrl: publicBaseUrl.value,
         serverVersion: serverVersion.value,
         revisionNarrative: { enabled: narrative.value },
@@ -187,6 +207,7 @@ function parseWorkerKnobs(
 
   const keyed = [
     ["WORKER_CONCURRENCY", concurrency],
+    ["WORKER_LARGE_CONCURRENCY", largeConcurrency],
     ["PUBLIC_BASE_URL", publicBaseUrl],
     ["SERVER_VERSION", serverVersion],
     ["REVISION_NARRATIVE_ENABLED", narrative],
@@ -258,6 +279,10 @@ export function loadConfig(
       autoMigrate: persistence.value.autoMigrate,
       poolMax: persistence.value.poolMax,
       concurrency: knobs.value.concurrency,
+      largeConcurrency: knobs.value.largeConcurrency,
+      detailConcurrency:
+        generatorConfig.value.generator.detailConcurrency ??
+        DEFAULT_DETAIL_CONCURRENCY,
       auditRetentionDays: persistence.value.auditRetentionDays,
       prRetentionDays: persistence.value.prRetentionDays,
       generator: generatorConfig.value.generator,

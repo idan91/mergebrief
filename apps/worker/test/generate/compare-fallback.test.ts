@@ -12,6 +12,7 @@ import {
   harness,
   HEAD_1,
   makeGitHub,
+  makeLargePoolTask,
   makeTarget,
   makeTask,
   PR_REF,
@@ -65,13 +66,13 @@ describe("generate task, compare fallback on a 406", () => {
     expect(generator.requests[0]?.user).toContain("b.ts");
   });
 
-  it("fails as diff-too-large past the file cap without a compare read", async () => {
+  it("fails as diff-too-large past the file cap in the large pool", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     github.updatePullRequest(PR_REF, { changedFiles: PAST_BRIEFED_FILE_CAP });
     github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
 
-    await makeTask({ github })(payload);
+    await makeLargePoolTask({ github })(payload);
 
     const row = await readRow(pr);
     expect(row?.status).toBe(GenerationStatuses.FAILED);

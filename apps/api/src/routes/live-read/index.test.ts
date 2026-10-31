@@ -95,6 +95,8 @@ function makePullInfo(overrides?: Partial<PullRequestInfo>): PullRequestInfo {
     htmlUrl: "https://github.com/o/r/pull/1",
     commitCount: 1,
     changedFiles: 1,
+    additions: 8,
+    deletions: 2,
     authorLogin: "octocat",
     authorIsBot: false,
     closedAt: null,

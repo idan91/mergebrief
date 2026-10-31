@@ -48,6 +48,10 @@ export interface PullRequestInfo {
   readonly commitCount: number;
   /** GitHub's `changed_files`: the files the head changes against the base. */
   readonly changedFiles: number;
+  /** GitHub's `additions`: the lines the head adds against the base. */
+  readonly additions: number;
+  /** GitHub's `deletions`: the lines the head removes against the base. */
+  readonly deletions: number;
   /** PR author login; null when the account is gone. */
   readonly authorLogin: string | null;
   /** The PR author's account is a `Bot`; false when the account is gone. */

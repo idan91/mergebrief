@@ -12,6 +12,9 @@ export const AFTER_LEASE_MARGIN_SECONDS = 5;
 
 export const MS_PER_SECOND = 1000;
 
+/** Detail calls a multi-call run keeps in flight at once, unless `generator.detailConcurrency` says otherwise. */
+export const DEFAULT_DETAIL_CONCURRENCY = 8;
+
 /** The Entry sync waits this long, so a run's own post lands first and the sync finds it live. */
 export const ENTRY_SYNC_DELAY_SECONDS = 30;
 

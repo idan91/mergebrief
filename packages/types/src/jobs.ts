@@ -4,6 +4,10 @@ import type { ValueOf } from "./utils";
 export const QueueTasks = {
   GENERATE: "generate",
   RECOVER_GENERATION: "recover-generation",
+  /** The large pool's `generate`: a run the PR read predicts multi-call. */
+  GENERATE_LARGE: "generate-large",
+  /** The large pool's `recover-generation`, routed by the same prediction. */
+  RECOVER_GENERATION_LARGE: "recover-generation-large",
   /** Renders a head's Entry comment from its generation row; the generate payload. */
   SYNC_ENTRY: "sync-entry",
 } as const;

@@ -211,6 +211,55 @@ describe("loadConfig", () => {
     expect(result.error.issues.join(";")).toContain("WORKER_CONCURRENCY");
   });
 
+  it("defaults the large pool to one slot when unset or empty", () => {
+    const unset = loadConfig(VALID_ENV);
+    expect(unset.ok && unset.value.largeConcurrency).toBe(1);
+    const empty = loadConfig({ ...VALID_ENV, WORKER_LARGE_CONCURRENCY: "" });
+    expect(empty.ok && empty.value.largeConcurrency).toBe(1);
+  });
+
+  it("parses a large pool slot count above one", () => {
+    const result = loadConfig({ ...VALID_ENV, WORKER_LARGE_CONCURRENCY: "2" });
+    expect(result.ok && result.value.largeConcurrency).toBe(2);
+  });
+
+  it("rejects a large pool slot count below one by name", () => {
+    const result = loadConfig({ ...VALID_ENV, WORKER_LARGE_CONCURRENCY: "0" });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues.join(";")).toContain("WORKER_LARGE_CONCURRENCY");
+  });
+
+  it("defaults detailConcurrency to eight without a generator block", () => {
+    const result = loadConfig(VALID_ENV);
+    expect(result.ok && result.value.detailConcurrency).toBe(8);
+  });
+
+  it("reads detailConcurrency from the generator block", () => {
+    const path = configFile(
+      "generator:\n  provider: anthropic\n  detailConcurrency: 3\n",
+    );
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    expect(result.ok && result.value.detailConcurrency).toBe(3);
+  });
+
+  it.each([
+    ["zero", "0"],
+    ["a fraction", "1.5"],
+  ])("refuses boot on a detailConcurrency of %s", (_label, value) => {
+    const path = configFile(
+      `generator:\n  provider: anthropic\n  detailConcurrency: ${value}\n`,
+    );
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.issues.join(";")).toContain("detailConcurrency");
+  });
+
   it("reads SERVER_VERSION unset and empty as dev", () => {
     const unset = loadConfig(VALID_ENV);
     expect(unset.ok && unset.value.serverVersion).toBe("dev");

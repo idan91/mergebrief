@@ -459,6 +459,15 @@ export interface IngestRoutines {
    */
   requeueGenerateJob(input: RequeueGenerateJobInput): Promise<RequeueOutcome>;
   /**
+   * Move the running job to the large pool: a `generate-large` job due now
+   * under the PR's generate key, or `recover-generation-large` under the
+   * head's recovery key for a recovery run, beside the locked job that holds
+   * the key now. An unlocked job already waiting under the key is a newer
+   * trigger's or a later claim's and runs anyway, so nothing is queued and
+   * the caller stands down; a PR outside the scope queues nothing.
+   */
+  routeToLargePool(input: RouteToLargePoolInput): Promise<RequeueOutcome>;
+  /**
    * Queue the head's recovery job, `delaySeconds` out, with the `generate`
    * payload. One stays pending per head: a later call moves its `run_at`, and
    * one locked by a running recovery gets a fresh job beside it. A PR outside
@@ -513,6 +522,15 @@ export interface RequeueGenerateJobInput {
   /** The url-box job's credential reference, as on `TriggerGenerationInput`. */
   readonly grantId?: GrantRowId;
   readonly delaySeconds: number;
+}
+
+export interface RouteToLargePoolInput {
+  readonly pullRequestId: PullRequestRowId;
+  readonly headSha: string;
+  /** The url-box job's credential reference, as on `TriggerGenerationInput`. */
+  readonly grantId?: GrantRowId;
+  /** A recovery job's run moves under the head's recovery key instead of the PR's generate key. */
+  readonly recovering: boolean;
 }
 
 export interface QueueEntrySyncInput {
@@ -722,6 +740,39 @@ export function createIngestRoutines(
           pullRequestId,
           input.delaySeconds,
         );
+        return { queued: true };
+      });
+    },
+
+    async routeToLargePool(input) {
+      return db.transaction(async (tx) => {
+        const { pullRequestId, headSha, recovering } = input;
+        const inScope = await lockPullRequestInScope(tx, scope, pullRequestId);
+        if (!inScope) {
+          return { queued: false };
+        }
+        const key = recovering
+          ? getRecoveryJobKey(pullRequestId, headSha)
+          : getGenerateJobKey(pullRequestId);
+        const waiting = await readQueueJob(tx, key);
+        if (waiting !== undefined && !waiting.locked) {
+          return { queued: false };
+        }
+
+        await addQueueJob(tx, {
+          identifier: recovering
+            ? QueueTasks.RECOVER_GENERATION_LARGE
+            : QueueTasks.GENERATE_LARGE,
+          payload: buildJobPayload(
+            scope,
+            input.grantId,
+            pullRequestId,
+            headSha,
+          ),
+          key,
+          delaySeconds: 0,
+          keyMode: JobKeyModes.REPLACE,
+        });
         return { queued: true };
       });
     },

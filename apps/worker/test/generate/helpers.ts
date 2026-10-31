@@ -66,7 +66,7 @@ import {
   buildEntryCommentCappedBody,
   type EntryCommentLink,
 } from "../../src/task/entry-comment";
-import type { GenerateTask } from "../../src/task/generate/types";
+import { RunPools, type GenerateTask } from "../../src/task/generate/types";
 import {
   createGitHubPort,
   type GitHubPort,
@@ -428,6 +428,8 @@ export function makePullRequestInfo(headSha: string): PullRequestInfo {
     htmlUrl: "https://github.com/acme/widget/pull/7",
     commitCount: 3,
     changedFiles: 1,
+    additions: 8,
+    deletions: 2,
     authorLogin: "octocat",
     authorIsBot: false,
     closedAt: null,
@@ -895,6 +897,11 @@ export function makeTask(overrides: TaskOverrides = {}): GenerateTask {
 /** The recovery task over the same defaults as `makeTask`. */
 export function makeRecoveryTask(overrides: TaskOverrides = {}): GenerateTask {
   return createRecoverGenerationTask(makeTaskDeps(overrides));
+}
+
+/** The large pool's generate task over the same defaults as `makeTask`. */
+export function makeLargePoolTask(overrides: TaskOverrides = {}): GenerateTask {
+  return createGenerateTask(makeTaskDeps(overrides), { pool: RunPools.LARGE });
 }
 
 /** The Entry sync task over the same defaults as `makeTask`. */

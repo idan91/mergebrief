@@ -1,9 +1,16 @@
 import {
+  BYTES_PER_CHANGED_LINE,
   BYTES_PER_TOKEN,
   SINGLE_CALL_MAX_HUNKS,
   SINGLE_CALL_MAX_INPUT_TOKENS,
 } from "./consts";
-import { CallPlanKinds, type CallPlan, type CallPlanInput } from "./types";
+import {
+  CallPlanKinds,
+  type CallPlan,
+  type CallPlanInput,
+  type CallPlanKind,
+  type PullRequestCounts,
+} from "./types";
 
 const HUNK_HEADER = "@@ ";
 const LINE_HUNK_HEADER = `\n${HUNK_HEADER}`;
@@ -39,4 +46,19 @@ export function decideCallPlan(input: CallPlanInput): CallPlan {
     hunkCount,
     forced,
   };
+}
+
+/**
+ * The plan a pull request's counts predict before its diff is read, at
+ * `decideCallPlan`'s thresholds: a changed file stands for a hunk, a changed
+ * line for `BYTES_PER_CHANGED_LINE` bytes of diff.
+ */
+export function predictCallPlan(counts: PullRequestCounts): CallPlanKind {
+  const changedLines = counts.additions + counts.deletions;
+  const estimatedInputTokens =
+    (changedLines * BYTES_PER_CHANGED_LINE) / BYTES_PER_TOKEN.DIFF;
+
+  const overInput = estimatedInputTokens > SINGLE_CALL_MAX_INPUT_TOKENS;
+  const overFiles = counts.changedFiles > SINGLE_CALL_MAX_HUNKS;
+  return overInput || overFiles ? CallPlanKinds.MULTI : CallPlanKinds.SINGLE;
 }

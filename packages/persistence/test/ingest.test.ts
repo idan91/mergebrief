@@ -480,6 +480,106 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
   });
 
+  describe("routeToLargePool", () => {
+    async function holdJobs(): Promise<void> {
+      await harness.raw("update graphile_worker.jobs set locked_at = now()");
+    }
+
+    async function readJobs(): Promise<Record<string, unknown>[]> {
+      return harness.raw(
+        "select task_identifier, key, locked_at, max_attempts, payload::text as payload, run_at <= now() as due from graphile_worker.jobs order by id",
+      );
+    }
+
+    it("moves the running job's key to a generate-large job due now", async () => {
+      const first = await trigger();
+      await holdJobs();
+
+      const routed = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).routeToLargePool({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        recovering: false,
+      });
+
+      expect(routed.queued).toBe(true);
+      const jobs = await readJobs();
+      expect(jobs).toHaveLength(2);
+      expect(jobs[0]?.["key"]).toBeNull();
+      expect(jobs[1]).toMatchObject({
+        task_identifier: "generate-large",
+        key: `generate:${first.pullRequest.id}`,
+        locked_at: null,
+        max_attempts: 3,
+        due: true,
+      });
+      expect(JSON.parse(String(jobs[1]?.["payload"]))).toEqual({
+        installation_id: "100",
+        pull_request_id: String(first.pullRequest.id),
+        head_sha: HEAD_SHA,
+      });
+    });
+
+    it("stands down when an unlocked job already waits under the key", async () => {
+      const first = await trigger();
+      const before = await readJobs();
+
+      const routed = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).routeToLargePool({
+        pullRequestId: first.pullRequest.id,
+        headSha: "b".repeat(40),
+        recovering: false,
+      });
+
+      expect(routed.queued).toBe(false);
+      expect(await readJobs()).toEqual(before);
+    });
+
+    it("routes a recovery run under the head's recovery key", async () => {
+      const first = await trigger();
+      await holdJobs();
+
+      const routed = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).routeToLargePool({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        recovering: true,
+      });
+
+      expect(routed.queued).toBe(true);
+      const jobs = await readJobs();
+      expect(jobs).toHaveLength(2);
+      expect(jobs[1]).toMatchObject({
+        task_identifier: "recover-generation-large",
+        key: `recover-generation:${first.pullRequest.id}:${HEAD_SHA}`,
+        locked_at: null,
+      });
+    });
+
+    it("queues nothing for a pull request outside the scope", async () => {
+      const first = await trigger();
+      await holdJobs();
+
+      const routed = await createIngestRoutines(
+        harness.handle,
+        parseTenantContext({ installationId: 101n }),
+      ).routeToLargePool({
+        pullRequestId: first.pullRequest.id,
+        headSha: HEAD_SHA,
+        recovering: false,
+      });
+
+      expect(routed.queued).toBe(false);
+      expect(await readJobs()).toHaveLength(1);
+    });
+  });
+
   describe("requeueGenerateJob", () => {
     const DELAY_SECONDS = 125;
     const DELAY_SLACK_SECONDS = 2;

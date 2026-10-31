@@ -31,7 +31,8 @@ its own.
 ## Sizing
 
 - **Generations decide the worker's size.** Concurrent generations are
-  `WORKER_COUNT` times `WORKER_CONCURRENCY`, one by default. An API provider
+  `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and
+  `WORKER_LARGE_CONCURRENCY`, two by default. An API provider
   holds one response stream per slot ([generators.md](./generators.md#worker-slots)).
 - **Postgres grows with briefs.** Each revision of a pull request stores its
   brief body as text, plus its revision summary and delta beside it. In the

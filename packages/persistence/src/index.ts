@@ -327,6 +327,7 @@ export type {
   ReleaseApprovedHoldInput,
   TriggerOnDemandInput,
   RequeueGenerateJobInput,
+  RouteToLargePoolInput,
   RequeueOutcome,
   TriggerGenerationInput,
 } from "./stores/ingest";

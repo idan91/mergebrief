@@ -199,6 +199,8 @@ export function makePullRequestBody(prNumber: number): unknown {
     html_url: `https://github.com/acme/widgets/pull/${prNumber}`,
     commits: 2,
     changed_files: 1,
+    additions: 8,
+    deletions: 2,
     user: { login: "octocat" },
     closed_at: null,
     updated_at: "2026-10-01T10:00:00Z",

@@ -76,7 +76,7 @@ it.
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | api, worker, migrate | none | yes, unless `DATABASE_URL_FILE` is set | A `postgres://` or `postgresql://` URL. A host that is not loopback (`localhost`, `127.0.0.0/8`, `::1`, or a unix socket path) must carry `sslmode=verify-full` or `sslmode=disable`, and `uselibpqcompat=true` only beside `verify-full`; anything else refuses boot ([TLS](./compose.md#tls-verify-full-or-disable-sslmode-in-the-dsn)). A file the DSN names, such as `sslrootcert`, that cannot be read refuses boot naming the path. The default compose file sets its own value. |
 | `DATABASE_URL_FILE` | api, worker, migrate | unset | no | Path to a file holding the DSN, trimmed. Wins over `DATABASE_URL` and logs a warning when `DATABASE_URL` is also set and non-empty. An unreadable file refuses boot. Empty reads as unset. |
-| `DATABASE_POOL_MAX` | api, worker, migrate | `10` | no | Connections each Postgres pool opens at most: a whole number of at least 2. An `api` opens one pool; a `worker` opens two, its store and its job queue. A request waits up to 10 seconds for a free connection. Empty takes the default. |
+| `DATABASE_POOL_MAX` | api, worker, migrate | `10` | no | Connections each Postgres pool opens at most: a whole number of at least 2. An `api` opens one pool; a `worker` opens two at this size, its store and its job queue, plus the large pool's job queue at `WORKER_LARGE_CONCURRENCY` + 2. A request waits up to 10 seconds for a free connection. Empty takes the default. |
 | `MERGEBRIEF_AUTO_MIGRATE` | api, worker, migrate | `true` | no | `true` applies pending migrations at boot. `false` makes boot a read-only check that exits 1 when the database is behind ([operations.md](./operations.md#external-database-auto-migratefalse)). `migrate` always applies. **Empty reads as `false`.** |
 
 ### Addresses and listeners
@@ -97,6 +97,7 @@ it.
 | `MERGEBRIEF_CONFIG` | api, worker | unset | no | Path to `mergebrief.config.yaml`. Unset runs the zero-config defaults. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend` and `operators` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
 | `ANTHROPIC_API_KEY` | worker | none | with the default provider | The key the zero-config `anthropic` provider reads. `generator.apiKeyEnv` names another variable; `OPENAI_API_KEY` and `OPENROUTER_API_KEY` are the defaults for those providers. A provider whose key variable is unset or empty refuses boot. |
 | `WORKER_CONCURRENCY` | worker | `1` | no | Jobs one worker process runs at once: a whole number of at least 1 ([Worker slots](./generators.md#worker-slots)). Empty takes the default. |
+| `WORKER_LARGE_CONCURRENCY` | worker | `1` | no | Slots of the large pool, which runs the multi-call briefs: a whole number of at least 1 ([The large pool](./generators.md#the-large-pool)). Empty takes the default. |
 | `REVISION_NARRATIVE_ENABLED` | worker | `true` | no | Boolean. `false` skips the revision narrative against the previous brief. Empty takes the default. |
 | `HUGE_SPAN_RATIO` | worker | `0.65` | no | A number above 0 and at most 1: the share of a pull request's changed lines at which an incremental span falls back to the full brief. Empty takes the default. |
 | `NOTION_TOKEN` (or the name `contextSources[].tokenEnv` gives) | worker | none | when a `notion` context source is configured | The Notion integration token. Unset or empty refuses boot while the config lists a `notion` entry ([trackers.md](./trackers.md#notion)). |
@@ -177,7 +178,7 @@ under these names.
 | --- | --- | --- |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `code_review` each | The bundled Postgres's role, password and database, written on its first start only. Compose derives the in-network `DATABASE_URL` for `api` and `worker` from them, with `sslmode=disable` ([compose.md](./compose.md#1-postgres-credentials)). |
 | `API_COUNT` | `1` | `api` replicas. `docker compose up --scale api=N` wins for that run. |
-| `WORKER_COUNT` | `1` | `worker` replicas. Concurrent generations are `WORKER_COUNT` times `WORKER_CONCURRENCY`. |
+| `WORKER_COUNT` | `1` | `worker` replicas. Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`. |
 | `COMPOSE_FILE` | unset | Compose's own variable. Set it to `docker-compose.external-db.yml` for an external database ([compose.md](./compose.md#external-postgres-managed-database)). |
 
 The default compose file sets `DATABASE_URL`, `PUBLIC_BASE_URL`,
@@ -272,6 +273,7 @@ provider key. Every block rejects keys it does not define.
 | `effort` | all | `medium` | `low`, `medium` or `high`. |
 | `full-regeneration` | all | `never` | `never` (each revision anchors to the previous brief), `on-model-swap` (a fresh brief when the provider or model changed), `always` (every revision from scratch). |
 | `force-multi-call` | all | `false` | `true` runs every brief as a multi-call run (a grouping call over an outline, then detail calls per batch of hunks), the path a diff over 400k input tokens or 120 hunks takes on its own. A diagnostic switch; it costs more calls per brief. |
+| `detailConcurrency` | all | `8` | A whole number of at least 1: the detail calls a multi-call run keeps in flight at once. Lower it for a provider rate limit ([the large pool](./generators.md#the-large-pool)). |
 | `apiKeyEnv` | `anthropic`, `openai`, `openrouter` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY` | The NAME of the variable holding the key. A value that is not an uppercase variable name refuses boot. |
 | `baseUrl` | `anthropic`, `openai` | the provider's own host | A URL. `anthropic` takes the gateway's host root; a path ending in `/v1` refuses boot. `openai` takes the `/v1` root of a gateway or compatible server, and turns the `/models` check at boot into a warning. |
 | `providerRouting` | `openrouter` | none | A mapping passed to OpenRouter under `provider`; `require_parameters: true` is always forced. |

@@ -20,3 +20,10 @@ export interface CallPlan {
   readonly hunkCount: number;
   readonly forced: boolean;
 }
+
+/** What GitHub's pull request read says about a diff before it is fetched. */
+export interface PullRequestCounts {
+  readonly changedFiles: number;
+  readonly additions: number;
+  readonly deletions: number;
+}

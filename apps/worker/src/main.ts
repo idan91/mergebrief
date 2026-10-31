@@ -15,7 +15,7 @@ import {
   loadConfig as loadGitHubConfig,
   resolveOperatorTokenOwner,
 } from "github";
-import { Logger as GraphileLogger, type Runner } from "graphile-worker";
+import { Logger as GraphileLogger } from "graphile-worker";
 import { createI18n } from "i18n";
 import { createGraphileLogFactory, createLogger } from "logging";
 import { stopTracing } from "logging/tracing";
@@ -38,6 +38,7 @@ import {
   createSyncEntryTask,
   type GenerateTaskDeps,
 } from "./task/generate";
+import { RunPools } from "./task/generate/types";
 import { createSweepAuditTask, SWEEP_AUDIT_CRONTAB } from "./task/sweep-audit";
 import {
   createSweepPullRequestsTask,
@@ -51,8 +52,8 @@ import {
   createSweepWebhookDeliveriesTask,
   SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
 } from "./task/sweep-webhook-deliveries";
-import { startWorker } from "./runner";
-import { buildTaskList } from "./task-list";
+import { startWorker, type WorkerRunner } from "./runner";
+import { buildLargePoolTaskList, buildTaskList } from "./task-list";
 import { buildToolAccessWarning } from "./tool-access";
 import {
   collectOutputSecrets,
@@ -225,6 +226,7 @@ async function main(): Promise<void> {
     siblingRepos: config.value.siblingRepos,
     revisionNarrative: config.value.revisionNarrative,
     hugeSpanRatio: config.value.hugeSpanRatio,
+    detailConcurrency: config.value.detailConcurrency,
     log: logger,
   };
 
@@ -240,6 +242,12 @@ async function main(): Promise<void> {
   const generate = createGenerateTask(generateDeps);
   const recoverGeneration = createRecoverGenerationTask(generateDeps);
   const syncEntry = createSyncEntryTask(generateDeps);
+  const largePool = { pool: RunPools.LARGE };
+  const generateLarge = createGenerateTask(generateDeps, largePool);
+  const recoverGenerationLarge = createRecoverGenerationTask(
+    generateDeps,
+    largePool,
+  );
 
   const sweepAudit = createSweepAuditTask({
     handle,
@@ -273,6 +281,14 @@ async function main(): Promise<void> {
     log: logger,
     migrateCommand: resolveMigrateCommand(env[RUNTIME_MARKER_VAR]),
     concurrency: config.value.concurrency,
+    largePool: {
+      concurrency: config.value.largeConcurrency,
+      taskList: buildLargePoolTaskList({
+        generateLarge: (payload, helpers) => generateLarge(payload, helpers),
+        recoverGenerationLarge: (payload, helpers) =>
+          recoverGenerationLarge(payload, helpers),
+      }),
+    },
     poolMax: config.value.poolMax,
     // helpers.abortSignal is graphile's graceful-shutdown signal: SIGTERM
     // aborts an in-flight stream (job back to queue) instead of riding out the
@@ -300,8 +316,9 @@ async function main(): Promise<void> {
   });
   const auditRetention = describeRetention(config.value.auditRetentionDays);
   const prRetention = describeRetention(config.value.prRetentionDays);
+  const slots = `${config.value.concurrency} + ${config.value.largeConcurrency} large`;
   logger.info(
-    `worker: listening for generate jobs; audit retention ${auditRetention}; pull request retention ${prRetention}`,
+    `worker: listening for generate jobs; slots ${slots}; audit retention ${auditRetention}; pull request retention ${prRetention}`,
   );
 
   installStopSignals(runner);
@@ -324,7 +341,7 @@ async function main(): Promise<void> {
  * pool closes and the last spans flush; a second one exits at once. graphile
  * runs with its own handlers off, so nothing re-raises the signal mid-stop.
  */
-function installStopSignals(runner: Runner): void {
+function installStopSignals(runner: WorkerRunner): void {
   let stopping = false;
   const onSignal = (signal: NodeJS.Signals): void => {
     if (stopping) {

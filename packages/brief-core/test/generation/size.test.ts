@@ -3,8 +3,12 @@ import {
   countHunks,
   decideCallPlan,
   estimateTokens,
+  predictCallPlan,
 } from "../../src/generation/size";
-import { BYTES_PER_TOKEN } from "../../src/generation/size/consts";
+import {
+  BYTES_PER_CHANGED_LINE,
+  BYTES_PER_TOKEN,
+} from "../../src/generation/size/consts";
 
 const FILE_HEADER = "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n";
 
@@ -82,5 +86,43 @@ describe("decideCallPlan", () => {
 
     expect(plan.kind).toBe("multi");
     expect(plan.forced).toBe(true);
+  });
+});
+
+describe("BYTES_PER_CHANGED_LINE", () => {
+  it("is 67, measured on SvelteKit 11161: 731 KB over 10894 lines", () => {
+    expect(Math.round(731_000 / 10_894)).toBe(BYTES_PER_CHANGED_LINE);
+  });
+});
+
+describe("predictCallPlan", () => {
+  it("keeps 120 changed files and 11940 changed lines on one call", () => {
+    const plan = predictCallPlan({
+      changedFiles: 120,
+      additions: 11_000,
+      deletions: 940,
+    });
+
+    expect(plan).toBe("single");
+  });
+
+  it("goes multi-call past 120 changed files", () => {
+    const plan = predictCallPlan({
+      changedFiles: 121,
+      additions: 1,
+      deletions: 0,
+    });
+
+    expect(plan).toBe("multi");
+  });
+
+  it("goes multi-call past 11940 changed lines, 400k tokens at 67 bytes", () => {
+    const plan = predictCallPlan({
+      changedFiles: 1,
+      additions: 11_941,
+      deletions: 0,
+    });
+
+    expect(plan).toBe("multi");
   });
 });

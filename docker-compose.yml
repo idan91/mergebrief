@@ -179,9 +179,11 @@ services:
       # a CLI provider one child process (docs/self-host/generators.md,
       # "Worker slots").
       # WORKER_CONCURRENCY: 1
+      # Slots of the large pool, which runs the multi-call briefs.
+      # WORKER_LARGE_CONCURRENCY: 1
     # Worker containers. Concurrent generations = WORKER_COUNT x
-    # WORKER_CONCURRENCY. `docker compose up --scale worker=N` wins over this
-    # for that run. No container_name and no ports, so scaling needs nothing
+    # (WORKER_CONCURRENCY + WORKER_LARGE_CONCURRENCY). `docker compose up
+    # --scale worker=N` wins over this for that run. No container_name and no ports, so scaling needs nothing
     # else.
     deploy:
       replicas: ${WORKER_COUNT:-1}

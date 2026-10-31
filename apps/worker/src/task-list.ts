@@ -16,6 +16,25 @@ export interface WorkerTasks {
   readonly sweepWebhookDeliveries: Task;
 }
 
+/** The large pool's tasks: the same runs, told their pool. */
+export interface LargePoolTasks {
+  readonly generateLarge: Task;
+  readonly recoverGenerationLarge: Task;
+}
+
+export function buildLargePoolTaskList(tasks: LargePoolTasks): TaskList {
+  return {
+    [QueueTasks.GENERATE_LARGE]: traceJob(
+      QueueTasks.GENERATE_LARGE,
+      tasks.generateLarge,
+    ),
+    [QueueTasks.RECOVER_GENERATION_LARGE]: traceJob(
+      QueueTasks.RECOVER_GENERATION_LARGE,
+      tasks.recoverGenerationLarge,
+    ),
+  };
+}
+
 export function buildTaskList(tasks: WorkerTasks): TaskList {
   return {
     [QueueTasks.GENERATE]: traceJob(QueueTasks.GENERATE, tasks.generate),

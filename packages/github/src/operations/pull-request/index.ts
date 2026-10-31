@@ -72,6 +72,8 @@ export async function fetchPullRequest(
       htmlUrl: data.html_url,
       commitCount: data.commits,
       changedFiles: data.changed_files,
+      additions: data.additions,
+      deletions: data.deletions,
       authorLogin: data.user?.login ?? null,
       authorIsBot: data.user?.type === GitHubAccountTypes.BOT,
       closedAt: data.closed_at === null ? null : new Date(data.closed_at),

@@ -88,7 +88,21 @@ export interface GenerateTaskDeps {
   readonly revisionNarrative?: RevisionNarrativeConfig;
   /** The huge-span ratio main.ts read; absent means the default. */
   readonly hugeSpanRatio?: number;
+  /** Detail calls a multi-call run keeps in flight at once; absent means `DEFAULT_DETAIL_CONCURRENCY`. */
+  readonly detailConcurrency?: number;
   readonly log?: Logger;
+}
+
+/** The slot pool a job's runner drains: the large pool runs the multi-call runs. */
+export const RunPools = {
+  NORMAL: "normal",
+  LARGE: "large",
+} as const;
+export type RunPool = ValueOf<typeof RunPools>;
+
+export interface GenerateTaskOptions {
+  /** The pool the task's runner drains; absent means the normal pool. */
+  readonly pool?: RunPool;
 }
 
 /**
@@ -387,6 +401,8 @@ export interface RunStart {
   /** graphile's job row slice; absent on direct test invocations. */
   readonly job: GenerateTaskHelpers["job"];
   readonly shutdownSignal: AbortSignal | undefined;
+  /** The pool this job runs in; a normal-pool run predicting multi-call moves to the large one. */
+  readonly pool: RunPool;
   /**
    * A recovery job's run: it claims the row even over a stored brief and
    * follows a live holder by moving its own job. Its claim queues the next
