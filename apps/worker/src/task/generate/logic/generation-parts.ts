@@ -299,6 +299,12 @@ export function createMultiCallRun(
         if (missing > 0) {
           await claimRunUnits(context, missing);
         }
+        throwOnClaimLost(
+          await projection.recordPartsPlanned(runId, {
+            total: plan.detailCalls,
+            done: plan.detailCalls - missing,
+          }),
+        );
         await postLargeGeneratingEntry(context, {
           planned: plan.detailCalls,
           missing,

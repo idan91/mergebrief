@@ -1,5 +1,9 @@
 import type { TranslationKey } from "i18n";
-import type { LastReviewUnavailableReason, WaitReason } from "contract";
+import type {
+  GenerationPartsView,
+  LastReviewUnavailableReason,
+  WaitReason,
+} from "contract";
 import type {
   GenerationFailureCode,
   GenerationStatus,
@@ -24,6 +28,10 @@ export interface GenerationSummary {
   readonly updatedAt: string;
   /** PR meta only, and only while pending; absent means the generic line. */
   readonly waitReason?: WaitReason;
+  /** PR meta only, while a run holds the row: when its attempt started. */
+  readonly startedAt?: string;
+  /** PR meta only, once a multi-call run planned its detail calls. */
+  readonly parts?: GenerationPartsView;
 }
 
 export interface PreviousBriefComparison {

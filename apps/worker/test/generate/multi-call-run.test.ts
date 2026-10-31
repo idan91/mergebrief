@@ -20,6 +20,7 @@ import { createI18n } from "i18n";
 import { claimTestRun } from "persistence/testing";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { describe, expect, it, onTestFinished } from "vitest";
+import { PermanentJobError } from "../../src/task/failure";
 import {
   createMultiCallRun,
   digestGitAttributes,
@@ -197,15 +198,18 @@ function resolvePendingAfter(ms: number): Promise<"pending"> {
 interface AttemptRow {
   readonly units: number;
   readonly parts_done: number;
+  readonly parts_total: number | null;
 }
 
 async function listAttempts(): Promise<AttemptRow[]> {
   const rows = await harness.raw(
-    "select units, parts_done from generation_attempt order by id",
+    "select units, parts_done, parts_total from generation_attempt order by id",
   );
   return rows.map((row) => ({
     units: Number(row["units"]),
     parts_done: Number(row["parts_done"]),
+    parts_total:
+      row["parts_total"] === null ? null : Number(row["parts_total"]),
   }));
 }
 
@@ -292,7 +296,9 @@ describe("a multi-call run", () => {
     await task(payload);
 
     expect(generator.calls.slice(0, 3)).toEqual(MULTI_CALL_LABELS);
-    expect(await listAttempts()).toEqual([{ units: 3, parts_done: 2 }]);
+    expect(await listAttempts()).toEqual([
+      { units: 3, parts_done: 2, parts_total: 2 },
+    ]);
     expect(await listPartKeys(pr)).toEqual([]);
     const brief = await readStoredBrief(pr);
     expect(brief).toBeDefined();
@@ -426,6 +432,26 @@ describe("a multi-call run", () => {
     );
   });
 
+  it("ends the run for good when the parts plan is a caller's bug", async () => {
+    const { pr } = await trigger(HEAD_1);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const runId = await claimTestRun(projection, makeTarget(pr, HEAD_1));
+    const context = stubRunContext(pr, projection, runId, {
+      projection: {
+        ...projection,
+        recordPartsPlanned: () =>
+          Promise.reject(new RangeError("a plan counts whole parts")),
+      },
+    });
+    const { hooks } = createMultiCallRun(context, runId, {
+      kind: GitAttributesReadings.NONE,
+    });
+
+    await expect(
+      hooks.onGroupingDone?.({ detailCalls: 2, missingDetailCalls: [1, 2] }),
+    ).rejects.toBeInstanceOf(PermanentJobError);
+  });
+
   it("ends the run when the generating Entry edit meets a scope refusal", async () => {
     const { pr } = await trigger(HEAD_1);
     const projection = createGenerationProjection(harness.handle, ctx);
@@ -486,7 +512,9 @@ describe("a multi-call run", () => {
       status: GenerationStatuses.CAPPED,
       errorParams: { needed: 2, left: 1, cap: 2 },
     });
-    expect(await listAttempts()).toEqual([{ units: 1, parts_done: 0 }]);
+    expect(await listAttempts()).toEqual([
+      { units: 1, parts_done: 0, parts_total: null },
+    ]);
     expect(await listPartKeys(pr)).toEqual(["grouping"]);
     expect(await readStoredBrief(pr)).toBeUndefined();
     const lines = readLines();
@@ -516,7 +544,9 @@ describe("a multi-call run", () => {
       errorCode: "unknown",
     });
     expect(await listPartKeys(pr)).toEqual(["grouping"]);
-    expect(await listAttempts()).toEqual([{ units: 3, parts_done: 0 }]);
+    expect(await listAttempts()).toEqual([
+      { units: 3, parts_done: 0, parts_total: 2 },
+    ]);
     expect(readLiveBodies(github).join("\n")).not.toContain(
       "generation failed",
     );
@@ -529,8 +559,8 @@ describe("a multi-call run", () => {
 
     expect(resumed.calls.slice(0, 2)).toEqual(["detail:1", "detail:2"]);
     expect(await listAttempts()).toEqual([
-      { units: 3, parts_done: 0 },
-      { units: 3, parts_done: 2 },
+      { units: 3, parts_done: 0, parts_total: 2 },
+      { units: 3, parts_done: 2, parts_total: 2 },
     ]);
     expect(await listPartKeys(pr)).toEqual([]);
     expect((await readStatus(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
@@ -699,7 +729,9 @@ describe("a multi-call run", () => {
       errorCode: "github-unavailable",
     });
     expect(await listPartKeys(pr)).toEqual(["grouping", "detail:1"]);
-    expect(await listAttempts()).toEqual([{ units: 1, parts_done: 0 }]);
+    expect(await listAttempts()).toEqual([
+      { units: 1, parts_done: 0, parts_total: null },
+    ]);
   });
 
   it("fails transient before a single call over parts it cannot tell apart", async () => {
@@ -786,8 +818,8 @@ describe("a multi-call run", () => {
 
     expect(second.calls.slice(0, 3)).toEqual(MULTI_CALL_LABELS);
     expect(await listAttempts()).toEqual([
-      { units: 1, parts_done: 0 },
-      { units: 3, parts_done: 2 },
+      { units: 1, parts_done: 0, parts_total: null },
+      { units: 3, parts_done: 2, parts_total: 2 },
     ]);
     expect((await readStatus(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
@@ -810,7 +842,9 @@ describe("a multi-call run", () => {
       );
 
       expect(generator.calls.slice(0, 3)).toEqual(MULTI_CALL_LABELS);
-      expect(await listAttempts()).toEqual([{ units: 3, parts_done: 2 }]);
+      expect(await listAttempts()).toEqual([
+        { units: 3, parts_done: 2, parts_total: 2 },
+      ]);
       expect(await listPartKeys(pr)).toEqual([]);
       expect((await readStatus(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
       const refusal = readLines().find((line) =>
@@ -848,7 +882,9 @@ describe("a multi-call run", () => {
     })(payload);
 
     expect(generator.calls.slice(0, 3)).toEqual(MULTI_CALL_LABELS);
-    expect(await listAttempts()).toEqual([{ units: 3, parts_done: 2 }]);
+    expect(await listAttempts()).toEqual([
+      { units: 3, parts_done: 2, parts_total: 2 },
+    ]);
     expect(await listPartKeys(pr)).toEqual([]);
   });
 
@@ -887,7 +923,9 @@ describe("a multi-call run", () => {
 
     expect((await readStatus(pr))?.status).toBe(GenerationStatuses.FAILED);
     expect(await listPartKeys(pr)).toEqual(["grouping", "detail:1"]);
-    expect(await listAttempts()).toEqual([{ units: 3, parts_done: 1 }]);
+    expect(await listAttempts()).toEqual([
+      { units: 3, parts_done: 1, parts_total: 2 },
+    ]);
 
     const resumed = stubThreeGroupGenerator();
     await makeTask({ generator: resumed, github, forceMultiCall: true })(
@@ -897,8 +935,8 @@ describe("a multi-call run", () => {
 
     expect(resumed.calls.slice(0, 1)).toEqual(["detail:2"]);
     expect(await listAttempts()).toEqual([
-      { units: 3, parts_done: 1 },
-      { units: 2, parts_done: 1 },
+      { units: 3, parts_done: 1, parts_total: 2 },
+      { units: 2, parts_done: 2, parts_total: 2 },
     ]);
     expect(await listPartKeys(pr)).toEqual([]);
     expect(await readStoredBrief(pr)).toBeDefined();
@@ -967,8 +1005,8 @@ describe("a multi-call run", () => {
     );
     expect(resumedDetailCalls).toEqual(["detail:3"]);
     expect(await listAttempts()).toEqual([
-      { units: 4, parts_done: 2 },
-      { units: 2, parts_done: 1 },
+      { units: 4, parts_done: 2, parts_total: 3 },
+      { units: 2, parts_done: 3, parts_total: 3 },
     ]);
     expect((await readStatus(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
@@ -1019,8 +1057,8 @@ describe("a multi-call run", () => {
 
     expect(resumed.calls.slice(0, 2)).toEqual(["detail:1", "detail:2"]);
     expect(await listAttempts()).toEqual([
-      { units: 3, parts_done: 1 },
-      { units: 3, parts_done: 1 },
+      { units: 3, parts_done: 1, parts_total: 2 },
+      { units: 3, parts_done: 1, parts_total: 2 },
     ]);
     expect(await readStatus(pr)).toMatchObject({
       status: GenerationStatuses.FAILED,
@@ -1056,8 +1094,8 @@ describe("a multi-call run", () => {
 
     expect(resumed.calls.slice(0, 1)).toEqual(["detail:2"]);
     expect(await listAttempts()).toEqual([
-      { units: 3, parts_done: 1 },
-      { units: 2, parts_done: 1 },
+      { units: 3, parts_done: 1, parts_total: 2 },
+      { units: 2, parts_done: 2, parts_total: 2 },
     ]);
     expect((await readStatus(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
@@ -1105,7 +1143,9 @@ describe("a multi-call run", () => {
     })(payload);
 
     expect(generator.calls.slice(0, 3)).toEqual(MULTI_CALL_LABELS);
-    expect(await listAttempts()).toEqual([{ units: 3, parts_done: 2 }]);
+    expect(await listAttempts()).toEqual([
+      { units: 3, parts_done: 2, parts_total: 2 },
+    ]);
     expect(await listPartKeys(pr)).toEqual([]);
   });
 

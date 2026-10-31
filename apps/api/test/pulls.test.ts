@@ -25,7 +25,7 @@ import {
 } from "persistence";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { PrStates } from "types/pull-requests";
-import { failTestRun, succeedTestRun } from "persistence/testing";
+import { claimTestRun, failTestRun, succeedTestRun } from "persistence/testing";
 import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -586,6 +586,82 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     );
 
     expect(body.generation?.["waitReason"]).toBe(WaitReasons.WAITING_FOR_SLOT);
+  });
+
+  it("meta: reports a running run's start and its parts done", async () => {
+    stubGate();
+    const cookie = await signIn();
+    const pr = await triggerPendingBrief(0);
+    const gen = createGenerationProjection(harness.handle, CTX);
+    const target = {
+      pullRequestId: pr.id,
+      kind: GenerationKinds.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
+    };
+    const runId = await claimTestRun(gen, target);
+
+    const single = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+    expect(single.body.generation).toMatchObject({
+      status: GenerationStatuses.RUNNING,
+    });
+    expect(typeof single.body.generation?.["startedAt"]).toBe("string");
+    expect(single.body.generation).not.toHaveProperty("parts");
+
+    const claimed = await gen.claimUnits({
+      runId,
+      units: 3,
+      from: new Date(0),
+      to: new Date("2100-01-01T00:00:00.000Z"),
+    });
+    expect(claimed.ok).toBe(true);
+    const claimedOnly = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+    expect(claimedOnly.body.generation).not.toHaveProperty("parts");
+
+    await gen.recordPartsPlanned(runId, { total: 5, done: 2 });
+    await gen.recordPartDone(runId);
+
+    const { body } = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+    expect(body.generation?.["parts"]).toEqual({ done: 3, total: 5 });
+  });
+
+  it("meta: keeps a run's start when its unit claim crosses midnight", async () => {
+    stubGate();
+    const cookie = await signIn();
+    const pr = await triggerPendingBrief(0);
+    const gen = createGenerationProjection(harness.handle, CTX);
+    const runId = await claimTestRun(gen, {
+      pullRequestId: pr.id,
+      kind: GenerationKinds.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
+    });
+    const started = "2026-10-27T23:58:00.000Z";
+    await harness.raw(
+      `update generation_attempt set started_at = '${started}', recorded_at = '${started}'`,
+    );
+
+    await gen.claimUnits({
+      runId,
+      units: 3,
+      from: new Date("2026-10-28T00:00:00.000Z"),
+      to: new Date("2026-10-29T00:00:00.000Z"),
+    });
+
+    const { body } = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+    expect(body.generation?.["startedAt"]).toBe(started);
   });
 
   it("meta: names a pending head behind a spent job stalled", async () => {

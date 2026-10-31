@@ -95,6 +95,7 @@ export {
   type GenerateBriefResponse,
   type GenerationClaimsResponse,
   type GenerationClaimsView,
+  type GenerationPartsView,
   type GenerationSummaryView,
   type RunningTakeoverView,
   type ScheduledTakeoverView,

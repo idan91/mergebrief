@@ -60,6 +60,8 @@ export interface NewerCommitsStatus {
   /** The last paste refusal, until the next paste. */
   readonly failure?: string;
   readonly action?: NewerCommitsAction;
+  /** The status segment counts up while the chip shows (a large run's parts): announced politely in place, focus untouched. */
+  readonly liveStatus?: boolean;
   /** The latest push's run, offered in the popover while the chip's action moves to a newer stored brief. */
   readonly runAction?: NewerCommitsAction;
 }

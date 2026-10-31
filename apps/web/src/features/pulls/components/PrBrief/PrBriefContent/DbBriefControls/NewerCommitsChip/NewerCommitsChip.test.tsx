@@ -6,6 +6,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../../../../i18n/I18nProvider";
@@ -62,6 +63,53 @@ describe("NewerCommitsChip", () => {
       name: "Newer commits New brief failed",
     });
     expect(within(group).getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
+
+  it("announces a counting status through its own polite region", () => {
+    const status: NewerCommitsStatus = {
+      state: NewerCommitsStates.GENERATING,
+      label: "Newer commits",
+      infoLabel: "About newer commits",
+      statusLabel: "Generating: 23 of 57 parts",
+      title: "Generating new brief",
+      explanation: ["The lead.", "Part 23 of 57 done."],
+      liveStatus: true,
+    };
+    const { container } = render(makeChip(status));
+
+    const live = container.querySelector('[aria-live="polite"]');
+    expect(live?.textContent).toBe("Generating: 23 of 57 parts");
+    expect(live?.getAttribute("aria-atomic")).toBe("true");
+    expect(
+      screen.getByRole("group", {
+        name: "Newer commits Generating: 23 of 57 parts",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("server-renders the count and mounts its live region empty", () => {
+    const status: NewerCommitsStatus = {
+      state: NewerCommitsStates.GENERATING,
+      label: "Newer commits",
+      infoLabel: "About newer commits",
+      statusLabel: "Generating: 0 of 57 parts",
+      title: "Generating new brief",
+      explanation: ["The lead."],
+      liveStatus: true,
+    };
+
+    const markup = renderToStaticMarkup(makeChip(status));
+
+    expect(markup).toContain("Generating: 0 of 57 parts");
+    expect(markup).toMatch(/aria-live="polite"[^>]*><\/span>/);
+  });
+
+  it("leaves a settled status segment out of the live regions", () => {
+    render(makeChip(stubStatus()));
+
+    expect(
+      screen.getByText("New brief failed").getAttribute("aria-live"),
+    ).toBeNull();
   });
 
   it("runs the attached action on click", () => {

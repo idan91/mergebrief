@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { handOffFocusOnRemoval } from "../../../../../utils/focus-hand-off";
 import { ActionButton } from "./ActionButton";
@@ -26,6 +26,15 @@ export function NewerCommitsChip({ status }: NewerCommitsChipProps) {
   const labelId = useId();
   const statusId = useId();
   const { action, statusLabel, failure } = status;
+  const counting = status.liveStatus === true;
+  // A live region reads changes after it mounted, never what it mounted
+  // with: the announcer mounts empty and takes the count in an effect, so
+  // the first count is read like every later one, while the visible
+  // segment renders the count from the server on.
+  const [announcedText, setAnnouncedText] = useState("");
+  useEffect(() => {
+    setAnnouncedText(statusLabel ?? "");
+  }, [statusLabel]);
   const generating = status.state === NewerCommitsStates.GENERATING;
   const spinner = generating ? (
     <span
@@ -61,12 +70,21 @@ export function NewerCommitsChip({ status }: NewerCommitsChipProps) {
           {status.label}
         </span>
         {statusLabel === undefined ? null : (
-          <span className={styles["status"]} id={statusId}>
+          <span
+            aria-hidden={counting ? true : undefined}
+            className={styles["status"]}
+            id={statusId}
+          >
             {spinner}
             {statusLabel}
           </span>
         )}
       </span>
+      {counting ? (
+        <span aria-atomic="true" aria-live="polite" className="sr-only">
+          {announcedText}
+        </span>
+      ) : null}
       <span className={styles["tail"]}>
         {action === undefined ? null : (
           <ActionButton action={action} className={styles["action"]} />

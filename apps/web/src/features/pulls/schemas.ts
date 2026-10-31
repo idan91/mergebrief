@@ -76,8 +76,13 @@ export const generationSummarySchema = z
           .exactOptional(),
         updatedAt: z.string(),
         waitReason: z.enum(WaitReasons).exactOptional(),
+        startedAt: z.string().exactOptional(),
+        parts: z
+          .object({ done: z.number(), total: z.number() })
+          .readonly()
+          .exactOptional(),
       }),
-      ["phase", "errorCode", "cappedUnits", "waitReason"],
+      ["phase", "errorCode", "cappedUnits", "waitReason", "startedAt", "parts"],
     ),
   )
   .readonly();

@@ -6,6 +6,7 @@
 import {
   LastReviewUnavailableReasons,
   WaitReasons,
+  type GenerationPartsView,
   type WaitReason,
 } from "contract";
 import {
@@ -40,6 +41,9 @@ export type BriefRouteState =
       readonly phase: string | undefined;
       readonly span: Span | undefined;
       readonly waitReason: WaitReason | undefined;
+      /** A running multi-call run's progress, once its parts are planned. */
+      readonly parts: GenerationPartsView | undefined;
+      readonly startedAt: string | undefined;
     }
   /** Terminal failure: the catalog code, when known, plus attempts. */
   | {
@@ -144,6 +148,8 @@ export function deriveBriefRouteState(
         phase: generation.phase,
         span,
         waitReason: generation.waitReason,
+        parts: generation.parts,
+        startedAt: generation.startedAt,
       };
     case GenerationStatuses.FAILED:
       return {

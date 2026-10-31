@@ -170,6 +170,23 @@ describe("PrBriefBody wait announcements", () => {
   });
 });
 
+describe("PrBriefBody parts progress", () => {
+  it("reads a landed part in its own region without re-announcing the wait", async () => {
+    const running = { status: "running", phase: "generating" } as const;
+    const view = render(makeBody({ ...running, parts: { done: 1, total: 6 } }));
+    const { changes, observer } = watchLiveRegion();
+
+    view.rerender(makeBody({ ...running, parts: { done: 2, total: 6 } }));
+    await Promise.resolve();
+    observer.disconnect();
+
+    expect(changes).toEqual([]);
+    const note = screen.getByText("Part 2 of 6 done.");
+    expect(note.getAttribute("aria-live")).toBe("polite");
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
 describe("PrBriefBody state cards under a timeline", () => {
   it("announces the state card, not the stored revision", () => {
     render(makeBody({ status: "failed" }, TIMELINE));

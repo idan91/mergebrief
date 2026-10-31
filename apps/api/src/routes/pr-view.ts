@@ -7,6 +7,7 @@
 // adds `briefAvailable`, which needs every stored brief. The render trigger
 // is an artifact that exists; the status is display-only.
 import type { GenerationSummaryView, PullMetaView, WaitReason } from "contract";
+import type { MetaRunProgress } from "./repos/pr/reads/logic/run-progress";
 import type { BriefSpanRow, GenerationRow, PullRequestRow } from "persistence";
 import type { Mutable } from "types/utils";
 
@@ -35,6 +36,7 @@ export function deriveViewerIsAuthor(
 export function buildGenerationSummary(
   latestGeneration: GenerationRow | undefined,
   waitReason: WaitReason | undefined,
+  progress?: MetaRunProgress,
 ): GenerationSummaryView | null {
   if (latestGeneration === undefined) {
     return null;
@@ -50,6 +52,12 @@ export function buildGenerationSummary(
 
   if (waitReason !== undefined) {
     summary.waitReason = waitReason;
+  }
+  if (progress !== undefined) {
+    summary.startedAt = progress.startedAt.toISOString();
+    if (progress.parts !== undefined) {
+      summary.parts = progress.parts;
+    }
   }
   return summary;
 }
@@ -67,6 +75,7 @@ export function buildPrView(
   viewerLogin: string | null,
   viewerCanPush: boolean,
   waitReason?: WaitReason,
+  progress?: MetaRunProgress,
 ): PrView {
   const headSha = latestGeneration?.headSha ?? latestBrief?.headSha ?? null;
   const headBriefStored =
@@ -90,7 +99,7 @@ export function buildPrView(
     viewerIsAuthor,
     viewerCanResolve: viewerCanPush || viewerIsAuthor,
     viewerCanPush,
-    generation: buildGenerationSummary(latestGeneration, waitReason),
+    generation: buildGenerationSummary(latestGeneration, waitReason, progress),
     updatedAt: row.updatedAt.toISOString(),
     behind,
   };

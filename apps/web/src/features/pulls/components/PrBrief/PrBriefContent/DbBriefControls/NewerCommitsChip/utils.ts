@@ -18,7 +18,7 @@ import {
   readSpentHeadRerunNoteKey,
 } from "../../../failed-head";
 import { readOffersTrigger } from "../../../trigger-offer";
-import { waitLabel } from "../../../waiting-head";
+import { describePartsProgress, waitLabel } from "../../../waiting-head";
 import { RunActionLabels } from "./consts";
 import { LatestPushStates, type LatestPushState } from "./latest-push/types";
 import {
@@ -87,7 +87,11 @@ function describeNewBrief(t: TFunction, onGoToNewest: () => void): StateCopy {
   };
 }
 
-/** A pending head names why it has not started; a running one needs no more. */
+/**
+ * A pending head names why it has not started; a running one needs no more,
+ * unless it is a large run whose parts are planned: then the status segment
+ * counts them and is read in place as they land.
+ */
 function describeGenerating(
   t: TFunction,
   meta: PrSummary,
@@ -106,11 +110,25 @@ function describeGenerating(
       }),
     );
   }
-  return describeLabelled(
-    NewerCommitsStates.GENERATING,
-    t("pulls.newerCommits.status.generating"),
+  const title = t("pulls.newerCommits.status.generating");
+  const parts =
+    generation.status === GenerationStatuses.RUNNING
+      ? generation.parts
+      : undefined;
+  if (parts === undefined) {
+    return describeLabelled(NewerCommitsStates.GENERATING, title, explanation);
+  }
+  explanation.push(describePartsProgress(t, parts));
+  return {
+    state: NewerCommitsStates.GENERATING,
+    statusLabel: t("pulls.newerCommits.status.generatingParts", {
+      done: parts.done,
+      count: parts.total,
+    }),
+    title,
     explanation,
-  );
+    liveStatus: true,
+  };
 }
 
 /** A url row's paste of a stalled head, which briefs whatever head GitHub names now. */

@@ -51,10 +51,11 @@ interface UnitsHarness {
   startRun(head: string): Promise<string>;
 }
 
+/** The attempt started at `startedAt`, as a run claimed then would have. */
 async function moveAttemptStart(runId: string, startedAt: Date): Promise<void> {
   await internal(shared.handle)
     .update(generationAttempt)
-    .set({ startedAt })
+    .set({ startedAt, recordedAt: startedAt })
     .where(eq(generationAttempt.runId, runId));
 }
 
@@ -167,6 +168,18 @@ describe("claimUnits", () => {
     expect(await projection.countStartedRuns(YESTERDAY)).toBe(0);
   });
 
+  it("reads the run's start unmoved after a claim past midnight", async () => {
+    const { projection, startRun } = await makeUnitsHarness();
+    const runId = await startRun("started-yesterday");
+    await moveAttemptStart(runId, BEFORE_MIDNIGHT);
+
+    await projection.claimUnits({ runId, units: 3, ...TODAY });
+
+    expect(await projection.readRunAttempt(runId)).toMatchObject({
+      recordedAt: BEFORE_MIDNIGHT,
+    });
+  });
+
   it("caps a post-midnight claim with the units the run carries", async () => {
     const { projection, startRun } = await makeUnitsHarness();
     const runId = await startRun("carried");
@@ -273,6 +286,55 @@ describe("recordPartDone", () => {
     );
 
     expect(!recorded.ok && recorded.error.code).toBe("claim-lost");
+  });
+});
+
+describe("recordPartsPlanned", () => {
+  it("stores the plan and counts the stored parts as done", async () => {
+    const { projection, startRun } = await makeUnitsHarness();
+    const runId = await startRun("resumed");
+
+    const planned = await projection.recordPartsPlanned(runId, {
+      total: 5,
+      done: 2,
+    });
+    await projection.recordPartDone(runId);
+
+    expect(planned.ok).toBe(true);
+    expect(await projection.readRunAttempt(runId)).toMatchObject({
+      partsTotal: 5,
+      partsDone: 3,
+    });
+  });
+
+  it("refuses a plan that is not whole parts as a caller's bug", async () => {
+    const { projection, startRun } = await makeUnitsHarness();
+    const runId = await startRun("overdone");
+
+    await expect(
+      projection.recordPartsPlanned(runId, { total: 1, done: 2 }),
+    ).rejects.toBeInstanceOf(RangeError);
+  });
+
+  it("reads no total before the plan is recorded", async () => {
+    const { projection, startRun } = await makeUnitsHarness();
+    const runId = await startRun("planless");
+
+    expect(await projection.readRunAttempt(runId)).toMatchObject({
+      partsTotal: null,
+      partsDone: 0,
+    });
+  });
+
+  it("answers claim-lost for a run id no attempt row holds", async () => {
+    const { projection } = await makeUnitsHarness();
+
+    const planned = await projection.recordPartsPlanned(
+      "00000000-0000-4000-8000-000000000000",
+      { total: 1, done: 0 },
+    );
+
+    expect(!planned.ok && planned.error.code).toBe("claim-lost");
   });
 });
 

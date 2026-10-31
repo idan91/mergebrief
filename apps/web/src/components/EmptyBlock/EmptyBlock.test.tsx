@@ -28,6 +28,25 @@ describe("EmptyBlock", () => {
     expect(screen.getByTestId("empty-block").childElementCount).toBe(1);
   });
 
+  it("marks a live note as a polite region read whole", () => {
+    render(<EmptyBlock heading={<h2>Waiting</h2>} note="Part 1 of 2 done." />);
+    expect(
+      screen.getByText("Part 1 of 2 done.").getAttribute("aria-live"),
+    ).toBe(null);
+
+    cleanup();
+    render(
+      <EmptyBlock
+        heading={<h2>Waiting</h2>}
+        note="Part 1 of 2 done."
+        noteLive
+      />,
+    );
+    const note = screen.getByText("Part 1 of 2 done.");
+    expect(note.getAttribute("aria-live")).toBe("polite");
+    expect(note.getAttribute("aria-atomic")).toBe("true");
+  });
+
   it("draws a hidden spinner ahead of the detail while busy", () => {
     render(<EmptyBlock busy detail="Soon." heading={<h1>Generating</h1>} />);
     const spinner = screen.getByTestId("empty-block-spinner");

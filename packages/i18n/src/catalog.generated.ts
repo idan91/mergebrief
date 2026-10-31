@@ -29,6 +29,12 @@ export type Catalog = typeof en & {
     unknown: "Generation failed: {{detail}}";
   };
   pulls: (typeof en)["pulls"] & {
+    wait: (typeof en)["pulls"]["wait"] & {
+      partsPlanned_one: "Generating in {{count}} part.";
+      partsPlanned_other: "Generating in {{count}} parts.";
+      partsDone: "Part {{done}} of {{total}} done.";
+      startedAt: "Started {{time}}.";
+    };
     capped: (typeof en)["pulls"]["capped"] & {
       resumes: "Daily generation cap reached. Resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
       unitsShortResumes: "Too few runs were left to brief this pull request. Resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
@@ -67,6 +73,12 @@ export type Catalog = typeof en & {
         needsUnits_other: "This push needs {{count}} more runs to be briefed in parts, and this instance had {{left}} left today.";
         overCapUnits_one: "This push needs {{count}} more run to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
         overCapUnits_other: "This push needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
+      };
+    };
+    newerCommits: (typeof en)["pulls"]["newerCommits"] & {
+      status: (typeof en)["pulls"]["newerCommits"]["status"] & {
+        generatingParts_one: "Generating: {{done}} of {{count}} part";
+        generatingParts_other: "Generating: {{done}} of {{count}} parts";
       };
     };
   };

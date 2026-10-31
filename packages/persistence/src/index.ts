@@ -295,6 +295,8 @@ export type {
   ClaimUnitsInput,
   ClaimUnitsOutcome,
   GenerateJobTiming,
+  PartsPlan,
+  RunAttempt,
   GenerationClaim,
   RecoveryJobInput,
   GenerationProjection,

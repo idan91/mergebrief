@@ -258,6 +258,47 @@ describe("deriveNewerCommitsStatus: the latest push generates", () => {
     ]);
   });
 
+  it("counts a running large run's parts in the status segment", () => {
+    const meta = makeMeta(
+      makeGenerationFields({
+        status: "running",
+        parts: { done: 23, total: 57 },
+      }),
+    );
+    const status = derive(meta);
+
+    expect(status?.state).toBe(NewerCommitsStates.GENERATING);
+    expect(status?.statusLabel).toBe("Generating: 23 of 57 parts");
+    expect(status?.title).toBe("Generating new brief");
+    expect(status?.liveStatus).toBe(true);
+    expect(status?.explanation).toContain("Part 23 of 57 done.");
+  });
+
+  it("counts a single-part run in the singular", () => {
+    const meta = makeMeta(
+      makeGenerationFields({
+        status: "running",
+        parts: { done: 1, total: 1 },
+      }),
+    );
+    const status = derive(meta);
+
+    expect(status?.statusLabel).toBe("Generating: 1 of 1 part");
+  });
+
+  it("names the planned parts before the first one lands", () => {
+    const meta = makeMeta(
+      makeGenerationFields({
+        status: "running",
+        parts: { done: 0, total: 57 },
+      }),
+    );
+    const status = derive(meta);
+
+    expect(status?.statusLabel).toBe("Generating: 0 of 57 parts");
+    expect(status?.explanation).toContain("Generating in 57 parts.");
+  });
+
   it("says why a pending push has not started", () => {
     const meta = makeMeta(
       makeGenerationFields({

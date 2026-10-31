@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { WaitReasons, type WaitReason } from "contract";
 
 import { appI18n } from "../../../../../i18n/I18nProvider";
-import { waitLabel } from ".";
+import { describePartsProgress, waitLabel } from ".";
 
 const t = appI18n.t;
 
@@ -132,5 +132,19 @@ describe("waitLabel while running", () => {
     });
 
     expect(label).toBe(GENERATING_LINE);
+  });
+});
+
+describe("describePartsProgress", () => {
+  it("names the planned parts before any is done", () => {
+    expect(describePartsProgress(t, { done: 0, total: 5 })).toBe(
+      "Generating in 5 parts.",
+    );
+  });
+
+  it("counts the parts done once one lands", () => {
+    expect(describePartsProgress(t, { done: 2, total: 5 })).toBe(
+      "Part 2 of 5 done.",
+    );
   });
 });

@@ -168,6 +168,7 @@ function PrBriefBodyState({
       return (
         <main className="main" id="main-content" tabIndex={-1}>
           <WaitCard
+            parts={state.parts}
             phase={state.phase}
             prNumber={prNumber}
             pendingNotice={
@@ -180,6 +181,7 @@ function PrBriefBodyState({
               awaitsReadyForReview: heldForReady,
             }}
             span={state.span}
+            startedAt={state.startedAt}
             status={state.status}
             waitReason={state.waitReason}
           />

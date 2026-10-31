@@ -41,6 +41,10 @@ deprecation note here, removal only at a major.
 - **Added** `largeRuns { runs, units }` to `read-spend`, present on a day
   with a run that took more than one unit. `startedRuns` now counts units:
   one per run, plus one per part of a large pull request briefed in parts.
+- **Added** `generation.startedAt` and `generation.parts { done, total }`
+  to `read-pull`, present only while a run holds the row: when the run's
+  attempt started (ISO 8601), and, once a large pull request's run planned
+  its parts, how many of them are done. The Inbox never fills either.
 
 ## dev (2026-10-26)
 

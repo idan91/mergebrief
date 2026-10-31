@@ -1,0 +1,2 @@
+ALTER TABLE "generation_attempt" ADD COLUMN "parts_total" integer;--> statement-breakpoint
+ALTER TABLE "generation_attempt" ADD CONSTRAINT "generation_attempt_parts_total_check" CHECK ("generation_attempt"."parts_total" is null or "generation_attempt"."parts_total" >= 0);

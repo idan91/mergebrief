@@ -126,6 +126,10 @@
       "stalled": "Generation for this push stopped: its queued job used every attempt.",
       "stalledDetail": "No brief is on the way for this push.",
       "generating": "Generating the brief…",
+      "partsPlanned_one": "Generating in {{count}} part.",
+      "partsPlanned_other": "Generating in {{count}} parts.",
+      "partsDone": "Part {{done}} of {{total}} done.",
+      "startedAt": "Started {{time}}.",
       "phase": {
         "fetching": "Fetching the pull request…",
         "redacting": "Redacting secrets…",
@@ -356,6 +360,8 @@
       "anchorNote": "Comments you leave here anchor to the revision you are reading.",
       "status": {
         "generating": "Generating new brief",
+        "generatingParts_one": "Generating: {{done}} of {{count}} part",
+        "generatingParts_other": "Generating: {{done}} of {{count}} parts",
         "stopped": "New brief stopped",
         "onDemand": "New brief on demand",
         "failed": "New brief failed",

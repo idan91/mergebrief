@@ -8,6 +8,8 @@ export interface EmptyBlockProps {
   detail?: string | undefined;
   /** A quieter second line under the detail: a count, a time, a caveat. */
   note?: string | undefined;
+  /** The note changes while the block is shown: a polite live region, read whole, no focus move. */
+  noteLive?: boolean;
   action?: ReactNode;
   /** The state is in motion: a spinner leads the detail line. */
   busy?: boolean;
@@ -20,6 +22,7 @@ export function EmptyBlock({
   heading,
   detail,
   note,
+  noteLive = false,
   action,
   busy = false,
   children,
@@ -41,7 +44,15 @@ export function EmptyBlock({
           {detail}
         </p>
       ) : null}
-      {note === undefined ? null : <p className={styles["note"]}>{note}</p>}
+      {note === undefined ? null : (
+        <p
+          aria-atomic={noteLive ? "true" : undefined}
+          aria-live={noteLive ? "polite" : undefined}
+          className={styles["note"]}
+        >
+          {note}
+        </p>
+      )}
       {action}
       {children === undefined ? null : (
         <div className={styles["below"]}>{children}</div>

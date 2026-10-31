@@ -19,6 +19,15 @@ export const WaitReasons = {
 } as const;
 export type WaitReason = ValueOf<typeof WaitReasons>;
 
+/**
+ * A multi-call run's progress: its grouping's planned detail calls, stored
+ * ones included, and how many are done.
+ */
+export interface GenerationPartsView {
+  readonly done: number;
+  readonly total: number;
+}
+
 export interface GenerationSummaryView {
   readonly status: GenerationStatus;
   readonly phase: GenerationPhase | null;
@@ -33,6 +42,13 @@ export interface GenerationSummaryView {
    * with a queued job no worker holds. The Inbox never fills it.
    */
   readonly waitReason?: WaitReason;
+  /**
+   * PR meta only, while a run holds the row: when its attempt started, ISO
+   * 8601, and, once a multi-call run's grouping call planned its detail
+   * calls, how many of them are done.
+   */
+  readonly startedAt?: string;
+  readonly parts?: GenerationPartsView;
 }
 
 export interface ScheduledTakeoverView {

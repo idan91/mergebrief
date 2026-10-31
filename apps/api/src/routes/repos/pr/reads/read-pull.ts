@@ -26,6 +26,7 @@ import {
   narrativeSpanSet,
 } from "./logic/revision-comparisons";
 import { buildRevisionView } from "./logic/revision-views";
+import { readRunProgress } from "./logic/run-progress";
 import { deriveWaitReason } from "./logic/wait-reason";
 import type { ReadPullDeps } from "./types";
 
@@ -165,7 +166,10 @@ export async function readPull(
   ]);
   const latestBrief = latestBriefs.get(pr.id);
   const latestGeneration = latestGenerations.get(pr.id);
-  const waitReason = await readWaitReason(stores.generations, latestGeneration);
+  const [waitReason, progress] = await Promise.all([
+    readWaitReason(stores.generations, latestGeneration),
+    readRunProgress(stores.generations, latestGeneration),
+  ]);
   const view = buildPrView(
     pr,
     latestBrief,
@@ -174,6 +178,7 @@ export async function readPull(
     access.session.reviewerLogin,
     access.viewerCanPush,
     waitReason,
+    progress,
   );
 
   // A stored brief implies a head (`brief.head_sha` is NOT NULL), so the

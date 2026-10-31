@@ -1,4 +1,4 @@
-import type { WaitReason } from "contract";
+import type { GenerationPartsView, WaitReason } from "contract";
 import type { TFunction } from "i18next";
 
 import { PHASE_KEYS, REASONS_OVER_NOTICE, WAIT_REASON_KEYS } from "./consts";
@@ -38,4 +38,16 @@ export function waitLabel(t: TFunction, input: WaitLabelInput): string {
   const phaseKey =
     input.phase === undefined ? undefined : PHASE_KEYS.get(input.phase);
   return t(phaseKey ?? "pulls.wait.generating");
+}
+
+/** A large run's parts sentence, one source for the waiting card and the newer-commits chip. */
+export function describePartsProgress(
+  t: TFunction,
+  parts: GenerationPartsView,
+): string {
+  const { done, total } = parts;
+  if (done === 0) {
+    return t("pulls.wait.partsPlanned", { count: total });
+  }
+  return t("pulls.wait.partsDone", { done, total });
 }

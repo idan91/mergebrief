@@ -165,6 +165,24 @@ export type ClaimUnitsOutcome =
       readonly cap: number;
     };
 
+/** One run's attempt row, as the PR meta reports its progress. */
+export interface RunAttempt {
+  /** When the attempt was recorded, never the cap's day key, which a claim after midnight moves. */
+  readonly recordedAt: Date;
+  /** The claim's unit plus every detail call the run claimed. */
+  readonly units: number;
+  /** Detail parts in, the ones an earlier attempt stored included once the plan is recorded. */
+  readonly partsDone: number;
+  /** The grouping's planned detail calls; null until `recordPartsPlanned`. */
+  readonly partsTotal: number | null;
+}
+
+/** A multi-call run's plan as the grouping call set it: every detail call, and how many were already stored. */
+export interface PartsPlan {
+  readonly total: number;
+  readonly done: number;
+}
+
 /** The instance's spend over one day, in cap units. */
 export interface SpendBreakdown {
   readonly startedUnits: number;
@@ -407,6 +425,13 @@ export interface GenerationProjection {
   ): Promise<Result<ClaimUnitsOutcome, GenerationError>>;
   /** One more finished part on the run's attempt row; answers the new count. */
   recordPartDone(runId: string): Promise<Result<number, GenerationError>>;
+  /** The run's planned detail calls and the stored ones it starts from, on its attempt row; `claim-lost` for an unknown run id, `RangeError` for a plan that is not whole parts (a caller's bug). */
+  recordPartsPlanned(
+    runId: string,
+    plan: PartsPlan,
+  ): Promise<Result<void, GenerationError>>;
+  /** The run's attempt row in the scope; `undefined` when none holds the id. */
+  readRunAttempt(runId: string): Promise<RunAttempt | undefined>;
   /** The row's claim, judged by the database clock; `undefined` when absent. */
   readClaim(target: GenerationTarget): Promise<GenerationClaim | undefined>;
   /**
@@ -1387,6 +1412,42 @@ export function createGenerationProjection(
         return failAttemptLost(runId);
       }
       return { ok: true, value: row.partsDone };
+    },
+
+    async recordPartsPlanned(runId, plan) {
+      const wholePlan =
+        Number.isInteger(plan.total) &&
+        Number.isInteger(plan.done) &&
+        plan.done >= 0 &&
+        plan.total >= plan.done;
+      if (!wholePlan) {
+        throw new RangeError(
+          `recordPartsPlanned: a plan counts whole parts, got ${plan.done} of ${plan.total}`,
+        );
+      }
+      const rows = await db
+        .update(generationAttempt)
+        .set({ partsTotal: plan.total, partsDone: plan.done })
+        .where(matchesAttempt(runId))
+        .returning({ runId: generationAttempt.runId });
+      if (rows[0] === undefined) {
+        return failAttemptLost(runId);
+      }
+      return { ok: true, value: undefined };
+    },
+
+    async readRunAttempt(runId) {
+      const rows = await db
+        .select({
+          recordedAt: generationAttempt.recordedAt,
+          units: generationAttempt.units,
+          partsDone: generationAttempt.partsDone,
+          partsTotal: generationAttempt.partsTotal,
+        })
+        .from(generationAttempt)
+        .where(matchesAttempt(runId))
+        .limit(1);
+      return rows[0];
     },
 
     async readClaim(target) {

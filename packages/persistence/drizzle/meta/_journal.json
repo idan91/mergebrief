@@ -526,6 +526,20 @@
       "when": 1793146705109,
       "tag": "0075_generation-part",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1793184381345,
+      "tag": "0076_attempt-parts-total",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793234467951,
+      "tag": "0077_attempt-recorded-at",
+      "breakpoints": true
     }
   ]
 }
