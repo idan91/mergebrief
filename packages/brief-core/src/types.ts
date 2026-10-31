@@ -884,6 +884,33 @@ export const BriefGenerationSchema = BriefSchema.omit({
 
 export type BriefGeneration = z.infer<typeof BriefGenerationSchema>;
 
+/** One group's hunks in the grouping call's hunk map. */
+export const HunkMapEntrySchema = z.object({
+  groupId: z
+    .string()
+    .describe("id of the change-group these hunks belong to, e.g. g1"),
+  hunks: z
+    .array(z.string())
+    .describe(
+      "each item a whole file (`f12`), one hunk (`f12h3`) or a run of consecutive hunks of one file (`f12h2-h5`), spelled exactly as the input's `### <fileId>` titles and `[hunk <id>]` markers spell them; every hunk id of the input appears exactly once across all entries",
+    ),
+});
+
+/**
+ * What the grouping call of a multi-call run generates: the Brief's
+ * whole-PR fields and change-groups, plus the hunk map a detail call reads
+ * to find its groups' code. No chunks: a detail call writes those.
+ */
+export const GroupingGenerationSchema = z.object({
+  summary: BriefSchema.shape.summary,
+  changeGroups: z.array(ChangeGroupSchema),
+  hunkMap: z
+    .array(HunkMapEntrySchema)
+    .describe("one entry per change-group; see the Hunk map section"),
+  readingOrder: BriefSchema.shape.readingOrder,
+  intentCheck: IntentCheckGenerationSchema,
+});
+
 /**
  * The brief-generation schema for ONE generation, with the repo's validated
  * custom-attribute names added to the closed risk vocabulary. The extended enum

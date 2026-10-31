@@ -4,6 +4,7 @@ import {
   BriefGenerationSchema,
   briefGenerationSchemaWith,
   DeltaBriefGenerationSchema,
+  GroupingGenerationSchema,
   RevisionNarrativeGenerationSchema,
 } from "../../src/types";
 
@@ -28,6 +29,10 @@ describe("wire json schemas are byte-pinned", () => {
 
   it("delta", () => {
     expect(serializeWireSchema(DeltaBriefGenerationSchema)).toMatchSnapshot();
+  });
+
+  it("grouping", () => {
+    expect(serializeWireSchema(GroupingGenerationSchema)).toMatchSnapshot();
   });
 
   it("revision narrative", () => {

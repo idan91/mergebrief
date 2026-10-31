@@ -87,14 +87,6 @@
       "count": 1
     }
   },
-  "packages/brief-core/test/generation/prompt-snapshots.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "packages/github/test/fixtures/collaborators-graphql.ts": {
     "house/no-em-dash": {
       "count": 1

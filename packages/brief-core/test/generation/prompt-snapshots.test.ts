@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDeltaSystemPrompt,
+  buildGroupingSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
   buildSystemPrompt,
 } from "../../src/generation/prompt";
 import type { RepoContext } from "../../src/generation/repo-context";
+import { OutlineForms } from "../../src/types";
 
 /**
  * Byte-level pins on every builder's full output. The prompt is the generation
  * surface: any byte that moves is a generation change and must go through the
- * eval gate. These snapshots make text refactors provably inert — a refactor
+ * eval gate. These snapshots make text refactors provably inert: a refactor
  * ships with these files untouched; a deliberate wording change updates the
  * snapshot in the same commit AND runs the eval.
  */
@@ -18,7 +20,7 @@ const bothRepoSections: RepoContext = {
   instructions: {
     path: ".mergebrief/instructions.md",
     blobSha: "0000000000000000000000000000000000000000",
-    content: "irrelevant — the system-prompt section is static",
+    content: "irrelevant, the system-prompt section is static",
   },
   customAttributes: [{ name: "example-attribute", criteria: "irrelevant" }],
 };
@@ -36,12 +38,27 @@ describe("system prompts are byte-pinned", () => {
     expect(buildSystemPrompt(undefined, true)).toMatchSnapshot();
   });
 
-  it("brief, anchored WITH repo-context sections (composition order pinned)", () => {
+  it("brief, anchored with repo-context sections in pinned order", () => {
     expect(buildSystemPrompt(bothRepoSections, true)).toMatchSnapshot();
   });
 
   it("delta", () => {
     expect(buildDeltaSystemPrompt()).toMatchSnapshot();
+  });
+
+  it.each(Object.values(OutlineForms))("grouping, %s form", (form) => {
+    expect(buildGroupingSystemPrompt(form)).toMatchSnapshot();
+  });
+
+  it("grouping, with instructions and without the attributes section", () => {
+    const prompt = buildGroupingSystemPrompt(
+      OutlineForms.LINES_40,
+      bothRepoSections,
+    );
+
+    expect(prompt).toContain("## Repo instructions (semi-trusted, bounded)");
+    expect(prompt).not.toContain("## Repo-defined risk attributes");
+    expect(prompt).toMatchSnapshot();
   });
 
   it("revision narrative", () => {
