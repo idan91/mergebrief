@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 
 import type { ForkPrStack } from "../../../../../model/types";
 import { NeighbourList } from "../NeighbourList";
-import { StackBase } from "../StackBase";
 import { deriveForkRows } from "../utils";
 import styles from "./ForkLists.module.scss";
 
@@ -40,9 +39,6 @@ export function ForkLists({
       ) : null}
       <span className={styles["leadIn"]}>{stackedWith}</span>
       <NeighbourList repoSlug={repoSlug} repoId={repoId} rows={childRows} />
-      {stack.baseRef === undefined ? null : (
-        <StackBase baseRef={stack.baseRef} />
-      )}
     </>
   );
 }

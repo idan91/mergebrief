@@ -199,7 +199,8 @@ describe("StackChip", () => {
     ).toBe("https://github.com/o/r/pull/12");
   });
 
-  it("notes the generation-time stack when it differs from the live one", async () => {
+  describe("when the stack changed since the brief", () => {
+    const live: LinearPrStack = { ...LINEAR, baseRef: "develop" };
     const snapshot: LinearPrStack = {
       members: [
         { number: 12, title: "Bottom" },
@@ -207,37 +208,102 @@ describe("StackChip", () => {
       ],
       index: 2,
     };
-    await renderChip(
-      <StackChip
-        currentNumber={13}
-        repoSlug="o/r"
-        snapshot={snapshot}
-        stack={LINEAR}
-      />,
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
-    );
-    expect(
-      screen.getByText("Stack changed since this brief was generated"),
-    ).toBeTruthy();
-    const live = screen.getByRole("list", {
-      name: "Pull requests in this stack",
+
+    async function openChangedChip(): Promise<void> {
+      await renderChip(
+        <StackChip
+          currentNumber={13}
+          repoSlug="o/r"
+          snapshot={snapshot}
+          stack={live}
+        />,
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Pull request 2 of 3 in the stack",
+        }),
+      );
+    }
+
+    it("shows one list, the live stack, with the toggle on Now", async () => {
+      await openChangedChip();
+      expect(screen.getAllByRole("list")).toHaveLength(1);
+      const list = screen.getByRole("list", {
+        name: "Pull requests in this stack",
+      });
+      expect(list.querySelectorAll("li")).toHaveLength(3);
+      const now = screen.getByRole("radio", { name: "Now" });
+      expect(now instanceof HTMLInputElement && now.checked).toBe(true);
+      expect(
+        screen.getByRole("group", {
+          name: "Stack changed since this brief was generated",
+        }),
+      ).toBeTruthy();
     });
-    const then = screen.getByRole("list", {
-      name: "Pull requests in the stack when this brief was generated",
+
+    it("switches the list to the generation-time stack", async () => {
+      await openChangedChip();
+      fireEvent.click(screen.getByRole("radio", { name: "At generation" }));
+      expect(screen.getAllByRole("list")).toHaveLength(1);
+      const list = screen.getByRole("list", {
+        name: "Pull requests in the stack when this brief was generated",
+      });
+      expect(list.querySelectorAll("li")).toHaveLength(2);
+      expect(screen.getByText("Tip").closest("[inert]")).not.toBeNull();
     });
-    expect(live.querySelectorAll("li")).toHaveLength(3);
-    expect(then.querySelectorAll("li")).toHaveLength(2);
+
+    it("keeps the toggle but drops the live base it never recorded", async () => {
+      await openChangedChip();
+      fireEvent.click(screen.getByRole("radio", { name: "At generation" }));
+      expect(screen.queryByText("Base")).toBeNull();
+      expect(screen.getByRole("radio", { name: "Now" })).toBeTruthy();
+    });
+
+    it("switches back to the live stack", async () => {
+      await openChangedChip();
+      fireEvent.click(screen.getByRole("radio", { name: "At generation" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Now" }));
+      expect(
+        screen
+          .getByRole("list", { name: "Pull requests in this stack" })
+          .querySelectorAll("li"),
+      ).toHaveLength(3);
+      expect(screen.getByText("Base").nextElementSibling?.textContent).toBe(
+        "develop",
+      );
+    });
+
+    it("hides the record's date along with the live list", async () => {
+      await renderChip(
+        <StackChip
+          asOf="2026-09-19T12:00:00.000Z"
+          currentNumber={13}
+          repoSlug="o/r"
+          snapshot={snapshot}
+          stack={LINEAR}
+        />,
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Pull request 2 of 3 in the stack",
+        }),
+      );
+      expect(screen.getByText("As of Sep 19, 2026")).toBeTruthy();
+      fireEvent.click(screen.getByRole("radio", { name: "At generation" }));
+      expect(
+        screen.getByText("As of Sep 19, 2026").closest("[aria-hidden='true']"),
+      ).not.toBeNull();
+    });
   });
 
-  it("shows no note when the stacks agree", async () => {
+  it("shows no toggle when the stacks agree", async () => {
     await renderChip(
       <StackChip currentNumber={13} repoSlug="o/r" stack={LINEAR} />,
     );
     fireEvent.click(
       screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
+    expect(screen.queryByRole("radio")).toBeNull();
     expect(
       screen.queryByText("Stack changed since this brief was generated"),
     ).toBeNull();

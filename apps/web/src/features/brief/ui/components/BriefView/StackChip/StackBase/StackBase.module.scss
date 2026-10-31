@@ -6,7 +6,7 @@
     --stack-position-col: #{functions.to-rem(28px)};
 
     display: grid;
-    grid-template-columns: var(--stack-position-col) minmax(0, 1fr);
+    grid-template-columns: var(--stack-position-col) minmax(0, 1fr) auto;
     gap: functions.to-rem(10px);
     align-items: center;
     padding-block: functions.to-rem(8px);
@@ -35,5 +35,14 @@
     font-size: var(--font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .end {
+    grid-column: 3;
+    justify-self: end;
+
+    label {
+      font-size: var(--font-size-sm);
+    }
   }
 }

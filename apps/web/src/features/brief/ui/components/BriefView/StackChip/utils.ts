@@ -17,11 +17,13 @@ import type {
 import {
   NeighbourTargetKinds,
   StackDirections,
+  StackVersions,
   type NeighbourTarget,
   type StackArrowView,
   type StackDirection,
   type StackNeighbours,
   type StackRow,
+  type StackVersion,
   type StackView,
 } from "./types";
 
@@ -87,6 +89,18 @@ export function resolveStackView(
     view.snapshot = snapshot;
   }
   return view;
+}
+
+/** The stack the panel lists: the brief's only while it is chosen and differs. */
+export function resolveShownStack(
+  stack: PrStack,
+  snapshot: PrStack | undefined,
+  version: StackVersion,
+): PrStack {
+  if (snapshot === undefined || version === StackVersions.NOW) {
+    return stack;
+  }
+  return snapshot;
 }
 
 function resolveClosedFallback(

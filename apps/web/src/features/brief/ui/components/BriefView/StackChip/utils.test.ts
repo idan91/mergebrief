@@ -14,8 +14,11 @@ import {
   resolveStackArrow,
   resolveStackMemberLabel,
   resolveStackNeighbours,
+  resolveShownStack,
   resolveStackView,
 } from "./utils";
+import type { LinearPrStack } from "../../../../model/types";
+import { StackVersions } from "./types";
 
 describe("isLinearPrStack", () => {
   it("is true only for a members-and-index stack", () => {
@@ -77,6 +80,36 @@ describe("isSameStack", () => {
     ).toBe(false);
     expect(isSameStack(fork, { children: fork.children })).toBe(false);
     expect(isSameStack(fork, { ...fork })).toBe(true);
+  });
+});
+
+describe("resolveShownStack", () => {
+  const live: LinearPrStack = {
+    members: [
+      { number: 1, title: "a" },
+      { number: 2, title: "b" },
+    ],
+    index: 1,
+  };
+  const snapshot: LinearPrStack = {
+    members: [{ number: 1, title: "a" }],
+    index: 1,
+  };
+
+  it("lists the live stack on Now", () => {
+    expect(resolveShownStack(live, snapshot, StackVersions.NOW)).toBe(live);
+  });
+
+  it("lists the brief's stack when it is chosen", () => {
+    expect(resolveShownStack(live, snapshot, StackVersions.AT_GENERATION)).toBe(
+      snapshot,
+    );
+  });
+
+  it("falls back to the live stack once the two agree", () => {
+    expect(
+      resolveShownStack(live, undefined, StackVersions.AT_GENERATION),
+    ).toBe(live);
   });
 });
 

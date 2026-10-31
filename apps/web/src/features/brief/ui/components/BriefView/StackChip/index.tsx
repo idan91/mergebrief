@@ -1,11 +1,8 @@
-import { useTranslation } from "react-i18next";
-
 import { Callout } from "@web/components/Callout";
 import { CalloutSurfaces } from "@web/components/Callout/types";
 import { Chip } from "@web/components/Chip";
-import { formatDate, renderedLocale } from "@web/i18n/locale";
 import type { PrStack } from "../../../../model/types";
-import { StackLists } from "./StackLists";
+import { StackPanel } from "./StackPanel";
 import { useStackChipFacade } from "./useStackChipFacade";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
@@ -33,10 +30,6 @@ export function StackChip({
   repoSlug,
   repoId,
 }: StackChipProps) {
-  const { i18n, t } = useTranslation();
-  const listLabel = atGeneration
-    ? t("brief.header.stackAtGenerationAria")
-    : t("brief.header.stackDisclosureAria");
   const {
     chipLabel,
     close,
@@ -87,46 +80,15 @@ export function StackChip({
             ref={landOnPanel}
             tabIndex={-1}
           >
-            {atGeneration ? (
-              <span className={styles["leadIn"]}>
-                {t("brief.header.stackAtGeneration")}
-              </span>
-            ) : null}
-            <StackLists
+            <StackPanel
+              asOf={asOf}
+              atGeneration={atGeneration}
               currentNumber={currentNumber}
-              listLabel={listLabel}
               repoSlug={repoSlug}
               repoId={repoId}
+              snapshot={snapshot}
               stack={stack}
             />
-            {asOf !== undefined ? (
-              <span className={styles["leadIn"]}>
-                {t("brief.header.stackAsOf", {
-                  date: formatDate(
-                    asOf,
-                    renderedLocale(i18n.resolvedLanguage),
-                    { dateStyle: "medium" },
-                  ),
-                })}
-              </span>
-            ) : null}
-            {snapshot !== undefined ? (
-              <span className={styles["snapshot"]}>
-                <span className={styles["changed"]}>
-                  {t("brief.header.stackChanged")}
-                </span>
-                <span className={styles["leadIn"]}>
-                  {t("brief.header.stackAtGeneration")}
-                </span>
-                <StackLists
-                  currentNumber={currentNumber}
-                  listLabel={t("brief.header.stackAtGenerationAria")}
-                  repoSlug={repoSlug}
-                  repoId={repoId}
-                  stack={snapshot}
-                />
-              </span>
-            ) : null}
           </span>
         </Callout>
       ) : null}

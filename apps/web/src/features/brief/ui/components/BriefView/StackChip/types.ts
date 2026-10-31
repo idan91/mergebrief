@@ -10,6 +10,14 @@ export const StackChipOpeners = {
 
 export type StackChipOpener = ValueOf<typeof StackChipOpeners>;
 
+/** Which stack the panel lists when the live one differs from the brief's. */
+export const StackVersions = {
+  NOW: "now",
+  AT_GENERATION: "at-generation",
+} as const;
+
+export type StackVersion = ValueOf<typeof StackVersions>;
+
 export interface StackView {
   stack: PrStack;
   /** The generation-time stack, present only when it differs from `stack`. */

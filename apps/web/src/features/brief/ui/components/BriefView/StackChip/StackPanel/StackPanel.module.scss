@@ -1,0 +1,16 @@
+@use "functions";
+
+@layer components {
+  .leadIn {
+    padding-block: functions.to-rem(6px);
+    padding-inline: functions.to-rem(12px);
+    color: var(--color-text-3);
+    font-size: var(--font-size-xs);
+  }
+
+  .versions {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    min-block-size: 0;
+  }
+}
