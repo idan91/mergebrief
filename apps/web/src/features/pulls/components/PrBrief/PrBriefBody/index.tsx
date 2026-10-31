@@ -83,7 +83,7 @@ export function stateAnnouncement(
     case "superseded":
       return t(readSupersededAnnouncementKey(meta));
     case "capped":
-      return buildCappedLabel(t, state.cappedAt);
+      return buildCappedLabel(t, state);
     case "empty":
       return readEmptyCopyOverride(t, meta) ?? t("pulls.announce.noBrief");
   }
@@ -228,6 +228,7 @@ function PrBriefBodyState({
             awaitsReadyForReview={heldForReady}
             cappedAt={state.cappedAt}
             prState={meta.state}
+            units={state.units}
           />
         </main>
       );

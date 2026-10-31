@@ -4,12 +4,22 @@ import {
   ClaimOutcomes,
   type ChargeRunInput,
   type ClaimRunInput,
+  type ClaimUnitsInput,
   type ClaimRunOutcome,
   type RecoveryJobInput,
+  type UtcDay,
   utcDayBounds,
 } from "persistence";
-import { GenerationPhases, GenerationStatuses, type Mutable } from "types";
-import { buildEntryCommentCappedBody } from "../../entry-comment";
+import {
+  GenerationPhases,
+  GenerationStatuses,
+  type GenerationUnitsParams,
+  type Mutable,
+} from "types";
+import {
+  buildEntryCommentCappedBody,
+  isPastDailyCap,
+} from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
 import { CLAIM_LEASE_MS } from "../consts";
 import {
@@ -22,7 +32,7 @@ import { getAfterLeaseDelaySeconds } from "./claim-recovery";
 import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
 import { ClaimLostSignal } from "./supersession-watch";
 
-/** Control-flow signal: the cap refused a stored-brief run's first paid call. */
+/** Control-flow signal: the cap refused a stored-brief run's first paid call, or a large run's units. */
 export class SpendCappedSignal extends Error {}
 
 /**
@@ -41,18 +51,13 @@ export async function applySpendGate(
 ): Promise<ClaimRunOutcome> {
   const { deps, projection, target, job, log } = inputs;
 
-  const cap = deps.spend?.maxGenerationsPerDay ?? null;
-  const day = utcDayBounds(new Date());
+  const { day, cap, storeInput } = readTodayCap(deps);
   const claimInput: Mutable<ClaimRunInput> = {
+    ...storeInput,
     target,
     phase: GenerationPhases.FETCHING,
-    from: day.from,
-    to: day.to,
     leaseMs: CLAIM_LEASE_MS,
   };
-  if (cap !== null) {
-    claimInput.cap = cap;
-  }
   const recovery: Mutable<RecoveryJobInput> = {
     delaySeconds: getAfterLeaseDelaySeconds(CLAIM_LEASE_MS),
   };
@@ -66,7 +71,7 @@ export async function applySpendGate(
   }
 
   if (claim.value.kind === ClaimOutcomes.CAPPED) {
-    if (cap === null) {
+    if (cap === undefined) {
       throw new Error("generate: claimRun capped a run with no cap");
     }
     await recordCappedRun(payload, inputs, {
@@ -101,11 +106,10 @@ export async function refuseAtCap(
 ): Promise<boolean> {
   const { deps, projection, repoSlug, log } = inputs;
 
-  const cap = deps.spend?.maxGenerationsPerDay ?? null;
-  if (cap === null) {
+  const { day, cap } = readTodayCap(deps);
+  if (cap === undefined) {
     return false;
   }
-  const day = utcDayBounds(new Date());
   const started = await projection.countStartedRuns({
     from: day.from,
     to: day.to,
@@ -114,13 +118,10 @@ export async function refuseAtCap(
     return false;
   }
 
-  log.warn("generate: daily generation cap reached, stored-brief run refused", {
-    evt: "spend.cap.trip",
-    repo: repoSlug,
-    cap,
-    dayUtc: day.label,
-    headSha: payload.headSha,
-  });
+  log.warn(
+    "generate: daily generation cap reached, stored-brief run refused",
+    buildCapTripFields({ repoSlug, cap, day, headSha: payload.headSha }),
+  );
   return true;
 }
 
@@ -145,16 +146,8 @@ export function createSpendCharge(context: RunContext): SpendCharge {
 async function chargeStoredBriefRun(context: RunContext): Promise<void> {
   const { deps, payload, projection, target, repoSlug, log } = context;
 
-  const cap = deps.spend?.maxGenerationsPerDay ?? null;
-  const day = utcDayBounds(new Date());
-  const chargeInput: Mutable<ChargeRunInput> = {
-    target,
-    from: day.from,
-    to: day.to,
-  };
-  if (cap !== null) {
-    chargeInput.cap = cap;
-  }
+  const { day, cap, storeInput } = readTodayCap(deps);
+  const chargeInput: ChargeRunInput = { ...storeInput, target };
   const charge = await projection.chargeRun(chargeInput);
   if (!charge.ok) {
     throw new ClaimLostSignal(charge.error.message);
@@ -164,14 +157,103 @@ async function chargeStoredBriefRun(context: RunContext): Promise<void> {
     return;
   }
 
-  log.warn("generate: daily generation cap reached, stored-brief run refused", {
-    evt: "spend.cap.trip",
-    repo: repoSlug,
-    cap,
-    dayUtc: day.label,
-    headSha: payload.headSha,
+  log.warn(
+    "generate: daily generation cap reached, stored-brief run refused",
+    buildCapTripFields({ repoSlug, cap, day, headSha: payload.headSha }),
+  );
+  throw new SpendCappedSignal("daily generation cap reached");
+}
+
+/**
+ * A large run claims the units its detail calls cost, under the same lock as
+ * its claim. At the cap it ends its claim `capped` with the units it needed
+ * and what the day had left, says so on an Entry that already exists, and
+ * stops through `SpendCappedSignal`.
+ */
+export async function claimRunUnits(
+  context: RunContext,
+  units: number,
+): Promise<void> {
+  const { deps, payload, projection, target, run, repoSlug, log } = context;
+  const runId = run.runId;
+  if (runId === undefined) {
+    throw new Error("generate: claimRunUnits needs a claimed run");
+  }
+
+  const { day, cap, storeInput } = readTodayCap(deps);
+  const unitsInput: ClaimUnitsInput = { ...storeInput, runId, units };
+  const claim = await projection.claimUnits(unitsInput);
+  if (!claim.ok) {
+    throw new ClaimLostSignal(claim.error.message);
+  }
+  if (claim.value.kind === ChargeOutcomes.CHARGED) {
+    return;
+  }
+
+  const needs: GenerationUnitsParams = {
+    needed: claim.value.needed,
+    left: claim.value.left,
+    cap: claim.value.cap,
+  };
+  const message = isPastDailyCap(needs)
+    ? "generate: large run needs more runs than the daily cap allows, refused"
+    : "generate: daily generation cap reached, large run refused";
+  log.warn(message, {
+    ...buildCapTripFields({ repoSlug, cap, day, headSha: payload.headSha }),
+    needed: needs.needed,
+    left: needs.left,
+  });
+  const finished = await projection.finishRun(target, runId, {
+    status: GenerationStatuses.CAPPED,
+    units: needs,
+  });
+  if (!finished.ok) {
+    throw new ClaimLostSignal(finished.error.message);
+  }
+  await updateCappedEntry(payload, context, {
+    resetsAt: day.to,
+    units: needs,
   });
   throw new SpendCappedSignal("daily generation cap reached");
+}
+
+/** What every store call under the cap takes: the day's bounds, and the cap unless the Instance has none. */
+type CapStoreInput = Pick<ClaimRunInput, "cap" | "from" | "to">;
+
+interface TodayCap {
+  readonly day: UtcDay;
+  readonly cap?: number;
+  readonly storeInput: CapStoreInput;
+}
+
+/** Today's UTC day and the Instance's cap over it, read once per store call. */
+function readTodayCap(deps: SpendGateInputs["deps"]): TodayCap {
+  const day = utcDayBounds(new Date());
+  const cap = deps.spend?.maxGenerationsPerDay ?? null;
+  const storeInput: Mutable<CapStoreInput> = { from: day.from, to: day.to };
+  const todayCap: Mutable<TodayCap> = { day, storeInput };
+  if (cap !== null) {
+    storeInput.cap = cap;
+    todayCap.cap = cap;
+  }
+  return todayCap;
+}
+
+interface CapTripFacts {
+  readonly repoSlug: string;
+  readonly cap: number | undefined;
+  readonly day: UtcDay;
+  readonly headSha: string;
+}
+
+function buildCapTripFields(facts: CapTripFacts): LogFields {
+  return {
+    evt: "spend.cap.trip",
+    repo: facts.repoSlug,
+    cap: facts.cap,
+    dayUtc: facts.day.label,
+    headSha: facts.headSha,
+  };
 }
 
 /**
@@ -195,6 +277,17 @@ interface CappedRunFacts {
   readonly dayUtc: string;
 }
 
+interface CappedEntryFacts {
+  readonly resetsAt: Date;
+  /** A large run's refusal; absent when the run's claim met the cap. */
+  readonly units?: GenerationUnitsParams;
+}
+
+type CappedEntryInputs = Pick<
+  SpendGateInputs,
+  "deps" | "prRow" | "entryCommentManager" | "existingBrief" | "watch" | "log"
+>;
+
 /**
  * UPDATE ONLY: a capped PR never gets an Entry comment created for it, the
  * cap must not make MergeBrief louder on a thread than it was. A stored brief
@@ -203,8 +296,8 @@ interface CappedRunFacts {
  */
 async function updateCappedEntry(
   payload: ParsedGeneratePayload,
-  inputs: SpendGateInputs,
-  facts: CappedRunFacts,
+  inputs: CappedEntryInputs,
+  facts: CappedEntryFacts,
 ): Promise<void> {
   const { deps, prRow, entryCommentManager, existingBrief, watch, log } =
     inputs;
@@ -233,6 +326,7 @@ async function updateCappedEntry(
     prNumber: prRow.prNumber,
     headSha: payload.headSha,
     resetsAt: facts.resetsAt,
+    units: facts.units,
   });
   const write = await entryCommentManager.refresh(cappedBody);
   await queueEntrySyncOnLostWrite({ deps, payload, log }, write);

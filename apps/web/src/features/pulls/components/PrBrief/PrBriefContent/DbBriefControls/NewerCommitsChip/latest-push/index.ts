@@ -1,9 +1,13 @@
 import { WaitReasons } from "contract";
 import type { TFunction } from "i18next";
-import { GenerationStatuses } from "types";
+import { GenerationStatuses, type GenerationUnitsParams } from "types";
 
 import type { GenerationSummary, PrSummary } from "../../../../../../types";
-import { readCapReset, type CapReset } from "../../../../capped-head";
+import {
+  isPastDailyCap,
+  readCapReset,
+  type CapReset,
+} from "../../../../capped-head";
 import { buildFailedNote, buildFailureLine } from "../../../../failed-head";
 import { isNoLongerOpen } from "../../../../../../utils/pr-state";
 import { hasStoredHeadBrief } from "../../../../../../utils/briefRouteState";
@@ -61,6 +65,8 @@ export interface CappedPushDetailInput {
   readonly appInstalled: boolean;
   /** A draft under a drafts-off instance: its next push queues nothing. */
   readonly awaitsReadyForReview: boolean;
+  /** A large run's refusal: the runs it needed lead the detail. */
+  readonly units?: GenerationUnitsParams | undefined;
 }
 
 /** When generation resumes after the skip, or that it already has. */
@@ -90,10 +96,21 @@ export function buildCappedPushDetail(
     prState,
     appInstalled,
     awaitsReadyForReview: heldForReady,
+    units,
   }: CappedPushDetailInput,
   now: Date = new Date(),
 ): string {
-  const resume = readCapResumeLine(t, readCapReset(cappedAt, now));
+  if (units !== undefined && isPastDailyCap(units)) {
+    const closed = appInstalled && isNoLongerOpen(prState);
+    return closed
+      ? t("pulls.failed.notOpenNote")
+      : buildPastCapPushLines(t, units).join(" ");
+  }
+  const resumeLine = readCapResumeLine(t, readCapReset(cappedAt, now));
+  const resume =
+    units === undefined
+      ? resumeLine
+      : `${t("pulls.latestPush.capped.needsUnits", { count: units.needed, left: units.left })} ${resumeLine}`;
   if (!appInstalled) {
     return `${resume} ${t("pulls.latestPush.capped.repasteNote")}`;
   }
@@ -104,6 +121,18 @@ export function buildCappedPushDetail(
     return `${resume} ${t("pulls.capped.readyForReviewNote")}`;
   }
   return `${resume} ${t("pulls.latestPush.capped.nextPush")}`;
+}
+
+/** Only a raised cap briefs this push, so no reset or next push is promised. */
+export function buildPastCapPushLines(
+  t: TFunction,
+  units: GenerationUnitsParams,
+): string[] {
+  const need = t("pulls.latestPush.capped.overCapUnits", {
+    count: units.needed,
+    cap: units.cap,
+  });
+  return [need, t("pulls.capped.overCapNote")];
 }
 
 export interface FailedPushDetailInput {

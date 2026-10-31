@@ -675,6 +675,22 @@ describe("generate task, Entry sync", () => {
     expect(bodies[0]).toContain(CLOSED_HEADING);
   });
 
+  it("the sync names the runs a refused large run needed", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await trigger(HEAD_1);
+    await harness.raw(
+      `update generation set status = 'capped', error_params = '{"needed":9,"left":4,"cap":20}'`,
+    );
+    await trackCappedEntry(github, pr.id);
+
+    await makeSyncEntryTask({ github })(payload);
+
+    const bodies = readLiveBodies(github);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("needs 9 more runs to be briefed in parts");
+    expect(bodies[0]).toContain("had 4 left today");
+  });
+
   it("on a reopened PR the sync replaces the closed body", async () => {
     const github = makeGitHub(HEAD_1);
     const { pr, payload } = await trigger(HEAD_1);

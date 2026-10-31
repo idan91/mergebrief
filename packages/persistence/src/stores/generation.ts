@@ -56,6 +56,7 @@ import {
   TakeoverJobStates,
   type GenerationPhase,
   type GenerationStatus,
+  type GenerationUnitsParams,
   type Result,
   type ValueOf,
 } from "types";
@@ -161,6 +162,7 @@ export type ClaimUnitsOutcome =
       readonly needed: number;
       /** What the day's cap still allows, zero once it is spent. */
       readonly left: number;
+      readonly cap: number;
     };
 
 /** The instance's spend over one day, in cap units. */
@@ -216,6 +218,11 @@ export type RunOutcome =
       readonly failure: GenerationFailure;
       /** A takeover's failure the head's recovery job retries. */
       readonly awaitsRecovery?: boolean;
+    }
+  | {
+      /** A large run `claimUnits` refused: terminal, not a failure. */
+      readonly status: typeof GenerationStatuses.CAPPED;
+      readonly units: GenerationUnitsParams;
     };
 
 interface ReleaseClaimOptions {
@@ -392,8 +399,8 @@ export interface GenerationProjection {
    * `claimRun`, so the day's total never passes `cap`. A row started before
    * the window moves to its start with every unit it holds, and those come
    * out of what the window has left. At the cap nothing is written and the
-   * answer names the units needed and left. A run id no attempt row in the
-   * scope holds is `claim-lost`.
+   * answer names the units needed, the units left and the cap. A run id no
+   * attempt row in the scope holds is `claim-lost`.
    */
   claimUnits(
     input: ClaimUnitsInput,
@@ -897,6 +904,17 @@ function shapeRunEnd(outcome: RunOutcome): GenerationSet {
       awaitsRecovery: outcome.awaitsRecovery === true,
     };
   }
+  if (outcome.status === GenerationStatuses.CAPPED) {
+    return {
+      ...TERMINAL_CLEARED,
+      status: outcome.status,
+      errorParams: {
+        needed: outcome.units.needed,
+        left: outcome.units.left,
+        cap: outcome.units.cap,
+      },
+    };
+  }
   return { ...TERMINAL_CLEARED, status: outcome.status };
 }
 
@@ -1208,7 +1226,12 @@ export function createGenerationProjection(
       if (input.units > left) {
         return {
           ok: true,
-          value: { kind: ChargeOutcomes.CAPPED, needed: input.units, left },
+          value: {
+            kind: ChargeOutcomes.CAPPED,
+            needed: input.units,
+            left,
+            cap: input.cap,
+          },
         };
       }
     }

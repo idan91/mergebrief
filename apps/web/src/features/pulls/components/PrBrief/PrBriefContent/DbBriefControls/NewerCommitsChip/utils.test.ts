@@ -571,6 +571,50 @@ describe("deriveNewerCommitsStatus: the latest push was skipped", () => {
     );
   });
 
+  it("names the runs a large url row needed and what was left", () => {
+    const units = makeGenerationFields({
+      status: "capped",
+      cappedUnits: { needed: 9, left: 4, cap: 20 },
+    });
+    const status = derive(makeUrlMeta(units));
+
+    expect(status?.explanation).toContain(
+      "This push needs 9 more runs to be briefed in parts, and this instance had 4 left today.",
+    );
+    expect(status?.explanation.join(" ")).not.toMatch(/reached its daily/);
+  });
+
+  it("leads an installation row's large run with the runs, not the cap", () => {
+    const units = makeGenerationFields({
+      status: "capped",
+      cappedUnits: { needed: 9, left: 4, cap: 9 },
+    });
+    const status = derive(makeMeta(units));
+
+    expect(status?.explanation).toContain(
+      "This push needed more runs than this instance had left, so it was skipped.",
+    );
+    expect(status?.explanation.join(" ")).not.toMatch(/reached its daily/);
+  });
+
+  it("names the cap on a url row no day can fit, not the reset", () => {
+    const units = makeGenerationFields({
+      status: "capped",
+      cappedUnits: { needed: 9, left: 4, cap: 9 },
+    });
+    const status = derive(makeUrlMeta(units));
+
+    expect(status?.explanation).toContain(
+      "This push needs 9 more runs to be briefed in parts, and this instance's daily cap of 9 cannot fit that in one day.",
+    );
+    expect(status?.explanation).toContain(
+      "No push or retry is briefed until the instance operator raises the daily cap.",
+    );
+    expect(status?.explanation).not.toContain(
+      "Generate the new brief after the reset.",
+    );
+  });
+
   it("keeps a url row's paste as Generate, without a paste instruction", () => {
     const { status, pasteTrigger } = deriveWithRuns(makeUrlMeta(capped));
 

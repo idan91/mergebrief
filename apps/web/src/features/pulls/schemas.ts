@@ -27,23 +27,42 @@ import type {
  */
 const repoIdSchema = z.string().regex(/^\d+$/);
 
-/** The wire nests the failure detail in `errorParams.detail`; the summary carries it flat. */
-function liftErrorDetail(value: unknown): unknown {
+/**
+ * The wire nests a failure's detail and a capped large run's units in
+ * `errorParams`; the summary carries them flat.
+ */
+function liftErrorParams(value: unknown): unknown {
   if (!isPlainRecord(value)) {
     return value;
   }
-  const { errorParams, errorDetail: _unlifted, ...generation } = value;
-  const detail = isRecord(errorParams) ? errorParams["detail"] : undefined;
-  if (typeof detail !== "string") {
+  const {
+    errorParams,
+    errorDetail: _unliftedDetail,
+    cappedUnits: _unliftedUnits,
+    ...generation
+  } = value;
+  if (!isRecord(errorParams)) {
     return generation;
   }
-  return { ...generation, errorDetail: detail };
+  const lifted: Record<string, unknown> = { ...generation };
+  const detail = errorParams["detail"];
+  if (typeof detail === "string") {
+    lifted["errorDetail"] = detail;
+  }
+  if ("needed" in errorParams) {
+    lifted["cappedUnits"] = {
+      needed: errorParams["needed"],
+      left: errorParams["left"],
+      cap: errorParams["cap"],
+    };
+  }
+  return lifted;
 }
 
 /** A failure code or wait reason this bundle predates drops; a status it predates reads `unknown`. */
 export const generationSummarySchema = z
   .preprocess(
-    liftErrorDetail,
+    liftErrorParams,
     dropInvalidKeys(
       z.object({
         status: buildOpenEnumSchema(GenerationStatuses),
@@ -51,10 +70,14 @@ export const generationSummarySchema = z
         attempts: z.number(),
         errorCode: z.enum(GenerationFailureCodes).exactOptional(),
         errorDetail: z.string().exactOptional(),
+        cappedUnits: z
+          .object({ needed: z.number(), left: z.number(), cap: z.number() })
+          .readonly()
+          .exactOptional(),
         updatedAt: z.string(),
         waitReason: z.enum(WaitReasons).exactOptional(),
       }),
-      ["phase", "errorCode", "waitReason"],
+      ["phase", "errorCode", "cappedUnits", "waitReason"],
     ),
   )
   .readonly();

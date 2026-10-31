@@ -436,12 +436,15 @@ function planCappedEntry(
   row: GenerationRow,
 ): EntrySyncPlan {
   const { translate, publicBaseUrl, prRow, headSha } = facts;
+  const params = row.errorParams;
+  const units = params !== null && "needed" in params ? params : undefined;
   const body = buildEntryCommentCappedBody(translate, {
     publicBaseUrl,
     repoId: prRow.repoId,
     prNumber: prRow.prNumber,
     headSha,
     resetsAt: utcDayBounds(row.updatedAt).to,
+    units,
   });
   return {
     body,

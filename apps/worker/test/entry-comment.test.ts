@@ -105,6 +105,44 @@ describe("entry comment bodies", () => {
     );
   });
 
+  it("names the runs a large pull request needed in the capped body", () => {
+    const body = buildEntryCommentCappedBody(t, {
+      ...CAPPED_LINK,
+      units: { needed: 9, left: 4, cap: 20 },
+    });
+
+    expect(body).toBe(
+      [
+        "**No brief for `abcdef1`: this pull request needs 9 more runs to be briefed in parts, and this instance had 4 left today.**",
+        "",
+        "Generation resumes at 2026-10-25 00:00 UTC. The next push after that is briefed as usual. [Open this PR in MergeBrief](https://mb.example/repos/123/pulls/7)",
+        "",
+        "<sub>Posted by MergeBrief. The instance operator sets the daily cap.</sub>",
+        ENTRY_MARKER,
+      ].join("\n"),
+    );
+    expect(isHeadEntryBody(t, body, CAPPED_LINK.headSha)).toBe(true);
+  });
+
+  it("names the cap, not the next push, when no day fits the run", () => {
+    const body = buildEntryCommentCappedBody(t, {
+      ...CAPPED_LINK,
+      units: { needed: 9, left: 4, cap: 9 },
+    });
+
+    expect(body).toBe(
+      [
+        "**No brief for `abcdef1`: this pull request needs 9 more runs to be briefed in parts, and this instance's daily cap of 9 cannot fit that in one day.**",
+        "",
+        "No push is briefed until the instance operator raises the daily cap. [Open this PR in MergeBrief](https://mb.example/repos/123/pulls/7)",
+        "",
+        "<sub>Posted by MergeBrief. The instance operator sets the daily cap.</sub>",
+        ENTRY_MARKER,
+      ].join("\n"),
+    );
+    expect(isHeadEntryBody(t, body, CAPPED_LINK.headSha)).toBe(true);
+  });
+
   it("links a transient failure's Regenerate to the head's revision", () => {
     const body = buildEntryCommentFailedBody(
       t,

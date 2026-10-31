@@ -103,6 +103,28 @@ describe("buildCappedPushDetail", () => {
     );
   });
 
+  it("leads with the runs a large push needed", () => {
+    const detail = buildCappedPushDetail(
+      appI18n.t,
+      { ...OPEN_INSTALLED, units: { needed: 1, left: 0, cap: 5 } },
+      BEFORE_RESET,
+    );
+    expect(detail).toMatch(
+      /^This push needs 1 more run to be briefed in parts, and this instance had 0 left today\. Generation resumes .+\. The next push after the reset is briefed as usual\.$/,
+    );
+  });
+
+  it("names the cap in place of the resume when no day fits the push", () => {
+    const detail = buildCappedPushDetail(
+      appI18n.t,
+      { ...OPEN_INSTALLED, units: { needed: 6, left: 4, cap: 5 } },
+      BEFORE_RESET,
+    );
+    expect(detail).toBe(
+      "This push needs 6 more runs to be briefed in parts, and this instance's daily cap of 5 cannot fit that in one day. No push or retry is briefed until the instance operator raises the daily cap.",
+    );
+  });
+
   it("says generation resumed once the reset has passed", () => {
     const after = new Date("2026-10-25T00:00:00.000Z");
     expect(buildCappedPushDetail(appI18n.t, OPEN_INSTALLED, after)).toBe(

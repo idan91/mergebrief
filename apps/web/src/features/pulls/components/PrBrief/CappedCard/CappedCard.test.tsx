@@ -23,4 +23,39 @@ describe("CappedCard", () => {
       "will not be picked up again on its own",
     );
   });
+
+  it("heads a large run's refusal with the runs it lacked", () => {
+    render(
+      <I18nProvider>
+        <CappedCard
+          appInstalled
+          awaitsReadyForReview={false}
+          cappedAt="2026-08-03T18:30:00.000Z"
+          prState="open"
+          units={{ needed: 9, left: 4, cap: 20 }}
+        />
+      </I18nProvider>,
+    );
+    expect(
+      screen.getByRole("heading", { name: /too few runs were left/i }),
+    ).toBeDefined();
+    expect(screen.queryByRole("heading", { name: /cap reached/i })).toBeNull();
+  });
+
+  it("heads a run no day fits with the cap and no resume time", () => {
+    render(
+      <I18nProvider>
+        <CappedCard
+          appInstalled
+          awaitsReadyForReview={false}
+          cappedAt="2026-08-03T18:30:00.000Z"
+          prState="open"
+          units={{ needed: 9, left: 4, cap: 9 }}
+        />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole("heading").textContent).toBe(
+      "This pull request is too large for this instance's daily cap.",
+    );
+  });
 });

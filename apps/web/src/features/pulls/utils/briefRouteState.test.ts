@@ -208,6 +208,24 @@ describe("deriveBriefRouteState", () => {
     });
   });
 
+  it("capped carries the runs a refused large run needed", () => {
+    const state = deriveBriefRouteState(
+      meta({
+        generation: generation({
+          status: "capped",
+          updatedAt: "2026-08-03T18:30:00.000Z",
+          cappedUnits: { needed: 9, left: 4, cap: 20 },
+        }),
+      }),
+      undefined,
+    );
+    expect(state).toEqual({
+      kind: "capped",
+      cappedAt: "2026-08-03T18:30:00.000Z",
+      units: { needed: 9, left: 4, cap: 20 },
+    });
+  });
+
   it("a status this bundle predates reads empty and ends the fast poll", () => {
     const unknown = meta({
       generation: generation({ status: "unknown" }),

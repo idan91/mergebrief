@@ -1539,6 +1539,8 @@ describe("generate task", () => {
     expect(row?.status).toBe(GenerationStatuses.FAILED);
     // A plain-Error refusal has no stamp and no taxonomy, unknown{detail}.
     expect(row?.errorCode).toBe("unknown");
-    expect(row?.errorParams?.detail).toContain("refused");
+    expect(row?.errorParams).toMatchObject({
+      detail: expect.stringContaining("refused"),
+    });
   });
 });

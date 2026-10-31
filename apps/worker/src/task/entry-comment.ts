@@ -8,6 +8,7 @@ import {
   GenerationFailureClassByCode,
   GenerationFailureClasses,
   type GenerationFailureCode,
+  type GenerationUnitsParams,
 } from "types/generations";
 
 const SHORT_SHA_LENGTH = 7;
@@ -70,6 +71,8 @@ export interface EntryCommentCappedLink extends EntryCommentPrViewLink {
   readonly headSha: string;
   /** When generation resumes, as an ISO instant (the next UTC midnight). */
   readonly resetsAt: Date;
+  /** A large run's refusal: the heading names the runs it needed and the day's rest. */
+  readonly units?: GenerationUnitsParams | undefined;
 }
 
 /**
@@ -85,10 +88,42 @@ export function buildEntryCommentCappedBody(
   const url = buildPrViewUrl(link);
   const shortSha = formatShortSha(link.headSha);
   const resetsAt = formatUtcMinute(link.resetsAt);
-  const heading = `**${t("entryComment.capped.heading", { shortSha })}**`;
-  const body = `${t("entryComment.capped.body", { resetsAt })} [${t("entryComment.capped.openLink")}](${url})`;
+  const heading = `**${formatCappedHeading(t, shortSha, link.units)}**`;
+  const next = isPastDailyCap(link.units)
+    ? t("entryComment.capped.overCapBody")
+    : t("entryComment.capped.body", { resetsAt });
+  const body = `${next} [${t("entryComment.capped.openLink")}](${url})`;
   const footer = formatFooter(t("entryComment.capped.footer"));
   return [heading, "", body, "", footer].join("\n");
+}
+
+function formatCappedHeading(
+  t: TFunction,
+  shortSha: string,
+  units: GenerationUnitsParams | undefined,
+): string {
+  if (units === undefined) {
+    return t("entryComment.capped.heading", { shortSha });
+  }
+  if (isPastDailyCap(units)) {
+    return t("entryComment.capped.overCapHeading", {
+      shortSha,
+      count: units.needed,
+      cap: units.cap,
+    });
+  }
+  return t("entryComment.capped.needsHeading", {
+    shortSha,
+    count: units.needed,
+    left: units.left,
+  });
+}
+
+/** No day's cap leaves room for the units a refused large run needed. */
+export function isPastDailyCap(
+  units: GenerationUnitsParams | undefined,
+): boolean {
+  return units !== undefined && units.needed >= units.cap;
 }
 
 /**

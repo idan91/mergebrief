@@ -461,7 +461,7 @@ describe("fenced transitions", () => {
     );
 
     expect(failed.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
-    expect(failed.errorParams?.detail).toBe("boom [redacted-url]");
+    expect(failed.errorParams).toEqual({ detail: "boom [redacted-url]" });
     expect(failed.runId).toBeNull();
   });
 

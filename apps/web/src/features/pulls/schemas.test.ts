@@ -164,6 +164,48 @@ describe("prSummarySchema", () => {
     expect(parsed.value.generation?.errorDetail).toBe("cap reached");
   });
 
+  it("lifts the runs a capped large run needed off the wire", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: {
+        status: "capped",
+        phase: null,
+        attempts: 0,
+        errorCode: null,
+        errorParams: { needed: 9, left: 4, cap: 20 },
+        updatedAt: "2026-07-06T12:00:00.000Z",
+      },
+    });
+
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.generation?.cappedUnits).toEqual({
+      needed: 9,
+      left: 4,
+      cap: 20,
+    });
+  });
+
+  it("drops capped units that are not two numbers", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      generation: {
+        status: "capped",
+        phase: null,
+        attempts: 0,
+        errorCode: null,
+        errorParams: { needed: "nine", left: 4, cap: 20 },
+        updatedAt: "2026-07-06T12:00:00.000Z",
+      },
+    });
+
+    if (!parsed.ok) {
+      throw new Error("unreachable");
+    }
+    expect(parsed.value.generation).not.toHaveProperty("cappedUnits");
+  });
+
   it("ignores a top-level errorDetail the wire never sends", () => {
     for (const errorDetail of ["forged", 5]) {
       const parsed = parseWithSchema(prSummarySchema, {
@@ -922,9 +964,12 @@ type UnavailableLastReviewView = Extract<
 >;
 
 const CONTRACT_PINS = {
-  // `errorDetail` is lifted out of the wire's `errorParams.detail`.
+  // `errorDetail` and `cappedUnits` are lifted out of the wire's `errorParams`.
   GenerationSummary: true satisfies ReadsWireFields<
-    Omit<z.output<typeof generationSummarySchema>, "errorDetail">,
+    Omit<
+      z.output<typeof generationSummarySchema>,
+      "errorDetail" | "cappedUnits"
+    >,
     GenerationSummaryView
   >,
   PreviousBriefComparison: true satisfies ReadsWireFields<

@@ -3,6 +3,7 @@ import type { LastReviewUnavailableReason, WaitReason } from "contract";
 import type {
   GenerationFailureCode,
   GenerationStatus,
+  GenerationUnitsParams,
   PrState,
   ValueOf,
 } from "types";
@@ -18,6 +19,8 @@ export interface GenerationSummary {
   /** Absent when the row never failed, or when the code is one we don't know. */
   readonly errorCode?: GenerationFailureCode;
   readonly errorDetail?: string;
+  /** A large run the cap refused: the runs it needed and what the day had left. */
+  readonly cappedUnits?: GenerationUnitsParams;
   readonly updatedAt: string;
   /** PR meta only, and only while pending; absent means the generic line. */
   readonly waitReason?: WaitReason;

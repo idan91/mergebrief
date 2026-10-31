@@ -82,10 +82,23 @@ export const GenerationFailureClassByCode = {
   [GenerationFailureCodes.UNKNOWN]: GenerationFailureClasses.TRANSIENT,
 } as const satisfies Record<GenerationFailureCode, GenerationFailureClass>;
 
-/** A failure's interpolation params (today: detail only). */
-export interface GenerationFailureParams {
+/** A failure code's template param, pre-sanitized. */
+export interface GenerationDetailParams {
   readonly detail: string;
 }
+
+/** A large run the cap refused: the units it still needed and what the day had left. */
+export interface GenerationUnitsParams {
+  readonly needed: number;
+  readonly left: number;
+  /** The daily cap it ran against. A run's claim takes one unit first, so `needed` at or past it fits no day. */
+  readonly cap: number;
+}
+
+/** A failed row carries `detail`; a capped large run carries its units. */
+export type GenerationFailureParams =
+  | GenerationDetailParams
+  | GenerationUnitsParams;
 
 /**
  * Where a head's takeover job stands: waiting for a lapsed claim, running, or

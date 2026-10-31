@@ -19,10 +19,11 @@ import {
   isRepoId,
   isReviewerId,
   type InstallationId,
+  type PullRequestRowId,
   type RepoId,
 } from "../src/types";
 import { generationAttempt } from "../src/schema/generation-attempt";
-import { PrStates } from "types";
+import { GenerationStatuses, PrStates } from "types";
 import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 3100n);
@@ -45,6 +46,7 @@ const shared = registerSharedPglite();
 
 interface UnitsHarness {
   readonly projection: GenerationProjection;
+  readonly pullRequestId: PullRequestRowId;
   /** Claim one fresh head and answer its run id. */
   startRun(head: string): Promise<string>;
 }
@@ -69,6 +71,7 @@ async function makeUnitsHarness(
   const projection = createGenerationProjection(handle, ctx);
   return {
     projection,
+    pullRequestId: pr.id,
     async startRun(head) {
       const target = makeBriefTarget(pr.id, head);
       await projection.upsertPending(target);
@@ -129,7 +132,7 @@ describe("claimUnits", () => {
 
     expect(claimed).toEqual({
       ok: true,
-      value: { kind: ChargeOutcomes.CAPPED, needed: 4, left: 3 },
+      value: { kind: ChargeOutcomes.CAPPED, needed: 4, left: 3, cap: 5 },
     });
     expect(await projection.countStartedRuns(DAY)).toBe(2);
   });
@@ -148,7 +151,7 @@ describe("claimUnits", () => {
 
     expect(claimed).toEqual({
       ok: true,
-      value: { kind: ChargeOutcomes.CAPPED, needed: 2, left: 0 },
+      value: { kind: ChargeOutcomes.CAPPED, needed: 2, left: 0, cap: 1 },
     });
   });
 
@@ -179,7 +182,7 @@ describe("claimUnits", () => {
 
     expect(claimed).toEqual({
       ok: true,
-      value: { kind: ChargeOutcomes.CAPPED, needed: 3, left: 2 },
+      value: { kind: ChargeOutcomes.CAPPED, needed: 3, left: 2, cap: 5 },
     });
     expect(await projection.countStartedRuns(YESTERDAY)).toBe(3);
   });
@@ -227,6 +230,27 @@ describe("claimUnits", () => {
     await expect(
       projection.claimUnits({ runId, units: 0, ...DAY }),
     ).rejects.toThrow(/positive integer/);
+  });
+});
+
+describe("finishRun capped", () => {
+  it("ends the claim capped with the units the run needed", async () => {
+    const { projection, pullRequestId, startRun } = await makeUnitsHarness();
+    const runId = await startRun("refused");
+    const target = makeBriefTarget(pullRequestId, "refused");
+
+    const finished = await projection.finishRun(target, runId, {
+      status: GenerationStatuses.CAPPED,
+      units: { needed: 9, left: 4, cap: 20 },
+    });
+
+    expect(finished.ok && finished.value).toMatchObject({
+      status: GenerationStatuses.CAPPED,
+      errorCode: null,
+      errorParams: { needed: 9, left: 4, cap: 20 },
+      runId: null,
+      phase: null,
+    });
   });
 });
 

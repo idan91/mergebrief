@@ -8,7 +8,11 @@ import {
   WaitReasons,
   type WaitReason,
 } from "contract";
-import { GenerationStatuses, type GenerationFailureCode } from "types";
+import {
+  GenerationStatuses,
+  type GenerationFailureCode,
+  type GenerationUnitsParams,
+} from "types";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
 import type { DbTimelineSelection } from "./dbTimeline";
@@ -52,9 +56,13 @@ export type BriefRouteState =
    * Skipped: the repo hit the instance's daily generation cap. `cappedAt` is
    * when the skip was recorded, and the reset time derives from it, so a row
    * left over from an earlier day cannot claim to be waiting on tonight's
-   * midnight.
+   * midnight. `units` names what a refused large run needed.
    */
-  | { readonly kind: "capped"; readonly cappedAt: string };
+  | {
+      readonly kind: "capped";
+      readonly cappedAt: string;
+      readonly units?: GenerationUnitsParams | undefined;
+    };
 
 /**
  * A brief is stored for the current head, on any base: what display, polling
@@ -147,7 +155,11 @@ export function deriveBriefRouteState(
     case GenerationStatuses.SUPERSEDED:
       return { kind: "superseded" };
     case GenerationStatuses.CAPPED:
-      return { kind: "capped", cappedAt: generation.updatedAt };
+      return {
+        kind: "capped",
+        cappedAt: generation.updatedAt,
+        units: generation.cappedUnits,
+      };
     case GenerationStatuses.AWAITING_TRIGGER:
       return { kind: "awaiting-trigger" };
     case GenerationStatuses.SUCCEEDED:

@@ -2,6 +2,7 @@
 // cap. Not a failure: nothing went wrong, and the copy says when it resumes.
 // Presentational; the announcement lives in the body's live region.
 import { useTranslation } from "react-i18next";
+import type { GenerationUnitsParams } from "types/generations";
 import { EmptyBlock } from "@web/components/EmptyBlock";
 import type { PrSummary } from "../../../types";
 import { buildCappedCardDetail, buildCappedLabel } from "../capped-head";
@@ -13,6 +14,8 @@ export interface CappedCardProps {
   appInstalled: boolean;
   /** A draft under a drafts-off instance: only ready for review queues a run. */
   awaitsReadyForReview: boolean;
+  /** A large run the cap refused: the runs it needed and the day's rest. */
+  units?: GenerationUnitsParams | undefined;
 }
 
 export function CappedCard({
@@ -20,18 +23,21 @@ export function CappedCard({
   prState,
   appInstalled,
   awaitsReadyForReview,
+  units,
 }: CappedCardProps) {
   const { t } = useTranslation();
   const detail = buildCappedCardDetail(t, {
     prState,
     appInstalled,
     awaitsReadyForReview,
+    units,
   });
+  const heading = buildCappedLabel(t, { cappedAt, units });
   return (
     <section aria-labelledby="capped-heading" data-testid="brief-capped-card">
       <EmptyBlock
         detail={detail}
-        heading={<h1 id="capped-heading">{buildCappedLabel(t, cappedAt)}</h1>}
+        heading={<h1 id="capped-heading">{heading}</h1>}
       />
     </section>
   );

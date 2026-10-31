@@ -134,6 +134,7 @@ describe.skipIf(databaseUrl === undefined)(
           kind: ChargeOutcomes.CAPPED,
           needed: 6,
           left: 2,
+          cap: 10,
         });
         expect(await projection.countStartedRuns(RACE_DAY)).toBe(8);
       } finally {

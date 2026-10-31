@@ -88,9 +88,11 @@ export {
   type FreshRestartReason,
   type GenerationFailureClass,
   type GenerationFailureCode,
+  type GenerationDetailParams,
   type GenerationFailureParams,
   type GenerationPhase,
   type GenerationStatus,
+  type GenerationUnitsParams,
   type TakeoverJobState,
 } from "./generations";
 export {

@@ -11,7 +11,7 @@ import {
   readSupersededStop,
 } from "../../../../../utils/pr-state";
 import { readAwaitingDetailKey } from "../../../awaiting-head";
-import { readCapReset } from "../../../capped-head";
+import { isPastDailyCap, readCapReset } from "../../../capped-head";
 import { isRerunHopeless } from "@web/utils/failure-class";
 import {
   readOffersRegenerate,
@@ -22,6 +22,7 @@ import { waitLabel } from "../../../waiting-head";
 import { RunActionLabels } from "./consts";
 import { LatestPushStates, type LatestPushState } from "./latest-push/types";
 import {
+  buildPastCapPushLines,
   buildCappedPushDetail,
   buildFailedPushDetail,
   readCapResumeLine,
@@ -269,9 +270,19 @@ function describeSkipped(
   generation: GenerationSummary,
 ): StateCopy {
   const { meta } = input;
-  const lead = t("pulls.newerCommits.explain.capped");
+  const units = generation.cappedUnits;
+  const lead =
+    units === undefined
+      ? t("pulls.newerCommits.explain.capped")
+      : t("pulls.newerCommits.explain.cappedUnits");
   const label = t("pulls.newerCommits.status.skipped");
   const run = readPasteRun(input);
+  if (run !== undefined && units !== undefined && isPastDailyCap(units)) {
+    const lines = [lead, ...buildPastCapPushLines(t, units)];
+    const copy = describeLabelled(NewerCommitsStates.SKIPPED, label, lines);
+    copy.action = buildRunAction(t, NewerCommitsActionKinds.GENERATE, run);
+    return copy;
+  }
   if (run !== undefined) {
     const reset = readCapReset(generation.updatedAt, new Date());
     const resume = readCapResumeLine(t, reset);
@@ -279,11 +290,17 @@ function describeSkipped(
       reset?.passed === true
         ? t("pulls.newerCommits.explain.pasted")
         : t("pulls.newerCommits.explain.generateAfterReset");
-    const copy = describeLabelled(NewerCommitsStates.SKIPPED, label, [
-      lead,
-      resume,
-      pasteLine,
-    ]);
+    const lines = [lead];
+    if (units !== undefined) {
+      lines.push(
+        t("pulls.latestPush.capped.needsUnits", {
+          count: units.needed,
+          left: units.left,
+        }),
+      );
+    }
+    lines.push(resume, pasteLine);
+    const copy = describeLabelled(NewerCommitsStates.SKIPPED, label, lines);
     copy.action = buildRunAction(t, NewerCommitsActionKinds.GENERATE, run);
     return copy;
   }
@@ -292,6 +309,7 @@ function describeSkipped(
     prState: meta.state,
     appInstalled: meta.appInstalled,
     awaitsReadyForReview: awaitsReadyForReview(meta),
+    units: generation.cappedUnits,
   });
   return describeLabelled(NewerCommitsStates.SKIPPED, label, [lead, detail]);
 }

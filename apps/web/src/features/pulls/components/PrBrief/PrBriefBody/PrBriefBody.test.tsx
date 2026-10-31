@@ -285,6 +285,21 @@ describe("PrBriefBody superseded announcement", () => {
   });
 });
 
+describe("stateAnnouncement on a large run's refusal", () => {
+  it("announces the runs a large run lacked, not a reached cap", () => {
+    const meta = makeMeta({ status: "capped" });
+    const state = {
+      kind: "capped",
+      cappedAt: "2026-08-03T18:30:00.000Z",
+      units: { needed: 9, left: 4, cap: 9 },
+    } as const;
+
+    expect(stateAnnouncement(appI18n.t, state, meta)).toBe(
+      "This pull request is too large for this instance's daily cap.",
+    );
+  });
+});
+
 describe("PrBriefBody empty state on a draft its instance skips", () => {
   const AWAITS_READY = appI18n.t("pulls.empty.awaitsReadyCopy");
 

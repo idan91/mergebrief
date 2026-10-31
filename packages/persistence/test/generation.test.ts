@@ -198,12 +198,10 @@ describe("createGenerationProjection status transitions", () => {
       throw new Error("markFailed failed");
     }
     expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
-    const stored = failed.value.errorParams?.detail;
-    expect(stored).toBe("connect ECONNREFUSED [redacted-url] retrying");
-    expect(stored).not.toContain("\n"); // one line, stack trace dropped
-    expect(stored).not.toContain("pass"); // credentials gone
-    expect(stored).not.toContain("postgres://");
-    expect((stored ?? "").length).toBeLessThanOrEqual(300);
+    // One line: the stack trace and the credentialed URL are gone.
+    expect(failed.value.errorParams).toEqual({
+      detail: "connect ECONNREFUSED [redacted-url] retrying",
+    });
   });
 
   it("drops an empty sanitized detail to null params", async () => {

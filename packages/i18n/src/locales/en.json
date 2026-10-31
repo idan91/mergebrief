@@ -5,7 +5,12 @@
   "entryComment": {
     "capped": {
       "heading": "No brief for {{shortSha}}: this instance reached its daily generation cap.",
+      "needsHeading_one": "No brief for {{shortSha}}: this pull request needs {{count}} more run to be briefed in parts, and this instance had {{left}} left today.",
+      "needsHeading_other": "No brief for {{shortSha}}: this pull request needs {{count}} more runs to be briefed in parts, and this instance had {{left}} left today.",
+      "overCapHeading_one": "No brief for {{shortSha}}: this pull request needs {{count}} more run to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.",
+      "overCapHeading_other": "No brief for {{shortSha}}: this pull request needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.",
       "body": "Generation resumes at {{resetsAt}}. The next push after that is briefed as usual.",
+      "overCapBody": "No push is briefed until the instance operator raises the daily cap.",
       "openLink": "Open this PR in MergeBrief",
       "footer": "Posted by MergeBrief. The instance operator sets the daily cap."
     },
@@ -129,7 +134,16 @@
       "reached": "Daily generation cap reached.",
       "resumed": "Daily generation cap reached. Generation has since resumed.",
       "resumes": "Daily generation cap reached. Resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}",
+      "unitsShort": "Too few runs were left to brief this pull request.",
+      "unitsShortResumed": "Too few runs were left to brief this pull request. Generation has since resumed.",
+      "unitsShortResumes": "Too few runs were left to brief this pull request. Resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}",
+      "unitsOverCap": "This pull request is too large for this instance's daily cap.",
       "limit": "This instance limits how many briefs it generates per day, across every repository.",
+      "needsUnits_one": "This pull request needs {{count}} more run to be briefed in parts, and this instance had {{left}} left today.",
+      "needsUnits_other": "This pull request needs {{count}} more runs to be briefed in parts, and this instance had {{left}} left today.",
+      "overCapUnits_one": "This pull request needs {{count}} more run to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.",
+      "overCapUnits_other": "This pull request needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.",
+      "overCapNote": "No push or retry is briefed until the instance operator raises the daily cap.",
       "nextPush": "This push will not be picked up again on its own. The next push after the reset is briefed as usual.",
       "repasteNote": "Paste this pull request's URL on the home page after the reset to retry it.",
       "readyForReviewNote": "Brief generation for draft pull requests is off on this instance, so marking this pull request ready for review after the reset queues a run."
@@ -316,6 +330,10 @@
         "resumes": "Generation resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}.",
         "resumed": "Generation has since resumed.",
         "resetUnknown": "Generation resumes at the daily reset.",
+        "needsUnits_one": "This push needs {{count}} more run to be briefed in parts, and this instance had {{left}} left today.",
+        "needsUnits_other": "This push needs {{count}} more runs to be briefed in parts, and this instance had {{left}} left today.",
+        "overCapUnits_one": "This push needs {{count}} more run to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.",
+        "overCapUnits_other": "This push needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.",
         "nextPush": "The next push after the reset is briefed as usual.",
         "repasteNote": "Paste this pull request's URL on the home page after the reset to retry it."
       }
@@ -355,6 +373,7 @@
         "superseded": "A newer push replaced the one being briefed. The brief for the newest push comes next.",
         "retry": "Retry to run it again.",
         "capped": "This instance reached its daily generation cap, so this push was skipped.",
+        "cappedUnits": "This push needed more runs than this instance had left, so it was skipped.",
         "pasted": "A pasted pull request is briefed only when someone asks. Generate the new brief to cover the newer commits.",
         "pastedNoAction": "Paste this pull request's URL on the home page to generate the new brief.",
         "waiting": "No run is queued for the newer commits yet.",

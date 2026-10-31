@@ -248,7 +248,7 @@ One run the Instance started on a UTC day: every paid **Claim**, graphile retrie
 _Avoid_: paid run (some started runs made no provider call), generation (the record, not one run of it)
 
 **Daily cap**:
-The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs** the **Instance** starts on one UTC day across every repository, each part of a run briefed in parts included; absent means 300, and `unlimited` lifts it. At the cap the worker skips the generation, the PR shows the capped **Not-ready screen** with the reset time, an existing **Entry** is updated to say so, and the head runs on its next push after the reset at 00:00 UTC.
+The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs** the **Instance** starts on one UTC day across every repository, each part of a run briefed in parts included; absent means 300, and `unlimited` lifts it. At the cap the worker skips the generation, the PR shows the capped **Not-ready screen** with the reset time, an existing **Entry** is updated to say so, and the head runs on its next push after the reset at 00:00 UTC. A run briefed in parts whose parts the day cannot cover stops before any part is briefed, capped with the runs it needs and the runs left; one that needs at least the whole cap is briefed only once the operator raises it.
 _Avoid_: budget, quota, rate limit (GitHub's)
 
 **Job**:

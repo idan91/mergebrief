@@ -5,6 +5,10 @@ export type Catalog = typeof en & {
   entryComment: (typeof en)["entryComment"] & {
     capped: (typeof en)["entryComment"]["capped"] & {
       heading: "No brief for {{shortSha}}: this instance reached its daily generation cap.";
+      needsHeading_one: "No brief for {{shortSha}}: this pull request needs {{count}} more run to be briefed in parts, and this instance had {{left}} left today.";
+      needsHeading_other: "No brief for {{shortSha}}: this pull request needs {{count}} more runs to be briefed in parts, and this instance had {{left}} left today.";
+      overCapHeading_one: "No brief for {{shortSha}}: this pull request needs {{count}} more run to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
+      overCapHeading_other: "No brief for {{shortSha}}: this pull request needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
       body: "Generation resumes at {{resetsAt}}. The next push after that is briefed as usual.";
     };
     closed: (typeof en)["entryComment"]["closed"] & {
@@ -22,6 +26,11 @@ export type Catalog = typeof en & {
   pulls: (typeof en)["pulls"] & {
     capped: (typeof en)["pulls"]["capped"] & {
       resumes: "Daily generation cap reached. Resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
+      unitsShortResumes: "Too few runs were left to brief this pull request. Resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
+      needsUnits_one: "This pull request needs {{count}} more run to be briefed in parts, and this instance had {{left}} left today.";
+      needsUnits_other: "This pull request needs {{count}} more runs to be briefed in parts, and this instance had {{left}} left today.";
+      overCapUnits_one: "This pull request needs {{count}} more run to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
+      overCapUnits_other: "This pull request needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
     };
     failed: (typeof en)["pulls"]["failed"] & {
       attempts_one: "{{count}} attempt so far.";
@@ -49,6 +58,10 @@ export type Catalog = typeof en & {
     latestPush: (typeof en)["pulls"]["latestPush"] & {
       capped: (typeof en)["pulls"]["latestPush"]["capped"] & {
         resumes: "Generation resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}.";
+        needsUnits_one: "This push needs {{count}} more run to be briefed in parts, and this instance had {{left}} left today.";
+        needsUnits_other: "This push needs {{count}} more runs to be briefed in parts, and this instance had {{left}} left today.";
+        overCapUnits_one: "This push needs {{count}} more run to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
+        overCapUnits_other: "This push needs {{count}} more runs to be briefed in parts, and this instance's daily cap of {{cap}} cannot fit that in one day.";
       };
     };
   };

@@ -21,6 +21,16 @@ deprecation note here, removal only at a major.
   `read-diff` now retries GitHub's 422 and 5xx inside that deadline, and
   keeps a diff of up to 64 MB per viewer for 10 minutes. No response shape
   changes.
+- **Added** `{ needed, left, cap }` as a second shape of
+  `generation.errorParams` on `read-pull`, `list-inbox` and
+  `read-generation-claims`: a `capped` row whose large pull request needed
+  more runs than the day had left carries the runs it needed, the runs left
+  and the daily cap it ran against. Every other `capped` row keeps
+  `errorParams` null. Clients that read `errorParams.detail` alone are
+  unaffected.
+- **Added** `largeRuns { runs, units }` to `read-spend`, present on a day
+  with a run that took more than one unit. `startedRuns` now counts units:
+  one per run, plus one per part of a large pull request briefed in parts.
 
 ## dev (2026-10-26)
 
