@@ -1,11 +1,24 @@
-// The `GenerationPartStore`: a multi-call run's finished detail calls, kept
-// between calls under the brief's span so a retry resumes from them. Bound to
+// The `GenerationPartStore`: a multi-call run's grouping output and finished
+// detail calls, kept between calls under the brief's span so a retry resumes
+// from them. Bound to
 // one scope `ctx` like `createArtifactStore`; a write verifies the parent
 // `pull_request` in its own transaction and a read filters through the scope.
 import type { PartKey } from "brief-core";
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  isNotNull,
+  lte,
+  max,
+  notExists,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { type AppDatabase, internal } from "../../db/handle";
+import { generation } from "../../schema/generation";
 import { generationPart } from "../../schema/generation-part";
+import { GenerationKinds } from "../../types";
 import { InvalidArtifactBodyError } from "../artifact-store";
 import { assertPullRequestInScope, resolveScope } from "../scope";
 import type { ScopeContext } from "../scope-context";
@@ -20,6 +33,9 @@ import type {
   GenerationPartStore,
   GenerationSpan,
 } from "./types";
+
+/** A span no part was written to for this long is past any retry or re-trigger worth resuming. */
+const GENERATION_PART_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const NATURAL_KEY = [
   generationPart.installationId,
@@ -137,4 +153,53 @@ export function createGenerationPartStore(
     },
   };
   return traceStore("generationParts", store);
+}
+
+/**
+ * Instance-wide: every span whose newest part is older than the TTL goes
+ * whole, so a resume never meets detail parts without their grouping. A span
+ * whose head a run holds under a live lease stays, by the database clock.
+ */
+export async function sweepStaleGenerationParts(
+  handle: AppDatabase,
+  now: Date,
+): Promise<number> {
+  const db = internal(handle);
+  const cutoff = new Date(now.getTime() - GENERATION_PART_TTL_MS);
+  const staleSpans = db
+    .select({
+      pullRequestId: generationPart.pullRequestId,
+      baseSha: generationPart.baseSha,
+      headSha: generationPart.headSha,
+    })
+    .from(generationPart)
+    .groupBy(
+      generationPart.pullRequestId,
+      generationPart.baseSha,
+      generationPart.headSha,
+    )
+    .having(lte(max(generationPart.createdAt), cutoff));
+  const liveClaim = db
+    .select({ id: generation.id })
+    .from(generation)
+    .where(
+      and(
+        eq(generation.pullRequestId, generationPart.pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, generationPart.headSha),
+        isNotNull(generation.runId),
+        sql`${generation.leaseExpiresAt} > now()`,
+      ),
+    );
+
+  const deleted = await db
+    .delete(generationPart)
+    .where(
+      and(
+        sql`(${generationPart.pullRequestId}, ${generationPart.baseSha}, ${generationPart.headSha}) in ${staleSpans}`,
+        notExists(liveClaim),
+      ),
+    )
+    .returning({ id: generationPart.id });
+  return deleted.length;
 }

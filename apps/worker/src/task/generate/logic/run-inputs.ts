@@ -1,13 +1,10 @@
 import { MAX_BRIEFED_CHANGED_FILES } from "brief-core/types";
-import { GenerationFailureCodes } from "types/generations";
 
 import {
   acquireRepoConfig,
   buildRepoConfigOrigin,
   type AcquiredRepoConfig,
 } from "../../repo-config";
-import { PermanentJobError } from "../../failure";
-import { SINGLE_CALL_MAX_DIFF_BYTES } from "../consts";
 import {
   RunDecisionKinds,
   type CoreMessageLog,
@@ -88,9 +85,7 @@ export async function prepareRunInputs(
  * GitHub's PR diff refuses past its size limits with a 406; the compare diff
  * of the same base...head span has no file cap. MergeBrief stops at
  * MAX_BRIEFED_CHANGED_FILES and trusts the compare diff only when it holds
- * every file the PR changes. The brief is one model call, so a compare diff
- * past that call's budget fails as too large: the provider would refuse it
- * with a 400 that reads as a generator configuration error.
+ * every file the PR changes.
  */
 async function readPullRequestDiff(context: RunContext): Promise<string> {
   const { source, prInfo, payload } = context;
@@ -107,13 +102,7 @@ async function readPullRequestDiff(context: RunContext): Promise<string> {
     payload.headSha,
     prInfo.changedFiles,
   );
-  const compareDiff = throwOnGitHubFailure(compare);
-  if (Buffer.byteLength(compareDiff, "utf8") > SINGLE_CALL_MAX_DIFF_BYTES) {
-    throw new PermanentJobError("compare diff exceeds one model call", {
-      failure: { code: GenerationFailureCodes.DIFF_TOO_LARGE },
-    });
-  }
-  return compareDiff;
+  return throwOnGitHubFailure(compare);
 }
 
 /**

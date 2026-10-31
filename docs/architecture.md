@@ -119,7 +119,7 @@ Three task ids cross from `persistence` to the worker, all in
   (the glossary's Takeover). A head takes at most three claims between
   triggers; the daily generation cap counts started runs instance-wide.
 - **Scheduled sweeps** (`sweep-audit`, `sweep-sessions`, `sweep-pull-requests`,
-  `sweep-webhook-deliveries`) are graphile cron entries the worker registers
+  `sweep-webhook-deliveries`, `sweep-generation-parts`) are graphile cron entries the worker registers
   for itself. Nothing enqueues them, and they run instance-wide rather than in
   one scope.
 

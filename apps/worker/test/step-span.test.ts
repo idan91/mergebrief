@@ -1,7 +1,7 @@
 import { startTestTracing, type TestTracing } from "logging/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { traceRunStep } from "../src/task/generate/logic/step-span";
-import { SupersededSignal } from "../src/task/generate/logic/supersession-watch";
+import { SupersededSignal } from "../src/task/generate/logic/run-signals";
 
 let tracing: TestTracing | undefined;
 

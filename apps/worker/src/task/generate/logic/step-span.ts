@@ -1,13 +1,5 @@
 import { traceStep, type SpanHandle } from "logging";
-import { SpendCappedSignal } from "./spend-gate";
-import { ClaimLostSignal, SupersededSignal } from "./supersession-watch";
-
-/** The ends a run takes by design: a newer push, a lost claim, the cap. */
-const RUN_SIGNALS = [SupersededSignal, ClaimLostSignal, SpendCappedSignal];
-
-export function isRunSignal(error: unknown): boolean {
-  return RUN_SIGNALS.some((signal) => error instanceof signal);
-}
+import { isRunSignal } from "./run-signals";
 
 /**
  * Whether a step's throw is a failure: not when the run ended by design, and

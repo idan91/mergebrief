@@ -51,8 +51,8 @@ import {
   seedViewerGrant,
   setUpHarness,
   stubGenerator,
-  stubHangingGenerator,
   stubMultiCallGenerator,
+  stubHangingGenerator,
   trigger,
 } from "./helpers";
 import { TransientJobError } from "../../src/task/failure";
@@ -1521,18 +1521,44 @@ describe("generate task", () => {
     expect(generator.calls).toEqual([]);
   });
 
-  it("fails a cut brief for good as output-cut, with no multi-call re-run", async () => {
+  it("fails for good as output-cut when the multi-call re-run is cut too", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const generator = stubMultiCallGenerator(["brief"]);
+    const generator = stubMultiCallGenerator(["brief", "grouping"]);
 
     await expect(makeTask({ generator })(payload)).resolves.toBeUndefined();
 
     const row = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_1),
     );
-    expect(generator.calls).toEqual(["brief"]);
+    expect(generator.calls).toEqual(["brief", "grouping"]);
     expect(row?.status).toBe(GenerationStatuses.FAILED);
     expect(row?.errorCode).toBe(GenerationFailureCodes.OUTPUT_CUT);
+  });
+
+  it("re-runs a cut single call as a multi-call run and stores the brief", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubMultiCallGenerator(["brief"]);
+
+    await makeTask({ generator })(payload);
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      makeTarget(pr, HEAD_1),
+    );
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    const body = JSON.parse(brief?.body ?? "{}");
+    expect(generator.calls).toEqual(["brief", "grouping", "detail:1"]);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(body).toMatchObject({
+      outlineForm: "full",
+      chunks: [{ file: "a.ts", changeGroupId: "g1" }],
+    });
+    expect(body.generationWarnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("multi-call run")]),
+    );
   });
 
   it("fails a spend-limited brief for good, with no retry", async () => {

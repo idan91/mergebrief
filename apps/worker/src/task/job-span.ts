@@ -3,6 +3,7 @@ import { runInJobSpan } from "logging";
 import type { QueueTask } from "types/jobs";
 import { readPayloadTraceparent } from "./payload";
 import type { SWEEP_AUDIT_TASK } from "./sweep-audit";
+import type { SWEEP_GENERATION_PARTS_TASK } from "./sweep-generation-parts";
 import type { SWEEP_PULL_REQUESTS_TASK } from "./sweep-pull-requests";
 import type { SWEEP_SESSIONS_TASK } from "./sweep-sessions";
 import type { SWEEP_WEBHOOK_DELIVERIES_TASK } from "./sweep-webhook-deliveries";
@@ -13,7 +14,8 @@ type WorkerTaskId =
   | typeof SWEEP_AUDIT_TASK
   | typeof SWEEP_SESSIONS_TASK
   | typeof SWEEP_PULL_REQUESTS_TASK
-  | typeof SWEEP_WEBHOOK_DELIVERIES_TASK;
+  | typeof SWEEP_WEBHOOK_DELIVERIES_TASK
+  | typeof SWEEP_GENERATION_PARTS_TASK;
 
 const MESSAGING_SYSTEM = "graphile_worker";
 

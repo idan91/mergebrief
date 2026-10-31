@@ -41,10 +41,12 @@ export function traceProviderCalls(
   generator: Generator,
   stop?: AbortSignal,
 ): Generator {
-  // An abort the run asked for (a push, shutdown) is not a failed call.
-  const isFailure = (): boolean => stop?.aborted !== true;
   return {
     generate: (req) => {
+      // An abort the run or the request asked for (a push, shutdown) is not
+      // a failed call.
+      const isFailure = (): boolean =>
+        stop?.aborted !== true && req.signal?.aborted !== true;
       const origin = generator.origin(req.effort);
       const attributes: SpanAttributes = {
         "gen_ai.operation.name": GEN_AI_OPERATION,

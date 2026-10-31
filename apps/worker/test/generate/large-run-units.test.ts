@@ -8,10 +8,8 @@ import {
 import { claimTestRun } from "persistence/testing";
 import { GenerationStatuses } from "types/generations";
 import { describe, expect, it } from "vitest";
-import {
-  claimRunUnits,
-  SpendCappedSignal,
-} from "../../src/task/generate/logic/spend-gate";
+import { SpendCappedSignal } from "../../src/task/generate/logic/run-signals";
+import { claimRunUnits } from "../../src/task/generate/logic/spend-gate";
 import { HeadReadings, type RunContext } from "../../src/task/generate/types";
 import {
   captureLogger,

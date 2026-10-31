@@ -112,6 +112,7 @@ deEmphasize:
 
     expect(listRepoFilePaths(github).toSorted()).toEqual(
       [
+        ".gitattributes",
         RepoConfigPaths.INSTRUCTIONS,
         RepoConfigPaths.SETTINGS,
         RepoConfigPaths.POLICY,

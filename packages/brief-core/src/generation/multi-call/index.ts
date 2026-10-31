@@ -226,6 +226,13 @@ interface RunInputs {
   readonly accepted: AcceptedRepoContext;
 }
 
+/** The run's detail schema: the repo's custom attribute names join the closed risk vocabulary. */
+function buildDetailSchema(inputs: RunInputs): z.ZodType<DetailGeneration> {
+  const customNames =
+    inputs.accepted.context?.customAttributes.map((attr) => attr.name) ?? [];
+  return detailGenerationSchemaWith(customNames);
+}
+
 /** The hunks the outline marks: every hunk of a file read in full. */
 function countMarkedHunks(inputs: RunInputs): number {
   let count = 0;
@@ -347,7 +354,15 @@ async function runGroupingCall(
     hunkTokens: readHunkTokens(inputs.locations),
   });
   log(`detail: ${batches.length} call(s) over ${hunkCount} hunks`);
-  await hooks?.onGroupingDone?.({ detailCalls: batches.length });
+  const missingDetailCalls = await listMissingDetailCalls(
+    batches,
+    stored === undefined ? undefined : hooks,
+    buildDetailSchema(inputs),
+  );
+  await hooks?.onGroupingDone?.({
+    detailCalls: batches.length,
+    missingDetailCalls,
+  });
 
   return {
     grouping,
@@ -359,6 +374,50 @@ async function runGroupingCall(
     groupingReused: stored !== undefined,
     storedGroupIds: mapStoredGroupIds(stored ?? grouping, grouping),
   };
+}
+
+/**
+ * Whether stored parts answer the batch without a call, by `runDetailCall`'s
+ * reuse rule: the whole batch, or both halves of a cut one, each parsing
+ * under the run's detail schema.
+ */
+async function isDetailCallStored(
+  batch: DetailBatch,
+  hooks: MultiCallHooks,
+  schema: z.ZodType<DetailGeneration>,
+): Promise<boolean> {
+  const whole = await loadStoredPart(hooks, readPartKey(batch), schema);
+  if (whole !== undefined) {
+    return true;
+  }
+  const halves = readHalves(batch);
+  if (halves === undefined) {
+    return false;
+  }
+  const stored = await Promise.all(
+    halves.map((half) => loadStoredPart(hooks, readPartKey(half), schema)),
+  );
+  return stored.every((part) => part !== undefined);
+}
+
+/**
+ * The numbers (`detail:<n>`) of the detail calls this run will pay for.
+ * Without a reused grouping no stored detail part names this run's batches,
+ * so `reusedHooks` is undefined and every call is missing.
+ */
+async function listMissingDetailCalls(
+  batches: readonly DetailBatch[],
+  reusedHooks: MultiCallHooks | undefined,
+  schema: z.ZodType<DetailGeneration>,
+): Promise<number[]> {
+  const numbers = batches.map((batch) => batch.index + 1);
+  if (reusedHooks === undefined) {
+    return numbers;
+  }
+  const stored = await Promise.all(
+    batches.map((batch) => isDetailCallStored(batch, reusedHooks, schema)),
+  );
+  return numbers.filter((_number, position) => !stored[position]);
 }
 
 interface DetailOutcome {
@@ -500,8 +559,6 @@ async function runDetailCalls(
   laneLimit: number,
 ): Promise<DetailOutcome[]> {
   const { locations, accepted } = inputs;
-  const customNames =
-    accepted.context?.customAttributes.map((attr) => attr.name) ?? [];
   const prefix = buildDetailPrefix({
     pr: options.pr,
     summary: step.grouping.summary,
@@ -513,7 +570,7 @@ async function runDetailCalls(
   const detail: DetailStep = {
     options,
     generator: options.generator,
-    schema: detailGenerationSchemaWith(customNames),
+    schema: buildDetailSchema(inputs),
     buildRequest: (batch) =>
       buildDetailRequest({
         batch,

@@ -41,6 +41,10 @@ import {
 import { RunPools } from "./task/generate/types";
 import { createSweepAuditTask, SWEEP_AUDIT_CRONTAB } from "./task/sweep-audit";
 import {
+  createSweepGenerationPartsTask,
+  SWEEP_GENERATION_PARTS_CRONTAB,
+} from "./task/sweep-generation-parts";
+import {
   createSweepPullRequestsTask,
   SWEEP_PULL_REQUESTS_CRONTAB,
 } from "./task/sweep-pull-requests";
@@ -227,6 +231,7 @@ async function main(): Promise<void> {
     revisionNarrative: config.value.revisionNarrative,
     hugeSpanRatio: config.value.hugeSpanRatio,
     detailConcurrency: config.value.detailConcurrency,
+    forceMultiCall: config.value.forceMultiCall,
     log: logger,
   };
 
@@ -272,6 +277,10 @@ async function main(): Promise<void> {
     handle,
     log: logger,
   });
+  const sweepGenerationParts = createSweepGenerationPartsTask({
+    handle,
+    log: logger,
+  });
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
@@ -303,6 +312,7 @@ async function main(): Promise<void> {
       sweepSessions: () => sweepSessions(),
       sweepPullRequests: () => sweepPullRequests(),
       sweepWebhookDeliveries: () => sweepWebhookDeliveries(),
+      sweepGenerationParts: () => sweepGenerationParts(),
     }),
     // Unset retention → a retention job still runs and deletes nothing.
     crontab: [
@@ -310,6 +320,7 @@ async function main(): Promise<void> {
       SWEEP_SESSIONS_CRONTAB,
       SWEEP_PULL_REQUESTS_CRONTAB,
       SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
+      SWEEP_GENERATION_PARTS_CRONTAB,
     ].join("\n"),
     // graphile's lifecycle logs flow through the logging boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),

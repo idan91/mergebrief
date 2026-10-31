@@ -12,15 +12,15 @@ import {
   type LockfileSide,
   type LockfileSummary,
 } from "brief-core/shortened";
-import {
-  GitHubApiErrorCodes,
-  RepoFileKinds,
-  type GitHubCallFailure,
-} from "github";
+import { RepoFileKinds } from "github";
 import type { Logger } from "logging";
 import type { Result } from "types/utils";
 import type { PullRequestSource } from "../../../github-port";
-import { isPermanentGitHubError, throwOnGitHubFailure } from "../errors";
+import {
+  isPermanentGitHubError,
+  isRepoFileRefusedForGood,
+  throwOnGitHubFailure,
+} from "../errors";
 import { summarizeInChild } from "./isolated-summary";
 import {
   SummaryFailures,
@@ -45,12 +45,6 @@ const MAX_LOCKFILES_READ = 20;
 /** Wall-clock time every lockfile child of one span shares; a lockfile past it reads as unparseable. */
 const SPAN_BUDGET_MS = 60_000;
 
-/** Content GitHub will never serve as lockfile text: a symlink, directory or submodule, or bytes that are not UTF-8. */
-const LOCKFILE_REFUSALS: ReadonlySet<string> = new Set([
-  GitHubApiErrorCodes.NOT_A_BLOB,
-  GitHubApiErrorCodes.NOT_TEXT,
-]);
-
 /** A lockfile past the span budget reads as timed out, with no child forked. */
 const BUDGET_SPENT: Result<SummaryReply, SummaryFailure> = {
   ok: false,
@@ -59,10 +53,6 @@ const BUDGET_SPENT: Result<SummaryReply, SummaryFailure> = {
 
 const ABSENT_SIDE: LockfileSide = { kind: LockfileSideKinds.ABSENT };
 const UNAVAILABLE_SIDE: LockfileSide = { kind: LockfileSideKinds.UNAVAILABLE };
-
-function isRefusedForGood(error: GitHubCallFailure): boolean {
-  return isPermanentGitHubError(error) || LOCKFILE_REFUSALS.has(error.code);
-}
 
 /**
  * A side the diff says exists. Content GitHub refuses for good (a missing
@@ -76,7 +66,7 @@ async function readSide(
   log: Logger,
 ): Promise<LockfileSide> {
   const read = await source.fetchRepoFileAt(path, ref, LOCKFILE_MAX_BYTES);
-  if (!read.ok && !isRefusedForGood(read.error)) {
+  if (!read.ok && !isRepoFileRefusedForGood(read.error)) {
     throwOnGitHubFailure(read);
   }
   if (!read.ok) {

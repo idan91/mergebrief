@@ -1,12 +1,7 @@
 import type { LogFields } from "logging";
-import {
-  GenerationErrorCodes,
-  InvalidArtifactBodyError,
-  ScopeViolationError,
-  type GenerationFailure,
-} from "persistence";
+import { GenerationErrorCodes, type GenerationFailure } from "persistence";
 import { GenerationStatuses } from "types/generations";
-import { classifyFailure, PermanentJobError } from "../../failure";
+import { classifyFailure } from "../../failure";
 import { isLastJobAttempt } from "../utils";
 import {
   FailureRecords,
@@ -16,7 +11,7 @@ import {
   type JobFailureOutcome,
   type JobFailureReport,
 } from "../types";
-import { emitProviderError } from "./errors";
+import { emitProviderError, isPermanentFailure } from "./errors";
 
 /**
  * Mark the run failed unless the row is left alone, and emit its events. A
@@ -33,10 +28,7 @@ export async function reportJobFailure(
   const { deps, job, log } = inputs;
 
   const failure = classifyFailure(error);
-  const permanent =
-    error instanceof PermanentJobError ||
-    error instanceof ScopeViolationError ||
-    error instanceof InvalidArtifactBodyError;
+  const permanent = isPermanentFailure(error);
   const handsBack =
     inputs.recovering && inputs.runId !== undefined && !permanent;
   const lastAttempt = !handsBack && isLastJobAttempt(job);

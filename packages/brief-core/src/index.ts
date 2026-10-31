@@ -59,8 +59,8 @@ export {
 } from "./pr-stack";
 export { generateBrief } from "./generation/brief";
 export { decideCallPlan, predictCallPlan } from "./generation/size";
+export type { MultiCallHooks, PartKey } from "./generation/multi-call/types";
 export { CallPlanKinds } from "./generation/size/types";
-export type { PartKey } from "./generation/multi-call/types";
 export { countPullRequestSecrets } from "./generation/redaction";
 export {
   listChangedLockfiles,

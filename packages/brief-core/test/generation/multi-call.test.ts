@@ -5,6 +5,7 @@ import { generateBrief } from "../../src/generation/brief";
 import type {
   MultiCallHooks,
   PartKey,
+  PlannedDetailCalls,
 } from "../../src/generation/multi-call/types";
 import { INSTRUCTIONS_INJECTION_BUDGET_BYTES } from "../../src/generation/repo-context";
 import { DETAIL_BATCH_MAX_DIFF_TOKENS } from "../../src/generation/multi-call/consts";
@@ -509,11 +510,15 @@ describe("generateBrief on the multi-call path", () => {
 
     stored.set("detail:2", { chunks: "not a list" });
     const done: PartKey[] = [];
+    const plans: PlannedDetailCalls[] = [];
     const generator = new FakeGenerator(makeAnswer());
     const { brief } = await generateBrief(
       makeOptions(generator, {
         multiCallHooks: {
           loadPart: async (key) => stored.get(key),
+          onGroupingDone: async (plan) => {
+            plans.push(plan);
+          },
           onPartDone: async (key) => {
             done.push(key);
           },
@@ -524,6 +529,7 @@ describe("generateBrief on the multi-call path", () => {
     expect(generator.requests.map((request) => request.label)).toEqual([
       "detail:2",
     ]);
+    expect(plans).toEqual([{ detailCalls: 2, missingDetailCalls: [2] }]);
     expect(done).toEqual(["detail:2"]);
     expect(brief.chunks).toHaveLength(91);
   });

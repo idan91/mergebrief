@@ -15,6 +15,10 @@ export const MS_PER_SECOND = 1000;
 /** Detail calls a multi-call run keeps in flight at once, unless `generator.detailConcurrency` says otherwise. */
 export const DEFAULT_DETAIL_CONCURRENCY = 8;
 
+/** The most of the default branch's `.gitattributes` read; brief-core parses no more than this. */
+export const GITATTRIBUTES_MAX_BYTES = 65_536;
+export const GITATTRIBUTES_PATH = ".gitattributes";
+
 /** The Entry sync waits this long, so a run's own post lands first and the sync finds it live. */
 export const ENTRY_SYNC_DELAY_SECONDS = 30;
 
@@ -24,6 +28,3 @@ export const HTTP_STATUS_REQUEST_TIMEOUT = 408;
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 /** Every status at or above this is a server-side failure worth a retry. */
 export const HTTP_STATUS_SERVER_ERROR_FLOOR = 500;
-
-/** The diff bytes one model call takes: 400,000 input tokens at 2 bytes a token. */
-export const SINGLE_CALL_MAX_DIFF_BYTES = 800_000;

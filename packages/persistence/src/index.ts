@@ -240,16 +240,21 @@ export {
 } from "./stores/artifact-store/schemas";
 // The GenerationPartStore: a multi-call run's stored detail calls, same
 // containment as the ArtifactStore.
-export { createGenerationPartStore } from "./stores/generation-part";
+export {
+  createGenerationPartStore,
+  sweepStaleGenerationParts,
+} from "./stores/generation-part";
 export {
   GenerationPartBodySchema,
   type GenerationPartBody,
 } from "./stores/generation-part/schemas";
-export type {
-  GenerationPartRow,
-  GenerationPartStore,
-  GenerationPartWriteInput,
-  GenerationSpan,
+export {
+  GenerationPartKinds,
+  type GenerationPartKind,
+  type GenerationPartRow,
+  type GenerationPartStore,
+  type GenerationPartWriteInput,
+  type GenerationSpan,
 } from "./stores/generation-part/types";
 export type {
   ArtifactStore,

@@ -12,12 +12,16 @@ import { GenerationStatuses } from "types/generations";
 import { HttpStatuses } from "types/http";
 import type { Result } from "types/utils";
 import { AUDIT_OPERATION_GENERATE } from "../consts";
+import type { ParsedGeneratePayload } from "../../payload";
 import {
   RevisionSpanRefusals,
   RunDecisionKinds,
+  type BriefGenerationInputs,
   type BriefRef,
   type FreshRun,
+  type GeneratedBrief,
   type GeneratingRun,
+  type MultiCallRunInputs,
   type PrefetchedSpan,
   type ProducedBrief,
   type RevisionArtifactInputs,
@@ -30,6 +34,8 @@ import { listRunStops, traceRunStep } from "./step-span";
 import { recoverStoredBrief, writeFreshBrief } from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
 import { isNotAcceptable } from "./errors";
+import { createMultiCallRun, sweepSpanParts } from "./generation-parts";
+import { readDefaultBranchGitAttributes } from "./git-attributes";
 import { createSpendCharge } from "./spend-gate";
 import { throwOnClaimLost } from "./supersession-watch";
 import {
@@ -60,6 +66,7 @@ export async function produceBrief(
   log.info(
     `generate: brief for ${payload.headSha.slice(0, 8)} already stored — skipping generation`,
   );
+  await sweepSpanParts(context);
   const generatedBrief = await recoverStoredBrief(payload, {
     store,
     prevBrief,
@@ -77,7 +84,16 @@ async function generateFreshBrief(
   generator: Generator,
 ): Promise<ProducedBrief> {
   const { deps, payload } = context;
-  const generated = await writeFreshBrief(payload, {
+  const gitAttributesRead = await readDefaultBranchGitAttributes(
+    context.source,
+    context.log,
+  );
+  const multiCall = createMultiCallRun(
+    context,
+    decision.runId,
+    gitAttributesRead,
+  );
+  const generated = await writeFreshBriefOverParts(payload, multiCall, {
     fullRegeneration: deps.fullRegeneration,
     anchorGenerator: deps.generator,
     effort: deps.effort,
@@ -111,6 +127,20 @@ async function generateFreshBrief(
     metadata: { [AuditMetadataKeys.KIND]: GenerationKinds.BRIEF },
   });
   return generated;
+}
+
+/** The fresh brief, with the span's parts discarded when the failure is the merge's. */
+async function writeFreshBriefOverParts(
+  payload: ParsedGeneratePayload,
+  multiCall: MultiCallRunInputs,
+  inputs: Omit<BriefGenerationInputs, "multiCall">,
+): Promise<GeneratedBrief> {
+  try {
+    return await writeFreshBrief(payload, { ...inputs, multiCall });
+  } catch (error) {
+    await multiCall.discardPartsOnMergeFailure(error);
+    throw error;
+  }
 }
 
 /**
@@ -310,6 +340,7 @@ export async function settleStoredBriefRun(context: RunContext): Promise<void> {
   if (run.standsOnStoredBrief !== true) {
     return;
   }
+  await sweepSpanParts(context);
   await projection.settleStoredBrief(target, pickedUpAt);
 }
 

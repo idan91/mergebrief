@@ -136,6 +136,13 @@ export type PartKey =
   | `detail:${number}`
   | `detail:${number}:${1 | 2}`;
 
+/** The detail calls a grouping planned, and those no stored part answers. */
+export interface PlannedDetailCalls {
+  readonly detailCalls: number;
+  /** Each `detail:<n>` number the run pays a call for, by the engine's reuse rule. */
+  readonly missingDetailCalls: readonly number[];
+}
+
 /**
  * Every stored part names groups by the stored grouping's ids, minted past
  * the chain of the run that stored it; this run's ids may differ.
@@ -148,7 +155,7 @@ export interface StoredGroupIds {
 /** What a caller hooks into a multi-call run; every hook is optional and awaited. */
 export interface MultiCallHooks {
   /** After the grouping call, with the detail calls to come; a throw ends the run. */
-  readonly onGroupingDone?: (parts: { detailCalls: number }) => Promise<void>;
+  readonly onGroupingDone?: (plan: PlannedDetailCalls) => Promise<void>;
   /** Once, before the first detail call starts. */
   readonly onDetailStart?: () => Promise<void>;
   /** A stored part's body for the key, or undefined; a body its schema no longer accepts is regenerated. */

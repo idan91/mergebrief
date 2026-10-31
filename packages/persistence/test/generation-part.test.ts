@@ -1,14 +1,20 @@
 // GenerationPartStore tests (PGlite): a part upserts on its span and key, its
-// body is chunks only, a span's parts delete together, and both scope worlds
-// keep their parts to themselves.
+// body is a grouping output or chunks only, a span's parts delete together,
+// and both scope worlds keep their parts to themselves.
 import type { PartKey } from "brief-core";
 import { describe, expect, it } from "vitest";
 import {
   createGenerationPartStore,
+  createGenerationProjection,
   createTenantRepository,
+  GenerationKinds,
+  GenerationPartKinds,
   InvalidArtifactBodyError,
   ScopeViolationError,
+  sweepStaleGenerationParts,
+  type GenerationPartBody,
   type GenerationPartStore,
+  type GenerationSpan,
   type OwnerContext,
   type TenantContext,
 } from "../src/index";
@@ -20,6 +26,7 @@ import {
   type RepoId,
   type ReviewerId,
 } from "../src/types";
+import { GenerationPhases } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import { brandWith, registerSharedPglite } from "./helpers";
 
@@ -38,6 +45,44 @@ const OWNER_CTX_B: OwnerContext = { ownerUserId: OWNER_B };
 const BASE = "a".repeat(40);
 const HEAD = "b".repeat(40);
 const OTHER_HEAD = "c".repeat(40);
+
+/** The digest a worker stamps a grouping part with; any sha-256 hex fits the schema. */
+const GIT_ATTRIBUTES_DIGEST = "0".repeat(64);
+
+const GROUPING = {
+  summary: "Refactors two modules.",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "Group g1",
+      summary: "What g1 does.",
+      dominantCategory: "logic-refactor",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  hunkMap: [{ groupId: "g1", hunks: ["f1"] }],
+  intentCheck: {
+    ticketUrls: [],
+    ticketTitles: [],
+    specificity: "none",
+    scopeNote: "",
+    items: [],
+    alignment: { read: "", goal: "", response: "" },
+  },
+};
+
+function makeDetailBody(chunks: unknown[]) {
+  return { kind: GenerationPartKinds.DETAIL, chunks };
+}
+
+function readChunkIds(body: GenerationPartBody): string[] {
+  if (body.kind !== GenerationPartKinds.DETAIL) {
+    return [];
+  }
+  return body.chunks.map((chunk) => chunk.id);
+}
 
 function makeChunk(id: string, riskSurface: string[] = []) {
   return {
@@ -76,11 +121,11 @@ describe("createGenerationPartStore.write", () => {
       baseSha: BASE,
       headSha: HEAD,
       partKey: "detail:1",
-      body: { chunks: [makeChunk("c1", ["no-tests"])] },
+      body: makeDetailBody([makeChunk("c1", ["no-tests"])]),
     });
 
     expect(written.partKey).toBe("detail:1");
-    expect(written.body.chunks[0]?.id).toBe("c1");
+    expect(readChunkIds(written.body)).toEqual(["c1"]);
     const listed = await store.listForSpan({
       pullRequestId: pr.id,
       baseSha: BASE,
@@ -88,9 +133,9 @@ describe("createGenerationPartStore.write", () => {
     });
     expect(listed).toHaveLength(1);
     expect(listed[0]?.id).toBe(written.id);
-    expect(listed[0]?.body).toEqual({
-      chunks: [makeChunk("c1", ["no-tests"])],
-    });
+    expect(listed[0]?.body).toEqual(
+      makeDetailBody([makeChunk("c1", ["no-tests"])]),
+    );
     expect(listed[0]?.byteSize).toBe(
       Buffer.byteLength(JSON.stringify(listed[0]?.body), "utf8"),
     );
@@ -104,30 +149,38 @@ describe("createGenerationPartStore.write", () => {
     const first = await store.write({
       ...span,
       partKey: "detail:2",
-      body: { chunks: [makeChunk("c1")] },
+      body: makeDetailBody([makeChunk("c1")]),
     });
     const second = await store.write({
       ...span,
       partKey: "detail:2",
-      body: { chunks: [makeChunk("c2")] },
+      body: makeDetailBody([makeChunk("c2")]),
     });
 
     expect(second.id).toBe(first.id);
     const listed = await store.listForSpan(span);
-    expect(listed.map((row) => row.body.chunks[0]?.id)).toEqual(["c2"]);
+    expect(listed.map((row) => readChunkIds(row.body)[0])).toEqual(["c2"]);
   });
 
   it("lists a span's parts oldest first and keeps other spans apart", async () => {
     const pr = await openPullRequest(CTX_A);
     const store = openStore(CTX_A);
     const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
-    await store.write({ ...span, partKey: "detail:2", body: { chunks: [] } });
-    await store.write({ ...span, partKey: "detail:1", body: { chunks: [] } });
+    await store.write({
+      ...span,
+      partKey: "detail:2",
+      body: makeDetailBody([]),
+    });
+    await store.write({
+      ...span,
+      partKey: "detail:1",
+      body: makeDetailBody([]),
+    });
     await store.write({
       ...span,
       headSha: OTHER_HEAD,
       partKey: "detail:1",
-      body: { chunks: [] },
+      body: makeDetailBody([]),
     });
 
     const listed = await store.listForSpan(span);
@@ -144,22 +197,58 @@ describe("createGenerationPartStore.write", () => {
       baseSha: BASE,
       headSha: HEAD,
       partKey: "detail:1",
-      body: { chunks: [makeChunk("c1", ["touches-billing"])] },
+      body: makeDetailBody([makeChunk("c1", ["touches-billing"])]),
     });
 
-    expect(written.body.chunks[0]?.riskSurface).toEqual(["touches-billing"]);
+    const chunk =
+      written.body.kind === GenerationPartKinds.DETAIL
+        ? written.body.chunks[0]
+        : undefined;
+    expect(chunk?.riskSurface).toEqual(["touches-billing"]);
+  });
+
+  it("stores the grouping call's output as a grouping part", async () => {
+    const pr = await openPullRequest(CTX_A);
+    const store = openStore(CTX_A);
+    const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
+
+    const body = {
+      kind: GenerationPartKinds.GROUPING,
+      grouping: GROUPING,
+      gitAttributesDigest: GIT_ATTRIBUTES_DIGEST,
+    };
+
+    const written = await store.write({ ...span, partKey: "grouping", body });
+
+    expect(written.body).toEqual(body);
+    const listed = await store.listForSpan(span);
+    expect(listed.map((row) => row.body.kind)).toEqual(["grouping"]);
   });
 
   it.each([
-    ["a key beyond the chunks", { chunks: [], patch: "+code" }],
+    ["a key beyond the chunks", { ...makeDetailBody([]), patch: "+code" }],
     [
       "a chunk carrying code text",
-      { chunks: [{ ...makeChunk("c1"), lines: ["+x"] }] },
+      makeDetailBody([{ ...makeChunk("c1"), lines: ["+x"] }]),
     ],
-    ["a body with no chunks", { groups: [] }],
+    ["a body with no kind", { chunks: [] }],
+    ["a body of an unknown kind", { kind: "outline", form: "full" }],
+    [
+      "a grouping part carrying chunks",
+      {
+        kind: GenerationPartKinds.GROUPING,
+        grouping: GROUPING,
+        gitAttributesDigest: GIT_ATTRIBUTES_DIGEST,
+        chunks: [],
+      },
+    ],
+    [
+      "a grouping part without its .gitattributes digest",
+      { kind: GenerationPartKinds.GROUPING, grouping: GROUPING },
+    ],
     [
       "a chunk with a malformed risk token",
-      { chunks: [makeChunk("c1", ["Not A Token"])] },
+      makeDetailBody([makeChunk("c1", ["Not A Token"])]),
     ],
   ])("refuses %s and writes nothing", async (_label, body) => {
     const pr = await openPullRequest(CTX_A);
@@ -184,7 +273,7 @@ describe("createGenerationPartStore.write", () => {
           baseSha: BASE,
           headSha: HEAD,
           partKey: partKey as PartKey,
-          body: { chunks: [] },
+          body: makeDetailBody([]),
         }),
       ).rejects.toThrow(/part key/);
     },
@@ -196,7 +285,11 @@ describe("createGenerationPartStore.listForSpan", () => {
     const pr = await openPullRequest(CTX_A);
     const store = openStore(CTX_A);
     const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
-    await store.write({ ...span, partKey: "detail:1", body: { chunks: [] } });
+    await store.write({
+      ...span,
+      partKey: "detail:1",
+      body: makeDetailBody([]),
+    });
     await shared.harness.raw(
       "update generation_part set part_key = 'detail:a'",
     );
@@ -210,7 +303,11 @@ describe("createGenerationPartStore.listForSpan", () => {
     const pr = await openPullRequest(CTX_A);
     const store = openStore(CTX_A);
     const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
-    await store.write({ ...span, partKey: "detail:1", body: { chunks: [] } });
+    await store.write({
+      ...span,
+      partKey: "detail:1",
+      body: makeDetailBody([]),
+    });
     await shared.harness.raw("update generation_part set body = '{chunks'");
 
     await expect(store.listForSpan(span)).rejects.toBeInstanceOf(
@@ -225,9 +322,21 @@ describe("createGenerationPartStore.deleteForSpan", () => {
     const store = openStore(CTX_A);
     const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
     const other = { ...span, headSha: OTHER_HEAD };
-    await store.write({ ...span, partKey: "detail:1", body: { chunks: [] } });
-    await store.write({ ...span, partKey: "detail:2", body: { chunks: [] } });
-    await store.write({ ...other, partKey: "detail:1", body: { chunks: [] } });
+    await store.write({
+      ...span,
+      partKey: "detail:1",
+      body: makeDetailBody([]),
+    });
+    await store.write({
+      ...span,
+      partKey: "detail:2",
+      body: makeDetailBody([]),
+    });
+    await store.write({
+      ...other,
+      partKey: "detail:1",
+      body: makeDetailBody([]),
+    });
 
     const deleted = await store.deleteForSpan(span);
 
@@ -249,6 +358,86 @@ describe("createGenerationPartStore.deleteForSpan", () => {
   });
 });
 
+describe("sweepStaleGenerationParts", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  async function ageSpanParts(headSha: string, days: number): Promise<void> {
+    await shared.harness.raw(
+      `update generation_part set created_at = now() - interval '${String(days)} days' where head_sha = '${headSha}'`,
+    );
+  }
+
+  async function writeDetailPart(
+    span: GenerationSpan,
+    partKey: PartKey,
+  ): Promise<void> {
+    await openStore(CTX_A).write({
+      ...span,
+      partKey,
+      body: makeDetailBody([]),
+    });
+  }
+
+  it("deletes a span idle past a week and keeps a recent one", async () => {
+    const pr = await openPullRequest(CTX_A);
+    const stale = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
+    const recent = { ...stale, headSha: OTHER_HEAD };
+    await writeDetailPart(stale, "detail:1");
+    await writeDetailPart(stale, "detail:2");
+    await writeDetailPart(recent, "detail:1");
+    await ageSpanParts(HEAD, 8);
+    await ageSpanParts(OTHER_HEAD, 6);
+
+    const deleted = await sweepStaleGenerationParts(shared.handle, new Date());
+
+    expect(deleted).toBe(2);
+    const store = openStore(CTX_A);
+    expect(await store.listForSpan(stale)).toEqual([]);
+    expect(await store.listForSpan(recent)).toHaveLength(1);
+  });
+
+  it("keeps a whole span while any of its parts is recent", async () => {
+    const pr = await openPullRequest(CTX_A);
+    const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
+    await writeDetailPart(span, "detail:1");
+    await ageSpanParts(HEAD, 8);
+    await writeDetailPart(span, "detail:2");
+
+    const deleted = await sweepStaleGenerationParts(shared.handle, new Date());
+
+    expect(deleted).toBe(0);
+    expect(await openStore(CTX_A).listForSpan(span)).toHaveLength(2);
+  });
+
+  it("keeps a stale span whose head a run holds under a live lease", async () => {
+    const pr = await openPullRequest(CTX_A);
+    const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
+    await writeDetailPart(span, "detail:1");
+    await ageSpanParts(HEAD, 8);
+    const projection = createGenerationProjection(shared.handle, CTX_A);
+    const target = {
+      pullRequestId: pr.id,
+      kind: GenerationKinds.BRIEF,
+      headSha: HEAD,
+      baselineSha: null,
+    };
+    await projection.upsertPending(target);
+    const claimed = await projection.claimRun({
+      target,
+      phase: GenerationPhases.GENERATING,
+      leaseMs: 120_000,
+      from: new Date(0),
+      to: new Date(Date.now() + DAY_MS),
+    });
+    expect(claimed.ok).toBe(true);
+
+    const deleted = await sweepStaleGenerationParts(shared.handle, new Date());
+
+    expect(deleted).toBe(0);
+    expect(await openStore(CTX_A).listForSpan(span)).toHaveLength(1);
+  });
+});
+
 describe("createGenerationPartStore scope containment", () => {
   it("refuses another tenant's pull request before any insert", async () => {
     const pr = await openPullRequest(CTX_A);
@@ -258,7 +447,7 @@ describe("createGenerationPartStore scope containment", () => {
       openStore(CTX_B).write({
         ...span,
         partKey: "detail:1",
-        body: { chunks: [] },
+        body: makeDetailBody([]),
       }),
     ).rejects.toBeInstanceOf(ScopeViolationError);
     expect(await openStore(CTX_A).listForSpan(span)).toEqual([]);
@@ -270,7 +459,7 @@ describe("createGenerationPartStore scope containment", () => {
     await openStore(CTX_A).write({
       ...span,
       partKey: "detail:1",
-      body: { chunks: [] },
+      body: makeDetailBody([]),
     });
 
     expect(await openStore(CTX_B).listForSpan(span)).toEqual([]);
@@ -284,7 +473,7 @@ describe("createGenerationPartStore scope containment", () => {
     await openStore(OWNER_CTX_A).write({
       ...span,
       partKey: "detail:1",
-      body: { chunks: [] },
+      body: makeDetailBody([]),
     });
 
     expect(await openStore(OWNER_CTX_B).listForSpan(span)).toEqual([]);
@@ -292,7 +481,7 @@ describe("createGenerationPartStore scope containment", () => {
       openStore(OWNER_CTX_B).write({
         ...span,
         partKey: "detail:2",
-        body: { chunks: [] },
+        body: makeDetailBody([]),
       }),
     ).rejects.toBeInstanceOf(ScopeViolationError);
     expect(await openStore(OWNER_CTX_A).listForSpan(span)).toHaveLength(1);

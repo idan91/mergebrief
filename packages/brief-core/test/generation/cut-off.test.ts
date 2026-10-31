@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GeneratorError, GeneratorErrorKinds } from "generators";
 import { generateBrief } from "../../src/generation/brief";
+import type { PlannedDetailCalls } from "../../src/generation/multi-call/types";
 import { INSTRUCTIONS_INJECTION_BUDGET_BYTES } from "../../src/generation/repo-context";
 import { CallPlanKinds } from "../../src/generation/size/types";
 import { GenerationWarningKinds } from "../../src/generation/warnings/types";
@@ -110,15 +111,36 @@ describe("a cut detail call", () => {
       "detail:2",
     ]);
 
+    const plans: PlannedDetailCalls[] = [];
     const generator = new FakeGenerator(answerUnlessCut([]));
     const { brief } = await generateBrief(
       makeOptions(generator, {
-        multiCallHooks: { loadPart: async (key) => stored.get(key) },
+        multiCallHooks: {
+          loadPart: async (key) => stored.get(key),
+          onGroupingDone: async (plan) => {
+            plans.push(plan);
+          },
+        },
       }),
     );
 
     expect(generator.requests).toEqual([]);
+    expect(plans).toEqual([{ detailCalls: 2, missingDetailCalls: [] }]);
     expect(brief.chunks).toHaveLength(91);
+
+    stored.delete("detail:1:2");
+    const oneHalf: PlannedDetailCalls[] = [];
+    await generateBrief(
+      makeOptions(new FakeGenerator(answerUnlessCut([])), {
+        multiCallHooks: {
+          loadPart: async (key) => stored.get(key),
+          onGroupingDone: async (plan) => {
+            oneHalf.push(plan);
+          },
+        },
+      }),
+    );
+    expect(oneHalf).toEqual([{ detailCalls: 2, missingDetailCalls: [1] }]);
   });
 
   it("re-sends a split batch whole when the stored grouping does not parse", async () => {

@@ -2,6 +2,7 @@ import type {
   Brief,
   ContextFetch,
   ContextProvider,
+  MultiCallHooks,
   PrLocator,
   PrMetadata,
   PreviousBriefInput,
@@ -26,6 +27,7 @@ import type {
   BriefRowId,
   BriefSpanRow,
   GenerationFailure,
+  GenerationPartStore,
   GenerationProjection,
   GenerationRow,
   GenerationTarget,
@@ -90,6 +92,8 @@ export interface GenerateTaskDeps {
   readonly hugeSpanRatio?: number;
   /** Detail calls a multi-call run keeps in flight at once; absent means `DEFAULT_DETAIL_CONCURRENCY`. */
   readonly detailConcurrency?: number;
+  /** The instance's `force-multi-call` switch: every brief runs multi-call; absent means off. */
+  readonly forceMultiCall?: boolean;
   readonly log?: Logger;
 }
 
@@ -134,6 +138,34 @@ export type ClaimRenewer = () => Promise<boolean>;
  * `SpendCappedSignal` at the cap. A no-op once charged, or for a claimed run.
  */
 export type SpendCharge = () => Promise<void>;
+
+/** What the default branch's `.gitattributes` read answered. */
+export const GitAttributesReadings = {
+  CONTENT: "content",
+  /** Absent, over the cap or refused for good: every file is read in full, and the digest is the empty file's. */
+  NONE: "none",
+  /** A failure a retry may clear: the file may say anything. */
+  UNREAD: "unread",
+} as const;
+
+export interface GitAttributesContent {
+  readonly kind: typeof GitAttributesReadings.CONTENT;
+  readonly text: string;
+}
+
+export interface GitAttributesNone {
+  readonly kind: typeof GitAttributesReadings.NONE;
+}
+
+export interface GitAttributesUnread {
+  readonly kind: typeof GitAttributesReadings.UNREAD;
+  readonly error: string;
+}
+
+export type GitAttributesRead =
+  | GitAttributesContent
+  | GitAttributesNone
+  | GitAttributesUnread;
 
 export const HeadReadings = {
   CURRENT: "current",
@@ -416,6 +448,8 @@ export interface RunStart {
 export interface RunScope extends RunStart {
   readonly repo: TenantRepository;
   readonly store: ArtifactStore;
+  /** A multi-call run's stored parts under the brief's span. */
+  readonly parts: GenerationPartStore;
   readonly auditScope: AuditScope;
   readonly prRow: PullRequestRow;
   /** The row's slug after the usable-slug guard narrowed it. */
@@ -650,7 +684,33 @@ export interface BriefGenerationInputs {
   /** The signal-bound generator: the model call must honour the watch's abort. */
   readonly generator: Generator;
   readonly coreMessageLog: CoreMessageLog;
+  /** What a multi-call run of this brief needs from the worker. */
+  readonly multiCall: MultiCallRunInputs;
   readonly log: Logger;
+}
+
+export interface MultiCallRunInputs {
+  /** The engine's hooks: units claimed after grouping, parts stored and resumed. */
+  readonly hooks: MultiCallHooks;
+  /** Deletes the span's stored parts once the brief is written; a failed delete only warns. */
+  readonly deleteParts: () => Promise<void>;
+  /**
+   * Reads the span's parts before any paid call, outside the engine's
+   * single-call check, which reads a hook's throw as nothing stored: a store
+   * failure, or an unread `.gitattributes` over stored parts, ends the run
+   * transient here.
+   */
+  readonly loadStoredParts: () => Promise<void>;
+  /**
+   * A permanent failure after every detail part landed is deterministic over
+   * the stored parts: they go, so a re-trigger regenerates instead of failing
+   * the same way. Any other failure keeps them.
+   */
+  readonly discardPartsOnMergeFailure: (error: unknown) => Promise<void>;
+  /** The default branch's `.gitattributes`, read once per run; absent reads every file in full. */
+  readonly gitAttributes: string | undefined;
+  readonly detailConcurrency: number | undefined;
+  readonly forceMultiCall: boolean | undefined;
 }
 
 export interface GeneratedBrief {

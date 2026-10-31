@@ -3,6 +3,7 @@ import type { PullRequestInfo } from "github";
 import type { GenerationError } from "persistence";
 import type { Result } from "types/utils";
 import type { PullRequestSource } from "../../github-port";
+import { ClaimLostSignal, SupersededSignal } from "./run-signals";
 import {
   HeadReadings,
   type ClaimRenewer,
@@ -10,12 +11,6 @@ import {
   type HeadRead,
   type SupersessionWatch,
 } from "../types";
-
-/** Control-flow signal: the job's head is no longer the PR's head. */
-export class SupersededSignal extends Error {}
-
-/** Control-flow signal: the row this run claimed is another run's, or gone. */
-export class ClaimLostSignal extends Error {}
 
 /** A claim write the store refused: another run holds the row, or it is gone. */
 export function throwOnClaimLost(
@@ -152,13 +147,22 @@ export async function readEntryPostHead(
   return read;
 }
 
-/** Wrap a Generator so every request carries the watch's abort signal. */
+/**
+ * Wrap a Generator so every request also aborts on the watch's signal; a
+ * request's own signal, when it carries one, still aborts it.
+ */
 export function bindAbortSignal(
   generator: Generator,
   signal: AbortSignal,
 ): Generator {
   return {
-    generate: (req) => generator.generate({ ...req, signal }),
+    generate(req) {
+      const combined =
+        req.signal === undefined
+          ? signal
+          : AbortSignal.any([req.signal, signal]);
+      return generator.generate({ ...req, signal: combined });
+    },
     origin: (effort) => generator.origin(effort),
   };
 }

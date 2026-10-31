@@ -30,10 +30,7 @@ import {
 } from "../types";
 import { getAfterLeaseDelaySeconds } from "./claim-recovery";
 import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
-import { ClaimLostSignal } from "./supersession-watch";
-
-/** Control-flow signal: the cap refused a stored-brief run's first paid call, or a large run's units. */
-export class SpendCappedSignal extends Error {}
+import { ClaimLostSignal, SpendCappedSignal } from "./run-signals";
 
 /**
  * The daily generation cap, one number for the whole instance. The count and

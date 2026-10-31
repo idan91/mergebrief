@@ -4,7 +4,6 @@ import { FakeFailures } from "github/testing";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { describe, expect, it } from "vitest";
 import { TransientJobError } from "../../src/task/failure";
-import { SINGLE_CALL_MAX_DIFF_BYTES } from "../../src/task/generate/consts";
 import {
   arrangeCompare,
   BASE,
@@ -12,12 +11,14 @@ import {
   harness,
   HEAD_1,
   makeGitHub,
+  makeInOrderGrouping,
   makeLargePoolTask,
   makeTarget,
   makeTask,
   PR_REF,
   setUpHarness,
   stubGenerator,
+  stubThreeGroupGenerator,
   trigger,
 } from "./helpers";
 
@@ -39,8 +40,28 @@ diff --git a/b.ts b/b.ts
 
 const PAST_BRIEFED_FILE_CAP = MAX_BRIEFED_CHANGED_FILES + 1;
 
-const PAST_ONE_CALL_DIFF = `${TWO_FILE_DIFF}+${"x".repeat(SINGLE_CALL_MAX_DIFF_BYTES)}
-`;
+/** The diff bytes one model call takes: 400,000 input tokens at 2 bytes a token. */
+const ONE_CALL_DIFF_BYTES = 800_000;
+/** Fewer files than one call's hunk limit, so only the bytes route the run. */
+const BYTE_HEAVY_FILES = 100;
+const ADDED_LINE_BYTES = 8_500;
+
+const PAST_ONE_CALL_PATHS = Array.from(
+  { length: BYTE_HEAVY_FILES },
+  (_, index) => `src/f${index + 1}.ts`,
+);
+
+const PAST_ONE_CALL_DIFF = PAST_ONE_CALL_PATHS.map((path) =>
+  [
+    `diff --git a/${path} b/${path}`,
+    `--- a/${path}`,
+    `+++ b/${path}`,
+    "@@ -1 +1 @@",
+    "-old",
+    `+${"x".repeat(ADDED_LINE_BYTES)}`,
+    "",
+  ].join("\n"),
+).join("");
 
 async function readRow(pr: Awaited<ReturnType<typeof trigger>>["pr"]) {
   return createGenerationProjection(harness.handle, ctx).get(
@@ -93,20 +114,28 @@ describe("generate task, compare fallback on a 406", () => {
     expect(row?.errorCode).toBe(GenerationFailureCodes.DIFF_TOO_LARGE);
   });
 
-  it("fails as diff-too-large when the compare diff exceeds one call", async () => {
+  it("routes a compare diff past one call's bytes to the multi-call run", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const github = makeGitHub(HEAD_1);
-    github.updatePullRequest(PR_REF, { changedFiles: 2 });
+    const files = PAST_ONE_CALL_PATHS.map((path) => ({
+      path,
+      additions: 1,
+      deletions: 1,
+    }));
+    const github = makeGitHub(HEAD_1, files);
+    github.updatePullRequest(PR_REF, { changedFiles: files.length });
     arrangeCompare(github, { base: BASE, head: HEAD_1 }, PAST_ONE_CALL_DIFF);
     github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
-    const generator = stubGenerator();
+    const generator = stubThreeGroupGenerator(
+      makeInOrderGrouping(files.length),
+    );
 
     await makeTask({ github, generator })(payload);
 
-    const row = await readRow(pr);
-    expect(row?.status).toBe(GenerationStatuses.FAILED);
-    expect(row?.errorCode).toBe(GenerationFailureCodes.DIFF_TOO_LARGE);
-    expect(generator.requests).toEqual([]);
+    expect(Buffer.byteLength(PAST_ONE_CALL_DIFF, "utf8")).toBeGreaterThan(
+      ONE_CALL_DIFF_BYTES,
+    );
+    expect((await readRow(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(generator.calls[0]).toBe("grouping");
   });
 
   it("leaves a compare that timed out to graphile's retry", async () => {

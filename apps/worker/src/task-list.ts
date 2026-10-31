@@ -2,6 +2,7 @@ import type { Task, TaskList } from "graphile-worker";
 import { QueueTasks } from "types/jobs";
 import { traceJob } from "./task/job-span";
 import { SWEEP_AUDIT_TASK } from "./task/sweep-audit";
+import { SWEEP_GENERATION_PARTS_TASK } from "./task/sweep-generation-parts";
 import { SWEEP_PULL_REQUESTS_TASK } from "./task/sweep-pull-requests";
 import { SWEEP_SESSIONS_TASK } from "./task/sweep-sessions";
 import { SWEEP_WEBHOOK_DELIVERIES_TASK } from "./task/sweep-webhook-deliveries";
@@ -14,6 +15,7 @@ export interface WorkerTasks {
   readonly sweepSessions: Task;
   readonly sweepPullRequests: Task;
   readonly sweepWebhookDeliveries: Task;
+  readonly sweepGenerationParts: Task;
 }
 
 /** The large pool's tasks: the same runs, told their pool. */
@@ -53,6 +55,10 @@ export function buildTaskList(tasks: WorkerTasks): TaskList {
     [SWEEP_WEBHOOK_DELIVERIES_TASK]: traceJob(
       SWEEP_WEBHOOK_DELIVERIES_TASK,
       tasks.sweepWebhookDeliveries,
+    ),
+    [SWEEP_GENERATION_PARTS_TASK]: traceJob(
+      SWEEP_GENERATION_PARTS_TASK,
+      tasks.sweepGenerationParts,
     ),
   };
 }

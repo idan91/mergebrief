@@ -33,6 +33,12 @@ export {
 } from "./task/sweep-audit";
 export type { SweepAuditTaskDeps } from "./task/sweep-audit";
 export {
+  createSweepGenerationPartsTask,
+  SWEEP_GENERATION_PARTS_CRONTAB,
+  SWEEP_GENERATION_PARTS_TASK,
+} from "./task/sweep-generation-parts";
+export type { SweepGenerationPartsTaskDeps } from "./task/sweep-generation-parts";
+export {
   createSweepPullRequestsTask,
   SWEEP_PULL_REQUESTS_CRONTAB,
   SWEEP_PULL_REQUESTS_TASK,

@@ -21,7 +21,7 @@ import {
   syncEntryComment,
 } from "./logic/entry-sync";
 import { traceProviderCalls } from "./logic/model-span";
-import { isRunSignal, listRunStops, traceRunStep } from "./logic/step-span";
+import { listRunStops, traceRunStep } from "./logic/step-span";
 import { postFailedEntry } from "./logic/failed-entry";
 import { reportJobFailure } from "./logic/job-failure";
 import { postOwedReadyEntry, postReadyEntry } from "./logic/ready-entry";
@@ -38,12 +38,13 @@ import {
 import { decideRun } from "./logic/run-decision";
 import { prepareRunInputs } from "./logic/run-inputs";
 import { routeRunToLargePool } from "./logic/pool-routing";
-import { SpendCappedSignal } from "./logic/spend-gate";
 import {
-  bindAbortSignal,
   ClaimLostSignal,
+  isRunSignal,
+  SpendCappedSignal,
   SupersededSignal,
-} from "./logic/supersession-watch";
+} from "./logic/run-signals";
+import { bindAbortSignal } from "./logic/supersession-watch";
 import {
   AuthorGateKinds,
   JobFailureOutcomes,

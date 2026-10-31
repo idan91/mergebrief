@@ -400,6 +400,194 @@ export function stubMultiCallGenerator(
   return generator;
 }
 
+/** A 90-hunk PR over three files: two detail batches on the multi-call path. */
+export const MULTI_CALL_PATHS = ["src/a.ts", "src/b.ts", "src/c.ts"];
+const MULTI_CALL_HUNKS_PER_FILE = 30;
+
+function makeHunkedFileDiff(path: string, hunks: number): string {
+  const lines = Array.from({ length: hunks }, (_, index) => [
+    `@@ -${index * 10 + 1},1 +${index * 10 + 1},1 @@`,
+    "-old",
+    "+new",
+  ]).flat();
+  return [
+    `diff --git a/${path} b/${path}`,
+    `--- a/${path}`,
+    `+++ b/${path}`,
+    ...lines,
+    "",
+  ].join("\n");
+}
+
+export const MULTI_CALL_DIFF = MULTI_CALL_PATHS.map((path) =>
+  makeHunkedFileDiff(path, MULTI_CALL_HUNKS_PER_FILE),
+).join("");
+
+export const MULTI_CALL_FILES: readonly PullRequestFile[] =
+  MULTI_CALL_PATHS.map((path) => ({
+    path,
+    additions: MULTI_CALL_HUNKS_PER_FILE,
+    deletions: MULTI_CALL_HUNKS_PER_FILE,
+  }));
+
+/** PR #7 at `headSha` over `MULTI_CALL_DIFF`, or one 30-hunk file per path given. */
+export function makeMultiCallGitHub(
+  headSha: string,
+  paths: readonly string[] = MULTI_CALL_PATHS,
+): FakeGitHub {
+  if (paths === MULTI_CALL_PATHS) {
+    return makeGitHub(headSha, MULTI_CALL_FILES, MULTI_CALL_DIFF);
+  }
+
+  const diff = paths
+    .map((path) => makeHunkedFileDiff(path, MULTI_CALL_HUNKS_PER_FILE))
+    .join("");
+  const files = paths.map((path) => ({
+    path,
+    additions: MULTI_CALL_HUNKS_PER_FILE,
+    deletions: MULTI_CALL_HUNKS_PER_FILE,
+  }));
+  return makeGitHub(headSha, files, diff);
+}
+
+function makeStubGroup(id: string) {
+  return {
+    id,
+    title: `Group ${id}`,
+    summary: `What ${id} does.`,
+    dominantCategory: "logic-refactor",
+    secondaryCategories: [],
+    uncertain: false,
+    uncertainBetween: [],
+  };
+}
+
+/** One group per file, read g2 first: g2 and g1 fill batch 1, g3 is batch 2. */
+export const MULTI_CALL_GROUPING = {
+  summary: "Refactors three modules.",
+  changeGroups: [makeStubGroup("g1"), makeStubGroup("g2"), makeStubGroup("g3")],
+  hunkMap: [
+    { groupId: "g1", hunks: ["f1"] },
+    { groupId: "g2", hunks: ["f2"] },
+    { groupId: "g3", hunks: ["f3"] },
+  ],
+  readingOrder: [
+    { groupId: "g2", why: "the main change" },
+    { groupId: "g1", why: "builds on it" },
+    { groupId: "g3", why: "side change" },
+  ],
+  intentCheck: {
+    ticketUrls: [],
+    ticketTitles: [],
+    specificity: "none",
+    scopeNote: "",
+    items: [],
+    alignment: { read: "", goal: "", response: "" },
+  },
+};
+
+/**
+ * One group per file of a `makeMultiCallGitHub` diff over `count` paths,
+ * read in file order: two 30-hunk groups fill a detail batch.
+ */
+export function makeInOrderGrouping(count: number): typeof MULTI_CALL_GROUPING {
+  const ids = Array.from({ length: count }, (_, index) => `g${index + 1}`);
+  return {
+    ...MULTI_CALL_GROUPING,
+    changeGroups: ids.map(makeStubGroup),
+    hunkMap: ids.map((groupId, index) => ({
+      groupId,
+      hunks: [`f${index + 1}`],
+    })),
+    readingOrder: ids.map((groupId) => ({ groupId, why: "in file order" })),
+  };
+}
+
+/** The detail prompt's hunk marker and the hunk header right after it. */
+const THREE_GROUP_HUNK_MARKER =
+  /\[hunk (f\d+)h(\d+) -> (\S+)\]\n@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/g;
+
+/** The path a file id names: the `diff --git` header right before its first marker. */
+function readMarkedPath(user: string, fileId: string): string {
+  const marker = user.indexOf(`[hunk ${fileId}h`);
+  const header = user.lastIndexOf("diff --git a/", marker);
+  const line = user.slice(header, user.indexOf("\n", header));
+  return line.replace(/^diff --git a\/(\S+) b\/.*$/, "$1");
+}
+
+/** One core chunk per hunk marker in a detail request, its ranges read off the hunk header. */
+export function answerDetailRequest(user: string) {
+  const chunks = [...user.matchAll(THREE_GROUP_HUNK_MARKER)].map(
+    (match, position) => {
+      const start = Number(match[4]);
+      const count = Number(match[5] ?? "1");
+      return {
+        id: `c${position + 1}`,
+        changeGroupId: match[3],
+        file: readMarkedPath(user, match[1] ?? ""),
+        concern: "implementation",
+        role: "core",
+        addedRanges: [{ start, end: start + count - 1 }],
+        removedRanges: [{ start, end: start + count - 1 }],
+        riskSurface: [],
+      };
+    },
+  );
+  return { chunks };
+}
+
+export interface ThreeGroupStubGenerator extends Generator {
+  /** Every request's label, in call order. */
+  readonly calls: string[];
+  /** Throws `error` from the label's next call, once. */
+  failOn(label: string, error: unknown): void;
+  /** Runs before each call answers; a test interleaves a push or a shutdown here. */
+  onCall?: (label: string) => Promise<void>;
+}
+
+/**
+ * Answers the grouping call with `grouping`, each detail call
+ * with one chunk per hunk in its batch, and every other label as
+ * `stubGenerator` does. A call whose signal is already aborted rejects as
+ * a stream cut short does.
+ */
+export function stubThreeGroupGenerator(
+  grouping: typeof MULTI_CALL_GROUPING = MULTI_CALL_GROUPING,
+): ThreeGroupStubGenerator {
+  const base = stubGenerator();
+  const calls: string[] = [];
+  const failures = new Map<string, unknown>();
+  const generator: ThreeGroupStubGenerator = {
+    calls,
+    failOn(label, error) {
+      failures.set(label, error);
+    },
+    async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      calls.push(req.label);
+      await generator.onCall?.(req.label);
+      if (req.signal?.aborted === true) {
+        throw makeAbortError();
+      }
+      if (failures.has(req.label)) {
+        const failure = failures.get(req.label);
+        failures.delete(req.label);
+        throw failure;
+      }
+      if (req.label === "grouping") {
+        return req.schema.parse(grouping);
+      }
+      if (req.label.startsWith("detail:")) {
+        return req.schema.parse(answerDetailRequest(req.user));
+      }
+      return base.generate(req);
+    },
+    origin: (effort: Effort) => base.origin(effort),
+  };
+  return generator;
+}
+
 export const REPO: RepositoryRef = { owner: "acme", repo: "widget" };
 export const PR_REF: PullRequestRef = { ...REPO, prNumber: 7 };
 export const VIEWER_TOKEN = "ghu_viewer";
@@ -455,12 +643,13 @@ export function makeGitHub(
   files: readonly PullRequestFile[] = [
     { path: "a.ts", additions: 8, deletions: 2 },
   ],
+  diff = SMALL_DIFF,
 ): FakeGitHub {
   const github = makeFakeGitHub();
   github.addPullRequest(PR_REF, {
     info: makePullRequestInfo(headSha),
     files,
-    diff: SMALL_DIFF,
+    diff,
   });
   for (const base of FIXTURE_COMMITS) {
     for (const head of FIXTURE_COMMITS) {

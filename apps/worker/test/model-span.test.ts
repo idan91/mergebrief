@@ -144,6 +144,23 @@ describe("traceProviderCalls", () => {
     expect(span?.failed).toBe(false);
   });
 
+  it("leaves the call unfailed when its own request aborts it", async () => {
+    tracing = startTestTracing();
+    const pool = new AbortController();
+    pool.abort();
+    const aborted = new Error("aborted");
+    const generator = traceProviderCalls(
+      stubReportingGenerator(aborted),
+      new AbortController().signal,
+    );
+
+    const call = generator.generate({ ...makeRequest(), signal: pool.signal });
+
+    await expect(call).rejects.toBe(aborted);
+    const [span] = tracing.readFinishedSpans();
+    expect(span?.failed).toBe(false);
+  });
+
   it("records the effort the provider served once the call settles", async () => {
     tracing = startTestTracing();
     let effortSupported = true;

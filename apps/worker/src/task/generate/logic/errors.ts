@@ -24,6 +24,7 @@ import {
   HTTP_STATUS_TOO_MANY_REQUESTS,
 } from "../consts";
 import type { GenerateTaskDeps } from "../types";
+import { isRunSignal } from "./run-signals";
 
 export function isNotAcceptable(error: GitHubCallFailure): boolean {
   return "status" in error && error.status === HTTP_STATUS_NOT_ACCEPTABLE;
@@ -45,6 +46,17 @@ export function isPermanentGitHubError(error: GitHubCallFailure): boolean {
     error.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE ||
     isDiffTooLarge(error);
   return isPermanent;
+}
+
+/** Content GitHub will never serve as file text: a symlink, directory or submodule, or bytes that are not UTF-8. */
+const REPO_FILE_REFUSALS: ReadonlySet<string> = new Set([
+  GitHubApiErrorCodes.NOT_A_BLOB,
+  GitHubApiErrorCodes.NOT_TEXT,
+]);
+
+/** A file read no retry answers differently: a permanent failure, or content that is not file text. */
+export function isRepoFileRefusedForGood(error: GitHubCallFailure): boolean {
+  return isPermanentGitHubError(error) || REPO_FILE_REFUSALS.has(error.code);
 }
 
 /** Unwrap a GitHub `Result`, converting failures into the right error class. */
@@ -129,6 +141,28 @@ export function emitProviderError(
   log.error(error instanceof Error ? error.message : String(error), fields);
 }
 
+/** A failure no retry can clear: a stamped permanent throw, or a persistence refusal. */
+export function isPermanentFailure(error: unknown): boolean {
+  return (
+    error instanceof PermanentJobError ||
+    error instanceof ScopeViolationError ||
+    error instanceof InvalidArtifactBodyError
+  );
+}
+
+/**
+ * A throw the run already classified, or chose: a run signal, a stamped
+ * failure, a persistence refusal. It crosses the generator boundary and the
+ * multi-call hooks as it is.
+ */
+export function isClassifiedThrow(error: unknown): boolean {
+  return (
+    isRunSignal(error) ||
+    isPermanentFailure(error) ||
+    error instanceof TransientJobError
+  );
+}
+
 /**
  * Run a generator call, classifying its throw as transient or permanent, and
  * time it. Nothing downstream records how long a model call took: the
@@ -154,15 +188,9 @@ export async function runGenerator<T>(
     emit(GenerationStatuses.SUCCEEDED);
     return value;
   } catch (error) {
-    // A step the call drives, not the generator, threw an already classified
-    // error or a persistence refusal: it keeps its class and is no generator
-    // outcome.
-    const keepsItsClass =
-      error instanceof PermanentJobError ||
-      error instanceof TransientJobError ||
-      error instanceof ScopeViolationError ||
-      error instanceof InvalidArtifactBodyError;
-    if (keepsItsClass) {
+    // A step the call drives, not the generator, threw a classified error or
+    // a run signal: it keeps its class and is no generator outcome.
+    if (isClassifiedThrow(error)) {
       throw error;
     }
     emit(GenerationStatuses.FAILED);

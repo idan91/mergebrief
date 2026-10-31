@@ -1,6 +1,14 @@
 import type { PartKey } from "brief-core";
+import type { ValueOf } from "types/utils";
 import type { PullRequestRowId } from "../../types";
 import type { GenerationPartBody } from "./schemas";
+
+/** What a stored part holds: the grouping call's output, or one detail call's chunks. */
+export const GenerationPartKinds = {
+  GROUPING: "grouping",
+  DETAIL: "detail",
+} as const;
+export type GenerationPartKind = ValueOf<typeof GenerationPartKinds>;
 
 /** The brief span a run's parts belong to: the PR base and the head. */
 export interface GenerationSpan {
@@ -12,9 +20,9 @@ export interface GenerationSpan {
 export interface GenerationPartWriteInput extends GenerationSpan {
   readonly partKey: PartKey;
   /**
-   * The part's chunks, validated with `GenerationPartBodySchema`. Typed
+   * The part's body, validated with `GenerationPartBodySchema`. Typed
    * `unknown` because this is the boundary that refuses anything beyond
-   * attribution.
+   * the grouping output or a detail call's attribution.
    */
   readonly body: unknown;
 }

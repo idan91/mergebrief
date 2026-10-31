@@ -1,6 +1,7 @@
 import type { PullRequestInfo } from "github";
 import {
   createArtifactStore,
+  createGenerationPartStore,
   createTenantRepository,
   isOwnerContext,
   type GenerationRow,
@@ -23,10 +24,8 @@ import type {
 } from "../types";
 import { createEntryCommentManager } from "./entry-comment-manager";
 import { throwOnGitHubFailure } from "./errors";
-import {
-  createSupersessionWatch,
-  SupersededSignal,
-} from "./supersession-watch";
+import { createSupersessionWatch } from "./supersession-watch";
+import { SupersededSignal } from "./run-signals";
 
 interface GuardedPullRequest {
   readonly prRow: PullRequestRow;
@@ -118,6 +117,7 @@ async function openRunScope(start: RunStart): Promise<RunScope | undefined> {
     ...guarded,
     repo,
     store: createArtifactStore(deps.handle, payload.ctx),
+    parts: createGenerationPartStore(deps.handle, payload.ctx),
     auditScope: getAuditScope(payload.ctx),
     projected,
     pickedUpAt,
