@@ -100,6 +100,7 @@ const GhOpenPullRequestSchema = z.object({
   baseRefName: z.string(),
   headRepository: z.object({ name: z.string().min(1) }).nullish(),
   headRepositoryOwner: z.object({ login: z.string().min(1) }).nullish(),
+  isDraft: z.boolean().nullish(),
 });
 
 export interface GhOpenPullRequestParseError {
@@ -120,6 +121,7 @@ function mapGhOpenPullRequest(
     title: item.title,
     headRef: item.headRefName,
     baseRef: item.baseRefName,
+    draft: item.isDraft ?? false,
     headRepo: { owner: headOwner, repo: headName },
     baseRepo: { owner: listing.owner, repo: listing.repo },
   };
@@ -158,7 +160,7 @@ async function fetchOpenPullRequests(
       "--limit",
       String(OPEN_PR_LIST_LIMIT),
       "--json",
-      "number,title,headRefName,baseRefName,headRepository,headRepositoryOwner",
+      "number,title,headRefName,baseRefName,isDraft,headRepository,headRepositoryOwner",
     ],
     { maxBuffer: MAX_BUFFER },
   );

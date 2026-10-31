@@ -87,7 +87,7 @@ describe("fetchPrMetadata open-list stamp", () => {
         "--limit",
         String(OPEN_PR_LIST_LIMIT),
         "--json",
-        "number,title,headRefName,baseRefName,headRepository,headRepositoryOwner",
+        "number,title,headRefName,baseRefName,isDraft,headRepository,headRepositoryOwner",
       ]),
     );
   });

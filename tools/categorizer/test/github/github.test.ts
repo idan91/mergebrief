@@ -78,7 +78,7 @@ describe("metadataFromView maps gh pr view JSON to PrMetadata", () => {
 describe("parseGhOpenPullRequests", () => {
   const listing = { owner: "upstream", repo: "app" };
 
-  it("maps gh list JSON onto number title refs and repo identity", () => {
+  it("maps gh list JSON onto number title refs draft and repo identity", () => {
     expect(
       parseGhOpenPullRequests(
         [
@@ -87,6 +87,7 @@ describe("parseGhOpenPullRequests", () => {
             title: "Bottom",
             headRefName: "feature/a",
             baseRefName: "main",
+            isDraft: true,
             headRepository: { name: "app" },
             headRepositoryOwner: { login: "upstream" },
           },
@@ -101,6 +102,7 @@ describe("parseGhOpenPullRequests", () => {
           title: "Bottom",
           headRef: "feature/a",
           baseRef: "main",
+          draft: true,
           headRepo: { owner: "upstream", repo: "app" },
           baseRepo: { owner: "upstream", repo: "app" },
         },
@@ -144,6 +146,7 @@ describe("parseGhOpenPullRequests", () => {
           title: "Kept",
           headRef: "feature",
           baseRef: "main",
+          draft: false,
           headRepo: { owner: "upstream", repo: "app" },
           baseRepo: { owner: "upstream", repo: "app" },
         },
