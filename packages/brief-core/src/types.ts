@@ -1053,6 +1053,12 @@ export const DeltaBriefSchema = z.object({
     .describe(
       "how this follow-up affects the overall PR — does it complete/alter the original intent, or introduce new risk not present at the baseline. Grounded in the diff; not a verdict.",
     ),
+  packageSourceFiles: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "head paths of the span's files `changes-package-source` fires on that no chunk carries. Pipeline-assigned, never model-produced; absent when there are none.",
+    ),
 });
 
 /**
@@ -1068,6 +1074,7 @@ export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
   generation: true,
   generationWarnings: true,
   lengthViolations: true,
+  packageSourceFiles: true,
 }).extend({
   chunks: z
     .array(DeltaChunkGenerationSchema)

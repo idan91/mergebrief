@@ -76,7 +76,7 @@ A cluster of chunks that together accomplish one coherent piece of work (e.g., "
 _Avoid_: chapter (Linear's narrative-only term), story, cluster, section
 
 **Unattributed remainder**:
-The set of changed lines no attributed **Chunk** claimed. Stored on the **Brief** as per-file line ranges; the page shows them as remainder chunks in one last **Change-group**, the one exception to the intent boundary: no Summary, no Categorization, never split, never merged into an intent group. Its name and one-line note are fixed system copy, not model output; its chunks carry no Concern or Role, and no Risk Surface beyond `adds-secret` and `changes-package-source`, which the pipeline sets. In the **Split** it is one last segment beside the Concerns, never a Concern itself.
+The set of changed lines no attributed **Chunk** claimed. Stored on the **Brief** as per-file line ranges; the page shows them as remainder chunks in one last **Change-group**, the one exception to the intent boundary: no Summary, no Categorization, never split, never merged into an intent group. Its name and one-line note are fixed system copy, not model output; its chunks carry no Concern or Role, and no Risk Surface beyond `adds-secret` and `changes-package-source`, which the pipeline sets. A file with no changed line that fires `changes-package-source` joins it as an entry with no lines, so the flag has a card. In the **Split** it is one last segment beside the Concerns, never a Concern itself.
 _Avoid_: coverage gap, orphan lines, residue, unattributed (bare noun)
 
 **Category**:

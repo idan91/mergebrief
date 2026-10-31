@@ -463,6 +463,24 @@ describe("Header menu and stats", () => {
     expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
   });
 
+  it("renders no unattributed stat for a remainder with no lines", async () => {
+    const model = buildBriefViewModel({
+      ...brief,
+      unattributed: [
+        {
+          file: ".npmrc",
+          addedRanges: [],
+          removedRanges: [],
+          riskSurface: ["changes-package-source"],
+        },
+      ],
+    });
+
+    await renderHeader({ model });
+
+    expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
+  });
+
   it("keeps the accent CTA top-level", async () => {
     const { openSubmit } = await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));

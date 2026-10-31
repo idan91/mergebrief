@@ -221,7 +221,44 @@ describe("ChunkCard file status", () => {
   });
 });
 
+describe("ChunkCard for a flagged file with no changed lines", () => {
+  const carrier: BriefChunk = {
+    id: "u-carrier",
+    changeGroupId: "unattributed-remainder",
+    file: ".npmrc",
+    concern: "implementation",
+    role: "core",
+    loc: { added: 0, deleted: 0 },
+    addedRanges: [],
+    removedRanges: [],
+    riskSurface: ["changes-package-source"],
+  };
+
+  it("shows the flag and says the file has no changed lines", () => {
+    renderCard({ chunk: carrier, open: true });
+
+    expect(screen.getByText("Changes package source")).toBeTruthy();
+    expect(screen.getByText("No changed lines to show.")).toBeTruthy();
+    expect(screen.queryByText("Diff unavailable")).toBeNull();
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+  });
+
+  it("keeps the diff-unavailable note on an attributed chunk with no rows", () => {
+    renderCard({ chunk: { ...chunk, diff: [] }, open: true });
+
+    expect(screen.getByText("Diff unavailable")).toBeTruthy();
+    expect(screen.queryByText(/No changed lines to show/)).toBeNull();
+  });
+});
+
 describe("ChunkCard selectable file path", () => {
+  it("isolates the file path as left-to-right text", () => {
+    renderCard({ chunk: { ...chunk, file: ".npmrc" } });
+
+    const toggle = screen.getByTestId("chunk-toggle");
+    expect(within(toggle).getByText(".npmrc").closest("bdi")?.dir).toBe("ltr");
+  });
+
   it("copies the full file path without toggling the chunk", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {

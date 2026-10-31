@@ -167,6 +167,7 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
     withSecrets.unattributed,
     args.lockfileSummaries,
     readPackageSourceContext(context.fileDiffs),
+    context.fileDiffs,
   );
 
   const textLength = validateTextLength(groups, flagged.chunks);

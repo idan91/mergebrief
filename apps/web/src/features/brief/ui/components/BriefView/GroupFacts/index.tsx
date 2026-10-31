@@ -10,6 +10,7 @@ import {
 import { InlineCodeText } from "../InlineCodeText";
 import { CategoryFacts } from "./CategoryFacts";
 import type { GroupFactsSurface } from "./types";
+import { resolveGroupSummary } from "./utils";
 import styles from "./GroupFacts.module.scss";
 
 export interface GroupFactsProps {
@@ -36,9 +37,7 @@ export function GroupFacts({
 }: GroupFactsProps) {
   const { t } = useTranslation();
   const attributed = isAttributedGroupView(group);
-  const summary = attributed
-    ? group.group.summary
-    : t("brief.unattributed.remainderSummary");
+  const summary = resolveGroupSummary(t, group);
   const name = resolveGroupName(t, group);
   const attributedGroup = attributed ? group : undefined;
   const showCategories =

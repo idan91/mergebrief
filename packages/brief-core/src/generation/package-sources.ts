@@ -171,6 +171,8 @@ const OCTAL_RADIX = 8;
 const HUNK_START = "@@";
 /** git ends a `---` or `+++` line with a TAB when its path holds a space. */
 const PATH_END_TAB = "\t";
+/** The header lines git writes for a change to a file's mode alone. */
+const MODE_LINE = /^(?:old|new) mode \d+$/;
 
 /** A path's file name, read through git's quoting: no lockfile or config name holds a quoted character. */
 function readBasename(path: string): string {
@@ -238,6 +240,12 @@ function listTouchedPaths({ file, patch }: FileDiff): string[] {
   return [file, ...readHeaderPaths(patch, OLD_PATH_LINE)];
 }
 
+/** Every spelling of the file's head path, so a chunk keyed by any of them is found. */
+function listHeadPathSpellings({ file, patch }: FileDiff): string[] {
+  const headPaths = readHeaderPaths(patch, NEW_PATH_LINE);
+  return [file, ...headPaths, ...headPaths.map(decodeGitPath)];
+}
+
 /**
  * A path's file name as a case-insensitive file system matches it: git's
  * quoting decoded, canonically decomposed, then folded through upper case
@@ -268,11 +276,8 @@ export function listRegistryConfigFiles(
     if (!listTouchedPaths(fileDiff).some(isRegistryConfigPath)) {
       continue;
     }
-    // Every spelling of the head path, so a chunk keyed by any of them is found.
-    files.add(fileDiff.file);
-    for (const path of readHeaderPaths(fileDiff.patch, NEW_PATH_LINE)) {
+    for (const path of listHeadPathSpellings(fileDiff)) {
       files.add(path);
-      files.add(decodeGitPath(path));
     }
   }
   return files;
@@ -396,35 +401,123 @@ export function listChangedLockfiles(diff: string): ChangedLockfile[] {
   );
 }
 
+/** A patch that changes the file's mode and nothing else: no hunk, rename, copy or binary line. */
+function isModeOnlyPatch(patch: string): boolean {
+  let modeLines = 0;
+  // Past the `diff --git` line; the first line that is no mode line ends the walk.
+  for (
+    let start = patch.indexOf("\n") + 1;
+    start > 0 && start < patch.length;
+  ) {
+    const newline = patch.indexOf("\n", start);
+    const end = newline === -1 ? patch.length : newline;
+    const line = patch.slice(start, end);
+    if (line !== "" && !MODE_LINE.test(line)) {
+      return false;
+    }
+    modeLines += line === "" ? 0 : 1;
+    start = end + 1;
+  }
+  return modeLines > 0;
+}
+
+/** The lockfile paths whose every patch only changes the mode: their bytes are the base's. */
+function listModeOnlyLockfiles(fileDiffs: readonly FileDiff[]): Set<string> {
+  const modeOnly = new Set<string>();
+  const changed = new Set<string>();
+  for (const { file, patch } of fileDiffs) {
+    if (!isPackageLockfile(file)) {
+      continue;
+    }
+    if (isModeOnlyPatch(patch)) {
+      modeOnly.add(file);
+    } else {
+      changed.add(file);
+    }
+  }
+  return new Set([...modeOnly].filter((file) => !changed.has(file)));
+}
+
 /**
- * The pipeline owns `changes-package-source`: every chunk and unattributed
- * file loses it, then those in a pnpm, npm or yarn lockfile whose summary
- * fires the rule gain it, and those in a changed registry config file. A
- * lockfile with no summary fires.
+ * Whether `changes-package-source` fires on a file, read once per path. A
+ * lockfile whose patches only change its mode has no summary yet keeps its
+ * bytes, so it does not fire; a registry config file fires on any change.
  */
-export function flagPackageSourceChanges<Chunk extends FiledChunk>(
-  chunks: readonly Chunk[],
-  unattributed: readonly UnattributedFile[],
+function createFiresReader(
   summaries: ReadonlyMap<string, LockfileSummary>,
   context: PackageSourceContext,
-): PackageSourceFlags<Chunk> {
+  modeOnlyPaths: ReadonlySet<string>,
+): (path: string) => boolean {
   const firesByPath = new Map<string, boolean>();
-  function readFires(path: string): boolean {
+  return (path) => {
     const known = firesByPath.get(path);
     if (known !== undefined) {
       return known;
     }
     const summary = summaries.get(path);
+    const lockfileChanged = isPackageLockfile(path) && !modeOnlyPaths.has(path);
     const lockfileFires =
-      isPackageLockfile(path) &&
+      lockfileChanged &&
       (summary === undefined || changesPackageSource(summary, context));
     const configFires =
       isRegistryConfigPath(path) || context.registryConfigFiles.has(path);
     const fires = lockfileFires || configFires;
     firesByPath.set(path, fires);
     return fires;
-  }
+  };
+}
 
+/**
+ * A remainder entry with no ranges for each firing file no chunk or
+ * remainder entry carries: a rename, a mode change or a binary diff has no
+ * changed line to hold the flag.
+ */
+function listUncarriedFiles(
+  fileDiffs: readonly FileDiff[],
+  carried: ReadonlySet<string>,
+  readFires: (path: string) => boolean,
+): UnattributedFile[] {
+  const listed = new Set<string>();
+  const uncarried: UnattributedFile[] = [];
+  for (const fileDiff of fileDiffs) {
+    const skip = listed.has(fileDiff.file) || !readFires(fileDiff.file);
+    if (skip) {
+      continue;
+    }
+    listed.add(fileDiff.file);
+    if (listHeadPathSpellings(fileDiff).some((path) => carried.has(path))) {
+      continue;
+    }
+    uncarried.push({
+      file: fileDiff.file,
+      addedRanges: [],
+      removedRanges: [],
+      riskSurface: [CHANGES_PACKAGE_SOURCE],
+    });
+  }
+  return uncarried;
+}
+
+/**
+ * The pipeline owns `changes-package-source`: every chunk and unattributed
+ * file loses it, then those in a pnpm, npm or yarn lockfile whose summary
+ * fires the rule gain it, and those in a changed registry config file. A
+ * lockfile with no summary fires unless its patches only change its mode.
+ * A firing file of `fileDiffs` that nothing
+ * carries joins the remainder with no ranges.
+ */
+export function flagPackageSourceChanges<Chunk extends FiledChunk>(
+  chunks: readonly Chunk[],
+  unattributed: readonly UnattributedFile[],
+  summaries: ReadonlyMap<string, LockfileSummary>,
+  context: PackageSourceContext,
+  fileDiffs: readonly FileDiff[],
+): PackageSourceFlags<Chunk> {
+  const readFires = createFiresReader(
+    summaries,
+    context,
+    listModeOnlyLockfiles(fileDiffs),
+  );
   function reflag(riskSurface: readonly string[], path: string): string[] {
     const kept = riskSurface.filter((attr) => attr !== CHANGES_PACKAGE_SOURCE);
     return readFires(path) ? [...kept, CHANGES_PACKAGE_SOURCE] : kept;
@@ -445,5 +538,14 @@ export function flagPackageSourceChanges<Chunk extends FiledChunk>(
     return flagged;
   });
 
-  return { chunks: flaggedChunks, unattributed: flaggedFiles };
+  const carried = new Set([
+    ...chunks.map((chunk) => chunk.file),
+    ...unattributed.map((file) => file.file),
+  ]);
+  const uncarried = listUncarriedFiles(fileDiffs, carried, readFires);
+
+  return {
+    chunks: flaggedChunks,
+    unattributed: [...flaggedFiles, ...uncarried],
+  };
 }

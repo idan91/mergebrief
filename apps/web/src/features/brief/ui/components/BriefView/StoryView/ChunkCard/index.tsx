@@ -10,7 +10,10 @@ import {
   reviewCommentsForChunk,
 } from "../../../../../model/utils/review-comments";
 import { buildChunkComparisonView } from "../../../../../model/comparison/runs";
-import { isUnattributedRemainderChunk } from "../../../../../model/utils/remainder";
+import {
+  hasNoChangedLines,
+  isUnattributedRemainderChunk,
+} from "../../../../../model/utils/remainder";
 import type {
   AddressedReviewComment,
   BriefChunk,
@@ -244,6 +247,7 @@ export const ChunkCard = memo(function ChunkCard({
   });
 
   const riskChips = riskChipView(chunk.riskSurface);
+  const showsNoLinesNote = hasNoChangedLines(chunk);
   const comparisonView = useMemo(
     () => buildChunkComparisonView(chunk, comparison.marks),
     [chunk, comparison.marks],
@@ -343,7 +347,9 @@ export const ChunkCard = memo(function ChunkCard({
               size={IconSizes.SM}
             />
           </span>
-          <span className={styles["file"]}>{chunk.file}</span>
+          <span className={styles["file"]}>
+            <bdi dir="ltr">{chunk.file}</bdi>
+          </span>
         </button>
         <CopyButton
           className={styles["copyPath"]}
@@ -494,29 +500,35 @@ export const ChunkCard = memo(function ChunkCard({
               rows={conversationSplit.botGroups}
             />
           ) : null}
-          <DiffTable
-            tokensByRow={tokensByRow}
-            tokensPending={diffPending}
-            view={diffView}
-            expansion={expansion}
-            hiddenThreads={hiddenThreads}
-            fileThreads={fileThreads}
-            jumpToLine={jumpToLine}
-            deriveChunkUrl={shareChunk?.deriveUrl}
-            lineOwners={lineOwners}
-            conversationComposer={conversationComposer}
-            conversationThreadsByRow={conversationSplit.byRow}
-            addressedComments={inlineReviewComments}
-            chunk={chunk}
-            comparisonView={comparisonView}
-            comparisonSource={comparison.source}
-            comparisonSkipReason={comparison.skipReason}
-            reviewCommentLabel={
-              hasLinkedAddressedComments
-                ? t("brief.chunk.addressed")
-                : t("brief.chunk.reviewComment", { context: "inline" })
-            }
-          />
+          {showsNoLinesNote ? (
+            <p className={styles["noLines"]}>
+              {t("brief.chunk.noChangedLines")}
+            </p>
+          ) : (
+            <DiffTable
+              tokensByRow={tokensByRow}
+              tokensPending={diffPending}
+              view={diffView}
+              expansion={expansion}
+              hiddenThreads={hiddenThreads}
+              fileThreads={fileThreads}
+              jumpToLine={jumpToLine}
+              deriveChunkUrl={shareChunk?.deriveUrl}
+              lineOwners={lineOwners}
+              conversationComposer={conversationComposer}
+              conversationThreadsByRow={conversationSplit.byRow}
+              addressedComments={inlineReviewComments}
+              chunk={chunk}
+              comparisonView={comparisonView}
+              comparisonSource={comparison.source}
+              comparisonSkipReason={comparison.skipReason}
+              reviewCommentLabel={
+                hasLinkedAddressedComments
+                  ? t("brief.chunk.addressed")
+                  : t("brief.chunk.reviewComment", { context: "inline" })
+              }
+            />
+          )}
         </div>
       ) : null}
     </article>

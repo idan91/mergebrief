@@ -9,6 +9,7 @@ import type {
 import type { RepoContext } from "../../src/generation/repo-context";
 import type { GenerationWarning } from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github/types";
+import type { LockfileSummary } from "../../src/generation/shortened/types";
 import { RiskSurfaceAttributes, type Brief } from "../../src/types";
 import { FakeGenerator } from "../helpers";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
@@ -667,5 +668,101 @@ describe("generateBrief, an anchored run", () => {
     expect(findIssues(result.warnings, "anchored stitch")).toContainEqual(
       expect.stringContaining("carried chunk c1 on src/a.ts dropped"),
     );
+  });
+});
+
+describe("generateBrief, a flagged file with no changed line", () => {
+  const CHANGES_PACKAGE_SOURCE = RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE;
+  const NO_SUMMARIES: ReadonlyMap<string, LockfileSummary> = new Map();
+  const coveringOutput = {
+    ...baseOutput,
+    chunks: [
+      makeChunk("c1", "g1", "src/a.ts", 2),
+      makeChunk("c2", "g2", "src/b.ts", 3),
+    ],
+  };
+  const renamedConfig = [
+    "diff --git a/packages/legacy/.npmrc b/.npmrc",
+    "similarity index 100%",
+    "rename from packages/legacy/.npmrc",
+    "rename to .npmrc",
+  ];
+  const binaryLockfile = [
+    "diff --git a/yarn.lock b/yarn.lock",
+    "index 1111111..2222222 100644",
+    "Binary files a/yarn.lock and b/yarn.lock differ",
+  ];
+  const modeOnlyLockfile = [
+    "diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml",
+    "old mode 100644",
+    "new mode 100755",
+  ];
+  const modeOnlyConfig = [
+    "diff --git a/.npmrc b/.npmrc",
+    "old mode 100644",
+    "new mode 100755",
+  ];
+
+  async function runWithTail(
+    tail: string[],
+    lockfileSummaries: ReadonlyMap<string, LockfileSummary>,
+    output: unknown = coveringOutput,
+  ): Promise<Brief> {
+    const result = await generateBrief({
+      pr: { ...pr, diff: `${wholeDiff}${tail.join("\n")}\n` },
+      headIndex: 1,
+      commitRange,
+      generator: makeQueuedGenerator([output]),
+      lockfileSummaries,
+    });
+    return result.brief;
+  }
+
+  it.each([
+    ["a renamed registry config", renamedConfig, NO_SUMMARIES, ".npmrc"],
+    ["a binary lockfile", binaryLockfile, NO_SUMMARIES, "yarn.lock"],
+    [
+      "a mode change on a registry config",
+      modeOnlyConfig,
+      NO_SUMMARIES,
+      ".npmrc",
+    ],
+  ])(
+    "carries the flag on %s in the remainder",
+    async (_label, tail, summaries, file) => {
+      const brief = await runWithTail(tail, summaries);
+
+      expect(brief.unattributed).toEqual([
+        {
+          file,
+          addedRanges: [],
+          removedRanges: [],
+          riskSurface: [CHANGES_PACKAGE_SOURCE],
+        },
+      ]);
+    },
+  );
+
+  it("adds no entry for a lockfile whose patch only changes its mode", async () => {
+    const brief = await runWithTail(modeOnlyLockfile, NO_SUMMARIES);
+
+    expect(brief.unattributed).toEqual([]);
+  });
+
+  it("adds no entry for a flagged lockfile a chunk already carries", async () => {
+    const changedLockfile = [
+      "diff --git a/yarn.lock b/yarn.lock",
+      "@@ -0,0 +1 @@",
+      "+a@1.0.0:",
+    ];
+    const output = {
+      ...coveringOutput,
+      chunks: [...coveringOutput.chunks, makeChunk("c3", "g2", "yarn.lock", 1)],
+    };
+
+    const brief = await runWithTail(changedLockfile, NO_SUMMARIES, output);
+
+    expect(brief.unattributed).toEqual([]);
+    expect(brief.chunks.at(-1)?.riskSurface).toEqual([CHANGES_PACKAGE_SOURCE]);
   });
 });

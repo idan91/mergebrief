@@ -104,7 +104,7 @@ export function FileRow({
           title={row.file}
           onClick={() => jumpToChunk(jumpChunkId)}
         >
-          {row.file}
+          <bdi dir="ltr">{row.file}</bdi>
         </LinkButton>
       </div>
       <div className={styles["chipsRow"]}>

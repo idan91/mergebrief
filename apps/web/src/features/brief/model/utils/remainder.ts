@@ -1,7 +1,12 @@
 import type { ValueOf } from "types/utils";
 import { forwardDiff } from "./diff-slicing";
 
-import { Concerns, Roles, type LineRange } from "brief-core/types";
+import {
+  Concerns,
+  RiskSurfaceAttributes,
+  Roles,
+  type LineRange,
+} from "brief-core/types";
 import { type BriefChunk, type UnattributedFile } from "../types";
 
 export const GroupViewKinds = {
@@ -50,7 +55,7 @@ export function hydrateRemainderGroup(
     return undefined;
   }
 
-  const leftover = files.filter((file) => countLeftoverLines(file) > 0);
+  const leftover = files.filter(isShownRemainderFile);
   if (leftover.length === 0) {
     return undefined;
   }
@@ -87,6 +92,24 @@ export function hydrateRemainderGroup(
   }
 
   return { chunks, added, deleted };
+}
+
+/**
+ * A file with leftover lines, or with none but the package source flag: the
+ * pipeline writes a file with no changed line only to carry that flag.
+ */
+function isShownRemainderFile(file: UnattributedFile): boolean {
+  const carriesPackageSource =
+    file.riskSurface?.includes(RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE) ??
+    false;
+  return countLeftoverLines(file) > 0 || carriesPackageSource;
+}
+
+/** A remainder chunk the pipeline wrote only to carry a flag. */
+export function hasNoChangedLines(chunk: BriefChunk): boolean {
+  const noRanges =
+    chunk.addedRanges.length === 0 && chunk.removedRanges.length === 0;
+  return noRanges && isUnattributedRemainderChunk(chunk);
 }
 
 function countLeftoverLines(file: UnattributedFile): number {

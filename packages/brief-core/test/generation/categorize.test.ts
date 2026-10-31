@@ -1172,6 +1172,49 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
     expect(quiet.chunks.map((chunk) => chunk.riskSurface)).toEqual([[]]);
   });
 
+  it("lists the flagged files no delta chunk carries", async () => {
+    const incrementalDiff = [
+      makeSecretDiff().trimEnd(),
+      "diff --git a/packages/legacy/.npmrc b/.npmrc",
+      "similarity index 100%",
+      "rename from packages/legacy/.npmrc",
+      "rename to .npmrc",
+      "diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml",
+      "@@ -1 +1 @@",
+      "-a@1.0.0",
+      "+a@1.1.0",
+      "",
+    ].join("\n");
+
+    const delta = await categorizeDelta(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff,
+      },
+      makeFakeGenerator(deltaBriefGen),
+    );
+
+    expect(delta.packageSourceFiles).toEqual([".npmrc", "pnpm-lock.yaml"]);
+  });
+
+  it("leaves the flagged file list off a delta with none", async () => {
+    const delta = await categorizeDelta(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff: makeSecretDiff(),
+      },
+      makeFakeGenerator(deltaBriefGen),
+    );
+
+    expect(delta).not.toHaveProperty("packageSourceFiles");
+  });
+
   it("strips forged fences from the delta prompt's PR text and diff", async () => {
     const generator = makeFakeGenerator(deltaBriefGen);
 

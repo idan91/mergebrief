@@ -15,6 +15,10 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-27)
 
+- **Added** optional `packageSourceFiles` on the `read-delta` body
+  (`GET /api/repos/:repoId/pulls/:prNumber/delta`): head paths of the span's
+  files that `changes-package-source` fires on but no delta chunk carries (a
+  rename, a mode change or a binary file). Absent when there are none.
 - **Added** `read-brief-layout`
   (`GET /api/repos/:repoId/pulls/:prNumber/brief-layout?base=&head=`): the
   per-chunk row counts stored beside the brief for the span, as

@@ -45,7 +45,7 @@ export function ResolvedFold({
                 title={row.file}
                 onClick={() => jumpToChunk(pickPathJumpChunkId(row))}
               >
-                {row.file}
+                <bdi dir="ltr">{row.file}</bdi>
               </LinkButton>
               <div className={styles["resolvedMeta"]}>
                 {row.flags.map((flag) => (

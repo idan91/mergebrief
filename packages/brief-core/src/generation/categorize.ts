@@ -775,6 +775,7 @@ export async function categorizeDelta(
     [],
     input.lockfileSummaries ?? new Map(),
     readPackageSourceContext(fileDiffs),
+    fileDiffs,
   );
 
   // Warn-only length floor, same posture as the full brief.
@@ -817,6 +818,10 @@ export async function categorizeDelta(
   }
   if (textLength.violations.length > 0) {
     delta.lengthViolations = textLength.violations;
+  }
+  // The delta keeps no remainder, so every entry is a flagged file no chunk carries.
+  if (flagged.unattributed.length > 0) {
+    delta.packageSourceFiles = flagged.unattributed.map((entry) => entry.file);
   }
 
   return delta;

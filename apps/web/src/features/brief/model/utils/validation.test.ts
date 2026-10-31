@@ -235,6 +235,14 @@ describe("parseDeltaBrief", () => {
     expect(parsed.value.chunks[0]?.summary).toBe("Adds AccordionStates.");
   });
 
+  it("keeps the flagged files no delta chunk carries", () => {
+    const body = { ...deltaBody, packageSourceFiles: [".npmrc"] };
+
+    const parsed = parseDeltaBrief(JSON.stringify(body));
+
+    expect(parsed.ok && parsed.value.packageSourceFiles).toEqual([".npmrc"]);
+  });
+
   it("refuses a chunk naming no changed group", () => {
     const stray = { ...deltaBody.chunks[1], changeGroupId: "g9" };
     const body = { ...deltaBody, chunks: [deltaBody.chunks[0], stray] };

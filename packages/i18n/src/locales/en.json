@@ -920,6 +920,7 @@
       "fileDeleted": "Deleted file",
       "readAsPackageChanges": "Read as package changes",
       "readAsCountsOnly": "Read as counts only",
+      "noChangedLines": "No changed lines to show.",
       "drafts_one": "{{count}} draft",
       "drafts_other": "{{count}} drafts",
       "reviewComment": "Review comment",
@@ -1031,7 +1032,8 @@
     },
     "delta": {
       "commentsAddressed": "Comments addressed",
-      "wholePrImpact": "Whole-PR impact"
+      "wholePrImpact": "Whole-PR impact",
+      "packageSourceFilesNote": "No chunk in this delta covers these files."
     },
     "stateBadge": {
       "pullRequest": "pull request ",
@@ -1044,6 +1046,7 @@
       "label": "Unattributed",
       "remainderTitle": "Unattributed remainder",
       "remainderSummary": "The model did not attribute these lines.",
+      "flagsOnlySummary": "These files have no changed lines. They are listed for the flags they raise.",
       "calloutNote": "They are reviewed as the last change-group.",
       "jumpToGroup": "Jump to group"
     },

@@ -153,6 +153,8 @@ export interface Brief extends Omit<
   commentsAddressed?: string;
   reviewComments?: AddressedReviewComment[];
   wholePrImpact?: string;
+  /** A Delta Brief's flagged files that no delta chunk covers. */
+  packageSourceFiles?: string[] | undefined;
 }
 
 /**

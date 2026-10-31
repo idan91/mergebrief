@@ -116,8 +116,8 @@
     user-select: text;
 
     // Truncate from the start: the tail of a path (filename) is the part
-    // that identifies the chunk. RTL flips the ellipsis side; the latin
-    // path itself stays one LTR run, so glyph order is unchanged.
+    // that identifies the chunk. RTL flips the ellipsis side; the path sits
+    // in an LTR isolate, or a leading dot moves to the end.
     direction: rtl;
     text-align: start;
   }
@@ -193,6 +193,16 @@
     border-block-start: 0;
     border-end-start-radius: var(--radius-panel);
     border-end-end-radius: var(--radius-panel);
+  }
+
+  // One line in the empty-diff note's reserved height, so a card held at
+  // its stored counts keeps its place when this replaces the skeleton.
+  .noLines {
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(16px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    line-height: functions.to-rem(20px);
   }
 
   .deltaSummary {

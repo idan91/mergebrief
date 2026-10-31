@@ -63,6 +63,18 @@ const unflaggedRemainderModel = buildBriefViewModel({
   ],
 });
 
+const carrierOnlyModel = buildBriefViewModel({
+  ...briefFixture,
+  unattributed: [
+    {
+      file: ".npmrc",
+      addedRanges: [],
+      removedRanges: [],
+      riskSurface: [RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE],
+    },
+  ],
+});
+
 const attributedModel = buildBriefViewModel(briefFixture);
 
 const ok = () => Promise.resolve({ ok: true as const, value: undefined });
@@ -240,5 +252,20 @@ describe("RemainderGroupCard flags", () => {
 
     expect(screen.getByRole("article")).toBeTruthy();
     expect(screen.queryByRole("region")).toBeNull();
+  });
+});
+
+describe("RemainderGroupCard with only flagged files and no lines", () => {
+  it("says the files are listed for their flags and shows no line count", () => {
+    const remainder = findRemainder(carrierOnlyModel);
+    mountCard(carrierOnlyModel, remainder);
+
+    expect(
+      screen.getByText(appI18n.t("brief.unattributed.flagsOnlySummary")),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(appI18n.t("brief.unattributed.remainderSummary")),
+    ).toBeNull();
+    expect(document.querySelector("[class*='lines']")).toBeNull();
   });
 });

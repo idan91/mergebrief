@@ -48,3 +48,18 @@ export function makePnpmLockfile(packages: Record<string, string>): string {
     "",
   ].join("\n");
 }
+
+export function summarizePnpm(
+  before: Record<string, string>,
+  after: Record<string, string>,
+): LockfileSummary {
+  const summary = summarizeTexts(
+    "pnpm-lock.yaml",
+    makePnpmLockfile(before),
+    makePnpmLockfile(after),
+  );
+  if (summary === undefined) {
+    throw new Error("pnpm-lock.yaml is a lockfile");
+  }
+  return summary;
+}

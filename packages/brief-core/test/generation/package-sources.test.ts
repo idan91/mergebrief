@@ -17,6 +17,7 @@ import {
 import {
   makePnpmLockfile,
   makeSides,
+  summarizePnpm,
   summarizeTexts,
 } from "./shortened/helpers";
 
@@ -41,21 +42,6 @@ function makeNpmLockfile(packages: Record<string, object>): string {
     lockfileVersion: 3,
     packages: { "": {}, ...packages },
   });
-}
-
-function summarizePnpm(
-  before: Record<string, string>,
-  after: Record<string, string>,
-): LockfileSummary {
-  const summary = summarizeTexts(
-    "pnpm-lock.yaml",
-    makePnpmLockfile(before),
-    makePnpmLockfile(after),
-  );
-  if (summary === undefined) {
-    throw new Error("pnpm-lock.yaml is a lockfile");
-  }
-  return summary;
 }
 
 function makeChunk(file: string, riskSurface: string[] = []) {
@@ -819,30 +805,33 @@ describe("flagPackageSourceChanges", () => {
   ])(
     "flags a config chunk keyed apart from %s",
     (_label, chunkPath, file, patch) => {
-      const context = readPackageSourceContext([{ file, patch }]);
+      const fileDiffs = [{ file, patch }];
 
       const flagged = flagPackageSourceChanges(
         [makeChunk(chunkPath)],
         [],
         new Map(),
-        context,
+        readPackageSourceContext(fileDiffs),
+        fileDiffs,
       );
 
       expect(flagged.chunks[0]?.riskSurface).toEqual([CHANGES_PACKAGE_SOURCE]);
+      expect(flagged.unattributed).toEqual([]);
     },
   );
 
   it("flags a registry config change with no lockfile change", () => {
-    const context = readPackageSourceContext([
+    const fileDiffs = [
       makeConfigDiff(".npmrc", "+registry=https://evil.example/"),
       makeConfigDiff("src/a.ts", "+registry"),
-    ]);
+    ];
 
     const flagged = flagPackageSourceChanges(
       [makeChunk(".npmrc"), makeChunk("src/a.ts")],
       [],
       new Map(),
-      context,
+      readPackageSourceContext(fileDiffs),
+      fileDiffs,
     );
 
     expect(flagged.chunks.map((chunk) => chunk.riskSurface)).toEqual([
@@ -876,6 +865,7 @@ describe("flagPackageSourceChanges", () => {
       [],
       summaries,
       NO_CONFIG_CHANGE,
+      [],
     );
 
     expect(flagged.chunks.map((chunk) => chunk.riskSurface)).toEqual([
@@ -884,6 +874,33 @@ describe("flagPackageSourceChanges", () => {
       [CHANGES_PACKAGE_SOURCE],
       [],
       [],
+    ]);
+  });
+
+  it("fires on a mode-only patch that shares its path with a changed one", () => {
+    const fileDiffs = [
+      {
+        file: "pnpm-lock.yaml",
+        patch:
+          "diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml\nold mode 100644\nnew mode 100755",
+      },
+      {
+        file: "pnpm-lock.yaml",
+        patch:
+          "diff --git a/x b/pnpm-lock.yaml b/x b/pnpm-lock.yaml\nBinary files differ",
+      },
+    ];
+
+    const flagged = flagPackageSourceChanges(
+      [],
+      [],
+      new Map(),
+      NO_CONFIG_CHANGE,
+      fileDiffs,
+    );
+
+    expect(flagged.unattributed.map((file) => file.file)).toEqual([
+      "pnpm-lock.yaml",
     ]);
   });
 
@@ -902,6 +919,7 @@ describe("flagPackageSourceChanges", () => {
       [],
       new Map(),
       NO_CONFIG_CHANGE,
+      [],
     );
 
     expect(summarizeTexts(file, lockfile, lockfile)).toBeUndefined();
@@ -914,6 +932,7 @@ describe("flagPackageSourceChanges", () => {
       [],
       new Map(),
       NO_CONFIG_CHANGE,
+      [],
     );
 
     expect(flagged.chunks[0]?.riskSurface).toEqual([CHANGES_PACKAGE_SOURCE]);
@@ -937,6 +956,7 @@ describe("flagPackageSourceChanges", () => {
       ],
       new Map(),
       NO_CONFIG_CHANGE,
+      [],
     );
 
     expect(flagged.unattributed.map((file) => file.riskSurface)).toEqual([

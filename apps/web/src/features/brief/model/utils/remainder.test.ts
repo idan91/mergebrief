@@ -13,7 +13,7 @@ import {
  * Hydration invariants (spec):
  * - absent field → no group
  * - empty array → no group
- * - files whose ranges sum to 0 → no group
+ * - files whose ranges sum to 0 → no group, unless the package source flag rides one
  * - one leftover file → one chunk, persisted order
  * - two leftover files → two chunks, persisted order
  * - collision with an existing id → append an index
@@ -107,6 +107,34 @@ describe("hydrateRemainderGroup", () => {
         new Set(),
       ),
     ).toBeUndefined();
+  });
+
+  it("keeps a file with no lines that carries the package source flag", () => {
+    const flagged: UnattributedFile = {
+      file: ".npmrc",
+      addedRanges: [],
+      removedRanges: [],
+      riskSurface: [RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE],
+    };
+
+    const hydration = hydrateRemainderGroup([flagged], new Set());
+
+    expect(hydration?.chunks.map((chunk) => chunk.file)).toEqual([".npmrc"]);
+    expect(hydration?.chunks[0]?.loc).toEqual({ added: 0, deleted: 0 });
+    expect(hydration?.chunks[0]?.riskSurface).toEqual([
+      RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE,
+    ]);
+  });
+
+  it("drops a file with no lines that carries another flag", () => {
+    const flagged: UnattributedFile = {
+      file: "src/empty.ts",
+      addedRanges: [],
+      removedRanges: [],
+      riskSurface: [RiskSurfaceAttributes.ADDS_SECRET],
+    };
+
+    expect(hydrateRemainderGroup([flagged], new Set())).toBeUndefined();
   });
 
   it("forwards a lazy diff without reading it", () => {

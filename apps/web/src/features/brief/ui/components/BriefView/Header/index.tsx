@@ -193,9 +193,16 @@ export function Header({
   const progressStyle: ProgressBarStyle = {
     "--progress-scale": `${progress / 100}`,
   };
+  // The stat counts lines; a remainder holding only flagged files with no
+  // changed line has none to count.
   const remainderGroup = model.groups.find(
-    (group): group is UnattributedRemainderGroupView =>
-      group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    (group): group is UnattributedRemainderGroupView => {
+      const changedLines = group.added + group.deleted;
+      const isCountedRemainder =
+        group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER &&
+        changedLines > 0;
+      return isCountedRemainder;
+    },
   );
 
   return (

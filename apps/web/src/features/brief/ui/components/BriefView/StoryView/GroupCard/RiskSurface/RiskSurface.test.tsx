@@ -372,3 +372,40 @@ describe("RiskSurface reader's file", () => {
     expect(getCurrentRows()).toHaveLength(0);
   });
 });
+
+describe("RiskSurface path order", () => {
+  function makeDotFileBrief(): Brief {
+    const core = briefFixture.chunks[0];
+    if (core === undefined) {
+      throw new Error("fixture missing core chunk");
+    }
+    const dotFile: BriefChunk = {
+      ...core,
+      file: ".npmrc",
+      riskSurface: ["changes-package-source"],
+    };
+    return { ...briefFixture, chunks: [dotFile] };
+  }
+
+  it("isolates an open file's path as left-to-right text", () => {
+    renderSurface(makeDotFileBrief());
+
+    const path = screen.getByRole("button", { name: ".npmrc" });
+    expect(path.querySelector("bdi")?.getAttribute("dir")).toBe("ltr");
+  });
+
+  it("isolates a resolved file's path as left-to-right text", () => {
+    const brief = makeDotFileBrief();
+    const { flags } = requireAttributed(brief);
+    const dispositions: Record<string, Disposition | undefined> = {};
+    for (const flag of flags) {
+      dispositions[flag.id] = DISMISSED;
+    }
+    renderSurface(brief, { dispositions });
+
+    fireEvent.click(screen.getByRole("button", { name: "1 resolved" }));
+
+    const path = screen.getByRole("button", { name: ".npmrc" });
+    expect(path.querySelector("bdi")?.getAttribute("dir")).toBe("ltr");
+  });
+});
