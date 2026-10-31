@@ -8,6 +8,9 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 /** Driver-agnostic so the node-postgres and PGlite handles both satisfy it. */
 export type AppDrizzle = PgDatabase<PgQueryResultHKT>;
 
+/** The handle a `transaction` callback receives. */
+export type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
+
 /** Module-private brand key: not exported, so `AppDatabase` is opaque outside. */
 const INTERNAL: unique symbol = Symbol("persistence.db.internal");
 

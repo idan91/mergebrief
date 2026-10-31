@@ -7,7 +7,7 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { traceStore } from "../trace-store";
 import { readBriefSessionFacts } from "brief-core/artifact";
-import { type AppDatabase, internal } from "../../db/handle";
+import { type AppDatabase, internal, type Tx } from "../../db/handle";
 import { brief } from "../../schema/brief";
 import { comparisonMarks } from "../../schema/comparison-marks";
 import { delta } from "../../schema/delta";
@@ -17,7 +17,7 @@ import { resolveScope, ScopeViolationError } from "../scope";
 import type { ScopeContext } from "../scope-context";
 import type { BriefRowId, PullRequestRowId } from "../../types";
 import { ComparisonMarksBodySchema, HunkSpansSchema } from "./schemas";
-import { createSpanArtifactAccess, type Tx } from "./span-artifact";
+import { createSpanArtifactAccess } from "./span-artifact";
 import type {
   ArtifactStore,
   BriefStore,

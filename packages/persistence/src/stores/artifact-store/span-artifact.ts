@@ -1,7 +1,7 @@
 // The one reader and writer for the span artifact tables (`brief`, `delta`,
 // `revision_narrative`, `comparison_marks`, `hunk_span`): rows keyed by
 // `(installation_id, pull_request_id, <lower sha>, head_sha)` under a
-// `pull_request`. Tenancy lives here and nowhere else: a read filters through
+// `pull_request`. Their tenancy lives here: a read filters through
 // the scope, a write stamps the scope and verifies the parent in the same
 // transaction. A per-table store names its table, its lower-bound column and
 // the columns a read or write carries; it reaches the rows no other way.
@@ -14,12 +14,9 @@ import type {
   PgTable,
   PgUpdateSetSource,
 } from "drizzle-orm/pg-core";
-import type { AppDrizzle } from "../../db/handle";
-import { pullRequest } from "../../schema/pull-request";
+import type { AppDrizzle, Tx } from "../../db/handle";
 import type { InstallationId, PullRequestRowId } from "../../types";
-import { type RowScope, ScopeViolationError } from "../scope";
-
-export type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
+import { assertPullRequestInScope, type RowScope } from "../scope";
 
 /** The columns every span artifact table carries under the same name. */
 export interface SpanArtifactColumns {
@@ -127,30 +124,12 @@ export function createSpanArtifactAccess<TTable extends SpanArtifactTable>(
     return onSpan ?? inScope;
   }
 
-  async function assertParentInScope(
-    tx: Tx,
-    pullRequestId: PullRequestRowId,
-  ): Promise<void> {
-    const scopedParent = and(
-      scope.matchesPullRequest(),
-      eq(pullRequest.id, pullRequestId),
-    );
-    const rows = await tx
-      .select({ id: pullRequest.id })
-      .from(pullRequest)
-      .where(scopedParent)
-      .limit(1);
-    if (rows[0] === undefined) {
-      throw new ScopeViolationError("pull_request", pullRequestId, scope.label);
-    }
-  }
-
   return {
     write(write) {
       assertSetLeavesStampAlone(write.set);
 
       return db.transaction(async (tx) => {
-        await assertParentInScope(tx, write.pullRequestId);
+        await assertPullRequestInScope(tx, scope, write.pullRequestId);
         await write.assertAnchorInScope?.(tx);
 
         const rows = await tx

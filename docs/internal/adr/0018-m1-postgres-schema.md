@@ -388,6 +388,7 @@ github_grant
 | `review_submitted_review` | session-owned | GitHub review ids, for conversation reconciliation |
 | `inbox_archive` | per-reviewer view state | key `(installation_id, pull_request_id, reviewer_id)`, nulls not distinct for the url world; FK `pull_request` cascades; nullable `head_sha` anchors the archive on the latest brief's head, lifted once a brief at a new head exists |
 | `generation` | mutable CQRS status projection | poll target and run claim; not a domain entity |
+| `generation_part` | resumable run scratch (inline `body`) | a multi-call run's finished detail calls; key `(installation_id, pull_request_id, base_sha, head_sha, part_key)`, nulls not distinct for the url world; FK `pull_request` cascades; chunks-only strict body; deleted once the brief is written |
 | `generation_attempt` | spend ledger | one row per paid run, unique `run_id`, no FK to `generation`; the daily cap's counter |
 | `audit_log` | append-only boundary | numeric-only, no FKs; retention configurable (`AUDIT_RETENTION_DAYS`, unset = forever); `source` marks the scope world |
 | `user_settings` | per-user settings | NON-tenant-scoped (D14); keyed `gh_user_id`; typed columns only |

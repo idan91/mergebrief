@@ -336,6 +336,20 @@ export const ChunkGenerationSchema = buildChunkGenerationSchema(modelRiskEnum);
 export const ChunkSchema = buildChunkSchema(storedRiskEnum);
 export type ChunkGeneration = z.infer<typeof ChunkGenerationSchema>;
 
+/** Any attribute name a run may have offered: the built-ins and a repo's custom names share this shape. */
+const partRiskToken: z.ZodType<string> = z
+  .string()
+  .regex(CUSTOM_ATTRIBUTE_NAME_PATTERN)
+  .max(CUSTOM_ATTRIBUTE_NAME_MAX_CHARS);
+
+/**
+ * A detail call's chunk as a multi-call run stores it between calls: the
+ * generation shape, no `loc`, closed against any key beyond attribution so a
+ * stored part never carries code text.
+ */
+export const PartChunkSchema =
+  buildChunkGenerationSchema(partRiskToken).strict();
+
 export const ChangeGroupSchema = z.object({
   id: z
     .string()

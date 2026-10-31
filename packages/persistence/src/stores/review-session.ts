@@ -28,7 +28,7 @@ import {
   DraftCommentStatuses,
 } from "types/comments";
 import { AnchorStates } from "types/generations";
-import type { AppDrizzle } from "../db/handle";
+import type { AppDrizzle, Tx } from "../db/handle";
 import { brief } from "../schema/brief";
 import { disposition } from "../schema/disposition";
 import { hunkSpan } from "../schema/hunk-span";
@@ -165,8 +165,6 @@ class SessionOperationRefusal extends Error {
     this.refusal = refusal;
   }
 }
-
-type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
 
 /** A read that works inside a transaction or straight off the handle. */
 type Reader = Tx | AppDrizzle;

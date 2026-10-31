@@ -8,9 +8,10 @@
 // context, never a `RowScope`; only `ScopeViolationError` leaves the package.
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import type { Tx } from "../db/handle";
 import { pullRequest } from "../schema/pull-request";
 import { isOwnerContext, type ScopeContext } from "./scope-context";
-import type { InstallationId, ReviewerId } from "../types";
+import type { InstallationId, PullRequestRowId, ReviewerId } from "../types";
 import {
   PullRequestSources,
   type PullRequestSource,
@@ -133,4 +134,28 @@ export function resolveScope(ctx: ScopeContext): RowScope {
   return isOwnerContext(ctx)
     ? resolveOwnerScope(ctx.ownerUserId)
     : resolveTenantScope(ctx.installationId);
+}
+
+/**
+ * A child row's write checks its parent `pull_request` in the same
+ * transaction: a parent outside the scope throws `ScopeViolationError`
+ * before any insert.
+ */
+export async function assertPullRequestInScope(
+  tx: Tx,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+): Promise<void> {
+  const scopedParent = and(
+    scope.matchesPullRequest(),
+    eq(pullRequest.id, pullRequestId),
+  );
+  const rows = await tx
+    .select({ id: pullRequest.id })
+    .from(pullRequest)
+    .where(scopedParent)
+    .limit(1);
+  if (rows[0] === undefined) {
+    throw new ScopeViolationError("pull_request", pullRequestId, scope.label);
+  }
 }
