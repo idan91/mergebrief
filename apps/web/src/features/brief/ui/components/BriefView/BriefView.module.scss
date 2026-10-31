@@ -49,6 +49,17 @@
     }
   }
 
+  .diffTimeoutBand {
+    margin-block: functions.to-rem(12px) functions.to-rem(20px);
+    margin-inline-end: var(--sidebar-w);
+    padding-inline: var(--page-gutter);
+
+    > * {
+      max-inline-size: functions.to-rem(880px);
+      margin-inline: auto;
+    }
+  }
+
   body:has(.readingColumn[data-zen="on"]) {
     background: var(--focus-page-bg);
   }

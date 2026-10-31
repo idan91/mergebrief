@@ -32,8 +32,13 @@ import {
 } from "../../../../model/comparison/types";
 import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
 import type { FileRowsCache } from "../../../../model/file-rows/cache";
+import { DiffTimeoutNotice } from "../../DiffTimeoutNotice";
 import { DeltaContext } from "../DeltaContext";
-import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
+import {
+  type DeltaSpanLanding,
+  type DeltaSpanStatus,
+  DeltaSpanStatuses,
+} from "../types";
 import { GuestDiff } from "./GuestDiff";
 import { RawSpanDiff } from "./RawSpanDiff";
 import { GuestDiffVariants } from "./GuestDiff/types";
@@ -79,6 +84,8 @@ export interface ChangesOnlyViewProps {
   review?: ChangesReviewWiring | undefined;
   /** Where the delta's rows stand; a card shows its summary first, rows when they land. */
   deltaSpan?: DeltaSpanStatus | undefined;
+  /** The delta span's timeout retry: one notice above the cards. */
+  deltaSpanLanding?: DeltaSpanLanding | undefined;
   /** Where a flag's or a card's jump lands: the screen exits to Full and lands on the chunk. */
   jumpToChunk?: ((chunkId: string) => void) | undefined;
   /** The previous-brief span diff by file; a narrative card takes its removed lines from it. */
@@ -97,6 +104,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
         brief={props.brief}
         delta={props.delta}
         deltaSpan={props.deltaSpan ?? DeltaSpanStatuses.ABSENT}
+        deltaSpanLanding={props.deltaSpanLanding}
         fullModel={props.model}
         jumpToChunk={jumpToChunk}
         review={props.review}
@@ -506,6 +514,7 @@ interface LastReviewChangesProps {
   fullModel: BriefViewModel;
   delta: Brief | null;
   deltaSpan: DeltaSpanStatus;
+  deltaSpanLanding: DeltaSpanLanding | undefined;
   jumpToChunk: (chunkId: string) => void;
   review: ChangesReviewWiring | undefined;
 }
@@ -525,6 +534,7 @@ function LastReviewChanges({
   fullModel,
   delta,
   deltaSpan,
+  deltaSpanLanding,
   jumpToChunk,
   review,
 }: LastReviewChangesProps) {
@@ -539,8 +549,14 @@ function LastReviewChanges({
   }
   const model = buildBriefViewModel(delta);
   const fullModelChunks = fullModel.groups.flatMap((group) => group.chunks);
+  const spanRetry = deltaSpanLanding?.retry;
   return (
-    <div className={styles["changesOnly"]}>
+    <div
+      className={styles["changesOnly"]}
+      data-testid="last-review-changes"
+      ref={deltaSpanLanding?.sectionRef}
+      tabIndex={-1}
+    >
       <div className={styles["eyebrow"]}>
         {t("brief.changes.eyebrowLastReview")}
       </div>
@@ -549,6 +565,10 @@ function LastReviewChanges({
         <Markdown content={delta.summary} />
       </div>
       <DeltaContext brief={delta} />
+      {spanRetry === undefined ? null : <DiffTimeoutNotice retry={spanRetry} />}
+      <p className="sr-only" role="status">
+        {deltaSpanLanding?.announcement}
+      </p>
       {model.groups.map((group) => {
         if (group.kind !== GroupViewKinds.ATTRIBUTED) {
           return null;

@@ -7,11 +7,21 @@ import { useTranslation } from "react-i18next";
 import { ToolbarButton } from "@web/components/ToolbarButton";
 import { useReviewActions, useReviewFlow } from "@web/features/review/session";
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, type SyntheticEvent, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  type SyntheticEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { ComparisonQuery } from "../../../../../model/comparison/comparison-query";
 import { buildRawSpanDiffChunks } from "../../../../../model/utils/raw-span-diff";
 import type { BriefChunk } from "../../../../../model/types";
+import { DiffTimeoutNotice } from "../../../DiffTimeoutNotice";
+import type { DiffFetchRetry } from "../../../DiffTimeoutNotice/types";
+import { useDiffRetryLanding } from "../../../DiffTimeoutNotice/useDiffRetryLanding";
 import { GuestDiff } from "../GuestDiff";
 import { GuestDiffVariants } from "../GuestDiff/types";
 import type { ChangesReviewWiring } from "../types";
@@ -33,6 +43,14 @@ interface RawSpanDiffState {
   isError: boolean;
   /** The fetch SUCCEEDED, an empty `chunks` then means a no-change span. */
   isSuccess: boolean;
+  /** GitHub did not render the span in time; the body offers a retry. */
+  timeout: DiffFetchRetry | undefined;
+  /** Where focus lands when the span arrives after a timed-out read. */
+  filesRef: RefObject<HTMLDivElement | null>;
+  /** Where it lands when the retry fails with another error. */
+  unavailableRef: RefObject<HTMLParagraphElement | null>;
+  /** The status line's text for that arrival. */
+  announcement: string;
   chunks: BriefChunk[];
 }
 
@@ -52,6 +70,12 @@ function useRawSpanDiff(query: ComparisonQuery<string>): RawSpanDiffState {
     ...query,
     enabled: showRaw && !guarded,
   });
+  const filesRef = useRef<HTMLDivElement>(null);
+  const unavailableRef = useRef<HTMLParagraphElement>(null);
+  const landing = useDiffRetryLanding(
+    diff,
+    () => filesRef.current ?? unavailableRef.current,
+  );
   // `enabled: false` only blocks fetching, react-query still serves a cached
   // body for the same key, so the guard has to veto the cache too.
   const body = guarded ? undefined : diff.data;
@@ -66,6 +90,10 @@ function useRawSpanDiff(query: ComparisonQuery<string>): RawSpanDiffState {
     isLoading: !guarded && diff.isLoading,
     isError: !guarded && diff.isError,
     isSuccess: !guarded && diff.isSuccess,
+    timeout: guarded ? undefined : landing.retry,
+    filesRef,
+    unavailableRef,
+    announcement: landing.announcement,
     chunks,
   };
 }
@@ -87,6 +115,9 @@ export function RawSpanDiff({ query, review, children }: RawSpanDiffProps) {
         </ToolbarButton>
       </div>
       {raw.showRaw ? <RawSpanDiffBody review={review} state={raw} /> : children}
+      <p className="sr-only" role="status">
+        {raw.announcement}
+      </p>
     </div>
   );
 }
@@ -114,15 +145,23 @@ function RawSpanDiffBody({ state, review }: RawSpanDiffBodyProps) {
       </p>
     );
   }
+  if (state.timeout !== undefined) {
+    return <DiffTimeoutNotice retry={state.timeout} />;
+  }
   if (state.isError || state.chunks.length === 0) {
     return (
-      <p className={styles["meta"]} role="status">
+      <p
+        className={styles["meta"]}
+        ref={state.unavailableRef}
+        role="status"
+        tabIndex={-1}
+      >
         {t("brief.diff.rawUnavailable")}
       </p>
     );
   }
   return (
-    <div className={styles["files"]}>
+    <div className={styles["files"]} ref={state.filesRef} tabIndex={-1}>
       {state.chunks.map((chunk) => (
         <SpanFile
           chunk={chunk}

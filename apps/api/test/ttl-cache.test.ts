@@ -57,3 +57,48 @@ describe("delete", () => {
     expect(cache.get("k")).toBeUndefined();
   });
 });
+
+describe("byte budget", () => {
+  const far = 1_000_000;
+  const budget = {
+    maxBytes: 10,
+    measureBytes: (value: string) => value.length,
+  };
+
+  it("evicts the oldest entries until the new value fits the budget", () => {
+    const cache = createTtlCache<string>(10, budget);
+    cache.set("a", "xxxx", far, 0);
+    cache.set("b", "xxxx", far, 0);
+    cache.set("c", "xxxx", far, 0);
+    expect(cache.get("a", 0)).toBeUndefined();
+    expect(cache.get("b", 0)).toBe("xxxx");
+    expect(cache.get("c", 0)).toBe("xxxx");
+  });
+
+  it("refuses a value larger than the whole budget", () => {
+    const cache = createTtlCache<string>(10, budget);
+    cache.set("a", "xxxx", far, 0);
+    cache.set("big", "x".repeat(11), far, 0);
+    expect(cache.get("big", 0)).toBeUndefined();
+    expect(cache.get("a", 0)).toBe("xxxx");
+  });
+
+  it("frees a deleted entry's bytes", () => {
+    const cache = createTtlCache<string>(10, budget);
+    cache.set("a", "xxxxxx", far, 0);
+    cache.delete("a");
+    cache.set("b", "xxxxxx", far, 0);
+    cache.set("a", "xxxx", far, 0);
+    expect(cache.get("b", 0)).toBe("xxxxxx");
+    expect(cache.get("a", 0)).toBe("xxxx");
+  });
+
+  it("sweeps expired entries before evicting a live one for bytes", () => {
+    const cache = createTtlCache<string>(10, budget);
+    cache.set("live", "xxxx", far, 0);
+    cache.set("expired", "xxxxxx", 100, 0);
+    cache.set("new", "xxxxxx", far, 200);
+    expect(cache.get("live", 200)).toBe("xxxx");
+    expect(cache.get("new", 200)).toBe("xxxxxx");
+  });
+});

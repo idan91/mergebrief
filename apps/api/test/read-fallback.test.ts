@@ -415,7 +415,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     function arrangeViewerRefusedDiff(head: string): void {
       fake.addCompare(REPO, { base: BASE_SHA, head }, { diff: DIFF_TEXT });
       fake.failOn(
-        "fetchCompareDiff",
+        "fetchCheckedCompareDiff",
         FakeFailures.NOT_FOUND,
         CredentialKinds.REVIEWER,
       );

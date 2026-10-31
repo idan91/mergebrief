@@ -39,6 +39,8 @@ export type {
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./model/utils/brief-identity";
 export { LocalBriefsSection } from "./ui/components/LocalBriefsSection";
 export { BriefError } from "./ui/components/BriefError";
+export { DiffTimeoutNotice } from "./ui/components/DiffTimeoutNotice";
+export { useDiffRetryLanding } from "./ui/components/DiffTimeoutNotice/useDiffRetryLanding";
 export { readDiffView } from "./ui/components/BriefView/diff-view/diff-view-storage";
 
 export interface BriefPageProps {

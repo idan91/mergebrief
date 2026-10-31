@@ -773,6 +773,10 @@ replicas there are N fetches an hour, N `update.available` lines per
 release, and `GET /api/version` can differ between replicas for up to an
 hour after a release.
 
+Size each api container's memory for its diff caches on top of its
+baseline: up to 128 MiB of span diffs under 1 MB each, plus up to 256 MiB of
+larger ones (64 MiB at most each, four per viewer, kept 10 minutes).
+
 Each replica also opens its own Postgres pool of up to `DATABASE_POOL_MAX`
 connections (default 10), and each worker opens two such pools, one for
 its store and one for its job queue. The api replica count plus twice the

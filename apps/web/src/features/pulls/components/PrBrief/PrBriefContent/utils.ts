@@ -48,3 +48,11 @@ export function buildPrReview(input: PrReviewInput): ReviewCapability {
 
   return review;
 }
+
+/** The brief page's reading region, the skip link's and the route's focus target. */
+const MAIN_CONTENT_ID = "main-content";
+
+/** Where focus lands when the brief's rows arrive after a timed-out read. */
+export function findMainContent(): HTMLElement | null {
+  return document.getElementById(MAIN_CONTENT_ID);
+}

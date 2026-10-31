@@ -2,9 +2,10 @@
 // production listener (`src/serve.ts`) reads the submit budget as its drain.
 
 /**
- * Upstream budget for one API request. Long enough for a cold read behind the
- * gate, short enough that a stuck upstream frees the web tier's socket rather
- * than holding a render open until the browser gives up.
+ * Upstream budget for one API request to answer with its headers. Long enough
+ * for a cold read behind the gate, short enough that a stuck upstream frees
+ * the web tier's socket rather than holding a render open until the browser
+ * gives up.
  */
 export const UPSTREAM_TIMEOUT_MS = 30_000;
 // The API posts one GitHub mutation per draft, each at least one second

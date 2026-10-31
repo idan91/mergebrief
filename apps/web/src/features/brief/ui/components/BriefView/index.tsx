@@ -18,6 +18,7 @@ import { FocusIndicator } from "./FocusIndicator";
 import { FocusPanel } from "./FocusPanel";
 import { FocusShortcuts } from "./FocusShortcuts";
 import { LargeTitle } from "./LargeTitle";
+import { DiffTimeoutNotice } from "../DiffTimeoutNotice";
 import { LineLinkNotice } from "./LineLinkNotice";
 import { Masthead } from "./Masthead";
 import { IntentBar } from "./IntentBar";
@@ -250,6 +251,11 @@ function BriefViewContent(props: BriefViewProps) {
                   {lineLinkMissed ? (
                     <LineLinkNotice onDismiss={dismissLineLinkMiss} />
                   ) : null}
+                  {pr?.diffTimeout === undefined ? null : (
+                    <div className={styles["diffTimeoutBand"]}>
+                      <DiffTimeoutNotice retry={pr.diffTimeout} />
+                    </div>
+                  )}
                   {session.focusMode ? (
                     <FocusIndicator
                       indicatorRef={session.focusIndicatorRef}
@@ -370,6 +376,7 @@ function BriefViewContent(props: BriefViewProps) {
                               delta={overlay.delta}
                               rawSpanDiff={overlay.activeRawSpanDiff}
                               deltaSpan={overlay.deltaSpanStatus}
+                              deltaSpanLanding={overlay.deltaSpanLanding}
                               narrativeSpanRows={overlay.narrativeSpanRows}
                               jumpToChunk={queueChunkJumpFromChanges}
                               review={changesReview}

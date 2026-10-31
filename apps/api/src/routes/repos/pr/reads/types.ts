@@ -23,9 +23,55 @@ export interface ReadPullDeps {
   readonly log: Logger;
 }
 
+/** A diff body with the bytes V8 holds for it, measured once at write. */
+export interface SizedDiff {
+  readonly diff: string;
+  readonly bytes: number;
+}
+
+/** The bounds on the per-session cache for span diffs under its entry cap. */
+export interface SpanDiffCacheLimits {
+  readonly maxEntryBytes: number;
+  /** Instance-wide, over every session's entries. */
+  readonly maxBytes: number;
+  readonly maxEntries: number;
+  readonly ttlMs: number;
+}
+
+/** Span diff bodies keyed per session, repo, PR and span. */
+export interface SpanDiffCache {
+  get(key: string, now: number): string | undefined;
+  /** `bytes` is what V8 holds for `diff`; nothing is stored past `maxEntryBytes`. */
+  set(key: string, diff: string, bytes: number, now: number): void;
+}
+
+/** The bounds on the cache for diffs past the small cache's entry cap. */
+export interface LargeDiffCacheLimits {
+  readonly maxEntryBytes: number;
+  /** Instance-wide, over every viewer's entries. */
+  readonly maxBytes: number;
+  readonly maxEntries: number;
+  readonly maxEntriesPerViewer: number;
+  readonly ttlMs: number;
+}
+
+/** Large diff bodies, a few per viewer under one instance-wide byte cap. */
+export interface LargeDiffCache {
+  get(key: string, now: number): string | undefined;
+  /** `bytes` is what V8 holds for `diff`; nothing is stored past `maxEntryBytes`. */
+  set(
+    viewer: string,
+    key: string,
+    diff: string,
+    bytes: number,
+    now: number,
+  ): void;
+}
+
 export interface ReadDiffDeps {
-  /** Diff bodies keyed per session, repo, PR and span. */
-  readonly diffCache: TtlCache<string>;
+  readonly diffCache: SpanDiffCache;
+  /** Diffs past the small cache's entry cap, under the same keys. */
+  readonly largeDiffCache: LargeDiffCache;
 }
 
 export interface ReadFileRangeDeps {

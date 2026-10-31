@@ -98,3 +98,9 @@ export class BadGateway extends ApiError {
     super(code);
   }
 }
+
+export class GatewayTimeout extends ApiError {
+  public constructor(code: CodeFor<typeof HttpStatuses.GATEWAY_TIMEOUT>) {
+    super(code);
+  }
+}

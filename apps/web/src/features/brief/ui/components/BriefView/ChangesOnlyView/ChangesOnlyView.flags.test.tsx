@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -17,6 +23,15 @@ import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { type Brief, type BriefChunk } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
+import { ApiError, ApiErrorCodes } from "@web/data/apiFetch";
+import type { BriefComparisonPlan } from "../../../../model/comparison/types";
+import type { ComparisonMarks } from "../../../../model/types";
+import { useComparisonOverlay } from "../comparison/useComparisonOverlay";
+import {
+  type DeltaSpanLanding,
+  type DeltaSpanStatus,
+  DeltaSpanStatuses,
+} from "../types";
 import { ChangesOnlyView } from ".";
 import { ReviewPostureProvider } from "../../../hooks/useReviewPosture";
 import { makeReviewPosture } from "../../../utils/review-posture";
@@ -170,6 +185,10 @@ interface RenderOptions {
   compare?: "previous-brief" | "last-review";
   brief?: Brief;
   narrative?: RevisionNarrative;
+  deltaSpan?: DeltaSpanStatus;
+  deltaSpanLanding?: DeltaSpanLanding;
+  /** Drives the pane through the real comparison overlay instead. */
+  plan?: BriefComparisonPlan;
 }
 
 interface ProbeProps {
@@ -192,6 +211,42 @@ function SessionProbe({ onActions, onDispositions }: ProbeProps) {
     onDispositions(kinds);
   }, [dispositions, onDispositions]);
   return null;
+}
+
+interface OverlayChangesProps {
+  brief: Brief;
+  model: ReturnType<typeof buildBriefViewModel>;
+  plan: BriefComparisonPlan;
+  jumpToChunk: (chunkId: string) => void;
+}
+
+/** The last-review pane as the screen wires it, through the comparison overlay. */
+function OverlayChanges({
+  brief,
+  model,
+  plan,
+  jumpToChunk,
+}: OverlayChangesProps) {
+  const overlay = useComparisonOverlay({
+    brief,
+    comparisonPlan: plan,
+    searchParams: { view: "changes", compare: "last-review" },
+  });
+
+  return (
+    <ChangesOnlyView
+      brief={brief}
+      compare="last-review"
+      delta={overlay.delta}
+      deltaSpan={overlay.deltaSpanStatus}
+      deltaSpanLanding={overlay.deltaSpanLanding}
+      jumpToChunk={jumpToChunk}
+      marks={null}
+      model={model}
+      narrative={null}
+      skipReason={null}
+    />
+  );
 }
 
 function renderSection(options: RenderOptions = {}) {
@@ -226,16 +281,27 @@ function renderSection(options: RenderOptions = {}) {
                   dispositionKinds = kinds;
                 }}
               />
-              <ChangesOnlyView
-                brief={brief}
-                compare={compare}
-                delta={compare === "last-review" ? DELTA : null}
-                jumpToChunk={jumpToChunk}
-                marks={null}
-                model={model}
-                narrative={compare === "previous-brief" ? narrative : null}
-                skipReason={null}
-              />
+              {options.plan === undefined ? (
+                <ChangesOnlyView
+                  brief={brief}
+                  compare={compare}
+                  delta={compare === "last-review" ? DELTA : null}
+                  deltaSpan={options.deltaSpan}
+                  deltaSpanLanding={options.deltaSpanLanding}
+                  jumpToChunk={jumpToChunk}
+                  marks={null}
+                  model={model}
+                  narrative={compare === "previous-brief" ? narrative : null}
+                  skipReason={null}
+                />
+              ) : (
+                <OverlayChanges
+                  brief={brief}
+                  jumpToChunk={jumpToChunk}
+                  model={model}
+                  plan={options.plan}
+                />
+              )}
             </ReviewPostureProvider>
           </ReviewFlowProvider>
         </ReviewSessionProvider>
@@ -325,5 +391,126 @@ describe("flags on a Changes section", () => {
     fireEvent.click(screen.getByRole("button", { name: "src/a.ts" }));
 
     expect(jumpToChunk).toHaveBeenCalledWith("chunk-a");
+  });
+});
+
+describe("ChangesOnlyView on a delta span GitHub did not render in time", () => {
+  it("shows one timeout notice above the cards and retries the span", () => {
+    const retry = vi.fn();
+    renderSection({
+      compare: "last-review",
+      deltaSpan: DeltaSpanStatuses.TIMED_OUT,
+      deltaSpanLanding: {
+        retry: {
+          pending: false,
+          failureCount: 1,
+          retry,
+          releaseFocus: vi.fn(),
+        },
+        announcement: "",
+        sectionRef: { current: null },
+      },
+    });
+
+    expect(screen.getAllByTestId("diff-timeout-notice")).toHaveLength(1);
+    expect(
+      screen.queryByText("The raw diff is not viewable right now."),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  const timeout = new ApiError(ApiErrorCodes.DIFF_FETCH_TIMEOUT, 504, "/diff");
+  const marks: ComparisonMarks = {
+    baselineSha: "chk1234",
+    headSha: "head1234",
+    baselineLabel: "checkpoint",
+    baselineIndex: 1,
+    files: [],
+  };
+
+  function stubLastReviewPlan(spanFn: () => Promise<string>) {
+    return {
+      lastReview: {
+        marks: {
+          queryKey: ["marks"],
+          queryFn: async () => marks,
+          retry: false,
+        },
+        delta: {
+          queryKey: ["delta"],
+          queryFn: async () => DELTA,
+          retry: false,
+        },
+        rawDiff: { queryKey: ["span"], queryFn: spanFn, retry: false },
+      },
+    } satisfies BriefComparisonPlan;
+  }
+
+  it("lands focus on the section and says the diff loaded on retry", async () => {
+    const spanFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(timeout)
+      .mockResolvedValueOnce("");
+    renderSection({ compare: "last-review", plan: stubLastReviewPlan(spanFn) });
+    const button = await screen.findByRole("button", { name: "Try again" });
+    button.focus();
+
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("diff-timeout-notice")).toBeNull(),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByTestId("last-review-changes"),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe("Diff loaded."),
+    );
+  });
+
+  it("keeps focus on Try again when the span times out again", async () => {
+    const spanFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(timeout)
+      .mockRejectedValueOnce(timeout);
+    renderSection({ compare: "last-review", plan: stubLastReviewPlan(spanFn) });
+    const button = await screen.findByRole("button", { name: "Try again" });
+    button.focus();
+
+    fireEvent.click(button);
+
+    await waitFor(() => expect(spanFn).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Try again" })).toBe(button),
+    );
+    expect(document.activeElement).toBe(button);
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("lands focus on the section when the span retry fails otherwise", async () => {
+    const spanFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(timeout)
+      .mockRejectedValueOnce(
+        new ApiError(ApiErrorCodes.GITHUB_UNAVAILABLE, 502, "/diff"),
+      );
+    renderSection({ compare: "last-review", plan: stubLastReviewPlan(spanFn) });
+    const button = await screen.findByRole("button", { name: "Try again" });
+    button.focus();
+
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("diff-timeout-notice")).toBeNull(),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByTestId("last-review-changes"),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe(
+        "The diff did not load.",
+      ),
+    );
   });
 });

@@ -64,6 +64,10 @@ import type { FileRowsCache } from "../../../model/file-rows/cache";
 import type { RepoConfigContext } from "../../../model/utils/repo-config";
 import type { ReviewPosture } from "../../hooks/useReviewPosture";
 import type { RevisionNavigation } from "../../hooks/useRevisionNavigation";
+import type {
+  DiffFetchRetry,
+  DiffRetryLanding,
+} from "../DiffTimeoutNotice/types";
 import type { BriefAddressPort } from "./address/types";
 import type { UseComparisonOverlayValue } from "./comparison/useComparisonOverlay";
 import type { IntentBarHandle } from "./IntentBar";
@@ -88,8 +92,15 @@ export const DeltaSpanStatuses = {
   LOADING: "loading",
   READY: "ready",
   ERROR: "error",
+  /** GitHub did not render the span in time; the pane offers one retry. */
+  TIMED_OUT: "timed-out",
 } as const;
 export type DeltaSpanStatus = ValueOf<typeof DeltaSpanStatuses>;
+
+/** The delta span's timeout retry, its landing line, and the section focus lands on. */
+export interface DeltaSpanLanding extends DiffRetryLanding {
+  readonly sectionRef: RefObject<HTMLDivElement | null>;
+}
 
 /**
  * Present only while `draft && viewerIsAuthor`. Hides submit/receipt, mirrors
@@ -208,6 +219,8 @@ export interface PullRequestContext {
   repoId: string;
   openComparison: () => void;
   headerControls: ReactNode;
+  /** Present while the brief's own diff read timed out with no rows landed. */
+  diffTimeout?: DiffFetchRetry | undefined;
 }
 
 /** Present only where the reader has a review session to write to; absent reads only. */

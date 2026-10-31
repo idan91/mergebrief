@@ -61,6 +61,8 @@ const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 const BRIEF_BODY = JSON.stringify({ summary: "the brief", findings: [] });
 const DIFF_TEXT = "diff --git a/f b/f\n@@ -1 +1 @@\n-old\n+new\n";
+const BASE_SHA = "b".repeat(40);
+const HEAD_SHA = "c".repeat(40);
 
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 const REPO = { owner: "octo", repo: "hello" };
@@ -478,7 +480,7 @@ describe("reviewer read API + authz gate", () => {
     }
 
     function listDiffCalls() {
-      return fake.listCalls("fetchCompareDiff");
+      return fake.listCalls("fetchCheckedCompareDiff");
     }
 
     it("proxies the requested base...head diff rather than the whole PR", async () => {
@@ -498,7 +500,7 @@ describe("reviewer read API + authz gate", () => {
       expect(res.headers.get("cache-control")).toBe("no-store");
       expect(await res.text()).toBe(DIFF_TEXT);
       expect(listDiffCalls().map((call) => call.input)).toEqual([
-        { ...REPO, base: "base1", head: "head1" },
+        { ...REPO, base: "base1", head: "head1", deadlineMs: 25_000 },
       ]);
       expect(lookups.count()).toBe(1);
     });
@@ -521,18 +523,57 @@ describe("reviewer read API + authz gate", () => {
       expect(listDiffCalls()).toHaveLength(1);
     });
 
-    it("serves oversized diffs without caching them", async () => {
+    it("serves a diff past the small cache's cap from the large cache", async () => {
       const big = "x".repeat(1_000_001);
       stubGate(fake);
-      fake.addCompare(REPO, { base: "b", head: "h" }, { diff: big });
+      fake.addCompare(REPO, { base: BASE_SHA, head: HEAD_SHA }, { diff: big });
       const cookie = await signInWithRow();
 
-      const first = await readDiff(cookie, "b", "h");
+      const first = await readDiff(cookie, BASE_SHA, HEAD_SHA);
       expect((await first.text()).length).toBe(big.length);
-      const second = await readDiff(cookie, "b", "h");
+      const second = await readDiff(cookie, BASE_SHA, HEAD_SHA);
 
       expect(second.status).toBe(200);
+      expect((await second.text()).length).toBe(big.length);
+      expect(listDiffCalls()).toHaveLength(1);
+    });
+
+    it("re-reads a large branch-ref diff so a push shows at once", async () => {
+      const span = { base: "main", head: "feature" };
+      const beforePush = "x".repeat(1_000_001);
+      const afterPush = "y".repeat(1_000_001);
+      stubGate(fake);
+      fake.addCompare(REPO, span, { diff: beforePush });
+      const cookie = await signInWithRow();
+
+      await readDiff(cookie, span.base, span.head);
+      fake.addCompare(REPO, span, { diff: afterPush });
+      const second = await readDiff(cookie, span.base, span.head);
+
+      expect(await second.text()).toBe(afterPush);
       expect(listDiffCalls()).toHaveLength(2);
+    });
+
+    it("keeps four large diffs per viewer, sized in held bytes", async () => {
+      const underMillionChars = "€".repeat(600_000);
+      const spans = ["1", "2", "3", "4", "5"].map((digit) => digit.repeat(40));
+      stubGate(fake);
+      for (const head of spans) {
+        fake.addCompare(
+          REPO,
+          { base: BASE_SHA, head },
+          { diff: underMillionChars },
+        );
+      }
+      const cookie = await signInWithRow();
+
+      for (const head of spans) {
+        await readDiff(cookie, BASE_SHA, head);
+      }
+      await readDiff(cookie, BASE_SHA, "5".repeat(40));
+      await readDiff(cookie, BASE_SHA, "1".repeat(40));
+
+      expect(listDiffCalls()).toHaveLength(spans.length + 1);
     });
 
     it("targets the GitHub-verified repo name, not the stored slug", async () => {
@@ -549,7 +590,7 @@ describe("reviewer read API + authz gate", () => {
 
       expect(res.status).toBe(200);
       expect(listDiffCalls().map((call) => call.input)).toEqual([
-        { ...renamed, base: "base1", head: "head1" },
+        { ...renamed, base: "base1", head: "head1", deadlineMs: 25_000 },
       ]);
     });
 
@@ -572,7 +613,7 @@ describe("reviewer read API + authz gate", () => {
       "collapses a %s span diff to 404",
       async (_label, failure) => {
         stubGate(fake);
-        fake.failOn("fetchCompareDiff", failure);
+        fake.failOn("fetchCheckedCompareDiff", failure);
         const cookie = await signInWithRow();
 
         const res = await readDiff(cookie, "base1", "head1");
@@ -584,7 +625,7 @@ describe("reviewer read API + authz gate", () => {
 
     it("maps GitHub's oversized-diff 406 to 413", async () => {
       stubGate(fake);
-      fake.failOn("fetchCompareDiff", FakeFailures.NOT_ACCEPTABLE);
+      fake.failOn("fetchCheckedCompareDiff", FakeFailures.NOT_ACCEPTABLE);
       const cookie = await signInWithRow();
 
       const res = await readDiff(cookie, "b", "h");
@@ -593,9 +634,20 @@ describe("reviewer read API + authz gate", () => {
       expect(await res.json()).toMatchObject({ code: "diff-too-large" });
     });
 
+    it("answers a diff GitHub did not render in time 504", async () => {
+      stubGate(fake);
+      fake.failOn("fetchCheckedCompareDiff", FakeFailures.DIFF_TIMED_OUT);
+      const cookie = await signInWithRow();
+
+      const res = await readDiff(cookie, "b", "h");
+
+      expect(res.status).toBe(504);
+      expect(await res.json()).toMatchObject({ code: "diff-fetch-timeout" });
+    });
+
     it("answers a diff GitHub cannot serve 502", async () => {
       stubGate(fake);
-      fake.failOn("fetchCompareDiff", FakeFailures.SERVER_ERROR);
+      fake.failOn("fetchCheckedCompareDiff", FakeFailures.SERVER_ERROR);
       const cookie = await signInWithRow();
 
       const res = await readDiff(cookie, "b", "h");
@@ -636,7 +688,7 @@ describe("reviewer read API + authz gate", () => {
 
     it("answers 401 when the diff still 401s after a good refresh", async () => {
       const counts = stubGate(fake);
-      fake.failOn("fetchCompareDiff", FakeFailures.UNAUTHORIZED);
+      fake.failOn("fetchCheckedCompareDiff", FakeFailures.UNAUTHORIZED);
       const cookie = await signInWithRow();
 
       const res = await readDiff(cookie, "b", "h");
@@ -649,7 +701,7 @@ describe("reviewer read API + authz gate", () => {
 
     it("answers 401 when the diff 401s and the refresh fails", async () => {
       const counts = stubGate(fake, answerDeadRefresh);
-      fake.failOn("fetchCompareDiff", FakeFailures.UNAUTHORIZED);
+      fake.failOn("fetchCheckedCompareDiff", FakeFailures.UNAUTHORIZED);
       const cookie = await signInWithRow();
 
       const res = await readDiff(cookie, "b", "h");

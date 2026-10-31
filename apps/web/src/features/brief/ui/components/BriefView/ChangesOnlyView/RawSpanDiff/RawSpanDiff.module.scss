@@ -37,6 +37,10 @@
   .files {
     display: grid;
     gap: functions.to-rem(10px);
+
+    &:focus-visible {
+      outline: none;
+    }
   }
 
   .file {

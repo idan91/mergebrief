@@ -174,14 +174,19 @@ function buildUpstreamRequest(
  * tier's own answers, sanitized to the same body the API's own error posture
  * would use; the caller's disconnect is answered without touching the API
  * again. Nothing is ever retried, because a retried mutation is a second
- * mutation.
+ * mutation. The budget runs until the API's headers arrive; the body then
+ * streams at the caller's pace, so a large diff is not cut mid-transfer.
  */
 export async function requestApi(
   request: Request,
   deps: ApiTransportDeps,
 ): Promise<Response> {
-  const timeout = AbortSignal.timeout(resolveUpstreamBudget(request, deps));
-  const signal = AbortSignal.any([request.signal, timeout]);
+  const budgetMs = resolveUpstreamBudget(request, deps);
+  const timeout = new AbortController();
+  const timer = setTimeout(() => {
+    timeout.abort();
+  }, budgetMs);
+  const signal = AbortSignal.any([request.signal, timeout.signal]);
   const upstream = buildUpstreamRequest(request, deps, signal);
 
   let response: Response;
@@ -192,10 +197,13 @@ export async function requestApi(
       // The caller went away; answering at all is a formality.
       return apiUnavailable(499);
     }
+    const timedOut = timeout.signal.aborted;
     // The reason can quote the internal origin, so it rides as a FIELD: the
     // logging boundary redacts URL-shaped substrings, `msg` bypasses it.
-    logUpstreamFailure(deps, request, error, timeout.aborted);
-    return apiUnavailable(timeout.aborted ? 504 : 503);
+    logUpstreamFailure(deps, request, error, timedOut);
+    return apiUnavailable(timedOut ? 504 : 503);
+  } finally {
+    clearTimeout(timer);
   }
 
   return new Response(response.body, {

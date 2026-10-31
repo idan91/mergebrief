@@ -4,13 +4,16 @@ import {
   memo,
   useCallback,
   useMemo,
+  useRef,
   useState,
+  type ReactNode,
   type SyntheticEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DiffRows } from "@web/components/DiffRows";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
+import { DiffTimeoutNotice, useDiffRetryLanding } from "@web/features/brief";
 import { useSnippetTokens } from "@web/hooks/useSnippetTokens";
 import { TokenPlanProvider, useTokenPlan } from "@web/hooks/useTokenPlan";
 import { ChunkTokenStatuses, TokenizeModes } from "@web/utils/diffTokens/types";
@@ -45,6 +48,12 @@ export function LiveDiffPreview({
   const diff = useQuery(
     buildPrDiffQueryOptions(repoId, prNumber, span.base, span.head),
   );
+  const diffRef = useRef<HTMLDivElement>(null);
+  const unavailableRef = useRef<HTMLParagraphElement>(null);
+  const landing = useDiffRetryLanding(
+    diff,
+    () => diffRef.current ?? unavailableRef.current,
+  );
   const files: FileRows[] = useMemo(() => {
     if (diff.data === undefined) {
       return [];
@@ -63,26 +72,42 @@ export function LiveDiffPreview({
     setOpenByFile((current) => ({ ...current, [file]: open }));
   }, []);
 
+  let body: ReactNode;
   if (diff.isPending) {
-    return <p className={styles["note"]}>{t("pulls.wait.diffLoading")}</p>;
+    body = <p className={styles["note"]}>{t("pulls.wait.diffLoading")}</p>;
+  } else if (landing.retry !== undefined) {
+    body = <DiffTimeoutNotice retry={landing.retry} />;
+  } else if (diff.isError || files.length === 0) {
+    body = (
+      <p className={styles["note"]} ref={unavailableRef} tabIndex={-1}>
+        {t("pulls.wait.diffUnavailable")}
+      </p>
+    );
+  } else {
+    body = (
+      <TokenPlanProvider briefKey={previewKey} chunkSizes={chunkSizes}>
+        <div className={styles["diff"]} ref={diffRef} tabIndex={-1}>
+          {files.map(({ file, rows }) => (
+            <FileDisclosure
+              file={file}
+              key={file}
+              onToggle={toggleFile}
+              open={readOpen(openByFile, file, openByDefault)}
+              rows={rows}
+            />
+          ))}
+        </div>
+      </TokenPlanProvider>
+    );
   }
-  if (diff.isError || files.length === 0) {
-    return <p className={styles["note"]}>{t("pulls.wait.diffUnavailable")}</p>;
-  }
+
   return (
-    <TokenPlanProvider briefKey={previewKey} chunkSizes={chunkSizes}>
-      <div className={styles["diff"]}>
-        {files.map(({ file, rows }) => (
-          <FileDisclosure
-            file={file}
-            key={file}
-            onToggle={toggleFile}
-            open={readOpen(openByFile, file, openByDefault)}
-            rows={rows}
-          />
-        ))}
-      </div>
-    </TokenPlanProvider>
+    <>
+      {body}
+      <p className="sr-only" role="status">
+        {landing.announcement}
+      </p>
+    </>
   );
 }
 

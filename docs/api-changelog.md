@@ -13,6 +13,15 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-10-27)
+
+- **Added** `504 diff-fetch-timeout` to `read-diff`
+  (`GET /api/repos/:repoId/pulls/:prNumber/diff`): GitHub did not render the
+  span's diff within the read's 25 s deadline; a later retry may succeed.
+  `read-diff` now retries GitHub's 422 and 5xx inside that deadline, and
+  keeps a diff of up to 64 MB per viewer for 10 minutes. No response shape
+  changes.
+
 ## dev (2026-10-26)
 
 - **Renamed** the env var `MERGEBRIEF_URL_BOX_TOKEN` to

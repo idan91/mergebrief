@@ -2,7 +2,7 @@
 // active baseline's data from the supplied plan's descriptors.
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import type {
   RevisionNarrativeSkipReason,
@@ -31,7 +31,12 @@ import {
   type FileRowsCache,
 } from "../../../../model/file-rows/cache";
 import type { Brief, ComparisonMarks } from "../../../../model/types";
-import { type DeltaSpanStatus, DeltaSpanStatuses } from "../types";
+import { useDiffRetryLanding } from "../../DiffTimeoutNotice/useDiffRetryLanding";
+import {
+  type DeltaSpanLanding,
+  type DeltaSpanStatus,
+  DeltaSpanStatuses,
+} from "../types";
 import {
   countComparisonRuns,
   disabledComparisonQuery,
@@ -71,6 +76,8 @@ export interface UseComparisonOverlayValue {
   activeRawSpanDiff: ComparisonQuery<string> | undefined;
   /** Where the delta's span rows stand; `absent` without a raw diff to slice. */
   deltaSpanStatus: DeltaSpanStatus;
+  /** The delta span's retry while its read timed out with no rows landed. */
+  deltaSpanLanding: DeltaSpanLanding;
   /**
    * The previous-brief span diff by file, the one source of the lines a
    * revision removed; absent until Changes scope shows a narrative with any.
@@ -167,11 +174,22 @@ export function useComparisonOverlay(
     return attachSpanDiffs(planDeltaCore, spanRows);
   }, [planDeltaCore, planSpanDiff]);
   const delta = planDeltaWithRows ?? null;
-  const deltaSpanStatus = resolveDeltaSpanStatus(
-    spanWanted,
-    planSpanDiff !== undefined,
-    planSpan.isError,
+  const deltaSectionRef = useRef<HTMLDivElement>(null);
+  const deltaLanding = useDiffRetryLanding(
+    planSpan,
+    () => deltaSectionRef.current,
   );
+  const deltaSpanRetry = spanWanted ? deltaLanding.retry : undefined;
+  const deltaSpanLanding: DeltaSpanLanding = {
+    retry: deltaSpanRetry,
+    announcement: deltaLanding.announcement,
+    sectionRef: deltaSectionRef,
+  };
+  const deltaSpanStatus = resolveDeltaSpanStatus(spanWanted, {
+    landed: planSpanDiff !== undefined,
+    failed: planSpan.isError,
+    timedOut: deltaSpanRetry !== undefined,
+  });
 
   const { narrative, skipReason } =
     discriminateNarrativeArtifact(narrativeArtifact);
@@ -256,23 +274,32 @@ export function useComparisonOverlay(
     delta,
     activeRawSpanDiff,
     deltaSpanStatus,
+    deltaSpanLanding,
     narrativeSpanRows,
     sinceReviewMarks,
   };
 }
 
+interface DeltaSpanRead {
+  readonly landed: boolean;
+  readonly failed: boolean;
+  readonly timedOut: boolean;
+}
+
 /** Rows that landed stay ready through a failed background refetch. */
 function resolveDeltaSpanStatus(
   wanted: boolean,
-  landed: boolean,
-  failed: boolean,
+  read: DeltaSpanRead,
 ): DeltaSpanStatus {
   if (!wanted) {
     return DeltaSpanStatuses.ABSENT;
   }
-  if (landed) {
+  if (read.landed) {
     return DeltaSpanStatuses.READY;
   }
+  if (read.timedOut) {
+    return DeltaSpanStatuses.TIMED_OUT;
+  }
 
-  return failed ? DeltaSpanStatuses.ERROR : DeltaSpanStatuses.LOADING;
+  return read.failed ? DeltaSpanStatuses.ERROR : DeltaSpanStatuses.LOADING;
 }

@@ -4,6 +4,10 @@
   .changesOnly {
     display: grid;
     gap: functions.to-rem(18px);
+
+    &:focus-visible {
+      outline: none;
+    }
   }
 
   .eyebrow {

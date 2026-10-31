@@ -1,10 +1,11 @@
 // The reads domain's failure-to-throw mapping: an operation failure becomes
 // the ApiError the adapter throws, and nothing else decides posture.
 import { ApiErrorCodes } from "contract";
-import type { GitHubCallFailure } from "github";
+import { GitHubApiErrorCodes, type GitHubCallFailure } from "github";
 import { HttpStatuses } from "types/http";
 import {
   BadRequest,
+  GatewayTimeout,
   NotFound,
   PayloadTooLarge,
   type ApiError,
@@ -27,11 +28,18 @@ function resolveLiveReadError(failure: DiffFailure): ApiError {
 
 /**
  * GitHub's 406 refuses to render a diff over its size limits, permanent for
- * this span, so it answers 413 rather than a retryable-looking 502.
+ * this span, so it answers 413 rather than a retryable-looking 502. A render
+ * GitHub did not finish inside the read's deadline answers 504.
  */
 export function resolveDiffError(failure: DiffFailure): ApiError {
-  if (failure.kind !== "not-found" && isDiffTooLarge(failure.error)) {
+  if (failure.kind === "not-found") {
+    return new NotFound();
+  }
+  if (isDiffTooLarge(failure.error)) {
     return new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
+  }
+  if (failure.error.code === GitHubApiErrorCodes.DIFF_TIMED_OUT) {
+    return new GatewayTimeout(ApiErrorCodes.DIFF_FETCH_TIMEOUT);
   }
   return resolveLiveReadError(failure);
 }

@@ -13,6 +13,7 @@ import {
   BriefView,
   buildBriefAddress,
   readDiffView,
+  useDiffRetryLanding,
   useBriefReading,
   type BriefAddressPort,
   type ConversationCapability,
@@ -55,7 +56,7 @@ import type { PrSummary } from "../../../types";
 import { useNewerCommits } from "./DbBriefControls/NewerCommitsChip/hooks/useNewerCommits";
 import { DbBriefControls } from "./DbBriefControls";
 import { WarmingChip } from "../WarmingChip";
-import { buildPrReview } from "./utils";
+import { buildPrReview, findMainContent } from "./utils";
 import type { ConversationFilter } from "@web/features/conversation/utils";
 
 export interface PrBriefContentProps {
@@ -165,6 +166,7 @@ export function PrBriefContent({
     }
     return diff.isError ? createFileRowsCache(new Map()) : undefined;
   }, [diff.data, diff.isError]);
+  const diffLanding = useDiffRetryLanding(diff, findMainContent);
   const assembled = useMemo(
     () => (fileRows === undefined ? brief : attachSlicedDiffs(brief, fileRows)),
     [brief, fileRows],
@@ -350,6 +352,9 @@ export function PrBriefContent({
       comparisonsWarming(meta) ? (
         <WarmingChip />
       ) : null}
+      <p className="sr-only" role="status">
+        {diffLanding.announcement}
+      </p>
       <BriefView
         reading={reading}
         address={address}
@@ -361,6 +366,7 @@ export function PrBriefContent({
           repoId,
           openComparison,
           headerControls,
+          diffTimeout: diffLanding.retry,
         }}
         review={review}
         conversation={conversation}

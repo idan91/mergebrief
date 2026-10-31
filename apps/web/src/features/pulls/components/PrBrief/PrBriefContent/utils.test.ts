@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -6,7 +7,7 @@ import {
   type SessionWrites,
 } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils";
-import { buildPrReview, type PrReviewInput } from "./utils";
+import { buildPrReview, findMainContent, type PrReviewInput } from "./utils";
 
 const SESSION_REASON = "session unavailable";
 
@@ -65,5 +66,17 @@ describe("buildPrReview", () => {
     const review = buildPrReview(makeInput({ readOnly, session: undefined }));
 
     expect(review.readOnly).toBe(readOnly);
+  });
+});
+
+describe("findMainContent", () => {
+  it("finds the reading region by its skip-link id", () => {
+    const main = document.createElement("main");
+    main.id = "main-content";
+    document.body.append(main);
+
+    expect(findMainContent()).toBe(main);
+
+    main.remove();
   });
 });

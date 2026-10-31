@@ -24,9 +24,10 @@ import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { LiveFactsReader } from "../../../live-read/types";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import {
-  DIFF_CACHE_MAX_ENTRIES,
+  LARGE_DIFF_CACHE_LIMITS,
   FILE_BLOB_CACHE_MAX_ENTRIES,
   OPEN_PULLS_CACHE_MAX_ENTRIES,
+  SPAN_DIFF_CACHE_LIMITS,
 } from "./consts";
 import {
   resolveDiffError,
@@ -40,6 +41,8 @@ import {
   readMarks,
   readNarrative,
 } from "./read-artifact";
+import { createLargeDiffCache } from "./logic/large-diff-cache";
+import { createSpanDiffCache } from "./logic/span-diff-cache";
 import { readDiff } from "./read-diff";
 import { readFileRange } from "./read-file-range";
 import { readGenerationClaims } from "./read-generation-claims";
@@ -192,7 +195,9 @@ function declareLiveReads(
   deps: AuthRouteDeps,
 ): void {
   // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
-  const diffCache = createTtlCache<string>(DIFF_CACHE_MAX_ENTRIES);
+  const diffCache = createSpanDiffCache(SPAN_DIFF_CACHE_LIMITS);
+  // Same keys, for diffs past the small cache's entry cap.
+  const largeDiffCache = createLargeDiffCache(LARGE_DIFF_CACHE_LIMITS);
   // key `${sessionHash}:${repoId}:${ref}:${path}` → the SPLIT blob, so the
   // second edge of one file costs neither a GitHub call nor a re-split.
   const fileCache = createTtlCache<readonly string[]>(
@@ -212,7 +217,7 @@ function declareLiveReads(
       requiresStoredPullRequest: true,
     },
     "/diff",
-    createReadDiffHandler({ diffCache }),
+    createReadDiffHandler({ diffCache, largeDiffCache }),
   );
   app.query(
     {

@@ -6,6 +6,8 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { ApiError, ApiErrorCodes } from "@web/data/apiFetch";
+
 import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
 import type { BriefComparisonPlan } from "../../../../model/comparison/types";
 import type { Brief, ComparisonMarks } from "../../../../model/types";
@@ -221,6 +223,27 @@ describe("useComparisonOverlay delta rows on the database path", () => {
       expect(result.current.deltaSpanStatus).toBe(DeltaSpanStatuses.ERROR),
     );
     expect(result.current.delta?.chunks[0]?.diff).toBeUndefined();
+    expect(result.current.deltaSpanLanding.retry).toBeUndefined();
+  });
+
+  it("reports a timed-out span read and refetches it on retry", async () => {
+    const spanFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(
+        new ApiError(ApiErrorCodes.DIFF_FETCH_TIMEOUT, 504, "/diff"),
+      )
+      .mockResolvedValueOnce(SPAN_DIFF);
+    const { result } = renderOverlay(stubPlan(spanFn), "last-review");
+
+    await waitFor(() =>
+      expect(result.current.deltaSpanStatus).toBe(DeltaSpanStatuses.TIMED_OUT),
+    );
+    result.current.deltaSpanLanding.retry?.retry();
+
+    await waitFor(() =>
+      expect(result.current.deltaSpanStatus).toBe(DeltaSpanStatuses.READY),
+    );
+    expect(result.current.deltaSpanLanding.retry).toBeUndefined();
   });
 
   it("keeps rows that landed through a failed refetch", async () => {

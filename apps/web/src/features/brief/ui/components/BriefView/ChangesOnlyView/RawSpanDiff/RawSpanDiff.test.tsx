@@ -10,6 +10,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { ApiError, ApiErrorCodes } from "@web/data/apiFetch";
+
 import {
   createReviewFlowStore,
   ReviewSessionProvider,
@@ -475,6 +477,95 @@ describe("RawSpanDiff toggle", () => {
       ).toBeTruthy(),
     );
     expect(screen.queryByText(/No raw changes in this span/)).toBeNull();
+  });
+
+  it("offers a retry when GitHub did not render the span in time", async () => {
+    const queryFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(
+        new ApiError(ApiErrorCodes.DIFF_FETCH_TIMEOUT, 504, "/diff"),
+      )
+      .mockResolvedValueOnce(DIFF);
+    renderRaw({
+      queryKey: ["pr-diff", "424242", 7, "prev", "head"],
+      queryFn,
+      retry: false,
+    });
+    fireEvent.click(toggleButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("GitHub took too long");
+    expect(
+      screen.queryByText("The raw diff is not viewable right now."),
+    ).toBeNull();
+    const button = screen.getByRole("button", { name: "Try again" });
+    button.focus();
+    fireEvent.click(button);
+
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(queryFn).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("src/a.ts")).toBeTruthy();
+    expect(document.activeElement?.textContent).toContain("src/a.ts");
+    expect(document.activeElement?.getAttribute("tabindex")).toBe("-1");
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe("Diff loaded."),
+    );
+  });
+
+  it("keeps focus on Try again when the span times out again", async () => {
+    const timeout = new ApiError(
+      ApiErrorCodes.DIFF_FETCH_TIMEOUT,
+      504,
+      "/diff",
+    );
+    const queryFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(timeout)
+      .mockRejectedValueOnce(timeout);
+    renderRaw({
+      queryKey: ["pr-diff", "424242", 7, "prev", "head"],
+      queryFn,
+      retry: false,
+    });
+    fireEvent.click(toggleButton());
+    const button = await screen.findByRole("button", { name: "Try again" });
+    button.focus();
+
+    fireEvent.click(button);
+
+    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Try again" })).toBe(button),
+    );
+    expect(document.activeElement).toBe(button);
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("moves focus to the note when the span retry fails otherwise", async () => {
+    const queryFn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(
+        new ApiError(ApiErrorCodes.DIFF_FETCH_TIMEOUT, 504, "/diff"),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(ApiErrorCodes.GITHUB_UNAVAILABLE, 502, "/diff"),
+      );
+    renderRaw({
+      queryKey: ["pr-diff", "424242", 7, "prev", "head"],
+      queryFn,
+      retry: false,
+    });
+    fireEvent.click(toggleButton());
+    const button = await screen.findByRole("button", { name: "Try again" });
+    button.focus();
+
+    fireEvent.click(button);
+
+    const note = await screen.findByText(
+      "The raw diff is not viewable right now.",
+    );
+    expect(document.activeElement).toBe(note);
+    expect(await screen.findByText("The diff did not load.")).toBeTruthy();
   });
 
   it("a guarded descriptor vetoes cached data, the guard wins", async () => {

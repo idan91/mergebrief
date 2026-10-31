@@ -11,6 +11,10 @@
     display: grid;
     gap: functions.to-rem(8px);
     inline-size: 100%;
+
+    &:focus-visible {
+      outline: none;
+    }
   }
 
   .diffFile {

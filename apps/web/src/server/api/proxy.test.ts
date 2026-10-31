@@ -88,6 +88,9 @@ function transportFor(
   };
 }
 
+const SHORT_BUDGET_MS = 40;
+const SLOW_BODY_DELAY_MS = 150;
+
 let upstream: Upstream;
 
 beforeEach(async () => {
@@ -335,6 +338,33 @@ describe("requestApi", () => {
     );
     expect(response.status).toBe(504);
     expect(await response.text()).toContain("service unavailable");
+  });
+
+  it("streams a body that outlasts the budget once headers arrive", async () => {
+    const slowBody = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "text/plain" });
+      response.write("first half, ");
+      setTimeout(() => response.end("second half"), SLOW_BODY_DELAY_MS);
+    });
+    await new Promise<void>((resolve) =>
+      slowBody.listen(0, "127.0.0.1", resolve),
+    );
+    const address = slowBody.address();
+    const port =
+      address !== null && typeof address === "object" ? address.port : 0;
+
+    try {
+      const response = await requestApi(
+        new Request("https://public.example/api/repos/42/pulls/7/diff"),
+        transportFor(`http://127.0.0.1:${port}`, SHORT_BUDGET_MS),
+      );
+
+      expect(await response.text()).toBe("first half, second half");
+    } finally {
+      await new Promise<void>((resolve) => {
+        slowBody.close(() => resolve());
+      });
+    }
   });
 
   it("stops at the caller's abort without sending a second request", async () => {

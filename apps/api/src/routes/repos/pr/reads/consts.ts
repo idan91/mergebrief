@@ -1,10 +1,24 @@
-/** Per-session diff cache TTL: short; the diff is live, this only debounces. */
-export const DIFF_CACHE_TTL_MS = 60 * 1000;
-/** Keys are never reused, so an uncapped Map would grow for the process life. */
-export const DIFF_CACHE_MAX_ENTRIES = 2_000;
-/** The entry-count cap alone doesn't bound bytes; an oversized diff is served
- * but NOT cached. */
-export const DIFF_CACHE_MAX_ENTRY_BYTES = 1_000_000;
+import type { LargeDiffCacheLimits, SpanDiffCacheLimits } from "./types";
+
+const MEBIBYTE = 1024 * 1024;
+/** Keys are never reused, so count and bytes both bound it; the diff is live,
+ * so the short TTL only debounces. */
+export const SPAN_DIFF_CACHE_LIMITS = {
+  maxEntryBytes: 1_000_000,
+  maxBytes: 128 * MEBIBYTE,
+  maxEntries: 2_000,
+  ttlMs: 60 * 1000,
+} as const satisfies SpanDiffCacheLimits;
+/** Holds only spans pinned to two commit SHAs, whose diff never changes. */
+export const LARGE_DIFF_CACHE_LIMITS = {
+  maxEntryBytes: 64 * MEBIBYTE,
+  maxBytes: 256 * MEBIBYTE,
+  maxEntries: 256,
+  maxEntriesPerViewer: 4,
+  ttlMs: 10 * 60 * 1000,
+} as const satisfies LargeDiffCacheLimits;
+/** Attempts on a span diff stop here, inside the web tier's 30 s upstream budget. */
+export const DIFF_FETCH_DEADLINE_MS = 25_000;
 /** Fetch cap, and the never-cache threshold: a blob past it is refused rather
  * than served uncached, which would re-fetch the whole file per hunk edge. */
 export const FILE_BLOB_MAX_BYTES = 1_000_000;

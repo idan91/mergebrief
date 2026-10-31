@@ -31,3 +31,10 @@ export function briefErrorDetail(t: TFunction, error: unknown): string {
       return t("briefError.generation-failed");
   }
 }
+
+/** GitHub did not render a span's diff inside the API's deadline; a retry may land. */
+export function isDiffFetchTimeout(error: unknown): boolean {
+  return (
+    error instanceof ApiError && error.code === ApiErrorCodes.DIFF_FETCH_TIMEOUT
+  );
+}
