@@ -13,11 +13,19 @@ import {
   type DraftBriefOptions,
 } from "../categorize";
 import { validateFinalBrief } from "../final-validation";
-import { generateMultiCallBrief } from "../multi-call";
+import {
+  generateMultiCallBrief,
+  hasStoredGrouping,
+  isOutputCut,
+} from "../multi-call";
 import { decideCallPlan } from "../size";
 import { CallPlanKinds, type CallPlan, type CallPlanKind } from "../size/types";
 import { createWarningCollector, formatGenerationWarnings } from "../warnings";
-import type { GenerationWarning, WarningCollector } from "../warnings/types";
+import {
+  GenerationWarningKinds,
+  type GenerationWarning,
+  type WarningCollector,
+} from "../warnings/types";
 import type { LockfileSummary } from "../shortened/types";
 import type {
   BriefAnchoring,
@@ -194,8 +202,12 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
 
 /**
  * Generate one Brief: a multi-call run when the call plan says so and the
- * caller passed `multiCallHooks`, else one call. Validation runs once, over
- * the final chunk set; nothing after the model call fails the generation.
+ * caller passed `multiCallHooks`, else one call; with hooks, a single call
+ * whose answer is cut at the output cap re-runs once as a multi-call run,
+ * which starts its own warning list so the cut call's warnings are not
+ * counted twice, and a retry whose span holds that run's grouping part
+ * resumes it without sending the single call again. Validation runs once, over the final chunk set; nothing
+ * after the model call fails the generation.
  */
 export async function generateBrief(
   options: GenerateBriefOptions,
@@ -215,12 +227,38 @@ export async function generateBrief(
     warnings,
   };
 
-  if (callPlan.kind !== CallPlanKinds.MULTI) {
+  const hooks = options.multiCallHooks;
+  const plansMultiCall = callPlan.kind === CallPlanKinds.MULTI;
+  if (hooks === undefined) {
+    if (plansMultiCall) {
+      log(NO_HOOKS_NOTE);
+    }
     return runSingleCall(run);
   }
-  if (options.multiCallHooks === undefined) {
-    log(NO_HOOKS_NOTE);
-    return runSingleCall(run);
+  if (plansMultiCall) {
+    return runMultiCall(run);
   }
-  return runMultiCall(run);
+
+  if (await hasStoredGrouping(hooks, log)) {
+    warnings.report({
+      kind: GenerationWarningKinds.SINGLE_CALL_CUT,
+      message:
+        "an earlier attempt's single call reached the output cap; this attempt resumed its multi-call run from the stored parts",
+    });
+    return runMultiCall(run);
+  }
+  try {
+    return await runSingleCall(run);
+  } catch (error) {
+    if (!isOutputCut(error)) {
+      throw error;
+    }
+    const retryWarnings = createWarningCollector(log);
+    retryWarnings.report({
+      kind: GenerationWarningKinds.SINGLE_CALL_CUT,
+      message:
+        "the single call's answer reached the output cap; the brief was generated as a multi-call run instead",
+    });
+    return runMultiCall({ ...run, warnings: retryWarnings });
+  }
 }

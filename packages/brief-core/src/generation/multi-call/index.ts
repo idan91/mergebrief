@@ -1,4 +1,10 @@
-import type { GenerateRequest, Generator } from "generators";
+import {
+  GeneratorError,
+  GeneratorErrorKinds,
+  type GenerateRequest,
+  type Generator,
+  type Logger,
+} from "generators";
 import type { z } from "zod/v4";
 import { splitDiffByFile } from "../../diff/file-diff";
 import { indexDiff } from "../../diff/hunk-index";
@@ -42,7 +48,7 @@ import type {
 import { snapChunkRanges } from "../snap-ranges";
 import { restoreRawGroupIds, restoreRawPaths } from "../untrusted-text";
 import { dropUnknownGroupChunks, fanOutIntentCheck } from "../validate";
-import { planDetailBatches } from "./batches";
+import { planDetailBatches, splitBatch } from "./batches";
 import { dropEmptyGroups } from "./empty-groups";
 import {
   DEFAULT_DETAIL_CONCURRENCY,
@@ -64,6 +70,7 @@ import {
   renameChunkGroupIds,
   renumberGroupIds,
 } from "./renumber";
+import { GenerationWarningKinds } from "../warnings/types";
 import { clampToShownLines } from "./shown-lines";
 import type {
   DetailBatch,
@@ -96,6 +103,29 @@ async function loadStoredPart<S extends z.ZodType>(
   }
   const parsed = schema.safeParse(stored);
   return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * Whether the span holds a grouping part that still parses: an earlier
+ * attempt already went multi-call, so resuming its parts beats paying for
+ * a single call first. A read that fails is logged and counts as none.
+ */
+export async function hasStoredGrouping(
+  hooks: MultiCallHooks,
+  log: Logger,
+): Promise<boolean> {
+  try {
+    const stored = await loadStoredPart(
+      hooks,
+      PART_KEY_GROUPING,
+      GroupingGenerationSchema,
+    );
+    return stored !== undefined;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    log(`${PART_KEY_GROUPING}: no stored part read (${reason})`);
+    return false;
+  }
 }
 
 /**
@@ -346,6 +376,59 @@ interface DetailStep {
   storedGroupIds: StoredGroupIds;
 }
 
+/** The one generator failure the engine recovers from: an answer cut at its output cap. */
+export function isOutputCut(error: unknown): boolean {
+  return (
+    error instanceof GeneratorError &&
+    error.kind === GeneratorErrorKinds.OUTPUT_CUT
+  );
+}
+
+/** A whole batch of two or more hunks has halves; a half never splits again. */
+function readHalves(
+  batch: DetailBatch,
+): [DetailBatch, DetailBatch] | undefined {
+  return batch.half === undefined ? splitBatch(batch) : undefined;
+}
+
+/**
+ * A batch whose answer was cut splits once into two halves, run one after
+ * the other in the same lane, each its own resume part. A half that is cut
+ * again fails the run.
+ */
+async function runSplitDetailCall(
+  batch: DetailBatch,
+  halves: readonly [DetailBatch, DetailBatch],
+  step: DetailStep,
+): Promise<DetailOutcome> {
+  const key = readPartKey(batch);
+  step.options.warnings.report({
+    kind: GenerationWarningKinds.DETAIL_CALL_CUT,
+    message: `${key}: the answer reached the output cap; the batch ran as two halves`,
+    partKey: key,
+  });
+  const [head, tail] = halves;
+  const first = await runDetailCall(head, step);
+  const second = await runDetailCall(tail, step);
+  return { batch, chunks: [...first.chunks, ...second.chunks] };
+}
+
+/** A batch split on an earlier run stored its halves, never the whole: resume goes straight to them. */
+async function hasStoredHalf(
+  head: DetailBatch,
+  step: DetailStep,
+): Promise<boolean> {
+  if (!step.reusesStoredParts) {
+    return false;
+  }
+  const stored = await loadStoredPart(
+    step.options.hooks,
+    readPartKey(head),
+    step.schema,
+  );
+  return stored !== undefined;
+}
+
 async function runDetailCall(
   batch: DetailBatch,
   step: DetailStep,
@@ -363,6 +446,29 @@ async function runDetailCall(
     );
     return { batch, chunks };
   }
+  const halves = readHalves(batch);
+  const resumesSplit =
+    halves !== undefined && (await hasStoredHalf(halves[0], step));
+  if (resumesSplit) {
+    return runSplitDetailCall(batch, halves, step);
+  }
+  try {
+    return await runFreshDetailCall(batch, step);
+  } catch (error) {
+    const splitsOnCut = isOutputCut(error) && halves !== undefined;
+    if (!splitsOnCut) {
+      throw error;
+    }
+    return runSplitDetailCall(batch, halves, step);
+  }
+}
+
+async function runFreshDetailCall(
+  batch: DetailBatch,
+  step: DetailStep,
+): Promise<DetailOutcome> {
+  const { hooks, log } = step.options;
+  const key = readPartKey(batch);
 
   const request = step.buildRequest(batch);
   const generateRequest: GenerateRequest<z.ZodType<DetailGeneration>> = {

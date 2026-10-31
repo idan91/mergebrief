@@ -165,3 +165,20 @@ export function makeOptions(
     ...overrides,
   };
 }
+
+/** A single-call answer for the same PR: one group, one chunk per file. */
+export const singleBrief = {
+  summary: "Refactors three modules and bumps react.",
+  intentCheck: NO_INTENT,
+  changeGroups: [makeGroup("g1")],
+  chunks: PATHS.map((path, position) => ({
+    id: `c${position + 1}`,
+    changeGroupId: "g1",
+    file: path,
+    concern: "implementation",
+    role: "core",
+    addedRanges: [{ start: 1, end: 1 }],
+    removedRanges: [{ start: 1, end: 1 }],
+    riskSurface: [],
+  })),
+};

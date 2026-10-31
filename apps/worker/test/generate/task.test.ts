@@ -52,6 +52,7 @@ import {
   setUpHarness,
   stubGenerator,
   stubHangingGenerator,
+  stubMultiCallGenerator,
   trigger,
 } from "./helpers";
 import { TransientJobError } from "../../src/task/failure";
@@ -1520,19 +1521,16 @@ describe("generate task", () => {
     expect(generator.calls).toEqual([]);
   });
 
-  it("fails a cut brief for good as output-cut, with no retry", async () => {
+  it("fails a cut brief for good as output-cut, with no multi-call re-run", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const generator = stubGenerator();
-    generator.failNextWith = new GeneratorError(
-      GeneratorErrorKinds.OUTPUT_CUT,
-      "brief reached its output token cap before it finished",
-    );
+    const generator = stubMultiCallGenerator(["brief"]);
 
     await expect(makeTask({ generator })(payload)).resolves.toBeUndefined();
 
     const row = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_1),
     );
+    expect(generator.calls).toEqual(["brief"]);
     expect(row?.status).toBe(GenerationStatuses.FAILED);
     expect(row?.errorCode).toBe(GenerationFailureCodes.OUTPUT_CUT);
   });

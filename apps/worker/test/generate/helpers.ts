@@ -39,7 +39,11 @@ import {
 import { createI18n } from "i18n";
 import { createLogger, type Logger } from "logging";
 import type { Mutable } from "types/utils";
-import { createBuiltInContextProviders, type CompareFiles } from "brief-core";
+import {
+  createBuiltInContextProviders,
+  parseChangedRanges,
+  type CompareFiles,
+} from "brief-core";
 import type {
   InstallationRepoClient,
   OwnedOperatorToken,
@@ -167,6 +171,43 @@ export function stubHangingGenerator(
   };
 }
 
+function makeStubIntentCheck() {
+  return {
+    ticketUrls: [],
+    ticketTitles: [],
+    specificity: "none",
+    scopeNote: "",
+    items: [],
+    alignment: { read: "", goal: "", response: "" },
+  };
+}
+
+function makeStubChangeGroup() {
+  return {
+    id: "g1",
+    title: "stub group",
+    summary: "stub group summary",
+    dominantCategory: "bugfix",
+    secondaryCategories: [],
+    uncertain: false,
+    uncertainBetween: [],
+  };
+}
+
+const GROUPING_LABEL = "grouping";
+const DETAIL_LABEL_PREFIX = "detail:";
+const PR_DIFF_OPEN = "<pr_diff>\n";
+const PR_DIFF_CLOSE = "\n</pr_diff>";
+const DIFF_FILE_HEADER = "diff --git ";
+const OUTLINE_FILE_TITLE = /^### (f\d+) /;
+const DETAIL_HUNK_MARKER = /^\[hunk \S+ -> (\S+)\]$/;
+
+/** One detail-call hunk as a standalone patch: its file's diff header, then the hunk. */
+interface MarkedHunk {
+  groupId: string;
+  lines: string[];
+}
+
 /** Dispatches canned, schema-minimal outputs by label. */
 export function stubGenerator(): StubGenerator {
   const calls: string[] = [];
@@ -174,25 +215,8 @@ export function stubGenerator(): StubGenerator {
   const outputs: Record<string, unknown> = {
     brief: {
       summary: "stub brief",
-      intentCheck: {
-        ticketUrls: [],
-        ticketTitles: [],
-        specificity: "none",
-        scopeNote: "",
-        items: [],
-        alignment: { read: "", goal: "", response: "" },
-      },
-      changeGroups: [
-        {
-          id: "g1",
-          title: "stub group",
-          summary: "stub group summary",
-          dominantCategory: "bugfix",
-          secondaryCategories: [],
-          uncertain: false,
-          uncertainBetween: [],
-        },
-      ],
+      intentCheck: makeStubIntentCheck(),
+      changeGroups: [makeStubChangeGroup()],
       chunks: [
         {
           id: "c1",
@@ -242,6 +266,136 @@ export function stubGenerator(): StubGenerator {
     origin(effort: Effort) {
       return { provider: "stub", model: "stub-model", effort };
     },
+  };
+  return generator;
+}
+
+function sliceDiffBlock(user: string): string {
+  const start = user.lastIndexOf(PR_DIFF_OPEN) + PR_DIFF_OPEN.length;
+  return user.slice(start, user.indexOf(PR_DIFF_CLOSE, start));
+}
+
+/** Every file of the outline in one group, each assigned whole. */
+function answerGrouping(user: string): unknown {
+  const fileIds = sliceDiffBlock(user)
+    .split("\n")
+    .flatMap((line) => {
+      const [, fileId] = OUTLINE_FILE_TITLE.exec(line) ?? [];
+      return fileId === undefined ? [] : [fileId];
+    });
+
+  const group = makeStubChangeGroup();
+
+  return {
+    summary: "stub grouping",
+    changeGroups: [group],
+    readingOrder: [{ groupId: group.id, why: "the one group" }],
+    intentCheck: makeStubIntentCheck(),
+    hunkMap: [{ groupId: group.id, hunks: fileIds }],
+  };
+}
+
+/** Splits a detail batch's diff into one patch per hunk marker, keyed by the marker's group. */
+function listMarkedHunks(user: string): MarkedHunk[] {
+  const hunks: MarkedHunk[] = [];
+  let fileHeader: string[] = [];
+  let current: MarkedHunk | undefined;
+  for (const line of sliceDiffBlock(user).split("\n")) {
+    if (line.startsWith(DIFF_FILE_HEADER)) {
+      current = undefined;
+      fileHeader = [line];
+      continue;
+    }
+    const [, groupId] = DETAIL_HUNK_MARKER.exec(line) ?? [];
+    if (groupId !== undefined) {
+      current = { groupId, lines: [...fileHeader] };
+      hunks.push(current);
+      continue;
+    }
+    if (current === undefined) {
+      fileHeader.push(line);
+    } else {
+      current.lines.push(line);
+    }
+  }
+
+  return hunks;
+}
+
+/** One chunk per hunk marker, in its marker's group. */
+function answerDetail(user: string): unknown {
+  const files = listMarkedHunks(user).flatMap((hunk) =>
+    parseChangedRanges(hunk.lines.join("\n")).map((file) => ({
+      groupId: hunk.groupId,
+      file,
+    })),
+  );
+
+  return {
+    chunks: files.map(({ groupId, file }, index) => ({
+      id: `c${index + 1}`,
+      changeGroupId: groupId,
+      file: file.file,
+      concern: "implementation",
+      role: "core",
+      addedRanges: file.addedRanges,
+      removedRanges: file.removedRanges,
+      riskSurface: [],
+    })),
+  };
+}
+
+function answerMultiCall(label: string, user: string): unknown {
+  if (label === GROUPING_LABEL) {
+    return answerGrouping(user);
+  }
+  if (label.startsWith(DETAIL_LABEL_PREFIX)) {
+    return answerDetail(user);
+  }
+  return undefined;
+}
+
+/**
+ * `stubGenerator` that also answers a multi-call run's grouping and detail
+ * calls, and cuts every call whose label `cutLabels` names, as a model
+ * reaching its output cap does. A cut call is recorded in `calls`.
+ */
+export function stubMultiCallGenerator(
+  cutLabels: readonly string[] = [],
+): StubGenerator {
+  const single = stubGenerator();
+  const generator: StubGenerator = {
+    calls: single.calls,
+    outputs: single.outputs,
+    requests: single.requests,
+    async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      if (generator.failNextWith !== undefined) {
+        single.failNextWith = generator.failNextWith;
+        generator.failNextWith = undefined;
+        return single.generate(req);
+      }
+      if (cutLabels.includes(req.label)) {
+        single.calls.push(req.label);
+        throw new GeneratorError(
+          GeneratorErrorKinds.OUTPUT_CUT,
+          `${req.label} reached its output token cap before it finished`,
+        );
+      }
+      const answer = answerMultiCall(req.label, req.user);
+      if (answer === undefined) {
+        return single.generate(req);
+      }
+      single.calls.push(req.label);
+      single.requests.push({
+        label: req.label,
+        system: req.system,
+        user: req.user,
+      });
+      return req.schema.parse(answer);
+    },
+    origin: (effort: Effort) => single.origin(effort),
   };
   return generator;
 }

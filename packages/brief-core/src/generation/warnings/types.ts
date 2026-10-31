@@ -1,6 +1,7 @@
 import { GeneratorWarningKinds, type GeneratorWarning } from "generators";
 import type { ValueOf } from "types/utils";
 import type { FileId, HunkId } from "../../diff/hunk-index/types";
+import type { PartKey } from "../multi-call/types";
 
 export const GenerationWarningKinds = {
   ...GeneratorWarningKinds,
@@ -12,6 +13,10 @@ export const GenerationWarningKinds = {
   HUNK_MAP_LISTED_TWICE: "hunk-map-listed-twice",
   /** A hunk or shortened file no group claimed; its lines fall to the unattributed remainder. */
   HUNK_MAP_UNLISTED: "hunk-map-unlisted",
+  /** A detail call's answer reached the output cap; the batch was split once into two halves. */
+  DETAIL_CALL_CUT: "detail-call-cut",
+  /** The single call's answer reached the output cap; the brief was re-run once as a multi-call run. */
+  SINGLE_CALL_CUT: "single-call-cut",
 } as const;
 /** @public */
 export type GenerationWarningKind = ValueOf<typeof GenerationWarningKinds>;
@@ -55,16 +60,32 @@ export type HunkMapWarning =
   | HunkMapListedTwiceWarning
   | HunkMapUnlistedWarning;
 
+export interface DetailCallCutWarning {
+  kind: typeof GenerationWarningKinds.DETAIL_CALL_CUT;
+  message: string;
+  partKey: PartKey;
+}
+
+export interface SingleCallCutWarning {
+  kind: typeof GenerationWarningKinds.SINGLE_CALL_CUT;
+  message: string;
+}
+
+export type OutputCutWarning = DetailCallCutWarning | SingleCallCutWarning;
+
 export type GenerationWarning =
   | GeneratorWarning
   | ValidationWarning
   | RepoInstructionsOmittedWarning
-  | HunkMapWarning;
+  | HunkMapWarning
+  | OutputCutWarning;
 
 export interface WarningCollector {
   /** Records a warning the generator already logged. */
   recordGeneratorWarning: (warning: GeneratorWarning) => void;
-  report: (warning: RepoInstructionsOmittedWarning | HunkMapWarning) => void;
+  report: (
+    warning: RepoInstructionsOmittedWarning | HunkMapWarning | OutputCutWarning,
+  ) => void;
   /** Reports nothing for an empty issue list. */
   reportIssues: (check: string, issues: readonly string[]) => void;
   listWarnings: () => GenerationWarning[];
