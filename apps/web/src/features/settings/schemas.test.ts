@@ -1,6 +1,6 @@
 // Parser tests against realistic wire bodies: route tests that seed the query
 // cache bypass the parser, so a shape drift would otherwise ship green.
-import type { SpendView as WireSpendView } from "contract";
+import type { SpendView } from "contract";
 import { describe, expect, it } from "vitest";
 import type { Equals } from "types/utils";
 import type { z } from "zod/v4";
@@ -9,7 +9,6 @@ import { parseWithSchema } from "@web/utils/parse-with-schema";
 import type { ReadsWireFields } from "@web/test/wire-fields";
 
 import { spendViewSchema } from "./schemas";
-import type { SpendView } from "./types";
 
 const WIRE_SPEND = {
   startedRuns: 37,
@@ -33,6 +32,14 @@ describe("spendViewSchema", () => {
     expect(parsed).toEqual({ ok: true, value: uncapped });
   });
 
+  it("reads the day's large runs", () => {
+    const withLarge = { ...WIRE_SPEND, largeRuns: { runs: 2, units: 12 } };
+
+    const parsed = parseWithSchema(spendViewSchema, withLarge);
+
+    expect(parsed).toEqual({ ok: true, value: withLarge });
+  });
+
   it("rejects a body without the count", () => {
     const { startedRuns: _startedRuns, ...countless } = WIRE_SPEND;
 
@@ -41,13 +48,13 @@ describe("spendViewSchema", () => {
 });
 
 const PINS = {
-  matchesInterface: true satisfies Equals<
+  matchesWire: true satisfies Equals<
     z.output<typeof spendViewSchema>,
     SpendView
   >,
   readsOnlyWireFields: true satisfies ReadsWireFields<
     z.output<typeof spendViewSchema>,
-    WireSpendView
+    SpendView
   >,
 } as const;
 

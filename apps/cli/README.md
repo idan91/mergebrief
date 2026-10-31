@@ -259,9 +259,13 @@ Requires push access: a read-only viewer gets the 404 posture.
 ### `spend`
 
 Today's started generation runs against the instance's daily cap, verbatim:
-`{"startedRuns":3,"cap":50,"dayStartedAt":"…","resetsAt":"…"}` (no `cap` on
-an uncapped instance; the day is UTC). Operators only: anyone else gets 403
-`operator-only` (exit 5). No repo targeting.
+`{"startedRuns":17,"cap":50,"largeRuns":{"runs":2,"units":12},"dayStartedAt":"…","resetsAt":"…"}`
+(no `cap` on an uncapped instance; no `largeRuns` when no run today took more
+than one; the day is UTC). `startedRuns` counts run units: a large pull request
+briefed in parts takes one more for each part, and `largeRuns` says how many
+runs were briefed in parts and how many units they took. One pull request
+pushed or retried the same day counts once per run. Operators only: anyone
+else gets 403 `operator-only` (exit 5). No repo targeting.
 
 ### `conversation <n>`
 

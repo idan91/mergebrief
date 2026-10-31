@@ -1,6 +1,6 @@
+import type { SpendView } from "contract";
 import { Trans, useTranslation } from "react-i18next";
 
-import type { SpendView } from "../../../types";
 import type { SpendReading } from "../types";
 import { resolveCountKey } from "../utils";
 import { COUNT_EMPHASIS } from "./consts";
@@ -13,6 +13,15 @@ export interface SpendSentenceProps {
 
 export function SpendSentence({ view, reading }: SpendSentenceProps) {
   const { t } = useTranslation();
+  const largeBreakdown =
+    view.largeRuns === undefined
+      ? undefined
+      : t("spend.largeBreakdown", {
+          count: view.largeRuns.runs,
+          units: view.largeRuns.units,
+        });
+  const largeSentence =
+    largeBreakdown === undefined ? undefined : <> {largeBreakdown}</>;
 
   if (view.cap === undefined) {
     return (
@@ -22,6 +31,7 @@ export function SpendSentence({ view, reading }: SpendSentenceProps) {
           count={view.startedRuns}
           i18nKey="spend.uncapped"
         />
+        {largeSentence}
       </p>
     );
   }
@@ -45,8 +55,8 @@ export function SpendSentence({ view, reading }: SpendSentenceProps) {
         count={view.cap}
         i18nKey={countKey}
         values={{ started: view.startedRuns, cap: view.cap }}
-      />{" "}
-      {reset}
+      />
+      {largeSentence} {reset}
     </p>
   );
 }

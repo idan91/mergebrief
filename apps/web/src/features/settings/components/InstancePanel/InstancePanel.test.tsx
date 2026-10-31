@@ -112,6 +112,33 @@ describe("InstancePanel", () => {
     ).toBeTruthy();
   });
 
+  it("names the large runs that took several of today's runs", async () => {
+    answerSpend({
+      startedRuns: 37,
+      cap: 50,
+      largeRuns: { runs: 2, units: 12 },
+      ...DAY,
+    });
+    renderPanel();
+
+    const sentence = await findSentence();
+
+    expect(sentence).toContain(
+      "This instance has started 37 of its 50 runs today. 2 runs briefed in parts took 12 of them.",
+    );
+  });
+
+  it("names one large run on an uncapped Instance", async () => {
+    answerSpend({ startedRuns: 9, largeRuns: { runs: 1, units: 8 }, ...DAY });
+    renderPanel();
+
+    const sentence = await findSentence();
+
+    expect(sentence).toBe(
+      "This instance has started 9 runs today and has no daily cap. 1 run briefed in parts took 8 of them.",
+    );
+  });
+
   it("offers the config that changes the cap", async () => {
     answerSpend({ startedRuns: 37, cap: 50, ...DAY });
     renderPanel();

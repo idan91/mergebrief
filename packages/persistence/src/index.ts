@@ -263,7 +263,6 @@ export type {
 
 // The `generation` status-projection write helpers.
 export {
-  countStartedRunsOnDay,
   createGenerationProjection,
   GenerationErrorCodes,
   readSpendBreakdown,

@@ -549,19 +549,9 @@ function isStartedWithin({ from, to }: { from: Date; to: Date }): SQL {
 }
 
 /**
- * The instance's started runs over one UTC day, with no scope to bind: the
- * spend read answers for the whole instance, as the cap does.
- */
-export async function countStartedRunsOnDay(
-  handle: AppDatabase,
-  day: { readonly from: Date; readonly to: Date },
-): Promise<number> {
-  return countStartedRuns(internal(handle), day);
-}
-
-/**
  * The instance's spend over one UTC day, split into every run and the large
- * runs that claimed more than one unit. Unscoped, as `countStartedRunsOnDay` is.
+ * runs that claimed more than one unit, with no scope to bind: the spend read
+ * answers for the whole instance, as the cap does.
  */
 export async function readSpendBreakdown(
   handle: AppDatabase,

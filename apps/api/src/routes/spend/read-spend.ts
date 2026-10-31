@@ -1,7 +1,7 @@
 import type { SpendView } from "contract";
 import type { LoadedInstancePolicy } from "generators/instance-policy";
 import {
-  countStartedRunsOnDay,
+  readSpendBreakdown,
   utcDayBounds,
   type AppDatabase,
 } from "persistence";
@@ -17,16 +17,19 @@ export async function readSpend(
   now: Date,
 ): Promise<SpendView> {
   const day = utcDayBounds(now);
-  const startedRuns = await countStartedRunsOnDay(deps.handle, day);
+  const breakdown = await readSpendBreakdown(deps.handle, day);
 
   const view: Mutable<SpendView> = {
-    startedRuns,
+    startedRuns: breakdown.startedUnits,
     dayStartedAt: day.from.toISOString(),
     resetsAt: day.to.toISOString(),
   };
   const cap = deps.spendPolicy.maxGenerationsPerDay;
   if (cap !== null) {
     view.cap = cap;
+  }
+  if (breakdown.largeRuns.runs > 0) {
+    view.largeRuns = breakdown.largeRuns;
   }
   return view;
 }

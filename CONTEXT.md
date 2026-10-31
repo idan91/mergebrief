@@ -212,7 +212,7 @@ How a human reaches a computed **Brief**: one branded PR comment carrying a deep
 _Avoid_: activation (as "the click"), deep-link gate, draft-first (the former name for the opt-out, which was described as an opt-in)
 
 **Generation**:
-The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped, awaiting trigger). Each paid try at it, graphile retries included, is one attempt, and attempts are what the **Daily cap** counts. A running Generation is held by its **Claim**. Never a queue. A **Job** that runs with a stored Brief takes no Claim, but when it pays a provider call it still adds one attempt.
+The persisted record of producing a **Brief** for one head of one PR, which the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped, awaiting trigger). Each paid try at it, graphile retries included, is one attempt, and attempts, with the parts a large one claims, are what the **Daily cap** counts. A running Generation is held by its **Claim**. Never a queue. A **Job** that runs with a stored Brief takes no Claim, but when it pays a provider call it still adds one attempt.
 _Avoid_: job (that is the **Job**), run (a run id names a **Claim**, not the record), generation job
 
 **Trusted author**:
@@ -244,11 +244,11 @@ The job queued with each **Claim** that wakes once the Claim's lease could have 
 _Avoid_: recovery (the task id `recover-generation` keeps it; in prose that word belongs to **Restore**), retry job
 
 **Started run**:
-One run the Instance started on a UTC day: every paid **Claim**, graphile retries, shutdown releases and no-call **Takeovers** included, plus a **Job** with a stored **Brief** at its first provider call. The **Daily cap** counts started runs across every repository; the **Operator** reads the day's count against it.
+One run the Instance started on a UTC day: every paid **Claim**, graphile retries, shutdown releases and no-call **Takeovers** included, plus a **Job** with a stored **Brief** at its first provider call. A pull request briefed in parts counts one more started run for each part, claimed together once its plan names the parts. The **Daily cap** counts started runs across every repository; the **Operator** reads the day's count against it.
 _Avoid_: paid run (some started runs made no provider call), generation (the record, not one run of it)
 
 **Daily cap**:
-The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs** the **Instance** starts on one UTC day across every repository; absent means 300, and `unlimited` lifts it. At the cap the worker skips the generation, the PR shows the capped **Not-ready screen** with the reset time, an existing **Entry** is updated to say so, and the head runs on its next push after the reset at 00:00 UTC.
+The **Instance config**'s `spend.maxGenerationsPerDay`: the most **Started runs** the **Instance** starts on one UTC day across every repository, each part of a run briefed in parts included; absent means 300, and `unlimited` lifts it. At the cap the worker skips the generation, the PR shows the capped **Not-ready screen** with the reset time, an existing **Entry** is updated to say so, and the head runs on its next push after the reset at 00:00 UTC.
 _Avoid_: budget, quota, rate limit (GitHub's)
 
 **Job**:

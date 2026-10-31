@@ -8,10 +8,10 @@ import { describe, expect, it } from "vitest";
 import type { AppDatabase } from "../src/db/handle";
 import {
   ClaimOutcomes,
-  countStartedRunsOnDay,
   createGenerationProjection,
   createPurgeRoutines,
   createTenantRepository,
+  readSpendBreakdown,
   type GenerationTarget,
   type TenantContext,
   utcDayBounds,
@@ -212,15 +212,15 @@ describe("countStartedRuns", () => {
   });
 });
 
-describe("countStartedRunsOnDay", () => {
+describe("readSpendBreakdown", () => {
   it("counts the UTC day's runs with no scope to bind", async () => {
     const { handle, pullRequestId, spend } = await makeHarness();
     await spend(makeBriefTarget(pullRequestId, "today"), INSIDE);
     await spend(makeBriefTarget(pullRequestId, "tomorrow"), DAY_END);
 
-    const started = await countStartedRunsOnDay(handle, utcDayBounds(INSIDE));
+    const breakdown = await readSpendBreakdown(handle, utcDayBounds(INSIDE));
 
-    expect(started).toBe(1);
+    expect(breakdown.startedUnits).toBe(1);
   });
 });
 

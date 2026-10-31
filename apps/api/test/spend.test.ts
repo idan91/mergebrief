@@ -6,6 +6,7 @@ import {
   createIngestRoutines,
   type KeyProvider,
   type TenantContext,
+  utcDayBounds,
 } from "persistence";
 import { claimTestRun } from "persistence/testing";
 import { AccessLevels, PrStates, type Mutable } from "types";
@@ -63,7 +64,7 @@ describe("GET /api/spend", () => {
     return createApp(deps);
   }
 
-  async function startRuns(count: number): Promise<void> {
+  async function startRuns(count: number): Promise<string[]> {
     const triggered = await createIngestRoutines(
       harness.handle,
       CTX,
@@ -83,9 +84,17 @@ describe("GET /api/spend", () => {
       headSha: "h1",
       baselineSha: null,
     } as const;
+    const runIds: string[] = [];
     for (let run = 0; run < count; run += 1) {
-      await claimTestRun(projection, target, { leaseMs: 0 });
+      runIds.push(await claimTestRun(projection, target, { leaseMs: 0 }));
     }
+    return runIds;
+  }
+
+  async function claimMoreUnits(runId: string, units: number): Promise<void> {
+    const projection = createGenerationProjection(harness.handle, CTX);
+    const day = utcDayBounds(new Date());
+    await projection.claimUnits({ runId, units, from: day.from, to: day.to });
   }
 
   async function readAsCookie(app: ApiApp): Promise<Response> {
@@ -104,6 +113,31 @@ describe("GET /api/spend", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body: unknown = await res.json();
     expect(body).toMatchObject({ startedRuns: 2, cap: DAILY_CAP });
+  });
+
+  it("counts a large run's units and names the large runs apart", async () => {
+    const [large] = await startRuns(2);
+    if (large === undefined) {
+      throw new Error("expected a run");
+    }
+    await claimMoreUnits(large, 4);
+
+    const res = await readAsCookie(buildApp({ cap: DAILY_CAP }));
+
+    const body: unknown = await res.json();
+    expect(body).toMatchObject({
+      startedRuns: 6,
+      largeRuns: { runs: 1, units: 5 },
+    });
+  });
+
+  it("leaves the large runs out on a day with none", async () => {
+    await startRuns(1);
+
+    const res = await readAsCookie(buildApp({ cap: DAILY_CAP }));
+
+    const body: unknown = await res.json();
+    expect(body).not.toHaveProperty("largeRuns");
   });
 
   it("names the UTC day the count covers and when it resets", async () => {

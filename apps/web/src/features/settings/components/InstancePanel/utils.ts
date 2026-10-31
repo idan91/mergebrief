@@ -1,4 +1,5 @@
-import type { SpendView } from "../../types";
+import type { SpendView } from "contract";
+
 import {
   MAX_TICKS,
   MINUTES_PER_HOUR,

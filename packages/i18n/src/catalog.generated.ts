@@ -302,6 +302,8 @@ export type Catalog = typeof en & {
     overCap: "This instance has started <0>{{started}} runs</0> today, past its cap of {{cap}}.";
     uncapped_one: "This instance has started <0>{{count}} run</0> today and has no daily cap.";
     uncapped_other: "This instance has started <0>{{count}} runs</0> today and has no daily cap.";
+    largeBreakdown_one: "{{count}} run briefed in parts took {{units}} of them.";
+    largeBreakdown_other: "{{count}} runs briefed in parts took {{units}} of them.";
     resetsLocal: "The count resets at {{local}} your time ({{utc}} UTC), {{relative}}.";
     resetsUtc: "The count resets at {{utc}} UTC, {{relative}}.";
     ticksLabel_one: "{{started}} of {{count}} run started today";

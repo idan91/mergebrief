@@ -13,6 +13,7 @@ import { ExitCodes } from "../src/exit";
 import { runCli } from "../src/program";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
 import { BASE_URL } from "./harness/consts";
+import { runCliOffline } from "./harness/offline";
 
 const REVIEWER_ID = 555;
 const DAILY_CAP = 50;
@@ -142,6 +143,27 @@ describe("spend command over the real api app", () => {
     expect(tty.code).toBe(ExitCodes.OK);
     expect(tty.out).toBe(
       `0 of ${DAILY_CAP} runs started today · resets at 00:00 UTC\n`,
+    );
+  });
+});
+
+describe("spend command over a scripted answer", () => {
+  it("prints the large-run breakdown the body carries", async () => {
+    const body = JSON.stringify({
+      startedRuns: 17,
+      cap: DAILY_CAP,
+      largeRuns: { runs: 2, units: 12 },
+      dayStartedAt: "2026-10-28T00:00:00.000Z",
+      resetsAt: "2026-10-29T00:00:00.000Z",
+    });
+
+    const run = await runCliOffline(["spend"], {
+      routes: [{ method: "GET", path: "/api/spend", body }],
+    });
+
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(run.out).toBe(
+      `17 of ${DAILY_CAP} runs started today · 2 runs briefed in parts took 12 of them · resets at 00:00 UTC\n`,
     );
   });
 });

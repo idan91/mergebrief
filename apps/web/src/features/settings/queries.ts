@@ -2,11 +2,10 @@
 // starts and resets at 00:00 UTC, so it refetches on focus and once a minute
 // while the page is visible; the panel reads its relative time off the fetch.
 import { queryOptions } from "@tanstack/react-query";
-import { ProductQueryIds } from "contract";
+import { ProductQueryIds, type SpendView } from "contract";
 
 import { request } from "../../data/request";
 import { spendViewSchema } from "./schemas";
-import type { SpendView } from "./types";
 
 const SPEND_POLL_MS = 60_000;
 

@@ -31,12 +31,3 @@ export interface SettingsTab {
 export interface SettingsSearch {
   readonly tab?: SettingsTabId;
 }
-
-/** Today's started runs against the daily cap, as `read-spend` answers. */
-export interface SpendView {
-  readonly startedRuns: number;
-  /** Absent on an uncapped Instance. */
-  readonly cap?: number;
-  readonly dayStartedAt: string;
-  readonly resetsAt: string;
-}

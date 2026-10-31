@@ -190,6 +190,16 @@ only if it pays: one that still owes a checkpoint delta or a narrative counts
 once, at its first provider call, and is refused there if the cap is reached.
 While the instance sits at the cap such a job is refused before any work.
 
+A pull request too large for one model call is briefed in parts: one call
+plans the groups, then one call per part. That run counts one run when it
+starts and one more for each part, claimed together once the plan names the
+parts. If the day has fewer runs left than the parts need, the run stops
+there, before any part is briefed, and the brief view says how many runs it
+needs and how many are left. A retry pays only for the parts it has not
+stored yet. Settings, Instance shows how many of the day's runs were briefed
+in parts and how many units they took; a pull request pushed or retried the
+same day counts once per run.
+
 The count is exact across slots and worker processes: the start and the
 `running` mark share one transaction under one instance-wide advisory lock,
 so N slots cannot start past the cap together. It is still a guardrail, not
