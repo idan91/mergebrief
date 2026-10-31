@@ -43,6 +43,32 @@ describe("scoreRuns", () => {
     expect(result.notes[0]).toContain("bad property");
   });
 
+  it("hands every property the case's changed files", () => {
+    const changedFiles = [
+      {
+        file: "src/a.ts",
+        addedRanges: [{ start: 1, end: 2 }],
+        removedRanges: [],
+      },
+    ];
+    const seesChangedFiles: EvalProperty = {
+      id: "sees-changed-files",
+      description: "reads the case diff's changed files",
+      check: (_brief, files) => files === changedFiles,
+    };
+
+    const result = scoreRuns(
+      [seesChangedFiles],
+      [briefWithGroups(1)],
+      changedFiles,
+    );
+
+    expect(result.scores.get("sees-changed-files")).toEqual({
+      passes: 1,
+      runs: 1,
+    });
+  });
+
   it("rejects duplicate property ids loudly", () => {
     expect(() =>
       scoreRuns([atLeastTwoGroups, atLeastTwoGroups], [briefWithGroups(2)]),

@@ -34,6 +34,8 @@ const VALIDATION_SUBSTRINGS = VALIDATION_WARNING_FAMILIES.map(
 );
 const CHECK_PREFIX = /^⚠ (.+?) issues:\n/;
 const RISK_ATTRIBUTE_DROP = "dropped comment-contradicts-code";
+/** A brief golden past this records its digest: a large case's brief is unreviewable as text. */
+const BRIEF_GOLDEN_MAX_BYTES = 64 * 1024;
 
 export interface GoldenSuiteOptions {
   casesDir: string;
@@ -237,6 +239,14 @@ function serializeGolden(value: unknown): string {
   return JSON.stringify(sortKeys(value), null, JSON_INDENT);
 }
 
+function shapeBriefGolden(output: unknown): string {
+  const serialized = serializeGolden(output);
+  const fitsInline =
+    Buffer.byteLength(serialized, "utf8") <= BRIEF_GOLDEN_MAX_BYTES;
+
+  return fitsInline ? serialized : serializeGolden(digestText(serialized));
+}
+
 function requireRun(runs: GoldenRuns, caseId: string): GoldenRun {
   const run = runs.get(caseId);
   if (run === undefined) {
@@ -287,7 +297,7 @@ function describeBriefGoldens(
     it.each(caseIds)("%s produces the recorded brief", (caseId) => {
       const run = requireRun(runs, caseId);
 
-      expect(serializeGolden(run.output)).toMatchSnapshot();
+      expect(shapeBriefGolden(run.output)).toMatchSnapshot();
     });
   });
 }

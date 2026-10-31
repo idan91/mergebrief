@@ -1,6 +1,7 @@
-# Read by the CI secrets job (PR diff) and the release export's tree scan.
-# Allowlist entries name one fake value each, never a path, so a real secret
-# added beside a fixture still fails both gates.
+# Read by the CI secrets job (PR diff) and the release export's tree scan,
+# both of which open archives one level deep. Allowlist entries name one fake
+# or published value each, never a bare path, so a real secret added beside a
+# fixture still fails both gates.
 
 [extend]
 useDefault = true
@@ -23,4 +24,15 @@ regexes = [
   '''9f2c4e6a8b0d1f3e5a7c9b2d4f6e8a0c1b3d5f7e9a2c4b6d8f0e1a3c5b7d9f2e''',
   # packages/persistence/test/crypto.test.ts: GitHub's documented example token
   '''gho_16C7e42F292c6912E7710c838347Ae178B4a''',
+]
+
+[[allowlists]]
+description = "Published values the next-60530 eval fixture carries from vercel/next.js"
+condition = "AND"
+targetRules = ["private-key"]
+regexTarget = "secret"
+paths = ['''(^|/)tools/categorizer/eval/cases/next-60530/fixture\.json\.gz$''']
+regexes = [
+  # public demo value in vercel/next.js: examples/with-supertokens Apple sign-in key
+  '''MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgu8gXs\+XYkqXD6Ala9Sf/iJXzhbwcoG5dMh1OonpdJUmgCgYIKoZIzj0DAQehRANCAASfrvlFbFCYqn3I2zeknYXLwtH30JuOKestDbSfZYxZNMqhF/OzdZFTV0zc5u5s3eN\+oCWbnvl0hM\+9IW0UlkdA''',
 ]

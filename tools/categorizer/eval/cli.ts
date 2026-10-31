@@ -11,7 +11,7 @@ import {
   type TokenUsage,
 } from "generators";
 import type { Result } from "types/utils";
-import { generateBrief } from "brief-core";
+import { generateBrief, parseChangedRanges } from "brief-core";
 import { extractConfigFlag } from "../src/cli/config";
 import {
   BaselineModes,
@@ -297,7 +297,11 @@ async function evaluateCase(
   };
   const result = await runCase(generate, runs);
   persistRunBriefs(join(OUT_DIR, "eval-runs", evalCase.id), result);
-  const scored = scoreRuns(evalCase.properties, result.briefs);
+  const scored = scoreRuns(
+    evalCase.properties,
+    result.briefs,
+    parseChangedRanges(fixture.pr.diff),
+  );
   const baselinePath = join(evalCase.dir, "baseline.json");
   let baseline: CaseOutcome["baseline"] = null;
   let rebaselined = false;

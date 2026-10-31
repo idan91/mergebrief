@@ -4254,6 +4254,13 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
 }"
 `;
 
+exports[`brief goldens > kit-11161 produces the recorded brief 1`] = `
+"{
+  "bytes": 420629,
+  "sha256": "82e3f586990abc49d77909101c2218afb613f8efae75dbb637f3023bb1639b60"
+}"
+`;
+
 exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
 "{
   "changeGroups": [
@@ -5020,6 +5027,13 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
       ]
     }
   ]
+}"
+`;
+
+exports[`brief goldens > next-60530 produces the recorded brief 1`] = `
+"{
+  "bytes": 3218766,
+  "sha256": "e08808f4aead9c704ec68ebed736af98e717dc1213443730717a9fa2e3901c14"
 }"
 `;
 
@@ -9184,6 +9198,13 @@ exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] =
 }"
 `;
 
+exports[`brief goldens > react-router-11768 produces the recorded brief 1`] = `
+"{
+  "bytes": 664745,
+  "sha256": "a9f9fb22999e3215d7e03e90cefc7e24dc46ca91c557bc4ee90099b34c3a4341"
+}"
+`;
+
 exports[`brief goldens > repo-policy-scoped-attribute produces the recorded brief 1`] = `
 "{
   "changeGroups": [
@@ -9876,6 +9897,26 @@ exports[`request goldens > intent-primary-plus-refs sends the recorded request d
 ]"
 `;
 
+exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 26054,
+      "sha256": "e69d6fd2d84a1f1b27aaec559eaebfe7cc993678ec44216914506bb0b24d6330"
+    },
+    "user": {
+      "bytes": 744524,
+      "sha256": "e31345c4e28dc14a9ed16b1698b841f6669d0147c2a4d9ab3cf0e523621aa0c8"
+    }
+  }
+]"
+`;
+
 exports[`request goldens > multi-package-types sends the recorded request digests 1`] = `
 "[
   {
@@ -9891,6 +9932,26 @@ exports[`request goldens > multi-package-types sends the recorded request digest
     "user": {
       "bytes": 22817,
       "sha256": "0bb99f4c2e9849361c2f32a60ab23705dcd9971daa7c6dad5763129c04112483"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > next-60530 sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 26054,
+      "sha256": "e69d6fd2d84a1f1b27aaec559eaebfe7cc993678ec44216914506bb0b24d6330"
+    },
+    "user": {
+      "bytes": 3100537,
+      "sha256": "6a477eab5df4afda8ae833a0a336b7f73a87c68869a1206444719423823a94dd"
     }
   }
 ]"
@@ -10296,6 +10357,26 @@ exports[`request goldens > pure-move-persistence sends the recorded request dige
     "user": {
       "bytes": 37360,
       "sha256": "e6bf0e6d83ab635c16f076768d0d399c785b884e86abac49507e6731f4f5d409"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > react-router-11768 sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 26054,
+      "sha256": "e69d6fd2d84a1f1b27aaec559eaebfe7cc993678ec44216914506bb0b24d6330"
+    },
+    "user": {
+      "bytes": 4209405,
+      "sha256": "76371d3bb9f280b49ada2111c77eb4382e47b0dea5694b39dbed1ff7dff03e48"
     }
   }
 ]"

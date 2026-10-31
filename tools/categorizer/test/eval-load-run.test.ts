@@ -1,7 +1,15 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
 import { loadCases } from "../eval/loadCase";
 import { runCase } from "../eval/run";
@@ -12,6 +20,25 @@ import { makeBrief } from "./eval-fixtures";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(here, "fixtures");
+const SAMPLE_CASE_DIR = join(FIXTURES, "eval-case-sample");
+const SAMPLE_FIXTURE = join(SAMPLE_CASE_DIR, "fixture.json");
+const GZIP_CASE_ID = "gzipped-sample";
+const LARGE_CASE_IDS = ["kit-11161", "react-router-11768", "next-60530"];
+const DIFF_HEADER = /^diff --git /m;
+
+/** A cases dir holding the sample case with its fixture gzipped, plus `extra` fields. */
+function stubGzippedCase(extra: Record<string, string>): string {
+  const casesDir = mkdtempSync(join(tmpdir(), "eval-gzip-case-"));
+  const caseDir = join(casesDir, GZIP_CASE_ID);
+  mkdirSync(caseDir);
+  cpSync(join(SAMPLE_CASE_DIR, "expected.ts"), join(caseDir, "expected.ts"));
+
+  const sample: unknown = JSON.parse(readFileSync(SAMPLE_FIXTURE, "utf8"));
+  const fixture = JSON.stringify({ ...(sample as object), ...extra });
+  writeFileSync(join(caseDir, "fixture.json.gz"), gzipSync(fixture));
+
+  return casesDir;
+}
 
 describe("the shipped case set", () => {
   it("loads every eval/cases entry: valid fixtures + well-formed checklists", async () => {
@@ -30,8 +57,11 @@ describe("the shipped case set", () => {
       "intent-none-no-ticket",
       "intent-precise-ticket",
       "intent-primary-plus-refs",
+      "kit-11161",
       "multi-package-types",
+      "next-60530",
       "pure-move-persistence",
+      "react-router-11768",
       "repo-policy-scoped-attribute",
       "schema-change-provenance",
     ]);
@@ -39,6 +69,26 @@ describe("the shipped case set", () => {
       expect(evalCase.properties.length).toBeGreaterThanOrEqual(4);
       expect(evalCase.fixture.pr.diff.length).toBeGreaterThan(1000);
     }
+  });
+
+  it("loads each large case with its PR's every file in the diff", async () => {
+    const casesDir = join(here, "..", "eval", "cases");
+    const withAttributes = new Map<string, boolean>();
+    for (const id of LARGE_CASE_IDS) {
+      // oxlint-disable-next-line no-await-in-loop -- one large fixture in memory at a time
+      const loaded = await loadCases(casesDir, id);
+      const fixture = loaded.ok ? loaded.value[0]?.fixture : undefined;
+      const headerCount = fixture?.pr.diff.split(DIFF_HEADER).length ?? 0;
+
+      expect(headerCount - 1).toBe(fixture?.pr.meta.files.length);
+      withAttributes.set(id, fixture?.gitAttributes !== undefined);
+    }
+
+    expect(Object.fromEntries(withAttributes)).toEqual({
+      "kit-11161": true,
+      "react-router-11768": false,
+      "next-60530": true,
+    });
   });
 });
 
@@ -63,6 +113,51 @@ describe("loadCases", () => {
     expect(hit.ok && hit.value.length === 1).toBe(true);
     const miss = await loadCases(FIXTURES, "no-such-case");
     expect(miss.ok).toBe(false);
+  });
+
+  it("loads a gzipped fixture with its gitattributes text", async () => {
+    const casesDir = stubGzippedCase({ gitAttributes: "dist/** -diff\n" });
+    try {
+      const loaded = await loadCases(casesDir);
+      expect(loaded.ok).toBe(true);
+      if (!loaded.ok) {
+        return;
+      }
+      const fixture = loaded.value[0]?.fixture;
+      expect(fixture?.pr.locator.owner).toBe("idan91");
+      expect(fixture?.gitAttributes).toBe("dist/** -diff\n");
+    } finally {
+      rmSync(casesDir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a case carrying both a plain and a gzipped fixture", async () => {
+    const casesDir = stubGzippedCase({});
+    try {
+      cpSync(SAMPLE_FIXTURE, join(casesDir, GZIP_CASE_ID, "fixture.json"));
+      const loaded = await loadCases(casesDir);
+      expect(loaded).toEqual({
+        ok: false,
+        error: `case "${GZIP_CASE_ID}": both fixture.json and fixture.json.gz present`,
+      });
+    } finally {
+      rmSync(casesDir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports a gzipped fixture that does not decompress", async () => {
+    const casesDir = stubGzippedCase({});
+    try {
+      const gzipped = join(casesDir, GZIP_CASE_ID, "fixture.json.gz");
+      writeFileSync(gzipped, "not gzip");
+      const loaded = await loadCases(casesDir);
+      expect(loaded.ok).toBe(false);
+      expect(loaded.ok ? "" : loaded.error).toMatch(
+        /unreadable fixture\.json\.gz/,
+      );
+    } finally {
+      rmSync(casesDir, { recursive: true, force: true });
+    }
   });
 });
 

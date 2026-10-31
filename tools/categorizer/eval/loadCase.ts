@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { gunzipSync } from "node:zlib";
 import { z } from "zod/v4";
 import type { Mutable, Result } from "types/utils";
 import {
@@ -14,10 +15,14 @@ import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
 import type { EvalProperty } from "./properties";
 
 /**
- * Each `cases/<id>/` dir carries a fully cached `fixture.json` (no GitHub at
- * eval time) and an `expected.ts` exporting the case's property checklist. The
- * fixture is Zod-validated, it crosses a file boundary and gets hand-edited.
+ * Each `cases/<id>/` dir carries a fully cached `fixture.json`, or a large
+ * case's `fixture.json.gz` (no GitHub at eval time), and an `expected.ts`
+ * exporting the case's property checklist. The fixture is Zod-validated, it
+ * crosses a file boundary and gets hand-edited.
  */
+
+const FIXTURE_FILE = "fixture.json";
+const GZIPPED_FIXTURE_FILE = "fixture.json.gz";
 
 const PrFileSchema = z.object({
   path: z.string(),
@@ -82,12 +87,15 @@ export const FixtureSchema = z.object({
       ),
     })
     .optional(),
+  /** The default branch's `.gitattributes` text when the PR merged. */
+  gitAttributes: z.string().optional(),
 });
 
 export interface EvalFixture {
   pr: FetchedPr;
   commitRange: CommitRange;
   repoContext?: RepoContext;
+  gitAttributes?: string;
 }
 
 export interface EvalCase {
@@ -144,22 +152,11 @@ async function loadOne(
   id: string,
   dir: string,
 ): Promise<Result<EvalCase, string>> {
-  const fixturePath = join(dir, "fixture.json");
-  if (!existsSync(fixturePath)) {
-    return { ok: false, error: `case "${id}": missing fixture.json` };
+  const raw = readFixture(id, dir);
+  if (!raw.ok) {
+    return raw;
   }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(fixturePath, "utf8"));
-  } catch (error) {
-    return {
-      ok: false,
-      error: `case "${id}": unreadable fixture.json (${
-        error instanceof Error ? error.message : String(error)
-      })`,
-    };
-  }
-  const parsed = FixtureSchema.safeParse(raw);
+  const parsed = FixtureSchema.safeParse(raw.value);
   if (!parsed.success) {
     return {
       ok: false,
@@ -197,8 +194,44 @@ async function loadOne(
   if (repoContext !== undefined) {
     fixture.repoContext = repoContext;
   }
+  if (parsed.data.gitAttributes !== undefined) {
+    fixture.gitAttributes = parsed.data.gitAttributes;
+  }
 
   return { ok: true, value: { id, dir, fixture, properties } };
+}
+
+/** The case's one fixture file, plain or gzipped, parsed as JSON. */
+function readFixture(id: string, dir: string): Result<unknown, string> {
+  const plainPath = join(dir, FIXTURE_FILE);
+  const gzippedPath = join(dir, GZIPPED_FIXTURE_FILE);
+  const hasPlain = existsSync(plainPath);
+  const hasGzipped = existsSync(gzippedPath);
+  if (hasPlain && hasGzipped) {
+    return {
+      ok: false,
+      error: `case "${id}": both ${FIXTURE_FILE} and ${GZIPPED_FIXTURE_FILE} present`,
+    };
+  }
+  if (!hasPlain && !hasGzipped) {
+    return { ok: false, error: `case "${id}": missing ${FIXTURE_FILE}` };
+  }
+
+  const fileName = hasGzipped ? GZIPPED_FIXTURE_FILE : FIXTURE_FILE;
+  try {
+    const bytes = readFileSync(join(dir, fileName));
+    const text = hasGzipped
+      ? gunzipSync(bytes).toString("utf8")
+      : bytes.toString("utf8");
+    const value: unknown = JSON.parse(text);
+    return { ok: true, value };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      error: `case "${id}": unreadable ${fileName} (${reason})`,
+    };
+  }
 }
 
 /** The fixture's `pr` as the engine takes it: links numbered, the primary stamped as read. */

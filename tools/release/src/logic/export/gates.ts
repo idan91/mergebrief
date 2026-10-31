@@ -22,6 +22,8 @@ import {
 const GITLEAKS_FOUND_EXIT = 99;
 const GITLEAKS_ERROR_EXIT = 1;
 const SCAN_MOUNT = "/scan";
+/** Opens a gzipped eval fixture; a nested archive stays closed. */
+const GITLEAKS_ARCHIVE_DEPTH = 1;
 
 /** Each step runs with the scratch copy as cwd; the copy's one commit is the baseline base. */
 const BUILD_STEPS = [
@@ -84,6 +86,8 @@ function buildSecretsScanArgs(context: GateContext): string[] {
     "--no-banner",
     "--redact",
     "--verbose",
+    "--max-archive-depth",
+    String(GITLEAKS_ARCHIVE_DEPTH),
     "--exit-code",
     String(GITLEAKS_FOUND_EXIT),
   );

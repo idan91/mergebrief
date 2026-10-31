@@ -108,6 +108,8 @@ describe("the gitleaks gate", () => {
           "--no-banner",
           "--redact",
           "--verbose",
+          "--max-archive-depth",
+          "1",
           "--exit-code",
           "99",
         ],
@@ -138,6 +140,8 @@ describe("the gitleaks gate", () => {
       "--no-banner",
       "--redact",
       "--verbose",
+      "--max-archive-depth",
+      "1",
       "--exit-code",
       "99",
     ]);

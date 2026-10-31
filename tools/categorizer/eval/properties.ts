@@ -1,3 +1,4 @@
+import type { RevisionChangeFile } from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { PropertyScore } from "./verdicts";
 
@@ -11,7 +12,8 @@ export interface EvalProperty {
   id: string;
   /** Human line for the report: what the property asserts. */
   description: string;
-  check(brief: Brief): boolean;
+  /** `changedFiles` is the case diff's changed lines per file, for a property that compares claims to them. */
+  check(brief: Brief, changedFiles?: readonly RevisionChangeFile[]): boolean;
 }
 
 export interface ScoredRuns {
@@ -29,6 +31,7 @@ export interface ScoredRuns {
 export function scoreRuns(
   properties: readonly EvalProperty[],
   runs: readonly Brief[],
+  changedFiles?: readonly RevisionChangeFile[],
 ): ScoredRuns {
   const ids = new Set<string>();
   for (const property of properties) {
@@ -42,7 +45,7 @@ export function scoreRuns(
   const notes: string[] = [];
 
   for (const property of properties) {
-    const scored = scoreProperty(property, runs);
+    const scored = scoreProperty(property, runs, changedFiles);
     notes.push(...scored.notes);
     scores.set(property.id, { passes: scored.passes, runs: runs.length });
   }
@@ -54,13 +57,14 @@ export function scoreRuns(
 function scoreProperty(
   property: EvalProperty,
   runs: readonly Brief[],
+  changedFiles: readonly RevisionChangeFile[] | undefined,
 ): { passes: number; notes: string[] } {
   let passes = 0;
   const notes: string[] = [];
 
   for (const [runIndex, brief] of runs.entries()) {
     try {
-      if (property.check(brief)) {
+      if (property.check(brief, changedFiles)) {
         passes += 1;
       }
     } catch (error) {

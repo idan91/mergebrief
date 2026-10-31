@@ -84,7 +84,9 @@ case before believing a demotion.
 
 ## Cases
 
-`cases/<id>/` = `fixture.json` + `expected.ts` + `baseline.json`.
+`cases/<id>/` = `fixture.json` + `expected.ts` + `baseline.json`. A
+large case stores its fixture gzipped as `fixture.json.gz` instead (never
+both); the loader reads either.
 
 - `fixture.json`: a fully cached generation input (FetchedPr shape +
   commitRange + optional PARSED `repoContext`). No GitHub at eval time.
@@ -110,9 +112,13 @@ attribute over a lockfile measures the harness, not production.
   config's, `claude-code:claude-opus-5-5`. Re-baselining is an explicit
   reviewed commit.
 
-**Source rule: own-repos only.** This repo goes public; every
-checked-in diff must be publishable. No third-party diffs without a
-license decision.
+**Source rule: own repos, or MIT with its LICENSE.** This repo goes
+public; every checked-in diff must be publishable. A third-party case
+is allowed only from an MIT-licensed project, with that project's
+`LICENSE` at the PR's head committed beside the fixture. Any other
+license needs its own decision first. CI's secret scan and the release
+export's both read inside a gzipped fixture, and a published demo key the
+upstream diff carries is allowlisted by value in `.github/gitleaks.toml`.
 
 **Private cases.** A case whose fixture embeds private material (plan or
 internal-doc text, private process) lives in `private-cases/<id>/` or
@@ -161,6 +167,24 @@ predicates were unchanged but the input moved, and stable predicates
 preserve nothing when the input does. Re-recorded later (all seven
 properties 5/5; the hardening changed no original verdict); origin info
 in its `expected.ts` header.
+
+The **large cases** are real third-party MIT PRs past the single-call
+limits, gzipped, each with its `LICENSE`: `kit-11161` (sveltejs/kit
+SvelteKit 2.0, 342 files, output-bound), `react-router-11768`
+(remix-run/react-router, v7 merged to dev, 724 files, input-bound) and
+`next-60530` (vercel/next.js prettier reformat, 2,559 files, the
+outline-form case). Each is the compare diff from the merge base to the
+PR head, the PR's metadata and file list as the API returned them (the
+files API reports 0/0 for some large added or removed files; kept
+verbatim), and `gitAttributes`, the default branch's `.gitattributes` at
+merge time (react-router had none). Their properties are pipeline
+guarantees from `cases/large-pr-props.ts`: the groups partition the
+chunks, every changed line is in a chunk or the unattributed remainder,
+and each changed pnpm, npm or yarn lockfile reads shortened. Their brief
+goldens record a digest, since the full briefs run to megabytes. None of
+the three fits one model call, so they pass only on a build with the
+multi-call engine; a full-suite run on an earlier build pays for calls
+that fail or come back cut.
 
 ## Cost
 
