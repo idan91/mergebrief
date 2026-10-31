@@ -8,6 +8,8 @@ import {
   type DraftBriefOptions,
 } from "../categorize";
 import { validateFinalBrief } from "../final-validation";
+import { decideCallPlan } from "../size";
+import type { CallPlan } from "../size/types";
 import { createWarningCollector, formatGenerationWarnings } from "../warnings";
 import type { GenerationWarning } from "../warnings/types";
 import type {
@@ -39,6 +41,10 @@ function buildPlanArgs(previous: PreviousBriefInput): AnchorPlanArgs {
   return args;
 }
 
+function describeCallPlan(plan: CallPlan): string {
+  return `call plan: ${plan.kind} (estimated diff ${plan.estimatedInputTokens} tokens, ${plan.hunkCount} hunks)`;
+}
+
 function stampWarnings(
   brief: Brief,
   warnings: readonly GenerationWarning[],
@@ -60,6 +66,9 @@ export async function generateBrief(
   const { pr, previous } = options;
   const log = options.log ?? discardLog;
   const warnings = createWarningCollector(log);
+  const callPlan = decideCallPlan({ diff: pr.diff });
+  log(describeCallPlan(callPlan));
+
   const draftOptions: DraftBriefOptions = {
     pr,
     headIndex: options.headIndex,
