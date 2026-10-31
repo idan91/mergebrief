@@ -554,6 +554,26 @@ describe("prSummarySchema comparisons on PR-meta", () => {
     });
   });
 
+  it("parses a lastReview whose delta was skipped as too large", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      comparisons: {
+        lastReview: {
+          deltaAvailable: false,
+          deltaSkipped: true,
+          baselineSha: "cp-1",
+        },
+      },
+    });
+
+    expect(parsed.ok && parsed.value.comparisons?.lastReview).toEqual({
+      kind: "available",
+      deltaAvailable: false,
+      deltaSkipped: true,
+      baselineSha: "cp-1",
+    });
+  });
+
   it("parses lastReview unavailable reasons, an unrecognised one as unknown", () => {
     for (const reason of ["pending", "baseline-unavailable"]) {
       const parsed = parseWithSchema(prSummarySchema, {

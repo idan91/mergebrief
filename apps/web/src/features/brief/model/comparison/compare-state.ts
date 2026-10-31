@@ -55,6 +55,8 @@ export const LAST_REVIEW_PENDING_TITLE_KEY: TranslationKey =
   "brief.compareTitles.lastReviewPending";
 export const LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE_KEY: TranslationKey =
   "brief.compareTitles.lastReviewBaselineUnavailable";
+const LAST_REVIEW_TOO_LARGE_TITLE_KEY: TranslationKey =
+  "brief.compareTitles.lastReviewTooLarge";
 export const LAST_REVIEW_REASON_UNKNOWN_TITLE_KEY: TranslationKey =
   "brief.compareTitles.lastReviewUnavailableReason";
 
@@ -65,6 +67,8 @@ const LAST_REVIEW_REASON_TITLE_KEYS: Record<
   [LastReviewUnavailableReasons.PENDING]: LAST_REVIEW_PENDING_TITLE_KEY,
   [LastReviewUnavailableReasons.BASELINE_UNAVAILABLE]:
     LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE_KEY,
+  [LastReviewUnavailableReasons.SPAN_TOO_LARGE]:
+    LAST_REVIEW_TOO_LARGE_TITLE_KEY,
   [UnknownValues.UNKNOWN]: LAST_REVIEW_REASON_UNKNOWN_TITLE_KEY,
 };
 

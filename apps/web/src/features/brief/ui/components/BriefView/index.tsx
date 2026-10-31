@@ -374,6 +374,7 @@ function BriefViewContent(props: BriefViewProps) {
                               marks={overlay.marks}
                               skipReason={overlay.skipReason}
                               delta={overlay.delta}
+                              deltaSkipped={overlay.deltaSkipped}
                               rawSpanDiff={overlay.activeRawSpanDiff}
                               deltaSpan={overlay.deltaSpanStatus}
                               deltaSpanLanding={overlay.deltaSpanLanding}

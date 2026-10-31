@@ -109,6 +109,7 @@ export const unavailableLastReviewSchema = z
 export const availableLastReviewSchema = z
   .object({
     deltaAvailable: z.boolean(),
+    deltaSkipped: z.literal(true).exactOptional(),
     baselineSha: z.string(),
     baselineIndex: z.number().exactOptional(),
     unavailable: z.never().exactOptional(),

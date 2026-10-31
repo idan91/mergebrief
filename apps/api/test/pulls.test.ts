@@ -1034,6 +1034,28 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       baselineSha: "head-1",
       baselineIndex: 1,
     });
+
+    // A skip record in the delta row is no delta to fetch.
+    await store.deltas.write({
+      pullRequestId: pr.id,
+      baselineSha: "head-1",
+      headSha: "head-2",
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      bodyVersion: STORED_BODY_VERSION,
+      body: JSON.stringify({
+        skipped: "span-too-large",
+        artifactKind: "deltaSkipped",
+      }),
+    });
+
+    expect(await metaLastReview(cookie)).toEqual({
+      deltaAvailable: false,
+      deltaSkipped: true,
+      baselineSha: "head-1",
+      baselineIndex: 1,
+    });
   });
 
   it("meta: lastReview unavailable reasons, pending vs baseline-unavailable", async () => {
@@ -1076,6 +1098,32 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     }
     expect(await metaLastReview(cookie)).toEqual({
       unavailable: "baseline-unavailable",
+    });
+  });
+
+  it("meta: lastReview says span-too-large for a refused span", async () => {
+    stubGate();
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+    await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
+    // GitHub refused the span: a skip record and no marks.
+    await createArtifactStore(harness.handle, CTX).deltas.write({
+      pullRequestId: pr.id,
+      baselineSha: "head-1",
+      headSha: "head-2",
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      bodyVersion: STORED_BODY_VERSION,
+      body: JSON.stringify({
+        skipped: "span-too-large",
+        artifactKind: "deltaSkipped",
+      }),
+    });
+
+    expect(await metaLastReview(cookie)).toEqual({
+      unavailable: "span-too-large",
     });
   });
 

@@ -72,6 +72,8 @@ export interface UseComparisonOverlayValue {
   skipReason: RevisionNarrativeSkipReason | null;
   /** The last-review Delta Brief, or null (marks-only tier). */
   delta: Brief | null;
+  /** The last-review span was too large to summarize: no Delta Brief will come. */
+  deltaSkipped: boolean;
   /** The ACTIVE baseline's raw span-diff descriptor (Changes Only toggle). */
   activeRawSpanDiff: ComparisonQuery<string> | undefined;
   /** Where the delta's span rows stand; `absent` without a raw diff to slice. */
@@ -272,6 +274,7 @@ export function useComparisonOverlay(
     narrative,
     skipReason,
     delta,
+    deltaSkipped: planLastReview?.deltaSkipped === true,
     activeRawSpanDiff,
     deltaSpanStatus,
     deltaSpanLanding,

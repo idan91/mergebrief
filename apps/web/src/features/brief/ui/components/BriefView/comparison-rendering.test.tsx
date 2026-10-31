@@ -507,6 +507,28 @@ describe("Changes Only rendering", () => {
     expect(screen.queryByRole("note")).toBeNull();
   });
 
+  it("explains a last-review summary skipped as too large", () => {
+    render(
+      withClient(
+        <ChangesOnlyView
+          compare="last-review"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={null}
+          marks={null}
+          skipReason={null}
+          delta={null}
+          deltaSkipped
+        />,
+      ),
+    );
+
+    const line = screen.getByRole("status");
+    expect(line.textContent).toBe(
+      "The change since your last review was too large to summarize. Changed lines are highlighted.",
+    );
+  });
+
   it("Your last review renders the Delta artifact under Changes Only copy", () => {
     render(
       withClient(

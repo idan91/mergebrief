@@ -386,7 +386,7 @@ describe("owner-scoped span artifacts", () => {
 
     // Owner A still sees only its own rows: nothing was planted.
     expect(await storeA.deltas.listForPullRequest(pr.id)).toEqual([
-      { baselineSha: "chk", headSha: "head" },
+      { baselineSha: "chk", headSha: "head", skipped: false },
     ]);
     expect(await storeA.revisionNarratives.listForPullRequest(pr.id)).toEqual([
       { prevHeadSha: "prev", headSha: "head" },

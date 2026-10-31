@@ -283,9 +283,7 @@ export function createArtifactStore(
           .from(delta)
           .$dynamic(),
       );
-      return rows
-        .filter((row) => !row.skipped)
-        .map(({ baselineSha, headSha }) => ({ baselineSha, headSha }));
+      return rows;
     },
   };
 

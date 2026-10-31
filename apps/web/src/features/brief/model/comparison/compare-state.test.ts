@@ -222,6 +222,9 @@ describe("lastReviewUnavailableReasonTitle", () => {
     expect(lastReviewUnavailableReasonTitle(t, "baseline-unavailable")).toBe(
       "History rewritten since your last review",
     );
+    expect(lastReviewUnavailableReasonTitle(t, "span-too-large")).toBe(
+      "The change since your last review was too large to compare",
+    );
   });
 
   it("gives a reason this bundle predates the neutral line", () => {

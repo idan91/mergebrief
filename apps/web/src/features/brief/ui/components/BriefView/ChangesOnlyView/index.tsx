@@ -74,6 +74,8 @@ export interface ChangesOnlyViewProps {
   skipReason: RevisionNarrativeSkipReason | null;
   /** The Delta Brief for Your last review, or null when unavailable. */
   delta: Brief | null;
+  /** The last-review span was too large to summarize, so no Delta Brief will come. */
+  deltaSkipped?: boolean;
   /**
    * The live span-diff descriptor for the ACTIVE compare baseline → selected
    * head. Present only on the DB timeline path while a comparison is active,
@@ -103,6 +105,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
       <LastReviewChanges
         brief={props.brief}
         delta={props.delta}
+        deltaSkipped={props.deltaSkipped === true}
         deltaSpan={props.deltaSpan ?? DeltaSpanStatuses.ABSENT}
         deltaSpanLanding={props.deltaSpanLanding}
         fullModel={props.model}
@@ -513,6 +516,7 @@ interface LastReviewChangesProps {
   brief: Brief;
   fullModel: BriefViewModel;
   delta: Brief | null;
+  deltaSkipped: boolean;
   deltaSpan: DeltaSpanStatus;
   deltaSpanLanding: DeltaSpanLanding | undefined;
   jumpToChunk: (chunkId: string) => void;
@@ -533,12 +537,21 @@ function LastReviewChanges({
   brief,
   fullModel,
   delta,
+  deltaSkipped,
   deltaSpan,
   deltaSpanLanding,
   jumpToChunk,
   review,
 }: LastReviewChangesProps) {
   const { t } = useTranslation();
+  if (!delta && deltaSkipped) {
+    return (
+      <EmptyState>
+        <b>{t("brief.changes.changesSummaryTooLargeLead")}</b>{" "}
+        {t("brief.changes.changesSummaryTooLargeBody")}
+      </EmptyState>
+    );
+  }
   if (!delta) {
     return (
       <EmptyState>

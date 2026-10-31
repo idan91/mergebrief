@@ -3,6 +3,7 @@
 // the one DB probe (generation pending) is injected.
 import {
   LastReviewUnavailableReasons,
+  type AvailableLastReviewComparisonView,
   type LastReviewComparisonView,
   type PreviousBriefComparisonView,
 } from "contract";
@@ -10,12 +11,14 @@ import {
   GenerationKinds,
   type BriefSpanRow,
   type ComparisonSpanRow,
+  type DeltaSpanRow,
   type GenerationProjection,
   type GenerationRow,
   type NarrativeSpanRow,
   type PullRequestRow,
 } from "persistence";
 import { GenerationStatuses, type GenerationStatus } from "types/generations";
+import type { Mutable } from "types/utils";
 
 // Span-existence joins: a `Set` of packed keys turns per-revision availability
 // into an in-memory lookup (space separator. SHAs are hex, never contain it).
@@ -28,6 +31,28 @@ export function comparisonSpanSet(
 ): ReadonlySet<string> {
   return new Set(rows.map((row) => spanKey(row.baselineSha, row.headSha)));
 }
+/** A span's delta row is a Delta Brief to offer or the skip record standing in for one. */
+export interface DeltaSpanSets {
+  readonly available: ReadonlySet<string>;
+  readonly skipped: ReadonlySet<string>;
+}
+
+export function buildDeltaSpanSets(
+  rows: readonly DeltaSpanRow[],
+): DeltaSpanSets {
+  const available = new Set<string>();
+  const skipped = new Set<string>();
+  for (const row of rows) {
+    const key = spanKey(row.baselineSha, row.headSha);
+    if (row.skipped) {
+      skipped.add(key);
+    } else {
+      available.add(key);
+    }
+  }
+  return { available, skipped };
+}
+
 export function narrativeSpanSet(
   rows: readonly NarrativeSpanRow[],
 ): ReadonlySet<string> {
@@ -143,25 +168,36 @@ export async function deriveLastReviewComparison(
   checkpoint: CheckpointBaseline | undefined,
   briefs: readonly BriefSpanRow[],
   markSpans: ReadonlySet<string>,
-  deltaSpans: ReadonlySet<string>,
+  deltaSpans: DeltaSpanSets,
   pendingProbe: ((baselineSha: string) => Promise<boolean>) | undefined,
 ): Promise<LastReviewComparisonView | undefined> {
   if (checkpoint === undefined || checkpoint.lastSubmittedSha === headSha) {
     return undefined;
   }
   const baselineSha = checkpoint.lastSubmittedSha;
-  if (markSpans.has(spanKey(baselineSha, headSha))) {
+  const span = spanKey(baselineSha, headSha);
+  if (markSpans.has(span)) {
     // Deterministic: `briefs` is headIndex-ascending, so `find` resolves the
     // LOWEST index when duplicate rows share the checkpoint SHA (a retarget
     // re-brief), either duplicate labels the same commit.
     const baselineIndex = briefs.find(
       (row) => row.headSha === baselineSha,
     )?.headIndex;
-    const base = {
-      deltaAvailable: deltaSpans.has(spanKey(baselineSha, headSha)),
+    const view: Mutable<AvailableLastReviewComparisonView> = {
+      deltaAvailable: deltaSpans.available.has(span),
       baselineSha,
     };
-    return baselineIndex === undefined ? base : { ...base, baselineIndex };
+    if (deltaSpans.skipped.has(span)) {
+      view.deltaSkipped = true;
+    }
+    if (baselineIndex !== undefined) {
+      view.baselineIndex = baselineIndex;
+    }
+    return view;
+  }
+  // A span GitHub refused has no marks; its skip record says why, not a probe.
+  if (deltaSpans.skipped.has(span)) {
+    return { unavailable: LastReviewUnavailableReasons.SPAN_TOO_LARGE };
   }
   const pending =
     pendingProbe !== undefined && (await pendingProbe(baselineSha));

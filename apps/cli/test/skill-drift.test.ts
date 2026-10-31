@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { LastReviewUnavailableReasons } from "contract";
 import { cliCommandPaths } from "../scripts/command-paths";
 import operationsMap from "../product-operations.map.json";
 
@@ -33,6 +34,19 @@ const EXPECTED_OP_IDS = [
 // Named in prose but deliberately outside the preflight ring.
 const PROSE_ONLY_IDS = ["generate-brief"] as const;
 const ALL_EXPECTED_IDS = [...EXPECTED_OP_IDS, ...PROSE_ONLY_IDS];
+
+/** Every `reason` `delta --json` can emit: the CLI's own two plus the API's. */
+const DELTA_REASONS = [
+  "no-checkpoint",
+  "delta-not-generated",
+  ...Object.values(LastReviewUnavailableReasons),
+];
+
+/** The reasons the contract's `"available":false` union line names. */
+function readDeltaUnionReasons(text: string): string[] {
+  const union = /"reason":((?:"[a-z-]+"\|?)+)/.exec(text)?.[1] ?? "";
+  return [...union.matchAll(/"([a-z-]+)"/g)].map((match) => match[1] ?? "");
+}
 
 function collectRequiredIds(text: string): ReadonlySet<string> {
   const ids = new Set<string>();
@@ -101,6 +115,17 @@ describe("skill drift", () => {
     const expected = new Set<string>(ALL_EXPECTED_IDS);
     for (const id of new Set(mentioned)) {
       expect(expected.has(id), `prose names "${id}"`).toBe(true);
+    }
+  });
+
+  it("the delta union names every reason the CLI emits, each with a move", () => {
+    const union = readDeltaUnionReasons(contractText);
+
+    expect(union.toSorted()).toEqual(DELTA_REASONS.toSorted());
+    for (const reason of DELTA_REASONS) {
+      expect(contractText).toMatch(
+        new RegExp(`\`${reason}\` (review|poll|diff)`),
+      );
     }
   });
 

@@ -79,12 +79,13 @@ anchors do not.
 one of:
 
     {"available":true,"baselineSha":"<sha>","headSha":"<sha>","artifact":{...}}
-    {"available":false,"reason":"no-checkpoint"|"pending"|"baseline-unavailable"|"delta-not-generated"}
+    {"available":false,"reason":"no-checkpoint"|"pending"|"baseline-unavailable"|"span-too-large"|"delta-not-generated"}
 
 Both arms are exit 0; unavailability is data. Next moves by `reason`:
 `no-checkpoint` review the full brief; `pending` poll with backoff;
-`baseline-unavailable` review the full brief; `delta-not-generated` diff the
-span yourself with `diff <n> --base <baselineSha> --head <headSha>`.
+`baseline-unavailable` review the full brief; `span-too-large` review the
+full brief, since GitHub will not render the span; `delta-not-generated` diff
+the span yourself with `diff <n> --base <baselineSha> --head <headSha>`.
 
 ## Repo addressing
 

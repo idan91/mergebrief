@@ -27,6 +27,11 @@ export interface ComparisonSpanRow {
   readonly headSha: string;
 }
 
+/** A delta span, and whether its body is the span's skip record instead of a Delta Brief. */
+export interface DeltaSpanRow extends ComparisonSpanRow {
+  readonly skipped: boolean;
+}
+
 /** The prevHead/head pair only, never the body. */
 export interface NarrativeSpanRow {
   readonly prevHeadSha: string;
@@ -163,14 +168,11 @@ export interface DeltaStore {
     headSha: string,
   ): Promise<DeltaRow | undefined>;
   /**
-   * All delta spans on a PR with a Delta Brief: the SHA pair only, never the
-   * body, and never a span whose row is its skip record. One query
-   * backs the per-revision lastReview join; existence is derived in memory,
-   * never one probe per revision.
+   * All delta spans on a PR: the SHA pair and the `skipped` column, never
+   * the body. One query backs the per-revision lastReview join; existence is
+   * derived in memory, never one probe per revision.
    */
-  listForPullRequest(
-    pullRequestId: PullRequestRowId,
-  ): Promise<ComparisonSpanRow[]>;
+  listForPullRequest(pullRequestId: PullRequestRowId): Promise<DeltaSpanRow[]>;
 }
 
 export interface RevisionNarrativeStore {

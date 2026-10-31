@@ -10,12 +10,13 @@ import {
   derivePreviousBriefComparison,
   deriveLastReviewComparison,
   type CheckpointBaseline,
+  type DeltaSpanSets,
 } from "./revision-comparisons";
 
 export interface RevisionViewContext {
   readonly briefs: readonly BriefSpanRow[];
   readonly markSpans: ReadonlySet<string>;
-  readonly deltaSpans: ReadonlySet<string>;
+  readonly deltaSpans: DeltaSpanSets;
   readonly narrativeSpans: ReadonlySet<string>;
   readonly checkpoint: CheckpointBaseline | undefined;
   /** First-enqueue time per head; fallback is the artifact's own write time. */

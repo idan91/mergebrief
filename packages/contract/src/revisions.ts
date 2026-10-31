@@ -8,20 +8,25 @@ export const LastReviewUnavailableReasons = {
   BASELINE_UNAVAILABLE: "baseline-unavailable",
   /** No marks yet, but a delta generation for the span is still non-terminal. */
   PENDING: "pending",
+  /** No marks: GitHub would not render the span, and a delta skip record stands in for it. */
+  SPAN_TOO_LARGE: "span-too-large",
 } as const;
 export type LastReviewUnavailableReason = ValueOf<
   typeof LastReviewUnavailableReasons
 >;
 
-/** Marks existence IS the offer; `deltaAvailable` is optional richness the
- * worker skips on huge spans. */
+/** Marks existence IS the offer; `deltaAvailable` is optional richness. */
+export interface AvailableLastReviewComparisonView {
+  readonly deltaAvailable: boolean;
+  /** No delta will come: the span was too large for one call or the call was cut, and a skip record stands in for it. */
+  readonly deltaSkipped?: true;
+  readonly baselineSha: string;
+  /** The baseline's brief index when the checkpoint SHA was a briefed head. */
+  readonly baselineIndex?: number;
+}
+
 export type LastReviewComparisonView =
-  | {
-      readonly deltaAvailable: boolean;
-      readonly baselineSha: string;
-      /** The baseline's brief index when the checkpoint SHA was a briefed head. */
-      readonly baselineIndex?: number;
-    }
+  | AvailableLastReviewComparisonView
   | { readonly unavailable: LastReviewUnavailableReason };
 
 export interface PreviousBriefComparisonView {

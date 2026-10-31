@@ -48,6 +48,8 @@ export interface AvailableLastReviewComparison {
   readonly kind: "available";
   /** False = marks-only tier: still an offer, the delta core was skipped. */
   readonly deltaAvailable: boolean;
+  /** The span was too large to summarize: its skip record stands in for the delta. */
+  readonly deltaSkipped?: true;
   readonly baselineSha: string;
   /** Present when the checkpoint SHA was a briefed head. */
   readonly baselineIndex?: number;

@@ -181,6 +181,7 @@ export {
 } from "./stack";
 export {
   LastReviewUnavailableReasons,
+  type AvailableLastReviewComparisonView,
   type LastReviewComparisonView,
   type LastReviewUnavailableReason,
   type PreviousBriefComparisonView,

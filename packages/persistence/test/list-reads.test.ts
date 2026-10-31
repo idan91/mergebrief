@@ -265,6 +265,13 @@ describe("batched span listings and per-revision joins", () => {
       body: "{}",
       ...ORIGIN,
     });
+    await store.deltas.write({
+      pullRequestId: pr.id,
+      baselineSha: "cp-0",
+      headSha: "head-2",
+      body: JSON.stringify({ artifactKind: "deltaSkipped" }),
+      ...ORIGIN,
+    });
     await store.revisionNarratives.write({
       pullRequestId: pr.id,
       briefId: brief.id,
@@ -277,9 +284,14 @@ describe("batched span listings and per-revision joins", () => {
     expect(await store.comparisonMarks.listForPullRequest(pr.id)).toEqual([
       { baselineSha: "head-1", headSha: "head-2" },
     ]);
-    expect(await store.deltas.listForPullRequest(pr.id)).toEqual([
-      { baselineSha: "cp-1", headSha: "head-2" },
-    ]);
+    const deltaSpans = await store.deltas.listForPullRequest(pr.id);
+    expect(deltaSpans).toHaveLength(2);
+    expect(deltaSpans).toEqual(
+      expect.arrayContaining([
+        { baselineSha: "cp-1", headSha: "head-2", skipped: false },
+        { baselineSha: "cp-0", headSha: "head-2", skipped: true },
+      ]),
+    );
     expect(await store.revisionNarratives.listForPullRequest(pr.id)).toEqual([
       { prevHeadSha: "head-1", headSha: "head-2" },
     ]);
@@ -297,7 +309,7 @@ describe("batched span listings and per-revision joins", () => {
 describe("deltas skip record", () => {
   const SKIP_BODY = JSON.stringify({ artifactKind: "deltaSkipped" });
 
-  it("stamps a skip record and keeps it out of the span listing", async () => {
+  it("stamps a skip record and flags it in the span listing", async () => {
     const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -321,9 +333,12 @@ describe("deltas skip record", () => {
 
     expect(skipRow.skipped).toBe(true);
     expect(briefRow.skipped).toBe(false);
-    expect(await store.deltas.listForPullRequest(pr.id)).toEqual([
-      { baselineSha: "cp-1", headSha: "head-3" },
-    ]);
+    expect(await store.deltas.listForPullRequest(pr.id)).toEqual(
+      expect.arrayContaining([
+        { baselineSha: "cp-1", headSha: "head-2", skipped: true },
+        { baselineSha: "cp-1", headSha: "head-3", skipped: false },
+      ]),
+    );
   });
 
   it("clears the stamp when a Delta Brief rewrites the span", async () => {
@@ -347,7 +362,7 @@ describe("deltas skip record", () => {
 
     expect(rewritten.skipped).toBe(false);
     expect(await store.deltas.listForPullRequest(pr.id)).toEqual([
-      { baselineSha: "cp-1", headSha: "head-2" },
+      { baselineSha: "cp-1", headSha: "head-2", skipped: false },
     ]);
   });
 });

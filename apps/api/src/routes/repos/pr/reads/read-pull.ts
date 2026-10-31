@@ -22,6 +22,7 @@ import { readPullRequestRowLive } from "../../../live-read";
 import { buildPrView } from "../../../pr-view";
 import {
   comparisonSpanSet,
+  buildDeltaSpanSets,
   makeLatestPendingProbe,
   narrativeSpanSet,
 } from "./logic/revision-comparisons";
@@ -109,7 +110,7 @@ async function readRevisions(
   const context = {
     briefs,
     markSpans: comparisonSpanSet(markRows),
-    deltaSpans: comparisonSpanSet(deltaRows),
+    deltaSpans: buildDeltaSpanSets(deltaRows),
     narrativeSpans: narrativeSpanSet(narrativeRows),
     checkpoint,
     generatedAtByHead,

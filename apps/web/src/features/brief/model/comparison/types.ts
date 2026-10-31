@@ -33,6 +33,8 @@ export interface BriefComparisonPlan {
     readonly marks: ComparisonQuery<ComparisonMarks>;
     /** Absent = marks-only tier: the worker skipped the delta core. */
     readonly delta?: ComparisonQuery<Brief>;
+    /** The span was too large to summarize, so no delta will come. */
+    readonly deltaSkipped?: true;
     /** Live raw span diff checkpoint → head. */
     readonly rawDiff?: ComparisonQuery<string>;
   };

@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { isBriefRowId, type BriefSpanRow } from "persistence";
 import {
+  buildDeltaSpanSets,
   deriveLastReviewComparison,
   derivePreviousBriefComparison,
   spanKey,
 } from "./revision-comparisons";
+
+const NO_DELTAS = buildDeltaSpanSets([]);
 
 function brief(
   headIndex: number,
@@ -94,7 +97,7 @@ describe("deriveLastReviewComparison", () => {
         undefined,
         briefs,
         new Set(),
-        new Set(),
+        NO_DELTAS,
         undefined,
       ),
     ).toBeUndefined();
@@ -104,7 +107,7 @@ describe("deriveLastReviewComparison", () => {
         { lastSubmittedSha: "head-sha" },
         briefs,
         new Set(),
-        new Set(),
+        NO_DELTAS,
         undefined,
       ),
     ).toBeUndefined();
@@ -116,11 +119,32 @@ describe("deriveLastReviewComparison", () => {
       { lastSubmittedSha: "base-sha" },
       briefs,
       new Set([spanKey("base-sha", "head-sha")]),
-      new Set([spanKey("base-sha", "head-sha")]),
+      buildDeltaSpanSets([
+        { baselineSha: "base-sha", headSha: "head-sha", skipped: false },
+      ]),
       undefined,
     );
     expect(view).toEqual({
       deltaAvailable: true,
+      baselineSha: "base-sha",
+      baselineIndex: 0,
+    });
+  });
+
+  it("says a skipped delta is skipped, never available", async () => {
+    const view = await deriveLastReviewComparison(
+      "head-sha",
+      { lastSubmittedSha: "base-sha" },
+      briefs,
+      new Set([spanKey("base-sha", "head-sha")]),
+      buildDeltaSpanSets([
+        { baselineSha: "base-sha", headSha: "head-sha", skipped: true },
+      ]),
+      undefined,
+    );
+    expect(view).toEqual({
+      deltaAvailable: false,
+      deltaSkipped: true,
       baselineSha: "base-sha",
       baselineIndex: 0,
     });
@@ -132,7 +156,7 @@ describe("deriveLastReviewComparison", () => {
       { lastSubmittedSha: "native-sha" },
       briefs,
       new Set([spanKey("native-sha", "head-sha")]),
-      new Set(),
+      NO_DELTAS,
       undefined,
     );
     expect(view).toEqual({
@@ -152,7 +176,7 @@ describe("deriveLastReviewComparison", () => {
       { lastSubmittedSha: "base-sha" },
       withDuplicates,
       new Set([spanKey("base-sha", "head-sha")]),
-      new Set(),
+      NO_DELTAS,
       undefined,
     );
     expect(view).toEqual({
@@ -162,6 +186,23 @@ describe("deriveLastReviewComparison", () => {
     });
   });
 
+  it("says a refused span is too large instead of probing", async () => {
+    const pendingProbe = vi.fn(async () => true);
+    const view = await deriveLastReviewComparison(
+      "head-sha",
+      { lastSubmittedSha: "base-sha" },
+      briefs,
+      new Set(),
+      buildDeltaSpanSets([
+        { baselineSha: "base-sha", headSha: "head-sha", skipped: true },
+      ]),
+      pendingProbe,
+    );
+
+    expect(view).toEqual({ unavailable: "span-too-large" });
+    expect(pendingProbe).not.toHaveBeenCalled();
+  });
+
   it("reports pending only when the probe says a generation is live", async () => {
     const pendingProbe = vi.fn(async () => true);
     const pending = await deriveLastReviewComparison(
@@ -169,7 +210,7 @@ describe("deriveLastReviewComparison", () => {
       { lastSubmittedSha: "base-sha" },
       briefs,
       new Set(),
-      new Set(),
+      NO_DELTAS,
       pendingProbe,
     );
     expect(pending).toEqual({ unavailable: "pending" });
@@ -178,7 +219,7 @@ describe("deriveLastReviewComparison", () => {
       { lastSubmittedSha: "base-sha" },
       briefs,
       new Set(),
-      new Set(),
+      NO_DELTAS,
       undefined,
     );
     expect(unavailable).toEqual({ unavailable: "baseline-unavailable" });

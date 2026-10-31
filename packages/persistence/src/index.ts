@@ -272,6 +272,7 @@ export type {
   BriefRow,
   BriefSpanRow,
   ComparisonSpanRow,
+  DeltaSpanRow,
   NarrativeSpanRow,
   DeltaRow,
   RevisionNarrativeRow,

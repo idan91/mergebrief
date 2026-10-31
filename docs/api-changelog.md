@@ -15,6 +15,16 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-27)
 
+- **Added** `deltaSkipped: true` on an available `comparisons.lastReview`
+  of `read-pull`: the worker stored a skip record for the span (too large
+  for one delta call, or the call was cut at its output cap), so no delta
+  will come. `deltaAvailable` is `false` on such a view; the field is absent
+  otherwise. Clients keyed on `deltaAvailable` alone are unaffected.
+  `read-delta` answers such a span 404, as it does a span with no delta.
+- **Added** `span-too-large` to `comparisons.lastReview.unavailable` on
+  `read-pull`: GitHub would not render the span, so it has no marks, and the
+  worker stored a skip record for it. Clients that treat the reason set as
+  closed must accept the new value.
 - **Added** `504 diff-fetch-timeout` to `read-diff`
   (`GET /api/repos/:repoId/pulls/:prNumber/diff`): GitHub did not render the
   span's diff within the read's 25 s deadline; a later retry may succeed.

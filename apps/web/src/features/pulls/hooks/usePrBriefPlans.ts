@@ -155,6 +155,9 @@ export function usePrBriefPlans(
           span.head,
         );
       }
+      if (lastReview.deltaSkipped === true) {
+        lastReviewPlan.deltaSkipped = true;
+      }
 
       plan.lastReview = lastReviewPlan;
     }

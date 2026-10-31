@@ -736,6 +736,8 @@
       "revisionSummaryUnavailableBody": "The mechanical highlights in Full brief still show what changed since the previous brief.",
       "changesSummaryUnavailableLead": "Changes summary unavailable.",
       "changesSummaryUnavailableBody": "The highlighted lines in Full brief still show what changed since your last review.",
+      "changesSummaryTooLargeLead": "The change since your last review was too large to summarize.",
+      "changesSummaryTooLargeBody": "Changed lines are highlighted.",
       "noRevisionSummaryLead": "No revision summary.",
       "noRevisionSummaryTooLarge": "The change from the previous brief was too large to summarize incrementally. The highlighted lines in Full brief still show what changed.",
       "noRevisionSummaryDisabled": "The change from the previous brief was not summarized (disabled by config). The highlighted lines in Full brief still show what changed.",
@@ -877,6 +879,7 @@
       "lastReviewUnavailable": "No submitted review checkpoint yet",
       "lastReviewPending": "Delta still generating",
       "lastReviewBaselineUnavailable": "History rewritten since your last review",
+      "lastReviewTooLarge": "The change since your last review was too large to compare",
       "lastReviewUnavailableReason": "Comparison with your last review is unavailable"
     },
     "riskBadge": {
