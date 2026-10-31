@@ -911,6 +911,8 @@ export const GroupingGenerationSchema = z.object({
   intentCheck: IntentCheckGenerationSchema,
 });
 
+export type HunkMapEntry = z.infer<typeof HunkMapEntrySchema>;
+
 /**
  * The brief-generation schema for ONE generation, with the repo's validated
  * custom-attribute names added to the closed risk vocabulary. The extended enum
