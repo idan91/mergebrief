@@ -45,6 +45,12 @@ export const RevisionNarrativeSkipReasons = {
   DISABLED_BY_CONFIG: "disabled by config",
 } as const;
 
+/** Why a checkpoint span stores a skip record instead of a Delta Brief. */
+export const DeltaSkipReasons = {
+  SPAN_TOO_LARGE: "span-too-large",
+  OUTPUT_CUT: "output-cut",
+} as const;
+
 /** Role - core vs supporting. Attaches to a chunk. */
 export const Roles = {
   CORE: "core", // holds the change-group's intent
@@ -128,6 +134,7 @@ export type ShortenedReading = ValueOf<typeof ShortenedReadings>;
 export type RevisionNarrativeSkipReason = ValueOf<
   typeof RevisionNarrativeSkipReasons
 >;
+export type DeltaSkipReason = ValueOf<typeof DeltaSkipReasons>;
 
 const categoryEnum = z.enum(ChangeGroupCategories);
 const concernEnum = z.enum(Concerns);
@@ -1166,6 +1173,21 @@ export interface RevisionNarrativeSkipped {
   prevIndex: number;
   headIndex: number;
   skipped: RevisionNarrativeSkipReason;
+}
+
+/**
+ * The stored record for a checkpoint span that never got a Delta Brief: the
+ * span is too large for one call, or the call was cut at its output cap. A
+ * retry would meet the same limit, so the view says why instead of waiting.
+ */
+export interface DeltaSkipped {
+  artifactKind: "deltaSkipped";
+  pr: PrRef;
+  baselineSha: string;
+  headSha: string;
+  baselineIndex: number | null;
+  headIndex: number | null;
+  skipped: DeltaSkipReason;
 }
 
 export type PrRef = z.infer<typeof PrRefSchema>;

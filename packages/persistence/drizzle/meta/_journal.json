@@ -540,6 +540,13 @@
       "when": 1793234467951,
       "tag": "0077_attempt-recorded-at",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1793238227234,
+      "tag": "0078_delta-skipped",
+      "breakpoints": true
     }
   ]
 }

@@ -27,7 +27,12 @@ export {
 export {
   categorizeDelta,
   categorizeRevisionNarrative,
+  exceedsDeltaCallLimits,
+  exceedsNarrativeCallLimits,
+  shapeDeltaSkipped,
   type DeltaInput,
+  type DeltaSpanRef,
+  type RevisionNarrativeInput,
 } from "./generation/categorize";
 export { splitDiffByFile } from "./diff/file-diff";
 export {
@@ -75,6 +80,7 @@ export { planAnchoredGeneration } from "./anchoring";
 export type { AnchorPlan, CompareFile, CompareFiles } from "./anchoring/types";
 export {
   CUSTOM_ATTRIBUTE_NAME_PATTERN,
+  DeltaSkipReasons,
   TextSurfaces,
   TicketUnreadReasons,
   toPrLifecycleState,

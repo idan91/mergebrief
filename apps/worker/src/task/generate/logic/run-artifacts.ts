@@ -17,9 +17,11 @@ import {
   RevisionSpanRefusals,
   RunDecisionKinds,
   type BriefGenerationInputs,
+  type BriefOriginLoader,
   type BriefRef,
   type FreshRun,
   type GeneratedBrief,
+  type GenerationOrigin,
   type GeneratingRun,
   type MultiCallRunInputs,
   type PrefetchedSpan,
@@ -29,11 +31,11 @@ import {
   type RunContext,
   type RunInputs,
 } from "../types";
-import { buildAttemptFields } from "../utils";
+import { buildAttemptFields, getGenerationOrigin } from "../utils";
 import { listRunStops, traceRunStep } from "./step-span";
 import { recoverStoredBrief, writeFreshBrief } from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
-import { isNotAcceptable } from "./errors";
+import { isDiffTooLarge } from "./errors";
 import { createMultiCallRun, sweepSpanParts } from "./generation-parts";
 import { readDefaultBranchGitAttributes } from "./git-attributes";
 import { createSpendCharge } from "./spend-gate";
@@ -182,6 +184,7 @@ export async function writeFollowOnArtifacts(
         wholePrChangedLines: countPrChangedLines(inputs.files),
         loadContext: inputs.loadContext,
         stops: listRunStops(context),
+        loadBriefOrigin: createBriefOriginLoader(context, brief),
         log,
       });
       span.setAttributes({ "mergebrief.deltas_written": written });
@@ -200,6 +203,44 @@ export async function writeFollowOnArtifacts(
   }
 }
 
+/**
+ * A skip record carries the brief's origin, as the narrative stub does. A
+ * stored brief this run did not read back is read once, and only when a
+ * skip needs it.
+ */
+function createBriefOriginLoader(
+  context: RunContext,
+  brief: ProducedBrief,
+): BriefOriginLoader {
+  const { generatedBrief } = brief;
+  if (generatedBrief !== undefined) {
+    const origin = getGenerationOrigin(generatedBrief.generation);
+    return () => Promise.resolve(origin);
+  }
+
+  let loaded: Promise<GenerationOrigin> | undefined;
+  return () => {
+    loaded ??= readStoredBriefOrigin(context);
+    return loaded;
+  };
+}
+
+async function readStoredBriefOrigin(
+  context: RunContext,
+): Promise<GenerationOrigin> {
+  const { store, payload, prInfo } = context;
+  const row = await store.briefs.get(
+    payload.pullRequestId,
+    prInfo.baseSha,
+    payload.headSha,
+  );
+  if (row === undefined) {
+    throw new Error("generate: the run's stored brief row is gone");
+  }
+
+  return { provider: row.provider, model: row.model, effort: row.effort };
+}
+
 async function writeRevisionSpan(
   context: RunContext,
   inputs: RunInputs,
@@ -213,10 +254,11 @@ async function writeRevisionSpan(
 
   const spanRead = readRevisionSpanDiff(context, inputs.prevSpanFetch);
   if (!spanRead.ok) {
-    if (spanRead.error === RevisionSpanRefusals.TOO_LARGE) {
+    const diffTooLarge = spanRead.error === RevisionSpanRefusals.TOO_LARGE;
+    if (diffTooLarge) {
       await writeRefusedSpanSkip(context, prevBrief, brief);
     }
-    return { baselineSha: prevBrief.headSha, refused: true };
+    return { baselineSha: prevBrief.headSha, refused: true, diffTooLarge };
   }
   const revDiff = spanRead.value;
   await writeRevisionArtifacts(payload, {
@@ -243,8 +285,9 @@ async function writeRevisionSpan(
 
 /**
  * The brief is stored by now, so the span read never fails the run: a span
- * GitHub would not render (406, or its 422 render timeout) comes back as too
- * large, and any other failure warns and skips the span's artifacts.
+ * GitHub would not render (406, a short compare diff, or its 422 render
+ * timeout) comes back as too large, and any other failure warns and skips the
+ * span's artifacts.
  */
 function readRevisionSpanDiff(
   context: RunContext,
@@ -254,7 +297,7 @@ function readRevisionSpanDiff(
     return { ok: true, value: spanFetch.value };
   }
   const { error } = spanFetch;
-  const isUnrendered = isNotAcceptable(error) || isRenderTimedOut(error);
+  const isUnrendered = isDiffTooLarge(error) || isRenderTimedOut(error);
   if (isUnrendered) {
     return { ok: false, error: RevisionSpanRefusals.TOO_LARGE };
   }

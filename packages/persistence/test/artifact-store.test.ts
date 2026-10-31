@@ -1135,8 +1135,8 @@ describe("createArtifactStore query shape", () => {
     '"id", "installation_id", "pull_request_id", "base_sha", "head_sha", "head_index", "commit_count", "provider", "model", "effort", "repo_config", "anchor_state", "anchor_reason", "carried_chunk_ids", "used_group_ids", "body_version", "session_chunk_count", "session_group_count", "session_flag_count", "body", "byte_size", "created_at"';
   const BRIEF_UPSERT = `insert into "brief" (${BRIEF_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, default) on conflict ("installation_id","pull_request_id","base_sha","head_sha") do update set "head_index" = $21, "commit_count" = $22, "provider" = $23, "model" = $24, "effort" = $25, "repo_config" = $26, "anchor_state" = $27, "anchor_reason" = $28, "carried_chunk_ids" = $29, "used_group_ids" = $30, "body_version" = $31, "session_chunk_count" = $32, "session_group_count" = $33, "session_flag_count" = $34, "body" = $35, "byte_size" = $36 returning ${BRIEF_COLUMNS}`;
   const DELTA_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
-  const DELTA_UPSERT = `insert into "delta" (${DELTA_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "provider" = $11, "model" = $12, "effort" = $13, "body_version" = $14, "body" = $15, "byte_size" = $16 returning ${DELTA_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "skipped", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
+  const DELTA_UPSERT = `insert into "delta" (${DELTA_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "skipped" = $12, "provider" = $13, "model" = $14, "effort" = $15, "body_version" = $16, "body" = $17, "byte_size" = $18 returning ${DELTA_COLUMNS}`;
   const BRIEF_ANCHOR_CHECK =
     'select "id" from "brief" where ("brief"."installation_id" = $1 and "brief"."id" = $2 and "brief"."pull_request_id" = $3) limit $4';
   const NARRATIVE_COLUMNS =
@@ -1383,7 +1383,7 @@ describe("createArtifactStore query shape", () => {
       'select "id", "base_sha", "head_sha", "head_index", "created_at" from "brief" where ("brief"."installation_id" = $1 and "brief"."pull_request_id" = $2) order by "brief"."head_index"',
     ]);
     expect(deltas.statements).toEqual([
-      'select "baseline_sha", "head_sha" from "delta" where ("delta"."installation_id" = $1 and "delta"."pull_request_id" = $2)',
+      'select "baseline_sha", "head_sha", "skipped" from "delta" where ("delta"."installation_id" = $1 and "delta"."pull_request_id" = $2)',
     ]);
     expect(narratives.statements).toEqual([
       'select "prev_head_sha", "head_sha" from "revision_narrative" where ("revision_narrative"."installation_id" = $1 and "revision_narrative"."pull_request_id" = $2)',

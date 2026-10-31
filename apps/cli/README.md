@@ -150,7 +150,8 @@ shapes: a discriminated union, both arms exit 0:
 
 `reason` ∈ `no-checkpoint` · `pending` · `baseline-unavailable` ·
 `delta-not-generated`. `--baseline/--head` (together) skip checkpoint
-resolution; an artifact missing for an explicit span is exit 4.
+resolution; an artifact missing for an explicit span, a span whose delta was skipped
+included, is exit 4.
 
 ### `session <n> --base <sha> --head <sha>`
 

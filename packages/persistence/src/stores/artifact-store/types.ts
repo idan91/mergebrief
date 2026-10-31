@@ -163,7 +163,8 @@ export interface DeltaStore {
     headSha: string,
   ): Promise<DeltaRow | undefined>;
   /**
-   * All delta spans on a PR: the SHA pair only, never the body. One query
+   * All delta spans on a PR with a Delta Brief: the SHA pair only, never the
+   * body, and never a span whose row is its skip record. One query
    * backs the per-revision lastReview join; existence is derived in memory,
    * never one probe per revision.
    */

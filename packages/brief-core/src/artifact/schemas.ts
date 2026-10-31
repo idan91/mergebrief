@@ -5,6 +5,7 @@ import {
   ChunkSchema,
   DeltaBriefSchema,
   DeltaChunkSchema,
+  DeltaSkipReasons,
   PrRefSchema,
   RevisionNarrativeSchema,
   RevisionNarrativeSkipReasons,
@@ -12,6 +13,7 @@ import {
   RiskSurfaceAttributes,
   UnattributedFileSchema,
   type Brief,
+  type DeltaSkipped,
   type RevisionNarrativeSkipped,
 } from "../types";
 
@@ -64,6 +66,18 @@ export const StoredRevisionNarrativeReadSchema = z.discriminatedUnion(
   "artifactKind",
   [RevisionNarrativeSchema.strip(), RevisionNarrativeSkippedSchema.strip()],
 );
+
+export const DeltaSkippedSchema = z.strictObject({
+  artifactKind: z.literal("deltaSkipped"),
+  pr: PrRefSchema,
+  baselineSha: z.string(),
+  headSha: z.string(),
+  baselineIndex: z.number().int().nullable(),
+  headIndex: z.number().int().nullable(),
+  skipped: z.enum(DeltaSkipReasons),
+});
+
+true satisfies Equals<z.infer<typeof DeltaSkippedSchema>, DeltaSkipped>;
 
 /** A repo's custom risk names are not known at read time; the reader checks shape. */
 const readRiskToken = z.string();

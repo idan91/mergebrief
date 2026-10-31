@@ -24,7 +24,6 @@ import { STORED_BODY_VERSION } from "brief-core/artifact";
 import type { AppClient, PullRequestInfo } from "github";
 import { FakeFailures, type FakeGitHub } from "github/testing";
 import {
-  arrangeCompare,
   BASE,
   captureLogger,
   ctx,
@@ -61,13 +60,6 @@ import {
   createAppGitHubBinders,
   createGitHubPort,
 } from "../../src/task/github-port";
-
-/** 8 changed lines, huge against a 10-line whole-PR churn (ratio 0.8). */
-const HUGE_DIFF = `diff --git a/b.ts b/b.ts
---- a/b.ts
-+++ b/b.ts
-@@ -1,8 +1,8 @@
-${"+x\n".repeat(8)}`;
 
 const NOTION_PAGE_ID = "3cf5e9400eeb81f9bed9e1474c2cb4d4";
 const NOTION_SETTINGS =
@@ -1062,41 +1054,6 @@ describe("generate task", () => {
     await task(second.payload);
     expect(generator.calls.filter((label) => label === "delta")).toHaveLength(
       1,
-    );
-  });
-
-  it("skips huge-span deltas for full-brief fallback", async () => {
-    const first = await trigger(HEAD_1);
-    const generator = stubGenerator();
-    const github = makeGitHub(HEAD_1);
-    const task = makeTask({ generator, github });
-    await task(first.payload);
-
-    await createTenantRepository(
-      harness.handle,
-      ctx,
-    ).checkpoints.upsertOnSubmit({
-      pullRequestId: first.pr.id,
-      reviewerId: makeReviewerId(100n),
-      lastSubmittedSha: HEAD_1,
-      submittedAt: new Date(),
-    });
-
-    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-    arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, HUGE_DIFF);
-    const second = await trigger(HEAD_2);
-    await task(second.payload);
-
-    const store = createArtifactStore(harness.handle, ctx);
-    expect(
-      await store.deltas.get(second.pr.id, HEAD_1, HEAD_2),
-    ).toBeUndefined();
-    // The span marks are still there, the honest highlights survive the skip.
-    expect(
-      await store.comparisonMarks.get(second.pr.id, HEAD_1, HEAD_2),
-    ).toBeDefined();
-    expect(generator.calls.filter((label) => label === "delta")).toHaveLength(
-      0,
     );
   });
 

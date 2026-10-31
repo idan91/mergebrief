@@ -51,7 +51,10 @@ export async function readMarks(
   return answerBody(stored);
 }
 
-/** The pre-warmed reviewer-personal delta core for (baseline, head). */
+/**
+ * The pre-warmed reviewer-personal delta core for (baseline, head). A span
+ * whose row is its skip record has no delta to serve.
+ */
 export async function readDelta(
   handle: AppDatabase,
   access: PullRequestAccess,
@@ -59,6 +62,9 @@ export async function readDelta(
 ): Promise<ReadArtifactResult> {
   const { deltas } = createArtifactStore(handle, access.rowScope);
   const stored = await deltas.get(access.row.id, query.baseline, query.head);
+  if (stored?.skipped === true) {
+    return NOT_FOUND;
+  }
   return answerBody(stored);
 }
 

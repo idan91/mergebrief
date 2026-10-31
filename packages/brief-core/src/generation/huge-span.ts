@@ -1,4 +1,10 @@
 import type { Result } from "types/utils";
+import { countHunks, estimateTokens } from "./size";
+import {
+  BYTES_PER_TOKEN,
+  SINGLE_CALL_MAX_HUNKS,
+  SINGLE_CALL_MAX_INPUT_TOKENS,
+} from "./size/consts";
 
 /** One ratio gates both the delta and the revision-narrative fallback. */
 export const DEFAULT_HUGE_SPAN_RATIO = 0.65;
@@ -37,4 +43,28 @@ export function isHugeSpan(
     return false;
   }
   return incrementalChangedLines / wholePrChangedLines >= ratio;
+}
+
+function exceedsInputLimit(text: string): boolean {
+  const tokens = estimateTokens(text, BYTES_PER_TOKEN.DIFF);
+  return tokens > SINGLE_CALL_MAX_INPUT_TOKENS;
+}
+
+/**
+ * A span whose one call would exceed the single-call hunk or input limit. The
+ * whole request reads at the diff rate; the span diff is checked alone first
+ * so an oversized span is never rendered into a prompt.
+ */
+export function exceedsCallLimits(
+  spanDiff: string,
+  renderRequest: () => string,
+): boolean {
+  if (countHunks(spanDiff) > SINGLE_CALL_MAX_HUNKS) {
+    return true;
+  }
+  if (exceedsInputLimit(spanDiff)) {
+    return true;
+  }
+
+  return exceedsInputLimit(renderRequest());
 }

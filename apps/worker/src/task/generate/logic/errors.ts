@@ -10,11 +10,7 @@ import {
   ScopeViolationError,
   type GenerationKind,
 } from "persistence";
-import {
-  GenerationFailureCodes,
-  GenerationStatuses,
-  type GenerationStatus,
-} from "types/generations";
+import { GenerationFailureCodes } from "types/generations";
 import type { Result } from "types/utils";
 import { PermanentJobError, TransientJobError } from "../../failure";
 import {
@@ -23,7 +19,12 @@ import {
   HTTP_STATUS_SERVER_ERROR_FLOOR,
   HTTP_STATUS_TOO_MANY_REQUESTS,
 } from "../consts";
-import type { GenerateTaskDeps } from "../types";
+import {
+  GeneratorCallOutcomes,
+  type GenerateTaskDeps,
+  type GeneratorCallOptions,
+  type GeneratorCallOutcome,
+} from "../types";
 import { isRunSignal } from "./run-signals";
 
 export function isNotAcceptable(error: GitHubCallFailure): boolean {
@@ -31,7 +32,7 @@ export function isNotAcceptable(error: GitHubCallFailure): boolean {
 }
 
 /** A 406, or a checked diff GitHub served short: no retry reads it whole. */
-function isDiffTooLarge(error: GitHubCallFailure): boolean {
+export function isDiffTooLarge(error: GitHubCallFailure): boolean {
   return (
     isNotAcceptable(error) || error.code === GitHubApiErrorCodes.DIFF_INCOMPLETE
   );
@@ -100,6 +101,18 @@ function isTransientGenerationError(error: unknown): boolean {
     return isRetryableStatus;
   }
   return false;
+}
+
+/** The call stopped at its output cap; `runGenerator` keeps that throw as `cause`. */
+export function isOutputCut(error: unknown): boolean {
+  const unwrapped =
+    error instanceof PermanentJobError && error.cause !== undefined
+      ? error.cause
+      : error;
+  const cut =
+    unwrapped instanceof GeneratorError &&
+    unwrapped.kind === GeneratorErrorKinds.OUTPUT_CUT;
+  return cut;
 }
 
 /**
@@ -173,9 +186,10 @@ export async function runGenerator<T>(
   call: () => Promise<T>,
   log: Logger,
   kind: GenerationKind,
+  options: GeneratorCallOptions = {},
 ): Promise<T> {
   const startedAt = Date.now();
-  const emit = (outcome: GenerationStatus): void => {
+  const emit = (outcome: GeneratorCallOutcome): void => {
     log.info("generator call finished", {
       evt: "generation.complete",
       kind,
@@ -185,7 +199,7 @@ export async function runGenerator<T>(
   };
   try {
     const value = await call();
-    emit(GenerationStatuses.SUCCEEDED);
+    emit(GeneratorCallOutcomes.SUCCEEDED);
     return value;
   } catch (error) {
     // A step the call drives, not the generator, threw a classified error or
@@ -193,7 +207,10 @@ export async function runGenerator<T>(
     if (isClassifiedThrow(error)) {
       throw error;
     }
-    emit(GenerationStatuses.FAILED);
+    const skipped = options.outputCutIsSkip === true && isOutputCut(error);
+    emit(
+      skipped ? GeneratorCallOutcomes.SKIPPED : GeneratorCallOutcomes.FAILED,
+    );
     if (isTransientGenerationError(error)) {
       throw error instanceof Error ? error : new Error(String(error));
     }

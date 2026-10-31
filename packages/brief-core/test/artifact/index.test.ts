@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   ArtifactIssueCodes,
   checkBriefForWrite,
-  checkDeltaBriefForWrite,
+  checkDeltaForWrite,
   checkRevisionNarrativeForWrite,
+  isDeltaSkipRecord,
 } from "../../src/artifact";
 import { BriefSchema } from "../../src/types";
 import {
+  makeSkippedDelta,
   makeSkippedRevisionNarrative,
   makeTwoGroupBrief,
   makeValidBrief,
@@ -110,11 +112,11 @@ describe("checkBriefForWrite", () => {
   });
 });
 
-describe("checkDeltaBriefForWrite", () => {
+describe("checkDeltaForWrite", () => {
   it("accepts a well-formed Delta Brief", () => {
     const delta = makeValidDeltaBrief();
 
-    expect(checkDeltaBriefForWrite(delta)).toEqual({ ok: true, value: delta });
+    expect(checkDeltaForWrite(delta)).toEqual({ ok: true, value: delta });
   });
 
   it("refuses two changed groups that share an id", () => {
@@ -122,7 +124,7 @@ describe("checkDeltaBriefForWrite", () => {
     const [group] = delta.changedGroups;
     const body = { ...delta, changedGroups: [group, group] };
 
-    expect(checkDeltaBriefForWrite(body)).toEqual({
+    expect(checkDeltaForWrite(body)).toEqual({
       ok: false,
       error: [
         {
@@ -137,7 +139,7 @@ describe("checkDeltaBriefForWrite", () => {
   it("refuses a Delta Brief missing a field with a pathed issue", () => {
     const { wholePrImpact: _dropped, ...body } = makeValidDeltaBrief();
 
-    const checked = checkDeltaBriefForWrite(body);
+    const checked = checkDeltaForWrite(body);
 
     expect(checked).toEqual({
       ok: false,
@@ -149,6 +151,49 @@ describe("checkDeltaBriefForWrite", () => {
         },
       ],
     });
+  });
+});
+
+describe("checkDeltaForWrite on the skip record", () => {
+  it("accepts the skip record", () => {
+    const skipped = makeSkippedDelta();
+
+    expect(checkDeltaForWrite(skipped)).toEqual({ ok: true, value: skipped });
+  });
+
+  it("refuses an unknown key on the skip record", () => {
+    const body = { ...makeSkippedDelta(), summary: "extra" };
+
+    expect(checkDeltaForWrite(body)).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ path: "" })],
+    });
+  });
+
+  it("refuses a skip reason it does not know", () => {
+    const body = { ...makeSkippedDelta(), skipped: "too slow" };
+
+    expect(checkDeltaForWrite(body)).toEqual({
+      ok: false,
+      error: [expect.objectContaining({ path: "skipped" })],
+    });
+  });
+});
+
+describe("isDeltaSkipRecord", () => {
+  it("names a stored skip record a skip record", () => {
+    expect(isDeltaSkipRecord(JSON.stringify(makeSkippedDelta()))).toBe(true);
+  });
+
+  it("names a stored Delta Brief not a skip record", () => {
+    const body = JSON.stringify(makeValidDeltaBrief());
+
+    expect(isDeltaSkipRecord(body)).toBe(false);
+  });
+
+  it("names a body that is not a JSON object not a skip record", () => {
+    expect(isDeltaSkipRecord("not json")).toBe(false);
+    expect(isDeltaSkipRecord('["deltaSkipped"]')).toBe(false);
   });
 });
 

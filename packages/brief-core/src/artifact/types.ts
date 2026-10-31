@@ -7,6 +7,7 @@ import type {
   ChangeGroup,
   Chunk,
   DeltaBrief,
+  DeltaSkipped,
   PrRefSchema,
   RevisionNarrative,
   RevisionNarrativeSkipped,
@@ -39,10 +40,13 @@ export type StoredRevisionNarrative =
   | RevisionNarrative
   | RevisionNarrativeSkipped;
 
+/** A delta row's body: the generated Delta Brief or the span's skip record. */
+export type StoredDelta = DeltaBrief | DeltaSkipped;
+
 export type StoredParse<Stored> = Result<Stored, ArtifactIssue[]>;
 
 export type BriefWriteCheck = Result<Brief, ArtifactIssue[]>;
-export type DeltaBriefWriteCheck = Result<DeltaBrief, ArtifactIssue[]>;
+export type DeltaWriteCheck = Result<StoredDelta, ArtifactIssue[]>;
 export type RevisionNarrativeWriteCheck = Result<
   StoredRevisionNarrative,
   ArtifactIssue[]

@@ -12,16 +12,18 @@ import { addChunksToRemainder } from "./logic/remainder";
 import { dropMalformedRiskTokens } from "./logic/risk-tokens";
 import {
   buildStoredBriefSchema,
+  DeltaSkippedSchema,
   StoredBriefReadSchema,
   StoredDeltaBriefReadSchema,
   StoredRevisionNarrativeReadSchema,
   StoredRevisionNarrativeSchema,
 } from "./schemas";
-import { parseJsonObject, parseStored, readStored } from "./utils";
+import { DELTA_SKIPPED_KIND } from "./consts";
+import { isRecord, parseJsonObject, parseStored, readStored } from "./utils";
 import {
   ArtifactIssueCodes,
   type BriefWriteCheck,
-  type DeltaBriefWriteCheck,
+  type DeltaWriteCheck,
   type RevisionNarrativeWriteCheck,
   type StoredBrief,
   type StoredBriefRead,
@@ -40,6 +42,7 @@ export {
   type BriefSessionFacts,
   type FlagKey,
   type StoredBrief,
+  type StoredDelta,
   type StoredRevisionNarrative,
 } from "./types";
 
@@ -72,8 +75,17 @@ export function checkBriefForWrite(
   return refuseSharedGroupIds(checked, groups, "changeGroups");
 }
 
-/** Refuses two changed groups sharing an id. */
-export function checkDeltaBriefForWrite(delta: unknown): DeltaBriefWriteCheck {
+/**
+ * Accepts a Delta Brief or the span's skip record, told apart by the record's
+ * `artifactKind`; refuses two changed groups sharing an id.
+ */
+export function checkDeltaForWrite(delta: unknown): DeltaWriteCheck {
+  const isSkipRecord =
+    isRecord(delta) && delta["artifactKind"] === DELTA_SKIPPED_KIND;
+  if (isSkipRecord) {
+    return parseStored(DeltaSkippedSchema, delta);
+  }
+
   const checked = parseStored(DeltaBriefSchema, delta);
   const groups = checked.ok ? checked.value.changedGroups : undefined;
   return refuseSharedGroupIds(checked, groups, "changedGroups");
@@ -130,6 +142,12 @@ export function readStoredBrief(json: string): StoredBriefReadResult {
     ],
   };
   return { ok: true, value: read };
+}
+
+/** A stored delta body that is the span's skip record; a body that is not a JSON object is not one. */
+export function isDeltaSkipRecord(json: string): boolean {
+  const body = parseJsonObject(json);
+  return body.ok && body.value["artifactKind"] === DELTA_SKIPPED_KIND;
 }
 
 /**

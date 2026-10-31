@@ -6,7 +6,7 @@
 // here names only its table, its columns and its own body rules.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { traceStore } from "../trace-store";
-import { readBriefSessionFacts } from "brief-core/artifact";
+import { isDeltaSkipRecord, readBriefSessionFacts } from "brief-core/artifact";
 import { type AppDatabase, internal, type Tx } from "../../db/handle";
 import { brief } from "../../schema/brief";
 import { comparisonMarks } from "../../schema/comparison-marks";
@@ -248,7 +248,10 @@ export function createArtifactStore(
 
   const deltas: DeltaStore = {
     async write(input) {
-      const columns = shapeBodyColumns(input);
+      const columns = {
+        ...shapeBodyColumns(input),
+        skipped: isDeltaSkipRecord(input.body),
+      };
       return deltaSpans.write({
         pullRequestId: input.pullRequestId,
         values: {
@@ -268,14 +271,21 @@ export function createArtifactStore(
       );
     },
 
-    listForPullRequest(pullRequestId) {
-      return deltaSpans.list(
+    async listForPullRequest(pullRequestId) {
+      const rows = await deltaSpans.list(
         pullRequestId,
         db
-          .select({ baselineSha: delta.baselineSha, headSha: delta.headSha })
+          .select({
+            baselineSha: delta.baselineSha,
+            headSha: delta.headSha,
+            skipped: delta.skipped,
+          })
           .from(delta)
           .$dynamic(),
       );
+      return rows
+        .filter((row) => !row.skipped)
+        .map(({ baselineSha, headSha }) => ({ baselineSha, headSha }));
     },
   };
 

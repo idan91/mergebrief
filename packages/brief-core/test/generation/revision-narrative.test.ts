@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   categorizeDelta,
   categorizeRevisionNarrative,
+  exceedsDeltaCallLimits,
+  exceedsNarrativeCallLimits,
+  shapeDeltaSkipped,
 } from "../../src/generation/categorize";
-import { BriefSchema, type Brief } from "../../src/types";
+import { BriefSchema, DeltaSkipReasons, type Brief } from "../../src/types";
 import type { PrMetadata } from "../../src/github/types";
 import { FakeGenerator } from "../helpers";
 
@@ -546,5 +549,81 @@ describe("text length floor, delta + narrative pipelines", () => {
       makeLabelRoutedGenerator(),
     );
     expect("lengthViolations" in narrative).toBe(false);
+  });
+});
+
+// --- Span call limits and the delta skip record ------------------------------
+
+/** Past 400k tokens at two bytes per token, in prompt text outside the diff. */
+const OVERSIZED_DESCRIPTION = "d".repeat(800_002);
+
+const narrativePr = { repo: "o/r", number: 1, title: "t", url: URL };
+
+describe("span call limits, delta + narrative", () => {
+  const locator = { owner: "o", repo: "r", number: 1 };
+  const deltaInput = {
+    locator,
+    meta: makeMeta(HEAD_2),
+    baselineSha: CHECKPOINT,
+    headSha: HEAD_2,
+    baselineIndex: 1,
+    headIndex: 3,
+    incrementalDiff,
+  };
+  const narrativeInput = {
+    locator,
+    meta: makeMeta(HEAD_2),
+    prevHeadSha: HEAD_1,
+    headSha: HEAD_2,
+    prevIndex: 1,
+    headIndex: 2,
+    incrementalDiff,
+    brief: BriefSchema.parse({
+      ...briefGen,
+      intentCheck: storedIntentCheck,
+      pr: { ...narrativePr, sha: HEAD_2, description: "d" },
+      index: 2,
+      commitRange: { base: "base000000000000", head: HEAD_2, commitCount: 2 },
+      generation: { provider: "fake", model: "fake-model", effort: "medium" },
+    }),
+  };
+  const oversizedMeta = { ...makeMeta(HEAD_2), body: OVERSIZED_DESCRIPTION };
+
+  it("passes a small span on both calls", () => {
+    expect(exceedsDeltaCallLimits(deltaInput)).toBe(false);
+    expect(exceedsNarrativeCallLimits(narrativeInput)).toBe(false);
+  });
+
+  it("counts the prompt around the diff toward the input limit", () => {
+    const delta = { ...deltaInput, meta: oversizedMeta };
+    const narrative = { ...narrativeInput, meta: oversizedMeta };
+
+    expect(exceedsDeltaCallLimits(delta)).toBe(true);
+    expect(exceedsNarrativeCallLimits(narrative)).toBe(true);
+  });
+
+  it("shapes the skip record from the delta's own span", () => {
+    const skipped = shapeDeltaSkipped(deltaInput, DeltaSkipReasons.OUTPUT_CUT);
+
+    expect(skipped).toEqual({
+      artifactKind: "deltaSkipped",
+      pr: { ...narrativePr, sha: HEAD_2, description: "d" },
+      baselineSha: CHECKPOINT,
+      headSha: HEAD_2,
+      baselineIndex: 1,
+      headIndex: 3,
+      skipped: "output-cut",
+    });
+  });
+
+  it("records an unbriefed span end as null", () => {
+    const { baselineIndex: _baseline, ...unindexed } = deltaInput;
+
+    const skipped = shapeDeltaSkipped(
+      { ...unindexed, headIndex: null },
+      DeltaSkipReasons.SPAN_TOO_LARGE,
+    );
+
+    expect([skipped.baselineIndex, skipped.headIndex]).toEqual([null, null]);
   });
 });

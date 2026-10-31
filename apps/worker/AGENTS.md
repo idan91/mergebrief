@@ -1,6 +1,6 @@
 # apps/worker: agent notes
 
-The long-lived background worker. Drains graphile-worker's `generate` jobs, the ones `persistence`'s `createIngestRoutines` enqueues, and produces the PR's artifacts: shared Brief, comparison marks, carry-over hunk spans, revision narrative, and pre-warmed delta cores (one per distinct checkpoint SHA, huge-span skip honored). The generation engine is `brief-core`, reused as-is behind its `Generator` port.
+The long-lived background worker. Drains graphile-worker's `generate` jobs, the ones `persistence`'s `createIngestRoutines` enqueues, and produces the PR's artifacts: shared Brief, comparison marks, carry-over hunk spans, revision narrative, and pre-warmed delta cores (one per distinct checkpoint SHA; a span too large for one delta call stores a skip record instead). The generation engine is `brief-core`, reused as-is behind its `Generator` port.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 

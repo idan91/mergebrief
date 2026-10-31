@@ -6,11 +6,13 @@ import type {
   Generator,
 } from "generators";
 import {
+  DeltaSkipReasons,
   RevisionNarrativeSkipReasons,
   type Brief,
   type ChangeGroup,
   type Chunk,
   type DeltaBrief,
+  type DeltaSkipped,
   type RevisionNarrative,
   type RevisionNarrativeSkipped,
 } from "../src/types";
@@ -95,6 +97,18 @@ export function makeValidDeltaBrief(): DeltaBrief {
     ],
     wholePrImpact: "completes the original intent",
   });
+}
+
+export function makeSkippedDelta(): DeltaSkipped {
+  return {
+    artifactKind: "deltaSkipped",
+    pr: structuredClone(pr),
+    baselineSha: "1111111",
+    headSha: "2222222",
+    baselineIndex: 1,
+    headIndex: null,
+    skipped: DeltaSkipReasons.SPAN_TOO_LARGE,
+  };
 }
 
 export function makeValidRevisionNarrative(): RevisionNarrative {

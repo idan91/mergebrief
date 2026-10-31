@@ -294,6 +294,64 @@ describe("batched span listings and per-revision joins", () => {
   });
 });
 
+describe("deltas skip record", () => {
+  const SKIP_BODY = JSON.stringify({ artifactKind: "deltaSkipped" });
+
+  it("stamps a skip record and keeps it out of the span listing", async () => {
+    const handle = shared.handle;
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO_1,
+      prNumber: 1,
+      state: PrStates.OPEN,
+    });
+    const span = { pullRequestId: pr.id, baselineSha: "cp-1", ...ORIGIN };
+
+    const skipRow = await store.deltas.write({
+      ...span,
+      headSha: "head-2",
+      body: SKIP_BODY,
+    });
+    const briefRow = await store.deltas.write({
+      ...span,
+      headSha: "head-3",
+      body: "{}",
+    });
+
+    expect(skipRow.skipped).toBe(true);
+    expect(briefRow.skipped).toBe(false);
+    expect(await store.deltas.listForPullRequest(pr.id)).toEqual([
+      { baselineSha: "cp-1", headSha: "head-3" },
+    ]);
+  });
+
+  it("clears the stamp when a Delta Brief rewrites the span", async () => {
+    const handle = shared.handle;
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO_1,
+      prNumber: 1,
+      state: PrStates.OPEN,
+    });
+    const span = {
+      pullRequestId: pr.id,
+      baselineSha: "cp-1",
+      headSha: "head-2",
+      ...ORIGIN,
+    };
+
+    await store.deltas.write({ ...span, body: SKIP_BODY });
+    const rewritten = await store.deltas.write({ ...span, body: "{}" });
+
+    expect(rewritten.skipped).toBe(false);
+    expect(await store.deltas.listForPullRequest(pr.id)).toEqual([
+      { baselineSha: "cp-1", headSha: "head-2" },
+    ]);
+  });
+});
+
 describe("generation.latestBriefForPullRequests", () => {
   it("returns the newest brief-kind projection per PR, ignoring span kinds", async () => {
     const handle = shared.handle;

@@ -39,6 +39,7 @@ import type {
   PullRequestFile,
   PullRequestInfo,
 } from "github";
+import { GenerationStatuses } from "types/generations";
 import type { Result, ValueOf } from "types/utils";
 import type { EntryCommentLink } from "../entry-comment";
 import type { AcquiredRepoConfig } from "../repo-config";
@@ -230,6 +231,8 @@ export interface FetchedSpan {
 export interface RefusedSpan {
   readonly baselineSha: string;
   readonly refused: true;
+  /** GitHub would not render the span whole (406 or a short diff); the commits still exist. */
+  readonly diffTooLarge: boolean;
 }
 
 export type PrefetchedSpan = FetchedSpan | RefusedSpan;
@@ -292,8 +295,12 @@ export interface CheckpointDeltasInputs {
   /** The run's abort sources: a lockfile read stops with them. */
   readonly stops: readonly (AbortSignal | undefined)[];
   readonly loadContext: TicketContextLoader;
+  /** The run's brief origin, which a span's skip record is stamped with. */
+  readonly loadBriefOrigin: BriefOriginLoader;
   readonly log: Logger;
 }
+
+export type BriefOriginLoader = () => Promise<GenerationOrigin>;
 
 export interface AnchorDecisionInputs {
   readonly store: ArtifactStore;
@@ -567,6 +574,19 @@ export interface JobFailureInputs {
   /** Queues the head's Entry sync; called before a failure no retry follows is written. */
   readonly queueEntrySync: () => Promise<void>;
   readonly log: Logger;
+}
+
+/** `generation.complete`'s outcome: a call the caller turns into a skip record is no failure. */
+export const GeneratorCallOutcomes = {
+  SUCCEEDED: GenerationStatuses.SUCCEEDED,
+  FAILED: GenerationStatuses.FAILED,
+  SKIPPED: "skipped",
+} as const;
+export type GeneratorCallOutcome = ValueOf<typeof GeneratorCallOutcomes>;
+
+export interface GeneratorCallOptions {
+  /** A call cut at its output cap stores a skip record instead of failing. */
+  readonly outputCutIsSkip?: boolean;
 }
 
 export const JobFailureOutcomes = {

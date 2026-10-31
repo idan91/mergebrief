@@ -5,6 +5,8 @@ import {
   type Brief,
   type CommitRange,
   type DeltaBrief,
+  type DeltaSkipped,
+  type DeltaSkipReason,
   type PrRef,
   type ReviewComment,
   type RevisionNarrative,
@@ -38,6 +40,7 @@ import {
   detectChunkOverlaps,
 } from "./loc";
 import { snapChunkRanges } from "./snap-ranges";
+import { exceedsCallLimits } from "./huge-span";
 import {
   dropUnknownGroupChunks,
   fanOutIntentCheck,
@@ -697,6 +700,36 @@ ${renderPrDiff(input.incrementalDiff)}
 ${DATA_REMINDER}`;
 }
 
+/** True when the delta call for this span would exceed a single call's limits. */
+export function exceedsDeltaCallLimits(input: DeltaInput): boolean {
+  return exceedsCallLimits(
+    input.incrementalDiff,
+    () => `${buildDeltaSystemPrompt()}${renderDeltaUser(input)}`,
+  );
+}
+
+/** Which span a delta covers, without its diff: a refused span has none. */
+export type DeltaSpanRef = Pick<
+  DeltaInput,
+  "locator" | "meta" | "baselineSha" | "headSha" | "baselineIndex" | "headIndex"
+>;
+
+/** The span's stored record where no Delta Brief will be written. */
+export function shapeDeltaSkipped(
+  input: DeltaSpanRef,
+  skipped: DeltaSkipReason,
+): DeltaSkipped {
+  return {
+    artifactKind: "deltaSkipped",
+    pr: buildPrRef(input.locator, input.meta, input.meta.sha),
+    baselineSha: input.baselineSha,
+    headSha: input.headSha,
+    baselineIndex: input.baselineIndex ?? null,
+    headIndex: input.headIndex ?? null,
+    skipped,
+  };
+}
+
 export async function categorizeDelta(
   input: DeltaInput,
   generator: Generator,
@@ -885,6 +918,17 @@ ${renderBriefContext(input.brief)}
 ${renderPrDiff(input.incrementalDiff)}
 
 ${DATA_REMINDER}`;
+}
+
+/** True when the narrative call for this span would exceed a single call's limits. */
+export function exceedsNarrativeCallLimits(
+  input: RevisionNarrativeInput,
+): boolean {
+  return exceedsCallLimits(
+    input.incrementalDiff,
+    () =>
+      `${buildRevisionNarrativeSystemPrompt()}${renderRevisionNarrativeUser(input)}`,
+  );
 }
 
 export async function categorizeRevisionNarrative(

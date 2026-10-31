@@ -7,6 +7,7 @@ import { FakeFailures, type FakeFailure } from "github/testing";
 import { GenerationStatuses } from "types/generations";
 import { describe, expect, it } from "vitest";
 import {
+  arrangeCompare,
   captureLogger,
   ctx,
   harness,
@@ -138,6 +139,33 @@ describe("generate task, a refused revision span", () => {
       .filter((call) => JSON.stringify(call.input).includes(HEAD_1));
     expect(spanReads).toHaveLength(1);
     expect(generator.calls).not.toContain("delta");
+    const delta = await createArtifactStore(harness.handle, ctx).deltas.get(
+      second.pr.id,
+      HEAD_1,
+      HEAD_2,
+    );
+    expect(JSON.parse(delta?.body ?? "{}")).toMatchObject({
+      artifactKind: "deltaSkipped",
+      skipped: "span-too-large",
+    });
+  });
+
+  it("writes the narrative skip record on a short compare diff", async () => {
+    const { second, task } = await runSecondHeadWithSpanRefused(
+      FakeFailures.DIFF_INCOMPLETE,
+    );
+
+    await task(second.payload);
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const narrative = await store.revisionNarratives.get(
+      second.pr.id,
+      HEAD_1,
+      HEAD_2,
+    );
+    expect(JSON.parse(narrative?.body ?? "{}")).toMatchObject({
+      skipped: "span too large",
+    });
   });
 
   it("writes the span-too-large record on a 422 and still succeeds", async () => {
@@ -182,5 +210,50 @@ describe("generate task, a refused revision span", () => {
         msg: expect.stringContaining("revision span"),
       }),
     );
+  });
+});
+
+/** One hunk past the single-call limit of 120. */
+const MANY_HUNKS_DIFF = `diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n${"@@ -1 +1 @@\n-x\n+y\n".repeat(121)}`;
+
+describe("generate task, a revision span past the call limits", () => {
+  it("writes both skip records and calls neither model", async () => {
+    const generator = stubGenerator();
+    const largePr = [{ path: "a.ts", additions: 100_000, deletions: 0 }];
+    const github = makeGitHub(HEAD_1, largePr);
+    const task = makeTask({ generator, github });
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: HEAD_1,
+      submittedAt: new Date(),
+    });
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, MANY_HUNKS_DIFF);
+    const second = await trigger(HEAD_2);
+
+    await task(second.payload);
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const narrative = await store.revisionNarratives.get(
+      second.pr.id,
+      HEAD_1,
+      HEAD_2,
+    );
+    const delta = await store.deltas.get(second.pr.id, HEAD_1, HEAD_2);
+    expect(JSON.parse(narrative?.body ?? "{}")).toMatchObject({
+      artifactKind: "revisionNarrativeSkipped",
+      skipped: "span too large",
+    });
+    expect(JSON.parse(delta?.body ?? "{}")).toMatchObject({
+      artifactKind: "deltaSkipped",
+      skipped: "span-too-large",
+    });
+    expect(generator.calls).toEqual(["brief", "brief"]);
   });
 });
