@@ -303,6 +303,23 @@ export const ShortenedReadings = {
   COUNTS_ONLY: "counts-only",
 } as const;
 
+/**
+ * What the grouping call of a multi-call run read: the full diff, or an
+ * outline keeping at most N changed lines per hunk, then hunk headers only,
+ * then one line per file. Listed from the fullest to the coarsest.
+ */
+export const OutlineForms = {
+  FULL: "full",
+  LINES_40: "lines-40",
+  LINES_20: "lines-20",
+  LINES_12: "lines-12",
+  LINES_6: "lines-6",
+  LINES_2: "lines-2",
+  HEADERS: "headers",
+  FILES: "files",
+} as const;
+export type OutlineForm = ValueOf<typeof OutlineForms>;
+
 /** The stored chunk shape: the generation chunk plus the derived `loc` and `readAs`. */
 const buildChunkSchema = (riskToken: z.ZodType<string>) =>
   buildChunkGenerationSchema(riskToken).extend({
@@ -830,6 +847,12 @@ export const BriefSchema = z.object({
   intentCheck: IntentCheckSchema.optional().describe(
     "the ticket-gated intent check. Optional on the read path only — pre-feature briefs lack it; generation always produces it (required on BriefGenerationSchema).",
   ),
+  outlineForm: z
+    .enum(OutlineForms)
+    .optional()
+    .describe(
+      "which outline form the grouping call of a multi-call run read. Pipeline-assigned, never model-produced; absent on a single-call brief.",
+    ),
 });
 
 /**
@@ -853,6 +876,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   concernView: true,
   unattributed: true,
   diffTotals: true,
+  outlineForm: true,
 }).extend({
   chunks: z.array(ChunkGenerationSchema),
   intentCheck: IntentCheckGenerationSchema,

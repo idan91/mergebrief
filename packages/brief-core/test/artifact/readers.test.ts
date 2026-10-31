@@ -211,6 +211,7 @@ describe("readStoredBrief", () => {
     ["diffTotals", makeBodyWith({ diffTotals: null })],
     ["readingOrder", makeBodyWith({ readingOrder: [NOT_A_SECTION] })],
     ["intentCheck", makeBodyWith({ intentCheck: "none" })],
+    ["outlineForm", makeBodyWith({ outlineForm: "lines-99" })],
     ["pr.state", makeBodyWithPr({ state: "merged" })],
     ["pr.draft", makeBodyWithPr({ draft: "yes" })],
     ["pr.merged", makeBodyWithPr({ merged: 1 })],

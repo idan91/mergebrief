@@ -26,6 +26,7 @@ const BRIEF_SECTIONS: BriefSectionSchemas = {
   diffTotals: BriefSchema.shape.diffTotals,
   readingOrder: BriefSchema.shape.readingOrder,
   intentCheck: BriefSchema.shape.intentCheck,
+  outlineForm: BriefSchema.shape.outlineForm,
 };
 
 const NARRATIVE_SECTIONS: NarrativeSectionSchemas = {
