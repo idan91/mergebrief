@@ -3,7 +3,7 @@ import {
   CHUNK_ROW_RUNS,
   LINE_WIDTH_BUCKET_EDGES,
   type ChunkLayoutBody,
-  type ChunkLayoutCounts,
+  type StoredChunkLayoutCounts,
 } from "../diff/chunk-layout";
 import type { Equals } from "types/utils";
 import {
@@ -172,13 +172,13 @@ export const ChunkLayoutCountsSchema = z
     splitRows: layoutCountSchema,
     lineWidths: lineWidthHistogramSchema,
     splitLineWidths: lineWidthHistogramSchema.exactOptional(),
-    rowRuns: z.string().regex(CHUNK_ROW_RUNS).exactOptional(),
+    rowRuns: z.string().regex(CHUNK_ROW_RUNS),
   })
   .strict();
 
 true satisfies Equals<
   z.infer<typeof ChunkLayoutCountsSchema>,
-  ChunkLayoutCounts
+  StoredChunkLayoutCounts
 >;
 
 /**

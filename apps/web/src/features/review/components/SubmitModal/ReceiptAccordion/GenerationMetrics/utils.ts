@@ -1,9 +1,15 @@
 import type { TFunction } from "i18next";
-import { ShortenedReadings } from "brief-core/types";
+import type { TranslationKey } from "i18n";
+import { ShortenedReadings, type ShortenedReading } from "brief-core/types";
 
 import type { ReceiptShortenedFile } from "../../../../utils/receipt";
 
 const SHORTENED_PARTS_JOINER = " · ";
+
+const SHORTENED_LINE_KEYS: Record<ShortenedReading, TranslationKey> = {
+  [ShortenedReadings.PACKAGE_SUMMARY]: "review.summary.shortenedFilesPackages",
+  [ShortenedReadings.COUNTS_ONLY]: "review.summary.shortenedFilesCounts",
+};
 
 /**
  * One phrase per read-as kind with a file, joined, so a count of zero prints
@@ -13,19 +19,12 @@ export function formatShortenedLine(
   t: TFunction,
   shortened: readonly ReceiptShortenedFile[],
 ): string | undefined {
-  const packageFiles = shortened.filter(
-    (entry) => entry.readAs === ShortenedReadings.PACKAGE_SUMMARY,
-  ).length;
-  const countFiles = shortened.length - packageFiles;
-
   const parts: string[] = [];
-  if (packageFiles > 0) {
-    parts.push(
-      t("review.summary.shortenedFilesPackages", { count: packageFiles }),
-    );
-  }
-  if (countFiles > 0) {
-    parts.push(t("review.summary.shortenedFilesCounts", { count: countFiles }));
+  for (const readAs of Object.values(ShortenedReadings)) {
+    const count = shortened.filter((entry) => entry.readAs === readAs).length;
+    if (count > 0) {
+      parts.push(t(SHORTENED_LINE_KEYS[readAs], { count }));
+    }
   }
 
   return parts.length > 0 ? parts.join(SHORTENED_PARTS_JOINER) : undefined;

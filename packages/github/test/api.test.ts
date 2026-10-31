@@ -6,12 +6,12 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import {
   deleteComment,
+  editComment,
   fetchComment,
   listIssueComments,
   postEntryComment,
 } from "../src/operations/comments";
 import { GitHubApiErrorCodes } from "../src/errors";
-import { editComment } from "../src/operations/comments";
 import { fetchIssue } from "../src/operations/issue";
 import {
   fetchPullRequest,

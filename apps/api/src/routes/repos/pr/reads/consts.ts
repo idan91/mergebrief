@@ -20,7 +20,6 @@ export const LARGE_DIFF_CACHE_LIMITS = {
   maxBytes: 256 * MEBIBYTE,
   maxEntries: 256,
   maxEntriesPerViewer: 4,
-  ttlMs: 10 * MINUTE_MS,
   shaPinnedTtlMs: SHA_PINNED_TTL_MS,
 } as const satisfies LargeDiffCacheLimits;
 /** Attempts on a span diff stop here, inside the web tier's 30 s upstream budget. */

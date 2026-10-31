@@ -39,8 +39,9 @@ function answerUnlessCut(cutLabels: readonly string[]) {
 /** The parts a run whose first batch was cut stores: the grouping, both halves and batch 2. */
 async function storeSplitRun(): Promise<Map<string, unknown>> {
   const stored = new Map<string, unknown>();
+  const generator = new FakeGenerator(answerUnlessCut(["detail:1"]));
   await generateBrief(
-    makeOptions(new FakeGenerator(answerUnlessCut(["detail:1"])), {
+    makeOptions(generator, {
       multiCallHooks: {
         onPartDone: async (key, body) => {
           stored.set(key, body);
@@ -130,8 +131,9 @@ describe("a cut detail call", () => {
 
     stored.delete("detail:1:2");
     const oneHalf: PlannedDetailCalls[] = [];
+    const resumed = new FakeGenerator(answerUnlessCut([]));
     await generateBrief(
-      makeOptions(new FakeGenerator(answerUnlessCut([])), {
+      makeOptions(resumed, {
         multiCallHooks: {
           loadPart: async (key) => stored.get(key),
           onGroupingDone: async (plan) => {
@@ -191,11 +193,12 @@ describe("a cut detail call", () => {
     const generator = new FakeGenerator((request) =>
       request.label === "grouping" ? oneHunk : cut(),
     );
+    const oneHunkDiff = makeFile("src/a.ts", 1);
 
     await expect(
       generateBrief(
         makeOptions(generator, {
-          pr: { ...pr, diff: makeFile("src/a.ts", 1) },
+          pr: { ...pr, diff: oneHunkDiff },
           lockfileSummaries: new Map(),
         }),
       ),

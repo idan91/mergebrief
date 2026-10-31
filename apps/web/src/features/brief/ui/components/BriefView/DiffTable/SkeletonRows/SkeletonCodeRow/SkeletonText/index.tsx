@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
 
 import { SkeletonSideKinds, type SkeletonSide } from "../../types";
+import { NO_BREAK, NO_WRAPS } from "./consts";
 import styles from "./SkeletonText.module.scss";
-import { planWrapLines, type WrapLine } from "./utils";
+import { planWrapLines } from "./utils";
 
 interface TextStyle extends CSSProperties {
   "--skeleton-indent": number;
@@ -23,11 +24,6 @@ export interface SkeletonTextProps {
   /** Columns the view's code cell wraps at. */
   columns: number;
 }
-
-/** No token break: past any bar the neutral ink draws. */
-const NO_BREAK = 999;
-
-const NO_WRAPS: readonly WrapLine[] = [];
 
 /** One side's code: a bar from its indent, and a bar per line it wraps onto. */
 export function SkeletonText({ side, span, columns }: SkeletonTextProps) {

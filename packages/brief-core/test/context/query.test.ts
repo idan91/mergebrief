@@ -650,7 +650,7 @@ describe("buildContextQuery", () => {
 
   it("reads a reference the way the reviewer sees it past hidden chars", () => {
     const query = buildContextQuery({
-      title: "[BRI​EF-239] Add thing",
+      title: "[BRI\u200BEF-239] Add thing",
       body: "",
       branch: "",
       repo: REPO,

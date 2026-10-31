@@ -234,7 +234,8 @@ function makeBreaks(length: number, seed: number): number[] {
   const share = MIN_SECOND_TOKEN_SHARE + shareStep * SECOND_TOKEN_SHARE_STEP;
   const secondLength = Math.max(MIN_SECOND_TOKEN, Math.round(length * share));
   const second = first + 1 + secondLength;
-  return second < length - MIN_LAST_TOKEN ? [first, second] : [first];
+  const hasThirdToken = second < length - MIN_LAST_TOKEN;
+  return hasThirdToken ? [first, second] : [first];
 }
 
 function pickStride(rows: number): number {

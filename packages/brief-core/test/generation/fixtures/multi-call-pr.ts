@@ -2,10 +2,15 @@ import type { Generator } from "generators";
 import type { GenerateBriefOptions } from "../../../src/generation/brief/types";
 import type { LockfileSummary } from "../../../src/generation/shortened/types";
 import type { FetchedPr } from "../../../src/github/types";
+import {
+  Concerns,
+  Roles,
+  type ChangeGroup,
+  type DetailGeneration,
+} from "../../../src/types";
 import type { RecordedRequest } from "../../helpers";
 import { summarizeTexts } from "../shortened/helpers";
 
-/** A 90-hunk PR over three files and a lockfile: two detail batches on the multi-call path. */
 const HUNK_MARKER =
   /\[hunk (f\d+)h(\d+) -> (\S+)\]\n@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/g;
 
@@ -86,7 +91,7 @@ const NO_INTENT = {
   alignment: { read: "", goal: "", response: "" },
 };
 
-export function makeGroup(id: string) {
+export function makeGroup(id: string): ChangeGroup {
   return {
     id,
     title: `Group ${id}`,
@@ -115,17 +120,20 @@ export const grouping = {
 };
 
 /** One core chunk per marker in the request, its ranges read off the hunk header. */
-export function answerDetail(request: RecordedRequest, groupOverride?: string) {
+export function answerDetail(
+  request: RecordedRequest,
+  groupOverride?: string,
+): DetailGeneration {
   const chunks = [...request.user.matchAll(HUNK_MARKER)].map(
     (match, position) => {
       const start = Number(match[4]);
       const count = Number(match[5] ?? "1");
       return {
         id: `c${position + 1}`,
-        changeGroupId: groupOverride ?? match[3],
+        changeGroupId: groupOverride ?? match[3] ?? "",
         file: readPath(request.user, match[1] ?? ""),
-        concern: "implementation",
-        role: "core",
+        concern: Concerns.IMPLEMENTATION,
+        role: Roles.CORE,
         addedRanges: [{ start, end: start + count - 1 }],
         removedRanges: [{ start, end: start + count - 1 }],
         riskSurface: [],

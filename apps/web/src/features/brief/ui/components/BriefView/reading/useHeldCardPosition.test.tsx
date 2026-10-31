@@ -10,10 +10,10 @@ import { HOLD_FRAMES, useHeldCardPosition } from "./useHeldCardPosition";
 
 interface HarnessProps {
   codePending: boolean;
-  windows?: ChunkWindowRegistry | null;
+  windows?: ChunkWindowRegistry | undefined;
 }
 
-function Harness({ codePending, windows = null }: HarnessProps) {
+function Harness({ codePending, windows }: HarnessProps) {
   useHeldCardPosition(codePending, windows);
   return null;
 }

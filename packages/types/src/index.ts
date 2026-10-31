@@ -90,7 +90,7 @@ export {
   type GenerationFailureClass,
   type GenerationFailureCode,
   type GenerationDetailParams,
-  type GenerationFailureParams,
+  type GenerationErrorParams,
   type GenerationPhase,
   type GenerationStatus,
   type GenerationUnitsParams,

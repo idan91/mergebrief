@@ -49,14 +49,15 @@ export interface SpanDiffCacheLimits {
 /** Span diff bodies keyed per session, repo, PR and span. */
 export interface SpanDiffCache {
   get(key: string, now: number): string | undefined;
-  /** `bytes` is what V8 holds for `diff`; nothing is stored past `maxEntryBytes`. */
+  /** `bytes` is what V8 holds for `diff`; past `maxEntryBytes` nothing is
+   * stored and it answers false. */
   set(
     key: string,
     diff: string,
     bytes: number,
     now: number,
     lifetime: DiffLifetime,
-  ): void;
+  ): boolean;
 }
 
 /** The bounds on the cache for diffs past the small cache's entry cap. */
@@ -66,11 +67,11 @@ export interface LargeDiffCacheLimits {
   readonly maxBytes: number;
   readonly maxEntries: number;
   readonly maxEntriesPerViewer: number;
-  readonly ttlMs: number;
   readonly shaPinnedTtlMs: number;
 }
 
-/** Large diff bodies, a few per viewer under one instance-wide byte cap. */
+/** Large diff bodies of spans pinned to two commit SHAs, a few per viewer
+ * under one instance-wide byte cap. */
 export interface LargeDiffCache {
   get(key: string, now: number): string | undefined;
   /** `bytes` is what V8 holds for `diff`; nothing is stored past `maxEntryBytes`. */
@@ -80,7 +81,6 @@ export interface LargeDiffCache {
     diff: string,
     bytes: number,
     now: number,
-    lifetime: DiffLifetime,
   ): void;
 }
 

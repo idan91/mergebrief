@@ -16,9 +16,10 @@ const COUNTS = {
   expandRows: 0,
   splitRows: 3,
   lineWidths: { counts: [4, 0, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+  rowRuns: "h1c3",
 };
 
-const FILE_COUNTS = { ...COUNTS, rows: 9, splitRows: 8 };
+const FILE_COUNTS = { ...COUNTS, rows: 9, splitRows: 8, rowRuns: "h1c8" };
 
 /** One added line: its hunk header and two rows of context on each side. */
 const RANGE_COUNTS = {

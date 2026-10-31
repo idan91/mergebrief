@@ -6,13 +6,12 @@
 // backfill's transaction, which is also the parent check.
 import { and, eq, getTableColumns, type SQL } from "drizzle-orm";
 import { ChunkLayoutBodySchema } from "brief-core/artifact";
-import type { AppDrizzle } from "../../db/handle";
+import type { AppDrizzle, Tx } from "../../db/handle";
 import { brief } from "../../schema/brief";
 import { chunkLayout } from "../../schema/chunk-layout";
 import type { BriefRowId, PullRequestRowId } from "../../types";
 import type { RowScope } from "../scope";
 import { InvalidArtifactBodyError } from "./errors";
-import type { Tx } from "../../db/handle";
 import type { ChunkLayoutRow, ChunkLayoutStore } from "./types";
 
 export type AssertBriefAnchored = (

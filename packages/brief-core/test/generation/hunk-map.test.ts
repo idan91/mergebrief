@@ -52,7 +52,6 @@ function resolve(
   return { result, warnings: warnings.listWarnings() };
 }
 
-/** The group whose hunk list holds `hunkId`, if any. */
 function readHunkOwner(resolved: Resolved, hunkId: string): string | undefined {
   const owner = [...resolved.result.hunksByGroup].find(([, hunkIds]) =>
     hunkIds.some((id) => id === hunkId),

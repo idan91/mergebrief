@@ -63,7 +63,7 @@ describe("decideCallPlan", () => {
 
     expect(plan).toEqual({
       kind: "single",
-      estimatedInputTokens: 1104,
+      estimatedDiffTokens: 1104,
       hunkCount: 120,
       forced: false,
     });

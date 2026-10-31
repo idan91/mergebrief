@@ -1,4 +1,4 @@
-import { SINGLE_CALL_MAX_INPUT_TOKENS } from "../size/consts";
+import { SINGLE_CALL_MAX_DIFF_TOKENS } from "../size/consts";
 
 /** The most hunks one detail call reads; shortened files count for none. */
 export const DETAIL_BATCH_MAX_HUNKS = 80;
@@ -9,7 +9,7 @@ export const DETAIL_BATCH_MAX_HUNKS = 80;
  * the shared prefix. A constant, so a resumed run plans the same batches its
  * stored parts were written for.
  */
-export const DETAIL_BATCH_MAX_DIFF_TOKENS = SINGLE_CALL_MAX_INPUT_TOKENS / 2;
+export const DETAIL_BATCH_MAX_DIFF_TOKENS = SINGLE_CALL_MAX_DIFF_TOKENS / 2;
 
 /** Detail calls in flight at once after call 1 warmed the cache. */
 export const DEFAULT_DETAIL_CONCURRENCY = 8;

@@ -1,7 +1,14 @@
 import {
+  GIT_QUOTE,
+  POST_SIDE_PREFIX,
+  PRE_SIDE_PREFIX,
+} from "../diff/chunk-layout/consts";
+import {
   decodeGitPath,
-  readGitPath,
+  listPatchPaths,
+  readPathLine,
 } from "../diff/chunk-layout/logic/header-paths";
+import type { PatchPathLine } from "../diff/chunk-layout/types";
 import { splitDiffByFile, type FileDiff } from "../diff/file-diff";
 import { indexDiff } from "../diff/hunk-index";
 import {
@@ -114,7 +121,8 @@ function movesPackageHost(changes: PackageChanges): boolean {
   const updateMoves = changes.updated.some(
     (update) => !isSameHostSet(update.fromHosts, update.toHosts),
   );
-  return updateMoves || movesUnpairedVersion(changes);
+  const movesHost = updateMoves || movesUnpairedVersion(changes);
+  return movesHost;
 }
 
 /**
@@ -154,25 +162,14 @@ function changesAlias(changes: PackageChanges): boolean {
   return addsAlias || updateChangesAlias;
 }
 
-/** A header line naming a path after `lead`; `side` is the prefix git writes on `---` and `+++` paths. */
-interface PathLine {
-  lead: string;
-  side: string;
-}
-
-const RENAME_FROM_LINE: PathLine = { lead: "rename from ", side: "" };
-const RENAME_TO_LINE: PathLine = { lead: "rename to ", side: "" };
-const MINUS_FILE_LINE: PathLine = { lead: "--- ", side: "a/" };
-const PLUS_FILE_LINE: PathLine = { lead: "+++ ", side: "b/" };
-/** The lines naming the path the file had at base. */
+const RENAME_FROM_LINE: PatchPathLine = { lead: "rename from ", side: "" };
+const RENAME_TO_LINE: PatchPathLine = { lead: "rename to ", side: "" };
+const MINUS_FILE_LINE: PatchPathLine = { lead: "--- ", side: PRE_SIDE_PREFIX };
+const PLUS_FILE_LINE: PatchPathLine = { lead: "+++ ", side: POST_SIDE_PREFIX };
+/** The lines naming the path the file had at base; a copy's source is not a path the file had. */
 const OLD_PATH_LINES = [RENAME_FROM_LINE, MINUS_FILE_LINE];
 /** The lines naming the path the file has at head. */
 const NEW_PATH_LINES = [RENAME_TO_LINE, PLUS_FILE_LINE];
-/** git quotes a path holding a quote, a backslash, a control or a non-ASCII character. */
-const GIT_QUOTE = '"';
-const HUNK_START = "@@";
-/** git ends a `---` or `+++` line with a TAB when its path holds a space. */
-const FILE_LINE_TRAILER = "\t";
 /** The header lines git writes for a change to a file's mode alone. */
 const MODE_LINE = /^(?:old|new) mode \d+$/;
 
@@ -182,49 +179,14 @@ function readBasename(path: string): string {
   return unquoted.slice(unquoted.lastIndexOf("/") + 1);
 }
 
-/** The path `line` names through one of `kinds`, read past the kind's side prefix; `/dev/null` names none. */
-function readLinePath(
-  line: string,
-  kinds: readonly PathLine[],
-): string | undefined {
-  const kind = kinds.find((candidate) => line.startsWith(candidate.lead));
-  if (kind === undefined) {
-    return undefined;
-  }
-  const token = line.slice(kind.lead.length);
-  const trailed = token.endsWith(FILE_LINE_TRAILER);
-  const path = trailed ? token.slice(0, -FILE_LINE_TRAILER.length) : token;
-  return readGitPath(path, kind.side);
-}
-
-/** Every path a patch's header lines name through `kinds`. */
-function readHeaderPaths(patch: string, kinds: readonly PathLine[]): string[] {
-  const paths: string[] = [];
-  // Header lines only: stop at the first hunk rather than split the whole patch.
-  for (let start = 0; start < patch.length; ) {
-    const newline = patch.indexOf("\n", start);
-    const end = newline === -1 ? patch.length : newline;
-    const line = patch.slice(start, end);
-    if (line.startsWith(HUNK_START)) {
-      break;
-    }
-    const path = readLinePath(line, kinds);
-    if (path !== undefined) {
-      paths.push(path);
-    }
-    start = end + 1;
-  }
-  return paths;
-}
-
 /** The file's path at head and every path its header names at base. */
 function listTouchedPaths({ file, patch }: FileDiff): string[] {
-  return [file, ...readHeaderPaths(patch, OLD_PATH_LINES)];
+  return [file, ...listPatchPaths(patch, OLD_PATH_LINES)];
 }
 
 /** Every spelling of the file's head path, so a chunk keyed by any of them is found. */
 function listHeadPathSpellings({ file, patch }: FileDiff): string[] {
-  return [file, ...readHeaderPaths(patch, NEW_PATH_LINES)];
+  return [file, ...listPatchPaths(patch, NEW_PATH_LINES)];
 }
 
 /**
@@ -295,12 +257,12 @@ export function changesPackageSource(
     return true;
   }
   const { changes } = summary;
-  return (
+  const movesSource =
     changes.sourceChanged.length > 0 ||
     movesPackageHost(changes) ||
     changesAlias(changes) ||
-    addsNewHost(summary, context)
-  );
+    addsNewHost(summary, context);
+  return movesSource;
 }
 
 /**
@@ -322,8 +284,8 @@ function confirmsPath(
   lockfile: ChangedLockfile,
   headerLines: string[],
 ): boolean {
-  function listNamed(kind: PathLine): string[] {
-    return headerLines.flatMap((line) => readLinePath(line, [kind]) ?? []);
+  function listNamed(kind: PatchPathLine): string[] {
+    return headerLines.flatMap((line) => readPathLine(line, [kind]) ?? []);
   }
 
   const basePath = lockfile.previousPath ?? lockfile.path;

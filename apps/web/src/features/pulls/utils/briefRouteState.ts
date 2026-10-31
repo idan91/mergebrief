@@ -13,7 +13,7 @@ import {
   GenerationStatuses,
   type GenerationFailureCode,
   type GenerationUnitsParams,
-} from "types";
+} from "types/generations";
 import { UnknownValues } from "@web/utils/open-enum/types";
 import { IN_FLIGHT_POLL_MS, LIVE_POLL_MS } from "../consts";
 import type { DbTimelineSelection } from "./dbTimeline";

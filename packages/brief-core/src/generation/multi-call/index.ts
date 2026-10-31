@@ -76,7 +76,7 @@ import { clampToShownLines } from "./shown-lines";
 import type {
   DetailBatch,
   DetailRequest,
-  HunkLocation,
+  ShownHunk,
   MultiCallHooks,
   MultiCallOptions,
   PartKey,
@@ -197,7 +197,8 @@ function orderGroups(grouping: GroupingGeneration): ChangeGroup[] {
   ];
   for (const id of ids) {
     const group = byId.get(id);
-    if (group !== undefined && !ordered.includes(group)) {
+    const isNewGroup = group !== undefined && !ordered.includes(group);
+    if (isNewGroup) {
       ordered.push(group);
     }
   }
@@ -209,7 +210,8 @@ function readLaneLimit(limit: number | undefined): number {
   if (limit === undefined) {
     return DEFAULT_DETAIL_CONCURRENCY;
   }
-  if (!Number.isInteger(limit) || limit < 1) {
+  const isLaneCount = Number.isInteger(limit) && limit >= 1;
+  if (!isLaneCount) {
     throw new RangeError(
       `detailConcurrency must be a whole number of 1 or more; got ${limit}`,
     );
@@ -223,7 +225,7 @@ interface RunInputs {
   readonly shortened: ReadonlyMap<FileId, ShortenedFile>;
   readonly shortenedFileIds: ReadonlySet<FileId>;
   /** Every hunk a detail call may show, redacted and weighed once. */
-  readonly locations: ReadonlyMap<HunkId, HunkLocation>;
+  readonly shownHunks: ReadonlyMap<HunkId, ShownHunk>;
   readonly accepted: AcceptedRepoContext;
 }
 
@@ -352,7 +354,7 @@ async function runGroupingCall(
   const batches = planDetailBatches({
     groupIds,
     hunksByGroup: resolved.hunksByGroup,
-    hunkTokens: readHunkTokens(inputs.locations),
+    hunkTokens: readHunkTokens(inputs.shownHunks),
   });
   log(`detail: ${batches.length} call(s) over ${hunkCount} hunks`);
   const missingDetailCalls = await listMissingDetailCalls(
@@ -559,7 +561,7 @@ async function runDetailCalls(
   step: GroupingStep,
   laneLimit: number,
 ): Promise<DetailOutcome[]> {
-  const { locations, accepted } = inputs;
+  const { shownHunks, accepted } = inputs;
   const prefix = buildDetailPrefix({
     pr: options.pr,
     summary: step.grouping.summary,
@@ -576,7 +578,7 @@ async function runDetailCalls(
       buildDetailRequest({
         batch,
         batchCount: step.batches.length,
-        locations,
+        shownHunks,
         prefix,
         repoContext: accepted.context,
         attributesBlock: accepted.attributesBlock,
@@ -683,7 +685,7 @@ export async function generateMultiCallBrief(
     files,
     shortened,
     shortenedFileIds,
-    locations: indexDetailHunks(files, shortenedFileIds),
+    shownHunks: indexDetailHunks(files, shortenedFileIds),
     accepted: acceptRepoContext(
       options.repoContext,
       pr.meta.files,
@@ -712,7 +714,7 @@ export async function generateMultiCallBrief(
   const restored = restoreRawPaths(merged, rawPaths);
   const aligned = alignChunkRanges(restored, changedFiles, warnings);
   const snapped = snapChunkRanges(aligned, fileDiffs);
-  const shown = clampToShownLines(snapped, inputs.locations, warnings);
+  const shown = clampToShownLines(snapped, inputs.shownHunks, warnings);
   const detailChunks = deriveChunkLoc(numberChunks(shown), changedFiles);
   const chunks = [
     ...detailChunks,

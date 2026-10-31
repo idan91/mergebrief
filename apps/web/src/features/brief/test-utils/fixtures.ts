@@ -155,3 +155,31 @@ export function stubFileRowsCache(
     attachEntryRows: (entry) => entry,
   };
 }
+
+/** A copy of an entry whose lazy `diff` counts how often it is read. */
+export interface LazyDiffStub<Entry> {
+  entry: Entry;
+  reads: () => number;
+}
+
+/**
+ * Defines `diff` as an enumerable, configurable getter, the shape the lazy
+ * slice has in production, so spreading or enumerating the stub behaves the
+ * same.
+ */
+export function stubLazyDiff<Entry extends { diff?: DiffLine[] }>(
+  entry: Entry,
+  rows: DiffLine[] | undefined = entry.diff,
+): LazyDiffStub<Entry> {
+  let reads = 0;
+  const lazy = { ...entry };
+  Object.defineProperty(lazy, "diff", {
+    enumerable: true,
+    configurable: true,
+    get: () => {
+      reads += 1;
+      return rows;
+    },
+  });
+  return { entry: lazy, reads: () => reads };
+}

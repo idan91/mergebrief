@@ -105,18 +105,25 @@ export interface GenerationKnobs {
 const OutlineFormSchema = z.enum(OutlineForms);
 const EffortSchema = z.enum(Efforts);
 
-type MultiCallOnlyFlag =
-  | "--force-outline"
-  | "--effort-grouping"
-  | "--effort-detail";
+interface MultiCallOnlyKnob {
+  readonly flag: `--${string}`;
+  readonly read: (knobs: GenerationKnobs) => string | undefined;
+}
+
+/** The valued knobs that steer only a multi-call run, by the flag that sets each. */
+const MULTI_CALL_ONLY_KNOBS = [
+  { flag: "--force-outline", read: (knobs) => knobs.forcedOutlineForm },
+  { flag: "--effort-grouping", read: (knobs) => knobs.groupingEffort },
+  { flag: "--effort-detail", read: (knobs) => knobs.detailEffort },
+] as const satisfies readonly MultiCallOnlyKnob[];
+
+type MultiCallOnlyFlag = (typeof MULTI_CALL_ONLY_KNOBS)[number]["flag"];
 type ValuedFlag = "--case" | "--runs" | "--prices" | MultiCallOnlyFlag;
 const VALUED_FLAGS: ReadonlySet<string> = new Set<ValuedFlag>([
   "--case",
   "--runs",
   "--prices",
-  "--force-outline",
-  "--effort-grouping",
-  "--effort-detail",
+  ...MULTI_CALL_ONLY_KNOBS.map((knob) => knob.flag),
 ]);
 
 function isValuedFlag(flag: string): flag is ValuedFlag {
@@ -224,17 +231,9 @@ function resolveValuedFlag(
 
 /** The knobs that steer only a multi-call run, named by the flags that set them. */
 function listMultiCallOnlyFlags(knobs: GenerationKnobs): MultiCallOnlyFlag[] {
-  const flags: MultiCallOnlyFlag[] = [];
-  if (knobs.forcedOutlineForm !== undefined) {
-    flags.push("--force-outline");
-  }
-  if (knobs.groupingEffort !== undefined) {
-    flags.push("--effort-grouping");
-  }
-  if (knobs.detailEffort !== undefined) {
-    flags.push("--effort-detail");
-  }
-  return flags;
+  return MULTI_CALL_ONLY_KNOBS.filter(
+    (knob) => knob.read(knobs) !== undefined,
+  ).map((knob) => knob.flag);
 }
 
 /** Every set knob as its flag reads on the command line, value included. */
@@ -243,14 +242,11 @@ export function listKnobFlags(knobs: GenerationKnobs): string[] {
   if (knobs.forceMultiCall) {
     flags.push("--force-multi-call");
   }
-  if (knobs.forcedOutlineForm !== undefined) {
-    flags.push(`--force-outline ${knobs.forcedOutlineForm}`);
-  }
-  if (knobs.groupingEffort !== undefined) {
-    flags.push(`--effort-grouping ${knobs.groupingEffort}`);
-  }
-  if (knobs.detailEffort !== undefined) {
-    flags.push(`--effort-detail ${knobs.detailEffort}`);
+  for (const knob of MULTI_CALL_ONLY_KNOBS) {
+    const value = knob.read(knobs);
+    if (value !== undefined) {
+      flags.push(`${knob.flag} ${value}`);
+    }
   }
   return flags;
 }

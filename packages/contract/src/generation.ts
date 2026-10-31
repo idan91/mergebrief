@@ -1,7 +1,7 @@
 // A generation as the wire reports it, and why a pending one has not started.
 import type {
   GenerationFailureCode,
-  GenerationFailureParams,
+  GenerationErrorParams,
   GenerationPhase,
   GenerationStatus,
   TakeoverJobStates,
@@ -35,7 +35,7 @@ export interface GenerationSummaryView {
   /** Modeled data inside a 200, not a wire `ApiErrorCode`. */
   readonly errorCode: GenerationFailureCode | null;
   /** Interpolation params for the code's template; `detail` pre-sanitized. */
-  readonly errorParams: GenerationFailureParams | null;
+  readonly errorParams: GenerationErrorParams | null;
   readonly updatedAt: string;
   /**
    * Present only on the PR meta, and only while the generation is pending
@@ -82,7 +82,7 @@ export interface GenerationClaimsView {
   readonly exhausted: boolean;
   /** The stored failure, kept as is; an exhausted head may carry an earlier one. */
   readonly errorCode?: GenerationFailureCode;
-  readonly errorParams?: GenerationFailureParams;
+  readonly errorParams?: GenerationErrorParams;
   /** Absent when no takeover job is queued for the head. */
   readonly takeover?: TakeoverView;
 }

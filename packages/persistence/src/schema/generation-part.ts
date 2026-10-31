@@ -15,7 +15,7 @@ import { matchesPattern } from "./checks";
 import { artifactColumns, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
-/** A part's key: lowercase tokens joined by `:`, such as `detail:3` or `detail:3:a`. */
+/** A part's key: lowercase tokens joined by `:`, such as `detail:3` or `detail:3:1`. */
 export const GENERATION_PART_KEY_PATTERN = /^[a-z][a-z0-9]*(:[a-z0-9]+)*$/;
 
 export const generationPart = pgTable(

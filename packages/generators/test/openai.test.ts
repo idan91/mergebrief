@@ -40,7 +40,7 @@ afterEach(() => {
   }
 });
 
-function sse(content: string): Response {
+function stubSse(content: string): Response {
   const events = [
     `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content }, finish_reason: null }] })}\n\n`,
     `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\n`,
@@ -138,7 +138,7 @@ function stubOpenAiFetch(
     if (url.includes("/models/")) {
       return models(url) ?? jsonError(500, "no models fixture");
     }
-    return sse('{"ok":true}');
+    return stubSse('{"ok":true}');
   });
 }
 
@@ -152,7 +152,7 @@ function request() {
   };
 }
 
-function sseFinishing(content: string, finishReason: string): Response {
+function stubSseFinishing(content: string, finishReason: string): Response {
   const events = [
     `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content }, finish_reason: null }] })}\n\n`,
     `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: finishReason }] })}\n\n`,
@@ -166,7 +166,9 @@ function sseFinishing(content: string, finishReason: string): Response {
 
 describe("OpenAiCompatibleCore request construction", () => {
   it("sends no output cap, even when the request names one", async () => {
-    const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
+    const { generator, recorded } = await coreWith(() =>
+      stubSse('{"ok":true}'),
+    );
 
     await generator.generate(request());
     await generator.generate({ ...request(), maxOutputTokens: 128000 });
@@ -176,7 +178,9 @@ describe("OpenAiCompatibleCore request construction", () => {
   });
 
   it("sends strict json_schema, reasoning_effort, and system/user messages", async () => {
-    const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
+    const { generator, recorded } = await coreWith(() =>
+      stubSse('{"ok":true}'),
+    );
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     const body = recorded.bodies[0];
     if (!body) {
@@ -198,7 +202,9 @@ describe("OpenAiCompatibleCore request construction", () => {
   });
 
   it("prepends the shared user prefix to the user message", async () => {
-    const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
+    const { generator, recorded } = await coreWith(() =>
+      stubSse('{"ok":true}'),
+    );
 
     await generator.generate({ ...request(), userPrefix: "shared" });
 
@@ -220,7 +226,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
           "Unsupported parameter: 'reasoning_effort' is not supported with this model.",
         );
       }
-      return sse('{"ok":true}');
+      return stubSse('{"ok":true}');
     });
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(recorded.bodies[0]?.["reasoning_effort"]).toBe("high");
@@ -241,7 +247,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
     const { generator } = await coreWith((body) =>
       body["reasoning_effort"] !== undefined
         ? jsonError(400, "Unsupported parameter: 'reasoning_effort'.")
-        : sse('{"ok":true}'),
+        : stubSse('{"ok":true}'),
     );
 
     await expect(
@@ -262,7 +268,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
   });
 
   it("keeps effort in the origin once the provider accepted the knob", async () => {
-    const { generator } = await coreWith(() => sse('{"ok":true}'));
+    const { generator } = await coreWith(() => stubSse('{"ok":true}'));
     await generator.generate(request());
     expect(generator.origin("low")).toEqual({
       provider: "openai",
@@ -278,7 +284,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
     const { generator } = await coreWith((body) =>
       body["reasoning_effort"] !== undefined
         ? jsonError(400, "Unsupported parameter: 'reasoning_effort'.")
-        : sse('{"ok":true}'),
+        : stubSse('{"ok":true}'),
     );
     const results = await Promise.all([
       generator.generate(request()),
@@ -307,7 +313,7 @@ describe("OpenAiCompatibleCore usage-option discovery", () => {
   it("retries without stream_options on a 400 naming it and caches the gap", async () => {
     const { generator, recorded } = await coreWith((body) =>
       body["stream_options"] === undefined
-        ? sse('{"ok":true}')
+        ? stubSse('{"ok":true}')
         : jsonError(
             400,
             "Unrecognized request argument supplied: stream_options",
@@ -341,7 +347,7 @@ describe("OpenAiCompatibleCore usage-option discovery", () => {
       if (body["stream_options"] !== undefined) {
         return jsonError(400, "Unknown parameter: stream_options");
       }
-      return sse('{"ok":true}');
+      return stubSse('{"ok":true}');
     });
 
     const call = generator.generate(makeUsageRequest());
@@ -473,7 +479,7 @@ describe("OpenAiCompatibleCore truncated streams", () => {
           headers: { "content-type": "text/event-stream" },
         });
       }
-      return sse('{"ok":true}');
+      return stubSse('{"ok":true}');
     };
     const generator = await mustCore(fixtureFetch);
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
@@ -532,7 +538,7 @@ describe("OpenAiCompatibleCore truncated streams", () => {
 
   it("fails schema-valid output ending with finish_reason=length as cut", async () => {
     const { generator, recorded } = await coreWith(() =>
-      sseFinishing('{"ok":true}', "length"),
+      stubSseFinishing('{"ok":true}', "length"),
     );
 
     await expect(generator.generate(request())).rejects.toMatchObject({
@@ -574,7 +580,7 @@ describe("OpenAiCompatibleCore truncated streams", () => {
             headers: { "content-type": "text/event-stream" },
           });
         }
-        return sse('{"ok":true}');
+        return stubSse('{"ok":true}');
       };
       const generator = await mustCore(fixtureFetch);
       await expect(generator.generate(request())).resolves.toEqual({
@@ -663,7 +669,7 @@ describe("OpenAiCompatibleCore abort during knob discovery", () => {
         controller.abort(new Error("aborted at discovery"));
         return jsonError(400, "Unsupported parameter: 'reasoning_effort'.");
       }
-      return sse('{"ok":true}');
+      return stubSse('{"ok":true}');
     });
     const caught = await generator
       .generate({ ...request(), signal: controller.signal })
@@ -871,7 +877,9 @@ describe("OpenAiCompatibleCore strict-mode optionality", () => {
   });
 
   it("sends every property as required, optionals as null-unions", async () => {
-    const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
+    const { generator, recorded } = await coreWith(() =>
+      stubSse('{"ok":true}'),
+    );
     await generator.generate({ ...request(), schema: OptionalSchema });
     const body = recorded.bodies[0];
     if (!body) {
@@ -883,7 +891,9 @@ describe("OpenAiCompatibleCore strict-mode optionality", () => {
   });
 
   it("accepts a null in a formerly-optional slot as absent", async () => {
-    const { generator } = await coreWith(() => sse('{"ok":true,"note":null}'));
+    const { generator } = await coreWith(() =>
+      stubSse('{"ok":true,"note":null}'),
+    );
     await expect(
       generator.generate({ ...request(), schema: OptionalSchema }),
     ).resolves.toEqual({ ok: true });

@@ -66,11 +66,18 @@ export const LINE_WIDTH_BUCKET_EDGES = [
 /** The code cell sets no `tab-size`, so a tab advances to the browser's default stop. */
 export const TAB_STOP_COLUMNS = 8;
 
+const ROW_RUN_KIND_CLASS = `[${Object.values(RowRunKinds).join("")}]`;
+
 /** A chunk's whole `rowRuns`: runs of a kind letter and a length of at least one. */
-export const CHUNK_ROW_RUNS = /^(?:[hcarne][1-9]\d*)*$/;
+export const CHUNK_ROW_RUNS = new RegExp(
+  `^(?:${ROW_RUN_KIND_CLASS}[1-9]\\d*)*$`,
+);
 
 /** One of a chunk's row runs, read in order. */
-export const ROW_RUN = /(?<kind>[hcarne])(?<length>\d+)/g;
+export const ROW_RUN = new RegExp(
+  `(?<kind>${ROW_RUN_KIND_CLASS})(?<length>\\d+)`,
+  "g",
+);
 
 /** The row run each sliced row's kind draws as. */
 export const ROW_RUN_KIND_BY_LINE_KIND: Readonly<

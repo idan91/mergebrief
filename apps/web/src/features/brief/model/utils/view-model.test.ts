@@ -6,6 +6,7 @@ import { Concerns, RiskSurfaceAttributes, Roles } from "brief-core/types";
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { type Brief } from "../types";
 import { GroupViewKinds } from "./remainder";
+import { stubLazyDiff } from "../../test-utils/fixtures";
 import { parseBrief } from "./validation";
 import {
   buildAttributeRail,
@@ -604,27 +605,17 @@ describe("buildBriefViewModel, unattributed", () => {
     if (!parsed.ok) {
       throw new Error("expected a parsed brief");
     }
-    let reads = 0;
-    const lazyFiles = (parsed.value.unattributed ?? []).map((entry) => {
-      const lazy = { ...entry };
-      Object.defineProperty(lazy, "diff", {
-        enumerable: true,
-        configurable: true,
-        get: () => {
-          reads += 1;
-          return [];
-        },
-      });
-      return lazy;
-    });
+    const stubs = (parsed.value.unattributed ?? []).map((entry) =>
+      stubLazyDiff(entry, []),
+    );
 
     const model = buildBriefViewModel({
       ...parsed.value,
-      unattributed: lazyFiles,
+      unattributed: stubs.map((stub) => stub.entry),
     });
 
     expect(model.unattributed?.files[0]?.added).toBe(3);
-    expect(reads).toBe(0);
+    expect(stubs.map((stub) => stub.reads())).toEqual([0]);
   });
 
   it("registers a flag an unattributed file carries as a session flag", () => {

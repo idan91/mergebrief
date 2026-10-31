@@ -64,7 +64,7 @@ function readMergeBase(
   return answerOk(compare?.mergeBase ?? span.base);
 }
 
-/** The arranged diff, refused as the real check refuses one short of its files. */
+/** The arranged diff, refused as the real check refuses a file count other than the expected one. */
 function readCheckedCompareDiff(
   world: FakeWorld,
   span: CheckedCompareDiffRef,

@@ -1,4 +1,8 @@
-import { parseHugeSpanRatio, type RevisionNarrativeConfig } from "brief-core";
+import {
+  DEFAULT_DETAIL_CONCURRENCY,
+  parseHugeSpanRatio,
+  type RevisionNarrativeConfig,
+} from "brief-core";
 import {
   loadGeneratorConfig,
   type ContextSourcesConfig,
@@ -14,7 +18,6 @@ import {
   type ResolveDsnOptions,
 } from "persistence";
 import type { Result, ValueOf } from "types/utils";
-import { DEFAULT_DETAIL_CONCURRENCY } from "./task/generate/consts";
 
 // ---------------------------------------------------------------------------
 // Public config shape.

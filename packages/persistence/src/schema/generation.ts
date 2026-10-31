@@ -29,7 +29,7 @@ import {
   GenerationPhases,
   GenerationStatuses,
   type GenerationFailureCode,
-  type GenerationFailureParams,
+  type GenerationErrorParams,
   type GenerationPhase,
   type GenerationStatus,
 } from "types/generations";
@@ -60,7 +60,7 @@ export const generation = pgTable(
     /** Failure vocabulary code when failed (CHECK-constrained). */
     errorCode: text("error_code").$type<GenerationFailureCode>(),
     /** Interpolation params for the code's template; `detail` pre-sanitized. */
-    errorParams: jsonb("error_params").$type<GenerationFailureParams>(),
+    errorParams: jsonb("error_params").$type<GenerationErrorParams>(),
     /**
      * Repo-config per-file origin: JSON `{files, collisions}` written right
      * after acquisition, BEFORE generation, so failed and superseded runs

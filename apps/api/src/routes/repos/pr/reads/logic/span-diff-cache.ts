@@ -23,13 +23,14 @@ export function createSpanDiffCache(
 
     set(key, diff, bytes, now, lifetime) {
       if (bytes > limits.maxEntryBytes) {
-        return;
+        return false;
       }
       const ttlMs =
         lifetime === DiffLifetimes.SHA_PINNED
           ? limits.shaPinnedTtlMs
           : limits.ttlMs;
       diffs.set(key, { diff, bytes }, now + ttlMs, now);
+      return true;
     },
   };
 }

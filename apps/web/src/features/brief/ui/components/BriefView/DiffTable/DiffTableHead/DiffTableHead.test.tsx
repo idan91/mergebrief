@@ -17,7 +17,9 @@ function readCaption(file: string): string | null {
 
 describe("DiffTableHead", () => {
   it("captions a path with a bidi override by a visible escape", () => {
-    expect(readCaption("src/‮txt.exe")).toBe("Diff for src/[U+202E]txt.exe");
+    expect(readCaption("src/\u202Etxt.exe")).toBe(
+      "Diff for src/[U+202E]txt.exe",
+    );
   });
 
   it("captions an RTL path as it is", () => {

@@ -150,16 +150,10 @@ export function useDiffTableModel({
   );
   const ownerChunks = guest?.owners?.chunks ?? lineOwners?.chunks;
   const fileRows = useFileRows();
-  const ownerChunkById = useMemo(
-    () =>
-      new Map(
-        attachChunkListRows(ownerChunks ?? [], fileRows).map((owner) => [
-          owner.id,
-          owner,
-        ]),
-      ),
-    [ownerChunks, fileRows],
-  );
+  const ownerChunkById = useMemo(() => {
+    const attachedOwners = attachChunkListRows(ownerChunks ?? [], fileRows);
+    return new Map(attachedOwners.map((owner) => [owner.id, owner]));
+  }, [ownerChunks, fileRows]);
   // Once per row set, not per render: a drag re-renders the table on every
   // row the pointer crosses, and the owner's diff scan is per span row.
   const commentableSpanRows = useMemo(() => {

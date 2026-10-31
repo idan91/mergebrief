@@ -252,7 +252,7 @@ export async function fetchDeltaSpan(
       code: spanDiff.error.code,
     });
   }
-  return { baselineSha, refused: true, diffTooLarge };
+  return { baselineSha, unread: true, diffTooLarge };
 }
 
 /** Whole-PR churn, the huge-span denominator (metadata, not span diff). */

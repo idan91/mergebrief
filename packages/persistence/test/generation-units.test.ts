@@ -24,7 +24,12 @@ import {
 } from "../src/types";
 import { generationAttempt } from "../src/schema/generation-attempt";
 import { GenerationStatuses, PrStates } from "types";
-import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
+import {
+  STALE_RUN_ID,
+  brandWith,
+  makeBriefTarget,
+  registerSharedPglite,
+} from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 3100n);
 const OTHER_TENANT: InstallationId = brandWith(isInstallationId, 3200n);
@@ -204,7 +209,7 @@ describe("claimUnits", () => {
     const { projection } = await makeUnitsHarness();
 
     const claimed = await projection.claimUnits({
-      runId: "00000000-0000-4000-8000-000000000000",
+      runId: STALE_RUN_ID,
       units: 1,
       ...DAY,
     });
@@ -281,9 +286,7 @@ describe("recordPartDone", () => {
   it("answers claim-lost for a run id no attempt row holds", async () => {
     const { projection } = await makeUnitsHarness();
 
-    const recorded = await projection.recordPartDone(
-      "00000000-0000-4000-8000-000000000000",
-    );
+    const recorded = await projection.recordPartDone(STALE_RUN_ID);
 
     expect(!recorded.ok && recorded.error.code).toBe("claim-lost");
   });
@@ -329,10 +332,10 @@ describe("recordPartsPlanned", () => {
   it("answers claim-lost for a run id no attempt row holds", async () => {
     const { projection } = await makeUnitsHarness();
 
-    const planned = await projection.recordPartsPlanned(
-      "00000000-0000-4000-8000-000000000000",
-      { total: 1, done: 0 },
-    );
+    const planned = await projection.recordPartsPlanned(STALE_RUN_ID, {
+      total: 1,
+      done: 0,
+    });
 
     expect(!planned.ok && planned.error.code).toBe("claim-lost");
   });

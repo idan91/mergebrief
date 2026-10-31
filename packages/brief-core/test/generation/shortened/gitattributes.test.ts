@@ -17,10 +17,8 @@ const MAX_TEXT_CHARS = 65_536;
 const LINEAR_BUDGET_MS = 500;
 
 function read(gitattributes: string, path: string) {
-  return readLinguistAttributesByPath(
-    [path],
-    readGitAttributeRules(gitattributes),
-  ).byPath.get(path);
+  const rules = readGitAttributeRules(gitattributes);
+  return readLinguistAttributesByPath([path], rules).byPath.get(path);
 }
 
 function makeParsed(value: LinguistRule[]) {
@@ -221,9 +219,8 @@ describe("readLinguistAttributes", () => {
   });
 
   it("leaves paths past the match budget out and counts them", () => {
-    const rules = readGitAttributeRules(
-      Array.from({ length: 16 }, () => stubStarRule(254)).join("\n"),
-    );
+    const text = Array.from({ length: 16 }, () => stubStarRule(254)).join("\n");
+    const rules = readGitAttributeRules(text);
     const paths = Array.from(
       { length: 20 },
       (_, index) => `${index}${"a/".repeat(499)}a`,

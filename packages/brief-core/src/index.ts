@@ -64,6 +64,8 @@ export {
 } from "./pr-stack";
 export { generateBrief } from "./generation/brief";
 export { decideCallPlan, predictCallPlan } from "./generation/size";
+export { SINGLE_CALL_MAX_HUNKS } from "./generation/size/consts";
+export { DEFAULT_DETAIL_CONCURRENCY } from "./generation/multi-call/consts";
 export type { MultiCallHooks, PartKey } from "./generation/multi-call/types";
 export { CallPlanKinds } from "./generation/size/types";
 export { countPullRequestSecrets } from "./generation/redaction";

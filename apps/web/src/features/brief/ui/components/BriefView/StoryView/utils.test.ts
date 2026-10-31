@@ -9,6 +9,7 @@ import {
   estimateReservedChunkCardHeight,
 } from "../reading/chunk-height-model";
 import type { BriefChunk } from "../../../../model/types";
+import { stubLazyDiff } from "../../../../test-utils/fixtures";
 import { countStoryChunkRows, estimateStoryChunkHeight } from "./utils";
 
 const TWO_SIDED = {
@@ -133,24 +134,9 @@ function makeStoryChunk(id: string): BriefChunk {
   } as BriefChunk;
 }
 
-function makeUnreadChunk(id: string): {
-  chunk: BriefChunk;
-  reads: () => number;
-} {
-  const base = makeStoryChunk(id);
-  let reads = 0;
-  const chunk = Object.defineProperty({ ...base }, "diff", {
-    get: () => {
-      reads += 1;
-      return base.diff;
-    },
-  });
-  return { chunk, reads: () => reads };
-}
-
 describe("countStoryChunkRows", () => {
   it("never reads the rows of a stored, unexpanded card", () => {
-    const { chunk, reads } = makeUnreadChunk("c1");
+    const { entry: chunk, reads } = stubLazyDiff(makeStoryChunk("c1"));
 
     const rows = countStoryChunkRows({
       chunks: [chunk],
@@ -180,7 +166,7 @@ describe("countStoryChunkRows", () => {
   });
 
   it("reads a stored card's rows once the reader expanded an edge", () => {
-    const { chunk, reads } = makeUnreadChunk("c1");
+    const { entry: chunk, reads } = stubLazyDiff(makeStoryChunk("c1"));
     const range = { start: 3, end: 5 };
 
     const rows = countStoryChunkRows({

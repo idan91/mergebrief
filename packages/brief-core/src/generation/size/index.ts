@@ -2,7 +2,7 @@ import {
   BYTES_PER_CHANGED_LINE,
   BYTES_PER_TOKEN,
   SINGLE_CALL_MAX_HUNKS,
-  SINGLE_CALL_MAX_INPUT_TOKENS,
+  SINGLE_CALL_MAX_DIFF_TOKENS,
 } from "./consts";
 import {
   CallPlanKinds,
@@ -32,17 +32,17 @@ export function countHunks(diff: string): number {
 }
 
 export function decideCallPlan(input: CallPlanInput): CallPlan {
-  const estimatedInputTokens = estimateTokens(input.diff, BYTES_PER_TOKEN.DIFF);
+  const estimatedDiffTokens = estimateTokens(input.diff, BYTES_PER_TOKEN.DIFF);
   const hunkCount = countHunks(input.diff);
   const forced = input.forceMultiCall === true;
 
-  const overInput = estimatedInputTokens > SINGLE_CALL_MAX_INPUT_TOKENS;
+  const overInput = estimatedDiffTokens > SINGLE_CALL_MAX_DIFF_TOKENS;
   const overHunks = hunkCount > SINGLE_CALL_MAX_HUNKS;
   const multiCall = forced || overInput || overHunks;
 
   return {
     kind: multiCall ? CallPlanKinds.MULTI : CallPlanKinds.SINGLE,
-    estimatedInputTokens,
+    estimatedDiffTokens,
     hunkCount,
     forced,
   };
@@ -55,10 +55,10 @@ export function decideCallPlan(input: CallPlanInput): CallPlan {
  */
 export function predictCallPlan(counts: PullRequestCounts): CallPlanKind {
   const changedLines = counts.additions + counts.deletions;
-  const estimatedInputTokens =
+  const estimatedDiffTokens =
     (changedLines * BYTES_PER_CHANGED_LINE) / BYTES_PER_TOKEN.DIFF;
 
-  const overInput = estimatedInputTokens > SINGLE_CALL_MAX_INPUT_TOKENS;
+  const overInput = estimatedDiffTokens > SINGLE_CALL_MAX_DIFF_TOKENS;
   const overFiles = counts.changedFiles > SINGLE_CALL_MAX_HUNKS;
   return overInput || overFiles ? CallPlanKinds.MULTI : CallPlanKinds.SINGLE;
 }

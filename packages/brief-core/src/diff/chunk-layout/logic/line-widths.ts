@@ -1,6 +1,7 @@
-import { DiffLineKinds, type DiffLineKind } from "types/diff-lines";
+import { DiffLineKinds } from "types/diff-lines";
 import { LINE_WIDTH_BUCKET_EDGES, TAB_STOP_COLUMNS } from "../consts";
 import type { LineWidthHistogram, ParsedDiffLine } from "../types";
+import { zipSplitRows } from "./split-rows";
 
 /** The display width of every code row, bucketed for a wrap estimate. */
 export function measureLineWidths(
@@ -26,30 +27,17 @@ export function measureSplitLineWidths(
   rows: readonly ParsedDiffLine[],
 ): LineWidthHistogram {
   const histogram = makeEmptyHistogram();
-  let cursor = 0;
 
-  while (cursor < rows.length) {
-    const row = rows[cursor];
-    if (row === undefined) {
-      break;
-    }
-    if (row.kind !== DiffLineKinds.DEL && row.kind !== DiffLineKinds.ADD) {
-      if (row.kind === DiffLineKinds.CTX) {
-        addWidth(histogram, measureDisplayWidth(row.content));
+  for (const row of zipSplitRows(rows)) {
+    if (row.full !== undefined) {
+      if (row.full.kind === DiffLineKinds.CTX) {
+        addWidth(histogram, measureDisplayWidth(row.full.content));
       }
-      cursor += 1;
       continue;
     }
-
-    const dels = takeRun(rows, cursor, DiffLineKinds.DEL);
-    const adds = takeRun(rows, cursor + dels.length, DiffLineKinds.ADD);
-    const pairs = Math.max(dels.length, adds.length);
-    for (let pair = 0; pair < pairs; pair += 1) {
-      const left = measureDisplayWidth(dels[pair]?.content ?? "");
-      const right = measureDisplayWidth(adds[pair]?.content ?? "");
-      addWidth(histogram, Math.max(left, right));
-    }
-    cursor += dels.length + adds.length;
+    const left = measureDisplayWidth(row.del?.content ?? "");
+    const right = measureDisplayWidth(row.add?.content ?? "");
+    addWidth(histogram, Math.max(left, right));
   }
 
   return histogram;
@@ -68,21 +56,6 @@ function addWidth(histogram: LineWidthHistogram, width: number): void {
   if (bucket === LINE_WIDTH_BUCKET_EDGES.length) {
     histogram.overflowColumns += width;
   }
-}
-
-function takeRun(
-  rows: readonly ParsedDiffLine[],
-  from: number,
-  kind: DiffLineKind,
-): ParsedDiffLine[] {
-  const run: ParsedDiffLine[] = [];
-  let row = rows[from];
-  while (row?.kind === kind) {
-    run.push(row);
-    row = rows[from + run.length];
-  }
-
-  return run;
 }
 
 function isCodeRow(row: ParsedDiffLine): boolean {

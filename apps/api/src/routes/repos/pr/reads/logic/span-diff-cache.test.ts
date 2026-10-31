@@ -29,11 +29,17 @@ describe("createSpanDiffCache", () => {
     expect(cache.get("k", 5_000)).toBeUndefined();
   });
 
-  it("refuses a diff past the per-entry byte cap", () => {
+  it("refuses a diff past the per-entry byte cap and says so", () => {
     const cache = createSpanDiffCache(LIMITS);
-    cache.set("k", "x".repeat(9), 9, 0, LIVE);
 
+    expect(cache.set("k", "x".repeat(9), 9, 0, LIVE)).toBe(false);
     expect(cache.get("k", 0)).toBeUndefined();
+  });
+
+  it("answers true when it holds the diff", () => {
+    const cache = createSpanDiffCache(LIMITS);
+
+    expect(cache.set("k", "x".repeat(8), 8, 0, LIVE)).toBe(true);
   });
 
   it("evicts the oldest diffs once their summed bytes pass the budget", () => {

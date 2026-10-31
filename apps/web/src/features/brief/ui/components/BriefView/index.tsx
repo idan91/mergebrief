@@ -155,17 +155,11 @@ function BriefViewContent(props: BriefViewProps) {
   } = useBriefViewFacade(props);
 
   // The provider memoizes on this identity, so it has to be stable itself.
-  const chunkSizes = useMemo(
-    () =>
-      deriveChunkSizes(
-        attachChunkListRows(
-          model.groups.flatMap((group) => group.chunks),
-          fileRows,
-        ),
-        chunkLayout?.counts,
-      ),
-    [model.groups, chunkLayout?.counts, fileRows],
-  );
+  const chunkSizes = useMemo(() => {
+    const chunks = model.groups.flatMap((group) => group.chunks);
+    const attachedChunks = attachChunkListRows(chunks, fileRows);
+    return deriveChunkSizes(attachedChunks, chunkLayout?.counts);
+  }, [model.groups, chunkLayout?.counts, fileRows]);
   useHeldCardPosition(
     chunkLayout?.codePending === true,
     chunkWindowsRef.current,

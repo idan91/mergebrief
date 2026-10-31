@@ -42,7 +42,7 @@ import {
   type SessionReadSource,
 } from "../review/session";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
-import { LIVE_POLL_MS } from "./consts";
+import { BRIEF_READ_GC_MS, LIVE_POLL_MS } from "./consts";
 import {
   briefLayoutReplySchema,
   prSummarySchema,
@@ -162,7 +162,7 @@ export function buildDbBriefLayoutQueryOptions(
     queryKey: ["brief-layout", "db", repoId, prNumber, base, head],
     queryFn: () => readDbBriefLayout(repoId, prNumber, base, head),
     staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 10 * 60 * 1000,
+    gcTime: BRIEF_READ_GC_MS,
   });
 }
 
@@ -177,7 +177,7 @@ export function buildDbBriefQueryOptions(
     queryKey: ["brief", "db", repoId, prNumber, base, head],
     queryFn: () => readDbBrief(repoId, prNumber, base, head),
     staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 10 * 60 * 1000,
+    gcTime: BRIEF_READ_GC_MS,
   });
 }
 

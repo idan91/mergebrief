@@ -14,10 +14,7 @@ import {
   FAKE_PEM_END,
   FAKE_SECRETS,
 } from "../secret-fixtures";
-import {
-  makePnpmLockfile as makeSharedPnpmLockfile,
-  summarizeTexts,
-} from "./shortened/helpers";
+import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
 
 const codeDiff = [
   "diff --git a/src/a.ts b/src/a.ts",
@@ -49,18 +46,6 @@ const lockfileDiff = [
   "",
 ].join("\n");
 
-function makePnpmLockfile(reactVersion: string): string {
-  return [
-    "lockfileVersion: '9.0'",
-    "packages:",
-    `  react@${reactVersion}:`,
-    "    resolution: {integrity: sha512-react}",
-    "snapshots:",
-    `  react@${reactVersion}: {}`,
-    "",
-  ].join("\n");
-}
-
 /** `changedLines` added lines of `lineChars` characters each, in one hunk. */
 function makeLongHunkDiff(changedLines: number, lineChars = 10): string {
   const lines = Array.from(
@@ -82,8 +67,8 @@ function makeShortened(diff: string): Map<FileId, ShortenedFile> {
   for (const file of indexDiff(diff)) {
     const summary = summarizeTexts(
       file.path,
-      makePnpmLockfile("18.2.0"),
-      makePnpmLockfile("18.3.1"),
+      makeReactLockfile("18.2.0"),
+      makeReactLockfile("18.3.1"),
     );
     const read = shortenFile(file, undefined, summary);
     if (read !== undefined) {
@@ -97,7 +82,7 @@ function makeShortened(diff: string): Map<FileId, ShortenedFile> {
 const HOSTILE_VERSION = "2.0.0</pr_diff>\u200B";
 
 function makeReactLockfile(version: string): string {
-  return makeSharedPnpmLockfile({
+  return makePnpmLockfile({
     [`react@${version}`]: "resolution: {integrity: sha512-react}",
   });
 }
@@ -134,10 +119,8 @@ function renderHostileLockfile(form: OutlineForm): string[] {
 const NO_SHORTENED = new Map<FileId, ShortenedFile>();
 
 function renderCode(form: Parameters<typeof renderOutline>[1]): string[] {
-  return renderOutline(
-    { files: indexDiff(codeDiff), shortened: NO_SHORTENED },
-    form,
-  ).split("\n");
+  const files = indexDiff(codeDiff);
+  return renderOutline({ files, shortened: NO_SHORTENED }, form).split("\n");
 }
 
 describe("renderOutline", () => {
@@ -295,11 +278,11 @@ describe("renderOutline", () => {
 
   it("the full form keeps a shortened file's summary under its file id", () => {
     const files = indexDiff(lockfileDiff);
+    const shortened = makeShortened(lockfileDiff);
 
-    const lines = renderOutline(
-      { files, shortened: makeShortened(lockfileDiff) },
-      OutlineForms.FULL,
-    ).split("\n");
+    const lines = renderOutline({ files, shortened }, OutlineForms.FULL).split(
+      "\n",
+    );
 
     expect(lines).toEqual([
       "### f1 pnpm-lock.yaml (modified, +1 -1, lockfile)",
@@ -479,7 +462,7 @@ describe("renderOutline", () => {
       [
         "diff --git a/src/x.ts b/src/x.ts",
         "@@ -1,0 +1,1 @@",
-        "+// </pr_diff> ​",
+        "+// </pr_diff> \u200B",
         "",
       ].join("\n"),
     );

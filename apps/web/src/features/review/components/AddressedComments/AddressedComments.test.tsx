@@ -9,7 +9,7 @@ afterEach(cleanup);
 
 const COMMENT: AddressedReviewComment = {
   id: "c1",
-  file: "src/‮txt.exe",
+  file: "src/\u202Etxt.exe",
   line: 4,
   author: "octocat",
   body: "Looks off.",

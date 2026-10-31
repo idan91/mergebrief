@@ -1,6 +1,6 @@
 import { buildEntryCommentGeneratingBody } from "../../entry-comment";
+import { DEFAULT_DETAIL_CONCURRENCY } from "brief-core";
 import {
-  DEFAULT_DETAIL_CONCURRENCY,
   DETAIL_CALL_MINUTES,
   ESTIMATE_STEP_MINUTES,
   MULTI_CALL_SETUP_MINUTES,
@@ -48,7 +48,6 @@ async function settleOffHeadPost(
   return false;
 }
 
-/** A generating body on the thread; on a current head it refreshes the comment. */
 export async function postGeneratingEntry(
   post: GeneratingEntryPost,
   body: string,
@@ -131,10 +130,6 @@ async function editLargeGeneratingEntry(
   );
 
   const head = await readEntryPostHead(watch);
-  if (head.kind === HeadReadings.MOVED) {
-    log.info("generate: head moved, leaving the generating Entry to it");
-    return;
-  }
   if (head.kind === HeadReadings.UNREAD) {
     log.warn(
       "generate: head unread, the large run's generating Entry is left as it is",

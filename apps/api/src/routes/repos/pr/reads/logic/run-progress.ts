@@ -1,4 +1,3 @@
-import type { GenerationPartsView } from "contract";
 import type {
   GenerationRow,
   GenerationProjection,
@@ -6,13 +5,7 @@ import type {
 } from "persistence";
 import { GenerationStatuses } from "types/generations";
 import type { Mutable } from "types/utils";
-
-/** What the PR meta says about the run holding the row. */
-export interface MetaRunProgress {
-  readonly startedAt: Date;
-  /** Present once a multi-call run's grouping planned its detail calls. */
-  readonly parts?: GenerationPartsView;
-}
+import type { MetaRunProgress } from "../../../../pr-view";
 
 /**
  * The plan the grouping recorded: every detail call, stored and fresh alike,

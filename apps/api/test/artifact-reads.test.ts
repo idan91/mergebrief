@@ -53,6 +53,7 @@ const LAYOUT_COUNTS = {
   expandRows: 1,
   splitRows: 3,
   lineWidths: { counts: [3, 0, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+  rowRuns: "h1c2e1",
 };
 const LAYOUT_BODY = {
   chunks: { c1: LAYOUT_COUNTS },

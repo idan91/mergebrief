@@ -1,25 +1,13 @@
 import { Callout } from "@web/components/Callout";
 import { CalloutSurfaces } from "@web/components/Callout/types";
 import { Chip } from "@web/components/Chip";
-import type { PrStack } from "../../../../model/types";
-import { StackPanel } from "./StackPanel";
+import { StackPanel, type StackPanelProps } from "./StackPanel";
 import { useStackChipFacade } from "./useStackChipFacade";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./StackChip.module.scss";
 
-export interface StackChipProps {
-  stack: PrStack;
-  /** The generation-time stack, when it differs from `stack`. */
-  snapshot?: PrStack | undefined;
-  /** ISO time `stack` was recorded, when it is the record rather than live. */
-  asOf?: string | undefined;
-  /** `stack` is the generation-time one, standing in for a closed PR. */
-  atGeneration?: boolean | undefined;
-  currentNumber: number;
-  repoSlug: string;
-  repoId?: string | undefined;
-}
+export type StackChipProps = StackPanelProps;
 
 export function StackChip({
   stack,

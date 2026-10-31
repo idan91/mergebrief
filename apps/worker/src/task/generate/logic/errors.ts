@@ -11,6 +11,7 @@ import {
   type GenerationKind,
 } from "persistence";
 import { GenerationFailureCodes } from "types/generations";
+import { HttpStatuses } from "types/http";
 import type { Result } from "types/utils";
 import { PermanentJobError, TransientJobError } from "../../failure";
 import {
@@ -36,6 +37,19 @@ export function isDiffTooLarge(error: GitHubCallFailure): boolean {
   return (
     isNotAcceptable(error) || error.code === GitHubApiErrorCodes.DIFF_INCOMPLETE
   );
+}
+
+/** GitHub's 422 on a diff it did not render in time. */
+export function isRenderTimedOut(error: GitHubCallFailure): boolean {
+  return (
+    "status" in error && error.status === HttpStatuses.UNPROCESSABLE_CONTENT
+  );
+}
+
+/** A span diff GitHub would not render whole: past its size, or its render timeout. */
+export function isSpanUnrendered(error: GitHubCallFailure): boolean {
+  const isUnrendered = isDiffTooLarge(error) || isRenderTimedOut(error);
+  return isUnrendered;
 }
 
 /** An unreadable credential is permanent: a retry reads the same token. */

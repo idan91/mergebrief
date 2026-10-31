@@ -16,8 +16,8 @@ import type { ChangeGroup } from "../../src/types";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
 
 const files = indexDiff(retryPr.diff);
-const locations = indexDetailHunks(files, new Set());
-const hunkTokens = readHunkTokens(locations);
+const shownHunks = indexDetailHunks(files, new Set());
+const hunkTokens = readHunkTokens(shownHunks);
 
 function makeGroup(id: string, title: string): ChangeGroup {
   return {
@@ -85,7 +85,7 @@ function makeRequest(prefixInput = makePrefixInput()) {
   return buildDetailRequest({
     batch: batch!,
     batchCount: 1,
-    locations,
+    shownHunks,
     prefix,
     repoContext: prefixInput.repoContext,
     attributesBlock: prefixInput.attributesBlock,
@@ -147,7 +147,7 @@ describe("buildDetailRequest", () => {
     const { user } = buildDetailRequest({
       batch: { ...batch!, half: 2 },
       batchCount: 3,
-      locations,
+      shownHunks,
       prefix,
       repoContext: undefined,
       attributesBlock: "",
@@ -174,7 +174,7 @@ describe("buildDetailRequest", () => {
     const { user } = buildDetailRequest({
       batch: batch!,
       batchCount: 1,
-      locations,
+      shownHunks,
       prefix: "",
       repoContext: undefined,
       attributesBlock: "",
@@ -203,7 +203,7 @@ describe("buildDetailRequest", () => {
     const tokens = [...hunkTokens.values()];
 
     expect(tokens.every((count) => count > 0)).toBe(true);
-    expect([...locations.values()].some((at) => at.omittedLines)).toBe(false);
+    expect([...shownHunks.values()].some((at) => at.omittedLines)).toBe(false);
   });
 
   it("cuts a hunk over the budget to its head and names the lines left", () => {
@@ -219,7 +219,7 @@ describe("buildDetailRequest", () => {
     const { user } = buildDetailRequest({
       batch: batch!,
       batchCount: 1,
-      locations: indexed,
+      shownHunks: indexed,
       prefix: "",
       repoContext: undefined,
       attributesBlock: "",

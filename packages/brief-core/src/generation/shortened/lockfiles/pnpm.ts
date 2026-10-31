@@ -268,7 +268,6 @@ function listInstalledKeys(
   return { ok: true, value: [...keys] };
 }
 
-/** Every package record one document of a pnpm lockfile installs. */
 function readPnpmDocument(value: unknown): LockfileRead {
   const parsed = PnpmSectionsSchema.safeParse(value);
   if (!parsed.success) {

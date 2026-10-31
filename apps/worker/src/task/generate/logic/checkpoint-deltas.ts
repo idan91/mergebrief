@@ -80,7 +80,7 @@ async function warmCheckpointSpan(
     baselineIndex,
     headIndex: inputs.briefHeadIndex,
   };
-  if ("refused" in span) {
+  if ("unread" in span) {
     // A span GitHub will not render has no marks; the record says why.
     if (span.diffTooLarge) {
       await writeDeltaSkip(

@@ -60,7 +60,7 @@ function buildPlanArgs(previous: PreviousBriefInput): AnchorPlanArgs {
 }
 
 function describeCallPlan(plan: CallPlan): string {
-  return `call plan: ${plan.kind} (estimated diff ${plan.estimatedInputTokens} tokens, ${plan.hunkCount} hunks)`;
+  return `call plan: ${plan.kind} (estimated diff ${plan.estimatedDiffTokens} tokens, ${plan.hunkCount} hunks)`;
 }
 
 function stampWarnings(

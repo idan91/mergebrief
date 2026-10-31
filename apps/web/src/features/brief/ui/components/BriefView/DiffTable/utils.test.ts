@@ -1,3 +1,10 @@
+import {
+  countChunkLayout,
+  findExpansionGaps,
+  parseUnifiedDiffPatch,
+  sliceChunkDiff,
+  type ChunkRanges,
+} from "brief-core/chunk-layout";
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
@@ -12,6 +19,7 @@ import type { SiblingSpan } from "../../../../model/utils/sibling-spans";
 import { RailSides } from "./types";
 import type { ComparisonRun } from "../../../../model/comparison/runs";
 import { makeRowRefs } from "@web/features/brief/test-utils";
+import { placeExpandableEdges } from "../../../../model/expansion/edges";
 import { GuestRowReasons } from "../../../../model/types";
 import type { GuestRowResolution } from "../../../utils/guest-rows";
 import {
@@ -21,6 +29,7 @@ import {
   collectDragBaseIndexes,
   frameSpans,
   frameSpansOnPairs,
+  groupEdgesByRow,
   resolveBeforeRowEdges,
   resolveHunkRowEdges,
   resolveSpanLines,
@@ -451,5 +460,116 @@ describe("collectGuestReasons", () => {
       GuestRowReasons.REMOVED_BEFORE_HEAD,
       GuestRowReasons.NOT_IN_PR_DIFF,
     ]);
+  });
+});
+
+const TWO_HUNK_PATCH = [
+  "@@ -1,6 +1,7 @@",
+  " a",
+  "-b",
+  "+B",
+  "+B2",
+  " c",
+  " d",
+  " e",
+  "@@ -40,3 +41,4 @@",
+  " x",
+  "+y",
+  " z",
+].join("\n");
+
+const LONG_HUNK_PATCH = [
+  "@@ -1,10 +1,10 @@",
+  "-a",
+  "+A",
+  " b",
+  " c",
+  " d",
+  " e",
+  " f",
+  " g",
+  "-h",
+  "+H",
+  " i",
+  " j",
+].join("\n");
+
+interface ExpandRowCase {
+  title: string;
+  patch: string;
+  chunk: ChunkRanges;
+}
+
+const EXPAND_ROW_CASES: ExpandRowCase[] = [
+  {
+    title: "two hunks",
+    patch: TWO_HUNK_PATCH,
+    chunk: {
+      addedRanges: [
+        { start: 2, end: 3 },
+        { start: 42, end: 42 },
+      ],
+      removedRanges: [{ start: 2, end: 2 }],
+    },
+  },
+  {
+    title: "a gap the slice opens inside one hunk",
+    patch: LONG_HUNK_PATCH,
+    chunk: {
+      addedRanges: [
+        { start: 1, end: 1 },
+        { start: 8, end: 8 },
+      ],
+      removedRanges: [
+        { start: 1, end: 1 },
+        { start: 8, end: 8 },
+      ],
+    },
+  },
+  {
+    title: "a slice starting on another hunk's context",
+    patch: TWO_HUNK_PATCH,
+    chunk: { addedRanges: [{ start: 42, end: 42 }], removedRanges: [] },
+  },
+  {
+    title: "a deletion-led run",
+    patch: LONG_HUNK_PATCH,
+    chunk: { addedRanges: [], removedRanges: [{ start: 8, end: 8 }] },
+  },
+];
+
+/** The rows DiffTable draws an expand control on of their own, trailing row included. */
+function countDrawnExpandRows(rows: readonly DiffLine[]): number {
+  const gaps = findExpansionGaps(rows);
+  const edges = placeExpandableEdges("c1", gaps, gaps, new Map());
+  const edgesByRow = groupEdgesByRow(edges);
+  const ownRows = rows.filter((row, index) => {
+    const own = resolveBeforeRowEdges(edgesByRow, index, row, rows[index - 1]);
+    return own.length > 0;
+  });
+  const trailing = edgesByRow.get(rows.length) ?? [];
+
+  return ownRows.length + (trailing.length > 0 ? 1 : 0);
+}
+
+describe("expand rows against the stored layout counts", () => {
+  it.each(EXPAND_ROW_CASES)(
+    "counts what DiffTable draws on $title",
+    (expandCase) => {
+      const fileRows = parseUnifiedDiffPatch(expandCase.patch);
+      const slice = sliceChunkDiff(fileRows, expandCase.chunk);
+      const counts = countChunkLayout(fileRows, expandCase.chunk);
+
+      expect(countDrawnExpandRows(slice)).toBe(counts.expandRows);
+    },
+  );
+
+  it("covers at least one slice that draws expand rows of its own", () => {
+    const drawn = EXPAND_ROW_CASES.map((expandCase) => {
+      const fileRows = parseUnifiedDiffPatch(expandCase.patch);
+      return countDrawnExpandRows(sliceChunkDiff(fileRows, expandCase.chunk));
+    });
+
+    expect(Math.max(...drawn)).toBeGreaterThan(0);
   });
 });

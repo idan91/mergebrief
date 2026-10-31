@@ -12,6 +12,7 @@ import type { ConversationPlan } from "@web/features/conversation";
 import type { ProgressTotals } from "../../utils/progress";
 import type { BriefChunk, ComparisonMarks } from "../../../model/types";
 import { GroupViewKinds } from "../../../model/utils/remainder";
+import { stubLazyDiff } from "../../../test-utils/fixtures";
 import {
   buildRepoPolicyCaption,
   conversationGroupIds,
@@ -208,17 +209,12 @@ describe("countComparisonRuns", () => {
   });
 
   it("never reads the rows of a chunk whose file has no marks", () => {
-    const base = chunk("c3", "src/other.ts");
-    let reads = 0;
-    const unmarked = Object.defineProperty({ ...base }, "diff", {
-      get: () => {
-        reads += 1;
-        return base.diff;
-      },
-    });
+    const { entry: unmarked, reads } = stubLazyDiff(
+      chunk("c3", "src/other.ts"),
+    );
 
     expect(countComparisonRuns([unmarked], marks)).toBe(0);
-    expect(reads).toBe(0);
+    expect(reads()).toBe(0);
   });
 });
 

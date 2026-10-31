@@ -285,7 +285,8 @@ function scanDetailLine(scan: DetailScan, line: string): void {
     return;
   }
   const marker = DETAIL_HUNK_MARKER.exec(line);
-  if (marker !== null || DETAIL_PLACEHOLDER_MARKER.test(line)) {
+  const opensHunk = marker !== null || DETAIL_PLACEHOLDER_MARKER.test(line);
+  if (opensHunk) {
     closeDetailHunk(scan);
     const [, groupId] = marker ?? [];
     if (groupId !== undefined) {

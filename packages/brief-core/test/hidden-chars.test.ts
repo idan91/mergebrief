@@ -4,11 +4,11 @@ import { formatDisplayPath, formatDisplayText } from "../src/hidden-chars";
 
 describe("formatDisplayPath", () => {
   it("shows a bidi override as a visible escape", () => {
-    expect(formatDisplayPath("src/‮txt.exe")).toBe("src/[U+202E]txt.exe");
+    expect(formatDisplayPath("src/\u202Etxt.exe")).toBe("src/[U+202E]txt.exe");
   });
 
   it("escapes isolates, marks and the Arabic letter mark", () => {
-    const path = "a⁦b⁩c‎d‏e؜f";
+    const path = "a\u2066b\u2069c\u200Ed\u200Fe\u061Cf";
 
     expect(formatDisplayPath(path)).toBe(
       "a[U+2066]b[U+2069]c[U+200E]d[U+200F]e[U+061C]f",
@@ -16,7 +16,7 @@ describe("formatDisplayPath", () => {
   });
 
   it("escapes control and zero-width characters", () => {
-    expect(formatDisplayPath("a\u001B[31mb​c\td")).toBe(
+    expect(formatDisplayPath("a\u001B[31mb\u200Bc\td")).toBe(
       "a[U+001B][31mb[U+200B]c[U+0009]d",
     );
   });

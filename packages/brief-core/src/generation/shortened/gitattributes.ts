@@ -234,7 +234,9 @@ function holdsLiteralRuns(compiled: CompiledRule, path: string): boolean {
     }
     searchFrom = found + infix.length;
   }
-  return path.length - compiled.literalSuffix.length >= searchFrom;
+  const suffixFollowsInfixes =
+    path.length - compiled.literalSuffix.length >= searchFrom;
+  return suffixFollowsInfixes;
 }
 
 /** Whether `rule` matches `path`, or `undefined` when matching would overrun `budget`. */

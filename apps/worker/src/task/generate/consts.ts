@@ -12,9 +12,6 @@ export const AFTER_LEASE_MARGIN_SECONDS = 5;
 
 export const MS_PER_SECOND = 1000;
 
-/** Detail calls a multi-call run keeps in flight at once, unless `generator.detailConcurrency` says otherwise. */
-export const DEFAULT_DETAIL_CONCURRENCY = 8;
-
 /** The generating Entry's estimate for a multi-call run: a detail call's wall time, the grouping and merge around them, and the step it is rounded to. */
 export const DETAIL_CALL_MINUTES = 3;
 export const MULTI_CALL_SETUP_MINUTES = 5;

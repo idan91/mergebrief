@@ -16,9 +16,10 @@ import type {
 import type { ProgressTotals } from "../../../utils/progress";
 import type { Brief, LivePrState } from "../../../../model/types";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
-import type {
-  BriefViewModel,
-  UnattributedRemainderGroupView,
+import {
+  hasChangedLines,
+  type BriefViewModel,
+  type UnattributedRemainderGroupView,
 } from "../../../../model/utils/view-model";
 import { AuthorChip } from "@web/components/AuthorChip";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
@@ -197,10 +198,9 @@ export function Header({
   // changed line has none to count.
   const remainderGroup = model.groups.find(
     (group): group is UnattributedRemainderGroupView => {
-      const changedLines = group.added + group.deleted;
       const isCountedRemainder =
         group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER &&
-        changedLines > 0;
+        hasChangedLines(group);
       return isCountedRemainder;
     },
   );

@@ -57,7 +57,6 @@ interface ObjectFrame {
   expectsKey: boolean;
 }
 
-/** Where the string token opening at `start` closes, past its closing quote. */
 function findStringEnd(text: string, start: number): number {
   let index = start + 1;
   while (index < text.length && text[index] !== '"') {

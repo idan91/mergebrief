@@ -3,12 +3,12 @@ import { indexDiff } from "../../src/diff/hunk-index";
 import { acceptRepoContext } from "../../src/generation/categorize";
 import { buildGroupingRequest } from "../../src/generation/multi-call/grouping";
 import type { GroupingRequestInput } from "../../src/generation/multi-call/types";
-import { chooseOutline } from "../../src/generation/outline";
+import { chooseOutline, renderOutline } from "../../src/generation/outline";
 import { OUTLINE_LIMITS } from "../../src/generation/outline/consts";
 import { buildGroupingSystemPrompt } from "../../src/generation/prompt";
 import type { RepoContext } from "../../src/generation/repo-context";
 import { createWarningCollector } from "../../src/generation/warnings";
-import { OutlineForms } from "../../src/types";
+import { OutlineForms, type OutlineForm } from "../../src/types";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
 
 function acceptContext(repoContext: RepoContext | undefined) {
@@ -120,6 +120,80 @@ describe("buildGroupingRequest", () => {
       );
       expect(system).toContain(`cut past ~${limits.lineMaxChars} characters`);
       expect(system).toContain(`keeps its first ${limits.keepHead}`);
+    },
+  );
+});
+
+const LONG_HUNK_LINES = 60;
+const LONG_HUNK_DIFF = [
+  "diff --git a/src/a.ts b/src/a.ts",
+  "--- a/src/a.ts",
+  "+++ b/src/a.ts",
+  `@@ -1,1 +1,${LONG_HUNK_LINES + 1} @@ function a()`,
+  " keep",
+  ...Array.from({ length: LONG_HUNK_LINES }, (_, index) => `+line ${index}`),
+  "",
+].join("\n");
+
+const FILE_TITLE = {
+  described: "`### <fileId> <path> (<status>, +added -removed)`",
+  rendered: /^### f\d+ \S+ \([a-z-]+, \+\d+ -\d+\)/m,
+};
+const TRIMMED_LITERALS = [
+  FILE_TITLE,
+  {
+    described: "`[hunk <id>] <hunk header>`",
+    rendered: /^\[hunk f\d+h\d+\] @@ -\d+,\d+ \+\d+,\d+ @@/m,
+  },
+  {
+    described: "`... N changed lines omitted`",
+    rendered: /^\.\.\. \d+ changed lines omitted$/m,
+  },
+];
+
+interface DescribedLiteral {
+  described: string;
+  rendered: RegExp;
+}
+
+const OUTLINE_LITERALS: Record<OutlineForm, readonly DescribedLiteral[]> = {
+  [OutlineForms.FULL]: [
+    FILE_TITLE,
+    { described: "`[hunk <id>]`", rendered: /^\[hunk f\d+h\d+\]$/m },
+  ],
+  [OutlineForms.LINES_40]: TRIMMED_LITERALS,
+  [OutlineForms.LINES_20]: TRIMMED_LITERALS,
+  [OutlineForms.LINES_12]: TRIMMED_LITERALS,
+  [OutlineForms.LINES_6]: TRIMMED_LITERALS,
+  [OutlineForms.LINES_2]: TRIMMED_LITERALS,
+  [OutlineForms.HEADERS]: [
+    FILE_TITLE,
+    {
+      described: "`[hunk <id>] <hunk header> (+added -removed)`",
+      rendered: /^\[hunk f\d+h\d+\] @@ .* \(\+\d+ -\d+\)$/m,
+    },
+  ],
+  [OutlineForms.FILES]: [
+    FILE_TITLE,
+    {
+      described: "followed by the file's hunk markers `[hunk <id>]`",
+      rendered: /^### f\d+ .*\) \[hunk f\d+h\d+\]$/m,
+    },
+  ],
+};
+
+describe("grouping prompt outline grammar", () => {
+  it.each(Object.values(OutlineForms))(
+    "describes the %s outline as the renderer writes it",
+    (form) => {
+      const prompt = buildGroupingSystemPrompt(form);
+      const files = indexDiff(LONG_HUNK_DIFF);
+      const outline = renderOutline({ files, shortened: new Map() }, form);
+
+      for (const literal of OUTLINE_LITERALS[form]) {
+        expect(prompt).toContain(literal.described);
+        expect(outline).toMatch(literal.rendered);
+      }
     },
   );
 });

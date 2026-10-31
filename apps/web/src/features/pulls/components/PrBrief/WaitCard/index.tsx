@@ -8,7 +8,7 @@ import {
 } from "contract";
 import { useTranslation } from "react-i18next";
 import { EmptyBlock } from "@web/components/EmptyBlock";
-import { useHydrated } from "@web/hooks/useHydrated";
+import { useHydrated } from "./useHydrated";
 import { renderedLocale } from "@web/i18n/locale";
 import type { Span } from "../../../utils/briefRouteState";
 import type { RerunNoteInput } from "../failed-head";

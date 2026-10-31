@@ -23,7 +23,9 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  LARGE_PR_FILES,
   makeGitHub,
+  MANY_HUNKS_DIFF,
   makeReviewerId,
   makeTarget,
   makeTask,
@@ -41,14 +43,8 @@ const FILE_HEADER = "diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n";
 /** 8 changed lines, huge against a 10-line whole-PR churn (ratio 0.8). */
 const RATIO_HUGE_DIFF = `${FILE_HEADER}@@ -1,8 +1,8 @@\n${"+x\n".repeat(8)}`;
 
-/** One hunk past the single-call limit of 120. */
-const MANY_HUNKS_DIFF = `${FILE_HEADER}${"@@ -1 +1 @@\n-x\n+y\n".repeat(121)}`;
-
 /** Past the hunk limit, with a changed lockfile the skip must not read. */
 const MANY_HUNKS_LOCKFILE_DIFF = `${MANY_HUNKS_DIFF}diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml\n--- a/pnpm-lock.yaml\n+++ b/pnpm-lock.yaml\n@@ -1 +1 @@\n-a\n+b\n`;
-
-/** Whole-PR churn large enough that no span here reaches the ratio. */
-const LARGE_PR_FILES = [{ path: "a.ts", additions: 100_000, deletions: 0 }];
 
 interface CheckpointedSecondHead {
   readonly pr: PullRequestRow;

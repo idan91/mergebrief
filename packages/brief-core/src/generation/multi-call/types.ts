@@ -97,7 +97,7 @@ export interface DetailPrefixInput {
 }
 
 /** One hunk with its file, both redacted once per run by `indexDetailHunks`. */
-export interface HunkLocation {
+export interface ShownHunk {
   readonly file: IndexedFile;
   readonly hunk: IndexedHunk;
   /** The hunk's input tokens at the diff rate, its file's header lines included. */
@@ -117,7 +117,7 @@ export interface OmittedRanges {
 export interface DetailRequestInput {
   readonly batch: DetailBatch;
   readonly batchCount: number;
-  readonly locations: ReadonlyMap<HunkId, HunkLocation>;
+  readonly shownHunks: ReadonlyMap<HunkId, ShownHunk>;
   /** `buildDetailPrefix`'s text, the same for every batch. */
   readonly prefix: string;
   readonly repoContext: RepoContext | undefined;

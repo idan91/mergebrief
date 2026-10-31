@@ -6,10 +6,21 @@
 // prefers that brief's base, else the base persisted at ingest. The read
 // adds `briefAvailable`, which needs every stored brief. The render trigger
 // is an artifact that exists; the status is display-only.
-import type { GenerationSummaryView, PullMetaView, WaitReason } from "contract";
-import type { MetaRunProgress } from "./repos/pr/reads/logic/run-progress";
+import type {
+  GenerationPartsView,
+  GenerationSummaryView,
+  PullMetaView,
+  WaitReason,
+} from "contract";
 import type { BriefSpanRow, GenerationRow, PullRequestRow } from "persistence";
 import type { Mutable } from "types/utils";
+
+/** What the PR meta says about the run holding the row. */
+export interface MetaRunProgress {
+  readonly startedAt: Date;
+  /** Present once a multi-call run's grouping planned its detail calls. */
+  readonly parts?: GenerationPartsView;
+}
 
 /** The row-derived part of the PR meta; the read adds the rest. */
 export type PrView = Omit<

@@ -50,6 +50,7 @@ const COUNTS = {
   expandRows: 1,
   splitRows: 6,
   lineWidths: { counts: [3, 2, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+  rowRuns: "h1c5e1",
 };
 
 const LAYOUT = { chunks: { c1: COUNTS }, files: { "src/orphan.ts": COUNTS } };

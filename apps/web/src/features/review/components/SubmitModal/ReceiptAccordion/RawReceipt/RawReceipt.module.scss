@@ -13,28 +13,4 @@
     overflow-wrap: anywhere;
     white-space: pre-wrap;
   }
-
-  .rawFileLine {
-    display: flex;
-
-    // A full path must not widen the receipt: the line takes the width it
-    // is given and the path shortens to fit it.
-    contain: inline-size;
-  }
-
-  .rawFileIndent {
-    flex: none;
-    white-space: pre;
-  }
-
-  .rawFile {
-    min-inline-size: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    // RTL puts the ellipsis on the left; the path sits in an LTR isolate, or
-    // a leading dot moves to the end.
-    direction: rtl;
-  }
 }

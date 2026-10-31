@@ -3,7 +3,7 @@ import type { Logger } from "logging";
 import type { PullRequestAccess } from "../../../../access/types";
 import { FailureKinds } from "../../../../shared-errors/failures";
 import { parseOwnerAndName } from "../../utils";
-import { DIFF_FETCH_DEADLINE_MS, SPAN_DIFF_CACHE_LIMITS } from "./consts";
+import { DIFF_FETCH_DEADLINE_MS } from "./consts";
 import { buildDiffCacheKey } from "./logic/keys";
 import { measureHeldBytes } from "./logic/held-bytes";
 import type { DiffQuery } from "./schemas";
@@ -112,9 +112,9 @@ function resolveDiffLifetime(query: DiffQuery): DiffLifetime {
   return pinned ? DiffLifetimes.SHA_PINNED : DiffLifetimes.LIVE;
 }
 
-/** A diff past the small cache's entry cap goes to the large-diff cache,
- * and only when both refs are commit SHAs: a branch ref's diff moves on push,
- * and that cache outlives the debounce. */
+/** A diff the small cache refuses goes to the large-diff cache, and only
+ * when both refs are commit SHAs: a branch ref's diff moves on push, and that
+ * cache outlives the debounce. */
 function cacheDiff(
   deps: ReadDiffDeps,
   viewer: string,
@@ -124,11 +124,17 @@ function cacheDiff(
 ): void {
   const storedAt = Date.now();
   const bytes = measureHeldBytes(diff);
-  if (bytes <= SPAN_DIFF_CACHE_LIMITS.maxEntryBytes) {
-    deps.diffCache.set(cacheKey, diff, bytes, storedAt, lifetime);
+  const heldBySpanCache = deps.diffCache.set(
+    cacheKey,
+    diff,
+    bytes,
+    storedAt,
+    lifetime,
+  );
+  if (heldBySpanCache) {
     return;
   }
   if (lifetime === DiffLifetimes.SHA_PINNED) {
-    deps.largeDiffCache.set(viewer, cacheKey, diff, bytes, storedAt, lifetime);
+    deps.largeDiffCache.set(viewer, cacheKey, diff, bytes, storedAt);
   }
 }

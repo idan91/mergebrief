@@ -109,10 +109,14 @@ export function markComparisonRows(
   }
   // The file check comes first: reading `diff` slices the chunk's rows.
   const file = marks.files.find((entry) => entry.file === chunk.file);
-  if (!file || !chunk.diff) {
+  if (!file) {
     return rows;
   }
-  chunk.diff.forEach((row, index) => {
+  const diff = chunk.diff;
+  if (!diff) {
+    return rows;
+  }
+  diff.forEach((row, index) => {
     if (
       (row.kind === "add" || row.kind === "ctx") &&
       lineInRanges(row.newLine, file.addedRanges)
@@ -138,13 +142,17 @@ export function groupComparisonRuns(
   chunk: BriefChunk,
   marks: Map<number, ComparisonRowKind>,
 ): ComparisonRun[] {
-  if (marks.size === 0 || !chunk.diff) {
+  if (marks.size === 0) {
+    return [];
+  }
+  const diff = chunk.diff;
+  if (!diff) {
     return [];
   }
   const runs: ComparisonRun[] = [];
   let current: { rowIndexes: number[]; hasAdded: boolean; end: number } | null =
     null;
-  for (let index = 0; index < chunk.diff.length; index += 1) {
+  for (let index = 0; index < diff.length; index += 1) {
     const kind = marks.get(index);
     if (kind === undefined) {
       current = null;

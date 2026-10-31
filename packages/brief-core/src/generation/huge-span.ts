@@ -3,7 +3,7 @@ import { countHunks, estimateTokens } from "./size";
 import {
   BYTES_PER_TOKEN,
   SINGLE_CALL_MAX_HUNKS,
-  SINGLE_CALL_MAX_INPUT_TOKENS,
+  SINGLE_CALL_MAX_DIFF_TOKENS,
 } from "./size/consts";
 
 /** One ratio gates both the delta and the revision-narrative fallback. */
@@ -47,7 +47,7 @@ export function isHugeSpan(
 
 function exceedsInputLimit(text: string): boolean {
   const tokens = estimateTokens(text, BYTES_PER_TOKEN.DIFF);
-  return tokens > SINGLE_CALL_MAX_INPUT_TOKENS;
+  return tokens > SINGLE_CALL_MAX_DIFF_TOKENS;
 }
 
 /**

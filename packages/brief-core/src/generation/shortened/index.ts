@@ -201,7 +201,6 @@ function renderAliasNote(
   return `alias of ${from} -> ${to}`;
 }
 
-/** A line, then its alias note and its host note, each in parentheses. */
 function appendNotes(
   line: string,
   aliasNote: string | undefined,
@@ -211,7 +210,6 @@ function appendNotes(
   return [line, ...notes.map((note) => `(${note})`)].join(" ");
 }
 
-/** A source change line, naming both hosts when they differ. */
 function renderSourceChange(change: PackageSourceChange): string {
   const line = `source changed ${change.name}@${change.version}`;
   const aliasNote = renderAliasNote(change.fromAliasOf, change.toAliasOf);
@@ -221,7 +219,6 @@ function renderSourceChange(change: PackageSourceChange): string {
   return appendNotes(line, aliasNote, hostNote);
 }
 
-/** An update line, with its alias note and both hosts when they differ. */
 function renderUpdate(update: PackageUpdate): string {
   const line = `updated ${update.name} ${update.from} -> ${update.to}`;
   const aliasNote = renderAliasNote(update.fromAliasOf, update.toAliasOf);
@@ -245,7 +242,6 @@ function renderShortenedTitle(file: IndexedFile, kind: ShortenedKind): string {
   return `${file.path} (${file.status}, +${file.added} -${file.removed}, ${kind})`;
 }
 
-/** A title line with the file's status and counts, then one line per package change. */
 export function renderLockfileSummary(
   file: IndexedFile,
   summary: LockfileSummary,

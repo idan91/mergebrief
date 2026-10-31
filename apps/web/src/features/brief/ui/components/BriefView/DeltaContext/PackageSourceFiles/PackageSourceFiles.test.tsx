@@ -21,7 +21,7 @@ describe("PackageSourceFiles", () => {
   });
 
   it("lists a path with a bidi override by a visible escape", () => {
-    render(<PackageSourceFiles files={["‮c.npmrc", "שלום/.npmrc"]} />);
+    render(<PackageSourceFiles files={["\u202Ec.npmrc", "שלום/.npmrc"]} />);
 
     const items = screen.getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([

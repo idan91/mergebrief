@@ -17,5 +17,5 @@ const LABEL_KEYS: Record<ShortenedReading, TranslationKey> = {
 export function ReadAsBadge({ readAs }: ReadAsBadgeProps) {
   const { t } = useTranslation();
 
-  return <Badge dataset={{ "read-as": readAs }}>{t(LABEL_KEYS[readAs])}</Badge>;
+  return <Badge>{t(LABEL_KEYS[readAs])}</Badge>;
 }

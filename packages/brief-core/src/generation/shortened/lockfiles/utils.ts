@@ -230,7 +230,6 @@ function spellsHost(spec: string, url: URL): boolean {
   return spellsUrlHost;
 }
 
-/** A URL's protocol and host, or its protocol alone when it has no host. */
 function readUrlOrigin(url: URL): string {
   return url.host === "" ? url.protocol : `${url.protocol}//${url.host}`;
 }
@@ -255,16 +254,21 @@ export function readFetchIdentity(
     return undefined;
   }
   const url = URL.parse(spec);
-  if (url === null || isCredentialed(url) || !spellsHost(spec, url)) {
+  const unreadable =
+    url === null || isCredentialed(url) || !spellsHost(spec, url);
+  if (unreadable) {
     return undefined;
   }
   // WHATWG folds `.`/`..` and `%2e` segments that yarn 1 and curl send as written.
   const foldsPath = DOT_SEGMENT.test(spec) || ENCODED_DOT.test(spec);
-  if (url.host !== "" && foldsPath) {
+  const foldsHostedPath = url.host !== "" && foldsPath;
+  if (foldsHostedPath) {
     return undefined;
   }
   // A URL host spelled like a sentinel would read as the configured registry.
-  if (HOST_SENTINELS.has(url.host) || HOST_SENTINELS.has(url.protocol)) {
+  const spellsSentinel =
+    HOST_SENTINELS.has(url.host) || HOST_SENTINELS.has(url.protocol);
+  if (spellsSentinel) {
     return undefined;
   }
   const origin = readUrlOrigin(url);

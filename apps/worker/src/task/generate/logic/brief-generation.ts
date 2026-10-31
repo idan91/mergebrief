@@ -29,7 +29,7 @@ import type { ParsedGeneratePayload } from "../../payload";
 import { buildRepoConfigArtifact } from "../../repo-config";
 import type {
   BriefGenerationInputs,
-  ChunkLayoutBackfillInputs,
+  StoredBriefLayoutInputs,
   GeneratedBrief,
   StoredBriefRecoveryInputs,
 } from "../types";
@@ -215,7 +215,7 @@ function countStoredBriefLayouts(
  * counts), so the page does not stay on its estimate for good.
  */
 export async function backfillMissingChunkLayout(
-  inputs: ChunkLayoutBackfillInputs,
+  inputs: StoredBriefLayoutInputs,
 ): Promise<void> {
   const { store, pullRequestId, storedBrief, diff } = inputs;
   if (await store.chunkLayouts.has(storedBrief.id)) {

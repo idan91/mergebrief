@@ -26,7 +26,12 @@ import {
 } from "types/generations";
 import { PrStates } from "types/pull-requests";
 import type { Result } from "types/utils";
-import { brandWith, makeBriefTarget, registerSharedPglite } from "./helpers";
+import {
+  STALE_RUN_ID,
+  brandWith,
+  makeBriefTarget,
+  registerSharedPglite,
+} from "./helpers";
 
 const CTX: TenantContext = {
   installationId: brandWith(isInstallationId, 1000n),
@@ -38,7 +43,6 @@ const WINDOW = {
   to: new Date("2100-01-01T00:00:00.000Z"),
 };
 const HEAD = "head";
-const STALE_RUN_ID = "00000000-0000-4000-8000-000000000000";
 const FAILED_RUN = {
   status: GenerationStatuses.FAILED,
   failure: { code: GenerationFailureCodes.UNKNOWN, params: { detail: "boom" } },

@@ -125,7 +125,8 @@ function findUnquotedSplit(rest: string, separator: string): number {
     const post = rest.slice(middle + 1);
     const samePath =
       pre.slice(PRE_SIDE_PREFIX.length) === post.slice(POST_SIDE_PREFIX.length);
-    if (samePath && pre.startsWith(PRE_SIDE_PREFIX)) {
+    const halvesNameOnePath = samePath && pre.startsWith(PRE_SIDE_PREFIX);
+    if (halvesNameOnePath) {
       return middle;
     }
   }
@@ -199,7 +200,7 @@ export function parseDiffHeaderPaths(
 }
 
 /** The path `line` names through one of `kinds`; `/dev/null` and any other line name none. */
-function readPathLine(
+export function readPathLine(
   line: string,
   kinds: readonly PatchPathLine[],
 ): string | undefined {
@@ -211,6 +212,28 @@ function readPathLine(
   const trailed = token.endsWith(FILE_LINE_TRAILER);
   const path = trailed ? token.slice(0, -FILE_LINE_TRAILER.length) : token;
   return readGitPath(path, kind.side);
+}
+
+/** Every path the lines before the patch's first hunk name through `kinds`. */
+export function listPatchPaths(
+  patch: string,
+  kinds: readonly PatchPathLine[],
+): string[] {
+  const paths: string[] = [];
+  for (let lineStart = 0; lineStart < patch.length; ) {
+    const newline = patch.indexOf("\n", lineStart);
+    const lineEnd = newline === -1 ? patch.length : newline;
+    const line = patch.slice(lineStart, lineEnd);
+    if (line.startsWith(HUNK_LEAD)) {
+      break;
+    }
+    const path = readPathLine(line, kinds);
+    if (path !== undefined) {
+      paths.push(path);
+    }
+    lineStart = lineEnd + 1;
+  }
+  return paths;
 }
 
 /** The first path the lines from `start` to the patch's first hunk name through `kinds`. */
@@ -245,7 +268,9 @@ export function parsePatchPaths(patch: string): DiffHeaderPaths | undefined {
   const headerEnd = patch.indexOf("\n");
   const headerLine = headerEnd === -1 ? patch : patch.slice(0, headerEnd);
   const header = readHeaderLine(headerLine);
-  if (header === undefined || !header.splitsTwoWays || headerEnd === -1) {
+  const headerLineDecides =
+    header === undefined || !header.splitsTwoWays || headerEnd === -1;
+  if (headerLineDecides) {
     return header?.paths;
   }
 

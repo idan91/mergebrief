@@ -3,11 +3,11 @@ import { useTranslation } from "react-i18next";
 
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import {
+  hasChangedLines,
   isAttributedGroupView,
   type GroupView,
 } from "../../../../../model/utils/view-model";
 import { CoreLinesDisclosure } from "../../CoreLinesDisclosure";
-import { hasChangedLines } from "../utils";
 import styles from "./MetaRow.module.scss";
 
 export interface MetaRowProps {

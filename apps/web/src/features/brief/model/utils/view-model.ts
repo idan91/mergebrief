@@ -69,6 +69,11 @@ export function isAttributedGroupView(
   return group.kind === GroupViewKinds.ATTRIBUTED;
 }
 
+/** Whether a group counts any changed line; a remainder of flagged files alone counts none. */
+export function hasChangedLines(group: GroupView): boolean {
+  return group.added + group.deleted > 0;
+}
+
 export interface RiskFlag {
   id: string;
   attr: RiskKey;

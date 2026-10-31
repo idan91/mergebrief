@@ -209,7 +209,6 @@ function claimNames(
   return readsOneTarget ? { fetched, installed: [...installed] } : undefined;
 }
 
-/** Every source field of one key's record, as one string the key's entries share. */
 function readSource(readField: (field: string) => string | undefined): string {
   return SOURCE_FIELDS.map((field) => readField(field) ?? "").join(" ");
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { Concerns, RiskSurfaceAttributes, Roles } from "brief-core/types";
+import { stubLazyDiff } from "../../test-utils/fixtures";
 import { type UnattributedFile } from "../types";
 import {
   GroupViewKinds,
@@ -138,22 +139,13 @@ describe("hydrateRemainderGroup", () => {
   });
 
   it("forwards a lazy diff without reading it", () => {
-    let reads = 0;
-    const lazy: UnattributedFile = { ...orphanFile };
-    Object.defineProperty(lazy, "diff", {
-      enumerable: true,
-      configurable: true,
-      get: () => {
-        reads += 1;
-        return orphanFile.diff;
-      },
-    });
+    const { entry: lazy, reads } = stubLazyDiff(orphanFile);
 
     const hydration = hydrateRemainderGroup([lazy], new Set());
-    expect(reads).toBe(0);
+    expect(reads()).toBe(0);
 
     expect(hydration?.chunks[0]?.diff).toEqual(orphanFile.diff);
-    expect(reads).toBe(1);
+    expect(reads()).toBe(1);
   });
 
   it("hydrates one leftover file as one chunk and copies its diff", () => {

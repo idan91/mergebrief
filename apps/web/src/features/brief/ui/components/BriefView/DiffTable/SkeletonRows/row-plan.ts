@@ -49,7 +49,8 @@ export function planSkeletonRows(
 
   drawRuns(state, runs, context);
   const filled = reservedLines > MAX_SKELETON_ROWS;
-  if (!filled && counts.rows > 0) {
+  const padsToReserve = !filled && counts.rows > 0;
+  if (padsToReserve) {
     padContextRows(state, reservedLines, context.split);
   }
 
@@ -244,7 +245,8 @@ function pushCodeRow(
 
 /** Past the cap no row is drawn; the plan's fill covers the rest. */
 function pushRow(state: PlanState, row: PlannedRow, span: number): void {
-  if (state.lines + span > MAX_SKELETON_ROWS) {
+  const overflowsCap = state.lines + span > MAX_SKELETON_ROWS;
+  if (overflowsCap) {
     state.lines = MAX_SKELETON_ROWS;
     return;
   }
@@ -270,6 +272,8 @@ function countNoteRows(runs: readonly RowRun[]): number {
 }
 
 function computeShare(total: number, parts: number, index: number): number {
-  const extra = index < total % parts ? 1 : 0;
-  return Math.floor(total / parts) + extra;
+  const takesRemainder = index < total % parts;
+  const extra = takesRemainder ? 1 : 0;
+  const share = Math.floor(total / parts) + extra;
+  return share;
 }

@@ -1,6 +1,9 @@
 import { WaitReasons } from "contract";
 import type { TFunction } from "i18next";
-import { GenerationStatuses, type GenerationUnitsParams } from "types";
+import {
+  GenerationStatuses,
+  type GenerationUnitsParams,
+} from "types/generations";
 
 import type { GenerationSummary, PrSummary } from "../../../../../../types";
 import {

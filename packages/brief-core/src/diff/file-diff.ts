@@ -26,7 +26,7 @@ function buildFileDiff(lines: readonly string[]): FileDiff {
 
 export function splitDiffByFile(diff: string): FileDiff[] {
   const segments: FileDiff[] = [];
-  let current: string[] | null = null;
+  let current: string[] | undefined;
 
   for (const line of diff.split("\n")) {
     if (line.startsWith("diff --git ")) {

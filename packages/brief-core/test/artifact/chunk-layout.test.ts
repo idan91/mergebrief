@@ -8,7 +8,7 @@ import {
   countChunkLayout,
   parseUnifiedDiffPatch,
   type ChunkLayoutBody,
-  type ChunkLayoutCounts,
+  type StoredChunkLayoutCounts,
 } from "../../src/diff/chunk-layout";
 import { PATCH } from "../diff/chunk-layout/helpers";
 
@@ -17,7 +17,7 @@ const HEAD_RANGES = {
   removedRanges: [],
 };
 
-function makeCounts(): ChunkLayoutCounts {
+function makeCounts(): StoredChunkLayoutCounts {
   return countChunkLayout(parseUnifiedDiffPatch(PATCH), HEAD_RANGES);
 }
 
@@ -36,6 +36,13 @@ describe("ChunkLayoutBodySchema", () => {
       chunks: { c1: { ...makeCounts(), rowRuns: "h1c2 const a = 1;" } },
       files: {},
     };
+
+    expect(ChunkLayoutBodySchema.safeParse(body).success).toBe(false);
+  });
+
+  it("refuses counts without row runs", () => {
+    const { rowRuns: _dropped, ...counts } = makeCounts();
+    const body = { chunks: { c1: counts }, files: {} };
 
     expect(ChunkLayoutBodySchema.safeParse(body).success).toBe(false);
   });
@@ -103,7 +110,7 @@ describe("ChunkLayoutBodySchema", () => {
   it("parses to the chunk-layout shapes", () => {
     expectTypeOf<
       z.output<typeof ChunkLayoutCountsSchema>
-    >().toEqualTypeOf<ChunkLayoutCounts>();
+    >().toEqualTypeOf<StoredChunkLayoutCounts>();
     expectTypeOf<
       z.output<typeof ChunkLayoutBodySchema>
     >().toEqualTypeOf<ChunkLayoutBody>();

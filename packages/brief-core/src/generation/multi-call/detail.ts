@@ -28,7 +28,7 @@ import type {
   DetailPrefixInput,
   DetailRequest,
   DetailRequestInput,
-  HunkLocation,
+  ShownHunk,
   OmittedRanges,
 } from "./types";
 
@@ -140,12 +140,14 @@ function cutHunkHeader(
   if (match === null) {
     throw new Error("a cut hunk's header no longer parses");
   }
+
   const [sides, oldStart = "", oldCount = DEFAULT_SIDE_COUNT, newStart = ""] =
     match;
   const newCount = match[4] ?? DEFAULT_SIDE_COUNT;
   const section = header.slice(sides.length);
   const shownOld = countSideLines(shownLines, OLD_SIDE_PREFIXES);
   const shownNew = countSideLines(shownLines, NEW_SIDE_PREFIXES);
+
   return {
     header: `@@ -${oldStart},${shownOld} +${newStart},${shownNew} @@${section}`,
     omittedRanges: {
@@ -164,16 +166,18 @@ function cutHunkHeader(
 }
 
 /** A group id is the grouping call's text: shown sanitized, and `restoreRawGroupIds` maps the answer back. */
-function renderHunk(location: HunkLocation, groupId: string): string[] {
+function renderHunk(location: ShownHunk, groupId: string): string[] {
   const { file, hunk } = location;
   const marker = `[hunk ${hunk.id} -> ${sanitizeUntrustedText(groupId)}]`;
   if (hunk.header === undefined) {
     return [`${marker} ${describePlaceholder(file)}`];
   }
+
   const lines = [marker, hunk.header, ...hunk.lines];
   if (location.omittedLines !== undefined) {
     lines.push(renderOmittedNote(location.omittedLines));
   }
+
   return lines;
 }
 
@@ -186,11 +190,11 @@ function measureLines(lines: readonly string[]): number {
  * A hunk over `maxTokens` alone keeps the head lines that fit and a note
  * naming how many were left off, so no detail call reads past its budget.
  */
-function measureHunk(
+function fitHunkToBudget(
   file: IndexedFile,
   hunk: IndexedHunk,
   maxTokens: number,
-): HunkLocation {
+): ShownHunk {
   const headLines = [...file.headerLines, hunk.header ?? ""];
   const estimatedTokens = measureLines([...headLines, ...hunk.lines]);
   if (estimatedTokens <= maxTokens) {
@@ -232,26 +236,26 @@ export function indexDetailHunks(
   files: readonly IndexedFile[],
   shortenedFileIds: ReadonlySet<FileId>,
   maxHunkTokens: number = DETAIL_BATCH_MAX_DIFF_TOKENS,
-): Map<HunkId, HunkLocation> {
-  const locations = new Map<HunkId, HunkLocation>();
+): Map<HunkId, ShownHunk> {
+  const shownHunks = new Map<HunkId, ShownHunk>();
   for (const file of files) {
     if (shortenedFileIds.has(file.id)) {
       continue;
     }
     const clean = redactIndexedFile(file, false);
     for (const hunk of clean.hunks) {
-      locations.set(hunk.id, measureHunk(clean, hunk, maxHunkTokens));
+      shownHunks.set(hunk.id, fitHunkToBudget(clean, hunk, maxHunkTokens));
     }
   }
-  return locations;
+  return shownHunks;
 }
 
 /** Each indexed hunk's estimated tokens, as the batch planner weighs them. */
 export function readHunkTokens(
-  locations: ReadonlyMap<HunkId, HunkLocation>,
+  shownHunks: ReadonlyMap<HunkId, ShownHunk>,
 ): Map<HunkId, number> {
   const tokens = new Map<HunkId, number>();
-  for (const [hunkId, location] of locations) {
+  for (const [hunkId, location] of shownHunks) {
     tokens.set(hunkId, location.estimatedTokens);
   }
   return tokens;
@@ -260,13 +264,13 @@ export function readHunkTokens(
 /** The batch's hunks with their full redacted code, each file under its own diff header, every hunk behind a group marker. */
 function renderBatchDiff(
   batch: DetailBatch,
-  locations: ReadonlyMap<HunkId, HunkLocation>,
+  shownHunks: ReadonlyMap<HunkId, ShownHunk>,
 ): string {
   const out: string[] = [];
   for (const part of batch.parts) {
     let currentFile: FileId | undefined;
     for (const hunkId of part.hunkIds) {
-      const location = locations.get(hunkId);
+      const location = shownHunks.get(hunkId);
       if (location === undefined) {
         continue;
       }
@@ -304,7 +308,7 @@ export function buildDetailRequest(input: DetailRequestInput): DetailRequest {
 Change-groups in this batch: ${groupIds.join(", ")}.
 
 <pr_diff>
-${renderBatchDiff(batch, input.locations)}
+${renderBatchDiff(batch, input.shownHunks)}
 </pr_diff>
 
 There are ${batch.hunkCount} hunk markers above. Return the chunks for every changed line in them and for nothing else; each chunk's \`changeGroupId\` is the group on its hunk's marker.

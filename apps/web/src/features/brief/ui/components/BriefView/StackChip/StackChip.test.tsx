@@ -252,6 +252,18 @@ describe("StackChip", () => {
       expect(screen.getByText("Tip").closest("[inert]")).not.toBeNull();
     });
 
+    it("says the stack changed outside both versions, above the bar", async () => {
+      await openChangedChip();
+      const note = screen.getByTestId("stack-changed");
+      expect(note.textContent).toBe(
+        "Stack changed since this brief was generated",
+      );
+      expect(note.nextElementSibling?.querySelector("fieldset")).not.toBeNull();
+      fireEvent.click(screen.getByRole("radio", { name: "At generation" }));
+      expect(note.closest("[inert]")).toBeNull();
+      expect(note.closest("[aria-hidden='true']")).toBeNull();
+    });
+
     it("keeps the toggle but drops the live base it never recorded", async () => {
       await openChangedChip();
       fireEvent.click(screen.getByRole("radio", { name: "At generation" }));
@@ -304,9 +316,7 @@ describe("StackChip", () => {
       screen.getByRole("button", { name: "Pull request 2 of 3 in the stack" }),
     );
     expect(screen.queryByRole("radio")).toBeNull();
-    expect(
-      screen.queryByText("Stack changed since this brief was generated"),
-    ).toBeNull();
+    expect(screen.queryByTestId("stack-changed")).toBeNull();
   });
 
   it("dates a recorded stack in the panel", async () => {

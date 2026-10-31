@@ -1,10 +1,8 @@
 import type { ClipboardEvent } from "react";
 
-import {
-  RECEIPT_FILE_INDENT,
-  type ReceiptLine,
-} from "../../../../utils/receipt";
+import type { ReceiptLine } from "../../../../utils/receipt";
 import styles from "./RawReceipt.module.scss";
+import { RawReceiptLine } from "./RawReceiptLine";
 
 export interface RawReceiptProps {
   lines: readonly ReceiptLine[];
@@ -35,25 +33,12 @@ function copySelectedText(event: ClipboardEvent<HTMLPreElement>) {
  */
 export function RawReceipt({ lines }: RawReceiptProps) {
   const last = lines.length - 1;
+
   return (
     <pre className={styles["rawBody"]} onCopy={copySelectedText}>
-      {lines.map((line, index) => {
-        const lineBreak = index === last ? "" : "\n";
-        if (typeof line === "string") {
-          return `${line}${lineBreak}`;
-        }
-        return (
-          <span className={styles["rawFileLine"]} key={index}>
-            <span className={styles["rawFileIndent"]}>
-              {RECEIPT_FILE_INDENT}
-            </span>
-            <span className={styles["rawFile"]} title={line.file}>
-              <bdi dir="ltr">{line.file}</bdi>
-            </span>
-            {lineBreak}
-          </span>
-        );
-      })}
+      {lines.map((line, index) => (
+        <RawReceiptLine isLast={index === last} key={index} line={line} />
+      ))}
     </pre>
   );
 }

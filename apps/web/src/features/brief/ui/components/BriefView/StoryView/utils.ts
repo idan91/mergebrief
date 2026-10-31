@@ -67,7 +67,8 @@ export function countStoryChunkRows(
       fileRows?.getFileRows(chunk.file),
       chunkView,
     );
-    return { diff: countDiffRows(base, chunkView) + expanded, expanded };
+    const diffRows = countDiffRows(base, chunkView) + expanded;
+    return { diff: diffRows, expanded };
   });
 }
 

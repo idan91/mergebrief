@@ -110,7 +110,8 @@ function createArtifactHandler<Schema extends z.ZodType>(
 
 /**
  * A brief that answers starts its span's diff read when the page's server
- * render asks: a hover preload or a CLI read must not spend a GitHub call.
+ * render asks. The browser's own prefetch makes the hover decision, and a CLI
+ * read never asks.
  */
 function createReadBriefHandler(
   deps: AuthRouteDeps,

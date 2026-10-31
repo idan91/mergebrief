@@ -4,7 +4,7 @@ import { OutlineForms, type OutlineForm } from "../../types";
 import { renderShortenedFile } from "../shortened";
 import type { ShortenedFile } from "../shortened/types";
 import { estimateTokens } from "../size";
-import { BYTES_PER_TOKEN, SINGLE_CALL_MAX_INPUT_TOKENS } from "../size/consts";
+import { BYTES_PER_TOKEN, SINGLE_CALL_MAX_DIFF_TOKENS } from "../size/consts";
 import {
   describePlaceholder,
   listPatchLines,
@@ -54,7 +54,6 @@ function renderFullHunk(file: IndexedFile, hunk: IndexedHunk): string[] {
   return [renderMarker(hunk), hunk.header, ...hunk.lines];
 }
 
-/** The hunk's changed lines, cut to the form's head and tail past its limit. */
 function renderTrimmedLines(
   hunk: IndexedHunk,
   limits: OutlineLimits,
@@ -217,10 +216,10 @@ export function chooseOutline(input: OutlineInput): Outline {
   }
 
   // The full form is rendered only when its characters alone leave it a chance.
-  const fullMaxBytes = SINGLE_CALL_MAX_INPUT_TOKENS * BYTES_PER_TOKEN.DIFF;
+  const fullMaxBytes = SINGLE_CALL_MAX_DIFF_TOKENS * BYTES_PER_TOKEN.DIFF;
   if (countFullFormChars(redacted, input.shortened) <= fullMaxBytes) {
     const full = measureOutline(redacted, input, OutlineForms.FULL);
-    if (full.estimatedInputTokens <= SINGLE_CALL_MAX_INPUT_TOKENS) {
+    if (full.estimatedInputTokens <= SINGLE_CALL_MAX_DIFF_TOKENS) {
       return full;
     }
   }

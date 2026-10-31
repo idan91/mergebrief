@@ -2,7 +2,7 @@ import type { HunkId } from "../../diff/hunk-index/types";
 import type { LineRange } from "../../types";
 import { subtractRanges } from "../loc";
 import type { WarningCollector } from "../warnings/types";
-import type { HunkLocation } from "./types";
+import type { ShownHunk } from "./types";
 
 const CUT_HUNK_CHECK = "cut hunk";
 
@@ -19,10 +19,10 @@ interface UnshownLines {
 
 /** Each file's lines a cut hunk never showed a detail call, by path. */
 function listUnshownLines(
-  locations: ReadonlyMap<HunkId, HunkLocation>,
+  shownHunks: ReadonlyMap<HunkId, ShownHunk>,
 ): Map<string, UnshownLines> {
   const unshown = new Map<string, UnshownLines>();
-  for (const location of locations.values()) {
+  for (const location of shownHunks.values()) {
     if (location.omittedRanges === undefined) {
       continue;
     }
@@ -41,10 +41,10 @@ function listUnshownLines(
  */
 export function clampToShownLines<Claim extends ChunkClaim>(
   chunks: readonly Claim[],
-  locations: ReadonlyMap<HunkId, HunkLocation>,
+  shownHunks: ReadonlyMap<HunkId, ShownHunk>,
   warnings: WarningCollector,
 ): Claim[] {
-  const unshown = listUnshownLines(locations);
+  const unshown = listUnshownLines(shownHunks);
   const issues: string[] = [];
   const kept = chunks.flatMap((chunk) => {
     const lines = unshown.get(chunk.file);

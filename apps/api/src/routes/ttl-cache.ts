@@ -57,7 +57,8 @@ export function createTtlCache<V>(
 
   function isOverLimit(incomingBytes: number): boolean {
     const isFull = entries.size >= maxEntries;
-    return isFull || totalBytes + incomingBytes > maxBytes;
+    const isOverBudget = totalBytes + incomingBytes > maxBytes;
+    return isFull || isOverBudget;
   }
 
   function makeRoom(incomingBytes: number, now: number): void {

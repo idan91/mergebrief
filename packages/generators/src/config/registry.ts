@@ -119,8 +119,8 @@ const fullRegenerationOption = z.enum(FullRegenerations).optional();
 const forceMultiCallOption = z.boolean().optional();
 
 /**
- * Detail calls a multi-call run keeps in flight at once; the DEFAULT (8)
- * lives at the worker's consumption site like effort's.
+ * Detail calls a multi-call run keeps in flight at once; the DEFAULT (8) is
+ * brief-core's `DEFAULT_DETAIL_CONCURRENCY`.
  */
 const detailConcurrencyOption = z.number().int().min(1).optional();
 

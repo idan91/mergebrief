@@ -9,9 +9,9 @@ import { formatDate, renderedLocale } from "@web/i18n/locale";
 import type { PrStack } from "../../../../../model/types";
 import { StackBase } from "../StackBase";
 import { StackLists } from "../StackLists";
-import { StackVersionCell } from "../StackVersionCell";
 import { StackVersions, type StackVersion } from "../types";
 import { resolveShownStack } from "../utils";
+import { StackVersionCell } from "./StackVersionCell";
 import styles from "./StackPanel.module.scss";
 
 export interface StackPanelProps {
@@ -30,7 +30,8 @@ export interface StackPanelProps {
 /**
  * The open panel's list and base bar. When the brief's stack differs, the bar
  * switches between the two, which share one cell so the bar never moves under
- * the pointer: a hover callout closes once the pointer is outside it.
+ * the pointer: a hover callout closes once the pointer is outside it. The
+ * changed note sits outside that cell for the same reason.
  */
 export function StackPanel({
   stack,
@@ -50,6 +51,13 @@ export function StackPanel({
     ? t("brief.header.stackAtGenerationAria")
     : t("brief.header.stackDisclosureAria");
   const showsBar = shown.baseRef !== undefined || snapshot !== undefined;
+  const locale = renderedLocale(i18n.resolvedLanguage);
+  const asOfLabel =
+    asOf === undefined
+      ? undefined
+      : t("brief.header.stackAsOf", {
+          date: formatDate(asOf, locale, { dateStyle: "medium" }),
+        });
   const versionOptions: SegmentedOption<StackVersion>[] = [
     { value: StackVersions.NOW, label: t("brief.header.stackShowNow") },
     {
@@ -74,14 +82,8 @@ export function StackPanel({
             repoId={repoId}
             stack={stack}
           />
-          {asOf === undefined ? null : (
-            <span className={styles["leadIn"]}>
-              {t("brief.header.stackAsOf", {
-                date: formatDate(asOf, renderedLocale(i18n.resolvedLanguage), {
-                  dateStyle: "medium",
-                }),
-              })}
-            </span>
+          {asOfLabel === undefined ? null : (
+            <span className={styles["leadIn"]}>{asOfLabel}</span>
           )}
         </StackVersionCell>
         {snapshot === undefined ? null : (
@@ -96,6 +98,11 @@ export function StackPanel({
           </StackVersionCell>
         )}
       </span>
+      {snapshot === undefined ? null : (
+        <span className={styles["changed"]} data-testid="stack-changed">
+          {t("brief.header.stackChanged")}
+        </span>
+      )}
       {showsBar ? (
         <StackBase baseRef={shown.baseRef}>
           {snapshot === undefined ? undefined : (

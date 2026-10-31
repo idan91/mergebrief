@@ -1,13 +1,12 @@
 import { DiffLineKinds, type DiffLineKind } from "types/diff-lines";
-import type { ParsedDiffLine } from "../types";
+import type { ParsedDiffLine, SplitViewRow } from "../types";
 
 /**
- * How many rows the split view paints for a diff, counted without building
- * them: a deletion run and the addition run after it zip row for row, every
- * other row stands alone.
+ * The rows the split view paints for a diff: a deletion run and the
+ * addition run after it zip row for row, every other row stands alone.
  */
-export function countSplitRows(diff: readonly ParsedDiffLine[]): number {
-  let rows = 0;
+export function zipSplitRows(diff: readonly ParsedDiffLine[]): SplitViewRow[] {
+  const rows: SplitViewRow[] = [];
   let cursor = 0;
 
   while (cursor < diff.length) {
@@ -15,31 +14,54 @@ export function countSplitRows(diff: readonly ParsedDiffLine[]): number {
     if (line === undefined) {
       break;
     }
-
-    if (line.kind === DiffLineKinds.DEL || line.kind === DiffLineKinds.ADD) {
-      const dels = measureRun(diff, cursor, DiffLineKinds.DEL);
-      const adds = measureRun(diff, cursor + dels, DiffLineKinds.ADD);
-      rows += Math.max(dels, adds);
-      cursor += dels + adds;
+    if (line.kind !== DiffLineKinds.DEL && line.kind !== DiffLineKinds.ADD) {
+      rows.push({ full: line });
+      cursor += 1;
       continue;
     }
 
-    rows += 1;
-    cursor += 1;
+    const dels = takeRun(diff, cursor, DiffLineKinds.DEL);
+    const adds = takeRun(diff, cursor + dels.length, DiffLineKinds.ADD);
+    const pairs = Math.max(dels.length, adds.length);
+    for (let pair = 0; pair < pairs; pair += 1) {
+      rows.push(shapePairRow(dels[pair], adds[pair]));
+    }
+    cursor += dels.length + adds.length;
   }
 
   return rows;
 }
 
-function measureRun(
+export function countSplitRows(diff: readonly ParsedDiffLine[]): number {
+  return zipSplitRows(diff).length;
+}
+
+function shapePairRow(
+  del: ParsedDiffLine | undefined,
+  add: ParsedDiffLine | undefined,
+): SplitViewRow {
+  const row: SplitViewRow = {};
+  if (del !== undefined) {
+    row.del = del;
+  }
+  if (add !== undefined) {
+    row.add = add;
+  }
+
+  return row;
+}
+
+function takeRun(
   diff: readonly ParsedDiffLine[],
   from: number,
   kind: DiffLineKind,
-): number {
-  let length = 0;
-  while (diff[from + length]?.kind === kind) {
-    length += 1;
+): ParsedDiffLine[] {
+  const run: ParsedDiffLine[] = [];
+  let line = diff[from];
+  while (line?.kind === kind) {
+    run.push(line);
+    line = diff[from + run.length];
   }
 
-  return length;
+  return run;
 }

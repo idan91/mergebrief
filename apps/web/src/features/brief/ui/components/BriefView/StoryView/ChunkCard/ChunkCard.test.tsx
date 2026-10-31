@@ -204,8 +204,7 @@ describe("ChunkCard file status", () => {
   it("marks a file the model read as package changes", () => {
     renderCard({ chunk: { ...chunk, readAs: "package-summary" } });
 
-    const badge = screen.getByText("Read as package changes");
-    expect(badge.getAttribute("data-read-as")).toBe("package-summary");
+    expect(screen.getByText("Read as package changes")).toBeTruthy();
   });
 
   it("marks a file the model read as counts only", () => {

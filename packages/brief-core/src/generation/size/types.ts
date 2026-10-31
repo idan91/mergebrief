@@ -15,8 +15,7 @@ export interface CallPlanInput {
 /** How a Brief's generation would be split, and the measures that decided it. */
 export interface CallPlan {
   readonly kind: CallPlanKind;
-  /** The diff's tokens alone: the prompt, description and context around it are not counted. */
-  readonly estimatedInputTokens: number;
+  readonly estimatedDiffTokens: number;
   readonly hunkCount: number;
   readonly forced: boolean;
 }

@@ -83,7 +83,9 @@ export function estimateReservedChunkCardHeight(
     return estimateChunkCardHeight(collapsed);
   }
 
-  return estimateReservedRowsHeight(counts, view) + CHUNK_CARD_OVERHEAD_PX;
+  const cardHeight =
+    estimateReservedRowsHeight(counts, view) + CHUNK_CARD_OVERHEAD_PX;
+  return cardHeight;
 }
 
 /**
@@ -99,11 +101,11 @@ export function estimateReservedRowsHeight(
     return EMPTY_DIFF_NOTE_PX;
   }
   const tallRows = counts.hunkRows + counts.expandRows;
-
-  return (
+  const rowsHeight =
     countReservedLines(counts, view) * DIFF_ROW_HEIGHT_PX +
-    tallRows * TALL_ROW_EXTRA_PX
-  );
+    tallRows * TALL_ROW_EXTRA_PX;
+
+  return rowsHeight;
 }
 
 /**
@@ -115,8 +117,10 @@ export function countReservedLines(
   view: DiffView,
 ): number {
   const codeRows = view === DiffViews.SPLIT ? counts.splitRows : counts.rows;
+  const lines =
+    codeRows + counts.expandRows + countViewWrappedLines(counts, view);
 
-  return codeRows + counts.expandRows + countViewWrappedLines(counts, view);
+  return lines;
 }
 
 /**

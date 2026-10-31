@@ -68,7 +68,6 @@ function findQuoteEnd(line: string, start: number): number {
   return -1;
 }
 
-/** Whether nothing but blanks or a comment follows `end`. */
 function endsLine(line: string, end: number): boolean {
   const rest = line.slice(end).trimStart();
   return rest === "" || rest.startsWith(COMMENT);
@@ -194,8 +193,9 @@ function checkTopLine(
  * Why `text` falls outside what a pnpm or berry writer emits, found in one
  * pass before any parse: too many or too long lines, a top-level key the
  * writer never emits, a flow collection nested, long or spanning lines, or
- * an anchor, alias or tag. The parser holds every node in memory, so this
- * keeps the worst input that reaches it near the worst real lockfile.
+ * an anchor, alias or tag. It bounds shape, not memory: an input it admits
+ * near the byte cap can still take gigabytes to parse, so a caller parses
+ * hostile text only in a heap-capped process.
  */
 function checkShape(
   text: string,

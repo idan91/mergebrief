@@ -13,6 +13,10 @@ import {
   type ChangeGroup,
 } from "../../src/types";
 import type { PrMetadata } from "../../src/github/types";
+import {
+  BYTES_PER_TOKEN,
+  SINGLE_CALL_MAX_DIFF_TOKENS,
+} from "../../src/generation/size/consts";
 import { FakeGenerator } from "../helpers";
 
 // --- Fixtures ---------------------------------------------------------------
@@ -622,6 +626,16 @@ const OVERSIZED_DESCRIPTION = "d".repeat(800_002);
 
 const narrativePr = { repo: "o/r", number: 1, title: "t", url: URL };
 
+const INPUT_LIMIT_BYTES = SINGLE_CALL_MAX_DIFF_TOKENS * BYTES_PER_TOKEN.DIFF;
+const LONG_DIR = "nested/".repeat(30);
+/** Enough long-path chunks that their paths alone pass the input limit. */
+const OUT_OF_SPAN_CHUNK_COUNT = Math.ceil(INPUT_LIMIT_BYTES / LONG_DIR.length);
+const LONG_SPAN_FILE = `${LONG_DIR}a.ts`;
+/** Enough span-file chunks that their paths alone pass the input limit. */
+const IN_SPAN_CHUNK_COUNT = Math.ceil(
+  INPUT_LIMIT_BYTES / LONG_SPAN_FILE.length,
+);
+
 describe("span call limits, delta + narrative", () => {
   const locator = { owner: "o", repo: "r", number: 1 };
   const deltaInput = {
@@ -683,21 +697,27 @@ describe("span call limits, delta + narrative", () => {
   }
 
   it("measures a large brief by the span's files, the context it sends", () => {
-    const longDir = "nested/".repeat(30);
     const brief = makeLargeBrief(
-      4000,
-      (index) => `${longDir}f${String(index)}.ts`,
+      OUT_OF_SPAN_CHUNK_COUNT,
+      (index) => `${LONG_DIR}f${String(index)}.ts`,
+    );
+    const untrimmedPathBytes = brief.chunks.reduce(
+      (total, chunk) => total + chunk.file.length,
+      0,
     );
 
+    expect(untrimmedPathBytes).toBeGreaterThan(INPUT_LIMIT_BYTES);
     expect(exceedsNarrativeCallLimits({ ...narrativeInput, brief })).toBe(
       false,
     );
   });
 
   it("skips a narrative whose span-file chunks exceed the input limit", () => {
-    const brief = makeLargeBrief(16_000, () => "src/a.ts");
+    const brief = makeLargeBrief(IN_SPAN_CHUNK_COUNT, () => LONG_SPAN_FILE);
+    const longSpanDiff = incrementalDiff.replaceAll("src/a.ts", LONG_SPAN_FILE);
+    const input = { ...narrativeInput, brief, incrementalDiff: longSpanDiff };
 
-    expect(exceedsNarrativeCallLimits({ ...narrativeInput, brief })).toBe(true);
+    expect(exceedsNarrativeCallLimits(input)).toBe(true);
   });
 
   it("shapes the skip record from the delta's own span", () => {

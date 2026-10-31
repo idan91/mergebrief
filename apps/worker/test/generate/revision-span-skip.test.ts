@@ -13,7 +13,9 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  LARGE_PR_FILES,
   makeGitHub,
+  MANY_HUNKS_DIFF,
   makeReviewerId,
   makeTarget,
   makeTask,
@@ -213,14 +215,10 @@ describe("generate task, a refused revision span", () => {
   });
 });
 
-/** One hunk past the single-call limit of 120. */
-const MANY_HUNKS_DIFF = `diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n${"@@ -1 +1 @@\n-x\n+y\n".repeat(121)}`;
-
 describe("generate task, a revision span past the call limits", () => {
   it("writes both skip records and calls neither model", async () => {
     const generator = stubGenerator();
-    const largePr = [{ path: "a.ts", additions: 100_000, deletions: 0 }];
-    const github = makeGitHub(HEAD_1, largePr);
+    const github = makeGitHub(HEAD_1, LARGE_PR_FILES);
     const task = makeTask({ generator, github });
     const first = await trigger(HEAD_1);
     await task(first.payload);

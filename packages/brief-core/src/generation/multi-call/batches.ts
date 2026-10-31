@@ -10,14 +10,12 @@ function buildBatch(index: number, parts: readonly BatchPart[]): DetailBatch {
   return { index, parts, hunkCount: countHunks(parts) };
 }
 
-/** The two bounds a batch stays within, and what each hunk weighs against the second. */
 interface BatchLimits {
   readonly maxHunks: number;
   readonly maxTokens: number;
   readonly hunkTokens: ReadonlyMap<HunkId, number>;
 }
 
-/** Consecutive hunks with their summed token estimate. */
 interface HunkRun {
   readonly hunkIds: readonly HunkId[];
   readonly tokens: number;
@@ -53,7 +51,8 @@ function packRuns(runs: readonly HunkRun[], limits: BatchLimits): HunkRun[] {
       current.tokens + run.tokens,
       limits,
     );
-    if (current.hunkIds.length > 0 && overLimits) {
+    const closesPack = current.hunkIds.length > 0 && overLimits;
+    if (closesPack) {
       packs.push(current);
       current = { hunkIds: [], tokens: 0 };
     }
@@ -156,7 +155,8 @@ export function planDetailBatches(input: DetailBatchPlanInput): DetailBatch[] {
       continue;
     }
     const joinedCount = currentCount + hunkIds.length;
-    if (!fitsLimits(joinedCount, currentTokens + tokens, limits)) {
+    const joinedTokens = currentTokens + tokens;
+    if (!fitsLimits(joinedCount, joinedTokens, limits)) {
       flush();
     }
     current.push({ groupId, hunkIds });

@@ -148,7 +148,9 @@ export function readStoredBrief(json: string): StoredBriefReadResult {
 /** A stored delta body that is the span's skip record; a body that is not a JSON object is not one. */
 export function isDeltaSkipRecord(json: string): boolean {
   const body = parseJsonObject(json);
-  return body.ok && body.value["artifactKind"] === DELTA_SKIPPED_KIND;
+  const isSkipRecord =
+    body.ok && body.value["artifactKind"] === DELTA_SKIPPED_KIND;
+  return isSkipRecord;
 }
 
 /**

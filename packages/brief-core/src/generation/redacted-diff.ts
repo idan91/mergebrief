@@ -1,7 +1,6 @@
 import type { IndexedFile, IndexedHunk } from "../diff/hunk-index/types";
 import { sanitizeUntrustedDiff } from "./untrusted-text";
 
-/** A file's patch lines in diff order: the header, then each text hunk's header and body. */
 export function listPatchLines(file: IndexedFile): string[] {
   const hunkLines = file.hunks.flatMap((hunk) =>
     hunk.header === undefined ? [] : [hunk.header, ...hunk.lines],
@@ -32,12 +31,14 @@ export function redactIndexedFile(
     const bare = file.hunks.map((hunk) => ({ ...hunk, lines: [] }));
     return redactIndexedFile({ ...file, hunks: bare }, false);
   }
+
   const patchLines = listPatchLines(file);
   const sanitized = sanitizeUntrustedDiff(patchLines.join("\n"));
   const lines = sanitized.split("\n");
   if (lines.length !== patchLines.length) {
     throw new Error(`sanitizing ${file.id} changed its line count`);
   }
+
   let next = file.headerLines.length;
   const hunks = file.hunks.map((hunk): IndexedHunk => {
     if (hunk.header === undefined) {
@@ -48,6 +49,7 @@ export function redactIndexedFile(
     next += 1 + hunk.lines.length;
     return { ...hunk, header, lines: body };
   });
+
   return {
     ...file,
     headerLines: lines.slice(0, file.headerLines.length),

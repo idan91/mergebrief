@@ -10,11 +10,11 @@ import {
   ExpansionDirections,
   type BriefLayoutSource,
   type ChunkLayoutBody,
-  type ChunkLayoutCounts,
   type ChunkRanges,
   type ExpansionGap,
   type LineWidthHistogram,
   type ParsedDiffLine,
+  type StoredChunkLayoutCounts,
 } from "./types";
 
 export { HUNK_HEADER } from "./consts";
@@ -47,6 +47,7 @@ export {
   type LineWidthHistogram,
   type RowRun,
   type ParsedDiffLine,
+  type StoredChunkLayoutCounts,
 } from "./types";
 
 /**
@@ -57,7 +58,7 @@ export {
 export function countChunkLayout(
   fileRows: readonly ParsedDiffLine[],
   chunk: ChunkRanges,
-): ChunkLayoutCounts {
+): StoredChunkLayoutCounts {
   const slice = sliceChunkDiff(fileRows, chunk);
   const hunkRows = slice.filter((row) => row.kind === DiffLineKinds.HUNK);
   const wholeFile = resolveFileStatus(slice) !== undefined;
@@ -65,7 +66,7 @@ export function countChunkLayout(
     ? new Set<number>()
     : findExpandRowIndexes(slice, findExpansionGaps(slice));
 
-  const counts: ChunkLayoutCounts = {
+  const counts: StoredChunkLayoutCounts = {
     rows: slice.length,
     hunkRows: hunkRows.length,
     expandRows: expandIndexes.size,
@@ -92,8 +93,8 @@ export function countBriefChunkLayouts(
 ): ChunkLayoutBody {
   const patches = splitUnifiedDiffByFile(diff);
   const parsedFiles = new Map<string, readonly ParsedDiffLine[]>();
-  const chunks: Record<string, ChunkLayoutCounts> = {};
-  const files: Record<string, ChunkLayoutCounts> = {};
+  const chunks: Record<string, StoredChunkLayoutCounts> = {};
+  const files: Record<string, StoredChunkLayoutCounts> = {};
 
   for (const chunk of source.chunks) {
     const fileRows = readFileRows(chunk.file, patches, parsedFiles);

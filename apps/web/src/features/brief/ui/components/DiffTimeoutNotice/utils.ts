@@ -28,7 +28,8 @@ export function isRetryFailed(
 ): boolean {
   const hasError = query.error !== null && query.error !== undefined;
   const settled = !query.isFetching && query.data === undefined;
-  return retry === undefined && hasError && settled;
+  const failedWithNoRetry = retry === undefined && hasError && settled;
+  return failedWithNoRetry;
 }
 
 /** Focus went with a removed element: nothing on the page holds it now. */

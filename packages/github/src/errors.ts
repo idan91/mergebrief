@@ -23,7 +23,7 @@ export const GitHubApiErrorCodes = {
   UNKNOWN_COMMIT: "unknown-commit",
   /** The viewer already holds a PENDING review on this PR. */
   PENDING_REVIEW_EXISTS: "pending-review-exists",
-  /** A 200 diff holding fewer files or bytes than GitHub said it would. */
+  /** A 200 diff whose file count is not the expected one, or short of its declared bytes. */
   DIFF_INCOMPLETE: "diff-incomplete",
   /** GitHub did not render the diff in time: its repeated 422, or the caller's deadline. */
   DIFF_TIMED_OUT: "diff-timed-out",

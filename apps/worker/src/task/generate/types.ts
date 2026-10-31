@@ -229,23 +229,23 @@ export interface FetchedSpan {
 }
 
 /** A span the run could not read after the brief write: no later step asks again. */
-export interface RefusedSpan {
+export interface UnreadSpan {
   readonly baselineSha: string;
-  readonly refused: true;
+  readonly unread: true;
   /** GitHub would not render the span whole (406 or a short diff); the commits still exist. */
   readonly diffTooLarge: boolean;
 }
 
-export type PrefetchedSpan = FetchedSpan | RefusedSpan;
+export type PrefetchedSpan = FetchedSpan | UnreadSpan;
 
 /** Why the revision span went unread after the brief write. */
-export const RevisionSpanRefusals = {
+export const RevisionSpanReadFailures = {
   /** GitHub's 406 or its 422 render timeout: the span is past what it renders. */
   TOO_LARGE: "too-large",
   UNAVAILABLE: "unavailable",
 } as const;
 
-export type RevisionSpanRefusal = ValueOf<typeof RevisionSpanRefusals>;
+export type RevisionSpanReadFailure = ValueOf<typeof RevisionSpanReadFailures>;
 
 export interface RevisionArtifactInputs {
   readonly store: ArtifactStore;
@@ -755,7 +755,7 @@ export interface StoredBriefRecoveryInputs {
 }
 
 /** The stored brief a run stands on, and the PR diff its sidecar counts against. */
-export interface ChunkLayoutBackfillInputs {
+export interface StoredBriefLayoutInputs {
   readonly store: ArtifactStore;
   readonly pullRequestId: PullRequestRowId;
   readonly storedBrief: BriefSpanRow;

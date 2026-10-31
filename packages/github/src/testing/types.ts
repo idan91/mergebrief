@@ -103,7 +103,7 @@ export const FakeFailures = {
   NOT_ACCEPTABLE: "not-acceptable",
   /** A 422 on a diff GitHub did not render in time. */
   DIFF_RENDER_TIMEOUT: "diff-render-timeout",
-  /** A checked compare diff that came back short of its files or bytes. */
+  /** A checked compare diff whose file count is not the expected one, or short of its bytes. */
   DIFF_INCOMPLETE: "diff-incomplete",
   /** A checked compare diff GitHub did not render before the attempts or deadline ran out. */
   DIFF_TIMED_OUT: "diff-timed-out",

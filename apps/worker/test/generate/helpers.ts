@@ -40,6 +40,7 @@ import { createI18n } from "i18n";
 import { createLogger, type Logger } from "logging";
 import type { Mutable } from "types/utils";
 import {
+  SINGLE_CALL_MAX_HUNKS,
   createBuiltInContextProviders,
   parseChangedRanges,
   type CompareFiles,
@@ -97,6 +98,14 @@ export const SMALL_DIFF = `diff --git a/a.ts b/a.ts
 +added
  line2
 `;
+
+/** One hunk past the single-call hunk limit, in one file. */
+export const MANY_HUNKS_DIFF = `diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n${"@@ -1 +1 @@\n-x\n+y\n".repeat(SINGLE_CALL_MAX_HUNKS + 1)}`;
+
+/** Whole-PR churn large enough that no span reaches the huge-span ratio. */
+export const LARGE_PR_FILES = [
+  { path: "a.ts", additions: 100_000, deletions: 0 },
+];
 
 export const CUSTOM_RISK = "touches-billing";
 export const CUSTOM_RISK_POLICY = `version: 1
@@ -324,12 +333,13 @@ function listMarkedHunks(user: string): MarkedHunk[] {
 
 /** One chunk per hunk marker, in its marker's group. */
 function answerDetail(user: string): unknown {
-  const files = listMarkedHunks(user).flatMap((hunk) =>
-    parseChangedRanges(hunk.lines.join("\n")).map((file) => ({
+  const files = listMarkedHunks(user).flatMap((hunk) => {
+    const patch = hunk.lines.join("\n");
+    return parseChangedRanges(patch).map((file) => ({
       groupId: hunk.groupId,
       file,
-    })),
-  );
+    }));
+  });
 
   return {
     chunks: files.map(({ groupId, file }, index) => ({

@@ -1,3 +1,4 @@
+import { truncateToCodeUnits } from "../../context/utils";
 import type { FileId, HunkId, IndexedFile } from "../../diff/hunk-index/types";
 import type { HunkMapEntry } from "../../types";
 import { GenerationWarningKinds } from "../warnings/types";
@@ -43,7 +44,7 @@ function describeItem(item: string): string {
   const oneLine = item.replace(/\s+/g, " ").trim();
   return oneLine.length <= ITEM_SPAN_MAX_CHARS
     ? oneLine
-    : `${oneLine.slice(0, ITEM_SPAN_MAX_CHARS)}...`;
+    : `${truncateToCodeUnits(oneLine, ITEM_SPAN_MAX_CHARS)}...`;
 }
 
 function listIds(ids: readonly string[]): string {

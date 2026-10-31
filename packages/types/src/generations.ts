@@ -102,8 +102,8 @@ export interface GenerationUnitsParams {
   readonly cap: number;
 }
 
-/** A failed row carries `detail`; a capped large run carries its units. */
-export type GenerationFailureParams =
+/** A row's `error_params`: a failed row carries `detail`; a capped large run carries its units. */
+export type GenerationErrorParams =
   | GenerationDetailParams
   | GenerationUnitsParams;
 

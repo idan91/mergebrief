@@ -9,6 +9,13 @@ export interface ParsedDiffLine {
   newLine?: number;
 }
 
+/** One row the split view paints: a row spanning both sides, or a deletion and the addition zipped beside it. */
+export interface SplitViewRow {
+  full?: ParsedDiffLine;
+  del?: ParsedDiffLine;
+  add?: ParsedDiffLine;
+}
+
 /** The two paths a `diff --git` header names, git's quoting decoded and its `a/` and `b/` dropped. */
 export interface DiffHeaderPaths {
   pre: string;
@@ -127,9 +134,14 @@ export interface ChunkLayoutCounts {
    * The card's rows as runs of one kind, `<kind><length>` each, with an
    * expand control's own row a run before the row it opens above: the
    * shape a skeleton draws before the code lands, and never code text.
-   * The worker always stores it; counts the page estimates have none.
+   * A page estimate has none.
    */
   rowRuns?: string;
+}
+
+/** The counts the worker stores for a card, which always carry `rowRuns`. */
+export interface StoredChunkLayoutCounts extends ChunkLayoutCounts {
+  rowRuns: string;
 }
 
 /**
@@ -138,6 +150,6 @@ export interface ChunkLayoutCounts {
  * An entry whose file the diff did not carry is absent.
  */
 export interface ChunkLayoutBody {
-  chunks: Record<string, ChunkLayoutCounts>;
-  files: Record<string, ChunkLayoutCounts>;
+  chunks: Record<string, StoredChunkLayoutCounts>;
+  files: Record<string, StoredChunkLayoutCounts>;
 }

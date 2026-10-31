@@ -23,12 +23,12 @@ import { applySpendGate, refuseAtCap } from "./spend-gate";
 /**
  * Whether the run reaches a model, decided once. A run over the pair's stored
  * brief on a row no run claimed takes no claim: it meets the cap here as a
- * ceiling and is charged at its first paid call. A fresh run, a recovery run,
- * or any run over a row a claim still names projects itself if ingest did not
- * and claims the row under the cap (every claim queuing the head's next
- * recovery job), or stands down when another run holds or finished
- * it, or holds another head of the PR, re-queuing its job for after the lease. `run.leaveRow` and
- * `run.runId` are settled here, before any provider call.
+ * ceiling and is charged at its first paid call. Any other run projects itself
+ * if ingest did not and claims the row under the cap (every claim queuing the
+ * head's next recovery job), or stands down when another run holds or finished
+ * it or another head holds a live claim, re-queuing after the holder's lease,
+ * or one head poll at most behind another head. `run.leaveRow` and `run.runId`
+ * settle before any provider call.
  */
 export async function decideRun(context: RunContext): Promise<RunDecision> {
   const { payload, run, existingBrief } = context;

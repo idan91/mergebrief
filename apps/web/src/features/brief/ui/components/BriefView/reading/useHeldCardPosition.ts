@@ -104,7 +104,7 @@ function startHold(
  */
 export function useHeldCardPosition(
   codePending: boolean,
-  windows: ChunkWindowRegistry | null,
+  windows: ChunkWindowRegistry | undefined,
 ): void {
   const anchor = useRef<ScreenAnchor | undefined>(undefined);
   const wasPending = useRef(codePending);
@@ -114,7 +114,7 @@ export function useHeldCardPosition(
   // Before the commit attaches refs, where the windows measure their cards.
   useInsertionEffect(() => {
     const landing = wasPending.current && !codePending;
-    if (landing && windows !== null) {
+    if (landing && windows !== undefined) {
       landingCompensation.current?.();
       landingCompensation.current = windows.holdScrollCompensation();
     }

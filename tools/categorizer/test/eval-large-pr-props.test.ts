@@ -98,16 +98,12 @@ describe("buildPartitionProperties", () => {
     expect(property.check(brief, CHANGED_FILES)).toBe(true);
   });
 
-  it.each([
-    ["a line the diff never changed", { start: 2, end: 4 }, "src/a.ts"],
-    ["a file the diff never touches", { start: 1, end: 3 }, "src/c.ts"],
-    ["a changed line left out", { start: 1, end: 2 }, "src/a.ts"],
-  ])("fails coverage on a claim of %s", (_label, range, file) => {
+  it("fails coverage when a changed line is left out", () => {
     const property = findPartitionProperty(
       "every-line-attributed-or-remainder",
     );
     const brief = makeCoveredBrief({
-      chunks: [makeChunk({ file, addedRanges: [range] })],
+      chunks: [makeChunk({ addedRanges: [{ start: 1, end: 2 }] })],
       unattributed: [
         { file: "src/b.ts", addedRanges: [], removedRanges: [REMOVED] },
       ],

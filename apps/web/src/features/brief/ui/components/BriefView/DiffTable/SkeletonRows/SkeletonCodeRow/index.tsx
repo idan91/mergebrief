@@ -24,7 +24,8 @@ export function SkeletonCodeRow({ row, split, columns }: SkeletonCodeRowProps) {
   const style: CodeRowStyle = { "--skeleton-span": row.span };
   const { left, right } = row;
 
-  if (!split || right === undefined) {
+  const drawsUnified = !split || right === undefined;
+  if (drawsUnified) {
     const oldNumber =
       left.kind === SkeletonSideKinds.ADDED
         ? SkeletonSideKinds.EMPTY

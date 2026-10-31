@@ -99,9 +99,10 @@ export function readCardCounts(
   layout: ChunkLayoutState | undefined,
   chunk: BriefChunk,
 ): ChunkLayoutCounts | undefined {
-  return (
-    readStoredCounts(layout?.counts, chunk) ?? readReservedCounts(layout, chunk)
-  );
+  const cardCounts =
+    readStoredCounts(layout?.counts, chunk) ??
+    readReservedCounts(layout, chunk);
+  return cardCounts;
 }
 
 /**

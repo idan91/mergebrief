@@ -86,14 +86,13 @@ function indexSideLines(
   const sides = new Map<string, Record<RangeSide, SideLines>>();
   for (const [file, fileChunks] of groupByFile(chunks)) {
     const changed = changedByFile.get(file);
+    const addedClaims = fileChunks.flatMap((chunk) => chunk.addedRanges);
+    const removedClaims = fileChunks.flatMap((chunk) => chunk.removedRanges);
     sides.set(file, {
-      addedRanges: buildSideLines(
-        changed?.addedRanges ?? [],
-        fileChunks.flatMap((chunk) => chunk.addedRanges),
-      ),
+      addedRanges: buildSideLines(changed?.addedRanges ?? [], addedClaims),
       removedRanges: buildSideLines(
         changed?.removedRanges ?? [],
-        fileChunks.flatMap((chunk) => chunk.removedRanges),
+        removedClaims,
       ),
     });
   }
