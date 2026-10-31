@@ -171,12 +171,29 @@ export interface AnchorColumns {
 }
 
 /** A span diff already fetched this run, reused, never re-fetched. */
-export interface PrefetchedSpan {
+export interface FetchedSpan {
   readonly baselineSha: string;
   readonly diff: string;
   /** Marks for this span were already written this run. */
   readonly marksWritten: boolean;
 }
+
+/** A span the run could not read after the brief write: no later step asks again. */
+export interface RefusedSpan {
+  readonly baselineSha: string;
+  readonly refused: true;
+}
+
+export type PrefetchedSpan = FetchedSpan | RefusedSpan;
+
+/** Why the revision span went unread after the brief write. */
+export const RevisionSpanRefusals = {
+  /** GitHub's 406 or its 422 render timeout: the span is past what it renders. */
+  TOO_LARGE: "too-large",
+  UNAVAILABLE: "unavailable",
+} as const;
+
+export type RevisionSpanRefusal = ValueOf<typeof RevisionSpanRefusals>;
 
 export interface RevisionArtifactInputs {
   readonly store: ArtifactStore;

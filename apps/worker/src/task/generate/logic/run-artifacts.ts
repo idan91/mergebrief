@@ -7,9 +7,13 @@ import {
   writeAudit,
   type AuditEntry,
 } from "persistence";
+import type { GitHubCallFailure } from "github";
 import { GenerationStatuses } from "types/generations";
+import { HttpStatuses } from "types/http";
+import type { Result } from "types/utils";
 import { AUDIT_OPERATION_GENERATE } from "../consts";
 import {
+  RevisionSpanRefusals,
   RunDecisionKinds,
   type BriefRef,
   type FreshRun,
@@ -17,6 +21,7 @@ import {
   type PrefetchedSpan,
   type ProducedBrief,
   type RevisionArtifactInputs,
+  type RevisionSpanRefusal,
   type RunContext,
   type RunInputs,
 } from "../types";
@@ -24,12 +29,14 @@ import { buildAttemptFields } from "../utils";
 import { listRunStops, traceRunStep } from "./step-span";
 import { recoverStoredBrief, writeFreshBrief } from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
-import { throwOnGitHubFailure } from "./errors";
+import { isNotAcceptable } from "./errors";
 import { createSpendCharge } from "./spend-gate";
 import { throwOnClaimLost } from "./supersession-watch";
 import {
   countPrChangedLines,
+  resolveNarrativeSkip,
   writeRevisionArtifacts,
+  writeSkippedNarrative,
 } from "./revision-artifacts";
 
 type GenerateAuditTarget = Pick<
@@ -172,7 +179,14 @@ async function writeRevisionSpan(
     return undefined;
   }
 
-  const revDiff = throwOnGitHubFailure(inputs.prevSpanFetch);
+  const spanRead = readRevisionSpanDiff(context, inputs.prevSpanFetch);
+  if (!spanRead.ok) {
+    if (spanRead.error === RevisionSpanRefusals.TOO_LARGE) {
+      await writeRefusedSpanSkip(context, prevBrief, brief);
+    }
+    return { baselineSha: prevBrief.headSha, refused: true };
+  }
+  const revDiff = spanRead.value;
   await writeRevisionArtifacts(payload, {
     revisionNarrative: deps.revisionNarrative,
     hugeSpanRatio: deps.hugeSpanRatio,
@@ -193,6 +207,54 @@ async function writeRevisionSpan(
     log: context.log,
   });
   return { baselineSha: prevBrief.headSha, diff: revDiff, marksWritten: true };
+}
+
+/**
+ * The brief is stored by now, so the span read never fails the run: a span
+ * GitHub would not render (406, or its 422 render timeout) comes back as too
+ * large, and any other failure warns and skips the span's artifacts.
+ */
+function readRevisionSpanDiff(
+  context: RunContext,
+  spanFetch: Result<string, GitHubCallFailure>,
+): Result<string, RevisionSpanRefusal> {
+  if (spanFetch.ok) {
+    return { ok: true, value: spanFetch.value };
+  }
+  const { error } = spanFetch;
+  const isUnrendered = isNotAcceptable(error) || isRenderTimedOut(error);
+  if (isUnrendered) {
+    return { ok: false, error: RevisionSpanRefusals.TOO_LARGE };
+  }
+
+  context.log.warn(
+    "generate: revision span unavailable; skipping its artifacts",
+    { code: error.code },
+  );
+  return { ok: false, error: RevisionSpanRefusals.UNAVAILABLE };
+}
+
+function isRenderTimedOut(error: GitHubCallFailure): boolean {
+  return (
+    "status" in error && error.status === HttpStatuses.UNPROCESSABLE_CONTENT
+  );
+}
+
+/** A span GitHub would not render still gets its skip record, without marks. */
+async function writeRefusedSpanSkip(
+  context: RunContext,
+  prevBrief: RevisionArtifactInputs["prevBrief"],
+  brief: ProducedBrief,
+): Promise<void> {
+  const { deps, payload, store, log } = context;
+  const { generatedBrief, briefRef } = brief;
+  const skipped = resolveNarrativeSkip(deps.revisionNarrative, true);
+  if (generatedBrief === undefined || skipped === undefined) {
+    return;
+  }
+
+  const record = { store, prevBrief, briefRef, generatedBrief, log };
+  await writeSkippedNarrative(payload, record, skipped);
 }
 
 /**

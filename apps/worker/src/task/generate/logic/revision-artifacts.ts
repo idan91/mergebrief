@@ -4,6 +4,7 @@ import {
   countChangedLines,
   isHugeSpan,
   type Brief,
+  type RevisionNarrativeConfig,
   type RevisionNarrativeSkipped,
 } from "brief-core";
 import {
@@ -11,6 +12,10 @@ import {
   STORED_BODY_VERSION,
   type StoredRevisionNarrative,
 } from "brief-core/artifact";
+import {
+  RevisionNarrativeSkipReasons,
+  type RevisionNarrativeSkipReason,
+} from "brief-core/types";
 import type { Logger } from "logging";
 import { GenerationKinds } from "persistence";
 import type { PullRequestSource } from "../../github-port";
@@ -69,51 +74,20 @@ export async function writeRevisionArtifacts(
     return;
   }
 
-  const skipStub = (
-    skipped: RevisionNarrativeSkipped["skipped"],
-  ): RevisionNarrativeSkipped => ({
-    artifactKind: "revisionNarrativeSkipped",
-    pr: generatedBrief.pr,
-    prevHeadSha,
-    headSha,
-    prevIndex: prevBrief.headIndex,
-    headIndex: briefRef.headIndex,
-    skipped,
-  });
-
-  const writeNarrative = async (
+  const record = { ...inputs, generatedBrief };
+  const writeNarrative = (
     narrative: StoredRevisionNarrative,
     origin: Brief["generation"],
-  ): Promise<void> => {
-    const narrativeCheck = checkRevisionNarrativeForWrite(narrative);
-    warnOnFailedCheck(narrativeCheck, GenerationKinds.REVISION_NARRATIVE, log);
+  ): Promise<void> => writeNarrativeRecord(payload, record, narrative, origin);
 
-    await store.revisionNarratives.write({
-      pullRequestId,
-      briefId: briefRef.id,
-      prevHeadSha,
-      headSha,
-      ...getGenerationOrigin(origin),
-      body: JSON.stringify(narrative),
-      bodyVersion: STORED_BODY_VERSION,
-    });
-  };
-
-  const narrativeGate = inputs.revisionNarrative ?? { enabled: true };
-  if (!narrativeGate.enabled) {
-    const disabledStub = skipStub("disabled by config");
-    await writeNarrative(disabledStub, generatedBrief.generation);
-    return;
-  }
   const revSpanHuge = isHugeSpan(
     countChangedLines(revDiff),
     inputs.wholePrChangedLines,
     inputs.hugeSpanRatio,
   );
-  if (revSpanHuge) {
-    const hugeSpanStub = skipStub("span too large");
-    await writeNarrative(hugeSpanStub, generatedBrief.generation);
-    log.info("generate: revision span too large; wrote skip stub");
+  const skipped = resolveNarrativeSkip(inputs.revisionNarrative, revSpanHuge);
+  if (skipped !== undefined) {
+    await writeSkippedNarrative(payload, record, skipped);
     return;
   }
 
@@ -161,6 +135,71 @@ export async function writeRevisionArtifacts(
     }
     log.warn(message);
   }
+}
+
+/** What a narrative record for the span names: no marks and no diff. */
+export interface NarrativeRecordInputs extends Pick<
+  RevisionArtifactInputs,
+  "store" | "prevBrief" | "briefRef" | "log"
+> {
+  readonly generatedBrief: Brief;
+}
+
+/** The one place the skip reason is decided: the config gate outranks size. */
+export function resolveNarrativeSkip(
+  gate: RevisionNarrativeConfig | undefined,
+  isSpanTooLarge: boolean,
+): RevisionNarrativeSkipReason | undefined {
+  if (gate?.enabled === false) {
+    return RevisionNarrativeSkipReasons.DISABLED_BY_CONFIG;
+  }
+  if (isSpanTooLarge) {
+    return RevisionNarrativeSkipReasons.SPAN_TOO_LARGE;
+  }
+  return undefined;
+}
+
+/** The span's skip record, written where no narrative call will run. */
+export async function writeSkippedNarrative(
+  payload: ParsedGeneratePayload,
+  inputs: NarrativeRecordInputs,
+  skipped: RevisionNarrativeSkipped["skipped"],
+): Promise<void> {
+  const { generatedBrief, prevBrief, briefRef } = inputs;
+  const stub: RevisionNarrativeSkipped = {
+    artifactKind: "revisionNarrativeSkipped",
+    pr: generatedBrief.pr,
+    prevHeadSha: prevBrief.headSha,
+    headSha: payload.headSha,
+    prevIndex: prevBrief.headIndex,
+    headIndex: briefRef.headIndex,
+    skipped,
+  };
+  await writeNarrativeRecord(payload, inputs, stub, generatedBrief.generation);
+  inputs.log.info("generate: wrote the revision narrative skip stub", {
+    skipped,
+  });
+}
+
+async function writeNarrativeRecord(
+  payload: ParsedGeneratePayload,
+  inputs: NarrativeRecordInputs,
+  narrative: StoredRevisionNarrative,
+  origin: Brief["generation"],
+): Promise<void> {
+  const { store, prevBrief, briefRef, log } = inputs;
+  const narrativeCheck = checkRevisionNarrativeForWrite(narrative);
+  warnOnFailedCheck(narrativeCheck, GenerationKinds.REVISION_NARRATIVE, log);
+
+  await store.revisionNarratives.write({
+    pullRequestId: payload.pullRequestId,
+    briefId: briefRef.id,
+    prevHeadSha: prevBrief.headSha,
+    headSha: payload.headSha,
+    ...getGenerationOrigin(origin),
+    body: JSON.stringify(narrative),
+    bodyVersion: STORED_BODY_VERSION,
+  });
 }
 
 /**

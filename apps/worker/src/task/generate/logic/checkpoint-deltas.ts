@@ -48,6 +48,9 @@ export async function generateCheckpointDeltas(
       inputs.prevSpan?.baselineSha === baselineSha
         ? inputs.prevSpan
         : undefined;
+    if (prefetched !== undefined && "refused" in prefetched) {
+      continue;
+    }
     let incrementalDiff: string;
     if (prefetched !== undefined) {
       incrementalDiff = prefetched.diff;

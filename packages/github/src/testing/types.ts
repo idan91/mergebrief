@@ -101,6 +101,8 @@ export const FakeFailures = {
   RULE_REFUSED: "rule-refused",
   /** A 406: GitHub will not render a diff past its size limits. */
   NOT_ACCEPTABLE: "not-acceptable",
+  /** A 422 on a diff GitHub did not render in time. */
+  DIFF_RENDER_TIMEOUT: "diff-render-timeout",
   /** A checked compare diff that came back short of its files or bytes. */
   DIFF_INCOMPLETE: "diff-incomplete",
   /** A checked compare diff GitHub did not render before the attempts or deadline ran out. */
