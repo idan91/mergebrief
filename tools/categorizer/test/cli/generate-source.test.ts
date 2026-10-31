@@ -40,12 +40,22 @@ vi.mock("../../src/github", async (importOriginal) => {
     ghPrSource: { ...actual.ghPrSource, ...exploding },
   };
 });
+const ranAsOverride = vi.hoisted(() => ({
+  value: undefined as string | undefined,
+}));
+
 // Not part of the port (its own boundary): must be quiet, not exploding.
 vi.mock("brief-core", async (importOriginal) => {
   const actual = await importOriginal<typeof BriefCoreModule>();
   return {
     ...actual,
     fetchContextSnippets: vi.fn(async () => ({ links: [] })),
+    generateBrief: vi.fn(
+      async (options: Parameters<typeof actual.generateBrief>[0]) => {
+        const result = await actual.generateBrief(options);
+        return { ...result, ranAs: ranAsOverride.value ?? result.ranAs };
+      },
+    ),
   };
 });
 
@@ -137,9 +147,9 @@ class FakeGenerator implements Generator {
   }
 }
 
-function fakeSource(): PrSource {
+function fakeSource(sha: string = HEAD): PrSource {
   return {
-    fetchPrMetadata: vi.fn(async () => meta),
+    fetchPrMetadata: vi.fn(async () => ({ ...meta, sha })),
     fetchPrDiff: vi.fn(async () => diff),
     fetchCompareDiff: vi.fn(async () => ""),
     fetchReviewComments: vi.fn(async () => [comment]),
@@ -192,4 +202,30 @@ describe("generateAndWrite with an injected PrSource", () => {
       commitRange: { head: HEAD, commitCount: 2 },
     });
   });
+
+  it.each([
+    ["single", "anchored"],
+    ["multi", "none"],
+  ])(
+    "stamps a revision brief that ran %s with anchor %s",
+    async (ranAs, state) => {
+      const write = (sha: string) =>
+        generateAndWrite(
+          outDir,
+          URL,
+          undefined,
+          new FakeGenerator(),
+          () => {},
+          undefined,
+          fakeSource(sha),
+        );
+      await write(HEAD);
+      ranAsOverride.value = ranAs;
+
+      const revision = await write("bbbb222200000000");
+      ranAsOverride.value = undefined;
+
+      expect(revision.anchor).toEqual({ state });
+    },
+  );
 });

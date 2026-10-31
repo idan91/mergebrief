@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { indexDiff } from "../../src/diff/hunk-index";
+import { acceptRepoContext } from "../../src/generation/categorize";
 import { buildGroupingRequest } from "../../src/generation/multi-call/grouping";
 import type { GroupingRequestInput } from "../../src/generation/multi-call/types";
 import { chooseOutline } from "../../src/generation/outline";
 import { OUTLINE_LIMITS } from "../../src/generation/outline/consts";
 import { buildGroupingSystemPrompt } from "../../src/generation/prompt";
+import type { RepoContext } from "../../src/generation/repo-context";
 import { createWarningCollector } from "../../src/generation/warnings";
 import { OutlineForms } from "../../src/types";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
+
+function acceptContext(repoContext: RepoContext | undefined) {
+  return acceptRepoContext(
+    repoContext,
+    retryPr.meta.files,
+    () => {},
+    createWarningCollector(() => {}),
+  );
+}
 
 function makeInput(
   overrides: Partial<GroupingRequestInput> = {},
@@ -17,9 +28,7 @@ function makeInput(
     pr: retryPr,
     outline: chooseOutline({ files, shortened: new Map() }),
     hunkCount: files.reduce((sum, file) => sum + file.hunks.length, 0),
-    repoContext: retryRepoContext,
-    log: () => {},
-    warnings: createWarningCollector(() => {}),
+    accepted: acceptContext(retryRepoContext),
     ...overrides,
   };
 }
@@ -47,14 +56,11 @@ describe("buildGroupingRequest", () => {
   });
 
   it("keeps repo instructions and leaves attributes to the detail calls", () => {
-    const { user, system, repoContext } = buildGroupingRequest(makeInput());
+    const { user, system } = buildGroupingRequest(makeInput());
 
     expect(user).toContain("## Repo instructions");
     expect(user).not.toContain("## Repo-defined risk attributes");
     expect(system).toContain("## Repo instructions (semi-trusted, bounded)");
-    expect(repoContext?.customAttributes.map((attr) => attr.name)).toEqual([
-      "touches-retry-policy",
-    ]);
   });
 
   it("strips forged repo fences when repo context is in play", () => {
@@ -75,11 +81,10 @@ describe("buildGroupingRequest", () => {
   });
 
   it("renders without repo context when none is given", () => {
-    const { user, system, repoContext } = buildGroupingRequest(
-      makeInput({ repoContext: undefined }),
+    const { user, system } = buildGroupingRequest(
+      makeInput({ accepted: acceptContext(undefined) }),
     );
 
-    expect(repoContext).toBeUndefined();
     expect(user).not.toContain("## Repo instructions");
     expect(user.endsWith("answer in the required schema.")).toBe(true);
     expect(system).not.toContain("## Repo instructions");

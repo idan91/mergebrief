@@ -32,6 +32,14 @@ const UNKNOWN_GROUP_ID = "t-unknown";
 const DEPARTED_FALLBACK_FILE = "packages/departed/src/gone.ts";
 const DEPARTED_LINE = { start: 1, end: 1 };
 const FLAGGED_RISK_TOKEN = "comment-contradicts-code";
+const GROUPING_LABEL = "grouping";
+export const DETAIL_LABEL_PREFIX = "detail:";
+const PR_DIFF_OPEN = "<pr_diff>\n";
+const PR_DIFF_CLOSE = "\n</pr_diff>";
+const DIFF_FILE_HEADER = "diff --git ";
+const OUTLINE_FILE_TITLE = /^### (f\d+) (\S+)/;
+const DETAIL_HUNK_MARKER = /^\[hunk \S+ -> (\S+)\]$/;
+const DETAIL_PLACEHOLDER_MARKER = /^\[hunk \S+ -> \S+\] /;
 
 const NO_INTENT = {
   ticketUrls: [],
@@ -45,6 +53,7 @@ const NO_INTENT = {
 export interface RecordedRequest {
   label: string;
   system: string;
+  userPrefix?: string;
   user: string;
   wireSchema: Record<string, unknown>;
 }
@@ -83,6 +92,29 @@ interface AnchorGroup {
   files: string[];
 }
 
+interface OutlineFile {
+  id: string;
+  path: string;
+}
+
+interface OutlineGroup {
+  id: string;
+  title: string;
+  files: OutlineFile[];
+}
+
+interface DetailHunk {
+  groupId: string;
+  fileHeader: string[];
+  lines: string[];
+}
+
+interface DetailScan {
+  fileHeader: string[];
+  current: DetailHunk | undefined;
+  hunks: DetailHunk[];
+}
+
 interface AnchorView {
   frozen: AnchorGroup[];
   files: string[];
@@ -114,6 +146,9 @@ const FROZEN_ID_USES: readonly FrozenIdUse[] = [
  * claiming at most two changed ranges per side; the first group's summary
  * runs one char past the cap so the length floor always fires. Anchored
  * requests mint t-prefixed group ids so the stitch decides the final ids.
+ * A multi-call run's grouping call gets one group per parent directory of
+ * the outline's files, each file assigned whole; a detail call gets one
+ * chunk per hunk marker, in its marker's group.
  */
 export function makeCannedGenerator(): CannedGenerator {
   return makeRecordingGenerator(synthesizeBrief);
@@ -143,18 +178,150 @@ function makeRecordingGenerator(answer: SynthesizeBrief): CannedGenerator {
     generate<S extends z.ZodType>(
       req: GenerateRequest<S>,
     ): Promise<z.infer<S>> {
-      requests.push({
+      const recorded: RecordedRequest = {
         label: req.label,
         system: req.system,
         user: req.user,
         wireSchema: enumPreservingJsonSchema(req.schema),
-      });
+      };
+      if (req.userPrefix !== undefined) {
+        recorded.userPrefix = req.userPrefix;
+      }
+      requests.push(recorded);
 
-      const output = req.schema.parse(answer(req.user));
+      const output = req.schema.parse(answerRequest(req, answer));
 
       return Promise.resolve(output);
     },
   };
+}
+
+function answerRequest(
+  req: Pick<GenerateRequest<z.ZodType>, "label" | "user">,
+  answerBrief: SynthesizeBrief,
+): unknown {
+  if (req.label === GROUPING_LABEL) {
+    return synthesizeGrouping(req.user);
+  }
+  if (req.label.startsWith(DETAIL_LABEL_PREFIX)) {
+    return synthesizeDetail(req.user);
+  }
+
+  return answerBrief(req.user);
+}
+
+function sliceDiffBlock(user: string): string {
+  const start = user.lastIndexOf(PR_DIFF_OPEN) + PR_DIFF_OPEN.length;
+
+  return user.slice(start, user.indexOf(PR_DIFF_CLOSE, start));
+}
+
+function parseOutlineFiles(user: string): OutlineFile[] {
+  return sliceDiffBlock(user)
+    .split("\n")
+    .flatMap((line) => {
+      const title = OUTLINE_FILE_TITLE.exec(line);
+      if (title === null) {
+        return [];
+      }
+      const [, id = "", path = ""] = title;
+      return [{ id, path }];
+    });
+}
+
+function groupOutlineByDirectory(
+  files: readonly OutlineFile[],
+): OutlineGroup[] {
+  const groups = new Map<string, OutlineFile[]>();
+  for (const file of files) {
+    const directory = dirname(file.path);
+    groups.set(directory, [...(groups.get(directory) ?? []), file]);
+  }
+
+  return [...groups].map(([directory, members], index) => ({
+    id: `g${index + 1}`,
+    title: `Changes under ${directory}`,
+    files: members,
+  }));
+}
+
+function synthesizeGrouping(user: string): unknown {
+  const files = parseOutlineFiles(user);
+  const groups = groupOutlineByDirectory(files);
+  const drafts = groups.map((group) => ({
+    id: group.id,
+    title: group.title,
+    files: group.files.map((file) => ({
+      file: file.path,
+      addedRanges: [],
+      removedRanges: [],
+    })),
+  }));
+
+  return {
+    summary: `Canned grouping over ${files.length} changed file(s).`,
+    changeGroups: shapeChangeGroups(drafts),
+    hunkMap: groups.map((group) => ({
+      groupId: group.id,
+      hunks: group.files.map((file) => file.id),
+    })),
+    readingOrder: shapeReadingOrder(groups.map((group) => group.id)),
+    intentCheck: NO_INTENT,
+  };
+}
+
+function closeDetailHunk(scan: DetailScan): void {
+  if (scan.current !== undefined) {
+    scan.hunks.push(scan.current);
+  }
+  scan.current = undefined;
+}
+
+/** A placeholder marker names a hunk with no text; it claims no line. */
+function scanDetailLine(scan: DetailScan, line: string): void {
+  if (line.startsWith(DIFF_FILE_HEADER)) {
+    closeDetailHunk(scan);
+    scan.fileHeader = [line];
+    return;
+  }
+  const marker = DETAIL_HUNK_MARKER.exec(line);
+  if (marker !== null || DETAIL_PLACEHOLDER_MARKER.test(line)) {
+    closeDetailHunk(scan);
+    const [, groupId] = marker ?? [];
+    if (groupId !== undefined) {
+      scan.current = { groupId, fileHeader: [...scan.fileHeader], lines: [] };
+    }
+    return;
+  }
+
+  if (scan.current === undefined) {
+    scan.fileHeader.push(line);
+  } else {
+    scan.current.lines.push(line);
+  }
+}
+
+function parseDetailHunks(user: string): DetailHunk[] {
+  const scan: DetailScan = { fileHeader: [], current: undefined, hunks: [] };
+  for (const line of sliceDiffBlock(user).split("\n")) {
+    scanDetailLine(scan, line);
+  }
+  closeDetailHunk(scan);
+
+  return scan.hunks;
+}
+
+function synthesizeDetail(user: string): unknown {
+  const drafts = parseDetailHunks(user).flatMap((hunk) => {
+    const patch = [...hunk.fileHeader, ...hunk.lines].join("\n");
+    return parseChangedRanges(patch).map((file) => ({
+      groupId: hunk.groupId,
+      file,
+      role: "core",
+    }));
+  });
+
+  return { chunks: shapeChunks(drafts) };
 }
 
 function synthesizeBrief(user: string): unknown {

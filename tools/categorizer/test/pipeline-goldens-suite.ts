@@ -6,6 +6,7 @@ import type { Effort, Generator } from "generators";
 import { loadCases, type EvalCase, type EvalFixture } from "../eval/loadCase";
 import { loadPairCases, runPairCase, type PairCase } from "../eval/pairs";
 import {
+  DETAIL_LABEL_PREFIX,
   makeAdversarialGenerator,
   makeCannedGenerator,
   type CannedGenerator,
@@ -36,6 +37,8 @@ const CHECK_PREFIX = /^⚠ (.+?) issues:\n/;
 const RISK_ATTRIBUTE_DROP = "dropped comment-contradicts-code";
 /** A brief golden past this records its digest: a large case's brief is unreviewable as text. */
 const BRIEF_GOLDEN_MAX_BYTES = 64 * 1024;
+/** The large cases' multi-call runs take seconds each, past vitest's 10 s hook default. */
+const GOLDEN_RUNS_TIMEOUT_MS = 120_000;
 
 export interface GoldenSuiteOptions {
   casesDir: string;
@@ -77,6 +80,7 @@ interface TextDigest {
 interface RequestDigest {
   label: string;
   system: TextDigest;
+  userPrefix?: TextDigest;
   user: TextDigest;
   schema: TextDigest;
 }
@@ -114,6 +118,7 @@ function makeOptions(
     generator,
     effort: EFFORT,
     repoContext: fixture.repoContext,
+    multiCallHooks: {},
   };
 }
 
@@ -203,12 +208,35 @@ function digestText(text: string): TextDigest {
 }
 
 function digestRequest(request: RecordedRequest): RequestDigest {
-  return {
+  const digest: RequestDigest = {
     label: request.label,
     system: digestText(request.system),
     user: digestText(request.user),
     schema: digestText(JSON.stringify(request.wireSchema)),
   };
+  if (request.userPrefix !== undefined) {
+    digest.userPrefix = digestText(request.userPrefix);
+  }
+
+  return digest;
+}
+
+function isDetailRequest(request: RecordedRequest): boolean {
+  return request.label.startsWith(DETAIL_LABEL_PREFIX);
+}
+
+/** Detail calls run in a pool, so their call order is scheduling; they are listed by part key after the rest. */
+function orderRequests(
+  requests: readonly RecordedRequest[],
+): RecordedRequest[] {
+  const details = requests
+    .filter(isDetailRequest)
+    .toSorted((left, right) =>
+      left.label.localeCompare(right.label, "en", { numeric: true }),
+    );
+  const others = requests.filter((request) => !isDetailRequest(request));
+
+  return [...others, ...details];
 }
 
 function compareKeys(left: string, right: string): number {
@@ -282,7 +310,8 @@ function describeRequestGoldens(
 ): void {
   describe("request goldens", () => {
     it.each(caseIds)("%s sends the recorded request digests", (caseId) => {
-      const digests = requireRun(runs, caseId).requests.map(digestRequest);
+      const requests = orderRequests(requireRun(runs, caseId).requests);
+      const digests = requests.map(digestRequest);
 
       expect(serializeGolden(digests)).toMatchSnapshot();
     });
@@ -445,7 +474,7 @@ export async function describePipelineGoldens(
     });
 
     await Promise.all([...singleRuns, ...pairRuns, ...adversarialPairRuns]);
-  });
+  }, GOLDEN_RUNS_TIMEOUT_MS);
 
   describeRequestGoldens(caseIds, runs);
   describeBriefGoldens(caseIds, runs);

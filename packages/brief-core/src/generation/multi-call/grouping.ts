@@ -1,6 +1,5 @@
 import type { FetchedPr } from "../../github/types";
 import {
-  acceptRepoContext,
   buildPrimaryTicketText,
   DATA_REMINDER,
   readPrimary,
@@ -33,13 +32,7 @@ function describeDiff(
 export function buildGroupingRequest(
   input: GroupingRequestInput,
 ): GroupingRequest {
-  const { pr, outline, hunkCount, log, warnings } = input;
-  const accepted = acceptRepoContext(
-    input.repoContext,
-    pr.meta.files,
-    log,
-    warnings,
-  );
+  const { pr, outline, hunkCount, accepted } = input;
   const clean =
     accepted.context === undefined
       ? (text: string) => text
@@ -74,6 +67,5 @@ ${DATA_REMINDER}${repoBlocks === "" ? "" : REPO_REMINDER}`;
     system: buildGroupingSystemPrompt(outline.form, accepted.context),
     user,
     primaryText,
-    repoContext: accepted.context,
   };
 }

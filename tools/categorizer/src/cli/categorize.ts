@@ -5,6 +5,7 @@ import { AnchorStates } from "types/generations";
 import {
   buildComparisonMarks,
   buildContextQuery,
+  CallPlanKinds,
   categorizeRevisionNarrative,
   countChangedLines,
   fetchContextSnippets,
@@ -318,7 +319,7 @@ export async function generateAndWrite(
   );
 
   const previous = buildPreviousInput(prior, commitRange);
-  const { brief } = await generateBrief({
+  const { brief, ranAs } = await generateBrief({
     pr,
     headIndex: index,
     commitRange,
@@ -326,9 +327,14 @@ export async function generateAndWrite(
     effort,
     log,
     previous,
+    multiCallHooks: {},
   });
+  // A multi-call run re-looks every group, so its brief anchors on nothing.
   if (previous !== undefined) {
-    brief.anchor = { state: AnchorStates.ANCHORED };
+    const anchored = ranAs === CallPlanKinds.SINGLE;
+    brief.anchor = {
+      state: anchored ? AnchorStates.ANCHORED : AnchorStates.NONE,
+    };
   }
 
   // An unread primary is surfaced, never silent; the brief still lands.

@@ -1,4 +1,4 @@
-import type { Logger } from "generators";
+import type { Effort, Generator, Logger } from "generators";
 import type {
   FileId,
   HunkId,
@@ -6,28 +6,36 @@ import type {
   IndexedHunk,
 } from "../../diff/hunk-index/types";
 import type { FetchedPr } from "../../github/types";
-import type { ChangeGroup, HunkMapEntry, LineRange } from "../../types";
+import type {
+  ChangeGroup,
+  CommitRange,
+  HunkMapEntry,
+  IntentCheck,
+  LineRange,
+  OutlineForm,
+  ReadingOrderStep,
+} from "../../types";
+import type { AcceptedRepoContext } from "../categorize";
 import type { Outline } from "../outline/types";
+import type { LockfileSummary } from "../shortened/types";
 import type { RepoContext } from "../repo-context";
 import type { WarningCollector } from "../warnings/types";
 
 export interface GroupingRequestInput {
   readonly pr: FetchedPr;
   readonly outline: Outline;
+  /** The hunks the outline marks; a shortened file's hunks are not among them. */
   readonly hunkCount: number;
-  readonly repoContext: RepoContext | undefined;
-  readonly log: Logger;
-  readonly warnings: WarningCollector;
+  /** The run's one accepted repo-context view; the detail calls read the same one. */
+  readonly accepted: AcceptedRepoContext;
 }
 
-/** The grouping call's prompts, plus what the request step accepted for the validation context. */
+/** The grouping call's prompts, plus the ticket text the validation context verifies against. */
 export interface GroupingRequest {
   readonly system: string;
   readonly user: string;
   /** The primary ticket as the prompt rendered it; "" without one. */
   readonly primaryText: string;
-  /** The repo context the gates let through; its custom attributes bind the detail calls. */
-  readonly repoContext: RepoContext | undefined;
 }
 
 export interface HunkMapInput {
@@ -120,4 +128,59 @@ export interface DetailRequest {
   readonly system: string;
   readonly userPrefix: string;
   readonly user: string;
+}
+
+/** The grouping output, a detail call's output, or a half of a cut batch's. */
+export type PartKey =
+  | "grouping"
+  | `detail:${number}`
+  | `detail:${number}:${1 | 2}`;
+
+/**
+ * Every stored part names groups by the stored grouping's ids, minted past
+ * the chain of the run that stored it; this run's ids may differ.
+ */
+export interface StoredGroupIds {
+  readonly toRun: ReadonlyMap<string, string>;
+  readonly toStored: ReadonlyMap<string, string>;
+}
+
+/** What a caller hooks into a multi-call run; every hook is optional and awaited. */
+export interface MultiCallHooks {
+  /** After the grouping call, with the detail calls to come; a throw ends the run. */
+  readonly onGroupingDone?: (parts: { detailCalls: number }) => Promise<void>;
+  /** Once, before the first detail call starts. */
+  readonly onDetailStart?: () => Promise<void>;
+  /** A stored part's body for the key, or undefined; a body its schema no longer accepts is regenerated. */
+  readonly loadPart?: (key: PartKey) => Promise<unknown>;
+  /** After each fresh call's output parsed, with the body to store; never for a reused part. */
+  readonly onPartDone?: (key: PartKey, body: unknown) => Promise<void>;
+}
+
+export interface MultiCallOptions {
+  readonly pr: FetchedPr;
+  readonly headIndex: number;
+  readonly commitRange: CommitRange;
+  readonly generator: Generator;
+  readonly groupingEffort: Effort;
+  readonly detailEffort: Effort;
+  readonly repoContext: RepoContext | undefined;
+  readonly lockfileSummaries: ReadonlyMap<string, LockfileSummary>;
+  /** The default branch's `.gitattributes`; absent reads every file in full. */
+  readonly gitAttributes?: string | undefined;
+  readonly forcedOutlineForm?: OutlineForm | undefined;
+  /** A whole number of 1 or more; absent takes the default. */
+  readonly detailConcurrency?: number | undefined;
+  /** Every group id the PR's brief chain has used; the grouping's ids are minted past them. */
+  readonly reservedGroupIds?: readonly string[] | undefined;
+  readonly hooks?: MultiCallHooks | undefined;
+  readonly log: Logger;
+  readonly warnings: WarningCollector;
+}
+
+/** The parts of a merged brief that name its groups by id. */
+export interface GroupSections {
+  changeGroups: ChangeGroup[];
+  readingOrder?: ReadingOrderStep[] | undefined;
+  intentCheck: IntentCheck;
 }

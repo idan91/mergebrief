@@ -299,6 +299,7 @@ function makeFixtureOptions(
     generator,
     effort,
     repoContext: fixture.repoContext,
+    multiCallHooks: {},
   };
 }
 

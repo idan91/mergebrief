@@ -58,8 +58,11 @@ function allReLook(
   };
 }
 
-/** Previous-brief ids ∪ the chain's, deduped, previous first. */
-function reserveIds(brief: Brief, chainGroupIds: readonly string[]): string[] {
+/** Previous-brief ids ∪ the chain's, deduped, previous first: the ids no new group may take. */
+export function reserveIds(
+  brief: Brief,
+  chainGroupIds: readonly string[],
+): string[] {
   return [
     ...new Set([
       ...brief.changeGroups.map((group) => group.id),

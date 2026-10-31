@@ -42,7 +42,7 @@ import {
 } from "../harness/work-dir";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
-import { joinUserText } from "./utils";
+import { joinUserText, readClaudeOutputCeiling } from "./utils";
 
 // Do not use --bare: this adapter relies on OAuth/keychain subscription auth.
 // The system prompt uses a file to avoid ARG_MAX; the user prompt uses stdin.
@@ -269,9 +269,9 @@ export class ClaudeCodeGenerator implements Generator {
           runArgs.signal = req.signal;
         }
         if (req.maxOutputTokens !== undefined) {
-          runArgs.requestEnv = {
-            [OUTPUT_CAP_VAR]: String(req.maxOutputTokens),
-          };
+          const ceiling = readClaudeOutputCeiling(this.model);
+          const cap = Math.min(req.maxOutputTokens, ceiling);
+          runArgs.requestEnv = { [OUTPUT_CAP_VAR]: String(cap) };
         }
         const run = await runHarnessProcess(runArgs);
         return this.interpret(req.label, run, log, req.onWarning, req.onUsage);

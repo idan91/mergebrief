@@ -31,6 +31,11 @@ generator:
   # (pre-anchoring behavior — the kill-switch).
   # full-regeneration: never
 
+  # Run every brief as a multi-call run (grouping call over an outline, then
+  # detail calls per batch), the path a diff over 400k input tokens or 120
+  # hunks takes on its own. Diagnostic; more calls per brief. Default: false.
+  # force-multi-call: false
+
   # Reasoning effort for every generation: low | medium | high.
   # Default: medium. Each provider maps it to its own setting; providers
   # without the concept stay honest via provenance (`effort: null`). The

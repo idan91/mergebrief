@@ -14,6 +14,7 @@ import {
 } from "../validation/enforceSchema";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
+import { CLAUDE_OUTPUT_MAX_TOKENS, readClaudeOutputCeiling } from "./utils";
 
 // Keep the real SDK assignable while tests fake this narrow slice with satisfies.
 
@@ -55,7 +56,6 @@ export interface AnthropicStreamingClient {
  * The shared schema floor owns validation regardless of native structured-output enforcement.
  */
 const DEFAULT_MODEL = "claude-opus-4-8";
-const DEFAULT_MAX_OUTPUT_TOKENS = 64000;
 const CUT_STOP_REASON: Anthropic.StopReason = "max_tokens";
 const HTTP_BAD_REQUEST = 400;
 const HTTP_TOO_MANY_REQUESTS = 429;
@@ -261,10 +261,13 @@ export class AnthropicGenerator implements Generator {
   > {
     // The request options' `signal` aborts the HTTP stream itself, the SDK
     // rejects with APIUserAbortError and no further output tokens are billed.
+    const requestedOutputTokens =
+      req.maxOutputTokens ?? CLAUDE_OUTPUT_MAX_TOKENS;
+    const ceiling = readClaudeOutputCeiling(this.model);
     const stream = this.client.messages.stream(
       {
         model: this.model,
-        max_tokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+        max_tokens: Math.min(requestedOutputTokens, ceiling),
         thinking: { type: "adaptive" },
         output_config: {
           // Schema only, never a client parse callback (see class docs).

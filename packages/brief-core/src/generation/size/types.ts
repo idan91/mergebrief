@@ -9,7 +9,7 @@ export type CallPlanKind = ValueOf<typeof CallPlanKinds>;
 
 export interface CallPlanInput {
   readonly diff: string;
-  readonly forceMultiCall?: boolean;
+  readonly forceMultiCall?: boolean | undefined;
 }
 
 /** How a Brief's generation would be split, and the measures that decided it. */

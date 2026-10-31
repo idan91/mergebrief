@@ -1,5 +1,10 @@
+import type { Effort, Logger } from "generators";
 import type { Mutable } from "types/utils";
-import { planAnchoredGeneration, stitchBrief } from "../../anchoring";
+import {
+  planAnchoredGeneration,
+  reserveIds,
+  stitchBrief,
+} from "../../anchoring";
 import type { AnchorPlanArgs } from "../../anchoring/types";
 import type { Brief } from "../../types";
 import {
@@ -8,17 +13,22 @@ import {
   type DraftBriefOptions,
 } from "../categorize";
 import { validateFinalBrief } from "../final-validation";
+import { generateMultiCallBrief } from "../multi-call";
 import { decideCallPlan } from "../size";
-import type { CallPlan } from "../size/types";
+import { CallPlanKinds, type CallPlan, type CallPlanKind } from "../size/types";
 import { createWarningCollector, formatGenerationWarnings } from "../warnings";
-import type { GenerationWarning } from "../warnings/types";
+import type { GenerationWarning, WarningCollector } from "../warnings/types";
+import type { LockfileSummary } from "../shortened/types";
 import type {
+  BriefAnchoring,
   GenerateBriefOptions,
   GenerateBriefOutput,
   PreviousBriefInput,
 } from "./types";
 
 const STITCH_CHECK = "anchored stitch";
+const NO_HOOKS_NOTE =
+  "call plan: running as one call, since the caller passed no multi-call hooks";
 
 function discardLog(): void {}
 
@@ -55,21 +65,75 @@ function stampWarnings(
   return { ...brief, generationWarnings: formatGenerationWarnings(warnings) };
 }
 
-/**
- * Generate one Brief: fresh without `previous`, else plan the carry, generate
- * against the anchor view and stitch. Validation runs once, over the final
- * chunk set; nothing after the model call fails the generation.
- */
-export async function generateBrief(
-  options: GenerateBriefOptions,
-): Promise<GenerateBriefOutput> {
-  const { pr, previous } = options;
-  const log = options.log ?? discardLog;
-  const lockfileSummaries = options.lockfileSummaries ?? new Map();
-  const warnings = createWarningCollector(log);
-  const callPlan = decideCallPlan({ diff: pr.diff });
-  log(describeCallPlan(callPlan));
+interface BriefRun {
+  readonly options: GenerateBriefOptions;
+  readonly effort: Effort;
+  readonly lockfileSummaries: ReadonlyMap<string, LockfileSummary>;
+  readonly log: Logger;
+  readonly warnings: WarningCollector;
+}
 
+function buildBriefOutput(
+  brief: Brief,
+  warnings: WarningCollector,
+  ranAs: CallPlanKind,
+  anchoring?: BriefAnchoring,
+): GenerateBriefOutput {
+  const listed = warnings.listWarnings();
+  const output: Mutable<GenerateBriefOutput> = {
+    brief: stampWarnings(brief, listed),
+    warnings: listed,
+    ranAs,
+  };
+  if (anchoring !== undefined) {
+    output.anchoring = anchoring;
+  }
+  return output;
+}
+
+/**
+ * A multi-call run re-looks every group: no anchor plan, no stitch. With a
+ * previous brief its group ids are minted past every id the chain has used,
+ * so none lands on a retired group.
+ */
+async function runMultiCall(run: BriefRun): Promise<GenerateBriefOutput> {
+  const { options, effort, lockfileSummaries, log, warnings } = run;
+  const { previous } = options;
+  const reservedGroupIds =
+    previous === undefined
+      ? []
+      : reserveIds(previous.brief, previous.chainGroupIds ?? []);
+  const draft = await generateMultiCallBrief({
+    pr: options.pr,
+    headIndex: options.headIndex,
+    commitRange: options.commitRange,
+    generator: options.generator,
+    groupingEffort: options.groupingEffort ?? effort,
+    detailEffort: options.detailEffort ?? effort,
+    repoContext: options.repoContext,
+    lockfileSummaries,
+    gitAttributes: options.gitAttributes,
+    forcedOutlineForm: options.forcedOutlineForm,
+    detailConcurrency: options.detailConcurrency,
+    reservedGroupIds,
+    hooks: options.multiCallHooks,
+    log,
+    warnings,
+  });
+  const brief = validateFinalBrief({
+    ...draft,
+    carriedChunkIds: [],
+    acceptsRevisionDroppedChecks: false,
+    warnings,
+    lockfileSummaries,
+  });
+  return buildBriefOutput(brief, warnings, CallPlanKinds.MULTI);
+}
+
+/** Fresh without `previous`, else plan the carry, generate against the anchor view and stitch. */
+async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
+  const { options, effort, lockfileSummaries, log, warnings } = run;
+  const { pr, previous } = options;
   const draftOptions: DraftBriefOptions = {
     pr,
     headIndex: options.headIndex,
@@ -77,7 +141,7 @@ export async function generateBrief(
     generator: options.generator,
     log,
     repoContext: options.repoContext,
-    effort: options.effort ?? DEFAULT_EFFORT,
+    effort,
     anchor: undefined,
     warnings,
   };
@@ -91,8 +155,7 @@ export async function generateBrief(
       warnings,
       lockfileSummaries,
     });
-    const listed = warnings.listWarnings();
-    return { brief: stampWarnings(brief, listed), warnings: listed };
+    return buildBriefOutput(brief, warnings, CallPlanKinds.SINGLE);
   }
 
   const plan = planAnchoredGeneration(buildPlanArgs(previous));
@@ -123,11 +186,41 @@ export async function generateBrief(
     warnings,
     lockfileSummaries,
   });
+  return buildBriefOutput(brief, warnings, CallPlanKinds.SINGLE, {
+    plan,
+    ...anchoring,
+  });
+}
 
-  const listed = warnings.listWarnings();
-  return {
-    brief: stampWarnings(brief, listed),
-    warnings: listed,
-    anchoring: { plan, ...anchoring },
+/**
+ * Generate one Brief: a multi-call run when the call plan says so and the
+ * caller passed `multiCallHooks`, else one call. Validation runs once, over
+ * the final chunk set; nothing after the model call fails the generation.
+ */
+export async function generateBrief(
+  options: GenerateBriefOptions,
+): Promise<GenerateBriefOutput> {
+  const log = options.log ?? discardLog;
+  const warnings = createWarningCollector(log);
+  const callPlan = decideCallPlan({
+    diff: options.pr.diff,
+    forceMultiCall: options.forceMultiCall,
+  });
+  log(describeCallPlan(callPlan));
+  const run: BriefRun = {
+    options,
+    effort: options.effort ?? DEFAULT_EFFORT,
+    lockfileSummaries: options.lockfileSummaries ?? new Map(),
+    log,
+    warnings,
   };
+
+  if (callPlan.kind !== CallPlanKinds.MULTI) {
+    return runSingleCall(run);
+  }
+  if (options.multiCallHooks === undefined) {
+    log(NO_HOOKS_NOTE);
+    return runSingleCall(run);
+  }
+  return runMultiCall(run);
 }

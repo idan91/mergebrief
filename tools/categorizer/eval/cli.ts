@@ -292,6 +292,7 @@ async function evaluateCase(
       generator,
       effort,
       repoContext: fixture.repoContext,
+      multiCallHooks: {},
     });
     return generated.brief;
   };

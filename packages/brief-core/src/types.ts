@@ -334,6 +334,7 @@ const buildChunkSchema = (riskToken: z.ZodType<string>) =>
 
 export const ChunkGenerationSchema = buildChunkGenerationSchema(modelRiskEnum);
 export const ChunkSchema = buildChunkSchema(storedRiskEnum);
+export type ChunkGeneration = z.infer<typeof ChunkGenerationSchema>;
 
 export const ChangeGroupSchema = z.object({
   id: z
@@ -912,6 +913,7 @@ export const GroupingGenerationSchema = z.object({
 });
 
 export type HunkMapEntry = z.infer<typeof HunkMapEntrySchema>;
+export type GroupingGeneration = z.infer<typeof GroupingGenerationSchema>;
 
 function buildDetailGenerationSchema(riskToken: z.ZodType<string>) {
   return z.object({

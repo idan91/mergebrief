@@ -34,7 +34,7 @@ export interface GenerateRequest<S extends z.ZodType> {
   label: string;
   /** Array fields whose invalid elements may be dropped instead of failing. */
   salvageFields?: readonly string[];
-  /** The output token cap; absent, anthropic sends 64000 and the others none. */
+  /** The most output tokens wanted; anthropic and claude cap it at the model's ceiling, the OpenAI-compatible adapters send none. */
   maxOutputTokens?: number;
   /** Aborting rejects untouched: no salvage, no feedback retry, no dump. */
   signal?: AbortSignal;

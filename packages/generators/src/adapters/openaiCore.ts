@@ -60,8 +60,6 @@ export interface OpenAiChatRequest {
     };
   };
   reasoning_effort?: Effort;
-  /** Sent only when the request names a cap: no default change for these providers. */
-  max_completion_tokens?: number;
   stream: true;
   /** Sent iff the caller passed onUsage, zero wire change for callers that
    * don't observe usage. */
@@ -305,9 +303,6 @@ export class OpenAiCompatibleCore implements Generator {
 
     if (this.effortSupported !== false) {
       body.reasoning_effort = req.effort;
-    }
-    if (req.maxOutputTokens !== undefined) {
-      body.max_completion_tokens = req.maxOutputTokens;
     }
     const requestsUsage = req.onUsage !== undefined && this.usageSupported;
     if (requestsUsage) {

@@ -165,14 +165,14 @@ function sseFinishing(content: string, finishReason: string): Response {
 }
 
 describe("OpenAiCompatibleCore request construction", () => {
-  it("sends no output cap unless the request names one", async () => {
+  it("sends no output cap, even when the request names one", async () => {
     const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
 
     await generator.generate(request());
     await generator.generate({ ...request(), maxOutputTokens: 128000 });
 
     expect(recorded.bodies[0]).not.toHaveProperty("max_completion_tokens");
-    expect(recorded.bodies[1]?.["max_completion_tokens"]).toBe(128000);
+    expect(recorded.bodies[1]).not.toHaveProperty("max_completion_tokens");
   });
 
   it("sends strict json_schema, reasoning_effort, and system/user messages", async () => {

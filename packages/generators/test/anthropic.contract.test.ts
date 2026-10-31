@@ -462,6 +462,28 @@ describe("AnthropicGenerator request shape", () => {
     expect(stub.requests[0]?.maxTokens).toBe(128000);
   });
 
+  it.each([
+    ["claude-haiku-4-5", 64000],
+    ["claude-sonnet-4-5-20250929", 64000],
+    ["an-unknown-model", 64000],
+    ["claude-sonnet-5-5", 128000],
+    ["us.anthropic.claude-opus-4-8", 128000],
+  ])("caps a 128000 request at %s's ceiling", async (model, sent) => {
+    const stub = stubClient([{ raw: contractPayloads.valid }]);
+    const generator = new AnthropicGenerator(stub.client, dir, model);
+
+    await generator.generate({
+      schema: ContractSchema,
+      system: "sys",
+      user: "usr",
+      effort: "medium",
+      label: "grouping-cap",
+      maxOutputTokens: 128000,
+    });
+
+    expect(stub.requests[0]?.maxTokens).toBe(sent);
+  });
+
   it("threads the request signal into the SDK stream options", async () => {
     const stub = stubClient([{ raw: contractPayloads.valid }]);
     const controller = new AbortController();

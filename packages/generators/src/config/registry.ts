@@ -115,6 +115,9 @@ export type FullRegeneration = ValueOf<typeof FullRegenerations>;
 
 const fullRegenerationOption = z.enum(FullRegenerations).optional();
 
+/** Runs every brief through the multi-call path whatever the diff's size; off by default. */
+const forceMultiCallOption = z.boolean().optional();
+
 const ANTHROPIC_BASE_URL_VERSION_ISSUE =
   "anthropic takes the gateway host root with no /v1 (the SDK appends /v1/messages)";
 
@@ -148,6 +151,7 @@ const anthropicOptions = z
       .optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
+    "force-multi-call": forceMultiCallOption,
   })
   .strict();
 
@@ -170,6 +174,7 @@ const claudeCodeOptions = z
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
+    "force-multi-call": forceMultiCallOption,
   })
   .strict();
 
@@ -186,6 +191,7 @@ const codexOptions = z
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
+    "force-multi-call": forceMultiCallOption,
   })
   .strict();
 
@@ -214,6 +220,7 @@ const cursorOptions = z
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
+    "force-multi-call": forceMultiCallOption,
   })
   .strict();
 
@@ -236,6 +243,7 @@ const openaiOptions = z
     baseUrl: z.string().url().optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
+    "force-multi-call": forceMultiCallOption,
   })
   .strict();
 
@@ -258,6 +266,7 @@ const openrouterOptions = z
     title: z.string().min(1).optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
+    "force-multi-call": forceMultiCallOption,
   })
   .strict();
 

@@ -98,7 +98,7 @@ export const DEFAULT_EFFORT: Effort = "medium";
  * the pipeline's warn-and-drop posture. Never `dominantCategory` or any
  * structural field: those stay hard failures (with one feedback retry).
  */
-const SALVAGE_FIELDS = [
+export const SALVAGE_FIELDS = [
   "secondaryCategories",
   "uncertainBetween",
   "riskSurface",
@@ -110,7 +110,11 @@ const SALVAGE_FIELDS = [
  * artifact: the brief's commit-range head, the delta's PR head, the narrative's
  * current head.
  */
-function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
+export function buildPrRef(
+  locator: PrLocator,
+  meta: PrMetadata,
+  sha: string,
+): PrRef {
   const ref: PrRef = {
     repo: `${locator.owner}/${locator.repo}`,
     number: locator.number,
@@ -496,7 +500,7 @@ function buildIntentSources(
   return { injectedUrls, corpus };
 }
 
-function buildValidationContext(
+export function buildValidationContext(
   pr: FetchedPr,
   fileDiffs: FileDiff[],
   acceptedContext: RepoContext | undefined,
