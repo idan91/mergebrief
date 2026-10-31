@@ -74,7 +74,7 @@ Default from Concern (`implementation` → core, else → supporting). **Flip** 
 Three buckets. Full detail in `risk-surface.md`. Factual only, never verdicts; severity emerges from *combinations*.
 
 - **About the code:** `no-tests`, `no-types`, `legacy-area`, `dense-logic`
-- **About the change:** `touches-auth`, `mutates-state`, `removes-validation`, `relaxes-permissions`, `widens-error-handling`, `adds-feature-flag`, `new-dependency`, `new-abstraction`, `comment-contradicts-code`, `adds-secret` (set by the pipeline, never the model)
+- **About the change:** `touches-auth`, `mutates-state`, `removes-validation`, `relaxes-permissions`, `widens-error-handling`, `adds-feature-flag`, `new-dependency`, `new-abstraction`, `comment-contradicts-code`, `adds-secret`, `changes-package-source` (the last two set by the pipeline, never the model)
 - **About the blast radius:** `external-io`, `cross-service`, `schema-adjacent`, `hot-path`, `widely-imported`, `release-imminent`
 
 The last three change-bucket attributes (`new-dependency`, `new-abstraction`,

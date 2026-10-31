@@ -4827,7 +4827,9 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
         "deleted": 0
       },
       "removedRanges": [],
-      "riskSurface": [],
+      "riskSurface": [
+        "changes-package-source"
+      ],
       "role": "core"
     }
   ],
@@ -5012,7 +5014,10 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
         }
       ],
       "file": "pnpm-lock.yaml",
-      "removedRanges": []
+      "removedRanges": [],
+      "riskSurface": [
+        "changes-package-source"
+      ]
     }
   ]
 }"

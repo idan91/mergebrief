@@ -46,6 +46,7 @@ export const FLOOR_ATTRIBUTES = [
   "removes-validation",
   "relaxes-permissions",
   "adds-secret",
+  "changes-package-source",
 ] as const;
 
 export const PARKED_ATTRIBUTE_CANDIDATES = [

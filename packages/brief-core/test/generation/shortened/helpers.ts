@@ -35,3 +35,16 @@ export function readGitAttributeRules(gitattributes: string): LinguistRule[] {
   const parsed = parseGitAttributes(gitattributes);
   return parsed.ok ? parsed.value : [];
 }
+
+/** A v9 pnpm lockfile holding each `key: resolution` with its snapshot. */
+export function makePnpmLockfile(packages: Record<string, string>): string {
+  const keys = Object.keys(packages);
+  return [
+    "lockfileVersion: '9.0'",
+    "packages:",
+    ...keys.map((key) => `  ${key}:\n    ${packages[key]}`),
+    "snapshots:",
+    ...keys.map((key) => `  ${key}: {}`),
+    "",
+  ].join("\n");
+}

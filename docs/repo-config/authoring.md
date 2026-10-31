@@ -51,7 +51,8 @@ risk-surface vocabulary for your repo's briefs:
   the attribute.
 - De-emphasis quiets display; it never removes anything from the artifact
   or Receipt, and the floor (`touches-auth`, `removes-validation`,
-  `relaxes-permissions`, `adds-secret`) is never quiet.
+  `relaxes-permissions`, `adds-secret`, `changes-package-source`) is never
+  quiet.
 
 ## `settings.yaml`: workflow taste
 

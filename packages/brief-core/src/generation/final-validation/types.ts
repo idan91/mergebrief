@@ -3,6 +3,7 @@ import type { RevisionChangeFile } from "../../diff/revchanges";
 import type { PrFile } from "../../github/types";
 import type { Brief, PrimaryTicket } from "../../types";
 import type { CustomRiskAttributeInput } from "../repo-context";
+import type { LockfileSummary } from "../shortened/types";
 import type { IntentSource, PrimaryTicketFacts } from "../validate";
 import type { WarningCollector } from "../warnings/types";
 
@@ -30,4 +31,6 @@ export interface FinalValidationArgs {
   readonly carriedChunkIds: readonly string[];
   readonly acceptsRevisionDroppedChecks: boolean;
   readonly warnings: WarningCollector;
+  /** Keyed by file path; a lockfile missing here sets `changes-package-source`. */
+  readonly lockfileSummaries: ReadonlyMap<string, LockfileSummary>;
 }

@@ -87,7 +87,7 @@ function makeBerryWorkspaces(locators: string[]): string {
 
 const REGISTRY = ["registry"];
 const TOO_MANY_DESCRIPTORS = 129;
-const YARN_REGISTRY = ["https://registry.yarnpkg.com"];
+const YARN_REGISTRY = ["registry:https://registry.yarnpkg.com"];
 
 describe("yarn lockfile merged keys and patches", () => {
   it("reads a berry key merging an alias with its target", () => {
@@ -266,7 +266,7 @@ describe("yarn lockfile summary", () => {
           {
             name: "@scope/gone",
             version: "2.0.0",
-            hosts: ["https://registry.yarnpkg.com"],
+            hosts: ["registry:https://registry.yarnpkg.com"],
           },
         ],
         updated: [
@@ -274,20 +274,20 @@ describe("yarn lockfile summary", () => {
             name: "react",
             from: "18.2.0",
             to: "18.3.1",
-            fromHosts: ["https://registry.yarnpkg.com"],
-            toHosts: ["https://registry.yarnpkg.com"],
+            fromHosts: ["registry:https://registry.yarnpkg.com"],
+            toHosts: ["registry:https://registry.yarnpkg.com"],
           },
         ],
         sourceChanged: [
           {
             name: "lodash",
             version: "4.17.21",
-            fromHosts: ["https://registry.yarnpkg.com"],
-            toHosts: ["https://registry.yarnpkg.com"],
+            fromHosts: ["registry:https://registry.yarnpkg.com"],
+            toHosts: ["registry:https://registry.yarnpkg.com"],
           },
         ],
       },
-      baseHosts: ["https://registry.yarnpkg.com"],
+      baseHosts: ["registry:https://registry.yarnpkg.com"],
     });
   });
 

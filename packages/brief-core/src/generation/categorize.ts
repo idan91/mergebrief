@@ -67,6 +67,12 @@ import type {
 } from "../context/types";
 import { toPrimaryTicket } from "../context/primary";
 import { flagAddedSecrets } from "./added-secrets";
+import {
+  flagPackageSourceChanges,
+  readPackageSourceContext,
+  summarizeLockfiles,
+} from "./package-sources";
+import type { LockfileSides } from "./shortened/types";
 import { attributeSafe } from "./fences";
 import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
@@ -599,6 +605,8 @@ export interface DeltaInput {
   primaryTicket?: PrimaryTicketOutcome | undefined;
   /** Existing PR review comments, for the "comments addressed" analysis. */
   comments?: ReviewComment[];
+  /** Each changed lockfile's full text at the baseline and head, keyed by head path; a renamed one is read at baseline by its previous path. */
+  lockfiles?: ReadonlyMap<string, LockfileSides> | undefined;
 }
 
 /**
@@ -698,7 +706,17 @@ export async function categorizeDelta(
   collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));
   const trio = validateRiskAttributes(chunksWithLoc, fileDiffs);
   collector.reportIssues("risk attrs", trio.issues);
-  const flagged = flagAddedSecrets(trio.chunks, [], fileDiffs);
+  const withSecrets = flagAddedSecrets(trio.chunks, [], fileDiffs);
+  const lockfileSummaries = summarizeLockfiles(
+    fileDiffs.map((fileDiff) => fileDiff.file),
+    input.lockfiles,
+  );
+  const flagged = flagPackageSourceChanges(
+    withSecrets.chunks,
+    [],
+    lockfileSummaries,
+    readPackageSourceContext(fileDiffs),
+  );
 
   // Warn-only length floor, same posture as the full brief.
   const textLength = validateTextLength(

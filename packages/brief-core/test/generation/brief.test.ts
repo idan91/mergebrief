@@ -11,6 +11,7 @@ import type { GenerationWarning } from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github/types";
 import { RiskSurfaceAttributes, type Brief } from "../../src/types";
 import { FakeGenerator } from "../helpers";
+import { makePnpmLockfile, makeSides } from "./shortened/helpers";
 
 const OVER_CAP_SUMMARY = "s".repeat(300);
 const BILLING_ATTRIBUTE = "touches-billing";
@@ -672,6 +673,64 @@ describe("generateBrief, an anchored run", () => {
       [],
       [],
     ]);
+  });
+
+  it("drops a carried lockfile chunk's package flag once sources hold", async () => {
+    const lockfile = "pnpm-lock.yaml";
+    const lockPr: FetchedPr = {
+      ...pr,
+      meta: {
+        ...pr.meta,
+        files: [
+          ...pr.meta.files,
+          { path: lockfile, additions: 1, deletions: 1 },
+        ],
+      },
+      diff: `${wholeDiff}diff --git a/${lockfile} b/${lockfile}\n@@ -1,1 +1,1 @@\n-x\n+y\n`,
+    };
+    const lockChunk = {
+      ...makeChunk("c3", "g1", lockfile, 1),
+      removedRanges: [{ start: 1, end: 1 }],
+    };
+    const previous = await generateBrief({
+      pr: lockPr,
+      headIndex: 1,
+      commitRange,
+      generator: makeQueuedGenerator([
+        { ...baseOutput, chunks: [...baseOutput.chunks, lockChunk] },
+      ]),
+    });
+    const keepsHost = new Map([
+      [
+        lockfile,
+        makeSides(
+          makePnpmLockfile({
+            "left-pad@1.3.0": "resolution: {integrity: sha512-a}",
+          }),
+          makePnpmLockfile({
+            "left-pad@1.3.1": "resolution: {integrity: sha512-b}",
+          }),
+        ),
+      ],
+    ]);
+    const readLockFlags = (result: GenerateBriefOutput) =>
+      result.brief.chunks.find((chunk) => chunk.file === lockfile)?.riskSurface;
+
+    const unread = await runAnchored(revisedOutput, previous.brief, {
+      pr: lockPr,
+    });
+    const quiet = await runAnchored(revisedOutput, previous.brief, {
+      pr: lockPr,
+      lockfiles: keepsHost,
+    });
+
+    expect(readLockFlags(previous)).toEqual([
+      RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE,
+    ]);
+    expect(readLockFlags(unread)).toEqual([
+      RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE,
+    ]);
+    expect(readLockFlags(quiet)).toEqual([]);
   });
 
   it("drops a carried chunk on a file the PR no longer changes", async () => {

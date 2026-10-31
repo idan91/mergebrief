@@ -143,6 +143,8 @@ const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
   [RiskSurfaceAttributes.COMMENT_CONTRADICTS_CODE]:
     "brief.risk.commentContradictsCode",
   [RiskSurfaceAttributes.ADDS_SECRET]: "brief.risk.addsSecret",
+  [RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE]:
+    "brief.risk.changesPackageSource",
   [RiskSurfaceAttributes.EXTERNAL_IO]: "brief.risk.externalIo",
   [RiskSurfaceAttributes.CROSS_SERVICE]: "brief.risk.crossService",
   [RiskSurfaceAttributes.SCHEMA_ADJACENT]: "brief.risk.schemaAdjacent",
@@ -183,6 +185,8 @@ const RISK_LABEL_KEYS = {
   [RiskSurfaceAttributes.COMMENT_CONTRADICTS_CODE]:
     "brief.riskLabel.commentContradictsCode",
   [RiskSurfaceAttributes.ADDS_SECRET]: "brief.riskLabel.addsSecret",
+  [RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE]:
+    "brief.riskLabel.changesPackageSource",
   [RiskSurfaceAttributes.EXTERNAL_IO]: "brief.riskLabel.externalIo",
   [RiskSurfaceAttributes.CROSS_SERVICE]: "brief.riskLabel.crossService",
   [RiskSurfaceAttributes.SCHEMA_ADJACENT]: "brief.riskLabel.schemaAdjacent",

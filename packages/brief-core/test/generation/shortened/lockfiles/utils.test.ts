@@ -28,7 +28,7 @@ describe("fetch identity", () => {
     [
       "its own registry tarball",
       "https://registry.npmjs.org/foo/-/foo-1.0.0.tgz",
-      "https://registry.npmjs.org",
+      "registry:https://registry.npmjs.org",
     ],
     [
       "another package's tarball",
@@ -58,7 +58,32 @@ describe("fetch identity", () => {
     [
       "its own registry tarball over plain http",
       "http://registry.npmjs.org/foo/-/foo-1.0.0.tgz",
-      "http://registry.npmjs.org",
+      "registry:http://registry.npmjs.org",
+    ],
+    [
+      "its own tarball from a registry under a path",
+      "https://art.example/api/npm/remote/foo/-/foo-1.0.0.tgz",
+      "registry:https://art.example/api/npm/remote",
+    ],
+    [
+      "its own registry tarball with a query",
+      "https://reg.example/foo/-/foo-1.0.0.tgz?token=x",
+      "https://reg.example/foo/-/foo-{version}.tgz?token=x",
+    ],
+    [
+      "its own GitHub Packages download",
+      "https://npm.pkg.github.com/download/foo/1.0.0/abc123",
+      "registry:https://npm.pkg.github.com/download",
+    ],
+    [
+      "a download path off GitHub Packages",
+      "https://cdn.example/download/foo/1.0.0/abc123",
+      "https://cdn.example/download/foo/{version}/abc123",
+    ],
+    [
+      "a repository path laid out like a registry tarball",
+      "git+https://github.com/acme/tools/foo/-/foo-1.0.0.tgz",
+      "git+https://github.com/acme/tools/foo/-/foo-1.0.0.tgz",
     ],
     [
       "an artifact named without its version on a plain host",
@@ -118,6 +143,79 @@ describe("fetch identity", () => {
     const spec = `https://h.example/d?q=${"a-".repeat(NEAR_MATCHES)}`;
 
     expect(readFetchIdentity(spec, { name: "x", version })).toBe(spec);
+  });
+
+  it.each([
+    [
+      "an npm tarball path",
+      "https://registry.npmjs.org/foo/-/foo-1.0.1%2F..%2F..%2F..%2Fevil%2F-%2Fevil-6.6.6.tgz",
+      "1.0.1%2F..%2F..%2F..%2Fevil%2F-%2Fevil-6.6.6",
+    ],
+    [
+      "a GitHub Packages download",
+      "https://npm.pkg.github.com/download/foo/1.0.1%2F..%2Fevil/abc",
+      "1.0.1%2F..%2Fevil",
+    ],
+  ])(
+    "keeps the full path of %s with an encoded version",
+    (_label, spec, version) => {
+      expect(readFetchIdentity(spec, { name: "foo", version })).toBe(spec);
+    },
+  );
+
+  it.each([
+    [
+      "a percent-escaped host",
+      "https://registry.yarnpkg.co%6D/foo/-/foo-1.0.0.tgz",
+    ],
+    [
+      "a lookalike host",
+      "https://registry.yarnpkg.co\uFF4D/foo/-/foo-1.0.0.tgz",
+    ],
+    [
+      "the parsed host only in its path",
+      "https://registry.yarnpkg.co%6D/@registry.yarnpkg.com/foo/-/foo-1.0.0.tgz",
+    ],
+    [
+      "a hostless spec with an empty host and a // path",
+      "git+https:///evil.com/..//github.com/acme/foo.git",
+    ],
+    [
+      "a hostless spec with a // path",
+      "git+https:/evil.com/..//github.com/acme/foo.git",
+    ],
+    [
+      "a spec spelled as a registry identity",
+      "registry:https://registry.npmjs.org/foo/-/foo-1.0.0.tgz",
+    ],
+  ])("reads no identity for %s", (_label, spec) => {
+    expect(readFetchIdentity(spec, FOO)).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "a registry tarball behind dot segments",
+      "https://registry.npmjs.org/evil/-/x/../../../foo/-/foo-1.0.0.tgz",
+    ],
+    [
+      "a plain tarball behind dot segments",
+      "https://cdn.example/uploads/../pkgs/foo-1.0.0.tgz",
+    ],
+    [
+      "a repository behind encoded dot segments",
+      "git+https://github.com/attacker/x/%2e%2e/%2e%2e/acme/foo.git",
+    ],
+  ])("reads no identity for %s", (_label, spec) => {
+    expect(readFetchIdentity(spec, FOO)).toBeUndefined();
+  });
+
+  it.each([
+    ["an uppercase host", "https://Registry.NPMjs.org/foo/-/foo-1.0.0.tgz"],
+    ["a default port", "https://registry.npmjs.org:443/foo/-/foo-1.0.0.tgz"],
+  ])("reads the registry for %s", (_label, spec) => {
+    expect(readFetchIdentity(spec, FOO)).toBe(
+      "registry:https://registry.npmjs.org",
+    );
   });
 
   it("reads an scp-style repository by its whole path", () => {

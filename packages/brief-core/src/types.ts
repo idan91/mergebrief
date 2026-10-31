@@ -89,6 +89,7 @@ export const ModelRiskSurfaceAttributes = {
 export const CodeSetRiskAttributes = {
   // about the CHANGE
   ADDS_SECRET: "adds-secret",
+  CHANGES_PACKAGE_SOURCE: "changes-package-source",
 } as const;
 
 export const RiskSurfaceAttributes = {

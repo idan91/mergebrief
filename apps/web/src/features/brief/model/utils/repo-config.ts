@@ -49,6 +49,7 @@ export const FLOOR_ATTRIBUTES = [
   "removes-validation",
   "relaxes-permissions",
   "adds-secret",
+  "changes-package-source",
 ] as const;
 
 const FLOOR_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);

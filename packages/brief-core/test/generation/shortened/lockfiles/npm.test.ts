@@ -47,12 +47,12 @@ describe("npm lockfile summary", () => {
           {
             name: "lodash",
             version: "4.17.21",
-            fromHosts: ["https://registry.npmjs.org"],
+            fromHosts: ["registry:https://registry.npmjs.org"],
             toHosts: ["https://mirror.example/lodash-{version}.tgz"],
           },
         ],
       },
-      baseHosts: ["https://registry.npmjs.org"],
+      baseHosts: ["registry:https://registry.npmjs.org"],
     });
   });
 
@@ -86,7 +86,7 @@ describe("npm lockfile summary", () => {
         updated: [
           {
             name: "a",
-            fromHosts: ["https://registry.npmjs.org"],
+            fromHosts: ["registry:https://registry.npmjs.org"],
             toHosts: ["https://mirror.example/a-{version}.tgz"],
           },
         ],
@@ -351,13 +351,13 @@ describe("npm lockfile summary", () => {
       "its own registry tarball",
       "lodash",
       "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
-      ["https://registry.npmjs.org"],
+      ["registry:https://registry.npmjs.org"],
     ],
     [
       "its own scoped registry tarball",
       "@s/pkg",
       "https://registry.npmjs.org/@s/pkg/-/pkg-4.17.21.tgz",
-      ["https://registry.npmjs.org"],
+      ["registry:https://registry.npmjs.org"],
     ],
     [
       "another package's registry tarball",
@@ -395,8 +395,8 @@ describe("npm lockfile summary", () => {
     expect(summarize(makeLockfile({}), after)).toMatchObject({
       changes: {
         added: [
-          { name: "host-pkg", hosts: ["https://registry.npmjs.org"] },
-          { name: "inner", hosts: ["https://registry.npmjs.org"] },
+          { name: "host-pkg", hosts: ["registry:https://registry.npmjs.org"] },
+          { name: "inner", hosts: ["registry:https://registry.npmjs.org"] },
         ],
       },
     });
@@ -489,8 +489,8 @@ describe("npm lockfile summary", () => {
     expect(summarize(empty, v1)).toMatchObject({
       changes: {
         added: [
-          { name: "a", hosts: ["https://registry.npmjs.org"] },
-          { name: "inner", hosts: ["https://registry.npmjs.org"] },
+          { name: "a", hosts: ["registry:https://registry.npmjs.org"] },
+          { name: "inner", hosts: ["registry:https://registry.npmjs.org"] },
         ],
       },
     });
@@ -566,8 +566,8 @@ describe("npm lockfile summary", () => {
             name: "string-width-cjs",
             from: "4.2.3",
             to: "4.2.4",
-            fromHosts: ["https://registry.npmjs.org"],
-            toHosts: ["https://registry.npmjs.org"],
+            fromHosts: ["registry:https://registry.npmjs.org"],
+            toHosts: ["registry:https://registry.npmjs.org"],
             fromAliasOf: "string-width",
             toAliasOf: "string-width",
           },

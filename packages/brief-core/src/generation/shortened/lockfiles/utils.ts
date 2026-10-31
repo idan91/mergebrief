@@ -32,11 +32,19 @@ export const REGISTRY_HOST = "registry";
 export const DIRECTORY_HOST = "directory:";
 /** Berry's `workspace:` resolution, a project of this repository wherever its folder sits. */
 export const WORKSPACE_HOST = "workspace:";
+/** Opens a named registry's identity, a form no artifact or repository identity can take. */
+const REGISTRY_IDENTITY_PREFIX = "registry:";
 const HOST_SENTINELS: ReadonlySet<string> = new Set([
   REGISTRY_HOST,
   DIRECTORY_HOST,
   WORKSPACE_HOST,
+  REGISTRY_IDENTITY_PREFIX,
 ]);
+
+/** The identity every package a registry at `base` serves shares: `registry:https://registry.npmjs.org`. */
+export function toRegistryIdentity(base: string): `registry:${string}` {
+  return `${REGISTRY_IDENTITY_PREFIX}${base}`;
+}
 
 const GIT_PROTOCOL = /^git(?:\+[a-z]+)?:$/;
 const GIT_PATH_SUFFIX = ".git";
@@ -59,6 +67,37 @@ const OWNER_REPO_HOSTS: ReadonlySet<string> = new Set([
 function readRegistryTarballPath(pkg: PackageKey): string {
   const basename = pkg.name.slice(pkg.name.lastIndexOf("/") + 1);
   return `/${pkg.name}/-/${basename}-${pkg.version}.tgz`;
+}
+
+/** Where GitHub Packages serves `name@version`: `/download/<name>/<version>/<digest>`. */
+const PACKAGES_DOWNLOAD_PATH = "/download";
+const PACKAGES_HOST = "npm.pkg.github.com";
+const PERCENT_ESCAPE = "%";
+/** A `.` or `..` path segment, which WHATWG folds away and a raw fetcher sends. */
+const DOT_SEGMENT = /\/\.{1,2}(?:[/?#]|$)/;
+const ENCODED_DOT = /%2e/i;
+
+/**
+ * The base path of the registry serving `pkg`'s own tarball at `pathname`:
+ * what precedes the npm layout (so a registry under a path, as Artifactory
+ * and Nexus serve one, keeps its path), or on GitHub Packages its download
+ * root.
+ * Nothing for a path naming any other artifact.
+ */
+function readRegistryBase(url: URL, pkg: PackageKey): string | undefined {
+  const { pathname } = url;
+  const tarball = readRegistryTarballPath(pkg);
+  if (pathname.endsWith(tarball)) {
+    return pathname.slice(0, pathname.length - tarball.length);
+  }
+  if (url.host !== PACKAGES_HOST) {
+    return undefined;
+  }
+  const download = `${PACKAGES_DOWNLOAD_PATH}/${pkg.name}/${pkg.version}/`;
+  const digest = pathname.slice(download.length);
+  const isDownload =
+    pathname.startsWith(download) && digest !== "" && !digest.includes("/");
+  return isDownload ? PACKAGES_DOWNLOAD_PATH : undefined;
 }
 
 /** A version safe to mark: one a URL cannot read as a separator or a parameter. */
@@ -161,6 +200,36 @@ function isCredentialed(url: URL): boolean {
   return hasCredential;
 }
 
+const AUTHORITY_START = "//";
+const AUTHORITY_END = /[/?#]/;
+const USERINFO_END = "@";
+const PORT_SEPARATOR = ":";
+
+/**
+ * Whether `spec` spells the host the parser read. WHATWG decodes percent
+ * escapes and maps lookalike characters in a host, which a fetcher on
+ * another parser (yarn 1's legacy `url.parse`) reads as another host. A
+ * default port WHATWG drops is the one difference allowed.
+ */
+function spellsHost(spec: string, url: URL): boolean {
+  // A hostless URL whose path opens with `//` reads back as a host to curl.
+  if (url.host === "") {
+    return !url.pathname.startsWith(AUTHORITY_START);
+  }
+  const start = spec.indexOf(AUTHORITY_START);
+  if (start === -1) {
+    return false;
+  }
+  const rest = spec.slice(start + AUTHORITY_START.length);
+  const end = rest.search(AUTHORITY_END);
+  const authority = end === -1 ? rest : rest.slice(0, end);
+  const host = authority.slice(authority.lastIndexOf(USERINFO_END) + 1);
+  const spelled = host.toLowerCase();
+  const portSpelled = spelled.startsWith(`${url.host}${PORT_SEPARATOR}`);
+  const spellsUrlHost = spelled === url.host || portSpelled;
+  return spellsUrlHost;
+}
+
 /** A URL's protocol and host, or its protocol alone when it has no host. */
 function readUrlOrigin(url: URL): string {
   return url.host === "" ? url.protocol : `${url.protocol}//${url.host}`;
@@ -168,8 +237,10 @@ function readUrlOrigin(url: URL): string {
 
 /**
  * What a fetch spec points at, as one comparable string. `pkg`'s own
- * registry tarball reads as protocol and host. A git repository reads as
- * protocol, host and repository path; any other URL as protocol, host, the
+ * registry tarball reads as the registry, `registry:` then protocol, host
+ * and base path, so every package one registry serves shares an identity. A git repository
+ * reads as protocol, host and repository path; any other URL as protocol,
+ * host, the
  * path that names the artifact and the query, with the version marked.
  * Nothing when it cannot be read one way, which fails closed downstream.
  */
@@ -184,7 +255,12 @@ export function readFetchIdentity(
     return undefined;
   }
   const url = URL.parse(spec);
-  if (url === null || isCredentialed(url)) {
+  if (url === null || isCredentialed(url) || !spellsHost(spec, url)) {
+    return undefined;
+  }
+  // WHATWG folds `.`/`..` and `%2e` segments that yarn 1 and curl send as written.
+  const foldsPath = DOT_SEGMENT.test(spec) || ENCODED_DOT.test(spec);
+  if (url.host !== "" && foldsPath) {
     return undefined;
   }
   // A URL host spelled like a sentinel would read as the configured registry.
@@ -192,14 +268,25 @@ export function readFetchIdentity(
     return undefined;
   }
   const origin = readUrlOrigin(url);
-  if (url.host !== "" && url.pathname === readRegistryTarballPath(pkg)) {
-    return origin;
-  }
-
   const isRepository =
     repository ||
     GIT_PROTOCOL.test(url.protocol) ||
     url.pathname.endsWith(GIT_PATH_SUFFIX);
+  // A query can name another artifact on a host that serves by it, and a
+  // percent-encoded path or a version past plain semver can climb out of
+  // the package's own path once a proxy decodes it: only a bare tarball URL
+  // of a plain version reads as its registry.
+  const readsAsRegistry =
+    url.host !== "" &&
+    !isRepository &&
+    url.search === "" &&
+    !spec.includes(PERCENT_ESCAPE) &&
+    isPlainSemver(pkg.version);
+  const registryBase = readsAsRegistry ? readRegistryBase(url, pkg) : undefined;
+  if (registryBase !== undefined) {
+    return toRegistryIdentity(`${origin}${registryBase}`);
+  }
+
   const path = isRepository
     ? url.pathname
     : readArtifactPath(url.host, url.pathname, pkg.version);

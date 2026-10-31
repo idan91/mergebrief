@@ -1,4 +1,8 @@
 import { flagAddedSecrets } from "../added-secrets";
+import {
+  flagPackageSourceChanges,
+  readPackageSourceContext,
+} from "../package-sources";
 import type { PrFile } from "../../github/types";
 import type {
   Brief,
@@ -155,9 +159,15 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
     acceptsRevisionDroppedChecks: args.acceptsRevisionDroppedChecks,
   });
   warnings.reportIssues("risk attrs", risks.issues);
-  const flagged = flagAddedSecrets(risks.chunks, unattributed, [
+  const withSecrets = flagAddedSecrets(risks.chunks, unattributed, [
     ...context.fileDiffs,
   ]);
+  const flagged = flagPackageSourceChanges(
+    withSecrets.chunks,
+    withSecrets.unattributed,
+    args.lockfileSummaries,
+    readPackageSourceContext(context.fileDiffs),
+  );
 
   const textLength = validateTextLength(groups, flagged.chunks);
   warnings.reportIssues("text length", textLength.issues);

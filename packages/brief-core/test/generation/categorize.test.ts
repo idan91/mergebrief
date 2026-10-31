@@ -6,6 +6,7 @@ import type { z } from "zod/v4";
 import {
   categorizeDelta,
   categorizeRevisionNarrative,
+  type DeltaInput,
 } from "../../src/generation/categorize";
 import { generateBrief } from "../../src/generation/brief";
 import type { GenerateBriefOptions } from "../../src/generation/brief/types";
@@ -31,6 +32,7 @@ import {
 import type { FetchedPr } from "../../src/github/types";
 import type { PrimaryTicketOutcome } from "../../src/context/types";
 import { FakeGenerator, makeFakeGenerator } from "../helpers";
+import { makePnpmLockfile, makeSides } from "./shortened/helpers";
 import { SecretKinds } from "../../src/generation/redaction/types";
 import { FAKE_SECRETS } from "../secret-fixtures";
 
@@ -1110,6 +1112,63 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
       [RiskSurfaceAttributes.ADDS_SECRET],
       [],
     ]);
+  });
+
+  it("flags a delta lockfile chunk only when its package sources move", async () => {
+    const lockfile = "pnpm-lock.yaml";
+    const lockfileDiff = [
+      `diff --git a/${lockfile} b/${lockfile}`,
+      "@@ -1,1 +1,1 @@",
+      "-a",
+      "+b",
+      "",
+    ].join("\n");
+    const [first] = deltaBriefGen.chunks;
+    const generation = {
+      ...deltaBriefGen,
+      chunks: [
+        {
+          ...first,
+          file: lockfile,
+          addedRanges: [{ start: 1, end: 1 }],
+          removedRanges: [{ start: 1, end: 1 }],
+        },
+      ],
+    };
+    const runDelta = (lockfiles?: DeltaInput["lockfiles"]) => {
+      const input: DeltaInput = {
+        locator: pr.locator,
+        meta: pr.meta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff: lockfileDiff,
+      };
+      if (lockfiles !== undefined) {
+        input.lockfiles = lockfiles;
+      }
+      return categorizeDelta(input, makeFakeGenerator(generation));
+    };
+    const keepsHost = new Map([
+      [
+        lockfile,
+        makeSides(
+          makePnpmLockfile({
+            "left-pad@1.3.0": "resolution: {integrity: sha512-a}",
+          }),
+          makePnpmLockfile({
+            "left-pad@1.3.1": "resolution: {integrity: sha512-b}",
+          }),
+        ),
+      ],
+    ]);
+
+    const unread = await runDelta();
+    const quiet = await runDelta(keepsHost);
+
+    expect(unread.chunks.map((chunk) => chunk.riskSurface)).toEqual([
+      [RiskSurfaceAttributes.CHANGES_PACKAGE_SOURCE],
+    ]);
+    expect(quiet.chunks.map((chunk) => chunk.riskSurface)).toEqual([[]]);
   });
 
   it("strips forged fences from the delta prompt's PR text and diff", async () => {
