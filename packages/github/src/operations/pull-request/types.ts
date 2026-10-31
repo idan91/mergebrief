@@ -15,6 +15,14 @@ export interface CompareDiffRef {
   readonly head: string;
 }
 
+/** A compare span whose diff is checked whole before a caller trusts it. */
+export interface CheckedCompareDiffRef extends CompareDiffRef {
+  /** The span's changed-file count when known: one `diff --git` header per file. */
+  readonly expectedFileCount?: number;
+  /** No attempt starts, and none runs on, past this long after the first. */
+  readonly deadlineMs?: number;
+}
+
 export interface PullRequestInfo {
   /** The base repo's immutable numeric id, the row key the doors upsert by. */
   readonly repoId: RepoId;
@@ -38,6 +46,8 @@ export interface PullRequestInfo {
   readonly htmlUrl: string;
   /** Number of commits on the PR at this head. */
   readonly commitCount: number;
+  /** GitHub's `changed_files`: the files the head changes against the base. */
+  readonly changedFiles: number;
   /** PR author login; null when the account is gone. */
   readonly authorLogin: string | null;
   /** The PR author's account is a `Bot`; false when the account is gone. */

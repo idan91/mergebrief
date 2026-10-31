@@ -101,6 +101,7 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
   ]),
   fetchDiff: answerOk(DIFF),
   fetchCompareDiff: answerOk(DIFF),
+  fetchCheckedCompareDiff: answerOk(DIFF),
   fetchCompareFiles: answerOk({
     status: "ahead",
     files: [{ filename: "src/a.ts", status: "modified" }],

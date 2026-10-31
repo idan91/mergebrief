@@ -23,6 +23,10 @@ export const GitHubApiErrorCodes = {
   UNKNOWN_COMMIT: "unknown-commit",
   /** The viewer already holds a PENDING review on this PR. */
   PENDING_REVIEW_EXISTS: "pending-review-exists",
+  /** A 200 diff holding fewer files or bytes than GitHub said it would. */
+  DIFF_INCOMPLETE: "diff-incomplete",
+  /** GitHub did not render the diff in time: its repeated 422, or the caller's deadline. */
+  DIFF_TIMED_OUT: "diff-timed-out",
   REQUEST_FAILED: "request-failed",
 } as const;
 export type GitHubApiErrorCode = ValueOf<typeof GitHubApiErrorCodes>;
@@ -130,6 +134,25 @@ export function notTextError(context: string): GitHubApiError {
     code: GitHubApiErrorCodes.NOT_TEXT,
     message: `failed to ${context}: file is not utf-8 text`,
   };
+}
+
+export function buildDiffIncompleteError(context: string): GitHubApiError {
+  return {
+    code: GitHubApiErrorCodes.DIFF_INCOMPLETE,
+    message: `failed to ${context}: GitHub returned an incomplete diff`,
+  };
+}
+
+/** `status` is GitHub's last refusal; absent when the caller's deadline ended it. */
+export function buildDiffTimedOutError(
+  context: string,
+  status?: number,
+): GitHubApiError {
+  const message = `failed to ${context}: GitHub did not render the diff in time`;
+  if (status === undefined) {
+    return { code: GitHubApiErrorCodes.DIFF_TIMED_OUT, message };
+  }
+  return { code: GitHubApiErrorCodes.DIFF_TIMED_OUT, status, message };
 }
 
 /** GitHub 401ed the token and then did not answer its rotation. */

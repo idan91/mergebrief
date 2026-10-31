@@ -101,6 +101,10 @@ export const FakeFailures = {
   RULE_REFUSED: "rule-refused",
   /** A 406: GitHub will not render a diff past its size limits. */
   NOT_ACCEPTABLE: "not-acceptable",
+  /** A checked compare diff that came back short of its files or bytes. */
+  DIFF_INCOMPLETE: "diff-incomplete",
+  /** A checked compare diff GitHub did not render before the attempts or deadline ran out. */
+  DIFF_TIMED_OUT: "diff-timed-out",
   /** A file read whose path holds a directory, symlink or submodule. */
   NOT_A_BLOB: "not-a-blob",
   /** A file read whose blob does not decode as UTF-8 text. */

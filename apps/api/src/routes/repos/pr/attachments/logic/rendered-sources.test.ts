@@ -54,6 +54,7 @@ function arrangeSources(fake: FakeGitHub, imageSources: readonly string[]) {
         body: "",
         htmlUrl: "https://github.com/octo/hello/pull/7",
         commitCount: 1,
+        changedFiles: 1,
         authorLogin: "octocat",
         authorIsBot: false,
         closedAt: null,

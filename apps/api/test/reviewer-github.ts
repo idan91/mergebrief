@@ -58,6 +58,7 @@ export function makeFakePullRequestInfo(
     body: "",
     htmlUrl: `https://github.com/${REPO_SLUG}/pull/${PR_NUMBER}`,
     commitCount: 1,
+    changedFiles: 1,
     authorLogin: "octocat",
     authorIsBot: false,
     closedAt: null,

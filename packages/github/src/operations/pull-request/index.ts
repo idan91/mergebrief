@@ -28,6 +28,7 @@ import type {
   RepositoryRef,
 } from "./types";
 
+export { fetchCheckedCompareDiff } from "./checked-compare-diff";
 export type {
   CommitRef,
   CompareDiffRef,
@@ -69,6 +70,7 @@ export async function fetchPullRequest(
       body: data.body ?? "",
       htmlUrl: data.html_url,
       commitCount: data.commits,
+      changedFiles: data.changed_files,
       authorLogin: data.user?.login ?? null,
       authorIsBot: data.user?.type === GitHubAccountTypes.BOT,
       closedAt: data.closed_at === null ? null : new Date(data.closed_at),

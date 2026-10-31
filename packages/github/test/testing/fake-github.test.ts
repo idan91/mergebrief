@@ -41,6 +41,7 @@ function makeGitHubWithPullRequest(
       body: "",
       htmlUrl: "https://github.com/acme/widgets/pull/7",
       commitCount: 1,
+      changedFiles: 1,
       authorLogin: "octocat",
       authorIsBot: false,
       closedAt: null,
@@ -132,6 +133,28 @@ describe("makeFakeGitHub reads", () => {
 
     expect(pull.ok && pull.value.headSha).toBe("c".repeat(40));
     expect(pull.ok && pull.value.title).toBe("Add widgets");
+  });
+
+  it("refuses a checked compare diff short of its expected files", async () => {
+    const github = makeGitHubWithPullRequest();
+    const span = { base: "a".repeat(40), head: HEAD_SHA };
+    github.addCompare(REPO, span, { diff: "diff --git a/x b/x\n" });
+    const reader = bindReviewer(github).forRepo(REPO);
+
+    const whole = await reader.fetchCheckedCompareDiff({
+      ...span,
+      expectedFileCount: 1,
+    });
+    const short = await reader.fetchCheckedCompareDiff({
+      ...span,
+      expectedFileCount: 2,
+    });
+
+    expect(whole).toEqual({ ok: true, value: "diff --git a/x b/x\n" });
+    expect(short).toMatchObject({
+      ok: false,
+      error: { code: "diff-incomplete" },
+    });
   });
 
   it("answers another pull request as not found", async () => {

@@ -38,6 +38,7 @@ import type {
   ResolvedMentionTargets,
 } from "../operations/mentions/types";
 import type {
+  CheckedCompareDiffRef,
   CompareDiffRef,
   PullRequestFile,
   PullRequestInfo,
@@ -217,6 +218,10 @@ export interface RepoReader {
   fetchDiff(prNumber: number): GitHubCall<string>;
   /** Operator fallback: only when base and head are both known commits. */
   fetchCompareDiff(span: RepoScoped<CompareDiffRef>): GitHubCall<string>;
+  /** Operator fallback: only when base and head are both known commits. */
+  fetchCheckedCompareDiff(
+    span: RepoScoped<CheckedCompareDiffRef>,
+  ): GitHubCall<string>;
   /** Operator fallback: only when base and head are both known commits. */
   fetchCompareFiles(span: RepoScoped<CompareDiffRef>): GitHubCall<CompareFiles>;
   /** Operator fallback: only at a known commit `ref`; never without one. */

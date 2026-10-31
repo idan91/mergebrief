@@ -15,6 +15,7 @@
   "dependencies": {
     "@octokit/core": "^6.1.6",
     "@octokit/oauth-app": "^7.1.6",
+    "@octokit/types": "^14.1.0",
     "@octokit/webhooks": "^13.9.1",
     "@octokit/webhooks-methods": "^5.1.1",
     "brief-core": "workspace:*",

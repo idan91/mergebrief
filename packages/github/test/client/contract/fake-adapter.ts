@@ -151,6 +151,7 @@ function arrangePullRequest(
       body: "",
       htmlUrl: "https://github.com/acme/widgets/pull/7",
       commitCount: 2,
+      changedFiles: 1,
       authorLogin: "octocat",
       authorIsBot: false,
       closedAt: null,

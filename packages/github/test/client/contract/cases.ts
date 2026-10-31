@@ -54,6 +54,7 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
       body: "",
       htmlUrl: "https://github.com/acme/widgets/pull/7",
       commitCount: 2,
+      changedFiles: 1,
       authorLogin: "octocat",
       authorIsBot: false,
       closedAt: null,
@@ -78,6 +79,17 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
     operatorReach: true,
     call: (client: RepoReader) =>
       client.fetchCompareDiff({ base: BASE_SHA, head: HEAD_SHA }),
+    expected: DIFF,
+  }),
+  defineCase({
+    operation: "fetchCheckedCompareDiff",
+    operatorReach: true,
+    call: (client: RepoReader) =>
+      client.fetchCheckedCompareDiff({
+        base: BASE_SHA,
+        head: HEAD_SHA,
+        expectedFileCount: 1,
+      }),
     expected: DIFF,
   }),
   defineCase({

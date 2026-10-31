@@ -47,6 +47,8 @@ export const FAILURE_ANSWERS: Readonly<Record<FakeFailure, FailureAnswer>> = {
     code: GitHubApiErrorCodes.REQUEST_FAILED,
     status: HttpStatuses.NOT_ACCEPTABLE,
   },
+  [FakeFailures.DIFF_INCOMPLETE]: { code: GitHubApiErrorCodes.DIFF_INCOMPLETE },
+  [FakeFailures.DIFF_TIMED_OUT]: { code: GitHubApiErrorCodes.DIFF_TIMED_OUT },
   [FakeFailures.NOT_A_BLOB]: { code: GitHubApiErrorCodes.NOT_A_BLOB },
   [FakeFailures.NOT_TEXT]: { code: GitHubApiErrorCodes.NOT_TEXT },
 };

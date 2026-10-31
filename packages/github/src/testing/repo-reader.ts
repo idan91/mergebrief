@@ -1,6 +1,9 @@
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { RepoReader } from "../client/types";
+import { buildDiffIncompleteError } from "../errors";
+import { countDiffFiles } from "../operations/pull-request/diff-completeness";
 import type {
+  CheckedCompareDiffRef,
   CompareDiffRef,
   PullRequestRef,
   RepositoryRef,
@@ -50,6 +53,22 @@ function readCompare<Value>(
     return answerNotFound("compare commits");
   }
   return answerOk(value);
+}
+
+/** The arranged diff, refused as the real check refuses one short of its files. */
+function readCheckedCompareDiff(
+  world: FakeWorld,
+  span: CheckedCompareDiffRef,
+): FakeAnswer<string> {
+  const answer = readCompare(world, span, (compare) => compare.diff);
+  const isFileCountWrong =
+    answer.ok &&
+    span.expectedFileCount !== undefined &&
+    countDiffFiles(answer.value) !== span.expectedFileCount;
+  if (isFileCountWrong) {
+    return { ok: false, error: buildDiffIncompleteError("compare commits") };
+  }
+  return answer;
 }
 
 function readRepoFile(
@@ -147,6 +166,15 @@ export function buildRepoReader(
         input,
         reach: { commits: [span.base, span.head] },
         answer: () => readCompare(world, input, (compare) => compare.diff),
+      });
+    },
+    fetchCheckedCompareDiff(span) {
+      const input = { ...span, ...bound };
+      return run({
+        operation: "fetchCheckedCompareDiff",
+        input,
+        reach: { commits: [span.base, span.head] },
+        answer: () => readCheckedCompareDiff(world, input),
       });
     },
     fetchCompareFiles(span) {

@@ -1,6 +1,7 @@
 import { fetchRenderedImageSources } from "../operations/attachments";
 import { fetchPullRequestConversation } from "../operations/conversation";
 import {
+  fetchCheckedCompareDiff,
   fetchCompareDiff,
   fetchCompareFiles,
   fetchDiff,
@@ -40,6 +41,13 @@ export function buildRepoReader(
     fetchCompareDiff(span) {
       return run(
         (octokit) => fetchCompareDiff(octokit, { ...span, ...repo }),
+        "fetch compare diff",
+        { commits: [span.base, span.head] },
+      );
+    },
+    fetchCheckedCompareDiff(span) {
+      return run(
+        (octokit) => fetchCheckedCompareDiff(octokit, { ...span, ...repo }),
         "fetch compare diff",
         { commits: [span.base, span.head] },
       );
