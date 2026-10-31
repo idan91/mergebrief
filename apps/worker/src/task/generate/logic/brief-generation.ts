@@ -186,6 +186,10 @@ async function postGeneratingEntry(
 ): Promise<void> {
   const { watch, translate, entryCommentManager, log } = inputs;
   const head = await readEntryPostHead(watch);
+  if (head.kind === HeadReadings.MOVED) {
+    log.info("generate: head moved, leaving the generating Entry to it");
+    return;
+  }
   const generatingBody = buildEntryCommentGeneratingBody(
     translate,
     entryCommentManager.buildDeepLink(headIndex),

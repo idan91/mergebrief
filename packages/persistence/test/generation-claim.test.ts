@@ -370,6 +370,30 @@ describe("readClaim", () => {
   });
 });
 
+describe("readOtherHeadLeaseMs", () => {
+  it("reads another head's live lease and never the row's own", async () => {
+    const world = await makeClaimWorld();
+    const newerHead = makeBriefTarget(world.pullRequestId, "newer");
+    await world.gen.upsertPending(newerHead);
+    expect(await world.gen.readOtherHeadLeaseMs(newerHead)).toBeUndefined();
+
+    readRunId(await claim(world));
+
+    expect(await world.gen.readOtherHeadLeaseMs(world.target)).toBeUndefined();
+    const leaseMs = await world.gen.readOtherHeadLeaseMs(newerHead);
+    expect(leaseMs).toBeGreaterThan(LEASE_MS - LEASE_SLACK_MS);
+  });
+
+  it("ignores another head's lapsed lease", async () => {
+    const world = await makeClaimWorld();
+    const newerHead = makeBriefTarget(world.pullRequestId, "newer");
+    readRunId(await claim(world));
+    await expireLease(world);
+
+    expect(await world.gen.readOtherHeadLeaseMs(newerHead)).toBeUndefined();
+  });
+});
+
 describe("fenced transitions", () => {
   it("advance, renew and finish refuse a stale run id with claim-lost", async () => {
     const world = await makeClaimWorld();

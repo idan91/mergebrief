@@ -219,7 +219,8 @@ function makeGitAttributesDigestReader(read: GitAttributesRead): () => string {
  * The worker's side of a multi-call run: stored parts answer `loadPart`, each
  * fresh part is stored and counted on the attempt row as it lands, the
  * detail calls not yet stored are claimed as units once the grouping call
- * planned them. The span's parts are read once, on the first hook call.
+ * planned them, and the first detail call pins the supersession watch. The
+ * span's parts are read once, on the first hook call.
  */
 export function createMultiCallRun(
   context: RunContext,
@@ -298,6 +299,12 @@ export function createMultiCallRun(
           await claimRunUnits(context, missing);
         }
       }),
+    async onDetailStart() {
+      context.watch.pin();
+      log.info(
+        "generate: detail calls started, a push no longer ends this run",
+      );
+    },
   };
 
   return {

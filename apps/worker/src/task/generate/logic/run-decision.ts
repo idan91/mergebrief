@@ -8,6 +8,7 @@ import {
   type GenerationTarget,
 } from "persistence";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
+import { DEFAULT_HEAD_POLL_INTERVAL_MS } from "../consts";
 import { RunDecisionKinds, type RunContext, type RunDecision } from "../types";
 import { buildAttemptFields } from "../utils";
 import {
@@ -26,7 +27,7 @@ import { applySpendGate, refuseAtCap } from "./spend-gate";
  * or any run over a row a claim still names projects itself if ingest did not
  * and claims the row under the cap (every claim queuing the head's next
  * recovery job), or stands down when another run holds or finished
- * it, a held one re-queuing its job for after the lease. `run.leaveRow` and
+ * it, or holds another head of the PR, re-queuing its job for after the lease. `run.leaveRow` and
  * `run.runId` are settled here, before any provider call.
  */
 export async function decideRun(context: RunContext): Promise<RunDecision> {
@@ -47,6 +48,10 @@ export async function decideRun(context: RunContext): Promise<RunDecision> {
       context.target,
       context.projected,
     );
+    const followed = await followOtherHeadRun(context);
+    if (followed) {
+      return { kind: RunDecisionKinds.STAND_DOWN };
+    }
   }
   run.leaveRow = false;
   const claim = await traceRunStep(
@@ -125,6 +130,27 @@ async function settleExhaustedRun(
     { scope: context, context },
     projected.errorCode ?? exhausted.code,
   );
+}
+
+/**
+ * Another head's run holds the pull request: a pinned multi-call run finishes
+ * on its own head, and a brief written beside it would take the head index
+ * that run derived. An unpinned holder ends superseded within one head poll,
+ * so this head rechecks after a poll, or after the lease if that is sooner.
+ */
+async function followOtherHeadRun(context: RunContext): Promise<boolean> {
+  const { deps, projection, target, run, log } = context;
+  const leaseRemainingMs = await projection.readOtherHeadLeaseMs(target);
+  if (leaseRemainingMs === undefined) {
+    return false;
+  }
+
+  run.leaveRow = true;
+  log.info("generate: another head's run holds the pull request, following it");
+  const pollIntervalMs =
+    deps.headPollIntervalMs ?? DEFAULT_HEAD_POLL_INTERVAL_MS;
+  await followHolder(context, Math.min(leaseRemainingMs, pollIntervalMs));
+  return true;
 }
 
 /** A recovery run moves its own job past the lease; any other re-queues its head. */

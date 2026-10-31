@@ -191,21 +191,23 @@ export interface UnreadHeadRead {
 /** One fresh read of the PR's head against this run's. */
 export type HeadRead = CurrentHeadRead | MovedHeadRead | UnreadHeadRead;
 
-/** The head read an Entry post goes on with; a moved head ended the run. */
-export type EntryPostHeadRead = CurrentHeadRead | UnreadHeadRead;
-
 /**
  * Share one controller between pre-call head checks and streaming head polls.
- * Abort only on confirmed supersession or a lost claim; failed polls are best-effort.
+ * Abort only on confirmed supersession or a lost claim; failed polls are
+ * best-effort. Once pinned, a moved head is recorded and never aborts: the
+ * run finishes on its head, its Entry posts stand down, the lease renews on.
  */
 export interface SupersessionWatch {
   readonly signal: AbortSignal;
-  /** Throws `SupersededSignal` (after aborting) when the head moved. */
+  /** Throws `SupersededSignal` (after aborting) when the head moved and the watch is not pinned. */
   assertCurrent(): Promise<void>;
-  /** A fresh head read; `moved` aborts, a lost claim throws `ClaimLostSignal`. */
+  /** A fresh head read, pinned or not; `moved` aborts unless pinned, a lost claim throws `ClaimLostSignal`. */
   readHead(): Promise<HeadRead>;
-  /** The newer PR the abort was based on, the successor, already read. */
+  /** The newer PR a moved read saw, the successor, already read. */
   getObserved(): PullRequestInfo | undefined;
+  /** From here a moved head no longer ends the run; a lost claim still does. */
+  pin(): void;
+  isPinned(): boolean;
   startPolling(): void;
   stop(): void;
 }

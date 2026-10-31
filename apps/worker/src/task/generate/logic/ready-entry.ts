@@ -24,6 +24,10 @@ export async function postReadyEntry(
   const { deps, payload, prInfo, source, watch, entryCommentManager, log } =
     context;
   const head = await readEntryPostHead(watch);
+  if (head.kind === HeadReadings.MOVED) {
+    log.info("generate: head moved, leaving the ready Entry to the newer head");
+    return;
+  }
   const readyEntryAllowed = await resolveReadyEntryAllowed(payload, {
     prInfo,
     source,

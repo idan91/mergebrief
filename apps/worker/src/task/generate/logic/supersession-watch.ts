@@ -7,7 +7,6 @@ import { ClaimLostSignal, SupersededSignal } from "./run-signals";
 import {
   HeadReadings,
   type ClaimRenewer,
-  type EntryPostHeadRead,
   type HeadRead,
   type SupersessionWatch,
 } from "../types";
@@ -31,7 +30,13 @@ export function createSupersessionWatch(
   let timer: ReturnType<typeof setInterval> | undefined;
   let polling = false;
   let renewing = false;
+  let pinned = false;
   let seen: PullRequestInfo | undefined;
+
+  /** A pinned run that saw the head move stops polling and pre-checking it; an Entry post still reads it fresh. */
+  function hasRecordedMove(): boolean {
+    return pinned && seen !== undefined;
+  }
 
   async function hasHeadMoved(): Promise<boolean> {
     const read = await fetchHead();
@@ -44,6 +49,11 @@ export function createSupersessionWatch(
       return { kind: HeadReadings.UNREAD, error: info.error.message };
     }
     if (info.value.headSha === headSha) {
+      // A pinned run's head pushed back is current again; an unpinned run's
+      // abort keeps the head it stood down for.
+      if (pinned) {
+        seen = undefined;
+      }
       return { kind: HeadReadings.CURRENT };
     }
     // Retained so the supersession does not have to re-read GitHub to learn
@@ -52,11 +62,15 @@ export function createSupersessionWatch(
     return { kind: HeadReadings.MOVED };
   }
 
-  async function readHead(): Promise<HeadRead> {
+  function rethrowClaimLostAbort(): void {
     const reason: unknown = controller.signal.reason;
     if (reason instanceof ClaimLostSignal) {
       throw reason;
     }
+  }
+
+  async function readHead(): Promise<HeadRead> {
+    rethrowClaimLostAbort();
     let read: HeadRead;
     try {
       read = await fetchHead();
@@ -64,7 +78,7 @@ export function createSupersessionWatch(
       const message = error instanceof Error ? error.message : String(error);
       read = { kind: HeadReadings.UNREAD, error: message };
     }
-    if (read.kind === HeadReadings.MOVED) {
+    if (read.kind === HeadReadings.MOVED && !pinned) {
       controller.abort();
     }
     return read;
@@ -85,7 +99,8 @@ export function createSupersessionWatch(
 
   async function pollOnce(): Promise<void> {
     try {
-      if (await hasHeadMoved()) {
+      const moved = await hasHeadMoved();
+      if (moved && !pinned) {
         controller.abort();
       }
     } catch {
@@ -105,7 +120,7 @@ export function createSupersessionWatch(
       renewing = true;
       void keepClaim();
     }
-    if (!polling) {
+    if (!polling && !hasRecordedMove()) {
       polling = true;
       void pollOnce();
     }
@@ -117,13 +132,23 @@ export function createSupersessionWatch(
       return seen;
     },
     async assertCurrent() {
+      rethrowClaimLostAbort();
+      if (hasRecordedMove()) {
+        return;
+      }
       // Best-effort: an unread head is not a supersession.
       const read = await readHead();
-      if (read.kind === HeadReadings.MOVED) {
+      if (read.kind === HeadReadings.MOVED && !pinned) {
         throw new SupersededSignal("head advanced (pre-call check)");
       }
     },
     readHead,
+    pin() {
+      pinned = true;
+    },
+    isPinned() {
+      return pinned;
+    },
     startPolling() {
       timer ??= setInterval(tick, intervalMs);
     },
@@ -136,12 +161,16 @@ export function createSupersessionWatch(
   };
 }
 
-/** The head a run going on posts its Entry on: a moved one throws `SupersededSignal`. */
+/**
+ * The head a run going on posts its Entry on: a moved one throws
+ * `SupersededSignal`, unless the watch is pinned, where the post stands down
+ * on it and the run goes on.
+ */
 export async function readEntryPostHead(
-  watch: Pick<SupersessionWatch, "readHead">,
-): Promise<EntryPostHeadRead> {
+  watch: Pick<SupersessionWatch, "readHead" | "isPinned">,
+): Promise<HeadRead> {
   const read = await watch.readHead();
-  if (read.kind === HeadReadings.MOVED) {
+  if (read.kind === HeadReadings.MOVED && !watch.isPinned()) {
     throw new SupersededSignal("head advanced (pre-post check)");
   }
   return read;

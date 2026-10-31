@@ -317,7 +317,10 @@ where old and new containers serve side by side, must take
 
 Push again mid-generation? The in-flight job notices within ~20s, **aborts
 the model stream** (stopping token spend), records the run as `superseded`
-(not a failure), and the newer push's job generates the new head.
+(not a failure), and the newer push's job generates the new head. A brief
+generated in parts (a PR past the single-call size) stops aborting once its
+detail calls start: the parts already paid for are kept, the run finishes on
+its own head, and the newer push's job runs after it.
 
 ## Verifying / troubleshooting
 

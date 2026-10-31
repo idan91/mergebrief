@@ -409,6 +409,11 @@ export interface GenerationProjection {
   recordPartDone(runId: string): Promise<Result<number, GenerationError>>;
   /** The row's claim, judged by the database clock; `undefined` when absent. */
   readClaim(target: GenerationTarget): Promise<GenerationClaim | undefined>;
+  /**
+   * Milliseconds left on the longest live claim another head of the same
+   * pull request's brief holds, by the database clock; `undefined` when none.
+   */
+  readOtherHeadLeaseMs(target: GenerationTarget): Promise<number | undefined>;
   /** The holder moves its phase; `claim-lost` for any other run id. */
   advanceRun(
     target: GenerationTarget,
@@ -1396,6 +1401,28 @@ export function createGenerationProjection(
         .where(keyWhere(target))
         .limit(1);
       return rows[0];
+    },
+
+    async readOtherHeadLeaseMs(target) {
+      const leaseRemainingMs = computeLeaseRemainingMs();
+      const rows = await db
+        .select({ leaseRemainingMs })
+        .from(generation)
+        .where(
+          and(
+            scope.matchesChild(
+              generation.installationId,
+              generation.pullRequestId,
+            ),
+            eq(generation.pullRequestId, target.pullRequestId),
+            eq(generation.kind, GenerationKinds.BRIEF),
+            ne(generation.headSha, target.headSha),
+            isLeaseLive(),
+          ),
+        )
+        .orderBy(desc(leaseRemainingMs))
+        .limit(1);
+      return rows[0]?.leaseRemainingMs;
     },
 
     async advanceRun(target, runId, phase) {

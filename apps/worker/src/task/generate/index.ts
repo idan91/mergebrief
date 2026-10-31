@@ -278,6 +278,9 @@ async function settleFailedRun(
     outcome === JobFailureOutcomes.LAST_ATTEMPT;
   if (endsFailed) {
     await announceFailedRun(start, report, progress);
+    if (progress.context !== undefined) {
+      await scheduleMovedHeadAfterPinnedRun(progress.context);
+    }
   }
   const retried =
     outcome === JobFailureOutcomes.RETRYING ||
@@ -515,4 +518,21 @@ async function generateArtifacts(
   await traceRunStep("generation.finish", stops, () =>
     finishRun(context, brief.briefRef),
   );
+  await scheduleMovedHeadAfterPinnedRun(context);
+}
+
+/**
+ * A pinned run ended, succeeded or failed for good, on a head that moved
+ * under it; the installation's push webhook queued the newer head, a url-box
+ * PR has none, so the observed head is scheduled here as every supersession
+ * path schedules it. A retried failure leaves it to the retry's PR read.
+ */
+async function scheduleMovedHeadAfterPinnedRun(
+  context: RunContext,
+): Promise<void> {
+  const observed = context.watch.getObserved();
+  if (observed === undefined) {
+    return;
+  }
+  await scheduleUrlBoxRegenerationIfMoved(context, observed);
 }
