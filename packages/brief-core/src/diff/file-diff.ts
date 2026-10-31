@@ -1,3 +1,5 @@
+import { parsePatchPaths } from "./chunk-layout/logic/header-paths";
+
 /**
  * Split a unified diff (as produced by `gh pr diff`) into one patch per file.
  * Chunks in the brief reference a `file`; pairing that with these per-file
@@ -8,35 +10,38 @@ export interface FileDiff {
   patch: string;
 }
 
-const GIT_HEADER = /^diff --git a\/(.+) b\/(.+)$/;
-
-/** Best-effort path from a `diff --git a/… b/…` line (prefers the new-side path). */
-function headerPath(line: string): string {
-  const match = GIT_HEADER.exec(line);
-  if (match?.[2]) {
-    return match[2];
+/** Best-effort path of a file's patch (prefers the new-side path), else its header line's text. */
+function readPatchFile(patch: string, headerLine: string): string {
+  const post = parsePatchPaths(patch)?.post;
+  if (post) {
+    return post;
   }
-  return line.replace(/^diff --git /, "").trim();
+  return headerLine.replace(/^diff --git /, "").trim();
+}
+
+function buildFileDiff(lines: readonly string[]): FileDiff {
+  const patch = lines.join("\n");
+  return { file: readPatchFile(patch, lines[0] ?? ""), patch };
 }
 
 export function splitDiffByFile(diff: string): FileDiff[] {
   const segments: FileDiff[] = [];
-  let current: { file: string; lines: string[] } | null = null;
+  let current: string[] | null = null;
 
   for (const line of diff.split("\n")) {
     if (line.startsWith("diff --git ")) {
       if (current) {
-        segments.push({ file: current.file, patch: current.lines.join("\n") });
+        segments.push(buildFileDiff(current));
       }
-      current = { file: headerPath(line), lines: [line] };
+      current = [line];
     } else if (current) {
-      current.lines.push(line);
+      current.push(line);
     }
     // lines before the first `diff --git` header (if any) are not part of a
     // file patch and are dropped.
   }
   if (current) {
-    segments.push({ file: current.file, patch: current.lines.join("\n") });
+    segments.push(buildFileDiff(current));
   }
   return segments;
 }

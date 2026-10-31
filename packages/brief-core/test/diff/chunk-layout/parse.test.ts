@@ -3,7 +3,17 @@ import {
   parseUnifiedDiffPatch,
   splitUnifiedDiffByFile,
 } from "../../../src/diff/chunk-layout";
-import { PATCH } from "./helpers";
+import { splitDiffByFile } from "../../../src/diff/file-diff";
+import {
+  DELETED_QUOTED_FILE,
+  LOOKALIKE_QUOTED_FILES,
+  MOVED_INTO_SPACED_PATH,
+  PATCH,
+  QUOTED_PATCH,
+  QUOTED_PATH,
+  RENAME_LIKE_SPACED_EDIT,
+  RENAMED_INTO_SPACED_PATH,
+} from "./helpers";
 
 describe("parseUnifiedDiffPatch", () => {
   it("parses hunks, adds, dels, context and no-newline notes with numbers", () => {
@@ -132,6 +142,44 @@ describe("splitUnifiedDiffByFile", () => {
     const files = splitUnifiedDiffByFile(MULTI_FILE_DIFF);
 
     expect(files.get("gone.txt")).toContain("-bye");
+  });
+
+  it("keys a deleted quoted file by the path the brief's chunks name", () => {
+    const files = splitUnifiedDiffByFile(DELETED_QUOTED_FILE);
+    const [briefFile] = splitDiffByFile(DELETED_QUOTED_FILE);
+
+    expect([...files.keys()]).toEqual(['"b/x\\ny"']);
+    expect(briefFile?.file).toBe('"b/x\\ny"');
+  });
+
+  it("keys a git-quoted file by the path it encodes, apart from the last", () => {
+    const files = splitUnifiedDiffByFile(`${PATCH}\n${QUOTED_PATCH}`);
+
+    expect([...files.keys()]).toEqual(["src/app.ts", QUOTED_PATH]);
+    expect(files.get("src/app.ts")).not.toContain("return 2;");
+    expect(files.get(QUOTED_PATH)).toContain("+  return 2;");
+  });
+
+  it("keeps two files apart when one decodes to the other's spelling", () => {
+    const files = splitUnifiedDiffByFile(LOOKALIKE_QUOTED_FILES);
+
+    expect(files.size).toBe(2);
+  });
+
+  it.each([
+    ["an edit", RENAMED_INTO_SPACED_PATH],
+    ["no edit", MOVED_INTO_SPACED_PATH],
+  ])("keys a rename into a path holding b/ by its new path, %s", (_, patch) => {
+    const files = splitUnifiedDiffByFile(`${PATCH}\n${patch}`);
+
+    expect([...files.keys()]).toEqual(["src/app.ts", "dir b/new.ts"]);
+  });
+
+  it("keeps a rename apart from an edit its header reads as", () => {
+    const files = splitUnifiedDiffByFile(RENAME_LIKE_SPACED_EDIT);
+
+    expect([...files.keys()]).toEqual(["y", "x b/y"]);
+    expect(files.get("x b/y")).toContain("+edited new");
   });
 
   it("returns an empty map for an empty body", () => {

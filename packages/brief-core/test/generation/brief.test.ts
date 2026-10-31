@@ -10,7 +10,12 @@ import type { RepoContext } from "../../src/generation/repo-context";
 import type { GenerationWarning } from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github/types";
 import type { LockfileSummary } from "../../src/generation/shortened/types";
-import { RiskSurfaceAttributes, type Brief } from "../../src/types";
+import { countLines } from "../../src/generation/loc";
+import {
+  RiskSurfaceAttributes,
+  type Brief,
+  type LineRange,
+} from "../../src/types";
 import { FakeGenerator } from "../helpers";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
 import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
@@ -191,7 +196,49 @@ function findIssues(
   return found?.kind === "validation" ? found.issues : [];
 }
 
+/** Distinct changed lines the chunks and the remainder claim, per side, summed over files. */
+function countClaimedLines(brief: Brief): { added: number; deleted: number } {
+  const added = new Map<string, LineRange[]>();
+  const deleted = new Map<string, LineRange[]>();
+  for (const claim of [...brief.chunks, ...(brief.unattributed ?? [])]) {
+    added.set(claim.file, [
+      ...(added.get(claim.file) ?? []),
+      ...claim.addedRanges,
+    ]);
+    deleted.set(claim.file, [
+      ...(deleted.get(claim.file) ?? []),
+      ...claim.removedRanges,
+    ]);
+  }
+  const sum = (byFile: Map<string, LineRange[]>) =>
+    [...byFile.values()].reduce(
+      (total, ranges) => total + countLines(ranges),
+      0,
+    );
+  return { added: sum(added), deleted: sum(deleted) };
+}
+
 describe("generateBrief, a fresh run", () => {
+  it("claims exactly the diff's changed lines when a chunk over-claims", async () => {
+    const overClaim = {
+      ...baseOutput,
+      chunks: [
+        makeChunk("c1", "g1", "src/a.ts", 40),
+        makeChunk("c2", "g2", "src/b.ts", 2),
+      ],
+    };
+
+    const { brief } = await generateBrief({
+      pr,
+      headIndex: 1,
+      commitRange,
+      generator: makeQueuedGenerator([overClaim]),
+    });
+
+    expect(brief.chunks[0]?.addedRanges).toEqual([{ start: 1, end: 2 }]);
+    expect(countClaimedLines(brief)).toEqual(brief.diffTotals);
+  });
+
   it("stamps the stored lines from the typed warnings", async () => {
     const result = await generateBrief({
       pr,

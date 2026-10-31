@@ -1,5 +1,6 @@
 import { splitDiffByFile } from "../file-diff";
 import { HUNK_HEADER } from "../chunk-layout/consts";
+import { decodeGitPath } from "../chunk-layout/logic/header-paths";
 import {
   DiffFileStatuses,
   type DiffFileStatus,
@@ -97,7 +98,7 @@ function indexFile(position: number, path: string, patch: string): IndexedFile {
 
   const renameFrom = headerLines.find((line) => line.startsWith(RENAME_FROM));
   if (renameFrom !== undefined) {
-    file.previousPath = renameFrom.slice(RENAME_FROM.length);
+    file.previousPath = decodeGitPath(renameFrom.slice(RENAME_FROM.length));
   }
   return file;
 }

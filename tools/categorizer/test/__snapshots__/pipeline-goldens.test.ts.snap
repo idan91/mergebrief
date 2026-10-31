@@ -121,6 +121,7 @@ exports[`adversarial stitch goldens > pair-additive stitches the adversarial out
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
@@ -236,6 +237,7 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc coverage issues:\\n12 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
@@ -437,6 +439,7 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ unknown group issues:\\nchunk c4 (packages/api/src/routes/status.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
     "⚠ loc overlap issues:\\nchunks c2 and c5 (packages/api/src/routes/health.ts) both claim added line(s) 4-17, 19 — counted in both\\nchunks c2 and c5 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
@@ -645,6 +648,7 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
@@ -760,6 +764,7 @@ exports[`adversarial stitch goldens > pair-meaning-changing stitches the adversa
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ unknown group issues:\\nchunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
     "⚠ loc coverage issues:\\n13 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
@@ -986,6 +991,7 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c3 and c5 (packages/api/src/routes/version.ts) both claim added line(s) 1-10 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
@@ -1087,6 +1093,7 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it",
     "⚠ unknown group issues:\\nchunk c2 (packages/logging/src/redact.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c3 (packages/logging/src/redact.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
     "⚠ loc coverage issues:\\n16 added / 1 removed changed line(s) unattributed to any chunk across 2 file(s)\\n2 file(s) in no group — packages/api/src/routes/health.ts, packages/logging/src/redact.ts",
@@ -1213,6 +1220,7 @@ exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial out
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc coverage issues:\\n11 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
@@ -1396,6 +1404,7 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 1-16 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
@@ -1574,6 +1583,7 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 15 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
@@ -1689,6 +1699,7 @@ exports[`adversarial stitch goldens > pair-subtractive stitches the adversarial 
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/api/src/routes/health.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
@@ -4256,8 +4267,8 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
 
 exports[`brief goldens > kit-11161 produces the recorded brief 1`] = `
 "{
-  "bytes": 515705,
-  "sha256": "a8deda319fceb8ff907b2476bb2c1243d6dd1d1fb73294c220fe4a8caa79956d"
+  "bytes": 515075,
+  "sha256": "d8af4a42d28fdc7fc4197752e67e76c596f6e10bc664addac034a94375f24016"
 }"
 `;
 
@@ -9910,8 +9921,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "43a4103f372d0fdd5523132369f7da718a75ee91d15a7461dc5463685d94111b"
     },
     "user": {
-      "bytes": 527187,
-      "sha256": "f068f94fb904c979426938f25e4505f721c87a7984ca07a235fae196708fc10f"
+      "bytes": 527078,
+      "sha256": "95925f11036cda38f77010443caefce20cbb1b70e4cb4af4500629e7d08afe24"
     }
   },
   {
@@ -9929,8 +9940,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "dc1db6e4ed239bd297b326360379c78f82ada169a609b6aecef9f7b40be50c98"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -9948,8 +9959,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "33e08148a41411ebc9f5ccb86f723238d2c3bd266df9bf4bb7cbcc9af511b609"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -9967,8 +9978,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "d1af920567bd4a560e180755b6e2e9bed8daaf5151e3c0b350127ab5db0376dc"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -9986,8 +9997,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "093c07c16c96062fc6ad2b5ba88202da788f0b9c61b838f7a526e17277d4d97c"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -10005,8 +10016,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "8ec5b7491acb0bf9d028604a2831ccc5ac72031af54046578e57e763d54a22df"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -10024,8 +10035,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "f75f44937bab5cd83e3c8e4892ac7bc9e58183a7018e211a560201a5cdfa9f1a"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -10043,8 +10054,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "433bf8ba7da46abc586ac6551586e79f854bce0f468176e5d3af00999bfb624e"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -10062,8 +10073,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "71047a92dd1d664a56c3c9acab7ab5cccdc2f0de6308ddaf45adfad0aa76fdb9"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -10081,8 +10092,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "dc55b980bc00ce5af41b0e228a94fe14973ddaf4a67e9879b31a66ec6f6f6f93"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   },
   {
@@ -10100,8 +10111,8 @@ exports[`request goldens > kit-11161 sends the recorded request digests 1`] = `
       "sha256": "105a197c1eba01b5276bb28911f0dff7ceb321dd7999f2be5d99bfebdc89253b"
     },
     "userPrefix": {
-      "bytes": 40553,
-      "sha256": "f6127627ac3074a2d3c5c30aa19fe7d7599dd755016c440f570c831dd4c1246d"
+      "bytes": 40510,
+      "sha256": "70d91dc39ac4fe3d5f36287b4f71b426bc4001c67a9398d4222944e96f7b8a01"
     }
   }
 ]"

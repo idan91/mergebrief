@@ -736,7 +736,29 @@ describe("listChangedLockfiles path check", () => {
     ]);
   });
 
-  it("leaves out a lockfile whose header misreads its path", () => {
+  it("reads a rename whose header splits at more than one b/", () => {
+    const diff = [
+      "diff --git a/x b/pnpm-lock.yaml b/y b/pnpm-lock.yaml",
+      "rename from x b/pnpm-lock.yaml",
+      "rename to y b/pnpm-lock.yaml",
+      "--- a/x b/pnpm-lock.yaml",
+      "+++ b/y b/pnpm-lock.yaml",
+      "@@ -1 +1 @@",
+      "-a",
+      "+b",
+      "",
+    ].join("\n");
+
+    expect(listChangedLockfiles(diff)).toEqual([
+      {
+        path: "y b/pnpm-lock.yaml",
+        previousPath: "x b/pnpm-lock.yaml",
+        status: "renamed",
+      },
+    ]);
+  });
+
+  it("reads a path holding b/ from a header whose halves match", () => {
     const diff = [
       "diff --git a/x b/pnpm-lock.yaml b/x b/pnpm-lock.yaml",
       "--- a/x b/pnpm-lock.yaml",
@@ -747,7 +769,9 @@ describe("listChangedLockfiles path check", () => {
       "",
     ].join("\n");
 
-    expect(listChangedLockfiles(diff)).toEqual([]);
+    expect(listChangedLockfiles(diff)).toEqual([
+      { path: "x b/pnpm-lock.yaml", status: "modified" },
+    ]);
   });
 
   it("leaves out a path an unconfirmed patch shares", () => {
@@ -758,17 +782,36 @@ describe("listChangedLockfiles path check", () => {
       "@@ -1 +1 @@",
       "-a",
       "+b",
-      "diff --git a/a b/package-lock.json b/a b/package-lock.json",
-      "--- a/a b/package-lock.json",
-      "+++ b/a b/package-lock.json",
-      "@@ -1 +1 @@",
-      "-a",
-      "+b",
+      "diff --git a/a b/package-lock.json b/c b/package-lock.json",
+      "old mode 100644",
+      "new mode 100755",
       "",
     ].join("\n");
 
     expect(listChangedLockfiles(diff)).toEqual([]);
   });
+
+  it.each([
+    [
+      "an edit",
+      'diff --git "a/\\345\\217\\215/pnpm-lock.yaml" "b/\\345\\217\\215/pnpm-lock.yaml"\n--- "a/\\345\\217\\215/pnpm-lock.yaml"\n+++ "b/\\345\\217\\215/pnpm-lock.yaml"\n@@ -1 +1 @@\n-a\n+b\n',
+      { path: "反/pnpm-lock.yaml", status: "modified" },
+    ],
+    [
+      "a pure rename",
+      'diff --git a/old/yarn.lock "b/\\345\\217\\215/yarn.lock"\nsimilarity index 100%\nrename from old/yarn.lock\nrename to "\\345\\217\\215/yarn.lock"\n',
+      {
+        path: "反/yarn.lock",
+        status: "renamed",
+        previousPath: "old/yarn.lock",
+      },
+    ],
+  ])(
+    "confirms a lockfile under a git-quoted path in %s",
+    (_label, diff, lockfile) => {
+      expect(listChangedLockfiles(diff)).toEqual([lockfile]);
+    },
+  );
 
   it("leaves out a pure rename whose rename line names another path", () => {
     const diff = [

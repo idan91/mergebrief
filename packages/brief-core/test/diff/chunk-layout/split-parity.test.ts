@@ -2,8 +2,7 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { splitUnifiedDiffByFile } from "../../../src/diff/chunk-layout";
-
-const DIFF_FILE_HEADER = /^diff --git a\/(?<pre>.+?) b\/(?<post>.+)$/;
+import { parseDiffHeaderPaths } from "../../../src/diff/chunk-layout/logic/header-paths";
 
 /** The line-by-line split this package shipped before the indexOf scan. */
 function splitByLinesReference(diff: string): ReadonlyMap<string, string> {
@@ -27,11 +26,11 @@ function splitByLinesReference(diff: string): ReadonlyMap<string, string> {
     sawDevNullPost = false;
   }
   for (const line of diff.split("\n")) {
-    const header = DIFF_FILE_HEADER.exec(line);
-    if (header?.groups) {
+    const header = parseDiffHeaderPaths(line);
+    if (header !== undefined) {
       flush();
-      currentKey = header.groups["post"];
-      pendingPrePath = header.groups["pre"];
+      currentKey = header.post;
+      pendingPrePath = header.pre;
     }
     if (currentKey !== undefined) {
       if (line.startsWith("+++ /dev/null")) {

@@ -9,6 +9,18 @@ export interface ParsedDiffLine {
   newLine?: number;
 }
 
+/** The two paths a `diff --git` header names, git's quoting decoded and its `a/` and `b/` dropped. */
+export interface DiffHeaderPaths {
+  pre: string;
+  post: string;
+}
+
+/** A patch line naming one side's path after `lead`; `side` is the prefix git writes before it. */
+export interface PatchPathLine {
+  lead: string;
+  side: string;
+}
+
 /** The changed lines a chunk claims in its file. */
 export interface ChunkRanges {
   addedRanges: readonly LineRange[];

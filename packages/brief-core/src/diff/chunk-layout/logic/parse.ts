@@ -1,6 +1,7 @@
 import { DiffLineKinds } from "types/diff-lines";
-import { DIFF_FILE_HEADER, HUNK_HEADER } from "../consts";
-import type { ParsedDiffLine } from "../types";
+import { DIFF_FILE_HEADER_LEAD, HUNK_HEADER } from "../consts";
+import type { DiffHeaderPaths, ParsedDiffLine } from "../types";
+import { parseDiffHeaderPaths, parsePatchPaths } from "./header-paths";
 
 interface HunkStarts {
   oldStart: number;
@@ -78,28 +79,25 @@ function parseHunkLine(line: string): HunkStarts {
 }
 
 /** Where a file header can start: a line start, so every later one follows a newline. */
-const FILE_HEADER_START = "diff --git ";
-const NEXT_FILE_HEADER = `\n${FILE_HEADER_START}`;
-const DELETED_POST_LINE = "\n+++ /dev/null";
+const NEXT_FILE_HEADER = `\n${DIFF_FILE_HEADER_LEAD}`;
 
 interface OpenFile {
   start: number;
-  pre: string;
   post: string;
 }
 
 /**
  * Split a multi-file unified diff into per-file patch bodies, keyed by the
- * POST-change path (chunks reference files by their new name); a deleted
- * file (post side `/dev/null`) keys by its pre-change path. Only a line that
- * matches the full header starts a file; a lookalike stays in its file.
+ * POST-change path (chunks reference files by their new name), the key
+ * `splitDiffByFile` gives the same file. Only a line that matches the full
+ * header starts a file; a lookalike stays in its file.
  */
 export function splitUnifiedDiffByFile(
   diff: string,
 ): ReadonlyMap<string, string> {
   const files = new Map<string, string>();
   let open: OpenFile | undefined;
-  let lineStart = diff.startsWith(FILE_HEADER_START)
+  let lineStart = diff.startsWith(DIFF_FILE_HEADER_LEAD)
     ? 0
     : findNextHeaderLine(diff, 0);
 
@@ -109,7 +107,7 @@ export function splitUnifiedDiffByFile(
       if (open !== undefined) {
         storeFile(files, open, diff.slice(open.start, lineStart - 1));
       }
-      open = { start: lineStart, pre: header.pre, post: header.post };
+      open = { start: lineStart, post: header.post };
     }
     lineStart = findNextHeaderLine(diff, lineStart);
   }
@@ -128,24 +126,17 @@ function findNextHeaderLine(diff: string, from: number): number {
 function matchFileHeader(
   diff: string,
   lineStart: number,
-): { pre: string; post: string } | undefined {
+): DiffHeaderPaths | undefined {
   const lineEnd = diff.indexOf("\n", lineStart);
   const line = diff.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
-  const groups = DIFF_FILE_HEADER.exec(line)?.groups;
-  const pre = groups?.["pre"];
-  const post = groups?.["post"];
-  if (pre === undefined || post === undefined) {
-    return undefined;
-  }
-  return { pre, post };
+  return parseDiffHeaderPaths(line);
 }
 
-/** Deleted file: the header's post path equals the pre path, but `+++ /dev/null` marks it. */
+/** A deleted file's header names it on both sides, so its post path is its path too. */
 function storeFile(
   files: Map<string, string>,
   open: OpenFile,
   patch: string,
 ): void {
-  const key = patch.includes(DELETED_POST_LINE) ? open.pre : open.post;
-  files.set(key, patch);
+  files.set((parsePatchPaths(patch) ?? open).post, patch);
 }

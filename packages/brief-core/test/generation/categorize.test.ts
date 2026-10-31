@@ -68,15 +68,26 @@ const pr: FetchedPr = {
     sha: "deadbeef00000000",
     baseSha: "base0000000000000",
     commitCount: 1,
-    // Zero counts: the header-only stub diff derives +0 -0, keeping the
-    // warn-only gh cross-check silent for tests not about derivation. The
-    // paths are the default fixture's chunk files, so no PR file is ungrouped.
+    // The diff adds exactly the lines the default fixture's chunks claim,
+    // so the gh cross-check, the range alignment and the coverage stay
+    // silent for tests not about derivation.
     files: [
-      { path: "src/schema.ts", additions: 0, deletions: 0 },
-      { path: "src/logic.ts", additions: 0, deletions: 0 },
+      { path: "src/schema.ts", additions: 3, deletions: 0 },
+      { path: "src/logic.ts", additions: 2, deletions: 0 },
     ],
   },
-  diff: "diff --git a/src/a.ts b/src/a.ts\n",
+  diff: [
+    "diff --git a/src/schema.ts b/src/schema.ts",
+    "@@ -0,0 +1,3 @@",
+    "+export const a = 1;",
+    "+export const b = 2;",
+    "+export const c = 3;",
+    "diff --git a/src/logic.ts b/src/logic.ts",
+    "@@ -0,0 +1,2 @@",
+    "+export const d = 4;",
+    "+export const e = 5;",
+    "",
+  ].join("\n"),
   links: [],
 };
 
@@ -2455,10 +2466,11 @@ describe("categorize, untrusted fields in the prompt", () => {
       meta: {
         ...pr.meta,
         files: [
-          { path: raw, additions: 0, deletions: 0 },
-          { path: "src/logic.ts", additions: 0, deletions: 0 },
+          { path: raw, additions: 3, deletions: 0 },
+          { path: "src/logic.ts", additions: 2, deletions: 0 },
         ],
       },
+      diff: pr.diff.replaceAll("src/schema.ts", raw),
     };
 
     const brief = await generateFreshBrief(

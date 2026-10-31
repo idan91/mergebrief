@@ -46,6 +46,7 @@ import type {
   ShortenedFile,
 } from "../shortened/types";
 import { snapChunkRanges } from "../snap-ranges";
+import { alignChunkRanges } from "../align-ranges";
 import { restoreRawGroupIds, restoreRawPaths } from "../untrusted-text";
 import { dropUnknownGroupChunks, fanOutIntentCheck } from "../validate";
 import { planDetailBatches, splitBatch } from "./batches";
@@ -709,7 +710,8 @@ export async function generateMultiCallBrief(
   const changedFiles = [...context.changedFiles];
   const merged = mergeDetailChunks(outcomes, options);
   const restored = restoreRawPaths(merged, rawPaths);
-  const snapped = snapChunkRanges(restored, fileDiffs);
+  const aligned = alignChunkRanges(restored, changedFiles, warnings);
+  const snapped = snapChunkRanges(aligned, fileDiffs);
   const shown = clampToShownLines(snapped, inputs.locations, warnings);
   const detailChunks = deriveChunkLoc(numberChunks(shown), changedFiles);
   const chunks = [

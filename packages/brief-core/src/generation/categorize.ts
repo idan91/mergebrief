@@ -42,6 +42,7 @@ import {
   detectChunkOverlaps,
 } from "./loc";
 import { snapChunkRanges } from "./snap-ranges";
+import { alignChunkRanges } from "./align-ranges";
 import { exceedsCallLimits } from "./huge-span";
 import {
   dropUnknownGroupChunks,
@@ -578,8 +579,9 @@ export async function generateDraftBrief(
     onWarning: warnings.recordGeneratorWarning,
   });
 
-  // Counts never come from the model: ranges snap over the statement tails
-  // the model left to the remainder, then chunk loc = |ranges ∩ changed lines|.
+  // Counts never come from the model: ranges move onto and clip to the
+  // changed lines, snap over the statement tails the model left to the
+  // remainder, then chunk loc = |ranges ∩ changed lines|.
   const fileDiffs = splitDiffByFile(pr.diff);
   const rawPaths = [
     ...pr.meta.files.map((file) => file.path),
@@ -594,8 +596,9 @@ export async function generateDraftBrief(
   );
   const changedFiles = [...context.changedFiles];
   const restored = restoreRawPaths(generated.chunks, rawPaths);
+  const aligned = alignChunkRanges(restored, changedFiles, warnings);
   const chunks = deriveChunkLoc(
-    snapChunkRanges(restored, fileDiffs),
+    snapChunkRanges(aligned, fileDiffs),
     changedFiles,
   );
 

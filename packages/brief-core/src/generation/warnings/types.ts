@@ -17,6 +17,8 @@ export const GenerationWarningKinds = {
   DETAIL_CALL_CUT: "detail-call-cut",
   /** The single call's answer reached the output cap; the brief was re-run once as a multi-call run. */
   SINGLE_CALL_CUT: "single-call-cut",
+  /** Chunk ranges code moved one line onto the change beside them, or clipped to the diff's changed lines. */
+  RANGES_ALIGNED: "ranges-aligned",
 } as const;
 /** @public */
 export type GenerationWarningKind = ValueOf<typeof GenerationWarningKinds>;
@@ -73,18 +75,30 @@ export interface SingleCallCutWarning {
 
 export type OutputCutWarning = DetailCallCutWarning | SingleCallCutWarning;
 
+export interface RangesAlignedWarning {
+  kind: typeof GenerationWarningKinds.RANGES_ALIGNED;
+  message: string;
+  shiftedRanges: number;
+  clippedLines: number;
+}
+
 export type GenerationWarning =
   | GeneratorWarning
   | ValidationWarning
   | RepoInstructionsOmittedWarning
   | HunkMapWarning
-  | OutputCutWarning;
+  | OutputCutWarning
+  | RangesAlignedWarning;
 
 export interface WarningCollector {
   /** Records a warning the generator already logged. */
   recordGeneratorWarning: (warning: GeneratorWarning) => void;
   report: (
-    warning: RepoInstructionsOmittedWarning | HunkMapWarning | OutputCutWarning,
+    warning:
+      | RepoInstructionsOmittedWarning
+      | HunkMapWarning
+      | OutputCutWarning
+      | RangesAlignedWarning,
   ) => void;
   /** Reports nothing for an empty issue list. */
   reportIssues: (check: string, issues: readonly string[]) => void;

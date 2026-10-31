@@ -115,6 +115,15 @@ describe("indexDiff", () => {
     expect(file?.hunks.map((hunk) => hunk.header)).toEqual([undefined]);
   });
 
+  it("decodes a git-quoted rename on both sides", () => {
+    const [file] = indexDiff(
+      'diff --git a/old.ts "b/n\\303\\251w.ts"\nsimilarity index 100%\nrename from "\\303\\251.ts"\nrename to "n\\303\\251w.ts"\n',
+    );
+
+    expect(file?.path).toBe("néw.ts");
+    expect(file?.previousPath).toBe("é.ts");
+  });
+
   it("keeps the text hunks of a rename that also edits the file", () => {
     const [file] = indexDiff(renameWithEdit);
 

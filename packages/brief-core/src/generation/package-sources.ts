@@ -1,3 +1,7 @@
+import {
+  decodeGitPath,
+  readGitPath,
+} from "../diff/chunk-layout/logic/header-paths";
 import { splitDiffByFile, type FileDiff } from "../diff/file-diff";
 import { indexDiff } from "../diff/hunk-index";
 import {
@@ -150,27 +154,25 @@ function changesAlias(changes: PackageChanges): boolean {
   return addsAlias || updateChangesAlias;
 }
 
-/** A patch header line naming the path the file had at base. */
-const OLD_PATH_LINE = /^(?:rename from |--- "?a\/)(.+)$/;
-/** A patch header line naming the path the file has at head. */
-const NEW_PATH_LINE = /^(?:rename to |\+\+\+ "?b\/)(.+)$/;
+/** A header line naming a path after `lead`; `side` is the prefix git writes on `---` and `+++` paths. */
+interface PathLine {
+  lead: string;
+  side: string;
+}
+
+const RENAME_FROM_LINE: PathLine = { lead: "rename from ", side: "" };
+const RENAME_TO_LINE: PathLine = { lead: "rename to ", side: "" };
+const MINUS_FILE_LINE: PathLine = { lead: "--- ", side: "a/" };
+const PLUS_FILE_LINE: PathLine = { lead: "+++ ", side: "b/" };
+/** The lines naming the path the file had at base. */
+const OLD_PATH_LINES = [RENAME_FROM_LINE, MINUS_FILE_LINE];
+/** The lines naming the path the file has at head. */
+const NEW_PATH_LINES = [RENAME_TO_LINE, PLUS_FILE_LINE];
 /** git quotes a path holding a quote, a backslash, a control or a non-ASCII character. */
 const GIT_QUOTE = '"';
-/** One escape inside a git-quoted path: an octal byte or a backslashed character. */
-const GIT_ESCAPE = /\\(?:([0-7]{3})|(.))/gs;
-const GIT_CHAR_ESCAPES: Readonly<Record<string, string>> = {
-  a: "\u0007",
-  b: "\b",
-  f: "\f",
-  n: "\n",
-  r: "\r",
-  t: "\t",
-  v: "\v",
-};
-const OCTAL_RADIX = 8;
 const HUNK_START = "@@";
 /** git ends a `---` or `+++` line with a TAB when its path holds a space. */
-const PATH_END_TAB = "\t";
+const FILE_LINE_TRAILER = "\t";
 /** The header lines git writes for a change to a file's mode alone. */
 const MODE_LINE = /^(?:old|new) mode \d+$/;
 
@@ -180,8 +182,23 @@ function readBasename(path: string): string {
   return unquoted.slice(unquoted.lastIndexOf("/") + 1);
 }
 
-/** Every path a patch's header lines name through `pattern`'s first group. */
-function readHeaderPaths(patch: string, pattern: RegExp): string[] {
+/** The path `line` names through one of `kinds`, read past the kind's side prefix; `/dev/null` names none. */
+function readLinePath(
+  line: string,
+  kinds: readonly PathLine[],
+): string | undefined {
+  const kind = kinds.find((candidate) => line.startsWith(candidate.lead));
+  if (kind === undefined) {
+    return undefined;
+  }
+  const token = line.slice(kind.lead.length);
+  const trailed = token.endsWith(FILE_LINE_TRAILER);
+  const path = trailed ? token.slice(0, -FILE_LINE_TRAILER.length) : token;
+  return readGitPath(path, kind.side);
+}
+
+/** Every path a patch's header lines name through `kinds`. */
+function readHeaderPaths(patch: string, kinds: readonly PathLine[]): string[] {
   const paths: string[] = [];
   // Header lines only: stop at the first hunk rather than split the whole patch.
   for (let start = 0; start < patch.length; ) {
@@ -191,7 +208,7 @@ function readHeaderPaths(patch: string, pattern: RegExp): string[] {
     if (line.startsWith(HUNK_START)) {
       break;
     }
-    const path = pattern.exec(line)?.[1];
+    const path = readLinePath(line, kinds);
     if (path !== undefined) {
       paths.push(path);
     }
@@ -200,50 +217,14 @@ function readHeaderPaths(patch: string, pattern: RegExp): string[] {
   return paths;
 }
 
-const UTF8_ENCODER = new TextEncoder();
-const UTF8_DECODER = new TextDecoder();
-
-function appendUtf8(bytes: number[], text: string): void {
-  for (const byte of UTF8_ENCODER.encode(text)) {
-    bytes.push(byte);
-  }
-}
-
-/**
- * A header path git quoted, decoded the way git encoded it: octal escapes
- * are UTF-8 bytes. An unquoted path comes back as is.
- */
-function decodeGitPath(raw: string): string {
-  const opened = raw.startsWith(GIT_QUOTE) ? raw.slice(1) : raw;
-  if (!opened.endsWith(GIT_QUOTE)) {
-    return raw;
-  }
-  const quoted = opened.slice(0, -1);
-  const bytes: number[] = [];
-  let copied = 0;
-  for (const match of quoted.matchAll(GIT_ESCAPE)) {
-    appendUtf8(bytes, quoted.slice(copied, match.index));
-    const [escape, octal, char = ""] = match;
-    if (octal === undefined) {
-      appendUtf8(bytes, GIT_CHAR_ESCAPES[char] ?? char);
-    } else {
-      bytes.push(Number.parseInt(octal, OCTAL_RADIX));
-    }
-    copied = match.index + escape.length;
-  }
-  appendUtf8(bytes, quoted.slice(copied));
-  return UTF8_DECODER.decode(new Uint8Array(bytes));
-}
-
 /** The file's path at head and every path its header names at base. */
 function listTouchedPaths({ file, patch }: FileDiff): string[] {
-  return [file, ...readHeaderPaths(patch, OLD_PATH_LINE)];
+  return [file, ...readHeaderPaths(patch, OLD_PATH_LINES)];
 }
 
 /** Every spelling of the file's head path, so a chunk keyed by any of them is found. */
 function listHeadPathSpellings({ file, patch }: FileDiff): string[] {
-  const headPaths = readHeaderPaths(patch, NEW_PATH_LINE);
-  return [file, ...headPaths, ...headPaths.map(decodeGitPath)];
+  return [file, ...readHeaderPaths(patch, NEW_PATH_LINES)];
 }
 
 /**
@@ -332,31 +313,32 @@ function isPackageLockfile(path: string): boolean {
   return format !== undefined && format !== LockfileFormats.OTHER;
 }
 
-function trimPathEndTab(line: string): string {
-  return line.endsWith(PATH_END_TAB) ? line.slice(0, -1) : line;
-}
-
 /**
  * Whether the patch's own `---`/`+++` lines, or its `rename to` line when it
- * has none, name the path its `diff --git` header was read as. That header
- * splits at the last ` b/`, which a path holding one misreads.
+ * has none, name the path its `diff --git` header was read as. A header that
+ * splits two ways with no such line keeps a guess, which this leaves out.
  */
 function confirmsPath(
   lockfile: ChangedLockfile,
   headerLines: string[],
 ): boolean {
-  const lines = new Set(headerLines.map(trimPathEndTab));
+  function listNamed(kind: PathLine): string[] {
+    return headerLines.flatMap((line) => readLinePath(line, [kind]) ?? []);
+  }
+
   const basePath = lockfile.previousPath ?? lockfile.path;
-  const hasFileLines = headerLines.some((line) => line.startsWith("+++ "));
+  const hasFileLines = headerLines.some((line) =>
+    line.startsWith(PLUS_FILE_LINE.lead),
+  );
   if (!hasFileLines) {
-    return lines.has(`rename to ${lockfile.path}`);
+    return listNamed(RENAME_TO_LINE).includes(lockfile.path);
   }
   const headNamed =
     lockfile.status === DiffFileStatuses.DELETED ||
-    lines.has(`+++ b/${lockfile.path}`);
+    listNamed(PLUS_FILE_LINE).includes(lockfile.path);
   const baseNamed =
     lockfile.status === DiffFileStatuses.ADDED ||
-    lines.has(`--- a/${basePath}`);
+    listNamed(MINUS_FILE_LINE).includes(basePath);
   return headNamed && baseNamed;
 }
 

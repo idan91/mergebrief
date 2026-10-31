@@ -103,6 +103,7 @@ exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adver
     "provider": "canned"
   },
   "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (docs/plans/brief-143-stability-implementation.md) both claim added line(s) 1-167 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
