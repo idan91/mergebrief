@@ -275,6 +275,26 @@ _Avoid_: incremental generation, partial regeneration, anchoring (bare)
 The merge step of **Anchored generation**: carry frozen groups verbatim, judge the model's claims about re-look groups, descend ids and re-point the model's references to them. Merge only; validation, rollups and the **Unattributed remainder** come after, over the merged brief.
 _Avoid_: merge (bare), splice, assemble
 
+**Multi-call run**:
+Generating a **Brief** in more than one model call because the PR is too large for one: a **Grouping call** forms the **Change-groups** and the whole-PR fields, then **Detail calls** write the **Chunks** of those groups, and the pipeline merges the answers into one Brief and validates it once. The reader gets the same Brief shape either way; the **Receipt** says which **Outline** the grouping read and which files were read **Shortened**. A multi-call run re-looks every group, so it is never an **Anchored generation**. A Brief whose single call ran out of room is retried once as a multi-call run, and a retry of that run resumes it rather than sending the single call again.
+_Avoid_: split generation, chunked generation (collides with **Chunk**), batch run, large-PR mode
+
+**Grouping call**:
+The first call of a **Multi-call run**: it reads the PR text and the **Outline** of the diff and returns the **Change-groups**, the **Summary**, the **Reading order**, the **Intent check** and the hunk map, which names the group each hunk of the diff belongs to. A hunk it lists twice goes to the earlier group in reading order; a hunk it leaves out joins the **Unattributed remainder**. It writes no Chunk.
+_Avoid_: planning call, outline call, first pass
+
+**Detail call**:
+One call of a **Multi-call run** after the **Grouping call**: it reads the full code of a batch of whole **Change-groups** in reading order (a group too large for one batch is split by file) together with the groups and summary the grouping call produced, and returns the **Chunks** of that batch alone, each attached to the group the hunk map gave its hunk. A hunk over the batch budget alone shows only the head lines that fit, with a note naming how many lines were left off. It never forms, renames or moves a group. A detail call whose answer runs out of room is split once into two halves.
+_Avoid_: chunk call, second pass, batch call (the batch is what it reads, not what it is)
+
+**Outline**:
+What a **Grouping call** reads of the diff: the full diff when it fits one call's input, else a compact view: every file with its status and line counts, every hunk with its header and at most a fixed number of its changed lines. The outline takes one of several forms, from the full diff down to a few changed lines per hunk, then hunk headers only, then one line per file; the run takes the fullest form that fits and the **Brief** records which. The two coarsest forms, hunk headers only and one line per file, show the model no code lines, and the **Receipt** says so.
+_Avoid_: digest, skeleton, compressed diff, summary (that is the Brief's **Summary**)
+
+**Shortened file**:
+A file a **Multi-call run** shows the model by its facts rather than its code: a lockfile as its package changes (added, removed, updated, source changed), a file the repository marks generated or vendored in `.gitattributes` on its default branch as its path, status, counts and hunk headers. Those lines show in the full **Outline** form; every coarser form shows its title line alone. Its **Chunk** is written by the pipeline, not the model, carries the `generated` **Concern** and a *read as* mark, and the **Receipt** lists it; the pipeline still reads the file's full code for `adds-secret` and `changes-package-source`. A single-call Brief shortens nothing.
+_Avoid_: skipped file, excluded file, collapsed file, summarized file
+
 **Schema floor**:
 The guarantee every generator adapter runs output through: validate against the output schema, salvage droppable enum slips, retry once with feedback, then dump the raw output and throw `schema-floor`, which the worker stores as the `output-invalid` failure. Native provider schema enforcement is a bonus layer, never the mechanism. Distinct from **Floor**, the five risk attributes a repository cannot quiet.
 _Avoid_: validation (one step of it), floor (bare; that is the display **Floor**), output guard
@@ -549,6 +569,7 @@ _Avoid_: banner (the skin, not the concept), update prompt, nag (that is the CLI
 - A **Brief**'s **index** is a PR-global ordinal over the briefs generated for the PR, retargets included (shared, not per-reviewer); a **Delta Brief** spans the gap between two briefed head SHAs.
 - A **Brief** contains many **Chunks**, clustered into **Change-groups**. A chunk is a contiguous run of changed lines sharing one Concern and one Change-group; a git hunk may be split into multiple chunks, and one file's chunks may span multiple Change-groups. Changed lines no attributed chunk claimed are the **Unattributed remainder**, one last Change-group of unattributed chunks.
 - A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one core chunk plus zero or more supporting chunks. The **Unattributed remainder** is the exception: no Categorization, no Summary, no Playbook.
+- A **Multi-call run** is one **Grouping call** then one or more **Detail calls**; its **Brief** is the same artifact a single call produces, plus the **Outline** form it read and a *read as* mark on each **Shortened file**'s **Chunk**.
 - A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (core/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (added and deleted).
 - The brief is read by **Change-group** in **Reading order**; the **Split** shows the same chunk set by Concern. LoC rolls up under both; the **Unattributed remainder** is the last group in one and the last Split segment in the other, so both totals cover the whole diff.
 - A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans a **Checkpoint** SHA to the current head and is shared by every reviewer at that Checkpoint, so two reviewers at different checkpoints read different Delta Briefs over different commit spans. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
