@@ -4,7 +4,7 @@
 // submit ack (modal-local, resets on reopen).
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -160,6 +160,19 @@ describe("SubmitModal views", () => {
     ).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(close).toHaveBeenCalled();
+  });
+
+  it("scrolls the receipt's folds and keeps its actions out of the scroll", () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+
+    const dialog = screen.getByRole("dialog", {
+      name: /verification receipt/i,
+    });
+    const body = within(dialog).getByTestId("receipt-body");
+    expect(within(body).getByText(/show raw receipt/i)).toBeTruthy();
+    const back = screen.getByRole("button", { name: /back to verdict/i });
+    expect(body.contains(back)).toBe(false);
   });
 
   it("reopening lands on the verdict view again", () => {

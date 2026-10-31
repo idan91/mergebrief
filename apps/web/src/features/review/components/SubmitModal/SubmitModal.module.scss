@@ -7,6 +7,27 @@
     overflow-y: auto;
   }
 
+  .receiptBox {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .receiptHead {
+    flex: none;
+  }
+
+  .receiptBody {
+    flex: 1 1 auto;
+    min-block-size: functions.to-rem(120px);
+
+    // The scrollport would clip a fold's focus ring at its edges: the padding
+    // makes room for it and the margin keeps the folds where they sat.
+    padding: functions.to-rem(5px);
+    margin: functions.to-rem(-5px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   .outcomes {
     display: flex;
     gap: functions.to-rem(6px);

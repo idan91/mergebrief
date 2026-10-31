@@ -243,6 +243,10 @@ export type Catalog = typeof en & {
   };
   review: (typeof en)["review"] & {
     summary: (typeof en)["review"]["summary"] & {
+      shortenedFilesPackages_one: "{{count}} file as package changes";
+      shortenedFilesPackages_other: "{{count}} files as package changes";
+      shortenedFilesCounts_one: "{{count}} file as counts only";
+      shortenedFilesCounts_other: "{{count}} files as counts only";
       evidenceLinkedComment: "Linked comment {{location}}";
       evidenceLinkedComment_inline: "linked comment {{location}}";
       evidenceChunkReviewed: "Reviewed related chunk {{file}}";

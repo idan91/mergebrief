@@ -5,10 +5,10 @@
 // The bare-rendered subtree below resolves it without a provider.
 // oxlint-disable-next-line import/no-unassigned-import -- registration is the point.
 import "../../../../../i18n/I18nProvider";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-import type { Receipt } from "../../../utils/receipt";
+import type { Receipt, ReceiptLine } from "../../../utils/receipt";
 import { ReceiptAccordion } from ".";
 import {
   CommentAnchorKinds,
@@ -16,8 +16,13 @@ import {
   DraftCommentStatuses,
 } from "types/comments";
 
-const RAW =
-  "Reviewed by @you (human) · octo/hello #7 @ aaaaaaa\n  not checked: business intent";
+const RAW_LINES: ReceiptLine[] = [
+  "Reviewed by @you (human) · octo/hello #7 @ aaaaaaa",
+  "      read as counts only:",
+  { file: "dist/install.js" },
+  { file: "vendor/.bin/install.js" },
+  "  not checked: business intent",
+];
 
 function receipt(): Receipt {
   return {
@@ -74,7 +79,7 @@ function renderAccordion(overrides: Partial<Receipt> = {}) {
   return render(
     <ReceiptAccordion
       outcome="comment"
-      raw={RAW}
+      rawLines={RAW_LINES}
       receipt={{ ...receipt(), ...overrides }}
       signatureLine={SIGNATURE_LINE}
     />,
@@ -101,6 +106,64 @@ describe("ReceiptAccordion", () => {
     expect(findFold(/risk disposition/i)?.open).toBe(false);
     expect(findFold(/^not checked$/i)?.open).toBe(false);
     expect(findFold(/show raw receipt/i)?.open).toBe(false);
+  });
+
+  it("shows the outline the grouping read and the files read shortened", () => {
+    renderAccordion({
+      generation: {
+        outlineForm: "headers",
+        shortened: [
+          { file: "pnpm-lock.yaml", readAs: "package-summary" },
+          { file: "dist/app.js", readAs: "counts-only" },
+          { file: "vendor/x.js", readAs: "counts-only" },
+        ],
+      },
+    });
+
+    const outline = screen.getByTestId("receipt-outline-form").textContent;
+    expect(outline).toContain("hunk headers only");
+    expect(outline).toContain("The grouping saw no code lines");
+    expect(screen.getByTestId("receipt-shortened-files").textContent).toBe(
+      "1 file as package changes · 2 files as counts only",
+    );
+  });
+
+  it("names paths and counts, never headers, for the per-file outline", () => {
+    renderAccordion({ generation: { outlineForm: "files", shortened: [] } });
+
+    const outline = screen.getByTestId("receipt-outline-form").textContent;
+    expect(outline).toContain("one line per file");
+    expect(outline).toContain(
+      "The grouping saw no code lines or hunk headers; groups were formed from paths and counts.",
+    );
+  });
+
+  it("names only the read-as kinds that have a file", () => {
+    renderAccordion({
+      generation: {
+        outlineForm: "full",
+        shortened: [{ file: "pnpm-lock.yaml", readAs: "package-summary" }],
+      },
+    });
+
+    expect(screen.getByTestId("receipt-shortened-files").textContent).toBe(
+      "1 file as package changes",
+    );
+  });
+
+  it("shows no shortened-files row when a multi-call run shortened nothing", () => {
+    renderAccordion({
+      generation: { outlineForm: "full", shortened: [] },
+    });
+
+    expect(screen.getByTestId("receipt-outline-form")).not.toBeNull();
+    expect(screen.queryByTestId("receipt-shortened-files")).toBeNull();
+  });
+
+  it("shows no generation rows on a single-call receipt", () => {
+    renderAccordion();
+
+    expect(screen.queryByTestId("receipt-outline-form")).toBeNull();
   });
 
   it("renders coverage metrics from the receipt", () => {
@@ -159,6 +222,57 @@ describe("ReceiptAccordion", () => {
   it("keeps the frozen artifact verbatim inside the raw disclosure", () => {
     renderAccordion();
     const fold = findFold(/^show raw receipt$/i);
-    expect(fold?.querySelector("pre")?.textContent).toBe(RAW);
+    expect(fold?.querySelector("pre")?.textContent).toBe(
+      [
+        "Reviewed by @you (human) · octo/hello #7 @ aaaaaaa",
+        "      read as counts only:",
+        "        dist/install.js",
+        "        vendor/.bin/install.js",
+        "  not checked: business intent",
+      ].join("\n"),
+    );
+  });
+
+  it("copies a selection inside the raw receipt as its plain text", () => {
+    renderAccordion();
+    const pre = findFold(/^show raw receipt$/i)?.querySelector("pre");
+    if (!pre) {
+      throw new Error("raw receipt missing");
+    }
+    window.getSelection()?.selectAllChildren(pre);
+    const setData = vi.fn();
+
+    const proceeded = fireEvent.copy(pre, { clipboardData: { setData } });
+
+    expect(proceeded).toBe(false);
+    expect(setData).toHaveBeenCalledWith("text/plain", pre.textContent);
+  });
+
+  it("leaves a copy that reaches past the raw receipt to the browser", () => {
+    renderAccordion();
+    const pre = findFold(/^show raw receipt$/i)?.querySelector("pre");
+    if (!pre) {
+      throw new Error("raw receipt missing");
+    }
+    window.getSelection()?.selectAllChildren(document.body);
+    const setData = vi.fn();
+
+    const proceeded = fireEvent.copy(pre, { clipboardData: { setData } });
+
+    expect(proceeded).toBe(true);
+    expect(setData).not.toHaveBeenCalled();
+  });
+
+  it("isolates each named file's full path as left-to-right text", () => {
+    renderAccordion();
+    const fold = findFold(/^show raw receipt$/i);
+    const paths = [...(fold?.querySelectorAll("bdi") ?? [])].map((node) => [
+      node.dir,
+      node.textContent,
+    ]);
+    expect(paths).toEqual([
+      ["ltr", "dist/install.js"],
+      ["ltr", "vendor/.bin/install.js"],
+    ]);
   });
 });

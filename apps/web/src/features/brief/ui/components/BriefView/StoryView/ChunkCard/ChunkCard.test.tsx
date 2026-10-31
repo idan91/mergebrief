@@ -201,6 +201,19 @@ describe("ChunkCard file status", () => {
     expect(screen.queryByTestId("large-chunk-notice")).toBeNull();
   });
 
+  it("marks a file the model read as package changes", () => {
+    renderCard({ chunk: { ...chunk, readAs: "package-summary" } });
+
+    const badge = screen.getByText("Read as package changes");
+    expect(badge.getAttribute("data-read-as")).toBe("package-summary");
+  });
+
+  it("marks a file the model read as counts only", () => {
+    renderCard({ chunk: { ...chunk, readAs: "counts-only" } });
+
+    expect(screen.getByText("Read as counts only")).toBeTruthy();
+  });
+
   it("marks nothing on an ordinary chunk", () => {
     renderCard();
 

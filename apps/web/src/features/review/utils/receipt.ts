@@ -1,5 +1,11 @@
 import type { TranslationKey } from "i18n";
 import type { TFunction } from "i18next";
+import {
+  OutlineForms,
+  ShortenedReadings,
+  type OutlineForm,
+  type ShortenedReading,
+} from "brief-core/types";
 import type {
   Brief,
   BriefViewModel,
@@ -100,6 +106,18 @@ export interface ReceiptRepoConfig {
   deEmphasisLine: string | null;
 }
 
+/** One file a multi-call run showed the model by its facts, not its code. */
+export interface ReceiptShortenedFile {
+  file: string;
+  readAs: ShortenedReading;
+}
+
+/** What a multi-call run's grouping call read; absent on a single-call Brief. */
+export interface ReceiptGeneration {
+  outlineForm: OutlineForm;
+  shortened: ReceiptShortenedFile[];
+}
+
 export interface Receipt {
   subject: { repo: string; number: number; sha: string };
   progress: { reviewedChunks: number; chunkTotal: number; flagTotal: number };
@@ -111,6 +129,66 @@ export interface Receipt {
   reclassifiedCount: number;
   /** Present when the span had a repo-config surface. */
   repoConfig?: ReceiptRepoConfig;
+  /** Present on a multi-call Brief. */
+  generation?: ReceiptGeneration;
+}
+
+/** What the grouping saw in place of code, on the outline forms that show none. */
+export const NO_CODE_OUTLINE_NOTE_KEYS: Record<
+  OutlineForm,
+  TranslationKey | undefined
+> = {
+  [OutlineForms.FULL]: undefined,
+  [OutlineForms.LINES_40]: undefined,
+  [OutlineForms.LINES_20]: undefined,
+  [OutlineForms.LINES_12]: undefined,
+  [OutlineForms.LINES_6]: undefined,
+  [OutlineForms.LINES_2]: undefined,
+  [OutlineForms.HEADERS]: "review.summary.outlineNoCode",
+  [OutlineForms.FILES]: "review.summary.outlineNoCodeFiles",
+};
+
+/** The frozen receipt's form of the same note. */
+const NO_CODE_OUTLINE_LINES: Record<OutlineForm, string | undefined> = {
+  [OutlineForms.FULL]: undefined,
+  [OutlineForms.LINES_40]: undefined,
+  [OutlineForms.LINES_20]: undefined,
+  [OutlineForms.LINES_12]: undefined,
+  [OutlineForms.LINES_6]: undefined,
+  [OutlineForms.LINES_2]: undefined,
+  [OutlineForms.HEADERS]:
+    "      the grouping saw no code lines: groups come from paths, headers and counts",
+  [OutlineForms.FILES]:
+    "      the grouping saw no code lines or hunk headers: groups come from paths and counts",
+};
+
+export const OUTLINE_FORM_KEYS: Record<OutlineForm, TranslationKey> = {
+  [OutlineForms.FULL]: "review.summary.outlineFormFull",
+  [OutlineForms.LINES_40]: "review.summary.outlineFormLines40",
+  [OutlineForms.LINES_20]: "review.summary.outlineFormLines20",
+  [OutlineForms.LINES_12]: "review.summary.outlineFormLines12",
+  [OutlineForms.LINES_6]: "review.summary.outlineFormLines6",
+  [OutlineForms.LINES_2]: "review.summary.outlineFormLines2",
+  [OutlineForms.HEADERS]: "review.summary.outlineFormHeaders",
+  [OutlineForms.FILES]: "review.summary.outlineFormFiles",
+};
+
+function buildReceiptGeneration(brief: Brief): ReceiptGeneration | undefined {
+  if (brief.outlineForm === undefined) {
+    return undefined;
+  }
+
+  const shortened: ReceiptShortenedFile[] = [];
+  for (const chunk of brief.chunks) {
+    if (chunk.readAs !== undefined) {
+      shortened.push({ file: chunk.file, readAs: chunk.readAs });
+    }
+  }
+
+  return {
+    outlineForm: brief.outlineForm,
+    shortened,
+  };
 }
 
 /**
@@ -245,6 +323,10 @@ export function buildReceipt(
 
   if (receiptRepoConfig !== undefined) {
     receipt.repoConfig = receiptRepoConfig;
+  }
+  const generation = buildReceiptGeneration(brief);
+  if (generation !== undefined) {
+    receipt.generation = generation;
   }
 
   return receipt;
@@ -452,7 +534,59 @@ function renderRepoConfigBlock(
   return lines.join("\n");
 }
 
-function rawReceiptText(receipt: Receipt): string {
+/** The frozen-format words for each read-as mark. */
+const READ_AS_LINE_LABELS: Record<ShortenedReading, string> = {
+  [ShortenedReadings.PACKAGE_SUMMARY]: "read as package changes",
+  [ShortenedReadings.COUNTS_ONLY]: "read as counts only",
+};
+
+/**
+ * One receipt line: text, or a file the generation record names by its
+ * repo-relative path, which a view may shorten from the left.
+ */
+export type ReceiptLine = string | ReceiptFileLine;
+
+export interface ReceiptFileLine {
+  file: string;
+}
+
+/** A named file sits one level under the line that names its reading. */
+export const RECEIPT_FILE_INDENT = "        ";
+
+function listGenerationLines(
+  generation: ReceiptGeneration | undefined,
+): ReceiptLine[] {
+  if (generation === undefined) {
+    return [];
+  }
+
+  const lines: ReceiptLine[] = [
+    "",
+    "  generation (multi-call):",
+    `      outline read by the grouping: ${generation.outlineForm}`,
+  ];
+  const noCodeLine = NO_CODE_OUTLINE_LINES[generation.outlineForm];
+  if (noCodeLine !== undefined) {
+    lines.push(noCodeLine);
+  }
+  for (const readAs of Object.values(ShortenedReadings)) {
+    const files = generation.shortened.filter(
+      (entry) => entry.readAs === readAs,
+    );
+    if (files.length > 0) {
+      lines.push(`      ${READ_AS_LINE_LABELS[readAs]}:`);
+      lines.push(...files.map((entry) => ({ file: entry.file })));
+    }
+  }
+  return lines;
+}
+
+/**
+ * The frozen receipt as lines: mechanical claims plus a visible "not
+ * checked" line. A run of two or more blank lines, left by empty sections,
+ * drops out; a single blank line stays.
+ */
+export function listReceiptLines(receipt: Receipt): ReceiptLine[] {
   const { subject, comments, addressed, dismissed } = receipt;
   // Drafts ship on the next submit; submitted ones were already posted and
   // are listed as the record they are.
@@ -463,9 +597,9 @@ function rawReceiptText(receipt: Receipt): string {
     (comment) => comment.status === DraftCommentStatuses.SUBMITTED,
   );
 
-  // One array entry per receipt line. An empty section contributes an empty
-  // string, and receiptText collapses the blank runs those leave behind.
-  const lines = [
+  // An empty section contributes an empty string; the blank runs those
+  // leave behind collapse below.
+  const sections = [
     `Reviewed by @you (human) · ${subject.repo} #${subject.number} @ ${subject.sha.slice(0, 7)}`,
     "Tool verification receipt: mechanical claims only",
     "",
@@ -492,14 +626,22 @@ function rawReceiptText(receipt: Receipt): string {
       .join("\n"),
     renderReclassifiedBlock(receipt.reclassifiedCount),
     renderRepoConfigBlock(receipt.repoConfig),
+  ];
+  const lines: ReceiptLine[] = [
+    ...sections.flatMap((section) => section.split("\n")),
+    ...listGenerationLines(receipt.generation),
     `  not checked: ${RECEIPT_NOT_CHECKED.join(" · ")}`,
   ];
 
-  return lines.join("\n");
+  return dropBlankRuns(lines);
 }
 
-/** The frozen receipt rendering: mechanical claims plus a visible "not
- * checked" line; blank-line runs left by empty sections collapse. */
-export function receiptText(receipt: Receipt): string {
-  return rawReceiptText(receipt).replace(/\n{3,}/g, "\n");
+/** A blank line stays only where no other blank line touches it. */
+function dropBlankRuns(lines: readonly ReceiptLine[]): ReceiptLine[] {
+  return lines.filter((line, index) => {
+    if (line !== "") {
+      return true;
+    }
+    return lines[index - 1] !== "" && lines[index + 1] !== "";
+  });
 }

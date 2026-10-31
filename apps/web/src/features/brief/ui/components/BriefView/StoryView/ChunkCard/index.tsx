@@ -48,6 +48,7 @@ import {
 } from "@web/components/Icon/types";
 import { FileStatusBadge } from "./FileStatusBadge";
 import { LargeChunkNotice } from "./LargeChunkNotice";
+import { ReadAsBadge } from "./ReadAsBadge";
 import {
   splitInlineRows,
   type DigestRow,
@@ -398,6 +399,9 @@ export const ChunkCard = memo(function ChunkCard({
               <RoleBadge role={chunk.role} />
               {fileStatus !== undefined ? (
                 <FileStatusBadge status={fileStatus} />
+              ) : null}
+              {chunk.readAs !== undefined ? (
+                <ReadAsBadge readAs={chunk.readAs} />
               ) : null}
             </>
           )}

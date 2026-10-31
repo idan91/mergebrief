@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
 
-import type { Receipt } from "../../../utils/receipt";
+import type { Receipt, ReceiptLine } from "../../../utils/receipt";
 import type { ReviewOutcome } from "types/reviews";
 import { CommentList } from "./CommentList";
 import { CoverageMetrics } from "./CoverageMetrics";
 import { NotCheckedList } from "./NotCheckedList";
 import { OutcomeCard } from "./OutcomeCard";
+import { RawReceipt } from "./RawReceipt";
 import { RiskDisposition } from "./RiskDisposition";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
@@ -14,8 +15,8 @@ import styles from "./ReceiptAccordion.module.scss";
 export interface ReceiptAccordionProps {
   receipt: Receipt;
   outcome: ReviewOutcome | undefined;
-  /** The frozen receipt text, shown in the raw fold. */
-  raw: string;
+  /** The frozen receipt's lines, shown in the raw fold. */
+  rawLines: readonly ReceiptLine[];
   signatureLine?: string | undefined;
 }
 
@@ -24,7 +25,7 @@ export interface ReceiptAccordionProps {
 export function ReceiptAccordion({
   receipt,
   outcome,
-  raw,
+  rawLines,
   signatureLine,
 }: ReceiptAccordionProps) {
   const { t } = useTranslation();
@@ -90,7 +91,7 @@ export function ReceiptAccordion({
           />
           {t("review.submit.receiptShowRaw")}
         </summary>
-        <pre className={styles["rawBody"]}>{raw}</pre>
+        <RawReceipt lines={rawLines} />
       </details>
     </div>
   );

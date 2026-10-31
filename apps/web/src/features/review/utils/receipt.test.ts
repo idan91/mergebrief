@@ -9,9 +9,24 @@ import {
 import { briefFixture } from "@web/features/brief/test-utils";
 import { buildBriefViewModel, type Brief } from "@web/features/brief/model";
 import type { SessionSnapshot } from "../session";
-import { buildReceipt, receiptText } from "./receipt";
+import { buildReceipt, listReceiptLines, type ReceiptLine } from "./receipt";
 
 const t = createI18n().t;
+
+function sliceLinesFrom(
+  lines: readonly ReceiptLine[],
+  first: string,
+  count: number,
+): ReceiptLine[] {
+  const start = lines.indexOf(first);
+  return start === -1 ? [] : lines.slice(start, start + count);
+}
+
+function hasLineWith(lines: readonly ReceiptLine[], fragment: string): boolean {
+  return lines.some(
+    (line) => typeof line === "string" && line.includes(fragment),
+  );
+}
 
 const model = buildBriefViewModel(briefFixture);
 const flagId = model.flags[0]!.id;
@@ -187,8 +202,8 @@ describe("buildReceipt", () => {
       model,
     );
 
-    expect(receiptText(receipt)).toContain(
-      "addressed: no-tests @ leak.ts: reviewed related chunk src/leak.ts",
+    expect(listReceiptLines(receipt)).toContain(
+      "      addressed: no-tests @ leak.ts: reviewed related chunk src/leak.ts",
     );
   });
 
@@ -285,6 +300,159 @@ describe("buildReceipt", () => {
       model,
     );
     expect(receipt.comments).toEqual([]);
+  });
+});
+
+describe("receipt generation record", () => {
+  function makeMultiCallBrief(): Brief {
+    const [first, ...rest] = briefFixture.chunks;
+    return {
+      ...briefFixture,
+      outlineForm: "lines-6",
+      chunks: [
+        first!,
+        ...rest,
+        {
+          ...first!,
+          id: "chunk-lock",
+          file: "pnpm-lock.yaml",
+          concern: "generated",
+          role: "supporting",
+          riskSurface: [],
+          readAs: "package-summary",
+        },
+        {
+          ...first!,
+          id: "chunk-dist",
+          file: "dist/app.js",
+          concern: "generated",
+          role: "supporting",
+          riskSurface: [],
+          readAs: "counts-only",
+        },
+      ],
+    };
+  }
+
+  it("names the outline form and the files read shortened", () => {
+    const brief = makeMultiCallBrief();
+
+    const receipt = buildReceipt(
+      t,
+      snapshot(),
+      brief,
+      buildBriefViewModel(brief),
+    );
+
+    expect(receipt.generation).toEqual({
+      outlineForm: "lines-6",
+      shortened: [
+        { file: "pnpm-lock.yaml", readAs: "package-summary" },
+        { file: "dist/app.js", readAs: "counts-only" },
+      ],
+    });
+    const lines = listReceiptLines(receipt);
+    expect(lines).toContain("  generation (multi-call):");
+    expect(lines).toContain("      outline read by the grouping: lines-6");
+    expect(sliceLinesFrom(lines, "      read as package changes:", 2)).toEqual([
+      "      read as package changes:",
+      { file: "pnpm-lock.yaml" },
+    ]);
+    expect(sliceLinesFrom(lines, "      read as counts only:", 2)).toEqual([
+      "      read as counts only:",
+      { file: "dist/app.js" },
+    ]);
+    expect(hasLineWith(lines, "saw no code lines")).toBe(false);
+  });
+
+  it("names each file read shortened by its repo-relative path", () => {
+    const [first] = briefFixture.chunks;
+    const brief: Brief = {
+      ...makeMultiCallBrief(),
+      chunks: [
+        {
+          ...first!,
+          id: "chunk-a",
+          file: "dist/install.js",
+          readAs: "counts-only",
+        },
+        {
+          ...first!,
+          id: "chunk-b",
+          file: "vendor/install.js",
+          readAs: "counts-only",
+        },
+      ],
+    };
+
+    const receipt = buildReceipt(
+      t,
+      snapshot(),
+      brief,
+      buildBriefViewModel(brief),
+    );
+
+    const lines = listReceiptLines(receipt);
+    expect(sliceLinesFrom(lines, "      read as counts only:", 3)).toEqual([
+      "      read as counts only:",
+      { file: "dist/install.js" },
+      { file: "vendor/install.js" },
+    ]);
+  });
+
+  it("flags a coarse outline form that showed no code", () => {
+    const brief: Brief = { ...makeMultiCallBrief(), outlineForm: "headers" };
+
+    const receipt = buildReceipt(
+      t,
+      snapshot(),
+      brief,
+      buildBriefViewModel(brief),
+    );
+
+    expect(listReceiptLines(receipt)).toContain(
+      "      the grouping saw no code lines: groups come from paths, headers and counts",
+    );
+  });
+
+  it("claims no hunk headers for the one-line-per-file outline", () => {
+    const brief: Brief = { ...makeMultiCallBrief(), outlineForm: "files" };
+
+    const receipt = buildReceipt(
+      t,
+      snapshot(),
+      brief,
+      buildBriefViewModel(brief),
+    );
+
+    const lines = listReceiptLines(receipt);
+    expect(lines).toContain(
+      "      the grouping saw no code lines or hunk headers: groups come from paths and counts",
+    );
+    expect(hasLineWith(lines, "headers and counts")).toBe(false);
+  });
+
+  it("leaves the two-line outline unflagged, since it shows code", () => {
+    const brief: Brief = { ...makeMultiCallBrief(), outlineForm: "lines-2" };
+
+    const receipt = buildReceipt(
+      t,
+      snapshot(),
+      brief,
+      buildBriefViewModel(brief),
+    );
+
+    const lines = listReceiptLines(receipt);
+    expect(hasLineWith(lines, "saw no code lines")).toBe(false);
+  });
+
+  it("stays absent on a single-call Brief", () => {
+    const receipt = buildReceipt(t, snapshot(), briefFixture, model);
+
+    expect(receipt.generation).toBeUndefined();
+    expect(listReceiptLines(receipt)).not.toContain(
+      "  generation (multi-call):",
+    );
   });
 });
 

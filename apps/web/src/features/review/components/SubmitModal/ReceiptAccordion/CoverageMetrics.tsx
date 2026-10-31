@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import type { Receipt } from "../../../utils/receipt";
+import { GenerationMetrics } from "./GenerationMetrics";
 import styles from "./ReceiptAccordion.module.scss";
 
 export interface CoverageMetricsProps {
@@ -25,6 +26,9 @@ export function CoverageMetrics({ receipt }: CoverageMetricsProps) {
         <dt>{t("review.summary.inlineComments")}</dt>
         <dd>{receipt.comments.length}</dd>
       </div>
+      {receipt.generation !== undefined ? (
+        <GenerationMetrics generation={receipt.generation} />
+      ) : null}
     </dl>
   );
 }

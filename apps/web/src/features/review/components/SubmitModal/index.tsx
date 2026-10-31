@@ -1,5 +1,6 @@
 import type { ReviewOutcome } from "types/reviews";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import clsx from "clsx";
 
 import { Modal } from "@web/components/Modal";
 import type { MentionSource } from "@web/features/conversation/types";
@@ -215,7 +216,10 @@ export function SubmitModal({
   return (
     <Modal
       open={open}
-      boxClassName={styles["submitBox"]}
+      boxClassName={clsx(
+        styles["submitBox"],
+        view === "receipt" && styles["receiptBox"],
+      )}
       close={close}
       labelledBy="submit-modal-heading"
     >
