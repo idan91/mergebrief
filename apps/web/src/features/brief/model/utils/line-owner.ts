@@ -1,12 +1,12 @@
 import type { LineRange } from "brief-core/types";
 import type { TFunction } from "i18next";
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { DiffLineKinds, DiffSides, type DiffSide } from "types";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 
 import type { BriefChunk } from "../types";
 import { GroupViewKinds, isUnattributedRemainderChunk } from "./remainder";
 import { resolveGroupName } from "./resolve-group-name";
 import type { BriefViewModel } from "./view-model";
-import { type DiffSide, DiffSides } from "types/comments";
 
 /** One line of a file by side, where a jump lands inside a chunk. */
 export interface LineTarget {

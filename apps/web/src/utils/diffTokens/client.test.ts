@@ -8,9 +8,9 @@ import {
   resetDiffTokenWorker,
   warmDiffTokenWorker,
 } from "./client";
+import { DiffLineKinds } from "types/diff-lines";
 import {
   ChunkTokenStatuses,
-  DiffLineKinds,
   GrammarNames,
   TokenFailureReasons,
   TokenizeModes,

@@ -3,9 +3,9 @@ import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PENDING_CEILING_MS } from "@web/utils/diffTokens/consts";
+import { DiffLineKinds } from "types/diff-lines";
 import {
   ChunkTokenStatuses,
-  DiffLineKinds,
   GrammarNames,
   TokenizeModes,
   type ChunkTokensResult,

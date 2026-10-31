@@ -1,3 +1,5 @@
+import { HUNK_HEADER } from "./chunk-layout/consts";
+
 /**
  * Row walk of one file's unified patch: every line inside a hunk with its
  * numbers on the sides it exists on. An added row has a new line only, a
@@ -15,8 +17,6 @@ export interface PatchRow {
   patchLine: number;
 }
 
-export const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
-
 export function parsePatchRows(patch: string): PatchRow[] {
   const rows: PatchRow[] = [];
   let oldLine = 0;
@@ -25,8 +25,8 @@ export function parsePatchRows(patch: string): PatchRow[] {
   for (const [patchLine, line] of patch.split("\n").entries()) {
     const header = HUNK_HEADER.exec(line);
     if (header) {
-      oldLine = Number(header[1]);
-      newLine = Number(header[2]);
+      oldLine = Number(header.groups?.["oldStart"]);
+      newLine = Number(header.groups?.["newStart"]);
       hunk += 1;
       continue;
     }

@@ -4,7 +4,10 @@
 // and the render.
 import { Concerns, Roles } from "brief-core/types";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
-import { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./diff-slicing";
+import {
+  parseUnifiedDiffPatch,
+  splitUnifiedDiffByFile,
+} from "brief-core/chunk-layout";
 import { type BriefChunk, GuestHostPrefixes } from "../types";
 import type { TFunction } from "i18next";
 

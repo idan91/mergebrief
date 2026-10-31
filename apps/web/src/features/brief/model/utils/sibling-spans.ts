@@ -1,8 +1,5 @@
-import {
-  type DiffLine,
-  DiffLineKinds,
-  DiffRowOrigins,
-} from "@web/utils/diffTokens/types";
+import { DiffLineKinds } from "types/diff-lines";
+import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 
 /** Row indexes, inclusive, of one owner's expanded changed rows and the context between them. */
 export interface SiblingSpan {

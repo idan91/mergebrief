@@ -12,6 +12,7 @@
     "./pr-url": "./src/github/pr-url.ts",
     "./gh-exec": "./src/github/exec.ts",
     "./remap": "./src/diff/remap.ts",
+    "./chunk-layout": "./src/diff/chunk-layout/index.ts",
     "./path-matching": "./src/path-matching.ts",
     "./shortened": "./src/generation/shortened/index.ts"
   },

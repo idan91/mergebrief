@@ -9,7 +9,8 @@ import {
   tokenizeSide,
   tokenizeStandaloneRows,
 } from "./tokenizeChunk";
-import { DiffLineKinds, GrammarNames, type DiffLine } from "./types";
+import { DiffLineKinds } from "types/diff-lines";
+import { GrammarNames, type DiffLine } from "./types";
 
 const MID_TAG_ROWS: DiffLine[] = [
   { kind: DiffLineKinds.HUNK, content: "@@ -1,3 +1,3 @@" },

@@ -30,6 +30,7 @@ export {
   type HttpMethod,
   type HttpStatus,
 } from "./http";
+export { DiffLineKinds, type DiffLineKind } from "./diff-lines";
 export { Runtimes, type Runtime } from "./runtime";
 export { AccessLevels, type AccessLevel } from "./access-levels";
 

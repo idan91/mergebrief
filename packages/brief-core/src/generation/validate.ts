@@ -1,5 +1,5 @@
 import type { FileDiff } from "../diff/file-diff";
-import { HUNK_HEADER } from "../diff/patch-rows";
+import { HUNK_HEADER } from "../diff/chunk-layout/consts";
 import { REMOVED_TAG_MARK } from "./fences";
 import {
   inAttributeScope,
@@ -797,9 +797,9 @@ function collectDepEntries(
   let inPomDependencies = false;
 
   for (const raw of patch.split("\n")) {
-    const hunk = HUNK_HEADER.exec(raw);
+    const hunk = HUNK_HEADER.exec(raw)?.groups;
     if (hunk) {
-      lineNo = Number(side === "added" ? hunk[2] : hunk[1]);
+      lineNo = Number(side === "added" ? hunk["newStart"] : hunk["oldStart"]);
       continue;
     }
     if (

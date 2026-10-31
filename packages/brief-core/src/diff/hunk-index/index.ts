@@ -1,5 +1,5 @@
 import { splitDiffByFile } from "../file-diff";
-import { HUNK_HEADER } from "../patch-rows";
+import { HUNK_HEADER } from "../chunk-layout/consts";
 import {
   DiffFileStatuses,
   type DiffFileStatus,

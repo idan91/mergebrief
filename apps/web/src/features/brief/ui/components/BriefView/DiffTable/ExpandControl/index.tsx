@@ -1,3 +1,4 @@
+import { ExpansionDirections } from "brief-core/chunk-layout";
 import type { LineRange } from "brief-core/types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -9,7 +10,6 @@ import {
   type ExpandableEdge,
   type ExpandFailure,
   type ExpanderStep,
-  ExpansionDirections,
   FileRangeResultKinds,
 } from "../../../../../model/expansion/types";
 import { resolveReachableLines } from "../../../../../model/expansion/edges";

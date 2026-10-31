@@ -1,6 +1,6 @@
 import { isContextKind } from "./utils";
-import { DiffLineKinds, type TokenizableRow, type HunkSide } from "./types";
-import { DiffSides, type DiffSide } from "types/comments";
+import { DiffLineKinds, DiffSides, type DiffSide } from "types";
+import { type TokenizableRow, type HunkSide } from "./types";
 
 /**
  * Rebuilds the two continuous texts a hunk was cut from, so a grammar sees

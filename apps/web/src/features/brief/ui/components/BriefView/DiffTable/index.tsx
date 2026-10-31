@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import { DiffRows } from "@web/components/DiffRows";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { DiffLineKinds, type DiffSide } from "types";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 import { ComparisonCallout } from "./ComparisonCallout";
 import {
   COMMENT_ANCHOR_ATTRIBUTES,
@@ -33,7 +34,6 @@ import {
 } from "./utils";
 import { RailSides } from "./types";
 import { type RowRef, RowRefKinds } from "../../../../model/expansion/types";
-import type { DiffSide } from "types/comments";
 
 export function DiffTable(props: DiffTableProps) {
   const {

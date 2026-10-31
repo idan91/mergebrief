@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "i18n";
 
 import { Badge, BadgeColors } from "@web/components/Badge";
-import { FileStatuses, type FileStatus } from "../../../../../../model/types";
+import { FileStatuses, type FileStatus } from "brief-core/chunk-layout";
 
 export interface FileStatusBadgeProps {
   status: FileStatus;

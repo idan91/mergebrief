@@ -1,5 +1,6 @@
-import type { DiffSide, ValueOf } from "types";
+import type { DiffLineKind, DiffSide, ValueOf } from "types";
 import type { z } from "zod/v4";
+import type { ParsedDiffLine } from "brief-core/chunk-layout";
 import type {
   tokenizeRequestSchema,
   warmRequestSchema,
@@ -8,15 +9,6 @@ import type {
   workerReplySchema,
   replyEnvelopeSchema,
 } from "./schemas";
-
-export const DiffLineKinds = {
-  HUNK: "hunk",
-  ADD: "add",
-  DEL: "del",
-  CTX: "ctx",
-  NOTE: "note",
-} as const;
-export type DiffLineKind = ValueOf<typeof DiffLineKinds>;
 
 /**
  * Absent means the row came from the PR diff. `expanded` marks a later read
@@ -29,11 +21,7 @@ export const DiffRowOrigins = {
 } as const;
 export type DiffRowOrigin = ValueOf<typeof DiffRowOrigins>;
 
-export interface DiffLine {
-  kind: DiffLineKind;
-  content: string;
-  oldLine?: number;
-  newLine?: number;
+export interface DiffLine extends ParsedDiffLine {
   origin?: DiffRowOrigin;
 }
 

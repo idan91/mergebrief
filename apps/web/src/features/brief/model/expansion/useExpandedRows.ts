@@ -3,8 +3,7 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useMemo } from "react";
 
 import type { ExpandableEdge, RowRef } from "./types";
-import { findExpansionGaps } from "./gaps";
-import { resolveFileStatus } from "../utils/file-status";
+import { findExpansionGaps, resolveFileStatus } from "brief-core/chunk-layout";
 import {
   buildExpansionKey,
   collectStoredEdges,

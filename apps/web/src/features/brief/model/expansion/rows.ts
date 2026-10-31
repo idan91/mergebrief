@@ -1,9 +1,6 @@
-import {
-  type DiffLine,
-  type DiffLineKind,
-  DiffLineKinds,
-  DiffRowOrigins,
-} from "@web/utils/diffTokens/types";
+import { DiffLineKinds, type DiffLineKind } from "types/diff-lines";
+import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
+import { HUNK_HEADER } from "brief-core/chunk-layout";
 import type { LineRange } from "brief-core/types";
 import { type DiffView, DiffViews } from "@web/components/DiffRows/types";
 import type {
@@ -11,9 +8,6 @@ import type {
   FileRangeSlice,
   ExpansionRowSources,
 } from "./types";
-
-const HUNK_HEADER =
-  /^@@ -(?<oldStart>\d+)(?:,\d+)? \+(?<newStart>\d+)(?:,\d+)? @@/;
 
 /** What a pass over a range's rows does with each one. */
 interface ExpansionRowVisitor {

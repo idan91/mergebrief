@@ -5,8 +5,8 @@ import {
   workerReplySchema,
   workerRequestSchema,
 } from "./schemas";
+import { DiffLineKinds } from "types/diff-lines";
 import {
-  DiffLineKinds,
   GrammarNames,
   TokenFailureReasons,
   type TokenizeRequest,

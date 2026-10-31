@@ -52,7 +52,7 @@ import type {
   PostCommentResult,
   RevisionTimelinePlan,
 } from "../../../model/types";
-import type { ExpansionDirection } from "../../../model/expansion/types";
+import type { ExpansionDirection } from "brief-core/chunk-layout";
 import type { ExpansionStore } from "../../../model/expansion/useExpansion";
 import type { ExpansionSource } from "../../../model/expansion/useExpansionSource";
 import type { LineTarget } from "../../../model/utils/line-owner";

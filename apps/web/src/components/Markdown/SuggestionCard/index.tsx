@@ -5,9 +5,9 @@ import { DiffRows } from "@web/components/DiffRows";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { useSnippetTokens } from "@web/hooks/useSnippetTokens";
 import { useTokenPlan } from "@web/hooks/useTokenPlan";
+import { DiffLineKinds } from "types/diff-lines";
 import {
   ChunkTokenStatuses,
-  DiffLineKinds,
   TokenizeModes,
   type DiffLine,
   type TokenizeMode,

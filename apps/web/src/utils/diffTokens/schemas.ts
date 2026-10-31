@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
+import { DiffLineKinds } from "types/diff-lines";
 import {
-  DiffLineKinds,
   GrammarNames,
   TokenFailureReasons,
   TokenizeModes,

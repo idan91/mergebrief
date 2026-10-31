@@ -1,8 +1,5 @@
-import {
-  DiffLineKinds,
-  DiffRowOrigins,
-  type DiffLine,
-} from "@web/utils/diffTokens/types";
+import { DiffLineKinds } from "types/diff-lines";
+import { DiffRowOrigins, type DiffLine } from "@web/utils/diffTokens/types";
 import {
   isLineCommentAnchor,
   rowId,

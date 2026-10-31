@@ -1,5 +1,6 @@
 import { resolveChunkForLine } from "@web/features/review/utils";
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { DiffLineKinds, DiffSides, type DiffSide } from "types";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 
 import {
   GuestHostPrefixes,
@@ -7,7 +8,6 @@ import {
   GuestRowReasons,
 } from "../../model/types";
 import type { FileLineOwners } from "../../model/utils/line-owner";
-import { type DiffSide, DiffSides } from "types/comments";
 
 /** The owner's own row a guest row came from, when it came from the owner's diff. */
 export interface GuestRowOrigin {

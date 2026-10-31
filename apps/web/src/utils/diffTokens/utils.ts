@@ -1,5 +1,6 @@
 import { CHUNK_ROW_CEILING } from "./consts";
-import { DiffLineKinds, type DiffLineKind, type TokenizableRow } from "./types";
+import { DiffLineKinds, type DiffLineKind } from "types/diff-lines";
+import { type TokenizableRow } from "./types";
 
 export function isContextKind(kind: DiffLineKind): boolean {
   return kind === DiffLineKinds.CTX;

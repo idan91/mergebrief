@@ -1,3 +1,4 @@
+import { ExpansionDirections } from "brief-core/chunk-layout";
 import type { LineRange } from "brief-core/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequestBounds } from "contract";
@@ -10,10 +11,7 @@ import type { ExpansionActions } from "../../../../model/expansion/useExpansion"
 import type { ExpansionSource } from "../../../../model/expansion/useExpansionSource";
 import { fetchFileRange } from "../../../../model/expansion/useFileRange";
 import { type BriefChunk } from "../../../../model/types";
-import {
-  ExpansionDirections,
-  FileRangeResultKinds,
-} from "../../../../model/expansion/types";
+import { FileRangeResultKinds } from "../../../../model/expansion/types";
 import { isExpansionCovered } from "../../../../model/expansion/rows";
 import type { FileRowsCache } from "../../../../model/file-rows/cache";
 import { AddressEventKinds, type AddressHandle } from "../address/types";

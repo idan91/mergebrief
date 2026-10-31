@@ -95,13 +95,6 @@ export interface RevisionChanges {
   files: RevisionChangeFile[];
 }
 
-/** What a file's first hunk header says about the file as a whole. */
-export const FileStatuses = {
-  NEW: "new",
-  DELETED: "deleted",
-} as const;
-export type FileStatus = ValueOf<typeof FileStatuses>;
-
 /** A full-Brief chunk, or a Delta Brief chunk with its two delta fields. */
 export interface BriefChunk extends Chunk {
   summary?: string;

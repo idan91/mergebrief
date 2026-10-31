@@ -1,7 +1,8 @@
+import { countSplitRows } from "brief-core/chunk-layout";
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { countSplitRows, pairSplitRows } from "./pairSplitRows";
+import { pairSplitRows } from "./pairSplitRows";
 
 function makeDiff(): DiffLine[] {
   return [
@@ -108,24 +109,12 @@ describe("pairSplitRows with expanded context", () => {
   });
 
   it("counts an expanded context row as one split row", () => {
-    expect(
-      countSplitRows([
-        {
-          kind: "ctx",
-          origin: "expanded",
-          content: "a",
-          oldLine: 1,
-          newLine: 1,
-        },
-        {
-          kind: "ctx",
-          origin: "expanded",
-          content: "b",
-          oldLine: 2,
-          newLine: 2,
-        },
-      ]),
-    ).toBe(2);
+    const expanded: DiffLine[] = [
+      { kind: "ctx", origin: "expanded", content: "a", oldLine: 1, newLine: 1 },
+      { kind: "ctx", origin: "expanded", content: "b", oldLine: 2, newLine: 2 },
+    ];
+
+    expect(countSplitRows(expanded)).toBe(2);
   });
 });
 

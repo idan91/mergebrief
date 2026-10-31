@@ -75,7 +75,7 @@ const BRIEF_FIXTURES = "^apps/web/src/features/brief/test-utils/fixtures\\.ts$";
 // member other than the worker and the tools may name by value.
 const LEAF_SUBPATH_FILES = [
   "^packages/brief-core/src/(types|path-matching)\\.ts$",
-  "^packages/brief-core/src/(pr-stack|artifact)/",
+  "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout)/",
   "^packages/brief-core/src/(github/pr-url|diff/remap)\\.ts$",
   "^packages/generators/src/contract/generation\\.ts$",
   "^packages/generators/src/config/(instancePolicy|trackers)\\.ts$",
@@ -120,6 +120,21 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/brief-core/src/path-matching\\.ts$" },
       to: { path: ".*", dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "chunk-layout-imports-only-types",
+      comment:
+        "The chunk slicer and its counts run in the browser and in the worker: they pull in no runtime code beyond the zero-dependency types package. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/diff/chunk-layout/" },
+      to: {
+        path: ".*",
+        pathNot: [
+          "^packages/types/",
+          "^packages/brief-core/src/diff/chunk-layout/",
+        ],
+        dependencyTypesNot: ["type-only"],
+      },
     },
     {
       name: "pr-url-imports-nothing",

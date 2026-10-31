@@ -22,7 +22,7 @@ import { buildSnippetKey } from "@web/utils/diffTokens/utils";
 import {
   parseUnifiedDiffPatch,
   splitUnifiedDiffByFile,
-} from "@web/features/brief/model";
+} from "brief-core/chunk-layout";
 import type { Span } from "../../../../utils/briefRouteState";
 import { buildPrDiffQueryOptions } from "../../../../queries";
 import styles from "./LiveDiffPreview.module.scss";

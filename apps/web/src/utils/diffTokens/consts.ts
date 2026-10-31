@@ -1,9 +1,5 @@
-import {
-  DiffLineKinds,
-  GrammarNames,
-  type DiffLineKind,
-  type GrammarName,
-} from "./types";
+import { DiffLineKinds, type DiffLineKind } from "types/diff-lines";
+import { GrammarNames, type GrammarName } from "./types";
 
 export const GRAMMAR_BUDGET_BYTES = 100 * 1024;
 

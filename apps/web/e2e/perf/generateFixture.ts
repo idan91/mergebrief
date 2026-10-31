@@ -16,7 +16,7 @@ import {
   parseBrief,
   parseRevisionNarrativeArtifact,
 } from "../../src/features/brief/model/utils/validation";
-import { parseUnifiedDiffPatch } from "../../src/features/brief/model/utils/diff-slicing";
+import { parseUnifiedDiffPatch } from "brief-core/chunk-layout";
 
 import {
   PERF_COMPARISON_ID,

@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { Concerns, Roles } from "brief-core/types";
-import {
-  DiffLineKinds,
-  DiffRowOrigins,
-  type DiffLine,
-} from "@web/utils/diffTokens/types";
+import { DiffLineKinds } from "types/diff-lines";
+import { DiffRowOrigins, type DiffLine } from "@web/utils/diffTokens/types";
 import {
   getDiffRowView,
   isCommentableLine,

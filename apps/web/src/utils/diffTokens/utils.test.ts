@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { buildSnippetKey, isChunkTokenizable } from "./utils";
-import { DiffLineKinds, type TokenizableRow } from "./types";
+import { DiffLineKinds } from "types/diff-lines";
+import { type TokenizableRow } from "./types";
 import { CHUNK_ROW_CEILING } from "./consts";
 
 describe("isChunkTokenizable", () => {

@@ -1,7 +1,7 @@
-import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
+import { DiffLineKinds, type DiffSide } from "types";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 
 import { LINE_ATTRIBUTES } from "./consts";
-import type { DiffSide } from "types/comments";
 
 /** Hunk and note rows span every column and take no slot content. */
 export function isFullWidthDiffRow(row: DiffLine): boolean {

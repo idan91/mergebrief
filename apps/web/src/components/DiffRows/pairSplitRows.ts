@@ -1,4 +1,5 @@
-import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
+import { DiffLineKinds } from "types/diff-lines";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 import { isContextKind } from "@web/utils/diffTokens/utils";
 import { buildDiffRowKeys, isFullWidthDiffRow } from "./utils";
 import type { SplitCell, SplitRow } from "./types";
@@ -39,7 +40,8 @@ export function pairSplitRows(diff: readonly DiffLine[]): SplitRow[] {
     cursor += adds.length;
     // A kind this pairing does not know would take neither run and leave the
     // cursor where it was, so the loop would never end. `countSplitRows`
-    // already steps past one; this keeps the two in step.
+    // (`brief-core/chunk-layout`) already steps past one; this keeps the two
+    // in step.
     if (dels.length === 0 && adds.length === 0) {
       cursor += 1;
       continue;
@@ -48,48 +50,6 @@ export function pairSplitRows(diff: readonly DiffLine[]): SplitRow[] {
   }
 
   return rows;
-}
-
-/**
- * How many rows the split view paints for a diff, counted without building
- * them: the height model asks this for every unmeasured card on each pass.
- */
-export function countSplitRows(diff: readonly DiffLine[]): number {
-  let rows = 0;
-  let cursor = 0;
-
-  while (cursor < diff.length) {
-    const line = diff[cursor];
-    if (line === undefined) {
-      break;
-    }
-
-    if (line.kind === DiffLineKinds.DEL || line.kind === DiffLineKinds.ADD) {
-      const dels = measureRun(diff, cursor, DiffLineKinds.DEL);
-      const adds = measureRun(diff, cursor + dels, DiffLineKinds.ADD);
-      rows += Math.max(dels, adds);
-      cursor += dels + adds;
-      continue;
-    }
-
-    rows += 1;
-    cursor += 1;
-  }
-
-  return rows;
-}
-
-function measureRun(
-  diff: readonly DiffLine[],
-  from: number,
-  kind: DiffLine["kind"],
-): number {
-  let length = 0;
-  while (diff[from + length]?.kind === kind) {
-    length += 1;
-  }
-
-  return length;
 }
 
 function takeRun(

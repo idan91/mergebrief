@@ -1,4 +1,4 @@
-import { countSplitRows } from "@web/components/DiffRows/pairSplitRows";
+import { countSplitRows } from "brief-core/chunk-layout";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare } from "../types";
 import { hasPairedSides } from "@web/components/DiffRows/utils";

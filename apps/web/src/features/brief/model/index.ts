@@ -38,11 +38,7 @@ export {
   type RevisionTimelineView,
 } from "./types";
 export { briefErrorDetail, prBriefErrorDetail } from "./utils/brief-errors";
-export {
-  attachSlicedDiffs,
-  parseUnifiedDiffPatch,
-  splitUnifiedDiffByFile,
-} from "./utils/diff-slicing";
+export { attachSlicedDiffs } from "./utils/diff-slicing";
 export { createFileRowsCache } from "./file-rows/cache";
 export { resolveLegacyDeltaRedirect } from "./utils/legacy-redirect";
 export {

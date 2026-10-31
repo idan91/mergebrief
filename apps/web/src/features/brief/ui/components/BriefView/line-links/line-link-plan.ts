@@ -8,11 +8,9 @@ import { type BriefChunk } from "../../../../model/types";
 import {
   type ExpansionGap,
   ExpansionDirections,
-} from "../../../../model/expansion/types";
-import {
   findExpansionGaps,
-  formatExpansionKey,
-} from "../../../../model/expansion/gaps";
+} from "brief-core/chunk-layout";
+import { formatExpansionKey } from "../../../../model/expansion/gaps";
 import { LineLinkPlanKinds, type LineLinkPlan } from "../types";
 import { DiffSides, type DiffSide } from "types/comments";
 

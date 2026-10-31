@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { reconstructHunkSides } from "./reconstructHunkSides";
-import { DiffLineKinds, type DiffLine } from "./types";
+import { DiffLineKinds } from "types/diff-lines";
+import { type DiffLine } from "./types";
 
 function makeRow(kind: DiffLine["kind"], content: string): DiffLine {
   return { kind, content };

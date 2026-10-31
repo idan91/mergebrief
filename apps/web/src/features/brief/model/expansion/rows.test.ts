@@ -1,4 +1,5 @@
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { DiffLineKinds } from "types/diff-lines";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
 import {

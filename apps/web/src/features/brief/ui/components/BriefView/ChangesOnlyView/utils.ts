@@ -6,15 +6,11 @@ import type {
 import type { TFunction } from "i18next";
 
 import { resolveChunkForLine } from "@web/features/review/utils";
-import {
-  type DiffLine,
-  DiffLineKinds,
-  DiffRowOrigins,
-} from "@web/utils/diffTokens/types";
+import { DiffLineKinds, DiffSides } from "types";
+import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 
 import type { Brief, BriefChunk } from "../../../../model/types";
 import type { GuestRowOrigin } from "../../../utils/guest-rows";
-import { DiffSides } from "types/comments";
 
 /** A narrative card's rows and, per row, the owner row each came from; a gap note has none. */
 export interface NarrativeRows {

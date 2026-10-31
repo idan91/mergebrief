@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { workerReplySchema } from "./schemas";
+import { DiffLineKinds } from "types/diff-lines";
 import {
-  DiffLineKinds,
   GrammarNames,
   TokenizeModes,
   TokenMessageKinds,

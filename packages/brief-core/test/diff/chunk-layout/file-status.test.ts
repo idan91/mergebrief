@@ -1,12 +1,14 @@
-import type { DiffLine } from "@web/utils/diffTokens/types";
+import { DiffLineKinds } from "types/diff-lines";
 import { describe, expect, it } from "vitest";
+import {
+  resolveFileStatus,
+  type ParsedDiffLine,
+} from "../../../src/diff/chunk-layout";
 
-import { resolveFileStatus } from "./file-status";
-
-function stubRows(header: string): DiffLine[] {
+function stubRows(header: string): ParsedDiffLine[] {
   return [
-    { kind: "hunk", content: header },
-    { kind: "add", content: "a", newLine: 1 },
+    { kind: DiffLineKinds.HUNK, content: header },
+    { kind: DiffLineKinds.ADD, content: "a", newLine: 1 },
   ];
 }
 
@@ -24,7 +26,9 @@ describe("resolveFileStatus", () => {
   });
 
   it("reads nothing from a sliced chunk with no header", () => {
-    const rows: DiffLine[] = [{ kind: "add", content: "a", newLine: 1 }];
+    const rows: ParsedDiffLine[] = [
+      { kind: DiffLineKinds.ADD, content: "a", newLine: 1 },
+    ];
 
     expect(resolveFileStatus(rows)).toBeUndefined();
   });

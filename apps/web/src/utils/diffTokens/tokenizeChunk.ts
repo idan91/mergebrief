@@ -10,8 +10,8 @@ import { derivePrelude } from "./prelude";
 import { reconstructHunkSides } from "./reconstructHunkSides";
 import { MERGEBRIEF_THEME_NAME } from "./theme";
 import { isContextKind } from "./utils";
+import { DiffLineKinds } from "types/diff-lines";
 import {
-  DiffLineKinds,
   TokenizeModes,
   type TokenizableRow,
   type GrammarName,

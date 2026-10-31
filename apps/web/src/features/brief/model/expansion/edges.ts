@@ -1,3 +1,7 @@
+import {
+  ExpansionDirections,
+  type ExpansionGap,
+} from "brief-core/chunk-layout";
 import type { LineRange } from "brief-core/types";
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import type { DiffView } from "@web/components/DiffRows/types";
@@ -6,8 +10,6 @@ import {
   type ExpandableEdge,
   type ExpanderStep,
   type ExpansionApplication,
-  ExpansionDirections,
-  type ExpansionGap,
   type FileRangeSlice,
   type ResolveExpansionRangeParams,
   type RowRef,

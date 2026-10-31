@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { memo, useMemo, useRef } from "react";
+import { resolveFileStatus } from "brief-core/chunk-layout";
 
 import { CopyButton } from "@web/components/CopyButton";
 import { IconButton } from "@web/components/IconButton";
@@ -16,7 +17,6 @@ import type {
   RiskKey,
 } from "../../../../../model/types";
 import { useExpandedRows } from "../../../../../model/expansion/useExpandedRows";
-import { resolveFileStatus } from "../../../../../model/utils/file-status";
 import type {
   FileLineOwners,
   LineTarget,

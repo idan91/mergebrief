@@ -1,4 +1,4 @@
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 import { RequestBounds } from "contract";
 import type { TFunction } from "i18next";
 
@@ -11,6 +11,7 @@ import {
   type DiffSide,
   DraftCommentStatuses,
   type DraftCommentStatus,
+  DiffLineKinds,
 } from "types";
 
 export interface CommentAnchorBase {

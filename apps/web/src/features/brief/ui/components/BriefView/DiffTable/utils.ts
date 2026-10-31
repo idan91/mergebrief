@@ -1,4 +1,10 @@
-import { DiffSides, ReviewCommentSides, type DiffSide } from "types";
+import { ExpansionDirections } from "brief-core/chunk-layout";
+import {
+  DiffSides,
+  ReviewCommentSides,
+  type DiffSide,
+  DiffLineKinds,
+} from "types";
 import { rangeBetween } from "@web/utils/collections";
 import { type ConversationThread } from "@web/features/conversation/types";
 import {
@@ -17,7 +23,7 @@ import {
   type DiffRowView,
 } from "./diff-row-view";
 import type { BriefChunk, GuestRowReason } from "../../../../model/types";
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { type DiffLine } from "@web/utils/diffTokens/types";
 import {
   type SplitCell,
   type SplitRow,
@@ -41,7 +47,6 @@ import { NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
 import {
   type ExpandableEdge,
-  ExpansionDirections,
   type RowRef,
   RowRefKinds,
 } from "../../../../model/expansion/types";

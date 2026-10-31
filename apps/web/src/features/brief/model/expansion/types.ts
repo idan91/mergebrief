@@ -1,23 +1,7 @@
 import type { LineRange } from "brief-core/types";
 import type { ValueOf } from "types";
+import type { ExpansionGap } from "brief-core/chunk-layout";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-
-export const ExpansionDirections = {
-  UP: "up",
-  DOWN: "down",
-} as const;
-export type ExpansionDirection = ValueOf<typeof ExpansionDirections>;
-
-/**
- * Where expanded context enters a chunk's rows. A chunk's diff is SLICED, so
- * a gap is not always a hunk boundary: the edge names the insertion point in
- * the rows the chunk actually carries, which a hunk index cannot.
- */
-export interface ExpansionEdge {
-  /** Insertion index into the chunk's `diff`. */
-  rowIndex: number;
-  direction: ExpansionDirection;
-}
 
 /**
  * What one hunk edge has expanded: the union the height model reads, the
@@ -28,17 +12,6 @@ export interface EdgeExpansion {
   range: LineRange;
   ranges: readonly LineRange[];
   totalLines?: number;
-}
-
-/** One edge of one gap in a chunk's rows, in head-file line numbers. */
-export interface ExpansionGap {
-  edge: ExpansionEdge;
-  /** First missing line, inclusive. */
-  start: number;
-  /** Last missing line, inclusive; absent where the gap runs to end of file. */
-  end?: number;
-  /** `oldLine - newLine` in force at this edge. */
-  offset: number;
 }
 
 /**

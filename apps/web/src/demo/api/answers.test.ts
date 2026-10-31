@@ -1,5 +1,6 @@
 // Every fixture answer goes through the reader the production screen parses
 // it with: a shape the live API would fail is a shape the demo fails too.
+import { splitUnifiedDiffByFile } from "brief-core/chunk-layout";
 import {
   ApiErrorCodes,
   buildOperationPath,
@@ -23,7 +24,6 @@ import {
   parseBrief,
   parseComparisonMarks,
   parseRevisionNarrativeArtifact,
-  splitUnifiedDiffByFile,
 } from "@web/features/brief/model";
 import {
   mentionTargetsResponseSchema,

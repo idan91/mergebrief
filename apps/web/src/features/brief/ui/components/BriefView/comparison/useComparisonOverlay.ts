@@ -1,5 +1,6 @@
 // The comparison overlay: resolves the View/Compare state and the
 // active baseline's data from the supplied plan's descriptors.
+import { splitUnifiedDiffByFile } from "brief-core/chunk-layout";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
@@ -22,10 +23,7 @@ import {
 import type { ComparisonSource } from "../../../../model/comparison/runs";
 import type { ComparisonOverlayState } from "../../../../model/comparison/comparison-overlay";
 import type { ComparisonQuery } from "../../../../model/comparison/comparison-query";
-import {
-  attachSpanDiffs,
-  splitUnifiedDiffByFile,
-} from "../../../../model/utils/diff-slicing";
+import { attachSpanDiffs } from "../../../../model/utils/diff-slicing";
 import {
   createFileRowsCache,
   type FileRowsCache,

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { makeRowRefs } from "../../test-utils/fixtures";
 import { type EdgeExpansion, RowRefKinds } from "./types";
-import { findExpansionGaps } from "./gaps";
+import { findExpansionGaps } from "brief-core/chunk-layout";
 import {
   buildExpansionKey,
   collectStoredEdges,

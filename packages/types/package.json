@@ -10,6 +10,7 @@
     "./comments": "./src/comments.ts",
     "./comparisons": "./src/comparisons.ts",
     "./conversation": "./src/conversation.ts",
+    "./diff-lines": "./src/diff-lines.ts",
     "./dispositions": "./src/dispositions.ts",
     "./drafts": "./src/drafts.ts",
     "./generations": "./src/generations.ts",

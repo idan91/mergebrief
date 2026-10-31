@@ -1,6 +1,7 @@
 // The rendered-brief composition for the DB route. Data assembly (queries +
 // live-diff attach) lives here; plan/transport assembly lives in the
 // usePrBriefPlans hook.
+import { splitUnifiedDiffByFile } from "brief-core/chunk-layout";
 import { useTranslation } from "react-i18next";
 import {
   useQuery,
@@ -25,7 +26,6 @@ import {
   CompareParams,
   createFileRowsCache,
   resolveBriefSearch,
-  splitUnifiedDiffByFile,
   stripDefaultSearch,
   withCompare,
   withView,
