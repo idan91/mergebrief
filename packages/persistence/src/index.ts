@@ -266,6 +266,7 @@ export {
   countStartedRunsOnDay,
   createGenerationProjection,
   GenerationErrorCodes,
+  readSpendBreakdown,
 } from "./stores/generation";
 export { utcDayBounds, type UtcDay } from "./stores/utc-day";
 export type {
@@ -274,6 +275,8 @@ export type {
   ChargeRunOutcome,
   ClaimRunInput,
   ClaimRunOutcome,
+  ClaimUnitsInput,
+  ClaimUnitsOutcome,
   GenerateJobTiming,
   GenerationClaim,
   RecoveryJobInput,
@@ -283,6 +286,7 @@ export type {
   GenerationTarget,
   GenerationRow,
   RunOutcome,
+  SpendBreakdown,
   TakeoverJob,
 } from "./stores/generation";
 

@@ -2,7 +2,7 @@
 // worker job, never a queue or a domain entity. graphile-worker deletes
 // succeeded jobs, so the web tier polls this; retries live in graphile. A run
 // claims the row (`run_id` under a lease the database clock judges), and each
-// paid run leaves one `generation_attempt` row, which the daily cap counts.
+// paid run leaves one `generation_attempt` row whose `units` the daily cap sums.
 // The natural key `(installation_id, pull_request_id, kind, head_sha,
 // baseline_sha)` is NULLS NOT DISTINCT, because `baseline_sha` is null for
 // briefs and every brief upsert would otherwise insert a second row.
@@ -145,6 +145,29 @@ export interface RecoveryJobInput {
 
 export interface ChargeRunInput extends CapWindow {
   readonly target: GenerationTarget;
+}
+
+/** More cap units for a run that already holds its attempt row. */
+export interface ClaimUnitsInput extends CapWindow {
+  readonly runId: string;
+  /** A positive integer. */
+  readonly units: number;
+}
+
+export type ClaimUnitsOutcome =
+  | { readonly kind: typeof ChargeOutcomes.CHARGED }
+  | {
+      readonly kind: typeof ChargeOutcomes.CAPPED;
+      readonly needed: number;
+      /** What the day's cap still allows, zero once it is spent. */
+      readonly left: number;
+    };
+
+/** The instance's spend over one day, in cap units. */
+export interface SpendBreakdown {
+  readonly startedUnits: number;
+  /** Runs that paid for more than their claim's single unit. */
+  readonly largeRuns: { readonly runs: number; readonly units: number };
 }
 
 export type ChargeRunOutcome =
@@ -331,11 +354,12 @@ export interface GenerationProjection {
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
   get(target: GenerationTarget): Promise<GenerationRow | undefined>;
   /**
-   * The daily spend cap's counter for the WHOLE instance: the
-   * `generation_attempt` rows started in the half-open window `[from, to)`.
-   * One row per paid run, graphile retries included, kept whatever the
-   * projection row later becomes. Counted ACROSS repos, tenants and scope
-   * worlds: the operator pays one bill whichever door spends it.
+   * The daily spend cap's counter for the WHOLE instance: the sum of `units`
+   * over `generation_attempt` rows started in the half-open window
+   * `[from, to)`. A claim adds one unit and every `claimUnits` adds its own,
+   * graphile retries included, kept whatever the projection row later
+   * becomes. Summed ACROSS repos, tenants and scope worlds: the operator
+   * pays one bill whichever door spends it.
    */
   countStartedRuns(input: {
     readonly from: Date;
@@ -363,6 +387,19 @@ export interface GenerationProjection {
   chargeRun(
     input: ChargeRunInput,
   ): Promise<Result<ChargeRunOutcome, GenerationError>>;
+  /**
+   * Add `units` to the run's attempt row under the same instance lock as
+   * `claimRun`, so the day's total never passes `cap`. A row started before
+   * the window moves to its start with every unit it holds, and those come
+   * out of what the window has left. At the cap nothing is written and the
+   * answer names the units needed and left. A run id no attempt row in the
+   * scope holds is `claim-lost`.
+   */
+  claimUnits(
+    input: ClaimUnitsInput,
+  ): Promise<Result<ClaimUnitsOutcome, GenerationError>>;
+  /** One more finished part on the run's attempt row; answers the new count. */
+  recordPartDone(runId: string): Promise<Result<number, GenerationError>>;
   /** The row's claim, judged by the database clock; `undefined` when absent. */
   readClaim(target: GenerationTarget): Promise<GenerationClaim | undefined>;
   /** The holder moves its phase; `claim-lost` for any other run id. */
@@ -489,19 +526,26 @@ async function countStartedRuns(
   executor: GenerationExecutor,
   { from, to }: { from: Date; to: Date },
 ): Promise<number> {
-  // Deliberately UNSCOPED, the one cross-world aggregate in this store. The
-  // daily cap is spend protection for the INSTANCE: every started run
-  // counts, whichever repo or door paid for it. Only a count leaves.
+  // Deliberately UNSCOPED, a cross-world aggregate in this store. The
+  // daily cap is spend protection for the INSTANCE: every started run's
+  // units count, whichever repo or door paid for them. Only a count leaves.
   const rows = await executor
-    .select({ total: count() })
+    .select({ total: sumInteger(generationAttempt.units) })
     .from(generationAttempt)
-    .where(
-      and(
-        gte(generationAttempt.startedAt, from),
-        lt(generationAttempt.startedAt, to),
-      ),
-    );
+    .where(isStartedWithin({ from, to }));
   return rows[0]?.total ?? 0;
+}
+
+function sumInteger(column: PgColumn): SQL<number> {
+  return sql<number>`coalesce(sum(${column}), 0)::int`.mapWith(Number);
+}
+
+function isStartedWithin({ from, to }: { from: Date; to: Date }): SQL {
+  const window = and(
+    gte(generationAttempt.startedAt, from),
+    lt(generationAttempt.startedAt, to),
+  );
+  return window ?? sql`true`;
 }
 
 /**
@@ -513,6 +557,36 @@ export async function countStartedRunsOnDay(
   day: { readonly from: Date; readonly to: Date },
 ): Promise<number> {
   return countStartedRuns(internal(handle), day);
+}
+
+/**
+ * The instance's spend over one UTC day, split into every run and the large
+ * runs that claimed more than one unit. Unscoped, as `countStartedRunsOnDay` is.
+ */
+export async function readSpendBreakdown(
+  handle: AppDatabase,
+  day: { readonly from: Date; readonly to: Date },
+): Promise<SpendBreakdown> {
+  const isLarge = sql`${generationAttempt.units} > 1`;
+  const rows = await internal(handle)
+    .select({
+      startedUnits: sumInteger(generationAttempt.units),
+      largeRuns: count(sql`case when ${isLarge} then 1 end`),
+      largeUnits:
+        sql<number>`coalesce(sum(${generationAttempt.units}) filter (where ${isLarge}), 0)::int`.mapWith(
+          Number,
+        ),
+    })
+    .from(generationAttempt)
+    .where(isStartedWithin(day));
+  const totals = rows[0];
+  return {
+    startedUnits: totals?.startedUnits ?? 0,
+    largeRuns: {
+      runs: totals?.largeRuns ?? 0,
+      units: totals?.largeUnits ?? 0,
+    },
+  };
 }
 
 async function recordAttempt(
@@ -1099,6 +1173,69 @@ export function createGenerationProjection(
     };
   }
 
+  /** The run's attempt row, through its `generation` row's scope check. */
+  function matchesAttempt(runId: string): SQL {
+    const ownGenerations = sql`select ${generation.id} from ${generation}
+      where ${scope.matchesChild(generation.installationId, generation.pullRequestId)}`;
+    const attempt = and(
+      scope.matchesWorld(generationAttempt.installationId),
+      eq(generationAttempt.runId, runId),
+      sql`${generationAttempt.generationId} in (${ownGenerations})`,
+    );
+    return attempt ?? sql`false`;
+  }
+
+  function failAttemptLost(runId: string): Result<never, GenerationError> {
+    return fail(
+      GenerationErrorCodes.CLAIM_LOST,
+      `generation attempt ${runId} is gone from ${scope.label}`,
+    );
+  }
+
+  async function claimAttemptUnits(
+    executor: GenerationExecutor,
+    input: ClaimUnitsInput,
+  ): Promise<Result<ClaimUnitsOutcome, GenerationError>> {
+    const found = await executor
+      .select({
+        units: generationAttempt.units,
+        startedAt: generationAttempt.startedAt,
+      })
+      .from(generationAttempt)
+      .where(matchesAttempt(input.runId))
+      .limit(1);
+    const attempt = found[0];
+    if (attempt === undefined) {
+      return failAttemptLost(input.runId);
+    }
+    // A run started before the claim's day moves onto it with every unit it
+    // holds: the claim day may overcount, but no claim escapes its cap.
+    const crossedMidnight = attempt.startedAt < input.from;
+    const carriedUnits = crossedMidnight ? attempt.units : 0;
+    if (input.cap !== undefined) {
+      const started = await countStartedRuns(executor, input);
+      const left = Math.max(0, input.cap - started - carriedUnits);
+      if (input.units > left) {
+        return {
+          ok: true,
+          value: { kind: ChargeOutcomes.CAPPED, needed: input.units, left },
+        };
+      }
+    }
+
+    const booking: PgUpdateSetSource<typeof generationAttempt> = {
+      units: sql`${generationAttempt.units} + ${input.units}`,
+    };
+    if (crossedMidnight) {
+      booking.startedAt = input.from;
+    }
+    await executor
+      .update(generationAttempt)
+      .set(booking)
+      .where(matchesAttempt(input.runId));
+    return { ok: true, value: { kind: ChargeOutcomes.CHARGED } };
+  }
+
   async function chargeRow(
     executor: GenerationExecutor,
     input: ChargeRunInput,
@@ -1205,6 +1342,33 @@ export function createGenerationProjection(
         }
         return chargeRow(tx, input);
       });
+    },
+
+    async claimUnits(input) {
+      if (!Number.isInteger(input.units) || input.units < 1) {
+        throw new Error(
+          `claimUnits: units must be a positive integer, got ${input.units}`,
+        );
+      }
+      return db.transaction(async (tx) => {
+        if (input.cap !== undefined) {
+          await lockInstanceCap(tx);
+        }
+        return claimAttemptUnits(tx, input);
+      });
+    },
+
+    async recordPartDone(runId) {
+      const rows = await db
+        .update(generationAttempt)
+        .set({ partsDone: sql`${generationAttempt.partsDone} + 1` })
+        .where(matchesAttempt(runId))
+        .returning({ partsDone: generationAttempt.partsDone });
+      const row = rows[0];
+      if (row === undefined) {
+        return failAttemptLost(runId);
+      }
+      return { ok: true, value: row.partsDone };
     },
 
     async readClaim(target) {
