@@ -36,6 +36,11 @@ export function unionExpanded(
   };
 }
 
+/** What every edge key of one chunk starts with. */
+export function formatChunkEdgePrefix(chunkId: string): `${string}:` {
+  return `${chunkId}:`;
+}
+
 /**
  * The state key for one edge of one chunk. `edge` is one found in the chunk's
  * BASE rows: a splice moves every index after it, so a key derived from
@@ -45,7 +50,7 @@ export function formatExpansionKey(
   chunkId: string,
   edge: ExpansionEdge,
 ): string {
-  return `${chunkId}:${String(edge.rowIndex)}:${edge.direction}`;
+  return `${formatChunkEdgePrefix(chunkId)}${String(edge.rowIndex)}:${edge.direction}`;
 }
 
 /**

@@ -12,6 +12,7 @@ import {
   type ChangeGroup,
   type LineRange,
   type ReadingOrderStep,
+  type UnattributedFile as StoredUnattributedFile,
 } from "brief-core/types";
 import {
   attributeDisplayMeta,
@@ -93,8 +94,11 @@ export interface RiskFlag {
   note?: string;
 }
 
-/** One unattributed file with its counts derived from the ranges. */
-export interface UnattributedFileView extends UnattributedFile {
+/**
+ * One unattributed file with its counts derived from the ranges. Never the
+ * rows: a view is built for every entry, and an entry's rows slice on read.
+ */
+export interface UnattributedFileView extends StoredUnattributedFile {
   added: number;
   deleted: number;
 }
@@ -592,11 +596,19 @@ function buildUnattributedView(
   if (files === undefined) {
     return undefined;
   }
-  const fileViews = files.map((file) => ({
-    ...file,
-    added: sumRanges(file.addedRanges),
-    deleted: sumRanges(file.removedRanges),
-  }));
+  const fileViews = files.map((file) => {
+    const view: UnattributedFileView = {
+      file: file.file,
+      addedRanges: file.addedRanges,
+      removedRanges: file.removedRanges,
+      added: sumRanges(file.addedRanges),
+      deleted: sumRanges(file.removedRanges),
+    };
+    if (file.riskSurface !== undefined) {
+      view.riskSurface = file.riskSurface;
+    }
+    return view;
+  });
   return {
     files: fileViews,
     added: fileViews.reduce((total, file) => total + file.added, 0),

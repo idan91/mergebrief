@@ -19,6 +19,27 @@ async function readVisibleRailKeys(page: Page): Promise<string[]> {
     );
 }
 
+/**
+ * The document's last rail: a group far off screen mounts no cards, so the
+ * rails mounted at load stop short of it. Read at the page's end, then back
+ * at the top where the walk starts.
+ */
+async function readLastRailKey(page: Page): Promise<string | undefined> {
+  await page.evaluate(() => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" });
+  });
+  await expect
+    .poll(async () => (await readVisibleRailKeys(page)).length)
+    .toBeGreaterThan(0);
+  await waitForScrollToSettle(page);
+  const last = (await readVisibleRailKeys(page)).at(-1);
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  });
+  await waitForScrollToSettle(page);
+  return last;
+}
+
 async function readFocusedRailKey(page: Page): Promise<string | null> {
   return page.evaluate(
     () => document.activeElement?.getAttribute("data-jump-target") ?? null,
@@ -71,9 +92,10 @@ test("the change stepper wraps from the last change back to the first", async ({
 }) => {
   await gotoBrief(page, COMPARED_FULL);
   const keys = await readVisibleRailKeys(page);
+  const lastKey = await readLastRailKey(page);
   const announcement = page.getByTestId("brief-live");
 
-  await stepTo(page, "Previous change", keys.at(-1));
+  await stepTo(page, "Previous change", lastKey);
   await expect(announcement).toHaveText("Wrapped around to the last change.");
   await stepTo(page, "Next change", keys[0]);
   await expect(announcement).toHaveText("Wrapped around to the first change.");

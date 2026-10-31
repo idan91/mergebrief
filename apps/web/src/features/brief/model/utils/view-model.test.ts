@@ -590,6 +590,43 @@ describe("buildAttributeRail, jump-rail", () => {
 });
 
 describe("buildBriefViewModel, unattributed", () => {
+  it("builds the file views without reading a lazy diff", () => {
+    const parsed = parseBriefBody({
+      ...twoGroupBrief(),
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 3 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    if (!parsed.ok) {
+      throw new Error("expected a parsed brief");
+    }
+    let reads = 0;
+    const lazyFiles = (parsed.value.unattributed ?? []).map((entry) => {
+      const lazy = { ...entry };
+      Object.defineProperty(lazy, "diff", {
+        enumerable: true,
+        configurable: true,
+        get: () => {
+          reads += 1;
+          return [];
+        },
+      });
+      return lazy;
+    });
+
+    const model = buildBriefViewModel({
+      ...parsed.value,
+      unattributed: lazyFiles,
+    });
+
+    expect(model.unattributed?.files[0]?.added).toBe(3);
+    expect(reads).toBe(0);
+  });
+
   it("registers a flag an unattributed file carries as a session flag", () => {
     const parsed = parseBriefBody({
       ...twoGroupBrief(),

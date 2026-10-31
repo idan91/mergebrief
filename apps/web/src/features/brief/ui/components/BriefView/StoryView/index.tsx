@@ -2,7 +2,6 @@ import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare } from "../types";
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { useSplitWidth } from "./useSplitWidth";
-import type { DiffLine } from "@web/utils/diffTokens/types";
 import {
   useCallback,
   useEffect,
@@ -17,7 +16,6 @@ import type {
   Brief,
   BriefChunk,
 } from "../../../../model/types";
-import { countExpandedRows } from "../../../../model/expansion/edges";
 import type { BriefViewModel } from "../../../../model/utils/view-model";
 import type {
   DigestRow,
@@ -58,9 +56,9 @@ import {
 } from "../utils";
 import styles from "./StoryView.module.scss";
 import {
-  countDiffRows,
+  countStoryChunkRows,
   estimateStoryChunkHeight,
-  type StoryChunkRowCounts,
+  NO_STORY_ROWS,
 } from "./utils";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
@@ -228,9 +226,6 @@ export function StoryView(props: StoryViewProps) {
   );
 }
 
-const NO_DIFF: DiffLine[] = [];
-const NO_ROWS: StoryChunkRowCounts = { diff: 0, expanded: 0 };
-
 interface WindowedChunkListProps {
   group: BriefViewModel["groups"][number];
   view: StoryViewProps;
@@ -337,28 +332,23 @@ function WindowedChunkList({
   const expandedEdges = useExpansion((state) => state.expandedEdges);
   const fileRowsCache = useFileRows();
   // Counted once per group: the virtualizer asks for every unmeasured card
-  // on each measurement pass. Expanded rows charge the same row height.
+  // on each measurement pass. The stored counts size a card before its code
+  // lands and after: the sliced rows alone would drop the tall-row and wrap
+  // allowances the reservation carried. Without them a pending card reserves
+  // what its skeleton draws.
+  const layout = useChunkLayout();
+  const storedCounts = layout?.counts;
   const rowCounts = useMemo(
     () =>
-      group.chunks.map((chunk) => {
-        const base = chunk.diff ?? NO_DIFF;
-        const chunkView = resolveChunkView(diffView, chunk, false);
-        const expanded = countExpandedRows(
-          expandedEdges,
-          chunk.id,
-          base,
-          fileRowsCache?.getFileRows(chunk.file),
-          chunkView,
-        );
-        return { diff: countDiffRows(base, chunkView) + expanded, expanded };
+      countStoryChunkRows({
+        chunks: group.chunks,
+        diffView,
+        expandedEdges,
+        fileRows: fileRowsCache,
+        storedCounts,
       }),
-    [group.chunks, diffView, expandedEdges, fileRowsCache],
+    [group.chunks, diffView, expandedEdges, fileRowsCache, storedCounts],
   );
-  // The stored counts size a card before its code lands and after: the
-  // sliced rows alone would drop the tall-row and wrap allowances the
-  // reservation carried, and every unmeasured card above would shrink.
-  // Without them a pending card reserves what its skeleton draws.
-  const layout = useChunkLayout();
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = group.chunks[index];
@@ -369,7 +359,7 @@ function WindowedChunkList({
         chunk,
         groupView: diffView,
         counts: readCardCounts(layout, chunk),
-        rows: rowCounts[index] ?? NO_ROWS,
+        rows: rowCounts[index] ?? NO_STORY_ROWS,
         open: openChunks.has(chunk.id),
         large: isLargeChunk(chunk),
       });

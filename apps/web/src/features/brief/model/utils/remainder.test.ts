@@ -109,6 +109,25 @@ describe("hydrateRemainderGroup", () => {
     ).toBeUndefined();
   });
 
+  it("forwards a lazy diff without reading it", () => {
+    let reads = 0;
+    const lazy: UnattributedFile = { ...orphanFile };
+    Object.defineProperty(lazy, "diff", {
+      enumerable: true,
+      configurable: true,
+      get: () => {
+        reads += 1;
+        return orphanFile.diff;
+      },
+    });
+
+    const hydration = hydrateRemainderGroup([lazy], new Set());
+    expect(reads).toBe(0);
+
+    expect(hydration?.chunks[0]?.diff).toEqual(orphanFile.diff);
+    expect(reads).toBe(1);
+  });
+
   it("hydrates one leftover file as one chunk and copies its diff", () => {
     const hydration = hydrateRemainderGroup([orphanFile], new Set());
 

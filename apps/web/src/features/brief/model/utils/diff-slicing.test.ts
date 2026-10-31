@@ -98,6 +98,50 @@ describe("attachSlicedDiffs", () => {
     ]);
   });
 
+  it("slices a chunk's rows on first read and keeps them", () => {
+    let parses = 0;
+    const cache = createFileRowsCache(splitUnifiedDiffByFile(MULTI_FILE_DIFF));
+    const counting = {
+      isEmpty: cache.isEmpty,
+      getFileRows: (path: string) => {
+        parses += 1;
+        return cache.getFileRows(path);
+      },
+    };
+    const brief = attachSlicedDiffs(
+      stubBrief([stubChunk({ addedRanges: [{ start: 1, end: 1 }] })]),
+      counting,
+    );
+    const chunk = brief.chunks[0];
+
+    expect(parses).toBe(1);
+    expect(Object.keys(chunk ?? {})).toContain("diff");
+    const first = chunk?.diff;
+    expect(first?.map((row) => row.content)).toEqual([
+      "@@ -1,2 +1,2 @@",
+      "const a = 1;",
+      "const a = 10;",
+      "const b = 2;",
+    ]);
+    expect(chunk?.diff).toBe(first);
+  });
+
+  it("lets a caller replace a sliced chunk's rows", () => {
+    const cache = createFileRowsCache(splitUnifiedDiffByFile(MULTI_FILE_DIFF));
+    const brief = attachSlicedDiffs(
+      stubBrief([stubChunk({ addedRanges: [{ start: 1, end: 1 }] })]),
+      cache,
+    );
+    const chunk = brief.chunks[0];
+    if (chunk === undefined) {
+      throw new Error("expected a chunk");
+    }
+
+    chunk.diff = [];
+
+    expect(chunk.diff).toEqual([]);
+  });
+
   it("returns the brief itself when the cache holds no file", () => {
     const brief = stubBrief([stubChunk({})]);
 

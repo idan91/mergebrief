@@ -6,6 +6,8 @@ import {
   type VirtualItem,
 } from "@tanstack/react-virtual";
 
+import { useNearGroup } from "./useNearGroup";
+
 /** Fixed constant, never a live viewport read: server and client must
  * derive the identical initial window or hydration mismatches. */
 export const SSR_VIEWPORT_RECT = {
@@ -58,7 +60,11 @@ export interface GroupWindow {
   active: boolean;
   /** Index of a chunk key in this group, -1 when absent. */
   indexOfKey: (key: string) => number;
-  /** Scroll the window toward a key; false = absent key or hidden pane. */
+  /**
+   * Scroll the window toward a key and keep its card mounted until the group
+   * has been reached and left, or the next jump into this group; false =
+   * absent key or hidden pane.
+   */
   scrollToKey: (key: string) => boolean;
   /**
    * Held, a card measured above the fold keeps its delta instead of moving
@@ -162,22 +168,30 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     };
   }, [active, listEl]);
 
+  // A group far from the viewport renders no cards: its list keeps its
+  // height from the estimates, so the page's length holds, and the cards
+  // mount again two viewports before the reader reaches them.
+  const { near, jumpKey, pinJump } = useNearGroup(listEl, active, live);
+
   const rangeExtractor = useCallback(
     (range: Range) => {
-      const base = defaultRangeExtractor(range);
-      if (!pinnedKeys || pinnedKeys.size === 0) {
+      const rendersRange = near || !active;
+      const base = rendersRange ? defaultRangeExtractor(range) : [];
+      const keepsNoPin =
+        (!pinnedKeys || pinnedKeys.size === 0) && jumpKey === undefined;
+      if (keepsNoPin) {
         return base;
       }
       const merged = new Set(base);
-      for (const key of pinnedKeys) {
-        const index = keyIndex.get(key);
+      for (const key of [...(pinnedKeys ?? []), jumpKey]) {
+        const index = key === undefined ? undefined : keyIndex.get(key);
         if (index !== undefined) {
           merged.add(index);
         }
       }
       return [...merged].toSorted((a, b) => a - b);
     },
-    [keyIndex, pinnedKeys],
+    [keyIndex, pinnedKeys, jumpKey, near, active],
   );
 
   const virtualizer = useWindowVirtualizer({
@@ -230,12 +244,13 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
       if (index === undefined) {
         return false;
       }
+      pinJump(key);
       // "instant": measurement adjustments cancel in-flight smooth scrolls,
       // and "auto" would defer to the page's smooth CSS.
       virtualizer.scrollToIndex(index, { align: "start", behavior: "instant" });
       return true;
     },
-    [keyIndex, virtualizer],
+    [keyIndex, virtualizer, pinJump],
   );
 
   // `undefined` restores the library's own rule.

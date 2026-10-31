@@ -8,7 +8,8 @@ import {
   estimateChunkCardHeight,
   estimateReservedChunkCardHeight,
 } from "../reading/chunk-height-model";
-import { estimateStoryChunkHeight } from "./utils";
+import type { BriefChunk } from "../../../../model/types";
+import { countStoryChunkRows, estimateStoryChunkHeight } from "./utils";
 
 const TWO_SIDED = {
   addedRanges: [{ start: 10, end: 21 }],
@@ -110,5 +111,90 @@ describe("estimateStoryChunkHeight", () => {
     expect(height).toBe(
       estimateChunkCardHeight({ diffRowCount: 7, open: true, large: false }),
     );
+  });
+});
+
+function makeStoryChunk(id: string): BriefChunk {
+  return {
+    id,
+    changeGroupId: "g1",
+    file: `src/${id}.ts`,
+    concern: "implementation",
+    role: "core",
+    loc: { added: 2, deleted: 0 },
+    addedRanges: [{ start: 1, end: 2 }],
+    removedRanges: [],
+    riskSurface: [],
+    diff: [
+      { kind: "hunk", content: "@@ -0,0 +1,2 @@" },
+      { kind: "add", content: "a", newLine: 1 },
+      { kind: "add", content: "b", newLine: 2 },
+    ],
+  } as BriefChunk;
+}
+
+function makeUnreadChunk(id: string): {
+  chunk: BriefChunk;
+  reads: () => number;
+} {
+  const base = makeStoryChunk(id);
+  let reads = 0;
+  const chunk = Object.defineProperty({ ...base }, "diff", {
+    get: () => {
+      reads += 1;
+      return base.diff;
+    },
+  });
+  return { chunk, reads: () => reads };
+}
+
+describe("countStoryChunkRows", () => {
+  it("never reads the rows of a stored, unexpanded card", () => {
+    const { chunk, reads } = makeUnreadChunk("c1");
+
+    const rows = countStoryChunkRows({
+      chunks: [chunk],
+      diffView: DiffViews.UNIFIED,
+      expandedEdges: new Map(),
+      fileRows: undefined,
+      storedCounts: {
+        chunks: new Map([["c1", MID_WIDTH_COUNTS]]),
+        files: new Map(),
+      },
+    });
+
+    expect(rows).toEqual([NO_EXPANDED]);
+    expect(reads()).toBe(0);
+  });
+
+  it("counts a card's sliced rows when no counts were stored", () => {
+    const rows = countStoryChunkRows({
+      chunks: [makeStoryChunk("c1")],
+      diffView: DiffViews.UNIFIED,
+      expandedEdges: new Map(),
+      fileRows: undefined,
+      storedCounts: undefined,
+    });
+
+    expect(rows).toEqual([{ diff: 3, expanded: 0 }]);
+  });
+
+  it("reads a stored card's rows once the reader expanded an edge", () => {
+    const { chunk, reads } = makeUnreadChunk("c1");
+    const range = { start: 3, end: 5 };
+
+    const rows = countStoryChunkRows({
+      chunks: [chunk],
+      diffView: DiffViews.UNIFIED,
+      expandedEdges: new Map([["c1:3:down", { range, ranges: [range] }]]),
+      fileRows: undefined,
+      storedCounts: {
+        chunks: new Map([["c1", MID_WIDTH_COUNTS]]),
+        files: new Map(),
+      },
+    });
+
+    expect(rows).toEqual([{ diff: 6, expanded: 3 }]);
+    expect(reads()).toBeGreaterThan(0);
   });
 });

@@ -206,6 +206,20 @@ describe("countComparisonRuns", () => {
     ).toBe(4);
     expect(countComparisonRuns([chunk("c3", "src/other.ts")], marks)).toBe(0);
   });
+
+  it("never reads the rows of a chunk whose file has no marks", () => {
+    const base = chunk("c3", "src/other.ts");
+    let reads = 0;
+    const unmarked = Object.defineProperty({ ...base }, "diff", {
+      get: () => {
+        reads += 1;
+        return base.diff;
+      },
+    });
+
+    expect(countComparisonRuns([unmarked], marks)).toBe(0);
+    expect(reads).toBe(0);
+  });
 });
 
 describe("groupStartIndexes", () => {

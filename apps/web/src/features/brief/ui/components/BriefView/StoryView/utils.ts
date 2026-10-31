@@ -6,6 +6,16 @@ import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { BriefChunk } from "../../../../model/types";
 import {
+  readStoredCounts,
+  type StoredChunkCounts,
+} from "../../../../model/chunk-layout/useChunkLayout";
+import {
+  countExpandedRows,
+  hasExpandedEdge,
+} from "../../../../model/expansion/edges";
+import type { EdgeExpansion } from "../../../../model/expansion/types";
+import type { FileRowsCache } from "../../../../model/file-rows/cache";
+import {
   DIFF_ROW_HEIGHT_PX,
   estimateChunkCardHeight,
   estimateReservedChunkCardHeight,
@@ -16,6 +26,48 @@ export interface StoryChunkRowCounts {
   /** Rows the card's own view paints, expanded rows included. */
   diff: number;
   expanded: number;
+}
+
+export interface StoryChunkRowsInput {
+  chunks: readonly BriefChunk[];
+  diffView: DiffView;
+  expandedEdges: ReadonlyMap<string, EdgeExpansion>;
+  fileRows: FileRowsCache | undefined;
+  storedCounts: StoredChunkCounts | undefined;
+}
+
+export const NO_STORY_ROWS: StoryChunkRowCounts = { diff: 0, expanded: 0 };
+const NO_DIFF: DiffLine[] = [];
+
+/**
+ * Each card's painted rows, expanded ones charged at the same row height. A
+ * card's rows are sliced on first read, so one sized from stored counts with
+ * no expanded edge is never read here: reading it would slice every card in
+ * the group at once.
+ */
+export function countStoryChunkRows(
+  input: StoryChunkRowsInput,
+): StoryChunkRowCounts[] {
+  const { diffView, expandedEdges, fileRows, storedCounts } = input;
+  return input.chunks.map((chunk) => {
+    const stored = readStoredCounts(storedCounts, chunk);
+    const sizedFromStore =
+      stored !== undefined && !hasExpandedEdge(expandedEdges, chunk.id);
+    if (sizedFromStore) {
+      return NO_STORY_ROWS;
+    }
+
+    const base = chunk.diff ?? NO_DIFF;
+    const chunkView = resolveChunkView(diffView, chunk, false);
+    const expanded = countExpandedRows(
+      expandedEdges,
+      chunk.id,
+      base,
+      fileRows?.getFileRows(chunk.file),
+      chunkView,
+    );
+    return { diff: countDiffRows(base, chunkView) + expanded, expanded };
+  });
 }
 
 export interface StoryChunkHeightInput {

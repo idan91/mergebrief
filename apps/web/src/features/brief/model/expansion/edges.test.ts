@@ -8,6 +8,7 @@ import {
   buildExpansionKey,
   collectStoredEdges,
   countExpandedRows,
+  hasExpandedEdge,
   mapRowRefs,
   placeExpandableEdges,
   resolveExpanderStep,
@@ -210,6 +211,17 @@ describe("countExpandedRows", () => {
 
   it("counts nothing for a chunk with no stored edge", () => {
     expect(countExpandedRows(edges, "c9", base, fileRows, "unified")).toBe(0);
+  });
+});
+
+describe("hasExpandedEdge", () => {
+  const edges = new Map<string, EdgeExpansion>([
+    ["c10:1:up", stubExpansion(10, 29)],
+  ]);
+
+  it("finds a chunk's expanded edge by its own id only", () => {
+    expect(hasExpandedEdge(edges, "c10")).toBe(true);
+    expect(hasExpandedEdge(edges, "c1")).toBe(false);
   });
 });
 

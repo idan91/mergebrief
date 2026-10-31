@@ -1,4 +1,5 @@
 import type { ValueOf } from "types/utils";
+import { forwardDiff } from "./diff-slicing";
 
 import { Concerns, Roles, type LineRange } from "brief-core/types";
 import { type BriefChunk, type UnattributedFile } from "../types";
@@ -76,8 +77,8 @@ export function hydrateRemainderGroup(
       removedRanges: file.removedRanges,
       riskSurface: file.riskSurface ?? [],
     };
-    if (file.diff !== undefined) {
-      chunk.diff = file.diff;
+    if ("diff" in file) {
+      forwardDiff(chunk, file);
     }
 
     chunks.push(chunk);

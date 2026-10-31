@@ -19,6 +19,7 @@ import {
 } from "./types";
 import {
   EXPAND_STEP,
+  formatChunkEdgePrefix,
   formatExpansionKey,
   resolveExpansionRange,
   spliceAllExpandedRows,
@@ -175,6 +176,20 @@ function contains(outer: ExpansionGap, inner: ExpansionGap): boolean {
   return endsWithin;
 }
 
+/** Whether the reader expanded any edge of the chunk. */
+export function hasExpandedEdge(
+  expandedEdges: ReadonlyMap<string, unknown>,
+  chunkId: string,
+): boolean {
+  const prefix = formatChunkEdgePrefix(chunkId);
+  for (const edgeKey of expandedEdges.keys()) {
+    if (edgeKey.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * The rows a chunk's stored expansions add, for the height model, counted
  * without building them. Without the file's rows a range counts its lines;
@@ -187,7 +202,7 @@ export function countExpandedRows(
   fileRows: readonly DiffLine[] | undefined,
   view: DiffView,
 ): number {
-  const prefix = `${chunkId}:`;
+  const prefix = formatChunkEdgePrefix(chunkId);
   let count = 0;
 
   for (const [edgeKey, expansion] of expandedEdges) {
