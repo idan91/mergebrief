@@ -34,6 +34,7 @@ import {
   readRevisionRequest,
 } from "@web/features/pulls/search";
 import {
+  buildDbBriefLayoutQueryOptions,
   buildDbBriefQueryOptions,
   buildPrMetaQueryOptions,
   buildSessionQueryOptions,
@@ -135,6 +136,22 @@ function prefetchSession(
   });
 }
 
+/**
+ * The stored card sizes ride with the brief so the server and the client
+ * reserve the same heights on first paint; a brief without them resolves
+ * with no body and never fails the loader.
+ */
+function prefetchBriefLayout(
+  queryClient: QueryClient,
+  repoId: string,
+  prNumber: number,
+  span: Span,
+): Promise<void> {
+  return queryClient.prefetchQuery(
+    buildDbBriefLayoutQueryOptions(repoId, prNumber, span.base, span.head),
+  );
+}
+
 export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: parsePrSearch,
   loaderDeps: ({ search }) => readRevisionRequest(search),
@@ -164,6 +181,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
             ),
           ),
           prefetchSession(context.queryClient, repoId, prNumber, explicit),
+          prefetchBriefLayout(context.queryClient, repoId, prNumber, explicit),
         ]);
         if (metaResult.status === "rejected") {
           return await mapLoaderError(metaResult.reason, location.href);
@@ -201,6 +219,12 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
             ),
           ),
           prefetchSession(context.queryClient, repoId, prNumber, state.span),
+          prefetchBriefLayout(
+            context.queryClient,
+            repoId,
+            prNumber,
+            state.span,
+          ),
         ]);
       }
       return pickPageTitleInput(meta);

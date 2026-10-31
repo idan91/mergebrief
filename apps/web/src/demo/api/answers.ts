@@ -131,6 +131,11 @@ const READS: readonly DemoRead[] = [
     answer: () => answerStoredJson(briefContextText),
   },
   { path: buildPullPath(ProductQueryIds.READ_BRIEF), answer: answerBrief },
+  // The fixture stores no counts, so every card sizes from its estimate.
+  {
+    path: buildPullPath(ProductQueryIds.READ_BRIEF_LAYOUT),
+    answer: () => answerJson({ layout: null }),
+  },
   { path: buildPullPath(ProductQueryIds.READ_DIFF), answer: answerDiff },
   { path: buildPullPath(ProductQueryIds.READ_MARKS), answer: answerMarks },
   {

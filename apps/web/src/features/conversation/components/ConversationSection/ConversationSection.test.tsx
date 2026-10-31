@@ -842,6 +842,26 @@ describe("ConversationSection outdated-thread revision jump", () => {
     );
   });
 
+  it("marks its smooth landing scroll for the landing hold", async () => {
+    const scrollSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+    const endSmoothScroll = vi.fn();
+    const beginSmoothScroll = vi.fn(() => endSmoothScroll);
+    try {
+      const { plan: jp } = jumpPlan("anchor-1", ["anchor-1"]);
+      renderSection({ plan: jp, focusThreadId: 7777, beginSmoothScroll });
+      await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+      expect(scrollSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: "smooth" }),
+      );
+      expect(beginSmoothScroll).toHaveBeenCalledOnce();
+
+      window.dispatchEvent(new Event("scrollend"));
+      expect(endSmoothScroll).toHaveBeenCalledOnce();
+    } finally {
+      scrollSpy.mockRestore();
+    }
+  });
+
   it("lands with an instant scroll when the viewer prefers reduced motion", async () => {
     // The setup stub's matchMedia always reports matches=false; override it
     // for this test to simulate prefers-reduced-motion: reduce.
@@ -858,11 +878,13 @@ describe("ConversationSection outdated-thread revision jump", () => {
     };
     try {
       const { plan: jp } = jumpPlan("anchor-1", ["anchor-1"]);
-      renderSection({ plan: jp, focusThreadId: 7777 });
+      const beginSmoothScroll = vi.fn(() => vi.fn());
+      renderSection({ plan: jp, focusThreadId: 7777, beginSmoothScroll });
       await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
       expect(scrollSpy).toHaveBeenCalledWith(
         expect.objectContaining({ behavior: "auto" }),
       );
+      expect(beginSmoothScroll).not.toHaveBeenCalled();
     } finally {
       globalThis.matchMedia = originalMatchMedia;
       scrollSpy.mockRestore();

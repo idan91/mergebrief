@@ -40,7 +40,7 @@ import type {
 } from "../../wiring";
 import { VERDICT_LABEL_KEYS } from "../../utils/chips";
 import { DigestGroupView } from "./DigestGroupView";
-import { headSummary, shouldRelandInPlace } from "./utils";
+import { headSummary, markSmoothScroll, shouldRelandInPlace } from "./utils";
 import styles from "./ConversationSection.module.scss";
 
 /** The route-injected data plan (absent on the local demo path). */
@@ -99,6 +99,8 @@ export interface ConversationSectionProps {
    * Keep it off the plan whose identity protects memoized chunk cards.
    */
   filter?: ConversationFilter | undefined;
+  /** Marks the landing's smooth scroll in flight, so a landing hold leaves it alone. */
+  beginSmoothScroll?: () => () => void;
 }
 
 const VERDICT_STATE_ATTRIBUTES: Record<ReviewVerdictState, string> = {
@@ -125,6 +127,7 @@ export function ConversationSection({
   onToggle,
   focusThreadId,
   filter: filterProp,
+  beginSmoothScroll,
 }: ConversationSectionProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -287,8 +290,12 @@ export function ConversationSection({
         // Found, only now is the target spent.
         landedThreadRef.current = focusThreadId;
         // Reduced motion lands instantly; the flash is CSS-gated where styled.
+        const smooth = !prefersReducedMotion();
+        if (smooth && beginSmoothScroll !== undefined) {
+          markSmoothScroll(beginSmoothScroll);
+        }
         row.scrollIntoView({
-          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          behavior: smooth ? "smooth" : "auto",
           block: "center",
         });
         (row.querySelector("button") ?? row).focus({ preventScroll: true });
@@ -305,7 +312,14 @@ export function ConversationSection({
       }
     };
     window.requestAnimationFrame(land);
-  }, [conversation, digest, focusThreadId, open, landingRequest]);
+  }, [
+    conversation,
+    digest,
+    focusThreadId,
+    open,
+    landingRequest,
+    beginSmoothScroll,
+  ]);
 
   // Every conversation write evicts server-side; the post-reply refetch makes
   // the reply visible in-section. Draft reads/writes and announce copy live

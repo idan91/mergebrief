@@ -195,6 +195,13 @@ describe("answerDemoRequest reads", () => {
     );
   });
 
+  it("answers the layout read with no stored counts", async () => {
+    const layout = readPullOperation(ProductQueryIds.READ_BRIEF_LAYOUT);
+
+    expect(layout.status).toBe(HttpStatuses.OK);
+    expect(await layout.json()).toEqual({ layout: null });
+  });
+
   it("carries no repo config, no live stack and no mention targets", async () => {
     const context = readPullOperation(ProductQueryIds.READ_BRIEF_CONTEXT);
     const stack = readPullOperation(ProductQueryIds.READ_STACK);

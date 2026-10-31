@@ -11,9 +11,23 @@ import type {
   PrState,
   ValueOf,
 } from "types";
+import type { ChunkLayoutBody } from "brief-core/chunk-layout";
 import type { UnknownValue } from "@web/utils/open-enum/types";
 
 import { WriteFailureKinds } from "../../data/request/types";
+
+/**
+ * A brief's stored chunk layout read. `body` is absent for a brief written
+ * without one; the wrapper keeps the query's data defined either way.
+ */
+export interface StoredBriefLayout {
+  body?: ChunkLayoutBody;
+}
+
+/** `read-brief-layout`'s reply; `layout` is absent for a brief stored without one. */
+export interface BriefLayoutReply {
+  layout?: ChunkLayoutBody;
+}
 
 /** The poll-relevant slice of the generation projection (already sanitized). */
 export interface GenerationSummary {

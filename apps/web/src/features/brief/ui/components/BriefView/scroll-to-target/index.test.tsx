@@ -6,6 +6,7 @@ import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { REVISION_JUMP_ATTR } from "../../../../model/comparison/runs";
 import type { ScopeExitOptions } from "../types";
 import { deriveGroupHeadingId, deriveGroupSectionId } from "../utils";
+import { createChunkWindowRegistry } from "../reading/chunk-windows";
 import { useScrollToTarget } from ".";
 import { FLASH_MS, SCROLL_FLASH_ATTR } from "./consts";
 import { MOUNT_POLL_FRAMES } from "./engine/consts";
@@ -38,6 +39,8 @@ afterEach(() => {
   window.scrollBy = nativeScrollBy;
   window.scrollTo = nativeScrollTo;
 });
+
+function ignoreEnd(): void {}
 
 const SMOOTH: ScrollTargetOptions = {
   motion: ScrollMotions.SMOOTH,
@@ -237,8 +240,43 @@ describe("useScrollToTarget", () => {
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
+  it("marks a smooth scroll in flight until the scroll is dropped", () => {
+    mountCard("chunk-a", 900);
+    const registry = createChunkWindowRegistry();
+    const { result, rerender } = renderScrollToTarget(registry);
+
+    act(() => {
+      result.current.scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-a" },
+        SMOOTH,
+      );
+    });
+    expect(registry.isSmoothScrolling()).toBe(true);
+
+    rerender({ briefId: "brief-b", inChangesScope: false });
+    expect(registry.isSmoothScrolling()).toBe(false);
+  });
+
+  it("marks no smooth scroll for an instant jump", () => {
+    mountCard("chunk-a", 900);
+    const registry = createChunkWindowRegistry();
+    const { result } = renderScrollToTarget(registry);
+
+    act(() => {
+      result.current.scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-a" },
+        { ...SMOOTH, motion: ScrollMotions.INSTANT },
+      );
+    });
+
+    expect(registry.isSmoothScrolling()).toBe(false);
+  });
+
   it("asks the windowed lists to bring an unmounted chunk near", () => {
-    const chunkWindows = { scrollToChunk: vi.fn(() => true) };
+    const chunkWindows = {
+      scrollToChunk: vi.fn(() => true),
+      beginSmoothScroll: () => ignoreEnd,
+    };
     const { result } = renderScrollToTarget(chunkWindows);
 
     act(() => {
@@ -540,7 +578,10 @@ describe("useScrollToTarget", () => {
   });
 
   it("drops a rail scroll in flight when the brief changes", () => {
-    const chunkWindows = { scrollToChunk: vi.fn(() => true) };
+    const chunkWindows = {
+      scrollToChunk: vi.fn(() => true),
+      beginSmoothScroll: () => ignoreEnd,
+    };
     const { result, rerender } = renderScrollToTarget(chunkWindows);
 
     act(() => {

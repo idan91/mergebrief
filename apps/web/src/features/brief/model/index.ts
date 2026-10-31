@@ -40,6 +40,10 @@ export {
 export { briefErrorDetail, prBriefErrorDetail } from "./utils/brief-errors";
 export { attachSlicedDiffs } from "./utils/diff-slicing";
 export { createFileRowsCache } from "./file-rows/cache";
+export {
+  buildChunkLayoutCounts,
+  type ChunkLayoutState,
+} from "./chunk-layout/useChunkLayout";
 export { resolveLegacyDeltaRedirect } from "./utils/legacy-redirect";
 export {
   GroupViewKinds,

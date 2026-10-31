@@ -123,7 +123,10 @@ export interface ParkedScroll {
   options: ScrollTargetOptions;
 }
 
-export type ChunkWindowsPort = Pick<ChunkWindowRegistry, "scrollToChunk">;
+export type ChunkWindowsPort = Pick<
+  ChunkWindowRegistry,
+  "scrollToChunk" | "beginSmoothScroll"
+>;
 
 /** The one flashed element: a new flash or a brief switch clears the last. */
 export interface Flash {

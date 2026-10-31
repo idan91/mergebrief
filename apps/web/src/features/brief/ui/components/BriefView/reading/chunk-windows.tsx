@@ -20,14 +20,44 @@ export interface ChunkWindowRegistration {
 export interface ChunkWindowRegistry {
   register: (registration: ChunkWindowRegistration) => () => void;
   scrollToChunk: (chunkId: string) => boolean;
-  holdScrollCompensation: (held: boolean) => void;
+  /**
+   * Holds every window's compensation until the returned release runs. Holds
+   * nest: the windows stay held until the last one is released, and a window
+   * that registers meanwhile starts held.
+   */
+  holdScrollCompensation: () => () => void;
+  /** Marks a programmatic smooth scroll in flight until the returned end runs. */
+  beginSmoothScroll: () => () => void;
+  isSmoothScrolling: () => boolean;
+}
+
+/** Wraps `run` so only its first call acts. */
+function runOnce(run: () => void): () => void {
+  let ran = false;
+  return () => {
+    if (ran) {
+      return;
+    }
+    ran = true;
+    run();
+  };
 }
 
 export function createChunkWindowRegistry(): ChunkWindowRegistry {
   const registrations = new Set<ChunkWindowRegistration>();
+  let compensationHolds = 0;
+  let smoothScrolls = 0;
+  const applyHold = (held: boolean): void => {
+    for (const registration of registrations) {
+      registration.holdScrollCompensation(held);
+    }
+  };
   return {
     register(registration) {
       registrations.add(registration);
+      if (compensationHolds > 0) {
+        registration.holdScrollCompensation(true);
+      }
       return () => {
         registrations.delete(registration);
       };
@@ -40,10 +70,26 @@ export function createChunkWindowRegistry(): ChunkWindowRegistry {
       }
       return false;
     },
-    holdScrollCompensation(held) {
-      for (const registration of registrations) {
-        registration.holdScrollCompensation(held);
+    holdScrollCompensation() {
+      compensationHolds += 1;
+      if (compensationHolds === 1) {
+        applyHold(true);
       }
+      return runOnce(() => {
+        compensationHolds -= 1;
+        if (compensationHolds === 0) {
+          applyHold(false);
+        }
+      });
+    },
+    beginSmoothScroll() {
+      smoothScrolls += 1;
+      return runOnce(() => {
+        smoothScrolls -= 1;
+      });
+    },
+    isSmoothScrolling() {
+      return smoothScrolls > 0;
     },
   };
 }

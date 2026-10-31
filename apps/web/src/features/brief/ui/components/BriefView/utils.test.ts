@@ -6,10 +6,12 @@ import type {
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import { ViewportBands } from "@web/hooks/useViewportBoundary";
 import { describe, expect, it, vi } from "vitest";
+import { DiffViews } from "@web/components/DiffRows/types";
 
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ProgressTotals } from "../../utils/progress";
 import type { BriefChunk, ComparisonMarks } from "../../../model/types";
+import { GroupViewKinds } from "../../../model/utils/remainder";
 import {
   buildRepoPolicyCaption,
   conversationGroupIds,
@@ -44,6 +46,7 @@ import {
   resolveDiffViewToggle,
   splitFilePath,
   buildAnnouncedRevisionNav,
+  resolveChunkView,
 } from "./utils";
 import {
   NO_REVIEW_REASON_KEY,
@@ -605,7 +608,34 @@ describe("resolveSidebarLayout", () => {
   });
 });
 
+const STORED_TWELVE_ROWS = {
+  rows: 12,
+  hunkRows: 1,
+  expandRows: 0,
+  splitRows: 12,
+  lineWidths: {
+    counts: [12, 0, 0, 0, 0, 0, 0, 0, 0],
+    overflowColumns: 0,
+  },
+};
+
 describe("deriveChunkSizes", () => {
+  it("sizes a pending remainder card from its file's stored count", () => {
+    const remainder: BriefChunk = {
+      ...chunk("u-0badf00d", "src/orphan.ts"),
+      changeGroupId: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    };
+    delete remainder.diff;
+    const counts = {
+      chunks: new Map(),
+      files: new Map([["src/orphan.ts", STORED_TWELVE_ROWS]]),
+    };
+
+    expect(deriveChunkSizes([remainder], counts)).toEqual([
+      { file: "src/orphan.ts", rowCount: 12 },
+    ]);
+  });
+
   it("reports one size per chunk that carries a diff", () => {
     const chunks = [
       stubChunk("a", "src/a.ts", 3),
@@ -627,6 +657,25 @@ describe("deriveChunkSizes", () => {
     delete bare.diff;
 
     expect(deriveChunkSizes([bare])).toEqual([]);
+  });
+
+  it("reads the stored count before the diff lands and over it after", () => {
+    const bare: BriefChunk = { ...chunk("a", "src/a.ts") };
+    delete bare.diff;
+    const counts = {
+      chunks: new Map([["a", STORED_TWELVE_ROWS]]),
+      files: new Map(),
+    };
+
+    expect(deriveChunkSizes([bare], counts)).toEqual([
+      { file: "src/a.ts", rowCount: 12 },
+    ]);
+    expect(deriveChunkSizes([stubChunk("a", "src/a.ts", 3)], counts)).toEqual([
+      { file: "src/a.ts", rowCount: 12 },
+    ]);
+    expect(deriveChunkSizes([stubChunk("b", "src/b.ts", 3)], counts)).toEqual([
+      { file: "src/b.ts", rowCount: 3 },
+    ]);
   });
 });
 
@@ -974,5 +1023,40 @@ describe("buildRepoPolicyCaption", () => {
         implication: "Logs must not carry PII",
       }),
     ).toMatch(/^Defined by repo policy.+Logs must not carry PII$/);
+  });
+});
+
+describe("resolveChunkView", () => {
+  const twoSided = {
+    addedRanges: [{ start: 10, end: 11 }],
+    removedRanges: [{ start: 10, end: 10 }],
+  };
+  const addedOnly = {
+    addedRanges: [{ start: 10, end: 11 }],
+    removedRanges: [],
+  };
+
+  it("splits a chunk with a line on each side when split is asked for", () => {
+    expect(resolveChunkView(DiffViews.SPLIT, twoSided, false)).toBe(
+      DiffViews.SPLIT,
+    );
+  });
+
+  it("keeps a one-sided chunk unified under a split request", () => {
+    expect(resolveChunkView(DiffViews.SPLIT, addedOnly, false)).toBe(
+      DiffViews.UNIFIED,
+    );
+  });
+
+  it("keeps a guest's table unified under a split request", () => {
+    expect(resolveChunkView(DiffViews.SPLIT, twoSided, true)).toBe(
+      DiffViews.UNIFIED,
+    );
+  });
+
+  it("stays unified when the reader asked for unified", () => {
+    expect(resolveChunkView(DiffViews.UNIFIED, twoSided, false)).toBe(
+      DiffViews.UNIFIED,
+    );
   });
 });

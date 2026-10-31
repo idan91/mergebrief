@@ -1,7 +1,5 @@
-import { countSplitRows } from "brief-core/chunk-layout";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare } from "../types";
-import { hasPairedSides } from "@web/components/DiffRows/utils";
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { useSplitWidth } from "./useSplitWidth";
 import type { DiffLine } from "@web/utils/diffTokens/types";
@@ -36,7 +34,10 @@ import { ChunkCard } from "./ChunkCard";
 import { ChunkFooter, type ChunkFooterWiring } from "./ChunkFooter";
 import { GroupCard } from "./GroupCard";
 import { StorySplitter } from "./StorySplitter";
-import { estimateChunkCardHeight } from "../reading/chunk-height-model";
+import {
+  readCardCounts,
+  useChunkLayout,
+} from "../../../../model/chunk-layout/useChunkLayout";
 import { useExpansion } from "../../../../model/expansion/useExpansion";
 import { useFileRows } from "../../../../model/file-rows/useFileRows";
 import {
@@ -52,9 +53,15 @@ import {
 import {
   deriveGroupSectionId,
   isLargeChunk,
+  resolveChunkView,
   type SidebarLayout,
 } from "../utils";
 import styles from "./StoryView.module.scss";
+import {
+  countDiffRows,
+  estimateStoryChunkHeight,
+  type StoryChunkRowCounts,
+} from "./utils";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
 
@@ -222,10 +229,7 @@ export function StoryView(props: StoryViewProps) {
 }
 
 const NO_DIFF: DiffLine[] = [];
-
-function countDiffRows(diff: readonly DiffLine[], view: DiffView): number {
-  return view === DiffViews.SPLIT ? countSplitRows(diff) : diff.length;
-}
+const NO_ROWS: StoryChunkRowCounts = { diff: 0, expanded: 0 };
 
 interface WindowedChunkListProps {
   group: BriefViewModel["groups"][number];
@@ -334,36 +338,43 @@ function WindowedChunkList({
   const fileRowsCache = useFileRows();
   // Counted once per group: the virtualizer asks for every unmeasured card
   // on each measurement pass. Expanded rows charge the same row height.
-  const diffRowCounts = useMemo(
+  const rowCounts = useMemo(
     () =>
       group.chunks.map((chunk) => {
         const base = chunk.diff ?? NO_DIFF;
-        return (
-          countDiffRows(base, diffView) +
-          countExpandedRows(
-            expandedEdges,
-            chunk.id,
-            base,
-            fileRowsCache?.getFileRows(chunk.file),
-            diffView,
-          )
+        const chunkView = resolveChunkView(diffView, chunk, false);
+        const expanded = countExpandedRows(
+          expandedEdges,
+          chunk.id,
+          base,
+          fileRowsCache?.getFileRows(chunk.file),
+          chunkView,
         );
+        return { diff: countDiffRows(base, chunkView) + expanded, expanded };
       }),
     [group.chunks, diffView, expandedEdges, fileRowsCache],
   );
+  // The stored counts size a card before its code lands and after: the
+  // sliced rows alone would drop the tall-row and wrap allowances the
+  // reservation carried, and every unmeasured card above would shrink.
+  // Without them a pending card reserves what its skeleton draws.
+  const layout = useChunkLayout();
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = group.chunks[index];
       if (!chunk) {
         return 0;
       }
-      return estimateChunkCardHeight({
-        diffRowCount: diffRowCounts[index] ?? 0,
+      return estimateStoryChunkHeight({
+        chunk,
+        groupView: diffView,
+        counts: readCardCounts(layout, chunk),
+        rows: rowCounts[index] ?? NO_ROWS,
         open: openChunks.has(chunk.id),
         large: isLargeChunk(chunk),
       });
     },
-    [group.chunks, openChunks, diffRowCounts],
+    [group.chunks, openChunks, rowCounts, layout, diffView],
   );
 
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
@@ -475,18 +486,16 @@ function WindowedChunkList({
 }
 
 /**
- * The view a group actually renders: split only when some chunk in it has a
- * line on each side, matching the rule each table applies to itself.
+ * The view a group actually renders: split when some chunk's own table
+ * draws split, read from claimed ranges so a group still waiting on its
+ * code resolves the view its tables will draw.
  */
 function resolveGroupDiffView(
   diffView: DiffView,
   chunks: readonly BriefChunk[],
 ): DiffView {
-  if (diffView !== DiffViews.SPLIT) {
-    return DiffViews.UNIFIED;
-  }
-  const anyPairable = chunks.some((chunk) =>
-    hasPairedSides(chunk.diff ?? NO_DIFF),
+  const anySplit = chunks.some(
+    (chunk) => resolveChunkView(diffView, chunk, false) === DiffViews.SPLIT,
   );
-  return anyPairable ? DiffViews.SPLIT : DiffViews.UNIFIED;
+  return anySplit ? DiffViews.SPLIT : DiffViews.UNIFIED;
 }

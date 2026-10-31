@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import type { DiffView } from "@web/components/DiffRows/types";
 import {
+  migrateLegacyDiffView,
   readDiffView,
   resolveDiffView,
   writeDiffView,
@@ -20,21 +21,24 @@ export interface DiffViewPreference {
 }
 
 /**
- * Storage is read on the client only: SSR and the first paint both render
- * unified, so a remembered split view never arrives as a hydration mismatch.
+ * The stored view seeds the first render on both sides from the cookie, so
+ * the server draws the view the reader picked and hydration agrees with it.
  */
 export function useDiffViewPreference({
   search,
   clearDiffParam,
 }: UseDiffViewPreferenceInput): DiffViewPreference {
-  const [stored, setStored] = useState<DiffView>(DiffViews.UNIFIED);
+  const [stored, setStored] = useState<DiffView>(readDiffView);
   const [lastSearch, setLastSearch] = useState<DiffView | undefined>(search);
   // A route that cannot drop the param would otherwise keep overriding the
   // viewer's own choice; dismissal holds until the link itself changes.
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    setStored(readDiffView());
+    const migrated = migrateLegacyDiffView();
+    if (migrated !== undefined) {
+      setStored(migrated);
+    }
   }, []);
 
   if (lastSearch !== search) {

@@ -15,9 +15,10 @@ const SHORT_MISS_PX = 120;
 /**
  * Scrolls the page to its top. Cards mount above the fold on the way up, and
  * a window compensating for one cancels the smooth scroll, so every window
- * holds compensation until the page reaches the top, the scroll ends, or the
- * reader takes over. A scroll that ends just short of the top finishes with a
- * jump.
+ * holds compensation, and the scroll is marked in flight for a landing hold
+ * to leave alone, until the page reaches the top, the scroll ends, or the
+ * reader takes over. A scroll that ends just short of the top finishes with
+ * a jump.
  */
 export function scrollPageToTop(registry: ChunkWindowRegistry): void {
   if (window.scrollY <= 0) {
@@ -28,12 +29,14 @@ export function scrollPageToTop(registry: ChunkWindowRegistry): void {
     return;
   }
 
-  registry.holdScrollCompensation(true);
+  const releaseCompensation = registry.holdScrollCompensation();
+  const endSmoothScroll = registry.beginSmoothScroll();
   const listening = new AbortController();
   const listenerOptions = { passive: true, signal: listening.signal };
   const release = () => {
     listening.abort();
-    registry.holdScrollCompensation(false);
+    endSmoothScroll();
+    releaseCompensation();
   };
   window.addEventListener(
     "scroll",

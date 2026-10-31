@@ -313,6 +313,8 @@ function chunkWithRail(
 }
 
 // Derives to rail keys src/a.ts#c1:0, src/b.ts#c2:4, src/c.ts#c3:2.
+function ignoreEnd(): void {}
+
 const CHUNKS = [
   chunkWithRail("c1", "src/a.ts", 0, 100),
   chunkWithRail("c2", "src/b.ts", 4, 200),
@@ -350,7 +352,10 @@ function renderNavigation(
   openChunk = vi.fn(),
   host: NavigationHost = {},
 ) {
-  const chunkWindows = { scrollToChunk: scrollTowardChunk };
+  const chunkWindows = {
+    scrollToChunk: scrollTowardChunk,
+    beginSmoothScroll: () => ignoreEnd,
+  };
   return {
     scrollTowardChunk,
     openChunk,

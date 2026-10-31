@@ -754,6 +754,7 @@
     },
     "diff": {
       "unavailable": "Diff unavailable",
+      "loading": "Loading the code for this chunk",
       "colRevision": "Revision",
       "colRevisionNew": "Revision, new side",
       "colOld": "Old line",

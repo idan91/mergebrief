@@ -44,6 +44,8 @@ interface Flight {
   frame: number | undefined;
   /** Removes the user-input abort listeners once the watch has armed them. */
   removeAbort: (() => void) | undefined;
+  /** Ends the windows' mark of a smooth scroll in flight. */
+  endSmoothScroll: (() => void) | undefined;
 }
 
 /** What every scroll of one hook shares. */
@@ -67,6 +69,8 @@ function stopFlight(flight: Flight): void {
   }
   flight.removeAbort?.();
   flight.removeAbort = undefined;
+  flight.endSmoothScroll?.();
+  flight.endSmoothScroll = undefined;
 }
 
 /**
@@ -117,7 +121,11 @@ function launchScroll(
     timeout: undefined,
     frame: undefined,
     removeAbort: undefined,
+    endSmoothScroll: undefined,
   };
+  if (request.behavior === "smooth") {
+    flight.endSmoothScroll = deps.chunkWindows?.beginSmoothScroll();
+  }
   deps.flightRef.current = flight;
   const launchedFor = deps.liveBriefId.current;
   const end = () => {

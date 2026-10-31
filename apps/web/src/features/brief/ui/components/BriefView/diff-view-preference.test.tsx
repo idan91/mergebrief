@@ -3,17 +3,21 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import { DIFF_VIEW_STORAGE_KEY } from "./diff-view/diff-view-storage";
+import {
+  DIFF_VIEW_COOKIE,
+  readCookieValue,
+} from "./diff-view/diff-view-storage";
 import type { BriefSearchParams } from "../../../model/comparison/compare-state";
 import { buildLocalComparisonPlan } from "../../../model/comparison/local-plan";
 import {
+  briefFixture,
   mountBriefView,
   type BriefViewOverrides,
 } from "@web/features/brief/test-utils";
 
 afterEach(() => {
   cleanup();
-  window.localStorage.clear();
+  document.cookie = `${DIFF_VIEW_COOKIE}=; Path=/; Max-Age=0`;
 });
 
 /** Carries a Previous Brief comparison, the Changes scope's precondition. */
@@ -56,7 +60,7 @@ function pressD(): KeyboardEvent {
 }
 
 function seedStored(view: DiffView): void {
-  window.localStorage.setItem(DIFF_VIEW_STORAGE_KEY, JSON.stringify(view));
+  document.cookie = `${DIFF_VIEW_COOKIE}=${view}; Path=/`;
 }
 
 describe("the remembered diff view", () => {
@@ -66,6 +70,19 @@ describe("the remembered diff view", () => {
     expect(readStampedView()).toBe(DiffViews.SPLIT);
     expect(readGroupViews().length).toBeGreaterThan(0);
     expect(new Set(readGroupViews())).toEqual(new Set([DiffViews.UNIFIED]));
+  });
+
+  it("splits a two-sided group while its code is still pending", async () => {
+    const pendingTwoSided = {
+      ...briefFixture,
+      chunks: briefFixture.chunks.map((chunk) => {
+        const { diff: _diff, ...pending } = chunk;
+        return { ...pending, removedRanges: [{ start: 10, end: 10 }] };
+      }),
+    };
+    seedStored(DiffViews.SPLIT);
+    await mountBriefView({ ...COMPARABLE_BRIEF, brief: pendingTwoSided });
+    expect(readGroupViews()).toContain(DiffViews.SPLIT);
   });
 
   it("lets the deep link override the stored view", async () => {
@@ -110,7 +127,7 @@ describe("the diff view toggle in the Changes scope", () => {
     const event = pressD();
 
     expect(event.defaultPrevented).toBe(false);
-    expect(window.localStorage.getItem(DIFF_VIEW_STORAGE_KEY)).toBeNull();
+    expect(readCookieValue(document.cookie, DIFF_VIEW_COOKIE)).toBeUndefined();
     expect(readToast()).toBe("");
   });
 });

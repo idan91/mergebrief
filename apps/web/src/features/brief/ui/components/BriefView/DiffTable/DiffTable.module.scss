@@ -43,7 +43,10 @@
 
     // `auto` remembers real painted size; the estimate only tames first-paint scroll jump
     contain-intrinsic-block-size: auto
-      calc(var(--diff-rows, 40) * functions.to-rem(22px));
+      var(
+        --diff-reserved-size,
+        calc(var(--diff-rows, 40) * functions.to-rem(22px))
+      );
 
     // `content-visibility: auto` always applies paint containment, which would
     // clip the table where `white-space: pre` code pushes it past this box;

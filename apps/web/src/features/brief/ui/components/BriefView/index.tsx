@@ -4,6 +4,8 @@ import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { ExpansionProvider } from "../../../model/expansion/useExpansion";
 import { ExpansionSourceProvider } from "../../../model/expansion/useExpansionSource";
 import { FileRowsProvider } from "../../../model/file-rows/useFileRows";
+import { ChunkLayoutProvider } from "../../../model/chunk-layout/useChunkLayout";
+import { useHeldCardPosition } from "./reading/useHeldCardPosition";
 import { ReviewPostureProvider } from "../../hooks/useReviewPosture";
 import { ConversationSection } from "@web/features/conversation";
 import { SubmitModal } from "@web/features/review";
@@ -81,7 +83,7 @@ export function BriefView({
 
 function BriefViewContent(props: BriefViewProps) {
   const { reading, pr, conversation } = props;
-  const { brief, briefId, model, fileRows, repoConfig } = reading;
+  const { brief, briefId, model, fileRows, repoConfig, chunkLayout } = reading;
   const {
     t,
     chunkFooter,
@@ -144,8 +146,16 @@ function BriefViewContent(props: BriefViewProps) {
 
   // The provider memoizes on this identity, so it has to be stable itself.
   const chunkSizes = useMemo(
-    () => deriveChunkSizes(brief.chunks),
-    [brief.chunks],
+    () =>
+      deriveChunkSizes(
+        model.groups.flatMap((group) => group.chunks),
+        chunkLayout?.counts,
+      ),
+    [model.groups, chunkLayout?.counts],
+  );
+  useHeldCardPosition(
+    chunkLayout?.codePending === true,
+    chunkWindowsRef.current,
   );
   // Per file, shared by both scopes: a story card frames a sibling span with
   // its owner, a Changes guest table anchors a row to it.
@@ -193,6 +203,7 @@ function BriefViewContent(props: BriefViewProps) {
         onToggle={conversationWiring.toggleOpen}
         plan={conversationPlan}
         submittedReviewIds={session.submittedReviewIds}
+        beginSmoothScroll={chunkWindowsRef.current.beginSmoothScroll}
       />
     ) : null;
   const readThroughAvailable =
@@ -212,341 +223,349 @@ function BriefViewContent(props: BriefViewProps) {
           <ExpansionSourceProvider source={expansionSource}>
             <ExpansionProvider store={expansion}>
               <FileRowsProvider cache={fileRows}>
-                <ReadingPositionProvider store={readingPosition}>
-                  <Header
-                    toggleShortcuts={session.toggleShortcuts}
-                    focusMode={session.focusMode}
-                    largeTitle={largeTitle}
-                    brief={brief}
-                    livePrState={pr?.livePrState}
-                    authorLogin={pr?.authorLogin}
-                    briefId={briefId}
-                    repoId={pr?.repoId}
-                    model={model}
-                    totals={session.totals}
-                    progress={session.progress}
-                    openSubmit={openSubmit}
-                    draftCommentCount={draftCommentCount}
-                    availability={overlay.availability}
-                    compareState={overlay.compareState}
-                    controlsSlot={pr?.headerControls}
-                    revisionPending={pendingShown}
-                    jumpToGroup={(groupId) =>
-                      queueJumpFromChanges(groupId, false)
-                    }
-                    jumpToGroupHeading={(groupId) =>
-                      queueJumpFromChanges(groupId, true)
-                    }
-                    ownDraft={
-                      ownDraftActive
-                        ? {
-                            markReady: markReady.request,
-                            pending: markReady.pending,
-                            unavailable: !markReady.available,
-                          }
-                        : undefined
-                    }
-                  />
-                  <VersionNotice surface={NoticeSurfaces.BRIEF} />
-                  {lineLinkMissed ? (
-                    <LineLinkNotice onDismiss={dismissLineLinkMiss} />
-                  ) : null}
-                  {pr?.diffTimeout === undefined ? null : (
-                    <div className={styles["diffTimeoutBand"]}>
-                      <DiffTimeoutNotice retry={pr.diffTimeout} />
-                    </div>
-                  )}
-                  {session.focusMode ? (
-                    <FocusIndicator
-                      indicatorRef={session.focusIndicatorRef}
-                      groups={model.groups}
-                      jumpToChunk={session.jumpToChunk}
-                      exitFocusMode={session.toggleFocusMode}
-                    />
-                  ) : null}
-                  {reanchorLocation !== undefined ? (
-                    <ReanchorBanner
-                      cancel={cancelReanchorFromBanner}
-                      location={reanchorLocation}
-                    />
-                  ) : null}
-                  <main
-                    className={`main ${styles["readingColumn"]}`}
-                    style={mainStyle}
-                    data-diff-view={diffView}
-                    id="main-content"
-                    tabIndex={-1}
-                    data-zen={session.focusMode ? "on" : undefined}
-                    data-focus-panel={focusPanelAttr}
-                    data-pending={pendingShown ? "" : undefined}
-                    data-sidebar={regions.sidebar ? sidebarLayout : undefined}
-                    data-sidebar-motion={sidebar.motionReady ? "" : undefined}
-                    aria-busy={pendingShown || undefined}
-                    inert={pendingShown || undefined}
-                  >
-                    {regions.summary ? (
-                      <LargeTitle
-                        ref={attachLargeTitle}
-                        authorLogin={pr?.authorLogin}
-                        brief={brief}
-                        livePrState={pr?.livePrState}
-                        model={model}
-                        ownDraft={ownDraftActive}
-                        repoConfig={repoConfig}
-                        repoId={pr?.repoId}
-                      />
-                    ) : null}
-                    {regions.carryOver ? (
-                      <CarryOver
-                        headSha={brief.pr.sha}
-                        jumpToItem={jumpToSubmitItem}
-                        model={model}
-                      />
-                    ) : null}
-
-                    {regions.summary ? (
-                      <Masthead
-                        brief={brief}
-                        model={model}
-                        repoConfig={repoConfig}
-                      >
-                        {intentBar}
-                        {conversationSection}
-                      </Masthead>
-                    ) : null}
-
-                    {regions.toolbar ? (
-                      <ReadingToolbar
-                        key={`toolbar-${briefId}`}
-                        comparison={overlay.comparison}
-                        revisionNav={revisionNav}
-                        startReadThrough={
-                          readThroughAvailable
-                            ? session.startReadThrough
-                            : undefined
-                        }
-                        filter={
-                          conversation !== undefined &&
-                          conversationWiring.conversationFilterFacets !==
-                            undefined
-                            ? {
-                                filter:
-                                  conversationWiring.conversationFilterFacets
-                                    .applied,
-                                hiddenInlineThreads:
-                                  conversationWiring.conversationFilterFacets
-                                    .hiddenInlineThreads,
-                                reviewers:
-                                  conversationWiring.conversationFilterFacets
-                                    .reviewers,
-                                verdicts:
-                                  conversationWiring.conversationFilterFacets
-                                    .verdicts,
-                                onChange: conversation.onFilterChange,
-                              }
-                            : undefined
-                        }
-                        jumpToGroup={session.jumpToGroup}
-                        rail={attributeRail}
-                        supportingCollapse={session.supportingCollapse}
-                        toggleCollapseSupporting={
-                          session.toggleCollapseSupporting
-                        }
-                      />
-                    ) : null}
-
-                    <div aria-hidden="true" {...{ [CONTENT_START_ATTR]: "" }} />
-                    <ChunkWindowProvider registry={chunkWindowsRef.current}>
-                      {changesPaneMounted ? (
-                        <div hidden={!inChangesScope || undefined}>
-                          <ScopePane frozen={!inChangesScope}>
-                            <ChangesOnlyView
-                              key={`changes-${briefId}`}
-                              compare={
-                                overlay.activeCompare ===
-                                CompareParams.LAST_REVIEW
-                                  ? CompareParams.LAST_REVIEW
-                                  : CompareParams.PREVIOUS_BRIEF
-                              }
-                              brief={brief}
-                              model={model}
-                              narrative={overlay.narrative}
-                              marks={overlay.marks}
-                              skipReason={overlay.skipReason}
-                              delta={overlay.delta}
-                              deltaSkipped={overlay.deltaSkipped}
-                              rawSpanDiff={overlay.activeRawSpanDiff}
-                              deltaSpan={overlay.deltaSpanStatus}
-                              deltaSpanLanding={overlay.deltaSpanLanding}
-                              narrativeSpanRows={overlay.narrativeSpanRows}
-                              jumpToChunk={queueChunkJumpFromChanges}
-                              review={changesReview}
-                            />
-                          </ScopePane>
-                        </div>
-                      ) : null}
-                      {storyPaneMounted ? (
-                        <div hidden={inChangesScope || undefined}>
-                          <ScopePane frozen={inChangesScope}>
-                            <StoryView
-                              brief={brief}
-                              diffView={diffView}
-                              model={model}
-                              lineOwnersByFile={lineOwnersByFile}
-                              comparison={overlay.comparison}
-                              focusMode={session.focusMode}
-                              sidebar={sidebarLayout}
-                              cardTrack={cardTrack}
-                              openComparison={pr?.openComparison}
-                              sinceMarkers={sinceMarkers}
-                              openChunks={session.openChunks}
-                              addressedReviewComments={brief.reviewComments}
-                              conversationByChunk={
-                                conversationWiring.conversationByChunk
-                              }
-                              hiddenThreadsByFile={
-                                conversationWiring.hiddenThreadsByFile
-                              }
-                              lineThreadsByFile={
-                                conversationWiring.lineThreadsByFile
-                              }
-                              jumpToLine={
-                                conversationWiring.jumpToChunkFromConversation
-                              }
-                              shareChunk={shareChunk}
-                              conversationComposer={
-                                conversationWiring.conversationComposer
-                              }
-                              jumpToChunk={jumpToChunkUnderStack}
-                              markReviewed={session.markReviewed}
-                              marksDisabled={writesDisabled}
-                              toggleChunk={session.toggleChunk}
-                              chunkFooter={chunkFooter}
-                            />
-                          </ScopePane>
-                        </div>
-                      ) : null}
-                    </ChunkWindowProvider>
-                  </main>
-                  {regions.sidebar ? (
-                    <Sidebar
-                      key={`sidebar-${briefId}`}
-                      band={band}
-                      conversationGroupIds={
-                        conversationWiring.conversationGroupIds
-                      }
-                      groups={model.groups}
-                      jumpToGroup={session.jumpToGroup}
-                      jumpToGroupHeading={session.jumpToGroupHeading}
-                      scrollToTop={scrollToTop}
-                      pending={pendingShown}
-                      state={sidebar}
+                <ChunkLayoutProvider state={chunkLayout}>
+                  <ReadingPositionProvider store={readingPosition}>
+                    <Header
                       toggleShortcuts={session.toggleShortcuts}
-                      diffView={diffView}
-                      toggleDiffView={toggleDiffView}
-                      revisions={reading.revisions}
-                    />
-                  ) : null}
-                  {ownDraftActive ? null : (
-                    <>
-                      <SubmitModal
-                        receipt={session.receipt}
-                        open={submitOpen}
-                        close={closeSubmit}
-                        outcome={session.reviewOutcome}
-                        setOutcome={(outcome) => {
-                          if (writesDisabledReason !== undefined) {
-                            announce(writesDisabledReason);
-                            return;
-                          }
-                          session.actions.setOutcome(outcome);
-                        }}
-                        submit={submitFromModal}
-                        unresolvedItems={session.unresolvedItems}
-                        jumpToItem={jumpToSubmitItem}
-                        submitPending={
-                          liveSubmit && !writesDisabled
-                            ? submitFlow.pending
-                            : false
-                        }
-                        blockedReasonOverride={writesDisabledReason}
-                        blockedReasonWith={
-                          liveSubmit ? submitFlow.blockedReasonWith : undefined
-                        }
-                        submitError={
-                          liveSubmit && !writesDisabled
-                            ? submitFlow.error
-                            : null
-                        }
-                        submitNote={liveSubmit ? submitFlow.note : null}
-                        signatureLine={
-                          liveSubmit ? submitFlow.signatureLine : undefined
-                        }
-                        staleHead={staleHead}
-                        mentionSource={
-                          conversationWiring.conversationComposer?.mentionSource
-                        }
-                      />
-                    </>
-                  )}
-                  {ownDraftActive ? null : (
-                    <RiskFlagModals flagsById={model.flagsById} />
-                  )}
-                  {ownDraftActive &&
-                  markReady.available &&
-                  (model.flags.length > 0 ||
-                    markReady.unpostedDraftCount > 0) ? (
-                    <MarkReadyModal
-                      open={markReady.gateOpen}
-                      flags={model.flags}
-                      unpostedDraftCount={markReady.unpostedDraftCount}
-                      close={markReady.closeGate}
-                      markReadyAnyway={markReady.markReadyAnyway}
-                      jumpToFlag={markReady.jumpToFlag}
-                      jumpToDrafts={markReady.jumpToDrafts}
-                      intentGapCount={markReady.intentGapCount}
-                      intentTensionCount={markReady.intentTensionCount}
-                      jumpToIntentGaps={markReady.jumpToIntentGaps}
-                      postDrafts={markReady.postDraftsOnReady}
-                      setPostDrafts={markReady.setPostDraftsOnReady}
-                      busyLabel={markReady.batchBusyLabel}
-                    />
-                  ) : null}
-                  <ShortcutsModal
-                    open={session.shortcutsOpen}
-                    close={session.closeShortcuts}
-                    sections={BRIEF_SHORTCUT_SECTIONS}
-                  />
-                  {focusPanelShown ? (
-                    <FocusPanel
+                      focusMode={session.focusMode}
+                      largeTitle={largeTitle}
+                      brief={brief}
+                      livePrState={pr?.livePrState}
+                      authorLogin={pr?.authorLogin}
+                      briefId={briefId}
+                      repoId={pr?.repoId}
                       model={model}
-                      jumpToChunk={jumpToChunkUnderStack}
-                      open={focusPanel.open}
-                      sheet={focusPanel.sheet}
-                      setOpen={focusPanel.setOpen}
+                      totals={session.totals}
+                      progress={session.progress}
+                      openSubmit={openSubmit}
+                      draftCommentCount={draftCommentCount}
+                      availability={overlay.availability}
+                      compareState={overlay.compareState}
+                      controlsSlot={pr?.headerControls}
+                      revisionPending={pendingShown}
+                      jumpToGroup={(groupId) =>
+                        queueJumpFromChanges(groupId, false)
+                      }
+                      jumpToGroupHeading={(groupId) =>
+                        queueJumpFromChanges(groupId, true)
+                      }
+                      ownDraft={
+                        ownDraftActive
+                          ? {
+                              markReady: markReady.request,
+                              pending: markReady.pending,
+                              unavailable: !markReady.available,
+                            }
+                          : undefined
+                      }
                     />
-                  ) : null}
-                  {session.focusMode ? <FocusShortcuts /> : null}
-                  <div
-                    className={styles["toast"]}
-                    data-testid="brief-toast"
-                    data-state={toast ? "visible" : "hidden"}
-                    role="status"
-                    aria-live="polite"
-                    aria-atomic="true"
-                  >
-                    {toast}
-                  </div>
-                  <div
-                    className="sr-only"
-                    data-testid="brief-live"
-                    role="status"
-                    aria-live="polite"
-                    aria-atomic="true"
-                  >
-                    {liveMessage}
-                  </div>
-                </ReadingPositionProvider>
+                    <VersionNotice surface={NoticeSurfaces.BRIEF} />
+                    {lineLinkMissed ? (
+                      <LineLinkNotice onDismiss={dismissLineLinkMiss} />
+                    ) : null}
+                    {pr?.diffTimeout === undefined ? null : (
+                      <div className={styles["diffTimeoutBand"]}>
+                        <DiffTimeoutNotice retry={pr.diffTimeout} />
+                      </div>
+                    )}
+                    {session.focusMode ? (
+                      <FocusIndicator
+                        indicatorRef={session.focusIndicatorRef}
+                        groups={model.groups}
+                        jumpToChunk={session.jumpToChunk}
+                        exitFocusMode={session.toggleFocusMode}
+                      />
+                    ) : null}
+                    {reanchorLocation !== undefined ? (
+                      <ReanchorBanner
+                        cancel={cancelReanchorFromBanner}
+                        location={reanchorLocation}
+                      />
+                    ) : null}
+                    <main
+                      className={`main ${styles["readingColumn"]}`}
+                      style={mainStyle}
+                      data-diff-view={diffView}
+                      id="main-content"
+                      tabIndex={-1}
+                      data-zen={session.focusMode ? "on" : undefined}
+                      data-focus-panel={focusPanelAttr}
+                      data-pending={pendingShown ? "" : undefined}
+                      data-sidebar={regions.sidebar ? sidebarLayout : undefined}
+                      data-sidebar-motion={sidebar.motionReady ? "" : undefined}
+                      aria-busy={pendingShown || undefined}
+                      inert={pendingShown || undefined}
+                    >
+                      {regions.summary ? (
+                        <LargeTitle
+                          ref={attachLargeTitle}
+                          authorLogin={pr?.authorLogin}
+                          brief={brief}
+                          livePrState={pr?.livePrState}
+                          model={model}
+                          ownDraft={ownDraftActive}
+                          repoConfig={repoConfig}
+                          repoId={pr?.repoId}
+                        />
+                      ) : null}
+                      {regions.carryOver ? (
+                        <CarryOver
+                          headSha={brief.pr.sha}
+                          jumpToItem={jumpToSubmitItem}
+                          model={model}
+                        />
+                      ) : null}
+
+                      {regions.summary ? (
+                        <Masthead
+                          brief={brief}
+                          model={model}
+                          repoConfig={repoConfig}
+                        >
+                          {intentBar}
+                          {conversationSection}
+                        </Masthead>
+                      ) : null}
+
+                      {regions.toolbar ? (
+                        <ReadingToolbar
+                          key={`toolbar-${briefId}`}
+                          comparison={overlay.comparison}
+                          revisionNav={revisionNav}
+                          startReadThrough={
+                            readThroughAvailable
+                              ? session.startReadThrough
+                              : undefined
+                          }
+                          filter={
+                            conversation !== undefined &&
+                            conversationWiring.conversationFilterFacets !==
+                              undefined
+                              ? {
+                                  filter:
+                                    conversationWiring.conversationFilterFacets
+                                      .applied,
+                                  hiddenInlineThreads:
+                                    conversationWiring.conversationFilterFacets
+                                      .hiddenInlineThreads,
+                                  reviewers:
+                                    conversationWiring.conversationFilterFacets
+                                      .reviewers,
+                                  verdicts:
+                                    conversationWiring.conversationFilterFacets
+                                      .verdicts,
+                                  onChange: conversation.onFilterChange,
+                                }
+                              : undefined
+                          }
+                          jumpToGroup={session.jumpToGroup}
+                          rail={attributeRail}
+                          supportingCollapse={session.supportingCollapse}
+                          toggleCollapseSupporting={
+                            session.toggleCollapseSupporting
+                          }
+                        />
+                      ) : null}
+
+                      <div
+                        aria-hidden="true"
+                        {...{ [CONTENT_START_ATTR]: "" }}
+                      />
+                      <ChunkWindowProvider registry={chunkWindowsRef.current}>
+                        {changesPaneMounted ? (
+                          <div hidden={!inChangesScope || undefined}>
+                            <ScopePane frozen={!inChangesScope}>
+                              <ChangesOnlyView
+                                key={`changes-${briefId}`}
+                                compare={
+                                  overlay.activeCompare ===
+                                  CompareParams.LAST_REVIEW
+                                    ? CompareParams.LAST_REVIEW
+                                    : CompareParams.PREVIOUS_BRIEF
+                                }
+                                brief={brief}
+                                model={model}
+                                narrative={overlay.narrative}
+                                marks={overlay.marks}
+                                skipReason={overlay.skipReason}
+                                delta={overlay.delta}
+                                deltaSkipped={overlay.deltaSkipped}
+                                rawSpanDiff={overlay.activeRawSpanDiff}
+                                deltaSpan={overlay.deltaSpanStatus}
+                                deltaSpanLanding={overlay.deltaSpanLanding}
+                                narrativeSpanRows={overlay.narrativeSpanRows}
+                                jumpToChunk={queueChunkJumpFromChanges}
+                                review={changesReview}
+                              />
+                            </ScopePane>
+                          </div>
+                        ) : null}
+                        {storyPaneMounted ? (
+                          <div hidden={inChangesScope || undefined}>
+                            <ScopePane frozen={inChangesScope}>
+                              <StoryView
+                                brief={brief}
+                                diffView={diffView}
+                                model={model}
+                                lineOwnersByFile={lineOwnersByFile}
+                                comparison={overlay.comparison}
+                                focusMode={session.focusMode}
+                                sidebar={sidebarLayout}
+                                cardTrack={cardTrack}
+                                openComparison={pr?.openComparison}
+                                sinceMarkers={sinceMarkers}
+                                openChunks={session.openChunks}
+                                addressedReviewComments={brief.reviewComments}
+                                conversationByChunk={
+                                  conversationWiring.conversationByChunk
+                                }
+                                hiddenThreadsByFile={
+                                  conversationWiring.hiddenThreadsByFile
+                                }
+                                lineThreadsByFile={
+                                  conversationWiring.lineThreadsByFile
+                                }
+                                jumpToLine={
+                                  conversationWiring.jumpToChunkFromConversation
+                                }
+                                shareChunk={shareChunk}
+                                conversationComposer={
+                                  conversationWiring.conversationComposer
+                                }
+                                jumpToChunk={jumpToChunkUnderStack}
+                                markReviewed={session.markReviewed}
+                                marksDisabled={writesDisabled}
+                                toggleChunk={session.toggleChunk}
+                                chunkFooter={chunkFooter}
+                              />
+                            </ScopePane>
+                          </div>
+                        ) : null}
+                      </ChunkWindowProvider>
+                    </main>
+                    {regions.sidebar ? (
+                      <Sidebar
+                        key={`sidebar-${briefId}`}
+                        band={band}
+                        conversationGroupIds={
+                          conversationWiring.conversationGroupIds
+                        }
+                        groups={model.groups}
+                        jumpToGroup={session.jumpToGroup}
+                        jumpToGroupHeading={session.jumpToGroupHeading}
+                        scrollToTop={scrollToTop}
+                        pending={pendingShown}
+                        state={sidebar}
+                        toggleShortcuts={session.toggleShortcuts}
+                        diffView={diffView}
+                        toggleDiffView={toggleDiffView}
+                        revisions={reading.revisions}
+                      />
+                    ) : null}
+                    {ownDraftActive ? null : (
+                      <>
+                        <SubmitModal
+                          receipt={session.receipt}
+                          open={submitOpen}
+                          close={closeSubmit}
+                          outcome={session.reviewOutcome}
+                          setOutcome={(outcome) => {
+                            if (writesDisabledReason !== undefined) {
+                              announce(writesDisabledReason);
+                              return;
+                            }
+                            session.actions.setOutcome(outcome);
+                          }}
+                          submit={submitFromModal}
+                          unresolvedItems={session.unresolvedItems}
+                          jumpToItem={jumpToSubmitItem}
+                          submitPending={
+                            liveSubmit && !writesDisabled
+                              ? submitFlow.pending
+                              : false
+                          }
+                          blockedReasonOverride={writesDisabledReason}
+                          blockedReasonWith={
+                            liveSubmit
+                              ? submitFlow.blockedReasonWith
+                              : undefined
+                          }
+                          submitError={
+                            liveSubmit && !writesDisabled
+                              ? submitFlow.error
+                              : null
+                          }
+                          submitNote={liveSubmit ? submitFlow.note : null}
+                          signatureLine={
+                            liveSubmit ? submitFlow.signatureLine : undefined
+                          }
+                          staleHead={staleHead}
+                          mentionSource={
+                            conversationWiring.conversationComposer
+                              ?.mentionSource
+                          }
+                        />
+                      </>
+                    )}
+                    {ownDraftActive ? null : (
+                      <RiskFlagModals flagsById={model.flagsById} />
+                    )}
+                    {ownDraftActive &&
+                    markReady.available &&
+                    (model.flags.length > 0 ||
+                      markReady.unpostedDraftCount > 0) ? (
+                      <MarkReadyModal
+                        open={markReady.gateOpen}
+                        flags={model.flags}
+                        unpostedDraftCount={markReady.unpostedDraftCount}
+                        close={markReady.closeGate}
+                        markReadyAnyway={markReady.markReadyAnyway}
+                        jumpToFlag={markReady.jumpToFlag}
+                        jumpToDrafts={markReady.jumpToDrafts}
+                        intentGapCount={markReady.intentGapCount}
+                        intentTensionCount={markReady.intentTensionCount}
+                        jumpToIntentGaps={markReady.jumpToIntentGaps}
+                        postDrafts={markReady.postDraftsOnReady}
+                        setPostDrafts={markReady.setPostDraftsOnReady}
+                        busyLabel={markReady.batchBusyLabel}
+                      />
+                    ) : null}
+                    <ShortcutsModal
+                      open={session.shortcutsOpen}
+                      close={session.closeShortcuts}
+                      sections={BRIEF_SHORTCUT_SECTIONS}
+                    />
+                    {focusPanelShown ? (
+                      <FocusPanel
+                        model={model}
+                        jumpToChunk={jumpToChunkUnderStack}
+                        open={focusPanel.open}
+                        sheet={focusPanel.sheet}
+                        setOpen={focusPanel.setOpen}
+                      />
+                    ) : null}
+                    {session.focusMode ? <FocusShortcuts /> : null}
+                    <div
+                      className={styles["toast"]}
+                      data-testid="brief-toast"
+                      data-state={toast ? "visible" : "hidden"}
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      {toast}
+                    </div>
+                    <div
+                      className="sr-only"
+                      data-testid="brief-live"
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      {liveMessage}
+                    </div>
+                  </ReadingPositionProvider>
+                </ChunkLayoutProvider>
               </FileRowsProvider>
             </ExpansionProvider>
           </ExpansionSourceProvider>

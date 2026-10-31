@@ -3,6 +3,7 @@ import {
   PrStackMemberStates,
   WaitReasons,
 } from "contract";
+import { ChunkLayoutBodySchema } from "brief-core/artifact";
 import { z } from "zod/v4";
 import { GenerationFailureCodes, GenerationStatuses, PrStates } from "types";
 
@@ -220,4 +221,10 @@ export const pullStackSchema = dropNullKeys(
     asOf: recordedAtSchema.exactOptional(),
   }),
   ["stack"],
+);
+
+/** `read-brief-layout`: the stored counts; the wire's null for a brief stored without them drops. */
+export const briefLayoutReplySchema = dropNullKeys(
+  z.object({ layout: ChunkLayoutBodySchema.exactOptional() }),
+  ["layout"],
 );

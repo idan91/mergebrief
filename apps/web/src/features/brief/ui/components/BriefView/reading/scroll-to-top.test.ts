@@ -77,6 +77,33 @@ describe("scrollPageToTop", () => {
     expect(story.holds).toEqual([true, false]);
   });
 
+  it("marks the smooth scroll in flight until the page reaches the top", () => {
+    const registry = createChunkWindowRegistry();
+    registry.register(makeRegistration());
+
+    scrollPageToTop(registry);
+    expect(registry.isSmoothScrolling()).toBe(true);
+
+    setScrollY(0);
+    window.dispatchEvent(new Event("scroll"));
+    expect(registry.isSmoothScrolling()).toBe(false);
+  });
+
+  it("keeps its hold when another holder releases mid-scroll", () => {
+    const registry = createChunkWindowRegistry();
+    const story = makeRegistration();
+    registry.register(story);
+    const releaseOther = registry.holdScrollCompensation();
+
+    scrollPageToTop(registry);
+    releaseOther();
+    expect(story.holds).toEqual([true]);
+
+    setScrollY(0);
+    window.dispatchEvent(new Event("scroll"));
+    expect(story.holds).toEqual([true, false]);
+  });
+
   it.each(["wheel", "touchstart", "keydown", "pointerdown"])(
     "releases the hold when the reader takes over with %s",
     (type) => {

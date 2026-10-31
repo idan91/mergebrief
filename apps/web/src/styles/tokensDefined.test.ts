@@ -26,11 +26,12 @@ const AT_PROPERTY = new RegExp(`@property\\s+(${CUSTOM_PROPERTY})`, "g");
 const USE_RULE = /@use\s+["']([a-z0-9_-]+)["']/g;
 const PARTIAL_FILE = /(?:^|\/)_([^/]+)\.scss$/;
 const VAR_USAGE = new RegExp(`var\\(\\s*(${CUSTOM_PROPERTY})`, "g");
-/** The only two TS forms that WRITE a custom property: a setProperty argument
- * and a style-object key. */
+/** The three TS forms that WRITE a custom property: a setProperty argument,
+ * a style-object key, and a key assigned onto a style object under an `if`. */
 const JS_PUBLISHED = new RegExp(
   `setProperty\\(\\s*${QUOTE}(${CUSTOM_PROPERTY})${QUOTE}` +
-    `|${QUOTE}(${CUSTOM_PROPERTY})${QUOTE}\\s*:`,
+    `|${QUOTE}(${CUSTOM_PROPERTY})${QUOTE}\\s*:` +
+    `|\\[\\s*${QUOTE}(${CUSTOM_PROPERTY})${QUOTE}\\s*\\]\\s*=(?!=)`,
   "g",
 );
 

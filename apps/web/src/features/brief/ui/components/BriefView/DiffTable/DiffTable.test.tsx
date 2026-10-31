@@ -32,6 +32,19 @@ import {
 import type { Brief, BriefChunk } from "../../../../model/types";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
 import { DiffTable } from ".";
+import { DiffViews } from "@web/components/DiffRows/types";
+import type { ChunkLayoutCounts } from "brief-core/chunk-layout";
+import type { StoredChunkCounts } from "../../../../model/chunk-layout/useChunkLayout";
+import { GroupViewKinds } from "../../../../model/utils/remainder";
+import {
+  DIFF_ROW_HEIGHT_PX,
+  EMPTY_DIFF_NOTE_PX,
+  TALL_ROW_EXTRA_PX,
+} from "../reading/chunk-height-model";
+import {
+  ChunkLayoutProvider,
+  type ChunkLayoutState,
+} from "../../../../model/chunk-layout/useChunkLayout";
 import type { DiffTableProps } from "./types";
 import { createCommentAnchor } from "@web/features/review/utils";
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
@@ -139,6 +152,7 @@ function renderTable(
   state: TableState = {},
   existingStore?: ReviewFlowStore,
   session?: ReviewSessionPayload,
+  layout?: ChunkLayoutState,
 ) {
   const rows =
     buildInlineThreads({
@@ -188,7 +202,9 @@ function renderTable(
       >
         <ReviewFlowProvider store={flowStore}>
           <ReviewPostureProvider posture={makeReviewPosture(posture)}>
-            <DiffTable {...next} />
+            <ChunkLayoutProvider state={layout}>
+              <DiffTable {...next} />
+            </ChunkLayoutProvider>
           </ReviewPostureProvider>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
@@ -200,6 +216,190 @@ function renderTable(
 
   return { view, openCommentComposer, flowStore, setProps };
 }
+
+const RESERVED_COUNTS: ChunkLayoutCounts = {
+  rows: 6,
+  hunkRows: 1,
+  expandRows: 1,
+  splitRows: 5,
+  lineWidths: { counts: [6, 0, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+};
+
+const EMPTY_SLICE_COUNTS: ChunkLayoutCounts = {
+  rows: 0,
+  hunkRows: 0,
+  expandRows: 0,
+  splitRows: 0,
+  lineWidths: { counts: [0, 0, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+};
+
+function storeCounts(
+  chunks: Record<string, ChunkLayoutCounts>,
+  files: Record<string, ChunkLayoutCounts> = {},
+): StoredChunkCounts {
+  return {
+    chunks: new Map(Object.entries(chunks)),
+    files: new Map(Object.entries(files)),
+  };
+}
+
+describe("DiffTable before the code lands", () => {
+  it("draws a remainder card's skeleton from its file's counts", () => {
+    const remainder: BriefChunk = {
+      ...getDifflessChunks(chunk()),
+      id: "u-0badf00d",
+      changeGroupId: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    };
+    renderTable({ chunk: remainder }, {}, undefined, undefined, {
+      counts: storeCounts({}, { "src/a.ts": RESERVED_COUNTS }),
+      codePending: true,
+    });
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.children[1]?.children).toHaveLength(7);
+    expect(screen.queryByText("Diff unavailable")).toBeNull();
+  });
+
+  it("sizes an empty slice's skeleton as the note it lands as", () => {
+    renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: EMPTY_SLICE_COUNTS }), codePending: true },
+    );
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.style.getPropertyValue("--skeleton-block-size")).toBe(
+      `${String(EMPTY_DIFF_NOTE_PX)}px`,
+    );
+  });
+
+  it("draws skeleton rows at the stored count while the diff is pending", () => {
+    const { view } = renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: RESERVED_COUNTS }), codePending: true },
+    );
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.getAttribute("aria-busy")).toBe("true");
+    expect(
+      skeleton.children[1]?.querySelectorAll("[data-variant='tall']"),
+    ).toHaveLength(2);
+    expect(skeleton.children[1]?.children).toHaveLength(7);
+    expect(view.container.textContent).not.toContain("Diff unavailable");
+  });
+
+  it("draws a one-sided card's skeleton unified under a split request", () => {
+    renderTable(
+      { chunk: getDifflessChunks(chunk()), view: DiffViews.SPLIT },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: RESERVED_COUNTS }), codePending: true },
+    );
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.dataset["view"]).toBe(DiffViews.UNIFIED);
+  });
+
+  it("draws a two-sided card's skeleton split under a split request", () => {
+    const twoSided: BriefChunk = {
+      ...getDifflessChunks(chunk()),
+      addedRanges: [{ start: 10, end: 10 }],
+      removedRanges: [{ start: 10, end: 10 }],
+    };
+    renderTable(
+      { chunk: twoSided, view: DiffViews.SPLIT },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: RESERVED_COUNTS }), codePending: true },
+    );
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.dataset["view"]).toBe(DiffViews.SPLIT);
+  });
+
+  it("draws a one-sided chunk unified beside a sibling's deletions", () => {
+    const oneSided: BriefChunk = {
+      ...splitChunk(),
+      addedRanges: [{ start: 10, end: 11 }],
+      removedRanges: [],
+    };
+    const {
+      view: { container },
+    } = renderTable({ chunk: oneSided, view: DiffViews.SPLIT });
+
+    expect(container.querySelector("table")?.dataset["view"]).toBe(
+      DiffViews.UNIFIED,
+    );
+  });
+
+  it("keeps the unavailable note once the diff request settled", () => {
+    renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      {
+        counts: storeCounts({ c1: RESERVED_COUNTS }),
+        codePending: false,
+      },
+    );
+
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+    expect(screen.getByText("Diff unavailable")).toBeDefined();
+  });
+
+  it("waits on a skeleton from its ranges in a brief without counts", () => {
+    const ranged: BriefChunk = {
+      ...getDifflessChunks(chunk()),
+      addedRanges: [{ start: 10, end: 10 }],
+    };
+    const { view } = renderTable({ chunk: ranged }, {}, undefined, undefined, {
+      counts: undefined,
+      codePending: true,
+    });
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.getAttribute("aria-busy")).toBe("true");
+    expect(skeleton.children[1]?.children).toHaveLength(6);
+    expect(skeleton.style.getPropertyValue("--skeleton-block-size")).toBe(
+      `${String(6 * DIFF_ROW_HEIGHT_PX + TALL_ROW_EXTRA_PX)}px`,
+    );
+    expect(view.container.textContent).not.toContain("Diff unavailable");
+    expect(view.container.textContent).not.toContain("no raw diff matches");
+  });
+
+  it("shows the note once a read without counts failed", () => {
+    renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: undefined, codePending: false },
+    );
+
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+    expect(screen.getByText("Diff unavailable")).toBeDefined();
+  });
+
+  it("shows the note for an empty slice once the code landed", () => {
+    renderTable({ chunk: { ...chunk(), diff: [] } }, {}, undefined, undefined, {
+      counts: undefined,
+      codePending: false,
+    });
+
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+    expect(
+      screen.getByText("The brief loaded, but no raw diff matches this chunk."),
+    ).toBeDefined();
+  });
+});
 
 describe("DiffTable stable comparison column", () => {
   it("keeps the revision column when comparison is off", () => {
@@ -1253,6 +1453,8 @@ describe("DiffTable mention source hand-off", () => {
 function splitChunk(): BriefChunk {
   return {
     ...chunk(),
+    addedRanges: [{ start: 10, end: 11 }],
+    removedRanges: [{ start: 10, end: 10 }],
     diff: [
       { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
       { kind: "del", content: "old", oldLine: 10 },
@@ -1687,6 +1889,8 @@ function makePairChunk(): BriefChunk {
   return {
     ...chunk(),
     loc: { added: 1, deleted: 1 },
+    addedRanges: [{ start: 10, end: 10 }],
+    removedRanges: [{ start: 10, end: 10 }],
     diff: [
       { kind: "del", content: "const a = 1;", oldLine: 10 },
       { kind: "add", content: "const a = 2;", newLine: 10 },

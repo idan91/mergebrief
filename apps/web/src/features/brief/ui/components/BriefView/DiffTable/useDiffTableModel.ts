@@ -18,6 +18,7 @@ import {
   type GuestRowsInput,
   resolveGuestRows,
 } from "../../../utils/guest-rows";
+import { resolveChunkView } from "../utils";
 import { NO_GUEST_ROWS, NO_PAIRS, NO_SPANS } from "./consts";
 import {
   buildPairPartners,
@@ -106,8 +107,10 @@ export function useDiffTableModel({
   const canPairSides = useMemo(() => hasPairedSides(rows), [rows]);
   // A guest table renders unified whatever the reader picked: its left side
   // is a baseline no comment can land on, so a split would pair inert rows
-  // with live ones.
-  const split = diffView === DiffViews.SPLIT && canPairSides && !isGuest;
+  // with live ones. The claimed ranges decide as they do for the skeleton, so
+  // a sibling's rows in the slice's context never flip the landed card.
+  const chunkView = resolveChunkView(diffView, chunk, isGuest);
+  const split = chunkView === DiffViews.SPLIT && canPairSides;
   const resolvedView = split ? DiffViews.SPLIT : DiffViews.UNIFIED;
 
   // A guest table's pairs stay zipped for emphasis: a deleted row has no

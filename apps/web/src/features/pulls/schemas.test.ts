@@ -23,6 +23,7 @@ import type { ReadsWireFields } from "@web/test/wire-fields";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
   type availableLastReviewSchema,
+  type briefLayoutReplySchema,
   type draftPolicySummarySchema,
   type forkPrStackSchema,
   type generationSummarySchema,
@@ -43,6 +44,7 @@ import type {
   PullStack,
 } from "@web/features/brief/model";
 import type {
+  BriefLayoutReply,
   AvailableLastReviewComparison,
   DraftPolicySummary,
   GenerationSummary,
@@ -974,6 +976,10 @@ const SCHEMA_PINS = {
     ForkPrStack
   >,
   PullStack: true satisfies Equals<z.output<typeof pullStackSchema>, PullStack>,
+  BriefLayoutReply: true satisfies Equals<
+    z.output<typeof briefLayoutReplySchema>,
+    BriefLayoutReply
+  >,
 } as const;
 
 void SCHEMA_PINS;

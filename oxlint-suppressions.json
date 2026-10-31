@@ -82,11 +82,6 @@
       "count": 1
     }
   },
-  "apps/web/src/utils/motion.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/github/test/fixtures/collaborators-graphql.ts": {
     "house/no-em-dash": {
       "count": 1

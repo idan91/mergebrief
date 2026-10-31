@@ -26,6 +26,7 @@ import { apiFetch, ApiError } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
   buildDbBriefContextQueryOptions,
+  buildDbBriefLayoutQueryOptions,
   buildDbBriefQueryOptions,
   buildDbComparisonMarksQueryOptions,
   buildDbDeltaQueryOptions,
@@ -229,6 +230,72 @@ describe("buildDbDeltaQueryOptions queryFn", () => {
       concernView: [],
     });
     await expect(runDelta()).rejects.toMatchObject({ code: "malformed" });
+  });
+});
+
+describe("buildDbBriefLayoutQueryOptions queryFn", () => {
+  const COUNTS = {
+    rows: 4,
+    hunkRows: 1,
+    expandRows: 1,
+    splitRows: 3,
+    lineWidths: { counts: [3, 1, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+  };
+  const LAYOUT = {
+    chunks: { c1: COUNTS },
+    files: { "src/orphan.ts": COUNTS },
+  };
+
+  function runLayout(): Promise<unknown> {
+    const options = buildDbBriefLayoutQueryOptions("424242", 7, "base", "head");
+    const queryFn = options.queryFn;
+    if (typeof queryFn !== "function") {
+      throw new Error("expected a queryFn");
+    }
+    return (queryFn as () => Promise<unknown>)();
+  }
+
+  it("parses the stored counts", async () => {
+    resolveBodyText({ layout: LAYOUT });
+    await expect(runLayout()).resolves.toEqual({ body: LAYOUT });
+  });
+
+  it("reads a brief without stored counts as no layout", async () => {
+    resolveBodyText({ layout: null });
+    await expect(runLayout()).resolves.toEqual({});
+  });
+
+  it("settles a brief without counts with no console error", async () => {
+    resolveBodyText({ layout: null });
+    const consoleError = vi.spyOn(console, "error").mockReturnValue();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const options = buildDbBriefLayoutQueryOptions("424242", 7, "base", "head");
+
+    await client.prefetchQuery(options);
+
+    const state = client.getQueryState(options.queryKey);
+    expect(state?.status).toBe("success");
+    expect(state?.data).toEqual({});
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("throws typed malformed on a body beyond counts", async () => {
+    const extra = { ...LAYOUT, chunks: { c1: { ...COUNTS, content: "x" } } };
+    resolveBodyText({ layout: extra });
+    await expect(runLayout()).rejects.toMatchObject({ code: "malformed" });
+  });
+
+  it("rejects a span no brief covers", async () => {
+    answerText(404, JSON.stringify({ error: "Not found", code: "not-found" }));
+    await expect(runLayout()).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("rethrows any other failure", async () => {
+    answerText(500, JSON.stringify({ error: "boom", code: "internal" }));
+    await expect(runLayout()).rejects.toBeInstanceOf(ApiError);
   });
 });
 

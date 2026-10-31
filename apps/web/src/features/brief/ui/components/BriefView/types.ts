@@ -61,6 +61,7 @@ import type {
   BriefViewModel,
 } from "../../../model/utils/view-model";
 import type { FileRowsCache } from "../../../model/file-rows/cache";
+import type { ChunkLayoutState } from "../../../model/chunk-layout/useChunkLayout";
 import type { RepoConfigContext } from "../../../model/utils/repo-config";
 import type { ReviewPosture } from "../../hooks/useReviewPosture";
 import type { RevisionNavigation } from "../../hooks/useRevisionNavigation";
@@ -190,6 +191,8 @@ export interface BriefReadingSource {
   briefId: string;
   /** The diff's rows per file; absent leaves every hunk edge folded. */
   fileRows?: FileRowsCache | undefined;
+  /** Stored card sizes and whether the code is still pending; absent reads from the estimate. */
+  chunkLayout?: ChunkLayoutState | undefined;
   comparisonPlan?: BriefComparisonPlan | undefined;
   /** Absent or null renders as if no repo config exists. */
   repoConfig?: RepoConfigContext | null | undefined;

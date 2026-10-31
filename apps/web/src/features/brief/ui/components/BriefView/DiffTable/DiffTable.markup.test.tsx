@@ -40,8 +40,8 @@ function makeChunk(): BriefChunk {
     concern: "implementation",
     role: "core",
     loc: { added: 1, deleted: 1 },
-    addedRanges: [],
-    removedRanges: [],
+    addedRanges: [{ start: 10, end: 10 }],
+    removedRanges: [{ start: 10, end: 10 }],
     riskSurface: [],
     diff: [
       { kind: "hunk", content: "@@ -9,3 +9,3 @@" },

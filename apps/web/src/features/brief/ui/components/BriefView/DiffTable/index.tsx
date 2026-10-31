@@ -16,11 +16,12 @@ import { DiffTableHead } from "./DiffTableHead";
 import styles from "./DiffTable.module.scss";
 import { ExpandControl } from "./ExpandControl";
 import { ExpandRow } from "./ExpandRow";
+import { SkeletonRows } from "./SkeletonRows";
 import { RevisionGutterCell } from "./RevisionGutterCell";
 import { RevisionTag } from "./RevisionTag";
 import { LineLinkButton } from "./LineLinkButton";
 import { SiblingSpanHeader } from "./SiblingSpanHeader";
-import type { DiffTableProps, DiffViewportStyle } from "./types";
+import type { DiffTableProps } from "./types";
 import { UnderRows } from "./UnderRows";
 import { useDiffTableFacade } from "./useDiffTableFacade";
 import {
@@ -52,8 +53,21 @@ export function DiffTable(props: DiffTableProps) {
     guest,
   } = props;
   const table = useDiffTableFacade(props);
-  const { t, rows, model, review, rowViews, railHover } = table;
-
+  const {
+    t,
+    rows,
+    model,
+    review,
+    rowViews,
+    railHover,
+    reserved,
+    skeletonView,
+    viewportStyle,
+  } = table;
+  const waitsOnCode = chunk.diff === undefined && reserved !== undefined;
+  if (waitsOnCode) {
+    return <SkeletonRows counts={reserved} view={skeletonView} />;
+  }
   if (!chunk.diff || chunk.diff.length === 0) {
     return (
       <div className={styles["metadataDiff"]}>
@@ -286,9 +300,6 @@ export function DiffTable(props: DiffTableProps) {
     );
   }
 
-  const viewportStyle: DiffViewportStyle = {
-    "--diff-rows": model.split ? model.pairs.length : rows.length,
-  };
   return (
     <>
       {/* The reason the commentable rows are inert (aria-describedby target).

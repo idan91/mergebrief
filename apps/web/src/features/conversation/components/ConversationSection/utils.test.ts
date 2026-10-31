@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import type { PrLevelCommentView } from "contract";
 import type { ReviewVerdictState } from "types/conversation";
-import { describe, expect, it } from "vitest";
-import { headSummary, shouldRelandInPlace } from "./utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { headSummary, markSmoothScroll, shouldRelandInPlace } from "./utils";
 import type {
   ConversationReview,
   ConversationThread,
@@ -129,5 +130,63 @@ describe("shouldRelandInPlace", () => {
     expect(shouldRelandInPlace({ ...sameSpot, focusThreadId: undefined })).toBe(
       false,
     );
+  });
+});
+
+describe("markSmoothScroll", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function stubSmoothScrolls() {
+    const endSmoothScroll = vi.fn();
+    const beginSmoothScroll = vi.fn(() => endSmoothScroll);
+    return { beginSmoothScroll, endSmoothScroll };
+  }
+
+  it("marks the scroll in flight until it ends", () => {
+    const { beginSmoothScroll, endSmoothScroll } = stubSmoothScrolls();
+
+    markSmoothScroll(beginSmoothScroll);
+    expect(beginSmoothScroll).toHaveBeenCalledOnce();
+    expect(endSmoothScroll).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event("scrollend"));
+    window.dispatchEvent(new Event("scrollend"));
+    expect(endSmoothScroll).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the mark while scroll events keep arriving", () => {
+    const { beginSmoothScroll, endSmoothScroll } = stubSmoothScrolls();
+
+    markSmoothScroll(beginSmoothScroll);
+    vi.advanceTimersByTime(100);
+    window.dispatchEvent(new Event("scroll"));
+    vi.advanceTimersByTime(100);
+    expect(endSmoothScroll).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(100);
+    expect(endSmoothScroll).toHaveBeenCalledOnce();
+  });
+
+  it("ends the mark when no scroll event arrives", () => {
+    const { beginSmoothScroll, endSmoothScroll } = stubSmoothScrolls();
+
+    markSmoothScroll(beginSmoothScroll);
+    vi.advanceTimersByTime(200);
+    expect(endSmoothScroll).toHaveBeenCalledOnce();
+  });
+
+  it("ends the mark when the reader takes over", () => {
+    const { beginSmoothScroll, endSmoothScroll } = stubSmoothScrolls();
+
+    markSmoothScroll(beginSmoothScroll);
+    window.dispatchEvent(new Event("wheel"));
+    vi.advanceTimersByTime(200);
+    expect(endSmoothScroll).toHaveBeenCalledOnce();
   });
 });

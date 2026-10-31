@@ -26,6 +26,8 @@ import type { GuestRowsInput } from "../../../utils/guest-rows";
 // custom property cast-free.
 export interface DiffViewportStyle extends CSSProperties {
   "--diff-rows": number;
+  /** The stored reservation in px; absent for a brief without stored counts. */
+  "--diff-reserved-size"?: string;
 }
 
 export interface DiffTableProps {

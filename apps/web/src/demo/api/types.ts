@@ -7,6 +7,7 @@ export type PullReadId =
   | typeof ProductQueryIds.READ_CONVERSATION
   | typeof ProductQueryIds.READ_BRIEF_CONTEXT
   | typeof ProductQueryIds.READ_BRIEF
+  | typeof ProductQueryIds.READ_BRIEF_LAYOUT
   | typeof ProductQueryIds.READ_DIFF
   | typeof ProductQueryIds.READ_MARKS
   | typeof ProductQueryIds.READ_NARRATIVE

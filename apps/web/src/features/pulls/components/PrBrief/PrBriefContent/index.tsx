@@ -23,6 +23,7 @@ import {
 import {
   attachSlicedDiffs,
   buildBriefSearchParams,
+  buildChunkLayoutCounts,
   CompareParams,
   createFileRowsCache,
   resolveBriefSearch,
@@ -31,6 +32,7 @@ import {
   withView,
   type BriefSearch,
   type BriefSearchParams,
+  type ChunkLayoutState,
   type LivePrState,
 } from "@web/features/brief/model";
 import { createSessionWrites } from "@web/features/review/session";
@@ -46,6 +48,7 @@ import {
 import { usePrBriefPlans } from "../../../hooks/usePrBriefPlans";
 import {
   buildDbBriefContextQueryOptions,
+  buildDbBriefLayoutQueryOptions,
   buildDbBriefQueryOptions,
   buildPrDiffQueryOptions,
   buildPrStackQueryOptions,
@@ -122,6 +125,12 @@ export function PrBriefContent({
   const diff = useQuery(
     buildPrDiffQueryOptions(repoId, prNumber, span.base, span.head),
   );
+  // The worker's per-chunk counts, prefetched by the loader: a diff-less
+  // card reserves its height from them until the diff lands. Absent for a
+  // brief written without them, and the page keeps its estimate.
+  const layout = useQuery(
+    buildDbBriefLayoutQueryOptions(repoId, prNumber, span.base, span.head),
+  );
   // The Review Session, prefetched by the route loader so the FIRST paint
   // already carries marks, drafts and dispositions. A failed read degrades:
   // the Brief renders, and the screen goes read-only, a reviewer typing into
@@ -170,6 +179,14 @@ export function PrBriefContent({
   const assembled = useMemo(
     () => (fileRows === undefined ? brief : attachSlicedDiffs(brief, fileRows)),
     [brief, fileRows],
+  );
+  const layoutCounts = useMemo(
+    () => buildChunkLayoutCounts(layout.data?.body),
+    [layout.data?.body],
+  );
+  const chunkLayout = useMemo<ChunkLayoutState>(
+    () => ({ counts: layoutCounts, codePending: fileRows === undefined }),
+    [layoutCounts, fileRows],
   );
   const {
     briefId,
@@ -297,6 +314,7 @@ export function PrBriefContent({
     brief: assembled,
     briefId,
     fileRows,
+    chunkLayout,
     comparisonPlan,
     repoConfig: repoConfig.data ?? null,
     revisions,

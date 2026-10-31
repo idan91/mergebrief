@@ -1,0 +1,192 @@
+@use "sass:list";
+@use "sass:math";
+@use "sass:string";
+@use "functions";
+
+$shine-band: 0.3;
+$shine-sweep-end: 80%;
+$shine-cycle: 1600ms;
+
+// The bar widths `BAR_WIDTHS_PERCENT` cycles through, in the same order.
+$bar-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
+$row-padding: functions.to-rem(14px);
+$gutter-size: functions.to-rem(64px);
+
+@function fill-layers($inset) {
+  $row: var(--fill-row);
+  $cycle: list.length($bar-widths);
+  $bar-start: $row-padding * 2 + $gutter-size;
+  $gutter: "linear-gradient(transparent calc(#{$row} * 0.3), var(--fill-gutter) 0 calc(#{$row} * 0.7), transparent 0)";
+  $layers: list.append(
+    (),
+    string.unquote(
+      "#{$gutter} #{$row-padding} 0 / #{$gutter-size} #{$row} repeat-y"
+    ),
+    $separator: comma
+  );
+
+  @for $index from 1 through $cycle {
+    $share: math.div(list.nth($bar-widths, $index), 100);
+    $bar: "linear-gradient(transparent calc(#{$row} * #{$index - 0.7}), var(--fill-bar) 0 calc(#{$row} * #{$index - 0.3}), transparent 0)";
+    $size: "calc((100% - #{$inset}) * #{$share}) calc(#{$row} * #{$cycle})";
+    $layers: list.append(
+      $layers,
+      string.unquote("#{$bar} #{$bar-start} 0 / #{$size} repeat-y"),
+      $separator: comma
+    );
+  }
+
+  @return $layers;
+}
+
+@layer components {
+  // The reserved rows height, whatever the bar count: a card past the
+  // placeholder cap still measures at its estimate.
+  .skeleton {
+    position: relative;
+    box-sizing: border-box;
+    block-size: var(--skeleton-block-size, auto);
+    overflow: hidden;
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto var(--skeleton-block-size, auto);
+    border-block-start: 1px solid var(--color-outline-1);
+    background: var(--color-well);
+  }
+
+  // Row heights track `DiffRows.module.scss` (22px code row) and the expand
+  // lane (31px): the chunk height model reserves exactly these.
+  .row {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(14px);
+    block-size: calc(var(--font-size-lg) * 1.7);
+    padding-inline: functions.to-rem(14px);
+  }
+
+  .row[data-variant="tall"] {
+    block-size: calc(var(--font-size-lg) * 1.7 + 9px);
+    background: var(--color-surface-2);
+  }
+
+  .gutter {
+    flex: none;
+    inline-size: functions.to-rem(64px);
+    block-size: 40%;
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, var(--color-text-1) 4%, transparent);
+  }
+
+  .bar {
+    block-size: 40%;
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, var(--color-text-1) 7%, transparent);
+  }
+
+  .skeleton[data-view="split"] .bar {
+    flex: 0 1 auto;
+    max-inline-size: calc(50% - functions.to-rem(78px));
+  }
+
+  .fill {
+    --fill-row: calc(var(--font-size-lg) * 1.7);
+    --fill-gutter: color-mix(in srgb, var(--color-text-1) 4%, transparent);
+    --fill-bar: color-mix(in srgb, var(--color-text-1) 7%, transparent);
+
+    position: relative;
+    block-size: var(--skeleton-block-size);
+    background: fill-layers($row-padding * 2);
+  }
+
+  .skeleton[data-view="split"] .fill {
+    background: none;
+
+    &::before,
+    &::after {
+      position: absolute;
+      inset-block: 0;
+      inline-size: 50%;
+      background: fill-layers(($row-padding * 2 + $gutter-size) * 2);
+      content: "";
+    }
+
+    &::before {
+      inset-inline-start: 0;
+    }
+
+    &::after {
+      inset-inline-start: 50%;
+    }
+  }
+
+  .shine {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: $shine-band * 100%;
+    overflow: hidden;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      currentcolor 35%,
+      currentcolor 65%,
+      transparent
+    );
+    animation: shine-band $shine-cycle linear var(--shine-delay, 0ms) infinite;
+  }
+
+  // The track cancels the band's travel exactly, so its bars sit on the
+  // bars below while the band moves: both keyframes keep the same offsets
+  // and easing. The delay falls back to zero so a server-rendered skeleton
+  // sweeps from the first paint, before any script runs.
+  .shineTrack {
+    inline-size: math.div(100%, $shine-band);
+    animation: shine-track $shine-cycle linear var(--shine-delay, 0ms) infinite;
+  }
+
+  .shineTrack .row {
+    background: none;
+  }
+
+  .shineTrack .gutter {
+    background: color-mix(in srgb, var(--color-text-1) 9%, transparent);
+  }
+
+  .shineTrack .bar {
+    background: color-mix(in srgb, var(--color-text-1) 15%, transparent);
+  }
+
+  .shineTrack .fill {
+    --fill-gutter: color-mix(in srgb, var(--color-text-1) 9%, transparent);
+    --fill-bar: color-mix(in srgb, var(--color-text-1) 15%, transparent);
+  }
+
+  @keyframes shine-band {
+    0% {
+      transform: translateX(-100%);
+      animation-timing-function: ease-in-out;
+    }
+
+    #{$shine-sweep-end},
+    100% {
+      transform: translateX(math.div(100%, $shine-band));
+    }
+  }
+
+  @keyframes shine-track {
+    0% {
+      transform: translateX($shine-band * 100%);
+      animation-timing-function: ease-in-out;
+    }
+
+    #{$shine-sweep-end},
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shine {
+      display: none;
+    }
+  }
+}

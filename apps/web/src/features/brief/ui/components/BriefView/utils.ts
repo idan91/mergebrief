@@ -26,7 +26,7 @@ import {
   ViewportBands,
   type ViewportBand,
 } from "@web/hooks/useViewportBoundary";
-import { DiffViews } from "@web/components/DiffRows/types";
+import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ComparisonQuery } from "../../../model/comparison/comparison-query";
 import {
   buildChunkComparisonView,
@@ -37,6 +37,10 @@ import { ReplyResultKinds } from "@web/features/conversation/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
 import { type BriefChunk, type ComparisonMarks } from "../../../model/types";
+import {
+  readStoredCounts,
+  type StoredChunkCounts,
+} from "../../../model/chunk-layout/useChunkLayout";
 import { getShortSha } from "../../../model/utils/short-sha";
 import {
   LARGE_CHUNK_CHANGED_LINES,
@@ -516,12 +520,21 @@ export function resolveSidebarLayout(
   return expanded ? SidebarLayouts.EXPANDED : SidebarLayouts.COLLAPSED;
 }
 
-/** The file and row count the grammar budget reads, per chunk that has a diff. */
-export function deriveChunkSizes(chunks: BriefChunk[]): BriefChunkSize[] {
+/**
+ * The file and row count the grammar budget reads, per card that has rows,
+ * remainder cards included: the stored count where the brief carries one,
+ * so the budget is planned before the code lands and holds when it does;
+ * the sliced rows otherwise.
+ */
+export function deriveChunkSizes(
+  chunks: readonly BriefChunk[],
+  storedCounts?: StoredChunkCounts,
+): BriefChunkSize[] {
   const sizes: BriefChunkSize[] = [];
 
   for (const chunk of chunks) {
-    const rowCount = chunk.diff?.length ?? 0;
+    const stored = readStoredCounts(storedCounts, chunk);
+    const rowCount = stored?.rows ?? chunk.diff?.length ?? 0;
     if (rowCount === 0) {
       continue;
     }
@@ -694,4 +707,21 @@ export function buildAnnouncedRevisionNav({
       return step;
     },
   };
+}
+
+/**
+ * The view a chunk's table draws, read from its claimed ranges so a card
+ * still waiting on its code knows it: split only when the reader asked for
+ * it, the chunk holds a line on each side, and the table is not a guest's.
+ */
+export function resolveChunkView(
+  view: DiffView,
+  chunk: Pick<BriefChunk, "addedRanges" | "removedRanges">,
+  guest: boolean,
+): DiffView {
+  const pairable =
+    chunk.addedRanges.length > 0 && chunk.removedRanges.length > 0;
+  const drawsSplit = view === DiffViews.SPLIT && pairable && !guest;
+
+  return drawsSplit ? DiffViews.SPLIT : DiffViews.UNIFIED;
 }

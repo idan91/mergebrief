@@ -42,8 +42,12 @@ import {
 } from "../review/session";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
 import { LIVE_POLL_MS } from "./consts";
-import { prSummarySchema, pullStackSchema } from "./schemas";
-import type { PrSummary } from "./types";
+import {
+  briefLayoutReplySchema,
+  prSummarySchema,
+  pullStackSchema,
+} from "./schemas";
+import type { PrSummary, StoredBriefLayout } from "./types";
 import { resolveOutagePollMs } from "./utils/poll-backoff";
 
 /** A stored body is checked only for being an object; its reader parses the rest. */
@@ -118,6 +122,44 @@ async function readDbBrief(
     throw buildMalformedError(ProductQueryIds.READ_BRIEF, params);
   }
   return parsed.value;
+}
+
+async function readDbBriefLayout(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+): Promise<StoredBriefLayout> {
+  const reply = await request(
+    ProductQueryIds.READ_BRIEF_LAYOUT,
+    { params: { repoId, prNumber }, query: { base, head } },
+    briefLayoutReplySchema,
+  );
+  const layout: StoredBriefLayout = {};
+  if (reply.layout !== undefined) {
+    layout.body = reply.layout;
+  }
+  return layout;
+}
+
+/**
+ * The brief's stored per-chunk row counts, written with the brief and
+ * immutable like it. A brief written without them reads as a layout with no
+ * body: the page then sizes its cards from its own estimate, as it does when
+ * the read fails.
+ */
+export function buildDbBriefLayoutQueryOptions(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+) {
+  return queryOptions({
+    queryKey: ["brief-layout", "db", repoId, prNumber, base, head],
+    queryFn: () => readDbBriefLayout(repoId, prNumber, base, head),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 10 * 60 * 1000,
+  });
 }
 
 /** A DB-stored Brief artifact for an exact span, immutable once written. */

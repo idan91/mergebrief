@@ -19,7 +19,7 @@ import {
   NO_HIDDEN_THREADS,
 } from "./consts";
 import { buildRowAttributesFor } from "./row-attributes";
-import type { DiffTableProps } from "./types";
+import type { DiffTableProps, DiffViewportStyle } from "./types";
 import { useDiffTableComments } from "./useDiffTableComments";
 import { useDiffTableModel } from "./useDiffTableModel";
 import { useDragSelection } from "./useDragSelection";
@@ -28,6 +28,13 @@ import { useRailHover } from "./useRailHover";
 import { useComposerHostUnmount } from "./useComposerHostUnmount";
 import { useReasonRow } from "./useReasonRow";
 import { RowRefKinds } from "../../../../model/expansion/types";
+import {
+  readReservedCounts,
+  readStoredCounts,
+  useChunkLayout,
+} from "../../../../model/chunk-layout/useChunkLayout";
+import { estimateReservedRowsHeight } from "../reading/chunk-height-model";
+import { resolveChunkView } from "../utils";
 import type { GuestRowReason } from "../../../../model/types";
 import {
   buildExpandedRowView,
@@ -273,9 +280,30 @@ export function useDiffTableFacade({
   const handleToggleConversationThread = (threadId: number) =>
     review.toggleConversationThread(chunkKey, threadId);
 
+  // A card waiting on its code draws skeleton rows in the view its table
+  // will draw, sized from the stored counts. The reserved height doubles as
+  // the off-screen intrinsic size, so a card the skeleton measured measures
+  // the same once its code lands.
+  const layout = useChunkLayout();
+  const reserved = readReservedCounts(layout, chunk);
+  const storedCounts = readStoredCounts(layout?.counts, chunk);
+  const skeletonView = resolveChunkView(diffView, chunk, guest !== undefined);
+  const diffRows = model.split ? model.pairs.length : rows.length;
+  const viewportStyle: DiffViewportStyle = { "--diff-rows": diffRows };
+  if (storedCounts !== undefined) {
+    const reservedHeight = estimateReservedRowsHeight(
+      storedCounts,
+      model.resolvedView,
+    );
+    viewportStyle["--diff-reserved-size"] = `${String(reservedHeight)}px`;
+  }
+
   return {
     t,
     rows,
+    reserved,
+    skeletonView,
+    viewportStyle,
     rowRefs,
     hasExpandedRows,
     edgesByRow,

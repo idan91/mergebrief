@@ -1,14 +1,20 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Button } from "@web/components/Button";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import { DIFF_VIEW_STORAGE_KEY } from "./diff-view-storage";
+import {
+  DIFF_VIEW_COOKIE,
+  LEGACY_DIFF_VIEW_STORAGE_KEY,
+  readDiffView,
+} from "./diff-view-storage";
 import { useDiffViewPreference } from "./useDiffViewPreference";
 
 afterEach(() => {
   cleanup();
+  document.cookie = `${DIFF_VIEW_COOKIE}=; Path=/; Max-Age=0`;
   window.localStorage.clear();
 });
 
@@ -39,8 +45,8 @@ function readView(): string {
   return screen.getByTestId("toggle").textContent ?? "";
 }
 
-function seedStored(view: DiffView): void {
-  window.localStorage.setItem(DIFF_VIEW_STORAGE_KEY, JSON.stringify(view));
+function seedStored(view: string): void {
+  document.cookie = `${DIFF_VIEW_COOKIE}=${view}; Path=/`;
 }
 
 describe("useDiffViewPreference", () => {
@@ -53,6 +59,31 @@ describe("useDiffViewPreference", () => {
     seedStored(DiffViews.SPLIT);
     render(<Harness />);
     expect(readView()).toBe(DiffViews.SPLIT);
+  });
+
+  it("draws the stored view on the first render, before any effect", () => {
+    seedStored(DiffViews.SPLIT);
+    expect(renderToString(<Harness />)).toContain(DiffViews.SPLIT);
+  });
+
+  it("starts unified on a cookie value this build does not ship", () => {
+    seedStored("sideways");
+    render(<Harness />);
+    expect(readView()).toBe(DiffViews.UNIFIED);
+  });
+
+  it("moves a view stored before the cookie into it once", () => {
+    window.localStorage.setItem(
+      LEGACY_DIFF_VIEW_STORAGE_KEY,
+      JSON.stringify(DiffViews.SPLIT),
+    );
+    render(<Harness />);
+
+    expect(readView()).toBe(DiffViews.SPLIT);
+    expect(readDiffView()).toBe(DiffViews.SPLIT);
+    expect(
+      window.localStorage.getItem(LEGACY_DIFF_VIEW_STORAGE_KEY),
+    ).toBeNull();
   });
 
   it("lets the param win over the stored preference", () => {
@@ -80,9 +111,7 @@ describe("useDiffViewPreference", () => {
     act(() => screen.getByTestId("toggle").click());
 
     expect(readView()).toBe(DiffViews.SPLIT);
-    expect(window.localStorage.getItem(DIFF_VIEW_STORAGE_KEY)).toBe(
-      JSON.stringify(DiffViews.SPLIT),
-    );
+    expect(readDiffView()).toBe(DiffViews.SPLIT);
     expect(clearDiffParam).toHaveBeenCalledTimes(1);
   });
 

@@ -74,10 +74,54 @@ describe("chunk window registry", () => {
       holdScrollCompensation: changes,
     });
 
-    registry.holdScrollCompensation(true);
-    registry.holdScrollCompensation(false);
+    const release = registry.holdScrollCompensation();
+    release();
 
     expect(story.mock.calls).toEqual([[true], [false]]);
     expect(changes.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("keeps the windows held until the last of nested holds is released", () => {
+    const registry = createChunkWindowRegistry();
+    const story = vi.fn();
+    registry.register({
+      scrollToChunk: () => false,
+      holdScrollCompensation: story,
+    });
+
+    const releaseFirst = registry.holdScrollCompensation();
+    const releaseSecond = registry.holdScrollCompensation();
+    releaseFirst();
+    releaseFirst();
+    expect(story.mock.calls).toEqual([[true]]);
+
+    releaseSecond();
+    expect(story.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("holds a window that registers while a hold is live", () => {
+    const registry = createChunkWindowRegistry();
+    const release = registry.holdScrollCompensation();
+    const late = vi.fn();
+    registry.register({
+      scrollToChunk: () => false,
+      holdScrollCompensation: late,
+    });
+    release();
+
+    expect(late.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("reports a smooth scroll until each one in flight has ended", () => {
+    const registry = createChunkWindowRegistry();
+    const endFirst = registry.beginSmoothScroll();
+    const endSecond = registry.beginSmoothScroll();
+
+    endFirst();
+    endFirst();
+    expect(registry.isSmoothScrolling()).toBe(true);
+
+    endSecond();
+    expect(registry.isSmoothScrolling()).toBe(false);
   });
 });

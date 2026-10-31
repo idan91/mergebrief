@@ -21,7 +21,7 @@ export { findExpansionGaps } from "./logic/gaps";
 export { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./logic/parse";
 export { sliceChunkDiff } from "./logic/slice";
 export { countSplitRows } from "./logic/split-rows";
-export { LINE_WIDTH_BUCKET_EDGES } from "./consts";
+export { LINE_WIDTH_BUCKET_EDGES, SLICE_CONTEXT_ROWS } from "./consts";
 export {
   ExpansionDirections,
   FileStatuses,
@@ -33,6 +33,7 @@ export {
   type ExpansionEdge,
   type ExpansionGap,
   type FileStatus,
+  type LineWidthHistogram,
   type ParsedDiffLine,
 } from "./types";
 
