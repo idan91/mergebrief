@@ -778,29 +778,30 @@ export function failHeadReadsAfterFirst(github: FakeGitHub): void {
   );
 }
 
-const COMMENT_OPERATIONS = new Set<string>([
-  "postEntryComment",
-  "deleteComment",
-  "fetchComment",
-]);
+const COMMENT_VERBS: Readonly<Record<string, string>> = {
+  deleteComment: "delete",
+  editComment: "edit",
+  fetchComment: "fetch",
+};
 
 /** The bodies of the comments live on the fake's PR #7 repository. */
 export function readLiveBodies(github: FakeGitHub): string[] {
   return [...github.readComments(REPO).values()];
 }
 
-/** The Entry comment calls in order: `post`, `delete:<id>`, `fetch:<id>`. */
+/** The Entry comment calls in order: `post`, `delete:<id>`, `edit:<id>`, `fetch:<id>`. */
 export function listCommentCalls(github: FakeGitHub): string[] {
-  const calls = github.calls.filter((call) =>
-    COMMENT_OPERATIONS.has(call.operation),
+  const calls = github.calls.filter(
+    (call) =>
+      call.operation === "postEntryComment" ||
+      COMMENT_VERBS[call.operation] !== undefined,
   );
   return calls.map((call) => {
     if (call.operation === "postEntryComment") {
       return "post";
     }
     const { commentId } = call.input as { commentId: bigint };
-    const verb = call.operation === "deleteComment" ? "delete" : "fetch";
-    return `${verb}:${commentId}`;
+    return `${COMMENT_VERBS[call.operation]}:${commentId}`;
   });
 }
 

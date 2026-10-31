@@ -6,6 +6,7 @@ import { readCollaboratorPermission } from "../operations/collaborator-permissio
 import { listRepoCollaborators } from "../operations/collaborators";
 import {
   deleteComment,
+  editComment,
   fetchComment,
   listIssueComments,
   postEntryComment,
@@ -65,6 +66,12 @@ export function buildInstallationRepoClient(
       return run(
         (octokit) => deleteComment(octokit, { ...repo, commentId }),
         "delete comment",
+      );
+    },
+    editComment(commentId, body) {
+      return run(
+        (octokit) => editComment(octokit, { ...repo, commentId, body }),
+        "edit comment",
       );
     },
     commitAttachment(input) {

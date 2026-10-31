@@ -129,6 +129,21 @@ export function buildInstallationRepoClient(
         },
       });
     },
+    editComment(commentId, body) {
+      return run({
+        operation: "editComment",
+        input: { ...repo, commentId, body },
+        onNotFound: () => false,
+        answer: (): FakeAnswer<boolean> => {
+          const comments = world.findRepo(repo)?.comments;
+          if (comments?.has(commentId) !== true) {
+            return answerNotFound("edit comment");
+          }
+          comments.set(commentId, body);
+          return answerOk(true);
+        },
+      });
+    },
     commitAttachment(attachment) {
       const input = { ...attachment, ...repo };
       return run({

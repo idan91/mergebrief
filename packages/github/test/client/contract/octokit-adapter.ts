@@ -247,6 +247,7 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
   ]),
   postEntryComment: answerOk({ id: 1001 }),
   deleteComment: answerOk({}),
+  editComment: answerOk({ id: 1001, body: "Entry, edited" }),
   // Every git-data step of the commit reads the field it needs from this one
   // body: the blob, tree and commit `sha`, the ref's `object`, the `tree`.
   commitAttachment: {

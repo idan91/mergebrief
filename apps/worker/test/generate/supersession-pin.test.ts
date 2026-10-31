@@ -64,6 +64,16 @@ async function readQueuedDelays(task: string): Promise<number[]> {
   return rows.map((row) => Number(row["delay"]));
 }
 
+/** The Entry writes GitHub took, `post` or `edit`, without the reads and deletes. */
+function listEntryWrites(
+  github: ReturnType<typeof makeMultiCallGitHub>,
+): string[] {
+  const writes = listCommentCalls(github).filter(
+    (call) => call === "post" || call.startsWith("edit:"),
+  );
+  return writes.map((call) => call.replace(/:.*$/, ""));
+}
+
 /** The push lands while `label` is in flight; the next poll sees it. */
 function pushHeadDuring(
   generator: ThreeGroupStubGenerator,
@@ -133,9 +143,9 @@ describe("a push during a multi-call run", () => {
         HEAD_1,
       ),
     ).toBeDefined();
-    // The generating post went up before the push; the ready post stood down.
-    expect(listCommentCalls(github)).toEqual(["post"]);
-    expect(readLiveBodies(github)[0]).toContain("Brief is generating");
+    // The generating post and its edit went up before the push; the ready post stood down.
+    expect(listEntryWrites(github)).toEqual(["post", "edit"]);
+    expect(readLiveBodies(github)[0]).toContain("generated in 2 parts");
   });
 
   it("keeps the newer head's run behind a pinned run's live claim", async () => {
@@ -224,8 +234,8 @@ describe("a push during a multi-call run", () => {
     const projection = createGenerationProjection(harness.handle, ctx);
     const row = await projection.get(makeTarget(pr, HEAD_1));
     expect(row?.status).toBe(GenerationStatuses.FAILED);
-    expect(listCommentCalls(github)).toEqual(["post"]);
-    expect(readLiveBodies(github)[0]).toContain("Brief is generating");
+    expect(listEntryWrites(github)).toEqual(["post", "edit"]);
+    expect(readLiveBodies(github)[0]).toContain("generated in 2 parts");
   });
 
   it.each([

@@ -296,6 +296,31 @@ export function createEntryCommentManager(
     return EntryWrites.WRITTEN;
   }
 
+  async function editEntryComment(body: string): Promise<EntryWrite> {
+    if (comments === undefined) {
+      return EntryWrites.LEFT;
+    }
+    if (liveEntryCommentId === null) {
+      return refreshEntryComment(body);
+    }
+    const adoptedWrite = await resolveAdoptedCommentWrite();
+    if (adoptedWrite !== undefined) {
+      return adoptedWrite;
+    }
+
+    const edited = await comments.editComment(liveEntryCommentId, body);
+    if (!edited.ok) {
+      log.warn(
+        `generate: entry comment edit failed (job unaffected), ${edited.error.message}`,
+      );
+      return classifyFailedWrite(edited.error);
+    }
+    if (!edited.value) {
+      return refreshEntryComment(body);
+    }
+    return EntryWrites.WRITTEN;
+  }
+
   /**
    * A run killed between its post and its id swap leaves that comment
    * untracked, so each tracked post deletes the Entry comments older than it
@@ -392,6 +417,7 @@ export function createEntryCommentManager(
     remove: removeEntryComment,
     matches: matchesEntryComment,
     refresh: refreshEntryComment,
+    edit: editEntryComment,
     replaceOrCreate: replaceOrCreateEntryComment,
     replace: replaceEntryComment,
   };

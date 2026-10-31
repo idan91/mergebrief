@@ -16,6 +16,7 @@ import {
   type RunContext,
 } from "../types";
 import { isClassifiedThrow, isPermanentFailure } from "./errors";
+import { postLargeGeneratingEntry } from "./generating-entry";
 import { claimRunUnits } from "./spend-gate";
 import { throwOnClaimLost } from "./supersession-watch";
 
@@ -298,6 +299,10 @@ export function createMultiCallRun(
         if (missing > 0) {
           await claimRunUnits(context, missing);
         }
+        await postLargeGeneratingEntry(context, {
+          planned: plan.detailCalls,
+          missing,
+        });
       }),
     async onDetailStart() {
       context.watch.pin();

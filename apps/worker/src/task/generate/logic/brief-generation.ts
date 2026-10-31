@@ -19,11 +19,10 @@ import type { Mutable, ValueOf } from "types/utils";
 import { buildEntryCommentGeneratingBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
 import { buildRepoConfigArtifact } from "../../repo-config";
-import {
-  HeadReadings,
-  type BriefGenerationInputs,
-  type GeneratedBrief,
-  type StoredBriefRecoveryInputs,
+import type {
+  BriefGenerationInputs,
+  GeneratedBrief,
+  StoredBriefRecoveryInputs,
 } from "../types";
 import {
   deriveNextHeadIndex,
@@ -34,9 +33,9 @@ import {
 import { decideAnchor } from "./anchor-decision";
 import { collectAllowedRiskNames, warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
+import { postGeneratingEntry } from "./generating-entry";
 import { readLockfileSummaries } from "./lockfile-summaries";
-import { readEntryPostHead, throwOnClaimLost } from "./supersession-watch";
-import { replaceOnUnreadHead } from "./unread-head-entry";
+import { throwOnClaimLost } from "./supersession-watch";
 
 /**
  * The fresh-brief path: anchor decision, the generating Entry, brief-core's
@@ -90,7 +89,7 @@ export async function writeFreshBrief(
   await multiCall.loadStoredParts();
   await advancePhase(inputs, GenerationPhases.GENERATING);
   if (entryCommentAllowed) {
-    await postGeneratingEntry(inputs, headIndex);
+    await postFreshGeneratingEntry(inputs, headIndex);
   }
   const { links, primaryTicket } = await loadContext();
   const fetchedPr: FetchedPr = { locator, meta, diff, links };
@@ -179,28 +178,19 @@ export async function writeFreshBrief(
   return { briefRef, generatedBrief: stamped };
 }
 
-/** A moved head ends the run; an unread one replaces only this head's body. */
-async function postGeneratingEntry(
+async function postFreshGeneratingEntry(
   inputs: BriefGenerationInputs,
   headIndex: number,
 ): Promise<void> {
-  const { watch, translate, entryCommentManager, log } = inputs;
-  const head = await readEntryPostHead(watch);
-  if (head.kind === HeadReadings.MOVED) {
-    log.info("generate: head moved, leaving the generating Entry to it");
-    return;
-  }
+  const { watch, translate, entryCommentManager, prInfo, log } = inputs;
   const generatingBody = buildEntryCommentGeneratingBody(
     translate,
     entryCommentManager.buildDeepLink(headIndex),
   );
-  if (head.kind === HeadReadings.UNREAD) {
-    const { headSha } = inputs.prInfo;
-    const post = { entryCommentManager, translate, headSha, log };
-    await replaceOnUnreadHead(post, generatingBody, head);
-    return;
-  }
-  await entryCommentManager.refresh(generatingBody);
+  await postGeneratingEntry(
+    { watch, entryCommentManager, translate, headSha: prInfo.headSha, log },
+    generatingBody,
+  );
 }
 
 /**

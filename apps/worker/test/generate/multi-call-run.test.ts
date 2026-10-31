@@ -7,6 +7,7 @@ import {
   createGenerationPartStore,
   createGenerationProjection,
   GenerationPartKinds,
+  ScopeViolationError,
   type PullRequestRow,
 } from "persistence";
 import {
@@ -14,7 +15,8 @@ import {
   GeneratorErrorKinds,
   type Generator,
 } from "generators";
-import { FakeFailures } from "github/testing";
+import { FakeFailures, type FakeGitHub } from "github/testing";
+import { createI18n } from "i18n";
 import { claimTestRun } from "persistence/testing";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -24,6 +26,7 @@ import {
 } from "../../src/task/generate/logic/generation-parts";
 import {
   GitAttributesReadings,
+  HeadReadings,
   type RunContext,
 } from "../../src/task/generate/types";
 import {
@@ -34,6 +37,8 @@ import {
   harness,
   HEAD_1,
   HEAD_2,
+  interceptInstallationRepo,
+  listCommentCalls,
   LAST_ATTEMPT,
   listRepoFilePaths,
   makeConnectionError,
@@ -44,6 +49,7 @@ import {
   makeTarget,
   makeTask,
   MULTI_CALL_GROUPING,
+  PUBLIC_URL,
   readLiveBodies,
   REPO,
   SECOND_ATTEMPT,
@@ -100,6 +106,7 @@ function stubRunContext(
   pr: PullRequestRow,
   projection: ReturnType<typeof createGenerationProjection>,
   runId: string,
+  overrides: Record<string, unknown> = {},
 ): RunContext {
   const { logger } = captureLogger();
   return {
@@ -112,7 +119,19 @@ function stubRunContext(
     run: { runId, leaveRow: false, providerCalls: 1 },
     repoSlug: "acme/widget",
     log: logger,
+    ...overrides,
   } as unknown as RunContext;
+}
+
+/** The second Entry id swap of the run fails as the store throwing does. */
+async function failSecondEntrySwap(): Promise<void> {
+  await harness.raw("create sequence entry_swap_faults");
+  await harness.raw(
+    "create function fail_entry_swap() returns trigger language plpgsql as $$ begin if nextval('entry_swap_faults') = 2 then raise exception 'entry swap refused'; end if; return new; end $$",
+  );
+  await harness.raw(
+    "create trigger fail_entry_swap before update on pull_request for each row when (old.entry_comment_id is distinct from new.entry_comment_id) execute function fail_entry_swap()",
+  );
 }
 
 /**
@@ -145,6 +164,25 @@ const FIVE_GROUP_PATHS = [
 
 /** Two detail calls in flight at once: batches 2 and 3 of a five-group run share the pool. */
 const TWO_IN_FLIGHT = 2;
+const ONE_IN_FLIGHT = 1;
+
+interface RecordedEdit {
+  readonly commentId: bigint;
+  readonly body: string;
+}
+
+/** Every in-place comment edit the fake takes from here on. */
+function recordEdits(github: FakeGitHub): RecordedEdit[] {
+  const edits: RecordedEdit[] = [];
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async editComment(commentId, body) {
+      edits.push({ commentId, body });
+      return client.editComment(commentId, body);
+    },
+  }));
+  return edits;
+}
 
 /** How long a task that must wait for a held call gets to settle early. */
 const EARLY_SETTLE_WINDOW_MS = 100;
@@ -263,6 +301,169 @@ describe("a multi-call run", () => {
       changeGroups: [{ id: "g1" }, { id: "g2" }, { id: "g3" }],
     });
     expect((await readStatus(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("edits the generating Entry in place after grouping, no repost", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeMultiCallGitHub(HEAD_1);
+    const posted: string[] = [];
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async postEntryComment(input) {
+        posted.push(input.body);
+        return client.postEntryComment(input);
+      },
+    }));
+    const edits = recordEdits(github);
+
+    await makeTask({
+      generator: stubThreeGroupGenerator(),
+      github,
+      forceMultiCall: true,
+      detailConcurrency: 1,
+    })(payload);
+
+    expect(posted).toHaveLength(2);
+    expect(posted[0]).toContain("Brief is generating");
+    expect(posted[0]).not.toContain("parts");
+    expect(posted[1]).toContain("Read the brief for this push");
+    expect(edits).toHaveLength(1);
+    expect(edits[0]?.body).toContain(
+      "A large pull request: this brief is generated in 2 parts. Expect it in about 10 minutes.",
+    );
+    expect(listCommentCalls(github).slice(0, 2)).toEqual([
+      "post",
+      `edit:${edits[0]?.commentId}`,
+    ]);
+  });
+
+  it("leaves the generating Entry when the head read fails at grouping", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeMultiCallGitHub(HEAD_1);
+    const generator = stubThreeGroupGenerator();
+    let callsAtDetail: string[] = [];
+    generator.onCall = async (label) => {
+      if (label === "grouping") {
+        github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
+      }
+      if (label === "detail:1") {
+        callsAtDetail = listCommentCalls(github);
+      }
+    };
+    const edits = recordEdits(github);
+
+    await makeTask({
+      generator,
+      github,
+      forceMultiCall: true,
+      detailConcurrency: 1,
+    })(payload);
+
+    expect(callsAtDetail).toEqual(["post"]);
+    expect(edits).toEqual([]);
+  });
+
+  it("estimates a resumed run's time over its missing detail calls", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeMultiCallGitHub(HEAD_1, FIVE_GROUP_PATHS);
+    const grouping = makeInOrderGrouping(FIVE_GROUP_PATHS.length);
+    const generator = stubThreeGroupGenerator(grouping);
+    generator.failOn("detail:3", makeConnectionError());
+    const options = {
+      github,
+      forceMultiCall: true,
+      detailConcurrency: ONE_IN_FLIGHT,
+    };
+    await expect(makeTask({ generator, ...options })(payload)).rejects.toThrow(
+      "Connection error",
+    );
+    const edits = recordEdits(github);
+
+    const resumed = stubThreeGroupGenerator(grouping);
+    await makeTask({ generator: resumed, ...options })(payload, {
+      job: SECOND_ATTEMPT,
+    });
+
+    expect(resumed.calls).toContain("detail:3");
+    expect(edits.map((edit) => edit.body)).toEqual([
+      expect.stringContaining(
+        "generated in 3 parts. Expect it in about 10 minutes.",
+      ),
+    ]);
+  });
+
+  it("goes on when the large Entry's fallback repost cannot store its id", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = makeMultiCallGitHub(HEAD_1);
+    // The generating comment is gone when the edit lands, so it reposts.
+    interceptInstallationRepo(github, (client) => ({
+      ...client,
+      async editComment(commentId, body) {
+        await client.deleteComment(commentId);
+        return client.editComment(commentId, body);
+      },
+    }));
+    await failSecondEntrySwap();
+    const { logger, readLines } = captureLogger();
+    const generator = stubThreeGroupGenerator();
+
+    await makeTask({
+      generator,
+      github,
+      forceMultiCall: true,
+      detailConcurrency: 1,
+      log: logger,
+    })(payload);
+
+    expect(generator.calls.slice(0, 3)).toEqual(MULTI_CALL_LABELS);
+    expect((await readStatus(pr))?.status).toBe(GenerationStatuses.SUCCEEDED);
+    const warned = readLines().find((line) =>
+      String(line["msg"]).includes("generating Entry was not edited"),
+    );
+    expect(warned?.["level"]).toBe("warn");
+    expect(readLiveBodies(github).join("\n")).toContain(
+      "Read the brief for this push",
+    );
+  });
+
+  it("ends the run when the generating Entry edit meets a scope refusal", async () => {
+    const { pr } = await trigger(HEAD_1);
+    const projection = createGenerationProjection(harness.handle, ctx);
+    const runId = await claimTestRun(projection, makeTarget(pr, HEAD_1));
+    const context = stubRunContext(pr, projection, runId, {
+      deps: { translate: createI18n().t },
+      run: {
+        runId,
+        leaveRow: false,
+        providerCalls: 1,
+        entryCommentAllowed: true,
+      },
+      priorBriefs: [],
+      watch: {
+        readHead: () => Promise.resolve({ kind: HeadReadings.CURRENT }),
+        isPinned: () => false,
+      },
+      entryCommentManager: {
+        buildDeepLink: () => ({
+          publicBaseUrl: PUBLIC_URL,
+          repoId: pr.repoId,
+          prNumber: pr.prNumber,
+          headIndex: 1,
+          headSha: HEAD_1,
+        }),
+        edit: () =>
+          Promise.reject(
+            new ScopeViolationError("pull_request", pr.id, "installation 42"),
+          ),
+      },
+    });
+    const { hooks } = createMultiCallRun(context, runId, {
+      kind: GitAttributesReadings.NONE,
+    });
+
+    await expect(
+      hooks.onGroupingDone?.({ detailCalls: 2, missingDetailCalls: [1, 2] }),
+    ).rejects.toBeInstanceOf(ScopeViolationError);
   });
 
   it("ends capped at the grouping when the detail calls do not fit the day", async () => {

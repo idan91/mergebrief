@@ -304,6 +304,8 @@ export interface InstallationRepoClient extends RepoReader {
   ): GitHubCall<PostedComment>;
   /** A comment already gone is a success. */
   deleteComment(commentId: bigint): GitHubCall<void>;
+  /** Replaces the body in place, with no notification; `false` when the comment is gone. */
+  editComment(commentId: bigint, body: string): GitHubCall<boolean>;
   commitAttachment(
     input: RepoScoped<CommitAttachmentInput>,
   ): GitHubCall<AttachmentCommit>;

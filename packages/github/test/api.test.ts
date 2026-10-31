@@ -11,6 +11,7 @@ import {
   postEntryComment,
 } from "../src/operations/comments";
 import { GitHubApiErrorCodes } from "../src/errors";
+import { editComment } from "../src/operations/comments";
 import { fetchIssue } from "../src/operations/issue";
 import {
   fetchPullRequest,
@@ -58,6 +59,7 @@ function requestError(
 function mockOctokit(overrides: {
   createComment?: ReturnType<typeof vi.fn>;
   deleteComment?: ReturnType<typeof vi.fn>;
+  updateComment?: ReturnType<typeof vi.fn>;
   getComment?: ReturnType<typeof vi.fn>;
   issuesGet?: ReturnType<typeof vi.fn>;
   pullsGet?: ReturnType<typeof vi.fn>;
@@ -75,6 +77,7 @@ function mockOctokit(overrides: {
       issues: {
         createComment: overrides.createComment ?? vi.fn(),
         deleteComment: overrides.deleteComment ?? vi.fn(),
+        updateComment: overrides.updateComment ?? vi.fn(),
         getComment: overrides.getComment ?? vi.fn(),
         get: overrides.issuesGet ?? vi.fn(),
       },
@@ -230,6 +233,61 @@ describe("deleteComment", () => {
       throw new Error("unreachable");
     }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.status).toBe(500);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+});
+
+describe("editComment", () => {
+  it("replaces the body in place", async () => {
+    const updateComment = vi.fn().mockResolvedValue({ data: { id: 99 } });
+    const octokit = mockOctokit({ updateComment });
+
+    const result = await editComment(octokit, {
+      owner: "o",
+      repo: "r",
+      commentId: 99n,
+      body: "edited",
+    });
+
+    expect(result).toEqual({ ok: true, value: true });
+    expect(updateComment).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      comment_id: 99,
+      body: "edited",
+    });
+  });
+
+  it("reads a 404 as a comment gone, not a failure", async () => {
+    const updateComment = vi.fn().mockRejectedValue(requestError(404));
+    const octokit = mockOctokit({ updateComment });
+
+    const result = await editComment(octokit, {
+      owner: "o",
+      repo: "r",
+      commentId: 99n,
+      body: "edited",
+    });
+
+    expect(result).toEqual({ ok: true, value: false });
+  });
+
+  it("maps any other failure to a sanitized error", async () => {
+    const updateComment = vi.fn().mockRejectedValue(requestError(500));
+    const octokit = mockOctokit({ updateComment });
+
+    const result = await editComment(octokit, {
+      owner: "o",
+      repo: "r",
+      commentId: 99n,
+      body: "edited",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("unreachable");
+    }
     expect(result.error.status).toBe(500);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });

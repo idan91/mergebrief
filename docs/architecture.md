@@ -155,6 +155,9 @@ hours is skipped.
 link to the Brief. On each settled head the worker deletes its previous comment
 and posts a fresh one, which keeps it at the bottom of the thread and fires one
 notification per settled head, never per push (`apps/worker/src/task/entry-comment.ts`).
+A large run edits its generating comment in place once grouping counts its
+parts, and leaves it as it is when it cannot read the head; an edit notifies
+nobody.
 Drafts get the comment too, unless the repository sets
 `entryCommentOnDrafts: false` in `.mergebrief/`; the opt-out never stops the
 Brief computing.

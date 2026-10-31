@@ -385,6 +385,11 @@ export interface EntryCommentManager {
   matches(body: string): Promise<boolean>;
   refresh(body: string): Promise<EntryWrite>;
   /**
+   * Rewrite the live comment's body in place, which notifies nobody. With
+   * no comment tracked, or the tracked one gone, it posts as `refresh` does.
+   */
+  edit(body: string): Promise<EntryWrite>;
+  /**
    * Post `body` when no comment is live and the PR row names none another
    * run posted, or over a live one `isReplaceable` accepts; a live
    * `body` is left unpinged and any other live body stays. A live body whose

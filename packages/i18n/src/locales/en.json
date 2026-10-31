@@ -43,6 +43,9 @@
     },
     "generating": {
       "link": "Brief is generating for this push…",
+      "largeParts_one": "A large pull request: this brief is generated in {{count}} part.",
+      "largeParts_other": "A large pull request: this brief is generated in {{count}} parts.",
+      "largeEstimate": "Expect it in about {{minutes}} minutes.",
       "footer": "Posted by MergeBrief. The link shows the live diff now, and this comment is replaced when the brief is ready."
     },
     "onDemand": {

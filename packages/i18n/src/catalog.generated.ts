@@ -17,6 +17,11 @@ export type Catalog = typeof en & {
     failed: (typeof en)["entryComment"]["failed"] & {
       heading: "No brief for {{shortSha}}: generation failed.";
     };
+    generating: (typeof en)["entryComment"]["generating"] & {
+      largeParts_one: "A large pull request: this brief is generated in {{count}} part.";
+      largeParts_other: "A large pull request: this brief is generated in {{count}} parts.";
+      largeEstimate: "Expect it in about {{minutes}} minutes.";
+    };
   };
   generationError: (typeof en)["generationError"] & {
     "generation-config": "Generator configuration is invalid: {{detail}}";

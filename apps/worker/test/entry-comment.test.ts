@@ -92,6 +92,31 @@ describe("entry comment bodies", () => {
     );
   });
 
+  it("names the parts and the estimate on a multi-call run's generating body", () => {
+    const body = buildEntryCommentGeneratingBody(t, LINK, {
+      parts: 57,
+      estimateMinutes: 25,
+    });
+
+    expect(body).toBe(
+      [
+        "**[Brief is generating for this push…](https://mb.example/repos/123/pulls/7?rev=2)** (`abcdef1`)",
+        "",
+        "A large pull request: this brief is generated in 57 parts. Expect it in about 25 minutes.",
+        "",
+        "<sub>Posted by MergeBrief. The link shows the live diff now, and this comment is replaced when the brief is ready.</sub>",
+        ENTRY_MARKER,
+      ].join("\n"),
+    );
+    expect(isHeadEntryBody(t, body, LINK.headSha)).toBe(true);
+    expect(
+      buildEntryCommentGeneratingBody(t, LINK, {
+        parts: 1,
+        estimateMinutes: 5,
+      }),
+    ).toContain("generated in 1 part. Expect it in about 5 minutes.");
+  });
+
   it("builds the capped body with the spanless PR link and reset time", () => {
     expect(buildEntryCommentCappedBody(t, CAPPED_LINK)).toBe(
       [

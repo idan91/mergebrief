@@ -1,5 +1,5 @@
 // Entry-comment operations: the single comment is maintained by
-// delete-and-repost. It lives on the issues timeline, so it uses the
+// delete-and-repost, or edited in place where no notification is wanted. It lives on the issues timeline, so it uses the
 // issues-comments endpoints; for a pull request those are authorized by
 // `Pull requests: write`, so the App needs NO `Issues` scope. Every failure
 // funnels through `mapRequestError`.
@@ -52,6 +52,14 @@ export interface ListIssueCommentsInput {
 }
 
 const COMMENTS_PER_PAGE = 100;
+
+export interface EditCommentInput {
+  readonly owner: string;
+  readonly repo: string;
+  /** The comment id returned by a prior `postEntryComment`. */
+  readonly commentId: bigint;
+  readonly body: string;
+}
 
 export interface FetchCommentInput {
   readonly owner: string;
@@ -179,5 +187,32 @@ export async function deleteComment(
       return { ok: true, value: undefined };
     }
     return { ok: false, error: mapRequestError(error, "delete comment") };
+  }
+}
+
+/**
+ * Replace a posted comment's body in place; GitHub notifies nobody of an
+ * edit. `false` when the comment is gone (404), so a caller can post anew.
+ */
+export async function editComment(
+  octokit: Octokit,
+  input: EditCommentInput,
+): Promise<Result<boolean, GitHubApiError>> {
+  try {
+    await octokit.rest.issues.updateComment({
+      owner: input.owner,
+      repo: input.repo,
+      comment_id: Number(input.commentId),
+      body: input.body,
+    });
+    return { ok: true, value: true };
+  } catch (error) {
+    if (
+      error instanceof RequestError &&
+      error.status === HttpStatuses.NOT_FOUND
+    ) {
+      return { ok: true, value: false };
+    }
+    return { ok: false, error: mapRequestError(error, "edit comment") };
   }
 }

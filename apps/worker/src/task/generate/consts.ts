@@ -15,6 +15,11 @@ export const MS_PER_SECOND = 1000;
 /** Detail calls a multi-call run keeps in flight at once, unless `generator.detailConcurrency` says otherwise. */
 export const DEFAULT_DETAIL_CONCURRENCY = 8;
 
+/** The generating Entry's estimate for a multi-call run: a detail call's wall time, the grouping and merge around them, and the step it is rounded to. */
+export const DETAIL_CALL_MINUTES = 3;
+export const MULTI_CALL_SETUP_MINUTES = 5;
+export const ESTIMATE_STEP_MINUTES = 5;
+
 /** The most of the default branch's `.gitattributes` read; brief-core parses no more than this. */
 export const GITATTRIBUTES_MAX_BYTES = 65_536;
 export const GITATTRIBUTES_PATH = ".gitattributes";

@@ -476,6 +476,13 @@ export const INSTALLATION_REPO_CASES: readonly ContractCase<InstallationRepoClie
       notFound: undefined,
     }),
     defineCase({
+      operation: "editComment",
+      call: (client: InstallationRepoClient) =>
+        client.editComment(1001n, "Entry, edited"),
+      expected: true,
+      notFound: false,
+    }),
+    defineCase({
       operation: "commitAttachment",
       call: (client: InstallationRepoClient) =>
         client.commitAttachment({

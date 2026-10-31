@@ -172,20 +172,39 @@ export function buildEntryCommentFailedBody(
   return [heading, "", body, "", footer].join("\n");
 }
 
+/** What a multi-call run's generating body says once its grouping call planned the parts. */
+export interface EntryCommentLargeRun {
+  readonly parts: number;
+  /** Rounded already; the body shows it as approximate. */
+  readonly estimateMinutes: number;
+}
+
 /**
  * The "generating" body posted when a fresh generation starts. Same deep
  * link: the web app's diff-first wait UX renders the live diff immediately,
- * so the link is useful minutes before the Brief lands.
+ * so the link is useful minutes before the Brief lands. A multi-call run
+ * edits it once after grouping with the part count and the estimate; the
+ * heading stays, so the body still reads as this head's generating body.
  */
 export function buildEntryCommentGeneratingBody(
   t: TFunction,
   link: EntryCommentLink,
+  largeRun?: EntryCommentLargeRun,
 ): string {
   const deepLink = buildEntryCommentDeepLink(link);
   const shortSha = formatShortSha(link.headSha);
   const heading = `**[${t("entryComment.generating.link")}](${deepLink})** (${shortSha})`;
   const footer = formatFooter(t("entryComment.generating.footer"));
-  return [heading, "", footer].join("\n");
+  if (largeRun === undefined) {
+    return [heading, "", footer].join("\n");
+  }
+  const parts = t("entryComment.generating.largeParts", {
+    count: largeRun.parts,
+  });
+  const estimate = t("entryComment.generating.largeEstimate", {
+    minutes: largeRun.estimateMinutes,
+  });
+  return [heading, "", `${parts} ${estimate}`, "", footer].join("\n");
 }
 
 /**
