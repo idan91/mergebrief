@@ -28,7 +28,7 @@
         "output-secret": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
         "generation-config": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
         "github-access": "MergeBrief couldn't brief this push. A collaborator can see why in MergeBrief.",
-        "diff-too-large": "GitHub will not serve a diff this large.",
+        "diff-too-large": "MergeBrief briefs a pull request only when it changes up to 3,000 files and GitHub serves its whole diff.",
         "github-unavailable": "GitHub was unavailable while reading the pull request.",
         "attempts-exhausted": "Generation used all its attempts for this push.",
         "unknown": "Generation failed for an unexpected reason."
@@ -97,7 +97,7 @@
     "output-secret": "Generation stopped: the output contained a value this instance treats as secret. Your operator has been told.",
     "generation-config": "Generator configuration is invalid: {{detail}}",
     "github-access": "GitHub denied access to this repository's content.",
-    "diff-too-large": "The diff is too large to summarize.",
+    "diff-too-large": "The diff is too large to summarize. MergeBrief briefs a pull request only when it changes up to {{maxFiles, number}} files and GitHub serves its whole diff.",
     "github-unavailable": "GitHub was unavailable while reading the pull request.",
     "attempts-exhausted": "The brief stopped after using all its attempts for this push and will not try again on its own.",
     "unknown": "Generation failed: {{detail}}"

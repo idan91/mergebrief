@@ -108,6 +108,14 @@ export const CUSTOM_ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 export const CUSTOM_ATTRIBUTE_NAME_MAX_CHARS = 50;
 
+/**
+ * MergeBrief's own cap, not GitHub's: past GitHub's pull request diff limit
+ * the worker reads the compare diff only for a pull request changing at most
+ * this many files. `generationError.diff-too-large` interpolates it; the
+ * Entry comment's reasons stay parameter-free, so that one spells it out.
+ */
+export const MAX_BRIEFED_CHANGED_FILES = 3_000;
+
 export type Concern = ValueOf<typeof Concerns>;
 export type Role = ValueOf<typeof Roles>;
 export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;

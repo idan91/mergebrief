@@ -399,7 +399,7 @@ describe("deriveNewerCommitsStatus: the latest push failed", () => {
     expect(status?.statusLabel).toBe("New brief failed");
     expect(status?.action).toBeUndefined();
     expect(status?.explanation).toContain(
-      "The diff is too large to summarize. 1 attempt so far. A new push re-queues generation automatically.",
+      "The diff is too large to summarize. MergeBrief briefs a pull request only when it changes up to 3,000 files and GitHub serves its whole diff. 1 attempt so far. A new push re-queues generation automatically.",
     );
   });
 

@@ -1,6 +1,8 @@
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 
+import { MAX_BRIEFED_CHANGED_FILES } from "brief-core/types";
+
 import {
   GenerationFailureClasses,
   GenerationFailureCodes,
@@ -41,7 +43,10 @@ export function buildFailureLine(
   if (DETAIL_CODES.has(errorCode) && detail === "") {
     return t("pulls.failed.noDetail");
   }
-  return t(`generationError.${errorCode}`, { detail });
+  return t(`generationError.${errorCode}`, {
+    detail,
+    maxFiles: MAX_BRIEFED_CHANGED_FILES,
+  });
 }
 
 /** What an operator or the App must change before a fix-first code can rerun clean. */

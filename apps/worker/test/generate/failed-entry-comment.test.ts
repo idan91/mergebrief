@@ -52,6 +52,7 @@ import {
   pushHeadAfterFirstRead,
   readLiveBodies,
   readRowStatus,
+  refuseDiffs,
   REPO,
   runAfterEachPost,
   SECOND_ATTEMPT,
@@ -220,7 +221,7 @@ describe("generate task, failed Entry comment", () => {
   it("creates the failed comment on a permanent failure before the gate", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
 
     await makeTask({ github })(payload);
 
@@ -236,7 +237,7 @@ describe("generate task, failed Entry comment", () => {
   it("a run whose id swap loses deletes its own comment, not the winner's", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     runAfterEachPost(github, () =>
       storeAnotherRunsEntry(github, pr.id, {
         id: NEWER_COMMENT_ID,
@@ -371,7 +372,7 @@ describe("generate task, failed Entry comment", () => {
     expect(ready).toContain("Read the brief for this push");
 
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     const second = await trigger(HEAD_2);
     await makeTask({ github })(second.payload);
 
@@ -406,7 +407,7 @@ describe("generate task, failed Entry comment", () => {
   it("a later head's failure leaves an older head's failed body", async () => {
     const first = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     await makeTask({ github })(first.payload);
     const olderFailed = buildFailedBody(
       HEAD_1,
@@ -492,7 +493,7 @@ describe("generate task, failed Entry comment", () => {
       makeTarget(pr, HEAD_1),
     );
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
 
     await makeTask({ github })({
       owner_user_id: "555",
@@ -517,7 +518,7 @@ describe("generate task, failed Entry comment", () => {
       { path: RepoConfigPaths.SETTINGS },
       FakeFailures.SERVER_ERROR,
     );
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
 
     await makeTask({ github })(payload);
 
@@ -528,7 +529,7 @@ describe("generate task, failed Entry comment", () => {
   it("a failed comment post leaves the job's outcome unchanged", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     github.failOn("postEntryComment", FakeFailures.SERVER_ERROR);
 
     await makeTask({ github })(payload);
@@ -625,7 +626,7 @@ describe("generate task, failed Entry comment", () => {
     const first = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     const spend = { maxGenerationsPerDay: 1 };
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     await makeTask({ github, spend })(first.payload);
 
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
@@ -650,7 +651,7 @@ describe("generate task, failed Entry comment", () => {
 
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
     github.failOn("fetchComment", FakeFailures.SERVER_ERROR);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     const second = await trigger(HEAD_2);
     await makeTask({ github })(second.payload);
 
@@ -665,7 +666,7 @@ describe("generate task, failed Entry comment", () => {
 
   it("an identical failed body is not posted again", async () => {
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     const first = await trigger(HEAD_1);
     await makeTask({ github })(first.payload);
     const second = await trigger(HEAD_1);
@@ -690,7 +691,7 @@ describe("generate task, failed Entry comment", () => {
       buildFailedBody(HEAD_1, GenerationFailureCodes.GENERATION_CONFIG),
     ]);
 
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     const rerun = await trigger(HEAD_1);
     await makeTask({ github })(rerun.payload);
 
@@ -706,7 +707,7 @@ describe("generate task, failed Entry comment", () => {
   it("a rerun failing before its PR read replaces the earlier failed body", async () => {
     const github = makeGitHub(HEAD_1);
     const first = await trigger(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     await makeTask({ github })(first.payload);
 
     github.failOn("fetchPullRequest", FakeFailures.SERVER_ERROR);
@@ -828,7 +829,7 @@ describe("generate task, failed Entry comment", () => {
   it("a failure whose row gained another run's comment creates none", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     interceptInstallationRepo(github, (client) => ({
       ...client,
       async fetchDiff(prNumber) {
@@ -871,7 +872,7 @@ describe("generate task, failed Entry comment", () => {
     const first = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     const spend = { maxGenerationsPerDay: 1 };
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     await makeTask({ github, spend })(first.payload);
     const olderFailed = readLiveBodies(github);
 
@@ -934,7 +935,7 @@ describe("generate task, failed Entry comment", () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     await trackCappedEntry(github, pr.id);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
 
     await makeTask({ github })(payload);
 
@@ -976,7 +977,7 @@ describe("generate task, failed Entry comment", () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     await trackCappedEntry(github, pr.id);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     failHeadReadsAfterFirst(github);
 
     await makeTask({ github })(payload);
@@ -994,7 +995,7 @@ describe("generate task, failed Entry comment", () => {
       body: NEWER_BODY,
     });
     github.removeComment(REPO, NEWER_COMMENT_ID);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     failHeadReadsAfterFirst(github);
 
     await makeTask({ github })(payload);
@@ -1008,7 +1009,7 @@ describe("generate task, failed Entry comment", () => {
     const first = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
     const spend = { maxGenerationsPerDay: 1 };
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     await makeTask({ github, spend })(first.payload);
     const olderFailed = readLiveBodies(github);
 

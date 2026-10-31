@@ -38,6 +38,7 @@ import {
   PR_REF,
   readLiveBodies,
   readRowStatus,
+  refuseDiffs,
   REPO,
   SECOND_ATTEMPT,
   setUpHarness,
@@ -438,7 +439,7 @@ const LOST_SWAP_CASES: readonly LostSwapCase[] = [
     writer: "failed",
     async arrange(github) {
       const { pr, payload } = await trigger(HEAD_1);
-      github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+      refuseDiffs(github);
       return { pr, payload, headSha: HEAD_1, overrides: {} };
     },
     isTarget: (body) => body.includes(FAILED_LINE),
@@ -585,7 +586,7 @@ describe("generate task, Entry sync", () => {
   it("queues the sync ahead of a terminal row write that throws", async () => {
     const { payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
     await harness.raw(`
       create function refuse_failed_write() returns trigger as $$
       begin

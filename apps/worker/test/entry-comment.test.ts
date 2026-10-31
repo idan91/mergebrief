@@ -1,5 +1,6 @@
 // Bodies are pinned byte for byte: a live comment is recognised by an exact
 // body match, so any drift re-pings every PR thread on the next run.
+import { MAX_BRIEFED_CHANGED_FILES } from "brief-core/types";
 import { createI18n } from "i18n";
 import { GenerationFailureCodes } from "types/generations";
 import { describe, expect, it } from "vitest";
@@ -153,12 +154,18 @@ describe("entry comment bodies", () => {
       [
         "**No brief for `abcdef1`: generation failed.**",
         "",
-        "GitHub will not serve a diff this large. [Open this push in MergeBrief](https://mb.example/repos/123/pulls/7?rev=2)",
+        "MergeBrief briefs a pull request only when it changes up to 3,000 files and GitHub serves its whole diff. [Open this push in MergeBrief](https://mb.example/repos/123/pulls/7?rev=2)",
         "",
         "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again, or when it closes.</sub>",
         ENTRY_MARKER,
       ].join("\n"),
     );
+  });
+
+  it("spells out the briefed-file cap in the diff-too-large reason", () => {
+    const reason = t("entryComment.failed.reason.diff-too-large");
+
+    expect(reason).toContain(MAX_BRIEFED_CHANGED_FILES.toLocaleString("en"));
   });
 
   it("links the on-demand body to the next brief's rev and names no head", () => {

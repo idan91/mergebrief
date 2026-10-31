@@ -46,6 +46,7 @@ import {
   pushHeadAfterFirstRead,
   readLiveBodies,
   readRowStatus,
+  refuseDiffs,
   REPO,
   runWithPullRequestsOffline,
   SECOND_ATTEMPT,
@@ -528,7 +529,7 @@ describe("generate task, author gate", () => {
     await createGenerationProjection(harness.handle, ctx).upsertPending(
       makeTarget(pr, HEAD_1),
     );
-    github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+    refuseDiffs(github);
 
     await makeTask({ github })(payload);
 

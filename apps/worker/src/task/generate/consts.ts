@@ -21,3 +21,6 @@ export const HTTP_STATUS_REQUEST_TIMEOUT = 408;
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 /** Every status at or above this is a server-side failure worth a retry. */
 export const HTTP_STATUS_SERVER_ERROR_FLOOR = 500;
+
+/** The diff bytes one model call takes: 400,000 input tokens at 2 bytes a token. */
+export const SINGLE_CALL_MAX_DIFF_BYTES = 800_000;

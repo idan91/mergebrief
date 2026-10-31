@@ -25,8 +25,15 @@ import {
 } from "../consts";
 import type { GenerateTaskDeps } from "../types";
 
-function isNotAcceptable(error: GitHubCallFailure): boolean {
+export function isNotAcceptable(error: GitHubCallFailure): boolean {
   return "status" in error && error.status === HTTP_STATUS_NOT_ACCEPTABLE;
+}
+
+/** A 406, or a checked diff GitHub served short: no retry reads it whole. */
+function isDiffTooLarge(error: GitHubCallFailure): boolean {
+  return (
+    isNotAcceptable(error) || error.code === GitHubApiErrorCodes.DIFF_INCOMPLETE
+  );
 }
 
 /** An unreadable credential is permanent: a retry reads the same token. */
@@ -36,7 +43,7 @@ export function isPermanentGitHubError(error: GitHubCallFailure): boolean {
     error.code === GitHubApiErrorCodes.UNAUTHORIZED ||
     error.code === GitHubApiErrorCodes.FORBIDDEN ||
     error.code === CredentialFailureCodes.CREDENTIAL_UNREADABLE ||
-    isNotAcceptable(error);
+    isDiffTooLarge(error);
   return isPermanent;
 }
 
@@ -49,7 +56,7 @@ export function throwOnGitHubFailure<T>(
   }
   if (isPermanentGitHubError(result.error)) {
     throw new PermanentJobError(result.error.message, {
-      failure: isNotAcceptable(result.error)
+      failure: isDiffTooLarge(result.error)
         ? { code: GenerationFailureCodes.DIFF_TOO_LARGE }
         : { code: GenerationFailureCodes.GITHUB_ACCESS },
     });

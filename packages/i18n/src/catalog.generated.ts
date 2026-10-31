@@ -16,6 +16,7 @@ export type Catalog = typeof en & {
   };
   generationError: (typeof en)["generationError"] & {
     "generation-config": "Generator configuration is invalid: {{detail}}";
+    "diff-too-large": "The diff is too large to summarize. MergeBrief briefs a pull request only when it changes up to {{maxFiles, number}} files and GitHub serves its whole diff.";
     unknown: "Generation failed: {{detail}}";
   };
   pulls: (typeof en)["pulls"] & {

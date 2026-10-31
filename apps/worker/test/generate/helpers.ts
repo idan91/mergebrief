@@ -316,6 +316,12 @@ export function makeGitHub(
   return github;
 }
 
+/** GitHub refuses the PR's diff for good: the PR diff and its compare fallback both 406. */
+export function refuseDiffs(github: FakeGitHub): void {
+  github.failOn("fetchDiff", FakeFailures.NOT_ACCEPTABLE);
+  github.failOn("fetchCheckedCompareDiff", FakeFailures.NOT_ACCEPTABLE);
+}
+
 /** The task's port over the fake, with the url-box path over this harness's grants. */
 export function openTestPort(
   github: FakeGitHub,

@@ -70,6 +70,12 @@ export interface PullRequestSource {
   fetchDiff(): GitHubCall<string>;
   /** The `base...head` span diff (narrative/marks/delta inputs). */
   fetchCompareDiff(base: string, head: string): GitHubCall<string>;
+  /** The span diff refused unless it holds `expectedFileCount` files. */
+  fetchCheckedCompareDiff(
+    base: string,
+    head: string,
+    expectedFileCount: number,
+  ): GitHubCall<string>;
   /**
    * The `base...head` compare per-file status metadata: the rename/binary/
    * mode signals the anchoring predicate needs and the raw diff cannot carry.
@@ -178,6 +184,8 @@ function bindPullRequestReads(
       github.fetchIssue({ owner, repo, number }),
     fetchDiff: () => reader.fetchDiff(prNumber),
     fetchCompareDiff: (base, head) => reader.fetchCompareDiff({ base, head }),
+    fetchCheckedCompareDiff: (base, head, expectedFileCount) =>
+      reader.fetchCheckedCompareDiff({ base, head, expectedFileCount }),
     fetchCompareFiles: (base, head) => reader.fetchCompareFiles({ base, head }),
     fetchRepoFile: (path, maxBytes) => reader.fetchRepoFile({ path, maxBytes }),
   };
