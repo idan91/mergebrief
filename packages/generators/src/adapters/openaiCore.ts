@@ -23,6 +23,7 @@ import {
   withAllRequired,
 } from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/generation";
+import { joinUserText } from "./utils";
 
 /**
  * Every response passes the shared schema floor; native strict schema is an extra layer.
@@ -190,7 +191,7 @@ export class OpenAiCompatibleCore implements Generator {
 
     const baseMessages: OpenAiChatRequest["messages"] = [
       { role: "system", content: req.system },
-      { role: "user", content: req.user },
+      { role: "user", content: joinUserText(req) },
     ];
 
     const floor: RunWithSchemaFloorArgs<S> = {

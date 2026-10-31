@@ -1,7 +1,12 @@
 import type { Logger } from "generators";
-import type { FileId, HunkId, IndexedFile } from "../../diff/hunk-index/types";
+import type {
+  FileId,
+  HunkId,
+  IndexedFile,
+  IndexedHunk,
+} from "../../diff/hunk-index/types";
 import type { FetchedPr } from "../../github/types";
-import type { HunkMapEntry } from "../../types";
+import type { ChangeGroup, HunkMapEntry, LineRange } from "../../types";
 import type { Outline } from "../outline/types";
 import type { RepoContext } from "../repo-context";
 import type { WarningCollector } from "../warnings/types";
@@ -68,4 +73,51 @@ export interface DetailBatchPlanInput {
   /** Override the batch limits; tests only. */
   readonly maxHunks?: number;
   readonly maxTokens?: number;
+}
+
+/** What every detail call of a run shares: the PR text and the grouping call's output. */
+export interface DetailPrefixInput {
+  readonly pr: FetchedPr;
+  readonly summary: string;
+  /** Every group in reading order. */
+  readonly groups: readonly ChangeGroup[];
+  readonly hunksByGroup: ReadonlyMap<string, readonly HunkId[]>;
+  /** The accepted repo context; its custom attributes bind the detail schema. */
+  readonly repoContext: RepoContext | undefined;
+  /** The rendered custom-attributes block, "" when none. */
+  readonly attributesBlock: string;
+}
+
+/** One hunk with its file, both redacted once per run by `indexDetailHunks`. */
+export interface HunkLocation {
+  readonly file: IndexedFile;
+  readonly hunk: IndexedHunk;
+  /** The hunk's input tokens at the diff rate, its file's header lines included. */
+  readonly estimatedTokens: number;
+  /** Present on a hunk cut to the batch budget: the lines left off its tail. */
+  readonly omittedLines?: number;
+  /** Present with `omittedLines`: each side's line numbers the cut left off, which no chunk may claim. */
+  readonly omittedRanges?: OmittedRanges;
+}
+
+/** The lines of a cut hunk no detail call was shown, in each side's coordinates. */
+export interface OmittedRanges {
+  readonly addedRanges: LineRange[];
+  readonly removedRanges: LineRange[];
+}
+
+export interface DetailRequestInput {
+  readonly batch: DetailBatch;
+  readonly batchCount: number;
+  readonly locations: ReadonlyMap<HunkId, HunkLocation>;
+  /** `buildDetailPrefix`'s text, the same for every batch. */
+  readonly prefix: string;
+  readonly repoContext: RepoContext | undefined;
+  readonly attributesBlock: string;
+}
+
+export interface DetailRequest {
+  readonly system: string;
+  readonly userPrefix: string;
+  readonly user: string;
 }

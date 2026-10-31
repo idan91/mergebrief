@@ -42,6 +42,7 @@ import {
 } from "../harness/work-dir";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
+import { joinUserText } from "./utils";
 
 // Do not use --bare: this adapter relies on OAuth/keychain subscription auth.
 // The system prompt uses a file to avoid ARG_MAX; the user prompt uses stdin.
@@ -229,9 +230,10 @@ export class ClaudeCodeGenerator implements Generator {
       attempt: async (feedback) => {
         // Stateless CLI: every retry is a fresh process, feedback stitched
         // after the user turn (no assistant-turn boundary).
+        const user = joinUserText(req);
         const prompt = feedback
-          ? `${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
-          : req.user;
+          ? `${user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
+          : user;
         log(
           `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
         );

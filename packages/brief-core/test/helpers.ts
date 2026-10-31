@@ -137,6 +137,7 @@ export interface RecordedRequest {
   label: string;
   system: string;
   user: string;
+  userPrefix?: string;
   effort: Effort;
   schema: z.ZodType;
   salvageFields: readonly string[];
@@ -170,6 +171,9 @@ export class FakeGenerator implements Generator {
       schema: req.schema,
       salvageFields: req.salvageFields ?? [],
     };
+    if (req.userPrefix !== undefined) {
+      request.userPrefix = req.userPrefix;
+    }
     const index = this.requests.push(request) - 1;
 
     return req.schema.parse(this.answer(request, index));

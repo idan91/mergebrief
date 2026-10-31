@@ -5,6 +5,11 @@ import { renderShortenedFile } from "../shortened";
 import type { ShortenedFile } from "../shortened/types";
 import { estimateTokens } from "../size";
 import { BYTES_PER_TOKEN, SINGLE_CALL_MAX_INPUT_TOKENS } from "../size/consts";
+import {
+  describePlaceholder,
+  listPatchLines,
+  redactIndexedFile,
+} from "../redacted-diff";
 import { sanitizeUntrustedDiff } from "../untrusted-text";
 import {
   OUTLINE_LADDER,
@@ -15,49 +20,6 @@ import type { Outline, OutlineInput, OutlineLimits } from "./types";
 
 const HUNK_MARKER = "[hunk ";
 const OUTLINE_INDENT = "  ";
-
-/** A file's patch lines in diff order: the header, then each text hunk's header and body. */
-function listPatchLines(file: IndexedFile): string[] {
-  const hunkLines = file.hunks.flatMap((hunk) =>
-    hunk.header === undefined ? [] : [hunk.header, ...hunk.lines],
-  );
-  return [...file.headerLines, ...hunkLines];
-}
-
-/**
- * The secret redactor reads a diff's own layout (fences on context lines,
- * tokens git cut at a hunk header, whole token lengths), so every file is
- * sanitized as its raw patch before any line is dropped, cut or prefixed.
- * The sanitizer keeps the line count, so the lines map back by position.
- * A shortened file shows its hunk headers at most, so its bodies stay out.
- */
-function redactFile(file: IndexedFile, shortened: boolean): IndexedFile {
-  if (shortened) {
-    const headersOnly = file.hunks.map((hunk) => ({ ...hunk, lines: [] }));
-    return redactFile({ ...file, hunks: headersOnly }, false);
-  }
-  const patchLines = listPatchLines(file);
-  const sanitized = sanitizeUntrustedDiff(patchLines.join("\n"));
-  const lines = sanitized.split("\n");
-  if (lines.length !== patchLines.length) {
-    throw new Error(`sanitizing ${file.id} changed its line count`);
-  }
-  let next = file.headerLines.length;
-  const hunks = file.hunks.map((hunk): IndexedHunk => {
-    if (hunk.header === undefined) {
-      return hunk;
-    }
-    const header = lines[next] ?? hunk.header;
-    const body = lines.slice(next + 1, next + 1 + hunk.lines.length);
-    next += 1 + hunk.lines.length;
-    return { ...hunk, header, lines: body };
-  });
-  return {
-    ...file,
-    headerLines: lines.slice(0, file.headerLines.length),
-    hunks,
-  };
-}
 
 function isChangedLine(line: string): boolean {
   return line.startsWith("+") || line.startsWith("-");
@@ -83,13 +45,6 @@ function renderFileTitle(file: IndexedFile): string {
     return title;
   }
   return `${title} renamed from ${sanitizeUntrustedDiff(file.previousPath)}`;
-}
-
-function describePlaceholder(file: IndexedFile): string {
-  if (file.binary) {
-    return `(no text hunk: binary file, ${file.status})`;
-  }
-  return `(no text hunk: ${file.status}, no content change)`;
 }
 
 function renderFullHunk(file: IndexedFile, hunk: IndexedHunk): string[] {
@@ -205,7 +160,7 @@ function redactFiles(
   input: Pick<OutlineInput, "files" | "shortened">,
 ): IndexedFile[] {
   return input.files.map((file) =>
-    redactFile(file, input.shortened.has(file.id)),
+    redactIndexedFile(file, input.shortened.has(file.id)),
   );
 }
 

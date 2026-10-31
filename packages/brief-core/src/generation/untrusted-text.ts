@@ -231,6 +231,28 @@ export function sanitizeUntrustedDiff(diff: string): string {
 }
 
 /**
+ * The spellings under which the prompt showed each raw value, mapped back to
+ * it; a spelling two raw values share maps to nothing. A raw value shown as
+ * itself needs no entry.
+ */
+function indexShownSpellings(
+  rawValues: readonly string[],
+  sanitizers: readonly ((text: string) => string)[],
+): Map<string, string | undefined> {
+  const shown = new Map<string, string | undefined>();
+  for (const raw of new Set(rawValues)) {
+    for (const sanitize of sanitizers) {
+      const spelling = sanitize(raw);
+      const claimed = shown.has(spelling) && shown.get(spelling) !== raw;
+      if (spelling !== raw) {
+        shown.set(spelling, claimed ? undefined : raw);
+      }
+    }
+  }
+  return shown;
+}
+
+/**
  * The model copies a path as the prompt spelled it, which differs from the raw
  * path when sanitizing changed it. Maps it back; a spelling two raw paths share
  * stays as written.
@@ -240,21 +262,30 @@ export function restoreRawPaths<FileChunk extends { readonly file: string }>(
   rawPaths: readonly string[],
 ): FileChunk[] {
   const raw = new Set(rawPaths);
-  const shown = new Map<string, string | undefined>();
-  for (const path of raw) {
-    for (const spelling of [
-      sanitizeUntrustedText(path),
-      sanitizeUntrustedDiff(path),
-    ]) {
-      const claimed = shown.has(spelling) && shown.get(spelling) !== path;
-      if (spelling !== path) {
-        shown.set(spelling, claimed ? undefined : path);
-      }
-    }
-  }
+  const shown = indexShownSpellings(rawPaths, [
+    sanitizeUntrustedText,
+    sanitizeUntrustedDiff,
+  ]);
 
   return chunks.map((chunk) => {
     const restored = raw.has(chunk.file) ? undefined : shown.get(chunk.file);
     return restored === undefined ? chunk : { ...chunk, file: restored };
+  });
+}
+
+/** The same for a group id a detail call read in its sanitized spelling. */
+export function restoreRawGroupIds<
+  GroupChunk extends { readonly changeGroupId: string },
+>(chunks: readonly GroupChunk[], rawGroupIds: readonly string[]): GroupChunk[] {
+  const raw = new Set(rawGroupIds);
+  const shown = indexShownSpellings(rawGroupIds, [sanitizeUntrustedText]);
+
+  return chunks.map((chunk) => {
+    const restored = raw.has(chunk.changeGroupId)
+      ? undefined
+      : shown.get(chunk.changeGroupId);
+    return restored === undefined
+      ? chunk
+      : { ...chunk, changeGroupId: restored };
   });
 }

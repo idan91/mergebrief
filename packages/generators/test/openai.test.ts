@@ -196,6 +196,17 @@ describe("OpenAiCompatibleCore request construction", () => {
       { role: "user", content: "usr" },
     ]);
   });
+
+  it("prepends the shared user prefix to the user message", async () => {
+    const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
+
+    await generator.generate({ ...request(), userPrefix: "shared" });
+
+    expect(recorded.bodies[0]?.["messages"]).toEqual([
+      { role: "system", content: "sys" },
+      { role: "user", content: "shared\n\nusr" },
+    ]);
+  });
 });
 
 describe("OpenAiCompatibleCore effort-knob discovery", () => {

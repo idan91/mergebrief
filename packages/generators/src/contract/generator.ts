@@ -28,6 +28,8 @@ export interface GenerateRequest<S extends z.ZodType> {
   schema: S;
   system: string;
   user: string;
+  /** Text a run's requests share, sent before `user` as a cached first block; an adapter without blocks prepends it. */
+  userPrefix?: string;
   effort: Effort;
   label: string;
   /** Array fields whose invalid elements may be dropped instead of failing. */

@@ -220,6 +220,8 @@ export interface AcceptedRepoContext {
   readonly blocks: string;
   /** The instructions section alone, for a call that writes no chunk. */
   readonly instructionsBlock: string;
+  /** The custom-attributes section alone, for a call that writes chunks only. */
+  readonly attributesBlock: string;
 }
 
 /**
@@ -234,7 +236,12 @@ export function acceptRepoContext(
   warnings: WarningCollector,
 ): AcceptedRepoContext {
   if (repoContext === undefined) {
-    return { context: undefined, blocks: "", instructionsBlock: "" };
+    return {
+      context: undefined,
+      blocks: "",
+      instructionsBlock: "",
+      attributesBlock: "",
+    };
   }
 
   const gated = sanitizeCustomAttributes(repoContext.customAttributes);
@@ -269,8 +276,12 @@ export function acceptRepoContext(
     }
   }
   const attributeBlock = renderCustomAttributes(applicable);
-  if (attributeBlock !== undefined) {
-    sections.push(`## Repo-defined risk attributes\n${attributeBlock}`);
+  const attributesBlock =
+    attributeBlock === undefined
+      ? ""
+      : `## Repo-defined risk attributes\n${attributeBlock}`;
+  if (attributesBlock !== "") {
+    sections.push(attributesBlock);
   }
 
   const context: Mutable<RepoContext> = { customAttributes: applicable };
@@ -285,6 +296,7 @@ export function acceptRepoContext(
     blocks: sections.length === 0 ? "" : `\n\n${sections.join("\n\n")}`,
     instructionsBlock:
       instructionsBlock === "" ? "" : `\n\n${instructionsBlock}`,
+    attributesBlock: attributesBlock === "" ? "" : `\n\n${attributesBlock}`,
   };
 }
 

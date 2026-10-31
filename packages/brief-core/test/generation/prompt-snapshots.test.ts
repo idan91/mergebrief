@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDeltaSystemPrompt,
+  buildDetailSystemPrompt,
   buildGroupingSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
   buildSystemPrompt,
@@ -58,6 +59,18 @@ describe("system prompts are byte-pinned", () => {
 
     expect(prompt).toContain("## Repo instructions (semi-trusted, bounded)");
     expect(prompt).not.toContain("## Repo-defined risk attributes");
+    expect(prompt).toMatchSnapshot();
+  });
+
+  it("detail, without repo context", () => {
+    expect(buildDetailSystemPrompt()).toMatchSnapshot();
+  });
+
+  it("detail, with the attributes section and without instructions", () => {
+    const prompt = buildDetailSystemPrompt(bothRepoSections);
+
+    expect(prompt).toContain("## Repo-defined risk attributes");
+    expect(prompt).not.toContain("## Repo instructions (semi-trusted");
     expect(prompt).toMatchSnapshot();
   });
 

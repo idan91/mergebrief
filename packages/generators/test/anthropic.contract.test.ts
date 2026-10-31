@@ -549,3 +549,62 @@ describe("AnthropicGenerator output cut", () => {
     expect(stub.requests).toHaveLength(1);
   });
 });
+
+describe("AnthropicGenerator user prefix", () => {
+  it("sends the shared prefix as a cached first block before the user text", async () => {
+    const stub = stubClient([{ raw: contractPayloads.valid }]);
+    const dirPrefix = join(tmpdir(), "anthropic-prefix-");
+    const dir = mkdtempSync(dirPrefix);
+    try {
+      const generator = new AnthropicGenerator(stub.client, dir);
+
+      await generator.generate({
+        schema: ContractSchema,
+        system: "sys",
+        user: "usr",
+        userPrefix: "shared",
+        effort: "medium",
+        label: "contract",
+      });
+
+      expect(stub.requests[0]?.messages).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "shared",
+              cache_control: { type: "ephemeral" },
+            },
+            { type: "text", text: "usr" },
+          ],
+        },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("sends the user text as a plain string without a prefix", async () => {
+    const stub = stubClient([{ raw: contractPayloads.valid }]);
+    const dirPrefix = join(tmpdir(), "anthropic-prefix-");
+    const dir = mkdtempSync(dirPrefix);
+    try {
+      const generator = new AnthropicGenerator(stub.client, dir);
+
+      await generator.generate({
+        schema: ContractSchema,
+        system: "sys",
+        user: "usr",
+        effort: "medium",
+        label: "contract",
+      });
+
+      expect(stub.requests[0]?.messages).toEqual([
+        { role: "user", content: "usr" },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

@@ -4,6 +4,8 @@ import {
   BriefGenerationSchema,
   briefGenerationSchemaWith,
   DeltaBriefGenerationSchema,
+  detailGenerationSchemaWith,
+  DetailGenerationSchema,
   GroupingGenerationSchema,
   RevisionNarrativeGenerationSchema,
 } from "../../src/types";
@@ -29,6 +31,16 @@ describe("wire json schemas are byte-pinned", () => {
 
   it("delta", () => {
     expect(serializeWireSchema(DeltaBriefGenerationSchema)).toMatchSnapshot();
+  });
+
+  it("detail", () => {
+    expect(serializeWireSchema(DetailGenerationSchema)).toMatchSnapshot();
+  });
+
+  it("detail with a custom attribute", () => {
+    const schema = detailGenerationSchemaWith(["example-attribute"]);
+
+    expect(serializeWireSchema(schema)).toMatchSnapshot();
   });
 
   it("grouping", () => {

@@ -36,6 +36,7 @@ import {
   withAllRequired,
 } from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/generation";
+import { joinUserText } from "./utils";
 
 /* oxlint-disable house/comment-run -- five adapter invariants, one of them the
    no-secrets-in-errors rule, decide whether a change here is safe */
@@ -144,9 +145,10 @@ export class CodexGenerator implements Generator {
       attempt: async (feedback) => {
         // Stateless CLI: every retry is a fresh process, feedback stitched
         // into stdin (no system-prompt channel).
+        const user = joinUserText(req);
         const prompt = feedback
-          ? `${req.system}\n\n${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
-          : `${req.system}\n\n${req.user}`;
+          ? `${req.system}\n\n${user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
+          : `${req.system}\n\n${user}`;
         log(
           `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
         );

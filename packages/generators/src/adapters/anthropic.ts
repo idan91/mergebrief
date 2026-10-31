@@ -85,6 +85,27 @@ const InvalidRequestBodySchema = z.object({
 });
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 
+/**
+ * The shared prefix is its own block with a cache breakpoint, so the run's
+ * requests read it from the cache; a request without one sends the plain
+ * string, byte for byte as before.
+ */
+function buildUserContent<S extends z.ZodType>(
+  req: GenerateRequest<S>,
+): Anthropic.MessageParam["content"] {
+  if (req.userPrefix === undefined) {
+    return req.user;
+  }
+  return [
+    {
+      type: "text",
+      text: req.userPrefix,
+      cache_control: { type: "ephemeral" },
+    },
+    { type: "text", text: req.user },
+  ];
+}
+
 export interface AnthropicClientOptions {
   apiKey: string;
   /** The Instance config's gateway host root, without `/v1`; the canonical host when absent. */
@@ -137,7 +158,7 @@ export class AnthropicGenerator implements Generator {
   ): Promise<z.infer<S>> {
     const log = req.log ?? (() => {});
     const baseMessages: Anthropic.MessageParam[] = [
-      { role: "user", content: req.user },
+      { role: "user", content: buildUserContent(req) },
     ];
 
     // Built once per generate(): an unrepresentable schema is a programmer/

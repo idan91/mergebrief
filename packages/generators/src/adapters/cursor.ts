@@ -40,6 +40,7 @@ import {
   type HarnessCwdFile,
 } from "../harness/work-dir";
 import type { Effort, Generation } from "../contract/generation";
+import { joinUserText } from "./utils";
 
 // Bare print mode writes files; plan mode in a cwd holding only the deny-all
 // config is the lockdown.
@@ -163,7 +164,7 @@ export class CursorGenerator implements Generator {
         // Stateless CLI: every retry is a fresh process, system, schema,
         // feedback stitch into stdin; the output contract sits LAST
         // (the final instruction carries the most weight).
-        const base = `${req.system}\n\n${schemaBlock}\n\n${req.user}`;
+        const base = `${req.system}\n\n${schemaBlock}\n\n${joinUserText(req)}`;
         const prompt = feedback
           ? `${base}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}\n\n${CURSOR_OUTPUT_CONTRACT}`
           : `${base}\n\n${CURSOR_OUTPUT_CONTRACT}`;

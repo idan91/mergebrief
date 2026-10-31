@@ -976,6 +976,309 @@ exports[`wire json schemas are byte-pinned > delta 1`] = `
 }"
 `;
 
+exports[`wire json schemas are byte-pinned > detail 1`] = `
+"{
+  "$defs": {
+    "__schema0": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "description": "first line number (1-based, inclusive)\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        },
+        "end": {
+          "type": "integer",
+          "description": "last line number (inclusive); equals start for a single line\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "__schema1": {
+      "type": "string",
+      "enum": [
+        "no-tests",
+        "no-types",
+        "legacy-area",
+        "dense-logic",
+        "touches-auth",
+        "mutates-state",
+        "removes-validation",
+        "relaxes-permissions",
+        "widens-error-handling",
+        "adds-feature-flag",
+        "new-dependency",
+        "new-abstraction",
+        "comment-contradicts-code",
+        "external-io",
+        "cross-service",
+        "schema-adjacent",
+        "hot-path",
+        "widely-imported",
+        "release-imminent"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "chunks": {
+      "type": "array",
+      "description": "one chunk per contiguous run of changed lines in the batch; every chunk's changeGroupId is the group on its hunk's marker",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "stable chunk id, e.g. c1, c2, …"
+          },
+          "changeGroupId": {
+            "type": "string",
+            "description": "id of the single change-group this chunk belongs to (exactly one — a chunk is never shared across groups; a file spans groups only via different chunks)"
+          },
+          "file": {
+            "type": "string",
+            "description": "file path the chunk lives in"
+          },
+          "concern": {
+            "type": "string",
+            "description": "artifact kind; mostly derivable from the file path",
+            "enum": [
+              "implementation",
+              "test",
+              "doc",
+              "spec",
+              "config",
+              "generated"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "description": "core holds the group's intent — never 'most important' or largest; supporting serves it. Default from concern (implementation→core, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are core when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another core chunk.",
+            "enum": [
+              "core",
+              "supporting"
+            ]
+          },
+          "addedRanges": {
+            "type": "array",
+            "description": "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "removedRanges": {
+            "type": "array",
+            "description": "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "riskSurface": {
+            "type": "array",
+            "description": "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
+            "items": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "riskNotes": {
+            "type": "array",
+            "description": "optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for \`comment-contradicts-code\`: the note must cite both sides — the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\". Omit entirely when no attribute needs a note.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attr": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "note": {
+                  "type": "string",
+                  "description": "one short factual note. For \`comment-contradicts-code\` it MUST cite both sides: the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\"."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "attr",
+                "note"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "changeGroupId",
+          "file",
+          "concern",
+          "role",
+          "addedRanges",
+          "removedRanges",
+          "riskSurface"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "chunks"
+  ],
+  "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
+}"
+`;
+
+exports[`wire json schemas are byte-pinned > detail with a custom attribute 1`] = `
+"{
+  "$defs": {
+    "__schema0": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "description": "first line number (1-based, inclusive)\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        },
+        "end": {
+          "type": "integer",
+          "description": "last line number (inclusive); equals start for a single line\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "__schema1": {
+      "type": "string",
+      "enum": [
+        "no-tests",
+        "no-types",
+        "legacy-area",
+        "dense-logic",
+        "touches-auth",
+        "mutates-state",
+        "removes-validation",
+        "relaxes-permissions",
+        "widens-error-handling",
+        "adds-feature-flag",
+        "new-dependency",
+        "new-abstraction",
+        "comment-contradicts-code",
+        "external-io",
+        "cross-service",
+        "schema-adjacent",
+        "hot-path",
+        "widely-imported",
+        "release-imminent",
+        "example-attribute"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "chunks": {
+      "type": "array",
+      "description": "one chunk per contiguous run of changed lines in the batch; every chunk's changeGroupId is the group on its hunk's marker",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "stable chunk id, e.g. c1, c2, …"
+          },
+          "changeGroupId": {
+            "type": "string",
+            "description": "id of the single change-group this chunk belongs to (exactly one — a chunk is never shared across groups; a file spans groups only via different chunks)"
+          },
+          "file": {
+            "type": "string",
+            "description": "file path the chunk lives in"
+          },
+          "concern": {
+            "type": "string",
+            "description": "artifact kind; mostly derivable from the file path",
+            "enum": [
+              "implementation",
+              "test",
+              "doc",
+              "spec",
+              "config",
+              "generated"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "description": "core holds the group's intent — never 'most important' or largest; supporting serves it. Default from concern (implementation→core, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are core when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another core chunk.",
+            "enum": [
+              "core",
+              "supporting"
+            ]
+          },
+          "addedRanges": {
+            "type": "array",
+            "description": "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "removedRanges": {
+            "type": "array",
+            "description": "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "riskSurface": {
+            "type": "array",
+            "description": "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
+            "items": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "riskNotes": {
+            "type": "array",
+            "description": "optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for \`comment-contradicts-code\`: the note must cite both sides — the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\". Omit entirely when no attribute needs a note.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attr": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "note": {
+                  "type": "string",
+                  "description": "one short factual note. For \`comment-contradicts-code\` it MUST cite both sides: the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\"."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "attr",
+                "note"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "changeGroupId",
+          "file",
+          "concern",
+          "role",
+          "addedRanges",
+          "removedRanges",
+          "riskSurface"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "chunks"
+  ],
+  "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
+}"
+`;
+
 exports[`wire json schemas are byte-pinned > grouping 1`] = `
 "{
   "$defs": {

@@ -913,6 +913,32 @@ export const GroupingGenerationSchema = z.object({
 
 export type HunkMapEntry = z.infer<typeof HunkMapEntrySchema>;
 
+function buildDetailGenerationSchema(riskToken: z.ZodType<string>) {
+  return z.object({
+    chunks: z
+      .array(buildChunkGenerationSchema(riskToken))
+      .describe(
+        "one chunk per contiguous run of changed lines in the batch; every chunk's changeGroupId is the group on its hunk's marker",
+      ),
+  });
+}
+
+/** What a detail call of a multi-call run generates: the chunks of its batch, nothing else. */
+export const DetailGenerationSchema =
+  buildDetailGenerationSchema(modelRiskEnum);
+
+export type DetailGeneration = z.infer<typeof DetailGenerationSchema>;
+
+/** The detail schema for one run, with the repo's validated custom-attribute names in the risk vocabulary. */
+export function detailGenerationSchemaWith(
+  customNames: readonly string[],
+): z.ZodType<DetailGeneration> {
+  if (customNames.length === 0) {
+    return DetailGenerationSchema;
+  }
+  return buildDetailGenerationSchema(riskTokenEnum(customNames));
+}
+
 /**
  * The brief-generation schema for ONE generation, with the repo's validated
  * custom-attribute names added to the closed risk vocabulary. The extended enum
