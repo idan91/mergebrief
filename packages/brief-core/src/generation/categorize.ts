@@ -3,6 +3,8 @@ import {
   DeltaBriefGenerationSchema,
   RevisionNarrativeGenerationSchema,
   type Brief,
+  type ChangeGroup,
+  type Chunk,
   type CommitRange,
   type DeltaBrief,
   type DeltaSkipped,
@@ -849,36 +851,59 @@ export interface RevisionNarrativeInput {
   >[];
 }
 
+function renderContextGroup(
+  group: ChangeGroup,
+  includesSummary: boolean,
+): string {
+  const id = sanitizeUntrustedText(group.id);
+  const title = sanitizeUntrustedText(group.title);
+  if (!includesSummary) {
+    return `- ${id} ${title}`;
+  }
+
+  const categories = [
+    group.dominantCategory,
+    ...group.secondaryCategories,
+  ].join(", ");
+  return `- ${id} [${categories}] ${title} — ${sanitizeUntrustedText(group.summary)}`;
+}
+
+function renderContextChunk(chunk: Chunk): string {
+  const added =
+    chunk.addedRanges
+      .map((range) => `+${range.start}-${range.end}`)
+      .join(",") || "none";
+  const removed =
+    chunk.removedRanges
+      .map((range) => `-${range.start}-${range.end}`)
+      .join(",") || "none";
+  const id = sanitizeUntrustedText(chunk.id);
+  const groupId = sanitizeUntrustedText(chunk.changeGroupId);
+  return `- ${id} (group ${groupId}) ${sanitizeUntrustedText(chunk.file)} added:${added} removed:${removed}`;
+}
+
 /**
  * Trim the current full Brief to the alignment context the narrative needs:
- * group id/title/summary/categories and chunk file/ranges/group-id, never risk
+ * every group's id and title, plus categories and summary for the groups the
+ * span touches, and only the chunks in files the span diff touches. Never risk
  * surface, LoC, or other fields, which would invite re-describing them.
  */
-function renderBriefContext(brief: Brief): string {
+function renderBriefContext(
+  brief: Brief,
+  spanFiles: ReadonlySet<string>,
+): string {
+  const touchedChunks = brief.chunks.filter((chunk) =>
+    spanFiles.has(chunk.file),
+  );
+  const touchedGroupIds = new Set(
+    touchedChunks.map((chunk) => chunk.changeGroupId),
+  );
+
   const groups =
     brief.changeGroups
-      .map((g) => {
-        const categories = [g.dominantCategory, ...g.secondaryCategories].join(
-          ", ",
-        );
-        const id = sanitizeUntrustedText(g.id);
-        const title = sanitizeUntrustedText(g.title);
-        return `- ${id} [${categories}] ${title} — ${sanitizeUntrustedText(g.summary)}`;
-      })
+      .map((group) => renderContextGroup(group, touchedGroupIds.has(group.id)))
       .join("\n") || "(none)";
-  const chunks =
-    brief.chunks
-      .map((c) => {
-        const added =
-          c.addedRanges.map((r) => `+${r.start}-${r.end}`).join(",") || "none";
-        const removed =
-          c.removedRanges.map((r) => `-${r.start}-${r.end}`).join(",") ||
-          "none";
-        const id = sanitizeUntrustedText(c.id);
-        const groupId = sanitizeUntrustedText(c.changeGroupId);
-        return `- ${id} (group ${groupId}) ${sanitizeUntrustedText(c.file)} added:${added} removed:${removed}`;
-      })
-      .join("\n") || "(none)";
+  const chunks = touchedChunks.map(renderContextChunk).join("\n") || "(none)";
   return `### Change-groups\n${groups}\n\n### Chunks\n${chunks}`;
 }
 
@@ -897,7 +922,10 @@ function renderAnchorDiscontinuity(brief: Brief): string {
   return `\nNote: this revision's Brief was regenerated fresh (${why}) — its change-groups and ids were NOT carried from the previous revision's Brief, so boundaries may differ without the code having changed accordingly. Describe what changed in the code; where groupings shifted only because of the fresh retelling, say so instead of implying a code change.`;
 }
 
-function renderRevisionNarrativeUser(input: RevisionNarrativeInput): string {
+function renderRevisionNarrativeUser(
+  input: RevisionNarrativeInput,
+  spanFiles: ReadonlySet<string>,
+): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
@@ -912,7 +940,7 @@ ${renderPrimaryTicket(readPrimary(input.primaryTicket))}## Linked context
 ${renderLinked(input.links ?? [])}
 
 ## Current full Brief — alignment context (attach chunks to these groups; never invent a group id)
-${renderBriefContext(input.brief)}
+${renderBriefContext(input.brief, spanFiles)}
 
 ## Incremental diff (previous head → head)
 ${renderPrDiff(input.incrementalDiff)}
@@ -920,15 +948,31 @@ ${renderPrDiff(input.incrementalDiff)}
 ${DATA_REMINDER}`;
 }
 
+interface RevisionNarrativeRequest {
+  readonly user: string;
+  /** The files the span diff touches, which the brief context is trimmed to. */
+  readonly spanPaths: readonly string[];
+}
+
+/** The user message the narrative call sends; the limit check measures this same one. */
+function buildRevisionNarrativeRequest(
+  input: RevisionNarrativeInput,
+): RevisionNarrativeRequest {
+  const spanPaths = splitDiffByFile(input.incrementalDiff).map(
+    (fileDiff) => fileDiff.file,
+  );
+  const user = renderRevisionNarrativeUser(input, new Set(spanPaths));
+  return { user, spanPaths };
+}
+
 /** True when the narrative call for this span would exceed a single call's limits. */
 export function exceedsNarrativeCallLimits(
   input: RevisionNarrativeInput,
 ): boolean {
-  return exceedsCallLimits(
-    input.incrementalDiff,
-    () =>
-      `${buildRevisionNarrativeSystemPrompt()}${renderRevisionNarrativeUser(input)}`,
-  );
+  return exceedsCallLimits(input.incrementalDiff, () => {
+    const { user } = buildRevisionNarrativeRequest(input);
+    return `${buildRevisionNarrativeSystemPrompt()}${user}`;
+  });
 }
 
 export async function categorizeRevisionNarrative(
@@ -940,10 +984,11 @@ export async function categorizeRevisionNarrative(
   // The model produces overview + chunks only; the rest is CLI-owned metadata
   // it cannot know, filled in here.
   const collector = createWarningCollector(log);
+  const { user, spanPaths } = buildRevisionNarrativeRequest(input);
   const generated = await generator.generate({
     schema: RevisionNarrativeGenerationSchema,
     system: buildRevisionNarrativeSystemPrompt(),
-    user: renderRevisionNarrativeUser(input),
+    user,
     effort,
     label: "revision narrative",
     log,
@@ -951,7 +996,7 @@ export async function categorizeRevisionNarrative(
   });
   const rawPaths = [
     ...input.brief.chunks.map((chunk) => chunk.file),
-    ...splitDiffByFile(input.incrementalDiff).map((fileDiff) => fileDiff.file),
+    ...spanPaths,
   ];
   const chunks = restoreRawPaths(generated.chunks, rawPaths);
   collector.reportIssues(

@@ -673,7 +673,7 @@ ${PR_TEXT_RULE}
 
 ## What you receive
 
-The PR's title, description, and linked context; the previous head SHA and current head SHA (with their brief indices); the **incremental diff** (previous head → head only — never the whole PR); and the **current full Brief**, trimmed to its Change-groups (id, title, summary, categories) and chunks (id, group id, file, line ranges) — alignment context for attaching chunks to the right group, not material to re-summarize.
+The PR's title, description, and linked context; the previous head SHA and current head SHA (with their brief indices); the **incremental diff** (previous head → head only — never the whole PR); and the **current full Brief**, trimmed to its Change-groups (id and title for every group, plus summary and categories for the groups this revision touches) and the chunks in files this revision touches (id, group id, file, line ranges) — alignment context for attaching chunks to the right group, not material to re-summarize.
 
 ## Categories (context only — already assigned on the full Brief; you never assign one)
 
