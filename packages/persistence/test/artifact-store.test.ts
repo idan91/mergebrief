@@ -1134,6 +1134,8 @@ describe("createArtifactStore query shape", () => {
   const BRIEF_COLUMNS =
     '"id", "installation_id", "pull_request_id", "base_sha", "head_sha", "head_index", "commit_count", "provider", "model", "effort", "repo_config", "anchor_state", "anchor_reason", "carried_chunk_ids", "used_group_ids", "body_version", "session_chunk_count", "session_group_count", "session_flag_count", "body", "byte_size", "created_at"';
   const BRIEF_UPSERT = `insert into "brief" (${BRIEF_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, default) on conflict ("installation_id","pull_request_id","base_sha","head_sha") do update set "head_index" = $21, "commit_count" = $22, "provider" = $23, "model" = $24, "effort" = $25, "repo_config" = $26, "anchor_state" = $27, "anchor_reason" = $28, "carried_chunk_ids" = $29, "used_group_ids" = $30, "body_version" = $31, "session_chunk_count" = $32, "session_group_count" = $33, "session_flag_count" = $34, "body" = $35, "byte_size" = $36 returning ${BRIEF_COLUMNS}`;
+  const SIDECAR_DROP =
+    'delete from "chunk_layout" where ("chunk_layout"."installation_id" = $1 and "chunk_layout"."brief_id" = $2)';
   const DELTA_COLUMNS =
     '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "skipped", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
   const DELTA_UPSERT = `insert into "delta" (${DELTA_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "skipped" = $12, "provider" = $13, "model" = $14, "effort" = $15, "body_version" = $16, "body" = $17, "byte_size" = $18 returning ${DELTA_COLUMNS}`;
@@ -1167,7 +1169,7 @@ describe("createArtifactStore query shape", () => {
     return { log, store, pr };
   }
 
-  it("a brief write is one transaction: parent check, then one upsert", async () => {
+  it("a brief write is one transaction: parent check, upsert, sidecar", async () => {
     const { log, store, pr } = await makeLoggedStore(31);
 
     const written = await recordStatements(log, () =>
@@ -1187,6 +1189,7 @@ describe("createArtifactStore query shape", () => {
       "begin",
       PARENT_CHECK,
       BRIEF_UPSERT,
+      SIDECAR_DROP,
       "commit",
     ]);
     expect(written.outcome).toMatchObject(STAMPED_A);

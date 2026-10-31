@@ -5,6 +5,7 @@ export { auditLog } from "./audit-log";
 export { authSession } from "./auth-session";
 export { brief } from "./brief";
 export { checkpoint } from "./checkpoint";
+export { chunkLayout } from "./chunk-layout";
 export { comparisonMarks } from "./comparison-marks";
 export { delta } from "./delta";
 export { disposition } from "./disposition";

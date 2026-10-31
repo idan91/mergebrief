@@ -2,10 +2,13 @@ import { DiffLineKinds } from "types/diff-lines";
 import { resolveFileStatus } from "./logic/file-status";
 import { findExpansionGaps } from "./logic/gaps";
 import { measureLineWidths } from "./logic/line-widths";
+import { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./logic/parse";
 import { sliceChunkDiff } from "./logic/slice";
 import { countSplitRows } from "./logic/split-rows";
 import {
   ExpansionDirections,
+  type BriefLayoutSource,
+  type ChunkLayoutBody,
   type ChunkLayoutCounts,
   type ChunkRanges,
   type ExpansionGap,
@@ -18,9 +21,12 @@ export { findExpansionGaps } from "./logic/gaps";
 export { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./logic/parse";
 export { sliceChunkDiff } from "./logic/slice";
 export { countSplitRows } from "./logic/split-rows";
+export { LINE_WIDTH_BUCKET_EDGES } from "./consts";
 export {
   ExpansionDirections,
   FileStatuses,
+  type BriefLayoutSource,
+  type ChunkLayoutBody,
   type ChunkLayoutCounts,
   type ChunkRanges,
   type ExpansionDirection,
@@ -52,6 +58,55 @@ export function countChunkLayout(
     splitRows: countSplitRows(slice),
     lineWidths: measureLineWidths(slice),
   };
+}
+
+/**
+ * Every card's counts against the PR's unified diff, each file parsed once:
+ * a chunk by its id, an unattributed file by its path. A card whose file the
+ * diff does not carry gets no entry.
+ */
+export function countBriefChunkLayouts(
+  diff: string,
+  source: BriefLayoutSource,
+): ChunkLayoutBody {
+  const patches = splitUnifiedDiffByFile(diff);
+  const parsedFiles = new Map<string, readonly ParsedDiffLine[]>();
+  const chunks: Record<string, ChunkLayoutCounts> = {};
+  const files: Record<string, ChunkLayoutCounts> = {};
+
+  for (const chunk of source.chunks) {
+    const fileRows = readFileRows(chunk.file, patches, parsedFiles);
+    if (fileRows !== undefined) {
+      chunks[chunk.id] = countChunkLayout(fileRows, chunk);
+    }
+  }
+  for (const remainder of source.unattributed) {
+    const fileRows = readFileRows(remainder.file, patches, parsedFiles);
+    if (fileRows !== undefined) {
+      files[remainder.file] = countChunkLayout(fileRows, remainder);
+    }
+  }
+
+  return { chunks, files };
+}
+
+function readFileRows(
+  file: string,
+  patches: ReadonlyMap<string, string>,
+  parsedFiles: Map<string, readonly ParsedDiffLine[]>,
+): readonly ParsedDiffLine[] | undefined {
+  const known = parsedFiles.get(file);
+  if (known !== undefined) {
+    return known;
+  }
+  const patch = patches.get(file);
+  if (patch === undefined) {
+    return undefined;
+  }
+
+  const rows = parseUnifiedDiffPatch(patch);
+  parsedFiles.set(file, rows);
+  return rows;
 }
 
 /**

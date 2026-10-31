@@ -15,6 +15,12 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-10-27)
 
+- **Added** `read-brief-layout`
+  (`GET /api/repos/:repoId/pulls/:prNumber/brief-layout?base=&head=`): the
+  per-chunk row counts stored beside the brief for the span, as
+  `{"layout":{"chunks":{...},"files":{...}}}` keyed by chunk id and by
+  unattributed file path. A brief stored without them answers
+  `{"layout":null}`; a span no brief covers answers 404.
 - **Added** `deltaSkipped: true` on an available `comparisons.lastReview`
   of `read-pull`: the worker stored a skip record for the span (too large
   for one delta call, or the call was cut at its output cap), so no delta

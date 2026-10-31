@@ -33,7 +33,11 @@ import {
 } from "../types";
 import { buildAttemptFields, getGenerationOrigin } from "../utils";
 import { listRunStops, traceRunStep } from "./step-span";
-import { recoverStoredBrief, writeFreshBrief } from "./brief-generation";
+import {
+  backfillMissingChunkLayout,
+  recoverStoredBrief,
+  writeFreshBrief,
+} from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
 import { isDiffTooLarge } from "./errors";
 import { createMultiCallRun, sweepSpanParts } from "./generation-parts";
@@ -74,6 +78,12 @@ export async function produceBrief(
     prevBrief,
     baseSha: prInfo.baseSha,
     log,
+  });
+  await backfillMissingChunkLayout({
+    store,
+    pullRequestId: payload.pullRequestId,
+    storedBrief,
+    diff: inputs.diff,
   });
   const briefRef = { id: storedBrief.id, headIndex: storedBrief.headIndex };
   return { briefRef, generatedBrief };

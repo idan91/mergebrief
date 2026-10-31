@@ -1,4 +1,5 @@
-// The stored artifact reads (brief, brief-context, marks, delta, narrative)
+// The stored artifact reads (brief, brief-context, brief-layout, marks, delta,
+// narrative)
 // over PGlite: each serves its stored body verbatim from the row the access
 // step loaded, answers a missing span 404 and a malformed query 400, and
 // never calls GitHub past the gate.
@@ -46,6 +47,17 @@ const OWNER_CTX = { ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)) };
 const BRIEF_BODY = JSON.stringify({ summary: "the brief", findings: [] });
 const DELTA_BODY = JSON.stringify({ summary: "the delta", changes: [] });
 const NARRATIVE_BODY = JSON.stringify({ summary: "what moved" });
+const LAYOUT_COUNTS = {
+  rows: 4,
+  hunkRows: 1,
+  expandRows: 1,
+  splitRows: 3,
+  lineWidths: { counts: [3, 0, 0, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+};
+const LAYOUT_BODY = {
+  chunks: { c1: LAYOUT_COUNTS },
+  files: { "src/orphan.ts": LAYOUT_COUNTS },
+};
 const PULL_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`;
 
 async function seedPullRequest(
@@ -185,6 +197,37 @@ describe("stored artifact reads", () => {
     expect(await readCode(missing)).toBe("not-found");
     expect(malformed.status).toBe(400);
     expect(await readCode(malformed)).toBe("invalid-request");
+  });
+
+  it("serves a brief's layout, null for a brief without one", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    const pr = await seedPullRequest(harness.handle);
+    const briefId = await seedBrief(harness.handle, pr, {
+      base: "base1",
+      head: "head1",
+    });
+    await seedBrief(harness.handle, pr, { base: "base1", head: "head2" });
+    await createArtifactStore(harness.handle, CTX).chunkLayouts.backfill({
+      pullRequestId: pr.id,
+      briefId,
+      body: LAYOUT_BODY,
+    });
+
+    const res = await get("/brief-layout?base=base1&head=head1");
+    const bare = await get("/brief-layout?base=base1&head=head2");
+    const missing = await get("/brief-layout?base=base1&head=nope");
+    const malformed = await get("/brief-layout?base=only");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ layout: LAYOUT_BODY });
+    expect(bare.status).toBe(200);
+    expect(await bare.text()).toBe('{"layout":null}');
+    expect(missing.status).toBe(404);
+    expect(await readCode(missing)).toBe("not-found");
+    expect(malformed.status).toBe(400);
+    expect(await readCode(malformed)).toBe("invalid-request");
+    expect(listCallsPastGate(fake)).toEqual([]);
   });
 
   it("serves stored marks and 404s a missing span", async () => {

@@ -14,6 +14,8 @@ const NOT_FOUND: ReadArtifactResult = {
   error: { kind: "not-found" },
 };
 
+const NO_LAYOUT_BODY = '{"layout":null}';
+
 interface StoredBody {
   readonly body: string;
 }
@@ -34,6 +36,26 @@ export async function readBrief(
   const { briefs } = createArtifactStore(handle, access.rowScope);
   const stored = await briefs.get(access.row.id, query.base, query.head);
   return answerBody(stored);
+}
+
+/**
+ * The brief's per-chunk row counts for (base, head) as `{"layout": ...}`. A
+ * brief written without them is an expected absence, `{"layout":null}`; only
+ * a span no brief covers is not found.
+ */
+export async function readBriefLayout(
+  handle: AppDatabase,
+  access: PullRequestAccess,
+  query: BriefQuery,
+): Promise<ReadArtifactResult> {
+  const { briefs, chunkLayouts } = createArtifactStore(handle, access.rowScope);
+  const stored = await chunkLayouts.get(access.row.id, query.base, query.head);
+  if (stored !== undefined) {
+    return { ok: true, value: `{"layout":${stored.body}}` };
+  }
+
+  const briefStored = await briefs.has(access.row.id, query.base, query.head);
+  return briefStored ? { ok: true, value: NO_LAYOUT_BODY } : NOT_FOUND;
 }
 
 /** Comparison marks, coordinates only, for (baseline, head). */

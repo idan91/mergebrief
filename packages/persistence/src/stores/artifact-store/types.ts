@@ -1,4 +1,5 @@
 import type { brief } from "../../schema/brief";
+import type { chunkLayout } from "../../schema/chunk-layout";
 import type { comparisonMarks } from "../../schema/comparison-marks";
 import type { delta } from "../../schema/delta";
 import type { hunkSpan } from "../../schema/hunk-span";
@@ -38,6 +39,11 @@ export interface NarrativeSpanRow {
   readonly headSha: string;
 }
 export type DeltaRow = typeof delta.$inferSelect;
+/** The sidecar row with its body as stored text; the api serves it verbatim. */
+export type ChunkLayoutRow = Pick<
+  typeof chunkLayout.$inferSelect,
+  "id" | "briefId" | "body" | "byteSize" | "createdAt"
+>;
 export type RevisionNarrativeRow = typeof revisionNarrative.$inferSelect;
 export type ComparisonMarksRow = typeof comparisonMarks.$inferSelect;
 export type HunkSpanRow = typeof hunkSpan.$inferSelect;
@@ -82,6 +88,12 @@ export interface BriefWriteInput extends Origin, BodyVersionStamp {
   readonly carriedChunkIds?: readonly string[];
   /** Every group id the PR's Brief chain has used, this Brief included. */
   readonly usedGroupIds: readonly string[];
+  /**
+   * The brief's `chunk_layout` counts, checked with `ChunkLayoutBodySchema`.
+   * The write replaces the brief's sidecar in its own transaction; omitted,
+   * it drops the sidecar, since a rewritten body's counts are unknown.
+   */
+  readonly chunkLayout?: unknown;
 }
 
 export interface DeltaWriteInput extends Origin, BodyVersionStamp {
@@ -100,6 +112,18 @@ export interface RevisionNarrativeWriteInput extends Origin, BodyVersionStamp {
   readonly prevHeadSha: string;
   readonly headSha: string;
   readonly body: string;
+}
+
+export interface ChunkLayoutBackfillInput {
+  readonly pullRequestId: PullRequestRowId;
+  /** The brief the counts describe; verified in-tenant + same-PR. */
+  readonly briefId: BriefRowId;
+  /**
+   * Counts by chunk id and by remainder file, validated with
+   * `ChunkLayoutBodySchema`. Typed `unknown` because this is the boundary
+   * that refuses anything beyond counts.
+   */
+  readonly body: unknown;
 }
 
 export interface HunkSpanWriteInput {
@@ -131,6 +155,12 @@ export interface BriefStore {
     baseSha: string,
     headSha: string,
   ): Promise<BriefRow | undefined>;
+  /** Whether a brief covers (base, head), without reading its body. */
+  has(
+    pullRequestId: PullRequestRowId,
+    baseSha: string,
+    headSha: string,
+  ): Promise<boolean>;
   /**
    * All briefs on a PR, ordered by `headIndex` ascending: the worker's
    * DB-mode stand-in for the CLI manifest: next index = max + 1, previous
@@ -224,9 +254,27 @@ export interface HunkSpanStore {
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<HunkSpanRow[]>;
 }
 
+export interface ChunkLayoutStore {
+  /**
+   * Stores a sidecar for a brief that has none; true when it inserted. A
+   * sidecar already there stays. A brief outside the scope or PR throws
+   * `ScopeViolationError` before any insert.
+   */
+  backfill(input: ChunkLayoutBackfillInput): Promise<boolean>;
+  /** Whether the brief carries a sidecar, without reading its body. */
+  has(briefId: BriefRowId): Promise<boolean>;
+  /** The sidecar of the brief covering (base, head); undefined when the brief has none. */
+  get(
+    pullRequestId: PullRequestRowId,
+    baseSha: string,
+    headSha: string,
+  ): Promise<ChunkLayoutRow | undefined>;
+}
+
 export interface ArtifactStore {
   readonly ctx: ScopeContext;
   readonly briefs: BriefStore;
+  readonly chunkLayouts: ChunkLayoutStore;
   readonly deltas: DeltaStore;
   readonly revisionNarratives: RevisionNarrativeStore;
   readonly comparisonMarks: ComparisonMarksStore;

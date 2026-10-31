@@ -1,4 +1,9 @@
 import { z } from "zod/v4";
+import {
+  LINE_WIDTH_BUCKET_EDGES,
+  type ChunkLayoutBody,
+  type ChunkLayoutCounts,
+} from "../diff/chunk-layout";
 import type { Equals } from "types/utils";
 import {
   BriefSchema,
@@ -146,3 +151,44 @@ export const StoredSessionFactsReadSchema = z.object({
   ),
   unattributed: z.array(z.unknown()).catch([]),
 });
+
+const layoutCountSchema = z.number().int().nonnegative();
+
+const lineWidthHistogramSchema = z
+  .object({
+    counts: z
+      .array(layoutCountSchema)
+      .length(LINE_WIDTH_BUCKET_EDGES.length + 1),
+    overflowColumns: layoutCountSchema,
+  })
+  .strict();
+
+export const ChunkLayoutCountsSchema = z
+  .object({
+    rows: layoutCountSchema,
+    hunkRows: layoutCountSchema,
+    expandRows: layoutCountSchema,
+    splitRows: layoutCountSchema,
+    lineWidths: lineWidthHistogramSchema,
+  })
+  .strict();
+
+true satisfies Equals<
+  z.infer<typeof ChunkLayoutCountsSchema>,
+  ChunkLayoutCounts
+>;
+
+/**
+ * The stored `chunk_layout` sidecar beside a brief: counts by chunk id and,
+ * for the unattributed remainder, by file path, closed at every level so it
+ * never holds code text. A card the diff did not carry is absent and the
+ * reader falls back to its estimate.
+ */
+export const ChunkLayoutBodySchema = z
+  .object({
+    chunks: z.record(z.string(), ChunkLayoutCountsSchema),
+    files: z.record(z.string(), ChunkLayoutCountsSchema),
+  })
+  .strict();
+
+true satisfies Equals<z.infer<typeof ChunkLayoutBodySchema>, ChunkLayoutBody>;

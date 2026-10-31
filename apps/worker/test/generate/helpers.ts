@@ -89,7 +89,7 @@ export const LAST_ATTEMPT = {
   attempts: FIRST_ATTEMPT.max_attempts,
 } as const;
 
-const SMALL_DIFF = `diff --git a/a.ts b/a.ts
+export const SMALL_DIFF = `diff --git a/a.ts b/a.ts
 --- a/a.ts
 +++ b/a.ts
 @@ -1,2 +1,3 @@

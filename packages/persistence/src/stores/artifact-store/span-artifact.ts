@@ -47,6 +47,8 @@ export interface SpanArtifactWrite<TTable extends SpanArtifactTable> {
   readonly set: PgUpdateSetSource<TTable>;
   /** A further in-scope anchor check, after the parent check, same transaction. */
   assertAnchorInScope?(tx: Tx): Promise<void>;
+  /** Rows that hang off the written row, rewritten after the upsert, same transaction. */
+  writeDependents?(tx: Tx, row: TTable["$inferSelect"]): Promise<void>;
 }
 
 export type SpanOrder = PgColumn | SQL;
@@ -145,6 +147,7 @@ export function createSpanArtifactAccess<TTable extends SpanArtifactTable>(
         if (row === undefined) {
           throw new Error(`${getTableName(table)} write returned no row`);
         }
+        await write.writeDependents?.(tx, row);
         return row;
       });
     },

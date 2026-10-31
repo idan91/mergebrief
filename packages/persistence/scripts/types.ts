@@ -23,3 +23,15 @@ export interface MigrationOffender {
   readonly file: string;
   readonly statements: readonly string[];
 }
+
+export interface JournalEntry {
+  readonly tag: string;
+  readonly when: number;
+}
+
+export interface JournalOrderOffender {
+  readonly tag: string;
+  readonly when: number;
+  readonly previousTag: string;
+  readonly previousWhen: number;
+}

@@ -22,6 +22,22 @@ export const FileStatuses = {
 } as const;
 export type FileStatus = ValueOf<typeof FileStatuses>;
 
+/** The changed lines a brief places in one file: an unattributed file's ranges. */
+export interface FileLayoutSource extends ChunkRanges {
+  file: string;
+}
+
+/** What a brief-wide count needs of a chunk: its id, its file and its ranges. */
+export interface ChunkLayoutSource extends FileLayoutSource {
+  id: string;
+}
+
+/** The cards a brief draws: its chunks and its unattributed remainder files. */
+export interface BriefLayoutSource {
+  chunks: readonly ChunkLayoutSource[];
+  unattributed: readonly FileLayoutSource[];
+}
+
 export const ExpansionDirections = {
   UP: "up",
   DOWN: "down",
@@ -72,4 +88,14 @@ export interface ChunkLayoutCounts {
   /** Rows the split view paints: a deletion run and the additions after it pair up. */
   splitRows: number;
   lineWidths: LineWidthHistogram;
+}
+
+/**
+ * The brief's counts by chunk id, and its unattributed remainder's by file
+ * path: a remainder card's id is derived by the reader, its file is not.
+ * An entry whose file the diff did not carry is absent.
+ */
+export interface ChunkLayoutBody {
+  chunks: Record<string, ChunkLayoutCounts>;
+  files: Record<string, ChunkLayoutCounts>;
 }

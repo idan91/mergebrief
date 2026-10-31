@@ -1,5 +1,6 @@
 // The reviewer read API, behind the pr subtree's shared gate: PR meta, the
-// stored artifacts (brief / brief-context / marks / delta / narrative), and
+// stored artifacts (brief / brief-context / brief-layout / marks / delta /
+// narrative), and
 // the LIVE reads (span diff, file range, stack) on the viewer's binding,
 // cached per session and NEVER persisted.
 import { ProductQueryIds, type PullMetaView } from "contract";
@@ -37,6 +38,7 @@ import {
 import {
   readBrief,
   readBriefContext,
+  readBriefLayout,
   readDelta,
   readMarks,
   readNarrative,
@@ -351,6 +353,23 @@ export function readsRoutes(
       briefQuerySchema,
       ["base", "head"],
       readBriefContext,
+    ),
+  );
+  app.query(
+    {
+      id: ProductQueryIds.READ_BRIEF_LAYOUT,
+      browserSessionOnly: false,
+      requiresOperator: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: true,
+    },
+    "/brief-layout",
+    createArtifactHandler(
+      deps,
+      briefQuerySchema,
+      ["base", "head"],
+      readBriefLayout,
     ),
   );
   declareLiveReads(app, deps);

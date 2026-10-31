@@ -547,6 +547,13 @@
       "when": 1793238227234,
       "tag": "0078_delta-skipped",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793345382151,
+      "tag": "0079_chunk-layout",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,15 @@ import {
   type FetchedPr,
   type GenerateBriefOptions,
 } from "brief-core";
-import { checkBriefForWrite, STORED_BODY_VERSION } from "brief-core/artifact";
+import {
+  checkBriefForWrite,
+  readStoredBrief,
+  STORED_BODY_VERSION,
+} from "brief-core/artifact";
+import {
+  countBriefChunkLayouts,
+  type ChunkLayoutBody,
+} from "brief-core/chunk-layout";
 import type { Anchor } from "generators";
 import type { Logger } from "logging";
 import { GenerationKinds, type BriefWriteInput } from "persistence";
@@ -21,6 +29,7 @@ import type { ParsedGeneratePayload } from "../../payload";
 import { buildRepoConfigArtifact } from "../../repo-config";
 import type {
   BriefGenerationInputs,
+  ChunkLayoutBackfillInputs,
   GeneratedBrief,
   StoredBriefRecoveryInputs,
 } from "../types";
@@ -39,8 +48,8 @@ import { throwOnClaimLost } from "./supersession-watch";
 
 /**
  * The fresh-brief path: anchor decision, the generating Entry, brief-core's
- * generation and the brief write. The anchor decision runs BEFORE the
- * GENERATING phase mark.
+ * generation, and the brief write with its chunk-layout sidecar. The anchor
+ * decision runs BEFORE the GENERATING phase mark.
  */
 export async function writeFreshBrief(
   payload: ParsedGeneratePayload,
@@ -170,12 +179,59 @@ export async function writeFreshBrief(
   );
   const briefCheck = checkBriefForWrite(stamped, allowedNames);
   warnOnFailedCheck(briefCheck, GenerationKinds.BRIEF, log);
+  const chunkLayout = countStoredBriefLayouts(diff, briefWrite.body);
+  if (chunkLayout !== undefined) {
+    briefWrite.chunkLayout = chunkLayout;
+  }
 
   const written = await store.briefs.write(briefWrite);
   await multiCall.deleteParts();
   const briefRef = { id: written.id, headIndex: written.headIndex };
 
   return { briefRef, generatedBrief: stamped };
+}
+
+/**
+ * The cards' counts from the body as a reader parses it, so a remainder
+ * card's ranges, orphaned chunks folded in, are the ones counted. A body
+ * that does not read stores no sidecar.
+ */
+function countStoredBriefLayouts(
+  diff: string,
+  body: string,
+): ChunkLayoutBody | undefined {
+  const read = readStoredBrief(body);
+  if (!read.ok) {
+    return undefined;
+  }
+
+  const { chunks, unattributed = [] } = read.value.brief;
+  return countBriefChunkLayouts(diff, { chunks, unattributed });
+}
+
+/**
+ * A run over the stored brief backfills its sidecar when the brief has
+ * none (written before this sidecar existed, or by a writer that passes no
+ * counts), so the page does not stay on its estimate for good.
+ */
+export async function backfillMissingChunkLayout(
+  inputs: ChunkLayoutBackfillInputs,
+): Promise<void> {
+  const { store, pullRequestId, storedBrief, diff } = inputs;
+  if (await store.chunkLayouts.has(storedBrief.id)) {
+    return;
+  }
+  const { baseSha, headSha } = storedBrief;
+  const row = await store.briefs.get(pullRequestId, baseSha, headSha);
+  if (row === undefined) {
+    return;
+  }
+  const body = countStoredBriefLayouts(diff, row.body);
+  if (body === undefined) {
+    return;
+  }
+
+  await store.chunkLayouts.backfill({ pullRequestId, briefId: row.id, body });
 }
 
 async function postFreshGeneratingEntry(

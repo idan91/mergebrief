@@ -84,6 +84,7 @@ const EXPECTED_POLICY = {
   [ProductQueryIds.READ_ATTACHMENT]: [],
   [ProductQueryIds.READ_BRIEF]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_BRIEF_CONTEXT]: ["requiresStoredPullRequest"],
+  [ProductQueryIds.READ_BRIEF_LAYOUT]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_CAPABILITIES]: [],
   [ProductQueryIds.READ_CONVERSATION]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_DELTA]: ["requiresStoredPullRequest"],

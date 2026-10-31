@@ -23,6 +23,7 @@ export const ProductQueryIds = {
   READ_SPEND: "read-spend",
   READ_BRIEF: "read-brief",
   READ_BRIEF_CONTEXT: "read-brief-context",
+  READ_BRIEF_LAYOUT: "read-brief-layout",
   READ_MARKS: "read-marks",
   READ_DELTA: "read-delta",
   READ_NARRATIVE: "read-narrative",

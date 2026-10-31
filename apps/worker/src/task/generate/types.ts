@@ -32,6 +32,7 @@ import type {
   GenerationRow,
   GenerationTarget,
   PullRequestRow,
+  PullRequestRowId,
   TenantRepository,
 } from "persistence";
 import type {
@@ -751,6 +752,14 @@ export interface StoredBriefRecoveryInputs {
   readonly prevBrief: BriefSpanRow | undefined;
   readonly baseSha: string;
   readonly log: Logger;
+}
+
+/** The stored brief a run stands on, and the PR diff its sidecar counts against. */
+export interface ChunkLayoutBackfillInputs {
+  readonly store: ArtifactStore;
+  readonly pullRequestId: PullRequestRowId;
+  readonly storedBrief: BriefSpanRow;
+  readonly diff: string;
 }
 
 export const BriefRecoveryFailures = {

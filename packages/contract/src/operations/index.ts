@@ -82,6 +82,12 @@ export const ProductOperations = {
     method: HttpMethods.GET,
     path: "/api/repos/:repoId/pulls/:prNumber/brief-context",
   },
+  [ProductQueryIds.READ_BRIEF_LAYOUT]: {
+    kind: OperationKinds.QUERY,
+    classification: AccessLevels.READ,
+    method: HttpMethods.GET,
+    path: "/api/repos/:repoId/pulls/:prNumber/brief-layout",
+  },
   [ProductQueryIds.READ_MARKS]: {
     kind: OperationKinds.QUERY,
     classification: AccessLevels.READ,

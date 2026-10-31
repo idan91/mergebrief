@@ -35,6 +35,7 @@ import {
 } from "./types";
 
 export { STORED_BODY_VERSION } from "./consts";
+export { ChunkLayoutBodySchema, ChunkLayoutCountsSchema } from "./schemas";
 export { readBriefSessionFacts } from "./session-facts";
 export {
   ArtifactIssueCodes,

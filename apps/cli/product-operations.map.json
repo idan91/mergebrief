@@ -98,6 +98,12 @@
   "read-brief-context": {
     "command": "mergebrief context <number>"
   },
+  "read-brief-layout": {
+    "webOnly": {
+      "reason": "Per-chunk row counts the review page reserves card heights from before the code lands; the CLI relays the brief and draws no cards",
+      "owner": "idan"
+    }
+  },
   "read-capabilities": {
     "command": "mergebrief capabilities"
   },

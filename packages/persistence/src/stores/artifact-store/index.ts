@@ -1,9 +1,10 @@
 // The `ArtifactStore`: the ONLY write path for the five span artifact
-// tables, bound to one scope `ctx` like `createTenantRepository`. It unwraps
-// `AppDatabase` with the in-package `internal()`, never re-exported. Every
-// table reads and writes through one `SpanArtifactAccess`, which owns the
-// scope filter, the scope stamp and the in-transaction parent check; a store
-// here names only its table, its columns and its own body rules.
+// tables and the brief's `chunk_layout` sidecar, bound to one scope `ctx`
+// like `createTenantRepository`. It unwraps `AppDatabase` with the
+// in-package `internal()`, never re-exported. Every span table reads and
+// writes through one `SpanArtifactAccess`, which owns the scope filter, the
+// scope stamp and the in-transaction parent check; a store here names only
+// its table, its columns and its own body rules.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { traceStore } from "../trace-store";
 import { isDeltaSkipRecord, readBriefSessionFacts } from "brief-core/artifact";
@@ -16,6 +17,12 @@ import { revisionNarrative } from "../../schema/revision-narrative";
 import { resolveScope, ScopeViolationError } from "../scope";
 import type { ScopeContext } from "../scope-context";
 import type { BriefRowId, PullRequestRowId } from "../../types";
+import {
+  createChunkLayoutStore,
+  replaceChunkLayout,
+  shapeChunkLayoutColumns,
+} from "./chunk-layout";
+import { InvalidArtifactBodyError } from "./errors";
 import { ComparisonMarksBodySchema, HunkSpansSchema } from "./schemas";
 import { createSpanArtifactAccess } from "./span-artifact";
 import type {
@@ -29,16 +36,7 @@ import type {
   RevisionNarrativeStore,
 } from "./types";
 
-/**
- * A `comparison_marks` or `hunk_span` body failed its coordinates-only Zod
- * schema: a writer defect against a fixed shape, which no retry can fix.
- */
-export class InvalidArtifactBodyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "InvalidArtifactBodyError";
-  }
-}
+export { InvalidArtifactBodyError } from "./errors";
 
 function measureByteSize(body: string): number {
   return Buffer.byteLength(body, "utf8");
@@ -165,6 +163,10 @@ export function createArtifactStore(
   const briefs: BriefStore = {
     async write(input) {
       const columns = shapeBriefColumns(input);
+      const layout =
+        input.chunkLayout === undefined
+          ? undefined
+          : shapeChunkLayoutColumns(input.chunkLayout);
       return briefSpans.write({
         pullRequestId: input.pullRequestId,
         values: {
@@ -174,6 +176,13 @@ export function createArtifactStore(
           ...columns,
         },
         set: columns,
+        writeDependents: (tx, row) =>
+          replaceChunkLayout(
+            tx,
+            scope,
+            { pullRequestId: input.pullRequestId, briefId: row.id },
+            layout,
+          ),
       });
     },
 
@@ -182,6 +191,14 @@ export function createArtifactStore(
         { pullRequestId, lowerSha: baseSha, headSha },
         db.select().from(brief).$dynamic(),
       );
+    },
+
+    async has(pullRequestId, baseSha, headSha) {
+      const row = await briefSpans.get(
+        { pullRequestId, lowerSha: baseSha, headSha },
+        db.select({ id: brief.id }).from(brief).$dynamic(),
+      );
+      return row !== undefined;
     },
 
     async getRepoConfig(pullRequestId, baseSha, headSha) {
@@ -401,9 +418,12 @@ export function createArtifactStore(
     },
   };
 
+  const chunkLayouts = createChunkLayoutStore(db, scope, assertBriefAnchored);
+
   return {
     ctx,
     briefs: traceStore("briefs", briefs),
+    chunkLayouts: traceStore("chunkLayouts", chunkLayouts),
     deltas: traceStore("deltas", deltas),
     revisionNarratives: traceStore("revisionNarratives", revisionNarratives),
     comparisonMarks: traceStore("comparisonMarks", comparisonMarksStore),

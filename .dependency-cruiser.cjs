@@ -204,7 +204,7 @@ module.exports = {
     {
       name: "artifact-module-imports-only-leaves",
       comment:
-        "The stored-artifact schemas and checks load in a browser: all they reach is zod, the types package, the Brief shape with its generation vocabulary and pr-stack folder, and the artifact folder itself.",
+        "The stored-artifact schemas and checks load in a browser: all they reach is zod, the types package, the Brief shape with its generation vocabulary and pr-stack folder, the chunk-layout leaf (itself held to the types package) and the artifact folder itself.",
       severity: "error",
       from: { path: "^packages/brief-core/src/artifact/" },
       to: {
@@ -214,7 +214,7 @@ module.exports = {
           "node_modules/zod/",
           "^packages/types/",
           "^packages/generators/src/contract/generation\\.ts$",
-          "^packages/brief-core/src/(types\\.ts$|pr-stack/|artifact/)",
+          "^packages/brief-core/src/(types\\.ts$|pr-stack/|artifact/|diff/chunk-layout/)",
         ],
       },
     },
