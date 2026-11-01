@@ -1,6 +1,6 @@
 import { tmpdir } from "node:os";
 import type { Mutable } from "types/utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createCommandRunner } from "../src/logic/command-runner";
 import type { CommandSpec } from "../src/types";
 
@@ -53,8 +53,53 @@ describe("the command runner", () => {
     expect(ran).toEqual({ ok: true, value: 0 });
   });
 
+  it("captures stderr and the exit code, leaving stdout uncaptured", () => {
+    const echo = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const script =
+      "process.stdout.write('finding'); process.stderr.write('1:06AM ERR x'); process.exit(4)";
+
+    const ran = runner.runCapturingStderr({
+      command: process.execPath,
+      args: ["-e", script],
+      cwd: tmpdir(),
+    });
+
+    expect(ran).toEqual({
+      ok: true,
+      value: { status: 4, stderr: "1:06AM ERR x" },
+    });
+    expect(echo).toHaveBeenCalledWith("1:06AM ERR x");
+  });
+
+  it("says when a captured log outgrows its buffer", () => {
+    const script = "process.stderr.write('x'.repeat(17 * 1024 * 1024))";
+
+    const ran = runner.runCapturingStderr({
+      command: process.execPath,
+      args: ["-e", script],
+      cwd: tmpdir(),
+    });
+
+    expect(ran).toEqual({
+      ok: false,
+      error: `${process.execPath} wrote more than 16 MiB of log`,
+    });
+  });
+
   it("says why a command could not start", () => {
     const started = runner.run({
+      command: "no-such-command-anywhere",
+      args: [],
+      cwd: tmpdir(),
+    });
+
+    expect(!started.ok && started.error).toMatch(
+      /^no-such-command-anywhere could not start: /,
+    );
+  });
+
+  it("says why a captured command could not start", () => {
+    const started = runner.runCapturingStderr({
       command: "no-such-command-anywhere",
       args: [],
       cwd: tmpdir(),

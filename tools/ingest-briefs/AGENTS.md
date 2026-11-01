@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-`src/index.ts` is the ingest core (importable by tests and the e2e seeder); `src/main.ts` is the runnable CLI and the composition root, the one reader of `process.env` (`DATABASE_URL`). Which file becomes which row is `ingest/consts.ts`, one named regex per family. `.diffs`, `.comments` and the manifest have no database home: the repo route reads diffs and conversations live from GitHub.
+`src/index.ts` is the ingest core (importable by tests and the e2e seeder); `src/main.ts` is the runnable CLI and the composition root, the one reader of `process.env` (`DATABASE_URL`). Which file becomes which row is `ingest/consts.ts`, one named regex per family. `.diffs`, `.comments` and the manifest have no database home: the repo route reads diffs and conversations live from GitHub. `src/testing/index.ts` (the `ingest-briefs/testing` subpath) stages the committed e2e fixtures for ingest: they are named `-brief.json` so gitleaks reads them (any `.br` in a name is opened as brotli), and the CLI itself skips that suffix.
 
 ## Invariants (enforced, don't weaken)
 

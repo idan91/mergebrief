@@ -24,6 +24,12 @@ const GITLEAKS_ERROR_EXIT = 1;
 const SCAN_MOUNT = "/scan";
 /** Opens a gzipped eval fixture; a nested archive stays closed. */
 const GITLEAKS_ARCHIVE_DEPTH = 1;
+/**
+ * gitleaks exits 0 when it cannot read a file and only logs it at ERR, so
+ * an ERR line means the scan did not cover the tree. Anchored on the
+ * `--no-color` level token, never a bare substring.
+ */
+const GITLEAKS_ERROR_LINE = /^\d{1,2}:\d{2}(?:AM|PM) ERR .*$/gm;
 
 /** Each step runs with the scratch copy as cwd; the copy's one commit is the baseline base. */
 const BUILD_STEPS = [
@@ -84,6 +90,7 @@ function buildSecretsScanArgs(context: GateContext): string[] {
   }
   args.push(
     "--no-banner",
+    "--no-color",
     "--redact",
     "--verbose",
     "--max-archive-depth",
@@ -94,12 +101,12 @@ function buildSecretsScanArgs(context: GateContext): string[] {
   return args;
 }
 
-/** gitleaks over the tree as a read-only bind mount, which fails when the daemon cannot see the source; any finding fails. */
+/** gitleaks over the tree as a read-only bind mount, which fails when the daemon cannot see the source; any finding or unread file fails. */
 export function scanSecretsGate(
   context: GateContext,
   runner: CommandRunner,
 ): GateOutcome {
-  const ran = runner.run({
+  const ran = runner.runCapturingStderr({
     command: "docker",
     args: buildSecretsScanArgs(context),
     cwd: context.dir,
@@ -107,16 +114,26 @@ export function scanSecretsGate(
   if (!ran.ok) {
     return failGate(`${ran.error}; the gitleaks gate needs Docker`);
   }
-  if (ran.value === GITLEAKS_FOUND_EXIT) {
+
+  const { status, stderr } = ran.value;
+  if (status === GITLEAKS_FOUND_EXIT) {
     return failGate(
       "gitleaks found secrets in the tree; its findings are above, redacted",
     );
   }
-  if (ran.value === GITLEAKS_ERROR_EXIT) {
+  if (status === GITLEAKS_ERROR_EXIT) {
     return failGate("gitleaks could not complete the scan; its error is above");
   }
-  if (ran.value !== 0) {
-    return failGate(`docker run exited ${ran.value} before gitleaks reported`);
+  if (status !== 0) {
+    return failGate(`docker run exited ${status} before gitleaks reported`);
+  }
+
+  const unreadLines = stderr.match(GITLEAKS_ERROR_LINE) ?? [];
+  if (unreadLines.length > 0) {
+    return failGate(
+      "gitleaks could not read every file; the ERR lines are above",
+      unreadLines,
+    );
   }
   return passGate("no secrets found");
 }

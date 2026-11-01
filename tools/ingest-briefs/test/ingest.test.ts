@@ -1,6 +1,6 @@
 // The ingest mapping over the committed e2e fixture set, the same files the
 // browser suite serves, so the mapping and the seeding stay one behavior.
-import { mkdtemp, writeFile, cp, readFile } from "node:fs/promises";
+import { mkdtemp, writeFile, cp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -14,10 +14,19 @@ import {
 } from "persistence";
 import { PrStates } from "types/pull-requests";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { ingestBriefDirectory, type RepoResolution } from "../src/ingest";
+import { stageCommittedBriefs } from "../src/testing";
 
-const FIXTURES = new URL(
+const COMMITTED_FIXTURES = new URL(
   "../../../apps/web/e2e/fixtures/briefs",
   import.meta.url,
 ).pathname;
@@ -46,6 +55,14 @@ function staticResolve(): (
   });
 }
 
+let fixturesDir: string;
+beforeAll(async () => {
+  fixturesDir = await stageCommittedBriefs(COMMITTED_FIXTURES);
+});
+afterAll(async () => {
+  await rm(fixturesDir, { recursive: true, force: true });
+});
+
 let harness: PgliteHarness;
 beforeEach(async () => {
   harness = await createPgliteHarness();
@@ -57,7 +74,7 @@ afterEach(async () => {
 describe("ingestBriefDirectory", () => {
   it("maps the fixture set to PR row, briefs, narrative and marks", async () => {
     const summary = await ingestBriefDirectory(harness.handle, {
-      dir: FIXTURES,
+      dir: fixturesDir,
       ctx: OWNER_CTX,
       resolveRepo: staticResolve(),
     });
@@ -106,7 +123,7 @@ describe("ingestBriefDirectory", () => {
     expect(first?.usedGroupIds).toEqual(["g1", "g2"]);
     expect(stored?.usedGroupIds).toEqual(["g1", "g2", "g4"]);
     const fileBody = await readFile(
-      join(FIXTURES, "mergebrief-e2e-fixture-1_2_22222222.brief.json"),
+      join(fixturesDir, "mergebrief-e2e-fixture-1_2_22222222.brief.json"),
       "utf8",
     );
     expect(stored?.body).toBe(fileBody);
@@ -131,7 +148,7 @@ describe("ingestBriefDirectory", () => {
 
   it("is idempotent: a re-run rewrites the same rows in place", async () => {
     const options = {
-      dir: FIXTURES,
+      dir: fixturesDir,
       ctx: OWNER_CTX,
       resolveRepo: staticResolve(),
     };
@@ -151,7 +168,7 @@ describe("ingestBriefDirectory", () => {
   it("targets an installation tenant when told to", async () => {
     const installationId = brand(isInstallationId, 987654n);
     await ingestBriefDirectory(harness.handle, {
-      dir: FIXTURES,
+      dir: fixturesDir,
       ctx: { installationId },
       resolveRepo: staticResolve(),
     });
@@ -169,7 +186,7 @@ describe("ingestBriefDirectory", () => {
 
   it("maps the revchanges alias, comparisons and deltas, reports unmapped", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ingest-"));
-    await cp(FIXTURES, dir, { recursive: true });
+    await cp(fixturesDir, dir, { recursive: true });
     const head = "22222222eeee3333ffff4444aaaa5555bbbb6666";
     const prev = "11111111ccccddddeeee1111222233334444aaaa";
     const checkpoint = "99999999ccccddddeeee1111222233334444aaaa";
@@ -415,7 +432,7 @@ describe("ingestBriefDirectory", () => {
 
   it("stops loudly on a corrupt brief body", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ingest-"));
-    await cp(FIXTURES, dir, { recursive: true });
+    await cp(fixturesDir, dir, { recursive: true });
     await writeFile(
       join(dir, "mergebrief-e2e-fixture-1_3_33333333.brief.json"),
       "{not json",

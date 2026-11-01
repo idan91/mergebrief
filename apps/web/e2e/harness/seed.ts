@@ -4,8 +4,10 @@
 // `graphile_worker` schema is not this script's to install: the API installs
 // it at boot, which happens before any test can enqueue.
 import { createHash } from "node:crypto";
+import { rm } from "node:fs/promises";
 import { STORED_BODY_VERSION } from "brief-core/artifact";
-import { ingestBriefDirectory } from "ingest-briefs";
+import { ingestBriefDirectory, type IngestSummary } from "ingest-briefs";
+import { stageCommittedBriefs } from "ingest-briefs/testing";
 import {
   closeDb,
   createArtifactStore,
@@ -299,6 +301,26 @@ async function seedSession(
   });
 }
 
+async function ingestFixtureBriefs(
+  handle: AppDatabase,
+  owner: ReviewerId,
+  repoId: RepoId,
+): Promise<IngestSummary> {
+  const stagedDir = await stageCommittedBriefs(FIXTURE_DIR);
+  try {
+    return await ingestBriefDirectory(handle, {
+      dir: stagedDir,
+      ctx: { ownerUserId: owner },
+      resolveRepo: async () => ({
+        repoId,
+        lifecycle: { state: PrStates.OPEN },
+      }),
+    });
+  } finally {
+    await rm(stagedDir, { recursive: true, force: true });
+  }
+}
+
 async function main(): Promise<void> {
   const ensured = await ensureAppSchema(E2E_DATABASE_URL, {
     autoMigrate: true,
@@ -314,14 +336,7 @@ async function main(): Promise<void> {
     if (!isRepoId(repoId)) {
       throw new Error("bad repo id");
     }
-    const summary = await ingestBriefDirectory(handle, {
-      dir: FIXTURE_DIR,
-      ctx: { ownerUserId: owner },
-      resolveRepo: async () => ({
-        repoId,
-        lifecycle: { state: PrStates.OPEN },
-      }),
-    });
+    const summary = await ingestFixtureBriefs(handle, owner, repoId);
     if (summary.briefs === 0) {
       throw new Error("seed ingested no briefs — fixture dir wrong?");
     }

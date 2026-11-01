@@ -24,7 +24,7 @@
     "repo-config": "workspace:*",
     "tsx": "^4.19.0",
     "types": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

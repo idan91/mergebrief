@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkBriefForWrite, type ArtifactIssue } from "brief-core/artifact";
+import { COMMITTED_BRIEF_SUFFIX } from "ingest-briefs/testing";
 import { describe, expect, it } from "vitest";
 import { FIXTURE_BASE_SHA } from "../fixtures/ids";
 import {
@@ -15,7 +16,6 @@ import { buildSeedBrief } from "./seed-brief";
 const FIXTURE_BRIEFS_DIR = fileURLToPath(
   new URL("../fixtures/briefs", import.meta.url),
 );
-const BRIEF_SUFFIX = ".brief.json";
 const SEED_HEAD_INDEX = 2;
 const SEED_COMMIT_COUNT = 2;
 
@@ -38,9 +38,12 @@ function findRepoSlug(repoId: number): string {
 describe("e2e seed briefs", () => {
   it("passes the write check for every committed fixture brief", () => {
     const names = readdirSync(FIXTURE_BRIEFS_DIR).filter((name) =>
-      name.endsWith(BRIEF_SUFFIX),
+      name.endsWith(COMMITTED_BRIEF_SUFFIX),
     );
-    expect(names.length).toBeGreaterThan(0);
+    expect(names.toSorted()).toEqual([
+      "mergebrief-e2e-fixture-1_1_11111111-brief.json",
+      "mergebrief-e2e-fixture-1_2_22222222-brief.json",
+    ]);
 
     for (const name of names) {
       const text = readFileSync(join(FIXTURE_BRIEFS_DIR, name), "utf8");

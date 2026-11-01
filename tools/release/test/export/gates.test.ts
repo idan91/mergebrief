@@ -20,6 +20,7 @@ import {
 import {
   makeNotesFile,
   makeTempRoot,
+  stubCapturingRunner,
   stubCommandRunner,
   stubGitPort,
   type Tree,
@@ -89,7 +90,7 @@ describe("the paths gate", () => {
 describe("the gitleaks gate", () => {
   it("scans the tree read-only with the pinned image", () => {
     const context = makeContext(CLEAN_TREE);
-    const recorded = stubCommandRunner();
+    const recorded = stubCapturingRunner();
 
     const outcome = scanSecretsGate(context, recorded.runner);
 
@@ -106,6 +107,7 @@ describe("the gitleaks gate", () => {
           "dir",
           "/scan",
           "--no-banner",
+          "--no-color",
           "--redact",
           "--verbose",
           "--max-archive-depth",
@@ -123,7 +125,7 @@ describe("the gitleaks gate", () => {
       ...CLEAN_TREE,
       [GITLEAKS_CONFIG]: "[extend]\nuseDefault = true\n",
     });
-    const recorded = stubCommandRunner();
+    const recorded = stubCapturingRunner();
 
     scanSecretsGate(context, recorded.runner);
 
@@ -138,6 +140,7 @@ describe("the gitleaks gate", () => {
       "--config",
       `/scan/${GITLEAKS_CONFIG}`,
       "--no-banner",
+      "--no-color",
       "--redact",
       "--verbose",
       "--max-archive-depth",
@@ -148,7 +151,9 @@ describe("the gitleaks gate", () => {
   });
 
   it("fails when gitleaks reports a secret", () => {
-    const recorded = stubCommandRunner([{ ok: true, value: 99 }]);
+    const recorded = stubCapturingRunner([
+      { ok: true, value: { status: 99, stderr: "" } },
+    ]);
 
     const outcome = scanSecretsGate(makeContext(CLEAN_TREE), recorded.runner);
 
@@ -158,7 +163,9 @@ describe("the gitleaks gate", () => {
   });
 
   it("tells a gitleaks error apart from a finding", () => {
-    const recorded = stubCommandRunner([{ ok: true, value: 1 }]);
+    const recorded = stubCapturingRunner([
+      { ok: true, value: { status: 1, stderr: "" } },
+    ]);
 
     const outcome = scanSecretsGate(makeContext(CLEAN_TREE), recorded.runner);
 
@@ -168,10 +175,12 @@ describe("the gitleaks gate", () => {
   });
 
   it("fails naming Docker when the scanner cannot run", () => {
-    const recorded = stubCommandRunner([
+    const recorded = stubCapturingRunner([
       { ok: false, error: "docker could not start: spawn docker ENOENT" },
     ]);
-    const exited = stubCommandRunner([{ ok: true, value: 125 }]);
+    const exited = stubCapturingRunner([
+      { ok: true, value: { status: 125, stderr: "" } },
+    ]);
 
     const outcome = scanSecretsGate(makeContext(CLEAN_TREE), recorded.runner);
     const broken = scanSecretsGate(makeContext(CLEAN_TREE), exited.runner);
@@ -181,6 +190,57 @@ describe("the gitleaks gate", () => {
     );
     expect(!broken.ok && broken.error.reason).toBe(
       "docker run exited 125 before gitleaks reported",
+    );
+  });
+  it("fails when gitleaks logs a file it could not read", () => {
+    const unread =
+      '1:06AM ERR error="could not read file: brotli: PADDING_2" path=/scan/a.brief.json';
+    const recorded = stubCapturingRunner([
+      {
+        ok: true,
+        value: { status: 0, stderr: `1:06AM INF scanned\n${unread}\n` },
+      },
+    ]);
+
+    const outcome = scanSecretsGate(makeContext(CLEAN_TREE), recorded.runner);
+
+    expect(outcome).toEqual({
+      ok: false,
+      error: {
+        reason: "gitleaks could not read every file; the ERR lines are above",
+        details: [unread],
+      },
+    });
+  });
+
+  it("reads only a log line's level token as an error", () => {
+    const recorded = stubCapturingRunner([
+      {
+        ok: true,
+        value: {
+          status: 0,
+          stderr: "File:        notes/ERR log.md\n10:41PM INF no leaks found\n",
+        },
+      },
+    ]);
+
+    const outcome = scanSecretsGate(makeContext(CLEAN_TREE), recorded.runner);
+
+    expect(outcome.ok).toBe(true);
+  });
+
+  it("reports findings ahead of an unread file", () => {
+    const recorded = stubCapturingRunner([
+      {
+        ok: true,
+        value: { status: 99, stderr: "9:00AM ERR error=x path=/scan/y\n" },
+      },
+    ]);
+
+    const outcome = scanSecretsGate(makeContext(CLEAN_TREE), recorded.runner);
+
+    expect(!outcome.ok && outcome.error.reason).toBe(
+      "gitleaks found secrets in the tree; its findings are above, redacted",
     );
   });
 });
@@ -321,7 +381,9 @@ describe("running the gates", () => {
   });
 
   it("stops at the first failing gate", () => {
-    const recorded = stubCommandRunner([{ ok: true, value: 1 }]);
+    const recorded = stubCapturingRunner([
+      { ok: true, value: { status: 1, stderr: "" } },
+    ]);
 
     const run = runGates(
       makeContext(CLEAN_TREE),
@@ -373,6 +435,44 @@ describe("the gitleaks gate against the real scanner", () => {
       expect(!outcome.ok && outcome.error.reason).toBe(
         "gitleaks found secrets in the tree; its findings are above, redacted",
       );
+    },
+    DOCKER_PULL_MS,
+  );
+
+  it.skipIf(!dockerRuns)(
+    "fails on a tree holding a file gitleaks cannot read",
+    () => {
+      const context = makeContext({
+        ...CLEAN_TREE,
+        "fixtures/notes.brief.json": '{"plain":"text"}\n',
+      });
+
+      const outcome = scanSecretsGate(
+        context,
+        createCommandRunner(process.env),
+      );
+
+      expect(!outcome.ok && outcome.error.reason).toBe(
+        "gitleaks could not read every file; the ERR lines are above",
+      );
+    },
+    DOCKER_PULL_MS,
+  );
+
+  it.skipIf(!dockerRuns)(
+    "reads the committed fixture brief names",
+    () => {
+      const context = makeContext({
+        ...CLEAN_TREE,
+        "fixtures/notes_1_11111111-brief.json": '{"plain":"text"}\n',
+      });
+
+      const outcome = scanSecretsGate(
+        context,
+        createCommandRunner(process.env),
+      );
+
+      expect(outcome.ok).toBe(true);
     },
     DOCKER_PULL_MS,
   );

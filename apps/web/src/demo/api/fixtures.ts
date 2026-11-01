@@ -32,9 +32,9 @@ import {
   FIXTURE_REV1_HEAD,
   FIXTURE_REV2_HEAD,
 } from "../../../e2e/fixtures/ids";
-import briefRev1Text from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_1_11111111.brief.json?raw";
+import briefRev1Text from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_1_11111111-brief.json?raw";
 import diffsRev1Text from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_1_11111111.diffs.json?raw";
-import briefRev2Text from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_2_22222222.brief.json?raw";
+import briefRev2Text from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_2_22222222-brief.json?raw";
 import diffsRev2Text from "../../../e2e/fixtures/briefs/mergebrief-e2e-fixture-1_2_22222222.diffs.json?raw";
 import {
   DEMO_PR,

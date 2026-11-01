@@ -48,7 +48,3 @@ auditConfig:
     # immutable — hash-collision complexity DoS in Map/Set. Same build-time
     # vite > sass path as the entry above.
     - GHSA-xvcm-6775-5m9r
-    # postcss — path traversal via sourceMappingURL auto-loading discloses
-    # arbitrary .map files. Transitive through vite; it processes only our
-    # own stylesheets during the build. Waiting on the upstream vite bump.
-    - GHSA-r28c-9q8g-f849

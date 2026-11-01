@@ -5,7 +5,8 @@
   "type": "module",
   "description": "One-shot ingest of CLI brief artifacts (.brief.json + sidecars) into database rows — the test on-ramp and the file-path retirement migration.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -16,7 +17,7 @@
     "brief-core": "workspace:*",
     "persistence": "workspace:*",
     "types": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

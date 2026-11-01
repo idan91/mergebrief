@@ -170,9 +170,17 @@ export interface CommandSpec {
   readonly env?: Readonly<Record<string, string>>;
 }
 
+/** A finished tool run whose stderr was captured. */
+export interface StderrRun {
+  readonly status: number;
+  readonly stderr: string;
+}
+
 /** Spawns a gate's tool; the value is the exit code, the error why it could not start. */
 export interface CommandRunner {
   run(spec: CommandSpec): Result<number, string>;
+  /** As `run`, with the tool's stderr captured and echoed to ours after it exits; stdout still streams. */
+  runCapturingStderr(spec: CommandSpec): Result<StderrRun, string>;
 }
 
 export interface StampError {

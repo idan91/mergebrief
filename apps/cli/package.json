@@ -35,7 +35,7 @@
     "contract": "workspace:*",
     "i18n": "workspace:*",
     "types": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",

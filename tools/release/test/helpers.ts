@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Result } from "types/utils";
 
-import type { CommandRunner, CommandSpec, GitPort } from "../src/types";
+import type {
+  CommandRunner,
+  CommandSpec,
+  GitPort,
+  StderrRun,
+} from "../src/types";
 
 /** File contents by path relative to the temp root. */
 export type Tree = Readonly<Record<string, string>>;
@@ -126,6 +131,11 @@ export interface RecordedRunner {
   readonly specs: CommandSpec[];
 }
 
+const CLEAN_CAPTURE: Result<StderrRun, string> = {
+  ok: true,
+  value: { status: 0, stderr: "" },
+};
+
 /** A runner that records each spec and answers with the next queued outcome, exit 0 once they run out. */
 export function stubCommandRunner(
   outcomes: readonly Result<number, string>[] = [],
@@ -139,6 +149,27 @@ export function stubCommandRunner(
       onRun?.(spec);
       return queue.shift() ?? { ok: true, value: 0 };
     },
+    runCapturingStderr(spec) {
+      specs.push(spec);
+      onRun?.(spec);
+      return CLEAN_CAPTURE;
+    },
   };
   return { runner, specs };
+}
+
+/** As `stubCommandRunner`, with the queue answering `runCapturingStderr`: exit 0 and an empty log once it runs out. */
+export function stubCapturingRunner(
+  outcomes: readonly Result<StderrRun, string>[] = [],
+): RecordedRunner {
+  const recorded = stubCommandRunner();
+  const queue = [...outcomes];
+  const runner: CommandRunner = {
+    ...recorded.runner,
+    runCapturingStderr(spec) {
+      recorded.specs.push(spec);
+      return queue.shift() ?? CLEAN_CAPTURE;
+    },
+  };
+  return { runner, specs: recorded.specs };
 }

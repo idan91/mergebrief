@@ -125,7 +125,9 @@
       ],
     },
     "tools/baselines": { "entry": ["src/main.ts"] },
-    "tools/ingest-briefs": { "entry": ["src/index.ts", "src/main.ts"] },
+    "tools/ingest-briefs": {
+      "entry": ["src/index.ts", "src/main.ts", "src/testing/index.ts"],
+    },
     "tools/release": { "entry": ["src/main.ts"] },
     "tools/oxlint-plugin-house": {
       "entry": ["src/index.mjs"],
