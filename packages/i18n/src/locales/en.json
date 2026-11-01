@@ -1856,5 +1856,47 @@
       "toggleShortcuts": "Toggle this shortcuts list",
       "closeMenu": "Close a menu or this list"
     }
+  },
+  "docsSite": {
+    "description": "Install, configure and run MergeBrief on your own infrastructure.",
+    "sidebar": {
+      "selfHosting": "Self-hosting",
+      "repoConfig": "Repo config",
+      "reference": "Reference",
+      "releases": "Releases"
+    },
+    "chrome": {
+      "outlineLabel": "On this page",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "appearanceLabel": "Appearance",
+      "switchToLight": "Switch to light theme",
+      "switchToDark": "Switch to dark theme",
+      "menuLabel": "Menu",
+      "returnToTop": "Return to top",
+      "skipToContent": "Skip to content",
+      "copyCode": "Copy code"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "quote": "This page is not part of the MergeBrief docs.",
+      "linkLabel": "Go to the docs home",
+      "linkText": "Back to the docs home"
+    },
+    "search": {
+      "buttonText": "Search",
+      "buttonAriaLabel": "Search the docs",
+      "displayDetails": "Show detailed list",
+      "resetButtonTitle": "Clear the query",
+      "backButtonTitle": "Close search",
+      "noResultsText": "No results for",
+      "selectText": "to select",
+      "selectKeyAriaLabel": "Enter",
+      "navigateText": "to navigate",
+      "navigateUpKeyAriaLabel": "Arrow up",
+      "navigateDownKeyAriaLabel": "Arrow down",
+      "closeText": "to close",
+      "closeKeyAriaLabel": "Escape"
+    }
   }
 }

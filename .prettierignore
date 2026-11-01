@@ -4,6 +4,8 @@ out
 coverage
 **/.tanstack
 **/.vite
+**/.vitepress/cache
+**/.vitepress/.temp
 .playwright-cli
 
 # Agent/tool session state; .claude also holds throwaway worktrees whose

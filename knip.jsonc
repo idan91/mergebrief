@@ -82,6 +82,9 @@
         "scripts/check-operations-map.ts",
       ],
     },
+    "apps/docs-site": {
+      "entry": [".vitepress/config.ts", ".vitepress/theme/index.ts"],
+    },
     "packages/generators": {
       // The `.cjs` shims are spawned as real child processes by the contract
       // suites (path reference, never imported).

@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const MEMBER_DIRS = ["apps", "packages", "tools"];
-const APPS = ["web", "api", "worker", "cli"];
+const APPS = ["web", "api", "worker", "cli", "docs-site"];
 
 function readMembers() {
   const members = [];
@@ -491,6 +491,7 @@ module.exports = {
         "\\.gen\\.",
         "^(apps|packages|tools)/[^/]+/dist(-demo)?/",
         "^apps/web/e2e/",
+        "^apps/docs-site/\\.vitepress/(cache|dist|\\.temp)/",
         "^tools/oxlint-plugin-house/test/fixtures/",
         "^packages/persistence/drizzle/",
         "\\.(scss|css|svg|json)$",

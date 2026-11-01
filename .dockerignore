@@ -9,6 +9,8 @@ node_modules
 **/dist
 **/.output
 **/tsconfig.tsbuildinfo
+**/.vitepress/cache
+**/.vitepress/.temp
 out
 **/out
 build

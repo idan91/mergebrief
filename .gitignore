@@ -37,6 +37,8 @@ dist-demo/
 build/
 out/
 *.tsbuildinfo
+**/.vitepress/cache/
+**/.vitepress/.temp/
 
 # Misc
 *.tmp

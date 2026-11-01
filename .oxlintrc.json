@@ -176,6 +176,8 @@
         "**/*.config.ts",
         "apps/web/src/server.ts",
         "apps/web/src/demo/server.ts",
+        "apps/docs-site/.vitepress/config.ts",
+        "apps/docs-site/.vitepress/theme/index.ts",
         "tools/oxlint-plugin-house/src/index.mjs"
       ],
       "rules": {
@@ -513,6 +515,7 @@
         "apps/worker/src/instrument.ts",
         "apps/web/src/server/env.ts",
         "apps/cli/src/bin.ts",
+        "apps/docs-site/.vitepress/config.ts",
         "tools/baselines/src/main.ts",
         "tools/ingest-briefs/src/main.ts",
         "tools/release/src/main.ts",
