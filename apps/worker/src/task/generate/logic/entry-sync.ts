@@ -324,16 +324,16 @@ async function queueSyncSuccessor(
  * A stored brief for the head wins whatever the row says; then a closed or
  * merged PR, whose thread must stop promising a brief; then the failed,
  * on-demand or capped body. A pending, running or superseded row leaves the
- * thread to its run, and only an open PR gets a comment created. On an open
- * PR read at this head, the ready, on-demand and capped bodies replace any
- * marked body, as the run's own posts do; the failed body keeps an older
- * head's ready Entry. A closed PR keeps an older head's ready body; this
- * head's brief replaces its closed body, posted while the run generated.
+ * thread to its run, and only an open PR gets a comment created. On an open PR
+ * read at this head, the ready, on-demand and capped bodies replace any marked
+ * body, as the run's own posts do; the failed body keeps an older head's ready
+ * Entry. A closed PR keeps an older head's ready body if its kind token reads;
+ * this head's brief replaces its closed body, posted while the run generated.
  */
 function planEntrySync(facts: EntrySyncFacts): EntrySyncPlan | undefined {
   const { translate, entryCommentManager, prInfo, briefs, headSha } = facts;
   const open = prInfo.state === "open";
-  const isOwnBody = selectOwnBodyMatcher(translate, headSha, open);
+  const isOwnBody = selectOwnBodyMatcher(headSha, open);
 
   const headBrief = findStoredHeadBrief(briefs, prInfo, headSha);
   if (headBrief !== undefined) {
@@ -342,8 +342,8 @@ function planEntrySync(facts: EntrySyncFacts): EntrySyncPlan | undefined {
       headSha,
     };
     const isClosedReplaceable: LiveBodyMatcher = (live) => {
-      const staleReady = isHeadReadyEntryBody(translate, live, headSha);
-      const outdatedClosed = isHeadClosedEntryBody(translate, live, headSha);
+      const staleReady = isHeadReadyEntryBody(live, headSha);
+      const outdatedClosed = isHeadClosedEntryBody(live, headSha);
       const replaceable = staleReady || outdatedClosed || isOwnBody(live);
       return replaceable;
     };
@@ -388,15 +388,11 @@ function findStoredHeadBrief(
  * closed PR's older head can still hold the thread when the PR closed inside
  * the debounce window, and nothing else will replace it.
  */
-function selectOwnBodyMatcher(
-  translate: TFunction,
-  headSha: string,
-  open: boolean,
-): LiveBodyMatcher {
+function selectOwnBodyMatcher(headSha: string, open: boolean): LiveBodyMatcher {
   if (open) {
-    return (live) => isOpenHeadEntryBody(translate, live, headSha);
+    return (live) => isOpenHeadEntryBody(live, headSha);
   }
-  return (live) => isUnsettledEntryBody(translate, live);
+  return isUnsettledEntryBody;
 }
 
 function planRowEntry(

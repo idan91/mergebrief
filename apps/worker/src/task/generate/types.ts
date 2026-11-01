@@ -42,7 +42,7 @@ import type {
 } from "github";
 import { GenerationStatuses } from "types/generations";
 import type { Result, ValueOf } from "types/utils";
-import type { EntryCommentLink } from "../entry-comment";
+import type { EntryCommentLink } from "../entry-comment/types";
 import type { AcquiredRepoConfig } from "../repo-config";
 import type { GitHubPort, PullRequestSource } from "../github-port";
 import type { ParsedGeneratePayload } from "../payload";

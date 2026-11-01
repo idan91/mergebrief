@@ -154,7 +154,7 @@ hours is skipped.
 **The Entry comment.** One branded comment per pull request carries the deep
 link to the Brief. On each settled head the worker deletes its previous comment
 and posts a fresh one, which keeps it at the bottom of the thread and fires one
-notification per settled head, never per push (`apps/worker/src/task/entry-comment.ts`).
+notification per settled head, never per push (`apps/worker/src/task/entry-comment/`).
 A large run edits its generating comment in place once grouping counts its
 parts, and leaves it as it is when it cannot read the head; an edit notifies
 nobody.

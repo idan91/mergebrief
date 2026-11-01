@@ -71,16 +71,14 @@ async function replaceOrCreateFailedBody(
   if (head.kind === HeadReadings.UNREAD) {
     const post = {
       entryCommentManager: context.entryCommentManager,
-      translate: context.deps.translate,
       headSha: context.payload.headSha,
       log: context.log,
     };
     return replaceOnUnreadHead(post, failedBody, head);
   }
-  const { translate } = context.deps;
   const { headSha } = context.payload;
   return context.entryCommentManager.replaceOrCreate(failedBody, (live) =>
-    isOpenHeadEntryBody(translate, live, headSha),
+    isOpenHeadEntryBody(live, headSha),
   );
 }
 
@@ -97,9 +95,8 @@ async function replaceFailedBody(
   }
 
   const failedBody = buildFailedEntryBody(scope, code, priorBriefs);
-  const { translate } = scope.deps;
   return scope.entryCommentManager.replace(failedBody, (live) =>
-    isHeadEntryBody(translate, live, payload.headSha),
+    isHeadEntryBody(live, payload.headSha),
   );
 }
 

@@ -5,7 +5,8 @@ import {
   type PullRequestRow,
 } from "persistence";
 import type { Result } from "types/utils";
-import { isEntryCommentBody, type EntryCommentLink } from "../../entry-comment";
+import { isEntryCommentBody } from "../../entry-comment";
+import type { EntryCommentLink } from "../../entry-comment/types";
 import type { ParsedGeneratePayload } from "../../payload";
 import { isPermanentGitHubError } from "./errors";
 import {

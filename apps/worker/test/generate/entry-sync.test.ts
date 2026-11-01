@@ -17,7 +17,12 @@ import {
   buildEntryCommentBody,
   buildEntryCommentClosedBody,
   buildEntryCommentGeneratingBody,
+  formatEntryBodyToken,
 } from "../../src/task/entry-comment";
+import {
+  EntryBodyKinds,
+  type EntryBodyKind,
+} from "../../src/task/entry-comment/types";
 import { ENTRY_SYNC_DELAY_SECONDS } from "../../src/task/generate/consts";
 import {
   captureLogger,
@@ -60,6 +65,7 @@ const CLOSED_HEADING = buildEntryCommentClosedBody(t, HEAD_1).split("\n")[0];
 const READY_LINK = t("entryComment.ready.link");
 const GENERATING_LINK = t("entryComment.generating.link");
 const ON_DEMAND_HEADING = t("entryComment.onDemand.heading");
+const ON_DEMAND_TOKEN = formatEntryBodyToken(EntryBodyKinds.ON_DEMAND);
 const RETARGETED_BASE = "d".repeat(40);
 const DELAY_BOUND_SECONDS = 5;
 
@@ -419,8 +425,8 @@ const LOST_SWAP_CASES: readonly LostSwapCase[] = [
       });
       return { pr, payload, headSha: HEAD_1, overrides: {} };
     },
-    isTarget: (body) => body.includes(ON_DEMAND_HEADING),
-    expected: ON_DEMAND_HEADING,
+    isTarget: (body) => body.includes(ON_DEMAND_TOKEN),
+    expected: ON_DEMAND_TOKEN,
   },
   {
     writer: "capped",
@@ -967,7 +973,7 @@ describe("generate task, Entry sync", () => {
 
     const bodies = readLiveBodies(github);
     expect(bodies).toHaveLength(1);
-    expect(bodies[0]).toContain(ON_DEMAND_HEADING);
+    expect(bodies[0]).toContain(ON_DEMAND_TOKEN);
   });
 
   it("a capped post GitHub fails transiently queues the Entry sync", async () => {
@@ -1293,5 +1299,58 @@ describe("generate task, Entry sync when a lost swap meets an outage", () => {
     const bodies = readLiveBodies(github);
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain(EXHAUSTED_REASON);
+  });
+});
+
+/** The body as it was posted before Entry bodies carried their kind token. */
+function stripEntryBodyToken(
+  body: string,
+  kind: EntryBodyKind,
+  headSha: string,
+): string {
+  const tokenless = body.replace(
+    `\n${formatEntryBodyToken(kind, headSha)}`,
+    "",
+  );
+  expect(tokenless).not.toBe(body);
+  return tokenless;
+}
+
+describe("generate task, Entry sync over a body with no kind token", () => {
+  it("on a merged PR the sync reposts a tokenless ready body once", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await trigger(HEAD_1);
+    await makeTask({ github })(payload);
+    const [ready = ""] = readLiveBodies(github);
+    const tokenless = stripEntryBodyToken(ready, EntryBodyKinds.READY, HEAD_1);
+    await trackEntryBody(github, pr.id, tokenless);
+    github.updatePullRequest(PR_REF, { state: "closed", merged: true });
+    const before = listCommentCalls(github).length;
+
+    await makeSyncEntryTask({ github })(payload);
+    await makeSyncEntryTask({ github })(payload);
+
+    expect(readLiveBodies(github)).toEqual([ready]);
+    const calls = listCommentCalls(github).slice(before);
+    expect(calls.filter((call) => call === "post")).toEqual(["post"]);
+  });
+
+  it("on an open PR a failed row's sync leaves a tokenless body", async () => {
+    const github = makeGitHub(HEAD_1);
+    const { pr, payload } = await trigger(HEAD_1);
+    await harness.raw(
+      "update generation set status = 'failed', error_code = 'attempts-exhausted'",
+    );
+    const generating = buildEntryCommentGeneratingBody(
+      t,
+      makeEntryLink(HEAD_1),
+    );
+    const kind = EntryBodyKinds.GENERATING;
+    const tokenless = stripEntryBodyToken(generating, kind, HEAD_1);
+    await trackEntryBody(github, pr.id, tokenless);
+
+    await makeSyncEntryTask({ github })(payload);
+
+    expect(readLiveBodies(github)).toEqual([tokenless]);
   });
 });

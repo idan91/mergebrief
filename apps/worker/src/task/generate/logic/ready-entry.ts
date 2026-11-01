@@ -46,9 +46,8 @@ export async function postReadyEntry(
     entryCommentManager.buildDeepLink(headIndex),
   );
   if (head.kind === HeadReadings.UNREAD) {
-    const translate = deps.translate;
     const { headSha } = payload;
-    const post = { entryCommentManager, translate, headSha, log };
+    const post = { entryCommentManager, headSha, log };
     await replaceOnUnreadHead(post, readyBody, head);
     await queueEntrySync(context);
     return;

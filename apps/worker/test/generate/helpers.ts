@@ -63,10 +63,8 @@ import {
   createSyncEntryTask,
   type GenerateTaskDeps,
 } from "../../src/task/generate";
-import {
-  buildEntryCommentCappedBody,
-  type EntryCommentLink,
-} from "../../src/task/entry-comment";
+import { buildEntryCommentCappedBody } from "../../src/task/entry-comment";
+import type { EntryCommentLink } from "../../src/task/entry-comment/types";
 import { RunPools, type GenerateTask } from "../../src/task/generate/types";
 import {
   createGitHubPort,

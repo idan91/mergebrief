@@ -10,10 +10,18 @@ import {
   type GenerationFailureCode,
   type GenerationUnitsParams,
 } from "types/generations";
+import {
+  EntryBodyKinds,
+  type EntryBodyKind,
+  type EntryBodyToken,
+  type EntryCommentCappedLink,
+  type EntryCommentLargeRun,
+  type EntryCommentLink,
+  type EntryCommentPrViewLink,
+  type EntryCommentRevisionLink,
+} from "./types";
 
 const SHORT_SHA_LENGTH = 7;
-/** Stands in for the short sha so a heading's text around it can be matched for any head. */
-const SHORT_SHA_SLOT = "SHORT_SHA_SLOT";
 
 /** Hidden in every Entry body, so a later write can find the ones a killed run left. */
 const ENTRY_COMMENT_MARKER = "<!-- mergebrief-entry -->";
@@ -22,6 +30,37 @@ const ENTRY_COMMENT_MARKER = "<!-- mergebrief-entry -->";
 export function isEntryCommentBody(body: string): boolean {
   return body.includes(ENTRY_COMMENT_MARKER);
 }
+
+const ENTRY_BODY_TOKEN_PATTERN =
+  /<!-- mergebrief-entry-kind: ([a-z-]+)(?: head: (\S+))? -->/;
+const ENTRY_BODY_KIND_VALUES = new Set<string>(Object.values(EntryBodyKinds));
+
+/**
+ * The hidden token after the marker that says which body this is and, for a
+ * body about one head, which head. Readers decide by it, never by the copy.
+ */
+export function formatEntryBodyToken(
+  kind: EntryBodyKind,
+  headSha?: string,
+): string {
+  const head = headSha === undefined ? "" : ` head: ${headSha}`;
+  return `<!-- mergebrief-entry-kind: ${kind}${head} -->`;
+}
+
+/** The body's token; absent, malformed or naming an unknown kind is `undefined`. */
+function readEntryBodyToken(body: string): EntryBodyToken | undefined {
+  const match = ENTRY_BODY_TOKEN_PATTERN.exec(body);
+  const kind = match?.[1];
+  if (kind === undefined || !isEntryBodyKind(kind)) {
+    return undefined;
+  }
+  return { kind, headSha: match?.[2] };
+}
+
+function isEntryBodyKind(value: string): value is EntryBodyKind {
+  return ENTRY_BODY_KIND_VALUES.has(value);
+}
+
 const ISO_DATE_END = 10;
 const ISO_TIME_START = 11;
 const ISO_MINUTE_END = 16;
@@ -42,37 +81,11 @@ export function buildEntryCommentBody(
   const deepLink = buildEntryCommentDeepLink(link);
   const shortSha = formatShortSha(link.headSha);
   const heading = `**[${t("entryComment.ready.link")}](${deepLink})** (${shortSha})`;
-  const footer = formatFooter(t("entryComment.ready.footer"));
+  const footer = formatFooter(
+    t("entryComment.ready.footer"),
+    formatEntryBodyToken(EntryBodyKinds.READY, link.headSha),
+  );
   return [heading, "", footer].join("\n");
-}
-
-/** Where a body about the PR as a whole points: the PR view, no span. */
-export interface EntryCommentPrViewLink {
-  readonly publicBaseUrl: string;
-  readonly repoId: bigint;
-  readonly prNumber: number;
-}
-
-/** Where a body about the PR's next brief points: the rev it takes, no head named. */
-export interface EntryCommentRevisionLink extends EntryCommentPrViewLink {
-  /** The brief's index on this PR, the `rev` the web route addresses. */
-  readonly headIndex: number;
-}
-
-/** Where a body about one head points: its revision, the head named in the body. */
-export interface EntryCommentLink extends EntryCommentRevisionLink {
-  /** Named in the body's short sha, never in the link. */
-  readonly headSha: string;
-}
-
-/** Where the capped body points: the PR view, with no brief to deep-link. */
-export interface EntryCommentCappedLink extends EntryCommentPrViewLink {
-  /** The head that got no brief, named so the thread knows which push. */
-  readonly headSha: string;
-  /** When generation resumes, as an ISO instant (the next UTC midnight). */
-  readonly resetsAt: Date;
-  /** A large run's refusal: the heading names the runs it needed and the day's rest. */
-  readonly units?: GenerationUnitsParams | undefined;
 }
 
 /**
@@ -93,7 +106,10 @@ export function buildEntryCommentCappedBody(
     ? t("entryComment.capped.overCapBody")
     : t("entryComment.capped.body", { resetsAt });
   const body = `${next} [${t("entryComment.capped.openLink")}](${url})`;
-  const footer = formatFooter(t("entryComment.capped.footer"));
+  const footer = formatFooter(
+    t("entryComment.capped.footer"),
+    formatEntryBodyToken(EntryBodyKinds.CAPPED, link.headSha),
+  );
   return [heading, "", body, "", footer].join("\n");
 }
 
@@ -137,7 +153,10 @@ export function buildEntryCommentClosedBody(
 ): string {
   const shortSha = formatShortSha(headSha);
   const heading = `**${t("entryComment.closed.heading", { shortSha })}**`;
-  const footer = formatFooter(t("entryComment.closed.footer"));
+  const footer = formatFooter(
+    t("entryComment.closed.footer"),
+    formatEntryBodyToken(EntryBodyKinds.CLOSED, headSha),
+  );
   return [heading, "", footer].join("\n");
 }
 
@@ -168,15 +187,11 @@ export function buildEntryCommentFailedBody(
     ? t("entryComment.failed.regenerateLink")
     : t("entryComment.failed.openLink");
   const body = `${reason} [${linkText}](${buildEntryCommentDeepLink(link)})`;
-  const footer = formatFooter(t("entryComment.failed.footer"));
+  const footer = formatFooter(
+    t("entryComment.failed.footer"),
+    formatEntryBodyToken(EntryBodyKinds.FAILED, link.headSha),
+  );
   return [heading, "", body, "", footer].join("\n");
-}
-
-/** What a multi-call run's generating body says once its grouping call planned the parts. */
-export interface EntryCommentLargeRun {
-  readonly parts: number;
-  /** Rounded already; the body shows it as approximate. */
-  readonly estimateMinutes: number;
 }
 
 /**
@@ -194,7 +209,10 @@ export function buildEntryCommentGeneratingBody(
   const deepLink = buildEntryCommentDeepLink(link);
   const shortSha = formatShortSha(link.headSha);
   const heading = `**[${t("entryComment.generating.link")}](${deepLink})** (${shortSha})`;
-  const footer = formatFooter(t("entryComment.generating.footer"));
+  const footer = formatFooter(
+    t("entryComment.generating.footer"),
+    formatEntryBodyToken(EntryBodyKinds.GENERATING, link.headSha),
+  );
   if (largeRun === undefined) {
     return [heading, "", footer].join("\n");
   }
@@ -209,57 +227,41 @@ export function buildEntryCommentGeneratingBody(
 
 /**
  * This head's generating, failed or capped body. Read by the marker and the
- * head's short sha, so a body's volatile parts (its link's rev, a reset time)
- * never decide it. The ready and closed bodies are read apart: neither is
- * an in-progress body a run may replace on an unread PR.
+ * kind token's head, so neither the copy nor a body's volatile parts (its
+ * link's rev, a reset time) decide it. The ready and closed bodies are read
+ * apart: neither is an in-progress body a run may replace on an unread PR.
  */
-export function isHeadEntryBody(
-  t: TFunction,
-  body: string,
-  headSha: string,
-): boolean {
-  const namesHead = body.includes(formatShortSha(headSha));
-  const settled = isReadyBody(t, body) || isClosedBody(body, headSha, t);
-  const headBody = isEntryCommentBody(body) && namesHead && !settled;
-  return headBody;
+export function isHeadEntryBody(body: string, headSha: string): boolean {
+  const token = readMarkedEntryBodyToken(body);
+  if (token === undefined || token.headSha !== headSha) {
+    return false;
+  }
+  return !isSettledKind(token.kind);
 }
 
 /** This head's closed body, which only a run that read the PR open replaces. */
-export function isHeadClosedEntryBody(
-  t: TFunction,
-  body: string,
-  headSha: string,
-): boolean {
-  const closed = isEntryCommentBody(body) && isClosedBody(body, headSha, t);
-  return closed;
+export function isHeadClosedEntryBody(body: string, headSha: string): boolean {
+  return isHeadKindEntryBody(body, EntryBodyKinds.CLOSED, headSha);
 }
 
 /** This head's ready body, whatever revision it links. */
-export function isHeadReadyEntryBody(
-  t: TFunction,
-  body: string,
-  headSha: string,
-): boolean {
-  const namesHead = body.includes(formatShortSha(headSha));
-  const ready = isEntryCommentBody(body) && namesHead && isReadyBody(t, body);
-  return ready;
+export function isHeadReadyEntryBody(body: string, headSha: string): boolean {
+  return isHeadKindEntryBody(body, EntryBodyKinds.READY, headSha);
 }
 
 /** The on-demand body, which names no head. */
-export function isOnDemandEntryBody(t: TFunction, body: string): boolean {
-  const heading = `**${t("entryComment.onDemand.heading")}**`;
-  const onDemand = isEntryCommentBody(body) && body.startsWith(heading);
-  return onDemand;
+export function isOnDemandEntryBody(body: string): boolean {
+  const token = readMarkedEntryBodyToken(body);
+  return token?.kind === EntryBodyKinds.ON_DEMAND;
 }
 
 /** This head's body other than ready, or the on-demand body every head shares. */
 export function isHeadOrOnDemandEntryBody(
-  t: TFunction,
   body: string,
   headSha: string,
 ): boolean {
-  const headBody = isHeadEntryBody(t, body, headSha);
-  const replaceable = headBody || isOnDemandEntryBody(t, body);
+  const headBody = isHeadEntryBody(body, headSha);
+  const replaceable = headBody || isOnDemandEntryBody(body);
   return replaceable;
 }
 
@@ -267,10 +269,11 @@ export function isHeadOrOnDemandEntryBody(
  * Any head's Entry body but a settled one: generating, failed, capped or
  * on-demand, none of which a closed or merged PR should keep. A ready body
  * still links a brief, and a closed body is replaced only by a post that
- * read the PR open.
+ * read the PR open. A marked body with no readable token counts here too.
  */
-export function isUnsettledEntryBody(t: TFunction, body: string): boolean {
-  const settled = isReadyBody(t, body) || isAnyHeadClosedBody(t, body);
+export function isUnsettledEntryBody(body: string): boolean {
+  const kind = readMarkedEntryBodyToken(body)?.kind;
+  const settled = kind !== undefined && isSettledKind(kind);
   const unsettled = isEntryCommentBody(body) && !settled;
   return unsettled;
 }
@@ -279,36 +282,32 @@ export function isUnsettledEntryBody(t: TFunction, body: string): boolean {
  * What a post on a PR read as open replaces: this head's body, the on-demand
  * body, or the closed body a reopen outdated.
  */
-export function isOpenHeadEntryBody(
-  t: TFunction,
-  body: string,
-  headSha: string,
-): boolean {
-  const closed = isHeadClosedEntryBody(t, body, headSha);
-  const replaceable = closed || isHeadOrOnDemandEntryBody(t, body, headSha);
+export function isOpenHeadEntryBody(body: string, headSha: string): boolean {
+  const closed = isHeadClosedEntryBody(body, headSha);
+  const replaceable = closed || isHeadOrOnDemandEntryBody(body, headSha);
   return replaceable;
 }
 
-function isClosedBody(body: string, headSha: string, t: TFunction): boolean {
-  const shortSha = formatShortSha(headSha);
-  return body.startsWith(
-    `**${t("entryComment.closed.heading", { shortSha })}**`,
-  );
+function isHeadKindEntryBody(
+  body: string,
+  kind: EntryBodyKind,
+  headSha: string,
+): boolean {
+  const token = readMarkedEntryBodyToken(body);
+  const matches = token?.kind === kind && token.headSha === headSha;
+  return matches;
 }
 
-function isAnyHeadClosedBody(t: TFunction, body: string): boolean {
-  const heading = t("entryComment.closed.heading", {
-    shortSha: SHORT_SHA_SLOT,
-  });
-  const [lead = "", tail = ""] = heading.split(SHORT_SHA_SLOT);
-  const [firstLine = ""] = body.split("\n");
-  const closed =
-    firstLine.startsWith(`**${lead}`) && firstLine.endsWith(`${tail}**`);
-  return closed;
+function isSettledKind(kind: EntryBodyKind): boolean {
+  return kind === EntryBodyKinds.READY || kind === EntryBodyKinds.CLOSED;
 }
 
-function isReadyBody(t: TFunction, body: string): boolean {
-  return body.startsWith(`**[${t("entryComment.ready.link")}](`);
+/** An Entry body's token; a marked body without one is unsettled and names no head. */
+function readMarkedEntryBodyToken(body: string): EntryBodyToken | undefined {
+  if (!isEntryCommentBody(body)) {
+    return undefined;
+  }
+  return readEntryBodyToken(body);
 }
 
 /**
@@ -323,7 +322,10 @@ export function buildEntryCommentOnDemandBody(
 ): string {
   const heading = `**${t("entryComment.onDemand.heading")}**`;
   const body = `[${t("entryComment.onDemand.generateLink")}](${buildEntryCommentDeepLink(link)})`;
-  const footer = formatFooter(t("entryComment.onDemand.footer"));
+  const footer = formatFooter(
+    t("entryComment.onDemand.footer"),
+    formatEntryBodyToken(EntryBodyKinds.ON_DEMAND),
+  );
   return [heading, "", body, "", footer].join("\n");
 }
 
@@ -336,6 +338,6 @@ function formatShortSha(headSha: string): string {
   return `\`${headSha.slice(0, SHORT_SHA_LENGTH)}\``;
 }
 
-function formatFooter(footer: string): string {
-  return `<sub>${footer}</sub>\n${ENTRY_COMMENT_MARKER}`;
+function formatFooter(footer: string, token: string): string {
+  return `<sub>${footer}</sub>\n${ENTRY_COMMENT_MARKER}\n${token}`;
 }

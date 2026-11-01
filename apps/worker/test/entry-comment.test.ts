@@ -11,6 +11,7 @@ import {
   buildEntryCommentFailedBody,
   buildEntryCommentGeneratingBody,
   buildEntryCommentOnDemandBody,
+  formatEntryBodyToken,
   isEntryCommentBody,
   isHeadClosedEntryBody,
   isHeadEntryBody,
@@ -18,9 +19,13 @@ import {
   isHeadReadyEntryBody,
   isOpenHeadEntryBody,
   isUnsettledEntryBody,
+} from "../src/task/entry-comment";
+import {
+  EntryBodyKinds,
+  type EntryBodyKind,
   type EntryCommentCappedLink,
   type EntryCommentLink,
-} from "../src/task/entry-comment";
+} from "../src/task/entry-comment/types";
 
 const { t } = createI18n();
 const ENTRY_MARKER = "<!-- mergebrief-entry -->";
@@ -58,6 +63,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.CLOSED, LINK.headSha),
       ].join("\n"),
     );
   });
@@ -77,6 +83,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on a later push.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.READY, LINK.headSha),
       ].join("\n"),
     );
   });
@@ -88,6 +95,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. The link shows the live diff now, and this comment is replaced when the brief is ready.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.GENERATING, LINK.headSha),
       ].join("\n"),
     );
   });
@@ -106,9 +114,10 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. The link shows the live diff now, and this comment is replaced when the brief is ready.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.GENERATING, LINK.headSha),
       ].join("\n"),
     );
-    expect(isHeadEntryBody(t, body, LINK.headSha)).toBe(true);
+    expect(isHeadEntryBody(body, LINK.headSha)).toBe(true);
     expect(
       buildEntryCommentGeneratingBody(t, LINK, {
         parts: 1,
@@ -126,6 +135,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. The instance operator sets the daily cap.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.CAPPED, CAPPED_LINK.headSha),
       ].join("\n"),
     );
   });
@@ -144,9 +154,10 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. The instance operator sets the daily cap.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.CAPPED, CAPPED_LINK.headSha),
       ].join("\n"),
     );
-    expect(isHeadEntryBody(t, body, CAPPED_LINK.headSha)).toBe(true);
+    expect(isHeadEntryBody(body, CAPPED_LINK.headSha)).toBe(true);
   });
 
   it("names the cap, not the next push, when no day fits the run", () => {
@@ -163,9 +174,10 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. The instance operator sets the daily cap.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.CAPPED, CAPPED_LINK.headSha),
       ].join("\n"),
     );
-    expect(isHeadEntryBody(t, body, CAPPED_LINK.headSha)).toBe(true);
+    expect(isHeadEntryBody(body, CAPPED_LINK.headSha)).toBe(true);
   });
 
   it("links a transient failure's Regenerate to the head's revision", () => {
@@ -183,6 +195,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again, or when it closes.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.FAILED, LINK.headSha),
       ].join("\n"),
     );
   });
@@ -202,6 +215,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again, or when it closes.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.FAILED, LINK.headSha),
       ].join("\n"),
     ]);
   });
@@ -221,6 +235,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. Replaced when MergeBrief runs on this pull request again, or when it closes.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.FAILED, LINK.headSha),
       ].join("\n"),
     );
   });
@@ -247,6 +262,7 @@ describe("entry comment bodies", () => {
         "",
         "<sub>Posted by MergeBrief. Replaced once a brief is generating.</sub>",
         ENTRY_MARKER,
+        formatEntryBodyToken(EntryBodyKinds.ON_DEMAND),
       ].join("\n"),
     );
   });
@@ -264,33 +280,33 @@ describe("entry body readers", () => {
       buildEntryCommentFailedBody(t, LINK, GenerationFailureCodes.UNKNOWN),
     ],
   ])("reads the head's %s body as its own", (_kind, body) => {
-    expect(isHeadEntryBody(t, body, LINK.headSha)).toBe(true);
-    expect(isHeadEntryBody(t, body, OTHER_HEAD)).toBe(false);
+    expect(isHeadEntryBody(body, LINK.headSha)).toBe(true);
+    expect(isHeadEntryBody(body, OTHER_HEAD)).toBe(false);
   });
 
   it("keeps the ready body and an unmarked body apart from the head's", () => {
     const ready = buildEntryCommentBody(t, LINK);
     const unmarked = capped.replace(ENTRY_MARKER, "");
 
-    expect(isHeadEntryBody(t, ready, LINK.headSha)).toBe(false);
-    expect(isHeadReadyEntryBody(t, ready, LINK.headSha)).toBe(true);
-    expect(isHeadEntryBody(t, unmarked, LINK.headSha)).toBe(false);
+    expect(isHeadEntryBody(ready, LINK.headSha)).toBe(false);
+    expect(isHeadReadyEntryBody(ready, LINK.headSha)).toBe(true);
+    expect(isHeadEntryBody(unmarked, LINK.headSha)).toBe(false);
   });
 
   it("replaces the closed body only on a PR read open", () => {
     const closed = buildEntryCommentClosedBody(t, LINK.headSha);
 
-    expect(isHeadClosedEntryBody(t, closed, LINK.headSha)).toBe(true);
-    expect(isHeadEntryBody(t, closed, LINK.headSha)).toBe(false);
-    expect(isHeadOrOnDemandEntryBody(t, closed, LINK.headSha)).toBe(false);
-    expect(isOpenHeadEntryBody(t, closed, LINK.headSha)).toBe(true);
+    expect(isHeadClosedEntryBody(closed, LINK.headSha)).toBe(true);
+    expect(isHeadEntryBody(closed, LINK.headSha)).toBe(false);
+    expect(isHeadOrOnDemandEntryBody(closed, LINK.headSha)).toBe(false);
+    expect(isOpenHeadEntryBody(closed, LINK.headSha)).toBe(true);
   });
 
   it("reads the on-demand body as every head's", () => {
     const onDemand = buildEntryCommentOnDemandBody(t, LINK);
 
-    expect(isHeadOrOnDemandEntryBody(t, onDemand, OTHER_HEAD)).toBe(true);
-    expect(isHeadEntryBody(t, onDemand, LINK.headSha)).toBe(false);
+    expect(isHeadOrOnDemandEntryBody(onDemand, OTHER_HEAD)).toBe(true);
+    expect(isHeadEntryBody(onDemand, LINK.headSha)).toBe(false);
   });
 
   it("reads any head's unsettled body as unsettled, never ready or closed", () => {
@@ -306,14 +322,95 @@ describe("entry body readers", () => {
     const closed = buildEntryCommentClosedBody(t, OTHER_HEAD);
     const unmarked = generating.replace(ENTRY_MARKER, "");
 
-    expect(unsettled.map((body) => isUnsettledEntryBody(t, body))).toEqual([
+    expect(unsettled.map((body) => isUnsettledEntryBody(body))).toEqual([
       true,
       true,
       true,
       true,
     ]);
-    expect(isUnsettledEntryBody(t, ready)).toBe(false);
-    expect(isUnsettledEntryBody(t, closed)).toBe(false);
-    expect(isUnsettledEntryBody(t, unmarked)).toBe(false);
+    expect(isUnsettledEntryBody(ready)).toBe(false);
+    expect(isUnsettledEntryBody(closed)).toBe(false);
+    expect(isUnsettledEntryBody(unmarked)).toBe(false);
+  });
+});
+
+describe("entry body kind token", () => {
+  const ready = buildEntryCommentBody(t, LINK);
+  const readyToken = formatEntryBodyToken(EntryBodyKinds.READY, LINK.headSha);
+  const closed = buildEntryCommentClosedBody(t, LINK.headSha);
+  const failed = buildEntryCommentFailedBody(
+    t,
+    LINK,
+    GenerationFailureCodes.UNKNOWN,
+  );
+
+  it("writes the kind and the full head after the marker", () => {
+    expect(readyToken).toBe(
+      "<!-- mergebrief-entry-kind: ready head: abcdef1234567890 -->",
+    );
+    expect(formatEntryBodyToken(EntryBodyKinds.ON_DEMAND)).toBe(
+      "<!-- mergebrief-entry-kind: on-demand -->",
+    );
+    expect(ready.endsWith(`${ENTRY_MARKER}\n${readyToken}`)).toBe(true);
+  });
+
+  it("reads a ready body by its token whatever its heading says", () => {
+    const reworded = ready.replace("Read the brief for this push", "Open it");
+
+    expect(isHeadReadyEntryBody(reworded, LINK.headSha)).toBe(true);
+    expect(isHeadEntryBody(reworded, LINK.headSha)).toBe(false);
+    expect(isUnsettledEntryBody(reworded)).toBe(false);
+  });
+
+  it("reads a ready heading under a generating token as the head's body", () => {
+    const generatingToken = formatEntryBodyToken(
+      EntryBodyKinds.GENERATING,
+      LINK.headSha,
+    );
+    const body = ready.replace(readyToken, generatingToken);
+
+    expect(isHeadEntryBody(body, LINK.headSha)).toBe(true);
+    expect(isHeadReadyEntryBody(body, LINK.headSha)).toBe(false);
+  });
+
+  it("reads the head from the token, not the visible short sha", () => {
+    const withoutShortSha = failed.replace(" for `abcdef1`", "");
+
+    expect(withoutShortSha).not.toContain("`abcdef1`");
+    expect(isHeadEntryBody(withoutShortSha, LINK.headSha)).toBe(true);
+  });
+
+  it("reads a reworded closed body as that head's closed body", () => {
+    const reworded = closed.replace("is no longer open", "has closed");
+
+    expect(isHeadClosedEntryBody(reworded, LINK.headSha)).toBe(true);
+    expect(isHeadClosedEntryBody(reworded, "fedcba9876543210")).toBe(false);
+    expect(isUnsettledEntryBody(reworded)).toBe(false);
+  });
+
+  it("reads a reworded on-demand body as every head's", () => {
+    const onDemand = buildEntryCommentOnDemandBody(t, LINK);
+    const reworded = onDemand.replace("available on demand", "on request");
+
+    expect(isHeadOrOnDemandEntryBody(reworded, "fedcba9876543210")).toBe(true);
+  });
+
+  it.each([
+    ["no token", ready.replace(`\n${readyToken}`, "")],
+    [
+      "an unknown kind",
+      ready.replace(
+        readyToken,
+        formatEntryBodyToken("nope" as EntryBodyKind, LINK.headSha),
+      ),
+    ],
+  ])("reads a marked body with %s as unsettled and headless", (_case, body) => {
+    expect(isEntryCommentBody(body)).toBe(true);
+    expect(isUnsettledEntryBody(body)).toBe(true);
+    expect(isHeadEntryBody(body, LINK.headSha)).toBe(false);
+    expect(isHeadReadyEntryBody(body, LINK.headSha)).toBe(false);
+    expect(isHeadClosedEntryBody(body, LINK.headSha)).toBe(false);
+    expect(isHeadOrOnDemandEntryBody(body, LINK.headSha)).toBe(false);
+    expect(isOpenHeadEntryBody(body, LINK.headSha)).toBe(false);
   });
 });
