@@ -6,13 +6,17 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildVersionQueryOptions } from "@web/features/version/queries";
 import { VersionStates, type VersionState } from "@web/features/version/types";
+import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
+import { REDUCED_MOTION_QUERY } from "@web/utils/motion";
 import { buildViewerQueryOptions } from "../../queries";
 import { ViewerStates, type ViewerState } from "../../types";
+import { HOVERLESS_QUERY } from "./utils";
 import { AccountMenu } from ".";
 
 /** A press lands a couple of frames before its click. */
@@ -23,14 +27,12 @@ afterEach(() => {
   cleanup();
   fetchMock.mockReset();
   vi.useRealTimers();
+  resetMediaQueries();
 });
 
 beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(() => ({ matches: true, addEventListener: vi.fn() })),
-  );
+  setMediaQueryMatches(REDUCED_MOTION_QUERY, true);
 });
 
 function renderWithViewer(
@@ -164,10 +166,7 @@ describe("AccountMenu", () => {
 
   it("a row hands focus to the trigger before the panel leaves", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(() => ({ matches: false, addEventListener: vi.fn() })),
-    );
+    setMediaQueryMatches(REDUCED_MOTION_QUERY, false);
     renderWithViewer(SIGNED_IN, vi.fn());
     const trigger = screen.getByRole("button", { name: /Account menu/ });
 
@@ -188,6 +187,66 @@ describe("AccountMenu", () => {
     // The exit transition still holds the panel in the DOM; focus is home already.
     expect(screen.getByRole("menu")).toBeTruthy();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  async function openSignedInMenu(): Promise<void> {
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Account menu for octocat" }),
+      );
+    });
+  }
+
+  function readMenuItemNames(): (string | null)[] {
+    return screen.getAllByRole("menuitem").map((row) => row.textContent);
+  }
+
+  it("leaves the shortcuts row out on a device without hover", async () => {
+    setMediaQueryMatches(HOVERLESS_QUERY, true);
+    renderWithViewer(SIGNED_IN, vi.fn());
+
+    await openSignedInMenu();
+
+    expect(readMenuItemNames()).toEqual(["Settings", "Sign out"]);
+  });
+
+  it("steps from Settings to Sign out past the absent shortcuts row", async () => {
+    setMediaQueryMatches(HOVERLESS_QUERY, true);
+    renderWithViewer(SIGNED_IN, vi.fn());
+
+    await act(async () => {
+      fireEvent.keyDown(
+        screen.getByRole("button", { name: "Account menu for octocat" }),
+        { key: "ArrowDown" },
+      );
+    });
+    const settings = screen.getByRole("menuitem", { name: "Settings" });
+    await waitFor(() => expect(document.activeElement).toBe(settings));
+    await act(async () => {
+      fireEvent.keyDown(settings, { key: "ArrowDown" });
+    });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("menuitem", { name: "Sign out" }),
+      ),
+    );
+  });
+
+  it("shows the shortcuts row again when a mouse arrives", async () => {
+    setMediaQueryMatches(HOVERLESS_QUERY, true);
+    renderWithViewer(SIGNED_IN, vi.fn());
+    await openSignedInMenu();
+
+    await act(async () => {
+      setMediaQueryMatches(HOVERLESS_QUERY, false);
+    });
+
+    expect(readMenuItemNames()).toEqual([
+      "Settings",
+      "Keyboard shortcuts",
+      "Sign out",
+    ]);
   });
 
   async function openSignOutModal(): Promise<void> {

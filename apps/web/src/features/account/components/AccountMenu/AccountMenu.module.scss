@@ -69,11 +69,4 @@
   .icon {
     color: var(--color-text-2);
   }
-
-  @media (hover: none) {
-    /* :is(button) outranks the menu row's own display in either bundle order. */
-    .shortcutsRow:is(button) {
-      display: none;
-    }
-  }
 }

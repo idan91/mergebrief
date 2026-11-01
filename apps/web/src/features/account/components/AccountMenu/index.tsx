@@ -15,7 +15,7 @@ import { useAccountMenuFacade } from "./useAccountMenuFacade";
 import { openReleaseNotes } from "./utils";
 
 export interface AccountMenuProps {
-  /** Present where a shortcuts modal exists; the row is omitted otherwise. */
+  /** Present where a shortcuts modal exists; the row is omitted otherwise, and on a device without hover. */
   onOpenShortcuts?: (() => void) | undefined;
 }
 
@@ -54,6 +54,8 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
       : `${label}${t("shell.versionNotice.srPresence")}`;
   const glyphClass = styles["icon"];
   const notesMissing = presence.notice?.releaseNotesUrl === undefined;
+  const showShortcuts =
+    onOpenShortcuts !== undefined && facade.shortcutsOffered;
 
   return (
     <>
@@ -136,9 +138,8 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
               ))}
             </Menu.Group>
           ) : null}
-          {onOpenShortcuts === undefined ? null : (
+          {showShortcuts ? (
             <Menu.Item
-              className={styles["shortcutsRow"]}
               glyph={
                 <Icon
                   className={glyphClass}
@@ -150,7 +151,7 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
             >
               {t("shell.accountMenu.shortcuts")}
             </Menu.Item>
-          )}
+          ) : null}
           <Menu.Item
             glyph={
               <Icon

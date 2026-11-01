@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ProductActionIds } from "contract";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiFetch } from "../../../../data/apiFetch";
@@ -19,6 +19,11 @@ import {
   type SignOutScope,
   type ViewerState,
 } from "../../types";
+import {
+  readHoverless,
+  readServerHoverless,
+  subscribeHoverless,
+} from "./utils";
 
 const LOGOUT_PATH = "/api/auth/logout";
 const HOME_PATH = "/";
@@ -80,9 +85,14 @@ async function runSignOut(
   setFlow({ open: true, pending: undefined, failed: true });
 }
 
-/** The viewer, the locale rows, and the flow actions the rows fire. */
+/** The viewer, the rows the device can use, and the flow actions the rows fire. */
 export function useAccountMenuFacade() {
   const { i18n } = useTranslation();
+  const hoverless = useSyncExternalStore(
+    subscribeHoverless,
+    readHoverless,
+    readServerHoverless,
+  );
   const [signOutFlow, setSignOutFlow] = useState<SignOutFlow>(SIGN_OUT_CLOSED);
   const viewerQuery = useQuery(buildViewerQueryOptions());
   const viewer: ViewerState = viewerQuery.data ?? {
@@ -113,6 +123,7 @@ export function useAccountMenuFacade() {
     signOutFlow,
     localeOptions,
     activeLocaleIndex,
+    shortcutsOffered: !hoverless,
     openSignOut,
     cancelSignOut,
     signOut,
