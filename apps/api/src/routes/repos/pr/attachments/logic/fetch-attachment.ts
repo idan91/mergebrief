@@ -4,65 +4,33 @@
 // rides to S3. A branch file is a Contents API read and carries the viewer's
 // token; node's fetch drops the header on the cross-origin redirect.
 import { ATTACHMENT_BRANCH, AttachmentMediaTypes } from "contract";
-import {
-  GitHubApiErrorCodes,
-  RenewalFailureCodes,
-  buildRenewalUnavailableError,
-  type GitHubApiError,
-  type GitHubApiErrorCode,
-  type GitHubCallFailure,
-  type ReviewerCredential,
+import type {
+  GitHubApiError,
+  GitHubCallFailure,
+  ReviewerCredential,
 } from "github";
-import { HttpStatuses, type Result } from "types";
+import type { Result } from "types";
 import {
   CONTENTS_RAW_MEDIA_TYPE,
   GITHUB_API_ORIGIN,
   GITHUB_API_VERSION,
 } from "../consts";
 import type { AttachmentBytes, ReadBranchAttachmentInput } from "../types";
+import {
+  buildNotAnImageError,
+  buildStatusError,
+  buildTransportError,
+  readMediaType,
+} from "./upstream-response";
+import { callWithViewerToken } from "./viewer-token";
 
 const CONTEXT = "user attachment";
 const JSON_MEDIA_TYPE = "application/json";
 
-/**
- * Raster only. An SVG is a document: served inline on this origin its script
- * would run with the viewer's session, so it is refused like a non-image.
- */
+/** Raster only: a pasted asset is never served as an SVG document. */
 const SERVED_MEDIA_TYPES: ReadonlySet<string> = new Set(
   Object.values(AttachmentMediaTypes),
 );
-
-const CODE_BY_STATUS: Readonly<Record<number, GitHubApiErrorCode>> = {
-  [HttpStatuses.UNAUTHORIZED]: GitHubApiErrorCodes.UNAUTHORIZED,
-  [HttpStatuses.FORBIDDEN]: GitHubApiErrorCodes.FORBIDDEN,
-  [HttpStatuses.NOT_FOUND]: GitHubApiErrorCodes.NOT_FOUND,
-};
-
-function readMediaType(response: Response): string {
-  const header = response.headers.get("content-type") ?? "";
-  const [mediaType = ""] = header.split(";");
-  return mediaType.trim().toLowerCase();
-}
-
-function buildStatusError(status: number): GitHubApiError {
-  const code = CODE_BY_STATUS[status] ?? GitHubApiErrorCodes.REQUEST_FAILED;
-  return { code, status, message: `${CONTEXT}: GitHub answered ${status}` };
-}
-
-function buildTransportError(): GitHubApiError {
-  return {
-    code: GitHubApiErrorCodes.REQUEST_FAILED,
-    message: `${CONTEXT}: request failed before a response`,
-  };
-}
-
-function buildNotAnImageError(): GitHubApiError {
-  return {
-    code: GitHubApiErrorCodes.NOT_FOUND,
-    status: HttpStatuses.NOT_FOUND,
-    message: `${CONTEXT}: not an image`,
-  };
-}
 
 export async function fetchAttachmentBytes(
   fetchImpl: typeof fetch,
@@ -76,18 +44,18 @@ export async function fetchAttachmentBytes(
       headers: { accept: "image/*" },
     });
   } catch {
-    return { ok: false, error: buildTransportError() };
+    return { ok: false, error: buildTransportError(CONTEXT) };
   }
 
   if (!response.ok) {
     await response.body?.cancel();
-    return { ok: false, error: buildStatusError(response.status) };
+    return { ok: false, error: buildStatusError(CONTEXT, response.status) };
   }
 
   const contentType = readMediaType(response);
   if (!SERVED_MEDIA_TYPES.has(contentType) || response.body === null) {
     await response.body?.cancel();
-    return { ok: false, error: buildNotAnImageError() };
+    return { ok: false, error: buildNotAnImageError(CONTEXT) };
   }
 
   return { ok: true, value: { body: response.body, contentType } };
@@ -126,16 +94,16 @@ export async function fetchBranchAttachmentBytes(
       },
     });
   } catch {
-    return { ok: false, error: buildTransportError() };
+    return { ok: false, error: buildTransportError(CONTEXT) };
   }
 
   if (!response.ok) {
     await response.body?.cancel();
-    return { ok: false, error: buildStatusError(response.status) };
+    return { ok: false, error: buildStatusError(CONTEXT, response.status) };
   }
   if (readMediaType(response) === JSON_MEDIA_TYPE || response.body === null) {
     await response.body?.cancel();
-    return { ok: false, error: buildNotAnImageError() };
+    return { ok: false, error: buildNotAnImageError(CONTEXT) };
   }
 
   return {
@@ -145,35 +113,16 @@ export async function fetchBranchAttachmentBytes(
 }
 
 /**
- * A branch file on the viewer's own token: a 401 renews the request's
- * credential once and re-reads, as the bindings do. Never on the operator
- * PAT: its pass is granted per pull request and a branch file is tied to
- * none, so borrowing it would serve any file on the branch.
+ * A branch file on the viewer's own token, renewed once on a 401. Never on
+ * the operator PAT: its pass is granted per pull request and a branch file
+ * is tied to none, so borrowing it would serve any file on the branch.
  */
-export async function readBranchAttachment(
+export function readBranchAttachment(
   fetchImpl: typeof fetch,
   credential: ReviewerCredential,
   input: ReadBranchAttachmentInput,
 ): Promise<Result<AttachmentBytes, GitHubCallFailure>> {
-  const token = await credential.readToken();
-  if (!token.ok) {
-    return token;
-  }
-
-  const first = await fetchBranchAttachmentBytes(fetchImpl, token.value, input);
-  if (first.ok || first.error.code !== GitHubApiErrorCodes.UNAUTHORIZED) {
-    return first;
-  }
-
-  const renewed = await credential.renewToken(token.value);
-  if (!renewed.ok) {
-    if (renewed.error.code === RenewalFailureCodes.UNAVAILABLE) {
-      return { ok: false, error: buildRenewalUnavailableError() };
-    }
-    return first;
-  }
-  if (renewed.value === token.value) {
-    return first;
-  }
-  return fetchBranchAttachmentBytes(fetchImpl, renewed.value, input);
+  return callWithViewerToken(credential, (token) =>
+    fetchBranchAttachmentBytes(fetchImpl, token, input),
+  );
 }

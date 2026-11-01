@@ -33,6 +33,7 @@ export const ProductQueryIds = {
   READ_FILE_RANGE: "read-file-range",
   READ_STACK: "read-stack",
   READ_ATTACHMENT: "read-attachment",
+  READ_COMMITTED_FILE: "read-committed-file",
   LIST_LOCAL_BRIEFS: "list-local-briefs",
   READ_LOCAL_BRIEF: "read-local-brief",
   READ_LOCAL_BRIEF_DIFFS: "read-local-brief-diffs",

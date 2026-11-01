@@ -62,6 +62,10 @@ const REPO_SEGMENT = "[A-Za-z0-9._-]+";
 const BRANCH_BLOB_PATH = new RegExp(
   `^/(${OWNER_SEGMENT})/(${REPO_SEGMENT})/blob/${ATTACHMENT_BRANCH}/([^/]+)$`,
 );
+/** The address GitHub pasted before `user-attachments`, scoped to a repository. */
+const REPOSITORY_ASSET_PATH = new RegExp(
+  `^/${OWNER_SEGMENT}/${REPO_SEGMENT}/assets/\\d+/([^/]+)$`,
+);
 
 export function isAttachmentAssetId(value: string): value is AttachmentAssetId {
   return ASSET_ID_PATTERN.test(value);
@@ -100,12 +104,17 @@ function hasBareAuthority(url: URL): boolean {
   );
 }
 
-function parseAssetPath(url: URL): ParseResult<AttachmentSource> {
-  if (url.search !== "") {
-    return NOT_AN_ATTACHMENT;
+/** The id an asset path names, in GitHub's `user-attachments` form or its older per-repository one; any other path names none. */
+export function readAssetPathId(pathname: string): string | undefined {
+  if (pathname.startsWith(ATTACHMENT_ASSET_PATH_PREFIX)) {
+    return pathname.slice(ATTACHMENT_ASSET_PATH_PREFIX.length);
   }
-  const id = url.pathname.slice(ATTACHMENT_ASSET_PATH_PREFIX.length);
-  if (!isAttachmentAssetId(id)) {
+  const [, id] = REPOSITORY_ASSET_PATH.exec(pathname) ?? [];
+  return id;
+}
+
+function parseAssetPath(id: string, url: URL): ParseResult<AttachmentSource> {
+  if (url.search !== "" || !isAttachmentAssetId(id)) {
     return NOT_AN_ATTACHMENT;
   }
   return {
@@ -139,8 +148,9 @@ function parseBranchPath(url: URL): ParseResult<AttachmentSource> {
 }
 
 /**
- * The two shapes an attachment is written as: GitHub's own asset URL, and
- * a file on the repository's attachments branch linked with `?raw=true`.
+ * The shapes an attachment is written as: GitHub's own asset URL, its older
+ * per-repository asset URL, and a file on the repository's attachments
+ * branch linked with `?raw=true`.
  */
 export function parseAttachmentSource(
   url: string,
@@ -149,8 +159,9 @@ export function parseAttachmentSource(
   if (parsed === undefined || !hasBareAuthority(parsed)) {
     return NOT_AN_ATTACHMENT;
   }
-  if (parsed.pathname.startsWith(ATTACHMENT_ASSET_PATH_PREFIX)) {
-    return parseAssetPath(parsed);
+  const assetId = readAssetPathId(parsed.pathname);
+  if (assetId !== undefined) {
+    return parseAssetPath(assetId, parsed);
   }
   return parseBranchPath(parsed);
 }

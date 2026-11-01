@@ -107,6 +107,12 @@
   "read-capabilities": {
     "command": "mergebrief capabilities"
   },
+  "read-committed-file": {
+    "webOnly": {
+      "reason": "An image the browser loads inline from a committed file in the pull request's own repository; the CLI prints the markdown with the GitHub URL in it",
+      "owner": "idan"
+    }
+  },
   "read-conversation": {
     "command": "mergebrief conversation <number>"
   },

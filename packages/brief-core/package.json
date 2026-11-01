@@ -15,6 +15,7 @@
     "./chunk-layout": "./src/diff/chunk-layout/index.ts",
     "./path-matching": "./src/path-matching.ts",
     "./hidden-chars": "./src/hidden-chars.ts",
+    "./media-address": "./src/media-address/index.ts",
     "./shortened": "./src/generation/shortened/index.ts"
   },
   "scripts": {

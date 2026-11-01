@@ -82,6 +82,7 @@ const EXPECTED_POLICY = {
     "requiresInstallation",
   ],
   [ProductQueryIds.READ_ATTACHMENT]: [],
+  [ProductQueryIds.READ_COMMITTED_FILE]: [],
   [ProductQueryIds.READ_BRIEF]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_BRIEF_CONTEXT]: ["requiresStoredPullRequest"],
   [ProductQueryIds.READ_BRIEF_LAYOUT]: ["requiresStoredPullRequest"],

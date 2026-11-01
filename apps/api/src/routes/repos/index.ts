@@ -29,13 +29,17 @@ import { collaboratorsRoute } from "./collaborators";
 import { mentionSuggestionsRoute, mentionTargetsRoute } from "./mentions";
 import { listRepos } from "./list-repos";
 import { prRoutes } from "./pr";
-import type { UploadQuotaLimits } from "./pr/attachments/types";
+import type {
+  CommittedLookupBudgetLimits,
+  UploadQuotaLimits,
+} from "./pr/attachments/types";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
 /** The slice of app deps the repos subtree needs. `AppDeps` satisfies it. */
 export interface ReposRouteDeps extends AuthRouteDeps, InstallationBindingDeps {
   readonly attachmentQuota?: UploadQuotaLimits;
+  readonly committedLookupBudget?: CommittedLookupBudgetLimits;
 }
 
 function createListReposHandler(

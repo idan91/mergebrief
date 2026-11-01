@@ -4,3 +4,9 @@ export const ATTACHMENT_ASSET_URL = `https://github.com/user-attachments/assets/
 /** The same asset as a file MergeBrief committed to the repo's attachments branch. */
 export const ATTACHMENT_FILE_NAME = `${ATTACHMENT_ASSET_ID}.png`;
 export const ATTACHMENT_BRANCH_URL = `https://github.com/octo/hello/blob/mergebrief/attachments/${ATTACHMENT_FILE_NAME}?raw=true`;
+/** An image committed to an ordinary branch of the pull request's repository, in its blob form. */
+export const COMMITTED_IMAGE_URL =
+  "https://github.com/octo/hello/blob/assets/brief-362/after.png?raw=true";
+/** The address every committed form of that image normalises to. */
+export const COMMITTED_IMAGE_NORMALISED_URL =
+  "https://github.com/octo/hello/raw/assets/brief-362/after.png";

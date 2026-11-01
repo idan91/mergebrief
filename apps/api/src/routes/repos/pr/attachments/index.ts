@@ -1,11 +1,10 @@
-// GET .../attachments/:assetId and POST .../attachments, behind the pr
-// subtree's shared gate. A pasted screenshot in a GitHub comment is private
-// to the repo, and the browser cannot carry a GitHub login across origins,
-// so the API streams the bytes same-origin, where the session cookie rides
-// an <img> request: a bare id is a GitHub asset, found through the URL
-// GitHub rendered for it; `<id>.<ext>` is a file on the repo's attachments
-// branch, read from the Contents API. The upload commits an image to that
-// branch with the App's token and answers the URL a comment carries.
+// A pasted screenshot or a committed image is private to the repo, and the
+// browser cannot carry a GitHub login across origins, so the API streams the
+// bytes same-origin, where the session cookie rides an <img> request: a bare
+// id is a GitHub asset, found through the URL GitHub rendered for it;
+// `<id>.<ext>` is a file on the attachments branch; `committed-file?source=`
+// names any other file in the repo by its normalised address. The upload
+// commits an image to the attachments branch with the App's token.
 import { randomUUID } from "node:crypto";
 import {
   ApiErrorCodes,
@@ -20,6 +19,11 @@ import {
   type AttachmentMediaType,
   type UploadAttachmentResponse,
 } from "contract";
+import {
+  isCommittedFileInRepository,
+  parseCommittedFileUrl,
+  type CommittedFileSource,
+} from "brief-core/media-address";
 import type { Context, Handler } from "hono";
 import { HttpStatuses } from "types/http";
 import { bindGrantedPullRequestGitHub } from "../../../../access/reviewer-binding";
@@ -40,6 +44,9 @@ import { prNumberSchema } from "../../../wire-bounds";
 import { createRepositoryTargetLayer } from "../../logic/repository-target";
 import {
   ATTACHMENT_RESPONSE_HEADERS,
+  COMMITTED_FILE_CACHE_MAX_ENTRIES,
+  COMMITTED_LOOKUP_BUDGET_MAX_ENTRIES,
+  DEFAULT_COMMITTED_LOOKUP_LIMITS,
   DEFAULT_UPLOAD_QUOTA_LIMITS,
   NO_STORE,
   RETRY_AFTER_HEADER,
@@ -54,9 +61,14 @@ import {
   throwUploadAttachmentFailure,
 } from "./logic/wire-failures";
 import { readAttachment } from "./read-attachment";
+import { readCommittedFile } from "./read-committed-file";
+import { committedFileQuerySchema } from "./schemas";
 import type {
+  AttachmentBytes,
   AttachmentTarget,
   AttachmentsRouteDeps,
+  CommittedFileStore,
+  CommittedLookupWindow,
   RenderedSources,
   RenderedSourcesStore,
   UploadQuota,
@@ -124,6 +136,23 @@ function mintAttachmentFile(mediaType: AttachmentMediaType): AttachmentFile {
   return file.value;
 }
 
+async function answerAttachmentBytes(
+  c: Context<AuthzEnv>,
+  bytes: AttachmentBytes,
+): Promise<Response> {
+  const headers = {
+    ...ATTACHMENT_RESPONSE_HEADERS,
+    "content-type": bytes.contentType,
+  };
+  // Hono answers HEAD by running the handler and dropping the body; the
+  // upstream stream would otherwise stay open until it timed out.
+  if (c.req.method === HEAD_METHOD) {
+    await bytes.body.cancel();
+    return c.body(null, HttpStatuses.OK, headers);
+  }
+  return c.body(bytes.body, HttpStatuses.OK, headers);
+}
+
 function createReadAttachmentHandler(
   deps: AttachmentsRouteDeps,
   sources: RenderedSourcesStore,
@@ -151,19 +180,49 @@ function createReadAttachmentHandler(
       throwReadAttachmentFailure(read.error);
     }
 
-    const headers = {
-      ...ATTACHMENT_RESPONSE_HEADERS,
-      "content-type": read.value.contentType,
-    };
-    // Hono answers HEAD by running this handler and dropping the body; the
-    // upstream stream would otherwise stay open until it timed out.
-    if (c.req.method === HEAD_METHOD) {
-      await read.value.body.cancel();
-      return c.body(null, HttpStatuses.OK, headers);
+    log.debug("attachment proxied", { assetId: readTargetAssetId(target) });
+    return answerAttachmentBytes(c, read.value);
+  };
+}
+
+/** The address must name the gated repository; anything else is the same 404 a missing file is. */
+function parseRepositorySource(
+  rawSource: string | undefined,
+  repoFullName: string,
+): CommittedFileSource | undefined {
+  const query = committedFileQuerySchema.safeParse({ source: rawSource });
+  if (!query.success) {
+    return undefined;
+  }
+  const source = parseCommittedFileUrl(query.data.source);
+  if (!source.ok || !isCommittedFileInRepository(source.value, repoFullName)) {
+    return undefined;
+  }
+  return source.value;
+}
+
+function createReadCommittedFileHandler(
+  store: CommittedFileStore,
+): Handler<AuthzEnv> {
+  return async (c) => {
+    const repoAccess = c.get("repoAccess");
+    const source = parseRepositorySource(
+      c.req.query("source"),
+      repoAccess.repoFullName,
+    );
+    if (source === undefined) {
+      throw new NotFound();
     }
 
-    log.debug("attachment proxied", { assetId: readTargetAssetId(target) });
-    return c.body(read.value.body, HttpStatuses.OK, headers);
+    const read = await readCommittedFile(
+      { store, fetch: globalThis.fetch },
+      repoAccess,
+      { pathSegments: source.pathSegments },
+    );
+    if (!read.ok) {
+      throwReadAttachmentFailure(read.error);
+    }
+    return answerAttachmentBytes(c, read.value);
   };
 }
 
@@ -240,6 +299,42 @@ export function attachmentsRoute(
     },
     "/",
     createUploadAttachmentHandler(deps, quota),
+  );
+  return app;
+}
+
+/** GET .../committed-file?source=: an image committed to the pull request's own repository. */
+export function committedFileRoute(
+  deps: Pick<AttachmentsRouteDeps, "committedLookupBudget">,
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
+  const store: CommittedFileStore = {
+    refs: {
+      cache: createTtlCache<readonly string[]>(
+        COMMITTED_FILE_CACHE_MAX_ENTRIES,
+      ),
+      inFlight: new Map(),
+    },
+    downloadUrls: createTtlCache<string>(COMMITTED_FILE_CACHE_MAX_ENTRIES),
+    lookupBudget: {
+      limits: deps.committedLookupBudget ?? DEFAULT_COMMITTED_LOOKUP_LIMITS,
+      windows: createTtlCache<CommittedLookupWindow>(
+        COMMITTED_LOOKUP_BUDGET_MAX_ENTRIES,
+      ),
+    },
+  };
+  app.use(createRepositoryTargetLayer());
+  app.query(
+    {
+      id: ProductQueryIds.READ_COMMITTED_FILE,
+      browserSessionOnly: false,
+      requiresOperator: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
+    },
+    "/",
+    createReadCommittedFileHandler(store),
   );
   return app;
 }

@@ -1,4 +1,10 @@
 import {
+  buildCommittedFileUrl,
+  isCommittedFileInRepository,
+  isServableCommittedFile,
+  parseCommittedFileUrl,
+} from "brief-core/media-address";
+import {
   AttachmentSourceKinds,
   buildOperationPath,
   parseAttachmentSource,
@@ -72,9 +78,48 @@ function readProxyTarget(source: AttachmentSource): string {
   return source.assetId;
 }
 
+/** A committed image of the pull request's own repository in a format the proxy serves, named by its normalised address. */
+function buildCommittedFileProxyPath(
+  scope: AttachmentScope,
+  source: string,
+): string | undefined {
+  if (scope.repoSlug === undefined) {
+    return undefined;
+  }
+  const committed = parseCommittedFileUrl(source);
+  if (!committed.ok || !isServableCommittedFile(committed.value)) {
+    return undefined;
+  }
+  if (!isCommittedFileInRepository(committed.value, scope.repoSlug)) {
+    return undefined;
+  }
+
+  const path = buildOperationPath(ProductQueryIds.READ_COMMITTED_FILE, {
+    repoId: scope.repoId,
+    prNumber: scope.prNumber,
+  });
+  const query = new URLSearchParams({
+    source: buildCommittedFileUrl(committed.value),
+  });
+  return `${path}?${query.toString()}`;
+}
+
+function buildProxyPath(
+  scope: AttachmentScope,
+  source: string,
+): string | undefined {
+  const attachment = parseAttachmentSource(source);
+  if (attachment.ok) {
+    return buildAttachmentProxyPath(scope, readProxyTarget(attachment.value));
+  }
+  return buildCommittedFileProxyPath(scope, source);
+}
+
 /**
- * A private attachment answers 404 to a cross-origin <img>, so its source is
- * pointed at the API's same-origin proxy, where the session cookie rides.
+ * A private attachment, or a file committed to the pull request's private
+ * repository, answers 404 to a cross-origin <img>, so its source is pointed
+ * at the API's same-origin proxy, where the session cookie rides. A file in
+ * another repository stays on GitHub.
  */
 export function rehypeProxyAttachmentSources(
   scope: AttachmentScope | undefined,
@@ -88,15 +133,10 @@ export function rehypeProxyAttachmentSources(
       if (source === undefined) {
         return;
       }
-      const attachment = parseAttachmentSource(source);
-      if (!attachment.ok) {
-        return;
+      const proxyPath = buildProxyPath(scope, source);
+      if (proxyPath !== undefined) {
+        node.properties["src"] = proxyPath;
       }
-
-      node.properties["src"] = buildAttachmentProxyPath(
-        scope,
-        readProxyTarget(attachment.value),
-      );
     });
   };
 }

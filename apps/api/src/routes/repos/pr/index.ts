@@ -13,7 +13,7 @@ import {
 import { commentWriteRoutes } from "./comments";
 import { conversationRoute, type ConversationRoutes } from "./conversation";
 import { archivePullRoutes } from "./archive";
-import { attachmentsRoute } from "./attachments";
+import { attachmentsRoute, committedFileRoute } from "./attachments";
 import type { AttachmentsRouteDeps } from "./attachments/types";
 import { deletePullRoute } from "./delete";
 import { readsRoutes } from "./reads";
@@ -45,6 +45,7 @@ export function prRoutes(
   app.route("/ready", markReadyRoute(deps));
   app.route("/regenerate", regenerateRoute(deps));
   app.route("/attachments", attachmentsRoute(deps));
+  app.route("/committed-file", committedFileRoute(deps));
   app.route("/comments", commentWriteRoutes(deps, evictConversation));
   app.route("/conversation", conversation.router);
   return app;

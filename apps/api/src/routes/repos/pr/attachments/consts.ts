@@ -1,4 +1,4 @@
-import type { UploadQuotaLimits } from "./types";
+import type { CommittedLookupBudgetLimits, UploadQuotaLimits } from "./types";
 
 /**
  * Opened directly rather than through an <img>, the response is a document
@@ -42,3 +42,22 @@ export const DEFAULT_UPLOAD_QUOTA_LIMITS: UploadQuotaLimits = {
 /** Reviewers tracked at once; past it the longest-idle window is dropped. */
 export const UPLOAD_QUOTA_MAX_ENTRIES = 10_000;
 export const RETRY_AFTER_HEADER = "retry-after";
+
+/** The Contents API's JSON answer, which names the file's `download_url`. */
+export const CONTENTS_JSON_MEDIA_TYPE = "application/vnd.github+json";
+/** The one host a `download_url` may name; never a host from PR text. */
+export const RAW_DOWNLOAD_HOST = "raw.githubusercontent.com";
+/** A raster signature fits in the first 12 bytes (WebP's tag sits at 8). */
+export const RASTER_SNIFF_BYTES = 12;
+/** Enough of an SVG to pass an XML prolog or a licence comment to its opening tag. */
+export const SVG_SNIFF_BYTES = 4096;
+export const COMMITTED_FILE_SOURCE_MAX_LENGTH = 4096;
+export const COMMITTED_FILE_CACHE_MAX_ENTRIES = 500;
+/** A private `download_url` carries a short-lived token; the address is kept well under its life. */
+export const DOWNLOAD_URL_TTL_MS = 2 * MS_PER_MINUTE;
+/** PR text sets how many links a page asks for; past this a viewer's reads answer like a missing file until the window ends. */
+export const DEFAULT_COMMITTED_LOOKUP_LIMITS: CommittedLookupBudgetLimits = {
+  maxLookups: 200,
+  windowMs: 10 * MS_PER_MINUTE,
+};
+export const COMMITTED_LOOKUP_BUDGET_MAX_ENTRIES = 10_000;

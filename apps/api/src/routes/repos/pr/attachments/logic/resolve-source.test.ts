@@ -17,6 +17,26 @@ describe("resolveAttachmentSource", () => {
     expect(resolveAttachmentSource([PUBLIC], ASSET_ID)).toBe(PUBLIC);
   });
 
+  it("picks the older per-repository asset url of a public repo", () => {
+    const older = `https://github.com/acme/app/assets/12345/${ASSET_ID}`;
+
+    expect(resolveAttachmentSource([older], ASSET_ID)).toBe(older);
+  });
+
+  it("ignores an older asset url for another id or with a query", () => {
+    const base = "https://github.com/acme/app/assets/12345";
+
+    expect(
+      resolveAttachmentSource(
+        [
+          `${base}/96abe080-db23-4366-9eb8-32a76d148ae5`,
+          `${base}/${ASSET_ID}?x=1`,
+        ],
+        ASSET_ID,
+      ),
+    ).toBeUndefined();
+  });
+
   it("ignores a github url that only contains the id, listed first", () => {
     const planted = `https://github.com/attacker/pub/raw/main/${ASSET_ID}.png`;
 

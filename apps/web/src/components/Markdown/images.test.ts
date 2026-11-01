@@ -6,10 +6,18 @@ import {
   ATTACHMENT_ASSET_URL as ASSET_URL,
   ATTACHMENT_BRANCH_URL as BRANCH_URL,
   ATTACHMENT_FILE_NAME as FILE_NAME,
+  COMMITTED_IMAGE_NORMALISED_URL,
+  COMMITTED_IMAGE_URL,
 } from "@web/test/attachments";
 import { rehypeNormalizeImages, rehypeProxyAttachmentSources } from "./images";
 
-const SCOPE = { repoId: "555", prNumber: 7, installed: true };
+const SCOPE = {
+  repoId: "555",
+  prNumber: 7,
+  installed: true,
+  repoSlug: "octo/hello",
+};
+const COMMITTED_PROXY_PATH = `/api/repos/555/pulls/7/committed-file?source=${encodeURIComponent(COMMITTED_IMAGE_NORMALISED_URL)}`;
 
 function makeImage(src: string | undefined): Element {
   const properties: Element["properties"] = { alt: "Image" };
@@ -71,6 +79,72 @@ describe("rehypeProxyAttachmentSources", () => {
     expect(readSource(tree, 0)).toBe(
       `/api/repos/a%2Fb/pulls/7/attachments/${ASSET_ID}`,
     );
+  });
+
+  it("routes an older repository asset through the proxy by its id", () => {
+    const older = `https://github.com/octo/hello/assets/12345/${ASSET_ID}`;
+    const tree = makeTree(makeImage(older));
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect(readSource(tree, 0)).toBe(
+      `/api/repos/555/pulls/7/attachments/${ASSET_ID}`,
+    );
+  });
+
+  it("routes a committed image of this repository by its normalised address", () => {
+    const tree = makeTree(
+      makeImage(COMMITTED_IMAGE_URL),
+      makeImage(COMMITTED_IMAGE_NORMALISED_URL),
+      makeImage(
+        "https://raw.githubusercontent.com/Octo/Hello/assets/brief-362/after.png",
+      ),
+    );
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect([0, 1, 2].map((index) => readSource(tree, index))).toEqual([
+      COMMITTED_PROXY_PATH,
+      COMMITTED_PROXY_PATH,
+      COMMITTED_PROXY_PATH,
+    ]);
+  });
+
+  it("leaves a committed image of another repository on github", () => {
+    const foreign = COMMITTED_IMAGE_URL.replace("octo/hello", "octo/other");
+    const tree = makeTree(makeImage(foreign));
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect(readSource(tree, 0)).toBe(foreign);
+  });
+
+  it("leaves a committed image on github when the repository is unknown", () => {
+    const tree = makeTree(makeImage(COMMITTED_IMAGE_URL));
+
+    rehypeProxyAttachmentSources({ ...SCOPE, repoSlug: undefined })(tree);
+
+    expect(readSource(tree, 0)).toBe(COMMITTED_IMAGE_URL);
+  });
+
+  it("leaves a committed file in a format the proxy never serves on github", () => {
+    const avif = COMMITTED_IMAGE_URL.replace("after.png", "hero.avif");
+    const extensionless = COMMITTED_IMAGE_URL.replace("after.png", "hero");
+    const tree = makeTree(makeImage(avif), makeImage(extensionless));
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect(readSource(tree, 0)).toBe(avif);
+    expect(readSource(tree, 1)).toBe(extensionless);
+  });
+
+  it("leaves an escaping committed path on github", () => {
+    const escaping = "https://github.com/octo/hello/raw/main/a%2F..%2Fb.png";
+    const tree = makeTree(makeImage(escaping));
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect(readSource(tree, 0)).toBe(escaping);
   });
 
   it("leaves any other source untouched", () => {

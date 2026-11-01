@@ -6,12 +6,15 @@ export interface AttachmentScope {
   readonly prNumber: number;
   /** The App is installed on the repo, so an upload has a token to push with. */
   readonly installed: boolean;
+  /** `owner/name`; absent, no committed file is proxied, since none can be told to be the repo's own. */
+  readonly repoSlug?: string | undefined;
 }
 
 export interface AttachmentScopeProviderProps {
   repoId: string;
   prNumber: number;
   installed: boolean;
+  repoSlug?: string | undefined;
   children: ReactNode;
 }
 
@@ -24,12 +27,13 @@ export function AttachmentScopeProvider({
   repoId,
   prNumber,
   installed,
+  repoSlug,
   children,
 }: AttachmentScopeProviderProps) {
   // Memo'd so memo'd subtrees keep their value identity across route renders.
   const scope = useMemo(
-    () => ({ repoId, prNumber, installed }),
-    [repoId, prNumber, installed],
+    () => ({ repoId, prNumber, installed, repoSlug }),
+    [repoId, prNumber, installed, repoSlug],
   );
   return (
     <AttachmentScopeContext.Provider value={scope}>

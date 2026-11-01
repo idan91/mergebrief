@@ -30,7 +30,10 @@ import { capabilitiesRoute } from "./capabilities";
 import { spendRoute } from "./spend";
 import { createInstallationResolver } from "./installation-resolver";
 import { reposRoutes } from "./repos";
-import type { UploadQuotaLimits } from "./repos/pr/attachments/types";
+import type {
+  CommittedLookupBudgetLimits,
+  UploadQuotaLimits,
+} from "./repos/pr/attachments/types";
 import { versionDismissRoutes, versionRoute } from "./version";
 import {
   stampVersionHeader,
@@ -77,6 +80,8 @@ export interface AppDeps {
   readonly githubAppSlug?: string | undefined;
   /** Per-reviewer attachment upload limits; omitted = the defaults. */
   readonly attachmentQuota?: UploadQuotaLimits;
+  /** Per-viewer GitHub calls the committed-file read may make; omitted = the defaults. */
+  readonly committedLookupBudget?: CommittedLookupBudgetLimits;
   /** The dev-only local Brief directory, absolute; absent answers its paths 404. */
   readonly localBriefsDir?: string | undefined;
 }

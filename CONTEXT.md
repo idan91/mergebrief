@@ -107,6 +107,10 @@ _Avoid_: primary/secondary (collides with Dominant/secondary Category), main, le
 The descriptive sentence(s) of what a Change-group changed. Lives on the group. Descriptive *what*, never narrative *why*: the why belongs in the PR description and the linked issue.
 _Avoid_: description, explanation, story, narrative
 
+**Brief summary**:
+The lede and optional changelog at the top of a **Brief**. Not a Change-group's **Summary**.
+_Avoid_: summary (alone, that is the Change-group's), overview, lede (one part of it)
+
 **LoC**:
 Added and deleted line counts, shown non-prominently per **Change-group** and per **Concern** in the **Split**. An attention-routing distribution, never a size verdict: "where is the real change", not "how big is this". Any adjustment excludes only mechanically detectable lines (moves, `generated`), never hand-judged significance, so two labelers and the categorizer reproduce it identically.
 _Avoid_: diff size, churn, lines-changed-as-quality-metric, weighted LoC
@@ -356,8 +360,16 @@ A **Comment** anchored to a file with no line range. Same lifecycle as any other
 _Avoid_: whole-file comment, file-scoped, scope (that is Full vs Changes)
 
 **Attachment**:
-An image a reviewer pastes or drops into a **Comment**, pushed by the App to an orphan `mergebrief/attachments` branch of the pull request's repository, one commit per file, and linked from the comment by its GitHub URL. The comment on GitHub keeps rendering it after this instance is gone; here it is served through the read gate with the viewer's token. A repository admin can delete the branch, which breaks every image it held. Read access to the repository is enough to attach; the push is the App's, so each reviewer is bounded to a set number of files and bytes per window, counted per api replica.
+An image a reviewer pastes or drops into a **Comment**, one kind of **Media**, pushed by the App to an orphan `mergebrief/attachments` branch of the pull request's repository, one commit per file, and linked from the comment by its GitHub URL. The comment on GitHub keeps rendering it after this instance is gone; here it is served through the read gate with the viewer's token. A repository admin can delete the branch, which breaks every image it held. Read access to the repository is enough to attach; the push is the App's, so each reviewer is bounded to a set number of files and bytes per window, counted per api replica.
 _Avoid_: upload (it is a push), asset (that is GitHub's own `user-attachments` store, which has no API), screenshot (one kind of attachment)
+
+**Media**:
+An image, video or diagram inside text a person wrote on the pull request: its description or a comment. An **Attachment** is one kind. Shown on the viewer's own access: a GitHub-pasted asset and a file committed to the pull request's own repository come through the read gate; an image on any other host loads directly.
+_Avoid_: attachment (one kind of Media), asset (GitHub's own pasted store), embed
+
+**Summary Media**:
+The **Media** the model picks for the **Brief summary**, by item number and never by address, plus its one optional pointer line to a set further down.
+_Avoid_: hero image, cover, featured media
 
 **Mention**:
 An `@login` or `@org/team` in text a person wrote about the pull request, on GitHub or here: its description, a comment, reply or review by any **Participant**, or a reviewer's own note here, such as a **Dismissal** reason. On text that reaches GitHub, GitHub resolves it and decides who is notified; MergeBrief never notifies anyone. Shown as a link to the person or team when GitHub shows the viewer that target, and highlighted when it names the viewer; any other `@word` stays plain text.

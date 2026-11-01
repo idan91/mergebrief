@@ -1,4 +1,4 @@
-import { ATTACHMENT_ASSET_PATH_PREFIX, type AttachmentAssetId } from "contract";
+import { readAssetPathId, type AttachmentAssetId } from "contract";
 
 const PUBLIC_ASSET_HOST = "github.com";
 const SIGNED_IMAGE_HOST = "private-user-images.githubusercontent.com";
@@ -9,8 +9,9 @@ function hasBareAuthority(url: URL): boolean {
 }
 
 /**
- * The exact shapes GitHub renders an attachment as: the bare asset URL for a
- * public repo, the signed image path for a private one. A commenter can put
+ * The exact shapes GitHub renders an attachment as: the bare asset URL (or
+ * its older per-repository form) for a public repo, the signed image path
+ * for a private one. A commenter can put
  * any github.com URL in a body, so a path that merely contains the id (a raw
  * file in their own repo, say) must not stand in for the asset.
  */
@@ -19,10 +20,8 @@ function isAttachmentUrl(url: URL, assetId: AttachmentAssetId): boolean {
     return false;
   }
   if (url.hostname === PUBLIC_ASSET_HOST) {
-    return (
-      url.pathname === `${ATTACHMENT_ASSET_PATH_PREFIX}${assetId}` &&
-      url.search === ""
-    );
+    const namesAsset = readAssetPathId(url.pathname) === assetId;
+    return namesAsset && url.search === "";
   }
   if (url.hostname === SIGNED_IMAGE_HOST) {
     const signedPath = new RegExp(

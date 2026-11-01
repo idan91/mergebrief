@@ -10,6 +10,7 @@ import {
   parseAttachmentAssetId,
   parseAttachmentFileName,
   parseAttachmentSource,
+  readAssetPathId,
 } from "../src/index";
 
 const ASSET_ID = "3e5dffc4-bd05-4a01-98e8-1c519ba4cf00";
@@ -78,6 +79,31 @@ describe("parseAttachmentSource", () => {
       ok: true,
       value: { kind: AttachmentSourceKinds.ASSET, assetId: ASSET_ID },
     });
+  });
+
+  it("reads an older repository asset url as the asset shape", () => {
+    const url = `https://github.com/acme/app/assets/12345/${ASSET_ID}`;
+
+    expect(parseAttachmentSource(url)).toEqual({
+      ok: true,
+      value: { kind: AttachmentSourceKinds.ASSET, assetId: ASSET_ID },
+    });
+  });
+
+  it("rejects an older asset url with a query, suffix or bad number", () => {
+    const base = `https://github.com/acme/app/assets/12345/${ASSET_ID}`;
+
+    expect(parseAttachmentSource(`${base}?x=1`).ok).toBe(false);
+    expect(parseAttachmentSource(`${base}/extra`).ok).toBe(false);
+    expect(
+      parseAttachmentSource(
+        `https://github.com/acme/app/assets/12a/${ASSET_ID}`,
+      ).ok,
+    ).toBe(false);
+    expect(
+      parseAttachmentSource(`https://github.com/acme/app/assets/${ASSET_ID}`)
+        .ok,
+    ).toBe(false);
   });
 
   it("reads a branch-hosted url as the branch shape with its file", () => {
@@ -166,6 +192,22 @@ describe("parseAttachmentSource", () => {
         `https://github.com/acme/app/blob/mergebrief/attachments/${ASSET_ID.toUpperCase()}.png?raw=true`,
       ).ok,
     ).toBe(false);
+  });
+});
+
+describe("readAssetPathId", () => {
+  it("reads the id of either asset path form", () => {
+    expect(readAssetPathId(`/user-attachments/assets/${ASSET_ID}`)).toBe(
+      ASSET_ID,
+    );
+    expect(readAssetPathId(`/octo/hello/assets/123/${ASSET_ID}`)).toBe(
+      ASSET_ID,
+    );
+  });
+
+  it("reads no id from another path", () => {
+    expect(readAssetPathId(`/octo/hello/assets/x/${ASSET_ID}`)).toBeUndefined();
+    expect(readAssetPathId(`/octo/hello/raw/main/${ASSET_ID}`)).toBeUndefined();
   });
 });
 

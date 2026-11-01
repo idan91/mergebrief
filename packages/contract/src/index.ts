@@ -15,6 +15,7 @@ export {
   parseAttachmentAssetId,
   parseAttachmentFileName,
   parseAttachmentSource,
+  readAssetPathId,
   type AssetAttachmentSource,
   type AttachmentAssetId,
   type AttachmentBranchLocation,

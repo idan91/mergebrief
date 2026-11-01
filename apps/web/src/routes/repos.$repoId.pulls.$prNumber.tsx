@@ -332,6 +332,7 @@ function PrBriefRoute() {
       installed={page.meta.appInstalled}
       prNumber={prNumber}
       repoId={params.repoId}
+      repoSlug={page.meta.repoSlug ?? undefined}
     >
       <MentionTargetsProvider repoId={params.repoId} viewerLogin={viewerLogin}>
         <PrBriefBody

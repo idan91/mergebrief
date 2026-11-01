@@ -75,7 +75,7 @@ const BRIEF_FIXTURES = "^apps/web/src/features/brief/test-utils/fixtures\\.ts$";
 // member other than the worker and the tools may name by value.
 const LEAF_SUBPATH_FILES = [
   "^packages/brief-core/src/(types|path-matching|hidden-chars)\\.ts$",
-  "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout)/",
+  "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout|media-address)/",
   "^packages/brief-core/src/(github/pr-url|diff/remap)\\.ts$",
   "^packages/generators/src/contract/generation\\.ts$",
   "^packages/generators/src/config/(instancePolicy|trackers)\\.ts$",
@@ -140,6 +140,21 @@ module.exports = {
         pathNot: [
           "^packages/types/",
           "^packages/brief-core/src/diff/chunk-layout/",
+        ],
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "media-address-imports-only-types",
+      comment:
+        "The committed-file address parser runs in the browser and in the api: it pulls in no runtime code beyond the zero-dependency types package. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/media-address/" },
+      to: {
+        path: ".*",
+        pathNot: [
+          "^packages/types/",
+          "^packages/brief-core/src/media-address/",
         ],
         dependencyTypesNot: ["type-only"],
       },
