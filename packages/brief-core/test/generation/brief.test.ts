@@ -7,16 +7,21 @@ import type {
   PreviousBriefInput,
 } from "../../src/generation/brief/types";
 import type { RepoContext } from "../../src/generation/repo-context";
-import type { GenerationWarning } from "../../src/generation/warnings/types";
+import {
+  GenerationWarningKinds,
+  type GenerationWarning,
+} from "../../src/generation/warnings/types";
 import type { FetchedPr } from "../../src/github/types";
 import type { LockfileSummary } from "../../src/generation/shortened/types";
 import { countLines } from "../../src/generation/loc";
 import {
+  BriefGenerationSchema,
   RiskSurfaceAttributes,
   type Brief,
   type LineRange,
 } from "../../src/types";
 import { FakeGenerator } from "../helpers";
+import { pr as multiCallPr, singleBrief } from "./fixtures/multi-call-pr";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
 import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
 
@@ -811,5 +816,151 @@ describe("generateBrief, a flagged file with no changed line", () => {
 
     expect(brief.unattributed).toEqual([]);
     expect(brief.chunks.at(-1)?.riskSurface).toEqual([CHANGES_PACKAGE_SOURCE]);
+  });
+});
+
+const SHOT_BEFORE = "https://cdn.test/before.png";
+const SHOT_AFTER = "https://cdn.test/after.png";
+const SHOT_WIDE = "https://cdn.test/wide.png";
+const MEDIA_BODY = [
+  "Reworks the login page.",
+  "",
+  "## Screenshots",
+  "",
+  `![Login before](${SHOT_BEFORE}) ![Login after](${SHOT_AFTER})`,
+  "",
+  `![Wide layout](${SHOT_WIDE})`,
+].join("\n");
+
+const mediaPr: FetchedPr = {
+  ...multiCallPr,
+  meta: { ...multiCallPr.meta, body: MEDIA_BODY },
+};
+
+function listSummaryMediaWarnings(
+  warnings: readonly GenerationWarning[],
+): GenerationWarning[] {
+  return warnings.filter(
+    (warning) =>
+      warning.kind === GenerationWarningKinds.VALIDATION &&
+      warning.check === "summary media",
+  );
+}
+
+function makeMediaOptions(
+  generator: FakeGenerator,
+  overrides: Partial<GenerateBriefOptions> = {},
+): GenerateBriefOptions {
+  return {
+    pr: mediaPr,
+    headIndex: 1,
+    commitRange: { base: "base0007", head: "head0007", commitCount: 1 },
+    generator,
+    ...overrides,
+  };
+}
+
+describe("generateBrief Summary Media, one call", () => {
+  it("sends the pr_media block after the description", async () => {
+    const generator = new FakeGenerator(() => singleBrief);
+
+    await generateBrief(makeMediaOptions(generator));
+
+    const [request] = generator.requests;
+    expect(request?.user).toContain(
+      [
+        "</pr_description>",
+        "<pr_media>",
+        '1. image | caption: "Login before" | heading: "Screenshots"',
+        '2. image | caption: "Login after" | heading: "Screenshots"',
+        '3. image | caption: "Wide layout" | heading: "Screenshots"',
+        "</pr_media>",
+      ].join("\n"),
+    );
+    const block = request?.user.split("<pr_media>")[1] ?? "";
+    expect(block).not.toContain("cdn.test");
+    expect(request?.system).toContain("## Summary Media");
+  });
+
+  it("sends no block, rule or field without Media", async () => {
+    const generator = new FakeGenerator(() => singleBrief);
+
+    await generateBrief(makeMediaOptions(generator, { pr: multiCallPr }));
+
+    const [request] = generator.requests;
+    expect(request?.user).not.toContain("<pr_media>");
+    expect(request?.system).not.toContain("Summary Media");
+    expect(request?.schema).toBe(BriefGenerationSchema);
+  });
+
+  it("stores the picked items by key", async () => {
+    const generator = new FakeGenerator(() => ({
+      ...singleBrief,
+      summaryMedia: {
+        shown: [{ item: 3, position: "before-lede" }],
+        pointer: { label: "Before and after", items: [1, 2] },
+      },
+    }));
+
+    const { brief, warnings } = await generateBrief(
+      makeMediaOptions(generator),
+    );
+
+    expect(brief.summaryMedia).toEqual({
+      shown: [{ key: SHOT_WIDE, position: "before-lede" }],
+      pointer: { label: "Before and after", items: [SHOT_BEFORE, SHOT_AFTER] },
+    });
+    expect(listSummaryMediaWarnings(warnings)).toEqual([]);
+  });
+
+  it("warns with counts when it trims the answer", async () => {
+    const generator = new FakeGenerator(() => ({
+      ...singleBrief,
+      summaryMedia: { shown: [{ item: 7, position: "middle" }] },
+    }));
+
+    const { brief, warnings } = await generateBrief(
+      makeMediaOptions(generator),
+    );
+
+    expect(brief.summaryMedia).toBeUndefined();
+    expect(listSummaryMediaWarnings(warnings)).toEqual([
+      {
+        kind: GenerationWarningKinds.VALIDATION,
+        check: "summary media",
+        issues: [
+          "summaryMedia: dropped 1 item number(s) that name no Media item",
+        ],
+      },
+    ]);
+  });
+
+  it("stores no summaryMedia when the model leaves it out", async () => {
+    const generator = new FakeGenerator(() => singleBrief);
+
+    const { brief } = await generateBrief(makeMediaOptions(generator));
+
+    expect(brief).not.toHaveProperty("summaryMedia");
+  });
+
+  it("keeps the picked items through an anchored run", async () => {
+    const answer = {
+      ...singleBrief,
+      summaryMedia: { shown: [{ item: 1, position: "after-lede" }] },
+    };
+    const first = await generateBrief(
+      makeMediaOptions(new FakeGenerator(() => answer)),
+    );
+
+    const { brief } = await generateBrief(
+      makeMediaOptions(new FakeGenerator(() => answer), {
+        headIndex: 2,
+        previous: { brief: first.brief, baseShaMoved: false },
+      }),
+    );
+
+    expect(brief.summaryMedia?.shown).toEqual([
+      { key: SHOT_BEFORE, position: "after-lede" },
+    ]);
   });
 });

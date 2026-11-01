@@ -365,6 +365,845 @@ exports[`wire json schemas are byte-pinned > brief 1`] = `
 }"
 `;
 
+exports[`wire json schemas are byte-pinned > brief offering Summary Media 1`] = `
+"{
+  "$defs": {
+    "__schema0": {
+      "type": "string",
+      "enum": [
+        "bugfix",
+        "logic-refactor",
+        "move-with-edits",
+        "lib-bump",
+        "pure-move",
+        "new-feature",
+        "dependency-update",
+        "schema-change"
+      ]
+    },
+    "__schema1": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "description": "first line number (1-based, inclusive)\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        },
+        "end": {
+          "type": "integer",
+          "description": "last line number (inclusive); equals start for a single line\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "__schema2": {
+      "type": "string",
+      "enum": [
+        "no-tests",
+        "no-types",
+        "legacy-area",
+        "dense-logic",
+        "touches-auth",
+        "mutates-state",
+        "removes-validation",
+        "relaxes-permissions",
+        "widens-error-handling",
+        "adds-feature-flag",
+        "new-dependency",
+        "new-abstraction",
+        "comment-contradicts-code",
+        "external-io",
+        "cross-service",
+        "schema-adjacent",
+        "hot-path",
+        "widely-imported",
+        "release-imminent"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Markdown, deliberately short: a lede of 1-3 short sentences stating what the PR does and why (plain text, no headings), then optionally a '## Changelog' of 1-3 bullets when the change warrants one. Hard caps, never targets. The lede is required; the changelog is not."
+    },
+    "changeGroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "stable group id referenced by chunks' changeGroupId, e.g. g1, g2, …"
+          },
+          "title": {
+            "type": "string",
+            "description": "a one-line title describing the change group (what, not why), ideally under ~100 characters (~150 ceiling), e.g. 'Add stock-location module to inventory service'"
+          },
+          "summary": {
+            "type": "string",
+            "description": "what the group does (what, not why), one group = one summary: 1-2 short sentences, ~200 characters ideal (~250 ceiling, never a target)"
+          },
+          "dominantCategory": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "secondaryCategories": {
+            "type": "array",
+            "description": "additional intents present in the group (empty if none)",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "uncertain": {
+            "type": "boolean",
+            "description": "true when confidence on the dominant category is below threshold. AI never hides uncertainty — flag it rather than forcing a token."
+          },
+          "uncertainBetween": {
+            "type": "array",
+            "description": "the categories in tension when uncertain=true (e.g. new-feature vs bugfix); empty when uncertain=false",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "dominantCategory",
+          "secondaryCategories",
+          "uncertain",
+          "uncertainBetween"
+        ]
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "stable chunk id, e.g. c1, c2, …"
+          },
+          "changeGroupId": {
+            "type": "string",
+            "description": "id of the single change-group this chunk belongs to (exactly one — a chunk is never shared across groups; a file spans groups only via different chunks)"
+          },
+          "file": {
+            "type": "string",
+            "description": "file path the chunk lives in"
+          },
+          "concern": {
+            "type": "string",
+            "description": "artifact kind; mostly derivable from the file path",
+            "enum": [
+              "implementation",
+              "test",
+              "doc",
+              "spec",
+              "config",
+              "generated"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "description": "core holds the group's intent — never 'most important' or largest; supporting serves it. Default from concern (implementation→core, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are core when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another core chunk.",
+            "enum": [
+              "core",
+              "supporting"
+            ]
+          },
+          "addedRanges": {
+            "type": "array",
+            "description": "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
+            "items": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "removedRanges": {
+            "type": "array",
+            "description": "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
+            "items": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "riskSurface": {
+            "type": "array",
+            "description": "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
+            "items": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "riskNotes": {
+            "type": "array",
+            "description": "optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for \`comment-contradicts-code\`: the note must cite both sides — the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\". Omit entirely when no attribute needs a note.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attr": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "note": {
+                  "type": "string",
+                  "description": "one short factual note. For \`comment-contradicts-code\` it MUST cite both sides: the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\"."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "attr",
+                "note"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "changeGroupId",
+          "file",
+          "concern",
+          "role",
+          "addedRanges",
+          "removedRanges",
+          "riskSurface"
+        ]
+      }
+    },
+    "readingOrder": {
+      "type": "array",
+      "description": "optional reading order over changeGroups (ADR 0025): a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "id of a change-group in this brief's changeGroups"
+          },
+          "why": {
+            "type": "string",
+            "description": "one comprehension-language line, at most ~15 words, on why this group comes next (e.g. 'establishes the schema the rest builds on'). Never importance/priority/severity language, never a score."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "groupId",
+          "why"
+        ]
+      }
+    },
+    "intentCheck": {
+      "type": "object",
+      "properties": {
+        "ticketUrls": {
+          "type": "array",
+          "description": "the linked-context URLs treated as ticket-like intent sources — ONLY URLs present in the Linked context section, never invented",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ticketTitles": {
+          "type": "array",
+          "description": "display title for each ticketUrls entry — same order and length, the source's own heading/summary line verbatim, never invented or paraphrased; \\"\\" when the source shows no usable title",
+          "items": {
+            "type": "string"
+          }
+        },
+        "specificity": {
+          "type": "string",
+          "description": "how actionable the combined intent sources are: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all five buckets empty",
+          "enum": [
+            "precise",
+            "broad",
+            "none"
+          ]
+        },
+        "scopeNote": {
+          "type": "string",
+          "description": "one sentence of scope facts when the ticket deliberately spans beyond this PR (e.g. a stacked series); \\"\\" otherwise — usually empty"
+        },
+        "items": {
+          "type": "array",
+          "description": "every intent-check finding, each tagged with its bucket. Empty when specificity is broad/none (never a guessed gap). Per-bucket field rules are in the Intent check section of the system prompt",
+          "items": {
+            "type": "object",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed fix the diff only masks (maskedFixes). What, not why."
+              },
+              "quote": {
+                "type": "string",
+                "description": "verbatim supporting quote from the intent sources — the SHORTEST span that still carries the ask: a full clause, never a bare fragment (~200 chars is a ceiling, never a target), never paraphrased. \\"\\" on doneButUnstated (no ticket side)"
+              },
+              "sourceUrl": {
+                "type": "string",
+                "description": "source of the quote: \\"\\" when it comes from the PR title/description, else one of ticketUrls. Always \\"\\" on doneButUnstated"
+              },
+              "groupIds": {
+                "type": "array",
+                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, maskedFixes: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "acknowledged": {
+                "type": "boolean",
+                "description": "deviations ONLY: true when the PR description acknowledges this reversal (a quiet receipt, not an alarm). MUST be false in every other bucket — the field is dead there"
+              },
+              "bucket": {
+                "type": "string",
+                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. maskedFixes: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
+                "enum": [
+                  "accomplished",
+                  "statedButMissing",
+                  "doneButUnstated",
+                  "deviations",
+                  "maskedFixes"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "intent",
+              "quote",
+              "sourceUrl",
+              "groupIds",
+              "acknowledged",
+              "bucket"
+            ]
+          }
+        },
+        "alignment": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "string",
+              "description": "aligned: the diff delivers the goal as the ticket states it. partial: the diff serves the goal and delivers one slice of it — an ordinary outcome. misaligned: the diff does not serve the goal, or serves it in a way the ticket explicitly rules out. \\"\\" when no Primary ticket is present or it states no goal you can quote",
+              "enum": [
+                "aligned",
+                "partial",
+                "misaligned",
+                ""
+              ]
+            },
+            "goal": {
+              "type": "string",
+              "description": "the shortest verbatim span of the primary ticket that states what the ticket wants achieved — the goal, not an acceptance list or an implementation step; a full clause, never a fragment; ~200 chars ceiling, never a target. The ticket title may serve as the goal when the body states none; \\"\\" when read is \\"\\""
+            },
+            "response": {
+              "type": "string",
+              "description": "one sentence, ~250 chars ceiling: what this diff does relative to the goal in plain words — what it delivers, leaves out, or does instead. Facts about the diff; never a verdict, never a recommendation, no group ids; \\"\\" when read is \\"\\""
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "read",
+            "goal",
+            "response"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ticketUrls",
+        "ticketTitles",
+        "specificity",
+        "scopeNote",
+        "items",
+        "alignment"
+      ]
+    },
+    "summaryMedia": {
+      "type": "object",
+      "description": "Summary Media, by item number; see the Summary Media section",
+      "properties": {
+        "shown": {
+          "type": "array",
+          "description": "0 to 2 items shown in the summary; empty when none shows the change better than the lede",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "number",
+                "description": "an item number from <pr_media>"
+              },
+              "position": {
+                "type": "string",
+                "description": "before-lede or after-lede"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "item",
+              "position"
+            ]
+          }
+        },
+        "pointer": {
+          "type": "object",
+          "description": "at most one pointer to a set of items in the Media strip",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "a short plain-text label, no links, at most 40 characters"
+            },
+            "items": {
+              "type": "array",
+              "description": "1 to 4 item numbers from <pr_media>, none of them shown",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "items"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "shown"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "changeGroups",
+    "chunks",
+    "intentCheck"
+  ],
+  "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
+}"
+`;
+
+exports[`wire json schemas are byte-pinned > brief offering Summary Media with a custom attribute 1`] = `
+"{
+  "$defs": {
+    "__schema0": {
+      "type": "string",
+      "enum": [
+        "bugfix",
+        "logic-refactor",
+        "move-with-edits",
+        "lib-bump",
+        "pure-move",
+        "new-feature",
+        "dependency-update",
+        "schema-change"
+      ]
+    },
+    "__schema1": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "description": "first line number (1-based, inclusive)\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        },
+        "end": {
+          "type": "integer",
+          "description": "last line number (inclusive); equals start for a single line\\n\\n{minimum: -9007199254740991, maximum: 9007199254740991}"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "__schema2": {
+      "type": "string",
+      "enum": [
+        "no-tests",
+        "no-types",
+        "legacy-area",
+        "dense-logic",
+        "touches-auth",
+        "mutates-state",
+        "removes-validation",
+        "relaxes-permissions",
+        "widens-error-handling",
+        "adds-feature-flag",
+        "new-dependency",
+        "new-abstraction",
+        "comment-contradicts-code",
+        "external-io",
+        "cross-service",
+        "schema-adjacent",
+        "hot-path",
+        "widely-imported",
+        "release-imminent",
+        "example-attribute"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Markdown, deliberately short: a lede of 1-3 short sentences stating what the PR does and why (plain text, no headings), then optionally a '## Changelog' of 1-3 bullets when the change warrants one. Hard caps, never targets. The lede is required; the changelog is not."
+    },
+    "changeGroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "stable group id referenced by chunks' changeGroupId, e.g. g1, g2, …"
+          },
+          "title": {
+            "type": "string",
+            "description": "a one-line title describing the change group (what, not why), ideally under ~100 characters (~150 ceiling), e.g. 'Add stock-location module to inventory service'"
+          },
+          "summary": {
+            "type": "string",
+            "description": "what the group does (what, not why), one group = one summary: 1-2 short sentences, ~200 characters ideal (~250 ceiling, never a target)"
+          },
+          "dominantCategory": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "secondaryCategories": {
+            "type": "array",
+            "description": "additional intents present in the group (empty if none)",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "uncertain": {
+            "type": "boolean",
+            "description": "true when confidence on the dominant category is below threshold. AI never hides uncertainty — flag it rather than forcing a token."
+          },
+          "uncertainBetween": {
+            "type": "array",
+            "description": "the categories in tension when uncertain=true (e.g. new-feature vs bugfix); empty when uncertain=false",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "dominantCategory",
+          "secondaryCategories",
+          "uncertain",
+          "uncertainBetween"
+        ]
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "stable chunk id, e.g. c1, c2, …"
+          },
+          "changeGroupId": {
+            "type": "string",
+            "description": "id of the single change-group this chunk belongs to (exactly one — a chunk is never shared across groups; a file spans groups only via different chunks)"
+          },
+          "file": {
+            "type": "string",
+            "description": "file path the chunk lives in"
+          },
+          "concern": {
+            "type": "string",
+            "description": "artifact kind; mostly derivable from the file path",
+            "enum": [
+              "implementation",
+              "test",
+              "doc",
+              "spec",
+              "config",
+              "generated"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "description": "core holds the group's intent — never 'most important' or largest; supporting serves it. Default from concern (implementation→core, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are core when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another core chunk.",
+            "enum": [
+              "core",
+              "supporting"
+            ]
+          },
+          "addedRanges": {
+            "type": "array",
+            "description": "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
+            "items": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "removedRanges": {
+            "type": "array",
+            "description": "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
+            "items": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "riskSurface": {
+            "type": "array",
+            "description": "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
+            "items": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "riskNotes": {
+            "type": "array",
+            "description": "optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for \`comment-contradicts-code\`: the note must cite both sides — the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\". Omit entirely when no attribute needs a note.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attr": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "note": {
+                  "type": "string",
+                  "description": "one short factual note. For \`comment-contradicts-code\` it MUST cite both sides: the comment line and the code line, e.g. \\"comment says X (L12), code does Y (L15)\\"."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "attr",
+                "note"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "changeGroupId",
+          "file",
+          "concern",
+          "role",
+          "addedRanges",
+          "removedRanges",
+          "riskSurface"
+        ]
+      }
+    },
+    "readingOrder": {
+      "type": "array",
+      "description": "optional reading order over changeGroups (ADR 0025): a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "id of a change-group in this brief's changeGroups"
+          },
+          "why": {
+            "type": "string",
+            "description": "one comprehension-language line, at most ~15 words, on why this group comes next (e.g. 'establishes the schema the rest builds on'). Never importance/priority/severity language, never a score."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "groupId",
+          "why"
+        ]
+      }
+    },
+    "intentCheck": {
+      "type": "object",
+      "properties": {
+        "ticketUrls": {
+          "type": "array",
+          "description": "the linked-context URLs treated as ticket-like intent sources — ONLY URLs present in the Linked context section, never invented",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ticketTitles": {
+          "type": "array",
+          "description": "display title for each ticketUrls entry — same order and length, the source's own heading/summary line verbatim, never invented or paraphrased; \\"\\" when the source shows no usable title",
+          "items": {
+            "type": "string"
+          }
+        },
+        "specificity": {
+          "type": "string",
+          "description": "how actionable the combined intent sources are: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all five buckets empty",
+          "enum": [
+            "precise",
+            "broad",
+            "none"
+          ]
+        },
+        "scopeNote": {
+          "type": "string",
+          "description": "one sentence of scope facts when the ticket deliberately spans beyond this PR (e.g. a stacked series); \\"\\" otherwise — usually empty"
+        },
+        "items": {
+          "type": "array",
+          "description": "every intent-check finding, each tagged with its bucket. Empty when specificity is broad/none (never a guessed gap). Per-bucket field rules are in the Intent check section of the system prompt",
+          "items": {
+            "type": "object",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed fix the diff only masks (maskedFixes). What, not why."
+              },
+              "quote": {
+                "type": "string",
+                "description": "verbatim supporting quote from the intent sources — the SHORTEST span that still carries the ask: a full clause, never a bare fragment (~200 chars is a ceiling, never a target), never paraphrased. \\"\\" on doneButUnstated (no ticket side)"
+              },
+              "sourceUrl": {
+                "type": "string",
+                "description": "source of the quote: \\"\\" when it comes from the PR title/description, else one of ticketUrls. Always \\"\\" on doneButUnstated"
+              },
+              "groupIds": {
+                "type": "array",
+                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, maskedFixes: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "acknowledged": {
+                "type": "boolean",
+                "description": "deviations ONLY: true when the PR description acknowledges this reversal (a quiet receipt, not an alarm). MUST be false in every other bucket — the field is dead there"
+              },
+              "bucket": {
+                "type": "string",
+                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. maskedFixes: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
+                "enum": [
+                  "accomplished",
+                  "statedButMissing",
+                  "doneButUnstated",
+                  "deviations",
+                  "maskedFixes"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "intent",
+              "quote",
+              "sourceUrl",
+              "groupIds",
+              "acknowledged",
+              "bucket"
+            ]
+          }
+        },
+        "alignment": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "string",
+              "description": "aligned: the diff delivers the goal as the ticket states it. partial: the diff serves the goal and delivers one slice of it — an ordinary outcome. misaligned: the diff does not serve the goal, or serves it in a way the ticket explicitly rules out. \\"\\" when no Primary ticket is present or it states no goal you can quote",
+              "enum": [
+                "aligned",
+                "partial",
+                "misaligned",
+                ""
+              ]
+            },
+            "goal": {
+              "type": "string",
+              "description": "the shortest verbatim span of the primary ticket that states what the ticket wants achieved — the goal, not an acceptance list or an implementation step; a full clause, never a fragment; ~200 chars ceiling, never a target. The ticket title may serve as the goal when the body states none; \\"\\" when read is \\"\\""
+            },
+            "response": {
+              "type": "string",
+              "description": "one sentence, ~250 chars ceiling: what this diff does relative to the goal in plain words — what it delivers, leaves out, or does instead. Facts about the diff; never a verdict, never a recommendation, no group ids; \\"\\" when read is \\"\\""
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "read",
+            "goal",
+            "response"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ticketUrls",
+        "ticketTitles",
+        "specificity",
+        "scopeNote",
+        "items",
+        "alignment"
+      ]
+    },
+    "summaryMedia": {
+      "type": "object",
+      "description": "Summary Media, by item number; see the Summary Media section",
+      "properties": {
+        "shown": {
+          "type": "array",
+          "description": "0 to 2 items shown in the summary; empty when none shows the change better than the lede",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "number",
+                "description": "an item number from <pr_media>"
+              },
+              "position": {
+                "type": "string",
+                "description": "before-lede or after-lede"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "item",
+              "position"
+            ]
+          }
+        },
+        "pointer": {
+          "type": "object",
+          "description": "at most one pointer to a set of items in the Media strip",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "a short plain-text label, no links, at most 40 characters"
+            },
+            "items": {
+              "type": "array",
+              "description": "1 to 4 item numbers from <pr_media>, none of them shown",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "items"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "shown"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "changeGroups",
+    "chunks",
+    "intentCheck"
+  ],
+  "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
+}"
+`;
+
 exports[`wire json schemas are byte-pinned > brief with a custom attribute 1`] = `
 "{
   "$defs": {
@@ -1520,6 +2359,315 @@ exports[`wire json schemas are byte-pinned > grouping 1`] = `
         "scopeNote",
         "items",
         "alignment"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "changeGroups",
+    "hunkMap",
+    "intentCheck"
+  ],
+  "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
+}"
+`;
+
+exports[`wire json schemas are byte-pinned > grouping offering Summary Media 1`] = `
+"{
+  "$defs": {
+    "__schema0": {
+      "type": "string",
+      "enum": [
+        "bugfix",
+        "logic-refactor",
+        "move-with-edits",
+        "lib-bump",
+        "pure-move",
+        "new-feature",
+        "dependency-update",
+        "schema-change"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Markdown, deliberately short: a lede of 1-3 short sentences stating what the PR does and why (plain text, no headings), then optionally a '## Changelog' of 1-3 bullets when the change warrants one. Hard caps, never targets. The lede is required; the changelog is not."
+    },
+    "changeGroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "stable group id referenced by chunks' changeGroupId, e.g. g1, g2, …"
+          },
+          "title": {
+            "type": "string",
+            "description": "a one-line title describing the change group (what, not why), ideally under ~100 characters (~150 ceiling), e.g. 'Add stock-location module to inventory service'"
+          },
+          "summary": {
+            "type": "string",
+            "description": "what the group does (what, not why), one group = one summary: 1-2 short sentences, ~200 characters ideal (~250 ceiling, never a target)"
+          },
+          "dominantCategory": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "secondaryCategories": {
+            "type": "array",
+            "description": "additional intents present in the group (empty if none)",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "uncertain": {
+            "type": "boolean",
+            "description": "true when confidence on the dominant category is below threshold. AI never hides uncertainty — flag it rather than forcing a token."
+          },
+          "uncertainBetween": {
+            "type": "array",
+            "description": "the categories in tension when uncertain=true (e.g. new-feature vs bugfix); empty when uncertain=false",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "dominantCategory",
+          "secondaryCategories",
+          "uncertain",
+          "uncertainBetween"
+        ]
+      }
+    },
+    "hunkMap": {
+      "type": "array",
+      "description": "one entry per change-group; see the Hunk map section",
+      "items": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "id of the change-group these hunks belong to, e.g. g1"
+          },
+          "hunks": {
+            "type": "array",
+            "description": "each item a whole file (\`f12\`), one hunk (\`f12h3\`) or a run of consecutive hunks of one file (\`f12h2-h5\`), spelled exactly as the input's \`### <fileId>\` titles and \`[hunk <id>]\` markers spell them; every hunk id of the input appears exactly once across all entries",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "groupId",
+          "hunks"
+        ]
+      }
+    },
+    "readingOrder": {
+      "type": "array",
+      "description": "optional reading order over changeGroups (ADR 0025): a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "id of a change-group in this brief's changeGroups"
+          },
+          "why": {
+            "type": "string",
+            "description": "one comprehension-language line, at most ~15 words, on why this group comes next (e.g. 'establishes the schema the rest builds on'). Never importance/priority/severity language, never a score."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "groupId",
+          "why"
+        ]
+      }
+    },
+    "intentCheck": {
+      "type": "object",
+      "properties": {
+        "ticketUrls": {
+          "type": "array",
+          "description": "the linked-context URLs treated as ticket-like intent sources — ONLY URLs present in the Linked context section, never invented",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ticketTitles": {
+          "type": "array",
+          "description": "display title for each ticketUrls entry — same order and length, the source's own heading/summary line verbatim, never invented or paraphrased; \\"\\" when the source shows no usable title",
+          "items": {
+            "type": "string"
+          }
+        },
+        "specificity": {
+          "type": "string",
+          "description": "how actionable the combined intent sources are: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all five buckets empty",
+          "enum": [
+            "precise",
+            "broad",
+            "none"
+          ]
+        },
+        "scopeNote": {
+          "type": "string",
+          "description": "one sentence of scope facts when the ticket deliberately spans beyond this PR (e.g. a stacked series); \\"\\" otherwise — usually empty"
+        },
+        "items": {
+          "type": "array",
+          "description": "every intent-check finding, each tagged with its bucket. Empty when specificity is broad/none (never a guessed gap). Per-bucket field rules are in the Intent check section of the system prompt",
+          "items": {
+            "type": "object",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed fix the diff only masks (maskedFixes). What, not why."
+              },
+              "quote": {
+                "type": "string",
+                "description": "verbatim supporting quote from the intent sources — the SHORTEST span that still carries the ask: a full clause, never a bare fragment (~200 chars is a ceiling, never a target), never paraphrased. \\"\\" on doneButUnstated (no ticket side)"
+              },
+              "sourceUrl": {
+                "type": "string",
+                "description": "source of the quote: \\"\\" when it comes from the PR title/description, else one of ticketUrls. Always \\"\\" on doneButUnstated"
+              },
+              "groupIds": {
+                "type": "array",
+                "description": "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, maskedFixes: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "acknowledged": {
+                "type": "boolean",
+                "description": "deviations ONLY: true when the PR description acknowledges this reversal (a quiet receipt, not an alarm). MUST be false in every other bucket — the field is dead there"
+              },
+              "bucket": {
+                "type": "string",
+                "description": "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. maskedFixes: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
+                "enum": [
+                  "accomplished",
+                  "statedButMissing",
+                  "doneButUnstated",
+                  "deviations",
+                  "maskedFixes"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "intent",
+              "quote",
+              "sourceUrl",
+              "groupIds",
+              "acknowledged",
+              "bucket"
+            ]
+          }
+        },
+        "alignment": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "string",
+              "description": "aligned: the diff delivers the goal as the ticket states it. partial: the diff serves the goal and delivers one slice of it — an ordinary outcome. misaligned: the diff does not serve the goal, or serves it in a way the ticket explicitly rules out. \\"\\" when no Primary ticket is present or it states no goal you can quote",
+              "enum": [
+                "aligned",
+                "partial",
+                "misaligned",
+                ""
+              ]
+            },
+            "goal": {
+              "type": "string",
+              "description": "the shortest verbatim span of the primary ticket that states what the ticket wants achieved — the goal, not an acceptance list or an implementation step; a full clause, never a fragment; ~200 chars ceiling, never a target. The ticket title may serve as the goal when the body states none; \\"\\" when read is \\"\\""
+            },
+            "response": {
+              "type": "string",
+              "description": "one sentence, ~250 chars ceiling: what this diff does relative to the goal in plain words — what it delivers, leaves out, or does instead. Facts about the diff; never a verdict, never a recommendation, no group ids; \\"\\" when read is \\"\\""
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "read",
+            "goal",
+            "response"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ticketUrls",
+        "ticketTitles",
+        "specificity",
+        "scopeNote",
+        "items",
+        "alignment"
+      ]
+    },
+    "summaryMedia": {
+      "type": "object",
+      "description": "Summary Media, by item number; see the Summary Media section",
+      "properties": {
+        "shown": {
+          "type": "array",
+          "description": "0 to 2 items shown in the summary; empty when none shows the change better than the lede",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "number",
+                "description": "an item number from <pr_media>"
+              },
+              "position": {
+                "type": "string",
+                "description": "before-lede or after-lede"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "item",
+              "position"
+            ]
+          }
+        },
+        "pointer": {
+          "type": "object",
+          "description": "at most one pointer to a set of items in the Media strip",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "a short plain-text label, no links, at most 40 characters"
+            },
+            "items": {
+              "type": "array",
+              "description": "1 to 4 item numbers from <pr_media>, none of them shown",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "items"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "shown"
       ]
     }
   },

@@ -13,6 +13,7 @@ import {
 import type { Outline } from "../outline/types";
 import { buildGroupingSystemPrompt } from "../prompt";
 import { stripForgedRepoFences } from "../repo-context";
+import { renderPrMedia } from "../summary-media";
 import type { GroupingRequest, GroupingRequestInput } from "./types";
 
 function describeDiff(
@@ -32,7 +33,7 @@ function describeDiff(
 export function buildGroupingRequest(
   input: GroupingRequestInput,
 ): GroupingRequest {
-  const { pr, outline, hunkCount, accepted } = input;
+  const { pr, outline, hunkCount, accepted, media } = input;
   const clean =
     accepted.context === undefined
       ? (text: string) => text
@@ -49,7 +50,7 @@ Number: ${pr.locator.number}
 Title: ${renderPrTitle(pr.meta)}${renderBranchFacts(pr.meta)}
 
 ## Description
-${renderPrDescription(pr.meta)}
+${renderPrDescription(pr.meta)}${renderPrMedia(media)}
 
 ${clean(primaryBlock)}## Linked context
 ${clean(renderLinked(pr.links))}${repoBlocks}
@@ -64,7 +65,11 @@ Every \`[hunk <id>]\` marker above names one hunk (${hunkCount} in all) and a fi
 ${DATA_REMINDER}${repoBlocks === "" ? "" : REPO_REMINDER}`;
 
   return {
-    system: buildGroupingSystemPrompt(outline.form, accepted.context),
+    system: buildGroupingSystemPrompt(
+      outline.form,
+      accepted.context,
+      media.length > 0,
+    ),
     user,
     primaryText,
   };

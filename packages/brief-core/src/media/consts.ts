@@ -9,8 +9,6 @@ import {
   type LinkMediaKind,
 } from "./types";
 
-export const HTTPS_PREFIX = "https://";
-export const MERMAID_KEY_PREFIX = "mermaid:";
 export const MERMAID_LANGUAGE_CLASS = "language-mermaid";
 
 /** The kind each file type the committed-file proxy serves shows as. */

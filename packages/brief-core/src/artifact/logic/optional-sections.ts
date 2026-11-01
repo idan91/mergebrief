@@ -27,6 +27,7 @@ const BRIEF_SECTIONS: BriefSectionSchemas = {
   readingOrder: BriefSchema.shape.readingOrder,
   intentCheck: BriefSchema.shape.intentCheck,
   outlineForm: BriefSchema.shape.outlineForm,
+  summaryMedia: BriefSchema.shape.summaryMedia,
 };
 
 const NARRATIVE_SECTIONS: NarrativeSectionSchemas = {

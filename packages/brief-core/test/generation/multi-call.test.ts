@@ -12,7 +12,13 @@ import { DETAIL_BATCH_MAX_DIFF_TOKENS } from "../../src/generation/multi-call/co
 import { BYTES_PER_TOKEN } from "../../src/generation/size/consts";
 import { CallPlanKinds } from "../../src/generation/size/types";
 import { GenerationWarningKinds } from "../../src/generation/warnings/types";
-import type { Brief, DetailGeneration } from "../../src/types";
+import { buildMermaidMediaKey } from "../../src/media";
+import {
+  GroupingGenerationSchema,
+  GroupingWithMediaGenerationSchema,
+  type Brief,
+  type DetailGeneration,
+} from "../../src/types";
 import { FakeGenerator, type RecordedRequest } from "../helpers";
 import {
   answerDetail,
@@ -1016,5 +1022,143 @@ describe("a failed detail call", () => {
     const labels = generator.requests.map((request) => request.label);
     expect(labels.slice(0, 3)).toEqual(["grouping", "detail:1", "detail:2"]);
     expect(labels).not.toContain("detail:4");
+  });
+});
+
+const SHOT = "https://cdn.test/shot.png";
+const DIAGRAM_CODE = "flowchart LR\n  A --> B\n";
+const MEDIA_BODY = [
+  "Touches three files.",
+  "",
+  `![New layout](${SHOT})`,
+  "",
+  "```mermaid",
+  DIAGRAM_CODE.trimEnd(),
+  "```",
+].join("\n");
+const mediaPr = { ...pr, meta: { ...pr.meta, body: MEDIA_BODY } };
+const mediaGrouping = {
+  ...grouping,
+  summaryMedia: {
+    shown: [{ item: 2, position: "after-lede" }],
+    pointer: { label: "The layout", items: [1] },
+  },
+};
+
+function answerMediaGrouping(request: RecordedRequest): unknown {
+  return request.label === "grouping" ? mediaGrouping : answerDetail(request);
+}
+
+describe("generateBrief Summary Media, grouping call", () => {
+  it("sends the block and rule to the grouping call only", async () => {
+    const generator = new FakeGenerator(answerMediaGrouping);
+
+    await generateBrief(makeOptions(generator, { pr: mediaPr }));
+
+    const [groupingRequest, ...detailRequests] = generator.requests;
+    expect(groupingRequest?.user).toContain(
+      [
+        "</pr_description>",
+        "<pr_media>",
+        '1. image | caption: "New layout"',
+        "2. diagram | type: flowchart",
+        "</pr_media>",
+      ].join("\n"),
+    );
+    expect(groupingRequest?.system).toContain("## Summary Media");
+    expect(groupingRequest?.schema).toBe(GroupingWithMediaGenerationSchema);
+    for (const request of detailRequests) {
+      expect(`${request.userPrefix}${request.user}`).not.toContain(
+        "<pr_media>",
+      );
+    }
+  });
+
+  it("sends the plain grouping schema without Media", async () => {
+    const generator = new FakeGenerator(makeAnswer());
+
+    await generateBrief(makeOptions(generator));
+
+    expect(generator.requests[0]?.schema).toBe(GroupingGenerationSchema);
+    expect(generator.requests[0]?.system).not.toContain("Summary Media");
+  });
+
+  it("stores the grouping call's picks by key", async () => {
+    const generator = new FakeGenerator(answerMediaGrouping);
+
+    const { brief } = await generateBrief(
+      makeOptions(generator, { pr: mediaPr }),
+    );
+
+    expect(brief.summaryMedia).toEqual({
+      shown: [
+        { key: buildMermaidMediaKey(DIAGRAM_CODE), position: "after-lede" },
+      ],
+      pointer: { label: "The layout", items: [SHOT] },
+    });
+  });
+
+  it("stores the grouping part with its picks already as keys", async () => {
+    const stored = new Map<PartKey, unknown>();
+    const generator = new FakeGenerator(answerMediaGrouping);
+
+    await generateBrief(
+      makeOptions(generator, {
+        pr: mediaPr,
+        multiCallHooks: {
+          onPartDone: async (key, body) => {
+            stored.set(key, body);
+          },
+        },
+      }),
+    );
+
+    expect(stored.get("grouping")).toMatchObject({
+      summaryMedia: {
+        shown: [
+          { key: buildMermaidMediaKey(DIAGRAM_CODE), position: "after-lede" },
+        ],
+        pointer: { label: "The layout", items: [SHOT] },
+      },
+    });
+  });
+
+  it("keeps the same picks when the description reorders before a resume", async () => {
+    const stored = new Map<PartKey, unknown>();
+    await generateBrief(
+      makeOptions(new FakeGenerator(answerMediaGrouping), {
+        pr: mediaPr,
+        multiCallHooks: {
+          onPartDone: async (key, body) => {
+            stored.set(key, body);
+          },
+        },
+      }),
+    );
+    const reordered = [
+      "```mermaid",
+      DIAGRAM_CODE.trimEnd(),
+      "```",
+      "",
+      `![New layout](${SHOT})`,
+    ].join("\n");
+    const generator = new FakeGenerator(answerMediaGrouping);
+
+    const { brief } = await generateBrief(
+      makeOptions(generator, {
+        pr: { ...pr, meta: { ...pr.meta, body: reordered } },
+        multiCallHooks: { loadPart: async (key) => stored.get(key) },
+      }),
+    );
+
+    expect(generator.requests.map((request) => request.label)).not.toContain(
+      "grouping",
+    );
+    expect(brief.summaryMedia).toEqual({
+      shown: [
+        { key: buildMermaidMediaKey(DIAGRAM_CODE), position: "after-lede" },
+      ],
+      pointer: { label: "The layout", items: [SHOT] },
+    });
   });
 });

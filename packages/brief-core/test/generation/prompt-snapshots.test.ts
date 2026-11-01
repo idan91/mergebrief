@@ -43,6 +43,14 @@ describe("system prompts are byte-pinned", () => {
     expect(buildSystemPrompt(bothRepoSections, true)).toMatchSnapshot();
   });
 
+  it("brief, with the Summary Media rule", () => {
+    expect(buildSystemPrompt(undefined, false, true)).toMatchSnapshot();
+  });
+
+  it("brief, anchored with the Summary Media rule", () => {
+    expect(buildSystemPrompt(undefined, true, true)).toMatchSnapshot();
+  });
+
   it("delta", () => {
     expect(buildDeltaSystemPrompt()).toMatchSnapshot();
   });
@@ -60,6 +68,12 @@ describe("system prompts are byte-pinned", () => {
     expect(prompt).toContain("## Repo instructions (semi-trusted, bounded)");
     expect(prompt).not.toContain("## Repo-defined risk attributes");
     expect(prompt).toMatchSnapshot();
+  });
+
+  it("grouping, with the Summary Media rule", () => {
+    expect(
+      buildGroupingSystemPrompt(OutlineForms.FULL, undefined, true),
+    ).toMatchSnapshot();
   });
 
   it("detail, without repo context", () => {

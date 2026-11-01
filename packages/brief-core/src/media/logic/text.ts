@@ -1,6 +1,6 @@
 import type { Element, ElementContent, Root, RootContent } from "hast";
 
-import { HTTPS_PREFIX } from "../consts";
+import { HTTPS_PREFIX } from "../key";
 
 const WHITESPACE_RUN = /\s+/g;
 const SENTENCE_BREAK = /(?<=[.!?])\s+/;

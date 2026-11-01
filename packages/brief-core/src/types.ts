@@ -2,6 +2,8 @@ import { z } from "zod/v4";
 import { AnchorSchema, GenerationSchema } from "generators/generation";
 import { ChangeGroupCategories, TicketTrackers, type ValueOf } from "types";
 import { PrStackSchema } from "./pr-stack";
+import { isMediaKey } from "./media/key";
+import type { MediaKey } from "./media/types";
 
 /**
  * Brief schema. Generation surface: schema changes are eval-gated.
@@ -807,6 +809,165 @@ export const LengthViolationSchema = z.object({
 });
 export type LengthViolation = z.infer<typeof LengthViolationSchema>;
 
+/** Where a shown Summary Media item sits in the Brief summary. */
+export const SummaryMediaPositions = {
+  BEFORE_LEDE: "before-lede",
+  AFTER_LEDE: "after-lede",
+} as const;
+/** @public */
+export type SummaryMediaPosition = ValueOf<typeof SummaryMediaPositions>;
+
+export const SUMMARY_MEDIA_MAX_SHOWN = 2;
+export const SUMMARY_MEDIA_MAX_POINTER_ITEMS = 4;
+export const SUMMARY_MEDIA_LABEL_MAX_CHARS = 40;
+/** A stored key past this is junk, never a normalised address. */
+const MEDIA_KEY_MAX_CHARS = 4_096;
+
+/** A key the stored Summary Media accepts; the generator drops any other before the write check sees it. */
+export function isStoredMediaKey(value: string): value is MediaKey {
+  const withinCap = value.length <= MEDIA_KEY_MAX_CHARS;
+  return withinCap && isMediaKey(value);
+}
+
+const MediaKeySchema = z.string().refine(isStoredMediaKey, "Not a Media key");
+
+/**
+ * The Media the model picked for the Brief summary, by key, never by
+ * address: the page shows a key only when it names an item of the
+ * description it extracts again. Generator-written, after the trims.
+ */
+export const SummaryMediaSchema = z.object({
+  shown: z
+    .array(
+      z.object({
+        key: MediaKeySchema,
+        position: z.enum(SummaryMediaPositions),
+      }),
+    )
+    .max(SUMMARY_MEDIA_MAX_SHOWN),
+  pointer: z
+    .object({
+      label: z.string().min(1).max(SUMMARY_MEDIA_LABEL_MAX_CHARS),
+      items: z
+        .array(MediaKeySchema)
+        .min(1)
+        .max(SUMMARY_MEDIA_MAX_POINTER_ITEMS),
+    })
+    .optional(),
+});
+export type SummaryMedia = z.infer<typeof SummaryMediaSchema>;
+
+/**
+ * The model's Summary Media answer: item numbers from the `<pr_media>`
+ * block and position strings, kept lax so a slip trims instead of failing
+ * the generation. Sent only when the description holds Media.
+ */
+const SummaryMediaShownGenerationSchema = z.object({
+  item: z.number().describe("an item number from <pr_media>"),
+  position: z
+    .string()
+    .describe(
+      `${SummaryMediaPositions.BEFORE_LEDE} or ${SummaryMediaPositions.AFTER_LEDE}`,
+    ),
+});
+
+export const SummaryMediaGenerationSchema = z.object({
+  shown: z
+    .array(SummaryMediaShownGenerationSchema)
+    .describe(
+      `0 to ${SUMMARY_MEDIA_MAX_SHOWN} items shown in the summary; empty when none shows the change better than the lede`,
+    ),
+  pointer: z
+    .object({
+      label: z
+        .string()
+        .describe(
+          `a short plain-text label, no links, at most ${SUMMARY_MEDIA_LABEL_MAX_CHARS} characters`,
+        ),
+      items: z
+        .array(z.number())
+        .describe(
+          `1 to ${SUMMARY_MEDIA_MAX_POINTER_ITEMS} item numbers from <pr_media>, none of them shown`,
+        ),
+    })
+    .optional()
+    .describe("at most one pointer to a set of items in the Media strip"),
+});
+export type SummaryMediaGeneration = z.infer<
+  typeof SummaryMediaGenerationSchema
+>;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  const isObject = typeof value === "object" && value !== null;
+  return isObject && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  const isNumber = typeof value === "number";
+  return isNumber && Number.isFinite(value);
+}
+
+/** Item 1 is the first: a pick with no usable number stays as item 0, which names nothing, so the resolver counts it. */
+const NO_ITEM = 0;
+/** No position at all: the resolver reads it as unknown, places it after the lede and counts it. */
+const NO_POSITION = "";
+
+function readItemNumber(value: unknown): number {
+  return isFiniteNumber(value) ? value : NO_ITEM;
+}
+
+function readShownPick(entry: unknown): Record<string, unknown> {
+  if (!isPlainObject(entry)) {
+    return { item: NO_ITEM, position: NO_POSITION };
+  }
+  const position = entry["position"];
+  return {
+    item: readItemNumber(entry["item"]),
+    position: typeof position === "string" ? position : NO_POSITION,
+  };
+}
+
+function readPointerPick(value: unknown): unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isPlainObject(value)) {
+    return { label: "", items: [] };
+  }
+  const label = value["label"];
+  const items = Array.isArray(value["items"]) ? value["items"] : [];
+  return {
+    label: typeof label === "string" ? label : "",
+    items: items.map(readItemNumber),
+  };
+}
+
+/**
+ * A malformed answer trims, never fails the brief, and every trim is
+ * counted: on an adapter that does not enforce the schema, a pick keeps
+ * its place with what parses of it and the resolver drops and counts the
+ * rest. Anything but an object reads as no answer. The wire schema is the
+ * strict shape still.
+ */
+function trimSummaryMediaAnswer(value: unknown): unknown {
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+  const shown = Array.isArray(value["shown"]) ? value["shown"] : [];
+  const answer: Record<string, unknown> = { shown: shown.map(readShownPick) };
+  const pointer = readPointerPick(value["pointer"]);
+  if (pointer !== undefined) {
+    answer["pointer"] = pointer;
+  }
+  return answer;
+}
+
+const SUMMARY_MEDIA_GENERATION_FIELDS = {
+  summaryMedia: z
+    .preprocess(trimSummaryMediaAnswer, SummaryMediaGenerationSchema.optional())
+    .describe("Summary Media, by item number; see the Summary Media section"),
+};
+
 export const BriefSchema = z.object({
   pr: PrRefSchema,
   index: z
@@ -875,6 +1036,9 @@ export const BriefSchema = z.object({
     .describe(
       "which outline form the grouping call of a multi-call run read. Pipeline-assigned, never model-produced; absent on a single-call brief.",
     ),
+  summaryMedia: SummaryMediaSchema.optional().describe(
+    "the Media shown in the Brief summary and its pointer, by key. Generator-mapped from item numbers; absent when the description holds no Media or nothing valid was picked.",
+  ),
 });
 
 /**
@@ -899,12 +1063,18 @@ export const BriefGenerationSchema = BriefSchema.omit({
   unattributed: true,
   diffTotals: true,
   outlineForm: true,
+  summaryMedia: true,
 }).extend({
   chunks: z.array(ChunkGenerationSchema),
   intentCheck: IntentCheckGenerationSchema,
 });
 
-export type BriefGeneration = z.infer<typeof BriefGenerationSchema>;
+const BriefWithMediaGenerationSchema = BriefGenerationSchema.extend(
+  SUMMARY_MEDIA_GENERATION_FIELDS,
+);
+
+/** A brief generation's answer; `summaryMedia` only when the request offered it. */
+export type BriefGeneration = z.infer<typeof BriefWithMediaGenerationSchema>;
 
 /** One group's hunks in the grouping call's hunk map. */
 export const HunkMapEntrySchema = z.object({
@@ -933,8 +1103,25 @@ export const GroupingGenerationSchema = z.object({
   intentCheck: IntentCheckGenerationSchema,
 });
 
+/** The grouping schema of a run whose description holds Media. */
+export const GroupingWithMediaGenerationSchema =
+  GroupingGenerationSchema.extend(SUMMARY_MEDIA_GENERATION_FIELDS);
+
+/**
+ * A grouping part as stored: the grouping answer with its Summary Media
+ * already mapped from item numbers to keys, so a resumed run never reads a
+ * number against a description edited since. A part without the field
+ * still reads.
+ */
+export const StoredGroupingSchema = GroupingGenerationSchema.extend({
+  summaryMedia: SummaryMediaSchema.optional(),
+});
+
 export type HunkMapEntry = z.infer<typeof HunkMapEntrySchema>;
-export type GroupingGeneration = z.infer<typeof GroupingGenerationSchema>;
+export type GroupingGeneration = z.infer<
+  typeof GroupingWithMediaGenerationSchema
+>;
+export type StoredGrouping = z.infer<typeof StoredGroupingSchema>;
 
 function buildDetailGenerationSchema(riskToken: z.ZodType<string>) {
   return z.object({
@@ -970,13 +1157,32 @@ export function detailGenerationSchemaWith(
  */
 export function briefGenerationSchemaWith(
   customNames: readonly string[],
+  offersSummaryMedia = false,
 ): z.ZodType<BriefGeneration> {
-  if (customNames.length === 0) {
-    return BriefGenerationSchema;
+  const vocabulary =
+    customNames.length === 0
+      ? BriefGenerationSchema
+      : BriefGenerationSchema.extend({
+          chunks: z.array(
+            buildChunkGenerationSchema(riskTokenEnum(customNames)),
+          ),
+        });
+  if (!offersSummaryMedia) {
+    return vocabulary;
   }
-  return BriefGenerationSchema.extend({
-    chunks: z.array(buildChunkGenerationSchema(riskTokenEnum(customNames))),
-  });
+  if (customNames.length === 0) {
+    return BriefWithMediaGenerationSchema;
+  }
+  return vocabulary.extend(SUMMARY_MEDIA_GENERATION_FIELDS);
+}
+
+/** The grouping schema for one run: Summary Media only when the description holds Media. */
+export function groupingGenerationSchemaWith(
+  offersSummaryMedia: boolean,
+): z.ZodType<GroupingGeneration> {
+  return offersSummaryMedia
+    ? GroupingWithMediaGenerationSchema
+    : GroupingGenerationSchema;
 }
 
 /**

@@ -29,6 +29,7 @@ function makeInput(
     outline: chooseOutline({ files, shortened: new Map() }),
     hunkCount: files.reduce((sum, file) => sum + file.hunks.length, 0),
     accepted: acceptContext(retryRepoContext),
+    media: [],
     ...overrides,
   };
 }

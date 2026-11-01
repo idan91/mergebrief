@@ -238,7 +238,7 @@ module.exports = {
     {
       name: "brief-types-import-only-leaves",
       comment:
-        "The Brief shape loads in a browser: all it reaches is zod, the types package, the generation vocabulary and its own pr-stack folder.",
+        "The Brief shape loads in a browser: all it reaches is zod, the types package, the generation vocabulary, its own pr-stack folder and the Media key's type and guard.",
       severity: "error",
       from: { path: "^packages/brief-core/src/types\\.ts$" },
       to: {
@@ -248,14 +248,14 @@ module.exports = {
           "node_modules/zod/",
           "^packages/types/",
           "^packages/generators/src/contract/generation\\.ts$",
-          "^packages/brief-core/src/(types\\.ts$|pr-stack/)",
+          "^packages/brief-core/src/(types\\.ts$|pr-stack/|media/(key|types)\\.ts$)",
         ],
       },
     },
     {
       name: "artifact-module-imports-only-leaves",
       comment:
-        "The stored-artifact schemas and checks load in a browser: all they reach is zod, the types package, the Brief shape with its generation vocabulary and pr-stack folder, the chunk-layout leaf (itself held to the types package) and the artifact folder itself.",
+        "The stored-artifact schemas and checks load in a browser: all they reach is zod, the types package, the Brief shape with its generation vocabulary, pr-stack folder and Media key guard, the chunk-layout leaf (itself held to the types package) and the artifact folder itself.",
       severity: "error",
       from: { path: "^packages/brief-core/src/artifact/" },
       to: {
@@ -265,7 +265,7 @@ module.exports = {
           "node_modules/zod/",
           "^packages/types/",
           "^packages/generators/src/contract/generation\\.ts$",
-          "^packages/brief-core/src/(types\\.ts$|pr-stack/|artifact/|diff/chunk-layout/)",
+          "^packages/brief-core/src/(types\\.ts$|pr-stack/|artifact/|diff/chunk-layout/|media/(key|types)\\.ts$)",
         ],
       },
     },

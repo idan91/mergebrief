@@ -658,3 +658,82 @@ describe("readStoredRevisionNarrative", () => {
     });
   });
 });
+
+const MERMAID_KEY = `mermaid:${"a1".repeat(32)}`;
+const SUMMARY_MEDIA = {
+  shown: [
+    { key: "https://cdn.test/after.png", position: "before-lede" },
+    { key: MERMAID_KEY, position: "after-lede" },
+  ],
+  pointer: {
+    label: "Before and after",
+    items: ["https://github.com/acme/app/raw/main/before.png"],
+  },
+};
+
+describe("Summary Media in a stored Brief", () => {
+  it("round-trips through the write check and the reader", () => {
+    const body = makeBodyWith({ summaryMedia: SUMMARY_MEDIA });
+
+    expect(checkBriefForWrite(body, []).ok).toBe(true);
+    expect(readBodyOrThrow(body)).toEqual({ brief: body, issues: [] });
+  });
+
+  it.each([
+    [
+      "a key that is no address",
+      { shown: [{ key: "../x", position: "after-lede" }] },
+    ],
+    [
+      "a short mermaid key",
+      { shown: [{ key: "mermaid:abc", position: "after-lede" }] },
+    ],
+    [
+      "a plain http key",
+      { shown: [{ key: "http://cdn.test/a.png", position: "after-lede" }] },
+    ],
+    ["an unknown position", { shown: [{ key: MERMAID_KEY, position: "top" }] }],
+    [
+      "three shown items",
+      {
+        shown: [1, 2, 3].map(() => ({
+          key: MERMAID_KEY,
+          position: "after-lede",
+        })),
+      },
+    ],
+    [
+      "an empty label",
+      { shown: [], pointer: { label: "", items: [MERMAID_KEY] } },
+    ],
+    [
+      "a long label",
+      { shown: [], pointer: { label: "x".repeat(41), items: [MERMAID_KEY] } },
+    ],
+    [
+      "a pointer with no items",
+      { shown: [], pointer: { label: "Set", items: [] } },
+    ],
+    ["a number for a key", { shown: [{ key: 1, position: "after-lede" }] }],
+  ])("drops the section for %s", (_case, summaryMedia) => {
+    const read = readBodyOrThrow(makeBodyWith({ summaryMedia }));
+
+    expect(read.brief).not.toHaveProperty("summaryMedia");
+    expect(read.issues).toEqual([
+      expect.objectContaining({
+        code: ArtifactIssueCodes.DROPPED_SECTION,
+        path: "summaryMedia",
+      }),
+    ]);
+  });
+
+  it("refuses junk at the write check", () => {
+    const body = makeBodyWith({
+      summaryMedia: {
+        shown: [{ key: "javascript:alert(1)", position: "after-lede" }],
+      },
+    });
+
+    expect(checkBriefForWrite(body, []).ok).toBe(false);
+  });
+});

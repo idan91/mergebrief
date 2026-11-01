@@ -1,4 +1,4 @@
-import type { GroupingGeneration } from "../../types";
+import type { StoredGrouping } from "../../types";
 import { restoreRawGroupIds } from "../untrusted-text";
 import type { StoredGroupIds } from "./types";
 
@@ -25,7 +25,7 @@ function mintGroupIds(
 }
 
 /** Every id the grouping refers to without listing it as a group. */
-function listStrayIds(grouping: GroupingGeneration): string[] {
+function listStrayIds(grouping: StoredGrouping): string[] {
   const listed = new Set(grouping.changeGroups.map((group) => group.id));
   const referenced = [
     ...grouping.hunkMap.map((entry) => entry.groupId),
@@ -43,15 +43,15 @@ function listStrayIds(grouping: GroupingGeneration): string[] {
  * so it still fails the hunk map resolver.
  */
 export function renumberGroupIds(
-  grouping: GroupingGeneration,
+  grouping: StoredGrouping,
   reservedIds: readonly string[],
-): GroupingGeneration {
+): StoredGrouping {
   const listedIds = grouping.changeGroups.map((group) => group.id);
   const reserved = new Set([...reservedIds, ...listStrayIds(grouping)]);
   const minted = mintGroupIds(listedIds, reserved);
   const rename = (id: string): string => minted.get(id) ?? id;
 
-  const renumbered: GroupingGeneration = {
+  const renumbered: StoredGrouping = {
     ...grouping,
     changeGroups: grouping.changeGroups.map((group) => ({
       ...group,
@@ -83,8 +83,8 @@ export function renumberGroupIds(
  * ways. Both list their groups in the same order.
  */
 export function mapStoredGroupIds(
-  stored: GroupingGeneration,
-  current: GroupingGeneration,
+  stored: StoredGrouping,
+  current: StoredGrouping,
 ): StoredGroupIds {
   const toRun = new Map<string, string>();
   const toStored = new Map<string, string>();

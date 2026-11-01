@@ -7,6 +7,7 @@ import {
   detailGenerationSchemaWith,
   DetailGenerationSchema,
   GroupingGenerationSchema,
+  GroupingWithMediaGenerationSchema,
   RevisionNarrativeGenerationSchema,
 } from "../../src/types";
 
@@ -29,6 +30,18 @@ describe("wire json schemas are byte-pinned", () => {
     expect(serializeWireSchema(schema)).toMatchSnapshot();
   });
 
+  it("brief offering Summary Media", () => {
+    const schema = briefGenerationSchemaWith([], true);
+
+    expect(serializeWireSchema(schema)).toMatchSnapshot();
+  });
+
+  it("brief offering Summary Media with a custom attribute", () => {
+    const schema = briefGenerationSchemaWith(["example-attribute"], true);
+
+    expect(serializeWireSchema(schema)).toMatchSnapshot();
+  });
+
   it("delta", () => {
     expect(serializeWireSchema(DeltaBriefGenerationSchema)).toMatchSnapshot();
   });
@@ -45,6 +58,12 @@ describe("wire json schemas are byte-pinned", () => {
 
   it("grouping", () => {
     expect(serializeWireSchema(GroupingGenerationSchema)).toMatchSnapshot();
+  });
+
+  it("grouping offering Summary Media", () => {
+    expect(
+      serializeWireSchema(GroupingWithMediaGenerationSchema),
+    ).toMatchSnapshot();
   });
 
   it("revision narrative", () => {

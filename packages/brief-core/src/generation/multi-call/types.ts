@@ -17,6 +17,7 @@ import type {
 } from "../../types";
 import type { AcceptedRepoContext } from "../categorize";
 import type { Outline } from "../outline/types";
+import type { MediaItem } from "../../media";
 import type { LockfileSummary } from "../shortened/types";
 import type { RepoContext } from "../repo-context";
 import type { WarningCollector } from "../warnings/types";
@@ -28,6 +29,8 @@ export interface GroupingRequestInput {
   readonly hunkCount: number;
   /** The run's one accepted repo-context view; the detail calls read the same one. */
   readonly accepted: AcceptedRepoContext;
+  /** The description's Media; the block, rule and schema field ride only when it holds any. */
+  readonly media: readonly MediaItem[];
 }
 
 /** The grouping call's prompts, plus the ticket text the validation context verifies against. */
