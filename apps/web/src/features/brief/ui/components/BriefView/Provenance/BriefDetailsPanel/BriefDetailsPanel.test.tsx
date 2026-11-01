@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "@web/i18n/I18nProvider";
@@ -235,16 +235,27 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     expect(text).toContain("salvaged brief");
   });
 
-  it("keeps a multi-line warning in one paragraph inside a tab stop", () => {
+  it("keeps a multi-line warning in one list item inside a tab stop", () => {
     const warning = "⚠ loc coverage issues:\nfirst issue\nsecond issue";
     renderPanel({ ...baseBrief, generationWarnings: [warning] });
     fireEvent.click(infoTrigger());
 
     const note = warningsNote();
-    const paragraphs = note?.querySelectorAll("p") ?? [];
-    expect(paragraphs).toHaveLength(1);
-    expect(paragraphs[0]?.textContent).toBe(warning);
+    const items = note?.querySelectorAll("li") ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.textContent).toBe(warning);
     expect(note?.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("lists each warning as its own item", () => {
+    const warnings = ["⚠ first long warning", "⚠ second long warning"];
+    renderPanel({ ...baseBrief, generationWarnings: warnings });
+    fireEvent.click(infoTrigger());
+
+    const region = screen.getByRole("region", { name: /warnings/i });
+    const items = within(region).getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual(warnings);
+    expect(within(region).getByRole("list").getAttribute("role")).toBe("list");
   });
 
   it("Repo config: reports no-config when no snapshot is present", () => {

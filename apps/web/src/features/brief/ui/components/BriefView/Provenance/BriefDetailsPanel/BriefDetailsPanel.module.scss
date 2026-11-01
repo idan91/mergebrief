@@ -135,9 +135,6 @@
   }
 
   .warnings {
-    display: flex;
-    flex-direction: column;
-    gap: functions.to-rem(4px);
     max-block-size: functions.to-rem(240px);
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -146,13 +143,26 @@
     line-height: 1.5;
     overflow-wrap: anywhere;
 
-    p {
-      margin: 0;
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
+  .warningList {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(8px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
       white-space: pre-line;
     }
 
-    &:focus-visible {
-      @include mixins.focus-ring;
+    li + li {
+      border-block-start: 1px solid var(--color-outline-1);
+      padding-block-start: functions.to-rem(8px);
     }
   }
 

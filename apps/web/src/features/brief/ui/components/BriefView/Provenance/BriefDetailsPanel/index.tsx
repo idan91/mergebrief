@@ -349,9 +349,12 @@ function GenerationSection({
           role="region"
           tabIndex={0}
         >
-          {warnings.map((warning) => (
-            <p key={warning}>{warning}</p>
-          ))}
+          {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles -- WebKit drops list semantics under list-style: none without it */}
+          <ul className={styles["warningList"]} role="list">
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </section>
