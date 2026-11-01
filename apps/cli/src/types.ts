@@ -15,6 +15,8 @@ export interface CliDeps {
   readonly stdout: (text: string) => void;
   /** One-line stderr sink. */
   readonly stderr: (line: string) => void;
+  /** Sink for a line only a successful run prints (the major-gap warning); `stderr` when absent. */
+  readonly successNotice?: (line: string) => void;
   /** Read the pasted/piped token for `auth login`. */
   readonly readStdin: () => Promise<string>;
   /** `git remote get-url origin`, or undefined outside a repo. */

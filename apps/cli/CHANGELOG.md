@@ -24,7 +24,8 @@ version (`auth status` → `server.version`).
 - The exit-code contract (0-7, additive-only) and the stream/exit
   invariant: exit 0 prints the documented output (JSON, the raw diff, or
   nothing), any other exit prints
-  nothing on stdout and one line on stderr. Exit 7 RATE_LIMITED is a 429; its error line ends
+  nothing on stdout and one line on stderr, except a local stdout write
+  failure (EIO, ENOSPC), which exits 1 and may leave a partial write. Exit 7 RATE_LIMITED is a 429; its error line ends
   `(HTTP 429, retry after <n>s)` when the server sent `Retry-After` in
   whole seconds.
 - Per-profile config (`~/.config/mergebrief`, 0600) with `owners:` routing,

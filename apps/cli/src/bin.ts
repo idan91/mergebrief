@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { CLI_VERSION } from "./client";
-import { ExitCodes } from "./exit";
+import { resolveFinalExitCode, watchStream } from "./flush-output";
 import { runCli } from "./program";
 import { startUpdateCheck } from "./version/update-nag";
 
@@ -71,6 +71,9 @@ function makePager(): ((text: string) => Promise<void>) | undefined {
     });
 }
 
+const watchedStdout = watchStream(process.stdout);
+const watchedStderr = watchStream(process.stderr);
+const successNotices: string[] = [];
 const cacheDir = xdgDir("XDG_CACHE_HOME", ".cache");
 // Beside the command, never after it: the answer is taken only if it settled
 // by exit, so a slow registry costs nothing.
@@ -90,11 +93,17 @@ const code = await runCli(process.argv.slice(2), {
   cacheDir,
   stdout: (text) => process.stdout.write(text),
   stderr: (line) => process.stderr.write(`${line}\n`),
+  successNotice: (line) => successNotices.push(line),
   readStdin,
   gitOriginUrl,
 });
-const nag = updateCheck.settle(code === ExitCodes.OK);
-if (nag !== undefined) {
-  process.stderr.write(`${nag}\n`);
-}
-process.exit(code);
+// process.exit drops whatever a pipe has not taken yet: flush first.
+const exitCode = await resolveFinalExitCode({
+  code,
+  stdout: watchedStdout,
+  stderr: watchedStderr,
+  writeStderr: (line) => process.stderr.write(`${line}\n`),
+  successNotices,
+  settleUpdateNag: (succeeded) => updateCheck.settle(succeeded),
+});
+process.exit(exitCode);

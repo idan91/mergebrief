@@ -148,9 +148,11 @@ function warnOnMajorGap(deps: CliDeps): void {
     resolveCliVersion(deps),
   );
   const warning = buildMajorWarning(skew, detectLaunchForm(deps.env));
-  if (warning !== undefined) {
-    deps.stderr(warning);
+  if (warning === undefined) {
+    return;
   }
+  const writeNotice = deps.successNotice ?? deps.stderr;
+  writeNotice(warning);
 }
 
 /** The one error line's tail while versions differ: `[server x, cli y]`. */

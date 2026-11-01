@@ -60,7 +60,9 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
   empty** and stderr carries exactly one
   line. For server responses it relays the error text + HTTP status;
   client-side usage and network/proxy failures explain themselves without
-  one.
+  one. One exception: when writing stdout fails for a reason other than
+  the reader closing it (EIO, ENOSPC), a successful command exits 1 and
+  stdout may hold a partial write.
 - **Passthrough by default:** most commands emit the server response
   verbatim: one canonical shape across web, API, and CLI. Exactly three
   shapes are CLI-synthesized: the `delta` union, `auth status`, and

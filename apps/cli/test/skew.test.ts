@@ -183,6 +183,25 @@ describe("the major-gap warning on a successful run", () => {
     expect(run.err).toEqual([]);
   });
 
+  it("goes to the success-notice sink when one is given", async () => {
+    const run = stubDeps({
+      body: { version: "2.0.0" },
+      serverVersion: "2.0.0",
+    });
+    const notices: string[] = [];
+
+    const deps = {
+      ...run.deps,
+      successNotice: (line: string) => notices.push(line),
+    };
+    const code = await runCli(["auth", "status", "--json"], deps);
+
+    expect(code).toBe(ExitCodes.OK);
+    expect(run.err).toEqual([]);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain("is behind this server");
+  });
+
   it("never prints on a failing run", async () => {
     const run = stubDeps({
       status: 404,
