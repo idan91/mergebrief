@@ -97,4 +97,30 @@ describe("the shipped-graph license classifier", () => {
       error: [relicensed],
     });
   });
+
+  it("passes every platform build under a prefix exception", () => {
+    const builds = [
+      makePackage("@img/sharp-libvips-linuxmusl-x64", "LGPL-3.0-or-later"),
+      makePackage("@img/sharp-libvips-darwin-arm64", "LGPL-3.0-or-later"),
+    ];
+
+    const result = classifyLicenses(builds);
+
+    const excepted = result.ok ? result.value.excepted : [];
+    expect(excepted.map((pkg) => pkg.name)).toEqual([
+      "@img/sharp-libvips-linuxmusl-x64",
+      "@img/sharp-libvips-darwin-arm64",
+    ]);
+    expect(excepted[0]?.reason).toMatch(/LGPL-3.0/);
+  });
+
+  it("keeps a prefix exception to its prefix and its license", () => {
+    const lookalike = makePackage("@img/sharp-libvipsx", "LGPL-3.0-or-later");
+    const relicensed = makePackage("@img/sharp-libvips-linux-x64", "GPL-3.0");
+
+    expect(classifyLicenses([lookalike, relicensed])).toEqual({
+      ok: false,
+      error: [lookalike, relicensed],
+    });
+  });
 });

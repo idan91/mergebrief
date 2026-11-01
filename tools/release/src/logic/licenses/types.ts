@@ -9,6 +9,7 @@ export interface LicensedPackage {
 
 /** A package allowed by name although its license is off the pass list. */
 export interface LicenseException {
+  /** One package's name, or a prefix ending in `*` for the per-platform builds of one package. */
   readonly name: string;
   /** The exception lapses when the package's license changes. */
   readonly license: string;

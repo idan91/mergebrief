@@ -13,7 +13,8 @@
     "version-json": "tsx src/main.ts version-json",
     "release-body": "tsx src/main.ts release-body",
     "export": "tsx src/main.ts export",
-    "licenses": "tsx src/main.ts licenses"
+    "licenses": "tsx src/main.ts licenses",
+    "notices": "tsx src/main.ts notices"
   },
   "dependencies": {
     "types": "workspace:*",

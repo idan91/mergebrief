@@ -1,6 +1,7 @@
 // A request body read under a byte cap, cancelling the stream the moment
 // the cap is crossed so an oversized upload never buffers: the webhook's
-// signed payload and the attachment upload both enter through it.
+// signed payload and the attachment upload both enter through it, and a
+// thumbnail's original is read the same way.
 import type { Result } from "types/utils";
 
 export const BODY_TOO_LARGE = "body-too-large";
@@ -27,8 +28,15 @@ export async function readRawBodyWithinLimit(
   if (request.body === null) {
     return { ok: true, value: new Uint8Array(0) };
   }
+  return readStreamWithinLimit(request.body, maxBytes);
+}
 
-  const reader = request.body.getReader();
+/** A stream read to its end under a byte cap; a read error rejects as the stream's own error. */
+export async function readStreamWithinLimit(
+  stream: ReadableStream<Uint8Array>,
+  maxBytes: number,
+): Promise<RawBodyResult> {
+  const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
   let bytesRead = 0;
   try {

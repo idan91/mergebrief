@@ -26,11 +26,13 @@ export {
   ATTACHMENT_EXTENSION_BY_MEDIA_TYPE,
   ATTACHMENT_MAX_BYTES,
   VIDEO_ASSETS_MISSING_PARAM,
+  ATTACHMENT_THUMBNAIL_PARAM,
 } from "./consts";
 export {
   AttachmentMediaTypes,
   AttachmentParseErrorCodes,
   AttachmentSourceKinds,
+  AttachmentThumbnails,
   type AssetAttachmentSource,
   type AttachmentAssetId,
   type AttachmentBranchLocation,
@@ -39,6 +41,7 @@ export {
   type AttachmentParseErrorCode,
   type AttachmentSource,
   type AttachmentSourceKind,
+  type AttachmentThumbnail,
   type BranchAttachmentSource,
   type UploadAttachmentResponse,
   type VideoAssetsResponse,

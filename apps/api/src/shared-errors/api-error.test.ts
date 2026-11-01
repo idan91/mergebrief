@@ -53,6 +53,7 @@ describe("ApiError classes", () => {
     new BadRequest(ApiErrorCodes.FILE_NOT_TEXT),
     new PayloadTooLarge(ApiErrorCodes.MEDIA_TOO_LARGE),
     new ServiceUnavailable(ApiErrorCodes.MEDIA_STREAMS_BUSY),
+    new ServiceUnavailable(ApiErrorCodes.THUMBNAILS_BUSY),
     new BadRequest(ApiErrorCodes.ATTACHMENT_UNSUPPORTED_TYPE),
     new TooManyRequests(ApiErrorCodes.ATTACHMENT_LIMIT_REACHED),
     new InternalError(),

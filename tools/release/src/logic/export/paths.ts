@@ -28,6 +28,7 @@ export const EXPORT_PATHS = {
     "README.md",
     "SECURITY.md",
     "apps/",
+    "docker/",
     "docker-compose.external-db.yml",
     "docker-compose.tracing.yml",
     "docker-compose.yml",

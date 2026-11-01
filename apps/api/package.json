@@ -23,6 +23,7 @@
     "hono": "^4.9.10",
     "logging": "workspace:*",
     "persistence": "workspace:*",
+    "sharp": "^0.35.5",
     "tsx": "^4.19.0",
     "types": "workspace:*",
     "zod": "^4.6.5"

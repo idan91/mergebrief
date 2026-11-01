@@ -34,7 +34,13 @@ export const LICENSE_EXCEPTIONS: readonly LicenseException[] = [
     name: "elkjs",
     license: "EPL-2.0",
     reason:
-      "Mermaid's ELK layout, shipped unmodified in its own lazy web chunk that a browser fetches only for a diagram asking for the ELK layout (ours default to dagre); EPL-2.0 is file-level copyleft like the allowed MPL-2.0, and its source is published at github.com/kieler/elkjs",
+      "Mermaid's ELK layout, shipped unmodified in its own lazy web chunk that a browser fetches only for a diagram asking for the ELK layout (ours default to dagre); EPL-2.0 is file-level copyleft like the allowed MPL-2.0, and the image's THIRD_PARTY_NOTICES folder carries the EPL-2.0 text and the source link at the locked version",
+  },
+  {
+    name: "@img/sharp-libvips-*",
+    license: "LGPL-3.0-or-later",
+    reason:
+      "sharp's prebuilt libvips, one package per platform: LGPL-3.0 shipped unmodified as separate shared objects a user can replace, and the image's THIRD_PARTY_NOTICES folder carries the licence texts and the source offer",
   },
   {
     name: "khroma",

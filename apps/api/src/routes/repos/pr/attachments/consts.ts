@@ -97,6 +97,24 @@ export const MEDIA_SNIFF_WINDOW_BYTES = Math.max(
   VIDEO_SNIFF_BYTES,
 );
 export const ACCEPT_RANGES_BYTES = "bytes";
+
+/** Twice the strip's tile box (248x78), so a thumbnail stays sharp on a 2x screen. */
+export const THUMBNAIL_MAX_WIDTH = 496;
+export const THUMBNAIL_MAX_HEIGHT = 156;
+export const THUMBNAIL_WEBP_QUALITY = 80;
+/** Resizes one API process runs at once; a request past it waits for a turn. */
+export const MAX_RUNNING_RESIZES = 4;
+export const RESIZE_TURN_WAIT_MS = 10 * MS_PER_SECOND;
+/** Thumbnail requests one API process lets wait for a turn; past it a request answers busy at once. */
+export const MAX_WAITING_RESIZES = 64;
+/** Checked on the header before any decode: at 4 bytes a pixel, four resizes stay under 640 MB; 8K (33 MP) fits. */
+export const THUMBNAIL_MAX_INPUT_PIXELS = 40_000_000;
+/** sharp's own limit on one resize, so a slow decode inside the pixel limit still frees its turn. */
+export const RESIZE_TIMEOUT_SECONDS = 10;
+/** The largest original a thumbnail buffers, or the media cap when lower. */
+export const THUMBNAIL_SOURCE_MAX_BYTES = 20 * BYTES_PER_MB;
+/** One thumbnail's whole life, from the upstream request to its last byte read; inside the web tier's 30 s. */
+export const THUMBNAIL_DEADLINE_MS = 25 * MS_PER_SECOND;
 /** Asked of every bytes fetch, so a length upstream names is the length served. */
 export const IDENTITY_CODING = "identity";
 /** A whole-file reply: every byte of the upstream answer, from its first. */

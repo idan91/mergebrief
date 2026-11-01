@@ -98,12 +98,22 @@ export function isLicenseAllowed(expression: string): boolean {
   return expressionAllowed;
 }
 
+const NAME_PREFIX_MARK = "*";
+
+function matchesExceptionName(pattern: string, name: string): boolean {
+  if (!pattern.endsWith(NAME_PREFIX_MARK)) {
+    return pattern === name;
+  }
+  return name.startsWith(pattern.slice(0, -NAME_PREFIX_MARK.length));
+}
+
 function findExceptedPackage(
   pkg: LicensedPackage,
 ): ExceptedPackage | undefined {
   const exception = LICENSE_EXCEPTIONS.find((candidate) => {
     const matchesPackage =
-      candidate.name === pkg.name && candidate.license === pkg.license;
+      matchesExceptionName(candidate.name, pkg.name) &&
+      candidate.license === pkg.license;
     return matchesPackage;
   });
   if (exception === undefined) {

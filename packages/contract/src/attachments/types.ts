@@ -60,6 +60,16 @@ export interface VideoAssetsResponse {
   readonly assetIds: readonly AttachmentAssetId[];
 }
 
+/**
+ * The one resized form either attachment read answers when asked by
+ * `ATTACHMENT_THUMBNAIL_PARAM`: a strip tile's WebP, fitting twice the
+ * tile box. There is no free width.
+ */
+export const AttachmentThumbnails = {
+  STRIP: "strip",
+} as const;
+export type AttachmentThumbnail = ValueOf<typeof AttachmentThumbnails>;
+
 /** What `upload-attachment` answers, with 201. */
 export interface UploadAttachmentResponse {
   /** The branch URL a comment carries; GitHub renders it inline. */

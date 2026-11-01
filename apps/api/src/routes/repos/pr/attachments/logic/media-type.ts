@@ -16,7 +16,10 @@ const VIDEO_MEDIA_TYPES: ReadonlySet<string> = new Set(
   Object.values(VideoMediaTypes),
 );
 
-function isAttachmentMediaType(value: string): value is AttachmentMediaType {
+/** One of the four rasters an attachment upload or a thumbnail accepts. */
+export function isAttachmentMediaType(
+  value: string,
+): value is AttachmentMediaType {
   return UPLOAD_MEDIA_TYPES.has(value);
 }
 

@@ -388,10 +388,60 @@ export type WholeReplyRefusal = Extract<
   MediaReplyRefusal,
   { readonly kind: typeof MediaReplyRefusalKinds.TOO_LARGE }
 >;
+export const ResizeImageFailureKinds = {
+  /** The bytes are not PNG, JPEG, WebP or GIF, whatever upstream named them. */
+  NOT_A_RASTER: "not-a-raster",
+  /** The header declares more pixels than a thumbnail decodes. */
+  TOO_MANY_PIXELS: "too-many-pixels",
+  /** sharp refused them: corrupt, or past its time limit. */
+  UNDECODABLE: "undecodable",
+} as const;
+
+export type ResizeImageFailure =
+  | { readonly kind: typeof ResizeImageFailureKinds.NOT_A_RASTER }
+  | { readonly kind: typeof ResizeImageFailureKinds.TOO_MANY_PIXELS }
+  | {
+      readonly kind: typeof ResizeImageFailureKinds.UNDECODABLE;
+      readonly reason: string;
+    };
+
+export const ThumbnailFailureKinds = {
+  ...ResizeImageFailureKinds,
+  /** The original passes the thumbnail bound, as named or as read. */
+  TOO_LARGE: "too-large",
+  /** No resize turn freed inside the wait. */
+  BUSY: "busy",
+  /** The original's body failed or was cut off mid-read. */
+  UNREADABLE: "unreadable",
+} as const;
+
+/** Why a strip thumbnail could not be made; only `busy` answers other than a failed read. */
+export type ThumbnailFailure =
+  | ResizeImageFailure
+  | {
+      readonly kind:
+        | typeof ThumbnailFailureKinds.TOO_LARGE
+        | typeof ThumbnailFailureKinds.BUSY
+        | typeof ThumbnailFailureKinds.UNREADABLE;
+    };
+
+/** One running resize's place in the per-process count; releasing twice frees it once. */
+export interface ResizeTurn {
+  release(): void;
+}
+
+/** The per-process count of running resizes; past its limit a request waits its turn, then gives up. */
+export interface ResizeTurns {
+  /** Undefined when no turn came inside the wait, the queue was full, or the request was aborted first. */
+  waitForTurn(signal: AbortSignal): Promise<ResizeTurn | undefined>;
+  countRunning(): number;
+  countWaiting(): number;
+}
 
 /** The per-process media limits both reads share. */
 export interface MediaStreamBudget {
   /** `MERGEBRIEF_MEDIA_MAX_MB` in bytes, judged on the upstream file's total. */
   readonly maxFileBytes: number;
   readonly permits: StreamPermits;
+  readonly resizeTurns: ResizeTurns;
 }

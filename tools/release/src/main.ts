@@ -1,11 +1,17 @@
 // The release tool's composition root: argv enters here, the repo root is
 // resolved from this file's location, and the exit code is the verdict.
 // Everything below takes its inputs as parameters and never commits.
-import { mkdtempSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Mutable } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 
 import {
   PUBLISH_TOKEN_ENV,
@@ -25,6 +31,13 @@ import type {
 import { createGitPort, GitCommandError } from "./logic/git-port";
 import { runLicenses } from "./logic/licenses";
 import { createPnpmLicensesPort } from "./logic/licenses/pnpm-port";
+import {
+  buildNoticesFolder,
+  checkNoticesVersion,
+  readLockfileElkjsVersions,
+  readLockfileLibvipsVersions,
+} from "./logic/notices";
+import { NOTICES_DIR, SOURCES_FILE } from "./logic/notices/consts";
 import { describeCrash, redactStreamOutput } from "./logic/redacted-output";
 import { findCredentialedRemoteFlag } from "./logic/remote-url";
 import { buildReleaseBody } from "./logic/release-body";
@@ -40,6 +53,8 @@ import {
 
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const NOTES_DIR = join(REPO_ROOT, RELEASES_DIR);
+const LOCKFILE = join(REPO_ROOT, "pnpm-lock.yaml");
+const NOTICES_PATH = join(REPO_ROOT, NOTICES_DIR);
 
 const USAGE = [
   "usage:",
@@ -57,6 +72,8 @@ const USAGE = [
   "      --emit runs no gate and writes the release bundle and plan.json for other jobs to gate and push,",
   "      --expect-commit refuses a gated rebuild that is not the emitted commit",
   "  release licenses                        every production dependency's license is allowed or excepted by name",
+  `  release notices                         rewrite ${NOTICES_DIR} for the sharp-libvips and elkjs versions the lockfile holds`,
+  "      reads that release's tag and the SPDX licence texts on GitHub; check fails while the two disagree",
 ].join("\n");
 
 const JSON_INDENT = 2;
@@ -99,6 +116,16 @@ function runCheck(argv: readonly string[]): ExitCode {
   );
   if (!result.ok) {
     return reportNotesErrors(result.error);
+  }
+
+  const sourcesPath = join(NOTICES_PATH, SOURCES_FILE);
+  const notices = checkNoticesVersion(
+    readFileSync(LOCKFILE, "utf8"),
+    existsSync(sourcesPath) ? readFileSync(sourcesPath, "utf8") : undefined,
+  );
+  if (!notices.ok) {
+    process.stderr.write(`release: ${notices.error}\n`);
+    return ExitCodes.REFUSED;
   }
 
   if (parsed.value.flags.has("--json")) {
@@ -399,7 +426,64 @@ function describeDone(options: ExportOptions, commit: string): string {
   return `published ${options.version} as ${commit}`;
 }
 
-function main(argv: readonly string[]): ExitCode {
+async function fetchText(url: string): Promise<Result<string, string>> {
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    return { ok: false, error: `${url} did not answer` };
+  }
+  if (!response.ok) {
+    return { ok: false, error: `${url} answered ${response.status}` };
+  }
+  return { ok: true, value: await response.text() };
+}
+
+async function runNotices(argv: readonly string[]): Promise<ExitCode> {
+  const parsed = parseArgv(argv, {
+    valued: [],
+    boolean: [],
+    maxPositionals: 0,
+  });
+  if (!parsed.ok) {
+    return refuseUsage(parsed.error);
+  }
+  const lockfileText = readFileSync(LOCKFILE, "utf8");
+  const versions = readLockfileLibvipsVersions(lockfileText);
+  const [version] = versions;
+  if (version === undefined || versions.length > 1) {
+    process.stderr.write(
+      `release: the lockfile must hold one sharp-libvips version, not [${versions.join(", ")}]\n`,
+    );
+    return ExitCodes.REFUSED;
+  }
+  const elkjsVersions = readLockfileElkjsVersions(lockfileText);
+  if (elkjsVersions.length > 1) {
+    process.stderr.write(
+      `release: the lockfile must hold at most one elkjs version, not [${elkjsVersions.join(", ")}]\n`,
+    );
+    return ExitCodes.REFUSED;
+  }
+
+  const [elkjsVersion] = elkjsVersions;
+  const built = await buildNoticesFolder(fetchText, version, elkjsVersion);
+  if (!built.ok) {
+    process.stderr.write(`release: ${built.error}\n`);
+    return ExitCodes.REFUSED;
+  }
+  mkdirSync(NOTICES_PATH, { recursive: true });
+  for (const file of built.value) {
+    writeFileSync(join(NOTICES_PATH, file.fileName), file.text);
+  }
+  const elkjsWritten =
+    elkjsVersion === undefined ? "" : ` and elkjs ${elkjsVersion}`;
+  process.stdout.write(
+    `release: wrote ${built.value.length} files to ${NOTICES_DIR} for sharp-libvips ${version}${elkjsWritten}\n`,
+  );
+  return ExitCodes.OK;
+}
+
+async function main(argv: readonly string[]): Promise<ExitCode> {
   const [command, ...rest] = argv;
   if (command === "check") {
     return runCheck(rest);
@@ -419,6 +503,9 @@ function main(argv: readonly string[]): ExitCode {
   if (command === "export") {
     return runExportCommand(rest);
   }
+  if (command === "notices") {
+    return runNotices(rest);
+  }
   if (command === "licenses") {
     return runLicenses(rest, {
       port: createPnpmLicensesPort(REPO_ROOT),
@@ -432,7 +519,7 @@ function main(argv: readonly string[]): ExitCode {
 redactStreamOutput(process.stdout);
 redactStreamOutput(process.stderr);
 try {
-  process.exitCode = main(process.argv.slice(2));
+  process.exitCode = await main(process.argv.slice(2));
 } catch (cause) {
   process.stderr.write(`release: ${describeCrash(cause)}\n`);
   process.exitCode = CRASH_EXIT_CODE;

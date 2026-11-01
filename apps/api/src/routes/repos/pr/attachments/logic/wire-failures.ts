@@ -4,6 +4,7 @@ import {
   BadGateway,
   NotFound,
   PayloadTooLarge,
+  ServiceUnavailable,
 } from "../../../../../shared-errors/api-error";
 import { resolveGitHubDenialError } from "../../../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
@@ -12,9 +13,11 @@ import { resolveFreshRepositoryError } from "../../../logic/fresh-repository";
 import {
   MediaReplyRefusalKinds,
   ReadAttachmentFailureKinds,
+  ThumbnailFailureKinds,
   type MediaReplyRefusal,
   type ReadAttachmentWireFailure,
   type SliceRefusalKinds,
+  type ThumbnailFailure,
   type UploadAttachmentFailure,
 } from "../types";
 
@@ -60,4 +63,19 @@ export function throwMediaReplyRefusal(refusal: ThrownMediaRefusal): never {
     throw new NotFound();
   }
   throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+}
+
+/**
+ * A thumbnail that could not be made answers as a failed read, the same 404,
+ * so the page falls back to the original; only a full queue and a body that
+ * broke upstream say otherwise.
+ */
+export function throwThumbnailFailure(failure: ThumbnailFailure): never {
+  if (failure.kind === ThumbnailFailureKinds.BUSY) {
+    throw new ServiceUnavailable(ApiErrorCodes.THUMBNAILS_BUSY);
+  }
+  if (failure.kind === ThumbnailFailureKinds.UNREADABLE) {
+    throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+  }
+  throw new NotFound();
 }

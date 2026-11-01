@@ -20,5 +20,8 @@ export const ATTACHMENT_EXTENSION_BY_MEDIA_TYPE: Readonly<
   [AttachmentMediaTypes.WEBP]: "webp",
 };
 
+/** The query parameter that asks an attachment read for an `AttachmentThumbnails` form. */
+export const ATTACHMENT_THUMBNAIL_PARAM = "thumbnail";
+
 export const ASSET_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

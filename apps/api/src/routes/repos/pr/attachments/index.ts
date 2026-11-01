@@ -1,16 +1,18 @@
 // A pasted screenshot or a committed image is private to the repo, and the
 // browser cannot carry a GitHub login across origins, so the API streams the
 // bytes same-origin, where the session cookie rides an <img> or <video>
-// request, a video in ranged pieces and never by redirect: a bare
-// id is a GitHub asset, found through the URL GitHub rendered for it;
-// `<id>.<ext>` is a file on the attachments branch; `committed-file?source=`
-// names any other file in the repo by its normalised address. The upload
-// commits an image to the attachments branch with the App's token.
+// request, a video in ranged pieces and never by redirect: a bare id is a
+// GitHub asset, found through the URL GitHub rendered for it; `<id>.<ext>` is
+// a file on the attachments branch; `committed-file?source=` names any other
+// file in the repo by its normalised address. Either read answers a raster's
+// strip thumbnail when asked; the upload commits with the App's token.
 import { randomUUID } from "node:crypto";
 import {
   ApiErrorCodes,
   ATTACHMENT_EXTENSION_BY_MEDIA_TYPE,
   ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_THUMBNAIL_PARAM,
+  AttachmentMediaTypes,
   AttachmentSourceKinds,
   isAttachmentAssetId,
   parseAttachmentFileName,
@@ -18,6 +20,7 @@ import {
   ProductQueryIds,
   type AttachmentFile,
   type AttachmentMediaType,
+  type AttachmentThumbnail,
   type UploadAttachmentResponse,
   type VideoAssetsResponse,
   VIDEO_ASSETS_MISSING_PARAM,
@@ -56,12 +59,16 @@ import {
   DEFAULT_MEDIA_MAX_MB,
   DEFAULT_UPLOAD_QUOTA_LIMITS,
   MAX_OPEN_MEDIA_STREAMS,
+  MAX_RUNNING_RESIZES,
+  MAX_WAITING_RESIZES,
   MEDIA_PIECE_BYTES,
   MEDIA_PIECE_DEADLINE_MS,
   MEDIA_SNIFF_WINDOW_BYTES,
   NO_STORE,
+  RESIZE_TURN_WAIT_MS,
   RETRY_AFTER_HEADER,
   SOURCES_CACHE_MAX_ENTRIES,
+  THUMBNAIL_DEADLINE_MS,
   UPLOAD_QUOTA_MAX_ENTRIES,
   WHOLE_FILE_WINDOW,
 } from "./consts";
@@ -71,8 +78,18 @@ import {
   formatUpstreamRange,
   parseRangeHeader,
 } from "./logic/byte-range";
+import { readCommittedFileMediaType } from "./logic/committed-media-type";
 import { planMediaReply, planWholeReplyDeadline } from "./logic/media-reply";
-import { isVideoMediaType, readDeclaredMediaType } from "./logic/media-type";
+import {
+  isAttachmentMediaType,
+  isVideoMediaType,
+  readDeclaredMediaType,
+} from "./logic/media-type";
+import {
+  findThumbnailRefusal,
+  renderThumbnail,
+} from "./logic/render-thumbnail";
+import { createResizeTurns } from "./logic/resize-turns";
 import { sliceStream } from "./logic/slice-stream";
 import { sniffImageMediaType } from "./logic/sniff-image";
 import { createStreamPermits } from "./logic/stream-permits";
@@ -80,15 +97,17 @@ import { reserveUpload } from "./logic/upload-quota";
 import {
   throwMediaReplyRefusal,
   throwReadAttachmentFailure,
+  throwThumbnailFailure,
   throwUploadAttachmentFailure,
 } from "./logic/wire-failures";
 import { listVideoAssets } from "./list-video-assets";
 import { readAttachment } from "./read-attachment";
 import { readCommittedFile } from "./read-committed-file";
-import { committedFileQuerySchema } from "./schemas";
+import { committedFileQuerySchema, thumbnailQuerySchema } from "./schemas";
 import {
   MediaReplyRefusalKinds,
   ReadAttachmentFailureKinds,
+  ThumbnailFailureKinds,
   type AttachmentBytes,
   type AttachmentTarget,
   type AttachmentsRouteDeps,
@@ -127,6 +146,11 @@ interface PermittedSlice {
 
 interface MediaReply {
   readonly request: MediaRequest;
+  readonly budget: MediaStreamBudget;
+}
+
+interface ThumbnailRequest {
+  readonly bytes: BytesReadOptions;
   readonly budget: MediaStreamBudget;
 }
 
@@ -193,6 +217,92 @@ function readMediaRequest(c: Context<AuthzEnv>): MediaRequest {
     rangeRequested: requested !== undefined,
   };
   return { wanted, bytes };
+}
+
+/** The fixed thumbnail form the query asks for, or undefined for the original. */
+function readThumbnailOption(
+  c: Context<AuthzEnv>,
+): AttachmentThumbnail | undefined {
+  const query = thumbnailQuerySchema.safeParse({
+    [ATTACHMENT_THUMBNAIL_PARAM]: c.req.query(ATTACHMENT_THUMBNAIL_PARAM),
+  });
+  if (!query.success) {
+    throw new BadRequest();
+  }
+  return query.data[ATTACHMENT_THUMBNAIL_PARAM];
+}
+
+/**
+ * A thumbnail reads its original whole, without `Range`, so it never takes a
+ * stream permit; one deadline covers the upstream request and the whole body.
+ */
+function buildThumbnailReadOptions(
+  c: Context<AuthzEnv>,
+  media: BytesReadOptions,
+): BytesReadOptions {
+  const deadline = AbortSignal.timeout(THUMBNAIL_DEADLINE_MS);
+  const signal = AbortSignal.any([c.req.raw.signal, deadline]);
+  return { ...media, signal, rangeRequested: false };
+}
+
+/** The read options a request's bytes are fetched with: the thumbnail's own when one was asked, else the client's. */
+function buildBytesReadOptions(
+  c: Context<AuthzEnv>,
+  media: BytesReadOptions,
+  thumbnail: AttachmentThumbnail | undefined,
+): BytesReadOptions {
+  return thumbnail === undefined ? media : buildThumbnailReadOptions(c, media);
+}
+
+/** HEAD names the reply a GET would carry without the resize: the type and size checks, no decode. */
+async function answerThumbnailHead(
+  c: Context<AuthzEnv>,
+  original: AttachmentBytes,
+  budget: MediaStreamBudget,
+): Promise<Response> {
+  const refusal = findThumbnailRefusal(budget, original);
+  await original.body.cancel();
+  if (refusal !== undefined) {
+    throwThumbnailFailure({ kind: refusal });
+  }
+  return c.body(null, HttpStatuses.OK, {
+    ...ATTACHMENT_RESPONSE_HEADERS,
+    "content-type": AttachmentMediaTypes.WEBP,
+  });
+}
+
+/** The original's strip thumbnail as WebP, under the same sandboxed no-store headers. */
+async function answerThumbnail(
+  c: Context<AuthzEnv>,
+  original: AttachmentBytes,
+  thumbnail: ThumbnailRequest,
+): Promise<Response> {
+  if (c.req.method === HEAD_METHOD) {
+    return answerThumbnailHead(c, original, thumbnail.budget);
+  }
+  const rendered = await renderThumbnail(
+    thumbnail.budget,
+    original,
+    thumbnail.bytes.signal,
+  );
+  if (!rendered.ok) {
+    const log = c.get("logger");
+    if (rendered.error.kind === ThumbnailFailureKinds.BUSY) {
+      log.warn("thumbnail resizes at their limit", {
+        running: thumbnail.budget.resizeTurns.countRunning(),
+        waiting: thumbnail.budget.resizeTurns.countWaiting(),
+      });
+    } else {
+      log.debug("thumbnail not made", { failure: rendered.error });
+    }
+    throwThumbnailFailure(rendered.error);
+  }
+
+  return c.body(rendered.value, HttpStatuses.OK, {
+    ...ATTACHMENT_RESPONSE_HEADERS,
+    "content-length": String(rendered.value.byteLength),
+    "content-type": AttachmentMediaTypes.WEBP,
+  });
 }
 
 /** No body; the file's size when known, as a 416 should carry it. */
@@ -360,20 +470,26 @@ function createReadAttachmentHandler(
       throw new NotFound();
     }
 
+    const thumbnail = readThumbnailOption(c);
+
     const log = c.get("logger");
     const repoAccess = c.get("repoAccess");
     const github = bindGrantedPullRequestGitHub(deps, repoAccess, log);
     const request = readMediaRequest(c);
+    const bytes = buildBytesReadOptions(c, request.bytes, thumbnail);
     const read = await readAttachment(
       { sources, fetch: globalThis.fetch },
       { ...repoAccess, github },
-      { prNumber: prNumber.data, target, bytes: request.bytes },
+      { prNumber: prNumber.data, target, bytes },
     );
     if (!read.ok) {
       return answerReadFailure(c, read.error);
     }
 
     log.debug("attachment proxied", { assetId: readTargetAssetId(target) });
+    if (thumbnail !== undefined) {
+      return answerThumbnail(c, read.value, { bytes, budget });
+    }
     return answerAttachmentBytes(c, read.value, { request, budget });
   };
 }
@@ -394,6 +510,12 @@ function parseRepositorySource(
   return source.value;
 }
 
+/** An SVG or a video is never thumbnailed, so its thumbnail is refused before any GitHub call. */
+function isRasterFileName(source: CommittedFileSource): boolean {
+  const declared = readCommittedFileMediaType(source.pathSegments);
+  return declared !== undefined && isAttachmentMediaType(declared);
+}
+
 function createReadCommittedFileHandler(
   store: CommittedFileStore,
   budget: MediaStreamBudget,
@@ -407,15 +529,23 @@ function createReadCommittedFileHandler(
     if (source === undefined) {
       throw new NotFound();
     }
+    const thumbnail = readThumbnailOption(c);
+    if (thumbnail !== undefined && !isRasterFileName(source)) {
+      throw new NotFound();
+    }
 
     const request = readMediaRequest(c);
+    const bytes = buildBytesReadOptions(c, request.bytes, thumbnail);
     const read = await readCommittedFile(
       { store, fetch: globalThis.fetch },
       repoAccess,
-      { pathSegments: source.pathSegments, bytes: request.bytes },
+      { pathSegments: source.pathSegments, bytes },
     );
     if (!read.ok) {
       return answerReadFailure(c, read.error);
+    }
+    if (thumbnail !== undefined) {
+      return answerThumbnail(c, read.value, { bytes, budget });
     }
     return answerAttachmentBytes(c, read.value, { request, budget });
   };
@@ -496,11 +626,19 @@ export function createRenderedSourcesStore(): RenderedSourcesStore {
   };
 }
 
-/** One per process: both reads count their open streams against the same permits. */
+/** One per process: both reads count their open streams and running resizes against the same limits. */
 export function createMediaStreamBudget(
   maxFileBytes = DEFAULT_MEDIA_MAX_MB * BYTES_PER_MB,
 ): MediaStreamBudget {
-  return { maxFileBytes, permits: createStreamPermits(MAX_OPEN_MEDIA_STREAMS) };
+  return {
+    maxFileBytes,
+    permits: createStreamPermits(MAX_OPEN_MEDIA_STREAMS),
+    resizeTurns: createResizeTurns(
+      MAX_RUNNING_RESIZES,
+      RESIZE_TURN_WAIT_MS,
+      MAX_WAITING_RESIZES,
+    ),
+  };
 }
 
 export function attachmentsRoute(

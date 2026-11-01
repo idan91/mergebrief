@@ -83,6 +83,18 @@ answers `413 media-too-large` before it holds a stream. A Git LFS pointer commit
 video name is refused like any file whose bytes are not the type its name
 claims.
 
+The Media strip asks for small previews with `?thumbnail=strip`. The API
+reads the original whole, checks from its bytes that it is a PNG, JPEG, WebP
+or GIF, and answers one WebP size (fitting 496x156, never enlarged, metadata
+dropped; an animated GIF gives its first frame) under the same headers.
+Nothing is cached. An SVG, a video, an original over 20 MB (or over
+`MERGEBRIEF_MEDIA_MAX_MB` when that is lower), one whose header declares
+more than 40 megapixels, or one the resizer cannot read answers `404`, and the page shows the original instead. At most 4 resizes
+run at once per api process; a request waits up to 10 seconds for a turn,
+then answers `503 thumbnails-busy`. The image carries the notices, licence
+texts and source links of the libvips the resizer uses in
+`/app/THIRD_PARTY_NOTICES/`.
+
 ## Refusing pushes
 
 A repository ruleset or branch protection matching `mergebrief/*` refuses
