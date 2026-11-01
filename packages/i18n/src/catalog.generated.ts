@@ -204,6 +204,14 @@ export type Catalog = typeof en & {
       descriptionWords_one: "{{count}} word, as the author wrote it";
       descriptionWords_other: "{{count}} words, as the author wrote it";
     };
+    media: (typeof en)["brief"]["media"] & {
+      imageCount_one: "{{count}} image";
+      imageCount_other: "{{count}} images";
+      videoCount_one: "{{count}} video";
+      videoCount_other: "{{count}} videos";
+      diagramCount_one: "{{count}} diagram";
+      diagramCount_other: "{{count}} diagrams";
+    };
     markReadyBatch: (typeof en)["brief"]["markReadyBatch"] & {
       counts: "Posted {{posted}} of {{total}}.";
       busyLabel: "Posting {{current}} of {{total}}…";

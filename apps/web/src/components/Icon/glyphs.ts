@@ -36,6 +36,7 @@ import ListNumbersGlyph from "../icons/list-numbers.svg?react";
 import OpenaiGlyph from "../icons/openai.svg?react";
 import OpenrouterGlyph from "../icons/openrouter.svg?react";
 import PencilSimpleLineGlyph from "../icons/pencil-simple-line.svg?react";
+import PlayGlyph from "../icons/play.svg?react";
 import QuestionGlyph from "../icons/question.svg?react";
 import QuotesGlyph from "../icons/quotes.svg?react";
 import RecordGlyph from "../icons/record.svg?react";
@@ -46,6 +47,7 @@ import TerminalGlyph from "../icons/terminal.svg?react";
 import TextBGlyph from "../icons/text-b.svg?react";
 import TextItalicGlyph from "../icons/text-italic.svg?react";
 import TrashGlyph from "../icons/trash.svg?react";
+import TreeStructureGlyph from "../icons/tree-structure.svg?react";
 import UserGlyph from "../icons/user.svg?react";
 import UsersGlyph from "../icons/users.svg?react";
 import WarningGlyph from "../icons/warning.svg?react";
@@ -87,6 +89,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.LIST_CHECKS]: ListChecksGlyph,
   [IconNames.LIST_NUMBERS]: ListNumbersGlyph,
   [IconNames.PENCIL_SIMPLE_LINE]: PencilSimpleLineGlyph,
+  [IconNames.PLAY]: PlayGlyph,
   [IconNames.QUESTION]: QuestionGlyph,
   [IconNames.QUOTES]: QuotesGlyph,
   [IconNames.RECORD]: RecordGlyph,
@@ -97,6 +100,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.TEXT_B]: TextBGlyph,
   [IconNames.TEXT_ITALIC]: TextItalicGlyph,
   [IconNames.TRASH]: TrashGlyph,
+  [IconNames.TREE_STRUCTURE]: TreeStructureGlyph,
   [IconNames.USER]: UserGlyph,
   [IconNames.USERS]: UsersGlyph,
   [IconNames.WARNING]: WarningGlyph,

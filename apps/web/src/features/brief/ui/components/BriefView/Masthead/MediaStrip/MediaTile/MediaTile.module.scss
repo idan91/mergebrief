@@ -1,0 +1,35 @@
+@layer components {
+  .tile {
+    display: grid;
+    flex: none;
+    gap: var(--space-2);
+    inline-size: fit-content;
+    max-inline-size: 248px;
+    scroll-snap-align: start;
+  }
+
+  .frame {
+    display: block;
+    block-size: 78px;
+    overflow: hidden;
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+
+    &:has([data-state="failed"]) {
+      border-style: dashed;
+      border-color: var(--color-text-4);
+      background: transparent;
+    }
+  }
+
+  .caption {
+    inline-size: 0;
+    min-inline-size: 100%;
+    overflow: hidden;
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

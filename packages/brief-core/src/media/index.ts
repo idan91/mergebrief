@@ -28,9 +28,14 @@ export { ProxiedMediaSourceKinds } from "./logic/proxied-address/types";
 export {
   DiagramTypes,
   MediaKinds,
+  type DiagramMediaItem,
   type DiagramType,
   type ExtractMediaOptions,
+  type ImageMediaItem,
   type MediaItem,
+  type MediaKey,
+  type MediaKind,
+  type VideoMediaItem,
 } from "./types";
 
 interface WalkScope {

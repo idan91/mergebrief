@@ -8,12 +8,15 @@ import {
   type CommittedFileSource,
 } from "brief-core/media-address";
 import {
+  ATTACHMENT_THUMBNAIL_PARAM,
   AttachmentSourceKinds,
+  AttachmentThumbnails,
   buildOperationPath,
   ProductQueryIds,
   type AttachmentSource,
 } from "contract";
 import type { Element, ElementContent, Root } from "hast";
+import type { HTMLAttributeReferrerPolicy } from "react";
 import { SKIP, visit } from "unist-util-visit";
 
 import type { AttachmentScope } from "./context";
@@ -21,6 +24,8 @@ import { ORIGINAL_SOURCE_PROPERTY } from "./original-source";
 import type { RehypeTransform } from "./types";
 
 const HTTPS_PREFIX = "https://";
+const SVG_EXTENSION = ".svg";
+const NO_REFERRER: HTMLAttributeReferrerPolicy = "no-referrer";
 const MEDIA_TAG_NAMES: ReadonlySet<string> = new Set(["img", "video"]);
 
 /** An image's or video's absolute https source; a relative one would carry this origin's cookie. */
@@ -86,6 +91,18 @@ export function rehypeRecordOriginalSources(): RehypeTransform {
   };
 }
 
+/**
+ * An image the browser fetches from another host itself sends no referrer,
+ * so that host never learns which instance shows it. Only the proxy's
+ * same-origin path keeps the default.
+ */
+export function readImageReferrerPolicy(
+  source: string | undefined,
+): HTMLAttributeReferrerPolicy | undefined {
+  const fetchedFromOtherHost = source?.startsWith(HTTPS_PREFIX) === true;
+  return fetchedFromOtherHost ? NO_REFERRER : undefined;
+}
+
 /** The proxy names a GitHub asset by its id and a branch file by its file name. */
 export function buildAttachmentProxyPath(
   scope: AttachmentScope,
@@ -118,7 +135,8 @@ function buildCommittedFileProxyPath(
   return `${path}?${query.toString()}`;
 }
 
-function buildProxyPath(
+/** The same-origin read that serves `source`; absent, the address is not one the proxy serves. */
+export function buildProxyPath(
   scope: AttachmentScope,
   source: string,
 ): string | undefined {
@@ -131,6 +149,35 @@ function buildProxyPath(
     return buildAttachmentProxyPath(scope, target);
   }
   return buildCommittedFileProxyPath(scope, proxied.file);
+}
+
+function isSvgAddress(source: string): boolean {
+  try {
+    const { pathname } = new URL(source);
+    return pathname.toLowerCase().endsWith(SVG_EXTENSION);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The strip's resized copy of an image the proxy serves: its proxy path with
+ * the thumbnail option. Absent for an SVG, which the read never resizes, and
+ * for an address the proxy does not serve.
+ */
+export function buildThumbnailPath(
+  scope: AttachmentScope,
+  source: string,
+): string | undefined {
+  const path = isSvgAddress(source) ? undefined : buildProxyPath(scope, source);
+  if (path === undefined) {
+    return undefined;
+  }
+  const query = new URLSearchParams({
+    [ATTACHMENT_THUMBNAIL_PARAM]: AttachmentThumbnails.STRIP,
+  });
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}${query.toString()}`;
 }
 
 /**

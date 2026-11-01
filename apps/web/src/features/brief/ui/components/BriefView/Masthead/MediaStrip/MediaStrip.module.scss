@@ -1,0 +1,47 @@
+@use "functions";
+
+@layer components {
+  .strip {
+    min-inline-size: 0;
+    margin-block: var(--space-5) var(--space-1);
+  }
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: baseline;
+    margin-block-end: var(--space-3);
+  }
+
+  .title {
+    margin: 0;
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .counts {
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+  }
+
+  .row {
+    display: flex;
+    gap: var(--space-4);
+    margin: 0;
+    padding-block: functions.to-rem(3px) functions.to-rem(6px);
+    padding-inline: functions.to-rem(3px) functions.to-rem(40px);
+    overflow-x: auto;
+    list-style: none;
+    scroll-snap-type: x proximity;
+    mask-image: linear-gradient(
+      to left,
+      transparent,
+      currentcolor functions.to-rem(40px)
+    );
+    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-width: thin;
+  }
+}

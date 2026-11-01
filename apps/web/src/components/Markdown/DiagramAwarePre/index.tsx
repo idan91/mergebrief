@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import type { ExtraProps } from "react-markdown";
 
 import { readMarkedFenceCode } from "../diagram-fences";
-import { MermaidDiagram } from "../MermaidDiagram";
+import { MermaidDiagram } from "@web/components/MermaidDiagram";
 
 export type DiagramAwarePreProps = ComponentProps<"pre"> & ExtraProps;
 

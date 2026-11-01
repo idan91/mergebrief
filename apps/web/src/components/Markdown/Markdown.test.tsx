@@ -317,6 +317,23 @@ describe("Markdown image that cannot load", () => {
     expect(logo.getAttribute("data-original-source")).toBeNull();
   });
 
+  it("sends no referrer to an image host outside this instance", () => {
+    render(
+      <AttachmentScopeProvider installed prNumber={7} repoId="555">
+        <Markdown
+          content={`![Outside](https://example.com/shot.png)\n\n![Pasted](${ATTACHMENT_ASSET_URL})`}
+          renderHtml
+        />
+      </AttachmentScopeProvider>,
+    );
+
+    const outside = screen.getByRole("img", { name: "Outside" });
+    const pasted = screen.getByRole("img", { name: "Pasted" });
+    expect(outside.getAttribute("referrerpolicy")).toBe("no-referrer");
+    expect(pasted.getAttribute("src")).toMatch(/^\/api\//);
+    expect(pasted.hasAttribute("referrerpolicy")).toBe(false);
+  });
+
   it("swaps an image that errors for the failed row", () => {
     render(
       <Markdown

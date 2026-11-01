@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Markdown } from "..";
+import { Markdown } from "@web/components/Markdown";
 import { MermaidDiagram } from ".";
 import { buildDiagramSvg, buildSandboxFrameMarkup } from "./test-utils";
 

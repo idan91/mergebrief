@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import type { ExtraProps } from "react-markdown";
 
-import { MediaFailedRow } from "../MediaFailedRow";
-import { MediaFailedRowKinds } from "../MediaFailedRow/types";
+import { MediaFailedRow } from "@web/components/MediaFailedRow";
+import { MediaFailedRowKinds } from "@web/components/MediaFailedRow/types";
 import { readOriginalSource } from "../original-source";
 import styles from "./InlineVideo.module.scss";
 

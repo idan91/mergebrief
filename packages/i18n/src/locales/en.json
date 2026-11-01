@@ -850,6 +850,18 @@
       "descriptionWords_other": "{{count}} words, as the author wrote it",
       "descriptionEmpty": "Empty"
     },
+    "media": {
+      "title": "Media",
+      "imageCount_one": "{{count}} image",
+      "imageCount_other": "{{count}} images",
+      "videoCount_one": "{{count}} video",
+      "videoCount_other": "{{count}} videos",
+      "diagramCount_one": "{{count}} diagram",
+      "diagramCount_other": "{{count}} diagrams",
+      "countsSuffix": "from the description",
+      "imageLabel": "Image",
+      "videoLabel": "Video"
+    },
     "screen": {
       "sessionUnavailable": "Your review session couldn't be loaded, so this brief is read-only. Reload to try again; commenting now could duplicate drafts you already have.",
       "fileBriefReadOnly": "This brief was loaded from a file, so there is no review session to save work to. It is read-only.",

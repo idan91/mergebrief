@@ -21,6 +21,19 @@ describe("OriginalDescription", () => {
     expect(screen.getByText("Fix the leak in parsing")).toBeTruthy();
   });
 
+  it("puts no description image in the page until opened", () => {
+    const { container } = render(
+      <OriginalDescription description="![Shot](https://example.com/shot.png)" />,
+    );
+
+    expect(container.querySelector("img")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: /original description/i }),
+    );
+
+    expect(screen.getByRole("img", { name: "Shot" })).toBeTruthy();
+  });
+
   it("marks the mentions the author wrote", () => {
     render(<OriginalDescription description="Pairs with @cara on this" />);
 

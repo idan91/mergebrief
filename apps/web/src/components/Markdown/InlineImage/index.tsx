@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import type { ExtraProps } from "react-markdown";
 
-import { MediaFailedRow } from "../MediaFailedRow";
-import { MediaFailedRowKinds } from "../MediaFailedRow/types";
+import { MediaFailedRow } from "@web/components/MediaFailedRow";
+import { MediaFailedRowKinds } from "@web/components/MediaFailedRow/types";
+import { readImageReferrerPolicy } from "../media";
 import { dropOriginalSource, readOriginalSource } from "../original-source";
 
 export type InlineImageProps = ComponentProps<"img"> & ExtraProps;
@@ -46,6 +47,7 @@ export function InlineImage({
     );
   }
 
+  const referrerPolicy = readImageReferrerPolicy(src);
   return (
     <img
       {...domAttributes}
@@ -53,6 +55,7 @@ export function InlineImage({
       decoding="async"
       loading="lazy"
       ref={imageRef}
+      referrerPolicy={referrerPolicy}
       src={src}
       onError={() => {
         setFailedSource(src);

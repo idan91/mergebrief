@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown";
 import type { Brief } from "../../../../../model/types";
 import { DeltaContext } from "../../DeltaContext";
+import { MediaStrip } from "../MediaStrip";
+import { useStripEntries } from "../MediaStrip/useStripEntries";
 import { OriginalDescription } from "../OriginalDescription";
 import styles from "./Summary.module.scss";
 
@@ -11,13 +13,14 @@ export interface SummaryProps {
   brief: Brief;
 }
 
-/** The brief's summary in full, with the author's description attached beneath. */
+/** The brief's summary in full, then the description's Media, then the author's description. */
 export function Summary({ brief }: SummaryProps) {
   const { t } = useTranslation();
   const delta = brief.artifactKind === LocalBriefKinds.DELTA;
   const eyebrow = delta
     ? t("brief.summarySection.eyebrowDelta")
     : t("brief.summarySection.eyebrowBrief");
+  const stripEntries = useStripEntries(brief);
 
   return (
     <section
@@ -27,6 +30,7 @@ export function Summary({ brief }: SummaryProps) {
       <div className={styles["eyebrow"]}>{eyebrow}</div>
       <Markdown content={brief.summary} />
       {delta ? <DeltaContext brief={brief} /> : null}
+      <MediaStrip entries={stripEntries} />
       <OriginalDescription description={brief.pr.description} />
     </section>
   );

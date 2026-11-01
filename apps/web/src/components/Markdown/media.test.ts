@@ -6,24 +6,21 @@ import {
   ATTACHMENT_ASSET_URL as ASSET_URL,
   ATTACHMENT_BRANCH_URL as BRANCH_URL,
   ATTACHMENT_FILE_NAME as FILE_NAME,
+  ATTACHMENT_SCOPE as SCOPE,
   COMMITTED_IMAGE_NORMALISED_URL,
+  COMMITTED_IMAGE_PROXY_PATH,
   COMMITTED_IMAGE_URL,
 } from "@web/test/attachments";
 import {
+  buildProxyPath,
+  buildThumbnailPath,
+  readImageReferrerPolicy,
   rehypeLinkUnservedVideos,
   rehypeNormalizeMedia,
   rehypeProxyAttachmentSources,
   rehypeRecordOriginalSources,
 } from "./media";
 import { ORIGINAL_SOURCE_PROPERTY } from "./original-source";
-
-const SCOPE = {
-  repoId: "555",
-  prNumber: 7,
-  installed: true,
-  repoSlug: "octo/hello",
-};
-const COMMITTED_PROXY_PATH = `/api/repos/555/pulls/7/committed-file?source=${encodeURIComponent(COMMITTED_IMAGE_NORMALISED_URL)}`;
 
 function makeImage(src: string | undefined): Element {
   const properties: Element["properties"] = { alt: "Image" };
@@ -123,9 +120,9 @@ describe("rehypeProxyAttachmentSources", () => {
     rehypeProxyAttachmentSources(SCOPE)(tree);
 
     expect([0, 1, 2].map((index) => readSource(tree, index))).toEqual([
-      COMMITTED_PROXY_PATH,
-      COMMITTED_PROXY_PATH,
-      COMMITTED_PROXY_PATH,
+      COMMITTED_IMAGE_PROXY_PATH,
+      COMMITTED_IMAGE_PROXY_PATH,
+      COMMITTED_IMAGE_PROXY_PATH,
     ]);
   });
 
@@ -218,7 +215,7 @@ describe("rehypeProxyAttachmentSources for a video", () => {
       `/api/repos/555/pulls/7/attachments/${ASSET_ID}`,
     );
     expect(readSource(tree, 1)).toBe(
-      COMMITTED_PROXY_PATH.replace(".png", ".mp4"),
+      COMMITTED_IMAGE_PROXY_PATH.replace(".png", ".mp4"),
     );
   });
 });
@@ -283,5 +280,51 @@ describe("rehypeLinkUnservedVideos", () => {
       tagName: "a",
       children: [{ type: "text", value: ASSET_URL }],
     });
+  });
+});
+
+describe("buildThumbnailPath", () => {
+  it("asks the attachment read for its strip thumbnail", () => {
+    expect(buildThumbnailPath(SCOPE, ASSET_URL)).toBe(
+      `/api/repos/555/pulls/7/attachments/${ASSET_ID}?thumbnail=strip`,
+    );
+  });
+
+  it("asks the committed-file read for its strip thumbnail", () => {
+    expect(buildThumbnailPath(SCOPE, COMMITTED_IMAGE_URL)).toBe(
+      `${COMMITTED_IMAGE_PROXY_PATH}&thumbnail=strip`,
+    );
+  });
+
+  it("asks none for a committed svg, which the read never resizes", () => {
+    const svg = "https://github.com/octo/hello/raw/main/docs/flow.svg";
+
+    expect(buildThumbnailPath(SCOPE, svg)).toBeUndefined();
+    expect(buildProxyPath(SCOPE, svg)).toBe(
+      `/api/repos/555/pulls/7/committed-file?source=${encodeURIComponent(svg)}`,
+    );
+  });
+
+  it("asks none for an image on an outside host", () => {
+    const outside = "https://example.com/shot.png";
+
+    expect(buildThumbnailPath(SCOPE, outside)).toBeUndefined();
+    expect(buildProxyPath(SCOPE, outside)).toBeUndefined();
+  });
+});
+
+describe("readImageReferrerPolicy", () => {
+  it("sends no referrer to a host outside this instance", () => {
+    expect(readImageReferrerPolicy("https://example.com/shot.png")).toBe(
+      "no-referrer",
+    );
+    expect(readImageReferrerPolicy(ASSET_URL)).toBe("no-referrer");
+  });
+
+  it("keeps the default for the proxy's same-origin path", () => {
+    const proxied = buildProxyPath(SCOPE, ASSET_URL);
+
+    expect(readImageReferrerPolicy(proxied)).toBeUndefined();
+    expect(readImageReferrerPolicy(undefined)).toBeUndefined();
   });
 });
