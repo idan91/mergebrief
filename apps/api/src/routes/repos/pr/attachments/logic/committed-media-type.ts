@@ -4,7 +4,9 @@ import {
   type CommittedMediaExtension,
 } from "brief-core/media-address";
 import { CommittedFileMediaTypes, type CommittedFileMediaType } from "../types";
+import { isVideoMediaType } from "./media-type";
 import { sniffImageMediaType } from "./sniff-image";
+import { sniffVideoMediaType } from "./sniff-video";
 
 const MEDIA_TYPE_BY_EXTENSION: Readonly<
   Record<CommittedMediaExtension, CommittedFileMediaType>
@@ -15,6 +17,9 @@ const MEDIA_TYPE_BY_EXTENSION: Readonly<
   [CommittedMediaExtensions.GIF]: CommittedFileMediaTypes.GIF,
   [CommittedMediaExtensions.WEBP]: CommittedFileMediaTypes.WEBP,
   [CommittedMediaExtensions.SVG]: CommittedFileMediaTypes.SVG,
+  [CommittedMediaExtensions.MP4]: CommittedFileMediaTypes.MP4,
+  [CommittedMediaExtensions.WEBM]: CommittedFileMediaTypes.WEBM,
+  [CommittedMediaExtensions.MOV]: CommittedFileMediaTypes.QUICKTIME,
 };
 
 const SVG_OPEN_TAG = "<svg";
@@ -39,13 +44,17 @@ function isSvgMarkup(head: Uint8Array): boolean {
 
 /**
  * The type to serve, read from the bytes: a raster as its signature says,
- * an SVG only under an `.svg` name. Raw hosts answer `text/plain` for most
- * files, so the upstream type is never consulted.
+ * an SVG only under an `.svg` name, a video under the type its name declares
+ * once the bytes are a video. Raw hosts answer `text/plain` for most files,
+ * so the upstream type is never consulted.
  */
 export function sniffCommittedMediaType(
   head: Uint8Array,
   declared: CommittedFileMediaType,
 ): CommittedFileMediaType | undefined {
+  if (isVideoMediaType(declared)) {
+    return sniffVideoMediaType(head) === undefined ? undefined : declared;
+  }
   const raster = sniffImageMediaType(head);
   if (raster !== undefined) {
     return raster;

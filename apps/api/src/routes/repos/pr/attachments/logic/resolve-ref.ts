@@ -4,19 +4,22 @@ import {
 } from "brief-core/media-address";
 import type { Result } from "types/utils";
 import { SOURCES_TTL_MS } from "../consts";
-import type {
-  CommittedFileLocation,
-  CommittedLookupKey,
-  CommittedRefQuery,
-  CommittedRefRequest,
-  CommittedRefsStore,
-  CommittedViewerKey,
-  ReadAttachmentFailure,
+import { buildTransportError } from "./upstream-response";
+import {
+  ReadAttachmentFailureKinds,
+  type CommittedFileLocation,
+  type CommittedLookupKey,
+  type CommittedRefQuery,
+  type CommittedRefRequest,
+  type CommittedRefsStore,
+  type CommittedViewerKey,
+  type ReadAttachmentFailure,
 } from "../types";
 
 type LocationResult = Result<CommittedFileLocation, ReadAttachmentFailure>;
 
 const FULL_SHA = /^[0-9a-f]{40}$/i;
+const CONTEXT = "committed file refs";
 const ALL_NAMESPACES = Object.values(QualifiedRefNamespaces);
 
 /** One matching-refs lookup, and the `refs/<namespace>` segments its names sit under in the path. */
@@ -96,20 +99,56 @@ function pickLocation(
   return pickCommittedFileLocation(names, pathSegments, minRefSegments);
 }
 
+type RefNamesResult = Awaited<ReturnType<CommittedRefRequest["listRefs"]>>;
+
+/** One lookup per key at a time, cached once it answers whoever still waits on it. */
 function listRefsOnce(
   store: CommittedRefsStore,
   request: CommittedRefRequest,
   lookup: RefLookup,
-): ReturnType<CommittedRefRequest["listRefs"]> {
+): Promise<RefNamesResult> {
   const running = store.inFlight.get(lookup.cacheKey);
   if (running !== undefined) {
     return running;
   }
-  const pending = request.listRefs(lookup.query).finally(() => {
-    store.inFlight.delete(lookup.cacheKey);
-  });
+  const pending = request
+    .listRefs(lookup.query)
+    .then((listed) => {
+      if (listed.ok) {
+        const expiresAt = Date.now() + SOURCES_TTL_MS;
+        store.cache.set(lookup.cacheKey, listed.value, expiresAt);
+      }
+      return listed;
+    })
+    .finally(() => {
+      store.inFlight.delete(lookup.cacheKey);
+    });
   store.inFlight.set(lookup.cacheKey, pending);
   return pending;
+}
+
+/** The shared lookup's answer, or a transport failure as soon as this read's own client leaves. */
+function waitWhileClientStays(
+  pending: Promise<RefNamesResult>,
+  signal: AbortSignal,
+): Promise<RefNamesResult> {
+  const kind = ReadAttachmentFailureKinds.GITHUB_DENIED;
+  const left: RefNamesResult = {
+    ok: false,
+    error: { kind, error: buildTransportError(CONTEXT) },
+  };
+  if (signal.aborted) {
+    return Promise.resolve(left);
+  }
+  return new Promise((resolve, reject) => {
+    function stopWaiting(): void {
+      resolve(left);
+    }
+    signal.addEventListener("abort", stopWaiting, { once: true });
+    pending.then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", stopWaiting);
+    });
+  });
 }
 
 /** Where the ref ends: a full sha as written, else the refs matching the ref's first segment, cached per key. */
@@ -129,10 +168,10 @@ export async function resolveCommittedFileLocation(
     return { ok: true, value: pickLocation(lookup, cached, pathSegments) };
   }
 
-  const listed = await listRefsOnce(store, request, lookup);
+  const pending = listRefsOnce(store, request, lookup);
+  const listed = await waitWhileClientStays(pending, request.signal);
   if (!listed.ok) {
     return listed;
   }
-  store.cache.set(lookup.cacheKey, listed.value, Date.now() + SOURCES_TTL_MS);
   return { ok: true, value: pickLocation(lookup, listed.value, pathSegments) };
 }

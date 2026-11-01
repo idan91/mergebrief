@@ -122,6 +122,7 @@ async function main(): Promise<void> {
     operatorToken,
     githubAppSlug: boot.github.appSlug,
     attachmentQuota: boot.api.attachmentQuota,
+    mediaMaxBytes: boot.api.mediaMaxBytes,
     localBriefsDir,
     auth: {
       oauthClientId: boot.github.oauthClientId,

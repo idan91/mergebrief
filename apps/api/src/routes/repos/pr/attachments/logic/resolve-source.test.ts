@@ -13,6 +13,18 @@ describe("resolveAttachmentSource", () => {
     ).toBe(SIGNED);
   });
 
+  it("picks a signed private video url carrying the asset id", () => {
+    for (const extension of ["mp4", "mov", "webm"]) {
+      const video = SIGNED.replace(".png", `.${extension}`);
+      expect(resolveAttachmentSource([video], ASSET_ID)).toBe(video);
+    }
+  });
+
+  it("ignores a signed path with an extension outside the allowlist", () => {
+    const page = SIGNED.replace(".png", ".html");
+    expect(resolveAttachmentSource([page], ASSET_ID)).toBeUndefined();
+  });
+
   it("picks the bare asset url of a public repo", () => {
     expect(resolveAttachmentSource([PUBLIC], ASSET_ID)).toBe(PUBLIC);
   });

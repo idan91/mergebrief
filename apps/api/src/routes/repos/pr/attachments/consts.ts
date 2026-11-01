@@ -1,4 +1,8 @@
-import type { CommittedLookupBudgetLimits, UploadQuotaLimits } from "./types";
+import type {
+  CommittedLookupBudgetLimits,
+  StreamWindow,
+  UploadQuotaLimits,
+} from "./types";
 
 /**
  * Opened directly rather than through an <img>, the response is a document
@@ -61,3 +65,39 @@ export const DEFAULT_COMMITTED_LOOKUP_LIMITS: CommittedLookupBudgetLimits = {
   windowMs: 10 * MS_PER_MINUTE,
 };
 export const COMMITTED_LOOKUP_BUDGET_MAX_ENTRIES = 10_000;
+
+/** One media reply carries at most this much; the browser asks for the next piece itself. */
+export const MEDIA_PIECE_BYTES = 4 * BYTES_PER_MB;
+/** Open media streams one API process serves at once; past it a read answers 503. */
+export const MAX_OPEN_MEDIA_STREAMS = 64;
+export const DEFAULT_MEDIA_MAX_MB = 100;
+/**
+ * A piece's whole life once its permit is held. A 4 MiB piece needs about
+ * 1.1 Mbit/s to finish inside it; a player that paused or reads slower loses
+ * the rest of the piece and asks the next range from where it stopped.
+ */
+export const MEDIA_PIECE_DEADLINE_MS = 30 * MS_PER_SECOND;
+/**
+ * The pace a piece needs to finish inside its deadline. A whole image is one
+ * request an img never resumes, so its deadline is the time its bytes take at
+ * this pace, never under a piece's.
+ */
+export const MEDIA_FLOOR_BYTES_PER_MS =
+  MEDIA_PIECE_BYTES / MEDIA_PIECE_DEADLINE_MS;
+/** The upstream's headers must arrive inside this; its body then streams at the reader's pace. */
+export const UPSTREAM_HEADERS_TIMEOUT_MS = 15 * MS_PER_SECOND;
+/** A GitHub JSON answer, headers and body, must arrive inside this. */
+export const GITHUB_JSON_TIMEOUT_MS = 15 * MS_PER_SECOND;
+/** Enough of a video to reach an mp4's brand or a WebM's doc type. */
+export const VIDEO_SNIFF_BYTES = 64;
+/** A piece starting inside this many bytes is read from byte zero, so its signature is checked. */
+export const MEDIA_SNIFF_WINDOW_BYTES = Math.max(
+  RASTER_SNIFF_BYTES,
+  SVG_SNIFF_BYTES,
+  VIDEO_SNIFF_BYTES,
+);
+export const ACCEPT_RANGES_BYTES = "bytes";
+/** Asked of every bytes fetch, so a length upstream names is the length served. */
+export const IDENTITY_CODING = "identity";
+/** A whole-file reply: every byte of the upstream answer, from its first. */
+export const WHOLE_FILE_WINDOW: StreamWindow = { skip: 0 };

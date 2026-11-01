@@ -18,6 +18,10 @@ import { PrStates } from "types/pull-requests";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import {
+  MAX_OPEN_MEDIA_STREAMS,
+  MEDIA_PIECE_DEADLINE_MS,
+} from "../src/routes/repos/pr/attachments/consts";
+import {
   INSTALLATION_ID,
   PR_NUMBER,
   REPO_SLUG,
@@ -58,6 +62,10 @@ const SIGNED_URL = `https://private-user-images.githubusercontent.com/1/2-${ASSE
 const PUBLIC_URL = `https://github.com/user-attachments/assets/${OTHER_ASSET_ID}`;
 const FILE_NAME = `${ASSET_ID}.png`;
 const PNG_BYTES = [137, 80, 78, 71];
+const SIGNED_VIDEO_URL = SIGNED_URL.replace(".png", ".mp4");
+const MP4_HEAD = [0, 0, 0, 0x20, ...new TextEncoder().encode("ftypisom")];
+const VIDEO_TOTAL = 6 * 1024 * 1024;
+const PIECE_BYTES = 4 * 1024 * 1024;
 const ATTACHMENTS_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/attachments`;
 
 const INSTALLATION: ScopeContext = {
@@ -72,6 +80,7 @@ type AttachmentAnswer = (url: URL, token: string) => Response;
 interface AttachmentFetchCall {
   readonly url: URL;
   readonly token: string;
+  readonly range: string | undefined;
 }
 
 function isAttachmentFetch(url: string): boolean {
@@ -103,7 +112,8 @@ function stubAttachmentFetch(
       if (!isAttachmentFetch(url)) {
         return gateFetch(input, init);
       }
-      const call = { url: new URL(url), token: readBearer(init) };
+      const range = new Headers(init?.headers).get("range") ?? undefined;
+      const call = { url: new URL(url), token: readBearer(init), range };
       calls.push(call);
       return answer(call.url, call.token);
     }),
@@ -202,6 +212,16 @@ describe("GET attachments/:assetId", () => {
     return app.request(`${ATTACHMENTS_PATH}/${assetId}`, {
       method,
       headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+  }
+
+  async function readAttachmentRange(
+    app: ApiApp,
+    assetId: string,
+    range: string,
+  ): Promise<Response> {
+    return app.request(`${ATTACHMENTS_PATH}/${assetId}`, {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}`, range },
     });
   }
 
@@ -373,6 +393,204 @@ describe("GET attachments/:assetId", () => {
     });
   });
 
+  describe("a pasted video", () => {
+    function makeVideoFile(): Uint8Array {
+      const file = new Uint8Array(VIDEO_TOTAL);
+      file.set(MP4_HEAD);
+      return file;
+    }
+
+    it("streams a piece of the video for the client's range", async () => {
+      arrangeRenderedSources(fake, [SIGNED_VIDEO_URL]);
+      const fetched = stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        () =>
+          new Response(makeVideoFile().subarray(0, 4096), {
+            status: 206,
+            headers: {
+              "content-type": "video/mp4",
+              "content-range": `bytes 0-4095/${VIDEO_TOTAL}`,
+            },
+          }),
+      );
+
+      const response = await readAttachmentRange(
+        makeApp(),
+        ASSET_ID,
+        "bytes=0-1",
+      );
+
+      expect(response.status).toBe(206);
+      expect(response.headers.get("content-type")).toBe("video/mp4");
+      expect(response.headers.get("content-range")).toBe(
+        `bytes 0-1/${VIDEO_TOTAL}`,
+      );
+      expect(response.headers.get("content-length")).toBe("2");
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(fetched.map((call) => call.range)).toEqual(["bytes=0-4095"]);
+      expect(fetched.map((call) => call.token)).toEqual([""]);
+    });
+
+    it("answers a video asked for whole with its first piece", async () => {
+      arrangeRenderedSources(fake, [SIGNED_VIDEO_URL]);
+      stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        () =>
+          new Response(makeVideoFile(), {
+            status: 200,
+            headers: {
+              "content-type": "video/mp4",
+              "content-length": String(VIDEO_TOTAL),
+            },
+          }),
+      );
+
+      const response = await readAttachment(makeApp(), ASSET_ID);
+
+      expect(response.status).toBe(206);
+      expect(response.headers.get("content-range")).toBe(
+        `bytes 0-${PIECE_BYTES - 1}/${VIDEO_TOTAL}`,
+      );
+      expect((await response.arrayBuffer()).byteLength).toBe(PIECE_BYTES);
+    });
+
+    it("frees the stream permit of every request that left before its piece", async () => {
+      arrangeRenderedSources(fake, [SIGNED_VIDEO_URL]);
+      const cancel = vi.fn();
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, () => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(makeVideoFile());
+          },
+          cancel,
+        });
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "content-type": "video/mp4",
+            "content-length": String(VIDEO_TOTAL),
+          },
+        });
+      });
+      const app = makeApp();
+      const left = new AbortController();
+      left.abort();
+
+      for (let request = 0; request < MAX_OPEN_MEDIA_STREAMS; request += 1) {
+        await app.request(`${ATTACHMENTS_PATH}/${ASSET_ID}`, {
+          headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+          signal: left.signal,
+        });
+      }
+      const response = await readAttachment(app, ASSET_ID);
+
+      expect(cancel).toHaveBeenCalledTimes(MAX_OPEN_MEDIA_STREAMS);
+      expect(response.status).toBe(206);
+    });
+
+    it("answers 404 for text the upstream names a video", async () => {
+      arrangeRenderedSources(fake, [SIGNED_VIDEO_URL]);
+      stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        () =>
+          new Response("<html>not a video</html>", {
+            status: 200,
+            headers: { "content-type": "video/mp4", "content-length": "24" },
+          }),
+      );
+
+      const response = await readAttachmentRange(
+        makeApp(),
+        ASSET_ID,
+        "bytes=0-1",
+      );
+
+      expect(response.status).toBe(404);
+    });
+
+    it("keeps streaming a whole image past a piece's deadline", async () => {
+      arrangeRenderedSources(fake, [SIGNED_URL]);
+      let feed: ReadableStreamDefaultController<Uint8Array> | undefined;
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, () => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            feed = controller;
+            controller.enqueue(new Uint8Array(PNG_BYTES));
+          },
+        });
+        return new Response(body, {
+          status: 200,
+          headers: { "content-type": "image/png" },
+        });
+      });
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout"],
+        shouldAdvanceTime: true,
+      });
+
+      try {
+        const response = await readAttachment(makeApp(), ASSET_ID);
+        const reader = response.body?.getReader();
+        await reader?.read();
+        await vi.advanceTimersByTimeAsync(MEDIA_PIECE_DEADLINE_MS + 1);
+        feed?.enqueue(new Uint8Array([7]));
+        feed?.close();
+
+        expect(response.status).toBe(200);
+        expect(await reader?.read()).toEqual({
+          done: false,
+          value: new Uint8Array([7]),
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("answers 413 for a whole image declaring a size past the cap", async () => {
+      arrangeRenderedSources(fake, [SIGNED_URL]);
+      const cancel = vi.fn();
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, () => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array(PNG_BYTES));
+          },
+          cancel,
+        });
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "content-type": "image/png",
+            "content-length": String(10 * 1024 * 1024 * 1024),
+          },
+        });
+      });
+
+      const response = await readAttachment(makeApp(), ASSET_ID);
+
+      expect(response.status).toBe(413);
+      expect(await response.json()).toMatchObject({ code: "media-too-large" });
+      expect(cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it("forwards no range for an image asked for whole", async () => {
+      arrangeRenderedSources(fake, [SIGNED_URL]);
+      const fetched = stubAttachmentFetch(
+        fake,
+        { repoId: REPO_ID },
+        makePngResponse,
+      );
+
+      const response = await readAttachment(makeApp(), ASSET_ID);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-range")).toBeNull();
+      expect(fetched.map((call) => call.range)).toEqual([undefined]);
+    });
+  });
+
   describe("behind an operator pass", () => {
     beforeEach(async () => {
       ({ cookie } = await seedSignIn(harness.handle, kp));
@@ -498,6 +716,20 @@ describe("GET attachments/:assetId", () => {
         ACCESS_TOKEN,
         ROTATED_ACCESS_TOKEN,
       ]);
+    });
+
+    it("ignores a range on a branch file and serves it whole", async () => {
+      stubAttachmentFetch(fake, { repoId: REPO_ID }, makeRawResponse);
+
+      const response = await readAttachmentRange(
+        makeApp(),
+        FILE_NAME,
+        "bytes=0-1",
+      );
+
+      expect(response.status).toBe(200);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      expect(Array.from(bytes)).toEqual(PNG_BYTES);
     });
 
     it("answers 401 when the rotated token is rejected too", async () => {

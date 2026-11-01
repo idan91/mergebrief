@@ -1,6 +1,5 @@
-import type { GitHubCallFailure } from "github";
 import { HttpStatuses } from "types/http";
-import type { Result } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 import type { RepoAccess } from "../../../../access/types";
 import { parseOwnerAndName } from "../../utils";
 import { DOWNLOAD_URL_TTL_MS } from "./consts";
@@ -12,11 +11,14 @@ import {
   fetchMatchingRefNames,
   type MatchingRefsInput,
 } from "./logic/fetch-committed-file";
+import { isVideoMediaType } from "./logic/media-type";
+import { wrapBytesFailure, wrapDenial } from "./logic/read-failures";
 import { resolveCommittedFileLocation } from "./logic/resolve-ref";
 import { callWithViewerToken } from "./logic/viewer-token";
 import {
   ReadAttachmentFailureKinds,
   type AttachmentBytes,
+  type BytesReadOptions,
   type CommittedFileMediaType,
   type CommittedFileRequest,
   type CommittedLookupKey,
@@ -24,6 +26,7 @@ import {
   type ReadAttachmentFailure,
   type ReadCommittedFileDeps,
   type ReadCommittedFileInput,
+  type UpstreamBytesRequest,
 } from "./types";
 
 type ReadResult = Result<AttachmentBytes, ReadAttachmentFailure>;
@@ -32,22 +35,13 @@ interface DownloadRequest {
   readonly file: CommittedFileRequest;
   readonly cacheKey: CommittedLookupKey;
   readonly declared: CommittedFileMediaType;
+  readonly upstream: UpstreamBytesRequest;
 }
 
 const ASSET_ABSENT: Result<never, ReadAttachmentFailure> = {
   ok: false,
   error: { kind: ReadAttachmentFailureKinds.ASSET_ABSENT },
 };
-
-function wrapDenial<Value>(
-  result: Result<Value, GitHubCallFailure>,
-): Result<Value, ReadAttachmentFailure> {
-  if (result.ok) {
-    return result;
-  }
-  const kind = ReadAttachmentFailureKinds.GITHUB_DENIED;
-  return { ok: false, error: { kind, error: result.error } };
-}
 
 /** Each GitHub call spends the viewer's budget first; a spent budget answers like a missing file. */
 function spendLookups(
@@ -83,13 +77,31 @@ async function readFreshDownloadUrl(
     return ASSET_ABSENT;
   }
   const fetched = await callWithViewerToken(access.credential, (token) =>
-    fetchContentsDownloadUrl(deps.fetch, token, request.file),
+    fetchContentsDownloadUrl(
+      deps.fetch,
+      token,
+      request.file,
+      request.upstream.signal,
+    ),
   );
   if (fetched.ok) {
     const expiresAt = Date.now() + DOWNLOAD_URL_TTL_MS;
     deps.store.downloadUrls.set(request.cacheKey, fetched.value, expiresAt);
   }
   return wrapDenial(fetched);
+}
+
+/** A video is always read in pieces; an image only when the client asked for a range. */
+function buildUpstreamRequest(
+  bytes: BytesReadOptions,
+  declared: CommittedFileMediaType,
+): UpstreamBytesRequest {
+  const request: Mutable<UpstreamBytesRequest> = { signal: bytes.signal };
+  const asksUpstreamRange = bytes.rangeRequested || isVideoMediaType(declared);
+  if (asksUpstreamRange) {
+    request.range = bytes.upstreamRange;
+  }
+  return request;
 }
 
 /** A 404 at the download may be an expired address: one fresh `download_url`, one more fetch. */
@@ -111,9 +123,10 @@ async function readDownload(
     deps.fetch,
     downloadUrl,
     request.declared,
+    request.upstream,
   );
   if (first.ok || first.error.status !== HttpStatuses.NOT_FOUND) {
-    return wrapDenial(first);
+    return wrapBytesFailure(first);
   }
 
   deps.store.downloadUrls.delete(request.cacheKey);
@@ -125,12 +138,13 @@ async function readDownload(
     deps.fetch,
     refetched.value,
     request.declared,
+    request.upstream,
   );
-  return wrapDenial(second);
+  return wrapBytesFailure(second);
 }
 
 /**
- * A committed image in the gated repository, streamed. Every GitHub request
+ * A committed image or video in the gated repository, streamed. Every GitHub request
  * rides the viewer's own token and the bytes fetch none, so a file the
  * viewer cannot read on GitHub is never served, whatever pass the gate took.
  */
@@ -148,6 +162,7 @@ export async function readCommittedFile(
   const viewerKey: CommittedViewerKey = `${access.session.sessionTokenHash}:${String(access.repoId)}`;
   const location = await resolveCommittedFileLocation(deps.store.refs, {
     viewerKey,
+    signal: input.bytes.signal,
     pathSegments: input.pathSegments,
     listRefs: (query) => listRefNames(deps, access, { ...repo, ...query }),
   });
@@ -158,5 +173,6 @@ export async function readCommittedFile(
   const file = { ...repo, ...location.value };
   const filePath = JSON.stringify([file.ref, ...file.fileSegments]);
   const cacheKey: CommittedLookupKey = `${viewerKey}:${filePath}`;
-  return readDownload(deps, access, { file, cacheKey, declared });
+  const upstream = buildUpstreamRequest(input.bytes, declared);
+  return readDownload(deps, access, { file, cacheKey, declared, upstream });
 }

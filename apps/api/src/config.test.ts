@@ -160,6 +160,40 @@ describe("loadConfig attachment quota knobs", () => {
   });
 });
 
+describe("loadConfig media size cap", () => {
+  const BASE = { PUBLIC_BASE_URL: "http://localhost:3000" };
+  const MB = 1024 * 1024;
+
+  it("defaults to 100 MB when unset or empty", () => {
+    for (const env of [BASE, { ...BASE, MERGEBRIEF_MEDIA_MAX_MB: "" }]) {
+      expect(loadConfig(env)).toMatchObject({
+        ok: true,
+        value: { mediaMaxBytes: 100 * MB },
+      });
+    }
+  });
+
+  it("takes an override in megabytes", () => {
+    const result = loadConfig({ ...BASE, MERGEBRIEF_MEDIA_MAX_MB: "250" });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { mediaMaxBytes: 250 * MB },
+    });
+  });
+
+  it("refuses a value that is not a positive whole number", () => {
+    for (const value of ["0", "-5", "1.5", "lots"]) {
+      const result = loadConfig({ ...BASE, MERGEBRIEF_MEDIA_MAX_MB: value });
+      expect(result).toMatchObject({
+        ok: false,
+        error: {
+          issues: ["MERGEBRIEF_MEDIA_MAX_MB: must be a positive whole number"],
+        },
+      });
+    }
+  });
+});
+
 describe("loadConfig SERVER_VERSION", () => {
   const BASE = { PUBLIC_BASE_URL: "https://brief.example.test" };
 

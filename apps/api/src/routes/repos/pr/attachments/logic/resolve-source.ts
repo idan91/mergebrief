@@ -2,7 +2,7 @@ import { readAssetPathId, type AttachmentAssetId } from "contract";
 
 const PUBLIC_ASSET_HOST = "github.com";
 const SIGNED_IMAGE_HOST = "private-user-images.githubusercontent.com";
-const SIGNED_IMAGE_EXTENSIONS = "png|jpe?g|gif|webp";
+const SIGNED_ASSET_EXTENSIONS = "png|jpe?g|gif|webp|mp4|mov|webm";
 
 function hasBareAuthority(url: URL): boolean {
   return url.port === "" && url.username === "" && url.password === "";
@@ -25,7 +25,7 @@ function isAttachmentUrl(url: URL, assetId: AttachmentAssetId): boolean {
   }
   if (url.hostname === SIGNED_IMAGE_HOST) {
     const signedPath = new RegExp(
-      `^/\\d+/\\d+-${assetId}\\.(${SIGNED_IMAGE_EXTENSIONS})$`,
+      `^/\\d+/\\d+-${assetId}\\.(${SIGNED_ASSET_EXTENSIONS})$`,
       "i",
     );
     return signedPath.test(url.pathname);

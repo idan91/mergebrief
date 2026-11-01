@@ -3,45 +3,100 @@
 // for anyone, so that fetch sends no Authorization header and a token never
 // rides to S3. A branch file is a Contents API read and carries the viewer's
 // token; node's fetch drops the header on the cross-origin redirect.
-import { ATTACHMENT_BRANCH, AttachmentMediaTypes } from "contract";
+import { ATTACHMENT_BRANCH } from "contract";
 import type {
   GitHubApiError,
   GitHubCallFailure,
   ReviewerCredential,
 } from "github";
-import type { Result } from "types";
+import type { Mutable, Result } from "types/utils";
 import {
   CONTENTS_RAW_MEDIA_TYPE,
   GITHUB_API_ORIGIN,
   GITHUB_API_VERSION,
+  IDENTITY_CODING,
+  UPSTREAM_HEADERS_TIMEOUT_MS,
+  VIDEO_SNIFF_BYTES,
 } from "../consts";
-import type { AttachmentBytes, ReadBranchAttachmentInput } from "../types";
+import type {
+  AttachmentBytes,
+  ReadBranchAttachmentInput,
+  UpstreamBytesRequest,
+} from "../types";
+import { fetchWithHeadersDeadline } from "./fetch-upstream";
+import { isVideoMediaType, readAssetMediaType } from "./media-type";
+import { readStreamHead } from "./peek-stream";
+import { sniffVideoMediaType } from "./sniff-video";
 import {
   buildNotAnImageError,
   buildStatusError,
   buildTransportError,
+  isUnreadablePiece,
+  readByteExtent,
   readMediaType,
 } from "./upstream-response";
 import { callWithViewerToken } from "./viewer-token";
 
 const CONTEXT = "user attachment";
 const JSON_MEDIA_TYPE = "application/json";
+const ASSET_ACCEPT = "image/*, video/*";
 
-/** Raster only: a pasted asset is never served as an SVG document. */
-const SERVED_MEDIA_TYPES: ReadonlySet<string> = new Set(
-  Object.values(AttachmentMediaTypes),
-);
+type BytesResult = Result<AttachmentBytes, GitHubApiError>;
 
+function buildUpstreamHeaders(
+  request: UpstreamBytesRequest,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    accept: ASSET_ACCEPT,
+    "accept-encoding": IDENTITY_CODING,
+  };
+  if (request.range !== undefined) {
+    headers["range"] = request.range;
+  }
+  return headers;
+}
+
+/**
+ * A video piece holding the file's first bytes must carry a video signature,
+ * so a page or a text file named by the upstream type is refused there; a
+ * later piece holds no signature to read.
+ */
+async function confirmVideoHead(bytes: AttachmentBytes): Promise<BytesResult> {
+  if (bytes.extent !== undefined && bytes.extent.first !== 0) {
+    return { ok: true, value: bytes };
+  }
+  let peeked;
+  try {
+    peeked = await readStreamHead(bytes.body, VIDEO_SNIFF_BYTES);
+  } catch {
+    return { ok: false, error: buildTransportError(CONTEXT) };
+  }
+  if (sniffVideoMediaType(peeked.head) === undefined) {
+    await peeked.body.cancel();
+    return { ok: false, error: buildNotAnImageError(CONTEXT) };
+  }
+  return { ok: true, value: { ...bytes, body: peeked.body } };
+}
+
+/**
+ * The asset's bytes, served under the allowlisted type upstream names: a
+ * raster, or a video whose head carries a video signature.
+ */
 export async function fetchAttachmentBytes(
   fetchImpl: typeof fetch,
   sourceUrl: string,
-): Promise<Result<AttachmentBytes, GitHubApiError>> {
+  request: UpstreamBytesRequest,
+): Promise<BytesResult> {
   let response: Response;
   try {
-    response = await fetchImpl(sourceUrl, {
-      method: "GET",
-      redirect: "follow",
-      headers: { accept: "image/*" },
+    response = await fetchWithHeadersDeadline(fetchImpl, sourceUrl, {
+      init: {
+        method: "GET",
+        redirect: "follow",
+        headers: buildUpstreamHeaders(request),
+      },
+      signal: request.signal,
+      timeoutMs: UPSTREAM_HEADERS_TIMEOUT_MS,
     });
   } catch {
     return { ok: false, error: buildTransportError(CONTEXT) };
@@ -52,13 +107,22 @@ export async function fetchAttachmentBytes(
     return { ok: false, error: buildStatusError(CONTEXT, response.status) };
   }
 
-  const contentType = readMediaType(response);
-  if (!SERVED_MEDIA_TYPES.has(contentType) || response.body === null) {
+  const contentType = readAssetMediaType(readMediaType(response));
+  const unservable = contentType === undefined || isUnreadablePiece(response);
+  if (unservable || response.body === null) {
     await response.body?.cancel();
     return { ok: false, error: buildNotAnImageError(CONTEXT) };
   }
 
-  return { ok: true, value: { body: response.body, contentType } };
+  const bytes: Mutable<AttachmentBytes> = { body: response.body, contentType };
+  const extent = readByteExtent(response);
+  if (extent !== undefined) {
+    bytes.extent = extent;
+  }
+  if (isVideoMediaType(contentType)) {
+    return confirmVideoHead(bytes);
+  }
+  return { ok: true, value: bytes };
 }
 
 function buildContentsUrl(input: ReadBranchAttachmentInput): URL {
@@ -81,18 +145,27 @@ export async function fetchBranchAttachmentBytes(
   fetchImpl: typeof fetch,
   accessToken: string,
   input: ReadBranchAttachmentInput,
+  signal: AbortSignal,
 ): Promise<Result<AttachmentBytes, GitHubApiError>> {
   let response: Response;
   try {
-    response = await fetchImpl(buildContentsUrl(input), {
-      method: "GET",
-      redirect: "follow",
-      headers: {
-        accept: CONTENTS_RAW_MEDIA_TYPE,
-        authorization: `Bearer ${accessToken}`,
-        "x-github-api-version": GITHUB_API_VERSION,
+    response = await fetchWithHeadersDeadline(
+      fetchImpl,
+      buildContentsUrl(input),
+      {
+        init: {
+          method: "GET",
+          redirect: "follow",
+          headers: {
+            accept: CONTENTS_RAW_MEDIA_TYPE,
+            authorization: `Bearer ${accessToken}`,
+            "x-github-api-version": GITHUB_API_VERSION,
+          },
+        },
+        signal,
+        timeoutMs: UPSTREAM_HEADERS_TIMEOUT_MS,
       },
-    });
+    );
   } catch {
     return { ok: false, error: buildTransportError(CONTEXT) };
   }
@@ -121,8 +194,9 @@ export function readBranchAttachment(
   fetchImpl: typeof fetch,
   credential: ReviewerCredential,
   input: ReadBranchAttachmentInput,
+  signal: AbortSignal,
 ): Promise<Result<AttachmentBytes, GitHubCallFailure>> {
   return callWithViewerToken(credential, (token) =>
-    fetchBranchAttachmentBytes(fetchImpl, token, input),
+    fetchBranchAttachmentBytes(fetchImpl, token, input, signal),
   );
 }

@@ -149,6 +149,7 @@ reads, with what an empty value does.
 | `MERGEBRIEF_UPDATE_CHECK` | api | optional, default `true` (empty included); the hourly fetch of the release file that drives the version notice ([operations.md](./operations.md#the-update-check)). `false` turns it off; a token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
 | `MERGEBRIEF_UPDATE_CHECK_URL` | api | optional; a mirror of `version.json` for a network that blocks github.com. An absolute http(s) URL with no credentials in it, or api refuses boot |
 | `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` / `MERGEBRIEF_ATTACHMENT_QUOTA_MB` / `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | optional, defaults `10` / `30` / `10` (empty included); what one reviewer may attach per window, per api replica ([attachments.md](./attachments.md#upload-quota)). Positive whole numbers, and the megabytes at least `10`, the size limit of one file; anything else refuses boot |
+| `MERGEBRIEF_MEDIA_MAX_MB` | api | optional, default `100` (empty included); the largest video or image, in megabytes, the API streams, judged on the file's full size ([attachments.md](./attachments.md)). A positive whole number, or api refuses boot |
 
 ### Who owns which setting
 

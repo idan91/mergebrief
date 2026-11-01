@@ -1,6 +1,7 @@
 import { AttachmentMediaTypes, type AttachmentAssetId } from "contract";
 import { GitHubApiErrorCodes } from "github";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { makeHangingFetch } from "../../../../../../test/hanging-fetch";
 import {
   fetchAttachmentBytes,
   fetchBranchAttachmentBytes,
@@ -8,6 +9,9 @@ import {
 
 const SOURCE =
   "https://private-user-images.githubusercontent.com/1/2-3e5dffc4-bd05-4a01-98e8-1c519ba4cf00.png?jwt=abc";
+
+const WHOLE = { signal: new AbortController().signal };
+const MP4_HEAD = [0, 0, 0, 0x20, ...new TextEncoder().encode("ftypisom")];
 
 function stubFetch(response: Response | Error) {
   return vi.fn(async () => {
@@ -29,7 +33,7 @@ describe("fetchAttachmentBytes", () => {
   it("fetches the rendered url anonymously and follows redirects", async () => {
     const fetchImpl = stubFetch(makePngResponse());
 
-    const result = await fetchAttachmentBytes(fetchImpl, SOURCE);
+    const result = await fetchAttachmentBytes(fetchImpl, SOURCE, WHOLE);
 
     expect(result.ok).toBe(true);
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [
@@ -45,6 +49,7 @@ describe("fetchAttachmentBytes", () => {
     const result = await fetchAttachmentBytes(
       stubFetch(makePngResponse()),
       SOURCE,
+      WHOLE,
     );
 
     if (!result.ok) {
@@ -61,6 +66,7 @@ describe("fetchAttachmentBytes", () => {
     const result = await fetchAttachmentBytes(
       stubFetch(new Response(null, { status: 404 })),
       SOURCE,
+      WHOLE,
     );
 
     expect(result).toEqual({
@@ -76,6 +82,7 @@ describe("fetchAttachmentBytes", () => {
     const result = await fetchAttachmentBytes(
       stubFetch(new Response(null, { status: 401 })),
       SOURCE,
+      WHOLE,
     );
 
     expect(result.ok).toBe(false);
@@ -89,6 +96,7 @@ describe("fetchAttachmentBytes", () => {
     const result = await fetchAttachmentBytes(
       stubFetch(new Response(null, { status: 403 })),
       SOURCE,
+      WHOLE,
     );
 
     expect(result.ok).toBe(false);
@@ -104,7 +112,7 @@ describe("fetchAttachmentBytes", () => {
       headers: { "content-type": "text/html" },
     });
 
-    const result = await fetchAttachmentBytes(stubFetch(html), SOURCE);
+    const result = await fetchAttachmentBytes(stubFetch(html), SOURCE, WHOLE);
 
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -119,7 +127,7 @@ describe("fetchAttachmentBytes", () => {
       headers: { "content-type": "image/svg+xml; charset=utf-8" },
     });
 
-    const result = await fetchAttachmentBytes(stubFetch(svg), SOURCE);
+    const result = await fetchAttachmentBytes(stubFetch(svg), SOURCE, WHOLE);
 
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -134,7 +142,7 @@ describe("fetchAttachmentBytes", () => {
       headers: { "content-type": "Image/JPEG; charset=binary" },
     });
 
-    const result = await fetchAttachmentBytes(stubFetch(jpeg), SOURCE);
+    const result = await fetchAttachmentBytes(stubFetch(jpeg), SOURCE, WHOLE);
 
     if (!result.ok) {
       throw new Error("expected ok");
@@ -146,6 +154,7 @@ describe("fetchAttachmentBytes", () => {
     const result = await fetchAttachmentBytes(
       stubFetch(new Error("socket hang up")),
       SOURCE,
+      WHOLE,
     );
 
     expect(result.ok).toBe(false);
@@ -161,6 +170,7 @@ describe("fetchAttachmentBytes", () => {
     const result = await fetchAttachmentBytes(
       stubFetch(new Response(null, { status: 502 })),
       SOURCE,
+      WHOLE,
     );
 
     expect(result.ok).toBe(false);
@@ -173,6 +183,10 @@ describe("fetchAttachmentBytes", () => {
 });
 
 describe("fetchBranchAttachmentBytes", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const FILE = {
     assetId: "3e5dffc4-bd05-4a01-98e8-1c519ba4cf00" as AttachmentAssetId,
     fileName: "3e5dffc4-bd05-4a01-98e8-1c519ba4cf00.png",
@@ -187,6 +201,40 @@ describe("fetchBranchAttachmentBytes", () => {
     });
   }
 
+  it("gives up when the headers take past the deadline", async () => {
+    vi.useFakeTimers();
+    const upstream = makeHangingFetch();
+
+    const pending = fetchBranchAttachmentBytes(
+      upstream.fetchImpl,
+      "ghu_token",
+      INPUT,
+      WHOLE.signal,
+    );
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    const result = await pending;
+    expect(!result.ok && result.error.code).toBe(
+      GitHubApiErrorCodes.REQUEST_FAILED,
+    );
+  });
+
+  it("cancels the read when the client leaves", async () => {
+    const upstream = makeHangingFetch();
+    const client = new AbortController();
+
+    const pending = fetchBranchAttachmentBytes(
+      upstream.fetchImpl,
+      "ghu_token",
+      INPUT,
+      client.signal,
+    );
+    client.abort();
+
+    expect((await pending).ok).toBe(false);
+    expect(upstream.readSignal()?.aborted).toBe(true);
+  });
+
   it("reads the file through the contents api with the token", async () => {
     const fetchImpl = stubFetch(makeRawResponse());
 
@@ -194,6 +242,7 @@ describe("fetchBranchAttachmentBytes", () => {
       fetchImpl,
       "ghu_token",
       INPUT,
+      WHOLE.signal,
     );
 
     expect(result.ok).toBe(true);
@@ -216,6 +265,7 @@ describe("fetchBranchAttachmentBytes", () => {
       stubFetch(makeRawResponse()),
       "ghu_token",
       INPUT,
+      WHOLE.signal,
     );
 
     if (!result.ok) {
@@ -238,6 +288,7 @@ describe("fetchBranchAttachmentBytes", () => {
       stubFetch(listing),
       "ghu_token",
       INPUT,
+      WHOLE.signal,
     );
 
     expect(result.ok).toBe(false);
@@ -254,6 +305,7 @@ describe("fetchBranchAttachmentBytes", () => {
           stubFetch(new Response(null, { status })),
           "ghu_token",
           INPUT,
+          WHOLE.signal,
         ),
       ),
     );
@@ -276,6 +328,7 @@ describe("fetchBranchAttachmentBytes", () => {
       stubFetch(new Error("socket hang up")),
       "ghu_token",
       INPUT,
+      WHOLE.signal,
     );
 
     expect(result.ok).toBe(false);
@@ -284,5 +337,93 @@ describe("fetchBranchAttachmentBytes", () => {
     }
     expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.message).not.toContain("socket");
+  });
+});
+
+describe("fetchAttachmentBytes for a video", () => {
+  function makeVideoPiece(
+    bytes: readonly number[] | string,
+    contentRange: string,
+    contentType = "video/mp4",
+  ): Response {
+    const body = typeof bytes === "string" ? bytes : new Uint8Array(bytes);
+    return new Response(body, {
+      status: 206,
+      headers: { "content-type": contentType, "content-range": contentRange },
+    });
+  }
+
+  it("forwards the range and reads the answered extent", async () => {
+    const piece = makeVideoPiece([...MP4_HEAD, 1, 2], "bytes 0-13/5000");
+    const fetchImpl = stubFetch(piece);
+
+    const result = await fetchAttachmentBytes(fetchImpl, SOURCE, {
+      ...WHOLE,
+      range: "bytes=0-4095",
+    });
+
+    if (!result.ok) {
+      throw new Error("expected ok");
+    }
+    expect(result.value.contentType).toBe("video/mp4");
+    expect(result.value.extent).toEqual({ first: 0, last: 13, total: 5000 });
+    const [, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(new Headers(init.headers).get("range")).toBe("bytes=0-4095");
+    const bytes = new Uint8Array(
+      await new Response(result.value.body).arrayBuffer(),
+    );
+    expect(Array.from(bytes)).toEqual([...MP4_HEAD, 1, 2]);
+  });
+
+  it("refuses a piece whose content range it cannot read", async () => {
+    const piece = makeVideoPiece([137, 80, 78, 71], "bytes 0-3/*", "image/png");
+
+    const result = await fetchAttachmentBytes(stubFetch(piece), SOURCE, {
+      ...WHOLE,
+      range: "bytes=0-4095",
+    });
+
+    expect(!result.ok && result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
+  });
+
+  it("refuses text served as a video at the file's head", async () => {
+    const piece = makeVideoPiece("version https://git-lfs", "bytes 0-22/23");
+
+    const result = await fetchAttachmentBytes(stubFetch(piece), SOURCE, WHOLE);
+
+    expect(!result.ok && result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
+  });
+
+  it("serves a later piece, which holds no signature, as its type", async () => {
+    const piece = makeVideoPiece([9, 9, 9], "bytes 4096-4098/5000");
+
+    const result = await fetchAttachmentBytes(stubFetch(piece), SOURCE, WHOLE);
+
+    expect(result.ok && result.value.contentType).toBe("video/mp4");
+  });
+
+  it("refuses a video type outside the allowlist", async () => {
+    const piece = makeVideoPiece(MP4_HEAD, "bytes 0-11/12", "video/x-matroska");
+
+    const result = await fetchAttachmentBytes(stubFetch(piece), SOURCE, WHOLE);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("keeps a range upstream refused as its 416 status", async () => {
+    const refused = new Response(null, {
+      status: 416,
+      headers: { "content-range": "bytes */5000" },
+    });
+
+    const result = await fetchAttachmentBytes(stubFetch(refused), SOURCE, {
+      ...WHOLE,
+      range: "bytes=9000-9099",
+    });
+
+    expect(!result.ok && result.error.status).toBe(416);
   });
 });

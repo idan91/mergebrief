@@ -24,8 +24,26 @@ describe("readCommittedFileMediaType", () => {
     );
   });
 
+  it("reads the allowlisted video extensions", () => {
+    expect(readCommittedFileMediaType(["main", "demo.MP4"])).toBe("video/mp4");
+    expect(readCommittedFileMediaType(["main", "demo.webm"])).toBe(
+      "video/webm",
+    );
+    expect(readCommittedFileMediaType(["main", "demo.mov"])).toBe(
+      "video/quicktime",
+    );
+  });
+
   it("refuses any other file", () => {
-    for (const name of [".env", "a.html", "a.png.html", "README", "a.svgz"]) {
+    for (const name of [
+      ".env",
+      "a.html",
+      "a.png.html",
+      "README",
+      "a.svgz",
+      "a.mkv",
+      "a.m4v",
+    ]) {
       expect(readCommittedFileMediaType(["main", name])).toBeUndefined();
     }
   });
@@ -57,5 +75,29 @@ describe("sniffCommittedMediaType", () => {
         "image/svg+xml",
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("sniffCommittedMediaType for a video name", () => {
+  const MP4_HEAD = new Uint8Array([0, 0, 0, 0x20, ...encode("ftypisom")]);
+
+  it("serves the type the name declares once the bytes are a video", () => {
+    expect(sniffCommittedMediaType(MP4_HEAD, "video/mp4")).toBe("video/mp4");
+    expect(sniffCommittedMediaType(MP4_HEAD, "video/quicktime")).toBe(
+      "video/quicktime",
+    );
+  });
+
+  it("refuses a git lfs pointer and an image under a video name", () => {
+    const pointer = encode(
+      "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 12\n",
+    );
+
+    expect(sniffCommittedMediaType(pointer, "video/mp4")).toBeUndefined();
+    expect(sniffCommittedMediaType(PNG_HEAD, "video/webm")).toBeUndefined();
+  });
+
+  it("never serves video bytes under an image name", () => {
+    expect(sniffCommittedMediaType(MP4_HEAD, "image/png")).toBeUndefined();
   });
 });

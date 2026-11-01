@@ -282,6 +282,7 @@ describe("readCommittedMediaExtension", () => {
   it("reads a served extension without regard to case", () => {
     expect(readCommittedMediaExtension(["main", "a.PNG"])).toBe("png");
     expect(readCommittedMediaExtension(["main", "docs", "b.svg"])).toBe("svg");
+    expect(readCommittedMediaExtension(["main", "demo.MOV"])).toBe("mov");
   });
 
   it("reads nothing for another format or a file with no extension", () => {

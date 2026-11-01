@@ -1,6 +1,6 @@
 import { AttachmentSourceKinds } from "contract";
-import type { GitHubCallFailure, RepositoryRef } from "github";
-import type { Result } from "types/utils";
+import type { RepositoryRef } from "github";
+import type { Mutable, Result } from "types/utils";
 import type { RepoAccess } from "../../../../access/types";
 import { parseOwnerAndName } from "../../utils";
 import {
@@ -8,6 +8,7 @@ import {
   readBranchAttachment,
 } from "./logic/fetch-attachment";
 import { resolveRenderedSource } from "./logic/rendered-sources";
+import { wrapBytesFailure, wrapDenial } from "./logic/read-failures";
 import {
   ReadAttachmentFailureKinds,
   type AssetReadInput,
@@ -15,26 +16,22 @@ import {
   type ReadAttachmentDeps,
   type ReadAttachmentFailure,
   type ReadAttachmentInput,
+  type UpstreamBytesRequest,
 } from "./types";
 
 type ReadResult = Result<AttachmentBytes, ReadAttachmentFailure>;
 
-function wrapDenial(
-  fetched: Result<AttachmentBytes, GitHubCallFailure>,
-): ReadResult {
-  if (fetched.ok) {
-    return fetched;
-  }
-  const kind = ReadAttachmentFailureKinds.GITHUB_DENIED;
-  return { ok: false, error: { kind, error: fetched.error } };
-}
-
-/** The bytes come from a URL GitHub already signed, so that fetch carries no credential. */
+/**
+ * The bytes come from a URL GitHub already signed, so that fetch carries no
+ * credential. The asset's type is unknown until upstream answers, so only a
+ * client's own `Range` is forwarded; a video asked for whole is cut to its
+ * first piece by the route.
+ */
 async function readAsset(
   deps: ReadAttachmentDeps,
   access: RepoAccess,
   repo: RepositoryRef,
-  { prNumber, assetId }: AssetReadInput,
+  { prNumber, assetId, bytes }: AssetReadInput,
 ): Promise<ReadResult> {
   const sessionTokenHash = access.session.sessionTokenHash;
   const cacheKey = `${sessionTokenHash}:${String(access.repoId)}:${prNumber}`;
@@ -45,8 +42,16 @@ async function readAsset(
     return source;
   }
 
-  const fetched = await fetchAttachmentBytes(deps.fetch, source.value);
-  return wrapDenial(fetched);
+  const upstream: Mutable<UpstreamBytesRequest> = { signal: bytes.signal };
+  if (bytes.rangeRequested) {
+    upstream.range = bytes.upstreamRange;
+  }
+  const fetched = await fetchAttachmentBytes(
+    deps.fetch,
+    source.value,
+    upstream,
+  );
+  return wrapBytesFailure(fetched);
 }
 
 /**
@@ -74,9 +79,14 @@ export async function readAttachment(
       deps.fetch,
       access.credential,
       file,
+      input.bytes.signal,
     );
     return wrapDenial(fetched);
   }
-  const asset = { prNumber: input.prNumber, assetId: target.assetId };
+  const asset = {
+    prNumber: input.prNumber,
+    assetId: target.assetId,
+    bytes: input.bytes,
+  };
   return readAsset(deps, access, repo, asset);
 }

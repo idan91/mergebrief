@@ -62,6 +62,7 @@ export interface DiagramMediaItem extends MediaItemBase {
 export type MediaItem = ImageMediaItem | VideoMediaItem | DiagramMediaItem;
 /** What a link can be read as: a strip-only file, or a pasted video to confirm. */
 export type LinkMediaItem = ImageMediaItem | VideoMediaItem;
+export type LinkMediaKind = Exclude<MediaKind, typeof MediaKinds.DIAGRAM>;
 
 export interface ExtractMediaOptions {
   /** The pull request's repository, `owner/name`: a link to a file in it is a Media item. */

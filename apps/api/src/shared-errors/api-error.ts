@@ -99,6 +99,12 @@ export class BadGateway extends ApiError {
   }
 }
 
+export class ServiceUnavailable extends ApiError {
+  public constructor(code: CodeFor<typeof HttpStatuses.SERVICE_UNAVAILABLE>) {
+    super(code);
+  }
+}
+
 export class GatewayTimeout extends ApiError {
   public constructor(code: CodeFor<typeof HttpStatuses.GATEWAY_TIMEOUT>) {
     super(code);

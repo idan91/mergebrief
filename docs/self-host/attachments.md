@@ -50,6 +50,39 @@ else refuses boot. The count lives in the api process: a restart clears it,
 and each replica counts on its own
 ([operations.md](operations.md#running-more-than-one-api)).
 
+## Reading images and videos
+
+Every image or video a brief shows from a private source, whether pasted
+into the pull request or committed to its repository, is read by the API on
+the viewer's own access and streamed to the browser same-origin. Nothing is
+cached; every reply is `no-store`, sandboxed and `nosniff`, under a content
+type from the API's own list (PNG, JPEG, GIF, WebP, MP4, WebM, QuickTime;
+SVG for a committed file only). A committed file's type is read from its
+bytes; a pasted asset keeps the type GitHub names only when that type is on
+the list, and a pasted video's first bytes must also carry a video
+signature.
+
+A video is streamed in ranged pieces, never by redirecting the browser to
+GitHub's short-lived address: each reply is a `206` of at most 4 MiB, and
+the player asks for the next piece itself. The API waits at most 15 seconds
+for GitHub's headers, and a reader who leaves cancels the upstream read.
+
+| Variable | Default | What it bounds |
+| --- | --- | --- |
+| `MERGEBRIEF_MEDIA_MAX_MB` | `100` | The largest video or image, in megabytes, the API streams; judged on the file's full size, so a larger one answers `413 media-too-large` and shows as could not load |
+
+At most 64 media streams are open per api process, whole images included;
+past that a read answers `503 media-streams-busy` until one ends. A piece
+has 30 seconds from its headers to finish; past that a reader too slow for
+it gets the bytes served so far, and a player asks for the rest as its next
+piece. A whole image cannot be resumed, so it gets the time its full size
+takes at the same pace (about 1.1 Mbit/s), never under 30 seconds and never
+over the time `MERGEBRIEF_MEDIA_MAX_MB` takes; one of no stated size is
+given the time of a 10 MB image, and one stating a size past the cap
+answers `413 media-too-large` before it holds a stream. A Git LFS pointer committed under a
+video name is refused like any file whose bytes are not the type its name
+claims.
+
 ## Refusing pushes
 
 A repository ruleset or branch protection matching `mergebrief/*` refuses

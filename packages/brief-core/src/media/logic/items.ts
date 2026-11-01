@@ -12,6 +12,7 @@ import {
   isCommittedFileInRepository,
   parseCommittedFilePageUrl,
   parseCommittedFileUrl,
+  readCommittedMediaExtension,
 } from "../../media-address";
 import { MEDIA_KIND_BY_EXTENSION, MERMAID_LANGUAGE_CLASS } from "../consts";
 import {
@@ -19,6 +20,7 @@ import {
   type DiagramMediaItem,
   type ImageMediaItem,
   type LinkMediaItem,
+  type LinkMediaKind,
   type VideoMediaItem,
 } from "../types";
 import { readDiagramType } from "./diagram-type";
@@ -136,15 +138,15 @@ function isPastedAssetLine(
 function readRepositoryFileKind(
   address: string,
   repoSlug: string,
-): typeof MediaKinds.IMAGE | typeof MediaKinds.VIDEO | undefined {
+): LinkMediaKind | undefined {
   const source = parseCommittedFileUrl(address);
   if (!source.ok || !isCommittedFileInRepository(source.value, repoSlug)) {
     return undefined;
   }
-  const fileName = source.value.pathSegments.at(-1) ?? "";
-  const extension = fileName.split(".").at(-1) ?? "";
-  const kind = MEDIA_KIND_BY_EXTENSION.get(extension.toLowerCase());
-  return kind === MediaKinds.DIAGRAM ? undefined : kind;
+  const extension = readCommittedMediaExtension(source.value.pathSegments);
+  return extension === undefined
+    ? undefined
+    : MEDIA_KIND_BY_EXTENSION[extension];
 }
 
 /** A link to a committed file's page, as that file's raw address; any other link as written. */

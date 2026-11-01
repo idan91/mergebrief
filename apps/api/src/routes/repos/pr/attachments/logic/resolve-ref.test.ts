@@ -9,6 +9,7 @@ import {
 
 const VIEWER_KEY: CommittedViewerKey = "session:1";
 const SHA = "0123456789abcdef0123456789abcdef01234567";
+const CLIENT = new AbortController().signal;
 
 function makeStore(): CommittedRefsStore {
   return { cache: createTtlCache(10), inFlight: new Map() };
@@ -60,6 +61,7 @@ describe("resolveCommittedFileLocation", () => {
 
     const resolved = await resolveCommittedFileLocation(makeStore(), {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: [SHA, "a.png"],
       listRefs,
     });
@@ -74,6 +76,7 @@ describe("resolveCommittedFileLocation", () => {
   it("splits a slashed branch by the refs the repository holds", async () => {
     const resolved = await resolveCommittedFileLocation(makeStore(), {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["assets", "brief-362", "after.png"],
       listRefs: stubListRefs(["assets/brief-362"]),
     });
@@ -89,6 +92,7 @@ describe("resolveCommittedFileLocation", () => {
     const listRefs = stubListRefs(["feature/x"]);
     const request = {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["feature", "x", "a.png"],
       listRefs,
     };
@@ -110,6 +114,7 @@ describe("resolveCommittedFileLocation", () => {
     const listRefs = vi.fn(async () => ({ ok: false as const, error }));
     const request = {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["main", "a.png"],
       listRefs,
     };
@@ -125,6 +130,7 @@ describe("resolveCommittedFileLocation", () => {
 
     await resolveCommittedFileLocation(makeStore(), {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["main", "a.png"],
       listRefs,
     });
@@ -140,6 +146,7 @@ describe("resolveCommittedFileLocation", () => {
 
     const resolved = await resolveCommittedFileLocation(makeStore(), {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["refs", "heads", "feature", "x", "docs", "a.png"],
       listRefs,
     });
@@ -157,6 +164,7 @@ describe("resolveCommittedFileLocation", () => {
   it("keeps the namespace on a refs/tags ref no listed tag matches", async () => {
     const resolved = await resolveCommittedFileLocation(makeStore(), {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["refs", "tags", "v1", "a.png"],
       listRefs: stubListRefs([]),
     });
@@ -173,15 +181,53 @@ describe("resolveCommittedFileLocation", () => {
 
     await resolveCommittedFileLocation(store, {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["refs", "heads", "main", "a.png"],
       listRefs,
     });
     await resolveCommittedFileLocation(store, {
       viewerKey: VIEWER_KEY,
+      signal: CLIENT,
       pathSegments: ["main", "a.png"],
       listRefs,
     });
 
     expect(listRefs).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets a caller whose client left stop waiting, the others still served", async () => {
+    const store = makeStore();
+    let answer: (names: { ok: true; value: readonly string[] }) => void = () =>
+      undefined;
+    const listRefs = vi.fn(
+      () =>
+        new Promise<{ ok: true; value: readonly string[] }>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const left = new AbortController();
+    const request = {
+      viewerKey: VIEWER_KEY,
+      pathSegments: ["main", "a.png"],
+      listRefs,
+    };
+
+    const leaving = resolveCommittedFileLocation(store, {
+      ...request,
+      signal: left.signal,
+    });
+    const staying = resolveCommittedFileLocation(store, {
+      ...request,
+      signal: CLIENT,
+    });
+    left.abort();
+
+    expect((await leaving).ok).toBe(false);
+    answer({ ok: true, value: ["main"] });
+    expect(await staying).toEqual({
+      ok: true,
+      value: { ref: "main", fileSegments: ["a.png"] },
+    });
+    expect(listRefs).toHaveBeenCalledTimes(1);
   });
 });

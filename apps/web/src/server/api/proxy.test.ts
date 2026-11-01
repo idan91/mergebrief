@@ -25,7 +25,7 @@ type Replier = (
   respond: (
     status: number,
     headers: Record<string, string | string[]>,
-    body: string,
+    body: string | Buffer,
   ) => void,
 ) => void | Promise<void>;
 
@@ -236,6 +236,58 @@ describe("requestApi", () => {
       error: "not found",
       code: "not-found",
     });
+  });
+
+  it("passes a video piece's range headers both ways with its length", async () => {
+    upstream.reply((_request, respond) =>
+      respond(
+        206,
+        {
+          "accept-ranges": "bytes",
+          "content-length": "2",
+          "content-range": "bytes 0-1/1000",
+          "content-type": "video/mp4",
+        },
+        "ab",
+      ),
+    );
+
+    const response = await requestApi(
+      new Request("https://public.example/api/repos/1/pulls/2/attachments/x", {
+        headers: { range: "bytes=0-1" },
+      }),
+      transportFor(upstream.origin),
+    );
+
+    expect(upstream.recorded[0]?.headers["range"]).toBe("bytes=0-1");
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-length")).toBe("2");
+    expect(response.headers.get("content-range")).toBe("bytes 0-1/1000");
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
+    expect(await response.text()).toBe("ab");
+  });
+
+  it("drops the length of a reply that arrived encoded", async () => {
+    const { gzipSync } = await import("node:zlib");
+    const encoded = gzipSync(Buffer.from("hello"));
+    upstream.reply((_request, respond) =>
+      respond(
+        200,
+        {
+          "content-encoding": "gzip",
+          "content-length": String(encoded.byteLength),
+        },
+        encoded,
+      ),
+    );
+
+    const response = await requestApi(
+      new Request("https://public.example/api/pulls"),
+      transportFor(upstream.origin),
+    );
+
+    expect(response.headers.get("content-length")).toBeNull();
+    expect(await response.text()).toBe("hello");
   });
 
   it("answers a sanitized 503 when the API refuses the connection", async () => {

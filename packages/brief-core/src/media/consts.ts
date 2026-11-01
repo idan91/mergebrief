@@ -1,26 +1,32 @@
 import {
+  CommittedMediaExtensions,
+  type CommittedMediaExtension,
+} from "../media-address";
+import {
   DiagramTypes,
   MediaKinds,
   type DiagramType,
-  type MediaKind,
+  type LinkMediaKind,
 } from "./types";
 
 export const HTTPS_PREFIX = "https://";
 export const MERMAID_KEY_PREFIX = "mermaid:";
 export const MERMAID_LANGUAGE_CLASS = "language-mermaid";
 
-/** The file types a link to the pull request's own repository can show as Media. */
-export const MEDIA_KIND_BY_EXTENSION: ReadonlyMap<string, MediaKind> = new Map([
-  ["png", MediaKinds.IMAGE],
-  ["jpg", MediaKinds.IMAGE],
-  ["jpeg", MediaKinds.IMAGE],
-  ["gif", MediaKinds.IMAGE],
-  ["webp", MediaKinds.IMAGE],
-  ["svg", MediaKinds.IMAGE],
-  ["mp4", MediaKinds.VIDEO],
-  ["mov", MediaKinds.VIDEO],
-  ["webm", MediaKinds.VIDEO],
-]);
+/** The kind each file type the committed-file proxy serves shows as. */
+export const MEDIA_KIND_BY_EXTENSION: Readonly<
+  Record<CommittedMediaExtension, LinkMediaKind>
+> = {
+  [CommittedMediaExtensions.PNG]: MediaKinds.IMAGE,
+  [CommittedMediaExtensions.JPG]: MediaKinds.IMAGE,
+  [CommittedMediaExtensions.JPEG]: MediaKinds.IMAGE,
+  [CommittedMediaExtensions.GIF]: MediaKinds.IMAGE,
+  [CommittedMediaExtensions.WEBP]: MediaKinds.IMAGE,
+  [CommittedMediaExtensions.SVG]: MediaKinds.IMAGE,
+  [CommittedMediaExtensions.MP4]: MediaKinds.VIDEO,
+  [CommittedMediaExtensions.MOV]: MediaKinds.VIDEO,
+  [CommittedMediaExtensions.WEBM]: MediaKinds.VIDEO,
+};
 
 export const DIAGRAM_TYPE_BY_KEYWORD: ReadonlyMap<string, DiagramType> =
   new Map([

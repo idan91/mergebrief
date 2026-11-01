@@ -39,7 +39,7 @@ const REQUEST_HEADERS_DROPPED = new Set([
   "x-real-ip",
 ]);
 
-/** The same reasoning on the way back, plus the length fetch recomputes. */
+/** The same reasoning on the way back. */
 const RESPONSE_HEADERS_DROPPED = new Set([
   "connection",
   "content-encoding",
@@ -48,6 +48,8 @@ const RESPONSE_HEADERS_DROPPED = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+const CONTENT_LENGTH = "content-length";
+const IDENTITY_CODING = "identity";
 
 export interface ApiTransportDeps {
   /** The trusted internal origin; never derived from request input. */
@@ -103,7 +105,8 @@ function forwardedRequestHeaders(source: Headers): Headers {
 /**
  * Rebuild the response headers. `Set-Cookie` is read through `getSetCookie`
  * and appended one by one: iterating a `Headers` joins repeated cookies into
- * one line, which a browser reads as a single malformed cookie.
+ * one line, which a browser reads as a single malformed cookie. `Range`,
+ * `Content-Range` and `Accept-Ranges` pass both ways untouched.
  */
 function forwardedResponseHeaders(source: Headers): Headers {
   const headers = new Headers();
@@ -120,7 +123,24 @@ function forwardedResponseHeaders(source: Headers): Headers {
   for (const cookie of source.getSetCookie()) {
     headers.append("set-cookie", cookie);
   }
+  const length = readIdentityLength(source);
+  if (length !== undefined) {
+    headers.set(CONTENT_LENGTH, length);
+  }
   return headers;
+}
+
+/**
+ * The length rides back only when the hop arrived unencoded, as this proxy
+ * asked: then it counts the very bytes fetch hands on, and a video piece's
+ * 206 needs it. An encoded hop is decoded by fetch, so its length is wrong.
+ */
+function readIdentityLength(source: Headers): string | undefined {
+  const coding = source.get("content-encoding") ?? IDENTITY_CODING;
+  if (coding.trim().toLowerCase() !== IDENTITY_CODING) {
+    return undefined;
+  }
+  return source.get(CONTENT_LENGTH) ?? undefined;
 }
 
 /** The one sanitized body both the proxy and the SSR path answer with. */

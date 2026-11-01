@@ -1,5 +1,6 @@
 import { GitHubApiErrorCodes } from "github";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { makeHangingFetch } from "../../../../../../test/hanging-fetch";
 import {
   fetchCommittedFileBytes,
   fetchContentsDownloadUrl,
@@ -9,6 +10,9 @@ import {
 const TOKEN = "ghu_viewer";
 const DOWNLOAD_URL =
   "https://raw.githubusercontent.com/acme/app/feature/x/docs/a%20b.png?token=RAW";
+const WHOLE = { signal: new AbortController().signal };
+const DEADLINE_MS = 15_000;
+const CLIENT = new AbortController().signal;
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const FILE = {
   owner: "acme",
@@ -141,13 +145,96 @@ describe("fetchMatchingRefNames", () => {
   });
 });
 
+describe("GitHub JSON deadlines", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("gives up on matching-refs once the deadline passes", async () => {
+    vi.useFakeTimers();
+    const upstream = makeHangingFetch();
+
+    const pending = fetchMatchingRefNames(upstream.fetchImpl, TOKEN, {
+      owner: "acme",
+      repo: "app",
+      prefix: "main",
+      namespaces: ["heads"],
+    });
+    await vi.advanceTimersByTimeAsync(DEADLINE_MS);
+
+    const names = await pending;
+    expect(!names.ok && names.error.code).toBe(
+      GitHubApiErrorCodes.REQUEST_FAILED,
+    );
+    expect(upstream.readSignal()?.aborted).toBe(true);
+  });
+
+  it("gives up on the Contents JSON once the deadline passes", async () => {
+    vi.useFakeTimers();
+    const upstream = makeHangingFetch();
+
+    const pending = fetchContentsDownloadUrl(
+      upstream.fetchImpl,
+      TOKEN,
+      FILE,
+      CLIENT,
+    );
+    await vi.advanceTimersByTimeAsync(DEADLINE_MS);
+
+    const url = await pending;
+    expect(!url.ok && url.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+  });
+
+  it("covers the JSON body as well as the headers", async () => {
+    vi.useFakeTimers();
+    const upstream = makeHangingFetch();
+
+    const pending = fetchContentsDownloadUrl(
+      upstream.fetchImpl,
+      TOKEN,
+      FILE,
+      CLIENT,
+    );
+    const stalled = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("{"));
+        upstream.readSignal()?.addEventListener("abort", () => {
+          controller.error(new Error("aborted"));
+        });
+      },
+    });
+    upstream.answer(new Response(stalled, { status: 200 }));
+    await vi.advanceTimersByTimeAsync(DEADLINE_MS);
+
+    const url = await pending;
+    expect(url.ok).toBe(false);
+    expect(upstream.readSignal()?.aborted).toBe(true);
+  });
+
+  it("cancels the Contents JSON when the client leaves", async () => {
+    const upstream = makeHangingFetch();
+    const client = new AbortController();
+
+    const pending = fetchContentsDownloadUrl(
+      upstream.fetchImpl,
+      TOKEN,
+      FILE,
+      client.signal,
+    );
+    client.abort();
+
+    expect((await pending).ok).toBe(false);
+    expect(upstream.readSignal()?.aborted).toBe(true);
+  });
+});
+
 describe("fetchContentsDownloadUrl", () => {
   it("reads the file's json on the viewer token at the resolved ref", async () => {
     const fetchImpl = stubFetch(() =>
       makeJsonResponse({ type: "file", download_url: DOWNLOAD_URL }),
     );
 
-    const url = await fetchContentsDownloadUrl(fetchImpl, TOKEN, FILE);
+    const url = await fetchContentsDownloadUrl(fetchImpl, TOKEN, FILE, CLIENT);
 
     expect(url).toEqual({ ok: true, value: DOWNLOAD_URL });
     const call = readCall(fetchImpl);
@@ -168,6 +255,7 @@ describe("fetchContentsDownloadUrl", () => {
         stubFetch(() => makeJsonResponse(body)),
         TOKEN,
         FILE,
+        CLIENT,
       );
       expect(!url.ok && url.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     }
@@ -187,6 +275,7 @@ describe("fetchContentsDownloadUrl", () => {
         ),
         TOKEN,
         FILE,
+        CLIENT,
       );
       expect(!url.ok && url.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     }
@@ -197,6 +286,7 @@ describe("fetchContentsDownloadUrl", () => {
       stubFetch(() => new Response(null, { status: 401 })),
       TOKEN,
       FILE,
+      CLIENT,
     );
     const broken = await fetchContentsDownloadUrl(
       vi.fn(async () => {
@@ -204,6 +294,7 @@ describe("fetchContentsDownloadUrl", () => {
       }),
       TOKEN,
       FILE,
+      CLIENT,
     );
 
     expect(!denied.ok && denied.error.code).toBe(
@@ -230,6 +321,7 @@ describe("fetchCommittedFileBytes", () => {
       fetchImpl,
       DOWNLOAD_URL,
       "image/png",
+      WHOLE,
     );
 
     if (!result.ok) {
@@ -250,6 +342,7 @@ describe("fetchCommittedFileBytes", () => {
       stubFetch(() => makeRaw("<svg xmlns='x'></svg>", "text/html")),
       DOWNLOAD_URL,
       "image/svg+xml",
+      WHOLE,
     );
 
     expect(result.ok && result.value.contentType).toBe("image/svg+xml");
@@ -268,6 +361,7 @@ describe("fetchCommittedFileBytes", () => {
       stubFetch(() => new Response(body, { status: 200 })),
       DOWNLOAD_URL,
       "image/png",
+      WHOLE,
     );
 
     expect(!result.ok && result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
@@ -280,6 +374,7 @@ describe("fetchCommittedFileBytes", () => {
       stubFetch(() => new Response(null, { status: 404 })),
       DOWNLOAD_URL,
       "image/png",
+      WHOLE,
     );
 
     expect(!result.ok && result.error.status).toBe(404);
@@ -293,10 +388,85 @@ describe("fetchCommittedFileBytes", () => {
       }),
       DOWNLOAD_URL,
       "image/png",
+      WHOLE,
     );
 
     expect(!result.ok && result.error.code).toBe(
       GitHubApiErrorCodes.REQUEST_FAILED,
     );
+  });
+});
+
+describe("fetchCommittedFileBytes for a video", () => {
+  const MP4_HEAD = [0, 0, 0, 0x20, ...new TextEncoder().encode("ftypisom")];
+
+  function makePiece(bytes: Uint8Array | string, contentRange: string) {
+    return new Response(bytes, {
+      status: 206,
+      headers: {
+        "content-type": "application/octet-stream",
+        "content-range": contentRange,
+      },
+    });
+  }
+
+  it("asks the address for the range and serves the declared type", async () => {
+    const fetchImpl = stubFetch(() =>
+      makePiece(new Uint8Array(MP4_HEAD), "bytes 0-11/9000"),
+    );
+
+    const result = await fetchCommittedFileBytes(
+      fetchImpl,
+      DOWNLOAD_URL,
+      "video/mp4",
+      { ...WHOLE, range: "bytes=0-4095" },
+    );
+
+    expect(result.ok && result.value.contentType).toBe("video/mp4");
+    expect(result.ok && result.value.extent).toEqual({
+      first: 0,
+      last: 11,
+      total: 9000,
+    });
+    expect(readCall(fetchImpl).headers.get("range")).toBe("bytes=0-4095");
+  });
+
+  it("refuses a piece whose content range it cannot read", async () => {
+    const result = await fetchCommittedFileBytes(
+      stubFetch(() => makePiece(new Uint8Array(PNG), "bytes 0-7/*")),
+      DOWNLOAD_URL,
+      "image/png",
+      { ...WHOLE, range: "bytes=0-4095" },
+    );
+
+    expect(!result.ok && result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
+  });
+
+  it("refuses a git lfs pointer under a video name", async () => {
+    const pointer = "version https://git-lfs.github.com/spec/v1\nsize 9000\n";
+
+    const result = await fetchCommittedFileBytes(
+      stubFetch(() =>
+        makePiece(pointer, `bytes 0-${pointer.length - 1}/${pointer.length}`),
+      ),
+      DOWNLOAD_URL,
+      "video/mp4",
+      { ...WHOLE, range: "bytes=0-4095" },
+    );
+
+    expect(!result.ok && result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
+  });
+
+  it("serves a later piece as the declared type unread", async () => {
+    const result = await fetchCommittedFileBytes(
+      stubFetch(() =>
+        makePiece(new Uint8Array([7, 7]), "bytes 8000-8001/9000"),
+      ),
+      DOWNLOAD_URL,
+      "video/webm",
+      { ...WHOLE, range: "bytes=8000-8001" },
+    );
+
+    expect(result.ok && result.value.contentType).toBe("video/webm");
   });
 });

@@ -8,6 +8,7 @@ import type { Mutable, Result, ValueOf } from "types/utils";
 import { z } from "zod/v4";
 import {
   BYTES_PER_MB,
+  DEFAULT_MEDIA_MAX_MB,
   DEFAULT_UPLOAD_QUOTA_FILES,
   DEFAULT_UPLOAD_QUOTA_MB,
   DEFAULT_UPLOAD_QUOTA_WINDOW_MINUTES,
@@ -45,6 +46,8 @@ export interface ApiConfig {
   readonly updateCheckUrl: string;
   /** `MERGEBRIEF_ATTACHMENT_QUOTA_*`: what one reviewer may upload per window. */
   readonly attachmentQuota: UploadQuotaLimits;
+  /** `MERGEBRIEF_MEDIA_MAX_MB` in bytes: the largest file a media read streams. */
+  readonly mediaMaxBytes: number;
   /** `MERGEBRIEF_OUT_DIR`, as written; never set in production. */
   readonly localBriefsDir?: string;
   /** `SESSION_KEY_REF`: the env var NAME sign-in and refresh seal under. */
@@ -175,6 +178,7 @@ const ConfigSchema = z.object({
   MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES: parseEnvPositiveInt(
     DEFAULT_UPLOAD_QUOTA_WINDOW_MINUTES,
   ),
+  MERGEBRIEF_MEDIA_MAX_MB: parseEnvPositiveInt(DEFAULT_MEDIA_MAX_MB),
   MERGEBRIEF_OUT_DIR: z.string().optional(),
   MERGEBRIEF_RUNTIME: z.string().optional(),
   NODE_ENV: z.string().optional(),
@@ -254,6 +258,7 @@ export function loadConfig(
       windowMs:
         value.MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES * MS_PER_MINUTE,
     },
+    mediaMaxBytes: value.MERGEBRIEF_MEDIA_MAX_MB * BYTES_PER_MB,
     sessionKeyRef: value.SESSION_KEY_REF,
   };
 

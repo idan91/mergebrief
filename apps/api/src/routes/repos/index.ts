@@ -40,6 +40,7 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 export interface ReposRouteDeps extends AuthRouteDeps, InstallationBindingDeps {
   readonly attachmentQuota?: UploadQuotaLimits;
   readonly committedLookupBudget?: CommittedLookupBudgetLimits;
+  readonly mediaMaxBytes?: number | undefined;
 }
 
 function createListReposHandler(

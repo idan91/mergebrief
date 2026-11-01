@@ -30,6 +30,8 @@ export const ApiErrorCodes = {
   FILE_NOT_FOUND: "file-not-found",
   FILE_TOO_LARGE: "file-too-large",
   FILE_NOT_TEXT: "file-not-text",
+  MEDIA_TOO_LARGE: "media-too-large",
+  MEDIA_STREAMS_BUSY: "media-streams-busy",
   DRAFT_ALREADY_PUBLISHED: "draft-already-published",
   DRAFT_ANCHOR_ORPHANED: "draft-anchor-orphaned",
   DRAFT_LIMIT_REACHED: "draft-limit-reached",
@@ -108,6 +110,8 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.FILE_NOT_FOUND]: HttpStatuses.NOT_FOUND,
   [ApiErrorCodes.FILE_TOO_LARGE]: HttpStatuses.PAYLOAD_TOO_LARGE,
   [ApiErrorCodes.FILE_NOT_TEXT]: HttpStatuses.BAD_REQUEST,
+  [ApiErrorCodes.MEDIA_TOO_LARGE]: HttpStatuses.PAYLOAD_TOO_LARGE,
+  [ApiErrorCodes.MEDIA_STREAMS_BUSY]: HttpStatuses.SERVICE_UNAVAILABLE,
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: HttpStatuses.CONFLICT,
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: HttpStatuses.CONFLICT,
@@ -161,6 +165,10 @@ export const ApiErrorEnglishByCode = {
   [ApiErrorCodes.FILE_NOT_FOUND]: "file not found at this commit",
   [ApiErrorCodes.FILE_TOO_LARGE]: "file too large to expand",
   [ApiErrorCodes.FILE_NOT_TEXT]: "file is not utf-8 text",
+  [ApiErrorCodes.MEDIA_TOO_LARGE]:
+    "media file is larger than this server streams",
+  [ApiErrorCodes.MEDIA_STREAMS_BUSY]:
+    "too many media streams are open, try again shortly",
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]:
     "this draft has already been published to github",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]:

@@ -41,5 +41,8 @@ export const CommittedMediaExtensions = {
   GIF: "gif",
   WEBP: "webp",
   SVG: "svg",
+  MP4: "mp4",
+  WEBM: "webm",
+  MOV: "mov",
 } as const;
 export type CommittedMediaExtension = ValueOf<typeof CommittedMediaExtensions>;

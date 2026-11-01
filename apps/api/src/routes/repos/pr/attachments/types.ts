@@ -23,6 +23,8 @@ export interface AttachmentsRouteDeps
   readonly attachmentQuota?: UploadQuotaLimits;
   /** Omitted = `DEFAULT_COMMITTED_LOOKUP_LIMITS`. */
   readonly committedLookupBudget?: CommittedLookupBudgetLimits;
+  /** `MERGEBRIEF_MEDIA_MAX_MB` in bytes; omitted = the default. */
+  readonly mediaMaxBytes?: number | undefined;
 }
 
 /** What one reviewer may upload inside one window. */
@@ -56,6 +58,25 @@ export type UploadReservation = Result<UploadWindow, UploadQuotaRefusal>;
 export interface AttachmentBytes {
   readonly body: ReadableStream<Uint8Array>;
   readonly contentType: string;
+  /** Which bytes of the file the stream holds; absent when upstream named no size. */
+  readonly extent?: ByteExtent;
+}
+
+/** How a bytes fetch reaches upstream. */
+export interface UpstreamBytesRequest {
+  /** The client's request signal: a disconnect cancels the upstream. */
+  readonly signal: AbortSignal;
+  /** The `bytes=` range to ask for; absent asks for the whole file. */
+  readonly range?: string;
+}
+
+/** What the client asked of a media read, as the route parsed it. */
+export interface BytesReadOptions {
+  readonly signal: AbortSignal;
+  /** The `bytes=` range one piece asks upstream for. */
+  readonly upstreamRange: string;
+  /** Whether the client sent a `Range`; without one only a video is read in pieces. */
+  readonly rangeRequested: boolean;
 }
 
 /** What the `:assetId` param names: a GitHub asset, or a file on the attachments branch. */
@@ -69,12 +90,14 @@ export type AttachmentTarget =
 export interface ReadAttachmentInput {
   readonly prNumber: number;
   readonly target: AttachmentTarget;
+  readonly bytes: BytesReadOptions;
 }
 
 /** A GitHub asset, looked up in the sources its pull request renders. */
 export interface AssetReadInput {
   readonly prNumber: number;
   readonly assetId: AttachmentAssetId;
+  readonly bytes: BytesReadOptions;
 }
 
 /** A file on the gated repo's attachments branch, named by the proxy path. */
@@ -118,15 +141,24 @@ export interface ReadAttachmentDeps {
 export const ReadAttachmentFailureKinds = {
   GITHUB_DENIED: FailureKinds.GITHUB_DENIED,
   ASSET_ABSENT: "asset-absent",
+  RANGE_NOT_SATISFIABLE: "range-not-satisfiable",
 } as const;
 
-/** GitHub's refusal of the sources or the bytes, or an asset the PR does not render. */
-export type ReadAttachmentFailure =
+/** A failure the wire answers through an `ApiError`. */
+export type ReadAttachmentWireFailure =
   | { readonly kind: typeof ReadAttachmentFailureKinds.ASSET_ABSENT }
   | {
       readonly kind: typeof ReadAttachmentFailureKinds.GITHUB_DENIED;
       readonly error: GitHubCallFailure;
     };
+
+/**
+ * GitHub's refusal of the sources or the bytes, an asset the PR does not
+ * render, or a range starting past the file's end, which upstream refused.
+ */
+export type ReadAttachmentFailure =
+  | ReadAttachmentWireFailure
+  | { readonly kind: typeof ReadAttachmentFailureKinds.RANGE_NOT_SATISFIABLE };
 
 export interface UploadAttachmentInput {
   readonly file: AttachmentFile;
@@ -136,12 +168,28 @@ export interface UploadAttachmentInput {
 /** The fresh re-resolve's refusal, then the push's, wrapped whole. */
 export type UploadAttachmentFailure = GitHubDeniedFailure<GitHubCallFailure>;
 
+/** What a video may be served as, pasted or committed. */
+export const VideoMediaTypes = {
+  MP4: "video/mp4",
+  WEBM: "video/webm",
+  QUICKTIME: "video/quicktime",
+} as const;
+export type VideoMediaType = ValueOf<typeof VideoMediaTypes>;
+
+/** What a pasted asset may be served as: the attachment rasters and the videos. */
+export const AssetMediaTypes = {
+  ...AttachmentMediaTypes,
+  ...VideoMediaTypes,
+} as const;
+export type AssetMediaType = ValueOf<typeof AssetMediaTypes>;
+
 /**
  * What a committed file in the pull request's own repository may be served
- * as: the attachment rasters, and SVG, which only a committed file may be.
+ * as: the attachment rasters, the videos, and SVG, which only a committed
+ * file may be.
  */
 export const CommittedFileMediaTypes = {
-  ...AttachmentMediaTypes,
+  ...AssetMediaTypes,
   SVG: "image/svg+xml",
 } as const;
 export type CommittedFileMediaType = ValueOf<typeof CommittedFileMediaTypes>;
@@ -176,6 +224,8 @@ export type CommittedLookupKey = `${CommittedViewerKey}:${string}`;
 /** One committed address to split, and how to ask GitHub for its refs. */
 export interface CommittedRefRequest {
   readonly viewerKey: CommittedViewerKey;
+  /** This read's client: once it leaves, this read stops waiting; the shared lookup runs on. */
+  readonly signal: AbortSignal;
   readonly pathSegments: readonly string[];
   readonly listRefs: (query: CommittedRefQuery) => Promise<RefNamesResult>;
 }
@@ -216,10 +266,112 @@ export interface ReadCommittedFileDeps {
 export interface ReadCommittedFileInput {
   /** The ref then the path, decoded, as the parsed address names them. */
   readonly pathSegments: readonly string[];
+  readonly bytes: BytesReadOptions;
 }
 
 /** A file in the gated repository at a resolved ref. */
 export interface CommittedFileRequest extends CommittedFileLocation {
   readonly owner: string;
   readonly repo: string;
+}
+
+export const ByteRangeKinds = {
+  FROM: "from",
+  SUFFIX: "suffix",
+} as const;
+
+/** One `bytes=` range as the client wrote it: from a byte on, or the last `length` bytes. */
+export type RequestedRange =
+  | {
+      readonly kind: typeof ByteRangeKinds.FROM;
+      readonly first: number;
+      readonly last?: number;
+    }
+  | { readonly kind: typeof ByteRangeKinds.SUFFIX; readonly length: number };
+
+/** A requested range closed and shortened to one piece. */
+export type WantedRange =
+  | {
+      readonly kind: typeof ByteRangeKinds.FROM;
+      readonly first: number;
+      readonly last: number;
+    }
+  | { readonly kind: typeof ByteRangeKinds.SUFFIX; readonly length: number };
+
+/** Which bytes of the file an upstream answer holds, inclusive, and the file's size. */
+export interface ByteExtent {
+  readonly first: number;
+  readonly last: number;
+  readonly total: number;
+}
+
+/** The bytes one reply serves, and where they sit inside the upstream answer. */
+export interface ServedSlice extends ByteExtent {
+  readonly skip: number;
+  readonly length: number;
+}
+
+export const SliceRefusalKinds = {
+  UNSATISFIABLE: "unsatisfiable",
+  NOT_COVERED: "not-covered",
+} as const;
+
+/** The wanted start lies past the file's end, or upstream answered other bytes than asked. */
+export type SliceRefusal =
+  | {
+      readonly kind: typeof SliceRefusalKinds.UNSATISFIABLE;
+      readonly total: number;
+    }
+  | { readonly kind: typeof SliceRefusalKinds.NOT_COVERED };
+
+/** One open media stream's place in the per-process count; releasing twice frees it once. */
+export interface StreamPermit {
+  release(): void;
+}
+
+/** The per-process count of open media streams, refused past its limit. */
+export interface StreamPermits {
+  acquire(): StreamPermit | undefined;
+  countOpen(): number;
+}
+
+/** The request a slice serves and the callback that releases what it holds. */
+export interface SliceStreamOptions {
+  /** The client's request signal: once it aborts the slice ends. */
+  readonly signal: AbortSignal;
+  readonly onSettled: () => void;
+  /** How long the slice may stream from its creation before it ends. */
+  readonly deadlineMs: number;
+}
+
+/** Where a reply's bytes start inside its upstream stream, and how many it serves. */
+export interface StreamWindow {
+  readonly skip: number;
+  /** Absent: every byte to the end of the source, as a whole-file reply serves. */
+  readonly length?: number;
+}
+
+export const MediaReplyRefusalKinds = {
+  ...SliceRefusalKinds,
+  TOO_LARGE: "too-large",
+  SIZE_UNKNOWN: "size-unknown",
+} as const;
+
+/** Why a piece cannot be served: past the cap, of no known size, or a slice refusal. */
+export type MediaReplyRefusal =
+  | SliceRefusal
+  | { readonly kind: typeof MediaReplyRefusalKinds.TOO_LARGE }
+  | { readonly kind: typeof MediaReplyRefusalKinds.SIZE_UNKNOWN };
+
+/** Why a whole-image reply cannot be served: it declares a size past the cap. */
+export type WholeReplyRefusal = Extract<
+  MediaReplyRefusal,
+  { readonly kind: typeof MediaReplyRefusalKinds.TOO_LARGE }
+>;
+
+/** The per-process media limits both reads share. */
+export interface MediaStreamBudget {
+  /** `MERGEBRIEF_MEDIA_MAX_MB` in bytes, judged on the upstream file's total. */
+  readonly maxFileBytes: number;
+  readonly permits: StreamPermits;
 }
