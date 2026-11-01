@@ -10,3 +10,7 @@ export {
   type PrBriefErrorProps,
 } from "./components/PrBrief/PrBriefError";
 export { PrBriefNotFound } from "./components/PrBrief/PrBriefNotFound";
+export {
+  VideoAssetsProvider,
+  type VideoAssetsProviderProps,
+} from "./components/VideoAssetsProvider";

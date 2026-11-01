@@ -1,5 +1,7 @@
 import { InlineImage } from "./InlineImage";
+import { InlineVideo } from "./InlineVideo";
 import { MentionAwareSpan } from "./MentionAwareSpan";
+import { PastedAssetAwareLink } from "./PastedAssetAwareLink";
 
 /**
  * A "#" in a comment renders as an h3 and a "##" as an h4, so a comment can
@@ -7,10 +9,11 @@ import { MentionAwareSpan } from "./MentionAwareSpan";
  */
 export const DEMOTED_HEADING_COMPONENTS = { h1: "h3", h2: "h4" } as const;
 
-/** The headings demoted, plus the image that gives way to a failed row. */
 export const MARKDOWN_COMPONENTS = {
   ...DEMOTED_HEADING_COMPONENTS,
+  a: PastedAssetAwareLink,
   img: InlineImage,
+  video: InlineVideo,
 } as const;
 
 /** The renderer's components, plus the span a mention renders through. */

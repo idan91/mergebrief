@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,
   COMMITTED_IMAGE_URL,
+  requireAttachmentAssetId,
 } from "@web/test/attachments";
 import { Markdown } from ".";
-import { AttachmentScopeProvider } from "./context";
+import {
+  AttachmentScopeProvider,
+  VideoAssetsScope,
+  type VideoAssets,
+} from "./context";
 
 describe("Markdown suggestion fences", () => {
   const body = "Try this:\n```suggestion\nreturn next;\n```";
@@ -419,5 +424,297 @@ describe("Markdown image that failed before the page hydrated", () => {
 
     expect(screen.getByRole("img", { name: "Before" })).toBeTruthy();
     expect(screen.queryByTestId("media-failed-row")).toBeNull();
+  });
+});
+
+const PROXIED_ASSET_PATH = `/api/repos/555/pulls/7/attachments/${ATTACHMENT_ASSET_ID}`;
+
+interface PullRequestTextProps {
+  content: string;
+  videoAssets?: VideoAssets;
+}
+
+function PullRequestText({ content, videoAssets }: PullRequestTextProps) {
+  const markdown = <Markdown content={content} renderHtml renderMentions />;
+  return (
+    <AttachmentScopeProvider
+      installed
+      prNumber={7}
+      repoId="555"
+      repoSlug="octo/hello"
+    >
+      {videoAssets === undefined ? (
+        markdown
+      ) : (
+        <VideoAssetsScope value={videoAssets}>{markdown}</VideoAssetsScope>
+      )}
+    </AttachmentScopeProvider>
+  );
+}
+
+function stubVideoAssets(confirmed?: readonly string[]): VideoAssets {
+  const videoAssets: VideoAssets = { requestVideoAssets: vi.fn() };
+  if (confirmed === undefined) {
+    return videoAssets;
+  }
+  const videoAssetIds = new Set(confirmed.map(requireAttachmentAssetId));
+  return { ...videoAssets, videoAssetIds };
+}
+
+function queryVideo(container: HTMLElement): HTMLVideoElement | null {
+  return container.querySelector("video");
+}
+
+describe("Markdown raw html videos", () => {
+  afterEach(cleanup);
+
+  it("plays a pasted video through the proxy, never on its own", () => {
+    const { container } = render(
+      <PullRequestText
+        content={`<video src="${ATTACHMENT_ASSET_URL}" width="640" autoplay muted loop poster="https://example.com/p.png" preload="auto" crossorigin="use-credentials" onplay="alert(1)"></video>`}
+      />,
+    );
+
+    const video = queryVideo(container);
+    expect(video?.getAttribute("src")).toBe(PROXIED_ASSET_PATH);
+    expect(video?.hasAttribute("controls")).toBe(true);
+    expect(video?.getAttribute("preload")).toBe("metadata");
+    expect(video?.getAttribute("width")).toBe("640");
+    for (const attribute of [
+      "autoplay",
+      "muted",
+      "loop",
+      "poster",
+      "crossorigin",
+      "onplay",
+    ]) {
+      expect(video?.hasAttribute(attribute)).toBe(false);
+    }
+  });
+
+  it("plays a video committed to the pull request's own repository", () => {
+    const committedVideo = COMMITTED_IMAGE_URL.replace(".png", ".mp4");
+    const { container } = render(
+      <PullRequestText content={`<video src="${committedVideo}"></video>`} />,
+    );
+
+    expect(queryVideo(container)?.getAttribute("src")).toContain(
+      "/api/repos/555/pulls/7/committed-file?source=",
+    );
+  });
+
+  it("keeps no source child, so the player has one address", () => {
+    const { container } = render(
+      <PullRequestText
+        content={`<video controls><source src="${ATTACHMENT_ASSET_URL}"></video>`}
+      />,
+    );
+
+    expect(container.querySelector("source")).toBeNull();
+    expect(queryVideo(container)).toBeNull();
+  });
+
+  it.each([
+    ["javascript:", "javascript:alert(1)"],
+    ["http", "http://example.com/a.mp4"],
+    ["relative", "/api/secret.mp4"],
+  ])("drops a video with a %s source", (_name, source) => {
+    const { container } = render(
+      <PullRequestText content={`<video src="${source}"></video>`} />,
+    );
+
+    expect(queryVideo(container)).toBeNull();
+  });
+
+  it("leaves a video on an outside host a link", () => {
+    const outside = "https://example.com/demo.mp4";
+    const { container } = render(
+      <PullRequestText content={`<video src="${outside}"></video>`} />,
+    );
+
+    expect(queryVideo(container)).toBeNull();
+    expect(
+      screen.getByRole("link", { name: outside }).getAttribute("href"),
+    ).toBe(outside);
+  });
+
+  it("leaves an own-repository video link a link", () => {
+    const committedVideo = COMMITTED_IMAGE_URL.replace(".png", ".mp4");
+    const { container } = render(
+      <PullRequestText content={`See [the demo](${committedVideo}).`} />,
+    );
+
+    expect(queryVideo(container)).toBeNull();
+    expect(screen.getByRole("link", { name: "the demo" })).toBeTruthy();
+  });
+});
+
+describe("Markdown bare pasted asset line", () => {
+  afterEach(cleanup);
+
+  it("plays the line once the page confirms the asset is a video", () => {
+    const { container } = render(
+      <PullRequestText
+        content={`Demo:\n${ATTACHMENT_ASSET_URL}`}
+        videoAssets={stubVideoAssets([ATTACHMENT_ASSET_ID])}
+      />,
+    );
+
+    expect(queryVideo(container)?.getAttribute("src")).toBe(PROXIED_ASSET_PATH);
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("keeps the line a link and asks while unconfirmed", () => {
+    const videoAssets = stubVideoAssets();
+    const { container } = render(
+      <PullRequestText
+        content={ATTACHMENT_ASSET_URL}
+        videoAssets={videoAssets}
+      />,
+    );
+
+    expect(queryVideo(container)).toBeNull();
+    const link = screen.getByRole("link", { name: ATTACHMENT_ASSET_URL });
+    expect(link.getAttribute("href")).toBe(ATTACHMENT_ASSET_URL);
+    expect(link.hasAttribute("data-pasted-asset")).toBe(false);
+    expect(videoAssets.requestVideoAssets).toHaveBeenCalledWith(
+      ATTACHMENT_ASSET_ID,
+    );
+  });
+
+  it("keeps a line github did not render as a video a link", () => {
+    const { container } = render(
+      <PullRequestText
+        content={ATTACHMENT_ASSET_URL}
+        videoAssets={stubVideoAssets([])}
+      />,
+    );
+
+    expect(queryVideo(container)).toBeNull();
+    expect(
+      screen.getByRole("link", { name: ATTACHMENT_ASSET_URL }),
+    ).toBeTruthy();
+  });
+
+  it("asks nothing for text with no bare asset line", () => {
+    const videoAssets = stubVideoAssets();
+
+    render(
+      <PullRequestText
+        content={`See [the recording](${ATTACHMENT_ASSET_URL}) and ${ATTACHMENT_ASSET_URL} inline`}
+        videoAssets={videoAssets}
+      />,
+    );
+
+    expect(videoAssets.requestVideoAssets).not.toHaveBeenCalled();
+  });
+
+  it("never lets raw html forge the bare line's mark", () => {
+    const videoAssets = stubVideoAssets([ATTACHMENT_ASSET_ID]);
+    const { container } = render(
+      <PullRequestText
+        content={`<a href="https://example.com/x" data-pasted-asset="${ATTACHMENT_ASSET_ID}">x</a>`}
+        videoAssets={videoAssets}
+      />,
+    );
+
+    expect(queryVideo(container)).toBeNull();
+    expect(videoAssets.requestVideoAssets).not.toHaveBeenCalled();
+  });
+
+  it("stays a link outside a pull request", () => {
+    const { container } = render(
+      <Markdown content={ATTACHMENT_ASSET_URL} renderHtml />,
+    );
+
+    expect(queryVideo(container)).toBeNull();
+    expect(
+      screen.getByRole("link", { name: ATTACHMENT_ASSET_URL }),
+    ).toBeTruthy();
+  });
+});
+
+describe("Markdown video that cannot load", () => {
+  afterEach(() => {
+    cleanup();
+    Reflect.deleteProperty(HTMLMediaElement.prototype, "error");
+  });
+
+  it("swaps a player that errors for the video failed row", () => {
+    const { container } = render(
+      <PullRequestText
+        content={`<video src="${ATTACHMENT_ASSET_URL}"></video>`}
+      />,
+    );
+
+    const video = queryVideo(container);
+    if (video === null) {
+      throw new Error("expected a player");
+    }
+    fireEvent.error(video);
+
+    expect(queryVideo(container)).toBeNull();
+    expect(screen.getByText("Video could not load")).toBeTruthy();
+    const link = screen.getByRole("link", { name: /Open on GitHub/ });
+    expect(link.getAttribute("href")).toBe(ATTACHMENT_ASSET_URL);
+  });
+
+  it("plays a new video at the same place after a failed one", () => {
+    const nextAssetId = "0f6c1f2e-61b3-4d55-9c1a-0b2d7f3e9a10";
+    const nextAddress = `https://github.com/user-attachments/assets/${nextAssetId}`;
+    const view = render(
+      <PullRequestText
+        content={`<video src="${ATTACHMENT_ASSET_URL}"></video>`}
+      />,
+    );
+    const failed = queryVideo(view.container);
+    if (failed === null) {
+      throw new Error("expected a player");
+    }
+    fireEvent.error(failed);
+
+    view.rerender(
+      <PullRequestText content={`<video src="${nextAddress}"></video>`} />,
+    );
+
+    const video = queryVideo(view.container);
+    expect(video?.getAttribute("src")).toBe(
+      `/api/repos/555/pulls/7/attachments/${nextAssetId}`,
+    );
+    expect(screen.queryByTestId("media-failed-row")).toBeNull();
+  });
+
+  it("swaps a confirmed bare line's player that errors too", () => {
+    const { container } = render(
+      <PullRequestText
+        content={ATTACHMENT_ASSET_URL}
+        videoAssets={stubVideoAssets([ATTACHMENT_ASSET_ID])}
+      />,
+    );
+
+    const video = queryVideo(container);
+    if (video === null) {
+      throw new Error("expected a player");
+    }
+    fireEvent.error(video);
+
+    expect(screen.getByTestId("media-failed-row")).toBeTruthy();
+    const link = screen.getByRole("link", { name: /Open on GitHub/ });
+    expect(link.getAttribute("href")).toBe(ATTACHMENT_ASSET_URL);
+  });
+
+  it("shows the failed row for a player already broken at mount", async () => {
+    Object.defineProperty(HTMLMediaElement.prototype, "error", {
+      configurable: true,
+      value: { code: 4 },
+    });
+
+    render(
+      <PullRequestText
+        content={`<video src="${ATTACHMENT_ASSET_URL}"></video>`}
+      />,
+    );
+
+    expect(await screen.findByTestId("media-failed-row")).toBeTruthy();
   });
 });

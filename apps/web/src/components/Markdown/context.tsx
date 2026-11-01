@@ -1,3 +1,4 @@
+import type { AttachmentAssetId } from "contract";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 /** The pull request a rendered body belongs to; the attachment proxy is keyed by it. */
@@ -79,4 +80,32 @@ export function MentionTargetsScope({
 
 export function useMentionTargets(): MentionTargets | undefined {
   return useContext(MentionTargetsContext);
+}
+
+/** Which pasted assets GitHub rendered as a video, read only once a bare asset line asks. */
+export interface VideoAssets {
+  /** The asset ids GitHub plays as a video; absent until the read answers. */
+  readonly videoAssetIds?: ReadonlySet<AttachmentAssetId> | undefined;
+  /** A bare asset line asks with its id; the read starts on the first ask. */
+  readonly requestVideoAssets: (assetId: AttachmentAssetId) => void;
+}
+
+export interface VideoAssetsScopeProps {
+  value: VideoAssets;
+  children: ReactNode;
+}
+
+const VideoAssetsContext = createContext<VideoAssets | undefined>(undefined);
+
+/** Fed by the feature that knows the pull request; outside it, a bare asset line stays a link. */
+export function VideoAssetsScope({ value, children }: VideoAssetsScopeProps) {
+  return (
+    <VideoAssetsContext.Provider value={value}>
+      {children}
+    </VideoAssetsContext.Provider>
+  );
+}
+
+export function useVideoAssets(): VideoAssets | undefined {
+  return useContext(VideoAssetsContext);
 }

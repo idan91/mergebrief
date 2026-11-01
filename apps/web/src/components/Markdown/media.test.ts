@@ -9,7 +9,13 @@ import {
   COMMITTED_IMAGE_NORMALISED_URL,
   COMMITTED_IMAGE_URL,
 } from "@web/test/attachments";
-import { rehypeNormalizeImages, rehypeProxyAttachmentSources } from "./images";
+import {
+  rehypeLinkUnservedVideos,
+  rehypeNormalizeMedia,
+  rehypeProxyAttachmentSources,
+  rehypeRecordOriginalSources,
+} from "./media";
+import { ORIGINAL_SOURCE_PROPERTY } from "./original-source";
 
 const SCOPE = {
   repoId: "555",
@@ -25,6 +31,19 @@ function makeImage(src: string | undefined): Element {
     properties["src"] = src;
   }
   return { type: "element", tagName: "img", properties, children: [] };
+}
+
+function makeVideo(src: string | undefined): Element {
+  const properties: Element["properties"] = { controls: true };
+  if (src !== undefined) {
+    properties["src"] = src;
+  }
+  return { type: "element", tagName: "video", properties, children: [] };
+}
+
+function makeLink(...children: Element[]): Element {
+  const properties = { href: "https://example.com/ci" };
+  return { type: "element", tagName: "a", properties, children };
 }
 
 function makeTree(...children: Element[]): Root {
@@ -164,13 +183,105 @@ describe("rehypeProxyAttachmentSources", () => {
   });
 });
 
-describe("rehypeNormalizeImages", () => {
+describe("rehypeNormalizeMedia", () => {
   it("removes an image with no source and keeps the rest", () => {
     const tree = makeTree(makeImage(undefined), makeImage(ASSET_URL));
 
-    rehypeNormalizeImages()(tree);
+    rehypeNormalizeMedia()(tree);
 
     expect(tree.children).toHaveLength(1);
     expect(readSource(tree, 0)).toBe(ASSET_URL);
+  });
+
+  it("removes a video with no https source and keeps the rest", () => {
+    const tree = makeTree(
+      makeVideo(undefined),
+      makeVideo("/api/secret.mp4"),
+      makeVideo(ASSET_URL),
+    );
+
+    rehypeNormalizeMedia()(tree);
+
+    expect(tree.children).toHaveLength(1);
+    expect(readSource(tree, 0)).toBe(ASSET_URL);
+  });
+});
+
+describe("rehypeProxyAttachmentSources for a video", () => {
+  it("routes a pasted video and a committed video through the proxy", () => {
+    const committedVideo = COMMITTED_IMAGE_URL.replace(".png", ".mp4");
+    const tree = makeTree(makeVideo(ASSET_URL), makeVideo(committedVideo));
+
+    rehypeProxyAttachmentSources(SCOPE)(tree);
+
+    expect(readSource(tree, 0)).toBe(
+      `/api/repos/555/pulls/7/attachments/${ASSET_ID}`,
+    );
+    expect(readSource(tree, 1)).toBe(
+      COMMITTED_PROXY_PATH.replace(".png", ".mp4"),
+    );
+  });
+});
+
+describe("rehypeRecordOriginalSources", () => {
+  it("records the address the author wrote on an image and a video", () => {
+    const tree = makeTree(makeImage(ASSET_URL), makeVideo(ASSET_URL));
+
+    rehypeRecordOriginalSources()(tree);
+
+    for (const node of tree.children) {
+      expect(node.type === "element" && node.properties).toMatchObject({
+        [ORIGINAL_SOURCE_PROPERTY]: ASSET_URL,
+      });
+    }
+  });
+});
+
+describe("rehypeLinkUnservedVideos", () => {
+  const OUTSIDE = "https://example.com/demo.mp4";
+
+  it("keeps a video the proxy serves", () => {
+    const tree = makeTree(makeVideo(ASSET_URL));
+
+    rehypeLinkUnservedVideos(SCOPE)(tree);
+
+    expect(tree.children[0]).toMatchObject({ tagName: "video" });
+  });
+
+  it("turns a video on an outside host into a link to its address", () => {
+    const tree = makeTree(makeVideo(OUTSIDE));
+
+    rehypeLinkUnservedVideos(SCOPE)(tree);
+
+    expect(tree.children).toEqual([
+      {
+        type: "element",
+        tagName: "a",
+        properties: { href: OUTSIDE },
+        children: [{ type: "text", value: OUTSIDE }],
+      },
+    ]);
+  });
+
+  it("turns every video into a link outside a pull request", () => {
+    const tree = makeTree(makeVideo(ASSET_URL));
+
+    rehypeLinkUnservedVideos(undefined)(tree);
+
+    expect(tree.children[0]).toMatchObject({
+      tagName: "a",
+      properties: { href: ASSET_URL },
+    });
+  });
+
+  it("leaves a video inside a link as its address text, nesting no link", () => {
+    const tree = makeTree(makeLink(makeVideo(ASSET_URL)));
+
+    rehypeLinkUnservedVideos(SCOPE)(tree);
+
+    expect(tree.children[0]).toMatchObject({
+      tagName: "a",
+      children: [{ type: "text", value: ASSET_URL }],
+    });
   });
 });

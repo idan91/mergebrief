@@ -6,6 +6,8 @@ export const ATTACHMENT_ASSET_PATH_PREFIX = "/user-attachments/assets/";
 /** The one branch the App writes to; an orphan, holding image files only. */
 export const ATTACHMENT_BRANCH = "mergebrief/attachments";
 export const ATTACHMENT_BRANCH_RAW_QUERY = "?raw=true";
+/** The video-asset list's query naming a bare line's id the page's last answer lacked. */
+export const VIDEO_ASSETS_MISSING_PARAM = "missing";
 /** The upload cap, mirrored by the composer so an oversize file never leaves the browser. */
 export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 

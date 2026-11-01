@@ -16,6 +16,7 @@ export {
   parseAttachmentFileName,
   parseAttachmentSource,
   readAssetPathId,
+  VIDEO_ASSETS_MISSING_PARAM,
   type AssetAttachmentSource,
   type AttachmentAssetId,
   type AttachmentBranchLocation,
@@ -26,6 +27,7 @@ export {
   type AttachmentSourceKind,
   type BranchAttachmentSource,
   type UploadAttachmentResponse,
+  type VideoAssetsResponse,
 } from "./attachments";
 export {
   AttentionItemKinds,

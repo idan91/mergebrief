@@ -1,3 +1,5 @@
+import { isAttachmentAssetId, type AttachmentAssetId } from "contract";
+
 /** One GitHub user-attachment, shared by every test that renders or routes one. */
 export const ATTACHMENT_ASSET_ID = "3e5dffc4-bd05-4a01-98e8-1c519ba4cf00";
 export const ATTACHMENT_ASSET_URL = `https://github.com/user-attachments/assets/${ATTACHMENT_ASSET_ID}`;
@@ -10,3 +12,11 @@ export const COMMITTED_IMAGE_URL =
 /** The address every committed form of that image normalises to. */
 export const COMMITTED_IMAGE_NORMALISED_URL =
   "https://github.com/octo/hello/raw/assets/brief-362/after.png";
+
+/** A fixture id as the branded id a video lookup holds. */
+export function requireAttachmentAssetId(value: string): AttachmentAssetId {
+  if (!isAttachmentAssetId(value)) {
+    throw new Error("fixture asset id failed its guard");
+  }
+  return value;
+}

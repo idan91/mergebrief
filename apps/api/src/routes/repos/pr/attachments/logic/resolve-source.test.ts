@@ -1,6 +1,6 @@
 import type { AttachmentAssetId } from "contract";
 import { describe, expect, it } from "vitest";
-import { resolveAttachmentSource } from "./resolve-source";
+import { readRenderedAssetId, resolveAttachmentSource } from "./resolve-source";
 
 const ASSET_ID = "3e5dffc4-bd05-4a01-98e8-1c519ba4cf00" as AttachmentAssetId;
 const SIGNED = `https://private-user-images.githubusercontent.com/1/2-${ASSET_ID}.png?jwt=abc`;
@@ -101,5 +101,37 @@ describe("resolveAttachmentSource", () => {
         "96abe080-db23-4366-9eb8-32a76d148ae5" as AttachmentAssetId,
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("readRenderedAssetId", () => {
+  it("reads the id of each address github renders an asset as", () => {
+    const older = `https://github.com/acme/app/assets/12345/${ASSET_ID}`;
+
+    for (const source of [SIGNED, PUBLIC, older]) {
+      expect(readRenderedAssetId(source)).toBe(ASSET_ID);
+    }
+  });
+
+  it("reads the id of a signed video address", () => {
+    const video = SIGNED.replace(".png", ".mp4");
+
+    expect(readRenderedAssetId(video)).toBe(ASSET_ID);
+  });
+
+  it("reads no id from any other address", () => {
+    const others = [
+      "not a url",
+      `https://camo.githubusercontent.com/x/${ASSET_ID}`,
+      `https://github.com/attacker/pub/raw/main/${ASSET_ID}.png`,
+      `${PUBLIC}?x=1`,
+      `https://github.com:8443/user-attachments/assets/${ASSET_ID}`,
+      SIGNED.replace(".png", ".html"),
+      "https://github.com/user-attachments/assets/not-a-uuid",
+    ];
+
+    for (const source of others) {
+      expect(readRenderedAssetId(source)).toBeUndefined();
+    }
   });
 });

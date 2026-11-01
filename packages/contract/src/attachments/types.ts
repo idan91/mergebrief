@@ -52,6 +52,14 @@ export interface AttachmentBranchLocation {
   readonly fileName: string;
 }
 
+/**
+ * What `list-video-assets` answers: the pasted assets GitHub rendered as a
+ * video in the description and the last 100 comments, reviews and threads.
+ */
+export interface VideoAssetsResponse {
+  readonly assetIds: readonly AttachmentAssetId[];
+}
+
 /** What `upload-attachment` answers, with 201. */
 export interface UploadAttachmentResponse {
   /** The branch URL a comment carries; GitHub renders it inline. */

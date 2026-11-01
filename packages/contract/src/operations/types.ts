@@ -34,6 +34,7 @@ export const ProductQueryIds = {
   READ_STACK: "read-stack",
   READ_ATTACHMENT: "read-attachment",
   READ_COMMITTED_FILE: "read-committed-file",
+  LIST_VIDEO_ASSETS: "list-video-assets",
   LIST_LOCAL_BRIEFS: "list-local-briefs",
   READ_LOCAL_BRIEF: "read-local-brief",
   READ_LOCAL_BRIEF_DIFFS: "read-local-brief-diffs",

@@ -29,6 +29,7 @@ import {
   PrBriefBody,
   PrBriefError,
   PrBriefNotFound,
+  VideoAssetsProvider,
 } from "@web/features/pulls";
 import { usePrBriefPage } from "@web/features/pulls/hooks";
 import {
@@ -334,26 +335,31 @@ function PrBriefRoute() {
       repoId={params.repoId}
       repoSlug={page.meta.repoSlug ?? undefined}
     >
-      <MentionTargetsProvider repoId={params.repoId} viewerLogin={viewerLogin}>
-        <PrBriefBody
-          meta={page.meta}
-          address={address}
-          conversationFilter={page.conversationFilter}
-          onConversationFilterChange={page.onConversationFilterChange}
-          conversationFocusThreadId={page.conversationFocusThreadId}
-          onSelectRevision={page.onSelectRevision}
-          onGoToNewest={page.onGoToNewest}
-          prNumber={prNumber}
-          readOnly={page.readOnly}
+      <VideoAssetsProvider prNumber={prNumber} repoId={params.repoId}>
+        <MentionTargetsProvider
           repoId={params.repoId}
-          revisionJump={page.revisionJump}
-          revisionPending={revisionPending}
-          searchParams={page.searchParams}
-          staleHead={page.staleHead}
-          state={page.state}
-          timeline={page.timeline}
-        />
-      </MentionTargetsProvider>
+          viewerLogin={viewerLogin}
+        >
+          <PrBriefBody
+            meta={page.meta}
+            address={address}
+            conversationFilter={page.conversationFilter}
+            onConversationFilterChange={page.onConversationFilterChange}
+            conversationFocusThreadId={page.conversationFocusThreadId}
+            onSelectRevision={page.onSelectRevision}
+            onGoToNewest={page.onGoToNewest}
+            prNumber={prNumber}
+            readOnly={page.readOnly}
+            repoId={params.repoId}
+            revisionJump={page.revisionJump}
+            revisionPending={revisionPending}
+            searchParams={page.searchParams}
+            staleHead={page.staleHead}
+            state={page.state}
+            timeline={page.timeline}
+          />
+        </MentionTargetsProvider>
+      </VideoAssetsProvider>
     </AttachmentScopeProvider>
   );
 }

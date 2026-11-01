@@ -25,6 +25,7 @@ export {
   ATTACHMENT_BRANCH,
   ATTACHMENT_EXTENSION_BY_MEDIA_TYPE,
   ATTACHMENT_MAX_BYTES,
+  VIDEO_ASSETS_MISSING_PARAM,
 } from "./consts";
 export {
   AttachmentMediaTypes,
@@ -40,6 +41,7 @@ export {
   type AttachmentSourceKind,
   type BranchAttachmentSource,
   type UploadAttachmentResponse,
+  type VideoAssetsResponse,
 } from "./types";
 
 type ParseResult<T> = Result<T, AttachmentParseErrorCode>;

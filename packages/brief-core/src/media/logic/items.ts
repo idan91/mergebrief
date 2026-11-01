@@ -1,8 +1,6 @@
 import {
-  AttachmentSourceKinds,
   isAttachmentAssetId,
   parseAttachmentFileName,
-  parseAttachmentSource,
 } from "contract/attachments";
 import type { Element } from "hast";
 import type { Mutable } from "types/utils";
@@ -24,6 +22,7 @@ import {
   type VideoMediaItem,
 } from "../types";
 import { readDiagramType } from "./diagram-type";
+import { isProxiedMediaAddress } from "./proxied-address";
 import { buildAddressMediaKey, buildMermaidMediaKey } from "./keys";
 import {
   readFileName,
@@ -44,7 +43,8 @@ export interface MediaPlace {
 /** What a link item reads off the text around it. */
 export interface LinkSurroundings {
   readonly textBefore: string;
-  readonly aloneOnLine: boolean;
+  /** The link is a pasted asset written bare and alone on its paragraph line. */
+  readonly pastedAssetLine: boolean;
 }
 
 interface PlacedItem {
@@ -112,6 +112,9 @@ export function readVideoItem(
   if (address === undefined || key === undefined) {
     return undefined;
   }
+  if (!isProxiedMediaAddress(address, place.repoSlug)) {
+    return undefined;
+  }
 
   const item: Mutable<VideoMediaItem> = {
     kind: MediaKinds.VIDEO,
@@ -122,17 +125,6 @@ export function readVideoItem(
   };
   assignPlace(item, place, [place.tableHeader, readFileNameCaption(address)]);
   return item;
-}
-
-function isPastedAssetLine(
-  address: string,
-  linkText: string | undefined,
-  surroundings: LinkSurroundings,
-): boolean {
-  const source = parseAttachmentSource(address);
-  const isAsset =
-    source.ok && source.value.kind === AttachmentSourceKinds.ASSET;
-  return isAsset && linkText === address && surroundings.aloneOnLine;
 }
 
 function readRepositoryFileKind(
@@ -173,7 +165,7 @@ export function readLinkItem(
   }
 
   const linkText = readNonBlank(readText(node));
-  const pastedAsset = isPastedAssetLine(written, linkText, surroundings);
+  const pastedAsset = surroundings.pastedAssetLine;
   const kind = pastedAsset
     ? MediaKinds.VIDEO
     : readRepositoryFileKind(address, place.repoSlug);

@@ -1,14 +1,17 @@
 import { SANITIZE_REHYPE_PLUGINS } from "brief-core/sanitized-markdown";
+import type { AttachmentAssetId } from "contract";
 import type { Options as MarkdownOptions } from "react-markdown";
 
 import type { AttachmentScope } from "./context";
+import { rehypePrefixFragmentLinks } from "./links";
 import {
-  rehypeNormalizeImages,
+  rehypeLinkUnservedVideos,
+  rehypeNormalizeMedia,
   rehypeProxyAttachmentSources,
   rehypeRecordOriginalSources,
-} from "./images";
-import { rehypePrefixFragmentLinks } from "./links";
+} from "./media";
 import { rehypeMarkMentions } from "./mentions";
+import { rehypePlayPastedAssetLines } from "./pasted-asset-lines";
 
 export type MarkdownRehypePlugins = NonNullable<
   MarkdownOptions["rehypePlugins"]
@@ -20,6 +23,8 @@ export interface RehypePluginOptions {
   readonly renderMentions: boolean;
   /** The pull request the body belongs to; absent, attachments stay on GitHub. */
   readonly scope?: AttachmentScope | undefined;
+  /** The pasted assets GitHub rendered as a video; absent until the page asked. */
+  readonly videoAssetIds?: ReadonlySet<AttachmentAssetId> | undefined;
 }
 
 const NO_PLUGINS: MarkdownRehypePlugins = [];
@@ -34,10 +39,16 @@ export function buildRehypePlugins(
   if (!options.renderHtml) {
     return mentions;
   }
+  const pastedAssetLines = {
+    scope: options.scope,
+    videoAssetIds: options.videoAssetIds,
+  };
   return [
     ...SANITIZE_REHYPE_PLUGINS,
-    rehypeNormalizeImages,
+    rehypeNormalizeMedia,
     rehypePrefixFragmentLinks,
+    [rehypePlayPastedAssetLines, pastedAssetLines],
+    [rehypeLinkUnservedVideos, options.scope],
     rehypeRecordOriginalSources,
     [rehypeProxyAttachmentSources, options.scope],
     ...mentions,

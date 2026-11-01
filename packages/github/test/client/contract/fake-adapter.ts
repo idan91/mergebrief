@@ -166,6 +166,7 @@ function arrangePullRequest(
       ? UNRESOLVED_THREAD_CONVERSATION
       : EMPTY_CONVERSATION,
     imageSources: ["https://images.example/1.png"],
+    videoSources: ["https://videos.example/1.mp4"],
     ...history,
   });
 }

@@ -7,7 +7,10 @@ import {
   fetchAttachmentBytes,
   readBranchAttachment,
 } from "./logic/fetch-attachment";
-import { resolveRenderedSource } from "./logic/rendered-sources";
+import {
+  buildRenderedSourcesRequest,
+  resolveRenderedSource,
+} from "./logic/rendered-sources";
 import { wrapBytesFailure, wrapDenial } from "./logic/read-failures";
 import {
   ReadAttachmentFailureKinds,
@@ -33,10 +36,8 @@ async function readAsset(
   repo: RepositoryRef,
   { prNumber, assetId, bytes }: AssetReadInput,
 ): Promise<ReadResult> {
-  const sessionTokenHash = access.session.sessionTokenHash;
-  const cacheKey = `${sessionTokenHash}:${String(access.repoId)}:${prNumber}`;
-  const reader = access.github.forRepo(repo);
-  const request = { cacheKey, reader, prNumber, assetId };
+  const sources = buildRenderedSourcesRequest(access, repo, prNumber);
+  const request = { ...sources, assetId };
   const source = await resolveRenderedSource(deps.sources, request);
   if (!source.ok) {
     return source;

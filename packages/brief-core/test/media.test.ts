@@ -1,12 +1,17 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import type { Element, Root } from "hast";
 import {
   buildMermaidMediaKey,
   DiagramTypes,
   extractMedia,
+  isProxiedMediaAddress,
+  readProxiedMediaSource,
   MediaKinds,
+  readPastedAssetLineId,
   type MediaItem,
 } from "../src/media";
+import { parseSanitizedMarkdown } from "../src/sanitized-markdown";
 
 const OPTIONS = { repoSlug: "acme/app" };
 const SHOT = "https://cdn.test/shot.png";
@@ -257,6 +262,15 @@ describe("extractMedia exclusions", () => {
     ).toEqual([]);
   });
 
+  it("skips a raw video on a host the page will not play from", () => {
+    const markdown = [
+      '<video src="https://cdn.example.com/demo.mp4"></video>',
+      `<video src="${ASSET}"></video>`,
+    ].join("\n\n");
+
+    expect(readAddresses(markdown)).toEqual([ASSET]);
+  });
+
   it("skips a fence in another language", () => {
     expect(extract("```ts\nconst a = 1;\n```")).toEqual([]);
   });
@@ -466,5 +480,112 @@ describe("extractMedia attack inputs", () => {
       "https://github.com.evil.test/user-attachments/assets/0f6c2a4e-1b2c-4d3e-8f90-123456789abc";
 
     expect(extract(lookAlike)).toEqual([]);
+  });
+});
+
+/** Each link in `markdown` with the paragraph or other parent holding it. */
+function collectLinkPlaces(markdown: string) {
+  const places: { parent: Root | Element; index: number }[] = [];
+  const queue: (Root | Element)[] = [parseSanitizedMarkdown(markdown)];
+  for (const parent of queue) {
+    parent.children.forEach((child, index) => {
+      if (child.type !== "element") {
+        return;
+      }
+      if (child.tagName === "a") {
+        places.push({ parent, index });
+      }
+      queue.push(child);
+    });
+  }
+  return places;
+}
+
+function readLineIds(markdown: string) {
+  return collectLinkPlaces(markdown).map(({ parent, index }) =>
+    readPastedAssetLineId(parent, index),
+  );
+}
+
+describe("readPastedAssetLineId", () => {
+  const ASSET_ID = "0f6c2a4e-1b2c-4d3e-8f90-123456789abc";
+
+  it("reads the id of a bare asset url alone on its paragraph line", () => {
+    expect(readLineIds(ASSET)).toEqual([ASSET_ID]);
+    expect(readLineIds(`Before the fix:\n${ASSET}\nAfter.`)).toEqual([
+      ASSET_ID,
+    ]);
+    expect(readLineIds(`<${ASSET}>`)).toEqual([ASSET_ID]);
+  });
+
+  it("reads the older per-repository asset address", () => {
+    const older = `https://github.com/acme/app/assets/12345/${ASSET_ID}`;
+
+    expect(readLineIds(older)).toEqual([ASSET_ID]);
+  });
+
+  it.each([
+    ["sharing its line with text", `See ${ASSET} here`],
+    ["with its own link text", `[the recording](${ASSET})`],
+    ["inside a list item", `- ${ASSET}`],
+    ["inside a table cell", `| a |\n| - |\n| ${ASSET} |`],
+    ["with a query", `${ASSET}?raw=true`],
+    ["on another host", "https://cdn.test/user-attachments/assets/x"],
+    [
+      "on the attachments branch",
+      `https://github.com/acme/app/blob/mergebrief/attachments/${ASSET_ID}.png?raw=true`,
+    ],
+  ])("reads no id from an asset link %s", (_name, markdown) => {
+    expect(readLineIds(markdown).filter(Boolean)).toEqual([]);
+  });
+
+  it("agrees with the extractor's video to confirm", () => {
+    const markdown = `Intro\n\n${ASSET}\n\nSee ${ASSET} too`;
+    const [item] = extract(markdown);
+
+    expect(readLineIds(markdown)).toEqual([ASSET_ID, undefined]);
+    expect(item).toMatchObject({ requiresConfirmation: true });
+  });
+});
+
+describe("isProxiedMediaAddress", () => {
+  it("serves a pasted asset and a file in the repository", () => {
+    expect(isProxiedMediaAddress(ASSET, "acme/app")).toBe(true);
+    expect(isProxiedMediaAddress(OWN_BLOB, "acme/app")).toBe(true);
+    expect(isProxiedMediaAddress(ASSET, undefined)).toBe(true);
+  });
+
+  it("serves no other host, repository or unknown repository", () => {
+    expect(isProxiedMediaAddress(SHOT, "acme/app")).toBe(false);
+    expect(isProxiedMediaAddress(OWN_BLOB, "acme/other")).toBe(false);
+    expect(isProxiedMediaAddress(OWN_BLOB, undefined)).toBe(false);
+  });
+
+  it("serves no own-repository file in a format the proxy refuses", () => {
+    const mkv = "https://github.com/acme/app/raw/main/docs/demo.mkv";
+
+    expect(isProxiedMediaAddress(mkv, "acme/app")).toBe(false);
+  });
+});
+
+describe("readProxiedMediaSource", () => {
+  it("reads a pasted asset and an own-repository file by kind", () => {
+    expect(readProxiedMediaSource(ASSET, undefined)).toMatchObject({
+      kind: "attachment",
+      attachment: { kind: "asset" },
+    });
+    expect(readProxiedMediaSource(OWN_BLOB, "acme/app")).toEqual({
+      kind: "committed-file",
+      file: {
+        owner: "acme",
+        repo: "app",
+        pathSegments: ["main", "docs", "demo.mp4"],
+      },
+    });
+  });
+
+  it("reads nothing the proxy does not serve", () => {
+    expect(readProxiedMediaSource(SHOT, "acme/app")).toBeUndefined();
+    expect(readProxiedMediaSource(OWN_BLOB, "acme/other")).toBeUndefined();
   });
 });

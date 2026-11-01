@@ -4,9 +4,7 @@
 // the browser and the worker.
 import type { Root } from "hast";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize, {
-  type Options as SanitizeSchema,
-} from "rehype-sanitize";
+import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
@@ -14,7 +12,7 @@ import { unified, type PluggableList } from "unified";
 
 import { MARKDOWN_SANITIZE_SCHEMA, REMARK_REHYPE_OPTIONS } from "./consts";
 
-export { MARKDOWN_SANITIZE_SCHEMA, MEDIA_SANITIZE_SCHEMA } from "./consts";
+export { MARKDOWN_SANITIZE_SCHEMA } from "./consts";
 
 /** GFM as people's text is written on GitHub. */
 export const MARKDOWN_REMARK_PLUGINS: PluggableList = [remarkGfm];
@@ -25,16 +23,13 @@ export const SANITIZE_REHYPE_PLUGINS: PluggableList = [
   [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
 ];
 
-/** The sanitized HTML tree of `markdown`, under `schema` (the render schema by default). */
-export function parseSanitizedMarkdown(
-  markdown: string,
-  schema: SanitizeSchema = MARKDOWN_SANITIZE_SCHEMA,
-): Root {
+/** The sanitized HTML tree of `markdown`, always under the one render schema. */
+export function parseSanitizedMarkdown(markdown: string): Root {
   const processor = unified()
     .use(remarkParse)
     .use(MARKDOWN_REMARK_PLUGINS)
     .use(remarkRehype, REMARK_REHYPE_OPTIONS)
     .use(rehypeRaw)
-    .use(rehypeSanitize, schema);
+    .use(rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA);
   return processor.runSync(processor.parse(markdown));
 }

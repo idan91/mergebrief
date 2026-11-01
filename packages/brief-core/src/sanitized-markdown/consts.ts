@@ -30,6 +30,7 @@ const MARKDOWN_TAG_NAMES = [
   "thead",
   "tr",
   "ul",
+  "video",
 ] as const;
 
 const FOCUS_STEERING_ATTRIBUTES = new Set(["accessKey", "tabIndex"]);
@@ -42,8 +43,10 @@ const GLOBAL_ATTRIBUTES = (defaultSchema.attributes?.["*"] ?? []).filter(
 /**
  * GitHub's editor writes a pasted screenshot as a raw `<img>` tag, so raw HTML
  * is parsed; only the elements markdown itself produces survive, plus `img`
- * with no scheme other than https. Every other tag is unwrapped and its text
- * kept; `script` is stripped whole.
+ * and `video` with no scheme other than https. A video keeps no attribute
+ * that plays, loads or fetches on its own (`autoplay`, `poster`, `preload`)
+ * and no `source` child, so its one address is `src`. Every other tag is
+ * unwrapped and its text kept; `script` is stripped whole.
  */
 export const MARKDOWN_SANITIZE_SCHEMA: SanitizeSchema = {
   ...defaultSchema,
@@ -52,24 +55,11 @@ export const MARKDOWN_SANITIZE_SCHEMA: SanitizeSchema = {
     ...defaultSchema.attributes,
     "*": GLOBAL_ATTRIBUTES,
     img: ["src", "alt", "width", "height"],
+    video: ["src", "controls", "width", "height"],
   },
   protocols: {
     ...defaultSchema.protocols,
     src: ["https"],
-  },
-};
-
-/**
- * The render schema plus `video` with the attributes a player keeps. Media
- * extraction reads it until players render inline; then `video` joins the
- * render schema and this one goes.
- */
-export const MEDIA_SANITIZE_SCHEMA: SanitizeSchema = {
-  ...MARKDOWN_SANITIZE_SCHEMA,
-  tagNames: [...MARKDOWN_TAG_NAMES, "video"],
-  attributes: {
-    ...MARKDOWN_SANITIZE_SCHEMA.attributes,
-    video: ["src", "controls", "width", "height"],
   },
 };
 

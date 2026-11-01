@@ -62,4 +62,39 @@ describe("parseSanitizedMarkdown", () => {
     expect(collectTagNames([tree])).not.toContain("details");
     expect(collectTagNames([tree])).toContain("p");
   });
+
+  it("keeps a raw https video with src, controls, width and height only", () => {
+    const tree = parseSanitizedMarkdown(
+      '<video src="https://x.test/a.mp4" controls width="640" height="360" autoplay muted loop playsinline poster="https://x.test/p.png" preload="auto" crossorigin="use-credentials" onerror="alert(1)" onplay="alert(2)"></video>',
+    );
+
+    expect(findElement(tree, "video")?.properties).toEqual({
+      src: "https://x.test/a.mp4",
+      controls: true,
+      width: 640,
+      height: 360,
+    });
+  });
+
+  it("drops a video's source children, which would name a second address", () => {
+    const tree = parseSanitizedMarkdown(
+      '<video controls><source src="https://x.test/a.mp4" type="video/mp4"><track src="https://x.test/t.vtt"></video>',
+    );
+
+    expect(collectTagNames([tree])).toContain("video");
+    expect(collectTagNames([tree])).not.toContain("source");
+    expect(collectTagNames([tree])).not.toContain("track");
+  });
+
+  it.each([
+    ["javascript:", "javascript:alert(1)"],
+    ["http", "http://x.test/a.mp4"],
+    ["data:", "data:video/mp4;base64,AAAA"],
+  ])("drops a %s video source", (_name, source) => {
+    const tree = parseSanitizedMarkdown(`<video src="${source}"></video>`);
+
+    const video = findElement(tree, "video");
+    expect(video).toBeDefined();
+    expect(video?.properties["src"]).toBeUndefined();
+  });
 });

@@ -224,14 +224,17 @@ export function buildRepoReader(
           readPullRequest(world, input, (pull) => pull.conversation),
       });
     },
-    fetchRenderedImageSources(prNumber) {
+    fetchRenderedMediaSources(prNumber) {
       const input = { ...bound, prNumber };
       return run({
-        operation: "fetchRenderedImageSources",
+        operation: "fetchRenderedMediaSources",
         input,
         reach: { prNumber },
         answer: () =>
-          readPullRequest(world, input, (pull) => pull.imageSources),
+          readPullRequest(world, input, (pull) => ({
+            imageSources: pull.imageSources,
+            videoSources: pull.videoSources,
+          })),
       });
     },
   };

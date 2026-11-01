@@ -17,6 +17,8 @@ import {
   attachmentsRoute,
   committedFileRoute,
   createMediaStreamBudget,
+  createRenderedSourcesStore,
+  videoAssetsRoute,
 } from "./attachments";
 import type { AttachmentsRouteDeps } from "./attachments/types";
 import { deletePullRoute } from "./delete";
@@ -49,8 +51,13 @@ export function prRoutes(
   app.route("/ready", markReadyRoute(deps));
   app.route("/regenerate", regenerateRoute(deps));
   const mediaBudget = createMediaStreamBudget(deps.mediaMaxBytes);
-  app.route("/attachments", attachmentsRoute(deps, mediaBudget));
+  const renderedSources = createRenderedSourcesStore();
+  app.route(
+    "/attachments",
+    attachmentsRoute(deps, mediaBudget, renderedSources),
+  );
   app.route("/committed-file", committedFileRoute(deps, mediaBudget));
+  app.route("/video-assets", videoAssetsRoute(deps, renderedSources));
   app.route("/comments", commentWriteRoutes(deps, evictConversation));
   app.route("/conversation", conversation.router);
   return app;

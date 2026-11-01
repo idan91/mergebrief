@@ -14,8 +14,11 @@ import {
 import {
   buildOperationPath,
   ProductQueryIds,
+  VIDEO_ASSETS_MISSING_PARAM,
+  type AttachmentAssetId,
   type OperationParams,
   type ProductQueryId,
+  type VideoAssetsResponse,
 } from "contract";
 import { HttpStatuses, type ComparisonBaselineLabel } from "types";
 import { z } from "zod/v4";
@@ -42,11 +45,16 @@ import {
   type SessionReadSource,
 } from "../review/session";
 import type { StoredRevisionNarrative } from "brief-core/artifact";
-import { BRIEF_READ_GC_MS, LIVE_POLL_MS } from "./consts";
+import {
+  BRIEF_READ_GC_MS,
+  LIVE_POLL_MS,
+  VIDEO_ASSETS_STALE_MS,
+} from "./consts";
 import {
   briefLayoutReplySchema,
   prSummarySchema,
   pullStackSchema,
+  videoAssetsSchema,
 } from "./schemas";
 import type { PrSummary, StoredBriefLayout } from "./types";
 import { isFullCommitSha } from "@web/utils/commit-sha";
@@ -103,6 +111,46 @@ export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
     queryFn: () => readPrStack(repoId, prNumber),
     staleTime: STACK_STALE_MS,
     refetchInterval: (query) => resolveOutagePollMs(query.state, LIVE_POLL_MS),
+  });
+}
+
+function readVideoAssets(
+  repoId: string,
+  prNumber: number,
+  missingAssetId?: AttachmentAssetId,
+): Promise<VideoAssetsResponse> {
+  const query = { [VIDEO_ASSETS_MISSING_PARAM]: missingAssetId };
+  return request(
+    ProductQueryIds.LIST_VIDEO_ASSETS,
+    { params: { repoId, prNumber }, query },
+    videoAssetsSchema,
+  );
+}
+
+/** The pasted assets GitHub rendered as a video; read only once a bare asset line asks. */
+export function buildVideoAssetsQueryOptions(repoId: string, prNumber: number) {
+  return queryOptions({
+    queryKey: ["video-assets", repoId, prNumber],
+    queryFn: () => readVideoAssets(repoId, prNumber),
+    staleTime: VIDEO_ASSETS_STALE_MS,
+  });
+}
+
+/**
+ * Reads the list again into the same cache entry, naming the bare line's id
+ * the cached answer lacks, so the API reads past its own young copy once.
+ */
+export function refetchVideoAssetsForMissing(
+  queryClient: QueryClient,
+  repoId: string,
+  prNumber: number,
+  missingAssetId: AttachmentAssetId,
+): Promise<VideoAssetsResponse> {
+  const { queryKey } = buildVideoAssetsQueryOptions(repoId, prNumber);
+  return queryClient.fetchQuery({
+    queryKey,
+    queryFn: () => readVideoAssets(repoId, prNumber, missingAssetId),
+    staleTime: 0,
   });
 }
 

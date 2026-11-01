@@ -13,12 +13,14 @@ import {
   type PullStackView,
   type RevisionComparisons,
   type RevisionView,
+  type VideoAssetsResponse,
 } from "contract";
 import { describe, expect, it } from "vitest";
 import type { DraftPolicy, Equals } from "types";
 import type { z } from "zod/v4";
 
 import { UnknownValues } from "@web/utils/open-enum/types";
+import { ATTACHMENT_ASSET_ID } from "@web/test/attachments";
 import type { ReadsWireFields } from "@web/test/wire-fields";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
@@ -36,6 +38,7 @@ import {
   pullStackSchema,
   type revisionSummarySchema,
   type unavailableLastReviewSchema,
+  videoAssetsSchema,
 } from "./schemas";
 import type {
   ForkPrStack,
@@ -929,7 +932,29 @@ describe("pullStackSchema live details", () => {
   });
 });
 
+describe("videoAssetsSchema", () => {
+  const ASSET_ID = ATTACHMENT_ASSET_ID;
+
+  it("reads the asset ids github rendered as a video", () => {
+    const parsed = videoAssetsSchema.safeParse({ assetIds: [ASSET_ID] });
+
+    expect(parsed.data).toEqual({ assetIds: [ASSET_ID] });
+  });
+
+  it("refuses an id that is no asset id", () => {
+    const parsed = videoAssetsSchema.safeParse({
+      assetIds: [ASSET_ID, "../secret"],
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});
+
 const SCHEMA_PINS = {
+  VideoAssetsResponse: true satisfies Equals<
+    z.output<typeof videoAssetsSchema>,
+    VideoAssetsResponse
+  >,
   GenerationSummary: true satisfies Equals<
     z.output<typeof generationSummarySchema>,
     GenerationSummary

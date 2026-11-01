@@ -3,10 +3,7 @@
 // browser and the worker.
 import type { Element, Root } from "hast";
 
-import {
-  MEDIA_SANITIZE_SCHEMA,
-  parseSanitizedMarkdown,
-} from "../sanitized-markdown";
+import { parseSanitizedMarkdown } from "../sanitized-markdown";
 import { CAPTION_BLOCK_TAG_NAMES, HEADING_TAG_NAMES } from "./consts";
 import {
   readDiagramItem,
@@ -15,10 +12,17 @@ import {
   readVideoItem,
   type MediaPlace,
 } from "./logic/items";
-import { isAloneOnLine, readNonBlank, readText } from "./logic/text";
+import { readPastedAssetLineId } from "./logic/pasted-asset-line";
+import { readNonBlank, readText } from "./logic/text";
 import type { ExtractMediaOptions, MediaItem, MediaKey } from "./types";
 
 export { buildMermaidMediaKey } from "./logic/keys";
+export { readPastedAssetLineId } from "./logic/pasted-asset-line";
+export {
+  isProxiedMediaAddress,
+  readProxiedMediaSource,
+} from "./logic/proxied-address";
+export { ProxiedMediaSourceKinds } from "./logic/proxied-address/types";
 export {
   DiagramTypes,
   MediaKinds,
@@ -92,11 +96,6 @@ function readTextBefore(position: ChildPosition, fallback: string): string {
   return readNonBlank(text) === undefined ? fallback : text;
 }
 
-function isInParagraph(position: ChildPosition): boolean {
-  const { parent } = position;
-  return parent.type === "element" && parent.tagName === "p";
-}
-
 function readItem(
   node: Element,
   position: ChildPosition,
@@ -117,12 +116,10 @@ function readItem(
       return readDiagramItem(node, place);
     case "a": {
       const { parent, index } = position;
-      const aloneOnLine =
-        parent.type === "element" &&
-        isInParagraph(position) &&
-        isAloneOnLine(parent, index);
+      const pastedAssetLine =
+        readPastedAssetLineId(parent, index) !== undefined;
       const textBefore = readTextBefore(position, extraction.previousBlockText);
-      return readLinkItem(node, place, { textBefore, aloneOnLine });
+      return readLinkItem(node, place, { textBefore, pastedAssetLine });
     }
     default:
       return undefined;
@@ -189,15 +186,15 @@ function walkElement(
 
 /**
  * Every Media item in `description`, in document order, one per key at its
- * first place: images, videos, pasted assets alone on a line, links to an
- * image or video file in `repoSlug`, and Mermaid fences. An image inside a
- * link (a badge) is not one.
+ * first place: images, videos the API proxy serves, pasted assets alone on
+ * a line, links to an image or video file in `repoSlug`, and Mermaid fences.
+ * An image inside a link (a badge) is not one.
  */
 export function extractMedia(
   description: string,
   options: ExtractMediaOptions,
 ): MediaItem[] {
-  const tree = parseSanitizedMarkdown(description, MEDIA_SANITIZE_SCHEMA);
+  const tree = parseSanitizedMarkdown(description);
   const extraction: Extraction = {
     repoSlug: options.repoSlug,
     items: [],

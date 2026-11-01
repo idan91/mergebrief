@@ -109,7 +109,7 @@ describe("bindGrantedPullRequestGitHub", () => {
       operatorToken: buildOperatorToken(OPERATOR_PAT),
     };
     fake.failOn(
-      "fetchRenderedImageSources",
+      "fetchRenderedMediaSources",
       FakeFailures.NOT_FOUND,
       CredentialKinds.REVIEWER,
     );
@@ -139,7 +139,7 @@ describe("bindGrantedPullRequestGitHub", () => {
     const access = makeAccess(AccessFootings.OPERATOR);
     const github = bindGrantedPullRequestGitHub(deps, access, log);
 
-    await github.forRepo(REPO).fetchRenderedImageSources(GRANTED_PR);
+    await github.forRepo(REPO).fetchRenderedMediaSources(GRANTED_PR);
 
     expect(listTokens(fake)).toEqual([VIEWER_TOKEN, OPERATOR_PAT]);
   });
@@ -148,7 +148,7 @@ describe("bindGrantedPullRequestGitHub", () => {
     const access = makeAccess(AccessFootings.OPERATOR);
     const github = bindGrantedPullRequestGitHub(deps, access, log);
 
-    const read = await github.forRepo(REPO).fetchRenderedImageSources(8);
+    const read = await github.forRepo(REPO).fetchRenderedMediaSources(8);
 
     expect(read.ok).toBe(false);
     expect(listTokens(fake)).toEqual([VIEWER_TOKEN]);

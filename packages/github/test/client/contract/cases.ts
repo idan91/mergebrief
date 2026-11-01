@@ -143,10 +143,13 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
     },
   }),
   defineCase({
-    operation: "fetchRenderedImageSources",
+    operation: "fetchRenderedMediaSources",
     operatorReach: true,
-    call: (client: RepoReader) => client.fetchRenderedImageSources(7),
-    expected: ["https://images.example/1.png"],
+    call: (client: RepoReader) => client.fetchRenderedMediaSources(7),
+    expected: {
+      imageSources: ["https://images.example/1.png"],
+      videoSources: ["https://videos.example/1.mp4"],
+    },
   }),
 ];
 

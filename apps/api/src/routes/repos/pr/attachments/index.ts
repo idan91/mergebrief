@@ -19,6 +19,8 @@ import {
   type AttachmentFile,
   type AttachmentMediaType,
   type UploadAttachmentResponse,
+  type VideoAssetsResponse,
+  VIDEO_ASSETS_MISSING_PARAM,
 } from "contract";
 import {
   isCommittedFileInRepository,
@@ -80,6 +82,7 @@ import {
   throwReadAttachmentFailure,
   throwUploadAttachmentFailure,
 } from "./logic/wire-failures";
+import { listVideoAssets } from "./list-video-assets";
 import { readAttachment } from "./read-attachment";
 import { readCommittedFile } from "./read-committed-file";
 import { committedFileQuerySchema } from "./schemas";
@@ -453,6 +456,46 @@ function createUploadAttachmentHandler(
   };
 }
 
+function createListVideoAssetsHandler(
+  deps: AttachmentsRouteDeps,
+  sources: RenderedSourcesStore,
+): Handler<AuthzEnv> {
+  return async (c) => {
+    const prNumber = prNumberSchema.safeParse(c.req.param("prNumber"));
+    if (!prNumber.success) {
+      throw new BadRequest();
+    }
+
+    const repoAccess = c.get("repoAccess");
+    const github = bindGrantedPullRequestGitHub(
+      deps,
+      repoAccess,
+      c.get("logger"),
+    );
+    const missing = c.req.query(VIDEO_ASSETS_MISSING_PARAM) ?? "";
+    const missingAssetId = isAttachmentAssetId(missing) ? missing : undefined;
+    const listed = await listVideoAssets(
+      { sources },
+      { ...repoAccess, github },
+      { prNumber: prNumber.data, missingAssetId },
+    );
+    if (!listed.ok) {
+      throwReadAttachmentFailure(listed.error);
+    }
+
+    const body: VideoAssetsResponse = { assetIds: listed.value };
+    return c.json(body, HttpStatuses.OK, NO_STORE);
+  };
+}
+
+/** One per process: the attachment read and the video list share one GitHub call per viewer and PR. */
+export function createRenderedSourcesStore(): RenderedSourcesStore {
+  return {
+    cache: createTtlCache<RenderedSources>(SOURCES_CACHE_MAX_ENTRIES),
+    inFlight: new Map(),
+  };
+}
+
 /** One per process: both reads count their open streams against the same permits. */
 export function createMediaStreamBudget(
   maxFileBytes = DEFAULT_MEDIA_MAX_MB * BYTES_PER_MB,
@@ -463,12 +506,9 @@ export function createMediaStreamBudget(
 export function attachmentsRoute(
   deps: AttachmentsRouteDeps,
   budget: MediaStreamBudget,
+  sources: RenderedSourcesStore,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const sources: RenderedSourcesStore = {
-    cache: createTtlCache<RenderedSources>(SOURCES_CACHE_MAX_ENTRIES),
-    inFlight: new Map(),
-  };
   const quota: UploadQuota = {
     limits: deps.attachmentQuota ?? DEFAULT_UPLOAD_QUOTA_LIMITS,
     windows: createTtlCache<UploadWindow>(UPLOAD_QUOTA_MAX_ENTRIES),
@@ -499,6 +539,28 @@ export function attachmentsRoute(
     },
     "/",
     createUploadAttachmentHandler(deps, quota),
+  );
+  return app;
+}
+
+/** GET .../video-assets: the pasted assets GitHub rendered as a video. */
+export function videoAssetsRoute(
+  deps: AttachmentsRouteDeps,
+  sources: RenderedSourcesStore,
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
+  app.use(createRepositoryTargetLayer());
+  app.query(
+    {
+      id: ProductQueryIds.LIST_VIDEO_ASSETS,
+      browserSessionOnly: false,
+      requiresOperator: false,
+      requiresPushAccess: false,
+      requiresInstallation: false,
+      requiresStoredPullRequest: false,
+    },
+    "/",
+    createListVideoAssetsHandler(deps, sources),
   );
   return app;
 }

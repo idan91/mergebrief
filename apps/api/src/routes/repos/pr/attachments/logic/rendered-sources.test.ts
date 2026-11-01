@@ -6,7 +6,10 @@ import { isRepoId } from "persistence";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTtlCache } from "../../../../ttl-cache";
 import type { RenderedSources, RenderedSourcesStore } from "../types";
-import { resolveRenderedSource } from "./rendered-sources";
+import {
+  listRenderedVideoAssetIds,
+  resolveRenderedSource,
+} from "./rendered-sources";
 
 const REPO = { owner: "octo", repo: "hello" };
 const PR_NUMBER = 7;
@@ -32,7 +35,11 @@ function requireAssetId(value: string): AttachmentAssetId {
   return value;
 }
 
-function arrangeSources(fake: FakeGitHub, imageSources: readonly string[]) {
+function arrangeSources(
+  fake: FakeGitHub,
+  imageSources: readonly string[],
+  videoSources: readonly string[] = [],
+) {
   const repoId = 424242n;
   if (!isRepoId(repoId)) {
     throw new Error("fixture repo id failed its guard");
@@ -41,6 +48,7 @@ function arrangeSources(fake: FakeGitHub, imageSources: readonly string[]) {
     { ...REPO, prNumber: PR_NUMBER },
     {
       imageSources,
+      videoSources,
       info: {
         repoId,
         repoFullName: "octo/hello",
@@ -96,8 +104,10 @@ describe("resolveRenderedSource", () => {
     });
   }
 
-  function cacheSources(sources: readonly string[], fetchedAt: number) {
-    store.cache.set(CACHE_KEY, { sources, fetchedAt }, Date.now() + AN_HOUR_MS);
+  function cacheSources(imageSources: readonly string[], fetchedAt: number) {
+    const sources = { imageSources, videoSources: [] };
+    const entry = { sources, fetchedAt, readForMissingAsset: false };
+    store.cache.set(CACHE_KEY, entry, Date.now() + AN_HOUR_MS);
   }
 
   it("refetches the sources when an old entry lacks the asset", async () => {
@@ -107,7 +117,16 @@ describe("resolveRenderedSource", () => {
     const resolved = await resolve(ASSET);
 
     expect(resolved).toEqual({ ok: true, value: SIGNED_URL });
-    expect(fake.listCalls("fetchRenderedImageSources")).toHaveLength(1);
+    expect(fake.listCalls("fetchRenderedMediaSources")).toHaveLength(1);
+  });
+
+  it("resolves an asset GitHub rendered as a video", async () => {
+    const video = SIGNED_URL.replace(".png", ".mp4");
+    arrangeSources(fake, [], [video]);
+
+    const resolved = await resolve(ASSET);
+
+    expect(resolved).toEqual({ ok: true, value: video });
   });
 
   it("answers absent without github when a young entry lacks the asset", async () => {
@@ -129,7 +148,86 @@ describe("resolveRenderedSource", () => {
     ]);
 
     expect(first.ok && second.ok).toBe(true);
-    expect(fake.listCalls("fetchRenderedImageSources")).toHaveLength(1);
+    expect(fake.listCalls("fetchRenderedMediaSources")).toHaveLength(1);
     expect(store.inFlight.size).toBe(0);
+  });
+});
+
+describe("listRenderedVideoAssetIds", () => {
+  let fake: FakeGitHub;
+  let store: RenderedSourcesStore;
+  const video = SIGNED_URL.replace(".png", ".mp4");
+
+  beforeEach(() => {
+    fake = makeFakeGitHub();
+    store = {
+      cache: createTtlCache<RenderedSources>(10),
+      inFlight: new Map(),
+    };
+  });
+
+  function list(missingAssetId?: AttachmentAssetId) {
+    const request = {
+      cacheKey: CACHE_KEY,
+      reader: bindReader(fake),
+      prNumber: PR_NUMBER,
+    };
+    return listRenderedVideoAssetIds(store, request, missingAssetId);
+  }
+
+  function cacheVideos(videoSources: readonly string[], fetchedAt: number) {
+    const sources = { imageSources: [], videoSources };
+    const entry = { sources, fetchedAt, readForMissingAsset: false };
+    store.cache.set(CACHE_KEY, entry, Date.now() + AN_HOUR_MS);
+  }
+
+  it("answers from a young entry without github", async () => {
+    cacheVideos([video], Date.now());
+
+    expect(await list()).toEqual({ ok: true, value: [ASSET] });
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("refetches an older entry, a video posted since may be missing", async () => {
+    arrangeSources(fake, [], [video]);
+    cacheVideos([], Date.now() - 60_000);
+
+    expect(await list()).toEqual({ ok: true, value: [ASSET] });
+    expect(fake.listCalls("fetchRenderedMediaSources")).toHaveLength(1);
+  });
+
+  it("re-reads a young entry once for a video id it lacks", async () => {
+    const later = SIGNED_URL.replace(ASSET, OTHER_ASSET).replace(
+      ".png",
+      ".mp4",
+    );
+    arrangeSources(fake, [], [video, later]);
+    cacheVideos([video], Date.now());
+
+    const answered = await list(requireAssetId(OTHER_ASSET));
+
+    expect(answered).toEqual({ ok: true, value: [ASSET, OTHER_ASSET] });
+    expect(fake.listCalls("fetchRenderedMediaSources")).toHaveLength(1);
+  });
+
+  it("answers a second miss from the entry the first one read", async () => {
+    arrangeSources(fake, [], [video]);
+    cacheVideos([], Date.now());
+
+    await list(requireAssetId(ASSET));
+    const second = await list(requireAssetId(OTHER_ASSET));
+
+    expect(second).toEqual({ ok: true, value: [ASSET] });
+    expect(fake.listCalls("fetchRenderedMediaSources")).toHaveLength(1);
+  });
+
+  it("answers a young entry holding the asked id without github", async () => {
+    cacheVideos([video], Date.now());
+
+    expect(await list(requireAssetId(ASSET))).toEqual({
+      ok: true,
+      value: [ASSET],
+    });
+    expect(fake.calls).toEqual([]);
   });
 });

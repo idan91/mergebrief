@@ -6,6 +6,7 @@ import type { InstallationId, RepoId, ReviewerId } from "persistence";
 import type { Brand, Result, ValueOf } from "types/utils";
 import type { UserInstallation, UserOctokitFactory } from "../auth/oauth";
 import type { GitHubApiError } from "../errors";
+import type { RenderedMediaSources } from "../operations/attachments";
 import type {
   AttachmentBranchDeletion,
   AttachmentCommit,
@@ -233,7 +234,7 @@ export interface RepoReader {
   /** Operator fallback: only for `operatorReads.prNumber`. */
   fetchPullRequestConversation(prNumber: number): GitHubCall<PrConversation>;
   /** Operator fallback: only for `operatorReads.prNumber`. */
-  fetchRenderedImageSources(prNumber: number): GitHubCall<readonly string[]>;
+  fetchRenderedMediaSources(prNumber: number): GitHubCall<RenderedMediaSources>;
 }
 
 /**

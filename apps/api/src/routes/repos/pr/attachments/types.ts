@@ -6,7 +6,11 @@ import {
   type AttachmentSourceKinds,
 } from "contract";
 import type { QualifiedRefNamespace } from "brief-core/media-address";
-import type { GitHubCallFailure, RepoReader } from "github";
+import type {
+  GitHubCallFailure,
+  RenderedMediaSources,
+  RepoReader,
+} from "github";
 import type { InstallationBindingDeps } from "../../../../access/types";
 import {
   FailureKinds,
@@ -107,29 +111,45 @@ export interface ReadBranchAttachmentInput {
   readonly file: AttachmentFile;
 }
 
-/** The image sources GitHub rendered for a PR, and when they were read. */
+/** The image and video sources GitHub rendered for a PR, and when they were read. */
 export interface RenderedSources {
-  readonly sources: readonly string[];
+  readonly sources: RenderedMediaSources;
   readonly fetchedAt: number;
+  /** Read past a young entry for a page's missing video id; a later miss is answered from it until it ages. */
+  readonly readForMissingAsset: boolean;
 }
 
 /** The rendered sources per viewer and PR, and the GitHub call running for each. */
 export interface RenderedSourcesStore {
-  /** key `${sessionHash}:${repoId}:${prNumber}` → the PR's rendered image sources. */
+  /** key `${sessionHash}:${repoId}:${prNumber}` → the PR's rendered image and video sources. */
   readonly cache: TtlCache<RenderedSources>;
   /** The same key → the GitHub call already running for it. */
   readonly inFlight: Map<
     string,
-    Promise<Result<RenderedSources, ReadAttachmentFailure>>
+    Promise<Result<RenderedSources, ReadAttachmentWireFailure>>
   >;
 }
 
-/** One asset looked up in a pull request's rendered sources. */
-export interface RenderedSourceRequest {
+/** A pull request's rendered sources, the key they cache under and the reader that reads them. */
+export interface RenderedSourcesRequest {
   readonly cacheKey: string;
   readonly reader: RepoReader;
   readonly prNumber: number;
+}
+
+/** One asset looked up in a pull request's rendered sources. */
+export interface RenderedSourceRequest extends RenderedSourcesRequest {
   readonly assetId: AttachmentAssetId;
+}
+
+export interface ListVideoAssetsDeps {
+  readonly sources: RenderedSourcesStore;
+}
+
+export interface ListVideoAssetsInput {
+  readonly prNumber: number;
+  /** A bare asset line's id the page's last answer lacked: it may have been posted since. */
+  readonly missingAssetId?: AttachmentAssetId | undefined;
 }
 
 export interface ReadAttachmentDeps {

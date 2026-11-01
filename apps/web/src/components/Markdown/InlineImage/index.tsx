@@ -3,8 +3,7 @@ import type { ExtraProps } from "react-markdown";
 
 import { MediaFailedRow } from "../MediaFailedRow";
 import { MediaFailedRowKinds } from "../MediaFailedRow/types";
-import { ORIGINAL_SOURCE_PROPERTY } from "./consts";
-import { dropOriginalSource } from "./utils";
+import { dropOriginalSource, readOriginalSource } from "../original-source";
 
 export type InlineImageProps = ComponentProps<"img"> & ExtraProps;
 
@@ -22,9 +21,7 @@ export function InlineImage({
 }: InlineImageProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [failedSource, setFailedSource] = useState<string | undefined>();
-  const recordedSource = node?.properties[ORIGINAL_SOURCE_PROPERTY];
-  const originalAddress =
-    typeof recordedSource === "string" ? recordedSource : undefined;
+  const originalAddress = readOriginalSource(node);
   const domAttributes = dropOriginalSource(imageProps);
 
   // A server-rendered image can fail before hydration attaches onError;

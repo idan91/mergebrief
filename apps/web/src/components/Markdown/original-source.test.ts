@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dropOriginalSource } from "./utils";
+import { dropOriginalSource } from "./original-source";
 
 describe("dropOriginalSource", () => {
   it("keeps every attribute but the recorded original address", () => {

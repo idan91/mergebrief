@@ -40,6 +40,7 @@ export interface PullRequestState {
   readonly diff: string;
   conversation: PrConversation;
   readonly imageSources: readonly string[];
+  readonly videoSources: readonly string[];
   reviews: FakeReview[];
   readonly reviewComments: ReviewCommentListing;
   readonly rejectedAnchorPaths: ReadonlySet<string>;
@@ -143,6 +144,7 @@ function createPullRequestState(pull: FakePullRequest): PullRequestState {
     diff: pull.diff ?? "",
     conversation: pull.conversation ?? EMPTY_CONVERSATION,
     imageSources: pull.imageSources ?? [],
+    videoSources: pull.videoSources ?? [],
     reviews: [...(pull.reviews ?? [])],
     reviewComments: pull.reviewComments ?? { comments: [], complete: true },
     rejectedAnchorPaths: new Set(pull.rejectedAnchorPaths),

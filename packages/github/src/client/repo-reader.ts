@@ -1,4 +1,4 @@
-import { fetchRenderedImageSources } from "../operations/attachments";
+import { fetchRenderedMediaSources } from "../operations/attachments";
 import { fetchPullRequestConversation } from "../operations/conversation";
 import {
   fetchCheckedCompareDiff,
@@ -83,10 +83,10 @@ export function buildRepoReader(
         { prNumber },
       );
     },
-    fetchRenderedImageSources(prNumber) {
+    fetchRenderedMediaSources(prNumber) {
       return run(
-        (octokit) => fetchRenderedImageSources(octokit, { ...repo, prNumber }),
-        "fetch rendered image sources",
+        (octokit) => fetchRenderedMediaSources(octokit, { ...repo, prNumber }),
+        "fetch rendered media sources",
         { prNumber },
       );
     },

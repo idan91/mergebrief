@@ -141,6 +141,7 @@ export interface FakePullRequest {
   readonly diff?: string;
   readonly conversation?: PrConversation;
   readonly imageSources?: readonly string[];
+  readonly videoSources?: readonly string[];
   readonly reviews?: readonly FakeReview[];
   readonly reviewComments?: ReviewCommentListing;
   /** Paths GitHub refuses a comment anchor on, as for a file outside the diff. */

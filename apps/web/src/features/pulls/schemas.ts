@@ -1,7 +1,9 @@
 import {
+  isAttachmentAssetId,
   LastReviewUnavailableReasons,
   PrStackMemberStates,
   WaitReasons,
+  type AttachmentAssetId,
 } from "contract";
 import { ChunkLayoutBodySchema } from "brief-core/artifact";
 import { z } from "zod/v4";
@@ -228,3 +230,12 @@ export const briefLayoutReplySchema = dropNullKeys(
   z.object({ layout: ChunkLayoutBodySchema.exactOptional() }),
   ["layout"],
 );
+
+const attachmentAssetIdSchema = z.custom<AttachmentAssetId>(
+  (value) => typeof value === "string" && isAttachmentAssetId(value),
+);
+
+/** `list-video-assets`: the pasted assets GitHub rendered as a video. */
+export const videoAssetsSchema = z
+  .object({ assetIds: z.array(attachmentAssetIdSchema).readonly() })
+  .readonly();

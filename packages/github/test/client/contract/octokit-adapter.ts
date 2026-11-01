@@ -127,10 +127,11 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
       },
     },
   }),
-  fetchRenderedImageSources: answerGraphql({
+  fetchRenderedMediaSources: answerGraphql({
     repository: {
       pullRequest: {
-        bodyHTML: '<p><img alt="x" src="https://images.example/1.png"></p>',
+        bodyHTML:
+          '<p><img alt="x" src="https://images.example/1.png"></p><video src="https://videos.example/1.mp4" controls></video>',
         comments: { nodes: [] },
         reviews: { nodes: [] },
         reviewThreads: { nodes: [] },

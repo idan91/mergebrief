@@ -294,12 +294,15 @@ export type {
   UserMentionTarget,
 } from "./operations/mentions/types";
 
-// The rendered image sources of a PR's bodies: a private attachment is
-// reachable only through the signed URL GitHub renders into `bodyHTML`.
+// The rendered image and video sources of a PR's bodies: a private
+// attachment is reachable only through the signed URL GitHub renders into
+// `bodyHTML`.
 export {
   extractImageSources,
-  fetchRenderedImageSources,
-  type FetchRenderedImageSourcesInput,
+  extractVideoSources,
+  fetchRenderedMediaSources,
+  type FetchRenderedMediaSourcesInput,
+  type RenderedMediaSources,
 } from "./operations/attachments";
 
 // The attachments-branch write, the one push the App makes to a customer

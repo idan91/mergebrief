@@ -258,7 +258,7 @@ describe("GET attachments/:assetId", () => {
 
       await readAttachment(makeApp(), ASSET_ID);
 
-      expect(fake.listCalls("fetchRenderedImageSources")[0]?.input).toEqual({
+      expect(fake.listCalls("fetchRenderedMediaSources")[0]?.input).toEqual({
         ...REPO,
         prNumber: PR_NUMBER,
       });
@@ -276,7 +276,7 @@ describe("GET attachments/:assetId", () => {
       const second = await readAttachment(app, OTHER_ASSET_ID);
 
       expect(second.status).toBe(200);
-      expect(fake.listCalls("fetchRenderedImageSources")).toHaveLength(1);
+      expect(fake.listCalls("fetchRenderedMediaSources")).toHaveLength(1);
     });
 
     it("answers 404 when the pull request renders no such asset", async () => {
@@ -304,7 +304,7 @@ describe("GET attachments/:assetId", () => {
 
     it("answers 404 when github denies the pull request", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      fake.failOn("fetchRenderedImageSources", FakeFailures.FORBIDDEN);
+      fake.failOn("fetchRenderedMediaSources", FakeFailures.FORBIDDEN);
       stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
@@ -323,7 +323,7 @@ describe("GET attachments/:assetId", () => {
 
     it("answers 502 on an upstream failure", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
-      fake.failOn("fetchRenderedImageSources", FakeFailures.SERVER_ERROR);
+      fake.failOn("fetchRenderedMediaSources", FakeFailures.SERVER_ERROR);
       stubAttachmentFetch(fake, { repoId: REPO_ID }, makePngResponse);
 
       const response = await readAttachment(makeApp(), ASSET_ID);
@@ -352,7 +352,7 @@ describe("GET attachments/:assetId", () => {
     it("answers 401 when the read still 401s after a good refresh", async () => {
       arrangeRenderedSources(fake, [SIGNED_URL]);
       fake.failOn(
-        "fetchRenderedImageSources",
+        "fetchRenderedMediaSources",
         FakeFailures.UNAUTHORIZED,
         CredentialKinds.REVIEWER,
       );
@@ -361,7 +361,7 @@ describe("GET attachments/:assetId", () => {
       const response = await readAttachment(makeApp(), ASSET_ID);
 
       expect(response.status).toBe(401);
-      expect(fake.listCalls("fetchRenderedImageSources")).toHaveLength(2);
+      expect(fake.listCalls("fetchRenderedMediaSources")).toHaveLength(2);
     });
 
     it("answers 404 for an svg and cancels the upstream body", async () => {
@@ -596,7 +596,7 @@ describe("GET attachments/:assetId", () => {
       ({ cookie } = await seedSignIn(harness.handle, kp));
       await seedPullRequest(harness.handle, OWNER);
       fake.failOn(
-        "fetchRenderedImageSources",
+        "fetchRenderedMediaSources",
         FakeFailures.NOT_FOUND,
         CredentialKinds.REVIEWER,
       );

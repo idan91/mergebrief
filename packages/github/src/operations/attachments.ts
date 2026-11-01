@@ -1,7 +1,8 @@
 // GitHub renders a private attachment in `bodyHTML` as a signed URL that
 // lives a few minutes and needs no credential, where the bare asset URL
 // refuses an App user token. So the rendered bodies are the only way to a
-// private screenshot's bytes. Failures use mapGraphqlError.
+// private screenshot's or recording's bytes, and the only place that says
+// a pasted asset is a video. Failures use mapGraphqlError.
 import type { Octokit } from "octokit";
 import { z } from "zod/v4";
 import {
@@ -12,15 +13,24 @@ import {
 import type { Result } from "types/utils";
 import { HttpStatuses } from "types/http";
 
-export interface FetchRenderedImageSourcesInput {
+export interface FetchRenderedMediaSourcesInput {
   readonly owner: string;
   readonly repo: string;
   readonly prNumber: number;
 }
 
-const FETCH_CONTEXT = "fetch rendered image sources";
+/** Every image and video source GitHub rendered for a pull request, each in document order. */
+export interface RenderedMediaSources {
+  readonly imageSources: readonly string[];
+  readonly videoSources: readonly string[];
+}
+
+const FETCH_CONTEXT = "fetch rendered media sources";
 const PAGE_SIZE = 100;
 const IMAGE_SOURCE_PATTERN = /<img\b[^>]*?\ssrc="([^"]+)"/g;
+const VIDEO_ELEMENT_PATTERN = /<video\b([^>]*)>([\s\S]*?)<\/video>/g;
+const SOURCE_ELEMENT_PATTERN = /<source\b[^>]*?\ssrc="([^"]+)"/g;
+const SOURCE_ATTRIBUTE_PATTERN = /\ssrc="([^"]+)"/;
 
 const RENDERED_BODIES_QUERY = `
   query RenderedBodies($owner: String!, $repo: String!, $prNumber: Int!) {
@@ -90,9 +100,9 @@ function collectBodies(
   return bodies;
 }
 
-export function extractImageSources(html: string): string[] {
+function collectMatches(html: string, pattern: RegExp): string[] {
   const sources: string[] = [];
-  for (const match of html.matchAll(IMAGE_SOURCE_PATTERN)) {
+  for (const match of html.matchAll(pattern)) {
     const source = match[1];
     if (source !== undefined && source !== "") {
       sources.push(source);
@@ -101,16 +111,35 @@ export function extractImageSources(html: string): string[] {
   return sources;
 }
 
+export function extractImageSources(html: string): string[] {
+  return collectMatches(html, IMAGE_SOURCE_PATTERN);
+}
+
+/** A `<video>`'s own `src`, then each `<source src>` inside it. */
+export function extractVideoSources(html: string): string[] {
+  const sources: string[] = [];
+  for (const [, attributes = "", content = ""] of html.matchAll(
+    VIDEO_ELEMENT_PATTERN,
+  )) {
+    const [, own] = SOURCE_ATTRIBUTE_PATTERN.exec(attributes) ?? [];
+    if (own !== undefined) {
+      sources.push(own);
+    }
+    sources.push(...collectMatches(content, SOURCE_ELEMENT_PATTERN));
+  }
+  return sources;
+}
+
 /**
- * Every `<img src>` GitHub rendered into the PR's description, comments,
- * reviews and review-thread comments, in document order. A private
- * attachment arrives as a signed `private-user-images` URL; a public one as
- * its bare asset URL. The caller picks the one it wants.
+ * Every `<img src>` and `<video>` source GitHub rendered into the PR's
+ * description, comments, reviews and review-thread comments, in document
+ * order. A private attachment arrives as a signed `private-user-images` URL;
+ * a public one as its bare asset URL. The caller picks the one it wants.
  */
-export async function fetchRenderedImageSources(
+export async function fetchRenderedMediaSources(
   octokit: Octokit,
-  input: FetchRenderedImageSourcesInput,
-): Promise<Result<readonly string[], GitHubApiError>> {
+  input: FetchRenderedMediaSourcesInput,
+): Promise<Result<RenderedMediaSources, GitHubApiError>> {
   let response: unknown;
   try {
     response = await octokit.graphql(RENDERED_BODIES_QUERY, {
@@ -131,8 +160,10 @@ export async function fetchRenderedImageSources(
     return { ok: false, error: resourceNotFoundError() };
   }
 
-  const sources = collectBodies(pullRequest).flatMap(extractImageSources);
-  return { ok: true, value: sources };
+  const bodies = collectBodies(pullRequest);
+  const imageSources = bodies.flatMap(extractImageSources);
+  const videoSources = bodies.flatMap(extractVideoSources);
+  return { ok: true, value: { imageSources, videoSources } };
 }
 
 function resourceNotFoundError(): GitHubApiError {

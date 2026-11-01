@@ -65,6 +65,12 @@
       "owner": "idan"
     }
   },
+  "list-video-assets": {
+    "webOnly": {
+      "reason": "Tells the browser which bare pasted-asset lines GitHub plays as a video, so the page renders a player; the CLI prints the markdown with the GitHub URL in it",
+      "owner": "idan"
+    }
+  },
   "mark-chunk-read": {
     "command": "mergebrief chunk-read <number>"
   },

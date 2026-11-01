@@ -6,5 +6,7 @@ export const LIVE_POLL_MS = 30_000;
 export const OUTAGE_BACKOFF_FACTOR = 2;
 /** The longest a poll waits between reads during an outage. */
 export const OUTAGE_POLL_MAX_MS = 5 * 60_000;
+/** The video asset list is reused this long before a new bare asset line asks again. */
+export const VIDEO_ASSETS_STALE_MS = 60_000;
 /** How long an unobserved stored brief and its layout stay cached. */
 export const BRIEF_READ_GC_MS = 10 * 60_000;

@@ -148,6 +148,12 @@ export const ProductOperations = {
     method: HttpMethods.GET,
     path: "/api/repos/:repoId/pulls/:prNumber/committed-file",
   },
+  [ProductQueryIds.LIST_VIDEO_ASSETS]: {
+    kind: OperationKinds.QUERY,
+    classification: AccessLevels.READ,
+    method: HttpMethods.GET,
+    path: "/api/repos/:repoId/pulls/:prNumber/video-assets",
+  },
   [ProductQueryIds.LIST_LOCAL_BRIEFS]: {
     kind: OperationKinds.QUERY,
     classification: AccessLevels.READ,
