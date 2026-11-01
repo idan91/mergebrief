@@ -5,6 +5,7 @@ import { defineConfig, type DefaultTheme, type UserConfig } from "vitepress";
 
 import { findDeadAnchors, formatDeadAnchors } from "../src/anchors/check";
 import { slugifyHeading } from "../src/anchors/slug";
+import { buildFaviconLink, buildFontPreloads } from "../src/head";
 import { readSiteLabels } from "../src/labels";
 import { createLinkRule, readGitHubRef } from "../src/links";
 import { LINK_RULE_NAME } from "../src/links/consts";
@@ -16,6 +17,7 @@ import {
 } from "../src/pages";
 import { HOME_PAGE_SOURCE, HOME_PAGE_TARGET } from "../src/pages/consts";
 import { buildSidebar } from "../src/pages/sidebar";
+import { CODE_THEMES, createSyntaxContrastTransformer } from "../src/syntax";
 import { createVueResolvePlugin } from "../src/vue-resolve";
 
 const configFile = fileURLToPath(import.meta.url);
@@ -48,9 +50,12 @@ const config: UserConfig<DefaultTheme.Config> = {
   cleanUrls: true,
   lastUpdated: false,
   appearance: "dark",
+  head: [buildFaviconLink(base)],
   ignoreDeadLinks: "localhostLinks",
   markdown: {
     anchor: { slugify: slugifyHeading },
+    theme: CODE_THEMES,
+    codeTransformers: [createSyntaxContrastTransformer()],
     codeCopyButtonTitle: labels.copyCode,
     config(md) {
       md.core.ruler.push(LINK_RULE_NAME, createLinkRule(linkContext));
@@ -66,6 +71,9 @@ const config: UserConfig<DefaultTheme.Config> = {
     plugins: [
       createVueResolvePlugin({ srcDir, resolveFrom: vitepressPackage }),
     ],
+  },
+  transformHead({ assets }) {
+    return buildFontPreloads(assets);
   },
   transformPageData(pageData) {
     const releaseVersion = readReleaseVersion(pageData.relativePath);
