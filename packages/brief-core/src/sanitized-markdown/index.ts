@@ -5,17 +5,18 @@
 import type { Root } from "hast";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified, type PluggableList } from "unified";
 
-import { MARKDOWN_SANITIZE_SCHEMA, REMARK_REHYPE_OPTIONS } from "./consts";
+import {
+  MARKDOWN_REMARK_PLUGINS,
+  MARKDOWN_SANITIZE_SCHEMA,
+  REMARK_REHYPE_OPTIONS,
+} from "./consts";
 
-export { MARKDOWN_SANITIZE_SCHEMA } from "./consts";
-
-/** GFM as people's text is written on GitHub. */
-export const MARKDOWN_REMARK_PLUGINS: PluggableList = [remarkGfm];
+export { MARKDOWN_REMARK_PLUGINS, MARKDOWN_SANITIZE_SCHEMA } from "./consts";
+export { splitBriefSummary } from "./brief-summary";
 
 /** Raw HTML parsed, then sanitized: every later step sees only what sanitize kept. */
 export const SANITIZE_REHYPE_PLUGINS: PluggableList = [

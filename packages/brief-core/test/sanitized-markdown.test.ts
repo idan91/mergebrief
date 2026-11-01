@@ -1,6 +1,9 @@
 import type { Element, Root, RootContent } from "hast";
 import { describe, expect, it } from "vitest";
-import { parseSanitizedMarkdown } from "../src/sanitized-markdown";
+import {
+  parseSanitizedMarkdown,
+  splitBriefSummary,
+} from "../src/sanitized-markdown";
 
 function collectTagNames(nodes: readonly (Root | RootContent)[]): string[] {
   return nodes.flatMap((node) => {
@@ -96,5 +99,54 @@ describe("parseSanitizedMarkdown", () => {
     const video = findElement(tree, "video");
     expect(video).toBeDefined();
     expect(video?.properties["src"]).toBeUndefined();
+  });
+});
+
+describe("splitBriefSummary", () => {
+  it("splits the lede from the changelog at its heading", () => {
+    const summary =
+      "Adds a retry to the upload.\n\n## Changelog\n\n- Retries twice\n- Logs the last error";
+
+    expect(splitBriefSummary(summary)).toEqual({
+      lede: "Adds a retry to the upload.",
+      changelog: "## Changelog\n\n- Retries twice\n- Logs the last error",
+    });
+  });
+
+  it("returns the whole summary as the lede with no changelog", () => {
+    expect(splitBriefSummary("Adds a retry.\n\nWhy it matters.")).toEqual({
+      lede: "Adds a retry.\n\nWhy it matters.",
+    });
+  });
+
+  it("ignores the word inside a fence, a deeper heading or a sentence", () => {
+    const summary = [
+      "Mentions ## Changelog mid-line.",
+      "",
+      "```md",
+      "## Changelog",
+      "```",
+      "",
+      "### Changelog",
+    ].join("\n");
+
+    expect(splitBriefSummary(summary)).toEqual({ lede: summary });
+  });
+
+  it("matches the heading in any case and with an underline", () => {
+    const summary = "Lede.\n\nchangelog\n---------\n\n- One";
+
+    expect(splitBriefSummary(summary)).toEqual({
+      lede: "Lede.",
+      changelog: "changelog\n---------\n\n- One",
+    });
+  });
+
+  it("splits at the first changelog heading only", () => {
+    const summary = "Lede.\n\n## Changelog\n\n- One\n\n## Changelog\n\n- Two";
+
+    expect(splitBriefSummary(summary).changelog).toBe(
+      "## Changelog\n\n- One\n\n## Changelog\n\n- Two",
+    );
   });
 });

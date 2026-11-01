@@ -1,4 +1,6 @@
 import { defaultSchema, type Options as SanitizeSchema } from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
+import type { PluggableList } from "unified";
 
 const MARKDOWN_TAG_NAMES = [
   "a",
@@ -65,3 +67,6 @@ export const MARKDOWN_SANITIZE_SCHEMA: SanitizeSchema = {
 
 /** remark-rehype keeps raw HTML as `raw` nodes so rehype-raw can parse it. */
 export const REMARK_REHYPE_OPTIONS = { allowDangerousHtml: true } as const;
+
+/** GFM as people's text is written on GitHub. */
+export const MARKDOWN_REMARK_PLUGINS: PluggableList = [remarkGfm];

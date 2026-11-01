@@ -216,6 +216,7 @@ export type Catalog = typeof en & {
       openDiagram: "Open diagram: {{caption}}";
       position: "{{position}} of {{count}}";
       status: "{{caption}}, {{position}} of {{count}}";
+      pointer: "{{label}}, in Media below";
     };
     markReadyBatch: (typeof en)["brief"]["markReadyBatch"] & {
       counts: "Posted {{posted}} of {{total}}.";
@@ -367,6 +368,7 @@ export type Catalog = typeof en & {
     };
     media: (typeof en)["shell"]["media"] & {
       enlargeNamedImage: "Enlarge {{alt}}";
+      openDiagram: "Open diagram: {{type}}";
     };
     pageTitle: (typeof en)["shell"]["pageTitle"] & {
       prNumber: "#{{number}}";

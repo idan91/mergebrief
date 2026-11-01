@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Icon } from "@web/components/Icon";
-import { IconNames, IconSizes } from "@web/components/Icon/types";
+import { OpenerBadge } from "@web/components/OpenerBadge";
 import styles from "./ImageOpener.module.scss";
 
 export interface ImageOpenerProps {
@@ -34,9 +33,7 @@ export function ImageOpener({ alt, onOpen, children }: ImageOpenerProps) {
       }}
     >
       {children}
-      <span className={styles["badge"]}>
-        <Icon name={IconNames.CORNERS_OUT} size={IconSizes.MD} />
-      </span>
+      <OpenerBadge />
     </button>
   );
 }

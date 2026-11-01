@@ -37,7 +37,11 @@ export function MediaFailedRow({
       : buildGitHubOriginalLink(originalAddress);
 
   return (
-    <span className={styles["row"]} data-testid="media-failed-row">
+    <span
+      className={styles["row"]}
+      data-state="failed"
+      data-testid="media-failed-row"
+    >
       <Icon
         className={styles["icon"]}
         label={iconLabel}

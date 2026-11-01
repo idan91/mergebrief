@@ -1,33 +1,21 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import type { ExtraProps } from "react-markdown";
 
 import { MediaFailedRow } from "@web/components/MediaFailedRow";
 import { MediaFailedRowKinds } from "@web/components/MediaFailedRow/types";
+import { MediaPlayer } from "@web/components/MediaPlayer";
+import { useVideoFailure } from "@web/hooks/useMediaFailure";
 import { readOriginalSource } from "../original-source";
 import styles from "./InlineVideo.module.scss";
 
 export type InlineVideoProps = ComponentProps<"video"> & ExtraProps;
 
-/**
- * The renderer's video: a player with controls that fetches only its
- * metadata and never plays on its own, swapped for a failed row once the
- * browser reports it cannot load. No `crossorigin`: the proxy is
- * same-origin, and the signed host behind it sends no CORS header.
- */
+/** The renderer's video: the shared player, swapped for a failed row once the browser reports it cannot load. */
 export function InlineVideo({ node, src, width, height }: InlineVideoProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [failedSource, setFailedSource] = useState<string | undefined>();
+  const { mediaRef, failed, markFailed } = useVideoFailure(src);
   const originalAddress = readOriginalSource(node);
 
-  // A server-rendered video can fail before hydration attaches onError;
-  // the element keeps the error it already raised.
-  useEffect(() => {
-    if (videoRef.current?.error?.code !== undefined) {
-      setFailedSource(src);
-    }
-  }, [src]);
-
-  if (src !== undefined && failedSource === src) {
+  if (failed) {
     return (
       <MediaFailedRow
         kind={MediaFailedRowKinds.VIDEO}
@@ -37,19 +25,13 @@ export function InlineVideo({ node, src, width, height }: InlineVideoProps) {
   }
 
   return (
-    // oxlint-disable-next-line jsx-a11y/media-has-caption -- a recording pasted into a PR comes with no caption file to point a track at
-    <video
+    <MediaPlayer
       className={styles["video"]}
-      controls
       height={height}
-      playsInline
-      preload="metadata"
-      ref={videoRef}
-      src={src}
+      playerRef={mediaRef}
+      source={src}
       width={width}
-      onError={() => {
-        setFailedSource(src);
-      }}
+      onError={markFailed}
     />
   );
 }

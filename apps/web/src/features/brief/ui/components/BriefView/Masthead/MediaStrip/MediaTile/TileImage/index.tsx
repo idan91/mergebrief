@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { IconNames } from "@web/components/Icon/types";
 import { readImageReferrerPolicy } from "@web/components/Markdown/media";
+import { useImageFailure } from "@web/hooks/useMediaFailure";
 import type { ImageStripEntry } from "../../types";
 import { readTileSource } from "../../utils";
 import { TilePlaceholder } from "../TilePlaceholder";
@@ -19,25 +19,8 @@ export interface TileImageProps {
  */
 export function TileImage({ entry }: TileImageProps) {
   const { t } = useTranslation();
-  const imageRef = useRef<HTMLImageElement>(null);
-  const [failedSource, setFailedSource] = useState<string>();
   const source = readTileSource(entry);
-  const failed = failedSource === source;
-
-  // A server-rendered image can fail before hydration attaches onError;
-  // decode() on a settled image rejects only when it is broken.
-  useEffect(() => {
-    if (failed) {
-      return;
-    }
-    const image = imageRef.current;
-    if (image === null || !image.complete) {
-      return;
-    }
-    image.decode().catch(() => {
-      setFailedSource(source);
-    });
-  }, [failed, source]);
+  const { mediaRef, failed, markFailed } = useImageFailure(source);
 
   if (failed) {
     return (
@@ -56,12 +39,10 @@ export function TileImage({ entry }: TileImageProps) {
       className={styles["image"]}
       decoding="async"
       loading="lazy"
-      ref={imageRef}
+      ref={mediaRef}
       referrerPolicy={referrerPolicy}
       src={source}
-      onError={() => {
-        setFailedSource(source);
-      }}
+      onError={markFailed}
     />
   );
 }

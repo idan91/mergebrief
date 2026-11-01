@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import type { ExtraProps } from "react-markdown";
 
 import { ImageOpener } from "@web/components/ImageOpener";
 import { MediaFailedRow } from "@web/components/MediaFailedRow";
 import { MediaFailedRowKinds } from "@web/components/MediaFailedRow/types";
+import { useImageFailure } from "@web/hooks/useMediaFailure";
 import { useInsideLink, useMediaLightbox } from "../context";
 import { readImageReferrerPolicy } from "../media";
 import { dropOriginalSource, readOriginalSource } from "../original-source";
@@ -24,27 +25,14 @@ export function InlineImage({
   alt,
   ...imageProps
 }: InlineImageProps) {
-  const imageRef = useRef<HTMLImageElement>(null);
-  const [failedSource, setFailedSource] = useState<string | undefined>();
+  const { mediaRef, failed, markFailed } = useImageFailure(src);
   const originalAddress = readOriginalSource(node);
   const domAttributes = dropOriginalSource(imageProps);
   const lightbox = useMediaLightbox();
   const mediaKey = readLightboxMediaKey(lightbox, originalAddress);
   const insideLink = useInsideLink();
 
-  // A server-rendered image can fail before hydration attaches onError;
-  // decode() on a settled image rejects only when it is broken.
-  useEffect(() => {
-    const image = imageRef.current;
-    if (image === null || !image.complete) {
-      return;
-    }
-    image.decode().catch(() => {
-      setFailedSource(src);
-    });
-  }, [src]);
-
-  if (src !== undefined && failedSource === src) {
+  if (failed) {
     return (
       <MediaFailedRow
         alt={alt}
@@ -61,12 +49,10 @@ export function InlineImage({
       alt={alt}
       decoding="async"
       loading="lazy"
-      ref={imageRef}
+      ref={mediaRef}
       referrerPolicy={referrerPolicy}
       src={src}
-      onError={() => {
-        setFailedSource(src);
-      }}
+      onError={markFailed}
     />
   );
   const opensLightbox =

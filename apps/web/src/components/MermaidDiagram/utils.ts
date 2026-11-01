@@ -72,6 +72,18 @@ export function readPixelSize(
   return unit === "rem" ? size * rootPixels : size;
 }
 
+/** The widest the frame draws, in whole pixels: the diagram's own width, narrowed to fit `maxBlockSize`. */
+export function readFrameMaxWidth(
+  diagram: RenderedDiagram,
+  maxBlockSize: number | undefined,
+): number {
+  const ratio = diagram.width / diagram.height;
+  const cappedWidth =
+    maxBlockSize === undefined ? diagram.width : maxBlockSize * ratio;
+  const maxWidth = Math.floor(Math.min(diagram.width, cappedWidth));
+  return maxWidth;
+}
+
 /**
  * The frame's size: the viewBox's ratio, never wider than the diagram drew
  * itself nor taller than `maxBlockSize`, and never narrower than `minScale`
@@ -81,12 +93,10 @@ export function buildFrameStyle(
   diagram: RenderedDiagram,
   { maxBlockSize, minScale }: FrameBounds,
 ): CSSProperties {
-  const ratio = diagram.width / diagram.height;
-  const cappedWidth =
-    maxBlockSize === undefined ? diagram.width : maxBlockSize * ratio;
+  const maxWidth = readFrameMaxWidth(diagram, maxBlockSize);
   const style: CSSProperties = {
     aspectRatio: `${diagram.width} / ${diagram.height}`,
-    maxInlineSize: `${Math.floor(Math.min(diagram.width, cappedWidth))}px`,
+    maxInlineSize: `${maxWidth}px`,
   };
   if (minScale !== undefined) {
     style.minInlineSize = `${Math.ceil(diagram.width * minScale)}px`;

@@ -24,6 +24,14 @@ export interface FrameBounds {
   readonly minScale?: number | undefined;
 }
 
+/** A diagram drawn small in place, opening larger elsewhere. */
+export interface DiagramPreviewOptions {
+  /** The tallest the frame draws, in pixels; its width narrows to keep the ratio. */
+  readonly maxHeight: number;
+  /** Opens the diagram larger; focus returns to `opener` on close. */
+  readonly onOpen: (opener: HTMLElement) => void;
+}
+
 export const DiagramFailureKinds = {
   /** Mermaid could not draw the author's code. */
   UNREADABLE: "unreadable",

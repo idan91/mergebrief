@@ -1,6 +1,7 @@
 import { MediaKinds } from "brief-core/media";
-import { useState } from "react";
 
+import { MediaPlayer } from "@web/components/MediaPlayer";
+import { useVideoFailure } from "@web/hooks/useMediaFailure";
 import type { VideoStripEntry } from "../../../types";
 import { LightboxFailed } from "../LightboxFailed";
 import styles from "./LightboxVideo.module.scss";
@@ -9,13 +10,9 @@ export interface LightboxVideoProps {
   entry: VideoStripEntry;
 }
 
-/**
- * The same player the text uses: controls, metadata only, never playing on
- * its own, and no `crossorigin`, since the signed host behind the proxy
- * sends no CORS header.
- */
+/** The shared player fitted to the stage, or the failed panel once it cannot load. */
 export function LightboxVideo({ entry }: LightboxVideoProps) {
-  const [failed, setFailed] = useState(false);
+  const { mediaRef, failed, markFailed } = useVideoFailure(entry.source);
 
   if (failed) {
     return (
@@ -24,16 +21,11 @@ export function LightboxVideo({ entry }: LightboxVideoProps) {
   }
 
   return (
-    // oxlint-disable-next-line jsx-a11y/media-has-caption -- a recording pasted into a PR comes with no caption file to point a track at
-    <video
+    <MediaPlayer
       className={styles["video"]}
-      controls
-      playsInline
-      preload="metadata"
-      src={entry.source}
-      onError={() => {
-        setFailed(true);
-      }}
+      playerRef={mediaRef}
+      source={entry.source}
+      onError={markFailed}
     />
   );
 }

@@ -1,6 +1,8 @@
 import { MediaKinds } from "brief-core/media";
 import { useState } from "react";
 
+import { useImageFailure } from "@web/hooks/useMediaFailure";
+
 import { readImageReferrerPolicy } from "@web/components/Markdown/media";
 import type { ImageStripEntry } from "../../../types";
 import type { DisplaySize } from "../../types";
@@ -19,7 +21,7 @@ export interface LightboxImageProps {
  */
 export function LightboxImage({ entry }: LightboxImageProps) {
   const [naturalSize, setNaturalSize] = useState<DisplaySize>();
-  const [failed, setFailed] = useState(false);
+  const { mediaRef, failed, markFailed } = useImageFailure(entry.source);
 
   if (failed) {
     return (
@@ -36,9 +38,8 @@ export function LightboxImage({ entry }: LightboxImageProps) {
         decoding="async"
         referrerPolicy={referrerPolicy}
         src={entry.source}
-        onError={() => {
-          setFailed(true);
-        }}
+        ref={mediaRef}
+        onError={markFailed}
         onLoad={(event) => {
           setNaturalSize(readImageNaturalSize(event.currentTarget));
         }}
