@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import {
-  DEMOTED_HEADING_COMPONENTS,
+  MARKDOWN_COMPONENTS,
   MENTION_AWARE_COMPONENTS,
   NO_DISALLOWED_ELEMENTS,
   PROSE_DISALLOWED_ELEMENTS,
@@ -47,7 +47,7 @@ export function Markdown({
   const rehypePlugins = useMarkdownRehypePlugins(renderHtml, renderMentions);
   const components = renderMentions
     ? MENTION_AWARE_COMPONENTS
-    : DEMOTED_HEADING_COMPONENTS;
+    : MARKDOWN_COMPONENTS;
   const suggestions = renderSuggestions ? parseSuggestionBlocks(content) : [];
   const markdown =
     suggestions.length > 0 ? stripSuggestionBlocks(content) : content;

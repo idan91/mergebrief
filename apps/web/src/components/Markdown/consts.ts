@@ -1,4 +1,5 @@
 import { defaultSchema, type Options as SanitizeSchema } from "rehype-sanitize";
+import { InlineImage } from "./InlineImage";
 import { MentionAwareSpan } from "./MentionAwareSpan";
 
 /**
@@ -7,9 +8,15 @@ import { MentionAwareSpan } from "./MentionAwareSpan";
  */
 export const DEMOTED_HEADING_COMPONENTS = { h1: "h3", h2: "h4" } as const;
 
-/** The headings demoted, plus the span a mention renders through. */
-export const MENTION_AWARE_COMPONENTS = {
+/** The headings demoted, plus the image that gives way to a failed row. */
+export const MARKDOWN_COMPONENTS = {
   ...DEMOTED_HEADING_COMPONENTS,
+  img: InlineImage,
+} as const;
+
+/** The renderer's components, plus the span a mention renders through. */
+export const MENTION_AWARE_COMPONENTS = {
+  ...MARKDOWN_COMPONENTS,
   span: MentionAwareSpan,
 } as const;
 

@@ -1478,6 +1478,11 @@
     "suggestedChange": "Suggested change",
     "nothingToPreview": "Nothing to preview.",
     "markdownSupported": "Markdown is supported",
+    "media": {
+      "imageFailed": "Image could not load",
+      "videoFailed": "Video could not load",
+      "openOnGithub": "Open on GitHub"
+    },
     "attach": {
       "hint": "Paste or drop an image; it is pushed to this repository's <0/> branch",
       "uploading": "Uploading image",

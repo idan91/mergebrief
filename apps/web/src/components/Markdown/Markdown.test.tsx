@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ATTACHMENT_ASSET_ID,
   ATTACHMENT_ASSET_URL,
+  COMMITTED_IMAGE_URL,
 } from "@web/test/attachments";
 import { Markdown } from ".";
 import { AttachmentScopeProvider } from "./context";
@@ -250,5 +251,173 @@ describe("Markdown mentions", () => {
     render(<Markdown content="cc @cara" />);
 
     expect(listMarkedTargets()).toEqual([]);
+  });
+});
+
+describe("Markdown image that cannot load", () => {
+  it("loads images lazily and decodes them off the main thread", () => {
+    render(
+      <Markdown content={`![Before](${ATTACHMENT_ASSET_URL})`} renderHtml />,
+    );
+
+    const image = screen.getByRole("img", { name: "Before" });
+    expect(image.getAttribute("loading")).toBe("lazy");
+    expect(image.getAttribute("decoding")).toBe("async");
+  });
+
+  it("keeps the title, align and language the sanitizer allows", () => {
+    render(
+      <AttachmentScopeProvider
+        installed
+        prNumber={7}
+        repoId="555"
+        repoSlug="octo/hello"
+      >
+        <Markdown
+          content={`![Chart](https://example.com/a.png "Weekly chart")\n\n<img align="right" dir="rtl" lang="he" alt="Logo" src="${COMMITTED_IMAGE_URL}">`}
+          renderHtml
+        />
+      </AttachmentScopeProvider>,
+    );
+
+    const chart = screen.getByRole("img", { name: "Chart" });
+    expect(chart.getAttribute("title")).toBe("Weekly chart");
+    const logo = screen.getByRole("img", { name: "Logo" });
+    expect(logo.getAttribute("align")).toBe("right");
+    expect(logo.getAttribute("dir")).toBe("rtl");
+    expect(logo.getAttribute("lang")).toBe("he");
+    expect(logo.getAttribute("data-original-source")).toBeNull();
+  });
+
+  it("swaps an image that errors for the failed row", () => {
+    render(
+      <Markdown
+        content={`Before\n\n![Checkout after](${ATTACHMENT_ASSET_URL})\n\nAfter`}
+        renderHtml
+      />,
+    );
+
+    fireEvent.error(screen.getByRole("img", { name: "Checkout after" }));
+
+    expect(screen.queryByRole("img", { name: "Checkout after" })).toBeNull();
+    expect(screen.getByTestId("media-failed-row").textContent).toContain(
+      "Checkout after",
+    );
+    const link = screen.getByRole("link", { name: /Open on GitHub/ });
+    expect(link.getAttribute("href")).toBe(ATTACHMENT_ASSET_URL);
+  });
+
+  it("shows a new image at the same place after a failed one", () => {
+    const failedAddress = "https://images.example.com/broken.png";
+    const nextAddress = "https://images.example.com/fixed.png";
+    const { rerender } = render(
+      <Markdown content={`![Chart](${failedAddress})`} renderHtml />,
+    );
+    fireEvent.error(screen.getByRole("img", { name: "Chart" }));
+
+    rerender(<Markdown content={`![Chart](${nextAddress})`} renderHtml />);
+
+    const image = screen.getByRole("img", { name: "Chart" });
+    expect(image.getAttribute("src")).toBe(nextAddress);
+    expect(screen.queryByTestId("media-failed-row")).toBeNull();
+  });
+
+  it("links a proxied image's row to the address the author wrote", () => {
+    render(
+      <AttachmentScopeProvider
+        installed
+        prNumber={7}
+        repoId="555"
+        repoSlug="octo/hello"
+      >
+        <Markdown content={`![](${COMMITTED_IMAGE_URL})`} renderHtml />
+      </AttachmentScopeProvider>,
+    );
+
+    const image = screen.getByRole("presentation");
+    expect(image.getAttribute("src")).not.toBe(COMMITTED_IMAGE_URL);
+    fireEvent.error(image);
+
+    expect(screen.getByText("Image could not load")).toBeTruthy();
+    const link = screen.getByRole("link", { name: /Open on GitHub/ });
+    expect(link.getAttribute("href")).toBe(COMMITTED_IMAGE_URL);
+  });
+
+  it("gives an outside-host image's row no link", () => {
+    render(
+      <Markdown content="![Chart](https://example.com/chart.png)" renderHtml />,
+    );
+
+    fireEvent.error(screen.getByRole("img", { name: "Chart" }));
+
+    expect(screen.getByTestId("media-failed-row")).toBeTruthy();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("never takes the link address from the author's own attribute", () => {
+    render(
+      <Markdown
+        content={`<img alt="x" data-original-source="${ATTACHMENT_ASSET_URL}" src="https://example.com/x.png" />`}
+        renderHtml
+      />,
+    );
+
+    fireEvent.error(screen.getByRole("img", { name: "x" }));
+
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("nests no second link in a failed image wrapped by a link", () => {
+    const { container } = render(
+      <Markdown
+        content={`[![Build](${ATTACHMENT_ASSET_URL})](https://example.com/ci)`}
+        renderHtml
+      />,
+    );
+
+    fireEvent.error(screen.getByRole("img", { name: "Build" }));
+
+    expect(screen.getByTestId("media-failed-row")).toBeTruthy();
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+    expect(container.querySelector("a a")).toBeNull();
+  });
+});
+
+describe("Markdown image that failed before the page hydrated", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(HTMLImageElement.prototype, "decode");
+  });
+
+  function stubSettledImage(decodes: boolean): void {
+    vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(
+      true,
+    );
+    Object.defineProperty(HTMLImageElement.prototype, "decode", {
+      configurable: true,
+      value: () => (decodes ? Promise.resolve() : Promise.reject(new Error())),
+    });
+  }
+
+  it("shows the failed row for an image already broken at mount", async () => {
+    stubSettledImage(false);
+
+    render(
+      <Markdown content={`![Before](${ATTACHMENT_ASSET_URL})`} renderHtml />,
+    );
+
+    expect(await screen.findByTestId("media-failed-row")).toBeTruthy();
+  });
+
+  it("keeps an image that had already loaded at mount", async () => {
+    stubSettledImage(true);
+
+    render(
+      <Markdown content={`![Before](${ATTACHMENT_ASSET_URL})`} renderHtml />,
+    );
+    await Promise.resolve();
+
+    expect(screen.getByRole("img", { name: "Before" })).toBeTruthy();
+    expect(screen.queryByTestId("media-failed-row")).toBeNull();
   });
 });

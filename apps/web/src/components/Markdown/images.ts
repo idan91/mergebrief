@@ -12,9 +12,10 @@ import {
   type AttachmentSource,
 } from "contract";
 import type { Element } from "hast";
-import { visit } from "unist-util-visit";
+import { SKIP, visit } from "unist-util-visit";
 
 import type { AttachmentScope } from "./context";
+import { ORIGINAL_SOURCE_PROPERTY } from "./InlineImage/consts";
 import type { RehypeTransform } from "./types";
 
 const HTTPS_PREFIX = "https://";
@@ -55,6 +56,27 @@ export function rehypeNormalizeImages(): RehypeTransform {
 
       parent.children.splice(index, 1);
       return index;
+    });
+  };
+}
+
+/**
+ * Runs after sanitize, which strips any such property the author wrote, and
+ * before the proxy step rewrites `src`, so a failed row links the address the
+ * author wrote. An image inside a link records none: its failed row must not
+ * nest a second link.
+ */
+export function rehypeRecordOriginalSources(): RehypeTransform {
+  return (tree) => {
+    visit(tree, "element", (node) => {
+      if (node.tagName === "a") {
+        return SKIP;
+      }
+      const source = readImageSource(node);
+      if (source !== undefined) {
+        node.properties[ORIGINAL_SOURCE_PROPERTY] = source;
+      }
+      return undefined;
     });
   };
 }

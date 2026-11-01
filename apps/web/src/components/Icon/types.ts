@@ -24,6 +24,7 @@ export const IconNames = {
   CURSOR_CLICK: "cursor-click",
   DOTS_THREE: "dots-three",
   EYE_SLASH: "eye-slash",
+  FILM_STRIP: "film-strip",
   GEAR: "gear",
   GITHUB_LOGO: "github-logo",
   GIT_MERGE: "git-merge",

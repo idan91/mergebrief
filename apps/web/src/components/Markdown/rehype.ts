@@ -4,7 +4,11 @@ import rehypeSanitize from "rehype-sanitize";
 
 import { MARKDOWN_SANITIZE_SCHEMA } from "./consts";
 import type { AttachmentScope } from "./context";
-import { rehypeNormalizeImages, rehypeProxyAttachmentSources } from "./images";
+import {
+  rehypeNormalizeImages,
+  rehypeProxyAttachmentSources,
+  rehypeRecordOriginalSources,
+} from "./images";
 import { rehypePrefixFragmentLinks } from "./links";
 import { rehypeMarkMentions } from "./mentions";
 
@@ -37,6 +41,7 @@ export function buildRehypePlugins(
     [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
     rehypeNormalizeImages,
     rehypePrefixFragmentLinks,
+    rehypeRecordOriginalSources,
     [rehypeProxyAttachmentSources, options.scope],
     ...mentions,
   ];

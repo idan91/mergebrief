@@ -1,0 +1,57 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .row {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+    max-inline-size: 100%;
+    min-block-size: functions.to-rem(28px);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-3);
+    border: 1px dashed var(--color-outline-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+    text-indent: 0;
+    vertical-align: middle;
+  }
+
+  .icon {
+    flex: none;
+  }
+
+  .wording {
+    display: -webkit-box;
+    min-inline-size: 0;
+    overflow: hidden;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .link {
+    display: inline-flex;
+    flex: none;
+    gap: var(--space-1);
+    align-items: center;
+    min-block-size: functions.to-rem(24px);
+    border-radius: var(--radius-xs);
+    color: var(--color-text-read);
+    text-decoration: underline;
+    text-decoration-color: var(--color-outline-2);
+    text-underline-offset: 3px;
+    transition: color var(--motion-fast);
+
+    &:hover {
+      color: var(--color-text-1);
+      text-decoration-color: currentcolor;
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+}

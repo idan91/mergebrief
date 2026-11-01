@@ -22,6 +22,7 @@ import CursorGlyph from "../icons/cursor.svg?react";
 import CursorClickGlyph from "../icons/cursor-click.svg?react";
 import DotsThreeGlyph from "../icons/dots-three.svg?react";
 import EyeSlashGlyph from "../icons/eye-slash.svg?react";
+import FilmStripGlyph from "../icons/film-strip.svg?react";
 import GearGlyph from "../icons/gear.svg?react";
 import GitMergeGlyph from "../icons/git-merge.svg?react";
 import GitPullRequestGlyph from "../icons/git-pull-request.svg?react";
@@ -74,6 +75,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.COPY]: CopyGlyph,
   [IconNames.DOTS_THREE]: DotsThreeGlyph,
   [IconNames.EYE_SLASH]: EyeSlashGlyph,
+  [IconNames.FILM_STRIP]: FilmStripGlyph,
   [IconNames.GEAR]: GearGlyph,
   [IconNames.GIT_MERGE]: GitMergeGlyph,
   [IconNames.GIT_PULL_REQUEST]: GitPullRequestGlyph,

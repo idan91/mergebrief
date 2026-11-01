@@ -33,6 +33,7 @@ export {
   type QualifiedRef,
   type QualifiedRefNamespace,
 } from "./types";
+export { GITHUB_HOST, RAW_CONTENT_HOST } from "./consts";
 
 type ParseResult = Result<CommittedFileSource, CommittedFileParseErrorCode>;
 
