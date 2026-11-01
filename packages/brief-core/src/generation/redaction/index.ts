@@ -672,7 +672,7 @@ export function countPullRequestSecrets(pr: FetchedPr): SecretKindCounts {
     ...pr.links.map((link) => link.text),
   ];
   if (pr.primaryTicket?.status === "read") {
-    prose.push(pr.primaryTicket.snippet.text);
+    prose.push(pr.primaryTicket.snippet.header, pr.primaryTicket.snippet.text);
   }
   const proseHits = prose.flatMap((text) => redactProseSecrets(text).hits);
   return countSecretKinds([...redactDiffSecrets(pr.diff).hits, ...proseHits]);

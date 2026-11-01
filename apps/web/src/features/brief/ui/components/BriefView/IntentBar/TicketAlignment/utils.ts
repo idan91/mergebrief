@@ -20,8 +20,8 @@ const HEADER_SEPARATOR = " · ";
 
 /**
  * The tracker header without the title and key the card's first line
- * already shows. A Notion header opens with the title and closes with the
- * key; a GitHub header carries neither, so it passes through.
+ * already shows. Both headers open with the title; a Notion header also
+ * closes with the key.
  */
 export function deriveTicketFacts(ticket: PrimaryTicket): string {
   const withoutTitle = dropLeadingPiece(ticket.header, ticket.title);

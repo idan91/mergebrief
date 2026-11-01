@@ -638,7 +638,7 @@ export const PrimaryTicketSchema = z.object({
   header: z
     .string()
     .describe(
-      'the tracker header line (status, type, priority; or state, labels, milestone); "" when none',
+      'the tracker header line, title first (then status, type, priority; or state, labels, milestone); "" when none',
     ),
   status: z.enum([PrimaryTicketStatuses.READ, PrimaryTicketStatuses.UNREAD]),
   reason: z

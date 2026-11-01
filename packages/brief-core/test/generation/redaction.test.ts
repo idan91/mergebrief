@@ -731,17 +731,23 @@ describe("countSecretKinds", () => {
 });
 
 describe("countPullRequestSecrets", () => {
+  const meta: FetchedPr["meta"] = {
+    title: "t",
+    body: "d",
+    url: "https://github.com/o/r/pull/1",
+    sha: "deadbeef00000000",
+    baseSha: "base0000000000000",
+    commitCount: 1,
+    files: [],
+  };
+
   it("counts the diff, the prose and the linked text together", () => {
     const pr: FetchedPr = {
       locator: { owner: "o", repo: "r", number: 1 },
       meta: {
+        ...meta,
         title: `t ${FAKE_SECRETS[SecretKinds.JWT]}`,
         body: `d ${FAKE_SECRETS[SecretKinds.JWT]}`,
-        url: "https://github.com/o/r/pull/1",
-        sha: "deadbeef00000000",
-        baseSha: "base0000000000000",
-        commitCount: 1,
-        files: [],
       },
       diff: makeFakePemBlock("+").join("\n"),
       links: [
@@ -758,6 +764,32 @@ describe("countPullRequestSecrets", () => {
       [SecretKinds.PRIVATE_KEY]: FAKE_PEM_BODY.length,
       [SecretKinds.JWT]: 2,
       [SecretKinds.STRIPE_KEY]: 1,
+    });
+  });
+
+  it("counts a secret in the primary ticket header", () => {
+    const pr: FetchedPr = {
+      locator: { owner: "o", repo: "r", number: 1 },
+      meta,
+      diff: "",
+      links: [],
+      primaryTicket: {
+        status: "read",
+        snippet: {
+          providerId: "url",
+          source: "https://github.com/o/r/issues/7",
+          text: "clean body",
+          tracker: "github",
+          key: "",
+          title: "t",
+          header: `t ${FAKE_SECRETS[SecretKinds.GITHUB_TOKEN]} · open`,
+          foundIn: "description",
+        },
+      },
+    };
+
+    expect(countPullRequestSecrets(pr)).toEqual({
+      [SecretKinds.GITHUB_TOKEN]: 1,
     });
   });
 });

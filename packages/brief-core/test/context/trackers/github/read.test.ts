@@ -97,10 +97,25 @@ describe("createGitHubRead", () => {
         tracker: TicketTrackers.GITHUB,
         key: "",
         title: "Add the thing",
-        header: "open · bug, p1 · v1.2",
+        header: "Add the thing · open · bug, p1 · v1.2",
         foundIn: ReferenceLocations.TITLE,
       },
     });
+  });
+
+  it("feeds one trimmed title to the snippet title and the header", async () => {
+    const provider = readWith(
+      stubReaderReturning({ ...ISSUE, title: "  Add the thing  " }),
+    );
+
+    const result = await provider.readPrimary(REFERENCE, stubDeps());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.value.title).toBe("Add the thing");
+    expect(result.value.header).toBe("Add the thing · open · bug, p1 · v1.2");
   });
 
   it("caps the body at the shared snippet cap", async () => {
@@ -209,14 +224,26 @@ describe("createGitHubRead", () => {
 
 describe("renderIssueHeader", () => {
   it.each([
-    [{ ...ISSUE }, "open · bug, p1 · v1.2"],
-    [{ ...ISSUE, labels: [], milestone: null }, "open"],
-    [{ ...ISSUE, labels: ["docs"], milestone: null }, "open · docs"],
+    [{ ...ISSUE }, "Add the thing · open · bug, p1 · v1.2"],
+    [{ ...ISSUE, labels: [], milestone: null }, "Add the thing · open"],
+    [
+      { ...ISSUE, labels: ["docs"], milestone: null },
+      "Add the thing · open · docs",
+    ],
     [
       { ...ISSUE, state: "closed", stateReason: "not_planned", labels: [] },
-      "closed (not_planned) · v1.2",
+      "Add the thing · closed (not_planned) · v1.2",
     ],
-    [{ ...ISSUE, stateReason: "reopened" }, "open · bug, p1 · v1.2"],
+    [
+      { ...ISSUE, stateReason: "reopened" },
+      "Add the thing · open · bug, p1 · v1.2",
+    ],
+    [
+      { ...ISSUE, title: "  Add the thing  " },
+      "Add the thing · open · bug, p1 · v1.2",
+    ],
+    [{ ...ISSUE, title: "" }, "open · bug, p1 · v1.2"],
+    [{ ...ISSUE, title: "A · B" }, "A · B · open · bug, p1 · v1.2"],
   ])("renders %j as %s", (record, expected) => {
     expect(renderIssueHeader(record)).toBe(expected);
   });

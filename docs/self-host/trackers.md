@@ -80,6 +80,12 @@ A number that resolves to a **pull request** is reported as `not-found`:
 GitHub shares one number space between issues and PRs, and a PR is not a
 ticket.
 
+### What the model sees
+
+One issue, as text: a header line (`title · state · labels · milestone`,
+empty pieces omitted, the close reason beside a closed state) and the issue
+body, capped at 20,000 characters.
+
 ### Credential and reach
 
 | Where | Credential | Reach |

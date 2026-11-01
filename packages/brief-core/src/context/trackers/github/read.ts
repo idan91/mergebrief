@@ -17,14 +17,19 @@ import type { GitHubTransport, IssueLocator, IssueRecord } from "./transport";
 const ISSUE_URL =
   /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/issues\/(\d+)$/;
 
-/** `state · labels · milestone`, empty pieces omitted. */
+/** `title · state · labels · milestone`, empty pieces omitted. */
 export function renderIssueHeader(record: IssueRecord): string {
   const closedWithReason =
     record.state === "closed" && record.stateReason !== null;
   const state = closedWithReason
     ? `${record.state} (${record.stateReason})`
     : record.state;
-  const pieces = [state, record.labels.join(", "), record.milestone ?? ""];
+  const pieces = [
+    record.title.trim(),
+    state,
+    record.labels.join(", "),
+    record.milestone ?? "",
+  ];
   return pieces.filter((piece) => piece !== "").join(" · ");
 }
 
@@ -87,6 +92,8 @@ async function readPrimaryIssue(
       },
     };
   }
+
+  const title = record.title.trim();
   return {
     ok: true,
     value: {
@@ -95,7 +102,7 @@ async function readPrimaryIssue(
       text: truncateToCodeUnits(record.body, MAX_SNIPPET_CHARS),
       tracker: TicketTrackers.GITHUB,
       key: "",
-      title: record.title,
+      title,
       header: renderIssueHeader(record),
       foundIn: reference.foundIn,
     },

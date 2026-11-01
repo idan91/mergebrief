@@ -52,6 +52,7 @@ describe("the shipped case set", () => {
       "copybutton-new-export",
       "intent-adversarial-ticket",
       "intent-broad-epic",
+      "intent-github-primary",
       "intent-legit-demotion",
       "intent-masked-fix",
       "intent-none-no-ticket",

@@ -14,6 +14,12 @@ const TICKET: PrimaryTicket = {
   reason: "",
 };
 
+const GITHUB_TICKET: Partial<PrimaryTicket> = {
+  key: "",
+  url: "https://github.com/acme/widget/issues/7",
+  tracker: "github",
+};
+
 function stubTicket(header: string, overrides: Partial<PrimaryTicket> = {}) {
   return { ...TICKET, ...overrides, header };
 }
@@ -26,7 +32,23 @@ describe("deriveTicketFacts", () => {
     expect(deriveTicketFacts(ticket)).toBe("In review · Chore");
   });
 
-  it("passes a GitHub header through untouched", () => {
+  it("drops the leading title a GitHub header opens with", () => {
+    const ticket = stubTicket("Stop the retry loop · open · bug · v1", {
+      ...GITHUB_TICKET,
+      title: "Stop the retry loop",
+    });
+    expect(deriveTicketFacts(ticket)).toBe("open · bug · v1");
+  });
+
+  it("drops a title that carries the separator as one piece", () => {
+    const ticket = stubTicket("A · B · open", {
+      ...GITHUB_TICKET,
+      title: "A · B",
+    });
+    expect(deriveTicketFacts(ticket)).toBe("open");
+  });
+
+  it("passes a titleless GitHub header through untouched", () => {
     const ticket = stubTicket("open · bug, ui · v1.2", { tracker: "github" });
     expect(deriveTicketFacts(ticket)).toBe("open · bug, ui · v1.2");
   });

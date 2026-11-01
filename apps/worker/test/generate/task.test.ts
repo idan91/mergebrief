@@ -200,7 +200,7 @@ describe("generate task", () => {
         primaryTicket: {
           url: "https://github.com/acme/widget/issues/7",
           title: "Stop the retry loop",
-          header: "open · bug · v1",
+          header: "Stop the retry loop · open · bug · v1",
           status: "read",
           reason: "",
         },
