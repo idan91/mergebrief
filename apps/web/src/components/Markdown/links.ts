@@ -1,6 +1,6 @@
+import { MARKDOWN_SANITIZE_SCHEMA } from "brief-core/sanitized-markdown";
 import { visit } from "unist-util-visit";
 
-import { MARKDOWN_SANITIZE_SCHEMA } from "./consts";
 import type { RehypeTransform } from "./types";
 
 const FRAGMENT = "#";

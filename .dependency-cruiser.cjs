@@ -75,7 +75,7 @@ const BRIEF_FIXTURES = "^apps/web/src/features/brief/test-utils/fixtures\\.ts$";
 // member other than the worker and the tools may name by value.
 const LEAF_SUBPATH_FILES = [
   "^packages/brief-core/src/(types|path-matching|hidden-chars)\\.ts$",
-  "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout|media-address)/",
+  "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout|media|media-address|sanitized-markdown)/",
   "^packages/brief-core/src/(github/pr-url|diff/remap)\\.ts$",
   "^packages/generators/src/contract/generation\\.ts$",
   "^packages/generators/src/config/(instancePolicy|trackers)\\.ts$",
@@ -155,6 +155,34 @@ module.exports = {
         pathNot: [
           "^packages/types/",
           "^packages/brief-core/src/media-address/",
+        ],
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "sanitized-markdown-imports-no-workspace-runtime",
+      comment:
+        "The one Markdown pipeline runs in the browser and in the worker: it pulls in the unified plugins and no workspace runtime code. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/sanitized-markdown/" },
+      to: {
+        path: "^(packages|apps|tools)/",
+        pathNot: "^packages/brief-core/src/sanitized-markdown/",
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "media-imports-only-its-pipeline",
+      comment:
+        "Media extraction runs in the browser and in the worker: of the workspace it loads only the Markdown pipeline, the address normaliser, the attachment address parser in contract and types. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/media/" },
+      to: {
+        path: "^(packages|apps|tools)/",
+        pathNot: [
+          "^packages/types/",
+          "^packages/contract/src/attachments/",
+          "^packages/brief-core/src/(media|media-address|sanitized-markdown)/",
         ],
         dependencyTypesNot: ["type-only"],
       },

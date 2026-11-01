@@ -5,6 +5,7 @@ import {
   isCommittedFileInRepository,
   isServableCommittedFile,
   normalizeMediaAddress,
+  parseCommittedFilePageUrl,
   parseCommittedFileUrl,
   readCommittedMediaExtension,
   readQualifiedRef,
@@ -309,5 +310,33 @@ describe("isServableCommittedFile", () => {
     };
 
     expect(isServableCommittedFile(source)).toBe(false);
+  });
+});
+
+describe("parseCommittedFilePageUrl", () => {
+  it("reads a blob page with no query into the file's parts", () => {
+    const page = "https://github.com/acme/app/blob/feature/x/docs/shot.png";
+
+    expect(parseCommittedFilePageUrl(page)).toEqual({
+      ok: true,
+      value: {
+        owner: "acme",
+        repo: "app",
+        pathSegments: ["feature", "x", "docs", "shot.png"],
+      },
+    });
+  });
+
+  it("refuses a raw form, a query, another host or an escaping path", () => {
+    expect(parseCommittedFilePageUrl(BLOB)).toEqual(NOT_COMMITTED);
+    expect(parseCommittedFilePageUrl(RAW)).toEqual(NOT_COMMITTED);
+    expect(
+      parseCommittedFilePageUrl("https://example.com/acme/app/blob/main/a.png"),
+    ).toEqual(NOT_COMMITTED);
+    expect(
+      parseCommittedFilePageUrl(
+        "https://github.com/acme/app/blob/main/a%2F..%2Fb.png",
+      ),
+    ).toEqual(UNSAFE);
   });
 });

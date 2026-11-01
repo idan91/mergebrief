@@ -5,7 +5,8 @@
   "type": "module",
   "description": "The HTTP agreement between the separately running apps: wire vocabulary and response shapes the API produces and the web app and CLI read.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./attachments": "./src/attachments/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

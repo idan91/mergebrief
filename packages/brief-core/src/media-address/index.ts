@@ -149,6 +149,20 @@ function isSafePath(segments: readonly string[]): boolean {
   return withinBound && segments.every(isSafePathSegment);
 }
 
+function readCommittedFileSource(parts: AddressParts): ParseResult {
+  const { owner, repo, encodedSegments } = parts;
+  const namesRepository = OWNER_PATTERN.test(owner) && REPO_PATTERN.test(repo);
+  if (!namesRepository || encodedSegments.length < MIN_PATH_SEGMENTS) {
+    return NOT_A_COMMITTED_FILE;
+  }
+
+  const pathSegments = decodeSegments(encodedSegments);
+  if (pathSegments === undefined || !isSafePath(pathSegments)) {
+    return UNSAFE_PATH;
+  }
+  return { ok: true, value: { owner, repo, pathSegments } };
+}
+
 /**
  * `github.com/<owner>/<repo>/blob/<ref>/<path>?raw=true`,
  * `github.com/<owner>/<repo>/raw/<ref>/<path>` and
@@ -161,20 +175,29 @@ export function parseCommittedFileUrl(url: string): ParseResult {
     return NOT_A_COMMITTED_FILE;
   }
   const parts = splitAddress(parsed);
-  if (parts === undefined) {
-    return NOT_A_COMMITTED_FILE;
-  }
-  const { owner, repo, encodedSegments } = parts;
-  const namesRepository = OWNER_PATTERN.test(owner) && REPO_PATTERN.test(repo);
-  if (!namesRepository || encodedSegments.length < MIN_PATH_SEGMENTS) {
-    return NOT_A_COMMITTED_FILE;
-  }
+  return parts === undefined
+    ? NOT_A_COMMITTED_FILE
+    : readCommittedFileSource(parts);
+}
 
-  const pathSegments = decodeSegments(encodedSegments);
-  if (pathSegments === undefined || !isSafePath(pathSegments)) {
-    return UNSAFE_PATH;
+/**
+ * `github.com/<owner>/<repo>/blob/<ref>/<path>` with no query: the file's
+ * page, which names the same file its raw forms do but serves HTML, so only a
+ * link to it is read, never a source.
+ */
+export function parseCommittedFilePageUrl(url: string): ParseResult {
+  const parsed = parseUrl(url);
+  const isPlainPage =
+    parsed !== undefined && hasBareAuthority(parsed) && parsed.search === "";
+  if (!isPlainPage || parsed.hostname !== GITHUB_HOST) {
+    return NOT_A_COMMITTED_FILE;
   }
-  return { ok: true, value: { owner, repo, pathSegments } };
+  const [, owner = "", repo = "", mode = "", ...encodedSegments] =
+    parsed.pathname.split("/");
+  if (mode !== BLOB_PATH_MODE) {
+    return NOT_A_COMMITTED_FILE;
+  }
+  return readCommittedFileSource({ owner, repo, encodedSegments });
 }
 
 /** The one address every form normalises to: the `raw` form, owner and repo lower-cased as GitHub matches them. */

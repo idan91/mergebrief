@@ -1,8 +1,6 @@
+import { SANITIZE_REHYPE_PLUGINS } from "brief-core/sanitized-markdown";
 import type { Options as MarkdownOptions } from "react-markdown";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
 
-import { MARKDOWN_SANITIZE_SCHEMA } from "./consts";
 import type { AttachmentScope } from "./context";
 import {
   rehypeNormalizeImages,
@@ -37,8 +35,7 @@ export function buildRehypePlugins(
     return mentions;
   }
   return [
-    rehypeRaw,
-    [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
+    ...SANITIZE_REHYPE_PLUGINS,
     rehypeNormalizeImages,
     rehypePrefixFragmentLinks,
     rehypeRecordOriginalSources,

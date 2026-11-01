@@ -1,5 +1,5 @@
+import { MARKDOWN_REMARK_PLUGINS } from "brief-core/sanitized-markdown";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import {
   MARKDOWN_COMPONENTS,
@@ -61,7 +61,7 @@ export function Markdown({
         components={components}
         disallowedElements={disallowedElements}
         rehypePlugins={rehypePlugins}
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={MARKDOWN_REMARK_PLUGINS}
       >
         {markdown}
       </ReactMarkdown>

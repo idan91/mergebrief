@@ -11,6 +11,10 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - **One owner per vocabulary.** A consumer imports the map, it never re-declares one. Where a consumer's shape legitimately differs, such as `apps/web`'s parsed `LastReviewComparison` with its `kind` discriminant, the difference is pinned with `Equals` against the shape here rather than mirrored by hand.
 - **`apps/web` extends, it does not fork.** Its `ApiErrorCodes` spreads this package's map and adds the ONE web-local member, `malformed`, which never appears on the wire.
 
+## Subpath
+
+`contract/attachments` (`src/attachments/`) is the one subpath beside the entry: brief-core's Media extractor reads attachment addresses through it, so `media-imports-only-its-pipeline` admits that folder and no other contract module.
+
 ## Reader tolerance
 
 An unknown value in a closed vocabulary never fails more than the smallest unit holding it. A browser tab opened before a server upgrade keeps working when the server starts sending a member the tab's code predates:

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { MARKDOWN_REMARK_PLUGINS } from "brief-core/sanitized-markdown";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { MENTION_AWARE_COMPONENTS } from "@web/components/Markdown/consts";
 import { useMarkdownRehypePlugins } from "@web/components/Markdown/useMarkdownRehypePlugins";
@@ -39,7 +39,7 @@ export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
         <ReactMarkdown
           components={MENTION_AWARE_COMPONENTS}
           rehypePlugins={rehypePlugins}
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={MARKDOWN_REMARK_PLUGINS}
         >
           {markdown}
         </ReactMarkdown>
