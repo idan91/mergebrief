@@ -5,6 +5,8 @@ import { makeDraftCommentRow } from "../../../../../../test/fixtures";
 import { shapePublishComment } from "./anchor";
 import { foldCommentsIntoBody } from "./fold";
 
+const MAX_TOTAL_CHECKED = 100;
+
 function makeFileDraft(
   patch: Partial<ReviewDraftCommentRow> = {},
 ): ReviewDraftCommentRow {
@@ -13,6 +15,16 @@ function makeFileDraft(
     body: "on the file",
     ...patch,
   });
+}
+
+function makeMinimalFoldComments(count: number) {
+  const comment = shapePublishComment(
+    makeFileDraft({
+      anchor: { kind: CommentAnchorKinds.FILE, file: "a" },
+      body: "b",
+    }),
+  );
+  return Array.from({ length: count }, () => comment);
 }
 
 describe("foldCommentsIntoBody", () => {
@@ -156,5 +168,19 @@ describe("foldCommentsIntoBody", () => {
     );
 
     expect(folded?.length).toBe(305);
+  });
+
+  it("a partial fold is never longer than the fold of every comment", () => {
+    // isSubmitAcceptable bounds only the every-comment fold, so no partial fold
+    // may outgrow it: dropping the smallest block must pay for the longer preamble.
+    for (let total = 2; total <= MAX_TOTAL_CHECKED; total += 1) {
+      const comments = makeMinimalFoldComments(total);
+      const partial = foldCommentsIntoBody(undefined, comments.slice(1), total);
+      const full = foldCommentsIntoBody(undefined, comments, total);
+
+      expect(partial?.length, `total ${String(total)}`).toBeLessThanOrEqual(
+        full?.length ?? 0,
+      );
+    }
   });
 });
