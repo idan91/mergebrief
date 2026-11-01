@@ -111,7 +111,8 @@ describe("lines that state the exclusion rule", () => {
     const text = [
       "internal-doc text, private process) lives in `private-cases/<id>/` or",
       "`private-pair-cases/<id>/`, same shape as its public peer. These dirs",
-      "`test/pipeline-goldens-private.test.ts` and its snapshot. The eval CLI",
+      "`test/pipeline-goldens-private.test.ts` and its snapshot and",
+      "`test/eval-summary-media-cases.test.ts`, which load from them. The eval CLI",
     ].join("\n");
 
     expect(findInternalLinks("tools/categorizer/eval/README.md", text)).toEqual(

@@ -143,10 +143,32 @@ upstream diff carries is allowlisted by value in `.github/gitleaks.toml`.
 internal-doc text, private process) lives in `private-cases/<id>/` or
 `private-pair-cases/<id>/`, same shape as its public peer. These dirs
 stay private: the public source snapshot leaves them out, together with
-`test/pipeline-goldens-private.test.ts` and its snapshot. The eval CLI
+`test/pipeline-goldens-private.test.ts` and its snapshot and
+`test/eval-summary-media-cases.test.ts`, which load from them. The eval CLI
 loads all four dirs, so `--case` finds a private id, and a missing
 private dir is an empty list, so a public checkout runs without them.
-Today: `delta-read-api-contract` and `pair-real-brief143-docs`.
+Today: `delta-read-api-contract`, `pair-real-brief143-docs` and the four
+`summary-media-*` cases. Their three third-party fixtures (grafana
+AGPL-3.0, supabase and home-assistant Apache-2.0) carry the decision the
+source rule asks for, taken for these three cases only: they sit here with
+their `LICENSE` beside the fixture, since the snapshot never publishes
+them. Any other non-MIT case still needs its own decision first.
+
+The **Summary Media cases** measure which description Media the model
+shows in the Brief summary or points at. Each fixture's description holds
+Media, so its request carries the `<pr_media>` block, the rule and the
+schema field; every other case has none and sends the request it sent
+before. Their properties re-read the item list from the brief's own
+description, so an item number in `expected.ts` is the number the model
+saw. `summary-media-props.ts` holds two generator guarantees every case
+carries (stored keys name description items; no item both shown and in
+the pointer) beside the model-judged property each case asserts:
+`summary-media-code-review-1141` (four screenshots and two mp4 links,
+something shown or pointed at), `summary-media-grafana-107803` (AGPL-3.0;
+an explanatory sequence diagram, shown), `summary-media-supabase-19466`
+(Apache-2.0; one decorative GIF, nothing) and
+`summary-media-home-assistant-55394` (Apache-2.0; a Before | After table,
+nothing shown and a pointer holding both halves).
 
 Seed sources: `copybutton-new-export` (a `cross-service` false-positive
 probe) ·

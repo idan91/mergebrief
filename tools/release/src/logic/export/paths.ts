@@ -55,6 +55,7 @@ export const EXPORT_PATHS = {
     "tools/categorizer/eval/private-pair-cases/",
     "tools/categorizer/test/pipeline-goldens-private.test.ts",
     "tools/categorizer/test/__snapshots__/pipeline-goldens-private.test.ts.snap",
+    "tools/categorizer/test/eval-summary-media-cases.test.ts",
     ".github/workflows/eval-presence.yml",
     ".github/workflows/publish.yml",
   ],

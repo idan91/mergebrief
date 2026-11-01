@@ -1072,6 +1072,5025 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
 }"
 `;
 
+exports[`brief goldens > summary-media-code-review-1141 produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches apps/api/test/artifact-reads.test.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fi",
+      "title": "Changes under apps/api/test",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/e2e/support/axe.ts.",
+      "title": "Changes under apps/web/e2e/support",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/components/DiffRows/SplitRows/SplitRows.module.scss.",
+      "title": "Changes under apps/web/src/components/DiffRows/SplitRows",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/DiffTable/DiffTable.module.scss, apps/web/src/features/brief/ui/components/BriefView/DiffTable/DiffTable.test.tsx, apps/web/src/features/brief/ui/components/BriefView/DiffTable/index.tsx, apps/web/src/features/brief/ui/components/BriefView/DiffTable/useDiffTableFacade.ts.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/DiffTable",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonCodeRow.module.scss, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/index.tsx.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/SkeletonText.module.scss, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/index.tsx, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/utils.test.ts, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/utils.ts.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonLane/SkeletonLane.module.scss, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonLane/index.tsx.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonLane",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonRows.module.scss, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonRows.test.tsx, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/consts.ts, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/index.tsx, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/row-plan.test.ts, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/row-plan.ts, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/row-shape.ts, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/types.ts, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/utils.test.ts, apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/utils.ts.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g9",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/brief/ui/components/BriefView/reading/chunk-height-model.test.ts, apps/web/src/features/brief/ui/components/BriefView/reading/chunk-height-model.ts.",
+      "title": "Changes under apps/web/src/features/brief/ui/components/BriefView/reading",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g10",
+      "secondaryCategories": [],
+      "summary": "Touches apps/web/src/features/pulls/queries.test.ts.",
+      "title": "Changes under apps/web/src/features/pulls",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g11",
+      "secondaryCategories": [],
+      "summary": "Touches apps/worker/test/generate/chunk-layout.test.ts.",
+      "title": "Changes under apps/worker/test/generate",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g12",
+      "secondaryCategories": [],
+      "summary": "Touches docs/api-changelog.md.",
+      "title": "Changes under docs",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g13",
+      "secondaryCategories": [],
+      "summary": "Touches packages/brief-core/src/artifact/schemas.ts.",
+      "title": "Changes under packages/brief-core/src/artifact",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g14",
+      "secondaryCategories": [],
+      "summary": "Touches packages/brief-core/src/diff/chunk-layout/consts.ts, packages/brief-core/src/diff/chunk-layout/index.ts, packages/brief-core/src/diff/chunk-layout/types.ts.",
+      "title": "Changes under packages/brief-core/src/diff/chunk-layout",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g15",
+      "secondaryCategories": [],
+      "summary": "Touches packages/brief-core/src/diff/chunk-layout/logic/line-widths.ts, packages/brief-core/src/diff/chunk-layout/logic/row-runs.ts.",
+      "title": "Changes under packages/brief-core/src/diff/chunk-layout/logic",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g16",
+      "secondaryCategories": [],
+      "summary": "Touches packages/brief-core/test/artifact/chunk-layout.test.ts.",
+      "title": "Changes under packages/brief-core/test/artifact",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g17",
+      "secondaryCategories": [],
+      "summary": "Touches packages/brief-core/test/diff/chunk-layout/counts.test.ts, packages/brief-core/test/diff/chunk-layout/row-runs.test.ts.",
+      "title": "Changes under packages/brief-core/test/diff/chunk-layout",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g18",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/drizzle/0080_chunk-layout-row-runs.sql.",
+      "title": "Changes under packages/persistence/drizzle",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g19",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/drizzle/meta/0080_snapshot.json, packages/persistence/drizzle/meta/_journal.json.",
+      "title": "Changes under packages/persistence/drizzle/meta",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g20",
+      "secondaryCategories": [],
+      "summary": "Touches packages/persistence/test/chunk-layout-migration.test.ts, packages/persistence/test/chunk-layout.test.ts.",
+      "title": "Changes under packages/persistence/test",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 73,
+          "start": 61
+        },
+        {
+          "end": 196,
+          "start": 178
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/api/test/artifact-reads.test.ts",
+      "id": "c1",
+      "loc": {
+        "added": 32,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 12,
+          "start": 10
+        },
+        {
+          "end": 45,
+          "start": 44
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "apps/web/e2e/support/axe.ts",
+      "id": "c2",
+      "loc": {
+        "added": 5,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 41,
+          "start": 41
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 142,
+          "start": 142
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/web/src/components/DiffRows/SplitRows/SplitRows.module.scss",
+      "id": "c3",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 142,
+          "start": 142
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 72,
+          "start": 61
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/DiffTable.module.scss",
+      "id": "c4",
+      "loc": {
+        "added": 12,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 11
+        },
+        {
+          "end": 236,
+          "start": 224
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/DiffTable.test.tsx",
+      "id": "c5",
+      "loc": {
+        "added": 17,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 290,
+          "start": 290
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 66,
+          "start": 65
+        },
+        {
+          "end": 68,
+          "start": 68
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/index.tsx",
+      "id": "c6",
+      "loc": {
+        "added": 3,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 69,
+          "start": 69
+        },
+        {
+          "end": 325,
+          "start": 325
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 2,
+          "start": 2
+        },
+        {
+          "end": 38,
+          "start": 38
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/useDiffTableFacade.ts",
+      "id": "c7",
+      "loc": {
+        "added": 2,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 2,
+          "start": 2
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 146,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonCodeRow.module.scss",
+      "id": "c8",
+      "loc": {
+        "added": 146,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 58,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/index.tsx",
+      "id": "c9",
+      "loc": {
+        "added": 58,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 167,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/SkeletonText.module.scss",
+      "id": "c10",
+      "loc": {
+        "added": 167,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 57,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/index.tsx",
+      "id": "c11",
+      "loc": {
+        "added": 57,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 24,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/utils.test.ts",
+      "id": "c12",
+      "loc": {
+        "added": 24,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 32,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonCodeRow/SkeletonText/utils.ts",
+      "id": "c13",
+      "loc": {
+        "added": 32,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 74,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonLane/SkeletonLane.module.scss",
+      "id": "c14",
+      "loc": {
+        "added": 74,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 27,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonLane/index.tsx",
+      "id": "c15",
+      "loc": {
+        "added": 27,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 34,
+          "start": 10
+        },
+        {
+          "end": 40,
+          "start": 37
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonRows.module.scss",
+      "id": "c16",
+      "loc": {
+        "added": 29,
+        "deleted": 20
+      },
+      "removedRanges": [
+        {
+          "end": 26,
+          "start": 10
+        },
+        {
+          "end": 31,
+          "start": 29
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 13,
+          "start": 13
+        },
+        {
+          "end": 34,
+          "start": 28
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonRows.test.tsx",
+      "id": "c17",
+      "loc": {
+        "added": 8,
+        "deleted": 5
+      },
+      "removedRanges": [
+        {
+          "end": 13,
+          "start": 13
+        },
+        {
+          "end": 31,
+          "start": 28
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 63,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/consts.ts",
+      "id": "c18",
+      "loc": {
+        "added": 63,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 7
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/index.tsx",
+      "id": "c19",
+      "loc": {
+        "added": 9,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 7,
+          "start": 7
+        },
+        {
+          "end": 10,
+          "start": 10
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 205,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/row-plan.test.ts",
+      "id": "c20",
+      "loc": {
+        "added": 205,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 275,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/row-plan.ts",
+      "id": "c21",
+      "loc": {
+        "added": 275,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 254,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/row-shape.ts",
+      "id": "c22",
+      "loc": {
+        "added": 254,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 67,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/types.ts",
+      "id": "c23",
+      "loc": {
+        "added": 67,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        },
+        {
+          "end": 68,
+          "start": 54
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/utils.test.ts",
+      "id": "c24",
+      "loc": {
+        "added": 16,
+        "deleted": 4
+      },
+      "removedRanges": [
+        {
+          "end": 4,
+          "start": 3
+        },
+        {
+          "end": 8,
+          "start": 7
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 2,
+          "start": 1
+        },
+        {
+          "end": 37,
+          "start": 33
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/utils.ts",
+      "id": "c25",
+      "loc": {
+        "added": 7,
+        "deleted": 65
+      },
+      "removedRanges": [
+        {
+          "end": 61,
+          "start": 1
+        },
+        {
+          "end": 95,
+          "start": 92
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 223,
+          "start": 203
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/reading/chunk-height-model.test.ts",
+      "id": "c26",
+      "loc": {
+        "added": 21,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 153,
+          "start": 102
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "apps/web/src/features/brief/ui/components/BriefView/reading/chunk-height-model.ts",
+      "id": "c27",
+      "loc": {
+        "added": 53,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 101,
+          "start": 101
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 277,
+          "start": 263
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "apps/web/src/features/pulls/queries.test.ts",
+      "id": "c28",
+      "loc": {
+        "added": 15,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 87,
+          "start": 86
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/worker/test/generate/chunk-layout.test.ts",
+      "id": "c29",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 25,
+          "start": 18
+        }
+      ],
+      "changeGroupId": "g12",
+      "concern": "implementation",
+      "file": "docs/api-changelog.md",
+      "id": "c30",
+      "loc": {
+        "added": 8,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 3,
+          "start": 3
+        },
+        {
+          "end": 175,
+          "start": 174
+        }
+      ],
+      "changeGroupId": "g13",
+      "concern": "implementation",
+      "file": "packages/brief-core/src/artifact/schemas.ts",
+      "id": "c31",
+      "loc": {
+        "added": 3,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 3,
+          "start": 1
+        },
+        {
+          "end": 35,
+          "start": 19
+        }
+      ],
+      "changeGroupId": "g14",
+      "concern": "implementation",
+      "file": "packages/brief-core/src/diff/chunk-layout/consts.ts",
+      "id": "c32",
+      "loc": {
+        "added": 20,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 4
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g14",
+      "concern": "implementation",
+      "file": "packages/brief-core/src/diff/chunk-layout/index.ts",
+      "id": "c33",
+      "loc": {
+        "added": 3,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 24,
+          "start": 24
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 96,
+          "start": 80
+        },
+        {
+          "end": 120,
+          "start": 108
+        }
+      ],
+      "changeGroupId": "g14",
+      "concern": "implementation",
+      "file": "packages/brief-core/src/diff/chunk-layout/types.ts",
+      "id": "c34",
+      "loc": {
+        "added": 30,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 9,
+          "start": 9
+        }
+      ],
+      "changeGroupId": "g15",
+      "concern": "implementation",
+      "file": "packages/brief-core/src/diff/chunk-layout/logic/line-widths.ts",
+      "id": "c35",
+      "loc": {
+        "added": 2,
+        "deleted": 6
+      },
+      "removedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 13,
+          "start": 9
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 61,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g15",
+      "concern": "implementation",
+      "file": "packages/brief-core/src/diff/chunk-layout/logic/row-runs.ts",
+      "id": "c36",
+      "loc": {
+        "added": 61,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 61,
+          "start": 34
+        }
+      ],
+      "changeGroupId": "g16",
+      "concern": "implementation",
+      "file": "packages/brief-core/test/artifact/chunk-layout.test.ts",
+      "id": "c37",
+      "loc": {
+        "added": 28,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 6,
+          "start": 6
+        },
+        {
+          "end": 70,
+          "start": 66
+        }
+      ],
+      "changeGroupId": "g17",
+      "concern": "implementation",
+      "file": "packages/brief-core/test/diff/chunk-layout/counts.test.ts",
+      "id": "c38",
+      "loc": {
+        "added": 6,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 6,
+          "start": 6
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 19,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g17",
+      "concern": "implementation",
+      "file": "packages/brief-core/test/diff/chunk-layout/row-runs.test.ts",
+      "id": "c39",
+      "loc": {
+        "added": 19,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g18",
+      "concern": "implementation",
+      "file": "packages/persistence/drizzle/0080_chunk-layout-row-runs.sql",
+      "id": "c40",
+      "loc": {
+        "added": 17,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 3249,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g19",
+      "concern": "implementation",
+      "file": "packages/persistence/drizzle/meta/0080_snapshot.json",
+      "id": "c41",
+      "loc": {
+        "added": 3249,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 563,
+          "start": 557
+        }
+      ],
+      "changeGroupId": "g19",
+      "concern": "implementation",
+      "file": "packages/persistence/drizzle/meta/_journal.json",
+      "id": "c42",
+      "loc": {
+        "added": 7,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 12,
+          "start": 12
+        },
+        {
+          "end": 62,
+          "start": 54
+        }
+      ],
+      "changeGroupId": "g20",
+      "concern": "implementation",
+      "file": "packages/persistence/test/chunk-layout-migration.test.ts",
+      "id": "c43",
+      "loc": {
+        "added": 10,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 54,
+          "start": 54
+        },
+        {
+          "end": 58,
+          "start": 58
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 62,
+          "start": 57
+        },
+        {
+          "end": 170,
+          "start": 138
+        }
+      ],
+      "changeGroupId": "g20",
+      "concern": "implementation",
+      "file": "packages/persistence/test/chunk-layout.test.ts",
+      "id": "c44",
+      "loc": {
+        "added": 39,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "2fa7f5a6b1fa37254c3c74a58996f3911dad21ee",
+    "commitCount": 11,
+    "head": "99fcbc22a90808c0c49b4d230e3a3d35c313d434"
+  },
+  "concernView": [
+    {
+      "added": 5183,
+      "concern": "implementation",
+      "deleted": 115
+    }
+  ],
+  "diffTotals": {
+    "added": 5780,
+    "deleted": 313
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n597 added / 198 removed changed line(s) unattributed to any chunk across 14 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g4 summary is 332 chars — exceeds the 250-char cap\\ngroup g6 summary is 485 chars — exceeds the 250-char cap\\ngroup g8 summary is 908 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 332,
+      "cap": 250,
+      "field": "group g4 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 485,
+      "cap": 250,
+      "field": "group g6 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 908,
+      "cap": 250,
+      "field": "group g8 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "### Overview\\n\\nA card waiting on its code now draws the diff it will become, in muted ink. Hunk bands carry their arrows, both line-number columns sit where the numbers will, the split view has its centre line, added and removed rows get their tint, edge rule and sign, and a one-sided change gets the hatch. When the code lands it fades in from 0.35 over 180 ms. The split table's one-sided hatch drops from 80% to 55% so the skeleton and the table match. Reduced motion turns off both the shine and the fade.\\n\\nThe worker now stores the card's rows as run-length \`rowRuns\` with its counts, such as \`h1c2a6c2h1c2r3a1c1r1c2e1\` for hunk, context, added, removed and expand runs. Migration 0080 removes every layout stored without them, so no reader keeps code for the older shape. That brief draws the estimate skeleton until a run over its stored head stores a new layout. Without row runs the skeleton keeps the same structure and drops the colour and the hatch, so a failed layout read or the estimate path never shows a wrong colour.\\n\\nThe split view's height changes too. A paired row is as tall as its taller side, but the model counted a wrap for each side. The counts now carry the split rows bucketed by their wider side, stored only where a pair makes them differ. On 30 React Router cards in split view, at the cell width the brief page has at 1440 px, the reservation went from 14134 px to 13738 px against 13513 px painted. Unified heights don't change.\\n\\nI kept the split wrap at 58 columns instead of moving it to 63. On the real brief page a split half fits 42 to 48 columns at 1440 px and 49 to 70 at 1920. The 63 came from the prototype page, which is wider than the brief page. 58 sits in the middle of the real widths, the same way unified's 125 does.\\n\\nOn the 3000-file fixture, 7,686 cards, the stored layout grows from 990 KB to 1,444 KB raw and from 72 KB to 111 KB gzipped. The row runs are 205 KB of that.\\n\\nTwo judgment calls. The planner is split into \`row-plan.ts\`, which turns runs into rows, and \`row-shape.ts\`, which sizes one row and its sides. Each row stylesheet declares its own tokens because \`tokensDefined.test.ts\` requires every sheet to declare what it reads.\\n\\nSkeleton on the left, the code it becomes on the right, 1440x900 at 2x:\\n\\n| Mirror, split |\\n| --- |\\n| ![](https://github.com/idan91/code-review/blob/assets/brief-362/362-pr44-mirror-split.png?raw=true) |\\n\\n| Mirror, unified |\\n| --- |\\n| ![](https://github.com/idan91/code-review/blob/assets/brief-362/362-pr44-mirror-unified.png?raw=true) |\\n\\n| No row runs, split |\\n| --- |\\n| ![](https://github.com/idan91/code-review/blob/assets/brief-362/362-pr44-fallback-split.png?raw=true) |\\n\\n| No row runs, unified |\\n| --- |\\n| ![](https://github.com/idan91/code-review/blob/assets/brief-362/362-pr44-fallback-unified.png?raw=true) |\\n\\nSkeleton to code at 1080p under vite dev: [split](https://github.com/idan91/code-review/blob/assets/brief-362/362-pr44-skeleton-to-code-split.mp4?raw=true), [unified](https://github.com/idan91/code-review/blob/assets/brief-362/362-pr44-skeleton-to-code-unified.mp4?raw=true)\\n\\nRound-3 fix: the stored field is \`rowRuns\` (\`RowRun\`, \`RowRunKinds\`, \`encodeRowRuns\`), because CONTEXT.md's Outline is the diff view a Grouping call reads. A run is the run-length term, and \`rowRuns\`, \`RowRun\` and \`row-runs\` appear nowhere else in the code or CONTEXT.md. The skeleton helpers take verbs (\`computeShare\`, \`findGreatestCommonDivisor\`, \`computeNarrowWidth\`).\\n\\nMerge-readiness round 6: the ink-settle fade clears its state when it ends, so switching scopes no longer replays it.\\n\\nVerification: \`pnpm lint\` 0; typecheck and test 0 for brief-core, persistence, worker, api, contract and web; \`pnpm -C apps/web build\` 0; full \`pnpm -C apps/web test:e2e\` 0 (59 passed).\\n",
+    "number": 1141,
+    "repo": "Idan91/code-review",
+    "sha": "99fcbc22a90808c0c49b4d230e3a3d35c313d434",
+    "title": "[BRIEF-362] feat: Draw The Loading Skeleton As The Diff Will Look",
+    "url": "https://github.com/idan91/code-review/pull/1141"
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g9",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g10",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g11",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g12",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g13",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g14",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g15",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g16",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g17",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g18",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g19",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g20",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 44 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 92,
+          "start": 70
+        }
+      ],
+      "file": "apps/web/e2e/support/axe.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 309,
+          "start": 307
+        },
+        {
+          "end": 428,
+          "start": 361
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/DiffTable.test.tsx",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 43,
+          "start": 43
+        },
+        {
+          "end": 53,
+          "start": 52
+        },
+        {
+          "end": 65,
+          "start": 63
+        },
+        {
+          "end": 79,
+          "start": 68
+        },
+        {
+          "end": 82,
+          "start": 81
+        },
+        {
+          "end": 92,
+          "start": 85
+        },
+        {
+          "end": 102,
+          "start": 95
+        },
+        {
+          "end": 110,
+          "start": 106
+        },
+        {
+          "end": 120,
+          "start": 117
+        },
+        {
+          "end": 151,
+          "start": 149
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonRows.module.scss",
+      "removedRanges": [
+        {
+          "end": 34,
+          "start": 34
+        },
+        {
+          "end": 44,
+          "start": 43
+        },
+        {
+          "end": 77,
+          "start": 56
+        },
+        {
+          "end": 82,
+          "start": 79
+        },
+        {
+          "end": 87,
+          "start": 85
+        },
+        {
+          "end": 97,
+          "start": 90
+        },
+        {
+          "end": 101,
+          "start": 101
+        },
+        {
+          "end": 108,
+          "start": 108
+        },
+        {
+          "end": 139,
+          "start": 137
+        },
+        {
+          "end": 162,
+          "start": 146
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 45,
+          "start": 37
+        },
+        {
+          "end": 49,
+          "start": 49
+        },
+        {
+          "end": 60,
+          "start": 51
+        },
+        {
+          "end": 74,
+          "start": 63
+        },
+        {
+          "end": 84,
+          "start": 84
+        },
+        {
+          "end": 89,
+          "start": 87
+        },
+        {
+          "end": 99,
+          "start": 92
+        },
+        {
+          "end": 103,
+          "start": 101
+        },
+        {
+          "end": 149,
+          "start": 105
+        },
+        {
+          "end": 158,
+          "start": 158
+        },
+        {
+          "end": 170,
+          "start": 170
+        },
+        {
+          "end": 176,
+          "start": 175
+        },
+        {
+          "end": 180,
+          "start": 180
+        },
+        {
+          "end": 190,
+          "start": 186
+        },
+        {
+          "end": 193,
+          "start": 192
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/SkeletonRows.test.tsx",
+      "removedRanges": [
+        {
+          "end": 38,
+          "start": 37
+        },
+        {
+          "end": 44,
+          "start": 40
+        },
+        {
+          "end": 56,
+          "start": 56
+        },
+        {
+          "end": 61,
+          "start": 59
+        },
+        {
+          "end": 64,
+          "start": 64
+        },
+        {
+          "end": 69,
+          "start": 67
+        },
+        {
+          "end": 78,
+          "start": 78
+        },
+        {
+          "end": 90,
+          "start": 90
+        },
+        {
+          "end": 95,
+          "start": 95
+        },
+        {
+          "end": 99,
+          "start": 99
+        },
+        {
+          "end": 106,
+          "start": 105
+        },
+        {
+          "end": 108,
+          "start": 108
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 18,
+          "start": 18
+        },
+        {
+          "end": 22,
+          "start": 22
+        },
+        {
+          "end": 29,
+          "start": 28
+        },
+        {
+          "end": 37,
+          "start": 34
+        },
+        {
+          "end": 43,
+          "start": 39
+        },
+        {
+          "end": 46,
+          "start": 46
+        },
+        {
+          "end": 48,
+          "start": 48
+        },
+        {
+          "end": 51,
+          "start": 50
+        },
+        {
+          "end": 65,
+          "start": 53
+        },
+        {
+          "end": 73,
+          "start": 73
+        },
+        {
+          "end": 80,
+          "start": 80
+        },
+        {
+          "end": 93,
+          "start": 92
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/index.tsx",
+      "removedRanges": [
+        {
+          "end": 24,
+          "start": 23
+        },
+        {
+          "end": 26,
+          "start": 26
+        },
+        {
+          "end": 29,
+          "start": 29
+        },
+        {
+          "end": 31,
+          "start": 31
+        },
+        {
+          "end": 33,
+          "start": 33
+        },
+        {
+          "end": 52,
+          "start": 35
+        },
+        {
+          "end": 66,
+          "start": 66
+        },
+        {
+          "end": 79,
+          "start": 78
+        }
+      ]
+    },
+    {
+      "addedRanges": [],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/utils.test.ts",
+      "removedRanges": [
+        {
+          "end": 67,
+          "start": 13
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 41,
+          "start": 39
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/SkeletonRows/utils.ts",
+      "removedRanges": [
+        {
+          "end": 97,
+          "start": 97
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 78,
+          "start": 72
+        },
+        {
+          "end": 339,
+          "start": 334
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/index.tsx",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 295,
+          "start": 292
+        },
+        {
+          "end": 306,
+          "start": 297
+        },
+        {
+          "end": 322,
+          "start": 321
+        },
+        {
+          "end": 324,
+          "start": 324
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/DiffTable/useDiffTableFacade.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 156,
+          "start": 156
+        },
+        {
+          "end": 183,
+          "start": 161
+        },
+        {
+          "end": 192,
+          "start": 188
+        },
+        {
+          "end": 203,
+          "start": 197
+        },
+        {
+          "end": 205,
+          "start": 205
+        }
+      ],
+      "file": "apps/web/src/features/brief/ui/components/BriefView/reading/chunk-height-model.ts",
+      "removedRanges": [
+        {
+          "end": 110,
+          "start": 103
+        },
+        {
+          "end": 113,
+          "start": 113
+        },
+        {
+          "end": 118,
+          "start": 118
+        },
+        {
+          "end": 122,
+          "start": 122
+        },
+        {
+          "end": 124,
+          "start": 124
+        },
+        {
+          "end": 132,
+          "start": 129
+        },
+        {
+          "end": 134,
+          "start": 134
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 31,
+          "start": 27
+        },
+        {
+          "end": 35,
+          "start": 35
+        },
+        {
+          "end": 45,
+          "start": 45
+        },
+        {
+          "end": 63,
+          "start": 61
+        },
+        {
+          "end": 65,
+          "start": 65
+        },
+        {
+          "end": 68,
+          "start": 68
+        },
+        {
+          "end": 71,
+          "start": 71
+        },
+        {
+          "end": 78,
+          "start": 73
+        },
+        {
+          "end": 120,
+          "start": 111
+        },
+        {
+          "end": 145,
+          "start": 145
+        },
+        {
+          "end": 148,
+          "start": 148
+        },
+        {
+          "end": 164,
+          "start": 164
+        }
+      ],
+      "file": "packages/brief-core/src/diff/chunk-layout/index.ts",
+      "removedRanges": [
+        {
+          "end": 53,
+          "start": 53
+        },
+        {
+          "end": 58,
+          "start": 56
+        },
+        {
+          "end": 118,
+          "start": 118
+        },
+        {
+          "end": 121,
+          "start": 121
+        },
+        {
+          "end": 137,
+          "start": 137
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 40,
+          "start": 12
+        },
+        {
+          "end": 50,
+          "start": 43
+        },
+        {
+          "end": 82,
+          "start": 52
+        },
+        {
+          "end": 85,
+          "start": 85
+        }
+      ],
+      "file": "packages/brief-core/src/diff/chunk-layout/logic/line-widths.ts",
+      "removedRanges": [
+        {
+          "end": 16,
+          "start": 16
+        },
+        {
+          "end": 23,
+          "start": 19
+        },
+        {
+          "end": 27,
+          "start": 27
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 117,
+          "start": 117
+        },
+        {
+          "end": 211,
+          "start": 141
+        }
+      ],
+      "file": "packages/brief-core/test/diff/chunk-layout/counts.test.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 112,
+          "start": 64
+        },
+        {
+          "end": 116,
+          "start": 116
+        },
+        {
+          "end": 204,
+          "start": 182
+        }
+      ],
+      "file": "packages/persistence/test/chunk-layout-migration.test.ts",
+      "removedRanges": []
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > summary-media-grafana-107803 produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches pkg/apimachinery/utils/meta.go. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+      "title": "Changes under pkg/apimachinery/utils",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches pkg/storage/unified/apistore/prepare.go, pkg/storage/unified/apistore/prepare_test.go, pkg/storage/unified/apistore/secure.go, pkg/storage/unified/apistore/secure_test.go, pkg/storage/unified/apistore/store.go.",
+      "title": "Changes under pkg/storage/unified/apistore",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches pkg/storage/unified/resource/errors.go, pkg/storage/unified/resource/secure.go, pkg/storage/unified/resource/secure_test.go, pkg/storage/unified/resource/server.go, pkg/storage/unified/resource/server_test.go.",
+      "title": "Changes under pkg/storage/unified/resource",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 872,
+          "start": 872
+        },
+        {
+          "end": 883,
+          "start": 874
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "pkg/apimachinery/utils/meta.go",
+      "id": "c1",
+      "loc": {
+        "added": 11,
+        "deleted": 9
+      },
+      "removedRanges": [
+        {
+          "end": 872,
+          "start": 872
+        },
+        {
+          "end": 881,
+          "start": 874
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 10,
+          "start": 10
+        },
+        {
+          "end": 21,
+          "start": 19
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/apistore/prepare.go",
+      "id": "c2",
+      "loc": {
+        "added": 4,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 8,
+          "start": 8
+        },
+        {
+          "end": 20,
+          "start": 19
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 18,
+          "start": 18
+        },
+        {
+          "end": 41,
+          "start": 40
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/apistore/prepare_test.go",
+      "id": "c3",
+      "loc": {
+        "added": 3,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 18,
+          "start": 18
+        },
+        {
+          "end": 41,
+          "start": 40
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 149,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/apistore/secure.go",
+      "id": "c4",
+      "loc": {
+        "added": 149,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 281,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/apistore/secure_test.go",
+      "id": "c5",
+      "loc": {
+        "added": 281,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 35,
+          "start": 35
+        },
+        {
+          "end": 190,
+          "start": 190
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/apistore/store.go",
+      "id": "c6",
+      "loc": {
+        "added": 2,
+        "deleted": 5
+      },
+      "removedRanges": [
+        {
+          "end": 192,
+          "start": 189
+        },
+        {
+          "end": 196,
+          "start": 196
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 7
+        },
+        {
+          "end": 12,
+          "start": 12
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/resource/errors.go",
+      "id": "c7",
+      "loc": {
+        "added": 3,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 13,
+          "start": 11
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 81,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/resource/secure.go",
+      "id": "c8",
+      "loc": {
+        "added": 81,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 188,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/resource/secure_test.go",
+      "id": "c9",
+      "loc": {
+        "added": 188,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 237,
+          "start": 237
+        },
+        {
+          "end": 477,
+          "start": 476
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/resource/server.go",
+      "id": "c10",
+      "loc": {
+        "added": 3,
+        "deleted": 12
+      },
+      "removedRanges": [
+        {
+          "end": 237,
+          "start": 237
+        },
+        {
+          "end": 486,
+          "start": 476
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 17
+        },
+        {
+          "end": 25,
+          "start": 25
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "pkg/storage/unified/resource/server_test.go",
+      "id": "c11",
+      "loc": {
+        "added": 2,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 18,
+          "start": 17
+        },
+        {
+          "end": 26,
+          "start": 26
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "d08ea582432a82083605eedee43565dfcdcbab4c",
+    "commitCount": 93,
+    "head": "2cc14717adbdea29067b8aeacbdd377c088ec463"
+  },
+  "concernView": [
+    {
+      "added": 727,
+      "concern": "implementation",
+      "deleted": 38
+    }
+  ],
+  "diffTotals": {
+    "added": 964,
+    "deleted": 134
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n237 added / 96 removed changed line(s) unattributed to any chunk across 5 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "This PR adds generic support for defining or referencing secure values withiin any resource.  It adds a top level \\"secure\\" section that lives next to \\"spec\\". (alternativly we could consider making it a property on spec, but that may lead to weird behaviors depending on how spec is defined)\\r\\n\\r\\nConsider a resource like:\\r\\n\`\`\`\\r\\napiVersion: testdata.datasource.grafana.app/v0alpha1\\r\\nkind: DataSource\\r\\nmetadata:\\r\\n  name: sample-testdata\\r\\nspec:\\r\\n  title: Sample datasource\\r\\n  url: http://...\\r\\nsecure:\\r\\n  sampleA:\\r\\n    create: secret value here # replaced with a name on write\\r\\n  sampleB:\\r\\n    name: XYZ # reference to a existing secret\\r\\n\`\`\`\\r\\n\\r\\nWhen writing to unistore, this will automatically process the secure section so any raw values are replaced with a reference:\\r\\n\\r\\n\`\`\`mermaid\\r\\nsequenceDiagram\\r\\n    autonumber\\r\\n    actor User\\r\\n    participant apistore\\r\\n    participant secrets\\r\\n    participant unistore\\r\\n\\r\\n    User->>apistore: Update resource<br>with secrets\\r\\n    apistore->>secrets: CreateInline A\\r\\n    apistore->>secrets: CreateInline B\\r\\n    apistore->>unistore: Create/Update/Delete\\r\\n    unistore->>secrets: CanReference\\r\\n    apistore->>secrets: DeleteInline C<br>(if required from changes)\\r\\n    apistore->>User: success\\r\\n\`\`\`\\r\\n\\r\\nThe apistore is responsible for managing the inline secrets explicitly -- eventually we will likely have a garbage collector for secrets, but that should only be required when create succeeds, but the following Write requests to unistore fail",
+    "number": 107803,
+    "repo": "grafana/grafana",
+    "sha": "2cc14717adbdea29067b8aeacbdd377c088ec463",
+    "title": "Secrets: Manage secure values inside any resource",
+    "url": "https://github.com/grafana/grafana/pull/107803"
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 11 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 23,
+          "start": 23
+        },
+        {
+          "end": 48,
+          "start": 27
+        },
+        {
+          "end": 76,
+          "start": 51
+        },
+        {
+          "end": 82,
+          "start": 80
+        },
+        {
+          "end": 84,
+          "start": 84
+        },
+        {
+          "end": 89,
+          "start": 89
+        },
+        {
+          "end": 92,
+          "start": 92
+        },
+        {
+          "end": 95,
+          "start": 95
+        },
+        {
+          "end": 101,
+          "start": 101
+        },
+        {
+          "end": 105,
+          "start": 104
+        },
+        {
+          "end": 109,
+          "start": 109
+        },
+        {
+          "end": 135,
+          "start": 133
+        },
+        {
+          "end": 142,
+          "start": 138
+        },
+        {
+          "end": 148,
+          "start": 146
+        },
+        {
+          "end": 150,
+          "start": 150
+        },
+        {
+          "end": 155,
+          "start": 155
+        },
+        {
+          "end": 158,
+          "start": 158
+        },
+        {
+          "end": 163,
+          "start": 163
+        },
+        {
+          "end": 178,
+          "start": 178
+        },
+        {
+          "end": 197,
+          "start": 193
+        },
+        {
+          "end": 199,
+          "start": 199
+        },
+        {
+          "end": 201,
+          "start": 201
+        },
+        {
+          "end": 204,
+          "start": 204
+        },
+        {
+          "end": 207,
+          "start": 206
+        },
+        {
+          "end": 212,
+          "start": 212
+        },
+        {
+          "end": 218,
+          "start": 218
+        },
+        {
+          "end": 225,
+          "start": 225
+        },
+        {
+          "end": 235,
+          "start": 233
+        },
+        {
+          "end": 237,
+          "start": 237
+        },
+        {
+          "end": 241,
+          "start": 240
+        },
+        {
+          "end": 246,
+          "start": 246
+        },
+        {
+          "end": 258,
+          "start": 258
+        },
+        {
+          "end": 264,
+          "start": 264
+        },
+        {
+          "end": 268,
+          "start": 268
+        },
+        {
+          "end": 270,
+          "start": 270
+        }
+      ],
+      "file": "pkg/storage/unified/apistore/prepare.go",
+      "removedRanges": [
+        {
+          "end": 26,
+          "start": 25
+        },
+        {
+          "end": 39,
+          "start": 29
+        },
+        {
+          "end": 44,
+          "start": 43
+        },
+        {
+          "end": 46,
+          "start": 46
+        },
+        {
+          "end": 51,
+          "start": 51
+        },
+        {
+          "end": 54,
+          "start": 54
+        },
+        {
+          "end": 57,
+          "start": 57
+        },
+        {
+          "end": 63,
+          "start": 63
+        },
+        {
+          "end": 67,
+          "start": 66
+        },
+        {
+          "end": 71,
+          "start": 71
+        },
+        {
+          "end": 97,
+          "start": 95
+        },
+        {
+          "end": 101,
+          "start": 100
+        },
+        {
+          "end": 106,
+          "start": 105
+        },
+        {
+          "end": 108,
+          "start": 108
+        },
+        {
+          "end": 113,
+          "start": 113
+        },
+        {
+          "end": 116,
+          "start": 116
+        },
+        {
+          "end": 121,
+          "start": 121
+        },
+        {
+          "end": 136,
+          "start": 136
+        },
+        {
+          "end": 153,
+          "start": 152
+        },
+        {
+          "end": 155,
+          "start": 155
+        },
+        {
+          "end": 160,
+          "start": 159
+        },
+        {
+          "end": 165,
+          "start": 165
+        },
+        {
+          "end": 171,
+          "start": 171
+        },
+        {
+          "end": 178,
+          "start": 178
+        },
+        {
+          "end": 188,
+          "start": 186
+        },
+        {
+          "end": 190,
+          "start": 190
+        },
+        {
+          "end": 193,
+          "start": 193
+        },
+        {
+          "end": 198,
+          "start": 198
+        },
+        {
+          "end": 210,
+          "start": 210
+        },
+        {
+          "end": 216,
+          "start": 216
+        },
+        {
+          "end": 222,
+          "start": 220
+        },
+        {
+          "end": 224,
+          "start": 224
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 45,
+          "start": 45
+        },
+        {
+          "end": 52,
+          "start": 52
+        },
+        {
+          "end": 61,
+          "start": 61
+        },
+        {
+          "end": 70,
+          "start": 70
+        },
+        {
+          "end": 73,
+          "start": 73
+        },
+        {
+          "end": 109,
+          "start": 109
+        },
+        {
+          "end": 112,
+          "start": 112
+        },
+        {
+          "end": 136,
+          "start": 136
+        },
+        {
+          "end": 139,
+          "start": 139
+        },
+        {
+          "end": 152,
+          "start": 151
+        },
+        {
+          "end": 192,
+          "start": 192
+        },
+        {
+          "end": 194,
+          "start": 194
+        },
+        {
+          "end": 211,
+          "start": 211
+        },
+        {
+          "end": 213,
+          "start": 213
+        },
+        {
+          "end": 228,
+          "start": 228
+        },
+        {
+          "end": 230,
+          "start": 230
+        },
+        {
+          "end": 235,
+          "start": 235
+        },
+        {
+          "end": 330,
+          "start": 298
+        },
+        {
+          "end": 336,
+          "start": 336
+        },
+        {
+          "end": 340,
+          "start": 340
+        },
+        {
+          "end": 342,
+          "start": 342
+        },
+        {
+          "end": 347,
+          "start": 347
+        },
+        {
+          "end": 360,
+          "start": 360
+        },
+        {
+          "end": 377,
+          "start": 377
+        },
+        {
+          "end": 395,
+          "start": 395
+        }
+      ],
+      "file": "pkg/storage/unified/apistore/prepare_test.go",
+      "removedRanges": [
+        {
+          "end": 45,
+          "start": 45
+        },
+        {
+          "end": 52,
+          "start": 52
+        },
+        {
+          "end": 61,
+          "start": 61
+        },
+        {
+          "end": 70,
+          "start": 70
+        },
+        {
+          "end": 73,
+          "start": 73
+        },
+        {
+          "end": 109,
+          "start": 109
+        },
+        {
+          "end": 112,
+          "start": 112
+        },
+        {
+          "end": 136,
+          "start": 136
+        },
+        {
+          "end": 139,
+          "start": 139
+        },
+        {
+          "end": 152,
+          "start": 151
+        },
+        {
+          "end": 192,
+          "start": 192
+        },
+        {
+          "end": 194,
+          "start": 194
+        },
+        {
+          "end": 211,
+          "start": 211
+        },
+        {
+          "end": 213,
+          "start": 213
+        },
+        {
+          "end": 228,
+          "start": 228
+        },
+        {
+          "end": 230,
+          "start": 230
+        },
+        {
+          "end": 235,
+          "start": 235
+        },
+        {
+          "end": 303,
+          "start": 303
+        },
+        {
+          "end": 307,
+          "start": 307
+        },
+        {
+          "end": 309,
+          "start": 309
+        },
+        {
+          "end": 314,
+          "start": 314
+        },
+        {
+          "end": 327,
+          "start": 327
+        },
+        {
+          "end": 344,
+          "start": 344
+        },
+        {
+          "end": 362,
+          "start": 362
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 196,
+          "start": 194
+        },
+        {
+          "end": 202,
+          "start": 202
+        },
+        {
+          "end": 209,
+          "start": 209
+        },
+        {
+          "end": 212,
+          "start": 212
+        },
+        {
+          "end": 214,
+          "start": 214
+        },
+        {
+          "end": 216,
+          "start": 216
+        },
+        {
+          "end": 238,
+          "start": 238
+        },
+        {
+          "end": 311,
+          "start": 307
+        },
+        {
+          "end": 595,
+          "start": 595
+        },
+        {
+          "end": 602,
+          "start": 601
+        },
+        {
+          "end": 608,
+          "start": 606
+        },
+        {
+          "end": 613,
+          "start": 610
+        },
+        {
+          "end": 615,
+          "start": 615
+        }
+      ],
+      "file": "pkg/storage/unified/apistore/store.go",
+      "removedRanges": [
+        {
+          "end": 202,
+          "start": 202
+        },
+        {
+          "end": 209,
+          "start": 209
+        },
+        {
+          "end": 213,
+          "start": 213
+        },
+        {
+          "end": 215,
+          "start": 215
+        },
+        {
+          "end": 242,
+          "start": 237
+        },
+        {
+          "end": 594,
+          "start": 594
+        },
+        {
+          "end": 599,
+          "start": 599
+        },
+        {
+          "end": 604,
+          "start": 604
+        },
+        {
+          "end": 607,
+          "start": 606
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 14
+        },
+        {
+          "end": 114,
+          "start": 63
+        }
+      ],
+      "file": "pkg/storage/unified/resource/errors.go",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 32,
+          "start": 32
+        }
+      ],
+      "file": "pkg/storage/unified/resource/server_test.go",
+      "removedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        }
+      ]
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > summary-media-home-assistant-55394 produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches src/components/chart/ha-chart-base.ts, src/components/chart/ha-network-graph.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned f",
+      "title": "Changes under src/components/chart",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches src/panels/config/integrations/integration-panels/zha/zha-config-dashboard-router.ts, src/panels/config/integrations/integration-panels/zha/zha-network-visualization-page.ts.",
+      "title": "Changes under src/panels/config/integrations/integration-panels/zha",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 972,
+          "start": 972
+        },
+        {
+          "end": 1303,
+          "start": 1300
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/chart/ha-chart-base.ts",
+      "id": "c1",
+      "loc": {
+        "added": 5,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 75,
+          "start": 72
+        },
+        {
+          "end": 104,
+          "start": 99
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/components/chart/ha-network-graph.ts",
+      "id": "c2",
+      "loc": {
+        "added": 10,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 148,
+          "start": 148
+        },
+        {
+          "end": 245,
+          "start": 245
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 71,
+          "start": 71
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "src/panels/config/integrations/integration-panels/zha/zha-config-dashboard-router.ts",
+      "id": "c3",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 71,
+          "start": 71
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 35,
+          "start": 34
+        },
+        {
+          "end": 79,
+          "start": 75
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "src/panels/config/integrations/integration-panels/zha/zha-network-visualization-page.ts",
+      "id": "c4",
+      "loc": {
+        "added": 7,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "8985b7d08d60ab91394c0541f66f417fb8bbc574",
+    "commitCount": 3,
+    "head": "9f931efd674db2767ca849cdfaf0a68240e66a7b"
+  },
+  "concernView": [
+    {
+      "added": 23,
+      "concern": "implementation",
+      "deleted": 3
+    }
+  ],
+  "diffTotals": {
+    "added": 150,
+    "deleted": 22
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n127 added / 19 removed changed line(s) unattributed to any chunk across 2 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "<!--\\n  You are amazing! Thanks for contributing to our project!\\n  Please, DO NOT DELETE ANY TEXT from this template! (unless instructed).\\n-->\\n## Proposed change\\n<!--\\n  Describe the big picture of your changes here to communicate to the\\n  maintainers why we should accept this pull request. If it fixes a bug\\n  or resolves a feature request, be sure to link to that issue or discussion\\n  in the additional information section.\\n-->\\n\\nThe \\"View network\\" button on the ZHA device page has done nothing since the ECharts rewrite (#25457), because the visualization page dropped the property the router sets. \`ha-network-graph\` now takes a \`selectedNode\`: the node gets a ring and a bold label, and the view centers on it, zoomed so its neighbors stay visible, until the user moves the view.\\n\\nDepends on #55397: without it, turning physics off while the view follows a node leaves every label invisible.\\n\\n## Screenshots\\n<!--\\n  If your PR includes visual changes, please add screenshots or a short video\\n  showing the before and after. This helps reviewers understand the impact of\\n  your changes.\\n  Note: Remove this section if this PR has no visual changes.\\n-->\\n\\n| Before | After |\\n| --- | --- |\\n| ![Network graph opened from the Garden button device page, with the device off screen and nothing highlighted](https://github.com/user-attachments/assets/7f73cba1-daf7-46b9-9cc3-b44866575256) | ![Network graph centered on the Garden button node, which has a dark ring and a bold label, with its router in view](https://github.com/user-attachments/assets/432c9393-ba22-417d-8182-86a5ce1601c6) |\\n\\n## Type of change\\n<!--\\n  What type of change does your PR introduce to the Home Assistant frontend?\\n  NOTE: Please, check only 1! box!\\n  If your PR requires multiple boxes to be checked, you'll most likely need to\\n  split it into multiple PRs. This makes things easier and faster to code review.\\n-->\\n\\n- [ ] Dependency upgrade\\n- [x] Bugfix (non-breaking change which fixes an issue)\\n- [ ] New feature (thank you!)\\n- [ ] Breaking change (fix/feature causing existing functionality to break)\\n- [ ] Code quality improvements to existing code or addition of tests\\n\\n## Additional information\\n<!--\\n  Details are important, and help maintainers processing your PR.\\n  Please be sure to fill out additional details, if applicable.\\n-->\\n\\n- This PR fixes or closes issue: fixes #\\n- This PR is related to issue or discussion: https://github.com/home-assistant/frontend/pull/55322#discussion_r4398491651\\n- Link to documentation pull request:\\n- Link to developer documentation pull request:\\n- Link to backend pull request:\\n\\n## Checklist\\n<!--\\n  Put an \`x\` in the boxes that apply. You can also fill these out after\\n  creating the PR. If you're unsure about any of them, don't hesitate to ask.\\n  We're here to help! This is simply a reminder of what we are going to look\\n  for before merging your code.\\n\\n  AI tools are welcome, but contributors are responsible for *fully*\\n  understanding the code before submitting a PR.\\n-->\\n\\n- [ ] I understand the code I am submitting and can explain how it works.\\n- [ ] The code change is tested and works locally.\\n- [ ] There is no commented out code in this PR.\\n- [ ] I have followed the [perfect PR recommendations][perfect-pr]\\n- [ ] Any generated code has been carefully reviewed for correctness and compliance with project standards.\\n\\nIf user exposed functionality or configuration variables are added/changed:\\n\\n- [ ] Documentation added/updated for [www.home-assistant.io][docs-repository]\\n\\n<!--\\n  This project is very active and we have a high turnover of pull requests.\\n\\n  Unfortunately, the number of incoming pull requests is higher than what our\\n  reviewers can review and merge so there is a long backlog of pull requests\\n  waiting for review. You can help here!\\n\\n  By reviewing another pull request, you will help raise the code quality of\\n  that pull request and the final review will be faster. This way the general\\n  pace of pull request reviews will go up and your wait time will go down.\\n\\n  When picking a pull request to review, try to choose one that hasn't yet\\n  been reviewed.\\n\\n  Thanks for helping out!\\n-->\\n\\nTo help with the load of incoming pull requests:\\n\\n- [ ] I have reviewed two other [open pull requests][prs] in this repository.\\n\\n[prs]: https://github.com/home-assistant/frontend/pulls?q=is%3Aopen+is%3Apr+-author%3A%40me+-draft%3Atrue+sort%3Acreated-desc+review%3Anone+-status%3Afailure\\n\\n<!--\\n  Thank you for contributing <3\\n\\n  Below, some useful links you could explore:\\n-->\\n[docs-repository]: https://github.com/home-assistant/home-assistant.io\\n[perfect-pr]: https://contributors.home-assistant.io/start/pull-requests/#before-you-open-it\\n\\n\\n",
+    "number": 55394,
+    "repo": "home-assistant/frontend",
+    "sha": "9f931efd674db2767ca849cdfaf0a68240e66a7b",
+    "title": "Highlight the device in the ZHA network visualization",
+    "url": "https://github.com/home-assistant/frontend/pull/55394"
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 4 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 2326,
+          "start": 2326
+        }
+      ],
+      "file": "src/components/chart/ha-chart-base.ts",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 122,
+          "start": 119
+        },
+        {
+          "end": 163,
+          "start": 162
+        },
+        {
+          "end": 168,
+          "start": 168
+        },
+        {
+          "end": 234,
+          "start": 231
+        },
+        {
+          "end": 266,
+          "start": 265
+        },
+        {
+          "end": 314,
+          "start": 309
+        },
+        {
+          "end": 333,
+          "start": 332
+        },
+        {
+          "end": 353,
+          "start": 335
+        },
+        {
+          "end": 594,
+          "start": 509
+        }
+      ],
+      "file": "src/components/chart/ha-network-graph.ts",
+      "removedRanges": [
+        {
+          "end": 288,
+          "start": 288
+        },
+        {
+          "end": 306,
+          "start": 306
+        },
+        {
+          "end": 324,
+          "start": 308
+        }
+      ]
+    }
+  ]
+}"
+`;
+
+exports[`brief goldens > summary-media-supabase-19466 produces the recorded brief 1`] = `
+"{
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/interfaces/Database/Backups/PITR/PITRSelection.tsx, apps/studio/components/interfaces/Database/Backups/PITR/PITRStatus.tsx. canned filler canned filler canned filler canned filler canned filler canned filler canned fille",
+      "title": "Changes under apps/studio/components/interfaces/Database/Backups/PITR",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/interfaces/SQLEditor/SQLEditor.tsx.",
+      "title": "Changes under apps/studio/components/interfaces/SQLEditor",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/interfaces/SQLEditor/UtilityPanel/UtilityActions.tsx.",
+      "title": "Changes under apps/studio/components/interfaces/SQLEditor/UtilityPanel",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/interfaces/Settings/Database/DatabaseSettings/DatabaseSettings.tsx.",
+      "title": "Changes under apps/studio/components/interfaces/Settings/Database/DatabaseSettings",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g5",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/interfaces/Settings/Database/SSLConfiguration.tsx.",
+      "title": "Changes under apps/studio/components/interfaces/Settings/Database",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g6",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureActivity.tsx, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureInfo.tsx.",
+      "title": "Changes under apps/studio/components/interfaces/Settings/Infrastructure",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g7",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/DeployNewReplicaPanel.tsx, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/DropReplicaConfirmationModal.tsx, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.constants.ts, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.tsx, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.utils.ts, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceNode.tsx, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/MapView.tsx, apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/ResizeReplicaPanel.tsx.",
+      "title": "Changes under apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g8",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/layouts/ProjectLayout/LayoutHeader/BreadcrumbsView.tsx.",
+      "title": "Changes under apps/studio/components/layouts/ProjectLayout/LayoutHeader",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g9",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/components/ui/DatabaseSelector.tsx.",
+      "title": "Changes under apps/studio/components/ui",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g10",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/data/api.d.ts.",
+      "title": "Changes under apps/studio/data",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g11",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/data/read-replicas/keys.ts, apps/studio/data/read-replicas/replica-remove-mutation.ts, apps/studio/data/read-replicas/replica-setup-mutation.ts, apps/studio/data/read-replicas/replicas-query.ts, apps/studio/data/read-replicas/replicas-status-query.ts, apps/studio/data/read-replicas/replicas.utils.ts.",
+      "title": "Changes under apps/studio/data/read-replicas",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g12",
+      "secondaryCategories": [],
+      "summary": "Touches apps/studio/state/sql-editor.ts.",
+      "title": "Changes under apps/studio/state",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 21,
+          "start": 9
+        },
+        {
+          "end": 41,
+          "start": 40
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Database/Backups/PITR/PITRSelection.tsx",
+      "id": "c1",
+      "loc": {
+        "added": 15,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 9,
+          "start": 9
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 13,
+          "start": 13
+        },
+        {
+          "end": 30,
+          "start": 28
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Database/Backups/PITR/PITRStatus.tsx",
+      "id": "c2",
+      "loc": {
+        "added": 4,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 60,
+          "start": 60
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 70,
+          "start": 69
+        },
+        {
+          "end": 126,
+          "start": 124
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/SQLEditor/SQLEditor.tsx",
+      "id": "c3",
+      "loc": {
+        "added": 5,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 315,
+          "start": 315
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 12,
+          "start": 12
+        },
+        {
+          "end": 32,
+          "start": 32
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/SQLEditor/UtilityPanel/UtilityActions.tsx",
+      "id": "c4",
+      "loc": {
+        "added": 2,
+        "deleted": 8
+      },
+      "removedRanges": [
+        {
+          "end": 33,
+          "start": 33
+        },
+        {
+          "end": 76,
+          "start": 70
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 21,
+          "start": 21
+        },
+        {
+          "end": 40,
+          "start": 40
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Database/DatabaseSettings/DatabaseSettings.tsx",
+      "id": "c5",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 26,
+          "start": 26
+        },
+        {
+          "end": 40,
+          "start": 40
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 170,
+          "start": 134
+        }
+      ],
+      "changeGroupId": "g5",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Database/SSLConfiguration.tsx",
+      "id": "c6",
+      "loc": {
+        "added": 37,
+        "deleted": 35
+      },
+      "removedRanges": [
+        {
+          "end": 168,
+          "start": 134
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 40,
+          "start": 39
+        },
+        {
+          "end": 191,
+          "start": 191
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureActivity.tsx",
+      "id": "c7",
+      "loc": {
+        "added": 3,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 38,
+          "start": 38
+        },
+        {
+          "end": 190,
+          "start": 190
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 16,
+          "start": 16
+        },
+        {
+          "end": 44,
+          "start": 44
+        }
+      ],
+      "changeGroupId": "g6",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureInfo.tsx",
+      "id": "c8",
+      "loc": {
+        "added": 2,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 148,
+          "start": 148
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 12,
+          "start": 3
+        },
+        {
+          "end": 14,
+          "start": 14
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/DeployNewReplicaPanel.tsx",
+      "id": "c9",
+      "loc": {
+        "added": 11,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 3,
+          "start": 3
+        },
+        {
+          "end": 6,
+          "start": 6
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 76,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/DropReplicaConfirmationModal.tsx",
+      "id": "c10",
+      "loc": {
+        "added": 76,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 11,
+          "start": 11
+        },
+        {
+          "end": 31,
+          "start": 31
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.constants.ts",
+      "id": "c11",
+      "loc": {
+        "added": 2,
+        "deleted": 11
+      },
+      "removedRanges": [
+        {
+          "end": 12,
+          "start": 3
+        },
+        {
+          "end": 21,
+          "start": 21
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 3,
+          "start": 2
+        },
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.tsx",
+      "id": "c12",
+      "loc": {
+        "added": 3,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 3,
+          "start": 2
+        },
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 11,
+          "start": 11
+        },
+        {
+          "end": 15,
+          "start": 14
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.utils.ts",
+      "id": "c13",
+      "loc": {
+        "added": 3,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 6,
+          "start": 6
+        },
+        {
+          "end": 14,
+          "start": 14
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 16,
+          "start": 16
+        },
+        {
+          "end": 18,
+          "start": 18
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceNode.tsx",
+      "id": "c14",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 16,
+          "start": 16
+        },
+        {
+          "end": 21,
+          "start": 21
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 26,
+          "start": 25
+        },
+        {
+          "end": 29,
+          "start": 28
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/MapView.tsx",
+      "id": "c15",
+      "loc": {
+        "added": 4,
+        "deleted": 9
+      },
+      "removedRanges": [
+        {
+          "end": 30,
+          "start": 25
+        },
+        {
+          "end": 39,
+          "start": 37
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 6,
+          "start": 6
+        },
+        {
+          "end": 8,
+          "start": 8
+        }
+      ],
+      "changeGroupId": "g7",
+      "concern": "implementation",
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/ResizeReplicaPanel.tsx",
+      "id": "c16",
+      "loc": {
+        "added": 2,
+        "deleted": 2
+      },
+      "removedRanges": [
+        {
+          "end": 6,
+          "start": 6
+        },
+        {
+          "end": 13,
+          "start": 13
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 12,
+          "start": 12
+        },
+        {
+          "end": 38,
+          "start": 22
+        }
+      ],
+      "changeGroupId": "g8",
+      "concern": "implementation",
+      "file": "apps/studio/components/layouts/ProjectLayout/LayoutHeader/BreadcrumbsView.tsx",
+      "id": "c17",
+      "loc": {
+        "added": 18,
+        "deleted": 17
+      },
+      "removedRanges": [
+        {
+          "end": 12,
+          "start": 12
+        },
+        {
+          "end": 29,
+          "start": 14
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 8,
+          "start": 7
+        }
+      ],
+      "changeGroupId": "g9",
+      "concern": "implementation",
+      "file": "apps/studio/components/ui/DatabaseSelector.tsx",
+      "id": "c18",
+      "loc": {
+        "added": 3,
+        "deleted": 3
+      },
+      "removedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 5,
+          "start": 4
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 477,
+          "start": 470
+        },
+        {
+          "end": 1231,
+          "start": 1224
+        }
+      ],
+      "changeGroupId": "g10",
+      "concern": "implementation",
+      "file": "apps/studio/data/api.d.ts",
+      "id": "c19",
+      "loc": {
+        "added": 16,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/studio/data/read-replicas/keys.ts",
+      "id": "c20",
+      "loc": {
+        "added": 5,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 66,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/studio/data/read-replicas/replica-remove-mutation.ts",
+      "id": "c21",
+      "loc": {
+        "added": 66,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 96,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/studio/data/read-replicas/replica-setup-mutation.ts",
+      "id": "c22",
+      "loc": {
+        "added": 96,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 39,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/studio/data/read-replicas/replicas-query.ts",
+      "id": "c23",
+      "loc": {
+        "added": 39,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 42,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/studio/data/read-replicas/replicas-status-query.ts",
+      "id": "c24",
+      "loc": {
+        "added": 42,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g11",
+      "concern": "implementation",
+      "file": "apps/studio/data/read-replicas/replicas.utils.ts",
+      "id": "c25",
+      "loc": {
+        "added": 7,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 43,
+          "start": 39
+        }
+      ],
+      "changeGroupId": "g12",
+      "concern": "implementation",
+      "file": "apps/studio/state/sql-editor.ts",
+      "id": "c26",
+      "loc": {
+        "added": 5,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "f74ea081f2c6a91e2317fe56a4f549978dd8d5a3",
+    "commitCount": 15,
+    "head": "7b304297a889fed27acebea6c0c0ddea97c21a93"
+  },
+  "concernView": [
+    {
+      "added": 470,
+      "concern": "implementation",
+      "deleted": 102
+    }
+  ],
+  "diffTotals": {
+    "added": 1052,
+    "deleted": 422
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ loc coverage issues:\\n582 added / 320 removed changed line(s) unattributed to any chunk across 16 file(s)",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g7 summary is 906 chars — exceeds the 250-char cap\\ngroup g11 summary is 321 chars — exceeds the 250-char cap"
+  ],
+  "index": 1,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 906,
+      "cap": 250,
+      "field": "group g7 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 321,
+      "cap": 250,
+      "field": "group g11 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "\\r\\n![giphy](https://github.com/supabase/supabase/assets/19742402/d17858dd-6406-4f02-a551-d25b15ae7da3)\\r\\n",
+    "number": 19466,
+    "repo": "supabase/supabase",
+    "sha": "7b304297a889fed27acebea6c0c0ddea97c21a93",
+    "title": "feat/rr-functionality",
+    "url": "https://github.com/supabase/supabase/pull/19466"
+  },
+  "readingOrder": [
+    {
+      "groupId": "g1",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g2",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g3",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g4",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g5",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g6",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g7",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g8",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g9",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g10",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g11",
+      "why": "follows the diff order"
+    },
+    {
+      "groupId": "g12",
+      "why": "follows the diff order"
+    }
+  ],
+  "summary": "Canned brief over 26 changed file(s).",
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 49,
+          "start": 49
+        },
+        {
+          "end": 55,
+          "start": 54
+        },
+        {
+          "end": 168,
+          "start": 146
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Database/Backups/PITR/PITRSelection.tsx",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 67,
+          "start": 64
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Database/Backups/PITR/PITRStatus.tsx",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 164,
+          "start": 158
+        },
+        {
+          "end": 331,
+          "start": 325
+        },
+        {
+          "end": 334,
+          "start": 334
+        }
+      ],
+      "file": "apps/studio/components/interfaces/SQLEditor/SQLEditor.tsx",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 79,
+          "start": 72
+        },
+        {
+          "end": 84,
+          "start": 81
+        }
+      ],
+      "file": "apps/studio/components/interfaces/SQLEditor/UtilityPanel/UtilityActions.tsx",
+      "removedRanges": [
+        {
+          "end": 79,
+          "start": 79
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 50,
+          "start": 44
+        },
+        {
+          "end": 64,
+          "start": 52
+        },
+        {
+          "end": 75,
+          "start": 72
+        },
+        {
+          "end": 179,
+          "start": 169
+        },
+        {
+          "end": 194,
+          "start": 194
+        },
+        {
+          "end": 249,
+          "start": 245
+        },
+        {
+          "end": 400,
+          "start": 399
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Database/DatabaseSettings/DatabaseSettings.tsx",
+      "removedRanges": [
+        {
+          "end": 48,
+          "start": 43
+        },
+        {
+          "end": 61,
+          "start": 58
+        },
+        {
+          "end": 157,
+          "start": 155
+        },
+        {
+          "end": 174,
+          "start": 172
+        },
+        {
+          "end": 225,
+          "start": 225
+        },
+        {
+          "end": 235,
+          "start": 234
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 196,
+          "start": 196
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureActivity.tsx",
+      "removedRanges": [
+        {
+          "end": 195,
+          "start": 195
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 21,
+          "start": 17
+        },
+        {
+          "end": 28,
+          "start": 28
+        },
+        {
+          "end": 35,
+          "start": 35
+        },
+        {
+          "end": 40,
+          "start": 39
+        },
+        {
+          "end": 59,
+          "start": 42
+        },
+        {
+          "end": 70,
+          "start": 64
+        },
+        {
+          "end": 72,
+          "start": 72
+        },
+        {
+          "end": 82,
+          "start": 77
+        },
+        {
+          "end": 99,
+          "start": 99
+        },
+        {
+          "end": 103,
+          "start": 102
+        },
+        {
+          "end": 144,
+          "start": 107
+        },
+        {
+          "end": 149,
+          "start": 149
+        },
+        {
+          "end": 173,
+          "start": 173
+        },
+        {
+          "end": 180,
+          "start": 180
+        },
+        {
+          "end": 189,
+          "start": 189
+        },
+        {
+          "end": 191,
+          "start": 191
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/DeployNewReplicaPanel.tsx",
+      "removedRanges": [
+        {
+          "end": 30,
+          "start": 28
+        },
+        {
+          "end": 32,
+          "start": 32
+        },
+        {
+          "end": 38,
+          "start": 37
+        },
+        {
+          "end": 101,
+          "start": 101
+        },
+        {
+          "end": 103,
+          "start": 103
+        }
+      ]
+    },
+    {
+      "addedRanges": [],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.constants.ts",
+      "removedRanges": [
+        {
+          "end": 99,
+          "start": 25
+        },
+        {
+          "end": 116,
+          "start": 116
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 12,
+          "start": 8
+        },
+        {
+          "end": 15,
+          "start": 15
+        },
+        {
+          "end": 28,
+          "start": 28
+        },
+        {
+          "end": 32,
+          "start": 32
+        },
+        {
+          "end": 67,
+          "start": 34
+        },
+        {
+          "end": 82,
+          "start": 72
+        },
+        {
+          "end": 88,
+          "start": 86
+        },
+        {
+          "end": 117,
+          "start": 107
+        },
+        {
+          "end": 187,
+          "start": 120
+        },
+        {
+          "end": 194,
+          "start": 194
+        },
+        {
+          "end": 207,
+          "start": 201
+        },
+        {
+          "end": 211,
+          "start": 211
+        },
+        {
+          "end": 213,
+          "start": 213
+        },
+        {
+          "end": 234,
+          "start": 234
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.tsx",
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 8
+        },
+        {
+          "end": 20,
+          "start": 20
+        },
+        {
+          "end": 24,
+          "start": 24
+        },
+        {
+          "end": 40,
+          "start": 38
+        },
+        {
+          "end": 51,
+          "start": 45
+        },
+        {
+          "end": 57,
+          "start": 55
+        },
+        {
+          "end": 135,
+          "start": 78
+        },
+        {
+          "end": 148,
+          "start": 148
+        },
+        {
+          "end": 182,
+          "start": 152
+        },
+        {
+          "end": 184,
+          "start": 184
+        },
+        {
+          "end": 205,
+          "start": 205
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 23,
+          "start": 21
+        },
+        {
+          "end": 51,
+          "start": 32
+        },
+        {
+          "end": 61,
+          "start": 60
+        },
+        {
+          "end": 63,
+          "start": 63
+        },
+        {
+          "end": 71,
+          "start": 68
+        },
+        {
+          "end": 76,
+          "start": 76
+        },
+        {
+          "end": 135,
+          "start": 135
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceConfiguration.utils.ts",
+      "removedRanges": [
+        {
+          "end": 22,
+          "start": 20
+        },
+        {
+          "end": 26,
+          "start": 26
+        },
+        {
+          "end": 32,
+          "start": 32
+        },
+        {
+          "end": 42,
+          "start": 41
+        },
+        {
+          "end": 44,
+          "start": 44
+        },
+        {
+          "end": 46,
+          "start": 46
+        },
+        {
+          "end": 62,
+          "start": 50
+        },
+        {
+          "end": 67,
+          "start": 67
+        },
+        {
+          "end": 126,
+          "start": 126
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 25,
+          "start": 25
+        },
+        {
+          "end": 41,
+          "start": 41
+        },
+        {
+          "end": 55,
+          "start": 55
+        },
+        {
+          "end": 81,
+          "start": 75
+        },
+        {
+          "end": 93,
+          "start": 86
+        },
+        {
+          "end": 104,
+          "start": 104
+        },
+        {
+          "end": 132,
+          "start": 131
+        },
+        {
+          "end": 140,
+          "start": 134
+        },
+        {
+          "end": 143,
+          "start": 143
+        },
+        {
+          "end": 164,
+          "start": 164
+        },
+        {
+          "end": 167,
+          "start": 166
+        },
+        {
+          "end": 169,
+          "start": 169
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/InstanceNode.tsx",
+      "removedRanges": [
+        {
+          "end": 40,
+          "start": 40
+        },
+        {
+          "end": 54,
+          "start": 54
+        },
+        {
+          "end": 75,
+          "start": 74
+        },
+        {
+          "end": 85,
+          "start": 80
+        },
+        {
+          "end": 93,
+          "start": 93
+        },
+        {
+          "end": 124,
+          "start": 123
+        },
+        {
+          "end": 127,
+          "start": 126
+        },
+        {
+          "end": 132,
+          "start": 130
+        },
+        {
+          "end": 153,
+          "start": 153
+        },
+        {
+          "end": 156,
+          "start": 155
+        },
+        {
+          "end": 158,
+          "start": 158
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 37,
+          "start": 35
+        },
+        {
+          "end": 48,
+          "start": 48
+        },
+        {
+          "end": 60,
+          "start": 57
+        },
+        {
+          "end": 70,
+          "start": 70
+        },
+        {
+          "end": 80,
+          "start": 76
+        },
+        {
+          "end": 89,
+          "start": 88
+        },
+        {
+          "end": 95,
+          "start": 94
+        },
+        {
+          "end": 122,
+          "start": 122
+        },
+        {
+          "end": 140,
+          "start": 139
+        },
+        {
+          "end": 147,
+          "start": 145
+        },
+        {
+          "end": 156,
+          "start": 156
+        },
+        {
+          "end": 166,
+          "start": 164
+        },
+        {
+          "end": 178,
+          "start": 178
+        },
+        {
+          "end": 254,
+          "start": 254
+        },
+        {
+          "end": 259,
+          "start": 259
+        },
+        {
+          "end": 271,
+          "start": 261
+        },
+        {
+          "end": 274,
+          "start": 274
+        },
+        {
+          "end": 278,
+          "start": 278
+        },
+        {
+          "end": 286,
+          "start": 286
+        },
+        {
+          "end": 291,
+          "start": 291
+        },
+        {
+          "end": 302,
+          "start": 302
+        },
+        {
+          "end": 332,
+          "start": 332
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/MapView.tsx",
+      "removedRanges": [
+        {
+          "end": 50,
+          "start": 50
+        },
+        {
+          "end": 59,
+          "start": 59
+        },
+        {
+          "end": 69,
+          "start": 69
+        },
+        {
+          "end": 78,
+          "start": 75
+        },
+        {
+          "end": 87,
+          "start": 86
+        },
+        {
+          "end": 93,
+          "start": 92
+        },
+        {
+          "end": 120,
+          "start": 120
+        },
+        {
+          "end": 138,
+          "start": 137
+        },
+        {
+          "end": 145,
+          "start": 143
+        },
+        {
+          "end": 154,
+          "start": 154
+        },
+        {
+          "end": 162,
+          "start": 162
+        },
+        {
+          "end": 174,
+          "start": 174
+        },
+        {
+          "end": 250,
+          "start": 250
+        },
+        {
+          "end": 255,
+          "start": 255
+        },
+        {
+          "end": 258,
+          "start": 257
+        },
+        {
+          "end": 261,
+          "start": 261
+        },
+        {
+          "end": 265,
+          "start": 265
+        },
+        {
+          "end": 273,
+          "start": 273
+        },
+        {
+          "end": 278,
+          "start": 278
+        },
+        {
+          "end": 289,
+          "start": 289
+        },
+        {
+          "end": 319,
+          "start": 319
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 14
+        },
+        {
+          "end": 47,
+          "start": 47
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureConfiguration/ResizeReplicaPanel.tsx",
+      "removedRanges": [
+        {
+          "end": 46,
+          "start": 46
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 52,
+          "start": 52
+        },
+        {
+          "end": 162,
+          "start": 151
+        }
+      ],
+      "file": "apps/studio/components/interfaces/Settings/Infrastructure/InfrastructureInfo.tsx",
+      "removedRanges": []
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 15,
+          "start": 10
+        },
+        {
+          "end": 20,
+          "start": 18
+        },
+        {
+          "end": 23,
+          "start": 22
+        },
+        {
+          "end": 32,
+          "start": 27
+        },
+        {
+          "end": 38,
+          "start": 34
+        },
+        {
+          "end": 51,
+          "start": 46
+        },
+        {
+          "end": 58,
+          "start": 58
+        },
+        {
+          "end": 64,
+          "start": 60
+        },
+        {
+          "end": 68,
+          "start": 68
+        },
+        {
+          "end": 76,
+          "start": 74
+        },
+        {
+          "end": 80,
+          "start": 79
+        },
+        {
+          "end": 83,
+          "start": 83
+        },
+        {
+          "end": 87,
+          "start": 87
+        },
+        {
+          "end": 93,
+          "start": 93
+        },
+        {
+          "end": 95,
+          "start": 95
+        },
+        {
+          "end": 97,
+          "start": 97
+        }
+      ],
+      "file": "apps/studio/components/ui/DatabaseSelector.tsx",
+      "removedRanges": [
+        {
+          "end": 10,
+          "start": 7
+        },
+        {
+          "end": 12,
+          "start": 12
+        },
+        {
+          "end": 18,
+          "start": 18
+        },
+        {
+          "end": 22,
+          "start": 22
+        },
+        {
+          "end": 25,
+          "start": 24
+        },
+        {
+          "end": 33,
+          "start": 33
+        },
+        {
+          "end": 41,
+          "start": 40
+        },
+        {
+          "end": 43,
+          "start": 43
+        },
+        {
+          "end": 47,
+          "start": 47
+        },
+        {
+          "end": 56,
+          "start": 55
+        },
+        {
+          "end": 59,
+          "start": 59
+        },
+        {
+          "end": 63,
+          "start": 63
+        },
+        {
+          "end": 69,
+          "start": 69
+        },
+        {
+          "end": 71,
+          "start": 71
+        },
+        {
+          "end": 73,
+          "start": 73
+        }
+      ]
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 3606,
+          "start": 3568
+        },
+        {
+          "end": 8501,
+          "start": 8466
+        }
+      ],
+      "file": "apps/studio/data/api.d.ts",
+      "removedRanges": []
+    }
+  ]
+}"
+`;
+
 exports[`request goldens > delta-read-api-contract sends the recorded request digests 1`] = `
 "[
   {
@@ -1122,6 +6141,86 @@ exports[`request goldens > pair-real-brief143-docs sends the recorded request di
     "user": {
       "bytes": 20983,
       "sha256": "de7509435ba39bad66212134a3469d88339657a245c1b7cfa7deda722e4d0f34"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > summary-media-code-review-1141 sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 11547,
+      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+    },
+    "system": {
+      "bytes": 27316,
+      "sha256": "cfc9efc874a933d56c6cb87ada17ca5b79b16ac79ae2c605588d21c8e67426d3"
+    },
+    "user": {
+      "bytes": 228769,
+      "sha256": "6f87bac7bd69a4f1323a2333b309cb0e49494a268f70f78e8e78fc1a34022136"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > summary-media-grafana-107803 sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 11547,
+      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+    },
+    "system": {
+      "bytes": 27316,
+      "sha256": "cfc9efc874a933d56c6cb87ada17ca5b79b16ac79ae2c605588d21c8e67426d3"
+    },
+    "user": {
+      "bytes": 56752,
+      "sha256": "50cc0216f7e7d3544506db7e431f5257a4c98bc02e1978e8e177ae083ff8d0ab"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > summary-media-home-assistant-55394 sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 11547,
+      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+    },
+    "system": {
+      "bytes": 27316,
+      "sha256": "cfc9efc874a933d56c6cb87ada17ca5b79b16ac79ae2c605588d21c8e67426d3"
+    },
+    "user": {
+      "bytes": 14340,
+      "sha256": "1c9ea533bd40ba0c1244b24f680563d7cbd363146ce6354d8ad21124bfeb38eb"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > summary-media-supabase-19466 sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 11547,
+      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+    },
+    "system": {
+      "bytes": 27316,
+      "sha256": "cfc9efc874a933d56c6cb87ada17ca5b79b16ac79ae2c605588d21c8e67426d3"
+    },
+    "user": {
+      "bytes": 99073,
+      "sha256": "bedf361eac523282d37dd478312fcf3936db8009611d1372d7f15acab17983cf"
     }
   }
 ]"
