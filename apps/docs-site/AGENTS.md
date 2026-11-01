@@ -25,6 +25,7 @@ What the layout can't show:
 - **Copy:** every site string that is not a proper noun reads a `docsSite.*` catalog key through `t()` (`src/labels.ts`): description, sidebar groups, and every theme label VitePress takes as an option. `MergeBrief` and `GitHub` stay literal. Labels VitePress does not expose as options keep its defaults.
 - **Build failures throw.** The link rule and the anchor check throw to fail the build, each naming the page and every bad link; the resolvers under them return `Result`.
 - **All dependencies are devDependencies:** nothing here ships at runtime.
+- **CI selection:** the `checks` job builds the site when a diff matches `docs_changed` in `.github/workflows/ci.yml`. A page that links a new file outside `docs/` widens that pattern in the same change, or CI misses the target's removal.
 
 ## Verification
 

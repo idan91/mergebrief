@@ -201,14 +201,23 @@ jobs:
           # these to the workspace root only, which the filter excludes — so
           # without this escape hatch a lockfile bump would run nothing.
           # Buffered into a variable first: `git diff | grep -q` under
-          # pipefail dies of SIGPIPE on >64KB diffs the moment grep exits,
-          # silently flipping run_all to false — the escape hatch disarmed
-          # exactly when a huge change needs it most.
-          changed="$(git diff --name-only "$base" HEAD)"
+          # pipefail dies of SIGPIPE on >64KB diffs, flipping run_all to false.
+          # --no-renames lists a moved file's old path; quotePath=false keeps
+          # non-ASCII paths unquoted so the anchored patterns match them.
+          changed="$(git -c core.quotePath=false diff --name-only --no-renames "$base" HEAD)"
           if grep -qE '^(\.github/workflows/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$|vitest\.shared\.ts$|tsconfig[^/]*\.json$)' <<<"$changed"; then
             echo "run_all=true" >> "$GITHUB_OUTPUT"
           else
             echo "run_all=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # The docs site builds docs/ and checks every link out of it,
+          # including the root files those pages link to. pnpm maps all of
+          # them to the excluded root project, so they select docs-site here.
+          if grep -qE '^(docs/|[^/]+\.md$|mergebrief\.config\.example\.yaml$)' <<<"$changed"; then
+            echo "docs_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up pnpm
@@ -229,6 +238,7 @@ jobs:
           SLUG: ${{ matrix.slug }}
           BASE: ${{ steps.affected.outputs.base }}
           RUN_ALL: ${{ steps.affected.outputs.run_all }}
+          DOCS_CHANGED: ${{ steps.affected.outputs.docs_changed }}
           MERGEBRIEF_TEST_POSTGRES_URL: postgres://mergebrief:mergebrief@127.0.0.1:5432/mergebrief_test
         run: |
           set -euo pipefail
@@ -252,12 +262,16 @@ jobs:
               echo "API changed; adding its HTTP consumers to the selection."
               filters+=(--filter "web" --filter "mergebrief")
             fi
+            if [ "$DOCS_CHANGED" = "true" ]; then
+              echo "Docs changed; adding the docs site to the selection."
+              filters+=(--filter "docs-site")
+            fi
           fi
 
           # `--if-present` because the matrix is one script name across the
-          # whole selection: only apps/web and the CLI have `build`, only the
-          # CLI has `docs:check`. An empty selection exits 0 — that is the
-          # skip.
+          # whole selection: only apps/web, the CLI and the docs site have
+          # `build`, only the CLI has `docs:check`. An empty selection exits
+          # 0: that is the skip.
           #
           # `pipefail` is already set, so `tee` cannot mask a failing suite.
           mkdir -p ci-logs
