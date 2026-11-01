@@ -17,7 +17,13 @@ import {
 } from "@web/components/Markdown/media";
 import { DIAGRAM_TITLE_KEYS } from "@web/components/MermaidDiagram/consts";
 import { buildGitHubOriginalLink } from "@web/components/MediaFailedRow/utils";
-import { COUNT_KEYS, KIND_LABEL_KEYS, STRIP_KIND_ORDER } from "./consts";
+import {
+  COUNT_KEYS,
+  KIND_LABEL_KEYS,
+  OPEN_KEYS,
+  OPEN_UNNAMED_KEYS,
+  STRIP_KIND_ORDER,
+} from "./consts";
 import type {
   DiagramStripEntry,
   ImageStripEntry,
@@ -190,7 +196,24 @@ export function readEntryLabel(t: TFunction, entry: StripEntry): string {
   return t(KIND_LABEL_KEYS[entry.kind]);
 }
 
+/** The tile's name: "Open image: <caption>", or the kind alone for an image or video with no caption. */
+export function readOpenLabel(t: TFunction, entry: StripEntry): string {
+  if (entry.caption === undefined && entry.kind !== MediaKinds.DIAGRAM) {
+    return t(OPEN_UNNAMED_KEYS[entry.kind]);
+  }
+  return t(OPEN_KEYS[entry.kind], { caption: readEntryLabel(t, entry) });
+}
+
 /** What an image tile loads: its thumbnail where the proxy makes one; only the lightbox loads the original. */
 export function readTileSource(entry: ImageStripEntry): string {
   return entry.thumbnailSource ?? entry.source;
+}
+
+/** `index` moved by `offset` places in a sequence of `count`, wrapping at either end. */
+export function stepIndex(
+  index: number,
+  offset: number,
+  count: number,
+): number {
+  return (((index + offset) % count) + count) % count;
 }

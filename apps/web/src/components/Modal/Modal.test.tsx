@@ -8,20 +8,30 @@ import { Modal } from ".";
 
 interface HarnessProps {
   namesField?: boolean;
+  namesOpener?: boolean;
 }
 
-function Harness({ namesField = false }: HarnessProps) {
+function Harness({ namesField = false, namesOpener = false }: HarnessProps) {
   const [open, setOpen] = useState(false);
+  const [opener, setOpener] = useState<HTMLElement | undefined>();
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Open</Button>
+      <Button
+        onClick={(event) => {
+          setOpener(namesOpener ? event.currentTarget : undefined);
+          setOpen(true);
+        }}
+      >
+        Open
+      </Button>
       <Modal
         close={() => setOpen(false)}
         initialFocus={namesField ? fieldRef : undefined}
         labelledBy="harness-heading"
         open={open}
+        opener={opener}
       >
         <h2 id="harness-heading">Harness</h2>
         <textarea aria-label="Reason" ref={fieldRef} />
@@ -72,6 +82,18 @@ describe("Modal", () => {
     const close = screen.getByRole("button", { name: "Close" });
     close.focus();
     fireEvent.click(close);
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("returns focus to the named opener the click never focused", async () => {
+    render(<Harness namesField namesOpener />);
+    const trigger = screen.getByRole("button", { name: "Open" });
+
+    fireEvent.click(trigger);
+    expect(document.activeElement).not.toBe(trigger);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await Promise.resolve();
 
     expect(document.activeElement).toBe(trigger);

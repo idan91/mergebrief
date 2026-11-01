@@ -1,0 +1,19 @@
+@use "mixins";
+
+@layer components {
+  .failed {
+    min-inline-size: 0;
+  }
+
+  .note {
+    margin-block: 0 var(--space-2);
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+  }
+
+  .failed > .code {
+    @include mixins.code-block;
+
+    margin-block: 0;
+  }
+}

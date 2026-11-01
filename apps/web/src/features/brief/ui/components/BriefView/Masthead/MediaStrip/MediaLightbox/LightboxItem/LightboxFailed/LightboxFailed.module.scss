@@ -1,0 +1,45 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .panel {
+    display: grid;
+    gap: var(--space-3);
+    justify-items: center;
+    max-inline-size: functions.to-rem(320px);
+    padding-block: var(--space-6);
+    padding-inline: var(--space-6);
+    border: 1px dashed var(--color-outline-2);
+    border-radius: var(--radius-md);
+    color: var(--color-text-3);
+    text-align: center;
+  }
+
+  .wording {
+    margin: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+  }
+
+  .link {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+    min-block-size: functions.to-rem(24px);
+    border-radius: var(--radius-xs);
+    color: var(--color-text-read);
+    text-decoration: underline;
+    text-decoration-color: var(--color-outline-2);
+    text-underline-offset: 3px;
+    transition: color var(--motion-fast);
+
+    &:hover {
+      color: var(--color-text-1);
+      text-decoration-color: currentcolor;
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+}

@@ -13,17 +13,16 @@
       border: 0;
       background: none;
     }
+  }
 
-    .note {
-      margin-block: 0 var(--space-2);
-      color: var(--color-text-3);
-      font-size: var(--font-size-sm);
-    }
+  .scroller {
+    overflow-x: auto;
+    border-radius: var(--radius-sm);
+    scrollbar-color: var(--color-outline-2) transparent;
+    scrollbar-width: thin;
 
-    pre {
-      @include mixins.code-block;
-
-      margin-block: var(--space-2) 0;
+    &:focus-visible {
+      @include mixins.focus-ring;
     }
   }
 

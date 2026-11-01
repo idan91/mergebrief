@@ -14,7 +14,7 @@ export function DiagramSource({ code }: DiagramSourceProps) {
       <summary className={styles["summary"]}>
         {t("shell.media.diagramSource")}
       </summary>
-      <pre>
+      <pre className={styles["code"]}>
         <code className="language-mermaid">{code}</code>
       </pre>
     </details>

@@ -1,0 +1,9 @@
+@layer components {
+  .image {
+    display: block;
+    max-inline-size: 100%;
+    max-block-size: 100%;
+    border-radius: var(--radius-sm);
+    object-fit: contain;
+  }
+}

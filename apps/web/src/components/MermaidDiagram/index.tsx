@@ -2,6 +2,7 @@ import { readDiagramType } from "brief-core/media";
 import { useTranslation } from "react-i18next";
 
 import { DIAGRAM_TITLE_KEYS } from "./consts";
+import { DiagramFailed } from "./DiagramFailed";
 import { DiagramFrame } from "./DiagramFrame";
 import { DiagramSource } from "./DiagramSource";
 import { DiagramRenderStatuses } from "./types";
@@ -16,7 +17,9 @@ export interface MermaidDiagramProps {
 /**
  * A Mermaid fence drawn as a diagram in a sandboxed frame, its source one
  * disclosure away. Mermaid loads only once a diagram mounts; a fence it
- * cannot draw stays a code block under a one-line note.
+ * cannot draw stays a code block under a one-line note. A host narrower
+ * than the diagram's readable width scrolls it sideways, from the keyboard
+ * too.
  */
 export function MermaidDiagram({ code }: MermaidDiagramProps) {
   const { t } = useTranslation();
@@ -29,10 +32,7 @@ export function MermaidDiagram({ code }: MermaidDiagramProps) {
         data-state={render.status}
         data-testid="mermaid-diagram"
       >
-        <p className={styles["note"]}>{t("shell.media.diagramFailed")}</p>
-        <pre>
-          <code className="language-mermaid">{code}</code>
-        </pre>
+        <DiagramFailed code={code} />
       </div>
     );
   }
@@ -45,7 +45,14 @@ export function MermaidDiagram({ code }: MermaidDiagramProps) {
       data-testid="mermaid-diagram"
     >
       {render.status === DiagramRenderStatuses.RENDERED ? (
-        <DiagramFrame diagram={render.diagram} title={title} />
+        <div
+          aria-label={title}
+          className={styles["scroller"]}
+          role="region"
+          tabIndex={0}
+        >
+          <DiagramFrame diagram={render.diagram} title={title} />
+        </div>
       ) : (
         <div aria-hidden="true" className={styles["pending"]} />
       )}

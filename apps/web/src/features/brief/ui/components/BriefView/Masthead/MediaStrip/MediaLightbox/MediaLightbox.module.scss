@@ -1,0 +1,62 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // The attribute lifts this over the Modal's own `.box` rule, which loads in no fixed order.
+  .lightbox[role="dialog"] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    inline-size: min(#{functions.to-rem(1320px)}, 94vw);
+    max-inline-size: none;
+    block-size: min(92dvh, #{functions.to-rem(900px)});
+    padding: 0;
+    overflow: hidden;
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-elevation-lg);
+  }
+
+  .stage {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+    min-block-size: 0;
+    padding-block: var(--space-5);
+    padding-inline: var(--space-9);
+    background: var(--color-background);
+
+    @media (width <= 640px) {
+      padding-block: var(--space-4) var(--space-9);
+      padding-inline: var(--space-3);
+    }
+  }
+
+  .stage .arrow {
+    position: absolute;
+    inset-block: 0;
+    z-index: 1;
+    margin-block: auto;
+    border-color: var(--color-outline-2);
+    background: var(--color-surface-2);
+    color: var(--color-text-1);
+
+    &[data-side="start"] {
+      inset-inline-start: var(--space-4);
+    }
+
+    &[data-side="end"] {
+      inset-inline-end: var(--space-4);
+    }
+
+    @media (width <= 640px) {
+      inset-block: auto var(--space-4);
+      margin-block: 0;
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+}

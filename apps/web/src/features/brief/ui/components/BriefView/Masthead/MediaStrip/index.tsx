@@ -2,19 +2,24 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { renderedLocale } from "@web/i18n/locale";
+import { MediaLightbox } from "./MediaLightbox";
 import { MediaTile } from "./MediaTile";
-import type { StripEntry } from "./types";
+import type { MediaGallery } from "./types";
 import { describeStripCounts } from "./utils";
 import styles from "./MediaStrip.module.scss";
 
 export interface MediaStripProps {
-  entries: readonly StripEntry[];
+  gallery: MediaGallery;
 }
 
-/** A thumbnail for every Media item in the description; nothing when it has none. */
-export function MediaStrip({ entries }: MediaStripProps) {
+/**
+ * A thumbnail for every Media item in the description, each opening the
+ * lightbox at its place; nothing when the description has none.
+ */
+export function MediaStrip({ gallery }: MediaStripProps) {
   const { t, i18n } = useTranslation();
   const headingId = useId();
+  const { entries, lightbox } = gallery;
 
   if (entries.length === 0) {
     return null;
@@ -36,9 +41,14 @@ export function MediaStrip({ entries }: MediaStripProps) {
       </div>
       <ul className={styles["row"]}>
         {entries.map((entry) => (
-          <MediaTile entry={entry} key={entry.key} />
+          <MediaTile
+            entry={entry}
+            key={entry.key}
+            onOpen={lightbox.openMedia}
+          />
         ))}
       </ul>
+      <MediaLightbox gallery={gallery} />
     </section>
   );
 }

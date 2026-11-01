@@ -860,7 +860,19 @@
       "diagramCount_other": "{{count}} diagrams",
       "countsSuffix": "from the description",
       "imageLabel": "Image",
-      "videoLabel": "Video"
+      "videoLabel": "Video",
+      "openImage": "Open image: {{caption}}",
+      "openVideo": "Open video: {{caption}}",
+      "openDiagram": "Open diagram: {{caption}}",
+      "openUnnamedImage": "Open image",
+      "openUnnamedVideo": "Open video",
+      "position": "{{position}} of {{count}}",
+      "status": "{{caption}}, {{position}} of {{count}}",
+      "previous": "Previous",
+      "next": "Next",
+      "close": "Close",
+      "showActualSize": "Show actual size",
+      "fitToScreen": "Fit to screen"
     },
     "screen": {
       "sessionUnavailable": "Your review session couldn't be loaded, so this brief is read-only. Reload to try again; commenting now could duplicate drafts you already have.",
@@ -1515,7 +1527,9 @@
         "mindmap": "Mind map",
         "timeline": "Timeline",
         "other": "Diagram"
-      }
+      },
+      "enlargeImage": "Enlarge image",
+      "enlargeNamedImage": "Enlarge {{alt}}"
     },
     "attach": {
       "hint": "Paste or drop an image; it is pushed to this repository's <0/> branch",

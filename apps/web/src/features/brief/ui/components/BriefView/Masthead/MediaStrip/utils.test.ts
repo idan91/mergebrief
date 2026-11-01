@@ -17,8 +17,10 @@ import {
   buildStripEntries,
   describeStripCounts,
   readEntryLabel,
+  readOpenLabel,
   readPendingVideoAssetIds,
   readTileSource,
+  stepIndex,
 } from "./utils";
 
 const LATER_ASSET_ID = "0f6c1f2e-61b3-4d55-9c1a-0b2d7f3e9a10";
@@ -199,6 +201,36 @@ describe("readEntryLabel", () => {
   });
 });
 
+describe("readOpenLabel", () => {
+  it("names a caption-less image by its kind alone", () => {
+    const [entry] = buildStripEntries(
+      readItems(`![](${ASSET_URL})`),
+      SCOPE,
+      undefined,
+    );
+
+    expect(entry && readOpenLabel(t, entry)).toBe("Open image");
+  });
+
+  it("names a captioned entry by its caption", () => {
+    const [entry] = buildStripEntries(
+      readItems(`![Login screen](${OUTSIDE_URL})`),
+      SCOPE,
+      undefined,
+    );
+
+    expect(entry && readOpenLabel(t, entry)).toBe("Open image: Login screen");
+  });
+
+  it("names a caption-less diagram by its type", () => {
+    const [entry] = buildStripEntries(readItems(SEQUENCE), SCOPE, undefined);
+
+    expect(entry && readOpenLabel(t, entry)).toBe(
+      "Open diagram: Sequence diagram",
+    );
+  });
+});
+
 describe("readTileSource", () => {
   it("reads the thumbnail of a proxied image", () => {
     const [entry] = buildStripEntries(
@@ -220,5 +252,16 @@ describe("readTileSource", () => {
     );
 
     expect(entry?.kind === "image" && readTileSource(entry)).toBe(OUTSIDE_URL);
+  });
+});
+
+describe("stepIndex", () => {
+  it.each([
+    [0, 1, 3, 1],
+    [2, 1, 3, 0],
+    [0, -1, 3, 2],
+    [0, 1, 1, 0],
+  ])("moves %i by %i in %i places to %i", (index, offset, count, expected) => {
+    expect(stepIndex(index, offset, count)).toBe(expected);
   });
 });

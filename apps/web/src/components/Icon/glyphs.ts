@@ -18,6 +18,7 @@ import ClockGlyph from "../icons/clock.svg?react";
 import CodeGlyph from "../icons/code.svg?react";
 import ColumnsGlyph from "../icons/columns.svg?react";
 import CopyGlyph from "../icons/copy.svg?react";
+import CornersOutGlyph from "../icons/corners-out.svg?react";
 import CursorGlyph from "../icons/cursor.svg?react";
 import CursorClickGlyph from "../icons/cursor-click.svg?react";
 import DotsThreeGlyph from "../icons/dots-three.svg?react";
@@ -75,6 +76,7 @@ export const GLYPHS: Readonly<Record<IconName, Glyph>> = {
   [IconNames.CODE]: CodeGlyph,
   [IconNames.COLUMNS]: ColumnsGlyph,
   [IconNames.COPY]: CopyGlyph,
+  [IconNames.CORNERS_OUT]: CornersOutGlyph,
   [IconNames.DOTS_THREE]: DotsThreeGlyph,
   [IconNames.EYE_SLASH]: EyeSlashGlyph,
   [IconNames.FILM_STRIP]: FilmStripGlyph,

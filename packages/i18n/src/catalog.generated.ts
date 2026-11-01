@@ -211,6 +211,11 @@ export type Catalog = typeof en & {
       videoCount_other: "{{count}} videos";
       diagramCount_one: "{{count}} diagram";
       diagramCount_other: "{{count}} diagrams";
+      openImage: "Open image: {{caption}}";
+      openVideo: "Open video: {{caption}}";
+      openDiagram: "Open diagram: {{caption}}";
+      position: "{{position}} of {{count}}";
+      status: "{{caption}}, {{position}} of {{count}}";
     };
     markReadyBatch: (typeof en)["brief"]["markReadyBatch"] & {
       counts: "Posted {{posted}} of {{total}}.";
@@ -359,6 +364,9 @@ export type Catalog = typeof en & {
       security: "MergeBrief <0>{{latest}}</0> fixes a security issue.";
       running: "This instance runs {{current}}.";
       menuAvailable: "MergeBrief {{latest}} is available";
+    };
+    media: (typeof en)["shell"]["media"] & {
+      enlargeNamedImage: "Enlarge {{alt}}";
     };
     pageTitle: (typeof en)["shell"]["pageTitle"] & {
       prNumber: "#{{number}}";

@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { SANDBOX_FRAME_SOURCE_PREFIX } from "./consts";
-import type { DiagramSvg, RenderedDiagram } from "./types";
+import type { DiagramSvg, FrameBounds, RenderedDiagram } from "./types";
 
 const VIEW_BOX_SEPARATOR = /[\s,]+/;
 const VIEW_BOX_PARTS = 4;
@@ -74,17 +74,22 @@ export function readPixelSize(
 
 /**
  * The frame's size: the viewBox's ratio, never wider than the diagram drew
- * itself, and never narrower than its readable scale; a narrower host
- * scrolls sideways.
+ * itself nor taller than `maxBlockSize`, and never narrower than `minScale`
+ * draws it; a narrower host scrolls sideways.
  */
-export function buildFrameStyle(diagram: RenderedDiagram): CSSProperties {
+export function buildFrameStyle(
+  diagram: RenderedDiagram,
+  { maxBlockSize, minScale }: FrameBounds,
+): CSSProperties {
+  const ratio = diagram.width / diagram.height;
+  const cappedWidth =
+    maxBlockSize === undefined ? diagram.width : maxBlockSize * ratio;
   const style: CSSProperties = {
     aspectRatio: `${diagram.width} / ${diagram.height}`,
-    maxInlineSize: `${diagram.width}px`,
+    maxInlineSize: `${Math.floor(Math.min(diagram.width, cappedWidth))}px`,
   };
-  if (diagram.readableScale !== undefined) {
-    const readableWidth = Math.ceil(diagram.width * diagram.readableScale);
-    style.minInlineSize = `${readableWidth}px`;
+  if (minScale !== undefined) {
+    style.minInlineSize = `${Math.ceil(diagram.width * minScale)}px`;
   }
   return style;
 }

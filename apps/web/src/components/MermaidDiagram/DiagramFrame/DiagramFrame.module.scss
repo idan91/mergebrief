@@ -1,17 +1,4 @@
-@use "mixins";
-
 @layer components {
-  .scroller {
-    overflow-x: auto;
-    border-radius: var(--radius-sm);
-    scrollbar-color: var(--color-outline-2) transparent;
-    scrollbar-width: thin;
-
-    &:focus-visible {
-      @include mixins.focus-ring;
-    }
-  }
-
   .frame {
     display: block;
     inline-size: 100%;

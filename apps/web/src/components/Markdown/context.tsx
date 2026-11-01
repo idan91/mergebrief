@@ -1,3 +1,4 @@
+import type { MediaKey } from "brief-core/media";
 import type { AttachmentAssetId } from "contract";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
@@ -108,4 +109,55 @@ export function VideoAssetsScope({ value, children }: VideoAssetsScopeProps) {
 
 export function useVideoAssets(): VideoAssets | undefined {
   return useContext(VideoAssetsContext);
+}
+
+/** Opens the lightbox at one of the description's Media items. */
+export interface MediaLightboxHandle {
+  /** The strip holds an item under `key`. */
+  readonly hasMedia: (key: MediaKey) => boolean;
+  /** Opens the lightbox at `key`; focus returns to `opener` on close. */
+  readonly openMedia: (key: MediaKey, opener: HTMLElement) => void;
+}
+
+export interface MediaLightboxScopeProps {
+  value: MediaLightboxHandle;
+  children: ReactNode;
+}
+
+const MediaLightboxContext = createContext<MediaLightboxHandle | undefined>(
+  undefined,
+);
+
+/** Fed by the brief around its Original description; outside it, an image only shows. */
+export function MediaLightboxScope({
+  value,
+  children,
+}: MediaLightboxScopeProps) {
+  return (
+    <MediaLightboxContext.Provider value={value}>
+      {children}
+    </MediaLightboxContext.Provider>
+  );
+}
+
+export function useMediaLightbox(): MediaLightboxHandle | undefined {
+  return useContext(MediaLightboxContext);
+}
+
+export interface InsideLinkScopeProps {
+  children: ReactNode;
+}
+
+const InsideLinkContext = createContext(false);
+
+/** Wraps a link's content: an image inside it stays the author's link, never a lightbox control. */
+export function InsideLinkScope({ children }: InsideLinkScopeProps) {
+  return (
+    <InsideLinkContext.Provider value>{children}</InsideLinkContext.Provider>
+  );
+}
+
+/** The content renders inside the author's link. */
+export function useInsideLink(): boolean {
+  return useContext(InsideLinkContext);
 }

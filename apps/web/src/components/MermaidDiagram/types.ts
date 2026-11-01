@@ -16,6 +16,14 @@ export interface RenderedDiagram {
   readonly readableScale?: number;
 }
 
+/** What a frame's size answers to besides the diagram's own width. */
+export interface FrameBounds {
+  /** The tallest the frame may draw, in pixels; its width narrows to keep the ratio. */
+  readonly maxBlockSize?: number | undefined;
+  /** The smallest scale the frame may draw at; a narrower host scrolls sideways. */
+  readonly minScale?: number | undefined;
+}
+
 export const DiagramFailureKinds = {
   /** Mermaid could not draw the author's code. */
   UNREADABLE: "unreadable",

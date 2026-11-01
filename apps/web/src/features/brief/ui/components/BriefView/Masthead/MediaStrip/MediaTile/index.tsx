@@ -1,24 +1,31 @@
-import { MediaKinds } from "brief-core/media";
+import { MediaKinds, type MediaKey } from "brief-core/media";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { IconNames } from "@web/components/Icon/types";
 import { DIAGRAM_TITLE_KEYS } from "@web/components/MermaidDiagram/consts";
-import { KIND_LABEL_KEYS } from "../consts";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
+import { FOCUSED_TILE_SCROLL, KIND_LABEL_KEYS } from "../consts";
 import type { StripEntry } from "../types";
-import { readEntryLabel } from "../utils";
+import { readEntryLabel, readOpenLabel } from "../utils";
 import { TileImage } from "./TileImage";
 import { TilePlaceholder } from "./TilePlaceholder";
 import styles from "./MediaTile.module.scss";
 
 export interface MediaTileProps {
   entry: StripEntry;
+  /** Opens the lightbox at this entry; focus returns to `opener` on close. */
+  onOpen: (key: MediaKey, opener: HTMLElement) => void;
 }
 
-/** One strip place: a thumbnail, or a placeholder that fetches nothing, over its caption. */
-export function MediaTile({ entry }: MediaTileProps) {
+/**
+ * One strip place: a thumbnail, or a placeholder that fetches nothing, over
+ * its caption. A failed tile still opens the lightbox.
+ */
+export function MediaTile({ entry, onOpen }: MediaTileProps) {
   const { t } = useTranslation();
   const label = readEntryLabel(t, entry);
+  const openLabel = readOpenLabel(t, entry);
 
   let visual: ReactNode;
   switch (entry.kind) {
@@ -49,8 +56,22 @@ export function MediaTile({ entry }: MediaTileProps) {
       data-kind={entry.kind}
       data-testid="media-tile"
     >
-      <span className={styles["frame"]}>{visual}</span>
-      <span className={styles["caption"]} title={label}>
+      {/* oxlint-disable-next-line house/no-raw-button -- the thumbnail itself is the control; no shared primitive wraps an image tile */}
+      <button
+        aria-haspopup="dialog"
+        className={styles["frame"]}
+        type="button"
+        onClick={(event) => {
+          onOpen(entry.key, event.currentTarget);
+        }}
+        onFocus={(event) => {
+          event.currentTarget.scrollIntoView(FOCUSED_TILE_SCROLL);
+        }}
+      >
+        <ScreenReaderOnly>{openLabel}</ScreenReaderOnly>
+        {visual}
+      </button>
+      <span aria-hidden="true" className={styles["caption"]} title={label}>
         {label}
       </span>
     </li>

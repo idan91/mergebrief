@@ -9,7 +9,10 @@ export interface TilePlaceholderProps {
   failed?: boolean;
 }
 
-/** A tile that shows what the item is without fetching it. */
+/**
+ * A tile that shows what the item is without fetching it. Its label repeats
+ * the tile's own name and stays silent, unless it says the image failed.
+ */
 export function TilePlaceholder({
   icon,
   label,
@@ -22,7 +25,9 @@ export function TilePlaceholder({
       data-testid="media-tile-placeholder"
     >
       <Icon name={icon} size={IconSizes.LG} />
-      <span className={styles["label"]}>{label}</span>
+      <span aria-hidden={failed ? undefined : true} className={styles["label"]}>
+        {label}
+      </span>
     </span>
   );
 }

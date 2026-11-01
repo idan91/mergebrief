@@ -6,6 +6,12 @@
     margin-block-start: var(--space-3);
   }
 
+  .source > .code {
+    @include mixins.code-block;
+
+    margin-block: var(--space-2) 0;
+  }
+
   .summary {
     display: inline-flex;
     align-items: center;

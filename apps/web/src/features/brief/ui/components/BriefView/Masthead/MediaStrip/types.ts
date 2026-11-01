@@ -1,5 +1,7 @@
 import type { DiagramType, MediaKey, MediaKinds } from "brief-core/media";
 
+import type { MediaLightboxHandle } from "@web/components/Markdown/context";
+
 interface StripEntryBase {
   readonly key: MediaKey;
   /** The extractor's caption; absent, the strip names the entry by its kind. */
@@ -32,3 +34,17 @@ export interface DiagramStripEntry extends StripEntryBase {
 
 /** One place in the strip, and the lightbox's sequence, ready to render. */
 export type StripEntry = ImageStripEntry | VideoStripEntry | DiagramStripEntry;
+
+/** The description's Media: the strip's entries and the lightbox open over them. */
+export interface MediaGallery {
+  readonly entries: readonly StripEntry[];
+  /** The open entry's place in `entries`; absent while the lightbox is closed. */
+  readonly openIndex?: number | undefined;
+  /** The control that opened the lightbox; focus returns to it. */
+  readonly opener?: HTMLElement | undefined;
+  /** Opens the lightbox from a tile, an inline image or a Summary item. */
+  readonly lightbox: MediaLightboxHandle;
+  /** Moves the open lightbox by `offset` places, wrapping at either end. */
+  readonly stepMedia: (offset: number) => void;
+  readonly closeMedia: () => void;
+}

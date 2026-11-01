@@ -24,7 +24,7 @@ import {
 } from "@web/test/attachments";
 import type { Brief } from "../../../../../model/types";
 import { briefFixture } from "../../../../../test-utils/fixtures";
-import { useStripEntries } from "./useStripEntries";
+import { useMediaGallery } from "./useMediaGallery";
 import { MediaStrip } from ".";
 
 const REPO_ID = SCOPE.repoId;
@@ -41,8 +41,8 @@ interface HarnessProps {
 }
 
 function Harness({ brief }: HarnessProps) {
-  const entries = useStripEntries(brief);
-  return <MediaStrip entries={entries} />;
+  const gallery = useMediaGallery(brief);
+  return <MediaStrip gallery={gallery} />;
 }
 
 function renderStrip(description: string, videoAssets = NO_VIDEO_ASSETS) {
@@ -69,6 +69,19 @@ describe("MediaStrip", () => {
     cleanup();
   });
 
+  it("brings a focused tile fully into the row, past the fade", () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    renderStrip(`![Login screen](${OUTSIDE_URL})`);
+
+    screen.getByRole("button", { name: "Open image: Login screen" }).focus();
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "nearest",
+      inline: "nearest",
+    });
+    scrollIntoView.mockRestore();
+  });
+
   it("shows nothing when the description holds no Media", () => {
     renderStrip("Just words, and [a link](https://example.com).");
 
@@ -91,7 +104,9 @@ describe("MediaStrip", () => {
     const image = tile?.querySelector("img");
     expect(image?.getAttribute("src")).toBe(`${ASSET_READ}?thumbnail=strip`);
     expect(image?.hasAttribute("referrerpolicy")).toBe(false);
-    expect(tile?.textContent).toBe("Login screen");
+    expect(within(tile ?? document.body).getByRole("button").textContent).toBe(
+      "Open image: Login screen",
+    );
   });
 
   it("loads an outside-host image directly", () => {

@@ -18,7 +18,7 @@ import type { ExtractMediaOptions, MediaItem, MediaKey } from "./types";
 
 export { readDiagramType } from "./logic/diagram-type";
 export { readMermaidFenceCode } from "./logic/items";
-export { buildMermaidMediaKey } from "./logic/keys";
+export { buildAddressMediaKey, buildMermaidMediaKey } from "./logic/keys";
 export { readPastedAssetLineId } from "./logic/pasted-asset-line";
 export {
   isProxiedMediaAddress,

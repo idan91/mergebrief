@@ -2,10 +2,11 @@ import { LocalBriefKinds } from "contract";
 import { useTranslation } from "react-i18next";
 
 import { Markdown } from "@web/components/Markdown";
+import { MediaLightboxScope } from "@web/components/Markdown/context";
 import type { Brief } from "../../../../../model/types";
 import { DeltaContext } from "../../DeltaContext";
 import { MediaStrip } from "../MediaStrip";
-import { useStripEntries } from "../MediaStrip/useStripEntries";
+import { useMediaGallery } from "../MediaStrip/useMediaGallery";
 import { OriginalDescription } from "../OriginalDescription";
 import styles from "./Summary.module.scss";
 
@@ -20,7 +21,7 @@ export function Summary({ brief }: SummaryProps) {
   const eyebrow = delta
     ? t("brief.summarySection.eyebrowDelta")
     : t("brief.summarySection.eyebrowBrief");
-  const stripEntries = useStripEntries(brief);
+  const gallery = useMediaGallery(brief);
 
   return (
     <section
@@ -30,8 +31,10 @@ export function Summary({ brief }: SummaryProps) {
       <div className={styles["eyebrow"]}>{eyebrow}</div>
       <Markdown content={brief.summary} />
       {delta ? <DeltaContext brief={brief} /> : null}
-      <MediaStrip entries={stripEntries} />
-      <OriginalDescription description={brief.pr.description} />
+      <MediaStrip gallery={gallery} />
+      <MediaLightboxScope value={gallery.lightbox}>
+        <OriginalDescription description={brief.pr.description} />
+      </MediaLightboxScope>
     </section>
   );
 }

@@ -20,6 +20,7 @@ export const IconNames = {
   CODE: "code",
   COLUMNS: "columns",
   COPY: "copy",
+  CORNERS_OUT: "corners-out",
   CURSOR: "cursor",
   CURSOR_CLICK: "cursor-click",
   DOTS_THREE: "dots-three",

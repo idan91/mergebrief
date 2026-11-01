@@ -62,27 +62,36 @@ describe("readPixelSize", () => {
 });
 
 describe("buildFrameStyle", () => {
-  it("keeps the viewBox ratio and caps the width at the diagram's own", () => {
-    const diagram = { srcDoc: "", width: 673, height: 311 };
+  const diagram = { srcDoc: "", width: 900, height: 600 };
 
-    expect(buildFrameStyle(diagram)).toEqual({
-      aspectRatio: "673 / 311",
-      maxInlineSize: "673px",
+  it("keeps the viewBox ratio and caps the width at the diagram's own", () => {
+    expect(buildFrameStyle(diagram, {})).toEqual({
+      aspectRatio: "900 / 600",
+      maxInlineSize: "900px",
     });
   });
 
-  it("never draws the text below the readable scale, scrolling instead", () => {
-    const diagram = {
-      srcDoc: "",
-      width: 900,
-      height: 600,
-      readableScale: 0.75,
-    };
-
-    expect(buildFrameStyle(diagram)).toEqual({
+  it("never draws below the smallest scale, scrolling instead", () => {
+    expect(buildFrameStyle(diagram, { minScale: 0.75 })).toEqual({
       aspectRatio: "900 / 600",
       maxInlineSize: "900px",
       minInlineSize: "675px",
+    });
+  });
+
+  it("narrows a tall diagram to fit a height, keeping its ratio", () => {
+    const tall = { srcDoc: "", width: 900, height: 2400 };
+
+    expect(buildFrameStyle(tall, { maxBlockSize: 320 })).toEqual({
+      aspectRatio: "900 / 2400",
+      maxInlineSize: "120px",
+    });
+  });
+
+  it("leaves a short diagram at its own width under a height cap", () => {
+    expect(buildFrameStyle(diagram, { maxBlockSize: 900 })).toEqual({
+      aspectRatio: "900 / 600",
+      maxInlineSize: "900px",
     });
   });
 });

@@ -21,6 +21,12 @@ export interface ModalProps {
    * dialog with one obvious first field names it, any other lands on the box.
    */
   initialFocus?: RefObject<HTMLElement | null> | undefined;
+  /**
+   * @description The control that opened the dialog, which focus returns to
+   * on close. Safari never focuses a clicked button, so a dialog a click
+   * opens names it; absent, the element focused at open is used.
+   */
+  opener?: HTMLElement | undefined;
   children: ReactNode;
 }
 
@@ -30,16 +36,19 @@ export function Modal({
   labelledBy,
   close,
   initialFocus,
+  opener,
   children,
 }: ModalProps) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const latestInitialFocus = useRef(initialFocus);
+  const latestOpener = useRef(opener);
 
-  // Read through a ref so a caller handing a fresh ref object mid-dialog
+  // Read through refs so a caller handing a fresh ref object mid-dialog
   // never re-runs the focus effect and re-captures a stale trigger.
   useEffect(() => {
     latestInitialFocus.current = initialFocus;
+    latestOpener.current = opener;
   });
 
   // Move focus into the dialog on open; return it to the trigger on close.
@@ -51,10 +60,11 @@ export function Modal({
     if (!open) {
       return;
     }
-    triggerRef.current =
+    const focused =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
+    triggerRef.current = latestOpener.current ?? focused;
     const box = boxRef.current;
     const target = latestInitialFocus.current?.current ?? box;
     target?.focus();
