@@ -19,6 +19,7 @@ Properties of the code that exists in the file/chunk being changed (independent 
 ### `no-tests`
 The changed code path has no test coverage in the repo.
 - **Detect:** search for the changed file/function in `**/*.test.*`, `**/__tests__/**`, etc. Absence = attribute applies.
+- **Cleared by the pipeline:** after validation the pipeline removes the attribute, and its note, from every chunk whose path is non-executable, judged by the extension of the file name (case-insensitive): style sheets (`.css`, `.scss`, `.sass`, `.less`), Markdown (`.md`, `.markdown`), `.svg`, `.html`, `.htm`, and static image, font, audio, video and PDF files. `.mdx`, `.vue` and test sources (`*.test.ts` and kin) keep it as observed; a fixture with a listed extension under `test/` loses it like any other file.
 - **Reviewer implication:** any change to this chunk requires reviewer to verify behavior manually or via fixture. Triggers extra scrutiny on `bugfix`, `logic-refactor`, `new-feature`.
 
 ### `no-types`

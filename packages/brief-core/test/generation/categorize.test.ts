@@ -107,6 +107,33 @@ function makeSecretDiff(): string {
   ].join("\n");
 }
 
+const STYLE_FILE = "src/components/Button/Button.scss";
+
+function makeStyleDiff(): string {
+  return [
+    `diff --git a/${STYLE_FILE} b/${STYLE_FILE}`,
+    "@@ -0,0 +1,3 @@",
+    "+.button {",
+    "+  color: red;",
+    "+}",
+    "diff --git a/src/logic.ts b/src/logic.ts",
+    "@@ -0,0 +1,2 @@",
+    "+export const c = 3;",
+    "+export const d = 4;",
+    "",
+  ].join("\n");
+}
+
+function makeNoTestsStyleChunks<Chunk extends { file: string }>(
+  chunks: readonly Chunk[],
+): Chunk[] {
+  return chunks.map((chunk, index) => ({
+    ...chunk,
+    file: index === 0 ? STYLE_FILE : chunk.file,
+    riskSurface: [RiskSurfaceAttributes.NO_TESTS],
+  }));
+}
+
 const commitRange = {
   base: "base0000000000000",
   head: "deadbeef00000000",
@@ -673,6 +700,25 @@ describe("categorize, intent check validation", () => {
     ]);
   });
 
+  it("drops no-tests on a style chunk and keeps it on code", async () => {
+    const generator = makeFakeGenerator({
+      ...twoGroupBriefGen,
+      chunks: makeNoTestsStyleChunks(twoGroupBriefGen.chunks),
+    });
+
+    const brief = await generateFreshBrief(
+      { ...pr, diff: makeStyleDiff() },
+      1,
+      commitRange,
+      generator,
+    );
+
+    expect(brief.chunks.map((chunk) => chunk.riskSurface)).toEqual([
+      [],
+      [RiskSurfaceAttributes.NO_TESTS],
+    ]);
+  });
+
   it("redacts a credential in a linked page's URL", async () => {
     const token = FAKE_SECRETS[SecretKinds.GITHUB_TOKEN];
     const linkedPr: FetchedPr = {
@@ -1125,6 +1171,29 @@ describe("categorize, generation warnings surfaced on the artifact", () => {
     expect(delta.chunks.map((chunk) => chunk.riskSurface)).toEqual([
       [RiskSurfaceAttributes.ADDS_SECRET],
       [],
+    ]);
+  });
+
+  it("drops no-tests on a delta style chunk and keeps it on code", async () => {
+    const generator = makeFakeGenerator({
+      ...deltaBriefGen,
+      chunks: makeNoTestsStyleChunks(deltaBriefGen.chunks),
+    });
+
+    const delta = await categorizeDelta(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff: makeStyleDiff(),
+      },
+      generator,
+    );
+
+    expect(delta.chunks.map((chunk) => chunk.riskSurface)).toEqual([
+      [],
+      [RiskSurfaceAttributes.NO_TESTS],
     ]);
   });
 

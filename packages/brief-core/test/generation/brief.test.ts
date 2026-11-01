@@ -640,6 +640,59 @@ describe("generateBrief, an anchored run", () => {
     ]);
   });
 
+  it("drops no-tests on a carried style chunk and keeps it on code", async () => {
+    const styleFile = "src/a.scss";
+    const stylePr: FetchedPr = {
+      ...pr,
+      meta: {
+        ...pr.meta,
+        files: pr.meta.files.map((file) =>
+          file.path === "src/a.ts" ? { ...file, path: styleFile } : file,
+        ),
+      },
+      diff: wholeDiff.replaceAll("src/a.ts", styleFile),
+    };
+    const generator = makeQueuedGenerator([
+      {
+        ...baseOutput,
+        chunks: [
+          makeChunk("c1", "g1", styleFile, 2),
+          makeChunk("c2", "g2", "src/b.ts", 2),
+        ],
+      },
+    ]);
+    const previous = await generateBrief({
+      pr: stylePr,
+      headIndex: 1,
+      commitRange,
+      generator,
+    });
+    const stale: Brief = {
+      ...previous.brief,
+      chunks: previous.brief.chunks.map((chunk) => ({
+        ...chunk,
+        riskSurface: [RiskSurfaceAttributes.NO_TESTS],
+      })),
+    };
+    const revised = {
+      ...revisedOutput,
+      chunks: [
+        {
+          ...makeChunk("c9", "t1", "src/b.ts", 3),
+          riskSurface: [RiskSurfaceAttributes.NO_TESTS],
+        },
+      ],
+    };
+
+    const result = await runAnchored(revised, stale, { pr: stylePr });
+
+    const byId = new Map(result.brief.chunks.map((chunk) => [chunk.id, chunk]));
+    expect(byId.get("c1")?.riskSurface).toEqual([]);
+    expect(byId.get("c9")?.riskSurface).toEqual([
+      RiskSurfaceAttributes.NO_TESTS,
+    ]);
+  });
+
   it("drops a carried lockfile chunk's package flag once sources hold", async () => {
     const lockfile = "pnpm-lock.yaml";
     const lockPr: FetchedPr = {
