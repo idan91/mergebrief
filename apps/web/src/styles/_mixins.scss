@@ -88,6 +88,32 @@
   }
 }
 
+// A fenced code block: one panel, its code unstyled inside it. Inline code's
+// fill on the `code` would otherwise paint one strip per wrapped line.
+@mixin code-block {
+  margin-block: 0 var(--space-4);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--color-outline-1);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-1);
+  color: var(--color-text-1);
+  font-family: var(--mono);
+  font-size: var(--font-size-lg);
+  line-height: 1.55;
+  white-space: pre-wrap;
+
+  > code {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+  }
+}
+
 // The type a rendered comment body is set in. The shared renderer and the
 // draft preview both include it, so a draft reads as it will once posted.
 // Headings arrive demoted (h1 to h3, h2 to h4), and a demoted h1 cannot be

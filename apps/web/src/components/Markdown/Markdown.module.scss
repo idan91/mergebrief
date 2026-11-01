@@ -61,7 +61,7 @@
     }
 
     pre {
-      white-space: pre-wrap;
+      @include mixins.code-block;
     }
 
     blockquote {

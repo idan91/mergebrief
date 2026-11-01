@@ -204,19 +204,27 @@ function isMermaidCode(node: Element): boolean {
   return isCode && classNames.includes(MERMAID_LANGUAGE_CLASS);
 }
 
+/** The code of a `pre` holding a `language-mermaid` code element, as hast holds it; blank reads as none. */
+export function readMermaidFenceCode(node: Element): string | undefined {
+  const codeElement = node.children.find(
+    (child): child is Element => child.type === "element",
+  );
+  const isFence = node.tagName === "pre" && codeElement !== undefined;
+  const isMermaidFence = isFence && isMermaidCode(codeElement);
+  if (!isMermaidFence) {
+    return undefined;
+  }
+  const code = readText(codeElement);
+  return readNonBlank(code) === undefined ? undefined : code;
+}
+
 /** A `pre` holding a `language-mermaid` code element. */
 export function readDiagramItem(
   node: Element,
   place: MediaPlace,
 ): DiagramMediaItem | undefined {
-  const codeElement = node.children.find(
-    (child): child is Element => child.type === "element",
-  );
-  if (codeElement === undefined || !isMermaidCode(codeElement)) {
-    return undefined;
-  }
-  const code = readText(codeElement);
-  if (readNonBlank(code) === undefined) {
+  const code = readMermaidFenceCode(node);
+  if (code === undefined) {
     return undefined;
   }
 

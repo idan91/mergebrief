@@ -15,6 +15,29 @@ import {
   type VideoAssets,
 } from "./context";
 
+const mermaidImport = vi.hoisted(() => vi.fn());
+
+vi.mock("mermaid", () => {
+  mermaidImport();
+  return { default: { initialize: vi.fn(), render: vi.fn() } };
+});
+
+describe("Markdown without a mermaid fence", () => {
+  it("never loads the diagram library", async () => {
+    render(
+      <Markdown
+        content={"```ts\nconst a = 1;\n```\n\n```\ngraph TD\n```"}
+        renderHtml
+      />,
+    );
+
+    await screen.findByText("const a = 1;");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mermaidImport).not.toHaveBeenCalled();
+    cleanup();
+  });
+});
+
 describe("Markdown suggestion fences", () => {
   const body = "Try this:\n```suggestion\nreturn next;\n```";
 

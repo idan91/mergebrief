@@ -1485,7 +1485,23 @@
     "media": {
       "imageFailed": "Image could not load",
       "videoFailed": "Video could not load",
-      "openOnGithub": "Open on GitHub"
+      "openOnGithub": "Open on GitHub",
+      "diagramFailed": "Diagram could not render",
+      "diagramSource": "Show source",
+      "diagramTypes": {
+        "sequence": "Sequence diagram",
+        "flowchart": "Flowchart",
+        "class": "Class diagram",
+        "state": "State diagram",
+        "entityRelationship": "Entity relationship diagram",
+        "gantt": "Gantt chart",
+        "pie": "Pie chart",
+        "journey": "User journey",
+        "gitGraph": "Git graph",
+        "mindmap": "Mind map",
+        "timeline": "Timeline",
+        "other": "Diagram"
+      }
     },
     "attach": {
       "hint": "Paste or drop an image; it is pushed to this repository's <0/> branch",

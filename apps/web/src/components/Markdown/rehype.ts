@@ -3,6 +3,7 @@ import type { AttachmentAssetId } from "contract";
 import type { Options as MarkdownOptions } from "react-markdown";
 
 import type { AttachmentScope } from "./context";
+import { rehypeMarkMermaidFences } from "./diagram-fences";
 import { rehypePrefixFragmentLinks } from "./links";
 import {
   rehypeLinkUnservedVideos,
@@ -47,6 +48,7 @@ export function buildRehypePlugins(
     ...SANITIZE_REHYPE_PLUGINS,
     rehypeNormalizeMedia,
     rehypePrefixFragmentLinks,
+    rehypeMarkMermaidFences,
     [rehypePlayPastedAssetLines, pastedAssetLines],
     [rehypeLinkUnservedVideos, options.scope],
     rehypeRecordOriginalSources,

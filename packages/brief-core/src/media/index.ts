@@ -16,6 +16,8 @@ import { readPastedAssetLineId } from "./logic/pasted-asset-line";
 import { readNonBlank, readText } from "./logic/text";
 import type { ExtractMediaOptions, MediaItem, MediaKey } from "./types";
 
+export { readDiagramType } from "./logic/diagram-type";
+export { readMermaidFenceCode } from "./logic/items";
 export { buildMermaidMediaKey } from "./logic/keys";
 export { readPastedAssetLineId } from "./logic/pasted-asset-line";
 export {
@@ -26,6 +28,7 @@ export { ProxiedMediaSourceKinds } from "./logic/proxied-address/types";
 export {
   DiagramTypes,
   MediaKinds,
+  type DiagramType,
   type ExtractMediaOptions,
   type MediaItem,
 } from "./types";

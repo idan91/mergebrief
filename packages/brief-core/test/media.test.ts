@@ -8,6 +8,7 @@ import {
   isProxiedMediaAddress,
   readProxiedMediaSource,
   MediaKinds,
+  readMermaidFenceCode,
   readPastedAssetLineId,
   type MediaItem,
 } from "../src/media";
@@ -587,5 +588,44 @@ describe("readProxiedMediaSource", () => {
   it("reads nothing the proxy does not serve", () => {
     expect(readProxiedMediaSource(SHOT, "acme/app")).toBeUndefined();
     expect(readProxiedMediaSource(OWN_BLOB, "acme/other")).toBeUndefined();
+  });
+});
+
+/** The fence code each top-level `pre` in `markdown` reads as. */
+function readFenceCodes(markdown: string): (string | undefined)[] {
+  return parseSanitizedMarkdown(markdown)
+    .children.filter(
+      (child): child is Element =>
+        child.type === "element" && child.tagName === "pre",
+    )
+    .map(readMermaidFenceCode);
+}
+
+describe("readMermaidFenceCode", () => {
+  it("reads the code of a mermaid fence with its trailing newline", () => {
+    expect(readFenceCodes("```mermaid\ngraph TD\n  A --> B\n```")).toEqual([
+      "graph TD\n  A --> B\n",
+    ]);
+  });
+
+  it("reads a raw pre and code tag pair the same way", () => {
+    const markdown = '<pre><code class="language-mermaid">pie\n</code></pre>';
+
+    expect(readFenceCodes(markdown)).toEqual(["pie\n"]);
+  });
+
+  it.each([
+    ["another language", "```ts\nconst a = 1;\n```"],
+    ["no language", "```\ngraph TD\n```"],
+    ["a blank mermaid fence", "```mermaid\n\n```"],
+  ])("reads no code from %s", (_name, markdown) => {
+    expect(readFenceCodes(markdown)).toEqual([undefined]);
+  });
+
+  it("agrees with the extractor's diagram code", () => {
+    const markdown = "```mermaid\nsequenceDiagram\n```";
+    const [item] = extract(markdown);
+
+    expect(item).toMatchObject({ code: readFenceCodes(markdown)[0] });
   });
 });

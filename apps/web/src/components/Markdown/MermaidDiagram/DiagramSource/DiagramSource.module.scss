@@ -1,0 +1,27 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .source {
+    margin-block-start: var(--space-3);
+  }
+
+  .summary {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: functions.to-rem(24px);
+    border-radius: var(--radius-xs);
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: color var(--motion-fast);
+
+    &:hover {
+      color: var(--color-text-1);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+}

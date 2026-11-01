@@ -30,4 +30,16 @@ export const LICENSE_EXCEPTIONS: readonly LicenseException[] = [
     license: "OFL-1.1",
     reason: FONT_EXCEPTION_REASON,
   },
+  {
+    name: "elkjs",
+    license: "EPL-2.0",
+    reason:
+      "Mermaid's ELK layout, shipped unmodified in its own lazy web chunk that a browser fetches only for a diagram asking for the ELK layout (ours default to dagre); EPL-2.0 is file-level copyleft like the allowed MPL-2.0, and its source is published at github.com/kieler/elkjs",
+  },
+  {
+    name: "khroma",
+    license: "Unknown",
+    reason:
+      "Mermaid's colour library; its manifest omits the license field, and the license file it ships is MIT",
+  },
 ];

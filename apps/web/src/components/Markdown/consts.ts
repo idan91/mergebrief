@@ -1,3 +1,4 @@
+import { DiagramAwarePre } from "./DiagramAwarePre";
 import { InlineImage } from "./InlineImage";
 import { InlineVideo } from "./InlineVideo";
 import { MentionAwareSpan } from "./MentionAwareSpan";
@@ -13,6 +14,7 @@ export const MARKDOWN_COMPONENTS = {
   ...DEMOTED_HEADING_COMPONENTS,
   a: PastedAssetAwareLink,
   img: InlineImage,
+  pre: DiagramAwarePre,
   video: InlineVideo,
 } as const;
 
