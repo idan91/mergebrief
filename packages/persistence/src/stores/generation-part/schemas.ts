@@ -18,13 +18,15 @@ const Sha256HexSchema = z.string().regex(/^[0-9a-f]{64}$/);
 /**
  * The grouping call's output as the engine parsed it: groups, hunk map and
  * whole-PR fields, no chunks; stamped with the digest of the `.gitattributes`
- * its outline was read under, since another file shortens other files.
+ * its outline was read under, since another file shortens other files, and
+ * of the anchor plan it grouped under, since another plan re-looks other files.
  */
 const GroupingPartBodySchema = z
   .object({
     kind: z.literal(GenerationPartKinds.GROUPING),
     grouping: GroupingGenerationSchema,
     gitAttributesDigest: Sha256HexSchema,
+    anchorPlanDigest: Sha256HexSchema,
   })
   .strict();
 

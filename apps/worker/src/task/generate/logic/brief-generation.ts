@@ -1,5 +1,4 @@
 import {
-  CallPlanKinds,
   countPullRequestSecrets,
   generateBrief,
   type Brief,
@@ -15,15 +14,9 @@ import {
   countBriefChunkLayouts,
   type ChunkLayoutBody,
 } from "brief-core/chunk-layout";
-import type { Anchor } from "generators";
-import type { Logger } from "logging";
 import { GenerationKinds, type BriefWriteInput } from "persistence";
-import {
-  AnchorStates,
-  GenerationPhases,
-  type GenerationPhase,
-} from "types/generations";
-import type { Mutable, ValueOf } from "types/utils";
+import { GenerationPhases, type GenerationPhase } from "types/generations";
+import type { Mutable } from "types/utils";
 import { buildEntryCommentGeneratingBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
 import { buildRepoConfigArtifact } from "../../repo-config";
@@ -97,7 +90,7 @@ export async function writeFreshBrief(
     prevSpan: prevSpanRead?.ok === true ? prevSpanRead.value : undefined,
     log,
   });
-  await multiCall.loadStoredParts();
+  await multiCall.loadStoredParts(previous);
   await advancePhase(inputs, GenerationPhases.GENERATING);
   if (entryCommentAllowed) {
     await postFreshGeneratingEntry(inputs, headIndex);
@@ -141,15 +134,14 @@ export async function writeFreshBrief(
     forceMultiCall: multiCall.forceMultiCall,
     multiCallHooks: multiCall.hooks,
   };
-  const { brief, anchoring, ranAs } = await runGenerator(
+  const { brief, anchoring } = await runGenerator(
     () => generateBrief(options),
     log,
     GenerationKinds.BRIEF,
   );
-  const anchor = readStampedAnchor(decided, ranAs, log);
   await advancePhase(inputs, GenerationPhases.WRITING);
   const carriedChunkIds = anchoring?.carriedChunkIds ?? [];
-  const stamped: Brief = { ...brief, anchor };
+  const stamped: Brief = { ...brief, anchor: decided };
   const briefWrite: Mutable<BriefWriteInput> = {
     pullRequestId,
     baseSha: prInfo.baseSha,
@@ -159,7 +151,7 @@ export async function writeFreshBrief(
     ...getGenerationOrigin(brief.generation),
     body: JSON.stringify(stamped),
     bodyVersion: STORED_BODY_VERSION,
-    ...getAnchorColumns(anchor),
+    ...getAnchorColumns(decided),
     carriedChunkIds,
     usedGroupIds: [
       ...new Set([
@@ -253,27 +245,6 @@ async function postFreshGeneratingEntry(
     { watch, entryCommentManager, headSha: prInfo.headSha, log },
     generatingBody,
   );
-}
-
-/**
- * A multi-call run re-looks every group and anchors on nothing, whatever the
- * anchor decision planned: an anchored plan is stamped `none`, a fresh
- * restart keeps its reason. The group ids still descend past the chain's.
- */
-function readStampedAnchor(
-  decided: Anchor,
-  ranAs: ValueOf<typeof CallPlanKinds>,
-  log: Logger,
-): Anchor {
-  const reLooked =
-    ranAs === CallPlanKinds.MULTI && decided.state === AnchorStates.ANCHORED;
-  if (!reLooked) {
-    return decided;
-  }
-  log.info(
-    "generate: the multi-call run re-looked every group, the brief anchors on nothing",
-  );
-  return { state: AnchorStates.NONE };
 }
 
 async function advancePhase(

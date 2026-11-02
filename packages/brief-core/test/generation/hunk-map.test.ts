@@ -132,6 +132,35 @@ describe("resolveHunkMap", () => {
     expect(resolved.warnings).toEqual([]);
   });
 
+  it("a run of whole files steps over a file the outline left out", () => {
+    const resolved = resolve([{ groupId: "g1", hunks: ["f1-f3"] }], {
+      files: files.filter((file) => file.id !== "f2"),
+      omittedFileIds: new Set<FileId>(["f2"]),
+    });
+
+    expect(readOwners(resolved)).toEqual({
+      f1h1: "g1",
+      f1h2: "g1",
+      f1h3: "g1",
+      f3: "g1",
+    });
+    expect(resolved.warnings).toEqual([]);
+  });
+
+  it("rejects a run ending on a file the outline left out", () => {
+    const resolved = resolve([{ groupId: "g1", hunks: ["f1-f2"] }], {
+      files: files.filter((file) => file.id !== "f2"),
+      omittedFileIds: new Set<FileId>(["f2"]),
+    });
+
+    expect(resolved.warnings).toContainEqual(
+      expect.objectContaining({
+        kind: GenerationWarningKinds.HUNK_MAP_REJECTED,
+        items: ["f1-f2"],
+      }),
+    );
+  });
+
   it("rejects an inverted file run or one naming a file outside the diff", () => {
     const resolved = resolve([
       {

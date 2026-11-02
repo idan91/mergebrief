@@ -65,9 +65,8 @@ export interface GenerateBriefOutput {
   readonly brief: Brief;
   readonly warnings: readonly GenerationWarning[];
   /**
-   * The route the run took. `multi` re-looked every group and anchored on
-   * nothing, whatever `previous` held: its group ids were minted past the
-   * chain's and the caller must not stamp the brief anchored.
+   * The route the run took. Either route anchors on `previous` the same way;
+   * whether the run anchored is `anchoring`, never this.
    */
   readonly ranAs: CallPlanKind;
   /** Present on an anchored run. */

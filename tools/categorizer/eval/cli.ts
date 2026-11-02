@@ -28,6 +28,7 @@ import {
   saveBaseline,
   type BaselineMode,
 } from "./baseline";
+import { checkBaseBriefsRecorded, recordBaseBrief } from "./base-brief";
 import { textLengthNotes } from "./length";
 import { loadPrices, priceUsage } from "./cost";
 import { loadCases, type EvalCase } from "./loadCase";
@@ -89,7 +90,7 @@ const SUBSCRIPTION_PROVIDERS: ReadonlySet<string> = new Set<Provider>([
 ]);
 const DEFAULT_RUNS = 5;
 const USAGE =
-  "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--no-baseline] [--pair-fresh] [--prices <json>] [--force-multi-call] [--force-outline <form>] [--effort-grouping <effort>] [--effort-detail <effort>]";
+  "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--no-baseline] [--pair-fresh] [--record-base-brief] [--prices <json>] [--force-multi-call] [--force-outline <form>] [--effort-grouping <effort>] [--effort-detail <effort>]";
 
 /**
  * Knobs that steer a single case's generation off the production path:
@@ -149,6 +150,12 @@ export interface EvalArgs {
    * one that still passes is vacuous. Never combinable with --rebaseline.
    */
   pairFresh: boolean;
+  /**
+   * Generate one pair case's base Brief on the production path and store it
+   * in its pair file, instead of evaluating. Needs `--case`; takes no other
+   * mode or knob.
+   */
+  recordBaseBrief: boolean;
   knobs: GenerationKnobs;
 }
 
@@ -308,6 +315,24 @@ function listIdleKnobNotes(
   return notes;
 }
 
+function readRecordConflict(args: EvalArgs): string | undefined {
+  if (!args.recordBaseBrief) {
+    return undefined;
+  }
+  if (args.caseId === undefined) {
+    return "--record-base-brief needs --case <pair case id>";
+  }
+  const otherMode =
+    args.rebaseline ||
+    args.noBaseline ||
+    args.pairFresh ||
+    hasGenerationKnob(args.knobs);
+  if (otherMode) {
+    return "--record-base-brief stores one production-path base Brief; it takes no other mode or knob";
+  }
+  return undefined;
+}
+
 export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
   const flagged = extractConfigFlag(argv);
   if (!flagged) {
@@ -321,6 +346,7 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     noBaseline: false,
     pricesPath: join(here, "prices.json"),
     pairFresh: false,
+    recordBaseBrief: false,
     knobs: { forceMultiCall: false },
   };
   while (rest.length > 0) {
@@ -331,6 +357,8 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
       args.noBaseline = true;
     } else if (flag === "--pair-fresh") {
       args.pairFresh = true;
+    } else if (flag === "--record-base-brief") {
+      args.recordBaseBrief = true;
     } else if (flag === "--force-multi-call") {
       args.knobs = { ...args.knobs, forceMultiCall: true };
     } else if (flag !== undefined && isValuedFlag(flag)) {
@@ -346,6 +374,10 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     } else {
       return { ok: false, error: `unknown argument "${flag}"` };
     }
+  }
+  const recordConflict = readRecordConflict(args);
+  if (recordConflict !== undefined) {
+    return { ok: false, error: recordConflict };
   }
   if (args.pairFresh && args.rebaseline) {
     return {
@@ -552,6 +584,62 @@ async function evaluateCase(
   };
 }
 
+/** A generator that adds every call's tokens to `totals`. */
+interface MeteredGenerator {
+  readonly metered: Generator;
+  readonly totals: InvocationUsage;
+}
+
+function meterGenerator(generator: Generator): MeteredGenerator {
+  const totals: InvocationUsage = {
+    calls: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+  };
+  const sink = (usage: TokenUsage): void => {
+    totals.calls += 1;
+    totals.inputTokens += usage.inputTokens;
+    totals.outputTokens += usage.outputTokens;
+    totals.cacheReadTokens += usage.cacheReadTokens;
+  };
+  return { totals, metered: withUsageSink(generator, sink) };
+}
+
+/** `--record-base-brief`: one base Brief for the one pair case `--case` named, then the cost line. */
+async function runBaseBriefRecording(
+  pairCases: readonly PairCase[],
+  built: { generator: Generator; effort: Effort },
+  key: string,
+  billingKind: BillingKind,
+): Promise<void> {
+  const [pairCase] = pairCases;
+  if (pairCase === undefined) {
+    console.error("--record-base-brief needs --case to name a pair case");
+    process.exit(2);
+  }
+  console.error(
+    `${pairCase.id}: recording its base Brief, one generation (${key})`,
+  );
+
+  const { totals, metered } = meterGenerator(built.generator);
+  const recorded = await recordBaseBrief(pairCase, metered, built.effort);
+  const usage = totals.calls > 0 ? totals : null;
+  console.error(
+    renderCostLine({
+      key,
+      billing: { kind: billingKind },
+      usage,
+      costUsd: null,
+    }),
+  );
+  if (!recorded.ok) {
+    console.error(recorded.error);
+    process.exit(2);
+  }
+  console.error(`wrote ${recorded.value}: review and commit it`);
+}
+
 async function main(): Promise<void> {
   const parsed = parseEvalArgs(process.argv.slice(2));
   if (!parsed.ok) {
@@ -597,6 +685,15 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   const { singles: singleCases, pairs: pairCases } = selected.value;
+  if (args.recordBaseBrief) {
+    await runBaseBriefRecording(pairCases, generator.value, key, billingKind);
+    return;
+  }
+  const recorded = checkBaseBriefsRecorded(pairCases);
+  if (!recorded.ok) {
+    console.error(recorded.error);
+    process.exit(2);
+  }
 
   const prices = loadPrices(args.pricesPath);
   if (!prices.ok) {
@@ -639,19 +736,7 @@ async function main(): Promise<void> {
       `${args.runs} runs = ${generationCount} generations (${key})`,
   );
 
-  const totals: InvocationUsage = {
-    calls: 0,
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheReadTokens: 0,
-  };
-  const sink = (usage: TokenUsage): void => {
-    totals.calls += 1;
-    totals.inputTokens += usage.inputTokens;
-    totals.outputTokens += usage.outputTokens;
-    totals.cacheReadTokens += usage.cacheReadTokens;
-  };
-  const metered = withUsageSink(generator.value.generator, sink);
+  const { totals, metered } = meterGenerator(generator.value.generator);
 
   const outcomes: CaseOutcome[] = [];
   const skippedRebaselines: string[] = [];

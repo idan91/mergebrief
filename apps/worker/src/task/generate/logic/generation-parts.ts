@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import type { MultiCallHooks, PartKey } from "brief-core";
+import {
+  planAnchoredGeneration,
+  type MultiCallHooks,
+  type PartKey,
+  type PreviousBriefInput,
+} from "brief-core";
 import {
   GenerationPartKinds,
   InvalidArtifactBodyError,
@@ -67,22 +72,58 @@ export function digestGitAttributes(text: string | undefined): string {
 }
 
 /**
+ * The carry a run's grouping is written over: the previous brief it reads,
+ * by head and index, and each frozen and re-look group with its files. A run
+ * with no previous brief plans none.
+ */
+export function digestAnchorPlan(
+  previous: PreviousBriefInput | undefined,
+): string {
+  const hash = createHash("sha256");
+  if (previous === undefined) {
+    return hash.update("no previous brief").digest("hex");
+  }
+  const plan = planAnchoredGeneration({
+    previousBrief: previous.brief,
+    span: previous.span,
+  });
+  const shape = {
+    previousHead: previous.brief.commitRange.head,
+    previousIndex: previous.brief.index,
+    frozen: plan.frozen.map((carry) => carry.group.id),
+    reLook: plan.reLook.map((entry) => [entry.id, entry.files]),
+    frozenFiles: [...plan.frozenFiles].toSorted(),
+  };
+  return hash.update(JSON.stringify(shape)).digest("hex");
+}
+
+/** Both digests a span's grouping part is stored and compared under. */
+interface PartDigests {
+  readonly gitAttributes: string;
+  readonly anchorPlan: string;
+}
+
+/**
  * Why a span's stored parts cannot seed this run: detail parts are reusable
  * only under the grouping that planned their batches, and a grouping is
- * reusable only over the `.gitattributes` that shaped its outline.
+ * reusable only over the `.gitattributes` that shaped its outline and the
+ * anchor plan that chose its files.
  */
 function readStaleReason(
   parts: StoredParts,
-  gitAttributesDigest: string,
+  digests: PartDigests,
 ): string | undefined {
   const grouping = parts.get(GROUPING_KEY);
-  if (grouping === undefined) {
+  if (grouping?.kind !== GenerationPartKinds.GROUPING) {
     return "without a grouping part";
   }
-  const sameAttributes =
-    grouping.kind === GenerationPartKinds.GROUPING &&
-    grouping.gitAttributesDigest === gitAttributesDigest;
-  return sameAttributes ? undefined : "under another .gitattributes";
+  if (grouping.gitAttributesDigest !== digests.gitAttributes) {
+    return "under another .gitattributes";
+  }
+  if (grouping.anchorPlanDigest !== digests.anchorPlan) {
+    return "under another anchor plan";
+  }
+  return undefined;
 }
 
 /** A body the store no longer accepts fails every resume the same way, so the span starts over. */
@@ -103,6 +144,7 @@ async function readSpanParts(
 async function listResumableParts(
   context: RunContext,
   requireGitAttributesDigest: () => string,
+  anchorPlanDigest: string,
 ): Promise<StoredParts> {
   const { log } = context;
   const rows = await readSpanParts(context);
@@ -110,11 +152,14 @@ async function listResumableParts(
   if (rows !== undefined && byKey.size === 0) {
     return byKey;
   }
-  const gitAttributesDigest = requireGitAttributesDigest();
+  const digests: PartDigests = {
+    gitAttributes: requireGitAttributesDigest(),
+    anchorPlan: anchorPlanDigest,
+  };
   const stale =
     rows === undefined
       ? "off their stored shape"
-      : readStaleReason(byKey, gitAttributesDigest);
+      : readStaleReason(byKey, digests);
   if (stale === undefined) {
     return byKey;
   }
@@ -137,13 +182,15 @@ function readDetailBody(body: unknown): { readonly chunks: unknown } {
 function wrapPartBody(
   key: PartKey,
   body: unknown,
-  requireDigest: () => string,
+  readDigests: () => PartDigests,
 ): unknown {
   if (key === GROUPING_KEY) {
+    const digests = readDigests();
     return {
       kind: GenerationPartKinds.GROUPING,
       grouping: body,
-      gitAttributesDigest: requireDigest(),
+      gitAttributesDigest: digests.gitAttributes,
+      anchorPlanDigest: digests.anchorPlan,
     };
   }
   return { kind: GenerationPartKinds.DETAIL, ...readDetailBody(body) };
@@ -237,11 +284,31 @@ export function createMultiCallRun(
   const requireGitAttributesDigest =
     makeGitAttributesDigestReader(gitAttributesRead);
   let stored: Promise<StoredParts> | undefined;
+  let anchorPlanDigest: string | undefined;
   let missingDetailCalls: readonly number[] | undefined;
   const completedDetailCalls = new Set<number>();
 
+  /** `loadStoredParts` sets the plan before any hook runs; a hook before it is a caller's bug. */
+  function requireAnchorPlanDigest(): string {
+    if (anchorPlanDigest === undefined) {
+      throw new RangeError(
+        "generate: the multi-call run's parts were read before its anchor plan",
+      );
+    }
+    return anchorPlanDigest;
+  }
+  function readDigests(): PartDigests {
+    return {
+      gitAttributes: requireGitAttributesDigest(),
+      anchorPlan: requireAnchorPlanDigest(),
+    };
+  }
   function readStored(): Promise<StoredParts> {
-    stored ??= listResumableParts(context, requireGitAttributesDigest);
+    stored ??= listResumableParts(
+      context,
+      requireGitAttributesDigest,
+      requireAnchorPlanDigest(),
+    );
     return stored;
   }
   /**
@@ -283,7 +350,7 @@ export function createMultiCallRun(
         await parts.write({
           ...span,
           partKey: key,
-          body: wrapPartBody(key, body, requireGitAttributesDigest),
+          body: wrapPartBody(key, body, readDigests),
         });
         const completed = readCompletedDetailCall(key);
         if (completed === undefined) {
@@ -324,8 +391,9 @@ export function createMultiCallRun(
     detailConcurrency: deps.detailConcurrency,
     forceMultiCall: deps.forceMultiCall,
     deleteParts: () => sweepSpanParts(context),
-    loadStoredParts: () =>
+    loadStoredParts: (previous) =>
       runHookStep(async () => {
+        anchorPlanDigest = digestAnchorPlan(previous);
         await readStored();
       }),
     async discardPartsOnMergeFailure(error) {

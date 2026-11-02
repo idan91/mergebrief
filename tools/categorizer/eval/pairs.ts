@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
 import { AnchorStates, type Result } from "types";
@@ -151,6 +151,12 @@ export interface PairCase {
   deltaProperties: DeltaEvalProperty[];
   /** The delta reads `reviewComments`, as the dev CLI does; the worker sends none, so off by default. */
   deltaReadsReviewComments: boolean;
+  /** Every Brief the case generates runs through the multi-call engine, as the `force-multi-call` generator config does; a stored `baseBrief` is read as stored. */
+  forceMultiCall: boolean;
+  /** Where the case's pair.json lives: its own dir, or a twin's base case's. */
+  fixtureDir: string;
+  /** The case never runs without a stored `baseBrief`: generating one per run costs too much. */
+  requiresBaseBrief: boolean;
 }
 
 /** The shape every property list shares; the check's argument differs per list. */
@@ -212,7 +218,16 @@ async function loadOnePair(
   dir: string,
 ): Promise<Result<PairCase, string>> {
   const caseLabel = `pair case "${id}"`;
-  const raw = readCaseJson(caseLabel, dir, PAIR_FILE);
+  const expectedPath = join(dir, "expected.ts");
+  if (!existsSync(expectedPath)) {
+    return { ok: false, error: `${caseLabel}: missing expected.ts` };
+  }
+  const module: unknown = await import(pathToFileURL(expectedPath).href);
+  const twin = readTwinOptions(caseLabel, module, dir);
+  if (!twin.ok) {
+    return twin;
+  }
+  const raw = readCaseJson(caseLabel, twin.value.fixtureDir, PAIR_FILE);
   if (!raw.ok) {
     return raw;
   }
@@ -223,11 +238,6 @@ async function loadOnePair(
       error: `${caseLabel}: invalid pair.json — ${z.prettifyError(parsed.error)}`,
     };
   }
-  const expectedPath = join(dir, "expected.ts");
-  if (!existsSync(expectedPath)) {
-    return { ok: false, error: `${caseLabel}: missing expected.ts` };
-  }
-  const module: unknown = await import(pathToFileURL(expectedPath).href);
   const properties = readCaseProperties(caseLabel, module);
   if (!properties.ok) {
     return properties;
@@ -255,6 +265,13 @@ async function loadOnePair(
   if (spanSkip !== undefined) {
     return { ok: false, error: `${caseLabel}: ${spanSkip}` };
   }
+  const requiresBaseBrief = readExport(module, "requiresBaseBrief") ?? false;
+  if (typeof requiresBaseBrief !== "boolean") {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts \`requiresBaseBrief\` must be a boolean`,
+    };
+  }
 
   return {
     ok: true,
@@ -264,8 +281,56 @@ async function loadOnePair(
       fixture,
       ...properties.value,
       deltaReadsReviewComments: commentOptIn.value,
+      forceMultiCall: twin.value.forceMultiCall,
+      fixtureDir: twin.value.fixtureDir,
+      requiresBaseBrief,
     },
   };
+}
+
+interface TwinOptions {
+  /** Where the case's pair.json lives: its own dir, or its base case's. */
+  readonly fixtureDir: string;
+  readonly forceMultiCall: boolean;
+}
+
+function readExport(module: unknown, name: string): unknown {
+  return typeof module === "object" && module !== null
+    ? Reflect.get(module, name)
+    : undefined;
+}
+
+/**
+ * A twin case runs another case's pair under another engine: `fixtureFrom`
+ * names a sibling case whose pair.json it reads, and `forceMultiCall` runs
+ * both Briefs through the multi-call engine. Each scores under its own id
+ * and baseline.
+ */
+function readTwinOptions(
+  caseLabel: string,
+  module: unknown,
+  dir: string,
+): Result<TwinOptions, string> {
+  const forceMultiCall = readExport(module, "forceMultiCall") ?? false;
+  if (typeof forceMultiCall !== "boolean") {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts \`forceMultiCall\` must be a boolean`,
+    };
+  }
+  const fixtureFrom = readExport(module, "fixtureFrom");
+  if (fixtureFrom === undefined) {
+    return { ok: true, value: { fixtureDir: dir, forceMultiCall } };
+  }
+  const fixtureDir =
+    typeof fixtureFrom === "string" ? join(dirname(dir), fixtureFrom) : "";
+  if (fixtureDir === "" || !existsSync(fixtureDir)) {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts \`fixtureFrom\` names no sibling case: ${JSON.stringify(fixtureFrom)}`,
+    };
+  }
+  return { ok: true, value: { fixtureDir, forceMultiCall } };
 }
 
 type CaseProperties = Pick<
@@ -550,50 +615,71 @@ export function planPairAnchoring(
   return planAnchoredGeneration({ previousBrief, span: readPairSpan(fixture) });
 }
 
+/** The generator, its effort and the engine a pair case runs every Brief under. */
+interface PairEngine {
+  readonly generator: Generator;
+  readonly effort: Effort;
+  readonly forceMultiCall: boolean;
+}
+
 function makeFixtureOptions(
   fixture: EvalFixture,
   headIndex: number,
-  generator: Generator,
-  effort: Effort,
+  engine: PairEngine,
 ): GenerateBriefOptions {
   return {
     pr: fixture.pr,
     headIndex,
     commitRange: fixture.commitRange,
-    generator,
-    effort,
+    generator: engine.generator,
+    effort: engine.effort,
+    forceMultiCall: engine.forceMultiCall,
     repoContext: fixture.repoContext,
     gitAttributes: fixture.gitAttributes,
     multiCallHooks: {},
   };
 }
 
-async function readBaseBrief(
-  fixture: PairFixture,
+/** The base head's Brief generated as a run would, for a case to store. */
+export async function generateBaseBrief(
+  pairCase: PairCase,
   generator: Generator,
   effort: Effort,
+): Promise<Brief> {
+  const engine: PairEngine = {
+    generator,
+    effort,
+    forceMultiCall: pairCase.forceMultiCall,
+  };
+  const { brief } = await generateBrief(
+    makeFixtureOptions(pairCase.fixture.base, BASE_BRIEF_INDEX, engine),
+  );
+  return brief;
+}
+
+async function readBaseBrief(
+  fixture: PairFixture,
+  engine: PairEngine,
 ): Promise<Brief> {
   if (fixture.baseBrief !== undefined) {
     return fixture.baseBrief;
   }
   const { brief } = await generateBrief(
-    makeFixtureOptions(fixture.base, BASE_BRIEF_INDEX, generator, effort),
+    makeFixtureOptions(fixture.base, BASE_BRIEF_INDEX, engine),
   );
   return brief;
 }
 
 async function runPair(
   fixture: PairFixture,
-  generator: Generator,
-  effort: Effort,
+  engine: PairEngine,
   mode: PairRunMode,
 ): Promise<RevisionPair> {
-  const base = await readBaseBrief(fixture, generator, effort);
+  const base = await readBaseBrief(fixture, engine);
   const revisedOptions = makeFixtureOptions(
     fixture.revised,
     REVISED_BRIEF_INDEX,
-    generator,
-    effort,
+    engine,
   );
 
   if (mode === "fresh") {
@@ -632,7 +718,12 @@ async function runPairWithSpan(
   mode: PairRunMode,
 ): Promise<PairRun> {
   const { fixture } = pairCase;
-  const pair = await runPair(fixture, generator, effort, mode);
+  const engine: PairEngine = {
+    generator,
+    effort,
+    forceMultiCall: pairCase.forceMultiCall,
+  };
+  const pair = await runPair(fixture, engine, mode);
   const run: PairRun = { pair };
   if (!readsRevisionSpan(pairCase)) {
     return run;

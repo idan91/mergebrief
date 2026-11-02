@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -186,6 +186,14 @@ const REVISED_OUTPUT = makeBriefOutput([
   { id: "tmpA", title: "alpha", file: "a.ts", start: 5 },
   { id: "tmpB", title: "beta v2", file: "b.ts" },
 ]);
+
+async function loadOnlyCaseById(root: string, id: string): Promise<PairCase> {
+  const cases = await loadPairCases(root, id);
+  if (!cases.ok || cases.value[0] === undefined) {
+    throw new Error(cases.ok ? "no case" : cases.error);
+  }
+  return cases.value[0];
+}
 
 async function loadOnlyCase(root: string): Promise<PairCase> {
   const cases = await loadPairCases(root);
@@ -787,5 +795,55 @@ describe("countPairGenerations", () => {
 
     expect(generator.requests).toHaveLength(1);
     expect(countPairGenerations(relinked)).toBe(1);
+  });
+});
+
+/** A twin case beside `base` in `root`, sharing its pair.json. */
+function writeTwinCase(root: string, id: string, fixtureFrom: string): void {
+  mkdirSync(join(root, id));
+  writeFileSync(
+    join(root, id, "expected.ts"),
+    `export const fixtureFrom = ${JSON.stringify(fixtureFrom)};
+export const forceMultiCall = true;
+export const pairProperties = [
+  { id: "pair-ran", description: "a pair ran", check: () => true },
+];
+`,
+  );
+}
+
+describe("a multi-call twin case", () => {
+  it("loads on its base case's fixture, forced to multi-call", async () => {
+    const root = writePairCase("base", EXPECTED_TS);
+    writeTwinCase(root, "base-multi-call", "base");
+
+    const loaded = await loadPairCases(root);
+    const [base, twin] = loaded.ok ? loaded.value : [];
+
+    expect(twin?.id).toBe("base-multi-call");
+    expect(twin?.fixture).toEqual(base?.fixture);
+    expect(twin?.forceMultiCall).toBe(true);
+    expect(base?.forceMultiCall).toBe(false);
+  });
+
+  it("refuses a twin whose base case does not exist", async () => {
+    const root = writePairCase("base", EXPECTED_TS);
+    writeTwinCase(root, "lost-multi-call", "missing");
+
+    const loaded = await loadPairCases(root, "lost-multi-call");
+
+    expect(loaded.ok).toBe(false);
+    expect(!loaded.ok && loaded.error).toContain("missing");
+  });
+
+  it("runs both briefs through the multi-call engine", async () => {
+    const root = writePairCase("base", EXPECTED_TS);
+    writeTwinCase(root, "base-multi-call", "base");
+    const twin = await loadOnlyCaseById(root, "base-multi-call");
+    const generator = new SequenceGenerator([]);
+
+    await runPairCase(twin, generator, "medium", 1);
+
+    expect(generator.requests[0]?.label).toBe("grouping");
   });
 });

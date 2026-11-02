@@ -86,20 +86,23 @@ function parseHunkItem(
 }
 
 /**
- * Reads a run of whole files. File ids are dense from `f1` in diff order, so
- * a run whose two ends are files of this diff names only files of it; a run
- * reaching past the diff is rejected before anything expands.
+ * Reads a run of whole files. File ids are dense from `f1` in diff order
+ * once the files the outline left out count, so a run whose two ends are
+ * files of this diff names only files of it and steps over the left-out
+ * ones; a run reaching past the diff is rejected before anything expands.
  */
 function parseFileRunItem(
   match: RegExpExecArray,
   filesById: ReadonlyMap<FileId, IndexedFile>,
+  omittedFileIds: ReadonlySet<FileId>,
 ): FileClaim[] | undefined {
   const first = Number(match[1]);
   const last = Number(match[2]);
   const firstId: FileId = `f${first}`;
   const lastId: FileId = `f${last}`;
   const runLength = last - first + 1;
-  if (runLength < 1 || runLength > filesById.size) {
+  const diffFileCount = filesById.size + omittedFileIds.size;
+  if (runLength < 1 || runLength > diffFileCount) {
     return undefined;
   }
   if (!filesById.has(firstId) || !filesById.has(lastId)) {
@@ -109,6 +112,9 @@ function parseFileRunItem(
   const claims: FileClaim[] = [];
   for (let position = first; position <= last; position += 1) {
     const fileId: FileId = `f${position}`;
+    if (omittedFileIds.has(fileId)) {
+      continue;
+    }
     if (!filesById.has(fileId)) {
       return undefined;
     }
@@ -120,16 +126,20 @@ function parseFileRunItem(
 function parseItem(
   item: string,
   filesById: ReadonlyMap<FileId, IndexedFile>,
-  shortenedFileIds: ReadonlySet<FileId>,
+  input: HunkMapInput,
 ): Claim[] | undefined {
   if (item.length > HUNK_ITEM_MAX_CHARS) {
     return undefined;
   }
   const fileRun = FILE_RUN_ITEM.exec(item);
   if (fileRun !== null) {
-    return parseFileRunItem(fileRun, filesById);
+    return parseFileRunItem(
+      fileRun,
+      filesById,
+      input.omittedFileIds ?? new Set(),
+    );
   }
-  const claim = parseHunkItem(item, filesById, shortenedFileIds);
+  const claim = parseHunkItem(item, filesById, input.shortenedFileIds);
   return claim === undefined ? undefined : [claim];
 }
 
@@ -221,7 +231,7 @@ function recordEntry(
       ledger.overBudget.push(describeItem(item));
       continue;
     }
-    const claims = parseItem(item, filesById, input.shortenedFileIds);
+    const claims = parseItem(item, filesById, input);
     if (claims === undefined) {
       ledger.rejected.push(describeItem(item));
       continue;

@@ -5,7 +5,6 @@ import { AnchorStates } from "types/generations";
 import {
   buildComparisonMarks,
   buildContextQuery,
-  CallPlanKinds,
   categorizeRevisionNarrative,
   countChangedLines,
   fetchContextSnippets,
@@ -356,7 +355,7 @@ export async function generateAndWrite(
   );
 
   const previous = buildPreviousInput(prior);
-  const { brief, ranAs } = await generateBrief({
+  const { brief, anchoring } = await generateBrief({
     pr,
     headIndex: index,
     commitRange,
@@ -366,11 +365,11 @@ export async function generateAndWrite(
     previous,
     multiCallHooks: {},
   });
-  // A multi-call run re-looks every group, so its brief anchors on nothing.
+  // Either route anchors on the previous brief and returns its carry.
   if (previous !== undefined) {
-    const anchored = ranAs === CallPlanKinds.SINGLE;
     brief.anchor = {
-      state: anchored ? AnchorStates.ANCHORED : AnchorStates.NONE,
+      state:
+        anchoring === undefined ? AnchorStates.NONE : AnchorStates.ANCHORED,
     };
   }
 

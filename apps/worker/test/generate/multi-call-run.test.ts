@@ -2,10 +2,13 @@
 // as they land and resumed from, deleted once the brief is stored, kept on
 // any failure but a permanent one over every part; the default branch's
 // .gitattributes decides shortened files and whether a grouping is reusable.
+import { buildFastForwardSpan } from "brief-core/pr-span";
+import type { Brief } from "brief-core/types";
 import {
   createArtifactStore,
   createGenerationPartStore,
   createGenerationProjection,
+  createTenantRepository,
   GenerationPartKinds,
   ScopeViolationError,
   type PullRequestRow,
@@ -19,10 +22,13 @@ import { FakeFailures, type FakeGitHub } from "github/testing";
 import { createI18n } from "i18n";
 import { claimTestRun } from "persistence/testing";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
+import { CommentAnchorKinds, DiffSides } from "types/comments";
+import { ChangeGroupCategories } from "types/reviews";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { PermanentJobError } from "../../src/task/failure";
 import {
   createMultiCallRun,
+  digestAnchorPlan,
   digestGitAttributes,
 } from "../../src/task/generate/logic/generation-parts";
 import {
@@ -47,6 +53,7 @@ import {
   makeInOrderGrouping,
   makeLargePoolTask,
   makeMultiCallGitHub,
+  makeReviewerId,
   makeTarget,
   makeTask,
   MULTI_CALL_GROUPING,
@@ -65,6 +72,9 @@ setUpHarness();
 
 const MULTI_CALL_LABELS = ["grouping", "detail:1", "detail:2"];
 const NO_GIT_ATTRIBUTES_DIGEST = digestGitAttributes(undefined);
+/** A run with no previous brief plans no carry. */
+const NO_ANCHOR_PLAN_DIGEST = digestAnchorPlan(undefined);
+const REVIEWER_ID = 7_001n;
 
 /** The next insert of `partKey` fails as a dropped connection does; the sequence outlives the aborted transaction. */
 async function failNextPartWrite(partKey: string): Promise<void> {
@@ -213,13 +223,16 @@ async function listAttempts(): Promise<AttemptRow[]> {
   }));
 }
 
-function makeSpan(pr: PullRequestRow) {
-  return { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD_1 };
+function makeSpan(pr: PullRequestRow, headSha = HEAD_1) {
+  return { pullRequestId: pr.id, baseSha: BASE, headSha };
 }
 
-async function listPartKeys(pr: PullRequestRow): Promise<string[]> {
+async function listPartKeys(
+  pr: PullRequestRow,
+  headSha = HEAD_1,
+): Promise<string[]> {
   const parts = createGenerationPartStore(harness.handle, ctx);
-  const rows = await parts.listForSpan(makeSpan(pr));
+  const rows = await parts.listForSpan(makeSpan(pr, headSha));
   return rows.map((row) => row.partKey);
 }
 
@@ -247,10 +260,11 @@ async function storeDetailPartWithDroppedAttribute(
   });
 }
 
-/** A grouping part stored under `gitAttributesDigest` and one detail part, as a cut run leaves them. */
+/** A grouping part stored under both digests and one detail part, as a cut run leaves them. */
 async function storeResumableParts(
   pr: PullRequestRow,
   gitAttributesDigest = NO_GIT_ATTRIBUTES_DIGEST,
+  anchorPlanDigest = NO_ANCHOR_PLAN_DIGEST,
 ): Promise<void> {
   const parts = createGenerationPartStore(harness.handle, ctx);
   await parts.write({
@@ -260,6 +274,7 @@ async function storeResumableParts(
       kind: GenerationPartKinds.GROUPING,
       grouping: MULTI_CALL_GROUPING,
       gitAttributesDigest,
+      anchorPlanDigest,
     },
   });
   await parts.write({
@@ -280,6 +295,30 @@ async function readStoredBrief(pr: PullRequestRow) {
 async function readStatus(pr: PullRequestRow) {
   const projection = createGenerationProjection(harness.handle, ctx);
   return projection.get(makeTarget(pr, HEAD_1));
+}
+
+/** Two multi-call pushes of one PR, HEAD_1 then HEAD_2; both stored rows. */
+async function runTwoMultiCallPushes() {
+  const first = await trigger(HEAD_1);
+  await makeTask({
+    generator: stubThreeGroupGenerator(),
+    github: makeMultiCallGitHub(HEAD_1),
+    forceMultiCall: true,
+  })(first.payload);
+  const second = await trigger(HEAD_2);
+  await makeTask({
+    generator: stubThreeGroupGenerator(),
+    github: makeMultiCallGitHub(HEAD_2),
+    forceMultiCall: true,
+  })(second.payload);
+
+  const store = createArtifactStore(harness.handle, ctx);
+  const previous = await store.briefs.get(first.pr.id, BASE, HEAD_1);
+  const current = await store.briefs.get(second.pr.id, BASE, HEAD_2);
+  if (previous === undefined || current === undefined) {
+    throw new Error("a push stored no brief");
+  }
+  return { previous, current };
 }
 
 describe("a multi-call run", () => {
@@ -621,6 +660,7 @@ describe("a multi-call run", () => {
       runId,
       { kind: GitAttributesReadings.NONE },
     );
+    await second.loadStoredParts(undefined);
     await second.hooks.onPartDone?.("grouping", MULTI_CALL_GROUPING);
     await second.hooks.onGroupingDone?.({
       detailCalls: 2,
@@ -648,7 +688,7 @@ describe("a multi-call run", () => {
     expect(await listPartKeys(pr)).toEqual([]);
   });
 
-  it("stamps a multi-call brief over an anchored previous row as none", async () => {
+  it("stamps a multi-call brief over an anchored previous row as anchored", async () => {
     const first = await trigger(HEAD_1);
     await makeTask({ generator: stubGenerator(), github: makeGitHub(HEAD_1) })(
       first.payload,
@@ -666,14 +706,42 @@ describe("a multi-call run", () => {
       BASE,
       HEAD_2,
     );
-    expect(row?.anchorState).toBe("none");
+    const hops = await createArtifactStore(
+      harness.handle,
+      ctx,
+    ).hunkSpans.listForPullRequest(second.pr.id);
+    expect(row?.anchorState).toBe("anchored");
     expect(row?.anchorReason).toBeNull();
-    expect(row?.carriedChunkIds).toEqual([]);
     expect(JSON.parse(row?.body ?? "{}")).toMatchObject({
-      anchor: { state: "none" },
+      anchor: { state: "anchored" },
     });
+    expect(hops.map((hop) => [hop.baselineSha, hop.headSha])).toEqual([
+      [HEAD_1, HEAD_2],
+    ]);
     expect(row?.usedGroupIds).toContain("g1");
-    expect(new Set(row?.usedGroupIds).size).toBe(4);
+  });
+
+  it("anchors a single-call brief over a multi-call previous row", async () => {
+    const first = await trigger(HEAD_1);
+    await makeTask({
+      generator: stubThreeGroupGenerator(),
+      github: makeMultiCallGitHub(HEAD_1),
+      forceMultiCall: true,
+    })(first.payload);
+    const second = await trigger(HEAD_2);
+
+    await makeTask({
+      generator: stubGenerator(),
+      github: makeGitHub(HEAD_2),
+    })(second.payload);
+
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(second.pr.id, BASE, HEAD_2);
+    const hops = await store.hunkSpans.listForPullRequest(second.pr.id);
+    expect(row?.anchorState).toBe("anchored");
+    expect(hops.map((hop) => [hop.baselineSha, hop.headSha])).toEqual([
+      [HEAD_1, HEAD_2],
+    ]);
   });
 
   it("starts over when a stored part is off the shape the store accepts", async () => {
@@ -704,6 +772,7 @@ describe("a multi-call run", () => {
         kind: GenerationPartKinds.GROUPING,
         grouping: MULTI_CALL_GROUPING,
         gitAttributesDigest: NO_GIT_ATTRIBUTES_DIGEST,
+        anchorPlanDigest: NO_ANCHOR_PLAN_DIGEST,
       },
     });
     await parts.write({
@@ -866,6 +935,7 @@ describe("a multi-call run", () => {
         gitAttributesDigest: digestGitAttributes(
           "src/c.ts linguist-generated\n",
         ),
+        anchorPlanDigest: NO_ANCHOR_PLAN_DIGEST,
       },
     });
     await parts.write({
@@ -886,6 +956,129 @@ describe("a multi-call run", () => {
       { units: 3, parts_done: 2, parts_total: 2 },
     ]);
     expect(await listPartKeys(pr)).toEqual([]);
+  });
+
+  it("starts over on a grouping part stored under another anchor plan", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    await storeResumableParts(
+      pr,
+      NO_GIT_ATTRIBUTES_DIGEST,
+      digestGitAttributes("another plan"),
+    );
+    const generator = stubThreeGroupGenerator();
+
+    await makeTask({
+      generator,
+      github: makeMultiCallGitHub(HEAD_1),
+      forceMultiCall: true,
+    })(payload);
+
+    expect(generator.calls.slice(0, 3)).toEqual(MULTI_CALL_LABELS);
+    expect(await listPartKeys(pr)).toEqual([]);
+  });
+
+  it("digests the previous brief's head and index beside its plan", async () => {
+    const first = await trigger(HEAD_1);
+    await makeTask({ generator: stubGenerator(), github: makeGitHub(HEAD_1) })(
+      first.payload,
+    );
+    const row = await readStoredBrief(first.pr);
+    const brief = JSON.parse(row?.body ?? "{}") as Brief;
+    const span = buildFastForwardSpan({
+      betweenHeadsDiff: "",
+      newPrDiff: "",
+    });
+
+    const digest = digestAnchorPlan({ brief, span });
+    const otherHead = digestAnchorPlan({
+      brief: { ...brief, commitRange: { ...brief.commitRange, head: HEAD_2 } },
+      span,
+    });
+    const otherIndex = digestAnchorPlan({
+      brief: { ...brief, index: brief.index + 1 },
+      span,
+    });
+
+    expect(new Set([digest, otherHead, otherIndex]).size).toBe(3);
+  });
+
+  it("resumes an anchored grouping part stored under the same plan", async () => {
+    const first = await trigger(HEAD_1);
+    await makeTask({ generator: stubGenerator(), github: makeGitHub(HEAD_1) })(
+      first.payload,
+    );
+    const second = await trigger(HEAD_2);
+    const github = makeMultiCallGitHub(HEAD_2);
+    const failing = stubThreeGroupGenerator();
+    failing.failOn("detail:1", makeConnectionError());
+
+    await expect(
+      makeTask({ generator: failing, github, forceMultiCall: true })(
+        second.payload,
+      ),
+    ).rejects.toThrow("Connection error");
+    expect(await listPartKeys(second.pr, HEAD_2)).toContain("grouping");
+
+    const resumed = stubThreeGroupGenerator();
+    await makeTask({ generator: resumed, github, forceMultiCall: true })(
+      second.payload,
+      { job: SECOND_ATTEMPT },
+    );
+
+    const row = await createArtifactStore(harness.handle, ctx).briefs.get(
+      second.pr.id,
+      BASE,
+      HEAD_2,
+    );
+    expect(resumed.calls).not.toContain("grouping");
+    expect(resumed.calls).toContain("detail:1");
+    expect(row?.anchorState).toBe("anchored");
+  });
+
+  it("carries a group reclassification across a multi-call chain", async () => {
+    const { previous, current } = await runTwoMultiCallPushes();
+    const sessions = createTenantRepository(harness.handle, ctx).reviewSessions;
+    const reviewerId = makeReviewerId(REVIEWER_ID);
+    await sessions.reclassifyGroup(
+      { briefId: previous.id, reviewerId },
+      { changeGroupId: "g1", category: ChangeGroupCategories.BUGFIX },
+    );
+
+    const view = await sessions.preview({ briefId: current.id, reviewerId });
+
+    expect(current.anchorState).toBe("anchored");
+    expect(
+      view.ok &&
+        view.value.carried.reclassifications.map((row) => row.changeGroupId),
+    ).toEqual(["g1"]);
+  });
+
+  it("keeps a draft line anchor across a multi-call push", async () => {
+    const { previous, current } = await runTwoMultiCallPushes();
+    const sessions = createTenantRepository(harness.handle, ctx).reviewSessions;
+    const reviewerId = makeReviewerId(REVIEWER_ID);
+    await sessions.addDraft(
+      { briefId: previous.id, reviewerId },
+      {
+        anchor: {
+          kind: CommentAnchorKinds.LINE,
+          file: "src/a.ts",
+          side: DiffSides.NEW,
+          startLine: 1,
+          endLine: 1,
+        },
+        body: "check this line",
+      },
+    );
+
+    const view = await sessions.preview({ briefId: current.id, reviewerId });
+
+    expect(view.ok && view.value.carried.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: expect.objectContaining({ file: "src/a.ts", startLine: 1 }),
+        anchorStatus: null,
+      }),
+    ]);
   });
 
   it("fails a cut grouping call for good as output-cut", async () => {
@@ -1165,6 +1358,7 @@ describe("a multi-call run", () => {
         kind: GenerationPartKinds.GROUPING,
         grouping: MULTI_CALL_GROUPING,
         gitAttributesDigest: NO_GIT_ATTRIBUTES_DIGEST,
+        anchorPlanDigest: NO_ANCHOR_PLAN_DIGEST,
       },
     });
     const generator = stubThreeGroupGenerator();

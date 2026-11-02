@@ -8,6 +8,7 @@ import { IDENTITY_SPAN, REST_OF_FILE_LINES } from "../src/diff/pr-span/consts";
 import { buildPrSpan } from "../src/diff/pr-span";
 import type { PrSpan } from "../src/diff/pr-span/types";
 import { remapThroughHops } from "../src/diff/remap";
+import { validateReadingOrder } from "../src/generation/validate";
 import type { Brief } from "../src/types";
 import {
   insertAfter,
@@ -760,6 +761,38 @@ describe("stitchBrief", () => {
     expect(renamed?.id).not.toBe("g1");
     expect(result.carriedGroupIds).toEqual(["g1"]);
     expect(result.issues.some((w) => w.includes("numbering slip"))).toBe(true);
+  });
+
+  it("a slip keeps the carried step and orders the renamed group after it", () => {
+    const generated = brief(
+      [group("g1", "unrelated new work"), group("tmpB", "beta v2")],
+      [chunk("x1", "g1", "new.ts", 1, 4), chunk("x2", "tmpB", "b.ts", 1, 3)],
+      {
+        readingOrder: [
+          { groupId: "g1", why: "the new work" },
+          { groupId: "tmpB", why: "builds on it" },
+        ],
+      },
+    );
+
+    const { brief: merged } = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts", "new.ts"],
+    });
+
+    const renamed = merged.changeGroups.find(
+      (g) => g.title === "unrelated new work",
+    );
+    const beta = merged.changeGroups.find((g) => g.title === "beta v2");
+    expect(merged.readingOrder?.map((step) => step.groupId)).toEqual([
+      "g1",
+      renamed?.id,
+      beta?.id,
+    ]);
+    expect(
+      validateReadingOrder(merged.readingOrder, merged.changeGroups),
+    ).toEqual([]);
   });
 
   it("a frozen-id re-emission with only its own files keeps the carry", () => {

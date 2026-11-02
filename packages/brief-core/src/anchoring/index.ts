@@ -10,7 +10,13 @@ import {
   type HunkSpan,
   type RemapResult,
 } from "../diff/remap";
-import type { Brief, IntentCheck, IntentItem, LineRange } from "../types";
+import type {
+  Brief,
+  IntentCheck,
+  IntentItem,
+  LineRange,
+  ReadingOrderStep,
+} from "../types";
 import type {
   AnchorPlan,
   AnchorPlanArgs,
@@ -284,6 +290,54 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     }
   }
   return planGroups({ ...input, sharing: listSharingGroups(groupFiles) });
+}
+
+/** Each kept group the model listed under a carried id, by that id, under its descended id. */
+function listSlipGroups(
+  keptGroups: readonly ChangeGroup[],
+  activeFrozen: readonly FrozenCarry[],
+  claimedIds: ReadonlySet<string>,
+  descended: ReadonlyMap<string, string>,
+): Map<string, ChangeGroup> {
+  const carriedIds = new Set(activeFrozen.map((carry) => carry.group.id));
+  const slips = new Map<string, ChangeGroup>();
+  for (const group of keptGroups) {
+    const id = descended.get(group.id);
+    const isSlip = carriedIds.has(group.id) && !claimedIds.has(group.id);
+    if (isSlip && id !== undefined) {
+      slips.set(group.id, { ...group, id });
+    }
+  }
+  return slips;
+}
+
+/**
+ * A reading order over numbering slips, each a frozen id the model also
+ * listed, keyed to the group now holding the slip's content. The frozen id's
+ * step stays on the carried group and the slip group's step follows it; a
+ * slip whose frozen id has no step joins the end under its group's title.
+ * Every group then holds one step, so the order survives final validation.
+ */
+export function insertSlipSteps(
+  order: readonly ReadingOrderStep[],
+  slips: ReadonlyMap<string, ChangeGroup>,
+): ReadingOrderStep[] {
+  const steps: ReadingOrderStep[] = [];
+  const placed = new Set<string>();
+  for (const step of order) {
+    steps.push(step);
+    const slip = slips.get(step.groupId);
+    if (slip !== undefined && !placed.has(step.groupId)) {
+      steps.push({ ...step, groupId: slip.id });
+      placed.add(step.groupId);
+    }
+  }
+  for (const [frozenId, slip] of slips) {
+    if (!placed.has(frozenId)) {
+      steps.push({ groupId: slip.id, why: slip.title });
+    }
+  }
+  return steps;
 }
 
 /** Dominant frozen parent for a dropped generated group (tie → first frozen). */
@@ -603,10 +657,18 @@ export function stitchBrief(args: StitchArgs): StitchResult {
   };
 
   if (generated.readingOrder !== undefined) {
-    brief.readingOrder = generated.readingOrder.map((step) => ({
-      ...step,
-      groupId: referenceMap.get(step.groupId) ?? step.groupId,
-    }));
+    const slips = listSlipGroups(
+      keptGroups,
+      activeFrozen,
+      claimedIds,
+      descended,
+    );
+    const mapped = generated.readingOrder.map((step) =>
+      slips.has(step.groupId)
+        ? step
+        : { ...step, groupId: referenceMap.get(step.groupId) ?? step.groupId },
+    );
+    brief.readingOrder = insertSlipSteps(mapped, slips);
   }
   if (generated.intentCheck !== undefined) {
     brief.intentCheck = remapIntentCheck(generated.intentCheck, referenceMap);

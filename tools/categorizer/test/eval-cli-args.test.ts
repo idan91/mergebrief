@@ -90,6 +90,26 @@ describe("parseEvalArgs", () => {
     expect(parseEvalArgs(["--force-outline"]).ok).toBe(false);
   });
 
+  it("parses --record-base-brief only with one case and no other mode", () => {
+    const parsed = parseEvalArgs(["--record-base-brief", "--case", "real"]);
+    expect(parsed.ok && parsed.value.recordBaseBrief).toBe(true);
+    expect(parseEvalArgs(["--record-base-brief"]).ok).toBe(false);
+    for (const flag of [
+      "--rebaseline",
+      "--no-baseline",
+      "--pair-fresh",
+      "--force-multi-call",
+    ]) {
+      const refused = parseEvalArgs([
+        "--record-base-brief",
+        "--case",
+        "real",
+        flag,
+      ]);
+      expect(refused.ok).toBe(false);
+    }
+  });
+
   it("rejects bad runs values and unknown flags", () => {
     expect(parseEvalArgs(["--runs", "0"]).ok).toBe(false);
     expect(parseEvalArgs(["--runs", "x"]).ok).toBe(false);

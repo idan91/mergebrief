@@ -6,7 +6,9 @@ import type {
   IndexedHunk,
 } from "../../diff/hunk-index/types";
 import type { FetchedPr } from "../../github/types";
+import type { AnchorPlan } from "../../anchoring/types";
 import type {
+  Brief,
   ChangeGroup,
   CommitRange,
   HunkMapEntry,
@@ -17,6 +19,7 @@ import type {
 } from "../../types";
 import type { AcceptedRepoContext } from "../categorize";
 import type { Outline } from "../outline/types";
+import type { AnchorViewInput } from "../prompt";
 import type { LockfileSummary } from "../shortened/types";
 import type { RepoContext } from "../repo-context";
 import type { WarningCollector } from "../warnings/types";
@@ -24,12 +27,16 @@ import type { WarningCollector } from "../warnings/types";
 export interface GroupingRequestInput {
   readonly pr: FetchedPr;
   readonly outline: Outline;
+  /** The files the outline covers: the PR's, or an anchored run's re-looked ones. */
+  readonly fileCount: number;
   /** The hunks the outline marks; a shortened file's hunks are not among them. */
   readonly hunkCount: number;
   /** The run's one accepted repo-context view; the detail calls read the same one. */
   readonly accepted: AcceptedRepoContext;
   /** The description holds Media: the prompt keeps them out of the summary. */
   readonly holdsMedia: boolean;
+  /** The Anchor of a run over a previous brief; absent on a fresh run, whose request stays as it was. */
+  readonly anchor?: AnchorViewInput | undefined;
 }
 
 /** The grouping call's prompts, plus the ticket text the validation context verifies against. */
@@ -45,6 +52,8 @@ export interface HunkMapInput {
   readonly files: readonly IndexedFile[];
   /** The files the outline showed as one line; each is assigned whole. */
   readonly shortenedFileIds: ReadonlySet<FileId>;
+  /** Files of the diff the outline left out, an anchored run's frozen ones; a run of whole files steps over them. */
+  readonly omittedFileIds?: ReadonlySet<FileId>;
   /** Every group id the grouping produced, reading order first; the earlier group keeps a hunk listed twice. */
   readonly groupIds: readonly string[];
   readonly warnings: WarningCollector;
@@ -180,8 +189,12 @@ export interface MultiCallOptions {
   readonly forcedOutlineForm?: OutlineForm | undefined;
   /** A whole number of 1 or more; absent takes the default. */
   readonly detailConcurrency?: number | undefined;
-  /** Every group id the PR's brief chain has used; the grouping's ids are minted past them. */
-  readonly reservedGroupIds?: readonly string[] | undefined;
+  /**
+   * A run over a previous brief: the grouping and detail calls cover the
+   * files outside the plan's frozen groups only, and the stitch carries the
+   * frozen groups afterwards.
+   */
+  readonly anchor?: MultiCallAnchor | undefined;
   readonly hooks?: MultiCallHooks | undefined;
   /** The description holds Media: the grouping prompt keeps them out of the summary. */
   readonly holdsMedia: boolean;
@@ -194,4 +207,9 @@ export interface GroupSections {
   changeGroups: ChangeGroup[];
   readingOrder?: ReadingOrderStep[] | undefined;
   intentCheck: IntentCheck;
+}
+
+export interface MultiCallAnchor {
+  readonly previousBrief: Brief;
+  readonly plan: AnchorPlan;
 }

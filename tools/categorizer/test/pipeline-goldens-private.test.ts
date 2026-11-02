@@ -11,6 +11,9 @@ const corpus = await describePipelineGoldens({
   casesDir: fileURLToPath(new URL("../eval/private-cases", import.meta.url)),
   pairsDir: PRIVATE_PAIR_CASES_DIR,
   requiresEveryWarningFamily: false,
+  // 3,021 files and 1,248 hunks: its goldens run past the suite's limits and
+  // would write a snapshot of about 195,000 lines.
+  skippedPairCaseIds: ["pair-real-node-65881"],
 });
 
 describe("the private case set", () => {

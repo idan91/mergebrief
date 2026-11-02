@@ -172,7 +172,7 @@ exports[`adversarial stitch goldens > pair-additive stitches the adversarial out
 }"
 `;
 
-exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial output 1`] = `
+exports[`adversarial stitch goldens > pair-additive-multi-call stitches the adversarial output 1`] = `
 "{
   "anchor": {
     "state": "anchored"
@@ -181,7 +181,9 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
     "carried": [
       "g1"
     ],
-    "regenerated": []
+    "regenerated": [
+      "g2"
+    ]
   },
   "changeGroups": [
     {
@@ -190,6 +192,15 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
       "secondaryCategories": [],
       "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
       "title": "Changes under packages/logging/src",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches packages/api/src/routes/health.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fille",
+      "title": "Changes under packages/api/src/routes",
       "uncertain": false,
       "uncertainBetween": []
     }
@@ -213,18 +224,46 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
       "removedRanges": [],
       "riskSurface": [],
       "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 4
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/health.ts",
+      "id": "c2",
+      "loc": {
+        "added": 12,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
     }
   ],
   "commitRange": {
-    "base": "957e5320641cdbd611878aa74dccdc02bd1f5318",
+    "base": "a9d00c17fe47efb1bfa9618a008ef55ee865d197",
     "commitCount": 2,
-    "head": "dbab38aefef2617d8b80173132f7ab56fe642b43"
+    "head": "69ceecc1b23af1d7d76fc38fcfdaa88b2497d776"
   },
   "concernView": [
     {
-      "added": 4,
+      "added": 16,
       "concern": "implementation",
-      "deleted": 0
+      "deleted": 1
     }
   ],
   "diffTotals": {
@@ -237,31 +276,17 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
     "provider": "canned"
   },
   "generationWarnings": [
-    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
-    "⚠ loc coverage issues:\\n12 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
-    "doneButUnstated": [
-      {
-        "acknowledged": false,
-        "groupIds": [
-          "g1"
-        ],
-        "intent": "Canned unstated work in g1",
-        "quote": "",
-        "sourceUrl": ""
-      }
-    ],
+    "doneButUnstated": [],
     "maskedFixes": [],
     "scopeNote": "",
-    "specificity": "precise",
+    "specificity": "none",
     "statedButMissing": [],
     "ticketTitles": [],
     "ticketUrls": []
@@ -272,42 +297,29 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
       "cap": 250,
       "field": "group g1 summary",
       "surface": "group-summary"
+    },
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g2 summary",
+      "surface": "group-summary"
     }
   ],
+  "outlineForm": "full",
   "pr": {
-    "description": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip \`token=\` query parameters. Also adds a GET /api/version route returning the deployed version.",
-    "number": 9008,
+    "description": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip \`token=\` query parameters.",
+    "number": 9001,
     "repo": "Idan91/code-review",
-    "sha": "dbab38aefef2617d8b80173132f7ab56fe642b43",
-    "title": "Add health and version endpoints and redact query tokens in logs",
-    "url": "https://github.com/Idan91/code-review/pull/9008"
+    "sha": "69ceecc1b23af1d7d76fc38fcfdaa88b2497d776",
+    "title": "Add a health endpoint and redact query tokens in logs",
+    "url": "https://github.com/Idan91/code-review/pull/9001"
   },
-  "summary": "Canned adversarial brief over 2 chunk(s).",
-  "unattributed": [
-    {
-      "addedRanges": [
-        {
-          "end": 14,
-          "start": 4
-        },
-        {
-          "end": 16,
-          "start": 16
-        }
-      ],
-      "file": "packages/api/src/routes/health.ts",
-      "removedRanges": [
-        {
-          "end": 5,
-          "start": 5
-        }
-      ]
-    }
-  ]
+  "summary": "Canned grouping over 1 changed file(s).",
+  "unattributed": []
 }"
 `;
 
-exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adversarial output 1`] = `
+exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial output 1`] = `
 "{
   "anchor": {
     "state": "anchored"
@@ -363,12 +375,12 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     {
       "addedRanges": [
         {
-          "end": 17,
+          "end": 14,
           "start": 4
         },
         {
-          "end": 19,
-          "start": 19
+          "end": 16,
+          "start": 16
         }
       ],
       "changeGroupId": "g2",
@@ -376,7 +388,7 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
       "file": "packages/api/src/routes/health.ts",
       "id": "c2",
       "loc": {
-        "added": 15,
+        "added": 12,
         "deleted": 1
       },
       "removedRanges": [
@@ -391,20 +403,20 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     {
       "addedRanges": [
         {
-          "end": 17,
+          "end": 14,
           "start": 4
         },
         {
-          "end": 19,
-          "start": 19
+          "end": 16,
+          "start": 16
         }
       ],
       "changeGroupId": "g2",
       "concern": "implementation",
       "file": "packages/api/src/routes/health.ts",
-      "id": "c5",
+      "id": "c4",
       "loc": {
-        "added": 15,
+        "added": 12,
         "deleted": 1
       },
       "removedRanges": [
@@ -418,20 +430,20 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     }
   ],
   "commitRange": {
-    "base": "420dd89016a922dd77d1ae846cb1a014acc9a8e1",
+    "base": "957e5320641cdbd611878aa74dccdc02bd1f5318",
     "commitCount": 2,
-    "head": "2efcde355967bd83e1f1ad782635ad1365534ab4"
+    "head": "dbab38aefef2617d8b80173132f7ab56fe642b43"
   },
   "concernView": [
     {
-      "added": 34,
+      "added": 28,
       "concern": "implementation",
       "deleted": 2
     }
   ],
   "diffTotals": {
-    "added": 21,
-    "deleted": 2
+    "added": 16,
+    "deleted": 1
   },
   "generation": {
     "effort": "medium",
@@ -441,10 +453,8 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
-    "⚠ unknown group issues:\\nchunk c4 (packages/api/src/routes/status.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
-    "⚠ loc overlap issues:\\nchunks c2 and c5 (packages/api/src/routes/health.ts) both claim added line(s) 4-17, 19 — counted in both\\nchunks c2 and c5 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ loc coverage issues:\\n2 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/status.ts",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -495,6 +505,179 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     }
   ],
   "pr": {
+    "description": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip \`token=\` query parameters. Also adds a GET /api/version route returning the deployed version.",
+    "number": 9008,
+    "repo": "Idan91/code-review",
+    "sha": "dbab38aefef2617d8b80173132f7ab56fe642b43",
+    "title": "Add health and version endpoints and redact query tokens in logs",
+    "url": "https://github.com/Idan91/code-review/pull/9008"
+  },
+  "summary": "Canned adversarial brief over 4 chunk(s).",
+  "unattributed": []
+}"
+`;
+
+exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [],
+    "regenerated": [
+      "g1"
+    ]
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches packages/logging/src/redact.ts, packages/api/src/routes/health.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned f",
+      "title": "Claims g1",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 4
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/logging/src/redact.ts",
+      "id": "c1",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 4
+        },
+        {
+          "end": 19,
+          "start": 19
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/health.ts",
+      "id": "c2",
+      "loc": {
+        "added": 15,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 4
+        },
+        {
+          "end": 19,
+          "start": 19
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/health.ts",
+      "id": "c4",
+      "loc": {
+        "added": 15,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
+      "riskSurface": [],
+      "role": "supporting"
+    }
+  ],
+  "commitRange": {
+    "base": "420dd89016a922dd77d1ae846cb1a014acc9a8e1",
+    "commitCount": 2,
+    "head": "2efcde355967bd83e1f1ad782635ad1365534ab4"
+  },
+  "concernView": [
+    {
+      "added": 34,
+      "concern": "implementation",
+      "deleted": 2
+    }
+  ],
+  "diffTotals": {
+    "added": 21,
+    "deleted": 2
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-17, 19 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
+    "⚠ loc coverage issues:\\n2 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/status.ts",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g1"
+        ],
+        "intent": "Canned unstated work in g1",
+        "quote": "",
+        "sourceUrl": ""
+      }
+    ],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "precise",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
     "description": "Adds GET /api/health and GET /api/status routes, and extends the logging redaction to strip \`token=\` query parameters.",
     "number": 9007,
     "repo": "Idan91/code-review",
@@ -502,7 +685,7 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     "title": "Add health and status endpoints and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9007"
   },
-  "summary": "Canned adversarial brief over 5 chunk(s).",
+  "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": [
     {
       "addedRanges": [
@@ -527,6 +710,181 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
 }"
 `;
 
+exports[`adversarial stitch goldens > pair-boundary-restructure-multi-call stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [
+      "g1"
+    ],
+    "regenerated": [
+      "g2"
+    ]
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+      "title": "Changes under packages/logging/src",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches packages/api/src/routes/health.ts, packages/api/src/routes/status.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canne",
+      "title": "Changes under packages/api/src/routes",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 4
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/logging/src/redact.ts",
+      "id": "c1",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 17,
+          "start": 4
+        },
+        {
+          "end": 19,
+          "start": 19
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/health.ts",
+      "id": "c2",
+      "loc": {
+        "added": 15,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 2,
+          "start": 2
+        },
+        {
+          "end": 9,
+          "start": 9
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/status.ts",
+      "id": "c3",
+      "loc": {
+        "added": 2,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 8,
+          "start": 8
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "420dd89016a922dd77d1ae846cb1a014acc9a8e1",
+    "commitCount": 2,
+    "head": "2efcde355967bd83e1f1ad782635ad1365534ab4"
+  },
+  "concernView": [
+    {
+      "added": 21,
+      "concern": "implementation",
+      "deleted": 2
+    }
+  ],
+  "diffTotals": {
+    "added": 21,
+    "deleted": 2
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    },
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g2 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "outlineForm": "full",
+  "pr": {
+    "description": "Adds GET /api/health and GET /api/status routes, and extends the logging redaction to strip \`token=\` query parameters.",
+    "number": 9007,
+    "repo": "Idan91/code-review",
+    "sha": "2efcde355967bd83e1f1ad782635ad1365534ab4",
+    "title": "Add health and status endpoints and redact query tokens in logs",
+    "url": "https://github.com/Idan91/code-review/pull/9007"
+  },
+  "summary": "Canned grouping over 2 changed file(s).",
+  "unattributed": []
+}"
+`;
+
 exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversarial output 1`] = `
 "{
   "anchor": {
@@ -534,14 +892,24 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
   },
   "anchoring": {
     "carried": [
+      "g1",
       "g3",
       "g4"
     ],
     "regenerated": [
-      "g1"
+      "g2"
     ]
   },
   "changeGroups": [
+    {
+      "dominantCategory": "new-feature",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "ServerConfig gains requestsPerMinute, read from REQUESTS_PER_MINUTE with a default of 120.",
+      "title": "Configure the request limit",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
     {
       "dominantCategory": "new-feature",
       "id": "g3",
@@ -562,15 +930,38 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
     },
     {
       "dominantCategory": "logic-refactor",
-      "id": "g1",
+      "id": "g2",
       "secondaryCategories": [],
-      "summary": "Touches packages/api/src/config.ts, packages/api/src/rate-limit.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
-      "title": "Claims g1",
+      "summary": "Touches packages/api/src/rate-limit.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+      "title": "Reuses g1",
       "uncertain": false,
       "uncertainBetween": []
     }
   ],
   "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 11,
+          "start": 11
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/api/src/config.ts",
+      "id": "c1",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
     {
       "addedRanges": [
         {
@@ -634,34 +1025,11 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
     {
       "addedRanges": [
         {
-          "end": 4,
-          "start": 4
-        },
-        {
-          "end": 11,
-          "start": 11
-        }
-      ],
-      "changeGroupId": "g1",
-      "concern": "implementation",
-      "file": "packages/api/src/config.ts",
-      "id": "c1",
-      "loc": {
-        "added": 2,
-        "deleted": 0
-      },
-      "removedRanges": [],
-      "riskSurface": [],
-      "role": "core"
-    },
-    {
-      "addedRanges": [
-        {
           "end": 21,
           "start": 1
         }
       ],
-      "changeGroupId": "g1",
+      "changeGroupId": "g2",
       "concern": "implementation",
       "file": "packages/api/src/rate-limit.ts",
       "id": "c2",
@@ -680,7 +1048,7 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
           "start": 1
         }
       ],
-      "changeGroupId": "g1",
+      "changeGroupId": "g2",
       "concern": "implementation",
       "file": "packages/api/src/rate-limit.ts",
       "id": "c6",
@@ -716,12 +1084,12 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
   },
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept\\nfrozen group g4 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept\\nfrozen group g4 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c2 and c6 (packages/api/src/rate-limit.ts) both claim added line(s) 1-21 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues:\\nchunk c1 (packages/api/src/config.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/rate-limit.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
   "intentCheck": {
@@ -731,7 +1099,7 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
       {
         "acknowledged": false,
         "groupIds": [
-          "g1"
+          "g2"
         ],
         "intent": "Canned unstated work in g1",
         "quote": "",
@@ -754,6 +1122,15 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
         "intent": "Canned unstated work in g4",
         "quote": "",
         "sourceUrl": ""
+      },
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g1"
+        ],
+        "intent": "Canned unstated work in t1",
+        "quote": "",
+        "sourceUrl": ""
       }
     ],
     "maskedFixes": [],
@@ -767,7 +1144,7 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
     {
       "actual": 251,
       "cap": 250,
-      "field": "group g1 summary",
+      "field": "group g2 summary",
       "surface": "group-summary"
     }
   ],
@@ -780,6 +1157,222 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
     "url": "https://github.com/Idan91/code-review/pull/9013"
   },
   "summary": "Canned adversarial brief over 6 chunk(s).",
+  "unattributed": []
+}"
+`;
+
+exports[`adversarial stitch goldens > pair-force-push-amend-multi-call stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [
+      "g1",
+      "g3",
+      "g4"
+    ],
+    "regenerated": [
+      "g2"
+    ]
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "new-feature",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "ServerConfig gains requestsPerMinute, read from REQUESTS_PER_MINUTE with a default of 120.",
+      "title": "Configure the request limit",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "routes() takes the limits and serves them as JSON at GET /api/limits.",
+      "title": "Report the limit at /api/limits",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g4",
+      "secondaryCategories": [],
+      "summary": "startServer builds a limiter from the config and answers 429 before routing when a client is over it.",
+      "title": "Refuse clients past the limit",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "Touches packages/api/src/rate-limit.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+      "title": "Changes under packages/api/src",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 11,
+          "start": 11
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/api/src/config.ts",
+      "id": "c1",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 13,
+          "start": 13
+        },
+        {
+          "end": 19,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "packages/api/src/routes.ts",
+      "id": "c3",
+      "loc": {
+        "added": 5,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 13,
+          "start": 13
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 3,
+          "start": 3
+        },
+        {
+          "end": 9,
+          "start": 8
+        },
+        {
+          "end": 16,
+          "start": 12
+        }
+      ],
+      "changeGroupId": "g4",
+      "concern": "implementation",
+      "file": "packages/api/src/server.ts",
+      "id": "c4",
+      "loc": {
+        "added": 8,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 7,
+          "start": 7
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 21,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "packages/api/src/rate-limit.ts",
+      "id": "c2",
+      "loc": {
+        "added": 21,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "bdd800cedc85c4fe82a849e0f2c30b86dd7e05bd",
+    "commitCount": 2,
+    "head": "bb25460c9ee89f962fa4eab8b142c2f922e6b461"
+  },
+  "concernView": [
+    {
+      "added": 36,
+      "concern": "implementation",
+      "deleted": 2
+    }
+  ],
+  "diffTotals": {
+    "added": 36,
+    "deleted": 2
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"\\nreadingOrder is missing group \\"g3\\"\\nreadingOrder is missing group \\"g4\\"",
+    "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g2 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "outlineForm": "full",
+  "pr": {
+    "description": "Adds a per-client rate limiter: a client past \`REQUESTS_PER_MINUTE\` (default 120) requests in the window gets a 429, and \`GET /api/limits\` reports the limit. \`MAX_CONNECTIONS\` now sets the connection cap.",
+    "number": 9013,
+    "repo": "Idan91/code-review",
+    "sha": "bb25460c9ee89f962fa4eab8b142c2f922e6b461",
+    "title": "Rate-limit requests per client",
+    "url": "https://github.com/Idan91/code-review/pull/9013"
+  },
+  "summary": "Canned grouping over 1 changed file(s).",
   "unattributed": []
 }"
 `;
@@ -1168,7 +1761,7 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -1819,7 +2412,7 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c3 and c5 (packages/api/src/routes/version.ts) both claim added line(s) 1-10 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c3 (packages/api/src/routes/version.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g3 summary is 251 chars — exceeds the 250-char cap"
@@ -9944,7 +10537,7 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept\\ngenerated group reused frozen id g3 without its files — treated as a numbering slip, not a claim\\nfrozen group g4 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c1 and c6 (packages/api/src/config.ts) both claim added line(s) 4, 10-11 — counted in both\\nchunks c1 and c6 (packages/api/src/config.ts) both claim removed line(s) 9 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references group \\"g3\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)"
   ],
   "index": 2,
@@ -10144,7 +10737,7 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -10548,6 +11141,7 @@ exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial out
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ unknown group issues:\\nchunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
     "⚠ loc coverage issues:\\n11 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
@@ -10591,7 +11185,7 @@ exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial out
     "title": "Add a token-guarded health endpoint and redact query tokens in logs",
     "url": "https://github.com/Idan91/code-review/pull/9003"
   },
-  "summary": "Canned adversarial brief over 2 chunk(s).",
+  "summary": "Canned adversarial brief over 4 chunk(s).",
   "unattributed": [
     {
       "addedRanges": [
@@ -10733,7 +11327,7 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 1-16 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -11109,6 +11703,41 @@ exports[`anchoring goldens > 'pair-additive' records the plan and the carried se
 }"
 `;
 
+exports[`anchoring goldens > 'pair-additive-multi-call' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
 exports[`anchoring goldens > 'pair-ask-edit' records the plan and the carried set 1`] = `
 "{
   "baseGroupIds": [
@@ -11179,7 +11808,89 @@ exports[`anchoring goldens > 'pair-boundary-restructure' records the plan and th
 }"
 `;
 
+exports[`anchoring goldens > 'pair-boundary-restructure-multi-call' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
+  "groupIds": [
+    "g1",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
 exports[`anchoring goldens > 'pair-force-push-amend' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2",
+    "g3",
+    "g4"
+  ],
+  "carriedChunkIds": [
+    "c1",
+    "c3",
+    "c4"
+  ],
+  "carriedGroupIds": [
+    "g1",
+    "g3",
+    "g4"
+  ],
+  "frozenGroupIds": [
+    "g1",
+    "g3",
+    "g4"
+  ],
+  "groupIds": [
+    "g1",
+    "g3",
+    "g4",
+    "g2"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2",
+    "g3",
+    "g4"
+  ],
+  "reLook": [
+    {
+      "id": "g2",
+      "reason": "packages/api/src/rate-limit.ts: the push changed the PR's change"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g2"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-force-push-amend-multi-call' records the plan and the carried set 1`] = `
 "{
   "baseGroupIds": [
     "g1",
@@ -15645,6 +16356,291 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
 }"
 `;
 
+exports[`brief goldens > pair-additive-multi-call produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+        "title": "Changes under packages/logging/src",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "Touches packages/api/src/routes/health.ts.",
+        "title": "Changes under packages/api/src/routes",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 7,
+            "start": 4
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "packages/logging/src/redact.ts",
+        "id": "c1",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 13,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 15
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/routes/health.ts",
+        "id": "c2",
+        "loc": {
+          "added": 11,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 5,
+            "start": 5
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "a9d00c17fe47efb1bfa9618a008ef55ee865d197",
+      "commitCount": 1,
+      "head": "6c165563af5ba90182693db67080056d2b5d7b27"
+    },
+    "concernView": [
+      {
+        "added": 15,
+        "concern": "implementation",
+        "deleted": 1
+      }
+    ],
+    "diffTotals": {
+      "added": 15,
+      "deleted": 1
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 1,
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "outlineForm": "full",
+    "pr": {
+      "description": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip \`token=\` query parameters.",
+      "number": 9001,
+      "repo": "Idan91/code-review",
+      "sha": "6c165563af5ba90182693db67080056d2b5d7b27",
+      "title": "Add a health endpoint and redact query tokens in logs",
+      "url": "https://github.com/Idan91/code-review/pull/9001"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g1",
+        "why": "follows the diff order"
+      },
+      {
+        "groupId": "g2",
+        "why": "follows the diff order"
+      }
+    ],
+    "summary": "Canned grouping over 2 changed file(s).",
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g1"
+      ],
+      "regenerated": [
+        "g2"
+      ]
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+        "title": "Changes under packages/logging/src",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "Touches packages/api/src/routes/health.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fille",
+        "title": "Changes under packages/api/src/routes",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 7,
+            "start": 4
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "packages/logging/src/redact.ts",
+        "id": "c1",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 14,
+            "start": 4
+          },
+          {
+            "end": 16,
+            "start": 16
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/routes/health.ts",
+        "id": "c2",
+        "loc": {
+          "added": 12,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 5,
+            "start": 5
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "a9d00c17fe47efb1bfa9618a008ef55ee865d197",
+      "commitCount": 2,
+      "head": "69ceecc1b23af1d7d76fc38fcfdaa88b2497d776"
+    },
+    "concernView": [
+      {
+        "added": 16,
+        "concern": "implementation",
+        "deleted": 1
+      }
+    ],
+    "diffTotals": {
+      "added": 16,
+      "deleted": 1
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 2,
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      },
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g2 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "outlineForm": "full",
+    "pr": {
+      "description": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip \`token=\` query parameters.",
+      "number": 9001,
+      "repo": "Idan91/code-review",
+      "sha": "69ceecc1b23af1d7d76fc38fcfdaa88b2497d776",
+      "title": "Add a health endpoint and redact query tokens in logs",
+      "url": "https://github.com/Idan91/code-review/pull/9001"
+    },
+    "summary": "Canned grouping over 1 changed file(s).",
+    "unattributed": []
+  }
+}"
+`;
+
 exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
 "{
   "base": {
@@ -16269,6 +17265,343 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
 }"
 `;
 
+exports[`brief goldens > pair-boundary-restructure-multi-call produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+        "title": "Changes under packages/logging/src",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "Touches packages/api/src/routes/health.ts, packages/api/src/routes/status.ts.",
+        "title": "Changes under packages/api/src/routes",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 7,
+            "start": 4
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "packages/logging/src/redact.ts",
+        "id": "c1",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 13,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 15
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/routes/health.ts",
+        "id": "c2",
+        "loc": {
+          "added": 11,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 5,
+            "start": 5
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 8,
+            "start": 8
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/routes/status.ts",
+        "id": "c3",
+        "loc": {
+          "added": 1,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 8,
+            "start": 8
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "420dd89016a922dd77d1ae846cb1a014acc9a8e1",
+      "commitCount": 1,
+      "head": "0c11c8faf6e8e5d6a65459ba2c156066a7b20eb8"
+    },
+    "concernView": [
+      {
+        "added": 16,
+        "concern": "implementation",
+        "deleted": 2
+      }
+    ],
+    "diffTotals": {
+      "added": 16,
+      "deleted": 2
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 1,
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "outlineForm": "full",
+    "pr": {
+      "description": "Adds GET /api/health and GET /api/status routes, and extends the logging redaction to strip \`token=\` query parameters.",
+      "number": 9007,
+      "repo": "Idan91/code-review",
+      "sha": "0c11c8faf6e8e5d6a65459ba2c156066a7b20eb8",
+      "title": "Add health and status endpoints and redact query tokens in logs",
+      "url": "https://github.com/Idan91/code-review/pull/9007"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g1",
+        "why": "follows the diff order"
+      },
+      {
+        "groupId": "g2",
+        "why": "follows the diff order"
+      }
+    ],
+    "summary": "Canned grouping over 3 changed file(s).",
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g1"
+      ],
+      "regenerated": [
+        "g2"
+      ]
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+        "title": "Changes under packages/logging/src",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "Touches packages/api/src/routes/health.ts, packages/api/src/routes/status.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canne",
+        "title": "Changes under packages/api/src/routes",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 7,
+            "start": 4
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "packages/logging/src/redact.ts",
+        "id": "c1",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 17,
+            "start": 4
+          },
+          {
+            "end": 19,
+            "start": 19
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/routes/health.ts",
+        "id": "c2",
+        "loc": {
+          "added": 15,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 5,
+            "start": 5
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 2,
+            "start": 2
+          },
+          {
+            "end": 9,
+            "start": 9
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/routes/status.ts",
+        "id": "c3",
+        "loc": {
+          "added": 2,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 8,
+            "start": 8
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "420dd89016a922dd77d1ae846cb1a014acc9a8e1",
+      "commitCount": 2,
+      "head": "2efcde355967bd83e1f1ad782635ad1365534ab4"
+    },
+    "concernView": [
+      {
+        "added": 21,
+        "concern": "implementation",
+        "deleted": 2
+      }
+    ],
+    "diffTotals": {
+      "added": 21,
+      "deleted": 2
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 2,
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      },
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g2 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "outlineForm": "full",
+    "pr": {
+      "description": "Adds GET /api/health and GET /api/status routes, and extends the logging redaction to strip \`token=\` query parameters.",
+      "number": 9007,
+      "repo": "Idan91/code-review",
+      "sha": "2efcde355967bd83e1f1ad782635ad1365534ab4",
+      "title": "Add health and status endpoints and redact query tokens in logs",
+      "url": "https://github.com/Idan91/code-review/pull/9007"
+    },
+    "summary": "Canned grouping over 2 changed file(s).",
+    "unattributed": []
+  }
+}"
+`;
+
 exports[`brief goldens > pair-force-push-amend produces the recorded brief 1`] = `
 "{
   "base": {
@@ -16715,6 +18048,458 @@ exports[`brief goldens > pair-force-push-amend produces the recorded brief 1`] =
       "url": "https://github.com/Idan91/code-review/pull/9013"
     },
     "summary": "Canned brief over 4 changed file(s).",
+    "unattributed": []
+  }
+}"
+`;
+
+exports[`brief goldens > pair-force-push-amend-multi-call produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "ServerConfig gains requestsPerMinute, read from REQUESTS_PER_MINUTE with a default of 120.",
+        "title": "Configure the request limit",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "createRateLimiter counts each key's requests in the last 60 s and refuses one past the limit.",
+        "title": "Add a sliding-window rate limiter",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "routes() takes the limits and serves them as JSON at GET /api/limits.",
+        "title": "Report the limit at /api/limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g4",
+        "secondaryCategories": [],
+        "summary": "startServer builds a limiter from the config and answers 429 before routing when a client is over it.",
+        "title": "Refuse clients past the limit",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 4,
+            "start": 4
+          },
+          {
+            "end": 11,
+            "start": 11
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "packages/api/src/config.ts",
+        "id": "c1",
+        "loc": {
+          "added": 2,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 17,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/rate-limit.ts",
+        "id": "c2",
+        "loc": {
+          "added": 17,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 13,
+            "start": 13
+          },
+          {
+            "end": 19,
+            "start": 16
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "packages/api/src/routes.ts",
+        "id": "c3",
+        "loc": {
+          "added": 5,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 13,
+            "start": 13
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 3,
+            "start": 3
+          },
+          {
+            "end": 9,
+            "start": 8
+          },
+          {
+            "end": 16,
+            "start": 12
+          }
+        ],
+        "changeGroupId": "g4",
+        "concern": "implementation",
+        "file": "packages/api/src/server.ts",
+        "id": "c4",
+        "loc": {
+          "added": 8,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 7,
+            "start": 7
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "bdd800cedc85c4fe82a849e0f2c30b86dd7e05bd",
+      "commitCount": 2,
+      "head": "fabb6bac6103bfaba23cd05ed6af71bba7dc1066"
+    },
+    "concernView": [
+      {
+        "added": 32,
+        "concern": "implementation",
+        "deleted": 2
+      }
+    ],
+    "diffTotals": {
+      "added": 32,
+      "deleted": 2
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "hand-written",
+      "provider": "fixture"
+    },
+    "index": 1,
+    "intentCheck": {
+      "accomplished": [
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g2",
+            "g1",
+            "g4"
+          ],
+          "intent": "a client past the request limit gets a 429",
+          "quote": "a client past \`REQUESTS_PER_MINUTE\` (default 120) requests in the window gets a 429",
+          "sourceUrl": ""
+        },
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g3"
+          ],
+          "intent": "GET /api/limits reports the limit",
+          "quote": "\`GET /api/limits\` reports the limit",
+          "sourceUrl": ""
+        }
+      ],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "precise",
+      "statedButMissing": [
+        {
+          "acknowledged": false,
+          "groupIds": [],
+          "intent": "MAX_CONNECTIONS sets the connection cap",
+          "quote": "\`MAX_CONNECTIONS\` now sets the connection cap",
+          "sourceUrl": ""
+        }
+      ],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "pr": {
+      "description": "Adds a per-client rate limiter: a client past \`REQUESTS_PER_MINUTE\` (default 120) requests in the window gets a 429, and \`GET /api/limits\` reports the limit. \`MAX_CONNECTIONS\` now sets the connection cap.",
+      "number": 9013,
+      "repo": "Idan91/code-review",
+      "sha": "fabb6bac6103bfaba23cd05ed6af71bba7dc1066",
+      "title": "Rate-limit requests per client",
+      "url": "https://github.com/Idan91/code-review/pull/9013"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "defines the limiter the other groups wire in"
+      },
+      {
+        "groupId": "g1",
+        "why": "adds the limit the server reads"
+      },
+      {
+        "groupId": "g4",
+        "why": "applies the limiter before routing"
+      },
+      {
+        "groupId": "g3",
+        "why": "reports the configured limit"
+      }
+    ],
+    "summary": "Adds a per-client rate limiter to the API: a client past the configured requests per minute gets a 429, and GET /api/limits reports the limit.",
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g1",
+        "g3",
+        "g4"
+      ],
+      "regenerated": [
+        "g2"
+      ]
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "ServerConfig gains requestsPerMinute, read from REQUESTS_PER_MINUTE with a default of 120.",
+        "title": "Configure the request limit",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "routes() takes the limits and serves them as JSON at GET /api/limits.",
+        "title": "Report the limit at /api/limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g4",
+        "secondaryCategories": [],
+        "summary": "startServer builds a limiter from the config and answers 429 before routing when a client is over it.",
+        "title": "Refuse clients past the limit",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "Touches packages/api/src/rate-limit.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+        "title": "Changes under packages/api/src",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 4,
+            "start": 4
+          },
+          {
+            "end": 11,
+            "start": 11
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "packages/api/src/config.ts",
+        "id": "c1",
+        "loc": {
+          "added": 2,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 13,
+            "start": 13
+          },
+          {
+            "end": 19,
+            "start": 16
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "packages/api/src/routes.ts",
+        "id": "c3",
+        "loc": {
+          "added": 5,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 13,
+            "start": 13
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 3,
+            "start": 3
+          },
+          {
+            "end": 9,
+            "start": 8
+          },
+          {
+            "end": 16,
+            "start": 12
+          }
+        ],
+        "changeGroupId": "g4",
+        "concern": "implementation",
+        "file": "packages/api/src/server.ts",
+        "id": "c4",
+        "loc": {
+          "added": 8,
+          "deleted": 1
+        },
+        "removedRanges": [
+          {
+            "end": 7,
+            "start": 7
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 21,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "packages/api/src/rate-limit.ts",
+        "id": "c2",
+        "loc": {
+          "added": 21,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "bdd800cedc85c4fe82a849e0f2c30b86dd7e05bd",
+      "commitCount": 2,
+      "head": "bb25460c9ee89f962fa4eab8b142c2f922e6b461"
+    },
+    "concernView": [
+      {
+        "added": 36,
+        "concern": "implementation",
+        "deleted": 2
+      }
+    ],
+    "diffTotals": {
+      "added": 36,
+      "deleted": 2
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g1\\"\\nreadingOrder is missing group \\"g3\\"\\nreadingOrder is missing group \\"g4\\"",
+      "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 2,
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g2 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "outlineForm": "full",
+    "pr": {
+      "description": "Adds a per-client rate limiter: a client past \`REQUESTS_PER_MINUTE\` (default 120) requests in the window gets a 429, and \`GET /api/limits\` reports the limit. \`MAX_CONNECTIONS\` now sets the connection cap.",
+      "number": 9013,
+      "repo": "Idan91/code-review",
+      "sha": "bb25460c9ee89f962fa4eab8b142c2f922e6b461",
+      "title": "Rate-limit requests per client",
+      "url": "https://github.com/Idan91/code-review/pull/9013"
+    },
+    "summary": "Canned grouping over 1 changed file(s).",
     "unattributed": []
   }
 }"
@@ -24033,6 +25818,79 @@ exports[`request goldens > pair-additive sends the recorded request digests 1`] 
 ]"
 `;
 
+exports[`request goldens > pair-additive-multi-call sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "grouping",
+    "schema": {
+      "bytes": 7867,
+      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+    },
+    "system": {
+      "bytes": 19919,
+      "sha256": "2b83308a6477fb36345db3c98bc2909f73b88acf0f7e701ebc7f51f8337aa99d"
+    },
+    "user": {
+      "bytes": 2012,
+      "sha256": "9fc9ce3aad60f446f319975e7b63c6e6ed2e2881eb3a53ed54392d56a873ded0"
+    }
+  },
+  {
+    "label": "grouping",
+    "schema": {
+      "bytes": 7867,
+      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+    },
+    "system": {
+      "bytes": 21433,
+      "sha256": "a0c9b403194e746cf8c7cf444df98d50860785f2b1caeef126f7c3d37c3b14a2"
+    },
+    "user": {
+      "bytes": 2311,
+      "sha256": "27968473b6dba7b32ab9869862193db8e5b440baaf8e7614180f62cb30c0bcbe"
+    }
+  },
+  {
+    "label": "detail:1",
+    "schema": {
+      "bytes": 3669,
+      "sha256": "91fe8cde17b0650da2ff315beb944fbd213c0e4114b7e40e2288a0a636d98ef7"
+    },
+    "system": {
+      "bytes": 11869,
+      "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
+    },
+    "user": {
+      "bytes": 1535,
+      "sha256": "5a41c7124e752d655da3dc2bde65c195f01e6d394df485de277decc76b5787b4"
+    },
+    "userPrefix": {
+      "bytes": 973,
+      "sha256": "c33787358a6ced7663738a20835df807c3b064bc3a604ef577372faabd73c9fb"
+    }
+  },
+  {
+    "label": "detail:1",
+    "schema": {
+      "bytes": 3669,
+      "sha256": "91fe8cde17b0650da2ff315beb944fbd213c0e4114b7e40e2288a0a636d98ef7"
+    },
+    "system": {
+      "bytes": 11869,
+      "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
+    },
+    "user": {
+      "bytes": 1104,
+      "sha256": "146b80e46e3fe3c278f818ca9a9f3765157f383434e1ca4af7c4710ee0faa272"
+    },
+    "userPrefix": {
+      "bytes": 862,
+      "sha256": "655009f4b7afb0eadc86c32b83e70f338c1e3bf324125b7cdcf4d2df70f53042"
+    }
+  }
+]"
+`;
+
 exports[`request goldens > pair-ask-edit sends the recorded request digests 1`] = `
 "[
   {
@@ -24103,6 +25961,79 @@ exports[`request goldens > pair-boundary-restructure sends the recorded request 
 ]"
 `;
 
+exports[`request goldens > pair-boundary-restructure-multi-call sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "grouping",
+    "schema": {
+      "bytes": 7867,
+      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+    },
+    "system": {
+      "bytes": 19919,
+      "sha256": "2b83308a6477fb36345db3c98bc2909f73b88acf0f7e701ebc7f51f8337aa99d"
+    },
+    "user": {
+      "bytes": 2436,
+      "sha256": "1995e82a2da613398937e7042c39333d85be7a08583e433a016629e233cef0d2"
+    }
+  },
+  {
+    "label": "grouping",
+    "schema": {
+      "bytes": 7867,
+      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+    },
+    "system": {
+      "bytes": 21433,
+      "sha256": "a0c9b403194e746cf8c7cf444df98d50860785f2b1caeef126f7c3d37c3b14a2"
+    },
+    "user": {
+      "bytes": 2983,
+      "sha256": "183202529567bd1f8de4359660189b47c460a0001813b94eb4049eb0e9fd3585"
+    }
+  },
+  {
+    "label": "detail:1",
+    "schema": {
+      "bytes": 3669,
+      "sha256": "91fe8cde17b0650da2ff315beb944fbd213c0e4114b7e40e2288a0a636d98ef7"
+    },
+    "system": {
+      "bytes": 11869,
+      "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
+    },
+    "user": {
+      "bytes": 1901,
+      "sha256": "988437daddb1d18ef409f5a3b6a19998e7f2ae16c64b915949057da52ee10559"
+    },
+    "userPrefix": {
+      "bytes": 1012,
+      "sha256": "7e65fe99e0258513512c3a2e14497d8205fa47f24290570dc2a3816c67366043"
+    }
+  },
+  {
+    "label": "detail:1",
+    "schema": {
+      "bytes": 3669,
+      "sha256": "91fe8cde17b0650da2ff315beb944fbd213c0e4114b7e40e2288a0a636d98ef7"
+    },
+    "system": {
+      "bytes": 11869,
+      "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
+    },
+    "user": {
+      "bytes": 1648,
+      "sha256": "371c4929320cb5f8c718552d63853b13f005cfa635d6598e04a9215e83f9dcb8"
+    },
+    "userPrefix": {
+      "bytes": 866,
+      "sha256": "418ddc1e4153a7b17ae5b11c204eef980eef5b023524d9357cfac2b34d7db874"
+    }
+  }
+]"
+`;
+
 exports[`request goldens > pair-force-push-amend sends the recorded request digests 1`] = `
 "[
   {
@@ -24118,6 +26049,45 @@ exports[`request goldens > pair-force-push-amend sends the recorded request dige
     "user": {
       "bytes": 5549,
       "sha256": "e557440104f52ba3eae4fb6a511cda88482b26b0ddc19f298dbc8d3589977ef6"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > pair-force-push-amend-multi-call sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "grouping",
+    "schema": {
+      "bytes": 7867,
+      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+    },
+    "system": {
+      "bytes": 21433,
+      "sha256": "a0c9b403194e746cf8c7cf444df98d50860785f2b1caeef126f7c3d37c3b14a2"
+    },
+    "user": {
+      "bytes": 3145,
+      "sha256": "3344e88e5538d36be7e22694fce7572d1801f56fe0581b909b1ceb433b59aa97"
+    }
+  },
+  {
+    "label": "detail:1",
+    "schema": {
+      "bytes": 3669,
+      "sha256": "91fe8cde17b0650da2ff315beb944fbd213c0e4114b7e40e2288a0a636d98ef7"
+    },
+    "system": {
+      "bytes": 11869,
+      "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
+    },
+    "user": {
+      "bytes": 1184,
+      "sha256": "8fd4448af5b76913d0ef7682483f5d691edaf37c4e3b50b209fd5327c838f6f7"
+    },
+    "userPrefix": {
+      "bytes": 912,
+      "sha256": "7c03c2874d2defb132cad9631008a86a6ffd30a6acc2b67ef63da66b6df0e625"
     }
   }
 ]"

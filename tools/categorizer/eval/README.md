@@ -11,6 +11,7 @@ pnpm -C tools/categorizer eval --rebaseline    # rewrite baseline.json (review +
 pnpm -C tools/categorizer eval --no-baseline   # characterize a key with no committed baseline (cross-model runs)
 pnpm -C tools/categorizer eval --config <mergebrief.config.yaml>   # non-default generator (cross-key, so add --no-baseline)
 pnpm -C tools/categorizer eval --prices <json> # non-default price table
+pnpm -C tools/categorizer eval --case <id> --record-base-brief   # store a pair case's base Brief once
 pnpm -C tools/categorizer eval --case multi-package-types --force-multi-call   # a small case through the multi-call route
 pnpm -C tools/categorizer eval --case next-60530 --force-outline headers      # the grouping reads a fixed outline form
 pnpm -C tools/categorizer eval --effort-grouping high --effort-detail medium  # per-call efforts on a multi-call run
@@ -126,6 +127,7 @@ yarn lockfile reads unread: its chunks carry `changes-package-source`
 whether or not a package moved. The worker reads both sides and flags a
 lockfile only for a real source change, so an eval property on that
 attribute over a lockfile measures the harness, not production.
+
 - `baseline.json`: pass counts from main, keyed `provider:model`.
   Cross-key comparison is refused; the committed key is the default
   config's, `claude-code:claude-opus-5-5`. Re-baselining is an explicit
@@ -201,7 +203,7 @@ a test proves the fixture matches the GitHub read's output).
 The alarm buckets added a **twin pair**: `intent-masked-fix` and
 `intent-legit-demotion` share ONE diff byte-identically and differ in their
 surrounding sources (ticket text plus PR title/body framing), so a model that
-fires on the diff *shape* rather than the sources passes one and fails the
+fires on the diff _shape_ rather than the sources passes one and fails the
 other. They are also the source set's first
 **authored diff**, hand-written over this repo's own `apps/api` webhook
 route, because no real own-repo PR carries a fake-fix shape and that shape is
@@ -253,14 +255,14 @@ Sizes are the fixtures' `pr.diff` bytes; the six cases carry only
 THREE distinct diffs; each same-size pair below is byte-identical,
 differing in its ticket sources and PR title/body framing:
 
-| case | diff | cost / 5 runs |
-| --- | --- | --- |
-| `intent-broad-epic` | 4 KB | $0.81 |
-| `intent-none-no-ticket` | 4 KB | $0.61 |
-| `intent-adversarial-ticket` | 11 KB | $0.54 |
-| `intent-precise-ticket` | 11 KB | $0.47 |
-| `intent-masked-fix` | 2 KB | $0.44 |
-| `intent-legit-demotion` | 2 KB | $0.22 |
+| case                        | diff  | cost / 5 runs |
+| --------------------------- | ----- | ------------- |
+| `intent-broad-epic`         | 4 KB  | $0.81         |
+| `intent-none-no-ticket`     | 4 KB  | $0.61         |
+| `intent-adversarial-ticket` | 11 KB | $0.54         |
+| `intent-precise-ticket`     | 11 KB | $0.47         |
+| `intent-masked-fix`         | 2 KB  | $0.44         |
+| `intent-legit-demotion`     | 2 KB  | $0.22         |
 
 The 4 KB `intent-broad-epic` costs 1.7× the 11 KB
 `intent-precise-ticket`, and the twins' byte-identical 2 KB diff costs
@@ -320,6 +322,14 @@ counts the call whenever those inputs differ, even where the run still
 carries. A large `pair.json` may ship as
 `pair.json.gz`, never both.
 
+A twin case runs another case's pair through the multi-call engine: its
+`expected.ts` exports `fixtureFrom` (a sibling case id whose `pair.json` it
+reads) and `forceMultiCall = true`, and scores under its own id and
+baseline, as `pair-additive-multi-call` does. Every Brief the twin generates
+runs multi-call; a base case's stored `baseBrief` is read as stored, so
+`pair-force-push-amend-multi-call` forces only its revised Brief. The CLI's `--force-multi-call`
+stays a knob that is never a baseline source; a twin is a case.
+
 ### Narrative and delta mode
 
 A pair case opts in by exporting `narrativeProperties`, `deltaProperties`,
@@ -343,7 +353,11 @@ base and revised ones.
 Optional `pair.json` fields: `reviewComments` (the comments that existed at the revised head),
 `baseBrief` (the base head's Brief, read instead of generating one; its
 head must be the base head). Cases that do not opt in cost what they cost
-before.
+before. A case whose base Brief costs too much to generate per run exports
+`requiresBaseBrief = true`: the harness refuses any invocation selecting it
+until its pair file stores one. `pnpm eval --case <id> --record-base-brief`
+generates that base Brief once on the production path and writes it into
+the case's `pair.json` or `pair.json.gz`; a human runs it, as any eval spend.
 
 The delta gets no review comments by default, because the worker sends
 none. A case that scores the dev CLI's comment path exports

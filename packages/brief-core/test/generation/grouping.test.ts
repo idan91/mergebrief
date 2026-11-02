@@ -27,6 +27,7 @@ function makeInput(
   return {
     pr: retryPr,
     outline: chooseOutline({ files, shortened: new Map() }),
+    fileCount: retryPr.meta.files.length,
     hunkCount: files.reduce((sum, file) => sum + file.hunks.length, 0),
     accepted: acceptContext(retryRepoContext),
     holdsMedia: false,

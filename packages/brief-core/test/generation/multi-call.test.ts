@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GenerateRequest, Generation, Generator } from "generators";
 import type { z } from "zod/v4";
+import { buildFastForwardSpan } from "../../src/diff/pr-span";
 import { generateBrief } from "../../src/generation/brief";
 import type {
   MultiCallHooks,
@@ -617,7 +618,7 @@ describe("generateBrief on the multi-call path", () => {
     ]);
   });
 
-  it("skips the anchor plan and the stitch on a multi-call run", async () => {
+  it("re-looks every group of a multi-call run with no span", async () => {
     const generator = new FakeGenerator(makeAnswer());
     const first = await generateBrief(makeOptions(generator));
     let planned = false;
@@ -635,39 +636,47 @@ describe("generateBrief on the multi-call path", () => {
       }),
     );
 
-    expect(planned).toBe(false);
-    expect(second.anchoring).toBeUndefined();
+    expect(planned).toBe(true);
+    expect(second.anchoring?.carriedGroupIds).toEqual([]);
+    expect(second.anchoring?.regeneratedGroupIds).toEqual(["g1", "g2", "g3"]);
     expect(second.ranAs).toBe(CallPlanKinds.MULTI);
     expect(second.brief.outlineForm).toBe("full");
   });
 
-  it("mints the group ids past the chain's when a previous brief exists", async () => {
+  it("descends re-looked ids and mints a new group past the chain's", async () => {
     const firstRun = new FakeGenerator(makeAnswer());
     const first = await generateBrief(makeOptions(firstRun));
+    const withoutC = {
+      ...first.brief,
+      changeGroups: first.brief.changeGroups.filter(
+        (group) => group.id !== "g3",
+      ),
+      chunks: first.brief.chunks.filter((chunk) => chunk.file !== "src/c.ts"),
+    };
     const revision = new FakeGenerator(makeAnswer());
 
     const { brief } = await generateBrief(
       makeOptions(revision, {
         headIndex: 2,
         previous: {
-          brief: first.brief,
+          brief: withoutC,
           chainGroupIds: ["g1", "g2", "g3", "g4"],
         },
       }),
     );
 
-    expect(brief.changeGroups.map((group) => group.id)).toEqual([
+    expect(brief.changeGroups.map((group) => group.id).toSorted()).toEqual([
+      "g1",
+      "g2",
       "g5",
-      "g6",
-      "g7",
     ]);
     expect(brief.readingOrder?.map((step) => step.groupId)).toEqual([
-      "g6",
+      "g2",
+      "g1",
       "g5",
-      "g7",
     ]);
     expect(new Set(brief.chunks.map((chunk) => chunk.changeGroupId))).toEqual(
-      new Set(["g5", "g6", "g7"]),
+      new Set(["g1", "g2", "g5"]),
     );
     expect(brief.unattributed).toEqual([]);
   });
@@ -1114,5 +1123,305 @@ describe("generateBrief Summary Media, multi-call run", () => {
     );
 
     expect(stored.get("grouping")).not.toHaveProperty("summaryMedia");
+  });
+});
+
+/** Every request of a run, in order, as the model reads it. */
+function renderRequests(requests: readonly RecordedRequest[]): string {
+  return requests
+    .map((request) =>
+      [
+        `label: ${request.label}`,
+        `effort: ${request.effort}`,
+        `=== system ===\n${request.system}`,
+        `=== user prefix ===\n${request.userPrefix ?? "(none)"}`,
+        `=== user ===\n${request.user}`,
+      ].join("\n\n"),
+    )
+    .join("\n\n--- next request ---\n\n");
+}
+
+describe("generateBrief, a fresh multi-call run byte for byte", () => {
+  it("sends today's requests for a description holding Media", async () => {
+    const generator = new FakeGenerator(answerMediaRun);
+
+    await generateBrief(makeOptions(generator, { pr: mediaPr }));
+
+    await expect(renderRequests(generator.requests)).toMatchFileSnapshot(
+      "./__snapshots__/multi-call-fresh-media.txt",
+    );
+  });
+
+  it("sends today's grouping and detail requests", async () => {
+    const generator = new FakeGenerator(makeAnswer());
+
+    await generateBrief(makeOptions(generator));
+
+    await expect(renderRequests(generator.requests)).toMatchFileSnapshot(
+      "./__snapshots__/multi-call-fresh.txt",
+    );
+  });
+});
+
+/** A push that only touched src/c.ts, g3's file: g1 and g2 freeze. */
+function makeCSpan() {
+  const betweenHeadsDiff = makeFile("src/c.ts", 1);
+  return buildFastForwardSpan({ betweenHeadsDiff, newPrDiff: pr.diff });
+}
+
+/** The revision's answers: one group over c.ts, reading order over every id. */
+function answerReLook(request: RecordedRequest): unknown {
+  if (request.label !== "grouping") {
+    return answerDetail(request);
+  }
+  return {
+    ...grouping,
+    changeGroups: [makeGroup("g9")],
+    hunkMap: [{ groupId: "g9", hunks: ["f3"] }],
+    readingOrder: [
+      { groupId: "g2", why: "the main change" },
+      { groupId: "g9", why: "the reworked module" },
+      { groupId: "g1", why: "builds on it" },
+    ],
+  };
+}
+
+/** A slip: the grouping lists frozen g1 over half of c.ts, g9 over the rest. */
+function answerFrozenSlip(request: RecordedRequest): unknown {
+  if (request.label !== "grouping") {
+    return answerDetail(request);
+  }
+  return {
+    ...grouping,
+    changeGroups: [makeGroup("g1"), makeGroup("g9")],
+    hunkMap: [
+      { groupId: "g1", hunks: ["f3:h1-h15"] },
+      { groupId: "g9", hunks: ["f3:h16-h30"] },
+    ],
+    readingOrder: [
+      { groupId: "g2", why: "the main change" },
+      { groupId: "g1", why: "builds on it" },
+      { groupId: "g9", why: "side change" },
+    ],
+  };
+}
+
+function readGroupFiles(brief: Brief, groupId: string): Set<string> {
+  const chunks = brief.chunks.filter(
+    (chunk) => chunk.changeGroupId === groupId,
+  );
+  return new Set(chunks.map((chunk) => chunk.file));
+}
+
+function readFileGroups(brief: Brief, file: string): Set<string> {
+  const chunks = brief.chunks.filter((chunk) => chunk.file === file);
+  return new Set(chunks.map((chunk) => chunk.changeGroupId));
+}
+
+function readOutline(user: string | undefined): string {
+  const text = user ?? "";
+  return text.slice(text.indexOf("<pr_diff>"), text.indexOf("</pr_diff>"));
+}
+
+describe("generateBrief, a multi-call run over a previous brief", () => {
+  async function runRevision() {
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const generator = new FakeGenerator(answerReLook);
+    const planned: string[][] = [];
+    const result = await generateBrief(
+      makeOptions(generator, {
+        headIndex: 2,
+        previous: {
+          brief: first.brief,
+          span: makeCSpan(),
+          onPlan: async (plan) => {
+            planned.push(plan.frozen.map((carry) => carry.group.id));
+          },
+        },
+      }),
+    );
+    return { result, generator, planned };
+  }
+
+  it("hands the plan to the hook before the grouping call", async () => {
+    const { planned, result } = await runRevision();
+
+    expect(planned).toEqual([["g1", "g2"]]);
+    expect(result.ranAs).toBe(CallPlanKinds.MULTI);
+  });
+
+  it("groups and details only the files that re-look", async () => {
+    const { generator } = await runRevision();
+    const [groupingRequest, ...detailRequests] = generator.requests;
+
+    expect(groupingRequest?.user).toContain("<anchor_brief");
+    expect(readOutline(groupingRequest?.user)).not.toContain("src/a.ts");
+    expect(readOutline(groupingRequest?.user)).toContain("src/c.ts");
+    expect(groupingRequest?.user).toMatch(/## Diff \(1 files, 30 hunks/);
+    expect(detailRequests.map((request) => request.label)).toEqual([
+      "detail:1",
+    ]);
+  });
+
+  it("keeps a re-looked group the grouping listed under a frozen id", async () => {
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const stored = new Map<PartKey, unknown>();
+
+    const { brief, warnings } = await generateBrief(
+      makeOptions(new FakeGenerator(answerFrozenSlip), {
+        headIndex: 2,
+        previous: { brief: first.brief, span: makeCSpan() },
+        multiCallHooks: {
+          onPartDone: async (key, body) => {
+            stored.set(key, body);
+          },
+        },
+      }),
+    );
+
+    expect(readGroupFiles(brief, "g1")).toEqual(new Set(["src/a.ts"]));
+    expect(readFileGroups(brief, "src/c.ts")).toEqual(new Set(["g3", "g4"]));
+    expect(JSON.stringify(warnings)).toContain("listed frozen group g1");
+    expect(stored.get("grouping")).toMatchObject({
+      changeGroups: [{ id: "t1" }, { id: "g9" }],
+      hunkMap: [{ groupId: "t1" }, { groupId: "g9" }],
+    });
+  });
+
+  it("orders a slip group right after the frozen group it was listed as", async () => {
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+
+    const { brief } = await generateBrief(
+      makeOptions(new FakeGenerator(answerFrozenSlip), {
+        headIndex: 2,
+        previous: { brief: first.brief, span: makeCSpan() },
+      }),
+    );
+
+    expect(brief.readingOrder?.map((step) => step.groupId)).toEqual([
+      "g2",
+      "g1",
+      "g3",
+      "g4",
+    ]);
+  });
+
+  it("mints a slip's temporary id past one the grouping listed", async () => {
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const stored = new Map<PartKey, unknown>();
+    const generator = new FakeGenerator((request) =>
+      request.label === "grouping"
+        ? {
+            ...grouping,
+            changeGroups: [makeGroup("g1"), makeGroup("t1")],
+            hunkMap: [
+              { groupId: "g1", hunks: ["f3:h1-h15"] },
+              { groupId: "t1", hunks: ["f3:h16-h30"] },
+            ],
+          }
+        : answerDetail(request),
+    );
+
+    const { brief } = await generateBrief(
+      makeOptions(generator, {
+        headIndex: 2,
+        previous: { brief: first.brief, span: makeCSpan() },
+        multiCallHooks: {
+          onPartDone: async (key, body) => {
+            stored.set(key, body);
+          },
+        },
+      }),
+    );
+
+    expect(stored.get("grouping")).toMatchObject({
+      changeGroups: [{ id: "t2" }, { id: "t1" }],
+    });
+    expect(readFileGroups(brief, "src/c.ts")).toEqual(new Set(["g3", "g4"]));
+  });
+
+  it("drops hunk-map entries naming a frozen id no group lists", async () => {
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const generator = new FakeGenerator((request) =>
+      request.label === "grouping"
+        ? {
+            ...grouping,
+            changeGroups: [makeGroup("g9")],
+            hunkMap: [
+              { groupId: "g1", hunks: ["f3:h1-h15"] },
+              { groupId: "g9", hunks: ["f3:h16-h30"] },
+            ],
+          }
+        : answerDetail(request),
+    );
+
+    const { brief } = await generateBrief(
+      makeOptions(generator, {
+        headIndex: 2,
+        previous: { brief: first.brief, span: makeCSpan() },
+      }),
+    );
+
+    expect(readGroupFiles(brief, "g1")).toEqual(new Set(["src/a.ts"]));
+    expect(readFileGroups(brief, "src/c.ts")).toEqual(new Set(["g3"]));
+  });
+
+  it("resumes a renamed slip group from the stored grouping part", async () => {
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const previous = { brief: first.brief, span: makeCSpan() };
+    const stored = new Map<PartKey, unknown>();
+    await generateBrief(
+      makeOptions(new FakeGenerator(answerFrozenSlip), {
+        headIndex: 2,
+        previous,
+        multiCallHooks: {
+          onPartDone: async (key, body) => {
+            stored.set(key, body);
+          },
+        },
+      }),
+    );
+    stored.delete("detail:1");
+    const generator = new FakeGenerator(answerFrozenSlip);
+
+    const { brief } = await generateBrief(
+      makeOptions(generator, {
+        headIndex: 2,
+        previous,
+        multiCallHooks: { loadPart: async (key) => stored.get(key) },
+      }),
+    );
+
+    expect(generator.requests.map((request) => request.label)).not.toContain(
+      "grouping",
+    );
+    expect(readFileGroups(brief, "src/c.ts")).toEqual(new Set(["g3", "g4"]));
+  });
+
+  it("carries the frozen groups and descends the re-looked one", async () => {
+    const { result } = await runRevision();
+
+    expect(result.anchoring?.carriedGroupIds).toEqual(["g1", "g2"]);
+    expect(result.anchoring?.regeneratedGroupIds).toEqual(["g3"]);
+    expect(
+      result.brief.changeGroups.map((group) => group.id).toSorted(),
+    ).toEqual(["g1", "g2", "g3"]);
+    expect(result.brief.readingOrder?.map((step) => step.groupId)).toEqual([
+      "g2",
+      "g3",
+      "g1",
+    ]);
   });
 });

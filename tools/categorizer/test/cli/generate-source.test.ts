@@ -217,7 +217,7 @@ describe("generateAndWrite with an injected PrSource", () => {
 
   it.each([
     ["single", "anchored"],
-    ["multi", "none"],
+    ["multi", "anchored"],
   ])(
     "stamps a revision brief that ran %s with anchor %s",
     async (ranAs, state) => {

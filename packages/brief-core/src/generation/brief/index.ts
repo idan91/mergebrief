@@ -1,10 +1,6 @@
 import type { Effort, Logger } from "generators";
 import type { Mutable } from "types/utils";
-import {
-  planAnchoredGeneration,
-  reserveIds,
-  stitchBrief,
-} from "../../anchoring";
+import { planAnchoredGeneration, stitchBrief } from "../../anchoring";
 import type { AnchorPlan, AnchorPlanArgs } from "../../anchoring/types";
 import type { MediaItem } from "../../media";
 import type { Brief } from "../../types";
@@ -21,6 +17,7 @@ import {
   hasStoredGrouping,
   isOutputCut,
 } from "../multi-call";
+import type { MultiCallAnchor } from "../multi-call/types";
 import { decideCallPlan } from "../size";
 import { pickSummaryMedia, readDescriptionMedia } from "../summary-media";
 import { CallPlanKinds, type CallPlan, type CallPlanKind } from "../size/types";
@@ -120,17 +117,21 @@ function buildBriefOutput(
 }
 
 /**
- * A multi-call run re-looks every group: no anchor plan, no stitch. With a
- * previous brief its group ids are minted past every id the chain has used,
- * so none lands on a retired group.
+ * A multi-call run. Over a previous brief it plans the carry first and hands
+ * the plan to `onPlan`; the grouping and detail calls then cover the files
+ * outside the frozen groups, and the stitch carries those groups and
+ * descends the re-looked ones, as an anchored single call does.
  */
 async function runMultiCall(run: BriefRun): Promise<GenerateBriefOutput> {
   const { options, effort, lockfileSummaries, log, warnings } = run;
   const { previous } = options;
-  const reservedGroupIds =
+  const plan =
     previous === undefined
-      ? []
-      : reserveIds(previous.brief, previous.chainGroupIds ?? []);
+      ? undefined
+      : planAnchoredGeneration(buildPlanArgs(previous));
+  if (previous !== undefined && plan !== undefined) {
+    await previous.onPlan?.(plan);
+  }
   const draft = await generateMultiCallBrief({
     pr: options.pr,
     headIndex: options.headIndex,
@@ -143,12 +144,22 @@ async function runMultiCall(run: BriefRun): Promise<GenerateBriefOutput> {
     gitAttributes: options.gitAttributes,
     forcedOutlineForm: options.forcedOutlineForm,
     detailConcurrency: options.detailConcurrency,
-    reservedGroupIds,
+    anchor: readMultiCallAnchor(previous, plan),
     hooks: options.multiCallHooks,
     holdsMedia: run.media.length > 0,
     log,
     warnings,
   });
+  if (plan !== undefined) {
+    const stitched = stitchAnchoredBrief(run, plan, draft);
+    const brief = await addSummaryMedia(stitched.brief, run);
+    return buildBriefOutput(
+      brief,
+      warnings,
+      CallPlanKinds.MULTI,
+      stitched.anchoring,
+    );
+  }
   const validated = validateFinalBrief({
     ...draft,
     carriedChunkIds: [],
@@ -176,13 +187,23 @@ function buildDraftOptions(run: BriefRun): DraftBriefOptions {
   };
 }
 
+function readMultiCallAnchor(
+  previous: PreviousBriefInput | undefined,
+  plan: AnchorPlan | undefined,
+): MultiCallAnchor | undefined {
+  if (previous === undefined || plan === undefined) {
+    return undefined;
+  }
+  return { previousBrief: previous.brief, plan };
+}
+
 /** An anchored run's brief: the draft and the plan stitched and validated once. */
 interface AnchoredBrief {
   readonly brief: Brief;
   readonly anchoring: BriefAnchoring;
 }
 
-/** The draft and the plan stitched and validated once, as one anchored single call. */
+/** The draft and the plan stitched and validated once, as one anchored run. */
 function stitchAnchoredBrief(
   run: BriefRun,
   plan: AnchorPlan,

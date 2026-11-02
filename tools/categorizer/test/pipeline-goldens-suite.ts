@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
-import { generateBrief, type GenerateBriefOptions } from "brief-core";
+import {
+  CallPlanKinds,
+  generateBrief,
+  type GenerateBriefOptions,
+} from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { Effort, Generator } from "generators";
 import { loadCases, type EvalCase, type EvalFixture } from "../eval/loadCase";
@@ -46,6 +50,8 @@ const BRIEF_GOLDEN_MAX_BYTES = 64 * 1024;
 const GOLDEN_RUNS_TIMEOUT_MS = 120_000;
 
 export interface GoldenSuiteOptions {
+  /** Pair cases the suite loads but never records: too large for a snapshot. */
+  readonly skippedPairCaseIds?: readonly string[];
   casesDir: string;
   pairsDir: string;
   /** The corpus must reach every stitch and validation warning family. */
@@ -115,6 +121,7 @@ function makeOptions(
   fixture: EvalFixture,
   headIndex: number,
   generator: Generator,
+  forceMultiCall = false,
 ): GenerateBriefOptions {
   return {
     pr: fixture.pr,
@@ -122,6 +129,7 @@ function makeOptions(
     commitRange: fixture.commitRange,
     generator,
     effort: EFFORT,
+    forceMultiCall,
     repoContext: fixture.repoContext,
     gitAttributes: fixture.gitAttributes,
     multiCallHooks: {},
@@ -161,14 +169,15 @@ async function runPair(
 
 /** The stored base Brief where the case keeps one, as the harness reads it. */
 async function readBaseBrief(
-  fixture: PairCase["fixture"],
+  pairCase: PairCase,
   generator: CannedGenerator,
 ): Promise<Brief> {
+  const { fixture, forceMultiCall } = pairCase;
   if (fixture.baseBrief !== undefined) {
     return fixture.baseBrief;
   }
   const { brief } = await generateBrief(
-    makeOptions(fixture.base, 1, generator),
+    makeOptions(fixture.base, 1, generator, forceMultiCall),
   );
   return brief;
 }
@@ -180,13 +189,18 @@ async function runAnchoring(
   const { fixture } = pairCase;
   const generator = makeCannedGenerator();
 
-  const base = await readBaseBrief(fixture, generator);
+  const base = await readBaseBrief(pairCase, generator);
   const revised = await generateBrief({
-    ...makeOptions(fixture.revised, 2, generator),
+    ...makeOptions(fixture.revised, 2, generator, pairCase.forceMultiCall),
     previous: { brief: base, span: readPairSpan(fixture), chainGroupIds },
   });
   if (revised.anchoring === undefined) {
     throw new Error(`${pairCase.id}: the anchored run returned no anchoring`);
+  }
+  const ranAsTwin =
+    !pairCase.forceMultiCall || revised.ranAs === CallPlanKinds.MULTI;
+  if (!ranAsTwin) {
+    throw new Error(`${pairCase.id}: a twin case's anchored run ran single`);
   }
 
   const { plan, ...carry } = revised.anchoring;
@@ -481,7 +495,10 @@ export async function describePipelineGoldens(
   options: GoldenSuiteOptions,
 ): Promise<GoldenCorpus> {
   const singleCases = await loadSingleCases(options.casesDir);
-  const pairCases = await loadPairs(options.pairsDir);
+  const skipped = new Set(options.skippedPairCaseIds ?? []);
+  const pairCases = (await loadPairs(options.pairsDir)).filter(
+    (pairCase) => !skipped.has(pairCase.id),
+  );
   const caseIds = [...singleCases, ...pairCases].map((found) => found.id);
   const pairCaseIds = pairCases.map((found) => found.id);
   const runs = new Map<string, GoldenRun>();

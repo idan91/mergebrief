@@ -229,8 +229,14 @@ function parseOutlineFiles(user: string): OutlineFile[] {
     });
 }
 
+/** An anchored request's new groups take `t` ids, so none collides with a carried `g` id. */
+function readIdPrefix(user: string): string {
+  return user.includes(ANCHOR_BRIEF_FENCE) ? "t" : "g";
+}
+
 function groupOutlineByDirectory(
   files: readonly OutlineFile[],
+  idPrefix: string,
 ): OutlineGroup[] {
   const groups = new Map<string, OutlineFile[]>();
   for (const file of files) {
@@ -239,7 +245,7 @@ function groupOutlineByDirectory(
   }
 
   return [...groups].map(([directory, members], index) => ({
-    id: `g${index + 1}`,
+    id: `${idPrefix}${index + 1}`,
     title: `Changes under ${directory}`,
     files: members,
   }));
@@ -247,7 +253,7 @@ function groupOutlineByDirectory(
 
 function synthesizeGrouping(user: string): unknown {
   const files = parseOutlineFiles(user);
-  const groups = groupOutlineByDirectory(files);
+  const groups = groupOutlineByDirectory(files, readIdPrefix(user));
   const drafts = groups.map((group) => ({
     id: group.id,
     title: group.title,
@@ -326,8 +332,7 @@ function synthesizeDetail(user: string): unknown {
 }
 
 function synthesizeBrief(user: string): unknown {
-  const idPrefix = user.includes(ANCHOR_BRIEF_FENCE) ? "t" : "g";
-  const groups = groupByDirectory(parseDiffFiles(user), idPrefix);
+  const groups = groupByDirectory(parseDiffFiles(user), readIdPrefix(user));
   const chunks = shapeChunks(groups.flatMap(draftCoreChunks));
 
   return {

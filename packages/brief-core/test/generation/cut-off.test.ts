@@ -317,7 +317,7 @@ describe("a cut single call", () => {
     ]);
   });
 
-  it("mints the ids past the chain and reports the run as not anchored", async () => {
+  it("descends the ids and anchors the multi-call run a cut call becomes", async () => {
     const firstRun = new FakeGenerator(makeAnswer());
     const first = await generateBrief(makeOptions(firstRun));
     const generator = new FakeGenerator(answerUnlessCut(["brief"]));
@@ -335,11 +335,11 @@ describe("a cut single call", () => {
 
     expect(generator.requests[0]?.label).toBe("brief");
     expect(ranAs).toBe(CallPlanKinds.MULTI);
-    expect(anchoring).toBeUndefined();
-    expect(brief.changeGroups.map((group) => group.id)).toEqual([
-      "g5",
-      "g6",
-      "g7",
+    expect(anchoring?.regeneratedGroupIds).toEqual(["g1", "g2", "g3"]);
+    expect(brief.changeGroups.map((group) => group.id).toSorted()).toEqual([
+      "g1",
+      "g2",
+      "g3",
     ]);
   });
 

@@ -758,9 +758,12 @@ export interface MultiCallRunInputs {
    * Reads the span's parts before any paid call, outside the engine's
    * single-call check, which reads a hook's throw as nothing stored: a store
    * failure, or an unread `.gitattributes` over stored parts, ends the run
-   * transient here.
+   * transient here. `previous` fixes the anchor plan a grouping part must
+   * match.
    */
-  readonly loadStoredParts: () => Promise<void>;
+  readonly loadStoredParts: (
+    previous: PreviousBriefInput | undefined,
+  ) => Promise<void>;
   /**
    * A permanent failure after every detail part landed is deterministic over
    * the stored parts: they go, so a re-trigger regenerates instead of failing

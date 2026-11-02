@@ -216,6 +216,7 @@ describe("createGenerationPartStore.write", () => {
       kind: GenerationPartKinds.GROUPING,
       grouping: GROUPING,
       gitAttributesDigest: GIT_ATTRIBUTES_DIGEST,
+      anchorPlanDigest: GIT_ATTRIBUTES_DIGEST,
     };
 
     const written = await store.write({ ...span, partKey: "grouping", body });
@@ -233,6 +234,7 @@ describe("createGenerationPartStore.write", () => {
       kind: GenerationPartKinds.GROUPING,
       grouping: GROUPING,
       gitAttributesDigest: GIT_ATTRIBUTES_DIGEST,
+      anchorPlanDigest: GIT_ATTRIBUTES_DIGEST,
     };
     const summaryMedia = {
       shown: [{ key: "https://cdn.test/a.png", position: "after-lede" }],
@@ -261,6 +263,7 @@ describe("createGenerationPartStore.write", () => {
         kind: GenerationPartKinds.GROUPING,
         grouping: GROUPING,
         gitAttributesDigest: GIT_ATTRIBUTES_DIGEST,
+        anchorPlanDigest: GIT_ATTRIBUTES_DIGEST,
         chunks: [],
       },
     ],

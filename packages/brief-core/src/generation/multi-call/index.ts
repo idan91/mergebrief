@@ -64,13 +64,15 @@ import {
   indexDetailHunks,
   readHunkTokens,
 } from "./detail";
+import {
+  listOmittedFileIds,
+  listReLookFiles,
+  readAnchorView,
+  renameListedFrozenGroups,
+} from "./anchor";
 import { buildGroupingRequest } from "./grouping";
 import { resolveHunkMap } from "./hunk-map";
-import {
-  mapStoredGroupIds,
-  renameChunkGroupIds,
-  renumberGroupIds,
-} from "./renumber";
+import { mapStoredGroupIds, renameChunkGroupIds } from "./renumber";
 import { GenerationWarningKinds } from "../warnings/types";
 import { clampToShownLines } from "./shown-lines";
 import type {
@@ -225,6 +227,7 @@ interface RunInputs {
   readonly files: readonly IndexedFile[];
   readonly shortened: ReadonlyMap<FileId, ShortenedFile>;
   readonly shortenedFileIds: ReadonlySet<FileId>;
+  readonly omittedFileIds: ReadonlySet<FileId>;
   /** Every hunk a detail call may show, redacted and weighed once. */
   readonly shownHunks: ReadonlyMap<HunkId, ShownHunk>;
   readonly accepted: AcceptedRepoContext;
@@ -325,12 +328,16 @@ async function runGroupingCall(
 ): Promise<GroupingStep> {
   const { pr, hooks, log, warnings } = options;
   const hunkCount = countMarkedHunks(inputs);
+  const fileCount =
+    options.anchor === undefined ? pr.meta.files.length : inputs.files.length;
   const request = buildGroupingRequest({
     pr,
     outline,
+    fileCount,
     hunkCount,
     accepted: inputs.accepted,
     holdsMedia: options.holdsMedia,
+    anchor: readAnchorView(options.anchor),
   });
 
   const stored = await loadStoredPart(
@@ -339,11 +346,11 @@ async function runGroupingCall(
     GroupingGenerationSchema,
   );
   const generated = stored ?? (await generateGrouping(options, request));
-  const reservedGroupIds = options.reservedGroupIds ?? [];
-  const grouping =
-    reservedGroupIds.length === 0
-      ? generated
-      : renumberGroupIds(generated, reservedGroupIds);
+  const grouping = renameListedFrozenGroups(
+    generated,
+    options.anchor,
+    warnings,
+  );
   if (stored === undefined) {
     await hooks?.onPartDone?.(PART_KEY_GROUPING, grouping);
   } else {
@@ -356,6 +363,7 @@ async function runGroupingCall(
     entries: grouping.hunkMap,
     files: inputs.files,
     shortenedFileIds: inputs.shortenedFileIds,
+    omittedFileIds: inputs.omittedFileIds,
     groupIds,
     warnings,
   });
@@ -670,15 +678,16 @@ function buildShortenedChunks(
  * One multi-call generation: the grouping call over the outline, then the
  * detail calls over the batches; code merges the answers and stamps the
  * outline form. Nothing here validates; `validateFinalBrief` runs once over
- * the merged brief, and no anchor plan applies: every group is re-looked,
- * and with a previous brief the group ids are minted past the chain's.
+ * the merged brief. With an anchor the run covers only the re-looked files,
+ * and the stitch, not this run, carries frozen groups and settles ids.
  */
 export async function generateMultiCallBrief(
   options: MultiCallOptions,
 ): Promise<DraftBrief> {
   const { pr, generator, log, warnings } = options;
   const laneLimit = readLaneLimit(options.detailConcurrency);
-  const files = indexDiff(pr.diff);
+  const indexed = indexDiff(pr.diff);
+  const files = listReLookFiles(indexed, options.anchor);
   const shortened = listShortenedFiles(files, options);
   const outline = chooseOutline({
     files,
@@ -693,6 +702,7 @@ export async function generateMultiCallBrief(
     files,
     shortened,
     shortenedFileIds,
+    omittedFileIds: listOmittedFileIds(indexed, options.anchor),
     shownHunks: indexDetailHunks(files, shortenedFileIds),
     accepted: acceptRepoContext(
       options.repoContext,
