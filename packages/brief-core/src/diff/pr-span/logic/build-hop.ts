@@ -1,0 +1,74 @@
+import type { HunkSpan } from "../../remap";
+import { REST_OF_FILE_LINES } from "../consts";
+import type { ChangeRun } from "../types";
+
+interface StretchBounds {
+  /** First line of the stretch at the previous head, and the line past it. */
+  readonly prevFrom: number;
+  readonly prevTo: number;
+  readonly newFrom: number;
+  readonly newTo: number;
+}
+
+/** A stretch of non-run lines as a span; a side with no lines names the line before, as git does. */
+function makeStretchSpan(bounds: StretchBounds): HunkSpan | undefined {
+  const oldLines = bounds.prevTo - bounds.prevFrom;
+  const newLines = bounds.newTo - bounds.newFrom;
+  if (oldLines === 0 && newLines === 0) {
+    return undefined;
+  }
+  return {
+    oldStart: oldLines === 0 ? bounds.prevFrom - 1 : bounds.prevFrom,
+    oldLines,
+    newStart: newLines === 0 ? bounds.newFrom - 1 : bounds.newFrom,
+    newLines,
+  };
+}
+
+/**
+ * The hop of a file whose PR change is the same at both heads while the
+ * base moved under it. Each run pairs with its twin; every stretch between
+ * runs becomes a span, so a range on a run shifts by exactly that run's
+ * offset and a range in a stretch demotes. Nothing when the runs cannot pair.
+ */
+export function buildBaseMovedSpans(
+  prevRuns: readonly ChangeRun[],
+  nextRuns: readonly ChangeRun[],
+): HunkSpan[] | undefined {
+  if (prevRuns.length !== nextRuns.length) {
+    return undefined;
+  }
+
+  const spans: HunkSpan[] = [];
+  let prevCursor = 1;
+  let newCursor = 1;
+  for (const [index, prevRun] of prevRuns.entries()) {
+    const nextRun = nextRuns[index];
+    const isOutOfOrder =
+      nextRun === undefined ||
+      prevRun.newStart < prevCursor ||
+      nextRun.newStart < newCursor;
+    if (isOutOfOrder) {
+      return undefined;
+    }
+    const span = makeStretchSpan({
+      prevFrom: prevCursor,
+      prevTo: prevRun.newStart,
+      newFrom: newCursor,
+      newTo: nextRun.newStart,
+    });
+    if (span !== undefined) {
+      spans.push(span);
+    }
+    prevCursor = prevRun.newStart + prevRun.added;
+    newCursor = nextRun.newStart + nextRun.added;
+  }
+
+  spans.push({
+    oldStart: prevCursor,
+    oldLines: REST_OF_FILE_LINES,
+    newStart: newCursor,
+    newLines: REST_OF_FILE_LINES,
+  });
+  return spans;
+}

@@ -75,7 +75,7 @@ const BRIEF_FIXTURES = "^apps/web/src/features/brief/test-utils/fixtures\\.ts$";
 // member other than the worker and the tools may name by value.
 const LEAF_SUBPATH_FILES = [
   "^packages/brief-core/src/(types|path-matching|hidden-chars)\\.ts$",
-  "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout|media|media-address|sanitized-markdown)/",
+  "^packages/brief-core/src/(pr-stack|artifact|diff/chunk-layout|diff/pr-span|media|media-address|sanitized-markdown)/",
   "^packages/brief-core/src/(github/pr-url|diff/remap)\\.ts$",
   "^packages/generators/src/contract/generation\\.ts$",
   "^packages/generators/src/config/(instancePolicy|trackers)\\.ts$",

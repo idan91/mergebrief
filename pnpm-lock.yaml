@@ -400,6 +400,9 @@ importers:
       contract:
         specifier: workspace:*
         version: link:../contract
+      diff:
+        specifier: 9.0.0
+        version: 9.0.0
       generators:
         specifier: workspace:*
         version: link:../generators
