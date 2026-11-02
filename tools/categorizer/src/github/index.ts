@@ -4,6 +4,7 @@
  */
 export type { GhOpenPullRequestParseError } from "./fetch";
 export {
+  fetchCommitDate,
   fetchCompareCommitCount,
   fetchCompareDiff,
   fetchPrDiff,
@@ -16,8 +17,10 @@ export {
 } from "./fetch";
 export {
   fetchReviewComments,
+  fetchReviewCommentsCreatedBy,
   isCommentOutdated,
   MAX_COMMENTS,
   normalizeReviewComment,
 } from "./comments";
 export { ghPrSource, type PrSource } from "./source";
+export { buildGhPrSpanSource } from "./span-source";

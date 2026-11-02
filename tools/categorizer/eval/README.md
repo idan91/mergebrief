@@ -303,8 +303,53 @@ scoped increment (span diff, compare `files[]` metadata, `baseShaMoved`).
 The runner drives the PRODUCTION anchoring machinery per run: fresh
 `categorize` for the base, `planAnchoredGeneration`, anchored `categorize`
 for the revision, `stitchBrief`, so the property pairs measure the real
-pipeline. **One pair run = TWO generations**; the pre-flight line counts
-them.
+pipeline. **One pair run = TWO generations**, up to four with the
+narrative and delta mode below, one fewer with a stored `baseBrief`; the
+pre-flight line counts them per case. A large `pair.json` may ship as
+`pair.json.gz`, never both.
+
+### Narrative and delta mode
+
+A pair case opts in by exporting `narrativeProperties`, `deltaProperties`,
+or both from `expected.ts`; ids are unique across all three lists. Each
+run then calls `categorizeRevisionNarrative` on the stitched revised Brief
+and `categorizeDelta` for a reviewer whose Checkpoint sits at the previous
+head, both over `increment.filteredSpan`. An opted-in case must carry a
+non-empty `filteredSpan`. The shared predicates live in `revision-props.ts`
+(grounded, covers the span, no replay, comments from the input); the
+narrative and delta specimens persist beside the base and revised ones.
+
+Optional `pair.json` fields: `increment.filteredSpan` and
+`increment.unfilteredSpan` (the revision span, filtered and not),
+`reviewComments` (the comments that existed at the revised head),
+`baseBrief` (the base head's Brief, read instead of generating one; its
+head must be the base head). Cases that do not opt in cost what they cost
+before.
+
+The delta gets no review comments by default, because the worker sends
+none. A case that scores the dev CLI's comment path exports
+`deltaReadsReviewComments = true` beside `deltaProperties`, and its
+`pair.json` must carry `reviewComments`. Under `--pair-fresh` the delta
+is skipped and its properties drop out of the report: it never reads the
+revised Brief, so the probe has nothing to show about it.
+
+### Capturing a real pair
+
+`pnpm capture-pair <pr-url> <prev-head> <head> --out <dir>` reads both
+heads' PR diffs, the revision span through brief-core's `readPrSpan`, and
+the PR's review comments through `gh`, then writes `pair.json` (gzipped
+past 1 MiB). `--prev-base <sha>` names the previous head's base for a
+retargeted PR; both bases default to the PR's current base. Title and
+body come from the PR as it reads now; links are not read and stay
+empty. No compare file list is recorded, so anchoring re-looks every
+group. It never runs a generation; write `expected.ts` by hand.
+
+Review comments are cut at the revised head's committer date: a comment
+created after it is left out. The cut is approximate. A comment written
+between that commit and its push is dropped, and a commit date set by a
+skewed clock moves the cut. A kept comment's body, `line` and `outdated`
+read as GitHub serves them now, measured against the PR's current head,
+not the captured one.
 
 Source set: one synthetic pair per change-impact category: `pair-additive`,
 `pair-meaning-changing`, `pair-risk-add`, `pair-risk-remove`,

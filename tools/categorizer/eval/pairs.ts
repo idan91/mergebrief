@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
@@ -11,7 +11,12 @@ import {
   type CompareFiles,
   type GenerateBriefOptions,
 } from "brief-core";
-import type { Brief } from "brief-core/types";
+import {
+  BriefSchema,
+  ReviewCommentSchema,
+  type Brief,
+  type ReviewComment,
+} from "brief-core/types";
 import type { Effort, Generator } from "generators";
 import { textLengthNotes } from "./length";
 import {
@@ -22,11 +27,24 @@ import {
 } from "./baseline";
 import {
   FixtureSchema,
+  readCaseJson,
   toRepoContext,
   toFetchedPr,
   type EvalFixture,
 } from "./loadCase";
 import type { CaseOutcome } from "./report";
+import {
+  BASE_BRIEF_INDEX,
+  generateDeltaRun,
+  generateNarrativeRun,
+  readSpanSkip,
+  REVISED_BRIEF_INDEX,
+  type DeltaEvalProperty,
+  type DeltaRun,
+  type NarrativeEvalProperty,
+  type NarrativeRun,
+  type RevisionSpanInputs,
+} from "./revision-runs";
 import { persistRunBriefs } from "./specimens";
 
 /**
@@ -51,22 +69,40 @@ const PairIncrementSchema = z.object({
     status: z.string().optional(),
   }),
   baseShaMoved: z.boolean(),
+  /** The PR's own change between the heads, hunks touching no PR line dropped; "" when the push left the PR diff unchanged. */
+  filteredSpan: z.string().optional(),
+  /** Every between-heads hunk of the changed files. */
+  unfilteredSpan: z.string().optional(),
 });
 
 const PairFixtureSchema = z.object({
   base: FixtureSchema,
   revised: FixtureSchema,
   increment: PairIncrementSchema,
+  /** The base head's Brief, read instead of generating one. */
+  baseBrief: BriefSchema.optional(),
+  /** Review comments that existed at the revised head; the delta reads them only on the case's opt-in. */
+  reviewComments: z.array(ReviewCommentSchema).optional(),
 });
+
+/** A pair.json as written to disk, before parsing. */
+export type PairFixtureFile = z.input<typeof PairFixtureSchema>;
+
+export const PAIR_FILE = "pair.json";
 
 export interface PairFixture {
   base: EvalFixture;
   revised: EvalFixture;
+  /** What anchoring reads today. */
   increment: {
     incrementalDiff: string;
     compareFiles: CompareFiles;
     baseShaMoved: boolean;
   };
+  filteredSpan?: string;
+  unfilteredSpan?: string;
+  baseBrief?: Brief;
+  reviewComments?: ReviewComment[];
 }
 
 /** One scored revision pair: both persisted-shape briefs plus the plan. */
@@ -92,9 +128,23 @@ export interface PairCase {
   dir: string;
   fixture: PairFixture;
   properties: PairEvalProperty[];
+  /** Empty when the case does not opt into the narrative. */
+  narrativeProperties: NarrativeEvalProperty[];
+  /** Empty when the case does not opt into the delta. */
+  deltaProperties: DeltaEvalProperty[];
+  /** The delta reads `reviewComments`, as the dev CLI does; the worker sends none, so off by default. */
+  deltaReadsReviewComments: boolean;
 }
 
-function isPairProperty(value: unknown): value is PairEvalProperty {
+/** The shape every property list shares; the check's argument differs per list. */
+interface ScoredProperty<Run> {
+  id: string;
+  description: string;
+  check(run: Run): boolean;
+}
+
+/** The run argument cannot be checked at runtime; a case's expected.ts owns that. */
+function isProperty<Run>(value: unknown): value is ScoredProperty<Run> {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -144,78 +194,293 @@ async function loadOnePair(
   id: string,
   dir: string,
 ): Promise<Result<PairCase, string>> {
-  const fixturePath = join(dir, "pair.json");
-  if (!existsSync(fixturePath)) {
-    return { ok: false, error: `pair case "${id}": missing pair.json` };
+  const caseLabel = `pair case "${id}"`;
+  const raw = readCaseJson(caseLabel, dir, PAIR_FILE);
+  if (!raw.ok) {
+    return raw;
   }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(fixturePath, "utf8"));
-  } catch (error) {
-    return {
-      ok: false,
-      error: `pair case "${id}": unreadable pair.json (${
-        error instanceof Error ? error.message : String(error)
-      })`,
-    };
-  }
-  const parsed = PairFixtureSchema.safeParse(raw);
+  const parsed = PairFixtureSchema.safeParse(raw.value);
   if (!parsed.success) {
     return {
       ok: false,
-      error: `pair case "${id}": invalid pair.json — ${z.prettifyError(parsed.error)}`,
+      error: `${caseLabel}: invalid pair.json — ${z.prettifyError(parsed.error)}`,
     };
   }
   const expectedPath = join(dir, "expected.ts");
   if (!existsSync(expectedPath)) {
-    return { ok: false, error: `pair case "${id}": missing expected.ts` };
+    return { ok: false, error: `${caseLabel}: missing expected.ts` };
   }
   const module: unknown = await import(pathToFileURL(expectedPath).href);
-  const properties =
-    typeof module === "object" && module !== null
-      ? Reflect.get(module, "pairProperties")
-      : undefined;
-  if (!Array.isArray(properties) || !properties.every(isPairProperty)) {
-    return {
-      ok: false,
-      error: `pair case "${id}": expected.ts must export \`pairProperties: PairEvalProperty[]\``,
-    };
+  const properties = readCaseProperties(caseLabel, module);
+  if (!properties.ok) {
+    return properties;
   }
-  if (properties.length === 0) {
-    return {
-      ok: false,
-      error: `pair case "${id}": expected.ts exports no properties`,
-    };
+
+  const fixture = shapePairFixture(parsed.data);
+  const fixtureCheck = checkFixtureFits(caseLabel, fixture, properties.value);
+  if (!fixtureCheck.ok) {
+    return fixtureCheck;
   }
-  // Duplicate ids refuse at LOAD time, before any generation spends money
-  // (scorePairRuns keeps its own backstop for programmatic callers).
-  const propertyIds = new Set<string>();
-  for (const property of properties) {
-    if (propertyIds.has(property.id)) {
-      return {
-        ok: false,
-        error: `pair case "${id}": duplicate property id "${property.id}"`,
-      };
-    }
-    propertyIds.add(property.id);
+  const commentOptIn = readCommentOptIn(
+    caseLabel,
+    module,
+    fixture,
+    properties.value,
+  );
+  if (!commentOptIn.ok) {
+    return commentOptIn;
   }
+  const spanSkip = readOptInSpanSkip(
+    fixture,
+    properties.value,
+    commentOptIn.value,
+  );
+  if (spanSkip !== undefined) {
+    return { ok: false, error: `${caseLabel}: ${spanSkip}` };
+  }
+
   return {
     ok: true,
     value: {
       id,
       dir,
-      fixture: {
-        base: toEvalFixture(parsed.data.base),
-        revised: toEvalFixture(parsed.data.revised),
-        increment: {
-          incrementalDiff: parsed.data.increment.incrementalDiff,
-          baseShaMoved: parsed.data.increment.baseShaMoved,
-          compareFiles: shapeCompareFiles(parsed.data.increment.compareFiles),
-        },
-      },
-      properties,
+      fixture,
+      ...properties.value,
+      deltaReadsReviewComments: commentOptIn.value,
     },
   };
+}
+
+type CaseProperties = Pick<
+  PairCase,
+  "properties" | "narrativeProperties" | "deltaProperties"
+>;
+
+/**
+ * The case's three property lists. `pairProperties` is required; the other
+ * two are each an opt-in. Ids are unique across all three, refused at load
+ * time before any generation spends money.
+ */
+function readCaseProperties(
+  caseLabel: string,
+  module: unknown,
+): Result<CaseProperties, string> {
+  const lists = {
+    properties: readPropertyExport<RevisionPair>(module, "pairProperties"),
+    narrativeProperties: readPropertyExport<NarrativeRun>(
+      module,
+      "narrativeProperties",
+    ),
+    deltaProperties: readPropertyExport<DeltaRun>(module, "deltaProperties"),
+  };
+  if (lists.properties === undefined || lists.properties === "invalid") {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts must export \`pairProperties: PairEvalProperty[]\``,
+    };
+  }
+  if (lists.narrativeProperties === "invalid") {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts \`narrativeProperties\` is not a NarrativeEvalProperty[]`,
+    };
+  }
+  if (lists.deltaProperties === "invalid") {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts \`deltaProperties\` is not a DeltaEvalProperty[]`,
+    };
+  }
+
+  const value: CaseProperties = {
+    properties: lists.properties,
+    narrativeProperties: lists.narrativeProperties ?? [],
+    deltaProperties: lists.deltaProperties ?? [],
+  };
+  const all = [
+    ...value.properties,
+    ...value.narrativeProperties,
+    ...value.deltaProperties,
+  ];
+  if (all.length === 0) {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts exports no properties`,
+    };
+  }
+  const duplicate = findDuplicateId(all);
+  if (duplicate !== undefined) {
+    return {
+      ok: false,
+      error: `${caseLabel}: duplicate property id "${duplicate}"`,
+    };
+  }
+  return { ok: true, value };
+}
+
+/** An absent export is `undefined`; one that is not a property list is "invalid". */
+function readPropertyExport<Run>(
+  module: unknown,
+  name: string,
+): ScoredProperty<Run>[] | "invalid" | undefined {
+  const exported =
+    typeof module === "object" && module !== null
+      ? Reflect.get(module, name)
+      : undefined;
+  if (exported === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(exported) || !exported.every(isProperty<Run>)) {
+    return "invalid";
+  }
+  return exported;
+}
+
+function findDuplicateId(
+  properties: readonly { id: string }[],
+): string | undefined {
+  const seen = new Set<string>();
+  for (const property of properties) {
+    if (seen.has(property.id)) {
+      return property.id;
+    }
+    seen.add(property.id);
+  }
+  return undefined;
+}
+
+function checkFixtureFits(
+  caseLabel: string,
+  fixture: PairFixture,
+  properties: CaseProperties,
+): Result<void, string> {
+  const storedHead = fixture.baseBrief?.commitRange.head;
+  const baseHead = fixture.base.commitRange.head;
+  if (storedHead !== undefined && storedHead !== baseHead) {
+    return {
+      ok: false,
+      error: `${caseLabel}: baseBrief is for head ${storedHead}, the base head is ${baseHead}`,
+    };
+  }
+  return checkOptInSpan(caseLabel, fixture, properties);
+}
+
+/** `deltaReadsReviewComments`: absent is false; true needs delta properties and recorded comments. */
+function readCommentOptIn(
+  caseLabel: string,
+  module: unknown,
+  fixture: PairFixture,
+  properties: CaseProperties,
+): Result<boolean, string> {
+  const exported =
+    typeof module === "object" && module !== null
+      ? Reflect.get(module, "deltaReadsReviewComments")
+      : undefined;
+  if (exported === undefined || exported === false) {
+    return { ok: true, value: false };
+  }
+  if (exported !== true) {
+    return {
+      ok: false,
+      error: `${caseLabel}: expected.ts \`deltaReadsReviewComments\` must be a boolean`,
+    };
+  }
+
+  if (properties.deltaProperties.length === 0) {
+    return {
+      ok: false,
+      error: `${caseLabel}: deltaReadsReviewComments without deltaProperties scores nothing`,
+    };
+  }
+  if (fixture.reviewComments === undefined) {
+    return {
+      ok: false,
+      error: `${caseLabel}: deltaReadsReviewComments but pair.json has no reviewComments`,
+    };
+  }
+  return { ok: true, value: true };
+}
+
+/** A narrative or delta opt-in reads the filtered span, so the case must carry a non-empty one. */
+function checkOptInSpan(
+  caseLabel: string,
+  fixture: PairFixture,
+  properties: CaseProperties,
+): Result<void, string> {
+  if (!readsRevisionSpan(properties)) {
+    return { ok: true, value: undefined };
+  }
+  if (fixture.filteredSpan === undefined) {
+    return {
+      ok: false,
+      error: `${caseLabel}: opts into the narrative or delta but pair.json has no increment.filteredSpan`,
+    };
+  }
+  if (fixture.filteredSpan === "") {
+    return {
+      ok: false,
+      error: `${caseLabel}: opts into the narrative or delta over an empty filteredSpan, which has no no-change record to score yet`,
+    };
+  }
+  return { ok: true, value: undefined };
+}
+
+/** A case that opts into the narrative or delta may not ask for a call the worker would skip. */
+function readOptInSpanSkip(
+  fixture: PairFixture,
+  properties: CaseProperties,
+  readsReviewComments: boolean,
+): string | undefined {
+  if (!readsRevisionSpan(properties) || fixture.filteredSpan === undefined) {
+    return undefined;
+  }
+  return readSpanSkip(
+    {
+      revised: fixture.revised,
+      prevHeadSha: fixture.base.commitRange.head,
+      filteredSpan: fixture.filteredSpan,
+      reviewComments: readsReviewComments ? (fixture.reviewComments ?? []) : [],
+    },
+    properties.deltaProperties.length > 0,
+  );
+}
+
+function readsRevisionSpan(
+  properties: Pick<CaseProperties, "narrativeProperties" | "deltaProperties">,
+): boolean {
+  return (
+    properties.narrativeProperties.length > 0 ||
+    properties.deltaProperties.length > 0
+  );
+}
+
+function shapePairFixture(
+  data: z.infer<typeof PairFixtureSchema>,
+): PairFixture {
+  const { increment } = data;
+  const fixture: PairFixture = {
+    base: toEvalFixture(data.base),
+    revised: toEvalFixture(data.revised),
+    increment: {
+      incrementalDiff: increment.incrementalDiff,
+      baseShaMoved: increment.baseShaMoved,
+      compareFiles: shapeCompareFiles(increment.compareFiles),
+    },
+  };
+
+  if (increment.filteredSpan !== undefined) {
+    fixture.filteredSpan = increment.filteredSpan;
+  }
+  if (increment.unfilteredSpan !== undefined) {
+    fixture.unfilteredSpan = increment.unfilteredSpan;
+  }
+  if (data.baseBrief !== undefined) {
+    fixture.baseBrief = data.baseBrief;
+  }
+  if (data.reviewComments !== undefined) {
+    fixture.reviewComments = data.reviewComments;
+  }
+  return fixture;
 }
 
 /** Zod optionals infer `| undefined`; EvalFixture is exact-optional. */
@@ -266,18 +531,15 @@ function shapeCompareFile(
 
 export interface PairRunResult {
   pairs: RevisionPair[];
+  /** Index-aligned with `pairs`; empty when the case does not opt in. */
+  narratives: NarrativeRun[];
+  deltas: DeltaRun[];
   /** 1-based run number that produced `pairs[i]` (failed runs leave gaps). */
   runNumbers: number[];
   generationFailures: number;
   failureMessages: string[];
 }
 
-/**
- * Run a pair case N times, serially (same posture as `runCase`): each run =
- * one fresh base generation + one anchored revision generation + the
- * production stitch. Any failure in the run, either generation, or a
- * stitch/coverage error, voids that run and is recorded.
- */
 /**
  * `anchored` = the production path (plan → anchored categorize → stitch).
  * `fresh` = the vacuous-pass probe: BOTH generations run fresh, no anchor
@@ -304,18 +566,30 @@ function makeFixtureOptions(
   };
 }
 
+async function readBaseBrief(
+  fixture: PairFixture,
+  generator: Generator,
+  effort: Effort,
+): Promise<Brief> {
+  if (fixture.baseBrief !== undefined) {
+    return fixture.baseBrief;
+  }
+  const { brief } = await generateBrief(
+    makeFixtureOptions(fixture.base, BASE_BRIEF_INDEX, generator, effort),
+  );
+  return brief;
+}
+
 async function runPair(
   fixture: PairFixture,
   generator: Generator,
   effort: Effort,
   mode: PairRunMode,
 ): Promise<RevisionPair> {
-  const { brief: base } = await generateBrief(
-    makeFixtureOptions(fixture.base, 1, generator, effort),
-  );
+  const base = await readBaseBrief(fixture, generator, effort);
   const revisedOptions = makeFixtureOptions(
     fixture.revised,
-    2,
+    REVISED_BRIEF_INDEX,
     generator,
     effort,
   );
@@ -345,37 +619,126 @@ async function runPair(
   };
 }
 
-export async function runPairCase(
+interface PairRun {
+  pair: RevisionPair;
+  narrative?: NarrativeRun;
+  delta?: DeltaRun;
+}
+
+/** One run: the pair, then the narrative and the delta the case opts into. */
+async function runPairWithSpan(
   pairCase: PairCase,
+  generator: Generator,
+  effort: Effort,
+  mode: PairRunMode,
+): Promise<PairRun> {
+  const { fixture } = pairCase;
+  const pair = await runPair(fixture, generator, effort, mode);
+  const run: PairRun = { pair };
+  if (!readsRevisionSpan(pairCase) || fixture.filteredSpan === undefined) {
+    return run;
+  }
+
+  const inputs: RevisionSpanInputs = {
+    revised: fixture.revised,
+    prevHeadSha: fixture.base.commitRange.head,
+    filteredSpan: fixture.filteredSpan,
+    reviewComments: selectDeltaComments(pairCase),
+    generator,
+    effort,
+  };
+  if (pairCase.narrativeProperties.length > 0) {
+    run.narrative = await generateNarrativeRun(inputs, pair.revised);
+  }
+  if (pairCase.deltaProperties.length > 0) {
+    run.delta = await generateDeltaRun(inputs);
+  }
+  return run;
+}
+
+function selectDeltaComments(pairCase: PairCase): readonly ReviewComment[] {
+  if (!pairCase.deltaReadsReviewComments) {
+    return [];
+  }
+  return pairCase.fixture.reviewComments ?? [];
+}
+
+/**
+ * The case as a mode runs it. The delta never reads the revised Brief, so the
+ * fresh probe has nothing to show about it and drops its properties.
+ */
+function scopePairCaseToMode(pairCase: PairCase, mode: PairRunMode): PairCase {
+  if (mode === "anchored") {
+    return pairCase;
+  }
+  return { ...pairCase, deltaProperties: [] };
+}
+
+/** Model calls one run of the case makes, multi-call Briefs counted as one. */
+export function countPairGenerations(
+  pairCase: PairCase,
+  mode: PairRunMode = "anchored",
+): number {
+  const scoped = scopePairCaseToMode(pairCase, mode);
+  const baseCalls = scoped.fixture.baseBrief === undefined ? 1 : 0;
+  const narrativeCalls = scoped.narrativeProperties.length > 0 ? 1 : 0;
+  const deltaCalls = scoped.deltaProperties.length > 0 ? 1 : 0;
+  return baseCalls + 1 + narrativeCalls + deltaCalls;
+}
+
+/**
+ * Run a pair case N times, serially (same posture as `runCase`). A failure
+ * anywhere in a run, either Brief, the stitch, the narrative or the delta,
+ * voids that whole run and is recorded.
+ */
+export async function runPairCase(
+  unscopedCase: PairCase,
   generator: Generator,
   effort: Effort,
   runs: number,
   progress: (message: string) => void = () => {},
   mode: PairRunMode = "anchored",
 ): Promise<PairRunResult> {
-  const { fixture } = pairCase;
-  const pairs: RevisionPair[] = [];
-  const runNumbers: number[] = [];
-  const failureMessages: string[] = [];
+  const pairCase = scopePairCaseToMode(unscopedCase, mode);
+  const result: PairRunResult = {
+    pairs: [],
+    narratives: [],
+    deltas: [],
+    runNumbers: [],
+    generationFailures: 0,
+    failureMessages: [],
+  };
   for (let run = 1; run <= runs; run++) {
-    progress(`  ${pairCase.id}: run ${run}/${runs} (base + revision)…`);
+    progress(
+      `  ${pairCase.id}: run ${run}/${runs} (${countPairGenerations(pairCase)} generations)…`,
+    );
     try {
       // oxlint-disable-next-line no-await-in-loop -- serial by design (see runCase)
-      const pair = await runPair(fixture, generator, effort, mode);
-      pairs.push(pair);
-      runNumbers.push(run);
+      const pairRun = await runPairWithSpan(pairCase, generator, effort, mode);
+      collectPairRun(result, pairRun, run);
     } catch (error) {
-      failureMessages.push(
+      result.failureMessages.push(
         `run ${run}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
-  return {
-    pairs,
-    runNumbers,
-    generationFailures: failureMessages.length,
-    failureMessages,
-  };
+  result.generationFailures = result.failureMessages.length;
+  return result;
+}
+
+function collectPairRun(
+  result: PairRunResult,
+  pairRun: PairRun,
+  runNumber: number,
+): void {
+  result.pairs.push(pairRun.pair);
+  result.runNumbers.push(runNumber);
+  if (pairRun.narrative !== undefined) {
+    result.narratives.push(pairRun.narrative);
+  }
+  if (pairRun.delta !== undefined) {
+    result.deltas.push(pairRun.delta);
+  }
 }
 
 export interface PairScoredRuns {
@@ -383,38 +746,35 @@ export interface PairScoredRuns {
   notes: string[];
 }
 
-/** Score pair properties against every run's pair, mirror of `scoreRuns`. */
-export function scorePairRuns(
-  properties: readonly PairEvalProperty[],
-  pairs: readonly RevisionPair[],
+/** Score one property list against every run, mirror of `scoreRuns`. */
+export function scorePairRuns<Run>(
+  properties: readonly ScoredProperty<Run>[],
+  runs: readonly Run[],
 ): PairScoredRuns {
-  const ids = new Set<string>();
-  for (const property of properties) {
-    if (ids.has(property.id)) {
-      throw new Error(`duplicate property id "${property.id}"`);
-    }
-    ids.add(property.id);
+  const duplicate = findDuplicateId(properties);
+  if (duplicate !== undefined) {
+    throw new Error(`duplicate property id "${duplicate}"`);
   }
   const scores = new Map<string, { passes: number; runs: number }>();
   const notes: string[] = [];
   for (const property of properties) {
-    const scored = scorePairProperty(property, pairs);
+    const scored = scorePairProperty(property, runs);
     notes.push(...scored.notes);
-    scores.set(property.id, { passes: scored.passes, runs: pairs.length });
+    scores.set(property.id, { passes: scored.passes, runs: runs.length });
   }
   return { scores, notes };
 }
 
-/** One property over every pair: a throwing check is a fail plus a note. */
-function scorePairProperty(
-  property: PairEvalProperty,
-  pairs: readonly RevisionPair[],
+/** One property over every run: a throwing check is a fail plus a note. */
+function scorePairProperty<Run>(
+  property: ScoredProperty<Run>,
+  runs: readonly Run[],
 ): { passes: number; notes: string[] } {
   let passes = 0;
   const notes: string[] = [];
-  for (const [index, pair] of pairs.entries()) {
+  for (const [index, run] of runs.entries()) {
     try {
-      if (property.check(pair)) {
+      if (property.check(run)) {
         passes += 1;
       }
     } catch (error) {
@@ -426,6 +786,22 @@ function scorePairProperty(
   }
 
   return { passes, notes };
+}
+
+/** The pair, narrative and delta lists scored into one map, in that order. */
+function scorePairCase(
+  pairCase: PairCase,
+  result: PairRunResult,
+): PairScoredRuns {
+  const parts = [
+    scorePairRuns(pairCase.properties, result.pairs),
+    scorePairRuns(pairCase.narrativeProperties, result.narratives),
+    scorePairRuns(pairCase.deltaProperties, result.deltas),
+  ];
+  return {
+    scores: new Map(parts.flatMap((part) => [...part.scores])),
+    notes: parts.flatMap((part) => part.notes),
+  };
 }
 
 /** Generic case shape the source selector needs. */
@@ -464,6 +840,43 @@ export function selectCases<S extends SelectableCase, P extends SelectableCase>(
   };
 }
 
+/**
+ * Both Briefs persist, since flaky pair properties need base AND revised
+ * specimens; the narrative and the delta persist when the case opts in.
+ */
+function persistPairSpecimens(
+  pairCase: PairCase,
+  outDir: string,
+  result: PairRunResult,
+): void {
+  const caseDir = join(outDir, "eval-runs", pairCase.id);
+  const { runNumbers, failureMessages } = result;
+  const sides = new Map<string, unknown[]>([
+    ["base", result.pairs.map((pair) => pair.base)],
+    ["revised", result.pairs.map((pair) => pair.revised)],
+  ]);
+  if (pairCase.narrativeProperties.length > 0) {
+    sides.set(
+      "narrative",
+      result.narratives.map((run) => run.narrative),
+    );
+  }
+  if (pairCase.deltaProperties.length > 0) {
+    sides.set(
+      "delta",
+      result.deltas.map((run) => run.delta),
+    );
+  }
+
+  for (const [side, briefs] of sides) {
+    persistRunBriefs(join(caseDir, side), {
+      briefs,
+      runNumbers,
+      failureMessages,
+    });
+  }
+}
+
 export interface EvaluatedPairCase {
   outcome: CaseOutcome;
   /** Rebaseline mode only: true when this case's baseline was written. */
@@ -476,7 +889,7 @@ export interface EvaluatedPairCase {
  * whole path is coverable with a fake generator.
  */
 export async function evaluatePairCase(
-  pairCase: PairCase,
+  unscopedCase: PairCase,
   generator: Generator,
   effort: Effort,
   runs: number,
@@ -486,6 +899,7 @@ export async function evaluatePairCase(
   progress: (message: string) => void,
   mode: PairRunMode = "anchored",
 ): Promise<Result<EvaluatedPairCase, string>> {
+  const pairCase = scopePairCaseToMode(unscopedCase, mode);
   const result = await runPairCase(
     pairCase,
     generator,
@@ -494,19 +908,8 @@ export async function evaluatePairCase(
     progress,
     mode,
   );
-  // Both sides persist, flaky pair properties need base AND revised
-  // specimens.
-  persistRunBriefs(join(outDir, "eval-runs", pairCase.id, "base"), {
-    briefs: result.pairs.map((pair) => pair.base),
-    runNumbers: result.runNumbers,
-    failureMessages: result.failureMessages,
-  });
-  persistRunBriefs(join(outDir, "eval-runs", pairCase.id, "revised"), {
-    briefs: result.pairs.map((pair) => pair.revised),
-    runNumbers: result.runNumbers,
-    failureMessages: result.failureMessages,
-  });
-  const scored = scorePairRuns(pairCase.properties, result.pairs);
+  persistPairSpecimens(pairCase, outDir, result);
+  const scored = scorePairCase(pairCase, result);
   const baselinePath = join(pairCase.dir, "baseline.json");
   let baseline: CaseOutcome["baseline"] = null;
   let rebaselined = false;
@@ -545,7 +948,11 @@ export async function evaluatePairCase(
         runsRequested: runs,
         runsScored: result.pairs.length,
         generationFailures: result.generationFailures,
-        properties: pairCase.properties,
+        properties: [
+          ...pairCase.properties,
+          ...pairCase.narrativeProperties,
+          ...pairCase.deltaProperties,
+        ],
         scores: scored.scores,
         baseline,
         notes: [

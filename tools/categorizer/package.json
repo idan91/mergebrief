@@ -8,6 +8,7 @@
     "categorize": "tsx src/cli/categorize.ts",
     "delta": "tsx src/cli/delta.ts",
     "eval": "tsx eval/cli.ts",
+    "capture-pair": "tsx scripts/capture-pair.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "probe:enum": "tsx scripts/probe-enum-enforcement.ts",

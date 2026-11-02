@@ -21,7 +21,10 @@ const GhCommentSchema = z.object({
   body: z.string().nullish(),
   user: z.object({ login: z.string() }).nullish(),
   in_reply_to_id: z.number().nullish(),
+  created_at: z.string().nullish(),
 });
+
+type GhComment = z.infer<typeof GhCommentSchema>;
 
 /**
  * GitHub marks a *line* comment outdated by nulling its `line`: the line it
@@ -70,6 +73,39 @@ export function normalizeReviewComment(value: unknown): ReviewComment {
 export async function fetchReviewComments(
   loc: PrLocator,
 ): Promise<ReviewComment[]> {
+  const raw = await readGhComments(loc);
+  return raw.slice(0, MAX_COMMENTS).map(normalizeReviewComment);
+}
+
+/**
+ * The review comments created at or before `createdBy` (ISO 8601), the cap
+ * applied after the cut. A comment GitHub returns without `created_at` is
+ * left out. Bodies and `outdated` read as GitHub serves them now.
+ */
+export async function fetchReviewCommentsCreatedBy(
+  loc: PrLocator,
+  createdBy: string,
+): Promise<ReviewComment[]> {
+  const cutoff = Date.parse(createdBy);
+  if (Number.isNaN(cutoff)) {
+    throw new Error(
+      `comment cutoff must be an ISO 8601 timestamp; got "${createdBy}"`,
+    );
+  }
+
+  const raw = await readGhComments(loc);
+  return raw
+    .filter((comment) => isCreatedBy(comment, cutoff))
+    .slice(0, MAX_COMMENTS)
+    .map(normalizeReviewComment);
+}
+
+function isCreatedBy(comment: GhComment, cutoff: number): boolean {
+  const createdAt = Date.parse(comment.created_at ?? "");
+  return !Number.isNaN(createdAt) && createdAt <= cutoff;
+}
+
+async function readGhComments(loc: PrLocator): Promise<GhComment[]> {
   const { stdout } = await execFileAsync(
     "gh",
     [
@@ -79,6 +115,5 @@ export async function fetchReviewComments(
     ],
     { maxBuffer: MAX_BUFFER },
   );
-  const raw = z.array(GhCommentSchema).parse(JSON.parse(stdout));
-  return raw.slice(0, MAX_COMMENTS).map(normalizeReviewComment);
+  return z.array(GhCommentSchema).parse(JSON.parse(stdout));
 }

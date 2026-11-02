@@ -54,7 +54,14 @@ export {
   parseRevisionNarrativeFlag,
   type RevisionNarrativeConfig,
 } from "./generation/config";
-export { TEXT_LENGTH_CAPS } from "./generation/validate";
+export {
+  TEXT_LENGTH_CAPS,
+  validateMarksNarrativeCoverage,
+  validateNarrativeGroups,
+  validateNarrativeMarksOverlap,
+  validatePartition,
+} from "./generation/validate";
+export { detectChunkOverlaps } from "./generation/loc";
 export {
   attachPrStack,
   isSamePrStack,

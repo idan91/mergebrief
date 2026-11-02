@@ -254,6 +254,31 @@ export async function fetchCompareDiff(
   return stdout;
 }
 
+/** A commit's committer date (ISO 8601), the last time its content was written. */
+export async function fetchCommitDate(
+  loc: PrLocator,
+  sha: string,
+): Promise<string> {
+  if (!isCommitish(sha)) {
+    throw new Error(`expected a hex commit SHA (7–40 chars); got "${sha}"`);
+  }
+  const { stdout } = await execFileAsync(
+    "gh",
+    [
+      "api",
+      `repos/${repoSlug(loc)}/commits/${sha}`,
+      "--jq",
+      ".commit.committer.date",
+    ],
+    { maxBuffer: MAX_BUFFER },
+  );
+  const date = stdout.trim();
+  if (Number.isNaN(Date.parse(date))) {
+    throw new Error(`could not read the committer date of ${sha}`);
+  }
+  return date;
+}
+
 /**
  * Number of commits in a PR's `base...head` span, via the compare API's
  * `total_commits`. Used for a brief's commit range when an explicit range is

@@ -1,16 +1,9 @@
 // Revision-pair machinery: the pair runner drives the SAME plan/stitch the
 // production worker runs, with fake generators only and no API.
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { z } from "zod/v4";
-import type {
-  GenerateRequest,
-  Generator,
-  Effort,
-  Generation,
-} from "generators";
 import {
   evaluatePairCase,
   loadPairCases,
@@ -22,165 +15,12 @@ import {
 } from "../eval/pairs";
 import { BaselineModes } from "../eval/baseline";
 import { parseEvalArgs } from "../eval/cli";
-
-/** Serves canned generation outputs in call order (run1 base, run1 revised, …). */
-class SequenceGenerator implements Generator {
-  calls = 0;
-  readonly requests: { system: string; user: string }[] = [];
-  constructor(private readonly outputs: unknown[]) {}
-  origin(effort: Effort): Generation {
-    return { provider: "fake", model: "fake-model", effort };
-  }
-  async generate<S extends z.ZodType>(
-    req: GenerateRequest<S>,
-  ): Promise<z.infer<S>> {
-    this.requests.push({ system: req.system, user: req.user });
-    const output = this.outputs[this.calls];
-    this.calls += 1;
-    if (output === undefined) {
-      throw new Error("sequence exhausted");
-    }
-    if (output instanceof Error) {
-      throw output;
-    }
-    return req.schema.parse(output);
-  }
-}
-
-const intentNone = {
-  ticketUrls: [],
-  ticketTitles: [],
-  specificity: "none",
-  scopeNote: "",
-  items: [],
-  alignment: { read: "", goal: "", response: "" },
-};
-
-function genOutput(
-  groups: { id: string; title: string; file: string; start?: number }[],
-): unknown {
-  return {
-    summary: "s",
-    intentCheck: intentNone,
-    changeGroups: groups.map((g) => ({
-      id: g.id,
-      title: g.title,
-      summary: `${g.title} summary`,
-      dominantCategory: "bugfix",
-      secondaryCategories: [],
-      uncertain: false,
-      uncertainBetween: [],
-    })),
-    chunks: groups.map((g, i) => ({
-      id: `c${i + 1}`,
-      changeGroupId: g.id,
-      file: g.file,
-      concern: "implementation",
-      role: "core",
-      loc: { added: 2, deleted: 0 },
-      addedRanges: [{ start: g.start ?? 1, end: (g.start ?? 1) + 1 }],
-      removedRanges: [],
-      riskSurface: [],
-    })),
-    concernView: [
-      { concern: "implementation", added: groups.length * 2, deleted: 0 },
-    ],
-  };
-}
-
-const DIFF_B = `diff --git a/b.ts b/b.ts
---- a/b.ts
-+++ b/b.ts
-@@ -1,2 +1,3 @@
- line
-+added
- line2
-`;
-
-const meta = (sha: string, files: string[]) => ({
-  title: "t",
-  body: "d",
-  url: "https://github.com/o/r/pull/1",
-  sha,
-  baseSha: "base".padEnd(40, "0"),
-  commitCount: 1,
-  files: files.map((path) => ({ path, additions: 2, deletions: 0 })),
-});
-
-const diffFor = (files: string[]) =>
-  files
-    .map(
-      (f) => `diff --git a/${f} b/${f}
---- a/${f}
-+++ b/${f}
-@@ -1,1 +1,3 @@
- line
-+added
-+more
-`,
-    )
-    .join("");
-
-function fixtureJson(): unknown {
-  return {
-    base: {
-      pr: {
-        locator: { owner: "o", repo: "r", number: 1 },
-        meta: meta("a".repeat(40), ["a.ts", "b.ts"]),
-        diff: diffFor(["a.ts", "b.ts"]),
-        links: [],
-      },
-      commitRange: {
-        base: "base".padEnd(40, "0"),
-        head: "a".repeat(40),
-        commitCount: 1,
-      },
-    },
-    revised: {
-      pr: {
-        locator: { owner: "o", repo: "r", number: 1 },
-        meta: meta("b".repeat(40), ["a.ts", "b.ts"]),
-        diff: diffFor(["a.ts", "b.ts"]),
-        links: [],
-      },
-      commitRange: {
-        base: "base".padEnd(40, "0"),
-        head: "b".repeat(40),
-        commitCount: 2,
-      },
-    },
-    increment: {
-      incrementalDiff: DIFF_B,
-      compareFiles: {
-        files: [{ filename: "b.ts", status: "modified" }],
-        complete: true,
-        status: "ahead",
-      },
-      baseShaMoved: false,
-    },
-  };
-}
-
-function writePairCase(id: string, expectedTs: string): string {
-  const root = mkdtempSync(join(tmpdir(), "pair-cases-"));
-  const dir = join(root, id);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "pair.json"), JSON.stringify(fixtureJson()));
-  writeFileSync(join(dir, "expected.ts"), expectedTs);
-  return root;
-}
-
-const EXPECTED_TS = `
-export const pairProperties = [
-  {
-    id: "frozen-survives",
-    description: "the untouched group survives byte-identical",
-    check: (pair) =>
-      JSON.stringify(pair.base.changeGroups[0]) ===
-      JSON.stringify(pair.revised.changeGroups.find((g) => g.id === pair.base.changeGroups[0].id)),
-  },
-];
-`;
+import {
+  EXPECTED_TS,
+  SequenceGenerator,
+  makeBriefOutput,
+  writePairCase,
+} from "./pair-fixtures";
 
 describe("loadPairCases", () => {
   it("rejects a case with an empty property list", async () => {
@@ -217,11 +57,11 @@ describe("runPairCase", () => {
     }
 
     const generator = new SequenceGenerator([
-      genOutput([
+      makeBriefOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
         { id: "g2", title: "beta", file: "b.ts" },
       ]),
-      genOutput([
+      makeBriefOutput([
         { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
         { id: "tmpB", title: "beta v2", file: "b.ts" },
       ]),
@@ -259,7 +99,7 @@ describe("runPairCase", () => {
     }
 
     const generator = new SequenceGenerator([
-      genOutput([
+      makeBriefOutput([
         { id: "g1", title: "alpha", file: "a.ts" },
         { id: "g2", title: "beta", file: "b.ts" },
       ]),
@@ -284,11 +124,11 @@ describe("runPairCase fresh mode as the vacuous-pass probe", () => {
       throw new Error("no case");
     }
     const generator = new SequenceGenerator([
-      genOutput([
+      makeBriefOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
         { id: "g2", title: "beta", file: "b.ts" },
       ]),
-      genOutput([
+      makeBriefOutput([
         { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
         { id: "tmpB", title: "beta v2", file: "b.ts" },
       ]),
@@ -331,11 +171,11 @@ describe("evaluatePairCase", () => {
       throw new Error("no case");
     }
     const generator = new SequenceGenerator([
-      genOutput([
+      makeBriefOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
         { id: "g2", title: "beta", file: "b.ts" },
       ]),
-      genOutput([
+      makeBriefOutput([
         { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
         { id: "tmpB", title: "beta v2", file: "b.ts" },
       ]),
@@ -379,11 +219,11 @@ describe("evaluatePairCase", () => {
       throw new Error("no case");
     }
     const generator = new SequenceGenerator([
-      genOutput([
+      makeBriefOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
         { id: "g2", title: "beta", file: "b.ts" },
       ]),
-      genOutput([
+      makeBriefOutput([
         { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
         // genOutput derives summary from the title, so an over-cap title
         // produces an over-cap summary (and an over-cap title violation).
@@ -423,11 +263,11 @@ describe("evaluatePairCase", () => {
       throw new Error("no case");
     }
     const outputs = () => [
-      genOutput([
+      makeBriefOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
         { id: "g2", title: "beta", file: "b.ts" },
       ]),
-      genOutput([
+      makeBriefOutput([
         { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
         { id: "tmpB", title: "beta v2", file: "b.ts" },
       ]),
@@ -463,11 +303,11 @@ describe("evaluatePairCase", () => {
       throw new Error("no case");
     }
     const outputs = () => [
-      genOutput([
+      makeBriefOutput([
         { id: "g1", title: "alpha", file: "a.ts", start: 5 },
         { id: "g2", title: "beta", file: "b.ts" },
       ]),
-      genOutput([
+      makeBriefOutput([
         { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
         { id: "tmpB", title: "beta v2", file: "b.ts" },
       ]),

@@ -42,6 +42,7 @@ import {
 } from "./report";
 import { runCase } from "./run";
 import {
+  countPairGenerations,
   evaluatePairCase,
   loadPairCases,
   selectCases,
@@ -624,10 +625,14 @@ async function main(): Promise<void> {
     }
   }
 
-  // Invocation size IS the spend control. A pair case costs TWO generations
-  // per run (base + anchored revision).
-  const generationCount =
-    singleCases.length * args.runs + pairCases.length * args.runs * 2;
+  // Invocation size IS the spend control. A pair case costs up to four
+  // generations per run (base, anchored revision, narrative, delta).
+  const pairMode = args.pairFresh ? "fresh" : "anchored";
+  const pairGenerations = pairCases.reduce(
+    (sum, pairCase) => sum + countPairGenerations(pairCase, pairMode),
+    0,
+  );
+  const generationCount = (singleCases.length + pairGenerations) * args.runs;
   const caseCount = singleCases.length + pairCases.length;
   console.error(
     `${caseCount} case${caseCount === 1 ? "" : "s"} (${pairCases.length} pair${pairCases.length === 1 ? "" : "s"}) × ` +
@@ -686,7 +691,7 @@ async function main(): Promise<void> {
       baselineMode,
       OUT_DIR,
       (message) => console.error(message),
-      args.pairFresh ? "fresh" : "anchored",
+      pairMode,
     );
     if (!evaluated.ok) {
       console.error(evaluated.error);

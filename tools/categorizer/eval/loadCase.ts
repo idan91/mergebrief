@@ -22,7 +22,6 @@ import type { EvalProperty } from "./properties";
  */
 
 const FIXTURE_FILE = "fixture.json";
-const GZIPPED_FIXTURE_FILE = "fixture.json.gz";
 
 const PrFileSchema = z.object({
   path: z.string(),
@@ -152,7 +151,7 @@ async function loadOne(
   id: string,
   dir: string,
 ): Promise<Result<EvalCase, string>> {
-  const raw = readFixture(id, dir);
+  const raw = readCaseJson(`case "${id}"`, dir, FIXTURE_FILE);
   if (!raw.ok) {
     return raw;
   }
@@ -201,25 +200,31 @@ async function loadOne(
   return { ok: true, value: { id, dir, fixture, properties } };
 }
 
-/** The case's one fixture file, plain or gzipped, parsed as JSON. */
-function readFixture(id: string, dir: string): Result<unknown, string> {
-  const plainPath = join(dir, FIXTURE_FILE);
-  const gzippedPath = join(dir, GZIPPED_FIXTURE_FILE);
-  const hasPlain = existsSync(plainPath);
-  const hasGzipped = existsSync(gzippedPath);
+/**
+ * A case's one fixture file, plain or as `<fileName>.gz`, parsed as JSON.
+ * `caseLabel` opens every error (`case "x"`, `pair case "x"`).
+ */
+export function readCaseJson(
+  caseLabel: string,
+  dir: string,
+  fileName: string,
+): Result<unknown, string> {
+  const gzippedName = `${fileName}.gz`;
+  const hasPlain = existsSync(join(dir, fileName));
+  const hasGzipped = existsSync(join(dir, gzippedName));
   if (hasPlain && hasGzipped) {
     return {
       ok: false,
-      error: `case "${id}": both ${FIXTURE_FILE} and ${GZIPPED_FIXTURE_FILE} present`,
+      error: `${caseLabel}: both ${fileName} and ${gzippedName} present`,
     };
   }
   if (!hasPlain && !hasGzipped) {
-    return { ok: false, error: `case "${id}": missing ${FIXTURE_FILE}` };
+    return { ok: false, error: `${caseLabel}: missing ${fileName}` };
   }
 
-  const fileName = hasGzipped ? GZIPPED_FIXTURE_FILE : FIXTURE_FILE;
+  const presentName = hasGzipped ? gzippedName : fileName;
   try {
-    const bytes = readFileSync(join(dir, fileName));
+    const bytes = readFileSync(join(dir, presentName));
     const text = hasGzipped
       ? gunzipSync(bytes).toString("utf8")
       : bytes.toString("utf8");
@@ -229,7 +234,7 @@ function readFixture(id: string, dir: string): Result<unknown, string> {
     const reason = error instanceof Error ? error.message : String(error);
     return {
       ok: false,
-      error: `case "${id}": unreadable ${fileName} (${reason})`,
+      error: `${caseLabel}: unreadable ${presentName} (${reason})`,
     };
   }
 }
