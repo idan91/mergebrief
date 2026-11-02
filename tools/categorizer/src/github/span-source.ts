@@ -15,6 +15,7 @@ import type { Result } from "types/utils";
 import { isCommitish, repoSlug } from "./fetch";
 
 const HTTP_STATUS_PATTERN = /\(HTTP (\d{3})\)/;
+const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/;
 /** GitHub refuses to render a diff this size. */
 const TOO_LARGE_STATUSES = new Set<number>([
   HttpStatuses.NOT_ACCEPTABLE,
@@ -36,13 +37,54 @@ const ContentsFileSchema = z.object({
 
 /**
  * The revision span read through `gh`, for the capture script and the dev
- * CLIs: both PR diffs from the compare endpoint, blobs from the contents API.
+ * CLIs: PR diffs and merge bases from the compare endpoint, blobs from the
+ * contents API.
  */
 export function buildGhPrSpanSource(loc: PrLocator): PrSpanSource {
   return {
     fetchPrDiff: (span, signal) => fetchGhPrDiff(loc, span, signal),
     fetchBlob: (blob, signal) => fetchGhBlob(loc, blob, signal),
+    fetchMergeBase: (span, signal) => fetchGhMergeBase(loc, span, signal),
   };
+}
+
+function assertCommitShas(span: PrDiffRef): void {
+  if (!isCommitish(span.base) || !isCommitish(span.head)) {
+    throw new Error(
+      `base/head must be hex commit SHAs; got "${span.base}" / "${span.head}"`,
+    );
+  }
+}
+
+async function fetchGhMergeBase(
+  loc: PrLocator,
+  span: PrDiffRef,
+  signal: AbortSignal,
+): Promise<Result<string, PrSpanFailure>> {
+  assertCommitShas(span);
+  let stdout: string;
+  try {
+    const read = await execFileAsync(
+      "gh",
+      [
+        "api",
+        `repos/${repoSlug(loc)}/compare/${span.base}...${span.head}?per_page=1`,
+        "--jq",
+        ".merge_base_commit.sha",
+      ],
+      { maxBuffer: MAX_BUFFER, signal },
+    );
+    stdout = read.stdout;
+  } catch (error) {
+    signal.throwIfAborted();
+    return { ok: false, error: { kind: readFailureKind(readGhStatus(error)) } };
+  }
+
+  const sha = stdout.trim();
+  if (!FULL_SHA_PATTERN.test(sha)) {
+    return { ok: false, error: { kind: PrSpanFailureKinds.TRANSIENT } };
+  }
+  return { ok: true, value: sha };
 }
 
 async function fetchGhPrDiff(
@@ -50,11 +92,7 @@ async function fetchGhPrDiff(
   span: PrDiffRef,
   signal: AbortSignal,
 ): Promise<Result<string, PrSpanFailure>> {
-  if (!isCommitish(span.base) || !isCommitish(span.head)) {
-    throw new Error(
-      `base/head must be hex commit SHAs; got "${span.base}" / "${span.head}"`,
-    );
-  }
+  assertCommitShas(span);
   try {
     const { stdout } = await execFileAsync(
       "gh",

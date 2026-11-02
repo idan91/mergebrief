@@ -666,6 +666,29 @@ export function arrangeNewHeadPrDiff(
   github.updatePullRequest(PR_REF, { changedFiles });
 }
 
+/** A commit no head descends from: the merge base a rewritten history leaves behind. */
+export const FORK_POINT = "f".repeat(40);
+
+/**
+ * A push that rewrote history: `prevHead` is no ancestor of HEAD_2, so the
+ * revision span is built from both heads' PR diffs, never the fast path.
+ * `betweenHeadsDiff` is what the three-dot compare anchoring reads serves;
+ * left out, that read answers not found as an unarranged compare does.
+ */
+export function arrangeForcePush(
+  github: FakeGitHub,
+  prevHead = HEAD_1,
+  betweenHeadsDiff?: string,
+): void {
+  const compare: { mergeBase: string; diff?: string } = {
+    mergeBase: FORK_POINT,
+  };
+  if (betweenHeadsDiff !== undefined) {
+    compare.diff = betweenHeadsDiff;
+  }
+  github.addCompare(REPO, { base: prevHead, head: HEAD_2 }, compare);
+}
+
 /**
  * The second head's PR diff holds the first head's plus `spanDiff`, so the
  * revision span from HEAD_1 to HEAD_2 is `spanDiff`'s files; the three-dot

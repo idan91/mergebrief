@@ -465,9 +465,6 @@ describe("generate task, changes-package-source from lockfile contents", () => {
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
-    const mergeBases = github
-      .listCalls("fetchMergeBase")
-      .map((call) => call.input);
     const reads = github
       .listCalls("fetchRepoFile")
       .map((call) => call.input as { path: string; ref?: string })
@@ -481,7 +478,6 @@ describe("generate task, changes-package-source from lockfile contents", () => {
     const body = JSON.parse(row?.body ?? "{}") as {
       chunks?: { file: string; riskSurface: string[] }[];
     };
-    expect(mergeBases).not.toContainEqual(expect.objectContaining(span));
     expect(reads).not.toContain(MERGE_BASE);
     expect(reads.filter((ref) => ref !== HEAD_1)).toEqual([HEAD_2, HEAD_2]);
     expect(body.chunks?.map((chunk) => chunk.riskSurface)).toEqual([[]]);

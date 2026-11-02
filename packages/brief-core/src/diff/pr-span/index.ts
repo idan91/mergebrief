@@ -1,3 +1,4 @@
+import type { Result } from "types/utils";
 import { parseHunkSpans, type FileHunkSpans, type HunkSpan } from "../remap";
 import {
   FILES_PER_BASE_RENAME_CANDIDATE,
@@ -7,6 +8,7 @@ import {
 import { buildBaseMovedSpans, buildLineDiffSpans } from "./logic/build-hop";
 import { readChangeRuns } from "./logic/change-runs";
 import { comparePrDiffs, settleBaseRenames } from "./logic/compare-patches";
+import { buildFastForwardSpan } from "./logic/fast-forward-span";
 import {
   formatFallbackPatch,
   formatHeaderOnlyPatch,
@@ -29,6 +31,7 @@ import {
   type PrSpanInput,
   type PrSpanRefs,
   type PrSpanResult,
+  type PrSpanFailure,
   type PrSpanSource,
 } from "./types";
 
@@ -237,35 +240,52 @@ export function buildPrSpan(input: PrSpanInput): PrSpan {
   return assemblePrSpan(settled, input.betweenHeads);
 }
 
-/**
- * Read the revision span through `source`: both heads' PR diffs, the
- * swapped paths of each base-rename candidate, then both blobs of each
- * content-changed file and of each file whose runs match over a moved base
- * with different context. A changed set past the file bound, counting each
- * such file and each candidate as the two changed files it may split into,
- * is `too-large` before any blob read.
- */
-export async function readPrSpan(
+function pickRoundFailure(
+  reads: readonly Result<unknown, PrSpanFailure>[],
+): PrSpanFailure {
+  const failures = reads.flatMap((read) => (read.ok ? [] : [read.error]));
+  return failures.reduce(pickLastingFailure);
+}
+
+async function readFastForwardSpan(
   source: PrSpanSource,
   refs: PrSpanRefs,
+  newPrDiff: string,
   signal: AbortSignal,
 ): Promise<PrSpanResult> {
-  const [prevPrDiff, newPrDiff] = await Promise.all([
-    source.fetchPrDiff({ base: refs.prevBase, head: refs.prevHead }, signal),
-    source.fetchPrDiff({ base: refs.newBase, head: refs.newHead }, signal),
-  ]);
-  if (!prevPrDiff.ok && !newPrDiff.ok) {
-    const error = pickLastingFailure(prevPrDiff.error, newPrDiff.error);
-    return { ok: false, error };
+  const betweenHeads = await source.fetchPrDiff(
+    { base: refs.prevHead, head: refs.newHead },
+    signal,
+  );
+  if (!betweenHeads.ok) {
+    return betweenHeads;
   }
+
+  const span = buildFastForwardSpan({
+    betweenHeadsDiff: betweenHeads.value,
+    newPrDiff,
+  });
+  if (span.changedFiles.length > MAX_SPAN_CHANGED_FILES) {
+    return { ok: false, error: { kind: PrSpanFailureKinds.TOO_LARGE } };
+  }
+  return { ok: true, value: span };
+}
+
+async function readBuiltSpan(
+  source: PrSpanSource,
+  refs: PrSpanRefs,
+  newPrDiff: string,
+  signal: AbortSignal,
+): Promise<PrSpanResult> {
+  const prevPrDiff = await source.fetchPrDiff(
+    { base: refs.prevBase, head: refs.prevHead },
+    signal,
+  );
   if (!prevPrDiff.ok) {
     return prevPrDiff;
   }
-  if (!newPrDiff.ok) {
-    return newPrDiff;
-  }
 
-  const compared = comparePrDiffs(prevPrDiff.value, newPrDiff.value);
+  const compared = comparePrDiffs(prevPrDiff.value, newPrDiff);
   const candidates = compared.filter(hasBaseRenameVerdict);
   const changedCount =
     compared.filter(mayBeChanged).length +
@@ -289,6 +309,42 @@ export async function readPrSpan(
     return betweenHeads;
   }
   return { ok: true, value: assemblePrSpan(settled, betweenHeads.value) };
+}
+
+/**
+ * Read the revision span through `source`. A fast-forward over an unmoved
+ * merge base is the between-heads compare as GitHub serves it, past the
+ * file bound `too-large`. Anything else is built from both heads' PR
+ * diffs: the swapped paths of each base-rename candidate, then both blobs
+ * of each content-changed file and of each file whose runs match over a
+ * moved base with different context. A built span's changed set past the
+ * file bound, counting each such file and each candidate as the two
+ * changed files it may split into, is `too-large` before any blob read.
+ */
+export async function readPrSpan(
+  source: PrSpanSource,
+  refs: PrSpanRefs,
+  signal: AbortSignal,
+): Promise<PrSpanResult> {
+  const reads = await Promise.all([
+    source.fetchMergeBase({ base: refs.prevBase, head: refs.prevHead }, signal),
+    source.fetchMergeBase({ base: refs.newBase, head: refs.newHead }, signal),
+    source.fetchMergeBase({ base: refs.prevHead, head: refs.newHead }, signal),
+    source.fetchPrDiff({ base: refs.newBase, head: refs.newHead }, signal),
+  ]);
+  const [prevMergeBase, newMergeBase, headsMergeBase, newPrDiff] = reads;
+  const hasFailure =
+    !prevMergeBase.ok || !newMergeBase.ok || !headsMergeBase.ok;
+  if (hasFailure || !newPrDiff.ok) {
+    return { ok: false, error: pickRoundFailure(reads) };
+  }
+
+  const isSameMergeBase = prevMergeBase.value === newMergeBase.value;
+  const isFastForward = headsMergeBase.value === refs.prevHead;
+  if (isSameMergeBase && isFastForward) {
+    return readFastForwardSpan(source, refs, newPrDiff.value, signal);
+  }
+  return readBuiltSpan(source, refs, newPrDiff.value, signal);
 }
 
 export {

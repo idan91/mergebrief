@@ -7,6 +7,7 @@ import {
   type BlobRef,
   type PrDiffRef,
   type PrSpanFailure,
+  type PrSpanRefs,
   type PrSpanSource,
 } from "../../../src/diff/pr-span";
 
@@ -125,19 +126,42 @@ export interface StubSourceFixture {
     Record<string, Result<BlobRead, PrSpanFailure> | string>
   >;
   readonly onFetchBlob?: (blob: BlobRef) => void;
+  /** Keyed `<base>..<head>`; a missing key answers a merge base no other pair shares, so no read is a fast-forward unless arranged. */
+  readonly mergeBases?: Readonly<Record<string, Result<string, PrSpanFailure>>>;
 }
 
 export interface StubSource extends PrSpanSource {
   readonly diffCalls: PrDiffRef[];
   readonly blobCalls: BlobRef[];
+  readonly mergeBaseCalls: PrDiffRef[];
+}
+
+/** Merge bases for a fast-forward from `prevHead` to `newHead` over one merge base `mergeBase`. */
+export function makeFastForwardMergeBases(
+  refs: PrSpanRefs,
+  mergeBase: string,
+): Record<string, Result<string, PrSpanFailure>> {
+  return {
+    [`${refs.prevBase}..${refs.prevHead}`]: { ok: true, value: mergeBase },
+    [`${refs.newBase}..${refs.newHead}`]: { ok: true, value: mergeBase },
+    [`${refs.prevHead}..${refs.newHead}`]: { ok: true, value: refs.prevHead },
+  };
 }
 
 export function stubSource(fixture: StubSourceFixture): StubSource {
   const diffCalls: PrDiffRef[] = [];
   const blobCalls: BlobRef[] = [];
+  const mergeBaseCalls: PrDiffRef[] = [];
   return {
     diffCalls,
     blobCalls,
+    mergeBaseCalls,
+    fetchMergeBase(span) {
+      mergeBaseCalls.push(span);
+      const key = `${span.base}..${span.head}`;
+      const mergeBase = fixture.mergeBases?.[key];
+      return Promise.resolve(mergeBase ?? { ok: true, value: `mb:${key}` });
+    },
     fetchPrDiff(span) {
       diffCalls.push(span);
       const diff = fixture.diffs[`${span.base}..${span.head}`];

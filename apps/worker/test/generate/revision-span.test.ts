@@ -14,6 +14,7 @@ import type { Effort, GenerateRequest, Generator } from "generators";
 import { resolveSpanBaseline } from "../../src/task/generate/logic/revision-span";
 import {
   arrangeCompare,
+  arrangeForcePush,
   arrangeNewHeadPrDiff,
   interceptInstallationRepo,
   BASE,
@@ -47,6 +48,8 @@ setUpHarness();
 const OTHER_BASE = "e".repeat(40);
 /** A head pushed while a run is still writing its span artifacts. */
 const NEWER_HEAD = "f".repeat(40);
+/** Main before the catch-up merge: the first head's merge base with BASE. */
+const OLDER_MAIN = "9".repeat(40);
 /** A reviewer's checkpoint SHA no Brief was ever written for. */
 const UNBRIEFED_HEAD = "d".repeat(40);
 
@@ -234,6 +237,7 @@ describe("generate task, the revision span on the PR's own diffs", () => {
   it("marks and narrates only the files the PR's own change moved", async () => {
     const github = makeGitHub(HEAD_1);
     arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    arrangeForcePush(github);
     const second = await pushSecondHead(github);
     const generator = stubGenerator();
 
@@ -246,9 +250,30 @@ describe("generate task, the revision span on the PR's own diffs", () => {
     expect(generator.calls).toContain("delta");
   });
 
+  it("marks a plain push from the compare between the heads", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, C_PR_DIFF);
+    const second = await pushSecondHead(github);
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(second.payload);
+
+    const { marks } = await readSpanBodies(second.pr);
+    const paths = marks.files.map((entry: { file: string }) => entry.file);
+    expect(paths).toEqual(["c.ts"]);
+    expect(listCompareSpans(github)).not.toContain("c...a");
+    const prevHeadBlobs = github
+      .listCalls("fetchRepoFile")
+      .filter((call) => (call.input as { ref?: string }).ref === HEAD_1);
+    expect(prevHeadBlobs).toEqual([]);
+    expect(generator.calls).toContain("delta");
+  });
+
   it("writes three no-change records and spends nothing on an unchanged push", async () => {
     const github = makeGitHub(HEAD_1);
     arrangePrDiffs(github, A_PR_DIFF, A_PR_DIFF);
+    arrangeForcePush(github);
     const spend = { maxGenerationsPerDay: 2 };
     const second = await pushSecondHead(github, { spend });
     const generator = stubGenerator();
@@ -278,6 +303,11 @@ describe("generate task, the revision span on the PR's own diffs", () => {
   it("reads a catch-up merge of main on one base as unchanged", async () => {
     const github = makeGitHub(HEAD_1);
     arrangePrDiffs(github, A_PR_DIFF, A_PR_DIFF);
+    github.addCompare(
+      REPO,
+      { base: BASE, head: HEAD_1 },
+      { diff: A_PR_DIFF, mergeBase: OLDER_MAIN },
+    );
     arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, MAIN_MERGE_DIFF);
     const second = await pushSecondHead(github);
     const generator = stubGenerator();
@@ -300,6 +330,7 @@ describe("generate task, the revision span on the PR's own diffs", () => {
       `${A_PR_DIFF}${makeBinaryPrDiff("4444444")}`,
       `${A_PR_DIFF}${makeBinaryPrDiff("7777777")}`,
     );
+    arrangeForcePush(github);
     const second = await pushSecondHead(github);
     const generator = stubGenerator();
 
@@ -331,6 +362,7 @@ describe("generate task, the revision span on the PR's own diffs", () => {
   it("keeps the config's narrative skip over an unchanged push", async () => {
     const github = makeGitHub(HEAD_1);
     arrangePrDiffs(github, A_PR_DIFF, A_PR_DIFF);
+    arrangeForcePush(github);
     const revisionNarrative = { enabled: false };
     const second = await pushSecondHead(github, { revisionNarrative });
 
@@ -368,6 +400,7 @@ describe("generate task, the revision span on the PR's own diffs", () => {
       { base: OTHER_BASE, head: UNBRIEFED_HEAD },
       A_PR_DIFF,
     );
+    arrangeForcePush(github, UNBRIEFED_HEAD);
     const second = await pushSecondHead(github);
     await checkpointReviewerAt(second.pr, UNBRIEFED_HEAD);
     github.updatePullRequest(PR_REF, { headSha: HEAD_2, baseSha: OTHER_BASE });
@@ -507,6 +540,7 @@ describe("generate task, the refs a span's marks row certifies", () => {
   it("reads a returning head's span from its highest-index Brief", async () => {
     const github = makeGitHub(HEAD_1);
     arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`, OTHER_BASE);
+    arrangeForcePush(github);
     arrangeCompare(github, { base: OTHER_BASE, head: HEAD_1 }, A_PR_DIFF);
     const second = await pushSecondHead(github);
     await makeTask({ github })(second.payload);

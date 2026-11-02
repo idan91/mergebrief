@@ -157,9 +157,10 @@ describe("generate task, a refused revision span", () => {
 
     await task(second.payload);
 
-    const spanReads = github
-      .listCalls("fetchCheckedCompareDiff")
-      .filter((call) => JSON.stringify(call.input).includes(HEAD_1));
+    const spanReads = github.listCalls("fetchMergeBase").filter((call) => {
+      const { base, head } = call.input as { base: string; head: string };
+      return base === HEAD_1 && head === HEAD_2;
+    });
     expect(spanReads).toHaveLength(1);
     expect(generator.calls).not.toContain("delta");
     const delta = await createArtifactStore(harness.handle, ctx).deltas.get(

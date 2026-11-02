@@ -59,6 +59,11 @@ export interface PrSpanSource {
     blob: BlobRef,
     signal: AbortSignal,
   ): Promise<Result<BlobRead, PrSpanFailure>>;
+  /** The full SHA a `base...head` diff is taken from; heads with no common history read `unavailable`. */
+  fetchMergeBase(
+    span: PrDiffRef,
+    signal: AbortSignal,
+  ): Promise<Result<string, PrSpanFailure>>;
 }
 
 export const BetweenHeadsKinds = {
@@ -92,6 +97,12 @@ export interface PrSpanInput {
   readonly betweenHeads: ReadonlyMap<string, BetweenHeadsFile>;
   /** New-head paths of base renames confirmed by absence at the swapped paths; any other candidate reads as two changed files. */
   readonly baseRenames?: ReadonlySet<string>;
+}
+
+export interface FastForwardSpanInput {
+  /** `prevHead...newHead`: on a fast-forward, every commit the push added. */
+  readonly betweenHeadsDiff: string;
+  readonly newPrDiff: string;
 }
 
 /**

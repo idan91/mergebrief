@@ -176,9 +176,8 @@ describe("generate task, a checkpoint span too large for its delta", () => {
       skipped: "span-too-large",
     });
     const lockfileReads = github.calls.filter((call) => {
-      const { path, ref } = call.input as { path?: string; ref?: string };
-      const isSummaryRead = path === "pnpm-lock.yaml" && ref === BASE;
-      return call.operation === "fetchMergeBase" || isSummaryRead;
+      const { path } = call.input as { path?: string };
+      return path === "pnpm-lock.yaml";
     });
     expect(lockfileReads).toEqual([]);
   });

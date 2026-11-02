@@ -13,6 +13,7 @@ import {
   BASE,
   buildRepoFile,
   captureLogger,
+  FORK_POINT,
   ctx,
   CUSTOM_RISK,
   CUSTOM_RISK_POLICY,
@@ -162,6 +163,8 @@ describe("generate task, anchored generation", () => {
     rev2RowLeavesScope?: boolean;
     /** Fail the second revision's compare-files fetch. */
     rev2CompareFilesError?: FakeFailure;
+    /** The second head rewrote history: the span's merge base is no previous head. */
+    rev2ForcePush?: boolean;
     rev1Output?: unknown;
     /** A repo policy the first revision sees and the second no longer does. */
     rev1OnlyPolicy?: string;
@@ -183,16 +186,20 @@ describe("generate task, anchored generation", () => {
       );
     }
     const { logger, readLines } = captureLogger();
-    arrangeCompare(
-      github,
-      SPAN,
-      DIFF_TOUCHING_B,
-      options.compareFilesEntry ?? {
-        files: [{ filename: "b.ts", status: "modified" }],
-        complete: true,
-        status: "ahead",
-      },
-    );
+    const compareFiles = options.compareFilesEntry ?? {
+      files: [{ filename: "b.ts", status: "modified" }],
+      complete: true,
+      status: "ahead",
+    };
+    if (options.rev2ForcePush === true) {
+      github.addCompare(REPO, SPAN, {
+        diff: DIFF_TOUCHING_B,
+        files: compareFiles,
+        mergeBase: FORK_POINT,
+      });
+    } else {
+      arrangeCompare(github, SPAN, DIFF_TOUCHING_B, compareFiles);
+    }
     const overrides: Mutable<TaskOverrides> = {
       generator,
       github,
@@ -571,6 +578,7 @@ describe("generate task, anchored generation", () => {
         complete: true,
         status: "diverged",
       },
+      rev2ForcePush: true,
     });
     const row = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,

@@ -13,6 +13,7 @@ import type {
   Generator,
 } from "generators";
 import type * as BriefCoreModule from "brief-core";
+import type { PrDiffRef } from "brief-core/pr-span";
 import type { ReviewComment } from "brief-core/types";
 import type * as GithubModule from "../../src/github";
 import type { PrSource } from "../../src/github";
@@ -157,6 +158,10 @@ function fakeSource(sha: string = HEAD): PrSource {
     resolveFullSha: vi.fn(async (_loc, ref) => ref),
     buildSpanSource: vi.fn(() => ({
       fetchPrDiff: async () => ({ ok: true as const, value: diff }),
+      fetchMergeBase: async (span: PrDiffRef) => ({
+        ok: true as const,
+        value: `merge base of ${span.base}...${span.head}`,
+      }),
       fetchBlob: async () => ({
         ok: true as const,
         value: { kind: "absent" as const },

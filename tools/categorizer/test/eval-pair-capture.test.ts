@@ -79,14 +79,25 @@ interface StubSpanSource extends PrSpanSource {
 function stubSpanSource(
   failure?: PrSpanFailure,
   newPrDiff = `${A_PATCH}${B_PATCH}`,
+  isFastForward = false,
 ): StubSpanSource {
   const diffReads: PrDiffRef[] = [];
   return {
     diffReads,
+    async fetchMergeBase(span): Promise<Result<string, PrSpanFailure>> {
+      if (span.base === PREV_HEAD) {
+        const mergeBase = isFastForward ? PREV_HEAD : "older";
+        return { ok: true, value: mergeBase };
+      }
+      return { ok: true, value: PR_BASE };
+    },
     async fetchPrDiff(span): Promise<Result<string, PrSpanFailure>> {
       diffReads.push(span);
       if (failure !== undefined) {
         return { ok: false, error: failure };
+      }
+      if (span.base === PREV_HEAD) {
+        return { ok: true, value: B_PATCH };
       }
       const diff = span.head === PREV_HEAD ? A_PATCH : newPrDiff;
       return { ok: true, value: diff };
@@ -162,6 +173,28 @@ describe("capturePair", () => {
     expect(file.reviewComments).toEqual([COMMENT]);
   });
 
+  it("reads the previous PR diff a fast-forward span skipped", async () => {
+    const span = stubSpanSource(undefined, `${A_PATCH}${B_PATCH}`, true);
+
+    const captured = await capturePair(
+      READS,
+      span,
+      REQUEST,
+      new AbortController().signal,
+    );
+
+    if (!captured.ok) {
+      throw new Error(captured.error);
+    }
+    expect(captured.value.base.pr.diff).toBe(A_PATCH);
+    expect(captured.value.increment.filteredSpan).toBe(B_PATCH);
+    expect(span.diffReads).toEqual([
+      { base: PR_BASE, head: NEW_HEAD },
+      { base: PREV_HEAD, head: NEW_HEAD },
+      { base: PR_BASE, head: PREV_HEAD },
+    ]);
+  });
+
   it("keeps the review comments written by the head's commit date", async () => {
     const reads = stubCaptureReads();
 
@@ -188,8 +221,8 @@ describe("capturePair", () => {
 
     expect(captured.ok).toBe(true);
     expect(span.diffReads).toEqual([
-      { base: RETARGET_BASE, head: PREV_HEAD },
       { base: PR_BASE, head: NEW_HEAD },
+      { base: RETARGET_BASE, head: PREV_HEAD },
     ]);
     expect(captured.ok && captured.value.increment.baseShaMoved).toBe(true);
   });

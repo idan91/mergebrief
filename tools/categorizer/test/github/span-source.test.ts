@@ -77,6 +77,55 @@ describe("buildGhPrSpanSource fetchPrDiff", () => {
   });
 });
 
+describe("buildGhPrSpanSource fetchMergeBase", () => {
+  beforeEach(() => {
+    execFileAsync.mockReset();
+  });
+
+  it("reads the merge base sha off the compare endpoint", async () => {
+    execFileAsync.mockResolvedValue({ stdout: `${"d".repeat(40)}\n` });
+    const source = buildGhPrSpanSource(LOC);
+
+    const read = await source.fetchMergeBase(
+      SPAN,
+      new AbortController().signal,
+    );
+
+    expect(read).toEqual({ ok: true, value: "d".repeat(40) });
+    const [, args] = execFileAsync.mock.calls[0] ?? [];
+    expect(args).toContain(
+      `repos/o/r/compare/${SPAN.base}...${SPAN.head}?per_page=1`,
+    );
+  });
+
+  it("reads an answer that is no full sha as transient", async () => {
+    execFileAsync.mockResolvedValue({ stdout: "null\n" });
+    const source = buildGhPrSpanSource(LOC);
+
+    const read = await source.fetchMergeBase(
+      SPAN,
+      new AbortController().signal,
+    );
+
+    expect(read).toEqual({ ok: false, error: { kind: "transient" } });
+  });
+
+  it.each([
+    [404, "unavailable"],
+    [502, "transient"],
+  ])("maps a gh failure with status %s to %s", async (status, kind) => {
+    execFileAsync.mockRejectedValue(stubGhFailure(status));
+    const source = buildGhPrSpanSource(LOC);
+
+    const read = await source.fetchMergeBase(
+      SPAN,
+      new AbortController().signal,
+    );
+
+    expect(read).toEqual({ ok: false, error: { kind } });
+  });
+});
+
 describe("buildGhPrSpanSource fetchBlob", () => {
   beforeEach(() => {
     execFileAsync.mockReset();

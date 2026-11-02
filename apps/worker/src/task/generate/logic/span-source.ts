@@ -18,7 +18,7 @@ import { isPermanentGitHubError, isSpanUnrendered } from "./errors";
 
 type SpanReads = Pick<
   PullRequestSource,
-  "fetchCheckedCompareDiff" | "fetchRepoFileAt"
+  "fetchCheckedCompareDiff" | "fetchRepoFileAt" | "fetchMergeBase"
 >;
 
 /** Bytes GitHub will never serve as file text at this path and ref. */
@@ -72,8 +72,8 @@ function failSpan(error: GitHubCallFailure): Result<never, PrSpanFailure> {
 /**
  * The revision span read over the job's bound GitHub source: each head's PR
  * diff through the checked compare, which refuses a diff short of its
- * declared length or, for the `counted` span, of its file count; and blobs at
- * a ref. The source takes no signal, so an aborted run rejects as each read
+ * declared length or, for the `counted` span, of its file count; blobs at
+ * a ref; and merge bases. The source takes no signal, so an aborted run rejects as each read
  * returns.
  */
 export function buildWorkerPrSpanSource(
@@ -104,6 +104,11 @@ export function buildWorkerPrSpanSource(
         return { ok: true, value: { kind: BlobReadKinds.UNREADABLE } };
       }
       return failSpan(file.error);
+    },
+    async fetchMergeBase(span, signal) {
+      const mergeBase = await reads.fetchMergeBase(span.base, span.head);
+      signal.throwIfAborted();
+      return mergeBase.ok ? mergeBase : failSpan(mergeBase.error);
     },
   };
 }

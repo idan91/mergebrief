@@ -323,8 +323,8 @@ describe("readPrSpan", () => {
     const result = await readPrSpan(source, refs, makeSignal());
 
     expect(source.diffCalls).toEqual([
-      { base: "base1", head: "head1" },
       { base: "base2", head: "head2" },
+      { base: "base1", head: "head1" },
     ]);
     expect(result.ok && result.value.changedFiles).toEqual(["e.ts"]);
     expect(result.ok && result.value.unchangedFiles).toEqual(["f.ts"]);
@@ -583,40 +583,27 @@ describe("readPrSpan", () => {
   });
 
   it.each([
-    [
-      PrSpanFailureKinds.TRANSIENT,
-      PrSpanFailureKinds.TOO_LARGE,
-      PrSpanFailureKinds.TOO_LARGE,
-    ],
-    [
-      PrSpanFailureKinds.TOO_LARGE,
-      PrSpanFailureKinds.TRANSIENT,
-      PrSpanFailureKinds.TOO_LARGE,
-    ],
-    [
-      PrSpanFailureKinds.TRANSIENT,
-      PrSpanFailureKinds.UNAVAILABLE,
-      PrSpanFailureKinds.UNAVAILABLE,
-    ],
-    [
-      PrSpanFailureKinds.UNAVAILABLE,
-      PrSpanFailureKinds.TOO_LARGE,
-      PrSpanFailureKinds.TOO_LARGE,
-    ],
+    PrSpanFailureKinds.TRANSIENT,
+    PrSpanFailureKinds.UNAVAILABLE,
+    PrSpanFailureKinds.TOO_LARGE,
   ])(
-    "prefers the lasting failure of %s and %s",
-    async (prevKind, newKind, expected) => {
+    "ends on a %s new PR diff before reading the previous one",
+    async (kind) => {
       const source = stubSource({
         diffs: {
-          [PREV_SPAN]: { ok: false, error: { kind: prevKind } },
-          [NEW_SPAN]: { ok: false, error: { kind: newKind } },
+          [PREV_SPAN]: {
+            ok: false,
+            error: { kind: PrSpanFailureKinds.TOO_LARGE },
+          },
+          [NEW_SPAN]: { ok: false, error: { kind } },
         },
       });
 
       expect(await readPrSpan(source, REFS, makeSignal())).toEqual({
         ok: false,
-        error: { kind: expected },
+        error: { kind },
       });
+      expect(source.diffCalls).toEqual([{ base: "base1", head: "head2" }]);
     },
   );
 

@@ -73,12 +73,17 @@ export async function capturePair(
       error: `revision span read failed: ${span.error.kind}`,
     };
   }
-  const prevPrDiff = recorded.diffs.get(
-    formatPrDiffKey(refs.prevBase, prevHead),
+  const prevPrDiff = await readRecordedPrDiff(
+    recorded,
+    { base: refs.prevBase, head: prevHead },
+    signal,
   );
+  if (!prevPrDiff.ok) {
+    return prevPrDiff;
+  }
   const newPrDiff = recorded.diffs.get(formatPrDiffKey(refs.newBase, head));
-  if (prevPrDiff === undefined || newPrDiff === undefined) {
-    throw new Error("the span read returned without reading both PR diffs");
+  if (newPrDiff === undefined) {
+    throw new Error("the span read returned without the new head's PR diff");
   }
 
   const headDate = await reads.fetchCommitDate(locator, head);
@@ -92,7 +97,7 @@ export async function capturePair(
     base: shapeCaptureSide(locator, meta, {
       base: refs.prevBase,
       head: prevHead,
-      diff: prevPrDiff,
+      diff: prevPrDiff.value,
       commitCount: prevCount,
     }),
     revised: shapeCaptureSide(locator, meta, {
@@ -194,11 +199,29 @@ interface RecordedPrDiffs {
   diffs: Map<string, string>;
 }
 
+/** The PR diff the span read kept, or, where a fast-forward span skipped it, a fresh read. */
+async function readRecordedPrDiff(
+  recorded: RecordedPrDiffs,
+  span: PrDiffRef,
+  signal: AbortSignal,
+): Promise<Result<string, string>> {
+  const kept = recorded.diffs.get(formatPrDiffKey(span.base, span.head));
+  if (kept !== undefined) {
+    return { ok: true, value: kept };
+  }
+  const read = await recorded.source.fetchPrDiff(span, signal);
+  if (!read.ok) {
+    return { ok: false, error: `PR diff read failed: ${read.error.kind}` };
+  }
+  return read;
+}
+
 /** A span source that keeps each PR diff it reads, so the capture stores what the span was built from. */
 function recordPrDiffs(inner: PrSpanSource): RecordedPrDiffs {
   const diffs = new Map<string, string>();
   const source: PrSpanSource = {
     fetchBlob: (blob, signal) => inner.fetchBlob(blob, signal),
+    fetchMergeBase: (span, signal) => inner.fetchMergeBase(span, signal),
     async fetchPrDiff(span, signal) {
       const read = await inner.fetchPrDiff(span, signal);
       if (read.ok) {

@@ -25,6 +25,7 @@ function stubReads(
   diff: Result<string, GitHubCallFailure>,
   file: Result<RepoFileResult, GitHubCallFailure>,
   counted?: CountedPrDiff,
+  mergeBase: Result<string, GitHubCallFailure> = { ok: true, value: "mb" },
 ) {
   const calls: ReadCall[] = [];
   return {
@@ -38,6 +39,10 @@ function stubReads(
         fetchRepoFileAt: (...args) => {
           calls.push({ args });
           return Promise.resolve(file);
+        },
+        fetchMergeBase: (...args) => {
+          calls.push({ args });
+          return Promise.resolve(mergeBase);
         },
       },
       counted,
@@ -160,6 +165,46 @@ describe("buildWorkerPrSpanSource PR diff reads", () => {
     await expect(source.fetchPrDiff(SPAN, controller.signal)).rejects.toThrow(
       "superseded",
     );
+  });
+});
+
+describe("buildWorkerPrSpanSource merge-base reads", () => {
+  it("reads the merge base of the span", async () => {
+    const { source, calls } = stubReads(OK_DIFF, OK_FILE);
+
+    const read = await source.fetchMergeBase(SPAN, makeSignal());
+
+    expect(read).toEqual({ ok: true, value: "mb" });
+    expect(calls).toEqual([{ args: ["base1", "head1"] }]);
+  });
+
+  it.each([
+    [
+      HttpStatuses.NOT_FOUND,
+      GitHubApiErrorCodes.NOT_FOUND,
+      PrSpanFailureKinds.UNAVAILABLE,
+    ],
+    [502, GitHubApiErrorCodes.REQUEST_FAILED, PrSpanFailureKinds.TRANSIENT],
+  ])("maps a %i %s merge-base read to %s", async (status, code, kind) => {
+    const failure = {
+      ok: false,
+      error: makeHttpFailure(status, code),
+    } as const;
+    const { source } = stubReads(OK_DIFF, OK_FILE, undefined, failure);
+
+    const read = await source.fetchMergeBase(SPAN, makeSignal());
+
+    expect(read).toEqual({ ok: false, error: { kind } });
+  });
+
+  it("rejects a merge-base read with the abort reason", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("superseded"));
+    const { source } = stubReads(OK_DIFF, OK_FILE);
+
+    await expect(
+      source.fetchMergeBase(SPAN, controller.signal),
+    ).rejects.toThrow("superseded");
   });
 });
 
