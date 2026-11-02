@@ -55,6 +55,7 @@ import {
   storeAnotherRunsEntry,
   stubGenerator,
   trigger,
+  countStartedRuns,
 } from "./helpers";
 
 setUpHarness();
@@ -93,16 +94,6 @@ async function countAttempts(): Promise<number> {
     "select count(*)::int as total from generation_attempt",
   );
   return Number(rows[0]?.["total"]);
-}
-
-const RUN_WINDOW_MS = 60_000;
-
-async function countStartedRuns(): Promise<number> {
-  const now = Date.now();
-  return createGenerationProjection(harness.handle, ctx).countStartedRuns({
-    from: new Date(now - RUN_WINDOW_MS),
-    to: new Date(now + RUN_WINDOW_MS),
-  });
 }
 
 async function countGenerateJobs(): Promise<number> {

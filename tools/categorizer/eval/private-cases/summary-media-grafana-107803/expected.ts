@@ -3,7 +3,7 @@ import {
   buildSummaryMediaGuards,
   listShownKeys,
   readItemKey,
-} from "../summary-media-props";
+} from "../../summary-media-props";
 
 /**
  * grafana/grafana#107803: the description's one Media item is a Mermaid

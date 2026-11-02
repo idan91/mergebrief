@@ -20,6 +20,7 @@ import {
   SequenceGenerator,
   makeBriefOutput,
   makePairJson,
+  readBaseInputFingerprint,
   writePairCase,
 } from "./pair-fixtures";
 
@@ -127,6 +128,7 @@ export const deltaReadsReviewComments = true;
 
 const STORED_BASE_BRIEF = makeBrief({
   commitRange: { base: "basesha", head: PREV_HEAD, commitCount: 1 },
+  inputFingerprint: await readBaseInputFingerprint(),
 });
 
 function makeNarrativeOutput(groupId: string): unknown {
@@ -308,7 +310,11 @@ describe("loadPairCases with the narrative and delta opt-in", () => {
     const root = writePairCase(
       "wrong-head",
       EXPECTED_TS,
-      makePairJson({ baseBrief: makeBrief() }),
+      makePairJson({
+        baseBrief: makeBrief({
+          inputFingerprint: STORED_BASE_BRIEF.inputFingerprint,
+        }),
+      }),
     );
 
     expect(await readLoadError(root)).toContain("baseBrief");
@@ -504,6 +510,17 @@ describe("runPairCase with the narrative and delta opt-in", () => {
 
     expect(result.deltas[0]?.unknownGroupChunkIds).toEqual(["dc1"]);
     expect(result.deltas[0]?.delta).toMatchObject({ chunks: [] });
+  });
+
+  it("refuses a stored base brief without its input fingerprint", async () => {
+    const { inputFingerprint: _dropped, ...unstamped } = STORED_BASE_BRIEF;
+    const root = writePairCase(
+      "unstamped",
+      EXPECTED_TS,
+      makePairJson({ baseBrief: unstamped }),
+    );
+
+    expect(await readLoadError(root)).toContain("inputFingerprint");
   });
 
   it("uses the stored base brief instead of generating one", async () => {
@@ -716,6 +733,7 @@ describe("evaluatePairCase with the narrative and delta opt-in", () => {
 function makeCarryingBrief() {
   return makeBrief({
     commitRange: { base: "basesha", head: PREV_HEAD, commitCount: 1 },
+    inputFingerprint: STORED_BASE_BRIEF.inputFingerprint,
     chunks: [
       {
         id: "c1",

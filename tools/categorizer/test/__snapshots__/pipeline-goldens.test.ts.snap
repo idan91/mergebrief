@@ -130,6 +130,7 @@ exports[`adversarial stitch goldens > pair-additive stitches the adversarial out
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -280,6 +281,7 @@ exports[`adversarial stitch goldens > pair-additive-multi-call stitches the adve
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -460,6 +462,7 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "2dbbfeef964e4f50eeb49d7a5d4bce35835cf0a00c5cd6e01ae843980ef26d85",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -648,6 +651,7 @@ exports[`adversarial stitch goldens > pair-boundary-restructure stitches the adv
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "2b29a238792142332b8eb82b3deae95cb231da19f908dfbd66b78d73fdd9b1fd",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -846,6 +850,7 @@ exports[`adversarial stitch goldens > pair-boundary-restructure-multi-call stitc
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "2b29a238792142332b8eb82b3deae95cb231da19f908dfbd66b78d73fdd9b1fd",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -1092,6 +1097,7 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
     "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -1344,6 +1350,7 @@ exports[`adversarial stitch goldens > pair-force-push-amend-multi-call stitches 
     "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -1555,6 +1562,7 @@ exports[`adversarial stitch goldens > pair-force-push-squash stitches the advers
     "provider": "fixture"
   },
   "index": 2,
+  "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
   "intentCheck": {
     "accomplished": [
       {
@@ -1767,6 +1775,7 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -1955,6 +1964,7 @@ exports[`adversarial stitch goldens > pair-meaning-changing stitches the adversa
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -2005,6 +2015,827 @@ exports[`adversarial stitch goldens > pair-meaning-changing stitches the adversa
       "removedRanges": []
     }
   ]
+}"
+`;
+
+exports[`adversarial stitch goldens > pair-media-description-edit stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [
+      "g1",
+      "g2",
+      "g3"
+    ],
+    "regenerated": []
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "new-feature",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+      "title": "Compute the backoff wait",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+      "title": "Configure the retry limits",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+      "title": "Retry a failed delivery",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/webhooks/backoff.ts",
+      "id": "c1",
+      "loc": {
+        "added": 8,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 4
+        },
+        {
+          "end": 15,
+          "start": 14
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "src/webhooks/config.ts",
+      "id": "c2",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 24,
+          "start": 9
+        },
+        {
+          "end": 37,
+          "start": 29
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "src/webhooks/deliver.ts",
+      "id": "c3",
+      "loc": {
+        "added": 26,
+        "deleted": 6
+      },
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 12
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+    "commitCount": 3,
+    "head": "231b2b5410a93bf32e67ca7a19b913b4a85806e5"
+  },
+  "concernView": [
+    {
+      "added": 38,
+      "concern": "implementation",
+      "deleted": 6
+    }
+  ],
+  "diffTotals": {
+    "added": 38,
+    "deleted": 6
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)"
+  ],
+  "index": 2,
+  "inputFingerprint": "d1808622b3211656344417e9d9d9c3531a993c54c7da80c89133070062892556",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g1"
+        ],
+        "intent": "Canned unstated work in g1",
+        "quote": "",
+        "sourceUrl": ""
+      },
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g2"
+        ],
+        "intent": "Canned unstated work in g2",
+        "quote": "",
+        "sourceUrl": ""
+      },
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g3"
+        ],
+        "intent": "Canned unstated work in g3",
+        "quote": "",
+        "sourceUrl": ""
+      }
+    ],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "precise",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "pr": {
+    "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 503\\n  Note over W: wait 1000 ms\\n  W->>E: attempt 3\\n  E-->>W: 200\\n\`\`\`",
+    "number": 9019,
+    "repo": "Idan91/code-review",
+    "sha": "231b2b5410a93bf32e67ca7a19b913b4a85806e5",
+    "title": "Retry failed webhook deliveries with backoff",
+    "url": "https://github.com/Idan91/code-review/pull/9019"
+  },
+  "summary": "Canned adversarial brief over 4 chunk(s).",
+  "unattributed": []
+}"
+`;
+
+exports[`adversarial stitch goldens > pair-media-fast-forward stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [
+      "g2",
+      "g3"
+    ],
+    "regenerated": [
+      "g1"
+    ]
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "new-feature",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+      "title": "Configure the retry limits",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+      "title": "Retry a failed delivery",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches src/webhooks/backoff.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned f",
+      "title": "Reuses g2",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 4
+        },
+        {
+          "end": 15,
+          "start": 14
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "src/webhooks/config.ts",
+      "id": "c2",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 24,
+          "start": 9
+        },
+        {
+          "end": 37,
+          "start": 29
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "src/webhooks/deliver.ts",
+      "id": "c3",
+      "loc": {
+        "added": 26,
+        "deleted": 6
+      },
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 12
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 16,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/webhooks/backoff.ts",
+      "id": "c1",
+      "loc": {
+        "added": 16,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 16,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/webhooks/backoff.ts",
+      "id": "c5",
+      "loc": {
+        "added": 16,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "supporting"
+    }
+  ],
+  "commitRange": {
+    "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+    "commitCount": 4,
+    "head": "b088469d24c5ceaa14670bcfa9df146e9e331ed4"
+  },
+  "concernView": [
+    {
+      "added": 62,
+      "concern": "implementation",
+      "deleted": 6
+    }
+  ],
+  "diffTotals": {
+    "added": 46,
+    "deleted": 6
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g2 without its files — treated as a numbering slip, not a claim\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ loc overlap issues:\\nchunks c1 and c5 (src/webhooks/backoff.ts) both claim added line(s) 1-16 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (src/webhooks/backoff.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g1"
+        ],
+        "intent": "Canned unstated work in g2",
+        "quote": "",
+        "sourceUrl": ""
+      },
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g3"
+        ],
+        "intent": "Canned unstated work in g3",
+        "quote": "",
+        "sourceUrl": ""
+      },
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g2"
+        ],
+        "intent": "Canned unstated work in t1",
+        "quote": "",
+        "sourceUrl": ""
+      }
+    ],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "precise",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+    "number": 9018,
+    "repo": "Idan91/code-review",
+    "sha": "b088469d24c5ceaa14670bcfa9df146e9e331ed4",
+    "title": "Retry failed webhook deliveries with backoff",
+    "url": "https://github.com/Idan91/code-review/pull/9018"
+  },
+  "summary": "Canned adversarial brief over 5 chunk(s).",
+  "unattributed": []
+}"
+`;
+
+exports[`adversarial stitch goldens > pair-media-fast-forward-multi-call stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [
+      "g2",
+      "g3"
+    ],
+    "regenerated": [
+      "g1"
+    ]
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "new-feature",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+      "title": "Configure the retry limits",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+      "title": "Retry a failed delivery",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches src/webhooks/backoff.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned f",
+      "title": "Changes under src/webhooks",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 4
+        },
+        {
+          "end": 15,
+          "start": 14
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "src/webhooks/config.ts",
+      "id": "c2",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 24,
+          "start": 9
+        },
+        {
+          "end": 37,
+          "start": 29
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "src/webhooks/deliver.ts",
+      "id": "c3",
+      "loc": {
+        "added": 26,
+        "deleted": 6
+      },
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 12
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 16,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/webhooks/backoff.ts",
+      "id": "c1",
+      "loc": {
+        "added": 16,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+    "commitCount": 4,
+    "head": "b088469d24c5ceaa14670bcfa9df146e9e331ed4"
+  },
+  "concernView": [
+    {
+      "added": 46,
+      "concern": "implementation",
+      "deleted": 6
+    }
+  ],
+  "diffTotals": {
+    "added": 46,
+    "deleted": 6
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "⚠ reading order issues:\\nreadingOrder is missing group \\"g2\\"\\nreadingOrder is missing group \\"g3\\"",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "none",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "outlineForm": "full",
+  "pr": {
+    "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+    "number": 9018,
+    "repo": "Idan91/code-review",
+    "sha": "b088469d24c5ceaa14670bcfa9df146e9e331ed4",
+    "title": "Retry failed webhook deliveries with backoff",
+    "url": "https://github.com/Idan91/code-review/pull/9018"
+  },
+  "summary": "Canned grouping over 1 changed file(s).",
+  "unattributed": []
+}"
+`;
+
+exports[`adversarial stitch goldens > pair-media-no-change stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [
+      "g1",
+      "g2",
+      "g3"
+    ],
+    "regenerated": []
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "new-feature",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+      "title": "Compute the backoff wait",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g2",
+      "secondaryCategories": [],
+      "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+      "title": "Configure the retry limits",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "dominantCategory": "new-feature",
+      "id": "g3",
+      "secondaryCategories": [],
+      "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+      "title": "Retry a failed delivery",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 8,
+          "start": 1
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "src/webhooks/backoff.ts",
+      "id": "c1",
+      "loc": {
+        "added": 8,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 5,
+          "start": 4
+        },
+        {
+          "end": 15,
+          "start": 14
+        }
+      ],
+      "changeGroupId": "g2",
+      "concern": "implementation",
+      "file": "src/webhooks/config.ts",
+      "id": "c2",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 1,
+          "start": 1
+        },
+        {
+          "end": 24,
+          "start": 9
+        },
+        {
+          "end": 37,
+          "start": 29
+        }
+      ],
+      "changeGroupId": "g3",
+      "concern": "implementation",
+      "file": "src/webhooks/deliver.ts",
+      "id": "c3",
+      "loc": {
+        "added": 26,
+        "deleted": 6
+      },
+      "removedRanges": [
+        {
+          "end": 17,
+          "start": 12
+        }
+      ],
+      "riskSurface": [],
+      "role": "core"
+    }
+  ],
+  "commitRange": {
+    "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+    "commitCount": 1,
+    "head": "2dd0e5ed062042dce1377e99d74779c7598089f1"
+  },
+  "concernView": [
+    {
+      "added": 38,
+      "concern": "implementation",
+      "deleted": 6
+    }
+  ],
+  "diffTotals": {
+    "added": 38,
+    "deleted": 6
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "hand-written",
+    "provider": "fixture"
+  },
+  "index": 2,
+  "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+  "intentCheck": {
+    "accomplished": [
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g3",
+          "g1"
+        ],
+        "intent": "a failed delivery retries with exponential backoff",
+        "quote": "Retries a failed webhook delivery with exponential backoff instead of dropping it",
+        "sourceUrl": ""
+      },
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g2"
+        ],
+        "intent": "WEBHOOK_MAX_ATTEMPTS caps the attempts and WEBHOOK_BASE_DELAY_MS sets the first wait",
+        "quote": "\`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait",
+        "sourceUrl": ""
+      }
+    ],
+    "deviations": [],
+    "doneButUnstated": [],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "precise",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "pr": {
+    "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+    "number": 9017,
+    "repo": "Idan91/code-review",
+    "sha": "2dd0e5ed062042dce1377e99d74779c7598089f1",
+    "title": "Retry failed webhook deliveries with backoff",
+    "url": "https://github.com/Idan91/code-review/pull/9017"
+  },
+  "readingOrder": [
+    {
+      "groupId": "g2",
+      "why": "adds the two settings the retry reads"
+    },
+    {
+      "groupId": "g1",
+      "why": "computes the wait between attempts"
+    },
+    {
+      "groupId": "g3",
+      "why": "loops the delivery over those settings and waits"
+    }
+  ],
+  "summary": "Retries a failed webhook delivery with exponential backoff instead of dropping it: up to WEBHOOK_MAX_ATTEMPTS attempts, waiting WEBHOOK_BASE_DELAY_MS doubled after each failure.",
+  "summaryMedia": {
+    "pointer": {
+      "items": [
+        "mermaid:5d39d2d8ea60a44b49f83d5784b6f5794092b8da37b88b502dc2da57f04ff7a5"
+      ],
+      "label": "Timing"
+    },
+    "shown": [
+      {
+        "key": "mermaid:b4966578b7bf8fde7a12d8d934347012e84cb412c470c740ac71a52cbd6bbe2a",
+        "position": "after-lede"
+      }
+    ]
+  },
+  "unattributed": []
 }"
 `;
 
@@ -2186,6 +3017,7 @@ exports[`adversarial stitch goldens > pair-merge-main-noop stitches the adversar
     "provider": "fixture"
   },
   "index": 2,
+  "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
   "intentCheck": {
     "accomplished": [
       {
@@ -2264,23 +3096,13 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
   },
   "anchoring": {
     "carried": [
-      "g1",
       "g2"
     ],
     "regenerated": [
-      "g3"
+      "g1"
     ]
   },
   "changeGroups": [
-    {
-      "dominantCategory": "logic-refactor",
-      "id": "g1",
-      "secondaryCategories": [],
-      "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
-      "title": "Changes under packages/logging/src",
-      "uncertain": false,
-      "uncertainBetween": []
-    },
     {
       "dominantCategory": "logic-refactor",
       "id": "g2",
@@ -2292,34 +3114,15 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
     },
     {
       "dominantCategory": "logic-refactor",
-      "id": "g3",
+      "id": "g1",
       "secondaryCategories": [],
-      "summary": "Touches packages/api/src/routes/version.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fill",
-      "title": "Reuses g1",
+      "summary": "Touches packages/logging/src/redact.ts, packages/api/src/routes/version.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned ",
+      "title": "Claims g1",
       "uncertain": false,
       "uncertainBetween": []
     }
   ],
   "chunks": [
-    {
-      "addedRanges": [
-        {
-          "end": 7,
-          "start": 4
-        }
-      ],
-      "changeGroupId": "g1",
-      "concern": "implementation",
-      "file": "packages/logging/src/redact.ts",
-      "id": "c1",
-      "loc": {
-        "added": 4,
-        "deleted": 0
-      },
-      "removedRanges": [],
-      "riskSurface": [],
-      "role": "core"
-    },
     {
       "addedRanges": [
         {
@@ -2351,11 +3154,30 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
     {
       "addedRanges": [
         {
+          "end": 7,
+          "start": 4
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/logging/src/redact.ts",
+      "id": "c1",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
           "end": 10,
           "start": 1
         }
       ],
-      "changeGroupId": "g3",
+      "changeGroupId": "g1",
       "concern": "implementation",
       "file": "packages/api/src/routes/version.ts",
       "id": "c3",
@@ -2374,7 +3196,7 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
           "start": 1
         }
       ],
-      "changeGroupId": "g3",
+      "changeGroupId": "g1",
       "concern": "implementation",
       "file": "packages/api/src/routes/version.ts",
       "id": "c5",
@@ -2410,14 +3232,15 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
   },
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c3 and c5 (packages/api/src/routes/version.ts) both claim added line(s) 1-10 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues:\\nchunk c3 (packages/api/src/routes/version.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g3 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "78813da510fa7e27dae380336efed93cb949e9a04ba9bad01691bb0c15f6ca5a",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -2425,7 +3248,7 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
       {
         "acknowledged": false,
         "groupIds": [
-          "g3"
+          "g1"
         ],
         "intent": "Canned unstated work in g1",
         "quote": "",
@@ -2437,15 +3260,6 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
           "g2"
         ],
         "intent": "Canned unstated work in g2",
-        "quote": "",
-        "sourceUrl": ""
-      },
-      {
-        "acknowledged": false,
-        "groupIds": [
-          "g1"
-        ],
-        "intent": "Canned unstated work in t1",
         "quote": "",
         "sourceUrl": ""
       }
@@ -2462,12 +3276,6 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
       "actual": 251,
       "cap": 250,
       "field": "group g1 summary",
-      "surface": "group-summary"
-    },
-    {
-      "actual": 251,
-      "cap": 250,
-      "field": "group g3 summary",
       "surface": "group-summary"
     }
   ],
@@ -9566,6 +10374,7 @@ exports[`adversarial stitch goldens > pair-real-sveltekit-2-0 stitches the adver
     "⚠ text length issues:\\ngroup g1 summary is 580 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "5643d3c351debf71b70736e34cd813e196f67aaf7436ac7212dc5a8825b7b81c",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -10369,8 +11178,8 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
       "dominantCategory": "logic-refactor",
       "id": "g1",
       "secondaryCategories": [],
-      "summary": "Touches packages/api/src/config.ts.",
-      "title": "Reuses g3",
+      "summary": "Touches packages/api/src/config.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canne",
+      "title": "Reuses g2",
       "uncertain": false,
       "uncertainBetween": []
     }
@@ -10535,12 +11344,15 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
   },
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept\\ngenerated group reused frozen id g3 without its files — treated as a numbering slip, not a claim\\nfrozen group g4 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g2 without its files — treated as a numbering slip, not a claim\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept\\nfrozen group g4 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c1 and c6 (packages/api/src/config.ts) both claim added line(s) 4, 10-11 — counted in both\\nchunks c1 and c6 (packages/api/src/config.ts) both claim removed line(s) 9 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)"
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/api/src/config.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -10548,7 +11360,7 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
       {
         "acknowledged": false,
         "groupIds": [
-          "g2"
+          "g1"
         ],
         "intent": "Canned unstated work in g2",
         "quote": "",
@@ -10557,7 +11369,7 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
       {
         "acknowledged": false,
         "groupIds": [
-          "g1"
+          "g3"
         ],
         "intent": "Canned unstated work in g3",
         "quote": "",
@@ -10575,7 +11387,7 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
       {
         "acknowledged": false,
         "groupIds": [
-          "g3"
+          "g2"
         ],
         "intent": "Canned unstated work in t1",
         "quote": "",
@@ -10589,6 +11401,14 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
     "ticketTitles": [],
     "ticketUrls": []
   },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
   "pr": {
     "description": "Adds a per-client rate limiter: a client past \`REQUESTS_PER_MINUTE\` (default 120) requests in the window gets a 429, and \`GET /api/limits\` reports the limit. \`MAX_CONNECTIONS\` now sets the connection cap.",
     "number": 9016,
@@ -10608,11 +11428,9 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
     "state": "anchored"
   },
   "anchoring": {
-    "carried": [
-      "g1"
-    ],
+    "carried": [],
     "regenerated": [
-      "g2"
+      "g1"
     ]
   },
   "changeGroups": [
@@ -10620,17 +11438,8 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
       "dominantCategory": "logic-refactor",
       "id": "g1",
       "secondaryCategories": [],
-      "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
-      "title": "Changes under packages/logging/src",
-      "uncertain": false,
-      "uncertainBetween": []
-    },
-    {
-      "dominantCategory": "logic-refactor",
-      "id": "g2",
-      "secondaryCategories": [],
-      "summary": "Touches packages/api/src/routes/health.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned fille",
-      "title": "Reuses g1",
+      "summary": "Touches packages/logging/src/redact.ts, packages/api/src/routes/health.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned f",
+      "title": "Claims g1",
       "uncertain": false,
       "uncertainBetween": []
     }
@@ -10666,7 +11475,7 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
           "start": 16
         }
       ],
-      "changeGroupId": "g2",
+      "changeGroupId": "g1",
       "concern": "implementation",
       "file": "packages/api/src/routes/health.ts",
       "id": "c2",
@@ -10694,7 +11503,7 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
           "start": 16
         }
       ],
-      "changeGroupId": "g2",
+      "changeGroupId": "g1",
       "concern": "implementation",
       "file": "packages/api/src/routes/health.ts",
       "id": "c4",
@@ -10735,14 +11544,15 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
   },
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -10750,18 +11560,9 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
       {
         "acknowledged": false,
         "groupIds": [
-          "g2"
-        ],
-        "intent": "Canned unstated work in g1",
-        "quote": "",
-        "sourceUrl": ""
-      },
-      {
-        "acknowledged": false,
-        "groupIds": [
           "g1"
         ],
-        "intent": "Canned unstated work in t1",
+        "intent": "Canned unstated work in g1",
         "quote": "",
         "sourceUrl": ""
       }
@@ -10778,12 +11579,6 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
       "actual": 251,
       "cap": 250,
       "field": "group g1 summary",
-      "surface": "group-summary"
-    },
-    {
-      "actual": 251,
-      "cap": 250,
-      "field": "group g2 summary",
       "surface": "group-summary"
     }
   ],
@@ -10807,14 +11602,24 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
   },
   "anchoring": {
     "carried": [
+      "g1",
       "g2",
       "g3"
     ],
     "regenerated": [
-      "g1"
+      "g4"
     ]
   },
   "changeGroups": [
+    {
+      "dominantCategory": "new-feature",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "ServerConfig gains requestsPerMinute, read from REQUESTS_PER_MINUTE with a default of 120.",
+      "title": "Configure the request limit",
+      "uncertain": false,
+      "uncertainBetween": []
+    },
     {
       "dominantCategory": "new-feature",
       "id": "g2",
@@ -10835,15 +11640,38 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
     },
     {
       "dominantCategory": "logic-refactor",
-      "id": "g1",
+      "id": "g4",
       "secondaryCategories": [],
-      "summary": "Touches packages/api/src/config.ts, packages/api/src/server.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canne",
-      "title": "Claims g1",
+      "summary": "Touches packages/api/src/server.ts.",
+      "title": "Reuses g2",
       "uncertain": false,
       "uncertainBetween": []
     }
   ],
   "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 4,
+          "start": 4
+        },
+        {
+          "end": 11,
+          "start": 11
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/api/src/config.ts",
+      "id": "c1",
+      "loc": {
+        "added": 2,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
+    },
     {
       "addedRanges": [
         {
@@ -10894,29 +11722,6 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
     {
       "addedRanges": [
         {
-          "end": 4,
-          "start": 4
-        },
-        {
-          "end": 11,
-          "start": 11
-        }
-      ],
-      "changeGroupId": "g1",
-      "concern": "implementation",
-      "file": "packages/api/src/config.ts",
-      "id": "c1",
-      "loc": {
-        "added": 2,
-        "deleted": 0
-      },
-      "removedRanges": [],
-      "riskSurface": [],
-      "role": "core"
-    },
-    {
-      "addedRanges": [
-        {
           "end": 3,
           "start": 3
         },
@@ -10925,7 +11730,7 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
           "start": 8
         }
       ],
-      "changeGroupId": "g1",
+      "changeGroupId": "g4",
       "concern": "implementation",
       "file": "packages/api/src/server.ts",
       "id": "c4",
@@ -10953,7 +11758,7 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
           "start": 8
         }
       ],
-      "changeGroupId": "g1",
+      "changeGroupId": "g4",
       "concern": "implementation",
       "file": "packages/api/src/server.ts",
       "id": "c6",
@@ -10994,15 +11799,14 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
   },
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept\\ngenerated group reused frozen id g2 without its files — treated as a numbering slip, not a claim\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c4 and c6 (packages/api/src/server.ts) both claim added line(s) 3, 8-9 — counted in both\\nchunks c4 and c6 (packages/api/src/server.ts) both claim removed line(s) 7 — counted in both",
     "⚠ loc coverage issues:\\n5 added / 0 removed changed line(s) unattributed to any chunk across 1 file(s)",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues:\\nchunk c1 (packages/api/src/config.ts): dropped comment-contradicts-code — no riskNotes citation",
-    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)"
   ],
   "index": 2,
+  "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -11019,7 +11823,7 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
       {
         "acknowledged": false,
         "groupIds": [
-          "g2"
+          "g4"
         ],
         "intent": "Canned unstated work in g2",
         "quote": "",
@@ -11033,6 +11837,15 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
         "intent": "Canned unstated work in g3",
         "quote": "",
         "sourceUrl": ""
+      },
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g2"
+        ],
+        "intent": "Canned unstated work in t1",
+        "quote": "",
+        "sourceUrl": ""
       }
     ],
     "maskedFixes": [],
@@ -11042,14 +11855,6 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
     "ticketTitles": [],
     "ticketUrls": []
   },
-  "lengthViolations": [
-    {
-      "actual": 251,
-      "cap": 250,
-      "field": "group g1 summary",
-      "surface": "group-summary"
-    }
-  ],
   "pr": {
     "description": "Adds a per-client rate limiter: a client past \`REQUESTS_PER_MINUTE\` (default 120) requests in the window gets a 429, and \`GET /api/limits\` reports the limit. \`MAX_CONNECTIONS\` now sets the connection cap.",
     "number": 9015,
@@ -11075,142 +11880,6 @@ exports[`adversarial stitch goldens > pair-rebase-upstream-same-file stitches th
 `;
 
 exports[`adversarial stitch goldens > pair-risk-add stitches the adversarial output 1`] = `
-"{
-  "anchor": {
-    "state": "anchored"
-  },
-  "anchoring": {
-    "carried": [
-      "g1"
-    ],
-    "regenerated": []
-  },
-  "changeGroups": [
-    {
-      "dominantCategory": "logic-refactor",
-      "id": "g1",
-      "secondaryCategories": [],
-      "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
-      "title": "Changes under packages/logging/src",
-      "uncertain": false,
-      "uncertainBetween": []
-    }
-  ],
-  "chunks": [
-    {
-      "addedRanges": [
-        {
-          "end": 7,
-          "start": 4
-        }
-      ],
-      "changeGroupId": "g1",
-      "concern": "implementation",
-      "file": "packages/logging/src/redact.ts",
-      "id": "c1",
-      "loc": {
-        "added": 4,
-        "deleted": 0
-      },
-      "removedRanges": [],
-      "riskSurface": [],
-      "role": "core"
-    }
-  ],
-  "commitRange": {
-    "base": "0df614960d6981bb326e0b730cf144c4121ba1d4",
-    "commitCount": 2,
-    "head": "35af45dc05160e49cd8dded221422c726b180252"
-  },
-  "concernView": [
-    {
-      "added": 4,
-      "concern": "implementation",
-      "deleted": 0
-    }
-  ],
-  "diffTotals": {
-    "added": 15,
-    "deleted": 1
-  },
-  "generation": {
-    "effort": "medium",
-    "model": "canned-model",
-    "provider": "canned"
-  },
-  "generationWarnings": [
-    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
-    "⚠ unknown group issues:\\nchunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
-    "⚠ loc coverage issues:\\n11 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
-  ],
-  "index": 2,
-  "intentCheck": {
-    "accomplished": [],
-    "deviations": [],
-    "doneButUnstated": [
-      {
-        "acknowledged": false,
-        "groupIds": [
-          "g1"
-        ],
-        "intent": "Canned unstated work in g1",
-        "quote": "",
-        "sourceUrl": ""
-      }
-    ],
-    "maskedFixes": [],
-    "scopeNote": "",
-    "specificity": "precise",
-    "statedButMissing": [],
-    "ticketTitles": [],
-    "ticketUrls": []
-  },
-  "lengthViolations": [
-    {
-      "actual": 251,
-      "cap": 250,
-      "field": "group g1 summary",
-      "surface": "group-summary"
-    }
-  ],
-  "pr": {
-    "description": "Adds a GET /api/health route guarded by requireToken, and extends the logging redaction to strip \`token=\` query parameters.",
-    "number": 9003,
-    "repo": "Idan91/code-review",
-    "sha": "35af45dc05160e49cd8dded221422c726b180252",
-    "title": "Add a token-guarded health endpoint and redact query tokens in logs",
-    "url": "https://github.com/Idan91/code-review/pull/9003"
-  },
-  "summary": "Canned adversarial brief over 4 chunk(s).",
-  "unattributed": [
-    {
-      "addedRanges": [
-        {
-          "end": 13,
-          "start": 4
-        },
-        {
-          "end": 15,
-          "start": 15
-        }
-      ],
-      "file": "packages/api/src/routes/health.ts",
-      "removedRanges": [
-        {
-          "end": 5,
-          "start": 5
-        }
-      ]
-    }
-  ]
-}"
-`;
-
-exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the adversarial output 1`] = `
 "{
   "anchor": {
     "state": "anchored"
@@ -11266,8 +11935,12 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
     {
       "addedRanges": [
         {
-          "end": 16,
-          "start": 1
+          "end": 13,
+          "start": 4
+        },
+        {
+          "end": 15,
+          "start": 15
         }
       ],
       "changeGroupId": "g2",
@@ -11275,18 +11948,27 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
       "file": "packages/api/src/routes/health.ts",
       "id": "c2",
       "loc": {
-        "added": 16,
-        "deleted": 0
+        "added": 11,
+        "deleted": 1
       },
-      "removedRanges": [],
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
       "riskSurface": [],
       "role": "core"
     },
     {
       "addedRanges": [
         {
-          "end": 16,
-          "start": 1
+          "end": 13,
+          "start": 4
+        },
+        {
+          "end": 15,
+          "start": 15
         }
       ],
       "changeGroupId": "g2",
@@ -11294,10 +11976,15 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
       "file": "packages/api/src/routes/health.ts",
       "id": "c4",
       "loc": {
-        "added": 16,
-        "deleted": 0
+        "added": 11,
+        "deleted": 1
       },
-      "removedRanges": [],
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
       "riskSurface": [],
       "role": "supporting"
     }
@@ -11309,14 +11996,14 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
   },
   "concernView": [
     {
-      "added": 36,
+      "added": 26,
       "concern": "implementation",
-      "deleted": 0
+      "deleted": 2
     }
   ],
   "diffTotals": {
-    "added": 20,
-    "deleted": 0
+    "added": 15,
+    "deleted": 1
   },
   "generation": {
     "effort": "medium",
@@ -11326,13 +12013,14 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
-    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 1-16 — counted in both",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "eadd9fbe1f85bd9c50e8843e4ae163558a7806ccc1a8d69af3e448f64eb983b7",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -11390,7 +12078,7 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
 }"
 `;
 
-exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial output 1`] = `
+exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the adversarial output 1`] = `
 "{
   "anchor": {
     "state": "anchored"
@@ -11435,8 +12123,8 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
     {
       "addedRanges": [
         {
-          "end": 15,
-          "start": 15
+          "end": 16,
+          "start": 1
         }
       ],
       "changeGroupId": "g1",
@@ -11444,23 +12132,18 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
       "file": "packages/api/src/routes/health.ts",
       "id": "c2",
       "loc": {
-        "added": 1,
-        "deleted": 1
+        "added": 16,
+        "deleted": 0
       },
-      "removedRanges": [
-        {
-          "end": 15,
-          "start": 15
-        }
-      ],
+      "removedRanges": [],
       "riskSurface": [],
       "role": "core"
     },
     {
       "addedRanges": [
         {
-          "end": 15,
-          "start": 15
+          "end": 16,
+          "start": 1
         }
       ],
       "changeGroupId": "g1",
@@ -11468,17 +12151,129 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
       "file": "packages/api/src/routes/health.ts",
       "id": "c4",
       "loc": {
-        "added": 1,
-        "deleted": 1
+        "added": 16,
+        "deleted": 0
       },
-      "removedRanges": [
-        {
-          "end": 15,
-          "start": 15
-        }
-      ],
+      "removedRanges": [],
       "riskSurface": [],
       "role": "supporting"
+    }
+  ],
+  "commitRange": {
+    "base": "0df614960d6981bb326e0b730cf144c4121ba1d4",
+    "commitCount": 2,
+    "head": "35af45dc05160e49cd8dded221422c726b180252"
+  },
+  "concernView": [
+    {
+      "added": 36,
+      "concern": "implementation",
+      "deleted": 0
+    }
+  ],
+  "diffTotals": {
+    "added": 20,
+    "deleted": 0
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 1-16 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "inputFingerprint": "eadd9fbe1f85bd9c50e8843e4ae163558a7806ccc1a8d69af3e448f64eb983b7",
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g1"
+        ],
+        "intent": "Canned unstated work in g1",
+        "quote": "",
+        "sourceUrl": ""
+      }
+    ],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "precise",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "Adds a GET /api/health route guarded by requireToken, and extends the logging redaction to strip \`token=\` query parameters.",
+    "number": 9003,
+    "repo": "Idan91/code-review",
+    "sha": "35af45dc05160e49cd8dded221422c726b180252",
+    "title": "Add a token-guarded health endpoint and redact query tokens in logs",
+    "url": "https://github.com/Idan91/code-review/pull/9003"
+  },
+  "summary": "Canned adversarial brief over 4 chunk(s).",
+  "unattributed": []
+}"
+`;
+
+exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial output 1`] = `
+"{
+  "anchor": {
+    "state": "anchored"
+  },
+  "anchoring": {
+    "carried": [
+      "g1"
+    ],
+    "regenerated": []
+  },
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches packages/logging/src/redact.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+      "title": "Changes under packages/logging/src",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "addedRanges": [
+        {
+          "end": 7,
+          "start": 4
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/logging/src/redact.ts",
+      "id": "c1",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
     }
   ],
   "commitRange": {
@@ -11488,9 +12283,9 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
   },
   "concernView": [
     {
-      "added": 6,
+      "added": 4,
       "concern": "implementation",
-      "deleted": 2
+      "deleted": 0
     }
   ],
   "diffTotals": {
@@ -11504,14 +12299,15 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
   },
   "generationWarnings": [
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
-    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 15 — counted in both",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 re-emitted without a new file — no claim evidence, carry kept",
+    "⚠ unknown group issues:\\nchunk c3 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c4 (packages/api/src/routes/health.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
+    "⚠ loc coverage issues:\\n1 added / 1 removed changed line(s) unattributed to any chunk across 1 file(s)\\n1 file(s) in no group — packages/api/src/routes/health.ts",
     "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
-    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "7be2fd2bfd04ca8820c05a18be99b509cd28d2a021dc504435f04ea3d614abb4",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -11550,7 +12346,23 @@ exports[`adversarial stitch goldens > pair-risk-remove stitches the adversarial 
     "url": "https://github.com/Idan91/code-review/pull/9004"
   },
   "summary": "Canned adversarial brief over 4 chunk(s).",
-  "unattributed": []
+  "unattributed": [
+    {
+      "addedRanges": [
+        {
+          "end": 15,
+          "start": 15
+        }
+      ],
+      "file": "packages/api/src/routes/health.ts",
+      "removedRanges": [
+        {
+          "end": 15,
+          "start": 15
+        }
+      ]
+    }
+  ]
 }"
 `;
 
@@ -11626,6 +12438,7 @@ exports[`adversarial stitch goldens > pair-subtractive stitches the adversarial 
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -12040,6 +12853,162 @@ exports[`anchoring goldens > 'pair-meaning-changing' records the plan and the ca
   "regeneratedGroupIds": [
     "g2"
   ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-media-description-edit' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "carriedChunkIds": [
+    "c1",
+    "c2",
+    "c3"
+  ],
+  "carriedGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "frozenGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "groupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "reLook": [],
+  "regeneratedGroupIds": []
+}"
+`;
+
+exports[`anchoring goldens > 'pair-media-fast-forward' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "carriedChunkIds": [
+    "c2",
+    "c3"
+  ],
+  "carriedGroupIds": [
+    "g2",
+    "g3"
+  ],
+  "frozenGroupIds": [
+    "g2",
+    "g3"
+  ],
+  "groupIds": [
+    "g2",
+    "g3",
+    "g1"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "reLook": [
+    {
+      "id": "g1",
+      "reason": "src/webhooks/backoff.ts: the push changed the PR's change"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g1"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-media-fast-forward-multi-call' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "carriedChunkIds": [
+    "c2",
+    "c3"
+  ],
+  "carriedGroupIds": [
+    "g2",
+    "g3"
+  ],
+  "frozenGroupIds": [
+    "g2",
+    "g3"
+  ],
+  "groupIds": [
+    "g2",
+    "g3",
+    "g1"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "reLook": [
+    {
+      "id": "g1",
+      "reason": "src/webhooks/backoff.ts: the push changed the PR's change"
+    }
+  ],
+  "regeneratedGroupIds": [
+    "g1"
+  ]
+}"
+`;
+
+exports[`anchoring goldens > 'pair-media-no-change' records the plan and the carried set 1`] = `
+"{
+  "baseGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "carriedChunkIds": [
+    "c1",
+    "c2",
+    "c3"
+  ],
+  "carriedGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "frozenGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "groupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "previousGroupIds": [
+    "g1",
+    "g2",
+    "g3"
+  ],
+  "reLook": [],
+  "regeneratedGroupIds": []
 }"
 `;
 
@@ -13060,6 +14029,7 @@ exports[`brief goldens > button-under-split produces the recorded brief 1`] = `
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "e426154ddeff5a91212d37be2b3004aa8d9c66f176d585cbab1c168c9f0fc57b",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -13385,6 +14355,7 @@ exports[`brief goldens > copybutton-new-export produces the recorded brief 1`] =
     "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "edd828464b10ff9820e0899b140f11ee3c41b5d98c67fecc4fb7180275a4d8a2",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -13628,6 +14599,7 @@ exports[`brief goldens > intent-adversarial-ticket produces the recorded brief 1
     "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "f94293aefc7044032e89353d94b6718c865cfeede933eba5b98b180ef36e5c17",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -13818,6 +14790,7 @@ exports[`brief goldens > intent-broad-epic produces the recorded brief 1`] = `
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "d89002dd73fb84c53d6aacbc9845ccd2a2ba4d733925c915c0f6d72ab33e2dfc",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -14153,6 +15126,7 @@ exports[`brief goldens > intent-github-primary produces the recorded brief 1`] =
     "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "de31ca33d47f00e35a5730faff5bbfdb5cd404795386a6c3167025626ec716bb",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -14310,6 +15284,7 @@ exports[`brief goldens > intent-legit-demotion produces the recorded brief 1`] =
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "03b684dafc6a28731995922300863ddbe9efd79a5eac0f52beefb9859eda08fd",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -14467,6 +15442,7 @@ exports[`brief goldens > intent-masked-fix produces the recorded brief 1`] = `
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "602424422535001906db8f8dcc9ebfe21e6b599b854e46960fe83837ef5881dc",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -14657,6 +15633,7 @@ exports[`brief goldens > intent-none-no-ticket produces the recorded brief 1`] =
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "89cdc00e764289cbe17e45ee357ff0cc60c08f961da177adf4fcc459d0170788",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -14982,6 +15959,7 @@ exports[`brief goldens > intent-precise-ticket produces the recorded brief 1`] =
     "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "7b6b7a33baf733ea9d8acd1654d1d8ec70f6157bdeec4a5264a0b05439e5431d",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -15235,6 +16213,7 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
     "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "b3a836be48ab8104a28cb956de2dd5c19064877dc77d52baa69dec02d57ef78c",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -15289,8 +16268,8 @@ exports[`brief goldens > intent-primary-plus-refs produces the recorded brief 1`
 
 exports[`brief goldens > kit-11161 produces the recorded brief 1`] = `
 "{
-  "bytes": 515075,
-  "sha256": "d8af4a42d28fdc7fc4197752e67e76c596f6e10bc664addac034a94375f24016"
+  "bytes": 515165,
+  "sha256": "b18f628d5b2300f79ec3b0aa9433799a94ae2d234797a56557bcab9fd41fd8f2"
 }"
 `;
 
@@ -15899,6 +16878,7 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "d2049950d95abe0bbdd92cfde7572ffa459477c40b83a08ef4a53d23d6f69890",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -16065,8 +17045,8 @@ exports[`brief goldens > multi-package-types produces the recorded brief 1`] = `
 
 exports[`brief goldens > next-60530 produces the recorded brief 1`] = `
 "{
-  "bytes": 3822559,
-  "sha256": "78de0b0a4db491b731d343a8fc7b12906b9e2575782c6b97bb040a8687f9d7cd"
+  "bytes": 3822649,
+  "sha256": "f1a85a8a82f4884131ecb56490b37578b382797bfebcd44fb17dd6e8a65d171c"
 }"
 `;
 
@@ -16167,6 +17147,7 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -16313,6 +17294,7 @@ exports[`brief goldens > pair-additive produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -16453,6 +17435,7 @@ exports[`brief goldens > pair-additive-multi-call produces the recorded brief 1`
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -16601,6 +17584,7 @@ exports[`brief goldens > pair-additive-multi-call produces the recorded brief 1`
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -16738,6 +17722,7 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -16884,6 +17869,7 @@ exports[`brief goldens > pair-ask-edit produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "2dbbfeef964e4f50eeb49d7a5d4bce35835cf0a00c5cd6e01ae843980ef26d85",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -17048,6 +18034,7 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "2b29a238792142332b8eb82b3deae95cb231da19f908dfbd66b78d73fdd9b1fd",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -17222,6 +18209,7 @@ exports[`brief goldens > pair-boundary-restructure produces the recorded brief 1
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "2b29a238792142332b8eb82b3deae95cb231da19f908dfbd66b78d73fdd9b1fd",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -17386,6 +18374,7 @@ exports[`brief goldens > pair-boundary-restructure-multi-call produces the recor
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "2b29a238792142332b8eb82b3deae95cb231da19f908dfbd66b78d73fdd9b1fd",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -17562,6 +18551,7 @@ exports[`brief goldens > pair-boundary-restructure-multi-call produces the recor
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "2b29a238792142332b8eb82b3deae95cb231da19f908dfbd66b78d73fdd9b1fd",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -17769,6 +18759,7 @@ exports[`brief goldens > pair-force-push-amend produces the recorded brief 1`] =
       "provider": "fixture"
     },
     "index": 1,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -18020,6 +19011,7 @@ exports[`brief goldens > pair-force-push-amend produces the recorded brief 1`] =
       "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -18220,6 +19212,7 @@ exports[`brief goldens > pair-force-push-amend-multi-call produces the recorded 
       "provider": "fixture"
     },
     "index": 1,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -18471,6 +19464,7 @@ exports[`brief goldens > pair-force-push-amend-multi-call produces the recorded 
       "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -18672,6 +19666,7 @@ exports[`brief goldens > pair-force-push-squash produces the recorded brief 1`] 
       "provider": "fixture"
     },
     "index": 1,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -18918,6 +19913,7 @@ exports[`brief goldens > pair-force-push-squash produces the recorded brief 1`] 
       "provider": "fixture"
     },
     "index": 2,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -19050,6 +20046,7 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -19192,6 +20189,7 @@ exports[`brief goldens > pair-intent-transition produces the recorded brief 1`] 
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -19332,6 +20330,7 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -19479,6 +20478,7 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -19529,6 +20529,1548 @@ exports[`brief goldens > pair-meaning-changing produces the recorded brief 1`] =
         "removedRanges": []
       }
     ]
+  }
+}"
+`;
+
+exports[`brief goldens > pair-media-description-edit produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+        "title": "Compute the backoff wait",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 8,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 8,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 3,
+      "head": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd"
+    },
+    "concernView": [
+      {
+        "added": 38,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 38,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "hand-written",
+      "provider": "fixture"
+    },
+    "index": 1,
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+    "intentCheck": {
+      "accomplished": [
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g3",
+            "g1"
+          ],
+          "intent": "a failed delivery retries with exponential backoff",
+          "quote": "Retries a failed webhook delivery with exponential backoff instead of dropping it",
+          "sourceUrl": ""
+        },
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g2"
+          ],
+          "intent": "WEBHOOK_MAX_ATTEMPTS caps the attempts and WEBHOOK_BASE_DELAY_MS sets the first wait",
+          "quote": "\`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait",
+          "sourceUrl": ""
+        }
+      ],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "precise",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9019,
+      "repo": "Idan91/code-review",
+      "sha": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9019"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "adds the two settings the retry reads"
+      },
+      {
+        "groupId": "g1",
+        "why": "computes the wait between attempts"
+      },
+      {
+        "groupId": "g3",
+        "why": "loops the delivery over those settings and waits"
+      }
+    ],
+    "summary": "Retries a failed webhook delivery with exponential backoff instead of dropping it: up to WEBHOOK_MAX_ATTEMPTS attempts, waiting WEBHOOK_BASE_DELAY_MS doubled after each failure.",
+    "summaryMedia": {
+      "pointer": {
+        "items": [
+          "mermaid:b4966578b7bf8fde7a12d8d934347012e84cb412c470c740ac71a52cbd6bbe2a"
+        ],
+        "label": "Retry flow"
+      },
+      "shown": [
+        {
+          "key": "mermaid:5d39d2d8ea60a44b49f83d5784b6f5794092b8da37b88b502dc2da57f04ff7a5",
+          "position": "after-lede"
+        }
+      ]
+    },
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g1",
+        "g2",
+        "g3"
+      ],
+      "regenerated": []
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+        "title": "Compute the backoff wait",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 8,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 8,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 3,
+      "head": "231b2b5410a93bf32e67ca7a19b913b4a85806e5"
+    },
+    "concernView": [
+      {
+        "added": 38,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 38,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g2\\"\\nreadingOrder is missing group \\"g3\\""
+    ],
+    "index": 2,
+    "inputFingerprint": "d1808622b3211656344417e9d9d9c3531a993c54c7da80c89133070062892556",
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 503\\n  Note over W: wait 1000 ms\\n  W->>E: attempt 3\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9019,
+      "repo": "Idan91/code-review",
+      "sha": "231b2b5410a93bf32e67ca7a19b913b4a85806e5",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9019"
+    },
+    "summary": "Canned brief over 3 changed file(s).",
+    "unattributed": []
+  }
+}"
+`;
+
+exports[`brief goldens > pair-media-fast-forward produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+        "title": "Compute the backoff wait",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 8,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 8,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 3,
+      "head": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd"
+    },
+    "concernView": [
+      {
+        "added": 38,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 38,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "hand-written",
+      "provider": "fixture"
+    },
+    "index": 1,
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+    "intentCheck": {
+      "accomplished": [
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g3",
+            "g1"
+          ],
+          "intent": "a failed delivery retries with exponential backoff",
+          "quote": "Retries a failed webhook delivery with exponential backoff instead of dropping it",
+          "sourceUrl": ""
+        },
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g2"
+          ],
+          "intent": "WEBHOOK_MAX_ATTEMPTS caps the attempts and WEBHOOK_BASE_DELAY_MS sets the first wait",
+          "quote": "\`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait",
+          "sourceUrl": ""
+        }
+      ],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "precise",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9018,
+      "repo": "Idan91/code-review",
+      "sha": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9018"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "adds the two settings the retry reads"
+      },
+      {
+        "groupId": "g1",
+        "why": "computes the wait between attempts"
+      },
+      {
+        "groupId": "g3",
+        "why": "loops the delivery over those settings and waits"
+      }
+    ],
+    "summary": "Retries a failed webhook delivery with exponential backoff instead of dropping it: up to WEBHOOK_MAX_ATTEMPTS attempts, waiting WEBHOOK_BASE_DELAY_MS doubled after each failure.",
+    "summaryMedia": {
+      "pointer": {
+        "items": [
+          "mermaid:5d39d2d8ea60a44b49f83d5784b6f5794092b8da37b88b502dc2da57f04ff7a5"
+        ],
+        "label": "Timing"
+      },
+      "shown": [
+        {
+          "key": "mermaid:b4966578b7bf8fde7a12d8d934347012e84cb412c470c740ac71a52cbd6bbe2a",
+          "position": "after-lede"
+        }
+      ]
+    },
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g2",
+        "g3"
+      ],
+      "regenerated": [
+        "g1"
+      ]
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches src/webhooks/backoff.ts, src/webhooks/config.ts, src/webhooks/deliver.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler c",
+        "title": "Changes under src/webhooks",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 16,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 16,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 4,
+      "head": "b088469d24c5ceaa14670bcfa9df146e9e331ed4"
+    },
+    "concernView": [
+      {
+        "added": 46,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 46,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g2\\"\\nreadingOrder is missing group \\"g3\\"",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 2,
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9018,
+      "repo": "Idan91/code-review",
+      "sha": "b088469d24c5ceaa14670bcfa9df146e9e331ed4",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9018"
+    },
+    "summary": "Canned brief over 3 changed file(s).",
+    "unattributed": []
+  }
+}"
+`;
+
+exports[`brief goldens > pair-media-fast-forward-multi-call produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+        "title": "Compute the backoff wait",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 8,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 8,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 3,
+      "head": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd"
+    },
+    "concernView": [
+      {
+        "added": 38,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 38,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "hand-written",
+      "provider": "fixture"
+    },
+    "index": 1,
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+    "intentCheck": {
+      "accomplished": [
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g3",
+            "g1"
+          ],
+          "intent": "a failed delivery retries with exponential backoff",
+          "quote": "Retries a failed webhook delivery with exponential backoff instead of dropping it",
+          "sourceUrl": ""
+        },
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g2"
+          ],
+          "intent": "WEBHOOK_MAX_ATTEMPTS caps the attempts and WEBHOOK_BASE_DELAY_MS sets the first wait",
+          "quote": "\`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait",
+          "sourceUrl": ""
+        }
+      ],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "precise",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9018,
+      "repo": "Idan91/code-review",
+      "sha": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9018"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "adds the two settings the retry reads"
+      },
+      {
+        "groupId": "g1",
+        "why": "computes the wait between attempts"
+      },
+      {
+        "groupId": "g3",
+        "why": "loops the delivery over those settings and waits"
+      }
+    ],
+    "summary": "Retries a failed webhook delivery with exponential backoff instead of dropping it: up to WEBHOOK_MAX_ATTEMPTS attempts, waiting WEBHOOK_BASE_DELAY_MS doubled after each failure.",
+    "summaryMedia": {
+      "pointer": {
+        "items": [
+          "mermaid:5d39d2d8ea60a44b49f83d5784b6f5794092b8da37b88b502dc2da57f04ff7a5"
+        ],
+        "label": "Timing"
+      },
+      "shown": [
+        {
+          "key": "mermaid:b4966578b7bf8fde7a12d8d934347012e84cb412c470c740ac71a52cbd6bbe2a",
+          "position": "after-lede"
+        }
+      ]
+    },
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g2",
+        "g3"
+      ],
+      "regenerated": [
+        "g1"
+      ]
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "logic-refactor",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "Touches src/webhooks/backoff.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned f",
+        "title": "Changes under src/webhooks",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 16,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 16,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 4,
+      "head": "b088469d24c5ceaa14670bcfa9df146e9e331ed4"
+    },
+    "concernView": [
+      {
+        "added": 46,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 46,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "canned-model",
+      "provider": "canned"
+    },
+    "generationWarnings": [
+      "⚠ reading order issues:\\nreadingOrder is missing group \\"g2\\"\\nreadingOrder is missing group \\"g3\\"",
+      "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+    ],
+    "index": 2,
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+    "intentCheck": {
+      "accomplished": [],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "none",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "lengthViolations": [
+      {
+        "actual": 251,
+        "cap": 250,
+        "field": "group g1 summary",
+        "surface": "group-summary"
+      }
+    ],
+    "outlineForm": "full",
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9018,
+      "repo": "Idan91/code-review",
+      "sha": "b088469d24c5ceaa14670bcfa9df146e9e331ed4",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9018"
+    },
+    "summary": "Canned grouping over 1 changed file(s).",
+    "unattributed": []
+  }
+}"
+`;
+
+exports[`brief goldens > pair-media-no-change produces the recorded brief 1`] = `
+"{
+  "base": {
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+        "title": "Compute the backoff wait",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 8,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 8,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 3,
+      "head": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd"
+    },
+    "concernView": [
+      {
+        "added": 38,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 38,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "hand-written",
+      "provider": "fixture"
+    },
+    "index": 1,
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+    "intentCheck": {
+      "accomplished": [
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g3",
+            "g1"
+          ],
+          "intent": "a failed delivery retries with exponential backoff",
+          "quote": "Retries a failed webhook delivery with exponential backoff instead of dropping it",
+          "sourceUrl": ""
+        },
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g2"
+          ],
+          "intent": "WEBHOOK_MAX_ATTEMPTS caps the attempts and WEBHOOK_BASE_DELAY_MS sets the first wait",
+          "quote": "\`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait",
+          "sourceUrl": ""
+        }
+      ],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "precise",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9017,
+      "repo": "Idan91/code-review",
+      "sha": "0aef7cc4079dd6c9e19a36ee6e319ab61314c2bd",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9017"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "adds the two settings the retry reads"
+      },
+      {
+        "groupId": "g1",
+        "why": "computes the wait between attempts"
+      },
+      {
+        "groupId": "g3",
+        "why": "loops the delivery over those settings and waits"
+      }
+    ],
+    "summary": "Retries a failed webhook delivery with exponential backoff instead of dropping it: up to WEBHOOK_MAX_ATTEMPTS attempts, waiting WEBHOOK_BASE_DELAY_MS doubled after each failure.",
+    "summaryMedia": {
+      "pointer": {
+        "items": [
+          "mermaid:5d39d2d8ea60a44b49f83d5784b6f5794092b8da37b88b502dc2da57f04ff7a5"
+        ],
+        "label": "Timing"
+      },
+      "shown": [
+        {
+          "key": "mermaid:b4966578b7bf8fde7a12d8d934347012e84cb412c470c740ac71a52cbd6bbe2a",
+          "position": "after-lede"
+        }
+      ]
+    },
+    "unattributed": []
+  },
+  "revised": {
+    "anchor": {
+      "state": "anchored"
+    },
+    "anchoring": {
+      "carried": [
+        "g1",
+        "g2",
+        "g3"
+      ],
+      "regenerated": []
+    },
+    "changeGroups": [
+      {
+        "dominantCategory": "new-feature",
+        "id": "g1",
+        "secondaryCategories": [],
+        "summary": "computeBackoffMs doubles the base delay after each failed attempt, and sleep waits that long.",
+        "title": "Compute the backoff wait",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g2",
+        "secondaryCategories": [],
+        "summary": "WebhookConfig gains maxAttempts and baseDelayMs, read from WEBHOOK_MAX_ATTEMPTS (default 5) and WEBHOOK_BASE_DELAY_MS (default 500).",
+        "title": "Configure the retry limits",
+        "uncertain": false,
+        "uncertainBetween": []
+      },
+      {
+        "dominantCategory": "new-feature",
+        "id": "g3",
+        "secondaryCategories": [],
+        "summary": "deliver posts up to maxAttempts times, treating a thrown fetch as a failed attempt and waiting the backoff between attempts; it returns false once the attempts run out.",
+        "title": "Retry a failed delivery",
+        "uncertain": false,
+        "uncertainBetween": []
+      }
+    ],
+    "chunks": [
+      {
+        "addedRanges": [
+          {
+            "end": 8,
+            "start": 1
+          }
+        ],
+        "changeGroupId": "g1",
+        "concern": "implementation",
+        "file": "src/webhooks/backoff.ts",
+        "id": "c1",
+        "loc": {
+          "added": 8,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 5,
+            "start": 4
+          },
+          {
+            "end": 15,
+            "start": 14
+          }
+        ],
+        "changeGroupId": "g2",
+        "concern": "implementation",
+        "file": "src/webhooks/config.ts",
+        "id": "c2",
+        "loc": {
+          "added": 4,
+          "deleted": 0
+        },
+        "removedRanges": [],
+        "riskSurface": [],
+        "role": "core"
+      },
+      {
+        "addedRanges": [
+          {
+            "end": 1,
+            "start": 1
+          },
+          {
+            "end": 24,
+            "start": 9
+          },
+          {
+            "end": 37,
+            "start": 29
+          }
+        ],
+        "changeGroupId": "g3",
+        "concern": "implementation",
+        "file": "src/webhooks/deliver.ts",
+        "id": "c3",
+        "loc": {
+          "added": 26,
+          "deleted": 6
+        },
+        "removedRanges": [
+          {
+            "end": 17,
+            "start": 12
+          }
+        ],
+        "riskSurface": [],
+        "role": "core"
+      }
+    ],
+    "commitRange": {
+      "base": "1a518c62e636c4aa63c9a418888fc09b6ff5cb04",
+      "commitCount": 1,
+      "head": "2dd0e5ed062042dce1377e99d74779c7598089f1"
+    },
+    "concernView": [
+      {
+        "added": 38,
+        "concern": "implementation",
+        "deleted": 6
+      }
+    ],
+    "diffTotals": {
+      "added": 38,
+      "deleted": 6
+    },
+    "generation": {
+      "effort": "medium",
+      "model": "hand-written",
+      "provider": "fixture"
+    },
+    "index": 2,
+    "inputFingerprint": "23d9f6e798f6d2c3bacd3e6c7227242357af59d6526138d5c4486a90dee8ebe2",
+    "intentCheck": {
+      "accomplished": [
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g3",
+            "g1"
+          ],
+          "intent": "a failed delivery retries with exponential backoff",
+          "quote": "Retries a failed webhook delivery with exponential backoff instead of dropping it",
+          "sourceUrl": ""
+        },
+        {
+          "acknowledged": false,
+          "groupIds": [
+            "g2"
+          ],
+          "intent": "WEBHOOK_MAX_ATTEMPTS caps the attempts and WEBHOOK_BASE_DELAY_MS sets the first wait",
+          "quote": "\`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait",
+          "sourceUrl": ""
+        }
+      ],
+      "deviations": [],
+      "doneButUnstated": [],
+      "maskedFixes": [],
+      "scopeNote": "",
+      "specificity": "precise",
+      "statedButMissing": [],
+      "ticketTitles": [],
+      "ticketUrls": []
+    },
+    "pr": {
+      "description": "Retries a failed webhook delivery with exponential backoff instead of dropping it. \`WEBHOOK_MAX_ATTEMPTS\` (default 5) caps the attempts and \`WEBHOOK_BASE_DELAY_MS\` (default 500) sets the first wait, which doubles after each failure.\\n\\n## Retry flow\\n\\n\`\`\`mermaid\\nflowchart LR\\n  A[POST delivery] -->|2xx| B[Done]\\n  A -->|error or non-2xx| C{Attempts left?}\\n  C -->|yes| D[Wait base delay x 2^n] --> A\\n  C -->|no| E[Give up]\\n\`\`\`\\n\\n## Timing\\n\\n\`\`\`mermaid\\nsequenceDiagram\\n  participant W as Worker\\n  participant E as Endpoint\\n  W->>E: attempt 1\\n  E-->>W: 503\\n  Note over W: wait 500 ms\\n  W->>E: attempt 2\\n  E-->>W: 200\\n\`\`\`",
+      "number": 9017,
+      "repo": "Idan91/code-review",
+      "sha": "2dd0e5ed062042dce1377e99d74779c7598089f1",
+      "title": "Retry failed webhook deliveries with backoff",
+      "url": "https://github.com/Idan91/code-review/pull/9017"
+    },
+    "readingOrder": [
+      {
+        "groupId": "g2",
+        "why": "adds the two settings the retry reads"
+      },
+      {
+        "groupId": "g1",
+        "why": "computes the wait between attempts"
+      },
+      {
+        "groupId": "g3",
+        "why": "loops the delivery over those settings and waits"
+      }
+    ],
+    "summary": "Retries a failed webhook delivery with exponential backoff instead of dropping it: up to WEBHOOK_MAX_ATTEMPTS attempts, waiting WEBHOOK_BASE_DELAY_MS doubled after each failure.",
+    "summaryMedia": {
+      "pointer": {
+        "items": [
+          "mermaid:5d39d2d8ea60a44b49f83d5784b6f5794092b8da37b88b502dc2da57f04ff7a5"
+        ],
+        "label": "Timing"
+      },
+      "shown": [
+        {
+          "key": "mermaid:b4966578b7bf8fde7a12d8d934347012e84cb412c470c740ac71a52cbd6bbe2a",
+          "position": "after-lede"
+        }
+      ]
+    },
+    "unattributed": []
   }
 }"
 `;
@@ -19700,6 +22242,7 @@ exports[`brief goldens > pair-merge-main-noop produces the recorded brief 1`] = 
       "provider": "fixture"
     },
     "index": 1,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -19946,6 +22489,7 @@ exports[`brief goldens > pair-merge-main-noop produces the recorded brief 1`] = 
       "provider": "fixture"
     },
     "index": 2,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -20115,6 +22659,7 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "78813da510fa7e27dae380336efed93cb949e9a04ba9bad01691bb0c15f6ca5a",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -20291,6 +22836,7 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "78813da510fa7e27dae380336efed93cb949e9a04ba9bad01691bb0c15f6ca5a",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -20326,8 +22872,8 @@ exports[`brief goldens > pair-new-material produces the recorded brief 1`] = `
 
 exports[`brief goldens > pair-real-sveltekit-2-0 produces the recorded brief 1`] = `
 "{
-  "bytes": 337669,
-  "sha256": "f2489cbc64ae84d0eadaf844190e83616fd452c8e219d12395c6a8542f7dc06d"
+  "bytes": 337853,
+  "sha256": "78ec2b6606eac6391dc033bebdab5186c2fcd26332b607d94e27831efb0f5973"
 }"
 `;
 
@@ -20503,6 +23049,7 @@ exports[`brief goldens > pair-rebase-conflict-resolution produces the recorded b
       "provider": "fixture"
     },
     "index": 1,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -20760,6 +23307,7 @@ exports[`brief goldens > pair-rebase-conflict-resolution produces the recorded b
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -20890,6 +23438,7 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -21036,6 +23585,7 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -21246,6 +23796,7 @@ exports[`brief goldens > pair-rebase-upstream-same-file produces the recorded br
       "provider": "fixture"
     },
     "index": 1,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [
         {
@@ -21494,6 +24045,7 @@ exports[`brief goldens > pair-rebase-upstream-same-file produces the recorded br
       "⚠ text length issues:\\ngroup g4 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "6ec18989fcb190e9b00ae3db990593bd131a93b1b766daed490427569536f901",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -21640,6 +24192,7 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "eadd9fbe1f85bd9c50e8843e4ae163558a7806ccc1a8d69af3e448f64eb983b7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -21797,6 +24350,7 @@ exports[`brief goldens > pair-risk-add produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "eadd9fbe1f85bd9c50e8843e4ae163558a7806ccc1a8d69af3e448f64eb983b7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -21928,6 +24482,7 @@ exports[`brief goldens > pair-risk-add-new-file produces the recorded brief 1`] 
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "eadd9fbe1f85bd9c50e8843e4ae163558a7806ccc1a8d69af3e448f64eb983b7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -22065,6 +24620,7 @@ exports[`brief goldens > pair-risk-add-new-file produces the recorded brief 1`] 
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "eadd9fbe1f85bd9c50e8843e4ae163558a7806ccc1a8d69af3e448f64eb983b7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -22209,6 +24765,7 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "7be2fd2bfd04ca8820c05a18be99b509cd28d2a021dc504435f04ea3d614abb4",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -22351,6 +24908,7 @@ exports[`brief goldens > pair-risk-remove produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "7be2fd2bfd04ca8820c05a18be99b509cd28d2a021dc504435f04ea3d614abb4",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -22491,6 +25049,7 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -22598,6 +25157,7 @@ exports[`brief goldens > pair-subtractive produces the recorded brief 1`] = `
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "c9fa94906b8feced88a8f8c70de5bcc4cd61c8ee25ef5e095b33ff16a3db00d7",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -23405,6 +25965,7 @@ exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] =
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g5 summary is 325 chars — exceeds the 250-char cap\\ngroup g6 summary is 296 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "0886246edad4660cef29e5ac67ad024203cf6764600550e30c838f7c12ab3df0",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -23657,8 +26218,8 @@ exports[`brief goldens > pure-move-persistence produces the recorded brief 1`] =
 
 exports[`brief goldens > react-router-11768 produces the recorded brief 1`] = `
 "{
-  "bytes": 922714,
-  "sha256": "eda3258861246c1049eeb4e4529f1ada6dd79ee79a9bceb08d375ca77322236b"
+  "bytes": 922804,
+  "sha256": "b7f06ff194e3dc8f251634ea475c44499d0b7091b65af1dac91cda2f1185cf45"
 }"
 `;
 
@@ -23863,6 +26424,7 @@ exports[`brief goldens > repo-policy-scoped-attribute produces the recorded brie
     "⚠ text length issues:\\ngroup g1 summary is 327 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "384c644ca9e1d3d89f7591535add70c87767d65f7879d7f49bd5533eaedd30c0",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -24109,6 +26671,7 @@ exports[`brief goldens > schema-change-provenance produces the recorded brief 1`
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "dfb08f30cd6167a77c2c81dbebc74b01d57633062d239221fff2f07985f389eb",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -26164,6 +28727,132 @@ exports[`request goldens > pair-meaning-changing sends the recorded request dige
   }
 ]"
 `;
+
+exports[`request goldens > pair-media-description-edit sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 30789,
+      "sha256": "01db3dabca430f81bf9aa0727ec72f62cc9f9aa49f7b8fe2353d9b160f971bc8"
+    },
+    "user": {
+      "bytes": 5452,
+      "sha256": "8d7617d572a07eea167f04944ea661d9d10aa7a998fbebb340f7e44d03c506a1"
+    }
+  },
+  {
+    "label": "summary-media",
+    "schema": {
+      "bytes": 987,
+      "sha256": "e20bf5fa3ca452d4d0f13c53bcc413301c7c062f1668c07967f3665a14fb594d"
+    },
+    "system": {
+      "bytes": 1403,
+      "sha256": "b3d009af90561ab5b3bd6434a54a4d923d8d284716d8cc4ce69d2f026dc45816"
+    },
+    "user": {
+      "bytes": 1165,
+      "sha256": "1624b5ecf85bea5d572dcf4e22aef561e0778292f4abd399fae5039fb394d1fe"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > pair-media-fast-forward sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "brief",
+    "schema": {
+      "bytes": 10601,
+      "sha256": "ad74e83a2a2b65196d0513d350c06de3fe318ab5237c28214512b5030c2860ae"
+    },
+    "system": {
+      "bytes": 30789,
+      "sha256": "01db3dabca430f81bf9aa0727ec72f62cc9f9aa49f7b8fe2353d9b160f971bc8"
+    },
+    "user": {
+      "bytes": 5576,
+      "sha256": "a6b28fd8f3e85eb35d2151bbf0e6b336eeaf34a63e1db2e8579d705e642937c7"
+    }
+  },
+  {
+    "label": "summary-media",
+    "schema": {
+      "bytes": 987,
+      "sha256": "e20bf5fa3ca452d4d0f13c53bcc413301c7c062f1668c07967f3665a14fb594d"
+    },
+    "system": {
+      "bytes": 1403,
+      "sha256": "b3d009af90561ab5b3bd6434a54a4d923d8d284716d8cc4ce69d2f026dc45816"
+    },
+    "user": {
+      "bytes": 1104,
+      "sha256": "45ef609627fdcfd2cc3fa576ff1775938b62522daeaa357258fe2513d1d7fc08"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > pair-media-fast-forward-multi-call sends the recorded request digests 1`] = `
+"[
+  {
+    "label": "grouping",
+    "schema": {
+      "bytes": 7867,
+      "sha256": "2363923b876d3f967a2c84c41f3626fac27be74c9cb90619a5b900fab17249aa"
+    },
+    "system": {
+      "bytes": 21617,
+      "sha256": "9870aa2e48ad4a73087f3a28068329d6a84be527217d1d115433d51dca5888b7"
+    },
+    "user": {
+      "bytes": 3468,
+      "sha256": "a5d0c3cc8d15362082f188ed7ae177a67150b2771af73db9aba5a3e544ef5e00"
+    }
+  },
+  {
+    "label": "summary-media",
+    "schema": {
+      "bytes": 987,
+      "sha256": "e20bf5fa3ca452d4d0f13c53bcc413301c7c062f1668c07967f3665a14fb594d"
+    },
+    "system": {
+      "bytes": 1403,
+      "sha256": "b3d009af90561ab5b3bd6434a54a4d923d8d284716d8cc4ce69d2f026dc45816"
+    },
+    "user": {
+      "bytes": 1107,
+      "sha256": "9ad66394cffa5ae44c8d1234e3869dd69d948b0625b67f8765e31ef8a703b788"
+    }
+  },
+  {
+    "label": "detail:1",
+    "schema": {
+      "bytes": 3669,
+      "sha256": "91fe8cde17b0650da2ff315beb944fbd213c0e4114b7e40e2288a0a636d98ef7"
+    },
+    "system": {
+      "bytes": 11869,
+      "sha256": "89383dd2651fce0fe557954dcea5f16a300354bddfd6de7e7f91493ccc0b7a28"
+    },
+    "user": {
+      "bytes": 1158,
+      "sha256": "ad1d2277552af4714fe9d2aa741991320a97d8c7e73d9b50bd02c39b5b351d61"
+    },
+    "userPrefix": {
+      "bytes": 1331,
+      "sha256": "930aa872cd1d7fcb35195b3c7e8ed1d3dbc5bacc7d454dca64450a287f67df81"
+    }
+  }
+]"
+`;
+
+exports[`request goldens > pair-media-no-change sends the recorded request digests 1`] = `"[]"`;
 
 exports[`request goldens > pair-merge-main-noop sends the recorded request digests 1`] = `"[]"`;
 

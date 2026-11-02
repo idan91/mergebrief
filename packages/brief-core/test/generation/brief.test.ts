@@ -15,7 +15,7 @@ import {
 import type { FetchedPr } from "../../src/github/types";
 import type { LockfileSummary } from "../../src/generation/shortened/types";
 import { countLines } from "../../src/generation/loc";
-import { buildMermaidMediaKey } from "../../src/media";
+import { buildAddressMediaKey, buildMermaidMediaKey } from "../../src/media";
 import { ContextProviderTypes } from "../../src/context/types";
 import {
   AnchorWarnings,
@@ -43,6 +43,7 @@ import {
 const OVER_CAP_SUMMARY = "s".repeat(300);
 const BILLING_ATTRIBUTE = "touches-billing";
 const LEDGER_ATTRIBUTE = "touches-ledger";
+const GITHUB_TOKEN_LENGTH = 36;
 
 /** Answers each request with the next queued output. */
 function makeQueuedGenerator(outputs: unknown[]): FakeGenerator {
@@ -990,16 +991,146 @@ describe("generateBrief, a push that left every group's change as it was", () =>
       key: buildMermaidMediaKey(diagram),
       position: SummaryMediaPositions.AFTER_LEDE,
     };
+    const mediaBody = `\`\`\`mermaid\n${diagram}\`\`\``;
+    const withDiagram = { ...pr, meta: { ...pr.meta, body: mediaBody } };
+    const generated = await generateBrief({
+      pr: withDiagram,
+      headIndex: 1,
+      commitRange,
+      generator: makeQueuedGenerator([baseOutput]),
+    });
     const previousBrief: Brief = {
-      ...(await makePreviousBrief()),
+      ...generated.brief,
       summaryMedia: { shown: [shown] },
     };
-    const body = keeps ? `\`\`\`mermaid\n${diagram}\`\`\`` : "d";
+    const body = keeps ? mediaBody : "d";
     const nextPr = { ...pr, meta: { ...pr.meta, body } };
 
     const count = await countCarryCalls(previousBrief, nextPr);
 
     expect(count).toBe(calls);
+  });
+
+  it("calls the model when only a redacted part of a Media address moved", async () => {
+    const tokenA = `ghp_${"a".repeat(GITHUB_TOKEN_LENGTH)}`;
+    const tokenB = `ghp_${"b".repeat(GITHUB_TOKEN_LENGTH)}`;
+    const withToken = (token: string): FetchedPr => ({
+      ...pr,
+      meta: {
+        ...pr.meta,
+        body: `![shot](https://cdn.example/a.png?t=${token})`,
+      },
+    });
+    const generated = await generateBrief({
+      pr: withToken(tokenA),
+      headIndex: 1,
+      commitRange,
+      generator: makeQueuedGenerator([baseOutput]),
+    });
+    const key = buildAddressMediaKey(`https://cdn.example/a.png?t=${tokenA}`);
+    if (key === undefined) {
+      throw new Error("the image address builds no Media key");
+    }
+    const previousBrief: Brief = {
+      ...generated.brief,
+      summaryMedia: {
+        shown: [{ key, position: SummaryMediaPositions.AFTER_LEDE }],
+      },
+    };
+
+    const count = await countCarryCalls(previousBrief, withToken(tokenB));
+
+    expect(count).toBeGreaterThan(0);
+  });
+
+  it("stamps a brief with its inputs' fingerprint, never in the prompt", async () => {
+    const generator = makeQueuedGenerator([baseOutput]);
+
+    const { brief } = await generateBrief({
+      pr,
+      headIndex: 1,
+      commitRange,
+      generator,
+    });
+
+    const fingerprint = brief.inputFingerprint ?? "";
+    expect(fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    const [request] = generator.requests;
+    expect(request?.user).not.toContain(fingerprint);
+    expect(request?.system).not.toContain(fingerprint);
+    expect(Object.keys(BriefGenerationSchema.shape)).not.toContain(
+      "inputFingerprint",
+    );
+  });
+
+  it.each([
+    {
+      title: "a title edit",
+      nextPr: { ...pr, meta: { ...pr.meta, title: "t2" } },
+    },
+    {
+      title: "a link text edit",
+      nextPr: {
+        ...pr,
+        links: [
+          {
+            id: "ctx-1",
+            providerId: ContextProviderTypes.URL,
+            source: "https://docs.example/a",
+            text: "new text",
+          },
+        ],
+      },
+    },
+  ])("calls the model after $title", async ({ nextPr }) => {
+    const count = await countCarryCalls(await makePreviousBrief(), nextPr);
+
+    expect(count).toBe(1);
+  });
+
+  it("calls the model when the repo context changed", async () => {
+    const generator = makeQueuedGenerator([revisedOutput]);
+
+    await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator,
+      repoContext: makeRepoContext(BILLING_ATTRIBUTE),
+      previous: makeUnchangedPrevious(await makePreviousBrief()),
+    });
+
+    expect(generator.requests).toHaveLength(1);
+  });
+
+  it("checks the fingerprint before onPlan, so a refused carry plans once", async () => {
+    const { inputFingerprint: _dropped, ...unstamped } =
+      await makePreviousBrief();
+    const planned: number[] = [];
+
+    await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator: makeQueuedGenerator([revisedOutput]),
+      previous: {
+        ...makeUnchangedPrevious(unstamped),
+        onPlan: async (plan) => {
+          planned.push(plan.reLook.length);
+        },
+      },
+    });
+
+    expect(planned).toEqual([0]);
+  });
+
+  it("calls the model over a previous brief with no fingerprint", async () => {
+    const { inputFingerprint: _dropped, ...unstamped } =
+      await makePreviousBrief();
+
+    const count = await countCarryCalls(unstamped, pr);
+
+    expect(count).toBe(1);
   });
 
   it("calls the model when a file no group owns changed", async () => {
@@ -1279,6 +1410,33 @@ describe("generateBrief Summary Media, one call", () => {
     );
     const block = mediaRequest?.user.split("<pr_media>")[1] ?? "";
     expect(block).not.toContain("cdn.test");
+  });
+
+  it("picks Media after an anchored run's stitch", async () => {
+    const generator = new FakeGenerator((request) =>
+      request.label === SUMMARY_MEDIA_LABEL ? mediaAnswer : revisedOutput,
+    );
+
+    const { brief, anchoring } = await generateBrief({
+      pr: { ...pr, meta: { ...pr.meta, body: MEDIA_BODY } },
+      headIndex: 2,
+      commitRange,
+      generator,
+      previous: makePrevious(await makePreviousBrief()),
+    });
+
+    const [briefRequest, mediaRequest] = generator.requests;
+    expect(generator.requests).toHaveLength(2);
+    expect(briefRequest?.user).toContain("<anchor_brief");
+    expect(briefRequest?.system).toContain("## Media (this run)");
+    expect(mediaRequest?.label).toBe(SUMMARY_MEDIA_LABEL);
+    expect(mediaRequest?.user).toContain(
+      `<brief_summary>\n${brief.summary}\n</brief_summary>`,
+    );
+    expect(anchoring?.carriedGroupIds).toEqual(["g1"]);
+    expect(brief.summaryMedia?.shown).toEqual([
+      { key: SHOT_WIDE, position: "before-lede" },
+    ]);
   });
 
   it("tells the brief call to keep Media out of the summary", async () => {

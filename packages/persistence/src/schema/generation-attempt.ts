@@ -1,4 +1,5 @@
-// `generation_attempt`: one row per paid run, the daily cap's counter. No
+// `generation_attempt`: one row per claimed or paid run, the daily cap's
+// counter; a run that made no model call keeps its row at 0 units. No
 // foreign key to `generation`: purging a PR must not erase the day's spend.
 // Rows hold ids, counts and timestamps only.
 import { sql } from "drizzle-orm";
@@ -28,7 +29,7 @@ export const generationAttempt = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
-    /** The cap units the run paid for: 1 for its claim, plus every later claim. */
+    /** The cap units the run paid for: 1 for its claim, plus every later claim; 0 once a run that made no model call gives them back. */
     units: integer("units").notNull().default(1),
     partsDone: integer("parts_done").notNull().default(0),
     /** The detail calls the run's grouping planned, stored and fresh alike; null before the grouping call. */
@@ -36,7 +37,7 @@ export const generationAttempt = pgTable(
   },
   (table) => [
     index("generation_attempt_started_at_idx").on(table.startedAt),
-    check("generation_attempt_units_check", sql`${table.units} >= 1`),
+    check("generation_attempt_units_check", sql`${table.units} >= 0`),
     check("generation_attempt_parts_done_check", sql`${table.partsDone} >= 0`),
     check(
       "generation_attempt_parts_total_check",

@@ -140,30 +140,10 @@ function moveChunks(
   return { ok: true, value: moved };
 }
 
-/** Group ids whose files another group also owns: neither can carry the file alone. */
-function listSharingGroups(
-  groupFiles: readonly { id: string; files: readonly string[] }[],
-): Set<string> {
-  const ownersByFile = new Map<string, number>();
-  for (const group of groupFiles) {
-    for (const file of group.files) {
-      ownersByFile.set(file, (ownersByFile.get(file) ?? 0) + 1);
-    }
-  }
-  const sharing = new Set<string>();
-  for (const group of groupFiles) {
-    if (group.files.some((file) => (ownersByFile.get(file) ?? 0) > 1)) {
-      sharing.add(group.id);
-    }
-  }
-  return sharing;
-}
-
 interface GroupCarryInput {
   readonly previousBrief: Brief;
   readonly group: ChangeGroup;
   readonly files: readonly string[];
-  readonly isSharing: boolean;
   readonly span: PrSpan;
   readonly sides: SpanSides;
 }
@@ -184,16 +164,11 @@ function refuseCarry(
   return { ok: false, error: { reason, isUnpaired } };
 }
 
-/** A group carries when it owns its files alone, the PR's change to each held, and every range moves. */
+/** A group carries when the PR's change to each of its files held and every range moves. */
 function decideGroupCarry(
   input: GroupCarryInput,
 ): Result<FrozenCarry, CarryRefusal> {
   const { previousBrief, group, files, span, sides } = input;
-  if (input.isSharing) {
-    return refuseCarry(
-      "file shared across previous groups, cannot carry exclusively",
-    );
-  }
   const unchanged = new Set(span.unchangedFiles);
   const changed = files.find((file) => !unchanged.has(file));
   if (changed !== undefined) {
@@ -231,38 +206,90 @@ function decideGroupCarry(
   return { ok: true, value: { group, chunks: moved.value } };
 }
 
-interface GroupPlanInput {
-  readonly previousBrief: Brief;
-  readonly span: PrSpan;
-  readonly groupFiles: readonly { id: string; files: readonly string[] }[];
-  /** Groups whose shared files demote them; empty lets a shared file carry. */
-  readonly sharing: ReadonlySet<string>;
-  readonly chainGroupIds: readonly string[];
+interface GroupDecision {
+  readonly group: ChangeGroup;
+  readonly files: readonly string[];
+  carry: Result<FrozenCarry, CarryRefusal>;
 }
 
-function planGroups(input: GroupPlanInput): AnchorPlan {
-  const { previousBrief, span, groupFiles, sharing } = input;
+/** The first file a frozen group shares with a re-looking one, or none. */
+function findReLookShare(
+  decision: GroupDecision,
+  reLookFiles: ReadonlySet<string>,
+): string | undefined {
+  if (!decision.carry.ok) {
+    return undefined;
+  }
+  return decision.files.find((file) => reLookFiles.has(file));
+}
+
+/**
+ * A frozen group sharing a file with a re-looking group re-looks too, since
+ * the stitch drops generated chunks on a frozen file; repeated until no
+ * frozen group shares a file with a re-looking one.
+ */
+function settleSharedFiles(decisions: readonly GroupDecision[]): void {
+  let moved = true;
+  while (moved) {
+    moved = false;
+    const reLookFiles = new Set(
+      decisions
+        .filter((decision) => !decision.carry.ok)
+        .flatMap((decision) => decision.files),
+    );
+    for (const decision of decisions) {
+      const shared = findReLookShare(decision, reLookFiles);
+      if (shared !== undefined) {
+        decision.carry = refuseCarry(
+          `${shared}: shared with a group that re-looks`,
+        );
+        moved = true;
+      }
+    }
+  }
+}
+
+/**
+ * A group freezes when the PR's change to every file it owns held across
+ * the push and every range of its chunks moves through the span's hops,
+ * and no file it owns is shared with a group that re-looks; anything else
+ * re-looks. No span re-looks every group.
+ */
+export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
+  const { previousBrief, span } = args;
+  const chainGroupIds = args.chainGroupIds ?? [];
+  if (span === undefined) {
+    return allReLook(previousBrief, SPAN_UNREAD_REASON, chainGroupIds);
+  }
+
   const sides = {
     added: indexHop(span.hop),
     removed: indexHop(span.oldSideHop),
   };
+  const decisions: GroupDecision[] = previousBrief.changeGroups.map((group) => {
+    const files = getGroupFiles(previousBrief, group.id);
+    const carry = decideGroupCarry({
+      previousBrief,
+      group,
+      files,
+      span,
+      sides,
+    });
+    return { group, files, carry };
+  });
+  settleSharedFiles(decisions);
 
   const frozen: FrozenCarry[] = [];
   const frozenFiles = new Set<string>();
   const reLook: ReLookEntry[] = [];
   let hasUnpairedHunks = false;
-  for (const [index, group] of previousBrief.changeGroups.entries()) {
-    const files = groupFiles[index]?.files ?? [];
-    const carry = decideGroupCarry({
-      previousBrief,
-      group,
-      files,
-      isSharing: sharing.has(group.id),
-      span,
-      sides,
-    });
+  for (const { group, files, carry } of decisions) {
     if (!carry.ok) {
-      reLook.push({ id: group.id, files, reason: carry.error.reason });
+      reLook.push({
+        id: group.id,
+        files: [...files],
+        reason: carry.error.reason,
+      });
       hasUnpairedHunks ||= carry.error.isUnpaired;
       continue;
     }
@@ -276,39 +303,10 @@ function planGroups(input: GroupPlanInput): AnchorPlan {
     frozen,
     frozenFiles,
     reLook,
-    previousGroupIds: reserveIds(previousBrief, input.chainGroupIds),
+    previousGroupIds: reserveIds(previousBrief, chainGroupIds),
     warnings: hasUnpairedHunks ? [AnchorWarnings.HUNKS_UNPAIRED] : [],
     hunkSpans: span.hop,
   };
-}
-
-/**
- * A group freezes when every file it owns, alone, holds the same PR change
- * at both heads and every range of its chunks moves through the span's
- * hops; anything else re-looks. No span re-looks every group. A span that
- * changed no file lets groups sharing a file carry, but only when every
- * group carries: the stitch drops generated chunks on a frozen file, so a
- * re-looking group must never share one.
- */
-export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
-  const { previousBrief, span } = args;
-  const chainGroupIds = args.chainGroupIds ?? [];
-  if (span === undefined) {
-    return allReLook(previousBrief, SPAN_UNREAD_REASON, chainGroupIds);
-  }
-
-  const groupFiles = previousBrief.changeGroups.map((group) => ({
-    id: group.id,
-    files: getGroupFiles(previousBrief, group.id),
-  }));
-  const input = { previousBrief, span, groupFiles, chainGroupIds };
-  if (span.changedFiles.length === 0) {
-    const whole = planGroups({ ...input, sharing: new Set() });
-    if (whole.reLook.length === 0) {
-      return whole;
-    }
-  }
-  return planGroups({ ...input, sharing: listSharingGroups(groupFiles) });
 }
 
 /**
@@ -421,6 +419,54 @@ function dominantFrozenParent(
     }
   }
   return bestId;
+}
+
+/** The first frozen group, other than `id` and not claimed, that carries one of `files`. */
+function findCarriedSharer(
+  id: string,
+  files: ReadonlySet<string>,
+  claimedIds: ReadonlySet<string>,
+  frozenFilesById: ReadonlyMap<string, ReadonlySet<string>>,
+): { sharerId: string; file: string } | undefined {
+  for (const [sharerId, sharerFiles] of frozenFilesById) {
+    const file = [...files].find((entry) => sharerFiles.has(entry));
+    const isCarried = sharerId !== id && !claimedIds.has(sharerId);
+    if (isCarried && file !== undefined) {
+      return { sharerId, file };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Drop each claim whose frozen files another frozen group still carries:
+ * the stitch drops generated chunks on a carried file, so releasing the
+ * claim would lose its chunks there. The carry stays and the drift goes,
+ * as with no claim evidence; repeated until no claim shares a carried file.
+ * Answers each refused claim's issue by its group id.
+ */
+function refuseSharedClaims(
+  claimedIds: Set<string>,
+  frozenFilesById: ReadonlyMap<string, ReadonlySet<string>>,
+): Map<string, string> {
+  const refusals = new Map<string, string>();
+  let refused = true;
+  while (refused) {
+    refused = false;
+    for (const id of claimedIds) {
+      const files = frozenFilesById.get(id) ?? new Set<string>();
+      const sharer = findCarriedSharer(id, files, claimedIds, frozenFilesById);
+      if (sharer !== undefined) {
+        claimedIds.delete(id);
+        refusals.set(
+          id,
+          `frozen group ${id} claimed but shares ${sharer.file} with frozen group ${sharer.sharerId}, which stays carried: carry kept, drift discarded`,
+        );
+        refused = true;
+      }
+    }
+  }
+  return refusals;
 }
 
 /** A carry may only describe files the PR still changes; an emptied carry goes whole. */
@@ -538,6 +584,8 @@ export function stitchBrief(args: StitchArgs): StitchResult {
     generatedFilesById.set(chunk.changeGroupId, files);
   }
   const claimedIds = new Set<string>();
+  /** Where each claim's issue goes, so the issues keep the generated groups' order. */
+  const claimIssueAt = new Map<string, number>();
   for (const group of generated.changeGroups) {
     const frozenFiles = frozenFilesById.get(group.id);
     if (frozenFiles === undefined) {
@@ -553,9 +601,7 @@ export function stitchBrief(args: StitchArgs): StitchResult {
     );
     if (overlaps && newEvidence) {
       claimedIds.add(group.id);
-      issues.push(
-        `frozen group ${group.id} claimed by the model output — unfrozen and re-examined`,
-      );
+      claimIssueAt.set(group.id, issues.push("") - 1);
     } else if (overlaps) {
       // The re-emission holds nothing beyond the group's own frozen files,
       // no new file is joining, so there is no claim evidence (the re-look
@@ -569,6 +615,12 @@ export function stitchBrief(args: StitchArgs): StitchResult {
         `generated group reused frozen id ${group.id} without its files — treated as a numbering slip, not a claim`,
       );
     }
+  }
+  const refusals = refuseSharedClaims(claimedIds, frozenFilesById);
+  for (const [id, at] of claimIssueAt) {
+    issues[at] =
+      refusals.get(id) ??
+      `frozen group ${id} claimed by the model output — unfrozen and re-examined`;
   }
   const activeFrozen = dropDepartedCarries(
     plan.frozen.filter((carry) => !claimedIds.has(carry.group.id)),

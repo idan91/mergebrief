@@ -316,10 +316,10 @@ PRODUCTION anchoring machinery per run: fresh `categorize` for the base,
 revision, `stitchBrief`, so the property pairs measure the real pipeline. **One pair run = TWO generations**, up to four with the
 narrative and delta mode below, one fewer with a stored `baseBrief`, and
 no revision call when that stored Brief carries every group over a span
-that changed no file and the title, description, links, ticket and repo
-context match the base's; the pre-flight line counts them per case, and
-counts the call whenever those inputs differ, even where the run still
-carries. A large `pair.json` may ship as
+that changed no file and its input fingerprint matches the revised
+inputs'; the pre-flight line counts them per case. A stored `baseBrief`
+must carry the `inputFingerprint` of the base inputs it was written from;
+the loader refuses one without it. A large `pair.json` may ship as
 `pair.json.gz`, never both.
 
 A twin case runs another case's pair through the multi-call engine: its
@@ -403,6 +403,14 @@ per file so the carry split does not hang on the model's grouping, and `pair-rea
 a master merge that left the PR diff byte-identical). They opt into the
 narrative and the delta, as do `pair-additive` (the fast-forward control)
 and `pair-ask-edit` (with review comments).
+The Media cases are authored the same way over a description holding two
+mermaid diagrams, with Summary Media on the stored base: `pair-media-no-change`
+(squash, carried with no call), `pair-media-fast-forward` and its multi-call
+twin (one file re-looks, then the Summary Media call picks after the
+stitch) and `pair-media-description-edit` (only the timing diagram swapped,
+so the fingerprint moves and the carry is refused). Their Summary Media
+properties reuse the guards in `summary-media-props.ts`, and the pre-flight
+count adds the Summary Media call a Brief over Media makes.
 Mechanical rows (untouched survival, frozen attrs, coverage, id carry,
 anchored stamp) are pipeline guarantees; any failure is a pipeline bug;
 model-judged rows (description updates, verdict transitions, summary

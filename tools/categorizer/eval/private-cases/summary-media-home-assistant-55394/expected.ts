@@ -4,7 +4,7 @@ import {
   listPointerKeys,
   listShownKeys,
   readItemKey,
-} from "../summary-media-props";
+} from "../../summary-media-props";
 
 /**
  * home-assistant/frontend#55394: a Before | After table of two screenshots.

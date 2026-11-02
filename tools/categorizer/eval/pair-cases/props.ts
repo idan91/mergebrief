@@ -1,5 +1,10 @@
 import type { Brief } from "brief-core/types";
 import type { PairEvalProperty, RevisionPair } from "../pairs";
+import {
+  buildSummaryMediaGuards,
+  listPointerKeys,
+  listShownKeys,
+} from "../summary-media-props";
 
 /**
  * Shared pair-property builders: the six stability ↔ completeness property
@@ -107,13 +112,40 @@ export function frozenAttrsNeverChange(file: string): PairEvalProperty {
   };
 }
 
-/** Coverage (mechanical, hard): every named file in exactly one revised group. */
+/**
+ * A file the revised Brief splits across groups the base split it across
+ * too, every one of them carried: the carry kept the base's split.
+ */
+function isCarriedSplit(
+  pair: RevisionPair,
+  owners: readonly string[],
+  file: string,
+): boolean {
+  const carriedIds = new Set(pair.plan.frozen.map((carry) => carry.group.id));
+  const baseOwners = groupsOwning(pair.base, file).toSorted();
+  const isBaseSplit =
+    JSON.stringify(baseOwners) === JSON.stringify(owners.toSorted());
+  return isBaseSplit && owners.every((id) => carriedIds.has(id));
+}
+
+/**
+ * Coverage (mechanical, hard): every named file in exactly one revised
+ * group, or in the groups the base split it across when the plan carried
+ * each of them.
+ */
 export function coverage(files: readonly string[]): PairEvalProperty {
   return {
     id: "coverage-exactly-one-group",
-    description: "every PR file lands in exactly one revised group",
+    description:
+      "every PR file lands in exactly one revised group, or in the carried groups the base split it across",
     check: (pair: RevisionPair) =>
-      files.every((file) => groupsOwning(pair.revised, file).length === 1),
+      files.every((file) => {
+        const owners = groupsOwning(pair.revised, file);
+        if (owners.length === 1) {
+          return true;
+        }
+        return owners.length > 1 && isCarriedSplit(pair, owners, file);
+      }),
   };
 }
 
@@ -253,6 +285,58 @@ export function shiftsCarriedRanges(
         );
       });
       return carried.length > 0 && moved;
+    },
+  };
+}
+
+/** The no-call carry keeps the base brief's Summary Media exactly as stored. */
+export function summaryMediaCarried(): PairEvalProperty {
+  return {
+    id: "summary-media-carried",
+    description:
+      "the revised brief keeps the base brief's Summary Media as stored",
+    check: (pair: RevisionPair) =>
+      pair.base.summaryMedia !== undefined &&
+      JSON.stringify(pair.base.summaryMedia) ===
+        JSON.stringify(pair.revised.summaryMedia),
+  };
+}
+
+/** The Summary Media call after the stitch showed or pointed at an item. */
+export function summaryMediaPicked(): PairEvalProperty {
+  return {
+    id: "summary-media-picked",
+    description:
+      "the revised brief's Summary Media call showed or pointed at a description item",
+    check: (pair: RevisionPair) => {
+      const picked = [
+        ...listShownKeys(pair.revised),
+        ...listPointerKeys(pair.revised),
+      ];
+      return picked.length > 0;
+    },
+  };
+}
+
+/** The Summary Media generator guarantees, held by the revised brief. */
+export function revisedSummaryMediaGuards(): PairEvalProperty[] {
+  return buildSummaryMediaGuards().map((guard) => ({
+    id: guard.id,
+    description: `revised brief: ${guard.description}`,
+    check: (pair: RevisionPair) => guard.check(pair.revised),
+  }));
+}
+
+/** The revised inputs differ from the base brief's, so no carry may skip the model. */
+export function inputFingerprintMoved(): PairEvalProperty {
+  return {
+    id: "input-fingerprint-moved",
+    description:
+      "the revised brief's input fingerprint differs from the base brief's",
+    check: (pair: RevisionPair) => {
+      const { inputFingerprint: before } = pair.base;
+      const { inputFingerprint: after } = pair.revised;
+      return before !== undefined && after !== undefined && before !== after;
     },
   };
 }

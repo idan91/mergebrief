@@ -2,7 +2,7 @@ import type { EvalProperty } from "../../properties";
 import {
   buildSummaryMediaGuards,
   hasDescriptionMedia,
-} from "../summary-media-props";
+} from "../../summary-media-props";
 
 /**
  * supabase/supabase#19466: the whole description is one GIF with alt text

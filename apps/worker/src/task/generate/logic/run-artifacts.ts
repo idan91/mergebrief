@@ -368,7 +368,7 @@ export async function finishRun(
   warnOnUnpaidTakeover(context);
 }
 
-/** A takeover claims, and so counts, even when nothing was left to pay for. */
+/** A takeover claims, and so uses one of the head's attempts, even when it costs no unit. */
 function warnOnUnpaidTakeover(context: RunContext): void {
   const { recovering, run, log } = context;
   if (!recovering || run.attempt === undefined || run.providerCalls > 0) {
@@ -376,7 +376,7 @@ function warnOnUnpaidTakeover(context: RunContext): void {
   }
 
   log.warn(
-    "generate: the recovery run made no provider call, its claim still counts as an attempt",
+    "generate: the recovery run made no provider call, its claim still used one of the head's attempts",
     buildAttemptFields(run.attempt),
   );
 }
@@ -395,7 +395,11 @@ export async function settleStoredBriefRun(context: RunContext): Promise<void> {
   await projection.settleStoredBrief(target, pickedUpAt);
 }
 
-/** A claimed run finishes through its claim; a stored-brief run settles the row. */
+/**
+ * A claimed run finishes through its claim, first giving its units back
+ * when it made no model call, as a brief carried over an unchanged span
+ * does; a stored-brief run settles the row.
+ */
 async function recordRunSuccess(context: RunContext): Promise<void> {
   const { projection, target, run, pickedUpAt } = context;
   if (run.runId === undefined) {
@@ -403,6 +407,12 @@ async function recordRunSuccess(context: RunContext): Promise<void> {
     return;
   }
 
+  if (run.providerCalls === 0) {
+    throwOnClaimLost(await projection.refundRun(run.runId));
+    context.log.info(
+      "generate: run made no model call, its attempt row now costs 0 units",
+    );
+  }
   const finished = await projection.finishRun(target, run.runId, {
     status: GenerationStatuses.SUCCEEDED,
   });

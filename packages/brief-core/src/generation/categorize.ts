@@ -24,7 +24,6 @@ import {
 } from "./repo-context";
 import type { Effort, Generator, Logger } from "generators";
 import type { Mutable } from "types/utils";
-import type { MediaItem } from "../media";
 import {
   buildSystemPrompt,
   renderAnchorView,
@@ -82,7 +81,6 @@ import {
 } from "./package-sources";
 import type { LockfileSummary } from "./shortened/types";
 import { attributeSafe } from "./fences";
-import { holdsCarriedInputs } from "./carry-inputs";
 import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
@@ -651,14 +649,12 @@ export async function generateDraftBrief(
  * The draft of a push that left every group's change as it was: the
  * previous brief's prose and intent over the new head, no group or chunk of
  * its own, and no model call. The stitch carries every group, and the
- * prompt a call would have sent is still what validation reads. Nothing
- * when the inputs beside the diff moved, which a model call must read.
+ * prompt a call would have sent is still what validation reads.
  */
 export function carryDraftBrief(
   options: DraftBriefOptions,
   previous: Brief,
-  media: readonly MediaItem[],
-): DraftBrief | undefined {
+): DraftBrief {
   const { pr } = options;
   const { effectiveContext, primaryText, user } = renderDraftPrompt(options);
   const fileDiffs = splitDiffByFile(pr.diff);
@@ -669,9 +665,6 @@ export function carryDraftBrief(
     primaryText,
     user,
   );
-  if (!holdsCarriedInputs(previous, context, media)) {
-    return undefined;
-  }
 
   const brief: Mutable<Brief> = {
     summary: previous.summary,

@@ -19,6 +19,7 @@ const REQUIRES_BASE_BRIEF_TS = `export const requiresBaseBrief = true;\n${EXPECT
 function makeStoredBaseBrief() {
   return makeBrief({
     commitRange: { base: "b".repeat(40), head: PREV_HEAD, commitCount: 1 },
+    inputFingerprint: "a".repeat(64),
   });
 }
 

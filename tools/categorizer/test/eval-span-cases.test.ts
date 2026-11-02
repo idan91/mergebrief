@@ -1,7 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { Brief } from "brief-core/types";
+import type { z } from "zod/v4";
+import { readInputFingerprint } from "brief-core";
+import { SummaryMediaAnswerSchema, type Brief } from "brief-core/types";
+import type { GenerateRequest, Generator } from "generators";
 import {
+  countPairGenerations,
   loadPairCases,
   runPairCase,
   type PairCase,
@@ -60,18 +64,16 @@ function mergeIntoOneGroup(brief: Brief): Brief {
   return { ...brief, changeGroups: [first], chunks };
 }
 
-async function runCanned(pairCase: PairCase): Promise<RevisionPair> {
+async function runCanned(
+  pairCase: PairCase,
+  generator: Generator = makeCannedGenerator(),
+): Promise<RevisionPair> {
   const briefOnly = {
     ...pairCase,
     narrativeProperties: [],
     deltaProperties: [],
   };
-  const result = await runPairCase(
-    briefOnly,
-    makeCannedGenerator(),
-    "medium",
-    1,
-  );
+  const result = await runPairCase(briefOnly, generator, "medium", 1);
   const [pair] = result.pairs;
   if (pair === undefined) {
     throw new Error(`${pairCase.id}: ${result.failureMessages.join("; ")}`);
@@ -112,4 +114,104 @@ describe("the authored span cases on the canned model", () => {
       ).toBe(true);
     },
   );
+});
+
+/** The authored Media cases; each description holds two mermaid diagrams. */
+const MEDIA_CASES = [
+  "pair-media-no-change",
+  "pair-media-fast-forward",
+  "pair-media-description-edit",
+  "pair-media-fast-forward-multi-call",
+];
+
+/** Cases whose revised brief makes a Summary Media call after the stitch. */
+const MEDIA_PICKING_CASES = [
+  "pair-media-fast-forward",
+  "pair-media-description-edit",
+  "pair-media-fast-forward-multi-call",
+];
+
+const CANNED_MEDIA_ANSWER = { shown: [{ item: 1, position: "after-lede" }] };
+
+/** The canned model, answering the Summary Media call with the first item. */
+function makeMediaCannedGenerator(): Generator {
+  const canned = makeCannedGenerator();
+  return {
+    origin: (effort) => canned.origin(effort),
+    generate<S extends z.ZodType>(req: GenerateRequest<S>) {
+      const schema: z.ZodType = req.schema;
+      if (schema === SummaryMediaAnswerSchema) {
+        return Promise.resolve(req.schema.parse(CANNED_MEDIA_ANSWER));
+      }
+      return canned.generate(req);
+    },
+  };
+}
+
+/** The case with its stored base Brief's fingerprint replaced. */
+function stampBaseFingerprint(
+  { pairCase, baseBrief }: StoredBaseCase,
+  inputFingerprint: string,
+): PairCase {
+  const fixture = {
+    ...pairCase.fixture,
+    baseBrief: { ...baseBrief, inputFingerprint },
+  };
+  return { ...pairCase, fixture };
+}
+
+describe("the authored Media cases on the canned model", () => {
+  it.each(MEDIA_CASES)("pass every pair property on %s", async (id) => {
+    const { pairCase } = await loadSpanCase(id);
+
+    const pair = await runCanned(pairCase, makeMediaCannedGenerator());
+
+    expect(listFailedIds(pairCase, pair)).toEqual([]);
+  });
+
+  it.each(MEDIA_PICKING_CASES)(
+    "fail the pick on %s when the Media call picks nothing",
+    async (id) => {
+      const { pairCase } = await loadSpanCase(id);
+
+      const pair = await runCanned(pairCase);
+
+      expect(listFailedIds(pairCase, pair)).toEqual(["summary-media-picked"]);
+    },
+  );
+
+  it("fail the description edit when a stale fingerprint lets it carry", async () => {
+    const loaded = await loadSpanCase("pair-media-description-edit");
+    const { pr, repoContext } = loaded.pairCase.fixture.revised;
+    const stale = stampBaseFingerprint(
+      loaded,
+      readInputFingerprint(pr, repoContext),
+    );
+
+    const pair = await runCanned(stale, makeMediaCannedGenerator());
+
+    expect(listFailedIds(stale, pair)).toEqual([
+      "input-fingerprint-moved",
+      "summary-media-keys-name-items",
+    ]);
+  });
+
+  it("fail the no-change carry when the base inputs differ", async () => {
+    const loaded = await loadSpanCase("pair-media-no-change");
+    const moved = stampBaseFingerprint(loaded, "0".repeat(64));
+
+    const pair = await runCanned(moved, makeMediaCannedGenerator());
+
+    expect(listFailedIds(moved, pair)).toEqual(["summary-media-carried"]);
+  });
+
+  it.each([
+    ["pair-media-no-change", 0],
+    ["pair-media-fast-forward", 2],
+    ["pair-media-description-edit", 2],
+  ])("count %s's brief and Summary Media calls", async (id, calls) => {
+    const { pairCase } = await loadSpanCase(id);
+
+    expect(countPairGenerations(pairCase)).toBe(calls);
+  });
 });

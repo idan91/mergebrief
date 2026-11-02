@@ -1,6 +1,6 @@
 import { extractMedia, type MediaKey } from "brief-core/media";
 import type { Brief } from "brief-core/types";
-import type { EvalProperty } from "../properties";
+import type { EvalProperty } from "./properties";
 
 /**
  * Property builders for the Summary Media cases. The item list is read from
@@ -9,7 +9,7 @@ import type { EvalProperty } from "../properties";
  */
 
 /** The description's Media keys in `<pr_media>` order. */
-function listDescriptionMediaKeys(brief: Brief): MediaKey[] {
+export function listDescriptionMediaKeys(brief: Brief): MediaKey[] {
   const items = extractMedia(brief.pr.description, {
     repoSlug: brief.pr.repo,
   });

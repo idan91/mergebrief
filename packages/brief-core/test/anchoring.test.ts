@@ -212,7 +212,7 @@ describe("planAnchoredGeneration", () => {
     expect(plan.hunkSpans).toBeUndefined();
   });
 
-  it("forces groups sharing a file to re-look when a file changed", () => {
+  it("carries groups sharing a file when neither re-looks", () => {
     const shared = brief(
       [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
       [
@@ -234,11 +234,70 @@ describe("planAnchoredGeneration", () => {
 
     const plan = planAnchoredGeneration({ previousBrief: shared, span });
 
-    expect(plan.frozen.map((carry) => carry.group.id)).toEqual(["g3"]);
-    expect(plan.reLook.map((entry) => entry.id).toSorted()).toEqual([
+    expect(plan.frozen.map((carry) => carry.group.id)).toEqual([
       "g1",
       "g2",
+      "g3",
     ]);
+    expect(plan.reLook).toEqual([]);
+  });
+
+  it("re-looks a group sharing a file with a group that re-looks", () => {
+    const shared = brief(
+      [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
+      [
+        chunk("c1", "g1", "a.ts", 1, 2),
+        chunk("c2", "g2", "a.ts", 10, 12),
+        chunk("c4", "g2", "y.ts", 1, 2),
+        chunk("c3", "g3", "z.ts", 1, 2),
+      ],
+    );
+    const identityHop = [
+      { file: "a.ts", hunks: [IDENTITY_SPAN] },
+      { file: "z.ts", hunks: [IDENTITY_SPAN] },
+    ];
+    const span = makeSpan({
+      changedFiles: ["y.ts"],
+      unchangedFiles: ["a.ts", "z.ts"],
+      hop: [...identityHop, { file: "y.ts", hunks: [B_HUNK] }],
+      oldSideHop: identityHop,
+    });
+
+    const plan = planAnchoredGeneration({ previousBrief: shared, span });
+
+    expect(plan.frozen.map((carry) => carry.group.id)).toEqual(["g3"]);
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1", "g2"]);
+    expect(plan.reLook[0]?.reason).toContain(
+      "a.ts: shared with a group that re-looks",
+    );
+  });
+
+  it("settles a chain of shared files until no frozen group shares one", () => {
+    const chained = brief(
+      [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
+      [
+        chunk("c1", "g1", "a.ts", 1, 2),
+        chunk("c2", "g2", "a.ts", 10, 12),
+        chunk("c3", "g2", "b.ts", 1, 2),
+        chunk("c4", "g3", "b.ts", 10, 12),
+        chunk("c5", "g3", "c.ts", 1, 2),
+      ],
+    );
+    const identityHop = [
+      { file: "a.ts", hunks: [IDENTITY_SPAN] },
+      { file: "b.ts", hunks: [IDENTITY_SPAN] },
+    ];
+    const span = makeSpan({
+      changedFiles: ["c.ts"],
+      unchangedFiles: ["a.ts", "b.ts"],
+      hop: [...identityHop, { file: "c.ts", hunks: [B_HUNK] }],
+      oldSideHop: identityHop,
+    });
+
+    const plan = planAnchoredGeneration({ previousBrief: chained, span });
+
+    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1", "g2", "g3"]);
   });
 
   it("carries groups sharing a file when no file changed", () => {
@@ -259,7 +318,7 @@ describe("planAnchoredGeneration", () => {
     expect(plan.reLook).toEqual([]);
   });
 
-  it("re-looks groups sharing a file when no file changed but one re-looks", () => {
+  it("carries a shared file's groups when only an unrelated group re-looks", () => {
     const shared = brief(
       [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
       [
@@ -277,8 +336,8 @@ describe("planAnchoredGeneration", () => {
 
     const plan = planAnchoredGeneration({ previousBrief: shared, span });
 
-    expect(plan.frozen).toEqual([]);
-    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1", "g2", "g3"]);
+    expect(plan.frozen.map((carry) => carry.group.id)).toEqual(["g1", "g2"]);
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g3"]);
   });
 
   it("carries a run's range across a rebase by its exact offset", () => {
@@ -512,6 +571,51 @@ describe("planAnchoredGeneration, chain id reservation", () => {
       chainGroupIds: ["g9"],
     });
     expect(plan.previousGroupIds).toEqual(["g1", "g2", "g9"]);
+  });
+});
+
+describe("stitchBrief, a claim on a file another carry shares", () => {
+  it("keeps both carries when a claim would free a shared frozen file", () => {
+    const previous = brief(
+      [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
+      [
+        chunk("c1", "g1", "a.ts", 1, 2),
+        chunk("c2", "g2", "a.ts", 10, 12),
+        chunk("c3", "g3", "b.ts", 1, 2),
+      ],
+    );
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      span: SPAN_B,
+    });
+    const generated = brief(
+      [group("g1", "alpha rewritten")],
+      [chunk("x1", "g1", "a.ts", 1, 2), chunk("x2", "g1", "b.ts", 1, 3)],
+      { readingOrder: [{ groupId: "g1", why: "alpha first" }] },
+    );
+
+    const result = stitchBrief({ generated, plan, prFiles: ["a.ts", "b.ts"] });
+
+    expect(plan.frozen.map((carry) => carry.group.id)).toEqual(["g1", "g2"]);
+    expect(result.carriedChunkIds).toEqual(["c1", "c2"]);
+    const onA = result.brief.chunks.filter((entry) => entry.file === "a.ts");
+    expect(onA.map((entry) => [entry.id, entry.changeGroupId])).toEqual([
+      ["c1", "g1"],
+      ["c2", "g2"],
+    ]);
+    expect(
+      result.brief.changeGroups.find((entry) => entry.id === "g1")?.title,
+    ).toBe("alpha");
+    const onB = result.brief.chunks.find((entry) => entry.file === "b.ts");
+    expect(onB?.addedRanges).toEqual([{ start: 1, end: 3 }]);
+    expect(onB?.changeGroupId).not.toBe("g1");
+    expect(result.brief.readingOrder?.map((step) => step.groupId)).toEqual([
+      "g1",
+      onB?.changeGroupId,
+    ]);
+    expect(result.issues.join("\n")).toContain(
+      "shares a.ts with frozen group g2",
+    );
   });
 });
 

@@ -179,7 +179,9 @@ checkpoint, so outside accounts reviewing it add no calls to a run. On a private
 (not internal) repository every reviewer sets one. A push that is re-queued (another push lands, a review is submitted)
 spends again and counts again, and so does every automatic retry of a failed
 run, so a single busy PR can consume a day's budget on its own. Runs that
-were superseded or failed DO count: they spent. A run counts on the day it
+were superseded or failed DO count: they spent. A run that finishes without any
+model call, such as a push that changed nothing so its brief carries whole,
+costs nothing: its record stays, at zero. A run counts on the day it
 started, and purging its pull request does not take it back.
 Queued-but-not-yet-drained jobs and capped skips do not: a burst of
 webhooks must not trip the cap before a single token is spent. A job that

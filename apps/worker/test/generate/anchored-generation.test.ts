@@ -36,6 +36,7 @@ import {
   stubGenerator,
   trigger,
   type TaskOverrides,
+  countStartedRuns,
 } from "./helpers";
 
 /** The hop entry of a file the push left as it was. */
@@ -430,6 +431,18 @@ describe("generate task, anchored generation", () => {
       "beta",
     ]);
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(1);
+  });
+
+  it("charges no unit for a brief carried with no model call", async () => {
+    await runTwoRevisions({ rev2Arrange: arrangeUnchangedPush });
+
+    expect(await countStartedRuns()).toBe(1);
+  });
+
+  it("charges one unit for a push that calls the model", async () => {
+    await runTwoRevisions({});
+
+    expect(await countStartedRuns()).toBe(2);
   });
 
   it("writes the hop before the brief, so a retry after a stop writes both", async () => {

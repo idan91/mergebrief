@@ -36,6 +36,7 @@ import {
   stubGenerator,
   stubHangingGenerator,
   trigger,
+  countStartedRuns,
 } from "./helpers";
 
 setUpHarness();
@@ -363,7 +364,7 @@ describe("generate task, claim recovery", () => {
     expect(exhausted?.["maxAttempts"]).toBe(3);
   });
 
-  it("a takeover with nothing owed warns that its claim still counts", async () => {
+  it("a takeover with nothing owed gives its unit back and warns", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     await makeTask()(payload);
     await holdRowForOtherRun();
@@ -376,6 +377,8 @@ describe("generate task, claim recovery", () => {
     });
 
     expect(generator.calls).toEqual([]);
+    expect(await countAttempts()).toBe(2);
+    expect(await countStartedRuns()).toBe(1);
     const row = await createGenerationProjection(harness.handle, ctx).get(
       makeTarget(pr, HEAD_1),
     );

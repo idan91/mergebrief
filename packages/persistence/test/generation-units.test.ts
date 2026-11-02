@@ -272,6 +272,45 @@ describe("finishRun capped", () => {
   });
 });
 
+describe("refundRun", () => {
+  it("keeps a run that paid for nothing on the ledger at zero units", async () => {
+    const { projection, startRun } = await makeUnitsHarness();
+    const runId = await startRun("carried");
+    await startRun("paid");
+
+    const refunded = await projection.refundRun(runId);
+
+    expect(refunded).toEqual({ ok: true, value: undefined });
+    expect(await projection.countStartedRuns(DAY)).toBe(1);
+    expect(await readSpendBreakdown(shared.handle, DAY)).toEqual({
+      startedUnits: 1,
+      largeRuns: { runs: 0, units: 0 },
+    });
+    expect((await projection.readRunAttempt(runId))?.units).toBe(0);
+  });
+
+  it("answers claim-lost for a run id no attempt row holds", async () => {
+    const { projection } = await makeUnitsHarness();
+
+    const refunded = await projection.refundRun(STALE_RUN_ID);
+
+    expect(!refunded.ok && refunded.error.code).toBe("claim-lost");
+  });
+
+  it("answers claim-lost for another tenant's run", async () => {
+    const { projection, startRun } = await makeUnitsHarness();
+    const runId = await startRun("mine");
+    const foreign = createGenerationProjection(shared.handle, {
+      installationId: OTHER_TENANT,
+    });
+
+    const refunded = await foreign.refundRun(runId);
+
+    expect(!refunded.ok && refunded.error.code).toBe("claim-lost");
+    expect(await projection.countStartedRuns(DAY)).toBe(1);
+  });
+});
+
 describe("recordPartDone", () => {
   it("counts the run's finished parts one at a time", async () => {
     const { projection, startRun } = await makeUnitsHarness();

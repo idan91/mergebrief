@@ -12,6 +12,7 @@ import {
   type DraftBriefOptions,
 } from "../categorize";
 import { validateFinalBrief } from "../final-validation";
+import { readInputFingerprint } from "../input-fingerprint";
 import {
   generateMultiCallBrief,
   hasStoredGrouping,
@@ -70,6 +71,8 @@ function stampWarnings(
 
 interface BriefRun {
   readonly options: GenerateBriefOptions;
+  /** What this run reads beside the diff; a no-call carry needs the previous brief's to match. */
+  readonly inputFingerprint: string;
   readonly effort: Effort;
   readonly lockfileSummaries: ReadonlyMap<string, LockfileSummary>;
   readonly log: Logger;
@@ -262,14 +265,10 @@ async function carryUnchangedSpan(
     return undefined;
   }
 
-  const draft = carryDraftBrief(
-    buildDraftOptions(run),
-    previous.brief,
-    run.media,
-  );
-  if (draft === undefined) {
+  if (previous.brief.inputFingerprint !== run.inputFingerprint) {
     return undefined;
   }
+  const draft = carryDraftBrief(buildDraftOptions(run), previous.brief);
 
   await previous.onPlan?.(plan);
   const stitched = stitchAnchoredBrief(run, plan, draft);
@@ -319,34 +318,12 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
   );
 }
 
-/**
- * Generate one Brief: a multi-call run when the call plan says so and the
- * caller passed `multiCallHooks`, else one call; with hooks, a single call
- * whose answer is cut at the output cap re-runs once as a multi-call run,
- * which starts its own warning list so the cut call's warnings are not
- * counted twice, and a retry whose span holds that run's grouping part
- * resumes it without sending the single call again. Validation runs once, over the final chunk set; nothing
- * after the model call fails the generation.
- */
-export async function generateBrief(
-  options: GenerateBriefOptions,
+/** A no-call carry when D12 holds, else the single or multi-call run the call plan and hooks pick. */
+async function routeBrief(
+  run: BriefRun,
+  callPlan: CallPlan,
 ): Promise<GenerateBriefOutput> {
-  const log = options.log ?? discardLog;
-  const warnings = createWarningCollector(log);
-  const callPlan = decideCallPlan({
-    diff: options.pr.diff,
-    forceMultiCall: options.forceMultiCall,
-  });
-  log(describeCallPlan(callPlan));
-  const run: BriefRun = {
-    options,
-    effort: options.effort ?? DEFAULT_EFFORT,
-    lockfileSummaries: options.lockfileSummaries ?? new Map(),
-    log,
-    warnings,
-    media: readDescriptionMedia(options.pr),
-  };
-
+  const { options, log, warnings } = run;
   if (options.previous !== undefined) {
     const carried = await carryUnchangedSpan(run, options.previous);
     if (carried !== undefined) {
@@ -388,4 +365,41 @@ export async function generateBrief(
     });
     return runMultiCall({ ...run, warnings: retryWarnings });
   }
+}
+
+/**
+ * Generate one Brief: a multi-call run when the call plan says so and the
+ * caller passed `multiCallHooks`, else one call; with hooks, a single call
+ * whose answer is cut at the output cap re-runs once as a multi-call run,
+ * which starts its own warning list so the cut call's warnings are not
+ * counted twice, and a retry whose span holds that run's grouping part
+ * resumes it without sending the single call again. Validation runs once, over the final chunk set; nothing
+ * after the model call fails the generation. Every brief it returns
+ * carries the fingerprint of the inputs it read beside the diff.
+ */
+export async function generateBrief(
+  options: GenerateBriefOptions,
+): Promise<GenerateBriefOutput> {
+  const log = options.log ?? discardLog;
+  const callPlan = decideCallPlan({
+    diff: options.pr.diff,
+    forceMultiCall: options.forceMultiCall,
+  });
+  log(describeCallPlan(callPlan));
+  const inputFingerprint = readInputFingerprint(
+    options.pr,
+    options.repoContext,
+  );
+  const run: BriefRun = {
+    options,
+    inputFingerprint,
+    effort: options.effort ?? DEFAULT_EFFORT,
+    lockfileSummaries: options.lockfileSummaries ?? new Map(),
+    log,
+    warnings: createWarningCollector(log),
+    media: readDescriptionMedia(options.pr),
+  };
+
+  const output = await routeBrief(run, callPlan);
+  return { ...output, brief: { ...output.brief, inputFingerprint } };
 }

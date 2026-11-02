@@ -1027,6 +1027,17 @@ export function captureLogger(
 export let harness: PgliteHarness;
 export const ctx = parseTenantContext({ installationId: 42 });
 
+const RUN_WINDOW_MS = 60_000;
+
+/** The instance's spend units started within a minute of now, as the daily cap sums them. */
+export async function countStartedRuns(): Promise<number> {
+  const now = Date.now();
+  return createGenerationProjection(harness.handle, ctx).countStartedRuns({
+    from: new Date(now - RUN_WINDOW_MS),
+    to: new Date(now + RUN_WINDOW_MS),
+  });
+}
+
 /** Gives every test in the calling file a fresh migrated PGlite `harness`. */
 export function setUpHarness(): void {
   beforeEach(async () => {

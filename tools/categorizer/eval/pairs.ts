@@ -6,10 +6,12 @@ import { AnchorStates, type Result } from "types";
 import {
   generateBrief,
   planAnchoredGeneration,
+  readInputFingerprint,
   splitDiffByFile,
   type AnchorPlan,
   type GenerateBriefOptions,
 } from "brief-core";
+import { extractMedia } from "brief-core/media";
 import {
   BetweenHeadsKinds,
   buildFastForwardSpan,
@@ -101,8 +103,8 @@ const PairFixtureSchema = z.object({
   base: FixtureSchema,
   revised: FixtureSchema,
   increment: PairIncrementSchema,
-  /** The base head's Brief, read instead of generating one. */
-  baseBrief: BriefSchema.optional(),
+  /** The base head's Brief, read instead of generating one; it carries the input fingerprint of the base inputs it was written from. */
+  baseBrief: BriefSchema.required({ inputFingerprint: true }).optional(),
   /** Review comments that existed at the revised head; the delta reads them only on the case's opt-in. */
   reviewComments: z.array(ReviewCommentSchema).optional(),
 });
@@ -789,22 +791,10 @@ function scopeBaselineToCase(
   return { ...baseline, properties: Object.fromEntries(properties) };
 }
 
-/** The inputs beside the diff a carried Brief must still match: title, description, links, ticket and repo context. */
-function readCarriedInputs(side: EvalFixture): string {
-  const { meta, links, primaryTicket } = side.pr;
-  return JSON.stringify({
-    title: meta.title,
-    body: meta.body,
-    links,
-    primaryTicket,
-    repoContext: side.repoContext,
-  });
-}
-
 /**
  * The revised Brief's calls: none when an anchored run's span changed no
- * file, the stored base Brief carries every group, and the inputs beside
- * the diff match the base's. A base generated per run has groups no
+ * file, the stored base Brief carries every group, and its input
+ * fingerprint matches the revised inputs'. A base generated per run has groups no
  * pre-flight can know, and moved inputs may still need the call, so both
  * count it.
  */
@@ -819,8 +809,10 @@ function countRevisedBriefCalls(
   if (span.changedFiles.length > 0) {
     return 1;
   }
+  const { pr, repoContext } = fixture.revised;
   const inputsMoved =
-    readCarriedInputs(fixture.base) !== readCarriedInputs(fixture.revised);
+    fixture.baseBrief.inputFingerprint !==
+    readInputFingerprint(pr, repoContext);
   if (inputsMoved) {
     return 1;
   }
@@ -831,14 +823,33 @@ function countRevisedBriefCalls(
   return plan.reLook.length === 0 ? 0 : 1;
 }
 
+/** A Brief's calls: its own, plus the Summary Media call one makes after a description holding Media. */
+function addSummaryMediaCall(briefCalls: number, side: EvalFixture): number {
+  if (briefCalls === 0) {
+    return 0;
+  }
+  const { pr } = side;
+  const media = extractMedia(pr.meta.body, {
+    repoSlug: `${pr.locator.owner}/${pr.locator.repo}`,
+  });
+  return media.length > 0 ? briefCalls + 1 : briefCalls;
+}
+
 /** Model calls one run of the case makes, multi-call Briefs counted as one. */
 export function countPairGenerations(
   pairCase: PairCase,
   mode: PairRunMode = "anchored",
 ): number {
   const scoped = scopePairCaseToMode(pairCase, mode);
-  const baseCalls = scoped.fixture.baseBrief === undefined ? 1 : 0;
-  const revisedCalls = countRevisedBriefCalls(scoped.fixture, mode);
+  const { fixture } = scoped;
+  const baseCalls = addSummaryMediaCall(
+    fixture.baseBrief === undefined ? 1 : 0,
+    fixture.base,
+  );
+  const revisedCalls = addSummaryMediaCall(
+    countRevisedBriefCalls(fixture, mode),
+    fixture.revised,
+  );
   // An unchanged span writes the no-change records with no model call.
   const spanCalls = isSpanUnchanged(scoped.fixture.filteredSpan) ? 0 : 1;
   const narrativeCalls = scoped.narrativeProperties.length > 0 ? spanCalls : 0;

@@ -174,6 +174,44 @@ describe("the fast-forward pair cases' carry split", () => {
   );
 });
 
+/** The same Brief with one more group on the first file, so two groups share it. */
+function makeSharedFileBrief(pairCase: PairCase): Brief {
+  const brief = makeFileGroupBrief(pairCase);
+  const [firstGroup] = brief.changeGroups;
+  const [firstChunk] = brief.chunks;
+  if (firstGroup === undefined || firstChunk === undefined) {
+    return brief;
+  }
+  return {
+    ...brief,
+    changeGroups: [...brief.changeGroups, { ...firstGroup, id: "gs" }],
+    chunks: [...brief.chunks, { ...firstChunk, id: "cs", changeGroupId: "gs" }],
+  };
+}
+
+describe("the fast-forward pair cases' split with a shared first file", () => {
+  it.each(Object.entries(FAST_FORWARD_SPLITS))(
+    "freezes both sharers beside g1 on %s",
+    async (id, split) => {
+      const loaded = await loadPairCases(PAIR_CASES_DIR, id);
+      const pairCase = loaded.ok ? loaded.value[0] : undefined;
+      if (pairCase === undefined) {
+        throw new Error(`pair case ${id} did not load`);
+      }
+
+      const plan = planPairAnchoring(
+        pairCase.fixture,
+        makeSharedFileBrief(pairCase),
+      );
+
+      expect({
+        frozen: plan.frozen.map((carry) => carry.group.id),
+        reLook: plan.reLook.map((entry) => entry.id),
+      }).toEqual({ frozen: [...split.frozen, "gs"], reLook: split.reLook });
+    },
+  );
+});
+
 /** A non-fast-forward case, its span derived by hand from both PR diffs. */
 const HAND_DERIVED_SPANS = [
   {

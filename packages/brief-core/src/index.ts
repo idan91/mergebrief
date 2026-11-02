@@ -75,6 +75,7 @@ export {
   type OpenPullRequest,
 } from "./pr-stack";
 export { generateBrief } from "./generation/brief";
+export { readInputFingerprint } from "./generation/input-fingerprint";
 export { decideCallPlan, predictCallPlan } from "./generation/size";
 export { SINGLE_CALL_MAX_HUNKS } from "./generation/size/consts";
 export { DEFAULT_DETAIL_CONCURRENCY } from "./generation/multi-call/consts";

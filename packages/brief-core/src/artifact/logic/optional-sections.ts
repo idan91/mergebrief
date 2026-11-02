@@ -29,6 +29,7 @@ const BRIEF_SECTIONS: BriefSectionSchemas = {
   intentCheck: BriefSchema.shape.intentCheck,
   outlineForm: BriefSchema.shape.outlineForm,
   summaryMedia: BriefSchema.shape.summaryMedia,
+  inputFingerprint: BriefSchema.shape.inputFingerprint,
 };
 
 const NARRATIVE_SECTIONS: NarrativeSectionSchemas = {

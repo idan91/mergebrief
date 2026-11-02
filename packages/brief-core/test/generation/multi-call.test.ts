@@ -1265,6 +1265,36 @@ describe("generateBrief, a multi-call run over a previous brief", () => {
     ]);
   });
 
+  it("picks Media after the anchored multi-call stitch", async () => {
+    const first = await generateBrief(
+      makeOptions(new FakeGenerator(makeAnswer())),
+    );
+    const generator = new FakeGenerator((request) =>
+      request.label === SUMMARY_MEDIA_LABEL
+        ? mediaAnswer
+        : answerReLook(request),
+    );
+
+    const { brief, anchoring } = await generateBrief(
+      makeOptions(generator, {
+        pr: mediaPr,
+        headIndex: 2,
+        previous: { brief: first.brief, span: makeCSpan() },
+      }),
+    );
+
+    const [groupingRequest] = generator.requests;
+    const mediaRequest = generator.requests.at(-1);
+    expect(groupingRequest?.system).toContain("## Media (this run)");
+    expect(groupingRequest?.system).toContain("## Anchored regeneration");
+    expect(mediaRequest?.label).toBe(SUMMARY_MEDIA_LABEL);
+    expect(mediaRequest?.user).toContain(
+      `<brief_summary>\n${brief.summary}\n</brief_summary>`,
+    );
+    expect(anchoring?.carriedGroupIds).toEqual(["g1", "g2"]);
+    expect(brief.summaryMedia?.shown).toHaveLength(1);
+  });
+
   it("keeps a re-looked group the grouping listed under a frozen id", async () => {
     const first = await generateBrief(
       makeOptions(new FakeGenerator(makeAnswer())),

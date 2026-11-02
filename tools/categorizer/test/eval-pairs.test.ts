@@ -499,6 +499,19 @@ function buildRevisionPair(base: Brief, revised: Brief): RevisionPair {
   };
 }
 
+/** A pair whose plan carried every group in `groupIds` from the base. */
+function carryGroups(
+  base: Brief,
+  revised: Brief,
+  groupIds: readonly string[],
+): RevisionPair {
+  const pair = buildRevisionPair(base, revised);
+  const frozen = groupIds.flatMap(
+    (groupId) => buildCarriedPair(base, revised, groupId).plan.frozen,
+  );
+  return { ...pair, plan: { ...pair.plan, frozen } };
+}
+
 /** A pair whose plan carried `groupId` from the base, ranges as they were. */
 function buildCarriedPair(
   base: Brief,
@@ -566,6 +579,36 @@ describe("shared pair properties fail against broken pairs", () => {
       { id: "g3", file: "b.ts" },
     ]);
     expect(property.check(buildRevisionPair(base, doubled))).toBe(false);
+  });
+
+  it("coverage: accepts a split the base made and the plan carried", () => {
+    const property = coverage(["a.ts", "b.ts"]);
+    const split = briefWith([
+      { id: "g1", file: "a.ts" },
+      { id: "g2", file: "a.ts" },
+      { id: "g3", file: "b.ts" },
+    ]);
+
+    const carried = carryGroups(split, split, ["g1", "g2"]);
+    const reLooked = buildRevisionPair(split, split);
+
+    expect(property.check(carried)).toBe(true);
+    expect(property.check(reLooked)).toBe(false);
+  });
+
+  it("coverage: fails a carried split of a file the base held in one group", () => {
+    const property = coverage(["a.ts", "b.ts"]);
+    const whole = briefWith([
+      { id: "g1", file: "a.ts" },
+      { id: "g2", file: "b.ts" },
+    ]);
+    const split = briefWith([
+      { id: "g1", file: "a.ts" },
+      { id: "g2", file: "a.ts" },
+      { id: "g3", file: "b.ts" },
+    ]);
+
+    expect(property.check(carryGroups(whole, split, ["g1", "g2"]))).toBe(false);
   });
 
   it("idCarried: fails when the owner id was reminted", () => {

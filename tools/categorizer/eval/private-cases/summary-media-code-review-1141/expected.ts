@@ -3,7 +3,7 @@ import {
   buildSummaryMediaGuards,
   listPointerKeys,
   listShownKeys,
-} from "../summary-media-props";
+} from "../../summary-media-props";
 
 /**
  * A visual change whose description carries its own evidence: four

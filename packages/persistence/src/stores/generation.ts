@@ -1,8 +1,8 @@
 // The `generation` status-projection write helpers: a mutable CQRS mirror of a
 // worker job, never a queue or a domain entity. graphile-worker deletes
 // succeeded jobs, so the web tier polls this; retries live in graphile. A run
-// claims the row (`run_id` under a lease the database clock judges), and each
-// paid run leaves one `generation_attempt` row whose `units` the daily cap sums.
+// claims the row (`run_id` under a lease the database clock judges); each
+// claimed or paid run leaves a `generation_attempt` row the daily cap sums.
 // The natural key `(installation_id, pull_request_id, kind, head_sha,
 // baseline_sha)` is NULLS NOT DISTINCT, because `baseline_sha` is null for
 // briefs and every brief upsert would otherwise insert a second row.
@@ -383,7 +383,8 @@ export interface GenerationProjection {
    * over `generation_attempt` rows started in the half-open window
    * `[from, to)`. A claim adds one unit and every `claimUnits` adds its own,
    * graphile retries included, kept whatever the projection row later
-   * becomes. Summed ACROSS repos, tenants and scope worlds: the operator
+   * becomes, unless `refundRun` gives back the units of a run that made no
+   * model call. Summed ACROSS repos, tenants and scope worlds: the operator
    * pays one bill whichever door spends it.
    */
   countStartedRuns(input: {
@@ -423,6 +424,13 @@ export interface GenerationProjection {
   claimUnits(
     input: ClaimUnitsInput,
   ): Promise<Result<ClaimUnitsOutcome, GenerationError>>;
+  /**
+   * Give back every unit of a run that finished without a model call: its
+   * attempt row stays on the ledger at 0 units, so the day's count and the
+   * spend read drop by what it held. Only lowers the count, so it needs no
+   * cap lock. A run id no attempt row in the scope holds is `claim-lost`.
+   */
+  refundRun(runId: string): Promise<Result<void, GenerationError>>;
   /** One more finished part on the run's attempt row; answers the new count. */
   recordPartDone(runId: string): Promise<Result<number, GenerationError>>;
   /** The run's planned detail calls and the stored ones it starts from, on its attempt row; `claim-lost` for an unknown run id, `RangeError` for a plan that is not whole parts (a caller's bug). */
@@ -1399,6 +1407,18 @@ export function createGenerationProjection(
         }
         return claimAttemptUnits(tx, input);
       });
+    },
+
+    async refundRun(runId) {
+      const rows = await db
+        .update(generationAttempt)
+        .set({ units: 0 })
+        .where(matchesAttempt(runId))
+        .returning({ runId: generationAttempt.runId });
+      if (rows[0] === undefined) {
+        return failAttemptLost(runId);
+      }
+      return { ok: true, value: undefined };
     },
 
     async recordPartDone(runId) {

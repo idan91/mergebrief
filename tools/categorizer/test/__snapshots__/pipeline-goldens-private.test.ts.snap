@@ -112,6 +112,7 @@ exports[`adversarial stitch goldens > pair-real-brief143-docs stitches the adver
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 2,
+  "inputFingerprint": "888c92da940c8a0f143178dc9ddd9cef98e101099613c4612c28b605b2f87fef",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -675,6 +676,7 @@ exports[`brief goldens > delta-read-api-contract produces the recorded brief 1`]
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "6a5cc6cd04888c291ddaff552eaa916672da5f6ef263ad9bf714ea61a46f4ca5",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -899,6 +901,7 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 1,
+    "inputFingerprint": "888c92da940c8a0f143178dc9ddd9cef98e101099613c4612c28b605b2f87fef",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -1033,6 +1036,7 @@ exports[`brief goldens > pair-real-brief143-docs produces the recorded brief 1`]
       "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
     ],
     "index": 2,
+    "inputFingerprint": "888c92da940c8a0f143178dc9ddd9cef98e101099613c4612c28b605b2f87fef",
     "intentCheck": {
       "accomplished": [],
       "deviations": [],
@@ -2311,6 +2315,7 @@ exports[`brief goldens > summary-media-code-review-1141 produces the recorded br
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g4 summary is 332 chars — exceeds the 250-char cap\\ngroup g6 summary is 485 chars — exceeds the 250-char cap\\ngroup g8 summary is 908 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "235e9197482f36d54c7bb57f3fa4026ca944a27a29b1fb5d8846e76aae77ba8f",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -3374,6 +3379,7 @@ exports[`brief goldens > summary-media-grafana-107803 produces the recorded brie
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "b83f8b942bd8ba4e253f3c2a1b0a04261f0b0218918d11c2a133581446192070",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -4175,6 +4181,7 @@ exports[`brief goldens > summary-media-home-assistant-55394 produces the recorde
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "902a9d80d945c0b0d0fb0be5bd5012e450be2a37c9c249d72da3b4d39cac514a",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],
@@ -5118,6 +5125,7 @@ exports[`brief goldens > summary-media-supabase-19466 produces the recorded brie
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g7 summary is 906 chars — exceeds the 250-char cap\\ngroup g11 summary is 321 chars — exceeds the 250-char cap"
   ],
   "index": 1,
+  "inputFingerprint": "40a34ca3158b3b1b1c985671ecebdceb8157bfeb42662833ef05b1b094784bcc",
   "intentCheck": {
     "accomplished": [],
     "deviations": [],

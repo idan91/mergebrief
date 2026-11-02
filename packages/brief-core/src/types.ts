@@ -115,6 +115,9 @@ export const RiskSurfaceAttributes = {
  */
 export const CUSTOM_ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
+/** A Brief's input fingerprint: sha-256 in lowercase hex. */
+export const INPUT_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
+
 export const CUSTOM_ATTRIBUTE_NAME_MAX_CHARS = 50;
 
 /**
@@ -1056,6 +1059,13 @@ export const BriefSchema = z.object({
   summaryMedia: SummaryMediaSchema.optional().describe(
     "the Media shown in the Brief summary and its pointer, by key. Generator-mapped from item numbers; absent when the description holds no Media or nothing valid was picked.",
   ),
+  inputFingerprint: z
+    .string()
+    .regex(INPUT_FINGERPRINT_PATTERN)
+    .optional()
+    .describe(
+      "sha-256 hex of the inputs beside the diff the generation read: title, branch facts, description, linked context, primary ticket and repo context. Pipeline-assigned, never model-produced; a carry with no model call needs it to match the next run's. Absent on a brief written before it, which never carries.",
+    ),
 });
 
 /**
@@ -1082,6 +1092,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   diffTotals: true,
   outlineForm: true,
   summaryMedia: true,
+  inputFingerprint: true,
 }).extend({
   chunks: z.array(ChunkGenerationSchema),
   intentCheck: IntentCheckGenerationSchema,

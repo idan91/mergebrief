@@ -3,12 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import type { z } from "zod/v4";
+import { readInputFingerprint } from "brief-core";
 import type {
   Effort,
   GenerateRequest,
   Generation,
   Generator,
 } from "generators";
+import { loadPairCases } from "../eval/pairs";
 
 /** Serves canned generation outputs in call order (run1 base, run1 revised, …). */
 export class SequenceGenerator implements Generator {
@@ -173,3 +175,14 @@ export const pairProperties = [
   },
 ];
 `;
+
+/** The input fingerprint `makePairJson`'s base inputs give, which a stored base Brief over them carries. */
+export async function readBaseInputFingerprint(): Promise<string> {
+  const root = writePairCase("fingerprint", EXPECTED_TS);
+  const loaded = await loadPairCases(root, "fingerprint");
+  const base = loaded.ok ? loaded.value[0]?.fixture.base : undefined;
+  if (base === undefined) {
+    throw new Error("the plain pair case did not load");
+  }
+  return readInputFingerprint(base.pr, base.repoContext);
+}
