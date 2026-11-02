@@ -34,6 +34,12 @@ function reportIntersection(
 const JUMP_CALLER_TOP = 25_000;
 /** Tall enough that no jump in these tests clamps to the page's end. */
 const PAGE_HEIGHT = 100_000;
+/**
+ * The virtualizer's `isScrollingResetDelay` default. Each window scroll arms
+ * a timer this long that its unsubscribe never clears; left pending, it
+ * fires after the file's jsdom teardown and throws `window is not defined`.
+ */
+const SCROLL_RESET_DELAY_MS = 150;
 
 const KEYS = Array.from(
   { length: 40 },
@@ -226,7 +232,7 @@ describe("useGroupWindow", () => {
     expect(current().items).toHaveLength(0);
   });
 
-  it("leaves the page to the caller once a jump's target offset moves", () => {
+  it("leaves the page to the caller once a jump's target offset moves", async () => {
     Object.defineProperty(document.documentElement, "scrollHeight", {
       configurable: true,
       value: PAGE_HEIGHT,
@@ -281,6 +287,12 @@ describe("useGroupWindow", () => {
 
     expect(scrollTo).toHaveBeenCalledTimes(1);
     expect(window.scrollY).toBe(JUMP_CALLER_TOP);
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, SCROLL_RESET_DELAY_MS);
+      });
+    });
   });
 
   it("releases a jump into a near group once the group goes far", () => {
