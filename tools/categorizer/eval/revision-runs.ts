@@ -8,16 +8,20 @@ import {
   exceedsNarrativeCallLimits,
   isHugeSpan,
   parseChangedRanges,
+  restoreRawPaths,
   shapeDeltaUnchanged,
+  splitDiffByFile,
   type DeltaInput,
   type RevisionChangeFile,
   type RevisionNarrativeInput,
 } from "brief-core";
 import {
   DeltaBriefGenerationSchema,
+  RevisionNarrativeGenerationSchema,
   type Brief,
   type DeltaBrief,
   type DeltaUnchanged,
+  type LineRange,
   type ReviewComment,
   type RevisionNarrative,
   type RevisionNarrativeUnchanged,
@@ -25,9 +29,18 @@ import {
 import type { Effort, GenerateRequest, Generator } from "generators";
 import type { EvalFixture } from "./loadCase";
 
+type DeltaBriefGeneration = z.infer<typeof DeltaBriefGenerationSchema>;
+
 /** Brief indexes the pair's two heads take, the base first. */
 export const BASE_BRIEF_INDEX = 1;
 export const REVISED_BRIEF_INDEX = 2;
+
+/** A chunk's file and ranges as the model answered, its raw path restored, before alignment clips them. */
+export interface ModelChunk {
+  file: string;
+  addedRanges: readonly LineRange[];
+  removedRanges: readonly LineRange[];
+}
 
 /**
  * What a narrative property reads: the narrative, or the no-change record an
@@ -37,6 +50,8 @@ export const REVISED_BRIEF_INDEX = 2;
 export interface NarrativeRun {
   brief: Brief;
   narrative: RevisionNarrative | RevisionNarrativeUnchanged;
+  /** What the no-replay check reads: alignment clips base noise out of the stored ranges. */
+  modelChunks: readonly ModelChunk[];
   marksFiles: RevisionChangeFile[];
   filteredSpan: string;
   unfilteredSpan: string;
@@ -46,6 +61,8 @@ export interface NarrativeRun {
 /** What a delta property reads; `unknownGroupChunkIds` are chunks the pipeline dropped before `delta`. */
 export interface DeltaRun {
   delta: DeltaBrief | DeltaUnchanged;
+  /** The model's chunks under a known group, for the no-replay check. */
+  modelChunks: readonly ModelChunk[];
   filteredSpan: string;
   unfilteredSpan: string;
   reviewComments: readonly ReviewComment[];
@@ -154,6 +171,7 @@ export async function generateNarrativeRun(
     return {
       brief,
       narrative: unchanged,
+      modelChunks: [],
       marksFiles,
       filteredSpan: inputs.filteredSpan,
       unfilteredSpan: inputs.unfilteredSpan,
@@ -185,9 +203,17 @@ export async function generateNarrativeRun(
     () => {},
     inputs.effort,
   );
+  const answer = RevisionNarrativeGenerationSchema.parse(
+    recorded.outputs.at(-1),
+  );
+  const rawPaths = [
+    ...brief.chunks.map((chunk) => chunk.file),
+    ...listSpanPaths(inputs.filteredSpan),
+  ];
   return {
     brief,
     narrative,
+    modelChunks: restoreRawPaths(answer.chunks, rawPaths),
     marksFiles,
     filteredSpan: inputs.filteredSpan,
     unfilteredSpan: inputs.unfilteredSpan,
@@ -215,6 +241,7 @@ export async function generateDeltaRun(
     });
     return {
       delta: unchanged,
+      modelChunks: [],
       filteredSpan: inputs.filteredSpan,
       unfilteredSpan: inputs.unfilteredSpan,
       reviewComments: inputs.reviewComments,
@@ -230,12 +257,18 @@ export async function generateDeltaRun(
     () => {},
     inputs.effort,
   );
+  const answer = DeltaBriefGenerationSchema.parse(recorded.outputs.at(-1));
+  const knownChunks = listKnownGroupChunks(answer);
   return {
     delta,
+    modelChunks: restoreRawPaths(
+      knownChunks,
+      listSpanPaths(inputs.filteredSpan),
+    ),
     filteredSpan: inputs.filteredSpan,
     unfilteredSpan: inputs.unfilteredSpan,
     reviewComments: inputs.reviewComments,
-    unknownGroupChunkIds: listUnknownGroupChunkIds(recorded.outputs.at(-1)),
+    unknownGroupChunkIds: listUnknownGroupChunkIds(answer),
     modelCalls: recorded.outputs.length,
   };
 }
@@ -262,11 +295,27 @@ function recordOutputs(inner: Generator): RecordedGenerator {
   };
 }
 
+function listSpanPaths(span: string): string[] {
+  return splitDiffByFile(span).map((fileDiff) => fileDiff.file);
+}
+
+function hasKnownGroup(
+  answer: DeltaBriefGeneration,
+  chunk: DeltaBriefGeneration["chunks"][number],
+): boolean {
+  return answer.changedGroups.some((group) => group.id === chunk.changeGroupId);
+}
+
+/** Chunks of the model's delta answer naming a group the answer holds: the ones the pipeline keeps. */
+function listKnownGroupChunks(
+  answer: DeltaBriefGeneration,
+): DeltaBriefGeneration["chunks"] {
+  return answer.chunks.filter((chunk) => hasKnownGroup(answer, chunk));
+}
+
 /** Chunks of the model's delta answer naming a group the answer does not hold. */
-function listUnknownGroupChunkIds(output: unknown): string[] {
-  const answer = DeltaBriefGenerationSchema.parse(output);
-  const groupIds = new Set(answer.changedGroups.map((group) => group.id));
+function listUnknownGroupChunkIds(answer: DeltaBriefGeneration): string[] {
   return answer.chunks
-    .filter((chunk) => !groupIds.has(chunk.changeGroupId))
+    .filter((chunk) => !hasKnownGroup(answer, chunk))
     .map((chunk) => chunk.id);
 }

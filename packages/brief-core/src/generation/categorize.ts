@@ -43,7 +43,7 @@ import {
   detectChunkOverlaps,
 } from "./loc";
 import { snapChunkRanges } from "./snap-ranges";
-import { alignChunkRanges } from "./align-ranges";
+import { alignAndSnapChunkRanges, alignChunkRanges } from "./align-ranges";
 import { exceedsCallLimits } from "./huge-span";
 import {
   dropUnknownGroupChunks,
@@ -815,6 +815,32 @@ export function shapeDeltaUnchanged(input: DeltaSpanRef): DeltaUnchanged {
   };
 }
 
+type RangedChunk = Pick<Chunk, "id" | "file" | "addedRanges" | "removedRanges">;
+
+function hasRanges(chunk: RangedChunk): boolean {
+  return chunk.addedRanges.length > 0 || chunk.removedRanges.length > 0;
+}
+
+/** Chunks the model gave ranges that alignment left with none: prose over lines the span does not change. */
+function listEmptiedChunkIssues(
+  written: readonly RangedChunk[],
+  fitted: readonly RangedChunk[],
+): string[] {
+  return fitted.flatMap((chunk, index) => {
+    const writtenChunk = written[index];
+    const isEmptied =
+      writtenChunk !== undefined &&
+      hasRanges(writtenChunk) &&
+      !hasRanges(chunk);
+    if (!isEmptied) {
+      return [];
+    }
+    return [
+      `chunk ${chunk.id} (${chunk.file}): no range left on a changed line of the span`,
+    ];
+  });
+}
+
 export async function categorizeDelta(
   input: DeltaInput,
   generator: Generator,
@@ -835,9 +861,10 @@ export async function categorizeDelta(
     log,
     onWarning: collector.recordGeneratorWarning,
   });
-  // Delta chunk loc derives from the incremental diff, same discipline as
-  // the full brief; the delta artifact carries no concernView/unattributed.
+  // Delta chunk ranges and loc derive from the incremental diff, same
+  // discipline as the full brief; the delta carries no concernView/unattributed.
   const fileDiffs = splitDiffByFile(input.incrementalDiff);
+  const changedFiles = changedRangesFromFileDiffs(fileDiffs);
   const restored = restoreRawPaths(
     generated.chunks,
     fileDiffs.map((fileDiff) => fileDiff.file),
@@ -845,10 +872,17 @@ export async function categorizeDelta(
   const known = dropUnknownGroupChunks(generated.changedGroups, restored);
   collector.reportIssues("unknown group", known.issues);
 
-  const chunksWithLoc = deriveChunkLoc(
+  const fitted = alignAndSnapChunkRanges(
     known.chunks,
-    changedRangesFromFileDiffs(fileDiffs),
+    fileDiffs,
+    changedFiles,
+    collector,
   );
+  collector.reportIssues(
+    "empty chunk",
+    listEmptiedChunkIssues(known.chunks, fitted),
+  );
+  const chunksWithLoc = deriveChunkLoc(fitted, changedFiles);
   collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));
   const trio = validateRiskAttributes(chunksWithLoc, fileDiffs);
   collector.reportIssues("risk attrs", trio.issues);
@@ -1041,17 +1075,17 @@ interface RevisionNarrativeRequest {
   readonly user: string;
   /** The files the span diff touches, which the brief context is trimmed to. */
   readonly spanPaths: readonly string[];
+  readonly fileDiffs: FileDiff[];
 }
 
 /** The user message the narrative call sends; the limit check measures this same one. */
 function buildRevisionNarrativeRequest(
   input: RevisionNarrativeInput,
 ): RevisionNarrativeRequest {
-  const spanPaths = splitDiffByFile(input.incrementalDiff).map(
-    (fileDiff) => fileDiff.file,
-  );
+  const fileDiffs = splitDiffByFile(input.incrementalDiff);
+  const spanPaths = fileDiffs.map((fileDiff) => fileDiff.file);
   const user = renderRevisionNarrativeUser(input, new Set(spanPaths));
-  return { user, spanPaths };
+  return { user, spanPaths, fileDiffs };
 }
 
 /** True when the narrative call for this span would exceed a single call's limits. */
@@ -1073,7 +1107,7 @@ export async function categorizeRevisionNarrative(
   // The model produces overview + chunks only; the rest is CLI-owned metadata
   // it cannot know, filled in here.
   const collector = createWarningCollector(log);
-  const { user, spanPaths } = buildRevisionNarrativeRequest(input);
+  const { user, spanPaths, fileDiffs } = buildRevisionNarrativeRequest(input);
   const generated = await generator.generate({
     schema: RevisionNarrativeGenerationSchema,
     system: buildRevisionNarrativeSystemPrompt(),
@@ -1087,7 +1121,13 @@ export async function categorizeRevisionNarrative(
     ...input.brief.chunks.map((chunk) => chunk.file),
     ...spanPaths,
   ];
-  const chunks = restoreRawPaths(generated.chunks, rawPaths);
+  const restored = restoreRawPaths(generated.chunks, rawPaths);
+  const chunks = alignAndSnapChunkRanges(
+    restored,
+    fileDiffs,
+    changedRangesFromFileDiffs(fileDiffs),
+    collector,
+  );
   collector.reportIssues(
     "revision narrative",
     validateNarrativeGroups(chunks, input.brief.changeGroups),

@@ -49,6 +49,7 @@ function makeNarrativeRun(
   return {
     brief: makeBrief(),
     narrative,
+    modelChunks: narrative.chunks,
     marksFiles: [{ file: "b.ts", addedRanges: LINE_TWO, removedRanges: [] }],
     filteredSpan: DIFF_B,
     unfilteredSpan,
@@ -78,6 +79,7 @@ function makeDeltaRun(
   } as unknown as DeltaBrief;
   return {
     delta,
+    modelChunks: delta.chunks,
     filteredSpan: DIFF_B,
     unfilteredSpan: DIFF_B,
     reviewComments: [],

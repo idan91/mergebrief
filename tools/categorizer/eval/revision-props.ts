@@ -170,8 +170,8 @@ export const narrativeCoversSpan: NarrativeEvalProperty = {
 export const narrativeNoReplay: NarrativeEvalProperty = {
   id: "narrative-no-replay",
   description:
-    "every narrative chunk sits in a file of the filtered span and on no base-noise line",
-  check: (run) => isReplayFree(listNarrativeChunks(run), run),
+    "every narrative chunk, as the model wrote it, sits in a file of the filtered span and on no base-noise line",
+  check: (run) => isReplayFree(run.modelChunks, run),
 };
 
 export const deltaGrounded: DeltaEvalProperty = {
@@ -193,8 +193,8 @@ export const deltaGrounded: DeltaEvalProperty = {
 export const deltaNoReplay: DeltaEvalProperty = {
   id: "delta-no-replay",
   description:
-    "every delta chunk sits in a file of the filtered span and on no base-noise line",
-  check: (run) => isReplayFree(readDeltaContent(run).chunks, run),
+    "every delta chunk, as the model wrote it, sits in a file of the filtered span and on no base-noise line",
+  check: (run) => isReplayFree(run.modelChunks, run),
 };
 
 export const deltaCoversSpan: DeltaEvalProperty = {

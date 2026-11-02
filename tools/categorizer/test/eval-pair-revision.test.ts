@@ -11,6 +11,7 @@ import {
 } from "../eval/pairs";
 import { BaselineModes, saveBaseline } from "../eval/baseline";
 import { buildReport } from "../eval/report";
+import { deltaNoReplay, narrativeNoReplay } from "../eval/revision-props";
 import { makeBrief } from "./eval-fixtures";
 import {
   DIFF_B,
@@ -45,7 +46,18 @@ const COMMENT = {
   outdated: false,
 };
 
-function makeSpanPairJson(extra: Record<string, unknown> = {}): unknown {
+/** DIFF_B's PR run, then a base edit in the same file the filter dropped: line 12 added. */
+const UNFILTERED_WITH_BASE_EDIT = `${DIFF_B}@@ -10,1 +11,2 @@
+ ten
++base edit
+`;
+
+const PR_LINE = [{ start: 2, end: 2 }];
+
+function makeSpanPairJson(
+  extra: Record<string, unknown> = {},
+  unfilteredSpan = `${DIFF_B}${UNFILTERED_ONLY}`,
+): unknown {
   const pair = makePairJson(extra);
   if (typeof pair !== "object" || pair === null) {
     throw new Error("pair json is not an object");
@@ -54,7 +66,7 @@ function makeSpanPairJson(extra: Record<string, unknown> = {}): unknown {
   Reflect.set(pair, "increment", {
     ...increment,
     filteredSpan: DIFF_B,
-    unfilteredSpan: `${DIFF_B}${UNFILTERED_ONLY}`,
+    unfilteredSpan,
   });
   return pair;
 }
@@ -131,7 +143,7 @@ const STORED_BASE_BRIEF = makeBrief({
   inputFingerprint: await readBaseInputFingerprint(),
 });
 
-function makeNarrativeOutput(groupId: string): unknown {
+function makeNarrativeOutput(groupId: string, addedRanges = PR_LINE): unknown {
   return {
     overview: "b.ts gained a line",
     chunks: [
@@ -139,7 +151,7 @@ function makeNarrativeOutput(groupId: string): unknown {
         id: "rc1",
         briefChangeGroupId: groupId,
         file: "b.ts",
-        addedRanges: [{ start: 2, end: 2 }],
+        addedRanges,
         removedRanges: [],
         summary: "adds a line",
       },
@@ -147,7 +159,7 @@ function makeNarrativeOutput(groupId: string): unknown {
   };
 }
 
-function makeDeltaOutput(chunkGroupId: string): unknown {
+function makeDeltaOutput(chunkGroupId: string, addedRanges = PR_LINE): unknown {
   return {
     summary: "b.ts gained a line",
     commentsAddressed: "",
@@ -169,7 +181,7 @@ function makeDeltaOutput(chunkGroupId: string): unknown {
         file: "b.ts",
         concern: "implementation",
         role: "core",
-        addedRanges: [{ start: 2, end: 2 }],
+        addedRanges,
         removedRanges: [],
         riskSurface: [],
         summary: "adds a line",
@@ -469,6 +481,36 @@ describe("runPairCase with the narrative and delta opt-in", () => {
     expect(deltaRun?.delta.headSha).toBe(NEW_HEAD);
     expect(deltaRun?.reviewComments).toEqual([COMMENT]);
     expect(deltaRun?.unknownGroupChunkIds).toEqual([]);
+  });
+
+  it("fails replay on model ranges over base noise the stored ranges clip", async () => {
+    const pairCase = await loadOnlyCase(
+      writePairCase(
+        "replay",
+        OPTED_IN_TS,
+        makeSpanPairJson({}, UNFILTERED_WITH_BASE_EDIT),
+      ),
+    );
+    const replayingRanges = [...PR_LINE, { start: 12, end: 12 }];
+    const generator = new SequenceGenerator([
+      BASE_OUTPUT,
+      REVISED_OUTPUT,
+      makeNarrativeOutput("g1", replayingRanges),
+      makeDeltaOutput("d1", replayingRanges),
+    ]);
+
+    const result = await runPairCase(pairCase, generator, "medium", 1);
+
+    const [narrativeRun] = result.narratives;
+    const [deltaRun] = result.deltas;
+    expect(narrativeRun?.narrative).toMatchObject({
+      chunks: [{ addedRanges: PR_LINE }],
+    });
+    expect(deltaRun?.delta).toMatchObject({
+      chunks: [{ addedRanges: PR_LINE }],
+    });
+    expect(narrativeRun && narrativeNoReplay.check(narrativeRun)).toBe(false);
+    expect(deltaRun && deltaNoReplay.check(deltaRun)).toBe(false);
   });
 
   it("sends the delta no review comments by default", async () => {

@@ -1,6 +1,8 @@
+import type { FileDiff } from "../diff/file-diff";
 import type { RevisionChangeFile } from "../diff/revchanges";
 import type { Chunk, LineRange } from "../types";
 import { countLines, intersectRanges, mergeChangedFiles } from "./loc";
+import { snapChunkRanges } from "./snap-ranges";
 import {
   GenerationWarningKinds,
   type WarningCollector,
@@ -179,4 +181,15 @@ export function alignChunkRanges<C extends ChunkRanges>(
 
   reportAlignment(tally, warnings);
   return aligned;
+}
+
+/** The Brief's range order over one diff: align to the changed lines, then snap. */
+export function alignAndSnapChunkRanges<C extends ChunkRanges>(
+  chunks: readonly C[],
+  fileDiffs: readonly FileDiff[],
+  changedFiles: readonly RevisionChangeFile[],
+  warnings: WarningCollector,
+): C[] {
+  const aligned = alignChunkRanges(chunks, changedFiles, warnings);
+  return snapChunkRanges(aligned, fileDiffs);
 }

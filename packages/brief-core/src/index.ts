@@ -35,6 +35,7 @@ export {
   type DeltaSpanRef,
   type RevisionNarrativeInput,
 } from "./generation/categorize";
+export { restoreRawPaths } from "./generation/untrusted-text";
 export { splitDiffByFile } from "./diff/file-diff";
 export {
   parseChangedRanges,
