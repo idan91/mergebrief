@@ -162,6 +162,7 @@ export async function readPrSpan(
 export { LINE_DIFF_TIMEOUT_MS } from "./consts";
 export { buildPrSpan, isSpanUnchanged } from "./logic/build-span";
 export { buildFastForwardSpan } from "./logic/fast-forward-span";
+export { readChangeRuns } from "./logic/change-runs";
 export {
   formatLineDiffPatch,
   SpanRunnerError,
@@ -180,6 +181,7 @@ export {
   type BlobRead,
   type BlobRef,
   type BuiltSpanPlan,
+  type ChangeRun,
   type FastForwardSpanInput,
   type HeadTexts,
   type LineDiffFile,

@@ -39,6 +39,7 @@ export interface NarrativeRun {
   narrative: RevisionNarrative | RevisionNarrativeUnchanged;
   marksFiles: RevisionChangeFile[];
   filteredSpan: string;
+  unfilteredSpan: string;
   modelCalls: number;
 }
 
@@ -46,6 +47,7 @@ export interface NarrativeRun {
 export interface DeltaRun {
   delta: DeltaBrief | DeltaUnchanged;
   filteredSpan: string;
+  unfilteredSpan: string;
   reviewComments: readonly ReviewComment[];
   unknownGroupChunkIds: readonly string[];
   modelCalls: number;
@@ -68,6 +70,8 @@ export interface RevisionSpanInputs {
   revised: EvalFixture;
   prevHeadSha: string;
   filteredSpan: string;
+  /** Read only by the no-replay predicates: the lines it changes that `filteredSpan` does not are base noise. */
+  unfilteredSpan: string;
   /** What the delta sends; empty unless the case opts in. */
   reviewComments: readonly ReviewComment[];
   generator: Generator;
@@ -152,6 +156,7 @@ export async function generateNarrativeRun(
       narrative: unchanged,
       marksFiles,
       filteredSpan: inputs.filteredSpan,
+      unfilteredSpan: inputs.unfilteredSpan,
       modelCalls: recorded.outputs.length,
     };
   }
@@ -185,6 +190,7 @@ export async function generateNarrativeRun(
     narrative,
     marksFiles,
     filteredSpan: inputs.filteredSpan,
+    unfilteredSpan: inputs.unfilteredSpan,
     modelCalls: recorded.outputs.length,
   };
 }
@@ -210,6 +216,7 @@ export async function generateDeltaRun(
     return {
       delta: unchanged,
       filteredSpan: inputs.filteredSpan,
+      unfilteredSpan: inputs.unfilteredSpan,
       reviewComments: inputs.reviewComments,
       unknownGroupChunkIds: [],
       modelCalls: recorded.outputs.length,
@@ -226,6 +233,7 @@ export async function generateDeltaRun(
   return {
     delta,
     filteredSpan: inputs.filteredSpan,
+    unfilteredSpan: inputs.unfilteredSpan,
     reviewComments: inputs.reviewComments,
     unknownGroupChunkIds: listUnknownGroupChunkIds(recorded.outputs.at(-1)),
     modelCalls: recorded.outputs.length,

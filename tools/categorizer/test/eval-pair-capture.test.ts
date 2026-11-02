@@ -42,6 +42,26 @@ index 0000000..3333333
 +fresh
 `;
 
+const HEADER_ONLY_FILES = `diff --git a/logo.png b/logo.png
+index 4444444..5555555 100644
+Binary files a/logo.png and b/logo.png differ
+diff --git a/run.sh b/run.sh
+old mode 100644
+new mode 100755
+diff --git a/old-name.ts b/new-name.ts
+similarity index 100%
+rename from old-name.ts
+rename to new-name.ts
+diff --git a/gone.ts b/gone.ts
+deleted file mode 100644
+index 6666666..0000000
+--- a/gone.ts
++++ /dev/null
+@@ -1,2 +0,0 @@
+-one
+-two
+`;
+
 const COMMENT = {
   id: "101",
   file: "a.ts",
@@ -162,6 +182,45 @@ describe("capturePair", () => {
     expect(file.reviewComments).toEqual([COMMENT]);
   });
 
+  it("records the span the production read built", async () => {
+    const captured = await capturePair(
+      READS,
+      stubSpanSource(),
+      REQUEST,
+      new AbortController().signal,
+    );
+
+    if (!captured.ok) {
+      throw new Error(captured.error);
+    }
+    const { span } = captured.value.increment;
+    expect(span?.changedFiles).toEqual(["b.ts"]);
+    expect(span?.unchangedFiles).toEqual(["a.ts"]);
+    expect(span?.isUnchanged).toBe(false);
+    expect(span?.hop.map((entry) => entry.file)).toEqual(["a.ts", "b.ts"]);
+  });
+
+  it("lists every file of each head's diff, header-only ones included", async () => {
+    const captured = await capturePair(
+      READS,
+      stubSpanSource(undefined, `${A_PATCH}${B_PATCH}${HEADER_ONLY_FILES}`),
+      REQUEST,
+      new AbortController().signal,
+    );
+
+    if (!captured.ok) {
+      throw new Error(captured.error);
+    }
+    expect(captured.value.revised.pr.meta.files).toEqual([
+      { path: "a.ts", additions: 1, deletions: 0 },
+      { path: "b.ts", additions: 1, deletions: 0 },
+      { path: "logo.png", additions: 0, deletions: 0 },
+      { path: "run.sh", additions: 0, deletions: 0 },
+      { path: "new-name.ts", additions: 0, deletions: 0 },
+      { path: "gone.ts", additions: 0, deletions: 2 },
+    ]);
+  });
+
   it("reads the previous PR diff a fast-forward span skipped", async () => {
     const span = stubSpanSource(undefined, `${A_PATCH}${B_PATCH}`, true);
 
@@ -253,6 +312,9 @@ describe("writePairCapture", () => {
       throw new Error(cases.error);
     }
     expect(cases.value[0]?.fixture.filteredSpan).toContain("+fresh");
+    expect(cases.value[0]?.fixture.recordedSpan?.unchangedFiles).toEqual([
+      "a.ts",
+    ]);
   });
 
   it("gzips a capture past the size bound", async () => {

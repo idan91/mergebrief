@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DeltaBrief, RevisionNarrative } from "brief-core/types";
 import {
   deltaCommentsFromInput,
+  deltaCoversSpan,
   deltaGrounded,
   deltaNoChange,
   deltaNoReplay,
@@ -16,8 +17,21 @@ import { DIFF_B } from "./pair-fixtures";
 
 const LINE_TWO = [{ start: 2, end: 2 }];
 
+/** DIFF_B's PR run at line 2, then a base edit the filter dropped: line 12 added. */
+const SPAN_WITH_BASE_EDIT = `${DIFF_B}@@ -10,1 +11,2 @@
+ ten
++base edit
+`;
+
+/** DIFF_B's PR run, then a base deletion the filter dropped, sitting before line 12. */
+const SPAN_WITH_BASE_DELETION = `${DIFF_B}@@ -10,2 +11,1 @@
+ ten
+-gone
+`;
+
 function makeNarrativeRun(
   chunks: Partial<RevisionNarrative["chunks"][number]>[],
+  unfilteredSpan = DIFF_B,
 ): NarrativeRun {
   const narrative = {
     artifactKind: "revisionNarrative",
@@ -37,6 +51,7 @@ function makeNarrativeRun(
     narrative,
     marksFiles: [{ file: "b.ts", addedRanges: LINE_TWO, removedRanges: [] }],
     filteredSpan: DIFF_B,
+    unfilteredSpan,
     modelCalls: 1,
   };
 }
@@ -64,6 +79,7 @@ function makeDeltaRun(
   return {
     delta,
     filteredSpan: DIFF_B,
+    unfilteredSpan: DIFF_B,
     reviewComments: [],
     unknownGroupChunkIds: [],
     modelCalls: 1,
@@ -170,6 +186,58 @@ describe("narrativeNoReplay", () => {
 
     expect(narrativeNoReplay.check(run)).toBe(false);
   });
+
+  it("passes on a chunk beside a base edit it does not hold", () => {
+    const run = makeNarrativeRun([{}], SPAN_WITH_BASE_EDIT);
+
+    expect(narrativeNoReplay.check(run)).toBe(true);
+  });
+
+  it("fails alone on a grounded chunk stretching over a base edit", () => {
+    const addedRanges = [...LINE_TWO, { start: 12, end: 12 }];
+    const run = makeNarrativeRun([{ addedRanges }], SPAN_WITH_BASE_EDIT);
+
+    expect(narrativeGrounded.check(run)).toBe(true);
+    expect(narrativeCoversSpan.check(run)).toBe(true);
+    expect(narrativeNoReplay.check(run)).toBe(false);
+  });
+
+  it("fails on a chunk spanning the point a base deletion sits before", () => {
+    const addedRanges = [{ start: 2, end: 12 }];
+    const run = makeNarrativeRun([{ addedRanges }], SPAN_WITH_BASE_DELETION);
+
+    expect(narrativeNoReplay.check(run)).toBe(false);
+  });
+
+  it("fails alone on removed lines that replay a base deletion", () => {
+    const removedRanges = [{ start: 11, end: 11 }];
+    const run = makeNarrativeRun(
+      [{}, { addedRanges: [], removedRanges }],
+      SPAN_WITH_BASE_DELETION,
+    );
+
+    expect(narrativeNoReplay.check(run)).toBe(false);
+  });
+
+  it("passes on removed lines beside a base deletion", () => {
+    const removedRanges = [{ start: 10, end: 10 }];
+    const run = makeNarrativeRun(
+      [{}, { addedRanges: [], removedRanges }],
+      SPAN_WITH_BASE_DELETION,
+    );
+
+    expect(narrativeNoReplay.check(run)).toBe(true);
+  });
+
+  it("passes on a chunk ending on the line a base deletion sits before", () => {
+    const addedRanges = [{ start: 12, end: 12 }];
+    const run = makeNarrativeRun(
+      [{}, { addedRanges }],
+      SPAN_WITH_BASE_DELETION,
+    );
+
+    expect(narrativeNoReplay.check(run)).toBe(true);
+  });
 });
 
 describe("deltaGrounded", () => {
@@ -201,6 +269,46 @@ describe("deltaNoReplay", () => {
 
   it("fails on a chunk in a file the filtered span lacks", () => {
     expect(deltaNoReplay.check(makeDeltaRun([{ file: "c.ts" }]))).toBe(false);
+  });
+
+  it("fails alone on a grounded chunk stretching over a base edit", () => {
+    const addedRanges = [...LINE_TWO, { start: 12, end: 12 }];
+    const run = makeDeltaRun([{ addedRanges }], {
+      unfilteredSpan: SPAN_WITH_BASE_EDIT,
+    });
+
+    expect(deltaGrounded.check(run)).toBe(true);
+    expect(deltaCoversSpan.check(run)).toBe(true);
+    expect(deltaNoReplay.check(run)).toBe(false);
+  });
+
+  it("fails alone on removed lines that replay a base deletion", () => {
+    const removedRanges = [{ start: 11, end: 11 }];
+    const run = makeDeltaRun([{}, { addedRanges: [], removedRanges }], {
+      unfilteredSpan: SPAN_WITH_BASE_DELETION,
+    });
+
+    expect(deltaNoReplay.check(run)).toBe(false);
+  });
+});
+
+describe("deltaCoversSpan", () => {
+  it("passes when a chunk covers every mark", () => {
+    expect(deltaCoversSpan.check(makeDeltaRun([{}]))).toBe(true);
+  });
+
+  it("fails alone when a mark has no chunk", () => {
+    const run = makeDeltaRun([{ addedRanges: [{ start: 3, end: 3 }] }]);
+
+    expect(deltaGrounded.check(run)).toBe(true);
+    expect(deltaNoReplay.check(run)).toBe(true);
+    expect(deltaCoversSpan.check(run)).toBe(false);
+  });
+
+  it("passes on the no-change record over an empty span", () => {
+    const run = makeDeltaRun([], { delta: DELTA_RECORD, filteredSpan: "" });
+
+    expect(deltaCoversSpan.check(run)).toBe(true);
   });
 });
 

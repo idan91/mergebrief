@@ -2,7 +2,19 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parseChangedRanges } from "brief-core";
 import type { Brief } from "brief-core/types";
-import { loadPairCases, planPairAnchoring, type PairCase } from "../eval/pairs";
+import {
+  loadPairCases,
+  planPairAnchoring,
+  readPairSpan,
+  type PairCase,
+} from "../eval/pairs";
+import { shiftsCarriedRanges } from "../eval/pair-cases/props";
+import {
+  DIFF_B,
+  EXPECTED_TS,
+  makePairJson,
+  writePairCase,
+} from "./pair-fixtures";
 import { readPairSpanShapes } from "./hand-derived-span";
 
 const PAIR_CASES_DIR = fileURLToPath(
@@ -69,6 +81,76 @@ function makeFileGroupBrief(pairCase: PairCase): Brief {
   };
 }
 
+/** The force-push and base-move cases, each recording the span its capture read. */
+const RECORDED_SPAN_SPLITS: Record<string, CarrySplit> = {
+  "pair-force-push-squash": { frozen: ["g1", "g2", "g3", "g4"], reLook: [] },
+  "pair-force-push-amend": { frozen: ["g1", "g3", "g4"], reLook: ["g2"] },
+  "pair-merge-main-noop": { frozen: ["g1", "g2", "g3", "g4"], reLook: [] },
+  "pair-rebase-upstream-same-file": {
+    frozen: ["g1", "g2", "g3"],
+    reLook: ["g4"],
+  },
+  "pair-rebase-conflict-resolution": {
+    frozen: ["g2", "g3", "g4"],
+    reLook: ["g1"],
+  },
+};
+
+async function loadPublicPairCase(id: string): Promise<PairCase> {
+  const loaded = await loadPairCases(PAIR_CASES_DIR, id);
+  const pairCase = loaded.ok ? loaded.value[0] : undefined;
+  if (pairCase === undefined) {
+    throw new Error(`pair case ${id} did not load`);
+  }
+  return pairCase;
+}
+
+describe("the recorded-span pair cases' carry split", () => {
+  it.each(Object.entries(RECORDED_SPAN_SPLITS))(
+    "holds on %s",
+    async (id, split) => {
+      const pairCase = await loadPublicPairCase(id);
+
+      const plan = planPairAnchoring(
+        pairCase.fixture,
+        makeFileGroupBrief(pairCase),
+      );
+
+      expect(pairCase.fixture.recordedSpan).toBeDefined();
+      expect({
+        frozen: plan.frozen.map((carry) => carry.group.id),
+        reLook: plan.reLook.map((entry) => entry.id),
+      }).toEqual(split);
+    },
+  );
+
+  it("carries every group of the SvelteKit catch-up merge", async () => {
+    const pairCase = await loadPublicPairCase("pair-real-sveltekit-2-0");
+    const base = makeFileGroupBrief(pairCase);
+
+    const plan = planPairAnchoring(pairCase.fixture, base);
+
+    expect(plan.reLook).toEqual([]);
+    expect(plan.frozen).toHaveLength(base.changeGroups.length);
+  });
+
+  it("moves routes.ts's carried chunk two lines down on the rebase", async () => {
+    const pairCase = await loadPublicPairCase("pair-rebase-upstream-same-file");
+    const base = makeFileGroupBrief(pairCase);
+    const plan = planPairAnchoring(pairCase.fixture, base);
+    const shift = shiftsCarriedRanges("packages/api/src/routes.ts", 2);
+
+    expect(shift.check({ base, revised: base, plan })).toBe(true);
+    expect(
+      shiftsCarriedRanges("packages/api/src/routes.ts", 1).check({
+        base,
+        revised: base,
+        plan,
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("the fast-forward pair cases' carry split", () => {
   it.each(Object.entries(FAST_FORWARD_SPLITS))(
     "holds on %s",
@@ -115,5 +197,38 @@ describe("the hand-derived pair spans", () => {
     const shapes = await readPairSpanShapes(PAIR_CASES_DIR, expected.id);
 
     expect(shapes).toEqual([expected.filtered, expected.unfiltered]);
+  });
+});
+
+describe("readPairSpan", () => {
+  it("reads a capture's recorded span instead of rebuilding one", async () => {
+    const identity = [
+      { file: "a.ts", hunks: [] },
+      { file: "b.ts", hunks: [] },
+    ];
+    const recorded = {
+      changedFiles: [],
+      unchangedFiles: ["a.ts", "b.ts"],
+      unpairableFiles: [],
+      hop: identity,
+      oldSideHop: identity,
+      isUnchanged: true,
+    };
+    const pairJson = makePairJson({
+      increment: { filteredSpan: "", unfilteredSpan: DIFF_B, span: recorded },
+    });
+    const loaded = await loadPairCases(
+      writePairCase("p", EXPECTED_TS, pairJson),
+    );
+    const fixture = loaded.ok ? loaded.value[0]?.fixture : undefined;
+    if (fixture === undefined) {
+      throw new Error("the pair case did not load");
+    }
+
+    expect(readPairSpan(fixture)).toEqual({
+      ...recorded,
+      filteredDiff: "",
+      unfilteredDiff: DIFF_B,
+    });
   });
 });

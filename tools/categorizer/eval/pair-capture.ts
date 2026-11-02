@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import {
   parseChangedRanges,
+  splitDiffByFile,
   type PrLocator,
   type PrMetadata,
 } from "brief-core";
@@ -10,12 +11,14 @@ import type { LineRange, ReviewComment } from "brief-core/types";
 import {
   readPrSpan,
   type PrDiffRef,
+  type PrSpan,
   type PrSpanRefs,
   type PrSpanSource,
 } from "brief-core/pr-span";
+import type { Hop } from "brief-core/remap";
 import type { Result } from "types/utils";
 import type { PrSource } from "../src/github";
-import { PAIR_FILE, type PairFixtureFile } from "./pairs";
+import { PAIR_FILE, type PairFixtureFile, type RecordedSpan } from "./pairs";
 
 /** A capture past this many bytes is written gzipped. */
 export const PAIR_GZIP_BYTES = 1024 * 1024;
@@ -47,8 +50,8 @@ type CaptureSide = PairFixtureFile["base"];
  * One real revision pair through the production span read: both heads' PR
  * diffs, the filtered and unfiltered spans, and the review comments created
  * by the head's committer date. The pair's metadata is the PR's as read now,
- * its title and body included; links are not read. Compare files are not
- * recorded, so anchoring re-looks every group.
+ * its title and body included; links are not read. The span itself is
+ * recorded too, since the fixture holds no blobs or merge base to rebuild it.
  */
 export async function capturePair(
   reads: PairCaptureReads,
@@ -108,10 +111,29 @@ export async function capturePair(
     increment: {
       filteredSpan: span.value.filteredDiff,
       unfilteredSpan: span.value.unfilteredDiff,
+      span: recordSpan(span.value),
     },
     reviewComments: comments,
   };
   return { ok: true, value };
+}
+
+function recordSpan(span: PrSpan): RecordedSpan {
+  return {
+    changedFiles: [...span.changedFiles],
+    unchangedFiles: [...span.unchangedFiles],
+    unpairableFiles: [...span.unpairableFiles],
+    hop: copyHop(span.hop),
+    oldSideHop: copyHop(span.oldSideHop),
+    isUnchanged: span.isUnchanged,
+  };
+}
+
+function copyHop(hop: Hop): RecordedSpan["hop"] {
+  return hop.map((entry) => ({
+    file: entry.file,
+    hunks: entry.hunks.map((hunk) => ({ ...hunk })),
+  }));
 }
 
 /** Write the capture into `dir` as pair.json, or pair.json.gz past the size bound; never over an existing one. */
@@ -173,12 +195,21 @@ function shapeCaptureSide(
 
 type CapturePrFile = CaptureSide["pr"]["meta"]["files"][number];
 
+/**
+ * Every file the diff lists, as GitHub's file list holds them: binary,
+ * mode-only and pure renames at zero lines. Read from the diff, since the
+ * compare endpoint lists at most 300 files and the PR's own list is the
+ * current head's.
+ */
 function listPrFiles(diff: string): CapturePrFile[] {
-  return parseChangedRanges(diff).map((file) => ({
-    path: file.file,
-    additions: countRangeLines(file.addedRanges),
-    deletions: countRangeLines(file.removedRanges),
-  }));
+  return splitDiffByFile(diff).map(({ file, patch }) => {
+    const [ranges] = parseChangedRanges(patch);
+    return {
+      path: file,
+      additions: countRangeLines(ranges?.addedRanges ?? []),
+      deletions: countRangeLines(ranges?.removedRanges ?? []),
+    };
+  });
 }
 
 function countRangeLines(ranges: readonly LineRange[]): number {

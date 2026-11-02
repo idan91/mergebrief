@@ -1,12 +1,18 @@
 import {
   detectChunkOverlaps,
+  parseChangedRanges,
   splitDiffByFile,
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
   validatePartition,
 } from "brief-core";
-import { isSpanUnchanged } from "brief-core/pr-span";
+import {
+  isSpanUnchanged,
+  readChangeRuns,
+  type ChangeRun,
+} from "brief-core/pr-span";
+import type { LineRange } from "brief-core/types";
 import type {
   DeltaEvalProperty,
   DeltaRun,
@@ -22,6 +28,80 @@ import type {
 
 function listSpanFiles(span: string): Set<string> {
   return new Set(splitDiffByFile(span).map((fileDiff) => fileDiff.file));
+}
+
+function formatRunKey(run: ChangeRun): string {
+  return `${run.oldStart}:${run.newStart}:${run.lines.join("\n")}`;
+}
+
+/** Per file, the between-heads runs the filter dropped: base noise, not the PR's change. */
+function readBaseNoise(
+  filteredSpan: string,
+  unfilteredSpan: string,
+): Map<string, ChangeRun[]> {
+  const kept = new Map<string, Set<string>>();
+  for (const { file, patch } of splitDiffByFile(filteredSpan)) {
+    const keys = readChangeRuns(patch).map(formatRunKey);
+    kept.set(file, new Set(keys));
+  }
+
+  const noise = new Map<string, ChangeRun[]>();
+  for (const { file, patch } of splitDiffByFile(unfilteredSpan)) {
+    const keptKeys = kept.get(file) ?? new Set<string>();
+    const dropped = readChangeRuns(patch).filter(
+      (run) => !keptKeys.has(formatRunKey(run)),
+    );
+    noise.set(file, dropped);
+  }
+  return noise;
+}
+
+/**
+ * A new-side range replays a run when it holds one of the run's added
+ * lines or, for a pure deletion, both lines around the point it sits
+ * before; a range ending on either neighbour alone is the PR's own line.
+ */
+function replaysRun(range: LineRange, run: ChangeRun): boolean {
+  if (run.added > 0) {
+    const lastAdded = run.newStart + run.added - 1;
+    return range.start <= lastAdded && range.end >= run.newStart;
+  }
+  return range.start < run.newStart && run.newStart <= range.end;
+}
+
+/** An old-side range replays a run when it holds one of the lines the run removed. */
+function replaysRemovedLines(range: LineRange, run: ChangeRun): boolean {
+  if (run.removed === 0) {
+    return false;
+  }
+  const lastRemoved = run.oldStart + run.removed - 1;
+  return range.start <= lastRemoved && range.end >= run.oldStart;
+}
+
+interface SpanChunk {
+  file: string;
+  addedRanges: readonly LineRange[];
+  /** Previous-head coordinates. */
+  removedRanges: readonly LineRange[];
+}
+
+/** Every chunk sits in a file of the filtered span and holds no base-noise line, added or removed. */
+function isReplayFree(
+  chunks: readonly SpanChunk[],
+  run: { filteredSpan: string; unfilteredSpan: string },
+): boolean {
+  const spanFiles = listSpanFiles(run.filteredSpan);
+  const noise = readBaseNoise(run.filteredSpan, run.unfilteredSpan);
+  return chunks.every((chunk) => {
+    const fileNoise = noise.get(chunk.file) ?? [];
+    const replaysAdded = chunk.addedRanges.some((range) =>
+      fileNoise.some((noiseRun) => replaysRun(range, noiseRun)),
+    );
+    const replaysRemoved = chunk.removedRanges.some((range) =>
+      fileNoise.some((noiseRun) => replaysRemovedLines(range, noiseRun)),
+    );
+    return spanFiles.has(chunk.file) && !replaysAdded && !replaysRemoved;
+  });
 }
 
 /** A no-change record holds no chunks, so every chunk predicate reads it as none. */
@@ -89,11 +169,9 @@ export const narrativeCoversSpan: NarrativeEvalProperty = {
 
 export const narrativeNoReplay: NarrativeEvalProperty = {
   id: "narrative-no-replay",
-  description: "every narrative chunk sits in a file of the filtered span",
-  check: (run) => {
-    const spanFiles = listSpanFiles(run.filteredSpan);
-    return listNarrativeChunks(run).every((chunk) => spanFiles.has(chunk.file));
-  },
+  description:
+    "every narrative chunk sits in a file of the filtered span and on no base-noise line",
+  check: (run) => isReplayFree(listNarrativeChunks(run), run),
 };
 
 export const deltaGrounded: DeltaEvalProperty = {
@@ -114,12 +192,18 @@ export const deltaGrounded: DeltaEvalProperty = {
 
 export const deltaNoReplay: DeltaEvalProperty = {
   id: "delta-no-replay",
-  description: "every delta chunk sits in a file of the filtered span",
+  description:
+    "every delta chunk sits in a file of the filtered span and on no base-noise line",
+  check: (run) => isReplayFree(readDeltaContent(run).chunks, run),
+};
+
+export const deltaCoversSpan: DeltaEvalProperty = {
+  id: "delta-covers-span",
+  description: "every comparison mark of the filtered span has a delta chunk",
   check: (run) => {
-    const spanFiles = listSpanFiles(run.filteredSpan);
-    return readDeltaContent(run).chunks.every((chunk) =>
-      spanFiles.has(chunk.file),
-    );
+    const marksFiles = parseChangedRanges(run.filteredSpan);
+    const { chunks } = readDeltaContent(run);
+    return validateMarksNarrativeCoverage(marksFiles, chunks).length === 0;
   },
 };
 
@@ -137,3 +221,20 @@ export const deltaCommentsFromInput: DeltaEvalProperty = {
     return namesOnlyInputIds && silentWithoutComments;
   },
 };
+
+/** The narrative predicates a span case opts into whole. */
+export const SPAN_NARRATIVE_PROPERTIES: readonly NarrativeEvalProperty[] = [
+  narrativeNoChange,
+  narrativeGrounded,
+  narrativeCoversSpan,
+  narrativeNoReplay,
+];
+
+/** The delta predicates a span case opts into whole. */
+export const SPAN_DELTA_PROPERTIES: readonly DeltaEvalProperty[] = [
+  deltaNoChange,
+  deltaGrounded,
+  deltaCoversSpan,
+  deltaNoReplay,
+  deltaCommentsFromInput,
+];

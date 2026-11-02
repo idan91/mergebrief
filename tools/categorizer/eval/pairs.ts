@@ -60,11 +60,41 @@ import { persistRunBriefs } from "./specimens";
  * after proving that deliberately broken pairs fail their predicates.
  */
 
+const LineNumberSchema = z.number().int().nonnegative();
+
+const HopSchema = z.array(
+  z.object({
+    file: z.string(),
+    hunks: z.array(
+      z.object({
+        oldStart: LineNumberSchema,
+        oldLines: LineNumberSchema,
+        newStart: LineNumberSchema,
+        newLines: LineNumberSchema,
+      }),
+    ),
+  }),
+);
+
+/** The production read's span without its two diffs, which `filteredSpan` and `unfilteredSpan` hold. */
+const RecordedSpanSchema = z.object({
+  changedFiles: z.array(z.string()),
+  unchangedFiles: z.array(z.string()),
+  unpairableFiles: z.array(z.string()),
+  hop: HopSchema,
+  oldSideHop: HopSchema,
+  isUnchanged: z.boolean(),
+});
+
+export type RecordedSpan = z.infer<typeof RecordedSpanSchema>;
+
 const PairIncrementSchema = z.object({
   /** The PR's own change between the heads, hunks touching no PR line dropped; "" when the push left the PR diff unchanged. */
   filteredSpan: z.string(),
   /** Every between-heads hunk of the changed files; on a fast-forward, the three-dot diff. */
   unfilteredSpan: z.string(),
+  /** The span the worker's read built, as `capture-pair` records it; the harness reads it instead of rebuilding one. */
+  span: RecordedSpanSchema.optional(),
 });
 
 const PairFixtureSchema = z.object({
@@ -87,6 +117,7 @@ export interface PairFixture {
   revised: EvalFixture;
   filteredSpan: string;
   unfilteredSpan: string;
+  recordedSpan?: RecordedSpan;
   baseBrief?: Brief;
   reviewComments?: ReviewComment[];
 }
@@ -426,6 +457,9 @@ function shapePairFixture(
     unfilteredSpan: increment.unfilteredSpan,
   };
 
+  if (increment.span !== undefined) {
+    fixture.recordedSpan = increment.span;
+  }
   if (data.baseBrief !== undefined) {
     fixture.baseBrief = data.baseBrief;
   }
@@ -470,15 +504,23 @@ export interface PairRunResult {
 export type PairRunMode = "anchored" | "fresh";
 
 /**
- * The span the worker would read for the pair. Fixtures carry no merge base,
- * so one PR base under both heads stands for the fast path; any other pair
- * is built from both PR diffs and the unfiltered span's per-file patches.
- * They carry no blobs either: no run slides over equal lines and no base
- * rename is confirmed, so a group can carry or re-look here where the
+ * The span the worker would read for the pair: the recorded one where the
+ * capture kept it. Otherwise it is rebuilt, and fixtures carry no merge
+ * base, so one PR base under both heads stands for the fast path; any other
+ * pair is built from both PR diffs and the unfiltered span's per-file
+ * patches. They carry no blobs either: no run slides over equal lines and no
+ * base rename is confirmed, so a group can carry or re-look here where the
  * worker's span would decide it the other way.
  */
 export function readPairSpan(fixture: PairFixture): PrSpan {
-  const { base, revised, unfilteredSpan } = fixture;
+  const { base, revised, filteredSpan, unfilteredSpan, recordedSpan } = fixture;
+  if (recordedSpan !== undefined) {
+    return {
+      ...recordedSpan,
+      filteredDiff: filteredSpan,
+      unfilteredDiff: unfilteredSpan,
+    };
+  }
   if (base.commitRange.base === revised.commitRange.base) {
     return buildFastForwardSpan({
       betweenHeadsDiff: unfilteredSpan,
@@ -600,6 +642,7 @@ async function runPairWithSpan(
     revised: fixture.revised,
     prevHeadSha: fixture.base.commitRange.head,
     filteredSpan: fixture.filteredSpan,
+    unfilteredSpan: fixture.unfilteredSpan,
     reviewComments: selectDeltaComments(pairCase),
     generator,
     effort,

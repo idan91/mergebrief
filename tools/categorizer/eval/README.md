@@ -301,7 +301,9 @@ jq '.usage' out/eval-report.json
 `pairProperties`). A pair = a base fixture + a revised fixture + the
 revision span between them: `increment.filteredSpan` and
 `increment.unfilteredSpan` (the PR's own change, filtered and not; on a
-fast-forward both are the three-dot diff). The runner rebuilds the span the
+fast-forward both are the three-dot diff). A captured pair also records
+the span the production read built (`increment.span`), and the runner
+reads that. Otherwise it rebuilds the span the
 worker would read from the two PR diffs and `unfilteredSpan`: the fast path
 when both heads share the PR base, the builder otherwise. Fixtures hold
 no blobs, so the rebuilt span neither slides a run over equal lines nor
@@ -329,9 +331,13 @@ was: the run writes the `revisionNarrativeUnchanged` and `deltaUnchanged`
 records the worker writes and calls no model for them, and
 `narrative-no-change` / `delta-no-change` score that (the record over an
 empty span with zero model calls, a real artifact over any other). The
-shared predicates live in `revision-props.ts` (grounded, covers the span,
-no replay, comments from the input, no change); the chunk predicates read a
-record as no chunks. The narrative and delta specimens persist beside the
+shared predicates live in `revision-props.ts` (grounded, covers the span
+for both, no replay, comments from the input, no change); the chunk
+predicates read a record as no chunks. No replay reads lines: a chunk fails
+in a file outside the filtered span, or on a line only `unfilteredSpan`
+changes (base noise), its added lines or the point a pure deletion sits
+before. `SPAN_NARRATIVE_PROPERTIES` and `SPAN_DELTA_PROPERTIES` are the
+lists a span case opts into whole. The narrative and delta specimens persist beside the
 base and revised ones.
 
 Optional `pair.json` fields: `reviewComments` (the comments that existed at the revised head),
@@ -354,8 +360,9 @@ the PR's review comments through `gh`, then writes `pair.json` (gzipped
 past 1 MiB). `--prev-base <sha>` names the previous head's base for a
 retargeted PR; both bases default to the PR's current base. Title and
 body come from the PR as it reads now; links are not read and stay
-empty. No compare file list is recorded, so anchoring re-looks every
-group. It never runs a generation; write `expected.ts` by hand.
+empty. The span's file split and both hops are recorded beside the two
+diffs, so the run anchors on the worker's span. It never runs a
+generation; write `expected.ts` by hand.
 
 Review comments are cut at the revised head's committer date: a comment
 created after it is left out. The cut is approximate. A comment written
@@ -373,6 +380,15 @@ PR locators are placeholders), plus `pair-real-brief143-docs` (private), a
 real pair built verbatim from this repo's history (daed6dae → db2fe83e → 472b6d7a).
 `pair-risk-add-new-file` is `pair-risk-add` with the route added by the PR,
 so the chunk that lost its guard removes no lines.
+The span cases record the span their capture read: `pair-force-push-squash`,
+`pair-force-push-amend`, `pair-merge-main-noop`,
+`pair-rebase-upstream-same-file` and `pair-rebase-conflict-resolution`,
+authored in a scratch git repo and captured through `capturePair` over a
+local-git span source, each with a hand-written `baseBrief` of one group
+per file so the carry split does not hang on the model's grouping, and `pair-real-sveltekit-2-0` (sveltejs/kit #11161,
+a master merge that left the PR diff byte-identical). They opt into the
+narrative and the delta, as do `pair-additive` (the fast-forward control)
+and `pair-ask-edit` (with review comments).
 Mechanical rows (untouched survival, frozen attrs, coverage, id carry,
 anchored stamp) are pipeline guarantees; any failure is a pipeline bug;
 model-judged rows (description updates, verdict transitions, summary

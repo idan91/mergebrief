@@ -137,11 +137,17 @@ async function runSingleCase(evalCase: EvalCase): Promise<GoldenRun> {
   return { requests: generator.requests, output: brief };
 }
 
+/** The goldens pin the Brief pipeline; the canned model answers no narrative or delta call. */
+function scopePairToBrief(pairCase: PairCase): PairCase {
+  return { ...pairCase, narrativeProperties: [], deltaProperties: [] };
+}
+
 async function runPair(
   pairCase: PairCase,
   generator: CannedGenerator,
 ): Promise<GoldenRun> {
-  const result = await runPairCase(pairCase, generator, EFFORT, 1);
+  const briefOnly = scopePairToBrief(pairCase);
+  const result = await runPairCase(briefOnly, generator, EFFORT, 1);
   const pair = result.pairs[0];
   if (pair === undefined) {
     throw new Error(`${pairCase.id}: ${result.failureMessages.join("; ")}`);
@@ -153,6 +159,20 @@ async function runPair(
   };
 }
 
+/** The stored base Brief where the case keeps one, as the harness reads it. */
+async function readBaseBrief(
+  fixture: PairCase["fixture"],
+  generator: CannedGenerator,
+): Promise<Brief> {
+  if (fixture.baseBrief !== undefined) {
+    return fixture.baseBrief;
+  }
+  const { brief } = await generateBrief(
+    makeOptions(fixture.base, 1, generator),
+  );
+  return brief;
+}
+
 async function runAnchoring(
   pairCase: PairCase,
   chainGroupIds: readonly string[],
@@ -160,10 +180,10 @@ async function runAnchoring(
   const { fixture } = pairCase;
   const generator = makeCannedGenerator();
 
-  const base = await generateBrief(makeOptions(fixture.base, 1, generator));
+  const base = await readBaseBrief(fixture, generator);
   const revised = await generateBrief({
     ...makeOptions(fixture.revised, 2, generator),
-    previous: { brief: base.brief, span: readPairSpan(fixture), chainGroupIds },
+    previous: { brief: base, span: readPairSpan(fixture), chainGroupIds },
   });
   if (revised.anchoring === undefined) {
     throw new Error(`${pairCase.id}: the anchored run returned no anchoring`);
@@ -171,7 +191,7 @@ async function runAnchoring(
 
   const { plan, ...carry } = revised.anchoring;
   return {
-    baseGroupIds: base.brief.changeGroups.map((group) => group.id),
+    baseGroupIds: base.changeGroups.map((group) => group.id),
     frozenGroupIds: plan.frozen.map((frozen) => frozen.group.id),
     reLook: plan.reLook.map(({ id, reason }) => ({ id, reason })),
     previousGroupIds: plan.previousGroupIds,
@@ -193,7 +213,7 @@ async function runAdversarialPair(
   rotation: number,
 ): Promise<AdversarialRun> {
   const result = await runPairCase(
-    pairCase,
+    scopePairToBrief(pairCase),
     makeAdversarialGenerator(rotation),
     EFFORT,
     1,

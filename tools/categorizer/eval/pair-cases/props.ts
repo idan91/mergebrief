@@ -175,3 +175,84 @@ export function survivorOrderStable(file: string): PairEvalProperty {
     },
   };
 }
+
+/** No group re-looks: the span changed nothing, so the plan carries every base group. */
+export function carriesEveryGroup(): PairEvalProperty {
+  return {
+    id: "carries-every-group",
+    description: "an unchanged span carries every base group and re-looks none",
+    check: (pair: RevisionPair) =>
+      pair.plan.reLook.length === 0 &&
+      pair.plan.frozen.length === pair.base.changeGroups.length,
+  };
+}
+
+/** Every base group with a chunk in a changed file re-looks; none of them is carried. */
+export function reLooksOwnersOf(files: readonly string[]): PairEvalProperty {
+  return {
+    id: "re-looks-changed-owners",
+    description: `every group owning ${files.join(", ")} re-looks`,
+    check: (pair: RevisionPair) => {
+      const reLookIds = new Set(pair.plan.reLook.map((entry) => entry.id));
+      const owners = files.flatMap((file) => groupsOwning(pair.base, file));
+      return owners.length > 0 && owners.every((id) => reLookIds.has(id));
+    },
+  };
+}
+
+/** Every carried group reaches the revised brief as carried: its chunks only moved by the span. */
+export function keepsCarriedGroups(): PairEvalProperty {
+  return {
+    id: "carried-groups-survive",
+    description:
+      "at least one group carries and every carry survives in the revised brief as carried",
+    check: (pair: RevisionPair) =>
+      pair.plan.frozen.length > 0 &&
+      pair.plan.frozen.every(
+        (carry) =>
+          formatGroupSnapshot(carry.group, carry.chunks) ===
+          groupSnapshot(pair.revised, carry.group.id),
+      ),
+  };
+}
+
+function formatShiftedRanges(
+  ranges: readonly { start: number; end: number }[],
+  lines: number,
+): string {
+  const shifted = ranges.map((range) => ({
+    start: range.start + lines,
+    end: range.end + lines,
+  }));
+  return JSON.stringify(shifted);
+}
+
+/**
+ * A base edit above every PR run in `file` moved them `lines` down: each
+ * carried chunk on the file sits that much lower, never on its old lines.
+ */
+export function shiftsCarriedRanges(
+  file: string,
+  lines: number,
+): PairEvalProperty {
+  return {
+    id: `carried-ranges-shift-${file.split("/").at(-1)}`,
+    description: `chunks carried on ${file} moved ${lines} lines down with the base edit above them`,
+    check: (pair: RevisionPair) => {
+      const baseChunks = pair.base.chunks.filter(
+        (chunk) => chunk.file === file,
+      );
+      const carried = pair.plan.frozen
+        .flatMap((carry) => carry.chunks)
+        .filter((chunk) => chunk.file === file);
+      const moved = carried.every((chunk) => {
+        const before = baseChunks.find((entry) => entry.id === chunk.id);
+        const expected = formatShiftedRanges(before?.addedRanges ?? [], lines);
+        return (
+          before !== undefined && JSON.stringify(chunk.addedRanges) === expected
+        );
+      });
+      return carried.length > 0 && moved;
+    },
+  };
+}

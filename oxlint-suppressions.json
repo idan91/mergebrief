@@ -157,11 +157,6 @@
       "count": 1
     }
   },
-  "tools/categorizer/eval/pair-cases/pair-ask-edit/expected.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "tools/categorizer/eval/pair-cases/pair-boundary-restructure/expected.ts": {
     "house/no-em-dash": {
       "count": 3

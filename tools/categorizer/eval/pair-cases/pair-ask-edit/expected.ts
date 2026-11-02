@@ -1,8 +1,11 @@
-// BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Origin: the
-// BRIEF-143 PR 5 stack; generator script documented in that PR.
+// Revision-pair case, an AUTHORED fixture: own-repo file shapes,
+// difflib-generated diffs, a placeholder PR locator.
 // Ask edit: rev2's title/body newly ask for a version endpoint the diff does not deliver. Spec pair 4 RIGHT: an edited ask gets a fresh verdict.
 import type { PairEvalProperty } from "../../pairs";
+import {
+  SPAN_DELTA_PROPERTIES,
+  SPAN_NARRATIVE_PROPERTIES,
+} from "../../revision-props";
 import { coverage, untouchedGroupSurvives } from "../props";
 
 const A = "packages/logging/src/redact.ts";
@@ -12,9 +15,9 @@ export const pairProperties: PairEvalProperty[] = [
   untouchedGroupSurvives(A),
   coverage([A, B]),
   // Spec pair 4 RIGHT: the edited ask is judged against the CURRENT source
-  // — the undelivered version endpoint must surface as statedButMissing.
-  // Keyword-matched per the BRIEF-54 bounded exception ("version" is a
-  // planted marker in the authored rev2 title/body).
+  // so the undelivered version endpoint must surface as statedButMissing.
+  // Keyword-matched under the bounded keyword exception: "version" is a
+  // planted marker in the authored rev2 title and body.
   {
     id: "edited-ask-fresh-verdict",
     description:
@@ -38,3 +41,9 @@ export const pairProperties: PairEvalProperty[] = [
       ),
   },
 ];
+
+export const narrativeProperties = [...SPAN_NARRATIVE_PROPERTIES];
+export const deltaProperties = [...SPAN_DELTA_PROPERTIES];
+
+// Comments 201 and 202 ask for what the push added; 203 it leaves open.
+export const deltaReadsReviewComments = true;

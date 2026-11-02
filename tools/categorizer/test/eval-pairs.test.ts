@@ -433,9 +433,13 @@ describe("scorePairRuns", () => {
 
 import {
   anchoredStamp,
+  keepsCarriedGroups,
+  shiftsCarriedRanges,
+  carriesEveryGroup,
   coverage,
   frozenAttrsNeverChange,
   idCarried,
+  reLooksOwnersOf,
   survivorOrderStable,
   untouchedGroupSurvives,
 } from "../eval/pair-cases/props";
@@ -510,6 +514,16 @@ function buildCarriedPair(
     ...pair,
     plan: { ...pair.plan, frozen: [{ group, chunks }] },
   };
+}
+
+/** A pair whose plan carried every base group, as a span that changed no file would. */
+function buildCarryAllPair(base: Brief, revised: Brief): RevisionPair {
+  const pair = buildRevisionPair(base, revised);
+  const frozen = base.changeGroups.map((group) => ({
+    group,
+    chunks: base.chunks.filter((chunk) => chunk.changeGroupId === group.id),
+  }));
+  return { ...pair, plan: { ...pair.plan, frozen } };
 }
 
 describe("shared pair properties fail against broken pairs", () => {
@@ -612,5 +626,53 @@ describe("shared pair properties fail against broken pairs", () => {
     expect(anchoredStamp(true).check(buildRevisionPair(base, base))).toBe(
       false,
     );
+  });
+
+  it("carriesEveryGroup: fails once any group re-looks", () => {
+    const pair = buildCarryAllPair(base, base);
+    const reLooked = {
+      ...pair,
+      plan: {
+        ...pair.plan,
+        frozen: pair.plan.frozen.slice(1),
+        reLook: [{ id: "g1", files: ["a.ts"] }],
+      },
+    };
+
+    expect(carriesEveryGroup().check(pair)).toBe(true);
+    expect(carriesEveryGroup().check(reLooked)).toBe(false);
+  });
+
+  it("reLooksOwnersOf: fails when a changed file's owner carries", () => {
+    const pair = buildCarryAllPair(base, base);
+    const reLooked = {
+      ...pair,
+      plan: { ...pair.plan, reLook: [{ id: "g2", files: ["b.ts"] }] },
+    };
+
+    expect(reLooksOwnersOf(["b.ts"]).check(reLooked)).toBe(true);
+    expect(reLooksOwnersOf(["b.ts"]).check(pair)).toBe(false);
+    expect(reLooksOwnersOf(["c.ts"]).check(reLooked)).toBe(false);
+  });
+
+  it("keepsCarriedGroups: fails on a rewritten carry or none at all", () => {
+    const rewritten = briefWith([
+      { id: "g1", file: "a.ts", attrs: ["touches-auth"], summary: "REWRITTEN" },
+      { id: "g2", file: "b.ts" },
+    ]);
+    const pair = buildCarryAllPair(base, base);
+    const carriesNothing = { ...pair, plan: { ...pair.plan, frozen: [] } };
+
+    expect(keepsCarriedGroups().check(pair)).toBe(true);
+    expect(keepsCarriedGroups().check(buildCarryAllPair(base, rewritten))).toBe(
+      false,
+    );
+    expect(keepsCarriedGroups().check(carriesNothing)).toBe(false);
+  });
+
+  it("shiftsCarriedRanges: fails on a carry left on its old lines", () => {
+    expect(
+      shiftsCarriedRanges("a.ts", 2).check(buildCarryAllPair(base, base)),
+    ).toBe(false);
   });
 });

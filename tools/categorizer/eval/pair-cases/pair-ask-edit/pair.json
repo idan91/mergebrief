@@ -74,5 +74,43 @@
   "increment": {
     "filteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,12 @@\n \n const STARTED_AT = Date.now();\n \n+// Uptime is measured from process start, not deploy time.\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n   };\n }\n \n",
     "unfilteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,12 @@\n \n const STARTED_AT = Date.now();\n \n+// Uptime is measured from process start, not deploy time.\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n   };\n }\n \n"
-  }
+  },
+  "reviewComments": [
+    {
+      "id": "201",
+      "file": "packages/api/src/routes/health.ts",
+      "startLine": null,
+      "line": null,
+      "originalStartLine": null,
+      "originalLine": 10,
+      "author": "reviewer",
+      "body": "Could the health payload carry the process id? It would tell replicas apart behind the load balancer.",
+      "inReplyToId": null,
+      "outdated": true
+    },
+    {
+      "id": "202",
+      "file": "packages/api/src/routes/health.ts",
+      "startLine": null,
+      "line": 7,
+      "originalStartLine": null,
+      "originalLine": 6,
+      "author": "reviewer",
+      "body": "Is this uptime since process start or since the last deploy? Worth saying here.",
+      "inReplyToId": null,
+      "outdated": false
+    },
+    {
+      "id": "203",
+      "file": "packages/logging/src/redact.ts",
+      "startLine": null,
+      "line": 5,
+      "originalStartLine": null,
+      "originalLine": 5,
+      "author": "reviewer",
+      "body": "Should the pattern also cover `secret=` parameters?",
+      "inReplyToId": null,
+      "outdated": false
+    }
+  ]
 }

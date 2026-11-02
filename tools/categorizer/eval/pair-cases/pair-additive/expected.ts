@@ -3,6 +3,10 @@
 // Additive increment: b gains lines, meaning unchanged. Stability side of spec pairs 1-4.
 import type { PairEvalProperty } from "../../pairs";
 import {
+  SPAN_DELTA_PROPERTIES,
+  SPAN_NARRATIVE_PROPERTIES,
+} from "../../revision-props";
+import {
   anchoredStamp,
   coverage,
   frozenAttrsNeverChange,
@@ -81,3 +85,6 @@ export const pairProperties: PairEvalProperty[] = [
   },
   anchoredStamp(true),
 ];
+
+export const narrativeProperties = [...SPAN_NARRATIVE_PROPERTIES];
+export const deltaProperties = [...SPAN_DELTA_PROPERTIES];
