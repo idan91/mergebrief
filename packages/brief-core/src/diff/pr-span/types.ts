@@ -66,9 +66,23 @@ export const BetweenHeadsKinds = {
   UNREADABLE: "unreadable",
 } as const;
 
-/** One changed file's diff from the previous head to the new head, or no line diff for it. */
+/** Both heads' text of a line-diffed file; a side is absent where the file is. */
+export interface HeadTexts {
+  readonly prevContent?: string | undefined;
+  readonly newContent?: string | undefined;
+}
+
+/**
+ * One changed file's diff from the previous head to the new head, or no
+ * line diff for it. `texts` lets the filter test where a run could slide;
+ * without them a run is tested where the patch placed it.
+ */
 export type BetweenHeadsFile =
-  | { readonly kind: typeof BetweenHeadsKinds.PATCH; readonly patch: string }
+  | {
+      readonly kind: typeof BetweenHeadsKinds.PATCH;
+      readonly patch: string;
+      readonly texts?: HeadTexts;
+    }
   | { readonly kind: typeof BetweenHeadsKinds.UNREADABLE };
 
 export interface PrSpanInput {

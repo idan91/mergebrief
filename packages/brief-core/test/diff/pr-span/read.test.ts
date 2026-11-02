@@ -9,11 +9,19 @@ import {
 import {
   BLOB_READ_CONCURRENCY,
   IDENTITY_SPAN,
+  LINE_DIFF_CHARS_PER_LINE,
   MAX_LINE_DIFF_BYTES,
   MAX_SPAN_CHANGED_FILES,
+  SPAN_LINE_DIFF_MAX_CHARS,
+  SPAN_LINE_DIFF_MAX_LINES,
+  SPAN_LINE_DIFF_MAX_WORK,
+  WIDE_TEXT_CHAR_WEIGHT,
 } from "../../../src/diff/pr-span/consts";
 import { comparePrDiffs } from "../../../src/diff/pr-span/logic/compare-patches";
-import { readBetweenHeadsFiles } from "../../../src/diff/pr-span/logic/read-blobs";
+import {
+  readBetweenHeadsFiles,
+  type SpanLineDiffBounds,
+} from "../../../src/diff/pr-span/logic/read-blobs";
 import {
   insertAfter,
   makeBaseLines,
@@ -633,29 +641,470 @@ describe("readPrSpan", () => {
   );
 });
 
-describe("readBetweenHeadsFiles", () => {
-  it("falls back for every file once the line-diff budget is spent", async () => {
-    const source = stubSource({
-      diffs: {},
-      blobs: { "head1:c.ts": baseText, "head2:c.ts": withP1 },
-    });
-    const compared = comparePrDiffs(
-      makeDiff([]),
-      makeDiff([makeFilePatch({ path: "c.ts", base: baseText, head: withP1 })]),
-    );
+/** Both heads' text of one changed file, keyed by its path. */
+type HeadSides = ReadonlyMap<string, readonly [string, string]>;
 
-    const result = await readBetweenHeadsFiles(
-      source,
+/** Each file's between-heads kind in path-map order, and how many blobs the span read. */
+interface SpanKinds {
+  readonly kinds: readonly (string | undefined)[];
+  readonly blobReads: number;
+}
+
+/** The span's line diffs over these blobs; each file's PR diff is a small edit, since only its path is read. */
+async function readSpanKinds(
+  sides: HeadSides,
+  bounds?: SpanLineDiffBounds,
+): Promise<SpanKinds> {
+  const paths = [...sides.keys()];
+  const blobs: Record<string, string> = {};
+  for (const [path, [prev, next]] of sides) {
+    blobs[`head1:${path}`] = prev;
+    blobs[`head2:${path}`] = next;
+  }
+  const source = stubSource({ diffs: {}, blobs });
+  const patches = paths.map((path) =>
+    makeFilePatch({ path, base: baseText, head: withP1 }),
+  );
+  const compared = comparePrDiffs(makeDiff([]), makeDiff(patches));
+
+  const result = await readBetweenHeadsFiles(
+    source,
+    REFS,
+    compared,
+    makeSignal(),
+    bounds,
+  );
+
+  const kinds = result.ok
+    ? paths.map((path) => result.value.get(path)?.kind)
+    : [];
+  return { kinds, blobReads: source.blobCalls.length };
+}
+
+function makeSamePaths(
+  prefix: string,
+  count: number,
+  sides: readonly [string, string],
+): HeadSides {
+  return new Map(
+    Array.from({ length: count }, (_unused, index) => [
+      `${prefix}${String(index).padStart(3, "0")}.ts`,
+      sides,
+    ]),
+  );
+}
+
+function makeLines(count: number, makeLine: (index: number) => string): string {
+  return makeText(
+    Array.from({ length: count }, (_unused, index) => makeLine(index)),
+  );
+}
+
+/** A file's compare cost: its weighted characters plus the per-line cost. */
+function countCompareCost(prev: string, next: string, weight = 1): number {
+  const lines = countTextLines(prev) + countTextLines(next);
+  return (
+    (prev.length + next.length) * weight + lines * LINE_DIFF_CHARS_PER_LINE
+  );
+}
+
+function countTextLines(content: string): number {
+  return content.split("\n").length - 1;
+}
+
+const P1_SIDES = [baseText, withP1] as const;
+/** `withP1` inserts one line: an edit length of 1. */
+const P1_COST = countCompareCost(baseText, withP1);
+const DEFAULT_BOUNDS = {
+  maxLines: SPAN_LINE_DIFF_MAX_LINES,
+  maxChars: SPAN_LINE_DIFF_MAX_CHARS,
+  maxWork: SPAN_LINE_DIFF_MAX_WORK,
+};
+
+describe("readBetweenHeadsFiles under the line bound", () => {
+  const fileLines = 26;
+  const sides = makeSamePaths("f", BLOB_READ_CONCURRENCY + 2, P1_SIDES);
+
+  it("falls back for the file past the bound and every file after it", async () => {
+    const { kinds, blobReads } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxLines: fileLines * 2,
+    });
+
+    expect(kinds.slice(0, 2)).toEqual([
+      BetweenHeadsKinds.PATCH,
+      BetweenHeadsKinds.PATCH,
+    ]);
+    expect(new Set(kinds.slice(2))).toEqual(
+      new Set([BetweenHeadsKinds.UNREADABLE]),
+    );
+    expect(blobReads).toBe(BLOB_READ_CONCURRENCY * 2);
+  });
+
+  it("spends the bound in path order whatever order the files came in", async () => {
+    const reversed = new Map([...sides].toReversed());
+
+    const { kinds } = await readSpanKinds(reversed, {
+      ...DEFAULT_BOUNDS,
+      maxLines: fileLines * 2,
+    });
+
+    const patched = [...reversed.keys()].filter(
+      (_path, index) => kinds[index] === BetweenHeadsKinds.PATCH,
+    );
+    expect(patched.toSorted()).toEqual([...sides.keys()].slice(0, 2));
+  });
+});
+
+describe("readBetweenHeadsFiles under the character bound", () => {
+  const p1Chars = baseText.length + withP1.length;
+
+  it("falls back for the file past the bound and every file after it", async () => {
+    const sides = makeSamePaths("c", BLOB_READ_CONCURRENCY + 2, P1_SIDES);
+
+    const { kinds, blobReads } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxChars: p1Chars * 2.5,
+    });
+
+    expect(kinds.slice(0, 2)).toEqual([
+      BetweenHeadsKinds.PATCH,
+      BetweenHeadsKinds.PATCH,
+    ]);
+    expect(new Set(kinds.slice(2))).toEqual(
+      new Set([BetweenHeadsKinds.UNREADABLE]),
+    );
+    expect(blobReads).toBe(BLOB_READ_CONCURRENCY * 2);
+  });
+
+  it.each([
+    ["previous", [`${baseText}→\n`, withP1]],
+    ["new", [baseText, `${withP1}→\n`]],
+  ] as const)(
+    "weights every character of a file wide on its %s side",
+    async (_side, wideSides) => {
+      const wideChars = wideSides[0].length + wideSides[1].length;
+      const sides: HeadSides = new Map([
+        ["a.ts", wideSides],
+        ["b.ts", P1_SIDES],
+      ]);
+
+      const { kinds } = await readSpanKinds(sides, {
+        ...DEFAULT_BOUNDS,
+        maxChars: wideChars * WIDE_TEXT_CHAR_WEIGHT,
+      });
+
+      expect(kinds).toEqual([
+        BetweenHeadsKinds.PATCH,
+        BetweenHeadsKinds.UNREADABLE,
+      ]);
+    },
+  );
+
+  it("charges a character up to U+00FF once", async () => {
+    const latinSides = [`${baseText}é\n`, withP1] as const;
+    const latinChars = latinSides[0].length + latinSides[1].length;
+    const sides: HeadSides = new Map([
+      ["a.ts", latinSides],
+      ["b.ts", P1_SIDES],
+    ]);
+
+    const { kinds } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxChars: latinChars + p1Chars,
+    });
+
+    expect(kinds).toEqual([BetweenHeadsKinds.PATCH, BetweenHeadsKinds.PATCH]);
+  });
+
+  it("reads only a few of 300 two-byte files of nearly a megabyte", async () => {
+    const lineChars = 99_980;
+    const prev = makeLines(10, (index) => `${index}`.padStart(lineChars, "x"));
+    /** Three arrows for nine ASCII characters: the same UTF-8 bytes, under the byte bound. */
+    const next = prev.replace("xxxxxxxxx", "→→→");
+    const sides = makeSamePaths("m", MAX_SPAN_CHANGED_FILES, [prev, next]);
+    const fileChars = (prev.length + next.length) * WIDE_TEXT_CHAR_WEIGHT;
+    const affordableFiles = Math.floor(SPAN_LINE_DIFF_MAX_CHARS / fileChars);
+
+    const { kinds, blobReads } = await readSpanKinds(sides);
+
+    expect(affordableFiles).toBeGreaterThan(0);
+    expect(kinds.slice(0, affordableFiles)).toEqual(
+      Array<string>(affordableFiles).fill(BetweenHeadsKinds.PATCH),
+    );
+    expect(new Set(kinds.slice(affordableFiles))).toEqual(
+      new Set([BetweenHeadsKinds.UNREADABLE]),
+    );
+    expect(blobReads).toBeLessThanOrEqual(BLOB_READ_CONCURRENCY * 2);
+  });
+});
+
+describe("readBetweenHeadsFiles under the line-diff work bound", () => {
+  const rewrittenLines = 200;
+  const before = makeLines(rewrittenLines, (index) => `old${index}`);
+  const after = makeLines(rewrittenLines, (index) => `new${index}`);
+  /** A file rewritten whole: its edit length is every line of both sides. */
+  const fileLines = rewrittenLines * 2;
+  const fileWork = countCompareCost(before, after) * fileLines;
+
+  it("lets one file's diff spend at most half of the work left", async () => {
+    const sides = makeSamePaths("w", BLOB_READ_CONCURRENCY + 2, [
+      before,
+      after,
+    ]);
+
+    const { kinds, blobReads } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxWork: fileWork * 2,
+    });
+
+    expect(kinds[0]).toBe(BetweenHeadsKinds.PATCH);
+    expect(new Set(kinds.slice(1))).toEqual(
+      new Set([BetweenHeadsKinds.UNREADABLE]),
+    );
+    expect(blobReads).toBe((BLOB_READ_CONCURRENCY + 2) * 2);
+  });
+
+  it("weights the compare cost of wide text", async () => {
+    const wideAfter = `${after}→\n`;
+    const plainWork = countCompareCost(before, wideAfter) * (fileLines + 1);
+    const bounds = { ...DEFAULT_BOUNDS, maxWork: plainWork * 2 };
+    const plain = new Map([["a.ts", [before, `${after}-\n`] as const]]);
+    const wide = new Map([["a.ts", [before, wideAfter] as const]]);
+
+    const plainKinds = await readSpanKinds(plain, bounds);
+    const wideKinds = await readSpanKinds(wide, bounds);
+
+    expect(plainKinds.kinds).toEqual([BetweenHeadsKinds.PATCH]);
+    expect(wideKinds.kinds).toEqual([BetweenHeadsKinds.UNREADABLE]);
+  });
+
+  it("charges no work to a file the byte bound refuses", async () => {
+    const oversized = "x".repeat(MAX_LINE_DIFF_BYTES + 1);
+    const sides: HeadSides = new Map([
+      ["a.ts", [oversized, withP1]],
+      ["b.ts", P1_SIDES],
+    ]);
+
+    const { kinds } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxWork: P1_COST * 2,
+    });
+
+    expect(kinds).toEqual([
+      BetweenHeadsKinds.UNREADABLE,
+      BetweenHeadsKinds.PATCH,
+    ]);
+  });
+
+  it("charges no work to a file whose line counts pass its share", async () => {
+    /** Four lines changed: an edit length of 8, which fits only if the rewrite before it spent nothing. */
+    const fourChanged = makeLines(rewrittenLines, (index) =>
+      index < 4 ? `changed${index}` : `old${index}`,
+    );
+    const changedEditLength = 8;
+    const changedCost = countCompareCost(before, fourChanged);
+    const sides: HeadSides = new Map([
+      ["a.ts", [before, after]],
+      ["b.ts", [before, fourChanged]],
+    ]);
+
+    const { kinds } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxWork: changedCost * changedEditLength * 2,
+    });
+
+    expect(kinds).toEqual([
+      BetweenHeadsKinds.UNREADABLE,
+      BetweenHeadsKinds.PATCH,
+    ]);
+  });
+
+  it("leaves half the work to later files when a reordered file passes", async () => {
+    const reversed = makeText(
+      before.split("\n").slice(0, rewrittenLines).toReversed(),
+    );
+    const reorderedCost = countCompareCost(before, reversed);
+    /** Ten edit steps: far short of a reversal, which every line count allows. */
+    const reorderedShare = reorderedCost * 10;
+    const sides: HeadSides = new Map([
+      ["a.ts", [before, reversed]],
+      ["b.ts", P1_SIDES],
+    ]);
+
+    const { kinds } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxWork: reorderedShare * 2,
+    });
+
+    expect(kinds).toEqual([
+      BetweenHeadsKinds.UNREADABLE,
+      BetweenHeadsKinds.PATCH,
+    ]);
+  });
+
+  it("diffs the files after a large lockfile with a few changed lines", async () => {
+    const lockLines = 12_000;
+    const lock = Array.from(
+      { length: lockLines },
+      (_unused, index) =>
+        `    "node_modules/package-${index}/lib": { "version": "1.${index % 97}.0", "dev": true },`,
+    );
+    const lockAfter = lock.map((line, index) =>
+      index % 133 === 0 ? line.replace("true", "false") : line,
+    );
+    const source = makeLines(
+      300,
+      (index) => `export const v${index} = ${index};`,
+    );
+    const sourceAfter = source.replace(/= (\d*0);/g, "= -$1;");
+    const sides: HeadSides = new Map([
+      ["package-lock.json", [makeText(lock), makeText(lockAfter)]],
+      ...makeSamePaths("src/f", 30, [source, sourceAfter]),
+    ]);
+
+    const { kinds } = await readSpanKinds(sides);
+
+    expect(new Set(kinds.slice(1))).toEqual(new Set([BetweenHeadsKinds.PATCH]));
+  });
+});
+
+describe("readBetweenHeadsFiles at ordinary sizes", () => {
+  it("diffs six large files with scattered edits and the files after them", async () => {
+    const big = makeLines(
+      3_000,
+      (index) =>
+        `  const value${index} = computeSomething(input${index}, options);`,
+    );
+    const bigAfter = makeLines(3_000, (index) =>
+      index % 20 === 0
+        ? `  const value${index} = computeOther(input${index});`
+        : `  const value${index} = computeSomething(input${index}, options);`,
+    );
+    const small = makeLines(
+      300,
+      (index) => `export const v${index} = ${index};`,
+    );
+    const smallAfter = small.replace(/= (\d*0);/g, "= -$1;");
+    const sides: HeadSides = new Map([
+      ...makeSamePaths("lib/big", 6, [big, bigAfter]),
+      ...makeSamePaths("src/f", 20, [small, smallAfter]),
+    ]);
+
+    const { kinds } = await readSpanKinds(sides);
+
+    expect(new Set(kinds)).toEqual(new Set([BetweenHeadsKinds.PATCH]));
+  });
+
+  it("diffs the files after four large generated files", async () => {
+    const generatedLines = 25_001;
+    const generated = makeLines(
+      generatedLines,
+      (index) => `  "entry-${index}": "${index % 7}",`,
+    );
+    const generatedAfter = generated.replace(
+      '"entry-9": "2"',
+      '"entry-9": "3"',
+    );
+    const small = makeLines(
+      300,
+      (index) => `export const v${index} = ${index};`,
+    );
+    const smallAfter = small.replace("= 10;", "= -10;");
+    const sides: HeadSides = new Map([
+      ...makeSamePaths("a/gen", 4, [generated, generatedAfter]),
+      ...makeSamePaths("b/f", 5, [small, smallAfter]),
+    ]);
+
+    const { kinds } = await readSpanKinds(sides);
+
+    expect(new Set(kinds)).toEqual(new Set([BetweenHeadsKinds.PATCH]));
+  });
+});
+
+describe("readBetweenHeadsFiles on files of long lines", () => {
+  const longLines = 300;
+  const prefix = "x".repeat(3_200);
+  /** Same-length lines that differ only at the end: every compare reads the whole line. */
+  const before = makeLines(longLines, (index) => `${prefix}o${index}`);
+  const after = makeLines(longLines, (index) => `${prefix}n${index}`);
+  const fileWork = countCompareCost(before, after) * longLines * 2;
+
+  it("charges each character, so long-line rewrites spend the bound", async () => {
+    const sides = makeSamePaths("l", BLOB_READ_CONCURRENCY, [before, after]);
+
+    const { kinds } = await readSpanKinds(sides, {
+      ...DEFAULT_BOUNDS,
+      maxWork: fileWork * 2,
+    });
+
+    expect(kinds[0]).toBe(BetweenHeadsKinds.PATCH);
+    expect(new Set(kinds.slice(1))).toEqual(
+      new Set([BetweenHeadsKinds.UNREADABLE]),
+    );
+  });
+});
+
+describe("readPrSpan text", () => {
+  const files = ["b.ts", "a.ts", "c.ts"];
+  const blobs: Record<string, string> = {};
+  for (const path of files) {
+    blobs[`head1:${path}`] = baseText;
+    blobs[`head2:${path}`] = withP1;
+  }
+
+  function makePrDiff(order: readonly string[]): { ok: true; value: string } {
+    return makeOkDiff(
+      order.map((path) =>
+        makeFilePatch({ path, base: baseText, head: withP1 }),
+      ),
+    );
+  }
+
+  it("is byte-identical whatever order the PR diff lists its files in", async () => {
+    const forward = await readPrSpan(
+      stubSource({
+        diffs: { [PREV_SPAN]: makeOkDiff([]), [NEW_SPAN]: makePrDiff(files) },
+        blobs,
+      }),
       REFS,
-      compared,
       makeSignal(),
-      0,
+    );
+    const backward = await readPrSpan(
+      stubSource({
+        diffs: {
+          [PREV_SPAN]: makeOkDiff([]),
+          [NEW_SPAN]: makePrDiff(files.toReversed()),
+        },
+        blobs,
+      }),
+      REFS,
+      makeSignal(),
     );
 
-    expect(source.blobCalls).toEqual([]);
-    expect(result).toEqual({
-      ok: true,
-      value: new Map([["c.ts", { kind: BetweenHeadsKinds.UNREADABLE }]]),
+    expect(forward.ok && forward.value.filteredDiff).toBe(
+      backward.ok && backward.value.filteredDiff,
+    );
+  });
+
+  it("is byte-identical however slowly the blobs arrive", async () => {
+    const fast = stubSource({
+      diffs: { [PREV_SPAN]: makeOkDiff([]), [NEW_SPAN]: makePrDiff(files) },
+      blobs,
     });
+    const slow: typeof fast = {
+      ...fast,
+      async fetchBlob(blob, signal) {
+        await new Promise((resolve) => setTimeout(resolve, blob.path.length));
+        return fast.fetchBlob(blob, signal);
+      },
+    };
+
+    const quick = await readPrSpan(fast, REFS, makeSignal());
+    const delayed = await readPrSpan(slow, REFS, makeSignal());
+
+    expect(quick.ok && quick.value.filteredDiff).toBe(
+      delayed.ok && delayed.value.filteredDiff,
+    );
   });
 });

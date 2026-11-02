@@ -1,10 +1,16 @@
 import type { Result } from "types/utils";
 import {
   BLOB_READ_CONCURRENCY,
+  LINE_DIFF_CHARS_PER_LINE,
   LINE_DIFF_MAX_EDIT_LENGTH,
+  LINE_DIFF_MAX_WORK_SHARE,
   LINE_DIFF_TIMEOUT_MS,
   MAX_LINE_DIFF_BYTES,
-  SPAN_LINE_DIFF_BUDGET_MS,
+  SPAN_LINE_DIFF_MAX_CHARS,
+  SPAN_LINE_DIFF_MAX_LINES,
+  SPAN_LINE_DIFF_MAX_WORK,
+  WIDE_TEXT_CHAR_WEIGHT,
+  WIDE_TEXT_UNIT,
 } from "../consts";
 import {
   BetweenHeadsKinds,
@@ -12,85 +18,230 @@ import {
   type BetweenHeadsFile,
   type BlobRead,
   type ComparedFile,
+  type HeadTexts,
   type PrSpanFailure,
   type PrSpanRefs,
   type PrSpanSource,
 } from "../types";
+import { readChangeRuns } from "./change-runs";
+import { compareFilePaths } from "./compare-patches";
+import { splitTextLines } from "./utils";
 import { pickLastingFailure } from "./lasting-failure";
-import { formatBetweenHeadsPatch } from "./line-diff";
+import { formatBetweenHeadsPatch, isPastByteBound } from "./line-diff";
 
-type BetweenHeadsRead = Result<BetweenHeadsFile, PrSpanFailure>;
-
-/** Line-diff time the span has left; shared by every file of one read. */
-interface LineDiffBudget {
-  remainingMs: number;
+/** Both heads' blobs of one changed file. */
+interface HeadBlobs {
+  readonly prev: BlobRead;
+  readonly next: BlobRead;
 }
 
-const UNREADABLE: BetweenHeadsRead = {
-  ok: true,
-  value: { kind: BetweenHeadsKinds.UNREADABLE },
+/**
+ * What the span may still spend on line diffs. Once a file's text cannot
+ * be afforded every later file falls back; a file whose diff cannot be
+ * afforded falls back alone.
+ */
+interface LineDiffBudget {
+  remainingLines: number;
+  remainingChars: number;
+  remainingWork: number;
+  isSpent: boolean;
+}
+
+/** The span-wide line-diff bounds: blob lines and weighted characters read, and compare cost times edit length spent. */
+export interface SpanLineDiffBounds {
+  readonly maxLines: number;
+  readonly maxChars: number;
+  readonly maxWork: number;
+}
+
+/** Both heads' lines of a file the span's text bounds afforded, and its weighted characters. */
+interface AffordedText {
+  readonly weightedChars: number;
+  readonly prevLines: readonly string[];
+  readonly newLines: readonly string[];
+}
+
+const DEFAULT_SPAN_BOUNDS: SpanLineDiffBounds = {
+  maxLines: SPAN_LINE_DIFF_MAX_LINES,
+  maxChars: SPAN_LINE_DIFF_MAX_CHARS,
+  maxWork: SPAN_LINE_DIFF_MAX_WORK,
 };
+
+const UNREADABLE: BetweenHeadsFile = { kind: BetweenHeadsKinds.UNREADABLE };
 
 function readTextContent(blob: BlobRead): string | undefined {
   return blob.kind === BlobReadKinds.TEXT ? blob.content : undefined;
 }
 
-function isLineDiffable(prevBlob: BlobRead, newBlob: BlobRead): boolean {
+function isLineDiffable(blobs: HeadBlobs): boolean {
   const anyUnreadable =
-    prevBlob.kind === BlobReadKinds.UNREADABLE ||
-    newBlob.kind === BlobReadKinds.UNREADABLE;
+    blobs.prev.kind === BlobReadKinds.UNREADABLE ||
+    blobs.next.kind === BlobReadKinds.UNREADABLE;
   // A changed file absent at both heads means the port and the PR diffs disagree: not evidence of identity.
   const bothAbsent =
-    prevBlob.kind === BlobReadKinds.ABSENT &&
-    newBlob.kind === BlobReadKinds.ABSENT;
+    blobs.prev.kind === BlobReadKinds.ABSENT &&
+    blobs.next.kind === BlobReadKinds.ABSENT;
   return !anyUnreadable && !bothAbsent;
 }
 
-/** The file's line diff under what is left of the budget, charging the time it took. */
-function diffWithinBudget(
-  file: ComparedFile,
-  prevBlob: BlobRead,
-  newBlob: BlobRead,
+/**
+ * The file's characters, weighted when either side holds wide text, charged
+ * to the character bound before anything reads the text; nothing, and the
+ * budget spent, when the bound cannot afford them.
+ */
+function chargeChars(
+  texts: HeadTexts,
   budget: LineDiffBudget,
-): BetweenHeadsRead {
-  if (budget.remainingMs <= 0) {
+): number | undefined {
+  const prev = texts.prevContent ?? "";
+  const next = texts.newContent ?? "";
+  const chars = prev.length + next.length;
+  if (budget.isSpent || chars > budget.remainingChars) {
+    budget.isSpent = true;
+    return undefined;
+  }
+  const isWide = WIDE_TEXT_UNIT.test(prev) || WIDE_TEXT_UNIT.test(next);
+  const weightedChars = isWide ? chars * WIDE_TEXT_CHAR_WEIGHT : chars;
+  if (weightedChars > budget.remainingChars) {
+    budget.isSpent = true;
+    return undefined;
+  }
+  budget.remainingChars -= weightedChars;
+  return weightedChars;
+}
+
+/**
+ * Both heads' lines, charged to the line bound; nothing when a side passes
+ * the byte bound, and nothing with the budget spent when the line bound
+ * cannot afford them.
+ */
+function chargeText(
+  texts: HeadTexts,
+  budget: LineDiffBudget,
+): AffordedText | undefined {
+  const weightedChars = chargeChars(texts, budget);
+  if (weightedChars === undefined) {
+    return undefined;
+  }
+  const isTooLarge =
+    isPastByteBound(texts.prevContent) || isPastByteBound(texts.newContent);
+  if (isTooLarge) {
+    return undefined;
+  }
+
+  const prevLines = splitTextLines(texts.prevContent);
+  const newLines = splitTextLines(texts.newContent);
+  const lines = prevLines.length + newLines.length;
+  if (lines > budget.remainingLines) {
+    budget.isSpent = true;
+    return undefined;
+  }
+  budget.remainingLines -= lines;
+  return { weightedChars, prevLines, newLines };
+}
+
+/**
+ * The fewest lines any line diff of the two sides adds and removes: each
+ * line one side holds more copies of than the other. jsdiff's edit length
+ * is at least this, so a file allowed less would fall back anyway.
+ */
+function countLeastEditLength(
+  prevLines: readonly string[],
+  newLines: readonly string[],
+): number {
+  const surplus = new Map<string, number>();
+  for (const line of prevLines) {
+    surplus.set(line, (surplus.get(line) ?? 0) + 1);
+  }
+  for (const line of newLines) {
+    surplus.set(line, (surplus.get(line) ?? 0) - 1);
+  }
+  let least = 0;
+  for (const count of surplus.values()) {
+    least += Math.abs(count);
+  }
+  return least;
+}
+
+/** The edit length a file of this compare cost may reach in its share of the work left. */
+function affordEditLength(compareCost: number, budget: LineDiffBudget): number {
+  const share = budget.remainingWork * LINE_DIFF_MAX_WORK_SHARE;
+  const affordable = Math.floor(share / Math.max(compareCost, 1));
+  return Math.min(LINE_DIFF_MAX_EDIT_LENGTH, affordable);
+}
+
+function countEditLength(patch: string): number {
+  return readChangeRuns(patch).reduce(
+    (sum, run) => sum + run.added + run.removed,
+    0,
+  );
+}
+
+/**
+ * The file's line diff, its edit length capped by its share of the work
+ * left. A file whose share affords no edit, or whose least edit length
+ * passes the cap, falls back with nothing charged and never reaches a line
+ * diff, so every runner answers it alike; one whose diff passes the cap
+ * falls back charged for the cap.
+ * Past the byte bound the file falls back alone: the content decided it,
+ * so a retry would decide it again. The time limit, a crash-only stop,
+ * takes the fallback too.
+ */
+function diffWithinBound(
+  file: ComparedFile,
+  blobs: HeadBlobs,
+  budget: LineDiffBudget,
+  signal: AbortSignal,
+): BetweenHeadsFile {
+  if (!isLineDiffable(blobs)) {
+    return UNREADABLE;
+  }
+  const texts: HeadTexts = {
+    prevContent: readTextContent(blobs.prev),
+    newContent: readTextContent(blobs.next),
+  };
+  const afforded = chargeText(texts, budget);
+  if (afforded === undefined) {
+    return UNREADABLE;
+  }
+  const { weightedChars, prevLines, newLines } = afforded;
+  const lines = prevLines.length + newLines.length;
+  const compareCost = weightedChars + lines * LINE_DIFF_CHARS_PER_LINE;
+  const maxEditLength = affordEditLength(compareCost, budget);
+  const isUnaffordable =
+    maxEditLength < 1 ||
+    countLeastEditLength(prevLines, newLines) > maxEditLength;
+  if (isUnaffordable) {
     return UNREADABLE;
   }
 
-  const startedAt = performance.now();
+  signal.throwIfAborted();
   const patch = formatBetweenHeadsPatch(
     {
       prevPath: file.prevPath,
       path: file.path,
-      prevContent: readTextContent(prevBlob),
-      newContent: readTextContent(newBlob),
+      ...texts,
       modeChange: file.modeChange,
       prevMode: file.prev?.mode,
       newMode: file.next?.mode,
     },
-    {
-      maxEditLength: LINE_DIFF_MAX_EDIT_LENGTH,
-      timeoutMs: Math.min(LINE_DIFF_TIMEOUT_MS, budget.remainingMs),
-    },
+    { maxEditLength, timeoutMs: LINE_DIFF_TIMEOUT_MS },
   );
-  budget.remainingMs -= performance.now() - startedAt;
+  const editLength =
+    patch === undefined ? maxEditLength : countEditLength(patch);
+  budget.remainingWork -= compareCost * editLength;
   if (patch === undefined) {
     return UNREADABLE;
   }
-  return { ok: true, value: { kind: BetweenHeadsKinds.PATCH, patch } };
+  return { kind: BetweenHeadsKinds.PATCH, patch, texts };
 }
 
-async function readBetweenHeadsFile(
+async function readHeadBlobs(
   source: PrSpanSource,
   refs: PrSpanRefs,
   file: ComparedFile,
   signal: AbortSignal,
-  budget: LineDiffBudget,
-): Promise<BetweenHeadsRead> {
-  if (budget.remainingMs <= 0) {
-    return UNREADABLE;
-  }
-
+): Promise<Result<HeadBlobs, PrSpanFailure>> {
   const [prevBlob, newBlob] = await Promise.all([
     source.fetchBlob(
       {
@@ -115,53 +266,83 @@ async function readBetweenHeadsFile(
   if (!newBlob.ok) {
     return newBlob;
   }
+  return { ok: true, value: { prev: prevBlob.value, next: newBlob.value } };
+}
 
-  if (!isLineDiffable(prevBlob.value, newBlob.value)) {
-    return UNREADABLE;
+/** The batch's blobs, or its most lasting failure. */
+async function readBatchBlobs(
+  source: PrSpanSource,
+  refs: PrSpanRefs,
+  batch: readonly ComparedFile[],
+  signal: AbortSignal,
+): Promise<Result<HeadBlobs[], PrSpanFailure>> {
+  const reads = await Promise.all(
+    batch.map((file) => readHeadBlobs(source, refs, file, signal)),
+  );
+  const blobs: HeadBlobs[] = [];
+  let failure: PrSpanFailure | undefined;
+  for (const read of reads) {
+    if (read.ok) {
+      blobs.push(read.value);
+    } else {
+      failure =
+        failure === undefined
+          ? read.error
+          : pickLastingFailure(failure, read.error);
+    }
   }
-  signal.throwIfAborted();
-  return diffWithinBudget(file, prevBlob.value, newBlob.value, budget);
+  if (failure !== undefined) {
+    return { ok: false, error: failure };
+  }
+  return { ok: true, value: blobs };
 }
 
 /**
- * Both heads' blobs of every content-changed file, diffed line by line, a
- * few files at a time, within one line-diff time budget: past it the
- * remaining files read unreadable. A failed read fails the span, the most
- * lasting failure of a batch winning; an aborted signal throws its reason
- * before the next batch and before each file's diff.
+ * Both heads' blobs of every content-changed file, a few at a time, each
+ * line-diffed in path order while the span's bounds afford it. The file
+ * whose text the line or character bound cannot afford and every later one
+ * fall back, and no later batch reads a blob; a file whose diff its share
+ * of the work left cannot afford falls back alone. The text depends only
+ * on the refs, the blobs and the bounds: the time limit is a crash-only
+ * stop. A failed read fails the span, a batch's most lasting failure
+ * winning; an aborted signal throws its reason before each batch and diff.
  */
 export async function readBetweenHeadsFiles(
   source: PrSpanSource,
   refs: PrSpanRefs,
   files: readonly ComparedFile[],
   signal: AbortSignal,
-  budgetMs: number = SPAN_LINE_DIFF_BUDGET_MS,
+  bounds: SpanLineDiffBounds = DEFAULT_SPAN_BOUNDS,
 ): Promise<Result<Map<string, BetweenHeadsFile>, PrSpanFailure>> {
+  const ordered = files.toSorted(compareFilePaths);
   const betweenHeads = new Map<string, BetweenHeadsFile>();
-  const budget: LineDiffBudget = { remainingMs: budgetMs };
-  for (let start = 0; start < files.length; start += BLOB_READ_CONCURRENCY) {
+  const budget: LineDiffBudget = {
+    remainingLines: bounds.maxLines,
+    remainingChars: bounds.maxChars,
+    remainingWork: bounds.maxWork,
+    isSpent: false,
+  };
+  for (let start = 0; start < ordered.length; start += BLOB_READ_CONCURRENCY) {
     signal.throwIfAborted();
-    const batch = files.slice(start, start + BLOB_READ_CONCURRENCY);
-    const reads = await Promise.all(
-      batch.map((file) =>
-        readBetweenHeadsFile(source, refs, file, signal, budget),
-      ),
-    );
-
-    let failure: PrSpanFailure | undefined;
-    for (const [index, read] of reads.entries()) {
-      const file = batch[index];
-      if (!read.ok) {
-        failure =
-          failure === undefined
-            ? read.error
-            : pickLastingFailure(failure, read.error);
-      } else if (file !== undefined) {
-        betweenHeads.set(file.path, read.value);
-      }
+    const batch = ordered.slice(start, start + BLOB_READ_CONCURRENCY);
+    if (budget.isSpent) {
+      batch.forEach((file) => betweenHeads.set(file.path, UNREADABLE));
+      continue;
     }
-    if (failure !== undefined) {
-      return { ok: false, error: failure };
+
+    const blobs = await readBatchBlobs(source, refs, batch, signal);
+    if (!blobs.ok) {
+      return blobs;
+    }
+    for (const [index, fileBlobs] of blobs.value.entries()) {
+      const file = batch[index];
+      if (file === undefined) {
+        continue;
+      }
+      betweenHeads.set(
+        file.path,
+        diffWithinBound(file, fileBlobs, budget, signal),
+      );
     }
   }
   signal.throwIfAborted();

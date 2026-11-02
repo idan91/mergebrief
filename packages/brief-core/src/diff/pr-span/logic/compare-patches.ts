@@ -307,7 +307,21 @@ export function comparePrDiffs(
   );
   compared.push(...pairLoneFiles(loneNext, lonePrev));
   compared.push(...lonePrev.map(compareLonePrev));
-  return compared;
+  return compared.toSorted(compareFilePaths);
+}
+
+/** Code-unit order on the new-head path: the span's text and its line bound follow it, never the diff's own order. */
+export function compareFilePaths(
+  left: ComparedFile,
+  right: ComparedFile,
+): number {
+  if (left.path < right.path) {
+    return -1;
+  }
+  if (left.path > right.path) {
+    return 1;
+  }
+  return 0;
 }
 
 /**

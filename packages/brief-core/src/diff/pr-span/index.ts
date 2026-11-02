@@ -75,8 +75,12 @@ function readChangedFileSpan(
   const hunks = samePath ? patchHunks : [];
   // Every between-heads hunk away from the PR change is base noise, yet the PR's runs differ: send those runs.
   const filtered =
-    filterBetweenHeadsHunks(patch, prevPlaces, nextPlaces) ??
-    formatFallbackPatch(file);
+    filterBetweenHeadsHunks(
+      patch,
+      prevPlaces,
+      nextPlaces,
+      betweenHeads.texts,
+    ) ?? formatFallbackPatch(file);
   return { isChanged: true, hunks, unfiltered: patch, filtered };
 }
 
@@ -99,6 +103,7 @@ function readContextMovedFileSpan(
     patch,
     readPrChangePlaces(file.prev?.runs ?? []),
     readPrChangePlaces(file.next?.runs ?? []),
+    betweenHeads.texts,
   );
   if (filtered === undefined) {
     return { isChanged: false, hunks, unfiltered: patch };

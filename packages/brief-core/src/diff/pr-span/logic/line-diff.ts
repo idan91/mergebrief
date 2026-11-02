@@ -36,7 +36,7 @@ const DEFAULT_BOUNDS: LineDiffBounds = {
 
 const UTF8_ENCODER = new TextEncoder();
 
-function isPastByteBound(content: string | undefined): boolean {
+export function isPastByteBound(content: string | undefined): boolean {
   if (content === undefined) {
     return false;
   }
@@ -50,19 +50,14 @@ function isPastByteBound(content: string | undefined): boolean {
 
 /**
  * One file's git-style patch from the previous head to the new head, three
- * lines of context. Nothing when either side passes the byte bound in UTF-8
- * bytes or the diff passes its edit or time bound.
+ * lines of context. The caller refuses a side past the byte bound first.
+ * Nothing when the diff passes its edit bound, or its time bound, a
+ * crash-only stop the span's work bound keeps out of reach.
  */
 export function formatBetweenHeadsPatch(
   contents: BetweenHeadsContents,
   bounds: LineDiffBounds = DEFAULT_BOUNDS,
 ): string | undefined {
-  if (
-    isPastByteBound(contents.prevContent) ||
-    isPastByteBound(contents.newContent)
-  ) {
-    return undefined;
-  }
   const structured = structuredPatch(
     contents.prevPath,
     contents.path,

@@ -3,7 +3,10 @@ import {
   LINE_DIFF_TIMEOUT_MS,
   MAX_LINE_DIFF_BYTES,
 } from "../../../src/diff/pr-span/consts";
-import { formatBetweenHeadsPatch } from "../../../src/diff/pr-span/logic/line-diff";
+import {
+  formatBetweenHeadsPatch,
+  isPastByteBound,
+} from "../../../src/diff/pr-span/logic/line-diff";
 import { parsePatchPaths } from "../../../src/diff/chunk-layout/logic/header-paths";
 import { splitDiffByFile } from "../../../src/diff/file-diff";
 import { parsePatchRows } from "../../../src/diff/patch-rows";
@@ -72,32 +75,6 @@ describe("formatBetweenHeadsPatch", () => {
     expect(deleted).toContain("deleted file mode 100644");
   });
 
-  it("refuses a blob past the byte bound", () => {
-    const oversized = "x".repeat(MAX_LINE_DIFF_BYTES + 1);
-
-    expect(
-      formatBetweenHeadsPatch({
-        prevPath: "f",
-        path: "f",
-        prevContent: oversized,
-        newContent: "",
-      }),
-    ).toBeUndefined();
-  });
-
-  it("refuses a blob past the byte bound in UTF-8 bytes", () => {
-    const twoByteChars = "é".repeat(MAX_LINE_DIFF_BYTES / 2 + 1);
-
-    expect(
-      formatBetweenHeadsPatch({
-        prevPath: "f",
-        path: "f",
-        prevContent: twoByteChars,
-        newContent: "",
-      }),
-    ).toBeUndefined();
-  });
-
   it("refuses a diff past the edit length bound", () => {
     const patch = formatBetweenHeadsPatch(
       {
@@ -110,5 +87,18 @@ describe("formatBetweenHeadsPatch", () => {
     );
 
     expect(patch).toBeUndefined();
+  });
+});
+
+describe("isPastByteBound", () => {
+  it("is past for a blob over the byte bound", () => {
+    expect(isPastByteBound("x".repeat(MAX_LINE_DIFF_BYTES + 1))).toBe(true);
+  });
+
+  it("counts UTF-8 bytes, not UTF-16 units", () => {
+    const twoByteChars = "é".repeat(MAX_LINE_DIFF_BYTES / 2 + 1);
+
+    expect(isPastByteBound(twoByteChars)).toBe(true);
+    expect(isPastByteBound("x".repeat(MAX_LINE_DIFF_BYTES))).toBe(false);
   });
 });

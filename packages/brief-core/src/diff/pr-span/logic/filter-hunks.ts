@@ -1,5 +1,7 @@
-import type { ChangeRun } from "../types";
+import type { ChangeRun, HeadTexts } from "../types";
 import { readChangeRuns, splitPatchHunks } from "./change-runs";
+import { cutHunk } from "./cut-hunks";
+import { splitTextLines } from "./utils";
 
 interface LineWindow {
   readonly start: number;
@@ -57,38 +59,134 @@ function touchesPrChange(
   );
 }
 
-function isPrRun(
+const NO_SLIDE: SlideRange = { up: 0, down: 0 };
+
+/** Each head's lines, 1-based by index + 1, for the runs that may slide. */
+interface HeadLines {
+  readonly prev: readonly string[];
+  readonly next: readonly string[];
+}
+
+function readHeadLines(texts: HeadTexts | undefined): HeadLines | undefined {
+  if (texts === undefined) {
+    return undefined;
+  }
+  return {
+    prev: splitTextLines(texts.prevContent),
+    next: splitTextLines(texts.newContent),
+  };
+}
+
+/** How far a block of lines can move up, and down, over equal lines. */
+interface SlideRange {
+  readonly up: number;
+  readonly down: number;
+}
+
+/** How far a block of `count` lines from line `start` can move up, and down, over equal lines. */
+function readSlideRange(
+  lines: readonly string[],
+  start: number,
+  count: number,
+): SlideRange {
+  let up = 0;
+  while (
+    start - up > 1 &&
+    lines[start - up - 2] === lines[start + count - up - 2]
+  ) {
+    up += 1;
+  }
+  let down = 0;
+  while (
+    start + count + down <= lines.length &&
+    lines[start + count + down - 1] === lines[start + down - 1]
+  ) {
+    down += 1;
+  }
+  return { up, down };
+}
+
+/**
+ * True when either side of the run, moved anywhere from `up` lines up to
+ * `down` lines down, meets the PR change on that side. The places one side
+ * covers over the whole slide form one range, so each side is tested once.
+ */
+function touchesAcrossSlide(
   run: ChangeRun,
+  slide: SlideRange,
   prev: PrChangePlaces,
   next: PrChangePlaces,
 ): boolean {
+  const reach = slide.up + slide.down;
   return (
-    touchesPrChange(run.oldStart, run.removed, prev) ||
-    touchesPrChange(run.newStart, run.added, next)
+    touchesPrChange(run.oldStart - slide.up, run.removed + reach, prev) ||
+    touchesPrChange(run.newStart - slide.up, run.added + reach, next)
   );
 }
 
 /**
- * The between-heads patch cut to the hunks that touch either head's PR
+ * A pure insertion or deletion between equal lines reads the same at every
+ * place in its slide range, so it touches when any place does: the line
+ * diff may have put it a few lines from where the PR patch did.
+ */
+function touchesAnywhereInSlide(
+  run: ChangeRun,
+  prev: PrChangePlaces,
+  next: PrChangePlaces,
+  lines: HeadLines,
+): boolean {
+  const isInsertion = run.removed === 0;
+  const isDeletion = run.added === 0;
+  if (isInsertion === isDeletion) {
+    return false;
+  }
+  const slide = isInsertion
+    ? readSlideRange(lines.next, run.newStart, run.added)
+    : readSlideRange(lines.prev, run.oldStart, run.removed);
+  return touchesAcrossSlide(run, slide, prev, next);
+}
+
+function isPrRun(
+  run: ChangeRun,
+  prev: PrChangePlaces,
+  next: PrChangePlaces,
+  lines: HeadLines | undefined,
+): boolean {
+  if (touchesAcrossSlide(run, NO_SLIDE, prev, next)) {
+    return true;
+  }
+  return lines !== undefined && touchesAnywhereInSlide(run, prev, next, lines);
+}
+
+/**
+ * The between-heads patch cut to the runs that touch either head's PR
  * change: a run whose previous-head lines meet the previous PR change, or
- * whose new-head lines meet the new one. Nothing when no hunk does.
+ * whose new-head lines meet the new one, each with its context up to any
+ * dropped run. With both heads' texts, a run that can slide is tested at
+ * every place it could sit. Nothing when no run does.
  */
 export function filterBetweenHeadsHunks(
   patch: string,
   prev: PrChangePlaces,
   next: PrChangePlaces,
+  texts?: HeadTexts,
 ): string | undefined {
-  const keptHunks = new Set<number>();
+  const lines = readHeadLines(texts);
+  const keptByHunk: boolean[][] = [];
+  let isAnyKept = false;
   for (const run of readChangeRuns(patch)) {
-    if (isPrRun(run, prev, next)) {
-      keptHunks.add(run.hunk);
-    }
+    const isKept = isPrRun(run, prev, next, lines);
+    isAnyKept ||= isKept;
+    keptByHunk[run.hunk] ??= [];
+    keptByHunk[run.hunk]?.push(isKept);
   }
-  if (keptHunks.size === 0) {
+  if (!isAnyKept) {
     return undefined;
   }
 
   const { header, hunks } = splitPatchHunks(patch);
-  const kept = hunks.filter((_hunk, index) => keptHunks.has(index));
-  return [...header, ...kept.flat()].join("\n");
+  const cut = hunks.flatMap((hunk, index) =>
+    cutHunk(hunk, keptByHunk[index] ?? []),
+  );
+  return [...header, ...cut].join("\n");
 }

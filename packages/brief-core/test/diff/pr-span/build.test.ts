@@ -368,7 +368,7 @@ describe("buildPrSpan when the PR change moved", () => {
     expect(span.filteredDiff).toContain("+p1x");
   });
 
-  it("keeps a whole hunk when only one of its runs is the PR's", () => {
+  it("cuts a base run out of the hunk it shares with a PR run", () => {
     const base = makeBaseLines(14);
 
     const span = buildPrSpan({
@@ -395,7 +395,8 @@ describe("buildPrSpan when the PR change moved", () => {
     });
 
     expect(span.filteredDiff).toContain("+p1x");
-    expect(span.filteredDiff).toContain("+b8x");
+    expect(span.filteredDiff).not.toContain("b8x");
+    expect(span.unfilteredDiff).toContain("+b8x");
   });
 });
 
@@ -595,7 +596,7 @@ describe("buildPrSpan when the base renamed a path", () => {
       baseRenames: new Set(["b.ts", "c.ts"]),
     });
 
-    expect(span.changedFiles).toEqual(["b.ts", "c.ts", "a.ts"]);
+    expect(span.changedFiles).toEqual(["a.ts", "b.ts", "c.ts"]);
     expect(span.unchangedFiles).toEqual([]);
   });
 
