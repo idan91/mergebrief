@@ -698,6 +698,30 @@ describe("delta checkpoint resolution over controlled PR-meta bodies", () => {
     });
   });
 
+  it("a span with no change of the PR's own reads unchanged", async () => {
+    const { out, io: sinks } = sinkPair();
+    await runDelta(
+      controlledClient({
+        ...READY_META,
+        comparisons: {
+          lastReview: {
+            deltaAvailable: false,
+            deltaUnchanged: true,
+            baselineSha: BASE_SHA,
+          },
+        },
+      }),
+      "1",
+      7,
+      {},
+      sinks,
+    );
+    expect(JSON.parse(out.join(""))).toEqual({
+      available: false,
+      reason: "unchanged",
+    });
+  });
+
   it("a resolved checkpoint fetches the span and wraps the artifact", async () => {
     const { out, io: sinks } = sinkPair();
     const body = '{"artifactKind":"delta"}';

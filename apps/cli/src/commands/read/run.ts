@@ -28,6 +28,7 @@ const prMetaSliceSchema = z.object({
         .union([
           z.object({
             deltaAvailable: z.boolean(),
+            deltaUnchanged: z.literal(true).optional(),
             baselineSha: z.string(),
           }),
           z.object({ unavailable: z.string() }),
@@ -355,6 +356,10 @@ export async function runDelta(
     }
     if ("unavailable" in lastReview) {
       unavailable(lastReview.unavailable);
+      return;
+    }
+    if (lastReview.deltaUnchanged === true) {
+      unavailable("unchanged");
       return;
     }
     if (!lastReview.deltaAvailable) {

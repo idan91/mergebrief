@@ -111,7 +111,10 @@ describe("answerDemoRequest reads", () => {
       FIXTURE_REV2_HEAD,
     ]);
     expect(meta.headSha).toBe(FIXTURE_REV2_HEAD);
-    expect(meta.comparisons?.previousBrief?.narrativeAvailable).toBe(true);
+    expect(meta.comparisons?.previousBrief).toMatchObject({
+      kind: "available",
+      narrativeAvailable: true,
+    });
     expect(meta.viewerCanPush).toBe(false);
     expect(meta.viewerCanResolve).toBe(false);
   });

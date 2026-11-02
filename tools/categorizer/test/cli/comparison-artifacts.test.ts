@@ -11,6 +11,7 @@ import type {
   Generator,
 } from "generators";
 import type * as BriefCoreModule from "brief-core";
+import type * as PrSpanModule from "brief-core/pr-span";
 import type * as GithubModule from "../../src/github";
 
 // Mock the github module so generateAndWrite / generateAndWriteDelta never
@@ -38,6 +39,39 @@ vi.mock("../../src/github", async (importOriginal) => {
     // The default PrSource must ride the SAME mocks, the real `ghPrSource`
     // binds the unmocked gh functions at module init.
     ghPrSource: { ...actual.ghPrSource, ...mocked },
+  };
+});
+
+// The span builder is brief-core's own (tested there); the CLI's wiring is
+// what these tests pin, so the span read answers the compare fixture.
+const span = vi.hoisted(() => ({
+  refs: [] as unknown[],
+  unchanged: false,
+  failure: undefined as string | undefined,
+}));
+vi.mock("brief-core/pr-span", async (importOriginal) => {
+  const actual = await importOriginal<typeof PrSpanModule>();
+  return {
+    ...actual,
+    readPrSpan: vi.fn(async (_source: unknown, refs: unknown) => {
+      span.refs.push(refs);
+      if (span.failure !== undefined) {
+        return { ok: false, error: { kind: span.failure } };
+      }
+      const filteredDiff = span.unchanged ? "" : fetched.compareDiff;
+      return {
+        ok: true,
+        value: {
+          changedFiles: [],
+          unchangedFiles: [],
+          filteredDiff,
+          unfilteredDiff: filteredDiff,
+          hop: [],
+          unpairableFiles: [],
+          isUnchanged: span.unchanged,
+        },
+      };
+    }),
   };
 });
 
@@ -244,6 +278,9 @@ describe("generateAndWrite comparison artifacts", () => {
     dir = await mkdtemp(join(tmpdir(), "narrative-"));
     fetched.prDiff = wholePrDiff;
     fetched.compareDiff = incrementalDiff;
+    span.refs = [];
+    span.unchanged = false;
+    span.failure = undefined;
   });
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true });
@@ -296,6 +333,63 @@ describe("generateAndWrite comparison artifacts", () => {
     expect(narrative["artifactKind"]).toBe("revisionNarrative");
     expect(narrative["prevHeadSha"]).toBe(HEAD_1);
     expect(narrative["headIndex"]).toBe(2);
+  });
+
+  it("reads the span from the previous brief's base to the PR's base", async () => {
+    const generator = new FakeGenerator();
+    await firstBrief(generator);
+    fetched.meta = { ...makeMeta(HEAD_2), baseSha: "base111111111111" };
+    await generateAndWrite(dir, URL, undefined, generator, () => {});
+
+    expect(span.refs).toEqual([
+      {
+        prevBase: "base000000000000",
+        prevHead: HEAD_1,
+        newBase: "base111111111111",
+        newHead: HEAD_2,
+      },
+    ]);
+  });
+
+  it("writes zero-file marks and the no-change record for an unchanged span", async () => {
+    const generator = new FakeGenerator();
+    await firstBrief(generator);
+    fetched.meta = makeMeta(HEAD_2);
+    span.unchanged = true;
+    await generateAndWrite(dir, URL, undefined, generator, () => {});
+
+    expect(generator.labels).toEqual(["brief", "brief"]);
+    const marks = (await readJson(
+      join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"),
+    )) as Record<string, unknown>;
+    expect(marks["files"]).toEqual([]);
+    const record = (await readJson(
+      join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
+    )) as Record<string, unknown>;
+    expect(record).toEqual({
+      artifactKind: "revisionNarrativeUnchanged",
+      pr: expect.anything(),
+      prevHeadSha: HEAD_1,
+      headSha: HEAD_2,
+      prevIndex: 1,
+      headIndex: 2,
+    });
+  });
+
+  it("writes only the skip stub when GitHub refuses the span", async () => {
+    const generator = new FakeGenerator();
+    await firstBrief(generator);
+    fetched.meta = makeMeta(HEAD_2);
+    span.failure = "too-large";
+    await generateAndWrite(dir, URL, undefined, generator, () => {});
+
+    expect(generator.labels).toEqual(["brief", "brief"]);
+    const files = await readdir(dir);
+    expect(files.some((f) => f.includes("_previous-brief_"))).toBe(false);
+    const stub = (await readJson(
+      join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
+    )) as Record<string, unknown>;
+    expect(stub["skipped"]).toBe("span too large");
   });
 
   it("anchors a follow-up brief on the previous brief from disk", async () => {
@@ -439,6 +533,9 @@ describe("generateAndWriteDelta checkpoint marks", () => {
     dir = await mkdtemp(join(tmpdir(), "delta-marks-"));
     fetched.meta = makeMeta(HEAD_2);
     fetched.compareDiff = incrementalDiff;
+    span.refs = [];
+    span.unchanged = false;
+    span.failure = undefined;
   });
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true });
@@ -446,6 +543,94 @@ describe("generateAndWriteDelta checkpoint marks", () => {
 
   const marksFile = (): string =>
     join(dir, "o-r-1_checkpoint_cccc3333-bbbb2222.comparison.json");
+
+  it("reads an unbriefed checkpoint's span from the PR's current base", async () => {
+    await generateAndWriteDelta(
+      dir,
+      URL,
+      CHECKPOINT,
+      HEAD_2,
+      new FakeGenerator(),
+      () => {},
+    );
+
+    expect(span.refs).toEqual([
+      {
+        prevBase: "base000000000000",
+        prevHead: CHECKPOINT,
+        newBase: "base000000000000",
+        newHead: HEAD_2,
+      },
+    ]);
+  });
+
+  it("writes the no-change record and makes no delta call when unchanged", async () => {
+    const generator = new FakeGenerator();
+    span.unchanged = true;
+    const written = await generateAndWriteDelta(
+      dir,
+      URL,
+      CHECKPOINT,
+      HEAD_2,
+      generator,
+      () => {},
+    );
+
+    expect(generator.labels).toEqual([]);
+    expect(written).toMatchObject({ artifactKind: "deltaUnchanged" });
+    const files = await readdir(dir);
+    const recordFile = files.find((f) => f.endsWith(".delta.json"));
+    expect(recordFile).toBeDefined();
+    const record = (await readJson(join(dir, String(recordFile)))) as Record<
+      string,
+      unknown
+    >;
+    expect(record["artifactKind"]).toBe("deltaUnchanged");
+    const marks = (await readJson(marksFile())) as Record<string, unknown>;
+    expect(marks["files"]).toEqual([]);
+  });
+
+  it("writes the span-too-large skip record with no marks or delta call", async () => {
+    const generator = new FakeGenerator();
+    span.failure = "too-large";
+    const written = await generateAndWriteDelta(
+      dir,
+      URL,
+      CHECKPOINT,
+      HEAD_2,
+      generator,
+      () => {},
+    );
+
+    expect(generator.labels).toEqual([]);
+    expect(written).toMatchObject({
+      artifactKind: "deltaSkipped",
+      skipped: "span-too-large",
+    });
+    const files = await readdir(dir);
+    const recordFile = files.find((f) => f.endsWith(".delta.json"));
+    const record = (await readJson(join(dir, String(recordFile)))) as Record<
+      string,
+      unknown
+    >;
+    expect(record["skipped"]).toBe("span-too-large");
+    expect(existsSync(marksFile())).toBe(false);
+  });
+
+  it("throws on a span it could not read for another reason", async () => {
+    span.failure = "unavailable";
+
+    await expect(
+      generateAndWriteDelta(
+        dir,
+        URL,
+        CHECKPOINT,
+        HEAD_2,
+        new FakeGenerator(),
+        () => {},
+      ),
+    ).rejects.toThrow("revision span unread: unavailable");
+  });
 
   it("writes checkpoint marks BEFORE the delta LLM call", async () => {
     let marksExistedAtLlmCall = false;

@@ -16,7 +16,7 @@ import {
 } from "generators";
 import { FakeFailures, type FakeGitHub } from "github/testing";
 import {
-  arrangeCompare,
+  arrangeRevisionSpan,
   BASE,
   captureLogger,
   ctx,
@@ -39,6 +39,9 @@ import {
 setUpHarness();
 
 const FILE_HEADER = "diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n";
+
+/** One changed line in b.ts: a span the delta call reads. */
+const SMALL_SPAN_DIFF = `${FILE_HEADER}@@ -1 +1 @@\n-x\n+y\n`;
 
 /** 8 changed lines, huge against a 10-line whole-PR churn (ratio 0.8). */
 const RATIO_HUGE_DIFF = `${FILE_HEADER}@@ -1,8 +1,8 @@\n${"+x\n".repeat(8)}`;
@@ -76,7 +79,7 @@ async function pushPastCheckpoint(
   await checkpointReviewerAt(first.pr, HEAD_1);
 
   github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-  arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, spanDiff);
+  arrangeRevisionSpan(github, spanDiff);
   const second = await trigger(HEAD_2);
   return { ...second, github };
 }
@@ -170,8 +173,9 @@ describe("generate task, a checkpoint span too large for its delta", () => {
       skipped: "span-too-large",
     });
     const lockfileReads = github.calls.filter((call) => {
-      const { path } = call.input as { path?: string };
-      return call.operation === "fetchMergeBase" || path === "pnpm-lock.yaml";
+      const { path, ref } = call.input as { path?: string; ref?: string };
+      const isSummaryRead = path === "pnpm-lock.yaml" && ref === BASE;
+      return call.operation === "fetchMergeBase" || isSummaryRead;
     });
     expect(lockfileReads).toEqual([]);
   });
@@ -183,7 +187,7 @@ describe("generate task, a checkpoint span too large for its delta", () => {
       generator: stubCutDeltaGenerator(generator),
       github,
     });
-    const second = await pushPastCheckpoint(task, github, "");
+    const second = await pushPastCheckpoint(task, github, SMALL_SPAN_DIFF);
 
     await task(second.payload);
 
@@ -208,7 +212,7 @@ describe("generate task, a checkpoint span too large for its delta", () => {
       github,
       log: logger,
     });
-    const second = await pushPastCheckpoint(task, github, "");
+    const second = await pushPastCheckpoint(task, github, SMALL_SPAN_DIFF);
 
     await task(second.payload);
 
@@ -227,7 +231,7 @@ describe("generate task, a checkpoint span too large for its delta", () => {
     await task(first.payload);
     await checkpointReviewerAt(first.pr, BASE);
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-    github.failOn("fetchCompareDiff", FakeFailures.NOT_ACCEPTABLE);
+    github.failOn("fetchCheckedCompareDiff", FakeFailures.NOT_ACCEPTABLE);
     const second = await trigger(HEAD_2);
 
     await task(second.payload);
@@ -253,7 +257,7 @@ describe("generate task, a checkpoint span too large for its delta", () => {
     await task(first.payload);
     await checkpointReviewerAt(first.pr, BASE);
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-    github.failOn("fetchCompareDiff", FakeFailures.NOT_FOUND);
+    github.failOn("fetchCheckedCompareDiff", FakeFailures.NOT_FOUND);
     const second = await trigger(HEAD_2);
 
     await task(second.payload);
@@ -272,7 +276,7 @@ describe("generate task, a checkpoint span too large for its delta", () => {
     const task = makeTask({ generator, github });
     const second = await pushPastCheckpoint(task, github, RATIO_HUGE_DIFF);
     await task(second.payload);
-    arrangeCompare(github, { base: HEAD_1, head: HEAD_2 });
+    arrangeRevisionSpan(github, SMALL_SPAN_DIFF);
 
     await task(second.payload);
 
@@ -288,7 +292,7 @@ describe("generate task, a checkpoint span too large for its delta", () => {
     const second = await trigger(HEAD_2);
     await briefTask(second.payload);
     await checkpointReviewerAt(second.pr, HEAD_1);
-    arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, RATIO_HUGE_DIFF);
+    arrangeRevisionSpan(github, RATIO_HUGE_DIFF);
 
     await makeTask({ github, effort: "low" })(second.payload);
 

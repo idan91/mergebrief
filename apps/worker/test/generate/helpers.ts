@@ -645,7 +645,45 @@ export function arrangeCompare(
   github.addCompare(REPO, span, { diff, files });
 }
 
-/** PR #7 at `headSha`; every span between the fixture commits diffs as `SMALL_DIFF`. */
+/** The PR's own diff at `head`: `SMALL_DIFF` with a line naming the head, so each head's change differs. */
+export function makeHeadPrDiff(head: string): string {
+  return SMALL_DIFF.replace("+added", `+added at ${head.slice(0, 1)}`);
+}
+
+/**
+ * The PR at HEAD_2 changes `newPrDiff`'s files, so GitHub's file count
+ * matches the diff the span read checks against it.
+ */
+export function arrangeNewHeadPrDiff(
+  github: FakeGitHub,
+  newPrDiff: string,
+  newBase = BASE,
+): void {
+  arrangeCompare(github, { base: newBase, head: HEAD_2 }, newPrDiff);
+  const changedFiles = newPrDiff
+    .split("\n")
+    .filter((line) => line.startsWith("diff --git ")).length;
+  github.updatePullRequest(PR_REF, { changedFiles });
+}
+
+/**
+ * The second head's PR diff holds the first head's plus `spanDiff`, so the
+ * revision span from HEAD_1 to HEAD_2 is `spanDiff`'s files; the three-dot
+ * compare anchoring still reads serves `spanDiff` as well.
+ */
+export function arrangeRevisionSpan(
+  github: FakeGitHub,
+  spanDiff: string,
+): void {
+  arrangeNewHeadPrDiff(github, `${makeHeadPrDiff(HEAD_1)}${spanDiff}`);
+  arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, spanDiff);
+}
+
+/**
+ * PR #7 at `headSha`. Against BASE each head serves its own PR diff
+ * (`makeHeadPrDiff`); every other span between the fixture commits diffs as
+ * `SMALL_DIFF`.
+ */
 export function makeGitHub(
   headSha: string,
   files: readonly PullRequestFile[] = [
@@ -661,7 +699,9 @@ export function makeGitHub(
   });
   for (const base of FIXTURE_COMMITS) {
     for (const head of FIXTURE_COMMITS) {
-      if (base !== head) {
+      if (base === BASE && head !== BASE) {
+        arrangeCompare(github, { base, head }, makeHeadPrDiff(head));
+      } else if (base !== head) {
         arrangeCompare(github, { base, head });
       }
     }

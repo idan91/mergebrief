@@ -20,7 +20,9 @@ import {
   UnattributedFileSchema,
   type Brief,
   type DeltaSkipped,
+  type DeltaUnchanged,
   type RevisionNarrativeSkipped,
+  type RevisionNarrativeUnchanged,
 } from "../types";
 
 /**
@@ -62,15 +64,37 @@ true satisfies Equals<
   RevisionNarrativeSkipped
 >;
 
+export const RevisionNarrativeUnchangedSchema = z.strictObject({
+  artifactKind: z.literal("revisionNarrativeUnchanged"),
+  pr: PrRefSchema,
+  prevHeadSha: z.string(),
+  headSha: z.string(),
+  prevIndex: z.number().int(),
+  headIndex: z.number().int(),
+});
+
+true satisfies Equals<
+  z.infer<typeof RevisionNarrativeUnchangedSchema>,
+  RevisionNarrativeUnchanged
+>;
+
 export const StoredRevisionNarrativeSchema = z.discriminatedUnion(
   "artifactKind",
-  [RevisionNarrativeSchema, RevisionNarrativeSkippedSchema],
+  [
+    RevisionNarrativeSchema,
+    RevisionNarrativeSkippedSchema,
+    RevisionNarrativeUnchangedSchema,
+  ],
 );
 
 /** Strictness is a write check: a body a newer release wrote still reads. */
 export const StoredRevisionNarrativeReadSchema = z.discriminatedUnion(
   "artifactKind",
-  [RevisionNarrativeSchema.strip(), RevisionNarrativeSkippedSchema.strip()],
+  [
+    RevisionNarrativeSchema.strip(),
+    RevisionNarrativeSkippedSchema.strip(),
+    RevisionNarrativeUnchangedSchema.strip(),
+  ],
 );
 
 export const DeltaSkippedSchema = z.strictObject({
@@ -84,6 +108,17 @@ export const DeltaSkippedSchema = z.strictObject({
 });
 
 true satisfies Equals<z.infer<typeof DeltaSkippedSchema>, DeltaSkipped>;
+
+export const DeltaUnchangedSchema = z.strictObject({
+  artifactKind: z.literal("deltaUnchanged"),
+  pr: PrRefSchema,
+  baselineSha: z.string(),
+  headSha: z.string(),
+  baselineIndex: z.number().int().nullable(),
+  headIndex: z.number().int().nullable(),
+});
+
+true satisfies Equals<z.infer<typeof DeltaUnchangedSchema>, DeltaUnchanged>;
 
 /** A repo's custom risk names are not known at read time; the reader checks shape. */
 const readRiskToken = z.string();

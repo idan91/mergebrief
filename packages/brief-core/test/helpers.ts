@@ -13,8 +13,10 @@ import {
   type Chunk,
   type DeltaBrief,
   type DeltaSkipped,
+  type DeltaUnchanged,
   type RevisionNarrative,
   type RevisionNarrativeSkipped,
+  type RevisionNarrativeUnchanged,
 } from "../src/types";
 
 /** A file turned into a symlink: git writes a deletion and a creation under one path. */
@@ -162,6 +164,28 @@ export function makeSkippedRevisionNarrative(): RevisionNarrativeSkipped {
     prevIndex: 1,
     headIndex: 2,
     skipped: RevisionNarrativeSkipReasons.SPAN_TOO_LARGE,
+  };
+}
+
+export function makeUnchangedDelta(): DeltaUnchanged {
+  return {
+    artifactKind: "deltaUnchanged",
+    pr: structuredClone(pr),
+    baselineSha: "1111111",
+    headSha: "2222222",
+    baselineIndex: 1,
+    headIndex: 2,
+  };
+}
+
+export function makeUnchangedRevisionNarrative(): RevisionNarrativeUnchanged {
+  return {
+    artifactKind: "revisionNarrativeUnchanged",
+    pr: structuredClone(pr),
+    prevHeadSha: "prev0000",
+    headSha: "deadbeef",
+    prevIndex: 1,
+    headIndex: 2,
   };
 }
 

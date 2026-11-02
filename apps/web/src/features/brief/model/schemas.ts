@@ -100,6 +100,8 @@ export const localLastReviewAvailabilitySchema = z
   .object({
     marksId: z.string(),
     deltaId: z.string().exactOptional(),
+    deltaSkipped: z.literal(true).exactOptional(),
+    deltaUnchanged: z.literal(true).exactOptional(),
     baselineSha: z.string(),
     baselineIndex: nullableIntegerSchema,
   })

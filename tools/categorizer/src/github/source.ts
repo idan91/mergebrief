@@ -1,4 +1,5 @@
 import type { PrLocator, PrMetadata } from "brief-core";
+import type { PrSpanSource } from "brief-core/pr-span";
 import type { ReviewComment } from "brief-core/types";
 import { fetchReviewComments } from "./comments";
 import {
@@ -8,6 +9,7 @@ import {
   fetchPrMetadata,
   resolveFullSha,
 } from "./fetch";
+import { buildGhPrSpanSource } from "./span-source";
 
 /**
  * The PR-read port: everything `buildInputs` needs to assemble a brief's inputs,
@@ -30,6 +32,8 @@ export interface PrSource {
     headSha: string,
   ): Promise<number>;
   resolveFullSha(loc: PrLocator, ref: string): Promise<string>;
+  /** The revision span read over the same transport. */
+  buildSpanSource(loc: PrLocator): PrSpanSource;
 }
 
 export const ghPrSource: PrSource = {
@@ -39,4 +43,5 @@ export const ghPrSource: PrSource = {
   fetchReviewComments,
   fetchCompareCommitCount,
   resolveFullSha,
+  buildSpanSource: buildGhPrSpanSource,
 };

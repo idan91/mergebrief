@@ -155,6 +155,13 @@ function fakeSource(sha: string = HEAD): PrSource {
     fetchReviewComments: vi.fn(async () => [comment]),
     fetchCompareCommitCount: vi.fn(async () => 1),
     resolveFullSha: vi.fn(async (_loc, ref) => ref),
+    buildSpanSource: vi.fn(() => ({
+      fetchPrDiff: async () => ({ ok: true as const, value: diff }),
+      fetchBlob: async () => ({
+        ok: true as const,
+        value: { kind: "absent" as const },
+      }),
+    })),
   };
 }
 

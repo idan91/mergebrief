@@ -1361,6 +1361,32 @@ export interface DeltaSkipped {
   skipped: DeltaSkipReason;
 }
 
+/**
+ * The stored record for a revision span in which the PR's own change did not
+ * move: no narrative call ran, and none is owed.
+ */
+export interface RevisionNarrativeUnchanged {
+  artifactKind: "revisionNarrativeUnchanged";
+  pr: PrRef;
+  prevHeadSha: string;
+  headSha: string;
+  prevIndex: number;
+  headIndex: number;
+}
+
+/**
+ * The stored record for a checkpoint span in which the PR's own change did
+ * not move: no Delta Brief call ran, and the view says nothing changed.
+ */
+export interface DeltaUnchanged {
+  artifactKind: "deltaUnchanged";
+  pr: PrRef;
+  baselineSha: string;
+  headSha: string;
+  baselineIndex: number | null;
+  headIndex: number | null;
+}
+
 export type PrRef = z.infer<typeof PrRefSchema>;
 export type IntentItem = z.infer<typeof IntentItemSchema>;
 export type IntentCheck = z.infer<typeof IntentCheckSchema>;

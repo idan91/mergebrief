@@ -698,7 +698,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       await aStore.revisionNarratives.get(bPr.id, "prev", "head"),
     ).toBeUndefined();
     expect(await bStore.revisionNarratives.listForPullRequest(bPr.id)).toEqual([
-      { prevHeadSha: "prev", headSha: "head" },
+      { prevHeadSha: "prev", headSha: "head", unchanged: false },
     ]);
     const kept = await bStore.revisionNarratives.get(bPr.id, "prev", "head");
     expect(kept?.id).toBe(bNarrative.id);
@@ -1137,13 +1137,13 @@ describe("createArtifactStore query shape", () => {
   const SIDECAR_DROP =
     'delete from "chunk_layout" where ("chunk_layout"."installation_id" = $1 and "chunk_layout"."brief_id" = $2)';
   const DELTA_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "skipped", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
-  const DELTA_UPSERT = `insert into "delta" (${DELTA_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "skipped" = $12, "provider" = $13, "model" = $14, "effort" = $15, "body_version" = $16, "body" = $17, "byte_size" = $18 returning ${DELTA_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "skipped", "unchanged", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
+  const DELTA_UPSERT = `insert into "delta" (${DELTA_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "skipped" = $13, "unchanged" = $14, "provider" = $15, "model" = $16, "effort" = $17, "body_version" = $18, "body" = $19, "byte_size" = $20 returning ${DELTA_COLUMNS}`;
   const BRIEF_ANCHOR_CHECK =
     'select "id" from "brief" where ("brief"."installation_id" = $1 and "brief"."id" = $2 and "brief"."pull_request_id" = $3) limit $4';
   const NARRATIVE_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "brief_id", "prev_head_sha", "head_sha", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
-  const NARRATIVE_UPSERT = `insert into "revision_narrative" (${NARRATIVE_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, default) on conflict ("installation_id","pull_request_id","prev_head_sha","head_sha") do update set "brief_id" = $12, "provider" = $13, "model" = $14, "effort" = $15, "body_version" = $16, "body" = $17, "byte_size" = $18 returning ${NARRATIVE_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "brief_id", "prev_head_sha", "head_sha", "unchanged", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
+  const NARRATIVE_UPSERT = `insert into "revision_narrative" (${NARRATIVE_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, default) on conflict ("installation_id","pull_request_id","prev_head_sha","head_sha") do update set "brief_id" = $13, "unchanged" = $14, "provider" = $15, "model" = $16, "effort" = $17, "body_version" = $18, "body" = $19, "byte_size" = $20 returning ${NARRATIVE_COLUMNS}`;
   const MARKS_COLUMNS =
     '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "body", "byte_size", "created_at"';
   const MARKS_UPSERT = `insert into "comparison_marks" (${MARKS_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "body" = $7, "byte_size" = $8 returning ${MARKS_COLUMNS}`;
@@ -1386,10 +1386,10 @@ describe("createArtifactStore query shape", () => {
       'select "id", "base_sha", "head_sha", "head_index", "created_at" from "brief" where ("brief"."installation_id" = $1 and "brief"."pull_request_id" = $2) order by "brief"."head_index"',
     ]);
     expect(deltas.statements).toEqual([
-      'select "baseline_sha", "head_sha", "skipped" from "delta" where ("delta"."installation_id" = $1 and "delta"."pull_request_id" = $2)',
+      'select "baseline_sha", "head_sha", "skipped", "unchanged" from "delta" where ("delta"."installation_id" = $1 and "delta"."pull_request_id" = $2)',
     ]);
     expect(narratives.statements).toEqual([
-      'select "prev_head_sha", "head_sha" from "revision_narrative" where ("revision_narrative"."installation_id" = $1 and "revision_narrative"."pull_request_id" = $2)',
+      'select "prev_head_sha", "head_sha", "unchanged" from "revision_narrative" where ("revision_narrative"."installation_id" = $1 and "revision_narrative"."pull_request_id" = $2)',
     ]);
     expect(marks.statements).toEqual([
       'select "baseline_sha", "head_sha" from "comparison_marks" where ("comparison_marks"."installation_id" = $1 and "comparison_marks"."pull_request_id" = $2)',

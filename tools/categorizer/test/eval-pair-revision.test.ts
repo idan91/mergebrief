@@ -9,7 +9,8 @@ import {
   runPairCase,
   type PairCase,
 } from "../eval/pairs";
-import { BaselineModes } from "../eval/baseline";
+import { BaselineModes, saveBaseline } from "../eval/baseline";
+import { buildReport } from "../eval/report";
 import { makeBrief } from "./eval-fixtures";
 import {
   DIFF_B,
@@ -213,14 +214,6 @@ describe("loadPairCases with the narrative and delta opt-in", () => {
     expect(await readLoadError(root)).toContain("filteredSpan");
   });
 
-  it("refuses an opt-in over an empty filtered span", async () => {
-    const pair = makeSpanPairJson();
-    Reflect.set(Reflect.get(Object(pair), "increment"), "filteredSpan", "");
-    const root = writePairCase("empty-span", OPTED_IN_TS, pair);
-
-    expect(await readLoadError(root)).toContain("empty filteredSpan");
-  });
-
   it("refuses an opt-in over a span the worker skips as huge", async () => {
     const root = writePairCase(
       "huge",
@@ -403,6 +396,36 @@ describe("runPairCase with the narrative and delta opt-in", () => {
     );
   });
 
+  it("writes both no-change records over an empty span, no model call", async () => {
+    const pair = makeSpanPairJson();
+    Reflect.set(Reflect.get(Object(pair), "increment"), "filteredSpan", "");
+    const pairCase = await loadOnlyCase(
+      writePairCase("empty-span", OPTED_IN_TS, pair),
+    );
+    const generator = new SequenceGenerator([BASE_OUTPUT, REVISED_OUTPUT]);
+
+    const result = await runPairCase(pairCase, generator, "medium", 1);
+
+    expect(result.failureMessages).toEqual([]);
+    expect(generator.requests.map((request) => request.label)).toEqual([
+      "brief",
+      "brief",
+    ]);
+    expect(result.narratives[0]).toMatchObject({
+      narrative: {
+        artifactKind: "revisionNarrativeUnchanged",
+        prevHeadSha: PREV_HEAD,
+      },
+      marksFiles: [],
+      modelCalls: 0,
+    });
+    expect(result.deltas[0]).toMatchObject({
+      delta: { artifactKind: "deltaUnchanged", baselineSha: PREV_HEAD },
+      modelCalls: 0,
+    });
+    expect(countPairGenerations(pairCase)).toBe(2);
+  });
+
   it("sends the delta the case's comments when it opts in", async () => {
     const pairCase = await loadOnlyCase(
       writePairCase(
@@ -469,7 +492,7 @@ describe("runPairCase with the narrative and delta opt-in", () => {
     const result = await runPairCase(pairCase, generator, "medium", 1);
 
     expect(result.deltas[0]?.unknownGroupChunkIds).toEqual(["dc1"]);
-    expect(result.deltas[0]?.delta.chunks).toEqual([]);
+    expect(result.deltas[0]?.delta).toMatchObject({ chunks: [] });
   });
 
   it("uses the stored base brief instead of generating one", async () => {
@@ -630,6 +653,51 @@ describe("evaluatePairCase with the narrative and delta opt-in", () => {
     expect(outcome.scores.has("delta-on-b")).toBe(false);
     const runsDir = join(outDir, "eval-runs", "scored-fresh");
     expect(existsSync(join(runsDir, "delta"))).toBe(false);
+  });
+
+  it("drops the delta ids from a fresh probe's baseline", async () => {
+    const pairCase = await loadOnlyCase(
+      writePairCase("fresh-baseline", OPTED_IN_TS, makeSpanPairJson()),
+    );
+    saveBaseline(join(pairCase.dir, "baseline.json"), {
+      key: "fake:fake-model",
+      runs: 1,
+      properties: { "pair-ran": 1, "narrative-on-b": 1, "delta-on-b": 1 },
+    });
+    const generator = new SequenceGenerator([
+      BASE_OUTPUT,
+      REVISED_OUTPUT,
+      makeNarrativeOutput("g1"),
+    ]);
+
+    const evaluated = await evaluatePairCase(
+      pairCase,
+      generator,
+      "medium",
+      1,
+      "fake:fake-model",
+      BaselineModes.COMPARE,
+      mkdtempSync(join(tmpdir(), "pair-out-")),
+      () => {},
+      "fresh",
+    );
+
+    if (!evaluated.ok) {
+      throw new Error(evaluated.error);
+    }
+    const { outcome } = evaluated.value;
+    expect(outcome.baseline?.properties).toEqual({
+      "pair-ran": 1,
+      "narrative-on-b": 1,
+    });
+    const report = buildReport({
+      key: "fake:fake-model",
+      billing: { kind: "api" },
+      cases: [outcome],
+      usage: null,
+      costUsd: null,
+    });
+    expect(report.json.cases[0]?.notes).toEqual([]);
   });
 });
 

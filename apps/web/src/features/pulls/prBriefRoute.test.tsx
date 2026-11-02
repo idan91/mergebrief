@@ -278,6 +278,7 @@ describe("DB brief route", () => {
       const withComparison = meta({
         comparisons: {
           previousBrief: {
+            kind: "available",
             baselineSha: "head-0",
             baselineIndex: 1,
             narrativeAvailable: false,
@@ -816,6 +817,7 @@ describe("DB brief route, rev param", () => {
           ...revisions[1]!,
           comparisons: {
             previousBrief: {
+              kind: "available",
               baselineSha: OLDER.head,
               baselineIndex: 1,
               narrativeAvailable: false,

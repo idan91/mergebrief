@@ -859,12 +859,16 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await write("head-1", 1);
     const currentBrief = await write("head-2", 2);
 
-    // No marks yet → previousBrief absent (fail closed).
+    // No marks and nothing generating: the comparison says why it is off.
     const before = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     const beforeBody = (await before.json()) as {
       comparisons?: { previousBrief?: unknown };
     };
-    expect(beforeBody.comparisons?.previousBrief).toBeUndefined();
+    expect(beforeBody.comparisons?.previousBrief).toEqual({
+      baselineSha: "head-1",
+      baselineIndex: 1,
+      unavailable: "baseline-unavailable",
+    });
 
     // Marks for the previous-brief span → available, narrative not yet.
     await store.comparisonMarks.write({
@@ -1158,6 +1162,36 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
+  it("meta: marks previousBrief pending while the current brief warms", async () => {
+    stubGate();
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+    const gen = createGenerationProjection(harness.handle, CTX);
+    const head2 = {
+      pullRequestId: pr.id,
+      kind: GenerationKinds.BRIEF,
+      headSha: "head-2",
+      baselineSha: null,
+    };
+    await gen.upsertPending(head2);
+
+    const pending = await metaBody(cookie);
+    expect(pending.comparisons?.["previousBrief"]).toEqual({
+      baselineSha: "head-1",
+      baselineIndex: 1,
+      unavailable: "pending",
+    });
+
+    await succeedTestRun(gen, head2);
+    const settled = await metaBody(cookie);
+    expect(settled.comparisons?.["previousBrief"]).toEqual({
+      baselineSha: "head-1",
+      baselineIndex: 1,
+      unavailable: "baseline-unavailable",
+    });
+  });
+
   it("meta: lastReview never leaks a cross-tenant checkpoint", async () => {
     stubGate();
     const cookie = await signIn();
@@ -1384,8 +1418,12 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     const byHead = new Map((body.revisions ?? []).map((r) => [r.headSha, r]));
     // head-1: no previous head → no previousBrief.
     expect(byHead.get("head-1")?.comparisons.previousBrief).toBeUndefined();
-    // head-2: previous = head-1, but no marks → absent (fail closed).
-    expect(byHead.get("head-2")?.comparisons.previousBrief).toBeUndefined();
+    // head-2: previous = head-1, but no marks → unavailable, never offered.
+    expect(byHead.get("head-2")?.comparisons.previousBrief).toEqual({
+      baselineSha: "head-1",
+      baselineIndex: 1,
+      unavailable: "baseline-unavailable",
+    });
     // head-3: previous = head-2, marks exist → offered, narrative not yet.
     expect(byHead.get("head-3")?.comparisons.previousBrief).toEqual({
       baselineSha: "head-2",

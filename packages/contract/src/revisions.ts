@@ -20,6 +20,8 @@ export interface AvailableLastReviewComparisonView {
   readonly deltaAvailable: boolean;
   /** No delta will come: the span was too large for one call or the call was cut, and a skip record stands in for it. */
   readonly deltaSkipped?: true;
+  /** No Delta Brief is owed: the PR's own change did not move since the checkpoint. */
+  readonly deltaUnchanged?: true;
   readonly baselineSha: string;
   /** The baseline's brief index when the checkpoint SHA was a briefed head. */
   readonly baselineIndex?: number;
@@ -29,11 +31,24 @@ export type LastReviewComparisonView =
   | AvailableLastReviewComparisonView
   | { readonly unavailable: LastReviewUnavailableReason };
 
-export interface PreviousBriefComparisonView {
+export interface AvailablePreviousBriefComparisonView {
   readonly baselineSha: string;
   readonly baselineIndex: number;
   readonly narrativeAvailable: boolean;
+  /** The PR's own change did not move since the previous brief; the narrative is the no-change record. */
+  readonly unchanged?: true;
 }
+
+/** A previous brief exists but its span has no marks; the reasons mean what they mean for `lastReview`. */
+export interface UnavailablePreviousBriefComparisonView {
+  readonly baselineSha: string;
+  readonly baselineIndex: number;
+  readonly unavailable: LastReviewUnavailableReason;
+}
+
+export type PreviousBriefComparisonView =
+  | AvailablePreviousBriefComparisonView
+  | UnavailablePreviousBriefComparisonView;
 
 export interface RevisionComparisons {
   readonly previousBrief?: PreviousBriefComparisonView;

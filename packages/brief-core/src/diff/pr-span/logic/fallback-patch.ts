@@ -1,5 +1,5 @@
 import { POST_SIDE_PREFIX, PRE_SIDE_PREFIX } from "../../chunk-layout/consts";
-import type { ComparedFile } from "../types";
+import { FileVerdicts, type ComparedFile } from "../types";
 import { readChangeRuns, splitPatchHunks } from "./change-runs";
 import { cutHunkLines, readHunkLines, type HunkLine } from "./cut-lines";
 import {
@@ -57,9 +57,11 @@ export function formatHeaderOnlyPatch(file: ComparedFile): string {
 }
 
 /**
- * A changed file no line diff can read: the new PR patch's hunks holding a
- * run the previous PR patch does not, in new-head lines. A file the new PR
- * diff no longer holds keeps only its header.
+ * A changed file no line diff can read, or whose line diff is all base
+ * noise: the new PR patch's hunks holding a run the previous PR patch does
+ * not, in new-head lines; every hunk for a file whose runs match but whose
+ * context moved, since any run may have moved. A file the new PR diff no
+ * longer holds keeps only its header.
  */
 export function formatFallbackPatch(file: ComparedFile): string {
   const header = readHeaderFacts(file);
@@ -71,7 +73,8 @@ export function formatFallbackPatch(file: ComparedFile): string {
   const prevRunTexts = (file.prev?.runs ?? []).map((run) =>
     run.lines.join("\n"),
   );
-  const prevRuns = new Set(prevRunTexts);
+  const runsMayHaveMoved = file.verdict === FileVerdicts.CONTEXT_MOVED;
+  const prevRuns = new Set(runsMayHaveMoved ? [] : prevRunTexts);
   const newHunks = new Set<number>();
   for (const run of readChangeRuns(file.next.patch)) {
     if (!prevRuns.has(run.lines.join("\n"))) {

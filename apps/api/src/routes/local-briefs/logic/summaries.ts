@@ -1,6 +1,6 @@
 import {
   readStoredBrief,
-  readStoredDeltaBrief,
+  readStoredDelta,
   type ArtifactIssue,
 } from "brief-core/artifact";
 import { LocalBriefKinds, type LocalBriefSummary } from "contract";
@@ -13,8 +13,10 @@ import {
   REVISION_NARRATIVE_SUFFIX,
 } from "../consts";
 import {
+  DeltaRecordKinds,
   LocalBriefsFailureKinds,
   type ComparisonSources,
+  type ListedArtifact,
   type LocalBriefsFailure,
 } from "../types";
 import { stripSuffix } from "../utils";
@@ -80,12 +82,13 @@ function summarizeStoredBrief(
   return summary;
 }
 
+/** A delta file holds a Delta Brief or the span's skip or no-change record, told apart before the parse picks a shape. */
 function summarizeStoredDelta(
   briefId: string,
   text: string,
   log: Logger,
-): LocalBriefSummary | undefined {
-  const read = readStoredDeltaBrief(text);
+): ListedArtifact | undefined {
+  const read = readStoredDelta(text);
   if (!read.ok) {
     log.warn("local brief skipped: invalid artifact", {
       briefId,
@@ -94,7 +97,17 @@ function summarizeStoredDelta(
     return undefined;
   }
 
-  const { pr, baselineSha, headSha, baselineIndex, headIndex } = read.value;
+  const delta = read.value;
+  if ("artifactKind" in delta) {
+    const kind =
+      delta.artifactKind === "deltaSkipped"
+        ? DeltaRecordKinds.SKIPPED
+        : DeltaRecordKinds.UNCHANGED;
+    const { baselineSha, headSha } = delta;
+    return { record: { kind, baselineSha, headSha } };
+  }
+
+  const { pr, baselineSha, headSha, baselineIndex, headIndex } = delta;
   const summary: Mutable<LocalBriefSummary> = {
     id: briefId,
     artifactKind: LocalBriefKinds.DELTA,
@@ -111,7 +124,7 @@ function summarizeStoredDelta(
   if (headIndex !== null) {
     summary.headIndex = headIndex;
   }
-  return summary;
+  return { summary };
 }
 
 /** One unreadable or invalid artifact drops its row, never the listing. */
@@ -119,10 +132,11 @@ async function readSummary(
   dir: string,
   briefId: string,
   log: Logger,
-): Promise<LocalBriefSummary | undefined> {
+): Promise<ListedArtifact | undefined> {
   const brief = await readArtifactFile(dir, `${briefId}${BRIEF_SUFFIX}`, log);
   if (brief.ok) {
-    return summarizeStoredBrief(briefId, brief.value, log);
+    const summary = summarizeStoredBrief(briefId, brief.value, log);
+    return summary === undefined ? undefined : { summary };
   }
   if (brief.error.kind !== LocalBriefsFailureKinds.NOT_FOUND) {
     return undefined;
@@ -147,11 +161,17 @@ export async function listLocalBriefSummaries(
   const reads = collectBriefIds(names.value).map((briefId) =>
     readSummary(dir, briefId, log),
   );
-  const summaries = (await Promise.all(reads)).filter(
-    (summary) => summary !== undefined,
+  const artifacts = (await Promise.all(reads)).filter(
+    (artifact) => artifact !== undefined,
+  );
+  const summaries = artifacts.flatMap((artifact) =>
+    "summary" in artifact ? [artifact.summary] : [],
   );
   const sources: ComparisonSources = {
     summaries,
+    deltaRecords: artifacts.flatMap((artifact) =>
+      "record" in artifact ? [artifact.record] : [],
+    ),
     marks: await readComparisonMarksEntries(dir, names.value, log),
     legacy: await readRevisionChangesEntries(dir, names.value, log),
     narrativeIds: collectNarrativeIds(names.value),

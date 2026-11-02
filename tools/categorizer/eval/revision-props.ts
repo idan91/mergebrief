@@ -6,7 +6,13 @@ import {
   validateNarrativeMarksOverlap,
   validatePartition,
 } from "brief-core";
-import type { DeltaEvalProperty, NarrativeEvalProperty } from "./revision-runs";
+import { isSpanUnchanged } from "brief-core/pr-span";
+import type {
+  DeltaEvalProperty,
+  DeltaRun,
+  NarrativeEvalProperty,
+  NarrativeRun,
+} from "./revision-runs";
 
 /**
  * The revision narrative and Delta Brief predicates a pair case opts into
@@ -18,12 +24,54 @@ function listSpanFiles(span: string): Set<string> {
   return new Set(splitDiffByFile(span).map((fileDiff) => fileDiff.file));
 }
 
+/** A no-change record holds no chunks, so every chunk predicate reads it as none. */
+function listNarrativeChunks(run: NarrativeRun) {
+  if (run.narrative.artifactKind === "revisionNarrativeUnchanged") {
+    return [];
+  }
+  return run.narrative.chunks;
+}
+
+function readDeltaContent(run: DeltaRun) {
+  if ("artifactKind" in run.delta) {
+    return { changedGroups: [], chunks: [], commentsAddressed: "" };
+  }
+  return run.delta;
+}
+
+export const narrativeNoChange: NarrativeEvalProperty = {
+  id: "narrative-no-change",
+  description:
+    "an empty span writes the no-change record with no model call, any other span a narrative",
+  check: (run) => {
+    const isRecord =
+      run.narrative.artifactKind === "revisionNarrativeUnchanged";
+    if (!isSpanUnchanged(run.filteredSpan)) {
+      return !isRecord;
+    }
+    return isRecord && run.modelCalls === 0;
+  },
+};
+
+export const deltaNoChange: DeltaEvalProperty = {
+  id: "delta-no-change",
+  description:
+    "an empty span writes the no-change record with no model call, any other span a delta",
+  check: (run) => {
+    const isRecord = "artifactKind" in run.delta;
+    if (!isSpanUnchanged(run.filteredSpan)) {
+      return !isRecord;
+    }
+    return isRecord && run.modelCalls === 0;
+  },
+};
+
 export const narrativeGrounded: NarrativeEvalProperty = {
   id: "narrative-grounded",
   description:
     "every narrative chunk names a group of the brief and overlaps a comparison mark",
   check: (run) => {
-    const { chunks } = run.narrative;
+    const chunks = listNarrativeChunks(run);
     const groupIssues = validateNarrativeGroups(chunks, run.brief.changeGroups);
     const markIssues = validateNarrativeMarksOverlap(chunks, run.marksFiles);
     return groupIssues.length === 0 && markIssues.length === 0;
@@ -35,7 +83,7 @@ export const narrativeCoversSpan: NarrativeEvalProperty = {
   description:
     "every comparison mark of the filtered span has a narrative chunk",
   check: (run) =>
-    validateMarksNarrativeCoverage(run.marksFiles, run.narrative.chunks)
+    validateMarksNarrativeCoverage(run.marksFiles, listNarrativeChunks(run))
       .length === 0,
 };
 
@@ -44,7 +92,7 @@ export const narrativeNoReplay: NarrativeEvalProperty = {
   description: "every narrative chunk sits in a file of the filtered span",
   check: (run) => {
     const spanFiles = listSpanFiles(run.filteredSpan);
-    return run.narrative.chunks.every((chunk) => spanFiles.has(chunk.file));
+    return listNarrativeChunks(run).every((chunk) => spanFiles.has(chunk.file));
   },
 };
 
@@ -53,7 +101,7 @@ export const deltaGrounded: DeltaEvalProperty = {
   description:
     "the delta names no unknown group, partitions its chunks and claims no line twice",
   check: (run) => {
-    const { changedGroups, chunks } = run.delta;
+    const { changedGroups, chunks } = readDeltaContent(run);
     const partitionIssues = validatePartition(changedGroups, chunks);
     const overlapIssues = detectChunkOverlaps(chunks);
     return (
@@ -69,7 +117,9 @@ export const deltaNoReplay: DeltaEvalProperty = {
   description: "every delta chunk sits in a file of the filtered span",
   check: (run) => {
     const spanFiles = listSpanFiles(run.filteredSpan);
-    return run.delta.chunks.every((chunk) => spanFiles.has(chunk.file));
+    return readDeltaContent(run).chunks.every((chunk) =>
+      spanFiles.has(chunk.file),
+    );
   },
 };
 
@@ -77,12 +127,13 @@ export const deltaCommentsFromInput: DeltaEvalProperty = {
   id: "delta-comments-from-input",
   description: "the delta addresses only review comments its input held",
   check: (run) => {
+    const delta = readDeltaContent(run);
     const inputIds = new Set(run.reviewComments.map((comment) => comment.id));
-    const namesOnlyInputIds = run.delta.chunks.every((chunk) =>
+    const namesOnlyInputIds = delta.chunks.every((chunk) =>
       chunk.addressesComments.every((id) => inputIds.has(id)),
     );
     const silentWithoutComments =
-      inputIds.size > 0 || run.delta.commentsAddressed === "";
+      inputIds.size > 0 || delta.commentsAddressed === "";
     return namesOnlyInputIds && silentWithoutComments;
   },
 };

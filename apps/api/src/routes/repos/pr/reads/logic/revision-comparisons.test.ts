@@ -2,12 +2,31 @@ import { describe, expect, it, vi } from "vitest";
 import { isBriefRowId, type BriefSpanRow } from "persistence";
 import {
   buildDeltaSpanSets,
+  buildNarrativeSpanSets,
   deriveLastReviewComparison,
   derivePreviousBriefComparison,
   spanKey,
 } from "./revision-comparisons";
 
 const NO_DELTAS = buildDeltaSpanSets([]);
+const NO_NARRATIVES = buildNarrativeSpanSets([]);
+
+function stubNarrativeRow(
+  prevHeadSha: string,
+  headSha: string,
+  unchanged = false,
+) {
+  return { prevHeadSha, headSha, unchanged };
+}
+
+function stubDeltaRow(flags: { skipped?: boolean; unchanged?: boolean }) {
+  return {
+    baselineSha: "base-sha",
+    headSha: "head-sha",
+    skipped: flags.skipped ?? false,
+    unchanged: flags.unchanged ?? false,
+  };
+}
 
 function brief(
   headIndex: number,
@@ -41,7 +60,8 @@ describe("derivePreviousBriefComparison", () => {
       brief(3, "h3"),
       briefs,
       marks,
-      new Set(),
+      NO_NARRATIVES,
+      false,
     );
     expect(view).toEqual({
       baselineSha: "h1",
@@ -50,14 +70,49 @@ describe("derivePreviousBriefComparison", () => {
     });
   });
 
-  it("offers nothing without the mechanical marks row", () => {
+  it("says the baseline is unavailable when the span has no marks", () => {
     const view = derivePreviousBriefComparison(
       brief(3, "h3"),
       briefs,
       new Set(),
-      new Set([spanKey("h1", "h3")]),
+      NO_NARRATIVES,
+      false,
     );
-    expect(view).toBeUndefined();
+    expect(view).toEqual({
+      baselineSha: "h1",
+      baselineIndex: 2,
+      unavailable: "baseline-unavailable",
+    });
+  });
+
+  it("says pending while the target head's brief still generates", () => {
+    const view = derivePreviousBriefComparison(
+      brief(3, "h3"),
+      briefs,
+      new Set(),
+      NO_NARRATIVES,
+      true,
+    );
+    expect(view).toEqual({
+      baselineSha: "h1",
+      baselineIndex: 2,
+      unavailable: "pending",
+    });
+  });
+
+  it("says too large when a narrative record stands without marks", () => {
+    const view = derivePreviousBriefComparison(
+      brief(3, "h3"),
+      briefs,
+      new Set(),
+      buildNarrativeSpanSets([stubNarrativeRow("h1", "h3")]),
+      true,
+    );
+    expect(view).toEqual({
+      baselineSha: "h1",
+      baselineIndex: 2,
+      unavailable: "span-too-large",
+    });
   });
 
   it("is correct for a historical head, not only the latest", () => {
@@ -66,7 +121,8 @@ describe("derivePreviousBriefComparison", () => {
       brief(1, "h1"),
       briefs,
       marks,
-      new Set([spanKey("h0", "h1")]),
+      buildNarrativeSpanSets([stubNarrativeRow("h0", "h1")]),
+      false,
     );
     expect(view).toEqual({
       baselineSha: "h0",
@@ -81,9 +137,37 @@ describe("derivePreviousBriefComparison", () => {
         brief(0, "h0"),
         briefs,
         new Set(),
-        new Set(),
+        NO_NARRATIVES,
+        false,
       ),
     ).toBeUndefined();
+  });
+
+  it("says the span is unchanged when its narrative is the no-change record", () => {
+    const view = derivePreviousBriefComparison(
+      brief(1, "h1"),
+      briefs,
+      new Set([spanKey("h0", "h1")]),
+      buildNarrativeSpanSets([stubNarrativeRow("h0", "h1", true)]),
+      false,
+    );
+    expect(view).toEqual({
+      baselineSha: "h0",
+      baselineIndex: 0,
+      narrativeAvailable: true,
+      unchanged: true,
+    });
+  });
+});
+
+describe("buildDeltaSpanSets", () => {
+  it("never offers an unchanged span's record as a Delta Brief", () => {
+    const sets = buildDeltaSpanSets([stubDeltaRow({ unchanged: true })]);
+    const key = spanKey("base-sha", "head-sha");
+    expect([sets.available.has(key), sets.unchanged.has(key)]).toEqual([
+      false,
+      true,
+    ]);
   });
 });
 
@@ -120,7 +204,12 @@ describe("deriveLastReviewComparison", () => {
       briefs,
       new Set([spanKey("base-sha", "head-sha")]),
       buildDeltaSpanSets([
-        { baselineSha: "base-sha", headSha: "head-sha", skipped: false },
+        {
+          baselineSha: "base-sha",
+          headSha: "head-sha",
+          skipped: false,
+          unchanged: false,
+        },
       ]),
       undefined,
     );
@@ -138,13 +227,35 @@ describe("deriveLastReviewComparison", () => {
       briefs,
       new Set([spanKey("base-sha", "head-sha")]),
       buildDeltaSpanSets([
-        { baselineSha: "base-sha", headSha: "head-sha", skipped: true },
+        {
+          baselineSha: "base-sha",
+          headSha: "head-sha",
+          skipped: true,
+          unchanged: false,
+        },
       ]),
       undefined,
     );
     expect(view).toEqual({
       deltaAvailable: false,
       deltaSkipped: true,
+      baselineSha: "base-sha",
+      baselineIndex: 0,
+    });
+  });
+
+  it("says an unchanged span is unchanged, never available", async () => {
+    const view = await deriveLastReviewComparison(
+      "head-sha",
+      { lastSubmittedSha: "base-sha" },
+      briefs,
+      new Set([spanKey("base-sha", "head-sha")]),
+      buildDeltaSpanSets([stubDeltaRow({ unchanged: true })]),
+      undefined,
+    );
+    expect(view).toEqual({
+      deltaAvailable: false,
+      deltaUnchanged: true,
       baselineSha: "base-sha",
       baselineIndex: 0,
     });
@@ -194,7 +305,12 @@ describe("deriveLastReviewComparison", () => {
       briefs,
       new Set(),
       buildDeltaSpanSets([
-        { baselineSha: "base-sha", headSha: "head-sha", skipped: true },
+        {
+          baselineSha: "base-sha",
+          headSha: "head-sha",
+          skipped: true,
+          unchanged: false,
+        },
       ]),
       pendingProbe,
     );

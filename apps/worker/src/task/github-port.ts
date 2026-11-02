@@ -74,11 +74,14 @@ export interface PullRequestSource {
   fetchDiff(): GitHubCall<string>;
   /** The `base...head` span diff (narrative/marks/delta inputs). */
   fetchCompareDiff(base: string, head: string): GitHubCall<string>;
-  /** The span diff refused unless it holds `expectedFileCount` files. */
+  /**
+   * The span diff refused when GitHub served it short of its declared
+   * length, or, given `expectedFileCount`, holding another file count.
+   */
   fetchCheckedCompareDiff(
     base: string,
     head: string,
-    expectedFileCount: number,
+    expectedFileCount?: number,
   ): GitHubCall<string>;
   /**
    * The `base...head` compare per-file status metadata: the rename/binary/
@@ -200,7 +203,11 @@ function bindPullRequestReads(
     fetchDiff: () => reader.fetchDiff(prNumber),
     fetchCompareDiff: (base, head) => reader.fetchCompareDiff({ base, head }),
     fetchCheckedCompareDiff: (base, head, expectedFileCount) =>
-      reader.fetchCheckedCompareDiff({ base, head, expectedFileCount }),
+      reader.fetchCheckedCompareDiff(
+        expectedFileCount === undefined
+          ? { base, head }
+          : { base, head, expectedFileCount },
+      ),
     fetchCompareFiles: (base, head) => reader.fetchCompareFiles({ base, head }),
     fetchRepoFile: (path, maxBytes) => reader.fetchRepoFile({ path, maxBytes }),
     fetchRepoFileAt: (path, ref, maxBytes) =>

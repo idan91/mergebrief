@@ -8,9 +8,11 @@ import type {
   Chunk,
   DeltaBrief,
   DeltaSkipped,
+  DeltaUnchanged,
   PrRefSchema,
   RevisionNarrative,
   RevisionNarrativeSkipped,
+  RevisionNarrativeUnchanged,
 } from "../types";
 import type {
   StoredChunkReadSchema,
@@ -38,10 +40,11 @@ export interface ArtifactIssue {
 
 export type StoredRevisionNarrative =
   | RevisionNarrative
-  | RevisionNarrativeSkipped;
+  | RevisionNarrativeSkipped
+  | RevisionNarrativeUnchanged;
 
-/** A delta row's body: the generated Delta Brief or the span's skip record. */
-export type StoredDelta = DeltaBrief | DeltaSkipped;
+/** A delta row's body: the generated Delta Brief, or the span's skip or no-change record. */
+export type StoredDelta = DeltaBrief | DeltaSkipped | DeltaUnchanged;
 
 export type StoredParse<Stored> = Result<Stored, ArtifactIssue[]>;
 
@@ -70,6 +73,7 @@ export interface StoredBriefRead {
 
 export type StoredBriefReadResult = Result<StoredBriefRead, ArtifactIssue[]>;
 export type StoredDeltaBriefReadResult = Result<DeltaBrief, ArtifactIssue[]>;
+export type StoredDeltaReadResult = Result<StoredDelta, ArtifactIssue[]>;
 export interface StoredRevisionNarrativeRead {
   narrative: StoredRevisionNarrative;
   /** Each nulled effort and dropped section. */

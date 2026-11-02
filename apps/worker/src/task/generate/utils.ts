@@ -25,6 +25,7 @@ import {
   type CompleteBriefRecovery,
   type GenerateTaskHelpers,
   type GenerationOrigin,
+  type RunStart,
   type StoredBodyRecovery,
 } from "./types";
 
@@ -86,6 +87,17 @@ export function isLastJobAttempt(job: GenerateTaskHelpers["job"]): boolean {
     return false;
   }
   return job.attempts >= job.max_attempts;
+}
+
+/**
+ * No retry follows a failure of this run: graphile's last attempt, unless the
+ * run is a takeover, whose retry is the recovery job its claim queued.
+ */
+export function isFinalRunAttempt(
+  start: Pick<RunStart, "recovering" | "run" | "job">,
+): boolean {
+  const takeover = start.recovering && start.run.runId !== undefined;
+  return !takeover && isLastJobAttempt(start.job);
 }
 
 /** Which of the head's claims a log line is about, against the budget. */

@@ -74,7 +74,7 @@ export type BetweenHeadsFile =
 export interface PrSpanInput {
   readonly prevPrDiff: string;
   readonly newPrDiff: string;
-  /** Keyed by the file's path at the new head; a content-changed file with no entry is unreadable. */
+  /** Keyed by the file's path at the new head; a file `readPrSpan` line-diffs with no entry is unreadable and reads changed. */
   readonly betweenHeads: ReadonlyMap<string, BetweenHeadsFile>;
   /** New-head paths of base renames confirmed by absence at the swapped paths; any other candidate reads as two changed files. */
   readonly baseRenames?: ReadonlySet<string>;
@@ -119,8 +119,10 @@ export const FileVerdicts = {
   IDENTICAL: "identical",
   /** Same post-image blob at both heads, but the base under it took part of the PR's change or gave part back: the lines stay, the change does not. */
   CHANGE_RESHAPED_BY_BASE: "change-reshaped-by-base",
-  /** Same change runs; only the base under them moved. */
+  /** Same change runs and the same lines around each; only the base under them moved. */
   BASE_MOVED: "base-moved",
+  /** Same change runs over a moved base, but the lines around one differ: only a line diff tells a moved run from base noise. */
+  CONTEXT_MOVED: "context-moved",
   CONTENT_CHANGED: "content-changed",
   /** Binary content or mode changed: only the header can say so. */
   HEADER_CHANGED: "header-changed",
@@ -161,6 +163,12 @@ export interface ComparedFile {
   readonly next?: PrFilePatch;
   readonly verdict: FileVerdict;
   readonly modeChange?: ModeChange;
+}
+
+/** The context lines on each side of one change run, up to the next run or the hunk's edge. */
+export interface RunContext {
+  readonly before: readonly string[];
+  readonly after: readonly string[];
 }
 
 export interface PatchHunks {

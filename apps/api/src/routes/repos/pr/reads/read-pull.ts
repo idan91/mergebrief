@@ -23,8 +23,9 @@ import { buildPrView } from "../../../pr-view";
 import {
   comparisonSpanSet,
   buildDeltaSpanSets,
+  isBriefGenerationPending,
   makeLatestPendingProbe,
-  narrativeSpanSet,
+  buildNarrativeSpanSets,
 } from "./logic/revision-comparisons";
 import { buildRevisionView } from "./logic/revision-views";
 import { readRunProgress } from "./logic/run-progress";
@@ -111,10 +112,11 @@ async function readRevisions(
     briefs,
     markSpans: comparisonSpanSet(markRows),
     deltaSpans: buildDeltaSpanSets(deltaRows),
-    narrativeSpans: narrativeSpanSet(narrativeRows),
+    narrativeSpans: buildNarrativeSpanSets(narrativeRows),
     checkpoint,
     generatedAtByHead,
     currentHeadSha: headSha,
+    latestBriefPending: isBriefGenerationPending(latestGeneration, headSha),
     latestPendingProbe: makeLatestPendingProbe(
       stores.generations,
       pr.id,

@@ -529,6 +529,48 @@ describe("Changes Only rendering", () => {
     );
   });
 
+  it("says nothing changed since the last review for an unchanged span", () => {
+    render(
+      withClient(
+        <ChangesOnlyView
+          compare="last-review"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={null}
+          marks={null}
+          skipReason={null}
+          delta={null}
+          deltaUnchanged
+        />,
+      ),
+    );
+
+    expect(screen.getByRole("status").textContent).toBe(
+      "No change since your last review. Pushes since then only rebased, merged the base branch in, or rewrote history. The pull request's own changes are the same.",
+    );
+  });
+
+  it("says nothing changed since the previous brief for an unchanged span", () => {
+    render(
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={null}
+          marks={previousBriefMarks}
+          skipReason={null}
+          narrativeUnchanged
+          delta={null}
+        />,
+      ),
+    );
+
+    expect(screen.getByRole("status").textContent).toBe(
+      "No change since the previous brief. The push only rebased, merged the base branch in, or rewrote history. The pull request's own changes are the same.",
+    );
+  });
+
   it("Your last review renders the Delta artifact under Changes Only copy", () => {
     render(
       withClient(

@@ -13,12 +13,17 @@ import { dropMalformedRiskTokens } from "./logic/risk-tokens";
 import {
   buildStoredBriefSchema,
   DeltaSkippedSchema,
+  DeltaUnchangedSchema,
   StoredBriefReadSchema,
   StoredDeltaBriefReadSchema,
   StoredRevisionNarrativeReadSchema,
   StoredRevisionNarrativeSchema,
 } from "./schemas";
-import { DELTA_SKIPPED_KIND } from "./consts";
+import {
+  DELTA_SKIPPED_KIND,
+  DELTA_UNCHANGED_KIND,
+  REVISION_NARRATIVE_UNCHANGED_KIND,
+} from "./consts";
 import { isRecord, parseJsonObject, parseStored, readStored } from "./utils";
 import {
   ArtifactIssueCodes,
@@ -29,6 +34,7 @@ import {
   type StoredBriefRead,
   type StoredBriefReadResult,
   type StoredDeltaBriefReadResult,
+  type StoredDeltaReadResult,
   type StoredParse,
   type StoredRevisionNarrativeRead,
   type StoredRevisionNarrativeReadResult,
@@ -77,14 +83,16 @@ export function checkBriefForWrite(
 }
 
 /**
- * Accepts a Delta Brief or the span's skip record, told apart by the record's
- * `artifactKind`; refuses two changed groups sharing an id.
+ * Accepts a Delta Brief or the span's skip or no-change record, told apart
+ * by the record's `artifactKind`; refuses two changed groups sharing an id.
  */
 export function checkDeltaForWrite(delta: unknown): DeltaWriteCheck {
-  const isSkipRecord =
-    isRecord(delta) && delta["artifactKind"] === DELTA_SKIPPED_KIND;
-  if (isSkipRecord) {
+  const kind = isRecord(delta) ? delta["artifactKind"] : undefined;
+  if (kind === DELTA_SKIPPED_KIND) {
     return parseStored(DeltaSkippedSchema, delta);
+  }
+  if (kind === DELTA_UNCHANGED_KIND) {
+    return parseStored(DeltaUnchangedSchema, delta);
   }
 
   const checked = parseStored(DeltaBriefSchema, delta);
@@ -153,6 +161,19 @@ export function isDeltaSkipRecord(json: string): boolean {
   return isSkipRecord;
 }
 
+/** A stored delta body that is the span's no-change record. */
+export function isDeltaUnchangedRecord(json: string): boolean {
+  const body = parseJsonObject(json);
+  return body.ok && body.value["artifactKind"] === DELTA_UNCHANGED_KIND;
+}
+
+/** A stored revision narrative body that is the span's no-change record. */
+export function isRevisionNarrativeUnchangedRecord(json: string): boolean {
+  const body = parseJsonObject(json);
+  const kind = body.ok ? body.value["artifactKind"] : undefined;
+  return kind === REVISION_NARRATIVE_UNCHANGED_KIND;
+}
+
 /**
  * True when the stamped sections `index`, `commitRange` and `generation` are
  * all present. The body was read with the read schema, never `BriefSchema`.
@@ -169,8 +190,25 @@ export function readStoredDeltaBrief(json: string): StoredDeltaBriefReadResult {
   return readStored(StoredDeltaBriefReadSchema, json);
 }
 
+/** A stored delta body: the span's skip or no-change record by its `artifactKind`, else a Delta Brief. */
+export function readStoredDelta(json: string): StoredDeltaReadResult {
+  const body = parseJsonObject(json);
+  if (!body.ok) {
+    return body;
+  }
+
+  const kind = body.value["artifactKind"];
+  if (kind === DELTA_SKIPPED_KIND) {
+    return parseStored(DeltaSkippedSchema, body.value);
+  }
+  if (kind === DELTA_UNCHANGED_KIND) {
+    return parseStored(DeltaUnchangedSchema, body.value);
+  }
+  return parseStored(StoredDeltaBriefReadSchema, body.value);
+}
+
 /**
- * Accepts both the generated narrative and the skipped stub, strips a key it
+ * Accepts the generated narrative, the skipped stub and the no-change record, strips a key it
  * does not know, and drops or nulls a broken optional field the way the Brief
  * reader does, reporting each in `issues`.
  */

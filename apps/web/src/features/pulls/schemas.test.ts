@@ -6,8 +6,9 @@ import {
   type ForkPrStackView,
   type GenerationSummaryView,
   type LastReviewComparisonView,
+  type AvailablePreviousBriefComparisonView,
   type LinearPrStackView,
-  type PreviousBriefComparisonView,
+  type UnavailablePreviousBriefComparisonView,
   type PrStackMemberView,
   type PullMetaView,
   type PullStackView,
@@ -25,6 +26,7 @@ import type { ReadsWireFields } from "@web/test/wire-fields";
 import { parseWithSchema } from "@web/utils/parse-with-schema";
 import {
   type availableLastReviewSchema,
+  type availablePreviousBriefSchema,
   type briefLayoutReplySchema,
   type draftPolicySummarySchema,
   type forkPrStackSchema,
@@ -38,6 +40,7 @@ import {
   pullStackSchema,
   type revisionSummarySchema,
   type unavailableLastReviewSchema,
+  type unavailablePreviousBriefSchema,
   videoAssetsSchema,
 } from "./schemas";
 import type {
@@ -49,6 +52,7 @@ import type {
 import type {
   BriefLayoutReply,
   AvailableLastReviewComparison,
+  AvailablePreviousBriefComparison,
   DraftPolicySummary,
   GenerationSummary,
   LastReviewComparison,
@@ -57,6 +61,7 @@ import type {
   PrSummary,
   RevisionSummary,
   UnavailableLastReviewComparison,
+  UnavailablePreviousBriefComparison,
 } from "./types";
 
 const ROW = {
@@ -505,6 +510,7 @@ describe("prSummarySchema comparisons on PR-meta", () => {
       throw new Error("unreachable");
     }
     expect(parsed.value.comparisons?.previousBrief).toEqual({
+      kind: "available",
       baselineSha: "head-0",
       baselineIndex: 1,
       narrativeAvailable: true,
@@ -577,6 +583,100 @@ describe("prSummarySchema comparisons on PR-meta", () => {
       deltaSkipped: true,
       baselineSha: "cp-1",
     });
+  });
+
+  it("parses the no-change flags on both comparisons", () => {
+    const parsed = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      comparisons: {
+        previousBrief: {
+          baselineSha: "h-1",
+          baselineIndex: 1,
+          narrativeAvailable: true,
+          unchanged: true,
+        },
+        lastReview: {
+          deltaAvailable: false,
+          deltaUnchanged: true,
+          baselineSha: "cp-1",
+        },
+      },
+    });
+
+    expect(parsed.ok && parsed.value.comparisons).toEqual({
+      previousBrief: {
+        kind: "available",
+        baselineSha: "h-1",
+        baselineIndex: 1,
+        narrativeAvailable: true,
+        unchanged: true,
+      },
+      lastReview: {
+        kind: "available",
+        deltaAvailable: false,
+        deltaUnchanged: true,
+        baselineSha: "cp-1",
+      },
+    });
+  });
+
+  it("reads previousBrief unavailable reasons, a new one as unknown", () => {
+    for (const reason of [
+      "pending",
+      "baseline-unavailable",
+      "span-too-large",
+    ]) {
+      const parsed = parseWithSchema(prSummarySchema, {
+        ...ROW,
+        comparisons: {
+          previousBrief: {
+            baselineSha: "h-1",
+            baselineIndex: 1,
+            unavailable: reason,
+          },
+        },
+      });
+      expect(parsed.ok && parsed.value.comparisons?.previousBrief).toEqual({
+        kind: "unavailable",
+        baselineSha: "h-1",
+        baselineIndex: 1,
+        reason,
+      });
+    }
+    const unrecognised = parseWithSchema(prSummarySchema, {
+      ...ROW,
+      comparisons: {
+        previousBrief: {
+          baselineSha: "h-1",
+          baselineIndex: 1,
+          unavailable: "exploded",
+        },
+      },
+    });
+    expect(
+      unrecognised.ok && unrecognised.value.comparisons?.previousBrief,
+    ).toEqual({
+      kind: "unavailable",
+      baselineSha: "h-1",
+      baselineIndex: 1,
+      reason: UnknownValues.UNKNOWN,
+    });
+  });
+
+  it("rejects a previousBrief carrying both arms' fields", () => {
+    expect(
+      parseWithSchema(prSummarySchema, {
+        ...ROW,
+        comparisons: {
+          previousBrief: {
+            baselineSha: "h-1",
+            baselineIndex: 1,
+            narrativeAvailable: true,
+            unavailable: "pending",
+          },
+        },
+      }).ok,
+    ).toBe(false);
   });
 
   it("parses lastReview unavailable reasons, an unrecognised one as unknown", () => {
@@ -963,6 +1063,14 @@ const SCHEMA_PINS = {
     z.output<typeof previousBriefComparisonSchema>,
     PreviousBriefComparison
   >,
+  AvailablePreviousBriefComparison: true satisfies Equals<
+    z.output<typeof availablePreviousBriefSchema>,
+    AvailablePreviousBriefComparison
+  >,
+  UnavailablePreviousBriefComparison: true satisfies Equals<
+    z.output<typeof unavailablePreviousBriefSchema>,
+    UnavailablePreviousBriefComparison
+  >,
   LastReviewComparison: true satisfies Equals<
     z.output<typeof lastReviewComparisonSchema>,
     LastReviewComparison
@@ -1023,9 +1131,10 @@ const CONTRACT_PINS = {
     >,
     GenerationSummaryView
   >,
-  PreviousBriefComparison: true satisfies ReadsWireFields<
-    z.output<typeof previousBriefComparisonSchema>,
-    PreviousBriefComparisonView
+  // `narrativeAvailable` is read only to refuse it on this arm.
+  UnavailablePreviousBriefComparison: true satisfies ReadsWireFields<
+    Omit<z.input<typeof unavailablePreviousBriefSchema>, "narrativeAvailable">,
+    UnavailablePreviousBriefComparisonView
   >,
   UnavailableLastReviewComparison: true satisfies ReadsWireFields<
     z.input<typeof unavailableLastReviewSchema>,
@@ -1072,6 +1181,11 @@ void CONTRACT_PINS;
 true satisfies Equals<
   Omit<Extract<LastReviewComparison, { kind: "available" }>, "kind">,
   Exclude<LastReviewComparisonView, { readonly unavailable: unknown }>
+>;
+
+true satisfies Equals<
+  Omit<AvailablePreviousBriefComparison, "kind">,
+  AvailablePreviousBriefComparisonView
 >;
 
 // `stack` is the FE's own mutable PrStack, so the pin stops at the key set

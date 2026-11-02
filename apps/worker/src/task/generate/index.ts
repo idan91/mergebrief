@@ -67,7 +67,7 @@ import {
   buildAttemptFields,
   createNoopLogger,
   getBriefTarget,
-  isLastJobAttempt,
+  isFinalRunAttempt,
 } from "./utils";
 
 export type { GenerateTaskDeps, GenerateTaskOptions } from "./types";
@@ -296,9 +296,7 @@ async function settleFailedRun(
  * last attempt no retry follows, so the run ends there instead.
  */
 function isRetriedAfterShutdown(start: RunStart): boolean {
-  const takeover = start.recovering && start.run.runId !== undefined;
-  const retried = takeover || !isLastJobAttempt(start.job);
-  return retried;
+  return !isFinalRunAttempt(start);
 }
 
 /**

@@ -169,6 +169,12 @@ const SIBLING_ISSUE = {
   isPullRequest: false,
 } as const;
 
+/** The repo-config files a run read; the revision span's blob reads are not among them. */
+function listConfigPaths(github: FakeGitHub): string[] {
+  const paths = listRepoFilePaths(github);
+  return paths.filter((path) => path.startsWith(".mergebrief/"));
+}
+
 describe("generate task", () => {
   it("reads and stamps the primary issue through the job's GitHub source", async () => {
     const { pr, payload } = await trigger(HEAD_1);
@@ -1381,7 +1387,7 @@ describe("generate task", () => {
     ).toBeDefined();
 
     // A further rerun spends nothing and so loads nothing: no config fetch.
-    const settled = listRepoFilePaths(github).length;
+    const settled = listConfigPaths(github).length;
     const idleNotion = stubNotionFetch();
     try {
       await task(second.payload);
@@ -1389,7 +1395,7 @@ describe("generate task", () => {
       idleNotion.restore();
     }
     expect(idleNotion.calls).toEqual([]);
-    expect(listRepoFilePaths(github).length).toBe(settled);
+    expect(listConfigPaths(github).length).toBe(settled);
   });
 
   it("supersedes replaced projections after the newer head succeeds", async () => {

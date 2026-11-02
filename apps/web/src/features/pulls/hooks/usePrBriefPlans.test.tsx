@@ -153,6 +153,7 @@ describe("usePrBriefPlans", () => {
   describe("comparison scoping", () => {
     const comparisons: PrSummary["comparisons"] = {
       previousBrief: {
+        kind: "available",
         baselineSha: "head-1",
         baselineIndex: 1,
         narrativeAvailable: true,
@@ -192,6 +193,46 @@ describe("usePrBriefPlans", () => {
       const lastReview = result.current.comparisonPlan.lastReview;
       expect(lastReview?.deltaSkipped).toBe(true);
       expect(lastReview?.delta).toBeUndefined();
+    });
+
+    it("tells the last-review plan no delta is owed for an unchanged span", () => {
+      const unchanged: PrSummary["comparisons"] = {
+        lastReview: {
+          kind: "available",
+          baselineSha: "cp-1",
+          deltaAvailable: false,
+          deltaUnchanged: true,
+        },
+      };
+
+      const { result } = renderPlans({
+        meta: meta({ comparisons: unchanged }),
+      });
+
+      const lastReview = result.current.comparisonPlan.lastReview;
+      expect(lastReview?.deltaUnchanged).toBe(true);
+      expect(lastReview?.delta).toBeUndefined();
+    });
+
+    it("offers no previous brief without marks and says why", () => {
+      const unavailable: PrSummary["comparisons"] = {
+        previousBrief: {
+          kind: "unavailable",
+          baselineSha: "head-1",
+          baselineIndex: 1,
+          reason: "baseline-unavailable",
+        },
+      };
+
+      const { result } = renderPlans({
+        meta: meta({ comparisons: unavailable }),
+      });
+
+      expect(result.current.comparisonPlan.previousBrief).toBeUndefined();
+      expect(result.current.availability.previousBrief).toBe(false);
+      expect(result.current.previousBriefDisabledReason).toBe(
+        "The change since the previous brief could not be read",
+      );
     });
 
     it("a pinned older span must not borrow the current head's baselines", () => {
@@ -282,6 +323,7 @@ describe("usePrBriefPlans", () => {
             return {
               ...comparisons,
               previousBrief: {
+                kind: "available",
                 baselineSha: "head-1",
                 baselineIndex: 1,
                 narrativeAvailable: false,

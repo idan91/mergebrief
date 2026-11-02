@@ -568,6 +568,13 @@
       "when": 1793434905184,
       "tag": "0081_generation-part-id-space",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1793551020992,
+      "tag": "0082_span-unchanged",
+      "breakpoints": true
     }
   ]
 }

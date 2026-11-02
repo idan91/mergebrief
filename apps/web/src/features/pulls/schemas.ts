@@ -20,7 +20,9 @@ import { isRecord } from "@web/utils/typeGuards";
 
 import type {
   AvailableLastReviewComparison,
+  AvailablePreviousBriefComparison,
   UnavailableLastReviewComparison,
+  UnavailablePreviousBriefComparison,
 } from "./types";
 
 /**
@@ -90,12 +92,42 @@ export const generationSummarySchema = z
   )
   .readonly();
 
-export const previousBriefComparisonSchema = z
+export const unavailablePreviousBriefSchema = z
+  .object({
+    baselineSha: z.string(),
+    baselineIndex: z.number(),
+    unavailable: buildOpenEnumSchema(LastReviewUnavailableReasons),
+    narrativeAvailable: z.never().exactOptional(),
+  })
+  .transform(
+    ({ unavailable, baselineSha, baselineIndex }) =>
+      ({
+        kind: "unavailable",
+        baselineSha,
+        baselineIndex,
+        reason: unavailable,
+      }) satisfies UnavailablePreviousBriefComparison,
+  );
+
+/** The wire union discriminates on the `unavailable` key, as `lastReview` does. */
+export const availablePreviousBriefSchema = z
   .object({
     baselineSha: z.string(),
     baselineIndex: z.number(),
     narrativeAvailable: z.boolean(),
+    unchanged: z.literal(true).exactOptional(),
+    unavailable: z.never().exactOptional(),
   })
+  .transform(
+    ({ unavailable: _absent, ...available }) =>
+      ({
+        kind: "available",
+        ...available,
+      }) satisfies AvailablePreviousBriefComparison,
+  );
+
+export const previousBriefComparisonSchema = z
+  .union([unavailablePreviousBriefSchema, availablePreviousBriefSchema])
   .readonly();
 
 export const unavailableLastReviewSchema = z
@@ -113,6 +145,7 @@ export const availableLastReviewSchema = z
   .object({
     deltaAvailable: z.boolean(),
     deltaSkipped: z.literal(true).exactOptional(),
+    deltaUnchanged: z.literal(true).exactOptional(),
     baselineSha: z.string(),
     baselineIndex: z.number().exactOptional(),
     unavailable: z.never().exactOptional(),

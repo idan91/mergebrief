@@ -188,11 +188,13 @@ export {
 export {
   LastReviewUnavailableReasons,
   type AvailableLastReviewComparisonView,
+  type AvailablePreviousBriefComparisonView,
   type LastReviewComparisonView,
   type LastReviewUnavailableReason,
   type PreviousBriefComparisonView,
   type RevisionComparisons,
   type RevisionView,
+  type UnavailablePreviousBriefComparisonView,
 } from "./revisions";
 export type {
   ApiTokenView,

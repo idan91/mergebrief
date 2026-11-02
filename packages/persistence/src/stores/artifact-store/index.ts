@@ -7,7 +7,12 @@
 // its table, its columns and its own body rules.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { traceStore } from "../trace-store";
-import { isDeltaSkipRecord, readBriefSessionFacts } from "brief-core/artifact";
+import {
+  isDeltaSkipRecord,
+  isDeltaUnchangedRecord,
+  isRevisionNarrativeUnchangedRecord,
+  readBriefSessionFacts,
+} from "brief-core/artifact";
 import { type AppDatabase, internal, type Tx } from "../../db/handle";
 import { brief } from "../../schema/brief";
 import { comparisonMarks } from "../../schema/comparison-marks";
@@ -268,6 +273,7 @@ export function createArtifactStore(
       const columns = {
         ...shapeBodyColumns(input),
         skipped: isDeltaSkipRecord(input.body),
+        unchanged: isDeltaUnchangedRecord(input.body),
       };
       return deltaSpans.write({
         pullRequestId: input.pullRequestId,
@@ -296,6 +302,7 @@ export function createArtifactStore(
             baselineSha: delta.baselineSha,
             headSha: delta.headSha,
             skipped: delta.skipped,
+            unchanged: delta.unchanged,
           })
           .from(delta)
           .$dynamic(),
@@ -306,7 +313,11 @@ export function createArtifactStore(
 
   const revisionNarratives: RevisionNarrativeStore = {
     async write(input) {
-      const columns = { briefId: input.briefId, ...shapeBodyColumns(input) };
+      const columns = {
+        briefId: input.briefId,
+        ...shapeBodyColumns(input),
+        unchanged: isRevisionNarrativeUnchangedRecord(input.body),
+      };
       return narrativeSpans.write({
         pullRequestId: input.pullRequestId,
         values: {
@@ -335,6 +346,7 @@ export function createArtifactStore(
           .select({
             prevHeadSha: revisionNarrative.prevHeadSha,
             headSha: revisionNarrative.headSha,
+            unchanged: revisionNarrative.unchanged,
           })
           .from(revisionNarrative)
           .$dynamic(),

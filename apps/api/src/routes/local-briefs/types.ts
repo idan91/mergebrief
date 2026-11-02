@@ -54,8 +54,27 @@ export interface RevisionChangesEntry {
   readonly prevIndex: number;
 }
 
+export const DeltaRecordKinds = {
+  SKIPPED: "skipped",
+  UNCHANGED: "unchanged",
+} as const;
+export type DeltaRecordKind = ValueOf<typeof DeltaRecordKinds>;
+
+/** A delta file holding the span's skip or no-change record: no row, only the last review's state. */
+export interface DeltaRecordEntry {
+  readonly kind: DeltaRecordKind;
+  readonly baselineSha: string;
+  readonly headSha: string;
+}
+
+/** One delta or brief file as the listing reads it: a row, or a record for the last review. */
+export type ListedArtifact =
+  | { readonly summary: LocalBriefSummary }
+  | { readonly record: DeltaRecordEntry };
+
 export interface ComparisonSources {
   readonly summaries: readonly LocalBriefSummary[];
+  readonly deltaRecords: readonly DeltaRecordEntry[];
   readonly marks: readonly ComparisonMarksEntry[];
   readonly legacy: readonly RevisionChangesEntry[];
   readonly narrativeIds: ReadonlySet<string>;

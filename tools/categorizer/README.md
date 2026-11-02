@@ -80,7 +80,7 @@ Only `url` and `content` are required. The file replaces the fetch for the prima
 pnpm delta [--config <file>] [--context <ticket.json>] <pr-url> <baseline-sha> <head-sha>
 ```
 
-Generates the **delta core**, "what changed since the baseline", for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics, exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar and a `.delta.comments.json` comments sidecar (same shapes as the brief's sidecars). Note: comment `outdated` is GitHub's flag relative to the PR's *current* head, not the delta's head (documented in `src/github/comments.ts`).
+Generates the **delta core**, "what changed since the baseline", for a reviewer returning to a PR. It reads the revision span the worker reads (`brief-core/pr-span` over `gh`: the PR's own diff at the baseline and at the head, compared, so a rebase or a base merge contributes nothing), then runs the delta categorizer. A span holding no change of the PR's own writes the `deltaUnchanged` record with zero-file marks and makes no model call. The baseline's base is the one its brief in `out/` was generated against, else the PR's current base. A brief run reads the same span for its marks and revision narrative; anchoring still reads the three-dot compare until the anchoring change lands. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar and a `.delta.comments.json` comments sidecar (same shapes as the brief's sidecars). Note: comment `outdated` is GitHub's flag relative to the PR's *current* head, not the delta's head (documented in `src/github/comments.ts`).
 
 Each delta chunk belongs to exactly one change-group (a file appears in multiple groups only via different chunks), so no line is shown to the reviewer twice.
 
@@ -126,4 +126,4 @@ Tests cover the pure logic: `gh` output parsing (`src/github/`), output filename
 | `src/artifacts/output.ts` | output filenames (index/head-versioned) + stdout summary rendering (brief + delta) |
 | `src/artifacts/manifest.ts` | per-PR brief manifest (head SHA → PR-global index); the stateless stand-in for the product DB |
 | `src/cli/categorize.ts` | brief CLI: args (whole PR or explicit span) → fetch → categorize → write brief + diffs + comments sidecars |
-| `src/cli/delta.ts` | delta CLI: url + base/head SHAs → compare diff → categorizeDelta → write delta + diffs + comments sidecars |
+| `src/cli/delta.ts` | delta CLI: url + base/head SHAs → revision span → categorizeDelta (or the no-change record) → write delta + diffs + comments sidecars |

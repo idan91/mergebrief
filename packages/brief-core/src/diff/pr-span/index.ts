@@ -4,7 +4,8 @@ import {
   IDENTITY_SPAN,
   MAX_SPAN_CHANGED_FILES,
 } from "./consts";
-import { buildBaseMovedSpans } from "./logic/build-hop";
+import { buildBaseMovedSpans, buildLineDiffSpans } from "./logic/build-hop";
+import { readChangeRuns } from "./logic/change-runs";
 import { comparePrDiffs, settleBaseRenames } from "./logic/compare-patches";
 import {
   formatFallbackPatch,
@@ -24,7 +25,6 @@ import {
   PrSpanFailureKinds,
   type BetweenHeadsFile,
   type ComparedFile,
-  type FileVerdict,
   type PrSpan,
   type PrSpanInput,
   type PrSpanRefs,
@@ -33,6 +33,7 @@ import {
 } from "./types";
 
 interface FileSpan {
+  readonly isChanged: boolean;
   readonly hunks: readonly HunkSpan[];
   /** The file's part of the unfiltered span, then of the filtered one. */
   readonly unfiltered?: string;
@@ -45,7 +46,12 @@ function readChangedFileSpan(
 ): FileSpan {
   if (betweenHeads?.kind !== BetweenHeadsKinds.PATCH) {
     const fallback = formatFallbackPatch(file);
-    return { hunks: [], unfiltered: fallback, filtered: fallback };
+    return {
+      isChanged: true,
+      hunks: [],
+      unfiltered: fallback,
+      filtered: fallback,
+    };
   }
 
   const { patch } = betweenHeads;
@@ -59,6 +65,7 @@ function readChangedFileSpan(
   const patchHunks = parseHunkSpans(patch);
   if (patchHunks.length === 0) {
     return {
+      isChanged: true,
       hunks: samePath ? [IDENTITY_SPAN] : [],
       unfiltered: patch,
       filtered: patch,
@@ -66,11 +73,37 @@ function readChangedFileSpan(
   }
   // A range cannot stay on a path that moved, so a moved file demotes whatever its hunks say.
   const hunks = samePath ? patchHunks : [];
-  const filtered = filterBetweenHeadsHunks(patch, prevPlaces, nextPlaces);
-  if (filtered === undefined) {
-    return { hunks, unfiltered: patch };
+  // Every between-heads hunk away from the PR change is base noise, yet the PR's runs differ: send those runs.
+  const filtered =
+    filterBetweenHeadsHunks(patch, prevPlaces, nextPlaces) ??
+    formatFallbackPatch(file);
+  return { isChanged: true, hunks, unfiltered: patch, filtered };
+}
+
+/**
+ * A file whose runs match over a moved base but whose context does not:
+ * changed when its line diff keeps a hunk touching either head's PR
+ * change, unchanged when every between-heads edit is base noise.
+ */
+function readContextMovedFileSpan(
+  file: ComparedFile,
+  betweenHeads: BetweenHeadsFile | undefined,
+): FileSpan {
+  if (betweenHeads?.kind !== BetweenHeadsKinds.PATCH) {
+    return readChangedFileSpan(file, betweenHeads);
   }
-  return { hunks, unfiltered: patch, filtered };
+
+  const { patch } = betweenHeads;
+  const hunks = buildLineDiffSpans(readChangeRuns(patch));
+  const filtered = filterBetweenHeadsHunks(
+    patch,
+    readPrChangePlaces(file.prev?.runs ?? []),
+    readPrChangePlaces(file.next?.runs ?? []),
+  );
+  if (filtered === undefined) {
+    return { isChanged: false, hunks, unfiltered: patch };
+  }
+  return { isChanged: true, hunks, unfiltered: patch, filtered };
 }
 
 function readFileSpan(
@@ -78,41 +111,52 @@ function readFileSpan(
   betweenHeads: BetweenHeadsFile | undefined,
 ): FileSpan {
   if (file.verdict === FileVerdicts.IDENTICAL) {
-    return { hunks: [IDENTITY_SPAN] };
+    return { isChanged: false, hunks: [IDENTITY_SPAN] };
   }
   if (file.verdict === FileVerdicts.BASE_RENAMED) {
-    return { hunks: [] };
+    return { isChanged: false, hunks: [] };
   }
   if (file.verdict === FileVerdicts.CHANGE_RESHAPED_BY_BASE) {
     const patch = formatReshapedPatch(file);
-    return { hunks: [IDENTITY_SPAN], unfiltered: patch, filtered: patch };
+    return {
+      isChanged: true,
+      hunks: [IDENTITY_SPAN],
+      unfiltered: patch,
+      filtered: patch,
+    };
   }
   if (file.verdict === FileVerdicts.BASE_MOVED) {
     const spans = buildBaseMovedSpans(
       file.prev?.runs ?? [],
       file.next?.runs ?? [],
     );
-    return { hunks: spans ?? [] };
+    return { isChanged: false, hunks: spans ?? [] };
+  }
+  if (file.verdict === FileVerdicts.CONTEXT_MOVED) {
+    return readContextMovedFileSpan(file, betweenHeads);
   }
   if (file.verdict === FileVerdicts.HEADER_CHANGED) {
     const patch = formatHeaderOnlyPatch(file);
-    return { hunks: [], unfiltered: patch, filtered: patch };
+    return { isChanged: true, hunks: [], unfiltered: patch, filtered: patch };
   }
   return readChangedFileSpan(file, betweenHeads);
 }
 
-function isContentChanged(file: ComparedFile): boolean {
-  return file.verdict === FileVerdicts.CONTENT_CHANGED;
+/** A file only both heads' blobs can settle: its content changed, or its context moved. */
+function needsLineDiff(file: ComparedFile): boolean {
+  return (
+    file.verdict === FileVerdicts.CONTENT_CHANGED ||
+    file.verdict === FileVerdicts.CONTEXT_MOVED
+  );
 }
 
-const CHANGED_VERDICTS: ReadonlySet<FileVerdict> = new Set([
-  FileVerdicts.CONTENT_CHANGED,
-  FileVerdicts.HEADER_CHANGED,
-  FileVerdicts.CHANGE_RESHAPED_BY_BASE,
-]);
-
-function isChanged(file: ComparedFile): boolean {
-  return CHANGED_VERDICTS.has(file.verdict);
+/** A file that may read changed, so it counts against the file bound. */
+function mayBeChanged(file: ComparedFile): boolean {
+  return (
+    needsLineDiff(file) ||
+    file.verdict === FileVerdicts.HEADER_CHANGED ||
+    file.verdict === FileVerdicts.CHANGE_RESHAPED_BY_BASE
+  );
 }
 
 function hasBaseRenameVerdict(file: ComparedFile): boolean {
@@ -127,6 +171,8 @@ function assemblePrSpan(
   const pathsByPrevPath = new Map<string, string[]>();
   const unfiltered: string[] = [];
   const filtered: string[] = [];
+  const changedFiles: string[] = [];
+  const unchangedFiles: string[] = [];
 
   for (const file of compared) {
     const fileSpan = readFileSpan(file, betweenHeads.get(file.path));
@@ -142,30 +188,40 @@ function assemblePrSpan(
     if (fileSpan.filtered !== undefined) {
       filtered.push(fileSpan.filtered);
     }
+    const side = fileSpan.isChanged ? changedFiles : unchangedFiles;
+    side.push(file.path);
   }
 
   const hopEntries = [...hop.values()];
+  const filteredDiff = filtered.join("\n");
   const unpairableFiles = hopEntries
     .filter((entry) => entry.hunks.length === 0)
     .flatMap((entry) => pathsByPrevPath.get(entry.file) ?? []);
-  const changedFiles = compared.filter(isChanged).map((file) => file.path);
   return {
     changedFiles,
-    unchangedFiles: compared
-      .filter((file) => !isChanged(file))
-      .map((file) => file.path),
+    unchangedFiles,
     unpairableFiles,
-    filteredDiff: filtered.join("\n"),
+    filteredDiff,
     unfilteredDiff: unfiltered.join("\n"),
     hop: hopEntries,
-    isUnchanged: changedFiles.length === 0,
+    isUnchanged: isSpanUnchanged(filteredDiff),
   };
 }
 
 /**
+ * The no-change rule the worker, the dev CLI and the eval harness share:
+ * every changed file adds text to the filtered diff, so an empty one means
+ * the PR's own change did not move.
+ */
+export function isSpanUnchanged(filteredDiff: string): boolean {
+  return filteredDiff === "";
+}
+
+/**
  * The revision span between two heads from both heads' PR diffs and the
- * between-heads patch of each content-changed file, keyed by its new-head
- * path. A content-changed file with no patch takes the patch-level fallback.
+ * between-heads patch of each file `readPrSpan` line-diffs, keyed by its
+ * new-head path. Such a file with no patch reads changed and takes the
+ * patch-level fallback.
  */
 export function buildPrSpan(input: PrSpanInput): PrSpan {
   const compared = comparePrDiffs(input.prevPrDiff, input.newPrDiff);
@@ -179,9 +235,10 @@ export function buildPrSpan(input: PrSpanInput): PrSpan {
 /**
  * Read the revision span through `source`: both heads' PR diffs, the
  * swapped paths of each base-rename candidate, then both blobs of each
- * content-changed file. A changed set past the file bound, counting each
- * candidate as the two changed files it may split into, is `too-large`
- * before any blob read.
+ * content-changed file and of each file whose runs match over a moved base
+ * with different context. A changed set past the file bound, counting each
+ * such file and each candidate as the two changed files it may split into,
+ * is `too-large` before any blob read.
  */
 export async function readPrSpan(
   source: PrSpanSource,
@@ -206,7 +263,7 @@ export async function readPrSpan(
   const compared = comparePrDiffs(prevPrDiff.value, newPrDiff.value);
   const candidates = compared.filter(hasBaseRenameVerdict);
   const changedCount =
-    compared.filter(isChanged).length +
+    compared.filter(mayBeChanged).length +
     candidates.length * FILES_PER_BASE_RENAME_CANDIDATE;
   if (changedCount > MAX_SPAN_CHANGED_FILES) {
     return { ok: false, error: { kind: PrSpanFailureKinds.TOO_LARGE } };
@@ -220,7 +277,7 @@ export async function readPrSpan(
   const betweenHeads = await readBetweenHeadsFiles(
     source,
     refs,
-    settled.filter(isContentChanged),
+    settled.filter(needsLineDiff),
     signal,
   );
   if (!betweenHeads.ok) {

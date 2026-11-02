@@ -75,7 +75,7 @@ export async function readMarks(
 
 /**
  * The pre-warmed reviewer-personal delta core for (baseline, head). A span
- * whose row is its skip record has no delta to serve.
+ * whose row is its skip or no-change record has no delta to serve.
  */
 export async function readDelta(
   handle: AppDatabase,
@@ -84,7 +84,8 @@ export async function readDelta(
 ): Promise<ReadArtifactResult> {
   const { deltas } = createArtifactStore(handle, access.rowScope);
   const stored = await deltas.get(access.row.id, query.baseline, query.head);
-  if (stored?.skipped === true) {
+  const noDelta = stored?.skipped === true || stored?.unchanged === true;
+  if (noDelta) {
     return NOT_FOUND;
   }
   return answerBody(stored);

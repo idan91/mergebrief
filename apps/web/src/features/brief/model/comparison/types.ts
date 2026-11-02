@@ -35,6 +35,8 @@ export interface BriefComparisonPlan {
     readonly delta?: ComparisonQuery<Brief>;
     /** The span was too large to summarize, so no delta will come. */
     readonly deltaSkipped?: true;
+    /** The PR's own change did not move since the checkpoint, so no delta is owed. */
+    readonly deltaUnchanged?: true;
     /** Live raw span diff checkpoint → head. */
     readonly rawDiff?: ComparisonQuery<string>;
   };

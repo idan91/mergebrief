@@ -7,7 +7,7 @@ import { FakeFailures, type FakeFailure } from "github/testing";
 import { GenerationStatuses } from "types/generations";
 import { describe, expect, it } from "vitest";
 import {
-  arrangeCompare,
+  arrangeRevisionSpan,
   captureLogger,
   ctx,
   harness,
@@ -41,7 +41,7 @@ async function runSecondHeadWithSpanRefused(
   await task(first.payload);
 
   github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-  github.failOn("fetchCompareDiff", failure);
+  github.failOn("fetchCheckedCompareDiff", failure);
   const second = await trigger(HEAD_2);
   return { second: { ...second, github }, task, generator, readLines };
 }
@@ -137,7 +137,7 @@ describe("generate task, a refused revision span", () => {
     await task(second.payload);
 
     const spanReads = github
-      .listCalls("fetchCompareDiff")
+      .listCalls("fetchCheckedCompareDiff")
       .filter((call) => JSON.stringify(call.input).includes(HEAD_1));
     expect(spanReads).toHaveLength(1);
     expect(generator.calls).not.toContain("delta");
@@ -191,28 +191,6 @@ describe("generate task, a refused revision span", () => {
       skipped: "span too large",
     });
   });
-
-  it("warns past a 5xx span failure and still succeeds", async () => {
-    const { second, task, readLines } = await runSecondHeadWithSpanRefused(
-      FakeFailures.SERVER_ERROR,
-    );
-
-    await task(second.payload);
-
-    const projection = createGenerationProjection(harness.handle, ctx);
-    const row = await projection.get(makeTarget(second.pr, HEAD_2));
-    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
-    const store = createArtifactStore(harness.handle, ctx);
-    expect(
-      await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2),
-    ).toBeUndefined();
-    expect(readLines()).toContainEqual(
-      expect.objectContaining({
-        level: "warn",
-        msg: expect.stringContaining("revision span"),
-      }),
-    );
-  });
 });
 
 describe("generate task, a revision span past the call limits", () => {
@@ -232,7 +210,7 @@ describe("generate task, a revision span past the call limits", () => {
       submittedAt: new Date(),
     });
     github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
-    arrangeCompare(github, { base: HEAD_1, head: HEAD_2 }, MANY_HUNKS_DIFF);
+    arrangeRevisionSpan(github, MANY_HUNKS_DIFF);
     const second = await trigger(HEAD_2);
 
     await task(second.payload);

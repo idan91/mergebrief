@@ -59,6 +59,33 @@ export function buildStoredDeltaJson(
   });
 }
 
+/** The span's skip or no-change record a delta file may hold instead of a Delta Brief. */
+export function buildDeltaRecordJson(
+  artifactKind: "deltaSkipped" | "deltaUnchanged",
+  baselineSha: string,
+  headSha: string,
+): string {
+  const record: Record<string, unknown> = {
+    artifactKind,
+    pr: {
+      repo: "example/repo",
+      number: 99,
+      title: "Delta",
+      url: "https://example.com/pull/99",
+      sha: headSha,
+      description: "",
+    },
+    baselineSha,
+    headSha,
+    baselineIndex: null,
+    headIndex: 2,
+  };
+  if (artifactKind === "deltaSkipped") {
+    record["skipped"] = "span-too-large";
+  }
+  return JSON.stringify(record);
+}
+
 export const REVIEW_COMMENTS = [
   {
     id: "3419186366",

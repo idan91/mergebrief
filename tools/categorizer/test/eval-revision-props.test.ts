@@ -3,9 +3,11 @@ import type { DeltaBrief, RevisionNarrative } from "brief-core/types";
 import {
   deltaCommentsFromInput,
   deltaGrounded,
+  deltaNoChange,
   deltaNoReplay,
   narrativeCoversSpan,
   narrativeGrounded,
+  narrativeNoChange,
   narrativeNoReplay,
 } from "../eval/revision-props";
 import type { DeltaRun, NarrativeRun } from "../eval/revision-runs";
@@ -35,6 +37,7 @@ function makeNarrativeRun(
     narrative,
     marksFiles: [{ file: "b.ts", addedRanges: LINE_TWO, removedRanges: [] }],
     filteredSpan: DIFF_B,
+    modelCalls: 1,
   };
 }
 
@@ -63,9 +66,71 @@ function makeDeltaRun(
     filteredSpan: DIFF_B,
     reviewComments: [],
     unknownGroupChunkIds: [],
+    modelCalls: 1,
     ...overrides,
   };
 }
+
+const NARRATIVE_RECORD = {
+  artifactKind: "revisionNarrativeUnchanged",
+} as NarrativeRun["narrative"];
+const DELTA_RECORD = { artifactKind: "deltaUnchanged" } as DeltaRun["delta"];
+
+describe("narrativeNoChange", () => {
+  it("passes on the record over an empty span with no model call", () => {
+    const run: NarrativeRun = {
+      ...makeNarrativeRun([]),
+      narrative: NARRATIVE_RECORD,
+      marksFiles: [],
+      filteredSpan: "",
+      modelCalls: 0,
+    };
+
+    expect(narrativeNoChange.check(run)).toBe(true);
+    expect(narrativeNoChange.check({ ...run, modelCalls: 1 })).toBe(false);
+  });
+
+  it("fails on a narrative over an empty span or a record over a change", () => {
+    const narrative = makeNarrativeRun([{}]);
+
+    expect(narrativeNoChange.check(narrative)).toBe(true);
+    expect(narrativeNoChange.check({ ...narrative, filteredSpan: "" })).toBe(
+      false,
+    );
+    expect(
+      narrativeNoChange.check({ ...narrative, narrative: NARRATIVE_RECORD }),
+    ).toBe(false);
+  });
+
+  it("lets the chunk predicates read a record as no chunks", () => {
+    const run = { ...makeNarrativeRun([]), narrative: NARRATIVE_RECORD };
+
+    expect(narrativeGrounded.check(run)).toBe(true);
+    expect(narrativeNoReplay.check(run)).toBe(true);
+  });
+});
+
+describe("deltaNoChange", () => {
+  it("passes on the record over an empty span with no model call", () => {
+    const run = makeDeltaRun([], {
+      delta: DELTA_RECORD,
+      filteredSpan: "",
+      modelCalls: 0,
+    });
+
+    expect(deltaNoChange.check(run)).toBe(true);
+    expect(deltaNoChange.check({ ...run, modelCalls: 1 })).toBe(false);
+    expect(deltaGrounded.check(run)).toBe(true);
+    expect(deltaCommentsFromInput.check(run)).toBe(true);
+  });
+
+  it("fails on a delta over an empty span", () => {
+    expect(deltaNoChange.check(makeDeltaRun([{}]))).toBe(true);
+    expect(deltaNoChange.check(makeDeltaRun([{}], { filteredSpan: "" }))).toBe(
+      false,
+    );
+  });
+});
 
 describe("narrativeGrounded", () => {
   it("passes when every chunk names a group and overlaps a mark", () => {
@@ -170,8 +235,11 @@ describe("deltaCommentsFromInput", () => {
   });
 
   it("fails on comments-addressed text when the input held none", () => {
-    const run = makeDeltaRun([{}]);
-    run.delta.commentsAddressed = "Addressed the reviewer's ask.";
+    const plain = makeDeltaRun([{}]);
+    const run = {
+      ...plain,
+      delta: { ...plain.delta, commentsAddressed: "Addressed the ask." },
+    };
 
     expect(deltaCommentsFromInput.check(run)).toBe(false);
   });

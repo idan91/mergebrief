@@ -16,14 +16,16 @@ import { getPrLocator } from "../utils";
 import { resolveEntryCommentAllowed } from "./entry-comment-gate";
 import { isNotAcceptable, throwOnGitHubFailure } from "./errors";
 import { buildPrMetadata, recordResolvedStack } from "./pr-metadata";
+import { createRevisionSpanReader } from "./revision-span";
 import { throwOnClaimLost } from "./supersession-watch";
 import { createTicketContextLoader } from "./ticket-context";
 
 /**
  * Start the head polls and read what every artifact is built from. The
- * prevHead...head span is fetched before the model call because the anchoring
- * plan needs it; its unwrap stays deferred so a permanent 406 still lands
- * after the brief write.
+ * prevHead...head compare is fetched before the model call because the
+ * anchoring plan needs it; its unwrap stays deferred so a permanent 406 still
+ * lands after the brief write. The revision span is read here too, so a
+ * transient failure retries before any model call.
  */
 export async function prepareRunInputs(
   context: RunContext,
@@ -45,6 +47,10 @@ export async function prepareRunInputs(
     prevBrief === undefined
       ? undefined
       : await source.fetchCompareDiff(prevBrief.headSha, payload.headSha);
+  const prevSpanRead =
+    prevBrief === undefined
+      ? undefined
+      : await createRevisionSpanReader(context)(prevBrief);
 
   const repoConfig = await acquireRunRepoConfig(
     context,
@@ -74,6 +80,7 @@ export async function prepareRunInputs(
     locator,
     meta,
     prevSpanFetch,
+    prevSpanRead,
     repoConfig,
     loadContext,
     entryCommentAllowed,

@@ -5,12 +5,16 @@ import {
   checkDeltaForWrite,
   checkRevisionNarrativeForWrite,
   isDeltaSkipRecord,
+  isDeltaUnchangedRecord,
+  isRevisionNarrativeUnchangedRecord,
 } from "../../src/artifact";
 import { BriefSchema } from "../../src/types";
 import {
   makeSkippedDelta,
   makeSkippedRevisionNarrative,
   makeTwoGroupBrief,
+  makeUnchangedDelta,
+  makeUnchangedRevisionNarrative,
   makeValidBrief,
   makeValidDeltaBrief,
   makeValidRevisionNarrative,
@@ -194,6 +198,46 @@ describe("isDeltaSkipRecord", () => {
   it("names a body that is not a JSON object not a skip record", () => {
     expect(isDeltaSkipRecord("not json")).toBe(false);
     expect(isDeltaSkipRecord('["deltaSkipped"]')).toBe(false);
+  });
+});
+
+describe("the no-change records", () => {
+  it("accepts the delta no-change record", () => {
+    const unchanged = makeUnchangedDelta();
+
+    expect(checkDeltaForWrite(unchanged)).toEqual({
+      ok: true,
+      value: unchanged,
+    });
+  });
+
+  it("refuses a skip reason on the delta no-change record", () => {
+    const body = { ...makeUnchangedDelta(), skipped: "span-too-large" };
+
+    expect(checkDeltaForWrite(body).ok).toBe(false);
+  });
+
+  it("accepts the narrative no-change record", () => {
+    const unchanged = makeUnchangedRevisionNarrative();
+
+    expect(checkRevisionNarrativeForWrite(unchanged)).toEqual({
+      ok: true,
+      value: unchanged,
+    });
+  });
+
+  it("names each stored no-change record by its kind alone", () => {
+    const delta = JSON.stringify(makeUnchangedDelta());
+    const narrative = JSON.stringify(makeUnchangedRevisionNarrative());
+
+    expect(isDeltaUnchangedRecord(delta)).toBe(true);
+    expect(isDeltaSkipRecord(delta)).toBe(false);
+    expect(isDeltaUnchangedRecord(JSON.stringify(makeSkippedDelta()))).toBe(
+      false,
+    );
+    expect(isRevisionNarrativeUnchangedRecord(narrative)).toBe(true);
+    expect(isRevisionNarrativeUnchangedRecord(delta)).toBe(false);
+    expect(isRevisionNarrativeUnchangedRecord("not json")).toBe(false);
   });
 });
 

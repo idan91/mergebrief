@@ -328,6 +328,25 @@ describe("stored artifact reads", () => {
     expect(res.status).toBe(404);
   });
 
+  it("404s a span whose delta row is its no-change record", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID });
+    const pr = await seedPullRequest(harness.handle);
+    await createArtifactStore(harness.handle, CTX).deltas.write({
+      pullRequestId: pr.id,
+      baselineSha: "cp-1",
+      headSha: "head-2",
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      bodyVersion: STORED_BODY_VERSION,
+      body: JSON.stringify({ artifactKind: "deltaUnchanged" }),
+    });
+
+    const res = await get("/delta?baseline=cp-1&head=head-2");
+
+    expect(res.status).toBe(404);
+  });
+
   it("400s delta queries with cross-repo refs or missing parameters", async () => {
     arrangeFakeGate(fake, { repoId: REPO_ID });
     await seedPullRequest(harness.handle);

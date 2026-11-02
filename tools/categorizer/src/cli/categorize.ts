@@ -28,11 +28,18 @@ import {
   type TrackerReads,
 } from "brief-core";
 import { isCompleteBrief, readStoredBrief } from "brief-core/artifact";
+import {
+  PrSpanFailureKinds,
+  readPrSpan,
+  type PrSpan,
+  type PrSpanFailure,
+} from "brief-core/pr-span";
 import type {
   Brief,
   CommitRange,
   ReviewComment,
   RevisionNarrativeSkipped,
+  RevisionNarrativeUnchanged,
 } from "brief-core/types";
 import { ghPrSource, isCommitish, type PrSource } from "../github";
 import {
@@ -49,7 +56,7 @@ import {
   extractContextFlag,
   extractOutFlag,
 } from "./config";
-import type { Mutable } from "types/utils";
+import type { Mutable, Result } from "types/utils";
 import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   createCliContextProviders,
@@ -189,10 +196,14 @@ export interface GenerateOptions {
   readonly hugeSpanRatio?: number | undefined;
 }
 
-/** The previous brief's head, the span since it, and its body when readable. */
+/**
+ * The previous brief's head, the three-dot span anchoring still reads, the
+ * revision span marks and the narrative read, and its body when readable.
+ */
 interface PriorBrief {
   headSha: string;
   span: string;
+  revisionSpan: Result<PrSpan, PrSpanFailure>;
   brief?: Brief;
 }
 
@@ -202,8 +213,23 @@ interface PriorBriefLookup {
   index: number;
   locator: PrLocator;
   head: string;
+  /** The PR's base now; the previous head's base comes from its brief. */
+  currentBase: string;
   source: PrSource;
   log: (msg: string) => void;
+}
+
+/** The base a briefed head was briefed against, read off its brief in `outDir`. */
+export async function readBriefBase(
+  outDir: string,
+  stem: string,
+  index: number,
+  headSha: string,
+  log: (msg: string) => void,
+): Promise<string | undefined> {
+  const path = join(outDir, `${briefId(stem, index, headSha)}.brief.json`);
+  const brief = await readBriefFile(path, log);
+  return brief?.commitRange.base;
 }
 
 async function readBriefFile(
@@ -236,7 +262,8 @@ async function readBriefFile(
 async function readPriorBrief(
   lookup: PriorBriefLookup,
 ): Promise<PriorBrief | undefined> {
-  const { outDir, stem, index, locator, head, source, log } = lookup;
+  const { outDir, stem, index, locator, head, currentBase, source, log } =
+    lookup;
   const prevIndex = index - 1;
   if (prevIndex < 1) {
     return undefined;
@@ -247,9 +274,21 @@ async function readPriorBrief(
   }
 
   const span = await source.fetchCompareDiff(locator, headSha, head);
-  const prior: PriorBrief = { headSha, span };
   const path = join(outDir, `${briefId(stem, prevIndex, headSha)}.brief.json`);
   const brief = await readBriefFile(path, log);
+  const refs = {
+    prevBase: brief?.commitRange.base ?? currentBase,
+    prevHead: headSha,
+    newBase: currentBase,
+    newHead: head,
+  };
+  const revisionSpan = await readPrSpan(
+    source.buildSpanSource(locator),
+    refs,
+    new AbortController().signal,
+  );
+
+  const prior: PriorBrief = { headSha, span, revisionSpan };
   if (brief !== undefined) {
     prior.brief = brief;
   }
@@ -311,6 +350,7 @@ export async function generateAndWrite(
     index,
     locator: pr.locator,
     head: commitRange.head,
+    currentBase: pr.meta.baseSha,
     source,
     log,
   });
@@ -360,40 +400,14 @@ export async function generateAndWrite(
   log(`wrote ${commentsFile} (${comments.length} comments)`);
 
   // Comparison marks + revision narrative, absent on the first brief (no
-  // previous head). Marks use the same three-dot compare diff as the delta.
+  // previous head).
   if (prior !== undefined) {
-    const prevHeadSha = prior.headSha;
-    // Never caught: a marks failure means comparison data is unavailable and
-    // must surface loudly, unlike a narrative failure below.
-    const marks = buildComparisonMarks(
-      commitRange.head,
-      prevHeadSha,
-      "previous-brief",
-      index - 1,
-      prior.span,
-    );
-    await writeComparisonMarks(outDir, stem, marks, log);
-
-    // Back-compat alias kept while the FE migrates off `.revchanges.json`.
-    // Derived from the marks above, the diff is never scanned twice.
-    const revChanges: RevisionChanges = {
-      headSha: commitRange.head,
-      prevHeadSha,
-      prevIndex: index - 1,
-      files: marks.files,
-    };
-    const revFile = join(outDir, revChangesName(brief));
-    await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
-    log(`wrote ${revFile} (compat alias)`);
-
-    await generateAndWriteRevisionNarrative({
+    await writeRevisionSpanArtifacts({
       outDir,
+      stem,
       pr,
       brief,
-      prevHeadSha,
-      prevIndex: index - 1,
-      incrementalDiff: prior.span,
-      marksFiles: marks.files,
+      prior,
       generator,
       log,
       effort,
@@ -402,6 +416,114 @@ export async function generateAndWrite(
     });
   }
   return brief;
+}
+
+interface RevisionSpanArtifactsArgs {
+  outDir: string;
+  stem: string;
+  pr: FetchedPr;
+  brief: Brief;
+  prior: PriorBrief;
+  generator: Generator;
+  log: (msg: string) => void;
+  effort: Effort | undefined;
+  revisionNarrative?: RevisionNarrativeConfig | undefined;
+  hugeSpanRatio?: number | undefined;
+}
+
+/**
+ * Marks and the narrative over the revision span, as the worker writes them: a
+ * span GitHub refused gets its skip stub and no marks, an unread one nothing.
+ */
+async function writeRevisionSpanArtifacts(
+  args: RevisionSpanArtifactsArgs,
+): Promise<void> {
+  const { outDir, stem, brief, prior, log } = args;
+  const prevHeadSha = prior.headSha;
+  const prevIndex = brief.index - 1;
+  const enabled = args.revisionNarrative?.enabled ?? true;
+  const read = prior.revisionSpan;
+  if (!read.ok) {
+    if (read.error.kind === PrSpanFailureKinds.TOO_LARGE) {
+      const skipped = enabled ? "span too large" : "disabled by config";
+      const stub = buildNarrativeSkipStub(brief, prevHeadSha, skipped);
+      await writeNarrativeFile(outDir, brief, stub, log);
+      return;
+    }
+    log(`⚠ revision span unread (${read.error.kind}); no marks or narrative`);
+    return;
+  }
+
+  const span = read.value;
+  // Never caught: a marks failure means comparison data is unavailable and
+  // must surface loudly, unlike a narrative failure below.
+  const marks = buildComparisonMarks(
+    brief.commitRange.head,
+    prevHeadSha,
+    "previous-brief",
+    prevIndex,
+    span.filteredDiff,
+  );
+  await writeComparisonMarks(outDir, stem, marks, log);
+
+  // Back-compat alias kept while the FE migrates off `.revchanges.json`.
+  const revChanges: RevisionChanges = {
+    headSha: brief.commitRange.head,
+    prevHeadSha,
+    prevIndex,
+    files: marks.files,
+  };
+  const revFile = join(outDir, revChangesName(brief));
+  await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
+  log(`wrote ${revFile} (compat alias)`);
+
+  // The config gate wins over the no-change record, as in the worker.
+  if (span.isUnchanged && enabled) {
+    const unchanged: RevisionNarrativeUnchanged = {
+      artifactKind: "revisionNarrativeUnchanged",
+      pr: brief.pr,
+      prevHeadSha,
+      headSha: brief.commitRange.head,
+      prevIndex,
+      headIndex: brief.index,
+    };
+    await writeNarrativeFile(outDir, brief, unchanged, log);
+    return;
+  }
+  await generateAndWriteRevisionNarrative({
+    ...args,
+    prevHeadSha,
+    prevIndex,
+    incrementalDiff: span.filteredDiff,
+    marksFiles: marks.files,
+  });
+}
+
+function buildNarrativeSkipStub(
+  brief: Brief,
+  prevHeadSha: string,
+  skipped: RevisionNarrativeSkipped["skipped"],
+): RevisionNarrativeSkipped {
+  return {
+    artifactKind: "revisionNarrativeSkipped",
+    pr: brief.pr,
+    prevHeadSha,
+    headSha: brief.commitRange.head,
+    prevIndex: brief.index - 1,
+    headIndex: brief.index,
+    skipped,
+  };
+}
+
+async function writeNarrativeFile(
+  outDir: string,
+  brief: Brief,
+  record: RevisionNarrativeSkipped | RevisionNarrativeUnchanged,
+  log: (msg: string) => void,
+): Promise<void> {
+  const narrativeFile = join(outDir, revisionNarrativeName(brief));
+  await writeFile(narrativeFile, `${JSON.stringify(record, null, 2)}\n`);
+  log(`wrote ${record.artifactKind} ${narrativeFile}`);
 }
 
 /**
@@ -439,15 +561,8 @@ async function generateAndWriteRevisionNarrative(args: {
   const narrativeFile = join(outDir, revisionNarrativeName(brief));
   const skipStub = (
     skipped: RevisionNarrativeSkipped["skipped"],
-  ): RevisionNarrativeSkipped => ({
-    artifactKind: "revisionNarrativeSkipped",
-    pr: brief.pr,
-    prevHeadSha,
-    headSha: brief.commitRange.head,
-    prevIndex,
-    headIndex: brief.index,
-    skipped,
-  });
+  ): RevisionNarrativeSkipped =>
+    buildNarrativeSkipStub(brief, prevHeadSha, skipped);
 
   const config = args.revisionNarrative ?? { enabled: true };
   if (!config.enabled) {

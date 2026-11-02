@@ -48,11 +48,27 @@ export interface GenerationSummary {
   readonly parts?: GenerationPartsView;
 }
 
-export interface PreviousBriefComparison {
+/** The wire discriminates by the unavailable key; parsing adds kind for consumers. */
+export interface AvailablePreviousBriefComparison {
+  readonly kind: "available";
   readonly baselineSha: string;
   readonly baselineIndex: number;
   readonly narrativeAvailable: boolean;
+  /** The PR's own change did not move since the previous brief. */
+  readonly unchanged?: true;
 }
+
+/** A previous brief exists, but its span has no marks to compare with. */
+export interface UnavailablePreviousBriefComparison {
+  readonly kind: "unavailable";
+  readonly baselineSha: string;
+  readonly baselineIndex: number;
+  readonly reason: LastReviewUnavailableReason | UnknownValue;
+}
+
+export type PreviousBriefComparison =
+  | AvailablePreviousBriefComparison
+  | UnavailablePreviousBriefComparison;
 
 /**
  * The wire discriminates by the unavailable key; parsing adds kind for consumers.
@@ -64,6 +80,8 @@ export interface AvailableLastReviewComparison {
   readonly deltaAvailable: boolean;
   /** The span was too large to summarize: its skip record stands in for the delta. */
   readonly deltaSkipped?: true;
+  /** No delta is owed: the PR's own change did not move since the checkpoint. */
+  readonly deltaUnchanged?: true;
   readonly baselineSha: string;
   /** Present when the checkpoint SHA was a briefed head. */
   readonly baselineIndex?: number;

@@ -5,11 +5,13 @@ import {
   checkRevisionNarrativeForWrite,
   isCompleteBrief,
   readStoredBrief,
+  readStoredDelta,
   readStoredDeltaBrief,
   readStoredRevisionNarrative,
 } from "../../src/artifact";
 import {
   makeSkippedRevisionNarrative,
+  makeUnchangedRevisionNarrative,
   makeTwoGroupBrief,
   makeValidBrief,
   makeValidDeltaBrief,
@@ -545,6 +547,43 @@ describe("readStoredDeltaBrief", () => {
   });
 });
 
+describe("readStoredDelta", () => {
+  const { pr, baselineSha, headSha } = makeValidDeltaBrief();
+  const spanRecord = {
+    pr,
+    baselineSha,
+    headSha,
+    baselineIndex: 1,
+    headIndex: 2,
+  };
+
+  it.each([
+    ["the no-change record", { artifactKind: "deltaUnchanged", ...spanRecord }],
+    [
+      "the skip record",
+      {
+        artifactKind: "deltaSkipped",
+        ...spanRecord,
+        skipped: "span-too-large",
+      },
+    ],
+    ["a Delta Brief", makeValidDeltaBrief()],
+  ])("reads %s", (_title, body) => {
+    expect(readStoredDelta(JSON.stringify(body))).toEqual({
+      ok: true,
+      value: body,
+    });
+  });
+
+  it("fails on a no-change record missing its span", () => {
+    const body = { artifactKind: "deltaUnchanged", pr };
+
+    const read = readStoredDelta(JSON.stringify(body));
+
+    expect(read.ok).toBe(false);
+  });
+});
+
 describe("readStoredRevisionNarrative", () => {
   it("reads a generated narrative", () => {
     const narrative = makeValidRevisionNarrative();
@@ -561,6 +600,15 @@ describe("readStoredRevisionNarrative", () => {
     expect(readStoredRevisionNarrative(JSON.stringify(stub))).toEqual({
       ok: true,
       value: { narrative: stub, issues: [] },
+    });
+  });
+
+  it("accepts the no-change record", () => {
+    const unchanged = makeUnchangedRevisionNarrative();
+
+    expect(readStoredRevisionNarrative(JSON.stringify(unchanged))).toEqual({
+      ok: true,
+      value: { narrative: unchanged, issues: [] },
     });
   });
 

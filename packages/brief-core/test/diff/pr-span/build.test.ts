@@ -143,18 +143,22 @@ describe("buildPrSpan when only the base moved", () => {
     const span = buildPrSpan({
       prevPrDiff: makePrDiff(base, withPr),
       newPrDiff: makePrDiff(movedBase, movedWithPr),
-      betweenHeads: new Map(),
+      betweenHeads: makeBetweenHeads([
+        "@@ -5,6 +5,7 @@",
+        " b5",
+        " p1",
+        " b6",
+        "+n1",
+        " b7",
+        " b8",
+        " p2",
+      ]),
     });
 
+    expect(span.isUnchanged).toBe(true);
+    expect(span.filteredDiff).toBe("");
     expect(span.hop[0]?.hunks).toEqual([
-      { oldStart: 1, oldLines: 5, newStart: 1, newLines: 5 },
-      { oldStart: 7, oldLines: 3, newStart: 7, newLines: 4 },
-      {
-        oldStart: 11,
-        oldLines: REST_OF_FILE_LINES,
-        newStart: 12,
-        newLines: REST_OF_FILE_LINES,
-      },
+      { oldStart: 7, oldLines: 0, newStart: 8, newLines: 1 },
     ]);
     expect(
       remapThroughHops(
@@ -181,7 +185,17 @@ describe("buildPrSpan when only the base moved", () => {
     const span = buildPrSpan({
       prevPrDiff: makePrDiff(base, insertAfter(base, "b5", ["p1"])),
       newPrDiff: makePrDiff(movedBase, insertAfter(movedBase, "b5", ["p1"])),
-      betweenHeads: new Map(),
+      betweenHeads: makeBetweenHeads([
+        "@@ -1,7 +1,7 @@",
+        " b1",
+        " b2",
+        " b3",
+        "-b4",
+        "+b4x",
+        " b5",
+        " p1",
+        " b6",
+      ]),
     });
 
     expect(span.isUnchanged).toBe(true);
@@ -306,6 +320,30 @@ describe("buildPrSpan when the PR change moved", () => {
     expect(span.unfilteredDiff).toContain("+b9x");
     expect(span.filteredDiff).not.toContain("b9x");
     expect(span.filteredDiff).toContain("+p2");
+  });
+
+  it("abuts a base edit directly beside a PR run, over-reading it", () => {
+    const base = makeBaseLines(40);
+    const movedBase = replaceLine(base, "b10", ["b10x"]);
+    const between = makeBetweenHeads([
+      "@@ -7,7 +7,7 @@",
+      " b7",
+      " b8",
+      " b9",
+      "-b10",
+      "+b10x",
+      " p1",
+      " b11",
+      " b12",
+    ]);
+
+    const span = buildPrSpan({
+      prevPrDiff: makePrDiff(base, insertAfter(base, "b10", ["p1"])),
+      newPrDiff: makePrDiff(movedBase, insertAfter(movedBase, "b10x", ["p1"])),
+      betweenHeads: between,
+    });
+
+    expect(span.filteredDiff).toContain("+b10x");
   });
 
   it("keeps a conflict resolution inside a PR hunk", () => {

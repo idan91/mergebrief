@@ -2,6 +2,7 @@ import type {
   IntentCheck,
   RevisionNarrative,
   RevisionNarrativeSkipped,
+  RevisionNarrativeUnchanged,
 } from "brief-core/types";
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import { ViewportBands } from "@web/hooks/useViewportBoundary";
@@ -402,6 +403,7 @@ describe("discriminateNarrativeArtifact", () => {
     expect(discriminateNarrativeArtifact(null)).toEqual({
       narrative: null,
       skipReason: null,
+      isUnchanged: false,
     });
   });
 
@@ -409,6 +411,7 @@ describe("discriminateNarrativeArtifact", () => {
     expect(discriminateNarrativeArtifact(narrative)).toEqual({
       narrative,
       skipReason: null,
+      isUnchanged: false,
     });
   });
 
@@ -416,6 +419,21 @@ describe("discriminateNarrativeArtifact", () => {
     expect(discriminateNarrativeArtifact(skipped)).toEqual({
       narrative: null,
       skipReason: "span too large",
+      isUnchanged: false,
+    });
+  });
+
+  it("returns only the unchanged flag for a no-change record", () => {
+    const { skipped: _reason, ...unchangedFields } = skipped;
+    const unchanged: RevisionNarrativeUnchanged = {
+      ...unchangedFields,
+      artifactKind: "revisionNarrativeUnchanged",
+    };
+
+    expect(discriminateNarrativeArtifact(unchanged)).toEqual({
+      narrative: null,
+      skipReason: null,
+      isUnchanged: true,
     });
   });
 });

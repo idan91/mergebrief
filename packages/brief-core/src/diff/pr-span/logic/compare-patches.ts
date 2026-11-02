@@ -15,7 +15,12 @@ import {
   type ModeChange,
   type PrFilePatch,
 } from "../types";
-import { hasSameRuns, readChangeRuns, splitPatchHunks } from "./change-runs";
+import {
+  hasSameRunContexts,
+  hasSameRuns,
+  readChangeRuns,
+  splitPatchHunks,
+} from "./change-runs";
 
 function readPrFilePatch(file: string, patch: string): PrFilePatch {
   const paths = parsePatchPaths(patch);
@@ -104,10 +109,12 @@ function decideContentVerdict(
   if (samePreBlob) {
     return FileVerdicts.CONTENT_CHANGED;
   }
-  if (hasSameRuns(prev.runs, next.runs)) {
-    return FileVerdicts.BASE_MOVED;
+  if (!hasSameRuns(prev.runs, next.runs)) {
+    return FileVerdicts.CONTENT_CHANGED;
   }
-  return FileVerdicts.CONTENT_CHANGED;
+  return hasSameRunContexts(prev.patch, next.patch)
+    ? FileVerdicts.BASE_MOVED
+    : FileVerdicts.CONTEXT_MOVED;
 }
 
 function readModeChange(
@@ -143,6 +150,10 @@ function comparePair(prev: PrFilePatch, next: PrFilePatch): ComparedFile {
     compared.verdict === FileVerdicts.BASE_MOVED;
   if (contentUnchanged) {
     compared.verdict = FileVerdicts.HEADER_CHANGED;
+  }
+  // A mode change reads changed whatever the line diff finds, so it keeps the content diff beside it.
+  if (compared.verdict === FileVerdicts.CONTEXT_MOVED) {
+    compared.verdict = FileVerdicts.CONTENT_CHANGED;
   }
   return compared;
 }

@@ -11,17 +11,20 @@ import {
   deriveLastReviewComparison,
   type CheckpointBaseline,
   type DeltaSpanSets,
+  type NarrativeSpanSets,
 } from "./revision-comparisons";
 
 export interface RevisionViewContext {
   readonly briefs: readonly BriefSpanRow[];
   readonly markSpans: ReadonlySet<string>;
   readonly deltaSpans: DeltaSpanSets;
-  readonly narrativeSpans: ReadonlySet<string>;
+  readonly narrativeSpans: NarrativeSpanSets;
   readonly checkpoint: CheckpointBaseline | undefined;
   /** First-enqueue time per head; fallback is the artifact's own write time. */
   readonly generatedAtByHead: ReadonlyMap<string, Date>;
   readonly currentHeadSha: string;
+  /** The current head's brief generation is still running. */
+  readonly latestBriefPending: boolean;
   readonly latestPendingProbe: (baselineSha: string) => Promise<boolean>;
 }
 
@@ -29,11 +32,13 @@ export async function buildRevisionView(
   entry: BriefSpanRow,
   ctx: RevisionViewContext,
 ): Promise<RevisionView> {
+  const isCurrentHead = entry.headSha === ctx.currentHeadSha;
   const previousBrief = derivePreviousBriefComparison(
     entry,
     ctx.briefs,
     ctx.markSpans,
     ctx.narrativeSpans,
+    isCurrentHead && ctx.latestBriefPending,
   );
   const lastReview = await deriveLastReviewComparison(
     entry.headSha,
@@ -41,7 +46,7 @@ export async function buildRevisionView(
     ctx.briefs,
     ctx.markSpans,
     ctx.deltaSpans,
-    entry.headSha === ctx.currentHeadSha ? ctx.latestPendingProbe : undefined,
+    isCurrentHead ? ctx.latestPendingProbe : undefined,
   );
   const comparisons: {
     previousBrief?: PreviousBriefComparisonView;

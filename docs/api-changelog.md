@@ -13,6 +13,24 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-11-01)
+
+- **Added** `deltaUnchanged: true` on an available `comparisons.lastReview`
+  of `read-pull`: the pull request's own change did not move since the
+  checkpoint (a rebase, a base merge or a rewrite only), so no delta is owed.
+  `deltaAvailable` is `false` on such a view; the field is absent otherwise.
+  `read-delta` answers such a span 404, as it does a skipped one.
+- **Added** `unchanged: true` on an available `comparisons.previousBrief` of
+  `read-pull`: the same, since the previous brief. `read-narrative` serves
+  the span's no-change record (`artifactKind: "revisionNarrativeUnchanged"`,
+  no `overview` or `chunks`) in place of a narrative.
+- **Added** an unavailable arm to `comparisons.previousBrief` on
+  `read-pull`: `{baselineSha, baselineIndex, unavailable}` where a previous
+  brief exists but its span has no marks, with the `lastReview` reasons
+  (`pending`, `baseline-unavailable`, `span-too-large`). Such a revision
+  previously carried no `previousBrief`. Clients that read
+  `narrativeAvailable` must branch on `unavailable` first.
+
 ## dev (2026-10-27)
 
 - **Added** two optional fields to each card's counts on `read-brief-layout`:

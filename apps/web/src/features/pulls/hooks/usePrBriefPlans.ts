@@ -11,6 +11,7 @@ import {
 } from "@web/features/brief";
 import {
   lastReviewUnavailableReasonTitle,
+  previousBriefUnavailableReasonTitle,
   type CompareOptionFlags,
 } from "@web/features/brief/model";
 import {
@@ -70,6 +71,8 @@ export interface UsePrBriefPlansValue {
   availability: CompareOptionFlags;
   /** Honest reason on the disabled compare control; absent keeps generic copy. */
   lastReviewDisabledReason: string | undefined;
+  /** The same for a previous brief whose span has no marks. */
+  previousBriefDisabledReason: string | undefined;
   submitAction: SubmitReviewAction;
   conversationPlan: ConversationPlan;
   /** Own-draft plan: absent on every non-own-draft view. */
@@ -95,7 +98,7 @@ export function usePrBriefPlans(
   const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
     const plan: Mutable<BriefComparisonPlan> = {};
 
-    if (previous !== undefined) {
+    if (previous?.kind === "available") {
       const previousBrief: PreviousBriefPlan = {
         marks: buildDbComparisonMarksQueryOptions(
           repoId,
@@ -158,6 +161,9 @@ export function usePrBriefPlans(
       if (lastReview.deltaSkipped === true) {
         lastReviewPlan.deltaSkipped = true;
       }
+      if (lastReview.deltaUnchanged === true) {
+        lastReviewPlan.deltaUnchanged = true;
+      }
 
       plan.lastReview = lastReviewPlan;
     }
@@ -173,6 +179,10 @@ export function usePrBriefPlans(
   const lastReviewDisabledReason =
     lastReview?.kind === "unavailable"
       ? lastReviewUnavailableReasonTitle(t, lastReview.reason)
+      : undefined;
+  const previousBriefDisabledReason =
+    previous?.kind === "unavailable"
+      ? previousBriefUnavailableReasonTitle(t, previous.reason)
       : undefined;
 
   // Pin reviews to the viewed span head, never a meta head that advanced while reading.
@@ -282,6 +292,7 @@ export function usePrBriefPlans(
     comparisonPlan,
     availability,
     lastReviewDisabledReason,
+    previousBriefDisabledReason,
     submitAction,
     conversationPlan,
     ownDraft,

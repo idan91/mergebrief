@@ -4,7 +4,9 @@
 import {
   LastReviewUnavailableReasons,
   type AvailableLastReviewComparisonView,
+  type AvailablePreviousBriefComparisonView,
   type LastReviewComparisonView,
+  type LastReviewUnavailableReason,
   type PreviousBriefComparisonView,
 } from "contract";
 import {
@@ -31,10 +33,11 @@ export function comparisonSpanSet(
 ): ReadonlySet<string> {
   return new Set(rows.map((row) => spanKey(row.baselineSha, row.headSha)));
 }
-/** A span's delta row is a Delta Brief to offer or the skip record standing in for one. */
+/** A span's delta row is a Delta Brief to offer, or the skip or no-change record standing in for one. */
 export interface DeltaSpanSets {
   readonly available: ReadonlySet<string>;
   readonly skipped: ReadonlySet<string>;
+  readonly unchanged: ReadonlySet<string>;
 }
 
 export function buildDeltaSpanSets(
@@ -42,21 +45,39 @@ export function buildDeltaSpanSets(
 ): DeltaSpanSets {
   const available = new Set<string>();
   const skipped = new Set<string>();
+  const unchanged = new Set<string>();
   for (const row of rows) {
     const key = spanKey(row.baselineSha, row.headSha);
     if (row.skipped) {
       skipped.add(key);
+    } else if (row.unchanged) {
+      unchanged.add(key);
     } else {
       available.add(key);
     }
   }
-  return { available, skipped };
+  return { available, skipped, unchanged };
 }
 
-export function narrativeSpanSet(
+/** Every span with a narrative row, and those whose row is the no-change record. */
+export interface NarrativeSpanSets {
+  readonly written: ReadonlySet<string>;
+  readonly unchanged: ReadonlySet<string>;
+}
+
+export function buildNarrativeSpanSets(
   rows: readonly NarrativeSpanRow[],
-): ReadonlySet<string> {
-  return new Set(rows.map((row) => spanKey(row.prevHeadSha, row.headSha)));
+): NarrativeSpanSets {
+  const written = new Set<string>();
+  const unchanged = new Set<string>();
+  for (const row of rows) {
+    const key = spanKey(row.prevHeadSha, row.headSha);
+    written.add(key);
+    if (row.unchanged) {
+      unchanged.add(key);
+    }
+  }
+  return { written, unchanged };
 }
 
 /**
@@ -65,13 +86,15 @@ export function narrativeSpanSet(
  * baseline rule), restricting to a lower index is what makes this correct for
  * a HISTORICAL head, not only the latest. Offered only when the mechanical
  * marks row exists (marks are the sole highlight truth); a missing narrative
- * only downgrades `narrativeAvailable`.
+ * only downgrades `narrativeAvailable`. Without marks the view says why, and
+ * `targetPending` is true only while the target head's brief still generates.
  */
 export function derivePreviousBriefComparison(
   target: BriefSpanRow,
   briefs: readonly BriefSpanRow[],
   markSpans: ReadonlySet<string>,
-  narrativeSpans: ReadonlySet<string>,
+  narrativeSpans: NarrativeSpanSets,
+  targetPending: boolean,
 ): PreviousBriefComparisonView | undefined {
   // `briefs` is ordered by headIndex ascending → the last lower-index match is
   // the highest-index previous briefed head.
@@ -84,22 +107,58 @@ export function derivePreviousBriefComparison(
   if (previous === undefined) {
     return undefined;
   }
-  if (!markSpans.has(spanKey(previous.headSha, target.headSha))) {
-    return undefined;
+  const span = spanKey(previous.headSha, target.headSha);
+  if (!markSpans.has(span)) {
+    return {
+      baselineSha: previous.headSha,
+      baselineIndex: previous.headIndex,
+      unavailable: resolveUnmarkedSpanReason(
+        narrativeSpans.written.has(span),
+        targetPending,
+      ),
+    };
   }
-  return {
+  const view: Mutable<AvailablePreviousBriefComparisonView> = {
     baselineSha: previous.headSha,
     baselineIndex: previous.headIndex,
-    narrativeAvailable: narrativeSpans.has(
-      spanKey(previous.headSha, target.headSha),
-    ),
+    narrativeAvailable: narrativeSpans.written.has(span),
   };
+  if (narrativeSpans.unchanged.has(span)) {
+    view.unchanged = true;
+  }
+  return view;
+}
+
+/** Marks precede every narrative write but the refused span's skip record, so a narrative row without marks is that span. */
+function resolveUnmarkedSpanReason(
+  narrativeWritten: boolean,
+  targetPending: boolean,
+): LastReviewUnavailableReason {
+  if (narrativeWritten) {
+    return LastReviewUnavailableReasons.SPAN_TOO_LARGE;
+  }
+  if (targetPending) {
+    return LastReviewUnavailableReasons.PENDING;
+  }
+  return LastReviewUnavailableReasons.BASELINE_UNAVAILABLE;
 }
 
 function isNonTerminal(status: GenerationStatus): boolean {
   return (
     status === GenerationStatuses.PENDING ||
     status === GenerationStatuses.RUNNING
+  );
+}
+
+/** The head's brief generation is still running, so its spans may still land. */
+export function isBriefGenerationPending(
+  latestBriefGeneration: GenerationRow | undefined,
+  headSha: string,
+): boolean {
+  return (
+    latestBriefGeneration !== undefined &&
+    latestBriefGeneration.headSha === headSha &&
+    isNonTerminal(latestBriefGeneration.status)
   );
 }
 
@@ -131,11 +190,7 @@ export function makeLatestPendingProbe(
       return hit;
     }
     const result = (async (): Promise<boolean> => {
-      const briefGenPending =
-        latestBriefGeneration !== undefined &&
-        latestBriefGeneration.headSha === headSha &&
-        isNonTerminal(latestBriefGeneration.status);
-      if (briefGenPending) {
+      if (isBriefGenerationPending(latestBriefGeneration, headSha)) {
         return true;
       }
       const deltaGeneration = await generations.get({
@@ -189,6 +244,9 @@ export async function deriveLastReviewComparison(
     };
     if (deltaSpans.skipped.has(span)) {
       view.deltaSkipped = true;
+    }
+    if (deltaSpans.unchanged.has(span)) {
+      view.deltaUnchanged = true;
     }
     if (baselineIndex !== undefined) {
       view.baselineIndex = baselineIndex;

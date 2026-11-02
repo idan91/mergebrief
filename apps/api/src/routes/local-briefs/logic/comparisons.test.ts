@@ -25,6 +25,7 @@ const SECOND: LocalBriefSummary = {
 
 const NO_SOURCES: ComparisonSources = {
   summaries: [],
+  deltaRecords: [],
   marks: [],
   legacy: [],
   narrativeIds: new Set(),

@@ -17,28 +17,28 @@ import {
 import {
   RevisionNarrativeSkipReasons,
   type RevisionNarrativeSkipReason,
+  type RevisionNarrativeUnchanged,
 } from "brief-core/types";
-import type { Logger } from "logging";
 import { GenerationKinds } from "persistence";
-import type { PullRequestSource } from "../../github-port";
 import type { ParsedGeneratePayload } from "../../payload";
-import type { PrefetchedSpan, RevisionArtifactInputs } from "../types";
+import type { RevisionArtifactInputs } from "../types";
 import { getGenerationOrigin } from "../utils";
 import { warnOnFailedCheck } from "./artifact-check";
-import { isDiffTooLarge, isPermanentGitHubError } from "./errors";
 import { OutputSecretError } from "./output-secret";
 
 /**
  * Comparison marks (mechanical, always) + revision narrative (generated,
  * best-effort, a narrative failure never fails the Brief, mirroring
- * `generateAndWrite`). Marks are written BEFORE the narrative call so a
- * failed narrative still leaves highlights available.
+ * `generateAndWrite`), both over the span's filtered diff. Marks are written
+ * BEFORE the narrative call so a failed narrative still leaves highlights
+ * available. An unchanged span writes zero-file marks and the no-change
+ * record, with no spend charge and no model call.
  */
 export async function writeRevisionArtifacts(
   payload: ParsedGeneratePayload,
   inputs: RevisionArtifactInputs,
 ): Promise<void> {
-  const { store, revDiff, prevBrief, generatedBrief } = inputs;
+  const { store, span, prevBrief, generatedBrief } = inputs;
   const { pullRequestId, headSha } = payload;
 
   const marks = buildComparisonMarks(
@@ -46,7 +46,7 @@ export async function writeRevisionArtifacts(
     prevBrief.headSha,
     "previous-brief",
     prevBrief.headIndex,
-    revDiff,
+    span.filteredDiff,
   );
   // Persistence's strict schema is coordinates-only: pass exactly the SHA
   // pair + files, never the read-time label/index context.
@@ -67,7 +67,42 @@ export async function writeRevisionArtifacts(
   }
 
   const record = { ...inputs, generatedBrief };
+  if (span.isUnchanged) {
+    await writeUnchangedNarrative(payload, record);
+    return;
+  }
   await writeSpanNarrative(payload, record, marks.files);
+}
+
+/** The config gate still wins: the owner turned the narrative off. */
+async function writeUnchangedNarrative(
+  payload: ParsedGeneratePayload,
+  record: NarrativeCallInputs,
+): Promise<void> {
+  const skipped = resolveNarrativeSkip(record.revisionNarrative, false);
+  if (skipped !== undefined) {
+    await writeSkippedNarrative(payload, record, skipped);
+    return;
+  }
+
+  const { generatedBrief, prevBrief, briefRef } = record;
+  const unchanged: RevisionNarrativeUnchanged = {
+    artifactKind: "revisionNarrativeUnchanged",
+    pr: generatedBrief.pr,
+    prevHeadSha: prevBrief.headSha,
+    headSha: payload.headSha,
+    prevIndex: prevBrief.headIndex,
+    headIndex: briefRef.headIndex,
+  };
+  await writeNarrativeRecord(
+    payload,
+    record,
+    unchanged,
+    generatedBrief.generation,
+  );
+  record.log.info(
+    "generate: revision span unchanged; wrote the no-change record",
+  );
 }
 
 /** The gate, the ratio and the call limits all run before the spend charge. */
@@ -76,7 +111,8 @@ async function writeSpanNarrative(
   record: NarrativeCallInputs,
   marksFiles: NonNullable<RevisionNarrativeInput["marksFiles"]>,
 ): Promise<void> {
-  const { locator, meta, revDiff, prevBrief, briefRef, log } = record;
+  const { locator, meta, span, prevBrief, briefRef, log } = record;
+  const revDiff = span.filteredDiff;
   const revSpanHuge = isHugeSpan(
     countChangedLines(revDiff),
     record.wholePrChangedLines,
@@ -225,34 +261,6 @@ async function writeNarrativeRecord(
     body: JSON.stringify(narrative),
     bodyVersion: STORED_BODY_VERSION,
   });
-}
-
-/**
- * The checkpoint span's diff, or GitHub's refusal for good: a single
- * unrenderable or GC'd span must not sink the whole job (the brief is already
- * stored). A transient failure throws for graphile's retry.
- */
-export async function fetchDeltaSpan(
-  source: PullRequestSource,
-  baselineSha: string,
-  headSha: string,
-  log: Logger,
-): Promise<PrefetchedSpan> {
-  const spanDiff = await source.fetchCompareDiff(baselineSha, headSha);
-  if (spanDiff.ok) {
-    return { baselineSha, diff: spanDiff.value, marksWritten: false };
-  }
-  if (!isPermanentGitHubError(spanDiff.error)) {
-    throw new Error(spanDiff.error.message);
-  }
-
-  const diffTooLarge = isDiffTooLarge(spanDiff.error);
-  if (!diffTooLarge) {
-    log.warn("generate: delta span unavailable; skipping", {
-      code: spanDiff.error.code,
-    });
-  }
-  return { baselineSha, unread: true, diffTooLarge };
 }
 
 /** Whole-PR churn, the huge-span denominator (metadata, not span diff). */

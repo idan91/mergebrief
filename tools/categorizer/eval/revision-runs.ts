@@ -1,4 +1,5 @@
 import type { z } from "zod/v4";
+import { isSpanUnchanged } from "brief-core/pr-span";
 import {
   categorizeDelta,
   categorizeRevisionNarrative,
@@ -7,6 +8,7 @@ import {
   exceedsNarrativeCallLimits,
   isHugeSpan,
   parseChangedRanges,
+  shapeDeltaUnchanged,
   type DeltaInput,
   type RevisionChangeFile,
   type RevisionNarrativeInput,
@@ -15,8 +17,10 @@ import {
   DeltaBriefGenerationSchema,
   type Brief,
   type DeltaBrief,
+  type DeltaUnchanged,
   type ReviewComment,
   type RevisionNarrative,
+  type RevisionNarrativeUnchanged,
 } from "brief-core/types";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import type { EvalFixture } from "./loadCase";
@@ -25,20 +29,26 @@ import type { EvalFixture } from "./loadCase";
 export const BASE_BRIEF_INDEX = 1;
 export const REVISED_BRIEF_INDEX = 2;
 
-/** What a narrative property reads: the narrative, the Brief it aligned to, and the span's marks. */
+/**
+ * What a narrative property reads: the narrative, or the no-change record an
+ * empty span writes, the Brief it aligned to, the span's marks and the model
+ * calls the run made.
+ */
 export interface NarrativeRun {
   brief: Brief;
-  narrative: RevisionNarrative;
+  narrative: RevisionNarrative | RevisionNarrativeUnchanged;
   marksFiles: RevisionChangeFile[];
   filteredSpan: string;
+  modelCalls: number;
 }
 
 /** What a delta property reads; `unknownGroupChunkIds` are chunks the pipeline dropped before `delta`. */
 export interface DeltaRun {
-  delta: DeltaBrief;
+  delta: DeltaBrief | DeltaUnchanged;
   filteredSpan: string;
   reviewComments: readonly ReviewComment[];
   unknownGroupChunkIds: readonly string[];
+  modelCalls: number;
 }
 
 export interface NarrativeEvalProperty {
@@ -117,13 +127,34 @@ export function readSpanSkip(
   return undefined;
 }
 
-/** The revision narrative on the revised Brief, as the worker calls it after the Brief. */
+/**
+ * The revision narrative on the revised Brief, as the worker calls it after
+ * the Brief; an empty span writes the no-change record and calls no model.
+ */
 export async function generateNarrativeRun(
   inputs: RevisionSpanInputs,
   brief: Brief,
 ): Promise<NarrativeRun> {
   const { revised } = inputs;
   const marksFiles = parseChangedRanges(inputs.filteredSpan);
+  const recorded = recordOutputs(inputs.generator);
+  if (isSpanUnchanged(inputs.filteredSpan)) {
+    const unchanged: RevisionNarrativeUnchanged = {
+      artifactKind: "revisionNarrativeUnchanged",
+      pr: brief.pr,
+      prevHeadSha: inputs.prevHeadSha,
+      headSha: revised.commitRange.head,
+      prevIndex: BASE_BRIEF_INDEX,
+      headIndex: REVISED_BRIEF_INDEX,
+    };
+    return {
+      brief,
+      narrative: unchanged,
+      marksFiles,
+      filteredSpan: inputs.filteredSpan,
+      modelCalls: recorded.outputs.length,
+    };
+  }
   const narrativeInput: RevisionNarrativeInput = {
     locator: revised.pr.locator,
     meta: revised.pr.meta,
@@ -145,18 +176,45 @@ export async function generateNarrativeRun(
 
   const narrative = await categorizeRevisionNarrative(
     narrativeInput,
-    inputs.generator,
+    recorded.generator,
     () => {},
     inputs.effort,
   );
-  return { brief, narrative, marksFiles, filteredSpan: inputs.filteredSpan };
+  return {
+    brief,
+    narrative,
+    marksFiles,
+    filteredSpan: inputs.filteredSpan,
+    modelCalls: recorded.outputs.length,
+  };
 }
 
-/** The Delta Brief of a reviewer whose Checkpoint sits at the previous head. */
+/**
+ * The Delta Brief of a reviewer whose Checkpoint sits at the previous head;
+ * an empty span writes the no-change record and calls no model.
+ */
 export async function generateDeltaRun(
   inputs: RevisionSpanInputs,
 ): Promise<DeltaRun> {
+  const { revised } = inputs;
   const recorded = recordOutputs(inputs.generator);
+  if (isSpanUnchanged(inputs.filteredSpan)) {
+    const unchanged = shapeDeltaUnchanged({
+      locator: revised.pr.locator,
+      meta: revised.pr.meta,
+      baselineSha: inputs.prevHeadSha,
+      headSha: revised.commitRange.head,
+      baselineIndex: BASE_BRIEF_INDEX,
+      headIndex: REVISED_BRIEF_INDEX,
+    });
+    return {
+      delta: unchanged,
+      filteredSpan: inputs.filteredSpan,
+      reviewComments: inputs.reviewComments,
+      unknownGroupChunkIds: [],
+      modelCalls: recorded.outputs.length,
+    };
+  }
   const deltaInput = buildDeltaInput(inputs);
 
   const delta = await categorizeDelta(
@@ -170,6 +228,7 @@ export async function generateDeltaRun(
     filteredSpan: inputs.filteredSpan,
     reviewComments: inputs.reviewComments,
     unknownGroupChunkIds: listUnknownGroupChunkIds(recorded.outputs.at(-1)),
+    modelCalls: recorded.outputs.length,
   };
 }
 

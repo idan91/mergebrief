@@ -49,6 +49,12 @@ export function buildLocalComparisonPlan(
     if (lastReview.deltaId !== undefined) {
       lastReviewPlan.delta = buildLocalDeltaQueryOptions(lastReview.deltaId);
     }
+    if (lastReview.deltaSkipped === true) {
+      lastReviewPlan.deltaSkipped = true;
+    }
+    if (lastReview.deltaUnchanged === true) {
+      lastReviewPlan.deltaUnchanged = true;
+    }
     plan.lastReview = lastReviewPlan;
   }
 

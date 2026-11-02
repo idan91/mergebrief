@@ -5,6 +5,7 @@ export {
   compareUnavailableTitle,
   isCompareAvailable,
   lastReviewUnavailableReasonTitle,
+  previousBriefUnavailableReasonTitle,
   parseBriefAddressSearch,
   resolveBriefSearch,
   stripDefaultSearch,

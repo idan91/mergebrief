@@ -32,6 +32,8 @@ export interface DbCompareBarProps {
    * option is unavailable.
    */
   lastReviewDisabledReason?: string | undefined;
+  /** The same override for "Previous brief" (pending / baseline-unavailable / too large). */
+  previousBriefDisabledReason?: string | undefined;
   /** Route-owned navigation, receives the next normalized View/Compare state. */
   onNavigate: (next: BriefSearch) => void;
 }
@@ -40,6 +42,7 @@ export function DbCompareBar({
   availability,
   compareState,
   lastReviewDisabledReason,
+  previousBriefDisabledReason,
   onNavigate,
 }: DbCompareBarProps) {
   const { t } = useTranslation();
@@ -64,10 +67,11 @@ export function DbCompareBar({
     if (isCompareAvailable(compare, availability)) {
       return { value: compare, label };
     }
-    const reason =
-      (compare === CompareParams.LAST_REVIEW
+    const override =
+      compare === CompareParams.LAST_REVIEW
         ? lastReviewDisabledReason
-        : undefined) ?? compareUnavailableTitle(t, compare);
+        : previousBriefDisabledReason;
+    const reason = override ?? compareUnavailableTitle(t, compare);
     return { value: compare, label, unavailableReason: reason };
   };
 

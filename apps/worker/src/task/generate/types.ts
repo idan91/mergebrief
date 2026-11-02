@@ -11,6 +11,7 @@ import type {
 } from "brief-core";
 import type { ArtifactIssue, StoredBrief } from "brief-core/artifact";
 import type { OpenPullRequest } from "brief-core/pr-stack";
+import type { PrSpan, PrSpanResult } from "brief-core/pr-span";
 import type {
   Anchor,
   Effort,
@@ -220,32 +221,34 @@ export interface AnchorColumns {
   anchorReason?: string;
 }
 
-/** A span diff already fetched this run, reused, never re-fetched. */
+/** A revision span already read this run, reused, never re-read. */
 export interface FetchedSpan {
   readonly baselineSha: string;
-  readonly diff: string;
+  readonly span: PrSpan;
   /** Marks for this span were already written this run. */
   readonly marksWritten: boolean;
 }
 
-/** A span the run could not read after the brief write: no later step asks again. */
+/** A span the run could not read: no later step asks again. */
 export interface UnreadSpan {
   readonly baselineSha: string;
   readonly unread: true;
-  /** GitHub would not render the span whole (406 or a short diff); the commits still exist. */
+  /** The span is past what GitHub renders or the span bound allows; the commits still exist. */
   readonly diffTooLarge: boolean;
 }
 
 export type PrefetchedSpan = FetchedSpan | UnreadSpan;
 
-/** Why the revision span went unread after the brief write. */
-export const RevisionSpanReadFailures = {
-  /** GitHub's 406 or its 422 render timeout: the span is past what it renders. */
-  TOO_LARGE: "too-large",
-  UNAVAILABLE: "unavailable",
-} as const;
+/** An earlier head a revision span starts from, with the base its own Brief was read against. */
+export interface SpanBaseline {
+  readonly headSha: string;
+  readonly baseSha: string;
+}
 
-export type RevisionSpanReadFailure = ValueOf<typeof RevisionSpanReadFailures>;
+/** Reads the span from `baseline` to the run's head; a failure a retry may clear throws while one follows. */
+export type RevisionSpanReader = (
+  baseline: SpanBaseline,
+) => Promise<PrSpanResult>;
 
 export interface RevisionArtifactInputs {
   readonly store: ArtifactStore;
@@ -255,8 +258,8 @@ export interface RevisionArtifactInputs {
   readonly hugeSpanRatio?: number | undefined;
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
-  /** The prevHead...head compare diff, fetched once by the caller. */
-  readonly revDiff: string;
+  /** The revision span from the previous briefed head, read once by the caller. */
+  readonly span: PrSpan;
   readonly prevBrief: BriefSpanRow;
   readonly briefRef: BriefRef;
   /** Present only when THIS run generated the brief (narrative needs it). */
@@ -283,8 +286,11 @@ export interface CheckpointDeltasInputs {
   readonly meta: PrMetadata;
   readonly source: PullRequestSource;
   readonly priorBriefs: readonly BriefSpanRow[];
-  /** The prevHead...head span already fetched (and marks written) this run. */
+  /** The prevHead...head span already read (and marks written) this run. */
   readonly prevSpan: PrefetchedSpan | undefined;
+  readonly readSpan: RevisionSpanReader;
+  /** The PR's current base: a checkpoint no Brief was written at is read against it. */
+  readonly baseSha: string;
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
@@ -546,8 +552,10 @@ export interface RunInputs {
   readonly diff: string;
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
-  /** The prevHead...head compare diff Result, fetched before the model call. */
+  /** The prevHead...head compare diff Result, fetched before the model call; anchoring reads it. */
   readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
+  /** The revision span on the PR's own diffs, read before the model call. */
+  readonly prevSpanRead: PrSpanResult | undefined;
   readonly repoConfig: AcquiredRepoConfig | undefined;
   readonly loadContext: TicketContextLoader;
   readonly entryCommentAllowed: boolean;

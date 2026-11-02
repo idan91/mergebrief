@@ -1,6 +1,7 @@
+import type { Mutable } from "types/utils";
 import { HUNK_HEADER } from "../../chunk-layout/consts";
 import { NO_NEWLINE_MARKER } from "../consts";
-import type { ChangeRun, PatchHunks } from "../types";
+import type { ChangeRun, PatchHunks, RunContext } from "../types";
 
 interface RunDraft {
   lines: string[];
@@ -138,6 +139,94 @@ export function hasSameRuns(
       other !== undefined && other.lines.length === run.lines.length;
     return (
       sameLength && run.lines.every((line, at) => line === other.lines[at])
+    );
+  });
+}
+
+interface ContextWalk {
+  stretch: string[];
+  isInRun: boolean;
+  isInHunk: boolean;
+  open?: Mutable<RunContext> | undefined;
+}
+
+function closeContext(walk: ContextWalk): void {
+  if (walk.open !== undefined) {
+    walk.open.after = walk.stretch;
+  }
+}
+
+function walkContextLine(
+  walk: ContextWalk,
+  line: string,
+  contexts: RunContext[],
+): void {
+  const marker = line[0];
+  const isChangeLine = marker === "+" || marker === "-";
+  if (isChangeLine && !walk.isInRun) {
+    closeContext(walk);
+    walk.open = { before: walk.stretch, after: [] };
+    contexts.push(walk.open);
+    walk.stretch = [];
+    walk.isInRun = true;
+    return;
+  }
+  if (isChangeLine || (marker === NO_NEWLINE_MARKER && walk.isInRun)) {
+    return;
+  }
+  walk.isInRun = false;
+  walk.stretch.push(line);
+}
+
+/**
+ * Each change run's surrounding context lines, in run order. A hunk edge
+ * ends a stretch, so the same runs cut into hunks differently read as
+ * different context.
+ */
+export function readRunContexts(patch: string): RunContext[] {
+  const contexts: RunContext[] = [];
+  const walk: ContextWalk = { stretch: [], isInRun: false, isInHunk: false };
+
+  for (const line of patch.split("\n")) {
+    if (HUNK_HEADER.test(line)) {
+      closeContext(walk);
+      walk.open = undefined;
+      walk.stretch = [];
+      walk.isInRun = false;
+      walk.isInHunk = true;
+      continue;
+    }
+    if (walk.isInHunk && line !== "") {
+      walkContextLine(walk, line, contexts);
+    }
+  }
+  closeContext(walk);
+  return contexts;
+}
+
+function hasSameLines(
+  left: readonly string[],
+  right: readonly string[] | undefined,
+): boolean {
+  const sameLength = right !== undefined && right.length === left.length;
+  return sameLength && left.every((line, at) => line === right[at]);
+}
+
+/** True when every run of two patches sits between the same context lines. */
+export function hasSameRunContexts(
+  leftPatch: string,
+  rightPatch: string,
+): boolean {
+  const left = readRunContexts(leftPatch);
+  const right = readRunContexts(rightPatch);
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((context, index) => {
+    const other = right[index];
+    return (
+      hasSameLines(context.before, other?.before) &&
+      hasSameLines(context.after, other?.after)
     );
   });
 }

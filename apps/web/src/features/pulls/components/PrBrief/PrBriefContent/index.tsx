@@ -191,6 +191,7 @@ export function PrBriefContent({
     comparisonPlan,
     availability,
     lastReviewDisabledReason,
+    previousBriefDisabledReason,
     submitAction,
     conversationPlan,
     ownDraft,
@@ -350,6 +351,7 @@ export function PrBriefContent({
         availability,
         compareState,
         lastReviewDisabledReason,
+        previousBriefDisabledReason,
         onNavigate: navigateSearch,
       }}
       note={

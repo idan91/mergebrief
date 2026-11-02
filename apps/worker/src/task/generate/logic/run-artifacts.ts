@@ -7,13 +7,11 @@ import {
   writeAudit,
   type AuditEntry,
 } from "persistence";
-import type { GitHubCallFailure } from "github";
+import { PrSpanFailureKinds } from "brief-core/pr-span";
 import { GenerationStatuses } from "types/generations";
-import type { Result } from "types/utils";
 import { AUDIT_OPERATION_GENERATE } from "../consts";
 import type { ParsedGeneratePayload } from "../../payload";
 import {
-  RevisionSpanReadFailures,
   RunDecisionKinds,
   type BriefGenerationInputs,
   type BriefOriginLoader,
@@ -26,7 +24,6 @@ import {
   type PrefetchedSpan,
   type ProducedBrief,
   type RevisionArtifactInputs,
-  type RevisionSpanReadFailure,
   type RunContext,
   type RunInputs,
 } from "../types";
@@ -38,9 +35,9 @@ import {
   writeFreshBrief,
 } from "./brief-generation";
 import { generateCheckpointDeltas } from "./checkpoint-deltas";
-import { isSpanUnrendered } from "./errors";
 import { createMultiCallRun, sweepSpanParts } from "./generation-parts";
 import { readDefaultBranchGitAttributes } from "./git-attributes";
+import { createRevisionSpanReader } from "./revision-span";
 import { createSpendCharge } from "./spend-gate";
 import { throwOnClaimLost } from "./supersession-watch";
 import {
@@ -156,8 +153,8 @@ async function writeFreshBriefOverParts(
 
 /**
  * The revision artifacts over the prevHead...head span, then one delta core
- * per checkpoint. The span diff is unwrapped once and reused by the delta
- * loop, so a checkpoint at the previous briefed head does not re-fetch it.
+ * per checkpoint. The span read before the model call is reused by the delta
+ * loop, so a checkpoint at the previous briefed head does not re-read it.
  */
 export async function writeFollowOnArtifacts(
   context: RunContext,
@@ -185,6 +182,8 @@ export async function writeFollowOnArtifacts(
         source: context.source,
         priorBriefs: context.priorBriefs,
         prevSpan,
+        readSpan: createRevisionSpanReader(context),
+        baseSha: context.prInfo.baseSha,
         generator,
         watch,
         chargeSpend,
@@ -256,27 +255,31 @@ async function writeRevisionSpan(
   brief: ProducedBrief,
   spend: Pick<RevisionArtifactInputs, "generator" | "chargeSpend">,
 ): Promise<PrefetchedSpan | undefined> {
-  const { deps, payload, prevBrief } = context;
-  if (prevBrief === undefined || inputs.prevSpanFetch === undefined) {
+  const { deps, payload, prevBrief, log } = context;
+  const spanRead = inputs.prevSpanRead;
+  if (prevBrief === undefined || spanRead === undefined) {
     return undefined;
   }
 
-  const spanRead = readRevisionSpanDiff(context, inputs.prevSpanFetch);
+  const baselineSha = prevBrief.headSha;
   if (!spanRead.ok) {
-    const diffTooLarge = spanRead.error === RevisionSpanReadFailures.TOO_LARGE;
+    const diffTooLarge = spanRead.error.kind === PrSpanFailureKinds.TOO_LARGE;
     if (diffTooLarge) {
       await writeRefusedSpanSkip(context, prevBrief, brief);
+    } else {
+      log.warn("generate: revision span unavailable; skipping its artifacts");
     }
-    return { baselineSha: prevBrief.headSha, unread: true, diffTooLarge };
+    return { baselineSha, unread: true, diffTooLarge };
   }
-  const revDiff = spanRead.value;
+
+  const span = spanRead.value;
   await writeRevisionArtifacts(payload, {
     revisionNarrative: deps.revisionNarrative,
     hugeSpanRatio: deps.hugeSpanRatio,
     store: context.store,
     locator: inputs.locator,
     meta: inputs.meta,
-    revDiff,
+    span,
     prevBrief,
     briefRef: brief.briefRef,
     generatedBrief: brief.generatedBrief,
@@ -287,34 +290,9 @@ async function writeRevisionSpan(
     effort: deps.effort,
     wholePrChangedLines: countPrChangedLines(inputs.files),
     loadContext: inputs.loadContext,
-    log: context.log,
+    log,
   });
-  return { baselineSha: prevBrief.headSha, diff: revDiff, marksWritten: true };
-}
-
-/**
- * The brief is stored by now, so the span read never fails the run: a span
- * GitHub would not render (406, a short compare diff, or its 422 render
- * timeout) comes back as too large, and any other failure warns and skips the
- * span's artifacts.
- */
-function readRevisionSpanDiff(
-  context: RunContext,
-  spanFetch: Result<string, GitHubCallFailure>,
-): Result<string, RevisionSpanReadFailure> {
-  if (spanFetch.ok) {
-    return { ok: true, value: spanFetch.value };
-  }
-  const { error } = spanFetch;
-  if (isSpanUnrendered(error)) {
-    return { ok: false, error: RevisionSpanReadFailures.TOO_LARGE };
-  }
-
-  context.log.warn(
-    "generate: revision span unavailable; skipping its artifacts",
-    { code: error.code },
-  );
-  return { ok: false, error: RevisionSpanReadFailures.UNAVAILABLE };
+  return { baselineSha, span, marksWritten: true };
 }
 
 /** A span GitHub would not render still gets its skip record, without marks. */

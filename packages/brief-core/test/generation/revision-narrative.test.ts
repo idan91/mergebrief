@@ -5,7 +5,9 @@ import {
   exceedsDeltaCallLimits,
   exceedsNarrativeCallLimits,
   shapeDeltaSkipped,
+  shapeDeltaUnchanged,
 } from "../../src/generation/categorize";
+import { checkDeltaForWrite } from "../../src/artifact";
 import {
   BriefSchema,
   DeltaSkipReasons,
@@ -743,5 +745,19 @@ describe("span call limits, delta + narrative", () => {
     );
 
     expect([skipped.baselineIndex, skipped.headIndex]).toEqual([null, null]);
+  });
+
+  it("shapes the no-change record from the delta's own span", () => {
+    expect(checkDeltaForWrite(shapeDeltaUnchanged(deltaInput))).toEqual({
+      ok: true,
+      value: {
+        artifactKind: "deltaUnchanged",
+        pr: { ...narrativePr, sha: HEAD_2, description: "d" },
+        baselineSha: CHECKPOINT,
+        headSha: HEAD_2,
+        baselineIndex: 1,
+        headIndex: 3,
+      },
+    });
   });
 });

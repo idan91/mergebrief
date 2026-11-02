@@ -288,12 +288,22 @@ describe("batched span listings and per-revision joins", () => {
     expect(deltaSpans).toHaveLength(2);
     expect(deltaSpans).toEqual(
       expect.arrayContaining([
-        { baselineSha: "cp-1", headSha: "head-2", skipped: false },
-        { baselineSha: "cp-0", headSha: "head-2", skipped: true },
+        {
+          baselineSha: "cp-1",
+          headSha: "head-2",
+          skipped: false,
+          unchanged: false,
+        },
+        {
+          baselineSha: "cp-0",
+          headSha: "head-2",
+          skipped: true,
+          unchanged: false,
+        },
       ]),
     );
     expect(await store.revisionNarratives.listForPullRequest(pr.id)).toEqual([
-      { prevHeadSha: "head-1", headSha: "head-2" },
+      { prevHeadSha: "head-1", headSha: "head-2", unchanged: false },
     ]);
 
     // Another tenant sees none of these spans.
@@ -335,8 +345,18 @@ describe("deltas skip record", () => {
     expect(briefRow.skipped).toBe(false);
     expect(await store.deltas.listForPullRequest(pr.id)).toEqual(
       expect.arrayContaining([
-        { baselineSha: "cp-1", headSha: "head-2", skipped: true },
-        { baselineSha: "cp-1", headSha: "head-3", skipped: false },
+        {
+          baselineSha: "cp-1",
+          headSha: "head-2",
+          skipped: true,
+          unchanged: false,
+        },
+        {
+          baselineSha: "cp-1",
+          headSha: "head-3",
+          skipped: false,
+          unchanged: false,
+        },
       ]),
     );
   });
@@ -362,8 +382,108 @@ describe("deltas skip record", () => {
 
     expect(rewritten.skipped).toBe(false);
     expect(await store.deltas.listForPullRequest(pr.id)).toEqual([
-      { baselineSha: "cp-1", headSha: "head-2", skipped: false },
+      {
+        baselineSha: "cp-1",
+        headSha: "head-2",
+        skipped: false,
+        unchanged: false,
+      },
     ]);
+  });
+});
+
+describe("the no-change stamp", () => {
+  const UNCHANGED_DELTA = JSON.stringify({ artifactKind: "deltaUnchanged" });
+  const UNCHANGED_NARRATIVE = JSON.stringify({
+    artifactKind: "revisionNarrativeUnchanged",
+  });
+
+  it("stamps a delta no-change record apart from a skip record", async () => {
+    const handle = shared.handle;
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO_1,
+      prNumber: 1,
+      state: PrStates.OPEN,
+    });
+    const span = { pullRequestId: pr.id, baselineSha: "cp-1", ...ORIGIN };
+
+    const unchangedRow = await store.deltas.write({
+      ...span,
+      headSha: "head-2",
+      body: UNCHANGED_DELTA,
+    });
+    await store.deltas.write({ ...span, headSha: "head-3", body: "{}" });
+
+    expect(unchangedRow.unchanged).toBe(true);
+    expect(unchangedRow.skipped).toBe(false);
+    expect(await store.deltas.listForPullRequest(pr.id)).toEqual(
+      expect.arrayContaining([
+        {
+          baselineSha: "cp-1",
+          headSha: "head-2",
+          skipped: false,
+          unchanged: true,
+        },
+        {
+          baselineSha: "cp-1",
+          headSha: "head-3",
+          skipped: false,
+          unchanged: false,
+        },
+      ]),
+    );
+  });
+
+  it("stamps a narrative no-change record and lists the flag", async () => {
+    const handle = shared.handle;
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO_1,
+      prNumber: 1,
+      state: PrStates.OPEN,
+    });
+    const brief = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head-2",
+      headIndex: 2,
+      commitCount: 2,
+      body: "{}",
+      ...ORIGIN,
+      usedGroupIds: [],
+    });
+    const span = { pullRequestId: pr.id, briefId: brief.id, ...ORIGIN };
+
+    const unchangedRow = await store.revisionNarratives.write({
+      ...span,
+      prevHeadSha: "head-1",
+      headSha: "head-2",
+      body: UNCHANGED_NARRATIVE,
+    });
+    const rewritten = await store.revisionNarratives.write({
+      ...span,
+      prevHeadSha: "head-0",
+      headSha: "head-2",
+      body: UNCHANGED_NARRATIVE,
+    });
+    await store.revisionNarratives.write({
+      ...span,
+      prevHeadSha: "head-0",
+      headSha: "head-2",
+      body: "{}",
+    });
+
+    expect(unchangedRow.unchanged).toBe(true);
+    expect(rewritten.unchanged).toBe(true);
+    expect(await store.revisionNarratives.listForPullRequest(pr.id)).toEqual(
+      expect.arrayContaining([
+        { prevHeadSha: "head-1", headSha: "head-2", unchanged: true },
+        { prevHeadSha: "head-0", headSha: "head-2", unchanged: false },
+      ]),
+    );
   });
 });
 

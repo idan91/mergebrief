@@ -116,7 +116,9 @@ export function printSummary(brief: Brief): void {
 }
 
 /** Sidecar filename for a delta: `<owner>-<repo>-<num>-<base8>..<head8>.delta.json`. */
-export function deltaOutName(delta: DeltaBrief): string {
+export function deltaOutName(
+  delta: Pick<DeltaBrief, "pr" | "baselineSha" | "headSha">,
+): string {
   return `${delta.pr.repo.replace("/", "-")}-${delta.pr.number}-${shortSha(delta.baselineSha)}..${shortSha(delta.headSha)}.delta.json`;
 }
 

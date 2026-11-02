@@ -41,13 +41,21 @@ export function readPullRequest<Value>(
   return answerOk(read(pull));
 }
 
+/** GitHub compares a commit with itself as identical: no diff, no files. */
+const IDENTICAL_COMPARE: FakeCompare = {
+  diff: "",
+  files: { files: [], complete: true },
+};
+
 function readCompare<Value>(
   world: FakeWorld,
   span: CompareDiffRef,
   read: (compare: FakeCompare) => Value | undefined,
 ): FakeAnswer<Value> {
   const key = getCompareKey(span.base, span.head);
-  const compare = world.findRepo(span)?.compares.get(key);
+  const arranged = world.findRepo(span)?.compares.get(key);
+  const isIdentical = arranged === undefined && span.base === span.head;
+  const compare = isIdentical ? IDENTICAL_COMPARE : arranged;
   const value = compare === undefined ? undefined : read(compare);
   if (value === undefined) {
     return answerNotFound("compare commits");

@@ -71,10 +71,14 @@ export interface UseComparisonOverlayValue {
   narrative: RevisionNarrative | null;
   /** Why the narrative was deliberately skipped, when it was. */
   skipReason: RevisionNarrativeSkipReason | null;
+  /** The narrative is the no-change record: the PR's own change did not move. */
+  narrativeUnchanged: boolean;
   /** The last-review Delta Brief, or null (marks-only tier). */
   delta: Brief | null;
   /** The last-review span was too large to summarize: no Delta Brief will come. */
   deltaSkipped: boolean;
+  /** The PR's own change did not move since the checkpoint: no Delta Brief is owed. */
+  deltaUnchanged: boolean;
   /** The ACTIVE baseline's raw span-diff descriptor (Changes Only toggle). */
   activeRawSpanDiff: ComparisonQuery<string> | undefined;
   /** Where the delta's span rows stand; `absent` without a raw diff to slice. */
@@ -194,8 +198,11 @@ export function useComparisonOverlay(
     timedOut: deltaSpanRetry !== undefined,
   });
 
-  const { narrative, skipReason } =
-    discriminateNarrativeArtifact(narrativeArtifact);
+  const {
+    narrative,
+    skipReason,
+    isUnchanged: narrativeUnchanged,
+  } = discriminateNarrativeArtifact(narrativeArtifact);
 
   // Narrative cards show the lines a revision removed from the span diff,
   // whose old side is the previous head; the brief's own rows run base to
@@ -278,8 +285,10 @@ export function useComparisonOverlay(
     marks,
     narrative,
     skipReason,
+    narrativeUnchanged,
     delta,
     deltaSkipped: planLastReview?.deltaSkipped === true,
+    deltaUnchanged: planLastReview?.deltaUnchanged === true,
     activeRawSpanDiff,
     deltaSpanStatus,
     deltaSpanLanding,

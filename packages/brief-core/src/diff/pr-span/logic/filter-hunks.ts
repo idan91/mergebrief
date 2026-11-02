@@ -35,26 +35,21 @@ export function readPrChangePlaces(runs: readonly ChangeRun[]): PrChangePlaces {
 }
 
 /**
- * True when one side of a between-heads run meets the PR change on that
- * side: its `count` lines from `start`, or, with none, the point before
- * line `start`. A point at the edge of an added block is beside it, not in it.
+ * True when one side of a between-heads run meets or abuts the PR change on
+ * that side: its `count` lines from `start`, or, with none, the point before
+ * line `start`. Abutting counts because a run moved no further than its own
+ * length shows as the base lines beside it moving, not the run.
  */
 function touchesPrChange(
   start: number,
   count: number,
   places: PrChangePlaces,
 ): boolean {
-  if (count === 0) {
-    const insideAddedBlock = places.addedLines.some(
-      (window) => window.start < start && start <= window.end,
-    );
-    return insideAddedBlock || places.deletionAnchors.includes(start);
-  }
   const end = start + count - 1;
-  const overlapsAdded = places.addedLines.some(
-    (window) => window.start <= end && window.end >= start,
+  const meetsAdded = places.addedLines.some(
+    (window) => window.start <= end + 1 && window.end + 1 >= start,
   );
-  if (overlapsAdded) {
+  if (meetsAdded) {
     return true;
   }
   return places.deletionAnchors.some(

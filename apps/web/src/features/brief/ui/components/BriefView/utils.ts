@@ -250,21 +250,29 @@ export function deriveBriefProgress(input: DeriveBriefProgressInput): number {
 export interface DiscriminatedNarrative {
   narrative: RevisionNarrative | null;
   skipReason: RevisionNarrativeSkipReason | null;
+  /** The span holds no change of the PR's own, so no narrative is owed. */
+  isUnchanged: boolean;
 }
 
 /**
  * An artifact's presence only means "something was fetched"; a skip stub is
- * narrative-unavailable with a knowable reason, discriminate on the kind.
+ * narrative-unavailable with a knowable reason, and a no-change record says
+ * the PR's change did not move: discriminate on the kind.
  */
 export function discriminateNarrativeArtifact(
   artifact: StoredRevisionNarrative | null,
 ): DiscriminatedNarrative {
+  const none = { narrative: null, skipReason: null, isUnchanged: false };
   if (artifact === null) {
-    return { narrative: null, skipReason: null };
+    return none;
   }
-  return artifact.artifactKind === "revisionNarrative"
-    ? { narrative: artifact, skipReason: null }
-    : { narrative: null, skipReason: artifact.skipped };
+  if (artifact.artifactKind === "revisionNarrative") {
+    return { ...none, narrative: artifact };
+  }
+  if (artifact.artifactKind === "revisionNarrativeUnchanged") {
+    return { ...none, isUnchanged: true };
+  }
+  return { ...none, skipReason: artifact.skipped };
 }
 
 /**

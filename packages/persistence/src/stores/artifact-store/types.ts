@@ -28,15 +28,17 @@ export interface ComparisonSpanRow {
   readonly headSha: string;
 }
 
-/** A delta span, and whether its body is the span's skip record instead of a Delta Brief. */
+/** A delta span, and whether its body is the span's skip or no-change record instead of a Delta Brief. */
 export interface DeltaSpanRow extends ComparisonSpanRow {
   readonly skipped: boolean;
+  readonly unchanged: boolean;
 }
 
-/** The prevHead/head pair only, never the body. */
+/** The prevHead/head pair and the no-change stamp, never the body. */
 export interface NarrativeSpanRow {
   readonly prevHeadSha: string;
   readonly headSha: string;
+  readonly unchanged: boolean;
 }
 export type DeltaRow = typeof delta.$inferSelect;
 /** The sidecar row with its body as stored text; the api serves it verbatim. */

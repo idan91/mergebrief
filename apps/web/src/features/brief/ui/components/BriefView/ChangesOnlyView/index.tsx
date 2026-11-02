@@ -74,10 +74,14 @@ export interface ChangesOnlyViewProps {
   marks: ComparisonMarks | null;
   /** Distinct skip reason when the narrative was deliberately not generated. */
   skipReason: RevisionNarrativeSkipReason | null;
+  /** The narrative is the no-change record: nothing of the PR's own moved. */
+  narrativeUnchanged?: boolean;
   /** The Delta Brief for Your last review, or null when unavailable. */
   delta: Brief | null;
   /** The last-review span was too large to summarize, so no Delta Brief will come. */
   deltaSkipped?: boolean;
+  /** Nothing of the PR's own moved since the checkpoint, so no Delta Brief is owed. */
+  deltaUnchanged?: boolean;
   /**
    * The live span-diff descriptor for the ACTIVE compare baseline → selected
    * head. Present only on the DB timeline path while a comparison is active,
@@ -108,6 +112,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
         brief={props.brief}
         delta={props.delta}
         deltaSkipped={props.deltaSkipped === true}
+        deltaUnchanged={props.deltaUnchanged === true}
         deltaSpan={props.deltaSpan ?? DeltaSpanStatuses.ABSENT}
         deltaSpanLanding={props.deltaSpanLanding}
         fullModel={props.model}
@@ -120,6 +125,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
         jumpToChunk={jumpToChunk}
         model={props.model}
         narrative={props.narrative}
+        narrativeUnchanged={props.narrativeUnchanged === true}
         review={props.review}
         skipReason={props.skipReason}
         spanRows={props.narrativeSpanRows}
@@ -147,6 +153,7 @@ interface PreviousBriefChangesProps {
   jumpToChunk: (chunkId: string) => void;
   model: BriefViewModel;
   narrative: RevisionNarrative | null;
+  narrativeUnchanged: boolean;
   review: ChangesReviewWiring | undefined;
   skipReason: RevisionNarrativeSkipReason | null;
   spanRows: FileRowsCache | undefined;
@@ -157,6 +164,7 @@ function PreviousBriefChanges({
   jumpToChunk,
   model,
   narrative,
+  narrativeUnchanged,
   review,
   skipReason,
   spanRows,
@@ -189,6 +197,18 @@ function PreviousBriefChanges({
           {skipReason === "span too large"
             ? t("brief.changes.noRevisionSummaryTooLarge")
             : t("brief.changes.noRevisionSummaryDisabled")}
+        </EmptyState>
+      </>
+    );
+  }
+  if (narrativeUnchanged) {
+    return (
+      <>
+        {restartNote}
+        {lengthNote}
+        <EmptyState>
+          <b>{t("brief.changes.unchangedSincePreviousLead")}</b>{" "}
+          {t("brief.changes.unchangedSincePreviousBody")}
         </EmptyState>
       </>
     );
@@ -521,6 +541,7 @@ interface LastReviewChangesProps {
   fullModel: BriefViewModel;
   delta: Brief | null;
   deltaSkipped: boolean;
+  deltaUnchanged: boolean;
   deltaSpan: DeltaSpanStatus;
   deltaSpanLanding: DeltaSpanLanding | undefined;
   jumpToChunk: (chunkId: string) => void;
@@ -542,12 +563,21 @@ function LastReviewChanges({
   fullModel,
   delta,
   deltaSkipped,
+  deltaUnchanged,
   deltaSpan,
   deltaSpanLanding,
   jumpToChunk,
   review,
 }: LastReviewChangesProps) {
   const { t } = useTranslation();
+  if (!delta && deltaUnchanged) {
+    return (
+      <EmptyState>
+        <b>{t("brief.changes.unchangedSinceReviewLead")}</b>{" "}
+        {t("brief.changes.unchangedSinceReviewBody")}
+      </EmptyState>
+    );
+  }
   if (!delta && deltaSkipped) {
     return (
       <EmptyState>

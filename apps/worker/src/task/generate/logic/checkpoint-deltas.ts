@@ -6,6 +6,7 @@ import {
   exceedsDeltaCallLimits,
   isHugeSpan,
   shapeDeltaSkipped,
+  shapeDeltaUnchanged,
   type DeltaInput,
   type DeltaSpanRef,
 } from "brief-core";
@@ -14,6 +15,7 @@ import {
   STORED_BODY_VERSION,
   type StoredDelta,
 } from "brief-core/artifact";
+import { PrSpanFailureKinds } from "brief-core/pr-span";
 import type { DeltaBrief, DeltaSkipReason } from "brief-core/types";
 import { GenerationKinds } from "persistence";
 import type { ParsedGeneratePayload } from "../../payload";
@@ -26,7 +28,7 @@ import { getGenerationOrigin } from "../utils";
 import { warnOnFailedCheck } from "./artifact-check";
 import { isOutputCut, runGenerator } from "./errors";
 import { readLockfileSummaries } from "./lockfile-summaries";
-import { fetchDeltaSpan } from "./revision-artifacts";
+import { resolveSpanBaseline } from "./revision-span";
 
 /**
  * Prewarm each distinct checkpoint: skip stored cores, write mechanical marks, then the
@@ -69,7 +71,7 @@ async function warmCheckpointSpan(
     return false;
   }
 
-  const span = await readCheckpointSpan(inputs, baselineSha, headSha);
+  const span = await readCheckpointSpan(inputs, baselineSha);
   const baselineIndex =
     priorBriefs.find((row) => row.headSha === baselineSha)?.headIndex ?? null;
   const spanRef: DeltaSpanRef = {
@@ -93,13 +95,31 @@ async function warmCheckpointSpan(
     return false;
   }
 
+  const { filteredDiff, isUnchanged } = span.span;
   if (!span.marksWritten) {
     // Span marks BEFORE the LLM call: a failed delta still leaves
     // highlights for the checkpoint span.
-    await writeCheckpointMarks(payload, inputs, spanRef, span.diff);
+    await writeCheckpointMarks(payload, inputs, spanRef, filteredDiff);
   }
-  const spanInput: DeltaInput = { ...spanRef, incrementalDiff: span.diff };
+  if (isUnchanged) {
+    await writeDeltaUnchanged(payload, inputs, spanRef);
+    return false;
+  }
+  const spanInput: DeltaInput = { ...spanRef, incrementalDiff: filteredDiff };
   return writeSpanDelta(payload, inputs, spanInput);
+}
+
+/** No Delta Brief is owed where the PR's own change did not move: no charge, no call. */
+async function writeDeltaUnchanged(
+  payload: ParsedGeneratePayload,
+  inputs: CheckpointDeltasInputs,
+  spanRef: DeltaSpanRef,
+): Promise<void> {
+  const origin = await inputs.loadBriefOrigin();
+  await writeDeltaRecord(payload, inputs, shapeDeltaUnchanged(spanRef), origin);
+  inputs.log.info(
+    "generate: checkpoint span unchanged; wrote the no-change record",
+  );
 }
 
 async function writeCheckpointMarks(
@@ -126,19 +146,29 @@ async function writeCheckpointMarks(
 }
 
 /**
- * The span's diff, reused when the revision step already read the same span
- * this run: never fetch it twice, never ask again for one GitHub refused.
+ * The span, reused when the revision step already read the same span this
+ * run: never read it twice, never ask again for one GitHub refused. A span
+ * that cannot be read for good must not sink the job: the brief is stored.
  */
 async function readCheckpointSpan(
   inputs: CheckpointDeltasInputs,
   baselineSha: string,
-  headSha: string,
 ): Promise<PrefetchedSpan> {
-  const { prevSpan, source, log } = inputs;
+  const { prevSpan, priorBriefs, baseSha, log } = inputs;
   if (prevSpan?.baselineSha === baselineSha) {
     return prevSpan;
   }
-  return fetchDeltaSpan(source, baselineSha, headSha, log);
+
+  const baseline = resolveSpanBaseline(priorBriefs, baselineSha, baseSha);
+  const read = await inputs.readSpan(baseline);
+  if (read.ok) {
+    return { baselineSha, span: read.value, marksWritten: false };
+  }
+  const diffTooLarge = read.error.kind === PrSpanFailureKinds.TOO_LARGE;
+  if (!diffTooLarge) {
+    log.warn("generate: delta span unavailable; skipping");
+  }
+  return { baselineSha, unread: true, diffTooLarge };
 }
 
 /** Both size checks run before the supersession gate and the spend charge. */

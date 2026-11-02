@@ -7,6 +7,7 @@ import {
   type PullRequestRowId,
 } from "persistence";
 import {
+  arrangeRevisionSpan,
   BASE,
   buildRepoFile,
   captureLogger,
@@ -67,6 +68,20 @@ function makePnpmLockfile(key: string, resolution: string): string {
 }
 
 const REGISTRY = "{integrity: sha512-a}";
+/** The PR's own lockfile change at the second head: foo@1.0.0 to foo@1.1.0. */
+const FOO_BUMP_DIFF = `diff --git a/${LOCKFILE} b/${LOCKFILE}
+--- a/${LOCKFILE}
++++ b/${LOCKFILE}
+@@ -1,6 +1,6 @@
+ lockfileVersion: '9.0'
+ packages:
+-  foo@1.0.0:
++  foo@1.1.0:
+     resolution: ${REGISTRY}
+ snapshots:
+-  foo@1.0.0: {}
++  foo@1.1.0: {}
+`;
 /** One more lockfile than a span reads. */
 const LOCKFILES_PAST_CAP = 21;
 /** Twenty lockfile children fork one after another. */
@@ -363,17 +378,20 @@ describe("generate task, changes-package-source from lockfile contents", () => {
       lastSubmittedSha: HEAD_1,
       submittedAt: new Date(),
     });
+    arrangeRevisionSpan(github, FOO_BUMP_DIFF);
     const span = { base: HEAD_1, head: HEAD_2 };
     github.addCompare(REPO, span, {
       diff: DIFF,
       files: { files: [], complete: false },
       mergeBase: MERGE_BASE,
     });
-    github.addRepoFile(
-      REPO,
-      { path: LOCKFILE, ref: MERGE_BASE },
-      buildRepoFile(makePnpmLockfile("foo@1.0.0", REGISTRY), "sha-merge-base"),
-    );
+    for (const ref of [MERGE_BASE, HEAD_1]) {
+      github.addRepoFile(
+        REPO,
+        { path: LOCKFILE, ref },
+        buildRepoFile(makePnpmLockfile("foo@1.0.0", REGISTRY), "sha-base"),
+      );
+    }
     github.addRepoFile(
       REPO,
       { path: LOCKFILE, ref: HEAD_2 },
@@ -422,7 +440,11 @@ describe("generate task, changes-package-source from lockfile contents", () => {
       chunks?: { file: string; riskSurface: string[] }[];
     };
     expect(mergeBases).toContainEqual(expect.objectContaining(span));
-    expect(reads).toEqual([MERGE_BASE, HEAD_2]);
+    expect(reads.filter((ref) => ref !== HEAD_1)).toEqual([
+      HEAD_2,
+      MERGE_BASE,
+      HEAD_2,
+    ]);
     expect(body.chunks?.map((chunk) => chunk.riskSurface)).toEqual([[]]);
   });
 

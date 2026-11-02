@@ -11,6 +11,7 @@ import {
   type CompareFiles,
   type GenerateBriefOptions,
 } from "brief-core";
+import { isSpanUnchanged } from "brief-core/pr-span";
 import {
   BriefSchema,
   ReviewCommentSchema,
@@ -24,6 +25,7 @@ import {
   loadBaseline,
   saveBaseline,
   type BaselineMode,
+  type CaseBaseline,
 } from "./baseline";
 import {
   FixtureSchema,
@@ -401,7 +403,7 @@ function readCommentOptIn(
   return { ok: true, value: true };
 }
 
-/** A narrative or delta opt-in reads the filtered span, so the case must carry a non-empty one. */
+/** A narrative or delta opt-in reads the filtered span, so the case must carry one; "" scores the no-change records. */
 function checkOptInSpan(
   caseLabel: string,
   fixture: PairFixture,
@@ -414,12 +416,6 @@ function checkOptInSpan(
     return {
       ok: false,
       error: `${caseLabel}: opts into the narrative or delta but pair.json has no increment.filteredSpan`,
-    };
-  }
-  if (fixture.filteredSpan === "") {
-    return {
-      ok: false,
-      error: `${caseLabel}: opts into the narrative or delta over an empty filteredSpan, which has no no-change record to score yet`,
     };
   }
   return { ok: true, value: undefined };
@@ -674,6 +670,30 @@ function scopePairCaseToMode(pairCase: PairCase, mode: PairRunMode): PairCase {
   return { ...pairCase, deltaProperties: [] };
 }
 
+/**
+ * The baseline without the ids a mode scoped out of the case, so a dropped
+ * property reads absent rather than stale.
+ */
+function scopeBaselineToCase(
+  baseline: CaseBaseline | null,
+  unscopedCase: PairCase,
+  pairCase: PairCase,
+): CaseBaseline | null {
+  if (baseline === null) {
+    return baseline;
+  }
+  const kept = new Set(pairCase.deltaProperties.map((property) => property.id));
+  const dropped = new Set(
+    unscopedCase.deltaProperties
+      .map((property) => property.id)
+      .filter((id) => !kept.has(id)),
+  );
+  const properties = Object.entries(baseline.properties).filter(
+    ([id]) => !dropped.has(id),
+  );
+  return { ...baseline, properties: Object.fromEntries(properties) };
+}
+
 /** Model calls one run of the case makes, multi-call Briefs counted as one. */
 export function countPairGenerations(
   pairCase: PairCase,
@@ -681,8 +701,13 @@ export function countPairGenerations(
 ): number {
   const scoped = scopePairCaseToMode(pairCase, mode);
   const baseCalls = scoped.fixture.baseBrief === undefined ? 1 : 0;
-  const narrativeCalls = scoped.narrativeProperties.length > 0 ? 1 : 0;
-  const deltaCalls = scoped.deltaProperties.length > 0 ? 1 : 0;
+  // An unchanged span writes the no-change records with no model call.
+  const { filteredSpan } = scoped.fixture;
+  const isUnchanged =
+    filteredSpan !== undefined && isSpanUnchanged(filteredSpan);
+  const spanCalls = isUnchanged ? 0 : 1;
+  const narrativeCalls = scoped.narrativeProperties.length > 0 ? spanCalls : 0;
+  const deltaCalls = scoped.deltaProperties.length > 0 ? spanCalls : 0;
   return baseCalls + 1 + narrativeCalls + deltaCalls;
 }
 
@@ -918,7 +943,7 @@ export async function evaluatePairCase(
     if (!loaded.ok) {
       return loaded;
     }
-    baseline = loaded.value;
+    baseline = scopeBaselineToCase(loaded.value, unscopedCase, pairCase);
   } else if (baselineMode === BaselineModes.REBASELINE) {
     if (result.generationFailures > 0) {
       progress(

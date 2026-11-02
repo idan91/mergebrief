@@ -315,9 +315,15 @@ or both from `expected.ts`; ids are unique across all three lists. Each
 run then calls `categorizeRevisionNarrative` on the stitched revised Brief
 and `categorizeDelta` for a reviewer whose Checkpoint sits at the previous
 head, both over `increment.filteredSpan`. An opted-in case must carry a
-non-empty `filteredSpan`. The shared predicates live in `revision-props.ts`
-(grounded, covers the span, no replay, comments from the input); the
-narrative and delta specimens persist beside the base and revised ones.
+`filteredSpan`. An empty one is a push that left the PR's own change as it
+was: the run writes the `revisionNarrativeUnchanged` and `deltaUnchanged`
+records the worker writes and calls no model for them, and
+`narrative-no-change` / `delta-no-change` score that (the record over an
+empty span with zero model calls, a real artifact over any other). The
+shared predicates live in `revision-props.ts` (grounded, covers the span,
+no replay, comments from the input, no change); the chunk predicates read a
+record as no chunks. The narrative and delta specimens persist beside the
+base and revised ones.
 
 Optional `pair.json` fields: `increment.filteredSpan` and
 `increment.unfilteredSpan` (the revision span, filtered and not),

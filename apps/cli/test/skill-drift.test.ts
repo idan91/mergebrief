@@ -35,10 +35,11 @@ const EXPECTED_OP_IDS = [
 const PROSE_ONLY_IDS = ["generate-brief"] as const;
 const ALL_EXPECTED_IDS = [...EXPECTED_OP_IDS, ...PROSE_ONLY_IDS];
 
-/** Every `reason` `delta --json` can emit: the CLI's own two plus the API's. */
+/** Every `reason` `delta --json` can emit: the CLI's own three plus the API's. */
 const DELTA_REASONS = [
   "no-checkpoint",
   "delta-not-generated",
+  "unchanged",
   ...Object.values(LastReviewUnavailableReasons),
 ];
 

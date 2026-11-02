@@ -30,6 +30,7 @@ export {
   exceedsDeltaCallLimits,
   exceedsNarrativeCallLimits,
   shapeDeltaSkipped,
+  shapeDeltaUnchanged,
   type DeltaInput,
   type DeltaSpanRef,
   type RevisionNarrativeInput,

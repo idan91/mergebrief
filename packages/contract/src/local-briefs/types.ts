@@ -21,6 +21,10 @@ export interface LocalLastReviewAvailability {
   readonly marksId: string;
   /** Marks can exist without a Delta: they are written before it. */
   readonly deltaId?: string;
+  /** No delta will come: the span was too large, and a skip record stands in for it. */
+  readonly deltaSkipped?: true;
+  /** No Delta Brief is owed: the PR's own change did not move since the checkpoint. */
+  readonly deltaUnchanged?: true;
   readonly baselineSha: string;
   readonly baselineIndex: number | null;
 }

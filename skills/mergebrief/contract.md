@@ -80,13 +80,22 @@ anchors do not.
 one of:
 
     {"available":true,"baselineSha":"<sha>","headSha":"<sha>","artifact":{...}}
-    {"available":false,"reason":"no-checkpoint"|"pending"|"baseline-unavailable"|"span-too-large"|"delta-not-generated"}
+    {"available":false,"reason":"no-checkpoint"|"pending"|"baseline-unavailable"|"span-too-large"|"delta-not-generated"|"unchanged"}
 
 Both arms are exit 0; unavailability is data. Next moves by `reason`:
 `no-checkpoint` review the full brief; `pending` poll with backoff;
 `baseline-unavailable` review the full brief; `span-too-large` review the
 full brief, since GitHub will not render the span; `delta-not-generated` diff
-the span yourself with `diff <n> --base <baselineSha> --head <headSha>`.
+the span yourself with `diff <n> --base <baselineSha> --head <headSha>`;
+`unchanged` review nothing new, since the pushes after your checkpoint only
+rebased, merged the base branch in, or rewrote history.
+
+`pr <n>` reports the same states per revision: `comparisons.lastReview`
+carries `deltaUnchanged: true` for that last case, and
+`comparisons.previousBrief` carries `unchanged: true`, or `unavailable` with
+the reasons above when the span to the previous brief has no marks. For an
+unchanged span, `narrative` returns a record with
+`"artifactKind":"revisionNarrativeUnchanged"` and no `overview` or `chunks`.
 
 ## Repo addressing
 

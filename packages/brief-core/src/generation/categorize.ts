@@ -8,6 +8,7 @@ import {
   type CommitRange,
   type DeltaBrief,
   type DeltaSkipped,
+  type DeltaUnchanged,
   type DeltaSkipReason,
   type PrRef,
   type ReviewComment,
@@ -739,6 +740,18 @@ export function shapeDeltaSkipped(
     baselineIndex: input.baselineIndex ?? null,
     headIndex: input.headIndex ?? null,
     skipped,
+  };
+}
+
+/** The span's stored record where the PR's own change did not move: no Delta Brief is owed. */
+export function shapeDeltaUnchanged(input: DeltaSpanRef): DeltaUnchanged {
+  return {
+    artifactKind: "deltaUnchanged",
+    pr: buildPrRef(input.locator, input.meta, input.meta.sha),
+    baselineSha: input.baselineSha,
+    headSha: input.headSha,
+    baselineIndex: input.baselineIndex ?? null,
+    headIndex: input.headIndex ?? null,
   };
 }
 

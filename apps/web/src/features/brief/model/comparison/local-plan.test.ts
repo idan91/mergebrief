@@ -212,6 +212,23 @@ describe("buildLocalComparisonPlan", () => {
     expect(plan.lastReview?.rawDiff).toBeUndefined();
     expect(plan.previousBrief).toBeUndefined();
   });
+
+  it.each([
+    ["skipped", { deltaSkipped: true as const }],
+    ["unchanged", { deltaUnchanged: true as const }],
+  ])("carries a %s delta record onto the last review", (_kind, flag) => {
+    const plan = buildLocalComparisonPlan({
+      lastReview: {
+        marksId: "marks-chk",
+        baselineSha: "c",
+        baselineIndex: 1,
+        ...flag,
+      },
+    });
+
+    expect(plan.lastReview).toMatchObject(flag);
+    expect(plan.lastReview?.delta).toBeUndefined();
+  });
 });
 
 describe("buildLocalComparisonPlan delta", () => {

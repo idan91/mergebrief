@@ -26,6 +26,8 @@ export const delta = pgTable(
     headSha: text("head_sha").notNull(),
     /** The body is the span's skip record, stamped at write from its `artifactKind`. */
     skipped: boolean("skipped").notNull().default(false),
+    /** The body is the span's no-change record, stamped at write from its `artifactKind`. */
+    unchanged: boolean("unchanged").notNull().default(false),
     provider: text("provider").notNull(),
     model: text("model").notNull(),
     effort: text("effort").notNull(),

@@ -9,10 +9,12 @@ import { createApp, type ApiApp } from "../src/index";
 import { MAX_BRIEF_ID_LENGTH } from "../src/routes/local-briefs/consts";
 import { buildAuthDeps, createKeyProvider } from "./fixtures";
 import {
+  DELTA_ID,
   FIRST_SHA,
   REVIEW_COMMENTS,
   SECOND_ID,
   SECOND_SHA,
+  buildDeltaRecordJson,
   buildMarksJson,
   buildRevisionChangesJson,
   buildStoredBriefJson,
@@ -126,6 +128,38 @@ describe("/api/local-briefs", () => {
 
       const again = await readSignedIn(app, LIST_PATH);
       expect(again.status).toBe(200);
+    });
+
+    it.each([
+      ["deltaUnchanged" as const, { deltaUnchanged: true }],
+      ["deltaSkipped" as const, { deltaSkipped: true }],
+    ])("carries a %s record onto the last review", async (kind, flag) => {
+      await writeArtifacts(dir, {
+        ...ARTIFACTS,
+        [`${DELTA_ID}.delta.json`]: buildDeltaRecordJson(
+          kind,
+          FIRST_SHA,
+          SECOND_SHA,
+        ),
+      });
+      const app = buildApp(dir);
+
+      const res = await readSignedIn(app, LIST_PATH);
+
+      const rows: unknown = await res.json();
+      expect(rows).toEqual([
+        expect.objectContaining({
+          id: SECOND_ID,
+          comparisons: expect.objectContaining({
+            lastReview: {
+              marksId: SECOND_ID,
+              baselineSha: FIRST_SHA,
+              baselineIndex: null,
+              ...flag,
+            },
+          }),
+        }),
+      ]);
     });
 
     it("serves a Brief with its comments in the envelope", async () => {

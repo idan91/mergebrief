@@ -72,6 +72,31 @@ const LAST_REVIEW_REASON_TITLE_KEYS: Record<
   [UnknownValues.UNKNOWN]: LAST_REVIEW_REASON_UNKNOWN_TITLE_KEY,
 };
 
+const PREVIOUS_BRIEF_REASON_TITLE_KEYS: Record<
+  LastReviewUnavailableReason | UnknownValue,
+  TranslationKey
+> = {
+  [LastReviewUnavailableReasons.PENDING]:
+    "brief.compareTitles.previousBriefPending",
+  [LastReviewUnavailableReasons.BASELINE_UNAVAILABLE]:
+    "brief.compareTitles.previousBriefBaselineUnavailable",
+  [LastReviewUnavailableReasons.SPAN_TOO_LARGE]:
+    "brief.compareTitles.previousBriefTooLarge",
+  [UnknownValues.UNKNOWN]: "brief.compareTitles.previousBriefUnavailableReason",
+};
+
+/**
+ * Honest reason copy for a previous brief that EXISTS but whose span has no
+ * marks. Distinct from `PREVIOUS_BRIEF_UNAVAILABLE_TITLE_KEY`, which covers a
+ * revision with no previous brief at all.
+ */
+export function previousBriefUnavailableReasonTitle(
+  t: TFunction,
+  reason: LastReviewUnavailableReason | UnknownValue,
+): string {
+  return t(PREVIOUS_BRIEF_REASON_TITLE_KEYS[reason]);
+}
+
 /**
  * Honest reason copy for a checkpoint that EXISTS but cannot be compared.
  * Distinct from `LAST_REVIEW_UNAVAILABLE_TITLE_KEY`, which covers "never

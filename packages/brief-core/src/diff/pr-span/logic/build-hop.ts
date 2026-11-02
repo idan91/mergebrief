@@ -1,5 +1,5 @@
 import type { HunkSpan } from "../../remap";
-import { REST_OF_FILE_LINES } from "../consts";
+import { IDENTITY_SPAN, REST_OF_FILE_LINES } from "../consts";
 import type { ChangeRun } from "../types";
 
 interface StretchBounds {
@@ -71,4 +71,26 @@ export function buildBaseMovedSpans(
     newLines: REST_OF_FILE_LINES,
   });
   return spans;
+}
+
+/** One run's lines as a span; a side with no lines names the line before, as git does. */
+function makeRunSpan(run: ChangeRun): HunkSpan {
+  return {
+    oldStart: run.removed === 0 ? run.oldStart - 1 : run.oldStart,
+    oldLines: run.removed,
+    newStart: run.added === 0 ? run.newStart - 1 : run.newStart,
+    newLines: run.added,
+  };
+}
+
+/**
+ * The hop of a file read through a line diff, one span per change run with
+ * no context, so a range beside an edit still places. Identity when the
+ * diff holds no run.
+ */
+export function buildLineDiffSpans(runs: readonly ChangeRun[]): HunkSpan[] {
+  if (runs.length === 0) {
+    return [IDENTITY_SPAN];
+  }
+  return runs.map(makeRunSpan);
 }

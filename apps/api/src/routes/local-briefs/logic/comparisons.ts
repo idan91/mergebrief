@@ -8,6 +8,7 @@ import {
 import { ComparisonBaselineLabels, type Mutable } from "types";
 import { SHORT_SHA_LENGTH } from "../consts";
 import {
+  DeltaRecordKinds,
   type ComparisonMarksEntry,
   type ComparisonSources,
   type RevisionChangesEntry,
@@ -88,7 +89,7 @@ function isDeltaForSpan(
 function findLastReview(
   summary: LocalBriefSummary,
   marksForHead: readonly ComparisonMarksEntry[],
-  summaries: readonly LocalBriefSummary[],
+  sources: ComparisonSources,
 ): LocalLastReviewAvailability | undefined {
   const marks = marksForHead.find(
     (mark) => mark.baselineLabel === ComparisonBaselineLabels.CHECKPOINT,
@@ -102,11 +103,22 @@ function findLastReview(
     baselineSha: marks.baselineSha,
     baselineIndex: marks.baselineIndex,
   };
-  const delta = summaries.find((artifact) =>
+  const delta = sources.summaries.find((artifact) =>
     isDeltaForSpan(artifact, summary.sha, marks.baselineSha),
   );
   if (delta !== undefined) {
     lastReview.deltaId = delta.id;
+  }
+  const record = sources.deltaRecords.find((entry) => {
+    const spansMatch =
+      entry.headSha === summary.sha && entry.baselineSha === marks.baselineSha;
+    return spansMatch;
+  });
+  if (record?.kind === DeltaRecordKinds.SKIPPED) {
+    lastReview.deltaSkipped = true;
+  }
+  if (record?.kind === DeltaRecordKinds.UNCHANGED) {
+    lastReview.deltaUnchanged = true;
   }
   return lastReview;
 }
@@ -136,7 +148,7 @@ export function buildComparisonAvailability(
   if (previousBrief !== undefined) {
     comparisons.previousBrief = previousBrief;
   }
-  const lastReview = findLastReview(summary, marksForHead, sources.summaries);
+  const lastReview = findLastReview(summary, marksForHead, sources);
   if (lastReview !== undefined) {
     comparisons.lastReview = lastReview;
   }

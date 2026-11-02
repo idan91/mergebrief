@@ -9,6 +9,7 @@ import {
   parseBriefAddressSearch,
   parseCompareParam,
   parseViewParam,
+  previousBriefUnavailableReasonTitle,
   resolveBriefSearch,
   stripDefaultSearch,
   withCompare,
@@ -297,5 +298,22 @@ describe("stripDefaultSearch", () => {
         "unified",
       ),
     ).toEqual({ compare: "off", diff: "split" });
+  });
+});
+
+describe("previousBriefUnavailableReasonTitle", () => {
+  it("maps each unavailable reason to its honest copy", () => {
+    expect(previousBriefUnavailableReasonTitle(t, "pending")).toBe(
+      "Comparison with the previous brief still generating",
+    );
+    expect(previousBriefUnavailableReasonTitle(t, "baseline-unavailable")).toBe(
+      "The change since the previous brief could not be read",
+    );
+    expect(previousBriefUnavailableReasonTitle(t, "span-too-large")).toBe(
+      "The change since the previous brief was too large to compare",
+    );
+    expect(previousBriefUnavailableReasonTitle(t, "unknown")).toBe(
+      "Comparison with the previous brief is unavailable",
+    );
   });
 });

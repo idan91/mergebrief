@@ -5,22 +5,32 @@ import {
   buildComparisonMarks,
   buildContextQuery,
   categorizeDelta,
+  DeltaSkipReasons,
   fetchContextSnippets,
   listReadableTrackers,
   parsePrUrl,
+  shapeDeltaSkipped,
+  shapeDeltaUnchanged,
   splitDiffByFile,
   toPrimaryTicket,
   writeComparisonMarks,
   type ContextProvider,
+  type DeltaSpanRef,
   type FetchContextSnippetsOptions,
 } from "brief-core";
-import type { DeltaBrief } from "brief-core/types";
+import { PrSpanFailureKinds, readPrSpan } from "brief-core/pr-span";
+import type {
+  DeltaBrief,
+  DeltaSkipped,
+  DeltaUnchanged,
+} from "brief-core/types";
 import {
-  fetchCompareDiff,
+  buildGhPrSpanSource,
   fetchPrMetadata,
   fetchReviewComments,
   resolveFullSha,
 } from "../github";
+import { readBriefBase } from "./categorize";
 import {
   createGenerator,
   DEFAULT_CONTEXT_SOURCES,
@@ -83,7 +93,7 @@ export async function generateAndWriteDelta(
   contextProviders: readonly ContextProvider[] = createCliContextProviders(
     DEFAULT_LINK_FETCH,
   ),
-): Promise<DeltaBrief> {
+): Promise<DeltaBrief | DeltaUnchanged | DeltaSkipped> {
   const locator = parsePrUrl(url);
 
   // CLI SHAs may arrive abbreviated; artifacts must carry full SHAs or the
@@ -95,13 +105,53 @@ export async function generateAndWriteDelta(
   ]);
 
   log(
-    `fetching metadata + compare ${baselineSha.slice(0, 8)}..${headSha.slice(0, 8)}…`,
+    `fetching metadata + revision span ${baselineSha.slice(0, 8)}..${headSha.slice(0, 8)}…`,
   );
-  const [meta, incrementalDiff, comments] = await Promise.all([
+  const [meta, comments] = await Promise.all([
     fetchPrMetadata(locator),
-    fetchCompareDiff(locator, baselineSha, headSha),
     fetchReviewComments(locator),
   ]);
+  // Endpoint brief indices (read-only) for the `_b→_h` label, null if unbriefed.
+  const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
+  const [baselineIndex, headIndex] = await Promise.all([
+    lookupBriefIndex(outDir, stem, baselineSha),
+    lookupBriefIndex(outDir, stem, headSha),
+  ]);
+  // A briefed checkpoint starts from its own brief's base, else the PR's now.
+  const baselineBase =
+    baselineIndex === null
+      ? undefined
+      : await readBriefBase(outDir, stem, baselineIndex, baselineSha, log);
+  const refs = {
+    prevBase: baselineBase ?? meta.baseSha,
+    prevHead: baselineSha,
+    newBase: meta.baseSha,
+    newHead: headSha,
+  };
+  const spanRead = await readPrSpan(
+    buildGhPrSpanSource(locator),
+    refs,
+    new AbortController().signal,
+  );
+  const spanRef = {
+    locator,
+    meta,
+    baselineSha,
+    headSha,
+    baselineIndex,
+    headIndex,
+  };
+  if (!spanRead.ok) {
+    if (spanRead.error.kind === PrSpanFailureKinds.TOO_LARGE) {
+      return writeSkippedDelta(outDir, spanRef, log);
+    }
+    throw new Error(`revision span unread: ${spanRead.error.kind}`);
+  }
+  const span = spanRead.value;
+  const incrementalDiff = span.filteredDiff;
+  if (span.isUnchanged) {
+    return writeUnchangedDelta(outDir, stem, spanRef, log);
+  }
   const query = buildContextQuery({
     title: meta.title,
     body: meta.body,
@@ -116,13 +166,6 @@ export async function generateAndWriteDelta(
     log,
     fetchOptions,
   );
-  // Endpoint brief indices (read-only) for the `_b→_h` label, null if unbriefed.
-  const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
-  const [baselineIndex, headIndex] = await Promise.all([
-    lookupBriefIndex(outDir, stem, baselineSha),
-    lookupBriefIndex(outDir, stem, headSha),
-  ]);
-
   // Split the incremental diff once: the marks parse and the per-file diffs
   // sidecar below share the same per-file patches.
   const fileDiffs = splitDiffByFile(incrementalDiff);
@@ -174,6 +217,44 @@ export async function generateAndWriteDelta(
   log(`wrote ${diffsFile} (${fileDiffs.length} files)`);
   log(`wrote ${commentsFile} (${comments.length} comments)`);
   return delta;
+}
+
+/** A span GitHub will not render: the skip record, no marks, as the worker writes it. */
+async function writeSkippedDelta(
+  outDir: string,
+  spanRef: DeltaSpanRef,
+  log: (msg: string) => void,
+): Promise<DeltaSkipped> {
+  await mkdir(outDir, { recursive: true });
+  const record = shapeDeltaSkipped(spanRef, DeltaSkipReasons.SPAN_TOO_LARGE);
+  const file = join(outDir, deltaOutName(record));
+  await writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
+  log(`span too large for a delta; wrote ${file}, no delta call`);
+  return record;
+}
+
+/** Zero-file marks and the no-change record: the PR's own change did not move. */
+async function writeUnchangedDelta(
+  outDir: string,
+  stem: string,
+  spanRef: DeltaSpanRef,
+  log: (msg: string) => void,
+): Promise<DeltaUnchanged> {
+  await mkdir(outDir, { recursive: true });
+  const marks = buildComparisonMarks(
+    spanRef.headSha,
+    spanRef.baselineSha,
+    "checkpoint",
+    spanRef.baselineIndex ?? null,
+    [],
+  );
+  await writeComparisonMarks(outDir, stem, marks, log);
+
+  const record = shapeDeltaUnchanged(spanRef);
+  const file = join(outDir, deltaOutName(record));
+  await writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
+  log(`span unchanged since the checkpoint; wrote ${file}, no delta call`);
+  return record;
 }
 
 async function main(): Promise<void> {
@@ -261,6 +342,9 @@ async function main(): Promise<void> {
     createCliContextProviders(loaded.value.linkFetch),
   );
 
+  if ("artifactKind" in delta) {
+    return;
+  }
   console.log("");
   printDeltaSummary(delta);
 }

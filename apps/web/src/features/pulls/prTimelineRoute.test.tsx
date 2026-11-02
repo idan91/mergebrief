@@ -435,6 +435,7 @@ describe("DB brief route revision timeline", () => {
           ...REV2,
           comparisons: {
             previousBrief: {
+              kind: "available",
               baselineSha: REV1.headSha,
               baselineIndex: 1,
               narrativeAvailable: false,
