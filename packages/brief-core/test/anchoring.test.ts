@@ -4,8 +4,18 @@
 import { describe, expect, it } from "vitest";
 import { planAnchoredGeneration, stitchBrief } from "../src/anchoring";
 import type { AnchorPlan } from "../src/anchoring/types";
+import { IDENTITY_SPAN, REST_OF_FILE_LINES } from "../src/diff/pr-span/consts";
+import { buildPrSpan } from "../src/diff/pr-span";
+import type { PrSpan } from "../src/diff/pr-span/types";
 import { remapThroughHops } from "../src/diff/remap";
 import type { Brief } from "../src/types";
+import {
+  insertAfter,
+  makeBaseLines,
+  makeDiff,
+  makeFilePatch,
+  makeText,
+} from "./diff/pr-span/helpers";
 
 const GENERATION = {
   provider: "stub",
@@ -72,21 +82,92 @@ function brief(
   };
 }
 
-/** Incremental diff touching only b.ts. */
-const DIFF_B = `diff --git a/b.ts b/b.ts
---- a/b.ts
-+++ b/b.ts
-@@ -1,2 +1,3 @@
- line
-+added
- line2
-`;
+function makeSpan(fields: Partial<PrSpan>): PrSpan {
+  return {
+    changedFiles: [],
+    unchangedFiles: [],
+    unpairableFiles: [],
+    filteredDiff: "",
+    unfilteredDiff: "",
+    hop: [],
+    oldSideHop: [],
+    isUnchanged: false,
+    ...fields,
+  };
+}
 
-const COMPARE_B = {
-  files: [{ filename: "b.ts", status: "modified" }],
-  complete: true,
-  status: "ahead",
-};
+const B_HUNK = { oldStart: 1, oldLines: 2, newStart: 1, newLines: 3 };
+
+/** A push that changed the PR's change to b.ts and left a.ts's as it was. */
+const SPAN_B = makeSpan({
+  changedFiles: ["b.ts"],
+  unchangedFiles: ["a.ts"],
+  hop: [
+    { file: "a.ts", hunks: [IDENTITY_SPAN] },
+    { file: "b.ts", hunks: [B_HUNK] },
+  ],
+  oldSideHop: [
+    { file: "a.ts", hunks: [IDENTITY_SPAN] },
+    { file: "b.ts", hunks: [] },
+  ],
+});
+
+/** A rebase that put two base lines above a.ts's PR run at line 5. */
+const REBASED_A = makeSpan({
+  unchangedFiles: ["a.ts"],
+  hop: [
+    {
+      file: "a.ts",
+      hunks: [
+        { oldStart: 1, oldLines: 4, newStart: 1, newLines: 6 },
+        {
+          oldStart: 9,
+          oldLines: REST_OF_FILE_LINES,
+          newStart: 11,
+          newLines: REST_OF_FILE_LINES,
+        },
+      ],
+    },
+  ],
+  oldSideHop: [
+    {
+      file: "a.ts",
+      hunks: [
+        { oldStart: 1, oldLines: 3, newStart: 1, newLines: 5 },
+        {
+          oldStart: 5,
+          oldLines: REST_OF_FILE_LINES,
+          newStart: 7,
+          newLines: REST_OF_FILE_LINES,
+        },
+      ],
+    },
+  ],
+});
+
+/**
+ * f.ts's PR diff over the same head blob `ccccccc`: the PR adds `p` at
+ * line 6 and, when `addsP2`, `p2` at line 10; otherwise the base holds `p2`.
+ */
+function makeReshapedPrDiff(blobIds: string, addsP2: boolean): string {
+  const tail = addsP2 ? ["+p2"] : [];
+  return [
+    "diff --git a/f.ts b/f.ts",
+    `index ${blobIds} 100644`,
+    "--- a/f.ts",
+    "+++ b/f.ts",
+    `@@ -3,6 +3,${addsP2 ? 8 : 7} @@`,
+    " b3",
+    " b4",
+    " b5",
+    "+p",
+    " b6",
+    " b7",
+    " b8",
+    ...tail,
+    "",
+  ].join("\n");
+}
 
 describe("planAnchoredGeneration", () => {
   const previous = brief(
@@ -94,45 +175,29 @@ describe("planAnchoredGeneration", () => {
     [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
   );
 
-  it("freezes untouched groups and re-looks touched ones", () => {
+  it("freezes groups whose PR change held and re-looks the rest", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+      span: SPAN_B,
     });
-    expect(plan.frozen.map((f) => f.group.id)).toEqual(["g1"]);
-    expect([...plan.frozenFiles]).toEqual(["a.ts"]);
-    expect(plan.reLook.map((r) => r.id)).toEqual(["g2"]);
+
+    expect(plan.frozen.map((carry) => carry.group.id)).toEqual(["g1"]);
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g2"]);
+    expect(plan.reLook[0]?.reason).toContain("b.ts");
+    expect(plan.frozen[0]?.chunks[0]?.addedRanges).toEqual([
+      { start: 5, end: 8 },
+    ]);
   });
 
-  it("re-looks everything when the base SHA moved", () => {
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: true,
-    });
-    expect(plan.frozen).toEqual([]);
-    expect(plan.reLook.map((r) => r.id)).toEqual(["g1", "g2"]);
-  });
+  it("re-looks every group when the span could not be read", () => {
+    const plan = planAnchoredGeneration({ previousBrief: previous });
 
-  it("re-looks everything when the incremental diff is unavailable", () => {
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
-    });
     expect(plan.frozen).toEqual([]);
-  });
-
-  it("re-looks everything when compare metadata is unavailable", () => {
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      baseShaMoved: false,
-    });
-    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook.map((entry) => entry.reason)).toEqual([
+      "the revision span could not be read",
+      "the revision span could not be read",
+    ]);
+    expect(plan.hunkSpans).toBeUndefined();
   });
 
   it("forces groups sharing a file to re-look", () => {
@@ -144,90 +209,182 @@ describe("planAnchoredGeneration", () => {
         chunk("c3", "g3", "z.ts", 1, 2),
       ],
     );
-    const plan = planAnchoredGeneration({
-      previousBrief: shared,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+    const identityHop = [
+      { file: "a.ts", hunks: [IDENTITY_SPAN] },
+      { file: "z.ts", hunks: [IDENTITY_SPAN] },
+    ];
+    const span = makeSpan({
+      unchangedFiles: ["a.ts", "z.ts"],
+      hop: identityHop,
+      oldSideHop: identityHop,
     });
-    expect(plan.frozen.map((f) => f.group.id)).toEqual(["g3"]);
-    expect(plan.reLook.map((r) => r.id).toSorted()).toEqual(["g1", "g2"]);
+
+    const plan = planAnchoredGeneration({ previousBrief: shared, span });
+
+    expect(plan.frozen.map((carry) => carry.group.id)).toEqual(["g3"]);
+    expect(plan.reLook.map((entry) => entry.id).toSorted()).toEqual([
+      "g1",
+      "g2",
+    ]);
   });
 
-  it("re-looks everything when the compare span is not a fast-forward", () => {
+  it("carries a run's range across a rebase by its exact offset", () => {
+    const onRun = brief(
+      [group("g1", "alpha")],
+      [chunk("c1", "g1", "a.ts", 5, 8)],
+    );
+
     const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: { ...COMPARE_B, status: "diverged" },
-      baseShaMoved: false,
+      previousBrief: onRun,
+      span: REBASED_A,
     });
-    expect(plan.frozen).toEqual([]);
-    expect(plan.reLook[0]?.reason).toContain("not a fast-forward");
+
+    expect(plan.frozen[0]?.chunks[0]?.addedRanges).toEqual([
+      { start: 7, end: 10 },
+    ]);
   });
 
-  it("re-looks everything when the compare span status is absent", () => {
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: { files: [...COMPARE_B.files], complete: true },
-      baseShaMoved: false,
-    });
-    expect(plan.frozen).toEqual([]);
-  });
+  it("re-looks a range on base lines a rebase moved", () => {
+    const onStretch = brief(
+      [group("g1", "alpha")],
+      [chunk("c1", "g1", "a.ts", 2, 3)],
+    );
 
-  it("demotes to re-look when a truncated hunk overlaps carried ranges", () => {
-    // A patch whose hunk header exists but whose body carries no +/- lines:
-    // parseChangedRanges drops the file (no changed lines) and the compare
-    // list is silent, so the partition freezes g1. The remap invariant is
-    // the last line of defense and must demote, never carry wrong lines.
-    const truncated = [
-      "diff --git a/a.ts b/a.ts",
-      "--- a/a.ts",
-      "+++ b/a.ts",
-      "@@ -1,4 +1,9 @@",
-      " ctx",
-    ].join("\n");
     const plan = planAnchoredGeneration({
-      previousBrief: brief(
-        [group("g1", "alpha")],
-        [chunk("c1", "g1", "a.ts", 2, 3)],
-      ),
-      incrementalDiff: truncated,
-      compareFiles: { files: [], complete: true, status: "ahead" },
-      baseShaMoved: false,
+      previousBrief: onStretch,
+      span: REBASED_A,
     });
+
     expect(plan.frozen).toEqual([]);
     expect(plan.reLook[0]?.reason).toContain("range remap ambiguous");
   });
 
-  it("re-looks a group when raw-diff hunks contradict a clean compare list", () => {
-    const contradictory = brief(
-      [group("g1", "alpha")],
-      [chunk("c1", "g1", "a.ts", 1, 2)],
-    );
-    const diffTouchingA = DIFF_B.replaceAll("b.ts", "a.ts");
-    const plan = planAnchoredGeneration({
-      previousBrief: contradictory,
-      incrementalDiff: diffTouchingA,
-      // Compare list claims nothing changed, contradicting the raw diff. The
-      // predicate's evidence union catches it: the group re-looks.
-      compareFiles: { files: [], complete: true, status: "ahead" },
-      baseShaMoved: false,
-    });
-    expect(plan.frozen).toEqual([]);
-    expect(plan.reLook.map((r) => r.id)).toEqual(["g1"]);
+  it("moves a removed range with the base under it", () => {
+    const removing = {
+      ...chunk("c1", "g1", "a.ts", 5, 8),
+      removedRanges: [{ start: 4, end: 4 }],
+    };
+    const previousBrief = brief([group("g1", "alpha")], [removing]);
+
+    const plan = planAnchoredGeneration({ previousBrief, span: REBASED_A });
+
+    expect(plan.frozen[0]?.chunks[0]?.removedRanges).toEqual([
+      { start: 6, end: 6 },
+    ]);
   });
 
-  it("keeps a frozen group's ranges when its file is untouched", () => {
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+  it("re-looks a removed range the old side cannot place", () => {
+    const removing = {
+      ...chunk("c1", "g1", "a.ts", 5, 8),
+      removedRanges: [{ start: 4, end: 4 }],
+    };
+    const previousBrief = brief([group("g1", "alpha")], [removing]);
+    const span = { ...REBASED_A, oldSideHop: [{ file: "a.ts", hunks: [] }] };
+
+    const plan = planAnchoredGeneration({ previousBrief, span });
+
+    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook[0]?.reason).toContain(
+      "a.ts: no span pairs the PR's change",
+    );
+  });
+
+  it("re-looks the owner of an unchanged file no span can pair", () => {
+    const span = makeSpan({
+      unchangedFiles: ["a.ts"],
+      unpairableFiles: ["a.ts"],
+      hop: [{ file: "a.ts", hunks: [] }],
+      oldSideHop: [{ file: "a.ts", hunks: [IDENTITY_SPAN] }],
     });
-    expect(plan.frozen[0]?.chunks[0]?.addedRanges).toEqual([
-      { start: 5, end: 8 },
-    ]);
+    const onA = brief(
+      [group("g1", "alpha")],
+      [chunk("c1", "g1", "a.ts", 5, 8)],
+    );
+
+    const plan = planAnchoredGeneration({ previousBrief: onA, span });
+
+    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook[0]?.reason).toContain("no span pairs a.ts");
+  });
+
+  it("re-looks a group whose added lines a rebase moved into the base", () => {
+    const base = makeBaseLines(9);
+    const head = insertAfter(insertAfter(base, "b5", ["p"]), "b8", ["p2"]);
+    const baseWithP2 = insertAfter(base, "b8", ["p2"]);
+    const span = buildPrSpan({
+      prevPrDiff: makeDiff([
+        makeFilePatch({
+          path: "f.ts",
+          base: makeText(base),
+          head: makeText(head),
+        }),
+      ]),
+      newPrDiff: makeDiff([
+        makeFilePatch({
+          path: "f.ts",
+          base: makeText(baseWithP2),
+          head: makeText(head),
+        }),
+      ]),
+      betweenHeads: new Map(),
+    });
+    const onF = brief(
+      [group("g1", "alpha")],
+      [chunk("c1", "g1", "f.ts", 6, 6), chunk("c2", "g1", "f.ts", 10, 10)],
+    );
+
+    const plan = planAnchoredGeneration({ previousBrief: onF, span });
+
+    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1"]);
+  });
+
+  it.each([
+    {
+      title: "the base took p2",
+      prev: { ids: "aaaaaaa..ccccccc", addsP2: true },
+      next: { ids: "bbbbbbb..ccccccc", addsP2: false },
+      ranges: [6, 10],
+    },
+    {
+      title: "the base gave p2 back",
+      prev: { ids: "bbbbbbb..ccccccc", addsP2: false },
+      next: { ids: "aaaaaaa..ccccccc", addsP2: true },
+      ranges: [6],
+    },
+  ])("re-looks, never carries, f.ts's group when $title", (row) => {
+    const span = buildPrSpan({
+      prevPrDiff: makeReshapedPrDiff(row.prev.ids, row.prev.addsP2),
+      newPrDiff: makeReshapedPrDiff(row.next.ids, row.next.addsP2),
+      betweenHeads: new Map(),
+    });
+    const onF = brief(
+      [group("g1", "alpha")],
+      row.ranges.map((line, index) =>
+        chunk(`c${index}`, "g1", "f.ts", line, line),
+      ),
+    );
+
+    const plan = planAnchoredGeneration({ previousBrief: onF, span });
+
+    expect(span.changedFiles).toEqual(["f.ts"]);
+    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1"]);
+  });
+
+  it("re-looks a group whose file left the PR", () => {
+    const span = makeSpan({
+      changedFiles: ["a.ts"],
+      hop: [{ file: "a.ts", hunks: [B_HUNK] }],
+    });
+    const onA = brief(
+      [group("g1", "alpha")],
+      [chunk("c1", "g1", "a.ts", 5, 8)],
+    );
+
+    const plan = planAnchoredGeneration({ previousBrief: onA, span });
+
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1"]);
   });
 });
 
@@ -237,96 +394,26 @@ describe("planAnchoredGeneration, the durable hop", () => {
     [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
   );
 
-  it("carries the touched file's parsed spans", () => {
+  it("writes the span's hop whatever re-looks", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+      span: SPAN_B,
     });
-    expect(plan.hunkSpans).toEqual([
-      {
-        file: "b.ts",
-        hunks: [{ oldStart: 1, oldLines: 2, newStart: 1, newLines: 3 }],
-      },
-    ]);
+
+    expect(plan.hunkSpans).toBe(SPAN_B.hop);
   });
 
-  it("demotes an anchor on a rename's previous path even if re-added", () => {
-    // The dangerous shape: a.ts is renamed to new.ts AND a fresh a.ts appears.
-    // Without the old path winning, the anchor would settle on brand-new code.
-    const diff = [
-      DIFF_B.replaceAll("b.ts", "new.ts"),
-      "diff --git a/a.ts b/a.ts",
-      "--- /dev/null",
-      "+++ b/a.ts",
-      "@@ -0,0 +1,50 @@",
-      "+fresh",
-    ].join("\n");
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: diff,
-      compareFiles: {
-        files: [
-          { filename: "a.ts", status: "added" },
-          { filename: "new.ts", status: "renamed", previousFilename: "a.ts" },
-        ],
-        complete: true,
-        status: "ahead",
-      },
-      baseShaMoved: false,
+  it("demotes an anchor on a renamed-away path even if re-added", () => {
+    const span = makeSpan({
+      changedFiles: ["a.ts", "new.ts"],
+      hop: [{ file: "a.ts", hunks: [] }],
     });
-    expect(plan.hunkSpans).toContainEqual({ file: "a.ts", hunks: [] });
-    expect(
-      plan.hunkSpans?.filter((entry) => entry.file === "a.ts"),
-    ).toHaveLength(1);
+
+    const plan = planAnchoredGeneration({ previousBrief: previous, span });
+
     expect(
       remapThroughHops("a.ts", [{ start: 5, end: 8 }], [plan.hunkSpans]),
     ).toMatchObject({ outcome: "demoted" });
-  });
-
-  it("emits no hop at all when the compare file list may be truncated", () => {
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: { ...COMPARE_B, complete: false },
-      baseShaMoved: false,
-    });
-    expect(plan.hunkSpans).toBeUndefined();
-  });
-
-  it("emits no hop when the span itself is untrustworthy", () => {
-    for (const args of [
-      { incrementalDiff: DIFF_B, compareFiles: COMPARE_B, baseShaMoved: true },
-      { compareFiles: COMPARE_B, baseShaMoved: false },
-      { incrementalDiff: DIFF_B, baseShaMoved: false },
-      {
-        incrementalDiff: DIFF_B,
-        compareFiles: { ...COMPARE_B, status: "diverged" },
-        baseShaMoved: false,
-      },
-    ]) {
-      expect(
-        planAnchoredGeneration({ previousBrief: previous, ...args }).hunkSpans,
-      ).toBeUndefined();
-    }
-  });
-
-  it("gives a listed file with no parsable patch zero hunks", () => {
-    const plan = planAnchoredGeneration({
-      previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: {
-        files: [
-          { filename: "b.ts", status: "modified" },
-          { filename: "bin.png", status: "modified" },
-        ],
-        complete: true,
-        status: "ahead",
-      },
-      baseShaMoved: false,
-    });
-    expect(plan.hunkSpans).toContainEqual({ file: "bin.png", hunks: [] });
   });
 });
 
@@ -339,9 +426,7 @@ describe("planAnchoredGeneration, chain id reservation", () => {
   it("folds chain ids into previousGroupIds, deduped", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+      span: SPAN_B,
       chainGroupIds: ["g2", "g9"],
     });
     expect(plan.previousGroupIds).toEqual(["g1", "g2", "g9"]);
@@ -350,7 +435,6 @@ describe("planAnchoredGeneration, chain id reservation", () => {
   it("keeps chain ids reserved on a full re-look", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
-      baseShaMoved: true,
       chainGroupIds: ["g9"],
     });
     expect(plan.previousGroupIds).toEqual(["g1", "g2", "g9"]);
@@ -367,9 +451,7 @@ describe("stitchBrief, chain id reservation", () => {
     );
     const plan = planAnchoredGeneration({
       previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+      span: SPAN_B,
       chainGroupIds: ["g1", "g2", "g3"],
     });
     const generated = brief(
@@ -395,9 +477,7 @@ describe("stitchBrief", () => {
   function planFor(): AnchorPlan {
     return planAnchoredGeneration({
       previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+      span: SPAN_B,
     });
   }
 
@@ -703,12 +783,16 @@ describe("stitchBrief", () => {
         chunk("c3", "g3", "c.ts", 1, 2),
       ],
     );
-    const plan = planAnchoredGeneration({
-      previousBrief: previous3,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
-    });
+    const span = {
+      ...SPAN_B,
+      unchangedFiles: ["a.ts", "c.ts"],
+      hop: [...SPAN_B.hop, { file: "c.ts", hunks: [IDENTITY_SPAN] }],
+      oldSideHop: [
+        ...SPAN_B.oldSideHop,
+        { file: "c.ts", hunks: [IDENTITY_SPAN] },
+      ],
+    };
+    const plan = planAnchoredGeneration({ previousBrief: previous3, span });
     expect(plan.frozen.map((f) => f.group.id)).toEqual(["g1", "g3"]);
     const generated = brief(
       [group("g1", "alpha and gamma mashed"), group("tmpB", "beta v2")],
@@ -742,9 +826,7 @@ describe("stitchBrief, the carried chunk set", () => {
   function planFor(): AnchorPlan {
     return planAnchoredGeneration({
       previousBrief: previous,
-      incrementalDiff: DIFF_B,
-      compareFiles: COMPARE_B,
-      baseShaMoved: false,
+      span: SPAN_B,
     });
   }
 

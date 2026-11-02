@@ -82,21 +82,7 @@
     }
   },
   "increment": {
-    "incrementalDiff": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,15 @@\n \n const STARTED_AT = Date.now();\n \n+export function healthSnapshot(): { ok: boolean; uptimeMs: number } {\n+  return { ok: true, uptimeMs: Date.now() - STARTED_AT };\n+}\n+\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json(healthSnapshot()),\n   };\n }\n \ndiff --git a/packages/api/src/routes/status.ts b/packages/api/src/routes/status.ts\n--- a/packages/api/src/routes/status.ts\n+++ b/packages/api/src/routes/status.ts\n@@ -1,10 +1,11 @@\n import { json } from \"../responses\";\n+import { healthSnapshot } from \"./health\";\n import type { Route } from \"../types\";\n \n export function statusRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/status\",\n-    handler: () => json({ status: \"ok\", version: \"1\" }),\n+    handler: () => json(healthSnapshot()),\n   };\n }\n",
-    "compareFiles": {
-      "files": [
-        {
-          "filename": "packages/api/src/routes/health.ts",
-          "status": "modified"
-        },
-        {
-          "filename": "packages/api/src/routes/status.ts",
-          "status": "modified"
-        }
-      ],
-      "complete": true,
-      "status": "ahead"
-    },
-    "baseShaMoved": false
+    "filteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,15 @@\n \n const STARTED_AT = Date.now();\n \n+export function healthSnapshot(): { ok: boolean; uptimeMs: number } {\n+  return { ok: true, uptimeMs: Date.now() - STARTED_AT };\n+}\n+\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json(healthSnapshot()),\n   };\n }\n \ndiff --git a/packages/api/src/routes/status.ts b/packages/api/src/routes/status.ts\n--- a/packages/api/src/routes/status.ts\n+++ b/packages/api/src/routes/status.ts\n@@ -1,10 +1,11 @@\n import { json } from \"../responses\";\n+import { healthSnapshot } from \"./health\";\n import type { Route } from \"../types\";\n \n export function statusRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/status\",\n-    handler: () => json({ status: \"ok\", version: \"1\" }),\n+    handler: () => json(healthSnapshot()),\n   };\n }\n",
+    "unfilteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,15 @@\n \n const STARTED_AT = Date.now();\n \n+export function healthSnapshot(): { ok: boolean; uptimeMs: number } {\n+  return { ok: true, uptimeMs: Date.now() - STARTED_AT };\n+}\n+\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json(healthSnapshot()),\n   };\n }\n \ndiff --git a/packages/api/src/routes/status.ts b/packages/api/src/routes/status.ts\n--- a/packages/api/src/routes/status.ts\n+++ b/packages/api/src/routes/status.ts\n@@ -1,10 +1,11 @@\n import { json } from \"../responses\";\n+import { healthSnapshot } from \"./health\";\n import type { Route } from \"../types\";\n \n export function statusRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/status\",\n-    handler: () => json({ status: \"ok\", version: \"1\" }),\n+    handler: () => json(healthSnapshot()),\n   };\n }\n"
   }
 }

@@ -182,11 +182,6 @@
       "count": 1
     }
   },
-  "tools/categorizer/eval/pair-cases/pair-rebase-noise/expected.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "tools/categorizer/eval/pair-cases/pair-risk-add/expected.ts": {
     "house/no-em-dash": {
       "count": 1

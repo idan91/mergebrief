@@ -2,7 +2,7 @@
 // block) and the anchored system-prompt section, plus generateBrief threading
 // both only when a previous brief is passed.
 import { describe, expect, it } from "vitest";
-import type { CompareFiles } from "../../src/anchoring/types";
+import { buildFastForwardSpan } from "../../src/diff/pr-span/logic/fast-forward-span";
 import { generateBrief } from "../../src/generation/brief";
 import type { PreviousBriefInput } from "../../src/generation/brief/types";
 import {
@@ -345,18 +345,13 @@ const pr: FetchedPr = {
   links: [],
 };
 
-const compareFiles: CompareFiles = {
-  files: [{ filename: "src/b.ts", status: "modified" }],
-  complete: true,
-  status: "ahead",
-};
-
 const previous: PreviousBriefInput = {
   brief: previousBrief,
-  incrementalDiff:
-    "diff --git a/src/b.ts b/src/b.ts\n@@ -1,1 +1,2 @@\n b1\n+b2\n",
-  compareFiles,
-  baseShaMoved: false,
+  span: buildFastForwardSpan({
+    betweenHeadsDiff:
+      "diff --git a/src/b.ts b/src/b.ts\n@@ -1,1 +1,2 @@\n b1\n+b2\n",
+    newPrDiff: pr.diff,
+  }),
 };
 
 const commitRange = {

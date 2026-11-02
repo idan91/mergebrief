@@ -23,7 +23,7 @@ export const PAIR_GZIP_BYTES = 1024 * 1024;
 /** The PR reads a capture needs beyond the span itself. */
 export interface PairCaptureReads extends Pick<
   PrSource,
-  "fetchPrMetadata" | "fetchCompareDiff" | "fetchCompareCommitCount"
+  "fetchPrMetadata" | "fetchCompareCommitCount"
 > {
   fetchReviewCommentsCreatedBy(
     loc: PrLocator,
@@ -87,9 +87,8 @@ export async function capturePair(
   }
 
   const headDate = await reads.fetchCommitDate(locator, head);
-  const [comments, incrementalDiff, prevCount, newCount] = await Promise.all([
+  const [comments, prevCount, newCount] = await Promise.all([
     reads.fetchReviewCommentsCreatedBy(locator, headDate),
-    reads.fetchCompareDiff(locator, prevHead, head),
     reads.fetchCompareCommitCount(locator, refs.prevBase, prevHead),
     reads.fetchCompareCommitCount(locator, refs.newBase, head),
   ]);
@@ -107,9 +106,6 @@ export async function capturePair(
       commitCount: newCount,
     }),
     increment: {
-      incrementalDiff,
-      compareFiles: { files: [], complete: false },
-      baseShaMoved: refs.prevBase !== refs.newBase,
       filteredSpan: span.value.filteredDiff,
       unfilteredSpan: span.value.unfilteredDiff,
     },

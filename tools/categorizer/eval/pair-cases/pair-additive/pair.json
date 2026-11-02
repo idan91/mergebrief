@@ -72,17 +72,7 @@
     }
   },
   "increment": {
-    "incrementalDiff": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,12 @@\n \n const STARTED_AT = Date.now();\n \n+// Uptime is measured from process start, not deploy time.\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n   };\n }\n \n",
-    "compareFiles": {
-      "files": [
-        {
-          "filename": "packages/api/src/routes/health.ts",
-          "status": "modified"
-        }
-      ],
-      "complete": true,
-      "status": "ahead"
-    },
-    "baseShaMoved": false
+    "filteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,12 @@\n \n const STARTED_AT = Date.now();\n \n+// Uptime is measured from process start, not deploy time.\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n   };\n }\n \n",
+    "unfilteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -3,11 +3,12 @@\n \n const STARTED_AT = Date.now();\n \n+// Uptime is measured from process start, not deploy time.\n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT, pid: process.pid }),\n   };\n }\n \n"
   }
 }

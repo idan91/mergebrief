@@ -120,7 +120,7 @@ async function generateFreshBrief(
     translate: deps.translate,
     priorBriefs: context.priorBriefs,
     prevBrief: context.prevBrief,
-    prevSpanFetch: inputs.prevSpanFetch,
+    prevSpanRead: inputs.prevSpanRead,
     prInfo: context.prInfo,
     diff: inputs.diff,
     locator: inputs.locator,

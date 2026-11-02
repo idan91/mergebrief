@@ -1,5 +1,6 @@
 import type { Effort, Generator, Logger } from "generators";
-import type { AnchorPlan, CompareFiles } from "../../anchoring/types";
+import type { AnchorPlan } from "../../anchoring/types";
+import type { PrSpan } from "../../diff/pr-span/types";
 import type { FetchedPr } from "../../github/types";
 import type { Brief, CommitRange, OutlineForm } from "../../types";
 import type { MultiCallHooks } from "../multi-call/types";
@@ -11,11 +12,8 @@ import type { GenerationWarning } from "../warnings/types";
 /** The brief a revision anchors on, plus what the plan reads about the push. */
 export interface PreviousBriefInput {
   readonly brief: Brief;
-  /** The prevHead to head span diff; absent re-looks every group. */
-  readonly incrementalDiff?: string | undefined;
-  /** The compare file list; absent re-looks every group. */
-  readonly compareFiles?: CompareFiles | undefined;
-  readonly baseShaMoved: boolean;
+  /** The PR's own change between the previous head and this one; absent re-looks every group. */
+  readonly span?: PrSpan | undefined;
   /** Every group id the chain has used, reserved from descent. */
   readonly chainGroupIds?: readonly string[];
   /** Runs once the plan exists and before the model call; a throw ends the run. */

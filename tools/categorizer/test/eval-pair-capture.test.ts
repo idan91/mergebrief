@@ -41,13 +41,6 @@ index 0000000..3333333
 @@ -0,0 +1,1 @@
 +fresh
 `;
-const THREE_DOT = `${B_PATCH}diff --git a/c.ts b/c.ts
---- a/c.ts
-+++ b/c.ts
-@@ -1,1 +1,2 @@
- line
-+base branch edit
-`;
 
 const COMMENT = {
   id: "101",
@@ -130,7 +123,6 @@ function stubCaptureReads(): StubCaptureReads {
       return [COMMENT];
     },
     fetchCommitDate: async (_loc, sha) => HEAD_DATES.get(sha) ?? "unknown",
-    fetchCompareDiff: async () => THREE_DOT,
     fetchCompareCommitCount: async (_loc, _base, head) =>
       head === PREV_HEAD ? 1 : 2,
   };
@@ -167,9 +159,6 @@ describe("capturePair", () => {
     expect(file.increment.filteredSpan).toContain("+fresh");
     expect(file.increment.filteredSpan).not.toContain("a.ts");
     expect(file.increment.unfilteredSpan).toContain("+fresh");
-    expect(file.increment.incrementalDiff).toBe(THREE_DOT);
-    expect(file.increment.baseShaMoved).toBe(false);
-    expect(file.increment.compareFiles).toEqual({ files: [], complete: false });
     expect(file.reviewComments).toEqual([COMMENT]);
   });
 
@@ -224,7 +213,6 @@ describe("capturePair", () => {
       { base: PR_BASE, head: NEW_HEAD },
       { base: RETARGET_BASE, head: PREV_HEAD },
     ]);
-    expect(captured.ok && captured.value.increment.baseShaMoved).toBe(true);
   });
 
   it("names the span failure kind when a PR diff read fails", async () => {

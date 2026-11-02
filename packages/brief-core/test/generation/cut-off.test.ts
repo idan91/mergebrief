@@ -328,7 +328,6 @@ describe("a cut single call", () => {
         headIndex: 2,
         previous: {
           brief: first.brief,
-          baseShaMoved: false,
           chainGroupIds: ["g1", "g2", "g3", "g4"],
         },
       }),

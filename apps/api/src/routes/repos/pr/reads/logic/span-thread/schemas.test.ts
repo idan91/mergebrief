@@ -110,6 +110,7 @@ const SPAN = {
   filteredDiff: "",
   unfilteredDiff: "",
   hop: [{ file: "a", hunks: [HUNK] }],
+  oldSideHop: [{ file: "a", hunks: [HUNK] }],
   isUnchanged: false,
 };
 

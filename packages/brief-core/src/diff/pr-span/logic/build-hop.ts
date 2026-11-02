@@ -1,6 +1,7 @@
 import type { HunkSpan } from "../../remap";
 import { IDENTITY_SPAN, REST_OF_FILE_LINES } from "../consts";
-import type { ChangeRun } from "../types";
+import type { ChangeRun, PrFilePatch } from "../types";
+import { hasSameRuns } from "./change-runs";
 
 interface StretchBounds {
   /** First line of the stretch at the previous head, and the line past it. */
@@ -71,6 +72,34 @@ export function buildBaseMovedSpans(
     newLines: REST_OF_FILE_LINES,
   });
   return spans;
+}
+
+/** A run read from its removed side, so a stretch walk moves base-side lines. */
+function readRemovedSide(run: ChangeRun): ChangeRun {
+  return { ...run, newStart: run.oldStart, added: run.removed };
+}
+
+/**
+ * The old-side hop of a file whose PR change is the same at both heads:
+ * identity where the base under it held still, else each run's removed
+ * lines shift with their twin's. Nothing when the runs cannot pair.
+ */
+export function buildOldSideSpans(
+  prev: PrFilePatch,
+  next: PrFilePatch,
+): HunkSpan[] | undefined {
+  const isSameBase =
+    prev.preBlobId !== undefined && prev.preBlobId === next.preBlobId;
+  if (isSameBase) {
+    return [IDENTITY_SPAN];
+  }
+  if (!hasSameRuns(prev.runs, next.runs)) {
+    return undefined;
+  }
+  return buildBaseMovedSpans(
+    prev.runs.map(readRemovedSide),
+    next.runs.map(readRemovedSide),
+  );
 }
 
 /** One run's lines as a span; a side with no lines names the line before, as git does. */

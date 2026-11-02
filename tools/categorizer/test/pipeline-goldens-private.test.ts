@@ -1,12 +1,15 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readPairSpanShapes } from "./hand-derived-span";
 import { describePipelineGoldens } from "./pipeline-goldens-suite";
+
+const PRIVATE_PAIR_CASES_DIR = fileURLToPath(
+  new URL("../eval/private-pair-cases", import.meta.url),
+);
 
 const corpus = await describePipelineGoldens({
   casesDir: fileURLToPath(new URL("../eval/private-cases", import.meta.url)),
-  pairsDir: fileURLToPath(
-    new URL("../eval/private-pair-cases", import.meta.url),
-  ),
+  pairsDir: PRIVATE_PAIR_CASES_DIR,
   requiresEveryWarningFamily: false,
 });
 
@@ -22,5 +25,21 @@ describe("the private case set", () => {
     expect(corpus.pairCases.map((found) => found.id)).toEqual([
       "pair-real-brief143-docs",
     ]);
+  });
+});
+
+describe("the private hand-derived pair span", () => {
+  it("holds on pair-real-brief143-docs", async () => {
+    const shapes = await readPairSpanShapes(
+      PRIVATE_PAIR_CASES_DIR,
+      "pair-real-brief143-docs",
+    );
+
+    for (const shape of shapes) {
+      expect(shape).toEqual({
+        files: ["docs/plans/brief-143-stability-implementation.md"],
+        headers: ["@@ -0,0 +1,167 @@"],
+      });
+    }
   });
 });

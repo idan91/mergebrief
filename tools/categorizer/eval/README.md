@@ -298,12 +298,15 @@ jq '.usage' out/eval-report.json
 ## Revision-pair cases
 
 `pair-cases/<id>/` = `pair.json` + `expected.ts` (exporting
-`pairProperties`). A pair = a base fixture + a revised fixture + a provably
-scoped increment (span diff, compare `files[]` metadata, `baseShaMoved`).
-The runner drives the PRODUCTION anchoring machinery per run: fresh
-`categorize` for the base, `planAnchoredGeneration`, anchored `categorize`
-for the revision, `stitchBrief`, so the property pairs measure the real
-pipeline. **One pair run = TWO generations**, up to four with the
+`pairProperties`). A pair = a base fixture + a revised fixture + the
+revision span between them: `increment.filteredSpan` and
+`increment.unfilteredSpan` (the PR's own change, filtered and not; on a
+fast-forward both are the three-dot diff). The runner rebuilds the span the
+worker would read from the two PR diffs and `unfilteredSpan`: the fast path
+when both heads share the PR base, the builder otherwise. It then drives the
+PRODUCTION anchoring machinery per run: fresh `categorize` for the base,
+`planAnchoredGeneration` over that span, anchored `categorize` for the
+revision, `stitchBrief`, so the property pairs measure the real pipeline. **One pair run = TWO generations**, up to four with the
 narrative and delta mode below, one fewer with a stored `baseBrief`; the
 pre-flight line counts them per case. A large `pair.json` may ship as
 `pair.json.gz`, never both.
@@ -314,8 +317,7 @@ A pair case opts in by exporting `narrativeProperties`, `deltaProperties`,
 or both from `expected.ts`; ids are unique across all three lists. Each
 run then calls `categorizeRevisionNarrative` on the stitched revised Brief
 and `categorizeDelta` for a reviewer whose Checkpoint sits at the previous
-head, both over `increment.filteredSpan`. An opted-in case must carry a
-`filteredSpan`. An empty one is a push that left the PR's own change as it
+head, both over `increment.filteredSpan`. An empty one is a push that left the PR's own change as it
 was: the run writes the `revisionNarrativeUnchanged` and `deltaUnchanged`
 records the worker writes and calls no model for them, and
 `narrative-no-change` / `delta-no-change` score that (the record over an
@@ -325,9 +327,7 @@ no replay, comments from the input, no change); the chunk predicates read a
 record as no chunks. The narrative and delta specimens persist beside the
 base and revised ones.
 
-Optional `pair.json` fields: `increment.filteredSpan` and
-`increment.unfilteredSpan` (the revision span, filtered and not),
-`reviewComments` (the comments that existed at the revised head),
+Optional `pair.json` fields: `reviewComments` (the comments that existed at the revised head),
 `baseBrief` (the base head's Brief, read instead of generating one; its
 head must be the base head). Cases that do not opt in cost what they cost
 before.

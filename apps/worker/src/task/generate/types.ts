@@ -340,7 +340,6 @@ export type BriefOriginLoader = () => Promise<GenerationOrigin>;
 
 export interface AnchorDecisionInputs {
   readonly store: ArtifactStore;
-  readonly source: PullRequestSource;
   /** Cross-revision regeneration policy; absent → `never` (anchored). */
   readonly fullRegeneration: FullRegeneration | undefined;
   /** The raw generator: `origin()` is pure metadata, no signal needed. */
@@ -349,10 +348,8 @@ export interface AnchorDecisionInputs {
   /** The previous briefed head, or undefined on the PR's first brief. */
   readonly prevBrief: BriefSpanRow | undefined;
   readonly priorBriefs: readonly BriefSpanRow[];
-  /** The prevHead...head compare diff Result, fetched once by the caller. */
-  readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
-  /** This run's PR base. */
-  readonly baseSha: string;
+  /** The PR's own change since `prevBrief`; absent when it could not be read. */
+  readonly prevSpan: PrSpan | undefined;
   readonly log: Logger;
 }
 
@@ -581,8 +578,6 @@ export interface RunInputs {
   readonly diff: string;
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
-  /** The prevHead...head compare diff Result, fetched before the model call; anchoring reads it. */
-  readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
   /** The revision span on the PR's own diffs, read before the model call. */
   readonly prevSpanRead: PrSpanResult | undefined;
   readonly repoConfig: AcquiredRepoConfig | undefined;
@@ -736,8 +731,8 @@ export interface BriefGenerationInputs {
   readonly translate: TFunction;
   readonly priorBriefs: readonly BriefSpanRow[];
   readonly prevBrief: BriefSpanRow | undefined;
-  /** The prevHead...head compare diff Result, fetched once by the caller. */
-  readonly prevSpanFetch: Result<string, GitHubCallFailure> | undefined;
+  /** The revision span since `prevBrief`, read before the model call. */
+  readonly prevSpanRead: PrSpanResult | undefined;
   readonly prInfo: PullRequestInfo;
   readonly diff: string;
   readonly locator: PrLocator;

@@ -1073,55 +1073,22 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
   },
   "anchoring": {
     "carried": [],
-    "regenerated": []
+    "regenerated": [
+      "g1"
+    ]
   },
-  "changeGroups": [],
-  "chunks": [],
-  "commitRange": {
-    "base": "38392f7a157ec25a12b5bd8ef8d657fda8ce1ad9",
-    "commitCount": 2,
-    "head": "18b049f7d29eb1b65175cf5960c619c630235cd6"
-  },
-  "concernView": [],
-  "diffTotals": {
-    "added": 16,
-    "deleted": 1
-  },
-  "generation": {
-    "effort": "medium",
-    "model": "canned-model",
-    "provider": "canned"
-  },
-  "generationWarnings": [
-    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
-    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it",
-    "⚠ unknown group issues:\\nchunk c2 (packages/logging/src/redact.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder\\nchunk c3 (packages/logging/src/redact.ts) names unknown group \\"t-unknown\\", dropped to the unattributed remainder",
-    "⚠ loc coverage issues:\\n16 added / 1 removed changed line(s) unattributed to any chunk across 2 file(s)\\n2 file(s) in no group — packages/api/src/routes/health.ts, packages/logging/src/redact.ts",
-    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
-    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)"
+  "changeGroups": [
+    {
+      "dominantCategory": "logic-refactor",
+      "id": "g1",
+      "secondaryCategories": [],
+      "summary": "Touches packages/logging/src/redact.ts, packages/api/src/routes/health.ts. canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned filler canned f",
+      "title": "Claims g1",
+      "uncertain": false,
+      "uncertainBetween": []
+    }
   ],
-  "index": 2,
-  "intentCheck": {
-    "accomplished": [],
-    "deviations": [],
-    "doneButUnstated": [],
-    "maskedFixes": [],
-    "scopeNote": "",
-    "specificity": "precise",
-    "statedButMissing": [],
-    "ticketTitles": [],
-    "ticketUrls": []
-  },
-  "pr": {
-    "description": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip \`token=\` query parameters.",
-    "number": 9009,
-    "repo": "Idan91/code-review",
-    "sha": "18b049f7d29eb1b65175cf5960c619c630235cd6",
-    "title": "Add a health endpoint and redact query tokens in logs",
-    "url": "https://github.com/Idan91/code-review/pull/9009"
-  },
-  "summary": "Canned adversarial brief over 3 chunk(s).",
-  "unattributed": [
+  "chunks": [
     {
       "addedRanges": [
         {
@@ -1129,8 +1096,17 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
           "start": 4
         }
       ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
       "file": "packages/logging/src/redact.ts",
-      "removedRanges": []
+      "id": "c1",
+      "loc": {
+        "added": 4,
+        "deleted": 0
+      },
+      "removedRanges": [],
+      "riskSurface": [],
+      "role": "core"
     },
     {
       "addedRanges": [
@@ -1143,15 +1119,122 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
           "start": 16
         }
       ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
       "file": "packages/api/src/routes/health.ts",
+      "id": "c2",
+      "loc": {
+        "added": 12,
+        "deleted": 1
+      },
       "removedRanges": [
         {
           "end": 5,
           "start": 5
         }
-      ]
+      ],
+      "riskSurface": [],
+      "role": "core"
+    },
+    {
+      "addedRanges": [
+        {
+          "end": 14,
+          "start": 4
+        },
+        {
+          "end": 16,
+          "start": 16
+        }
+      ],
+      "changeGroupId": "g1",
+      "concern": "implementation",
+      "file": "packages/api/src/routes/health.ts",
+      "id": "c4",
+      "loc": {
+        "added": 12,
+        "deleted": 1
+      },
+      "removedRanges": [
+        {
+          "end": 5,
+          "start": 5
+        }
+      ],
+      "riskSurface": [],
+      "role": "supporting"
     }
-  ]
+  ],
+  "commitRange": {
+    "base": "38392f7a157ec25a12b5bd8ef8d657fda8ce1ad9",
+    "commitCount": 2,
+    "head": "18b049f7d29eb1b65175cf5960c619c630235cd6"
+  },
+  "concernView": [
+    {
+      "added": 28,
+      "concern": "implementation",
+      "deleted": 2
+    }
+  ],
+  "diffTotals": {
+    "added": 16,
+    "deleted": 1
+  },
+  "generation": {
+    "effort": "medium",
+    "model": "canned-model",
+    "provider": "canned"
+  },
+  "generationWarnings": [
+    "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
+    "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g1 claimed by the model output — unfrozen and re-examined",
+    "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t1\\"",
+    "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t1\\" references unknown group \\"t1\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t1\\" has no valid group anchor — dropped (no grounding)",
+    "⚠ risk attrs issues:\\nchunk c1 (packages/logging/src/redact.ts): dropped comment-contradicts-code — no riskNotes citation",
+    "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap"
+  ],
+  "index": 2,
+  "intentCheck": {
+    "accomplished": [],
+    "deviations": [],
+    "doneButUnstated": [
+      {
+        "acknowledged": false,
+        "groupIds": [
+          "g1"
+        ],
+        "intent": "Canned unstated work in g1",
+        "quote": "",
+        "sourceUrl": ""
+      }
+    ],
+    "maskedFixes": [],
+    "scopeNote": "",
+    "specificity": "precise",
+    "statedButMissing": [],
+    "ticketTitles": [],
+    "ticketUrls": []
+  },
+  "lengthViolations": [
+    {
+      "actual": 251,
+      "cap": 250,
+      "field": "group g1 summary",
+      "surface": "group-summary"
+    }
+  ],
+  "pr": {
+    "description": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip \`token=\` query parameters.",
+    "number": 9009,
+    "repo": "Idan91/code-review",
+    "sha": "18b049f7d29eb1b65175cf5960c619c630235cd6",
+    "title": "Add a health endpoint and redact query tokens in logs",
+    "url": "https://github.com/Idan91/code-review/pull/9009"
+  },
+  "summary": "Canned adversarial brief over 4 chunk(s).",
+  "unattributed": []
 }"
 `;
 
@@ -1774,7 +1857,7 @@ exports[`anchoring goldens > 'pair-additive' records the plan and the carried se
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
@@ -1809,7 +1892,7 @@ exports[`anchoring goldens > 'pair-ask-edit' records the plan and the carried se
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
@@ -1844,7 +1927,7 @@ exports[`anchoring goldens > 'pair-boundary-restructure' records the plan and th
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
@@ -1907,7 +1990,7 @@ exports[`anchoring goldens > 'pair-meaning-changing' records the plan and the ca
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
@@ -1956,9 +2039,15 @@ exports[`anchoring goldens > 'pair-rebase-noise' records the plan and the carrie
     "g1",
     "g2"
   ],
-  "carriedChunkIds": [],
-  "carriedGroupIds": [],
-  "frozenGroupIds": [],
+  "carriedChunkIds": [
+    "c1"
+  ],
+  "carriedGroupIds": [
+    "g1"
+  ],
+  "frozenGroupIds": [
+    "g1"
+  ],
   "groupIds": [
     "g1",
     "g2"
@@ -1969,16 +2058,11 @@ exports[`anchoring goldens > 'pair-rebase-noise' records the plan and the carrie
   ],
   "reLook": [
     {
-      "id": "g1",
-      "reason": "base SHA moved (rebase/base-advance) — three-dot span data untrusted"
-    },
-    {
       "id": "g2",
-      "reason": "base SHA moved (rebase/base-advance) — three-dot span data untrusted"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
-    "g1",
     "g2"
   ]
 }"
@@ -2010,7 +2094,7 @@ exports[`anchoring goldens > 'pair-risk-add' records the plan and the carried se
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
@@ -2045,7 +2129,7 @@ exports[`anchoring goldens > 'pair-risk-add-new-file' records the plan and the c
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
@@ -2080,7 +2164,7 @@ exports[`anchoring goldens > 'pair-risk-remove' records the plan and the carried
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": [
@@ -2114,7 +2198,7 @@ exports[`anchoring goldens > 'pair-subtractive' records the plan and the carried
   "reLook": [
     {
       "id": "g2",
-      "reason": "packages/api/src/routes/health.ts: compare status 'modified'"
+      "reason": "packages/api/src/routes/health.ts: the push changed the PR's change"
     }
   ],
   "regeneratedGroupIds": []
@@ -7202,9 +7286,10 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       "state": "anchored"
     },
     "anchoring": {
-      "carried": [],
+      "carried": [
+        "g1"
+      ],
       "regenerated": [
-        "g1",
         "g2"
       ]
     },
@@ -11828,8 +11913,8 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
       "sha256": "804779d2104eea0d20ed8c0c454b5f994da367b259d445fefbd3ac608febf8ea"
     },
     "user": {
-      "bytes": 2878,
-      "sha256": "a417f053e4784460e6aa7d7439703cac7229f35d46a70fe2db46d760f30a5ca5"
+      "bytes": 2871,
+      "sha256": "a3b7da66d6430a7fa7368300c14657ddc3e90be454366718d1aed1005e4b6caa"
     }
   }
 ]"

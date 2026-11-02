@@ -100,25 +100,28 @@ const BuiltSpanPlanSchema = z.strictObject({
 
 const LineNumberSchema = z.number().int().nonnegative();
 
+const HopSchema = z.array(
+  z.strictObject({
+    file: z.string(),
+    hunks: z.array(
+      z.strictObject({
+        oldStart: LineNumberSchema,
+        oldLines: LineNumberSchema,
+        newStart: LineNumberSchema,
+        newLines: LineNumberSchema,
+      }),
+    ),
+  }),
+);
+
 const PrSpanSchema = z.strictObject({
   changedFiles: z.array(z.string()),
   unchangedFiles: z.array(z.string()),
   unpairableFiles: z.array(z.string()),
   filteredDiff: z.string(),
   unfilteredDiff: z.string(),
-  hop: z.array(
-    z.strictObject({
-      file: z.string(),
-      hunks: z.array(
-        z.strictObject({
-          oldStart: LineNumberSchema,
-          oldLines: LineNumberSchema,
-          newStart: LineNumberSchema,
-          newLines: LineNumberSchema,
-        }),
-      ),
-    }),
-  ),
+  hop: HopSchema,
+  oldSideHop: HopSchema,
   isUnchanged: z.boolean(),
 }) satisfies z.ZodType<PrSpan>;
 

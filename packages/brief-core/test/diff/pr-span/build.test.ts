@@ -700,3 +700,57 @@ describe("buildPrSpan on header-only changes", () => {
     expect(span.hop).toEqual([{ file: FILE, hunks: [] }]);
   });
 });
+
+describe("buildPrSpan's old-side hop", () => {
+  it("keeps a removed range where the base under the file held still", () => {
+    const base = makeBaseLines(10);
+    const diff = makePrDiff(base, replaceLine(base, "b4", ["p4"]));
+
+    const span = buildPrSpan({
+      prevPrDiff: diff,
+      newPrDiff: diff,
+      betweenHeads: new Map(),
+    });
+
+    expect(span.oldSideHop).toEqual([{ file: FILE, hunks: [IDENTITY_SPAN] }]);
+  });
+
+  it("shifts a removed range past base inserts above it", () => {
+    const base = makeBaseLines(20);
+    const movedBase = insertAfter(base, "b2", ["n1", "n2"]);
+
+    const span = buildPrSpan({
+      prevPrDiff: makePrDiff(base, replaceLine(base, "b9", ["p9"])),
+      newPrDiff: makePrDiff(movedBase, replaceLine(movedBase, "b9", ["p9"])),
+      betweenHeads: new Map(),
+    });
+
+    const onRemoved = remapThroughHops(
+      FILE,
+      [{ start: 9, end: 9 }],
+      [span.oldSideHop],
+    );
+    const onContext = remapThroughHops(
+      FILE,
+      [{ start: 5, end: 5 }],
+      [span.oldSideHop],
+    );
+    expect(onRemoved).toEqual({
+      outcome: RemapOutcomes.REMAPPED,
+      ranges: [{ start: 11, end: 11 }],
+    });
+    expect(onContext.outcome).toBe(RemapOutcomes.DEMOTED);
+  });
+
+  it("gives a changed file no old-side spans", () => {
+    const base = makeBaseLines(10);
+
+    const span = buildPrSpan({
+      prevPrDiff: makePrDiff(base, replaceLine(base, "b4", ["p4"])),
+      newPrDiff: makePrDiff(base, replaceLine(base, "b4", ["q4"])),
+      betweenHeads: new Map(),
+    });
+
+    expect(span.oldSideHop).toEqual([{ file: FILE, hunks: [] }]);
+  });
+});

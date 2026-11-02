@@ -23,10 +23,8 @@ import { createTicketContextLoader } from "./ticket-context";
 
 /**
  * Start the head polls and read what every artifact is built from. The
- * prevHead...head compare is fetched before the model call because the
- * anchoring plan needs it; its unwrap stays deferred so a permanent 406 still
- * lands after the brief write. The revision span is read here too, so a
- * transient failure retries before any model call.
+ * revision span is read here, before any model call, because the anchoring
+ * plan needs it and a transient failure must retry before spend.
  */
 export async function prepareRunInputs(
   context: RunContext,
@@ -44,10 +42,6 @@ export async function prepareRunInputs(
   const meta = buildPrMetadata({ prInfo, files, prRow, openPullRequests, log });
   await recordResolvedStack({ repo, prRow, meta, log, now: new Date() });
   const coreMessageLog: CoreMessageLog = (message) => log.info(message);
-  const prevSpanFetch =
-    prevBrief === undefined
-      ? undefined
-      : await source.fetchCompareDiff(prevBrief.headSha, payload.headSha);
   const prevSpanRead =
     prevBrief === undefined
       ? undefined
@@ -80,7 +74,6 @@ export async function prepareRunInputs(
     diff,
     locator,
     meta,
-    prevSpanFetch,
     prevSpanRead,
     repoConfig,
     loadContext,

@@ -1,4 +1,5 @@
 // brief-core owns `CompareFiles` so its producer and consumer share one shape.
+import type { PrSpan } from "../diff/pr-span/types";
 import type { Hop } from "../diff/remap";
 import type { Brief } from "../types";
 
@@ -33,12 +34,8 @@ export interface CompareFiles {
 
 export interface AnchorPlanArgs {
   readonly previousBrief: Brief;
-  /** Undefined means the fetch failed and nothing is confirmable. */
-  readonly incrementalDiff?: string;
-  /** Undefined means the fetch failed and nothing is confirmable. */
-  readonly compareFiles?: CompareFiles;
-  /** Three-dot compare data lies after a base move, so everything re-looks. */
-  readonly baseShaMoved: boolean;
+  /** The PR's own change between the heads; absent when it could not be read, and every group re-looks. */
+  readonly span?: PrSpan | undefined;
   /** Reserved from descent so a retired id is never re-minted. */
   readonly chainGroupIds?: readonly string[];
 }
@@ -59,10 +56,7 @@ export interface AnchorPlan {
   readonly frozenFiles: ReadonlySet<string>;
   readonly reLook: readonly ReLookEntry[];
   readonly previousGroupIds: readonly string[];
-  /**
-   * Absent whenever the file list may be incomplete: a missing hop demotes an
-   * anchor while a partial one misplaces it.
-   */
+  /** The span's hop, every file of either head's PR diff; absent with no span, so the chain demotes. */
   readonly hunkSpans?: Hop;
 }
 

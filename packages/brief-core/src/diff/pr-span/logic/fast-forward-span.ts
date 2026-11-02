@@ -62,6 +62,12 @@ export function buildFastForwardSpan(input: FastForwardSpanInput): PrSpan {
   }
 
   const hopEntries = [...hop.values()];
+  // One merge base under both heads: an untouched file's base side did not move.
+  const unchanged = new Set(unchangedFiles);
+  const oldSideHop = hopEntries.map((entry) => {
+    const isPlaced = unchanged.has(entry.file) && entry.hunks.length > 0;
+    return { file: entry.file, hunks: isPlaced ? [IDENTITY_SPAN] : [] };
+  });
   const unpairableFiles = hopEntries
     .filter((entry) => entry.hunks.length === 0)
     .flatMap((entry) => pathsByPrevPath.get(entry.file) ?? []);
@@ -73,6 +79,7 @@ export function buildFastForwardSpan(input: FastForwardSpanInput): PrSpan {
     filteredDiff: diff,
     unfilteredDiff: diff,
     hop: hopEntries,
+    oldSideHop,
     isUnchanged: entries.length === 0,
   };
 }

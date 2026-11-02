@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CompareFiles } from "../../src/anchoring/types";
+import { buildFastForwardSpan } from "../../src/diff/pr-span/logic/fast-forward-span";
 import { generateBrief } from "../../src/generation/brief";
 import type {
   GenerateBriefOptions,
@@ -57,12 +57,6 @@ const incrementalDiff = [
   "+b3",
   "",
 ].join("\n");
-
-const compareFiles: CompareFiles = {
-  files: [{ filename: "src/b.ts", status: "modified" }],
-  complete: true,
-  status: "ahead",
-};
 
 const pr: FetchedPr = {
   locator: { owner: "o", repo: "r", number: 1 },
@@ -168,8 +162,13 @@ async function makePreviousBrief(
   return (await generateBrief(options)).brief;
 }
 
-function makePrevious(brief: Brief): PreviousBriefInput {
-  return { brief, incrementalDiff, compareFiles, baseShaMoved: false };
+/** The previous Brief over a plain push that touched only src/b.ts. */
+function makePrevious(brief: Brief, newPrDiff = wholeDiff): PreviousBriefInput {
+  const span = buildFastForwardSpan({
+    betweenHeadsDiff: incrementalDiff,
+    newPrDiff,
+  });
+  return { brief, span };
 }
 
 async function runAnchored(
@@ -177,12 +176,14 @@ async function runAnchored(
   previousBrief?: Brief,
   overrides: Partial<GenerateBriefOptions> = {},
 ): Promise<GenerateBriefOutput> {
+  const brief = previousBrief ?? (await makePreviousBrief());
+  const newPrDiff = overrides.pr?.diff ?? pr.diff;
   return generateBrief({
     pr,
     headIndex: 2,
     commitRange,
     generator: makeQueuedGenerator([output]),
-    previous: makePrevious(previousBrief ?? (await makePreviousBrief())),
+    previous: makePrevious(brief, newPrDiff),
     ...overrides,
   });
 }
@@ -421,7 +422,7 @@ describe("generateBrief, the single-call request byte for byte", () => {
     await generateBrief({
       ...makeSingleCallOptions(generator),
       headIndex: 2,
-      previous: { brief: previous.brief, baseShaMoved: false },
+      previous: { brief: previous.brief },
     });
 
     expect(generator.requests).toHaveLength(1);
@@ -754,7 +755,7 @@ describe("generateBrief, an anchored run", () => {
     expect(readLockFlags(quiet)).toEqual([]);
   });
 
-  it("drops a carried chunk on a file the PR no longer changes", async () => {
+  it("re-looks a group whose file the PR no longer changes", async () => {
     const departedPr: FetchedPr = {
       ...pr,
       meta: {
@@ -772,9 +773,10 @@ describe("generateBrief, an anchored run", () => {
       "src/b.ts",
     ]);
     expect(result.brief.changeGroups.map((group) => group.id)).toEqual(["g2"]);
-    expect(findIssues(result.warnings, "anchored stitch")).toContainEqual(
-      expect.stringContaining("carried chunk c1 on src/a.ts dropped"),
+    expect(result.anchoring?.plan.reLook).toContainEqual(
+      expect.objectContaining({ id: "g1", files: ["src/a.ts"] }),
     );
+    expect(findIssues(result.warnings, "anchored stitch")).toEqual([]);
   });
 });
 
@@ -1053,7 +1055,7 @@ describe("generateBrief Summary Media, one call", () => {
     const { brief } = await generateBrief(
       makeMediaOptions(new FakeGenerator(answerMediaRun), {
         headIndex: 2,
-        previous: { brief: first.brief, baseShaMoved: false },
+        previous: { brief: first.brief },
       }),
     );
 

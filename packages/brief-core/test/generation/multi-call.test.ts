@@ -92,7 +92,6 @@ function makeChainOptions(
     headIndex: 2,
     previous: {
       brief: previousBrief,
-      baseShaMoved: false,
       chainGroupIds: chain.chainGroupIds,
     },
   });
@@ -629,7 +628,6 @@ describe("generateBrief on the multi-call path", () => {
         headIndex: 2,
         previous: {
           brief: first.brief,
-          baseShaMoved: false,
           onPlan: async () => {
             planned = true;
           },
@@ -653,7 +651,6 @@ describe("generateBrief on the multi-call path", () => {
         headIndex: 2,
         previous: {
           brief: first.brief,
-          baseShaMoved: false,
           chainGroupIds: ["g1", "g2", "g3", "g4"],
         },
       }),

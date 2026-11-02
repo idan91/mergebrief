@@ -45,15 +45,9 @@ function discardLog(): void {}
 function buildPlanArgs(previous: PreviousBriefInput): AnchorPlanArgs {
   const args: Mutable<AnchorPlanArgs> = {
     previousBrief: previous.brief,
-    baseShaMoved: previous.baseShaMoved,
+    span: previous.span,
   };
 
-  if (previous.incrementalDiff !== undefined) {
-    args.incrementalDiff = previous.incrementalDiff;
-  }
-  if (previous.compareFiles !== undefined) {
-    args.compareFiles = previous.compareFiles;
-  }
   if (previous.chainGroupIds !== undefined) {
     args.chainGroupIds = previous.chainGroupIds;
   }

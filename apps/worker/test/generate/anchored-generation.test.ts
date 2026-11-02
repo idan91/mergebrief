@@ -7,9 +7,14 @@ import type { Mutable } from "types/utils";
 import { RepoConfigPaths } from "repo-config";
 import { RepoFileKinds, type PullRequestInfo } from "github";
 import { TransientJobError } from "../../src/task/failure";
-import { FakeFailures, type FakeFailure } from "github/testing";
+import {
+  FakeFailures,
+  type FakeFailure,
+  type FakeGitHub,
+} from "github/testing";
 import {
   arrangeCompare,
+  arrangeNewHeadPrDiff,
   BASE,
   buildRepoFile,
   captureLogger,
@@ -32,6 +37,9 @@ import {
   type TaskOverrides,
 } from "./helpers";
 
+/** The hop entry of a file the push left as it was. */
+const IDENTITY_HUNK = { oldStart: 0, oldLines: 0, newStart: 0, newLines: 0 };
+
 /** Incremental diff touching only b.ts. */
 const DIFF_TOUCHING_B = `diff --git a/b.ts b/b.ts
 --- a/b.ts
@@ -41,6 +49,38 @@ const DIFF_TOUCHING_B = `diff --git a/b.ts b/b.ts
 +added
  line2
 `;
+
+/** One file's PR diff under the blob ids named, `added` the line the PR adds. */
+function makeFilePrDiff(file: string, blobs: string, added: string): string {
+  return `diff --git a/${file} b/${file}
+index ${blobs} 100644
+--- a/${file}
++++ b/${file}
+@@ -1,2 +1,3 @@
+ line
++${added}
+ line2
+`;
+}
+
+/** A push that rewrote b.ts's PR change and left a.ts's byte for byte. */
+function arrangeForcePushOnB(github: FakeGitHub, newBase = BASE): void {
+  const aPatch = makeFilePrDiff("a.ts", "1111111..2222222", "added");
+  const prevB = makeFilePrDiff("b.ts", "1111111..3333333", "first");
+  const nextB = makeFilePrDiff("b.ts", "1111111..4444444", "second");
+  arrangeCompare(github, { base: BASE, head: HEAD_1 }, `${aPatch}${prevB}`);
+  arrangeNewHeadPrDiff(github, `${aPatch}${nextB}`, newBase);
+  github.addRepoFile(
+    REPO,
+    { path: "b.ts", ref: HEAD_1 },
+    buildRepoFile("line\nfirst\nline2\n", "3333333"),
+  );
+  github.addRepoFile(
+    REPO,
+    { path: "b.ts", ref: HEAD_2 },
+    buildRepoFile("line\nsecond\nline2\n", "4444444"),
+  );
+}
 
 /** A two-group brief generation output over a.ts + b.ts. */
 function makeTwoGroupBriefOutput(
@@ -161,10 +201,12 @@ describe("generate task, anchored generation", () => {
     rev2HopRefused?: boolean;
     /** Move the row out of scope between the second run's guard and its hop. */
     rev2RowLeavesScope?: boolean;
-    /** Fail the second revision's compare-files fetch. */
-    rev2CompareFilesError?: FakeFailure;
+    /** Fail the second revision's merge-base reads, so its span reads unavailable. */
+    rev2MergeBaseError?: FakeFailure;
     /** The second head rewrote history: the span's merge base is no previous head. */
     rev2ForcePush?: boolean;
+    /** Arranges what GitHub holds for the second head before it runs. */
+    rev2Arrange?: (github: FakeGitHub) => void;
     rev1Output?: unknown;
     /** A repo policy the first revision sees and the second no longer does. */
     rev1OnlyPolicy?: string;
@@ -242,9 +284,10 @@ describe("generate task, anchored generation", () => {
         effort,
       });
     }
-    if (options.rev2CompareFilesError !== undefined) {
-      github.failOn("fetchCompareFiles", options.rev2CompareFilesError);
+    if (options.rev2MergeBaseError !== undefined) {
+      github.failOn("fetchMergeBase", options.rev2MergeBaseError);
     }
+    options.rev2Arrange?.(github);
     const second = await trigger(HEAD_2);
     if (options.rev2FailWith !== undefined) {
       generator.failNextWith = options.rev2FailWith;
@@ -351,6 +394,7 @@ describe("generate task, anchored generation", () => {
     expect(hops[0]?.headSha).toBe(HEAD_2);
     expect(JSON.parse(hops[0]?.spans ?? "[]")).toEqual([
       { file: "b.ts", hunks: [expect.objectContaining({ oldStart: 1 })] },
+      { file: "a.ts", hunks: [IDENTITY_HUNK] },
     ]);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     const body = JSON.parse(row?.body ?? "{}") as {
@@ -526,9 +570,14 @@ describe("generate task, anchored generation", () => {
     expect(row?.anchorState).toBe("anchored");
   });
 
-  it("reviews everything after a base move while retaining id descent", async () => {
+  it("carries an untouched group across a retarget", async () => {
     const BASE_2 = "d".repeat(40);
-    const { pr } = await runTwoRevisions({ rev2BaseSha: BASE_2 });
+    const { pr } = await runTwoRevisions({
+      rev2BaseSha: BASE_2,
+      rev2Arrange: (github) => {
+        arrangeForcePushOnB(github, BASE_2);
+      },
+    });
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE_2, HEAD_2);
     expect(row?.anchorState).toBe("anchored");
@@ -536,21 +585,15 @@ describe("generate task, anchored generation", () => {
       anchoring?: { carried: string[]; regenerated: string[] };
       changeGroups?: { id: string; title: string }[];
     };
-    expect(body.anchoring?.carried).toEqual([]);
-    // Nothing carried, but descent still maps the fresh groups onto the
-    // previous ids, group identity survives the rebase.
-    expect(body.changeGroups?.map((group) => group.id).toSorted()).toEqual([
-      "gA",
-      "gB",
-    ]);
+    expect(body.anchoring).toEqual({ carried: ["gA"], regenerated: ["gB"] });
     expect(body.changeGroups?.find((group) => group.id === "gA")?.title).toBe(
-      "alpha rewritten",
+      "alpha",
     );
   });
 
-  it("degrades to a full re-look when compare files cannot be fetched", async () => {
+  it("re-looks every group when the span cannot be read", async () => {
     const { pr, generator } = await runTwoRevisions({
-      rev2CompareFilesError: FakeFailures.SERVER_ERROR,
+      rev2MergeBaseError: FakeFailures.NOT_FOUND,
     });
     const row = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
@@ -558,8 +601,8 @@ describe("generate task, anchored generation", () => {
       HEAD_2,
     );
     // The job still runs and still anchors: the previous brief and the chain's
-    // ids survive. Nothing carries, because the compare-files list is what
-    // confirms a group untouched, and it never arrived.
+    // ids survive. Nothing carries, because only the span confirms a group's
+    // PR change held, and it never arrived.
     expect(row?.anchorState).toBe("anchored");
     const body = JSON.parse(row?.body ?? "{}") as {
       anchoring?: { carried: string[] };
@@ -571,25 +614,26 @@ describe("generate task, anchored generation", () => {
     expect(briefRequests[1]?.system).toContain("Anchored regeneration");
   });
 
-  it("carries nothing for diverged same-base spans but remains anchored", async () => {
+  it("carries an untouched group across a force push", async () => {
     const { pr } = await runTwoRevisions({
-      compareFilesEntry: {
-        files: [{ filename: "b.ts", status: "modified" }],
-        complete: true,
-        status: "diverged",
-      },
       rev2ForcePush: true,
+      rev2Arrange: (github) => {
+        arrangeForcePushOnB(github);
+      },
     });
-    const row = await createArtifactStore(harness.handle, ctx).briefs.get(
-      pr.id,
-      BASE,
-      HEAD_2,
-    );
+    const store = createArtifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    const hops = await store.hunkSpans.listForPullRequest(pr.id);
+
     expect(row?.anchorState).toBe("anchored");
     const body = JSON.parse(row?.body ?? "{}") as {
-      anchoring?: { carried: string[] };
+      anchoring?: { carried: string[]; regenerated: string[] };
     };
-    expect(body.anchoring?.carried).toEqual([]);
+    expect(body.anchoring).toEqual({ carried: ["gA"], regenerated: ["gB"] });
+    expect(JSON.parse(hops[0]?.spans ?? "[]")).toContainEqual({
+      file: "a.ts",
+      hunks: [IDENTITY_HUNK],
+    });
   });
 
   it("writes a file split across two groups instead of failing", async () => {

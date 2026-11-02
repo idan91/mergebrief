@@ -83,6 +83,16 @@ describe("readPrSpan on a fast-forward over one merge base", () => {
     expect(source.blobCalls).toEqual([]);
   });
 
+  it("keeps every untouched file's removed lines where they were", async () => {
+    const result = await readPrSpan(stubFastForward(), REFS, makeSignal());
+
+    const span = result.ok ? result.value : undefined;
+    expect(span?.oldSideHop).toEqual([
+      { file: "a.ts", hunks: [] },
+      { file: "u.ts", hunks: [IDENTITY_SPAN] },
+    ]);
+  });
+
   it("reads no previous PR diff", async () => {
     const source = stubFastForward();
 

@@ -10,7 +10,6 @@ import {
   buildGhPrSpanSource,
   fetchCommitDate,
   fetchCompareCommitCount,
-  fetchCompareDiff,
   fetchPrMetadata,
   fetchReviewCommentsCreatedBy,
   ghPrSource,
@@ -30,7 +29,6 @@ const EXIT_FAILED = 1;
 
 const CAPTURE_READS: PairCaptureReads = {
   fetchPrMetadata,
-  fetchCompareDiff,
   fetchCompareCommitCount,
   fetchReviewCommentsCreatedBy,
   fetchCommitDate,

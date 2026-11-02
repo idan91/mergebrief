@@ -67,6 +67,7 @@ vi.mock("brief-core/pr-span", async (importOriginal) => {
           filteredDiff,
           unfilteredDiff: filteredDiff,
           hop: [],
+          oldSideHop: [],
           unpairableFiles: [],
           isUnchanged: span.unchanged,
         },

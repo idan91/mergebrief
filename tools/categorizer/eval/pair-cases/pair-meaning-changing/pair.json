@@ -72,17 +72,7 @@
     }
   },
   "increment": {
-    "incrementalDiff": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,13 +1,15 @@\n import { json } from \"../responses\";\n+import { pingDatabase } from \"../db\";\n import type { Route } from \"../types\";\n-\n-const STARTED_AT = Date.now();\n \n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: async () => {\n+      const db = await pingDatabase();\n+      return json({ ok: db.ok, latencyMs: db.latencyMs });\n+    },\n   };\n }\n \n",
-    "compareFiles": {
-      "files": [
-        {
-          "filename": "packages/api/src/routes/health.ts",
-          "status": "modified"
-        }
-      ],
-      "complete": true,
-      "status": "ahead"
-    },
-    "baseShaMoved": false
+    "filteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,13 +1,15 @@\n import { json } from \"../responses\";\n+import { pingDatabase } from \"../db\";\n import type { Route } from \"../types\";\n-\n-const STARTED_AT = Date.now();\n \n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: async () => {\n+      const db = await pingDatabase();\n+      return json({ ok: db.ok, latencyMs: db.latencyMs });\n+    },\n   };\n }\n \n",
+    "unfilteredSpan": "diff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,13 +1,15 @@\n import { json } from \"../responses\";\n+import { pingDatabase } from \"../db\";\n import type { Route } from \"../types\";\n-\n-const STARTED_AT = Date.now();\n \n export function healthRoute(): Route {\n   return {\n     method: \"GET\",\n     path: \"/api/health\",\n-    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+    handler: async () => {\n+      const db = await pingDatabase();\n+      return json({ ok: db.ok, latencyMs: db.latencyMs });\n+    },\n   };\n }\n \n"
   }
 }

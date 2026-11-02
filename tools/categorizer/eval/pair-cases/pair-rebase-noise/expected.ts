@@ -1,17 +1,23 @@
-// BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
+// BRIEF-143 revision-pair case: AUTHORED fixture (own-repo file shapes,
 // difflib-generated diffs; PR locator is a placeholder). Origin: the
 // BRIEF-143 PR 5 stack; generator script documented in that PR.
-// Rebase noise: the base SHA moved — everything re-looks (nothing carried), but ids still descend. Spec §Rebase noise conservative path.
+// Rebase noise: the base moved under redact.ts and left the PR's change to it
+// as it was, so its group carries; health.ts changed and re-looks.
 import type { PairEvalProperty } from "../../pairs";
-import { anchoredStamp, coverage, idCarried } from "../props";
+import {
+  anchoredStamp,
+  coverage,
+  idCarried,
+  untouchedGroupSurvives,
+} from "../props";
 
 const A = "packages/logging/src/redact.ts";
 const B = "packages/api/src/routes/health.ts";
 
 export const pairProperties: PairEvalProperty[] = [
   coverage([A, B]),
-  anchoredStamp(false),
-  // Ids survive the rebase via descent even though nothing was carried.
+  anchoredStamp(true),
+  untouchedGroupSurvives(A),
   idCarried(A),
   idCarried(B),
 ];

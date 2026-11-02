@@ -68,7 +68,7 @@ export async function writeFreshBrief(
     entryCommentAllowed,
     priorBriefs,
     prevBrief,
-    prevSpanFetch,
+    prevSpanRead,
     prInfo,
     diff,
     locator,
@@ -89,14 +89,12 @@ export async function writeFreshBrief(
     chainGroupIds,
   } = await decideAnchor(payload, {
     store,
-    source,
     fullRegeneration,
     generator: anchorGenerator,
     effort,
     prevBrief,
     priorBriefs,
-    prevSpanFetch,
-    baseSha: prInfo.baseSha,
+    prevSpan: prevSpanRead?.ok === true ? prevSpanRead.value : undefined,
     log,
   });
   await multiCall.loadStoredParts();

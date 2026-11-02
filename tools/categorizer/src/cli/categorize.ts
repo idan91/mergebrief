@@ -197,12 +197,11 @@ export interface GenerateOptions {
 }
 
 /**
- * The previous brief's head, the three-dot span anchoring still reads, the
- * revision span marks and the narrative read, and its body when readable.
+ * The previous brief's head, the revision span anchoring, the marks and the
+ * narrative read, and its body when readable.
  */
 interface PriorBrief {
   headSha: string;
-  span: string;
   revisionSpan: Result<PrSpan, PrSpanFailure>;
   brief?: Brief;
 }
@@ -273,7 +272,6 @@ async function readPriorBrief(
     return undefined;
   }
 
-  const span = await source.fetchCompareDiff(locator, headSha, head);
   const path = join(outDir, `${briefId(stem, prevIndex, headSha)}.brief.json`);
   const brief = await readBriefFile(path, log);
   const refs = {
@@ -288,25 +286,24 @@ async function readPriorBrief(
     new AbortController().signal,
   );
 
-  const prior: PriorBrief = { headSha, span, revisionSpan };
+  const prior: PriorBrief = { headSha, revisionSpan };
   if (brief !== undefined) {
     prior.brief = brief;
   }
   return prior;
 }
 
-/** No compare file list on the CLI's source, so the plan re-looks every group. */
+/** The previous brief anchored on the revision span; an unread span re-looks every group. */
 function buildPreviousInput(
   prior: PriorBrief | undefined,
-  commitRange: CommitRange,
 ): PreviousBriefInput | undefined {
   if (prior?.brief === undefined) {
     return undefined;
   }
+  const { revisionSpan } = prior;
   return {
     brief: prior.brief,
-    incrementalDiff: prior.span,
-    baseShaMoved: prior.brief.commitRange.base !== commitRange.base,
+    span: revisionSpan.ok ? revisionSpan.value : undefined,
   };
 }
 
@@ -358,7 +355,7 @@ export async function generateAndWrite(
     `brief _${index}; ${pr.meta.files.length} files, ${pr.links.length} linked refs, ${comments.length} comments; categorizing…`,
   );
 
-  const previous = buildPreviousInput(prior, commitRange);
+  const previous = buildPreviousInput(prior);
   const { brief, ranAs } = await generateBrief({
     pr,
     headIndex: index,

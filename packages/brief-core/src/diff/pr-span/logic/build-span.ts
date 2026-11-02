@@ -8,7 +8,11 @@ import {
   type PrSpan,
   type PrSpanInput,
 } from "../types";
-import { buildBaseMovedSpans, buildLineDiffSpans } from "./build-hop";
+import {
+  buildBaseMovedSpans,
+  buildLineDiffSpans,
+  buildOldSideSpans,
+} from "./build-hop";
 import { readChangeRuns } from "./change-runs";
 import { comparePrDiffs, settleBaseRenames } from "./compare-patches";
 import {
@@ -137,11 +141,29 @@ function readFileSpan(
   return readChangedFileSpan(file, betweenHeads);
 }
 
+/** Where an unchanged file's removed lines moved; a changed or moved file places none. */
+function readOldSideSpans(
+  file: ComparedFile,
+  isChanged: boolean,
+): readonly HunkSpan[] {
+  const { prev, next } = file;
+  const isPaired =
+    !isChanged &&
+    prev !== undefined &&
+    next !== undefined &&
+    file.prevPath === file.path;
+  if (!isPaired) {
+    return [];
+  }
+  return buildOldSideSpans(prev, next) ?? [];
+}
+
 function assemblePrSpan(
   compared: readonly ComparedFile[],
   betweenHeads: ReadonlyMap<string, BetweenHeadsFile>,
 ): PrSpan {
   const hop = new Map<string, FileHunkSpans>();
+  const oldSideHop = new Map<string, FileHunkSpans>();
   const pathsByPrevPath = new Map<string, string[]>();
   const unfiltered: string[] = [];
   const filtered: string[] = [];
@@ -154,8 +176,13 @@ function assemblePrSpan(
     sharers.push(file.path);
     pathsByPrevPath.set(file.prevPath, sharers);
     // Two files leaving from one previous path cannot both place its ranges.
-    const hunks = sharers.length > 1 ? [] : fileSpan.hunks;
+    const isShared = sharers.length > 1;
+    const hunks = isShared ? [] : fileSpan.hunks;
     hop.set(file.prevPath, { file: file.prevPath, hunks });
+    const oldSideHunks = isShared
+      ? []
+      : readOldSideSpans(file, fileSpan.isChanged);
+    oldSideHop.set(file.prevPath, { file: file.prevPath, hunks: oldSideHunks });
     if (fileSpan.unfiltered !== undefined) {
       unfiltered.push(fileSpan.unfiltered);
     }
@@ -178,6 +205,7 @@ function assemblePrSpan(
     filteredDiff,
     unfilteredDiff: unfiltered.join("\n"),
     hop: hopEntries,
+    oldSideHop: [...oldSideHop.values()],
     isUnchanged: isSpanUnchanged(filteredDiff),
   };
 }

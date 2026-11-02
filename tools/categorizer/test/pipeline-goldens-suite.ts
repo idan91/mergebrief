@@ -4,7 +4,12 @@ import { generateBrief, type GenerateBriefOptions } from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { Effort, Generator } from "generators";
 import { loadCases, type EvalCase, type EvalFixture } from "../eval/loadCase";
-import { loadPairCases, runPairCase, type PairCase } from "../eval/pairs";
+import {
+  loadPairCases,
+  readPairSpan,
+  runPairCase,
+  type PairCase,
+} from "../eval/pairs";
 import {
   DETAIL_LABEL_PREFIX,
   makeAdversarialGenerator,
@@ -158,7 +163,7 @@ async function runAnchoring(
   const base = await generateBrief(makeOptions(fixture.base, 1, generator));
   const revised = await generateBrief({
     ...makeOptions(fixture.revised, 2, generator),
-    previous: { brief: base.brief, ...fixture.increment, chainGroupIds },
+    previous: { brief: base.brief, span: readPairSpan(fixture), chainGroupIds },
   });
   if (revised.anchoring === undefined) {
     throw new Error(`${pairCase.id}: the anchored run returned no anchoring`);

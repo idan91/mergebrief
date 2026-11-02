@@ -140,15 +140,7 @@ export function makePairJson(extra: Record<string, unknown> = {}): unknown {
       },
       commitRange: { base: BASE_SHA, head: NEW_HEAD, commitCount: 2 },
     },
-    increment: {
-      incrementalDiff: DIFF_B,
-      compareFiles: {
-        files: [{ filename: "b.ts", status: "modified" }],
-        complete: true,
-        status: "ahead",
-      },
-      baseShaMoved: false,
-    },
+    increment: { filteredSpan: DIFF_B, unfilteredSpan: DIFF_B },
     ...extra,
   };
 }

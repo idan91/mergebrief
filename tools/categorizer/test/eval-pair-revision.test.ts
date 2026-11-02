@@ -208,8 +208,11 @@ async function readLoadError(root: string): Promise<string> {
 }
 
 describe("loadPairCases with the narrative and delta opt-in", () => {
-  it("refuses an opt-in when pair.json has no filtered span", async () => {
-    const root = writePairCase("no-span", OPTED_IN_TS, makePairJson());
+  it("refuses a pair.json with no filtered span", async () => {
+    const pair = makePairJson({
+      increment: { unfilteredSpan: DIFF_B },
+    });
+    const root = writePairCase("no-span", OPTED_IN_TS, pair);
 
     expect(await readLoadError(root)).toContain("filteredSpan");
   });
@@ -260,7 +263,7 @@ describe("loadPairCases with the narrative and delta opt-in", () => {
 
     const pairCase = await loadOnlyCase(root);
 
-    expect(pairCase.fixture.increment.incrementalDiff).toBe(DIFF_B);
+    expect(pairCase.fixture.unfilteredSpan).toBe(DIFF_B);
   });
 
   it("refuses a case holding both pair.json and pair.json.gz", async () => {

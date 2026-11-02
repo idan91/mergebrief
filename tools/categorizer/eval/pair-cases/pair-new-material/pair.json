@@ -77,17 +77,7 @@
     }
   },
   "increment": {
-    "incrementalDiff": "diff --git a/packages/api/src/routes/version.ts b/packages/api/src/routes/version.ts\nnew file mode 100644\n--- /dev/null\n+++ b/packages/api/src/routes/version.ts\n@@ -0,0 +1,10 @@\n+import { json } from \"../responses\";\n+import type { Route } from \"../types\";\n+\n+export function versionRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/version\",\n+    handler: () => json({ version: process.env[\"APP_VERSION\"] ?? \"dev\" }),\n+  };\n+}\n",
-    "compareFiles": {
-      "files": [
-        {
-          "filename": "packages/api/src/routes/version.ts",
-          "status": "added"
-        }
-      ],
-      "complete": true,
-      "status": "ahead"
-    },
-    "baseShaMoved": false
+    "filteredSpan": "diff --git a/packages/api/src/routes/version.ts b/packages/api/src/routes/version.ts\nnew file mode 100644\n--- /dev/null\n+++ b/packages/api/src/routes/version.ts\n@@ -0,0 +1,10 @@\n+import { json } from \"../responses\";\n+import type { Route } from \"../types\";\n+\n+export function versionRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/version\",\n+    handler: () => json({ version: process.env[\"APP_VERSION\"] ?? \"dev\" }),\n+  };\n+}\n",
+    "unfilteredSpan": "diff --git a/packages/api/src/routes/version.ts b/packages/api/src/routes/version.ts\nnew file mode 100644\n--- /dev/null\n+++ b/packages/api/src/routes/version.ts\n@@ -0,0 +1,10 @@\n+import { json } from \"../responses\";\n+import type { Route } from \"../types\";\n+\n+export function versionRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/version\",\n+    handler: () => json({ version: process.env[\"APP_VERSION\"] ?? \"dev\" }),\n+  };\n+}\n"
   }
 }

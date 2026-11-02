@@ -2,16 +2,21 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
-import { AnchorStates, type Mutable, type Result } from "types";
+import { AnchorStates, type Result } from "types";
 import {
   generateBrief,
   planAnchoredGeneration,
+  splitDiffByFile,
   type AnchorPlan,
-  type CompareFile,
-  type CompareFiles,
   type GenerateBriefOptions,
 } from "brief-core";
-import { isSpanUnchanged } from "brief-core/pr-span";
+import {
+  BetweenHeadsKinds,
+  buildFastForwardSpan,
+  buildPrSpan,
+  isSpanUnchanged,
+  type PrSpan,
+} from "brief-core/pr-span";
 import {
   BriefSchema,
   ReviewCommentSchema,
@@ -56,25 +61,10 @@ import { persistRunBriefs } from "./specimens";
  */
 
 const PairIncrementSchema = z.object({
-  /** The prevHead→head span diff (raw unified diff). */
-  incrementalDiff: z.string().min(1),
-  /** The compare files[] metadata the worker would have fetched. */
-  compareFiles: z.object({
-    files: z.array(
-      z.object({
-        filename: z.string(),
-        status: z.string(),
-        previousFilename: z.string().optional(),
-      }),
-    ),
-    complete: z.boolean(),
-    status: z.string().optional(),
-  }),
-  baseShaMoved: z.boolean(),
   /** The PR's own change between the heads, hunks touching no PR line dropped; "" when the push left the PR diff unchanged. */
-  filteredSpan: z.string().optional(),
-  /** Every between-heads hunk of the changed files. */
-  unfilteredSpan: z.string().optional(),
+  filteredSpan: z.string(),
+  /** Every between-heads hunk of the changed files; on a fast-forward, the three-dot diff. */
+  unfilteredSpan: z.string(),
 });
 
 const PairFixtureSchema = z.object({
@@ -95,14 +85,8 @@ export const PAIR_FILE = "pair.json";
 export interface PairFixture {
   base: EvalFixture;
   revised: EvalFixture;
-  /** What anchoring reads today. */
-  increment: {
-    incrementalDiff: string;
-    compareFiles: CompareFiles;
-    baseShaMoved: boolean;
-  };
-  filteredSpan?: string;
-  unfilteredSpan?: string;
+  filteredSpan: string;
+  unfilteredSpan: string;
   baseBrief?: Brief;
   reviewComments?: ReviewComment[];
 }
@@ -219,7 +203,7 @@ async function loadOnePair(
   }
 
   const fixture = shapePairFixture(parsed.data);
-  const fixtureCheck = checkFixtureFits(caseLabel, fixture, properties.value);
+  const fixtureCheck = checkFixtureFits(caseLabel, fixture);
   if (!fixtureCheck.ok) {
     return fixtureCheck;
   }
@@ -354,7 +338,6 @@ function findDuplicateId(
 function checkFixtureFits(
   caseLabel: string,
   fixture: PairFixture,
-  properties: CaseProperties,
 ): Result<void, string> {
   const storedHead = fixture.baseBrief?.commitRange.head;
   const baseHead = fixture.base.commitRange.head;
@@ -364,7 +347,7 @@ function checkFixtureFits(
       error: `${caseLabel}: baseBrief is for head ${storedHead}, the base head is ${baseHead}`,
     };
   }
-  return checkOptInSpan(caseLabel, fixture, properties);
+  return { ok: true, value: undefined };
 }
 
 /** `deltaReadsReviewComments`: absent is false; true needs delta properties and recorded comments. */
@@ -403,31 +386,13 @@ function readCommentOptIn(
   return { ok: true, value: true };
 }
 
-/** A narrative or delta opt-in reads the filtered span, so the case must carry one; "" scores the no-change records. */
-function checkOptInSpan(
-  caseLabel: string,
-  fixture: PairFixture,
-  properties: CaseProperties,
-): Result<void, string> {
-  if (!readsRevisionSpan(properties)) {
-    return { ok: true, value: undefined };
-  }
-  if (fixture.filteredSpan === undefined) {
-    return {
-      ok: false,
-      error: `${caseLabel}: opts into the narrative or delta but pair.json has no increment.filteredSpan`,
-    };
-  }
-  return { ok: true, value: undefined };
-}
-
 /** A case that opts into the narrative or delta may not ask for a call the worker would skip. */
 function readOptInSpanSkip(
   fixture: PairFixture,
   properties: CaseProperties,
   readsReviewComments: boolean,
 ): string | undefined {
-  if (!readsRevisionSpan(properties) || fixture.filteredSpan === undefined) {
+  if (!readsRevisionSpan(properties)) {
     return undefined;
   }
   return readSpanSkip(
@@ -457,19 +422,10 @@ function shapePairFixture(
   const fixture: PairFixture = {
     base: toEvalFixture(data.base),
     revised: toEvalFixture(data.revised),
-    increment: {
-      incrementalDiff: increment.incrementalDiff,
-      baseShaMoved: increment.baseShaMoved,
-      compareFiles: shapeCompareFiles(increment.compareFiles),
-    },
+    filteredSpan: increment.filteredSpan,
+    unfilteredSpan: increment.unfilteredSpan,
   };
 
-  if (increment.filteredSpan !== undefined) {
-    fixture.filteredSpan = increment.filteredSpan;
-  }
-  if (increment.unfilteredSpan !== undefined) {
-    fixture.unfilteredSpan = increment.unfilteredSpan;
-  }
   if (data.baseBrief !== undefined) {
     fixture.baseBrief = data.baseBrief;
   }
@@ -494,37 +450,6 @@ function toEvalFixture(value: z.infer<typeof FixtureSchema>): EvalFixture {
   return fixture;
 }
 
-type FixtureCompareFiles = z.infer<typeof PairIncrementSchema>["compareFiles"];
-
-/** The pair's compare span as brief-core takes it; `status` rides only when recorded. */
-function shapeCompareFiles(raw: FixtureCompareFiles): CompareFiles {
-  const compareFiles: Mutable<CompareFiles> = {
-    files: raw.files.map(shapeCompareFile),
-    complete: raw.complete,
-  };
-
-  if (raw.status !== undefined) {
-    compareFiles.status = raw.status;
-  }
-
-  return compareFiles;
-}
-
-function shapeCompareFile(
-  raw: FixtureCompareFiles["files"][number],
-): CompareFile {
-  const compareFile: Mutable<CompareFile> = {
-    filename: raw.filename,
-    status: raw.status,
-  };
-
-  if (raw.previousFilename !== undefined) {
-    compareFile.previousFilename = raw.previousFilename;
-  }
-
-  return compareFile;
-}
-
 export interface PairRunResult {
   pairs: RevisionPair[];
   /** Index-aligned with `pairs`; empty when the case does not opt in. */
@@ -543,6 +468,42 @@ export interface PairRunResult {
  * they are vacuous.
  */
 export type PairRunMode = "anchored" | "fresh";
+
+/**
+ * The span the worker would read for the pair. Fixtures carry no merge base,
+ * so one PR base under both heads stands for the fast path; any other pair
+ * is built from both PR diffs and the unfiltered span's per-file patches.
+ */
+export function readPairSpan(fixture: PairFixture): PrSpan {
+  const { base, revised, unfilteredSpan } = fixture;
+  if (base.commitRange.base === revised.commitRange.base) {
+    return buildFastForwardSpan({
+      betweenHeadsDiff: unfilteredSpan,
+      newPrDiff: revised.pr.diff,
+    });
+  }
+
+  const files = splitDiffByFile(unfilteredSpan);
+  const betweenHeads = new Map(
+    files.map(({ file, patch }) => [
+      file,
+      { kind: BetweenHeadsKinds.PATCH, patch },
+    ]),
+  );
+  return buildPrSpan({
+    prevPrDiff: base.pr.diff,
+    newPrDiff: revised.pr.diff,
+    betweenHeads,
+  });
+}
+
+/** The anchor plan the revised run takes over `previousBrief`, with no model call. */
+export function planPairAnchoring(
+  fixture: PairFixture,
+  previousBrief: Brief,
+): AnchorPlan {
+  return planAnchoredGeneration({ previousBrief, span: readPairSpan(fixture) });
+}
 
 function makeFixtureOptions(
   fixture: EvalFixture,
@@ -593,17 +554,14 @@ async function runPair(
   if (mode === "fresh") {
     // No stitch and no anchor stamp, the anchored-path guarantees are
     // absent by design. The plan rides along for inspection.
-    const plan = planAnchoredGeneration({
-      previousBrief: base,
-      ...fixture.increment,
-    });
+    const plan = planPairAnchoring(fixture, base);
     const { brief: revised } = await generateBrief(revisedOptions);
     return { base, revised, plan };
   }
 
   const { brief: revised, anchoring } = await generateBrief({
     ...revisedOptions,
-    previous: { brief: base, ...fixture.increment },
+    previous: { brief: base, span: readPairSpan(fixture) },
   });
   if (anchoring === undefined) {
     throw new Error("anchored run returned no plan");
@@ -631,7 +589,7 @@ async function runPairWithSpan(
   const { fixture } = pairCase;
   const pair = await runPair(fixture, generator, effort, mode);
   const run: PairRun = { pair };
-  if (!readsRevisionSpan(pairCase) || fixture.filteredSpan === undefined) {
+  if (!readsRevisionSpan(pairCase)) {
     return run;
   }
 
@@ -702,10 +660,7 @@ export function countPairGenerations(
   const scoped = scopePairCaseToMode(pairCase, mode);
   const baseCalls = scoped.fixture.baseBrief === undefined ? 1 : 0;
   // An unchanged span writes the no-change records with no model call.
-  const { filteredSpan } = scoped.fixture;
-  const isUnchanged =
-    filteredSpan !== undefined && isSpanUnchanged(filteredSpan);
-  const spanCalls = isUnchanged ? 0 : 1;
+  const spanCalls = isSpanUnchanged(scoped.fixture.filteredSpan) ? 0 : 1;
   const narrativeCalls = scoped.narrativeProperties.length > 0 ? spanCalls : 0;
   const deltaCalls = scoped.deltaProperties.length > 0 ? spanCalls : 0;
   return baseCalls + 1 + narrativeCalls + deltaCalls;

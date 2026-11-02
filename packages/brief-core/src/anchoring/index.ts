@@ -1,29 +1,21 @@
 // Pure anchored planning and stitching shared by the worker and revision-pair evals.
 // Carry frozen groups verbatim and remap ids by descent without model calls.
-import type { Mutable } from "types/utils";
+import type { Result } from "types/utils";
 import { assignGroupIds } from "../diff/descent";
-import { splitDiffByFile } from "../diff/file-diff";
+import type { PrSpan } from "../diff/pr-span/types";
 import {
-  parseHunkSpans,
-  remapThroughPatch,
+  remapRanges,
   RemapOutcomes,
   type Hop,
   type HunkSpan,
+  type RemapResult,
 } from "../diff/remap";
-import { parseChangedRanges } from "../diff/revchanges";
-import {
-  GroupVerdicts,
-  partitionGroups,
-  type CompareFileEntry,
-} from "../diff/touched";
-import type { Brief, IntentCheck, IntentItem } from "../types";
+import type { Brief, IntentCheck, IntentItem, LineRange } from "../types";
 import type {
   AnchorPlan,
   AnchorPlanArgs,
   ChangeGroup,
   Chunk,
-  CompareFile,
-  CompareFiles,
   FrozenCarry,
   ReLookEntry,
   StitchArgs,
@@ -71,181 +63,196 @@ export function reserveIds(
   ];
 }
 
-/**
- * Zero-hunk entries win path collisions: anchors refer to the pre-push tree.
- * Renamed-away paths and patch/compare disagreements must demote rather than bind new code.
- */
-function buildHop(
-  compareFiles: CompareFiles,
-  patches: ReadonlyMap<string, string>,
-): Hop {
-  const byPath = new Map<string, readonly HunkSpan[]>();
-  for (const file of compareFiles.files) {
-    byPath.set(file.filename, parseHunkSpans(patches.get(file.filename) ?? ""));
-  }
-  // A path the raw diff touched but the compare list omits is a disagreement
-  // between two views of the same push, not evidence that it is untouched.
-  for (const file of patches.keys()) {
-    if (!byPath.has(file)) {
-      byPath.set(file, []);
-    }
-  }
-  for (const file of compareFiles.files) {
-    if (file.previousFilename !== undefined) {
-      byPath.set(file.previousFilename, []);
-    }
-  }
-  return [...byPath].map(([file, hunks]) => ({ file, hunks }));
+/** A span read failed: nothing is confirmable, so every group re-looks. */
+const SPAN_UNREAD_REASON = "the revision span could not be read";
+
+/** One side's spans per previous-head path. */
+type SideSpans = ReadonlyMap<string, readonly HunkSpan[]>;
+
+function indexHop(hop: Hop): SideSpans {
+  return new Map(hop.map((entry) => [entry.file, entry.hunks]));
 }
 
-/**
- * Rebases, missing comparisons, shared files and ambiguous remaps require re-look.
- * Two carried groups cannot both own the same file.
- */
-export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
-  const { previousBrief, incrementalDiff, compareFiles, baseShaMoved } = args;
-  const chainGroupIds = args.chainGroupIds ?? [];
-  if (baseShaMoved) {
-    return allReLook(
-      previousBrief,
-      "base SHA moved (rebase/base-advance) — three-dot span data untrusted",
-      chainGroupIds,
-    );
+/** A file whose hop entry holds no span cannot place a range, so its ranges demote. */
+function remapOnSide(
+  spans: SideSpans,
+  file: string,
+  ranges: readonly LineRange[],
+): RemapResult {
+  if (ranges.length === 0) {
+    return { outcome: RemapOutcomes.REMAPPED, ranges: [] };
   }
-  if (incrementalDiff === undefined) {
-    return allReLook(
-      previousBrief,
-      "incremental span diff unavailable",
-      chainGroupIds,
-    );
+  const hunks = spans.get(file) ?? [];
+  if (hunks.length === 0) {
+    return {
+      outcome: RemapOutcomes.DEMOTED,
+      reason: `no span pairs ${file} across the push`,
+    };
   }
-  if (compareFiles === undefined) {
-    return allReLook(
-      previousBrief,
-      "compare file metadata unavailable",
-      chainGroupIds,
-    );
+  return remapRanges(ranges, hunks);
+}
+
+interface SpanSides {
+  readonly added: SideSpans;
+  readonly removed: SideSpans;
+}
+
+/** A frozen chunk's ranges on the new head, or why one cannot be placed. */
+function moveChunk(chunk: Chunk, sides: SpanSides): Result<Chunk, string> {
+  const added = remapOnSide(sides.added, chunk.file, chunk.addedRanges);
+  if (added.outcome === RemapOutcomes.DEMOTED) {
+    return { ok: false, error: `${chunk.file}: ${added.reason}` };
   }
-  if (compareFiles.status !== "ahead") {
-    // A same-base force-push (amend/squash/drop) never moves the base SHA but
-    // shows 'diverged' here, and then the three-dot span diffs from the
-    // divergence point, not prevHead, so "absent from the span" proves
-    // nothing. Only a fast-forward span is trustworthy evidence.
-    return allReLook(
-      previousBrief,
-      `compare span status '${compareFiles.status ?? "unknown"}' — not a fast-forward push`,
-      chainGroupIds,
-    );
+  const removed = remapOnSide(sides.removed, chunk.file, chunk.removedRanges);
+  if (removed.outcome === RemapOutcomes.DEMOTED) {
+    return { ok: false, error: `${chunk.file}: ${removed.reason}` };
   }
 
-  const groupFiles = previousBrief.changeGroups.map((group) => ({
-    id: group.id,
-    files: getGroupFiles(previousBrief, group.id),
-  }));
+  const moved = {
+    ...chunk,
+    addedRanges: [...added.ranges],
+    removedRanges: [...removed.ranges],
+  };
+  return { ok: true, value: moved };
+}
 
-  // Coverage exclusivity: a file owned by two previous groups can only be
-  // carried once, force every co-owner to re-look and let the model (and
-  // descent) re-partition that file.
+/** Every chunk of a group moved, or the first reason one cannot be. */
+function moveChunks(
+  chunks: readonly Chunk[],
+  sides: SpanSides,
+): Result<Chunk[], string> {
+  const moved: Chunk[] = [];
+  for (const chunk of chunks) {
+    const result = moveChunk(chunk, sides);
+    if (!result.ok) {
+      return result;
+    }
+    moved.push(result.value);
+  }
+  return { ok: true, value: moved };
+}
+
+/** Group ids whose files another group also owns: neither can carry the file alone. */
+function listSharingGroups(
+  groupFiles: readonly { id: string; files: readonly string[] }[],
+): Set<string> {
   const ownersByFile = new Map<string, number>();
   for (const group of groupFiles) {
     for (const file of group.files) {
       ownersByFile.set(file, (ownersByFile.get(file) ?? 0) + 1);
     }
   }
-  const sharedForced = new Set<string>();
+  const sharing = new Set<string>();
   for (const group of groupFiles) {
     if (group.files.some((file) => (ownersByFile.get(file) ?? 0) > 1)) {
-      sharedForced.add(group.id);
+      sharing.add(group.id);
     }
   }
+  return sharing;
+}
 
-  const verdicts = partitionGroups({
-    previousGroups: groupFiles,
-    incrementalFiles: parseChangedRanges(incrementalDiff),
-    compareFiles: compareFiles.files.map(shapeCompareFileEntry),
-    compareComplete: compareFiles.complete,
-  });
+interface GroupCarryInput {
+  readonly previousBrief: Brief;
+  readonly group: ChangeGroup;
+  readonly files: readonly string[];
+  readonly isSharing: boolean;
+  readonly span: PrSpan;
+  readonly sides: SpanSides;
+}
 
-  const patches = new Map(
-    splitDiffByFile(incrementalDiff).map((entry) => [entry.file, entry.patch]),
+/** A group carries when it owns its files alone, the PR's change to each held, and every range moves. */
+function decideGroupCarry(input: GroupCarryInput): Result<FrozenCarry, string> {
+  const { previousBrief, group, files, span, sides } = input;
+  if (input.isSharing) {
+    return {
+      ok: false,
+      error: "file shared across previous groups, cannot carry exclusively",
+    };
+  }
+  const unchanged = new Set(span.unchangedFiles);
+  const changed = files.find((file) => !unchanged.has(file));
+  if (changed !== undefined) {
+    return { ok: false, error: `${changed}: the push changed the PR's change` };
+  }
+  // Same post-image over a base that took part of the PR's change: unchanged by blob, yet its runs no longer pair.
+  const unpaired = files.find(
+    (file) => (sides.removed.get(file) ?? []).length === 0,
   );
+  if (unpaired !== undefined) {
+    return {
+      ok: false,
+      error: `${unpaired}: no span pairs the PR's change across the push`,
+    };
+  }
+  const chunks = previousBrief.chunks.filter(
+    (chunk) => chunk.changeGroupId === group.id,
+  );
+  if (chunks.length === 0) {
+    return {
+      ok: false,
+      error: "previous group has no chunks, nothing carriable",
+    };
+  }
+
+  const moved = moveChunks(chunks, sides);
+  if (!moved.ok) {
+    return { ok: false, error: `range remap ambiguous, ${moved.error}` };
+  }
+  return { ok: true, value: { group, chunks: moved.value } };
+}
+
+/**
+ * A group freezes when every file it owns, alone, holds the same PR change
+ * at both heads and every range of its chunks moves through the span's
+ * hops; anything else re-looks. No span re-looks every group.
+ */
+export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
+  const { previousBrief, span } = args;
+  const chainGroupIds = args.chainGroupIds ?? [];
+  if (span === undefined) {
+    return allReLook(previousBrief, SPAN_UNREAD_REASON, chainGroupIds);
+  }
+
+  const groupFiles = previousBrief.changeGroups.map((group) => ({
+    id: group.id,
+    files: getGroupFiles(previousBrief, group.id),
+  }));
+  const sharing = listSharingGroups(groupFiles);
+  const sides = {
+    added: indexHop(span.hop),
+    removed: indexHop(span.oldSideHop),
+  };
 
   const frozen: FrozenCarry[] = [];
   const frozenFiles = new Set<string>();
   const reLook: ReLookEntry[] = [];
   for (const [index, group] of previousBrief.changeGroups.entries()) {
     const files = groupFiles[index]?.files ?? [];
-    const verdict = verdicts[index];
-    const demote = (reason: string) => {
-      reLook.push({ id: group.id, files, reason });
-    };
-    if (sharedForced.has(group.id)) {
-      demote("file shared across previous groups — cannot carry exclusively");
+    const carry = decideGroupCarry({
+      previousBrief,
+      group,
+      files,
+      isSharing: sharing.has(group.id),
+      span,
+      sides,
+    });
+    if (!carry.ok) {
+      reLook.push({ id: group.id, files, reason: carry.error });
       continue;
     }
-    if (verdict === undefined || verdict.verdict === GroupVerdicts.RE_LOOK) {
-      demote(verdict?.reason ?? "no partition verdict");
-      continue;
-    }
-    const chunks = previousBrief.chunks.filter(
-      (chunk) => chunk.changeGroupId === group.id,
-    );
-    if (chunks.length === 0) {
-      demote("previous group has no chunks — nothing carriable");
-      continue;
-    }
-    // Under the file-level predicate a frozen file has no hunks, so this is
-    // identity, but contradictory evidence (a hunk in a "clean" file) must
-    // demote, never carry wrong lines.
-    const remapped: Chunk[] = [];
-    let demoted: string | undefined;
-    for (const chunk of chunks) {
-      const result = remapThroughPatch(
-        chunk.addedRanges,
-        patches.get(chunk.file) ?? "",
-      );
-      if (result.outcome === RemapOutcomes.DEMOTED) {
-        demoted = `${chunk.file}: ${result.reason}`;
-        break;
-      }
-      remapped.push({ ...chunk, addedRanges: [...result.ranges] });
-    }
-    if (demoted !== undefined) {
-      demote(`range remap ambiguous — ${demoted}`);
-      continue;
-    }
-    frozen.push({ group, chunks: remapped });
+    frozen.push(carry.value);
     for (const file of files) {
       frozenFiles.add(file);
     }
   }
 
-  const plan: Mutable<AnchorPlan> = {
+  return {
     frozen,
     frozenFiles,
     reLook,
     previousGroupIds: reserveIds(previousBrief, chainGroupIds),
+    hunkSpans: span.hop,
   };
-
-  if (compareFiles.complete) {
-    plan.hunkSpans = buildHop(compareFiles, patches);
-  }
-
-  return plan;
-}
-
-/** The compare endpoint's entry as the partition reads it. */
-function shapeCompareFileEntry(file: CompareFile): CompareFileEntry {
-  const entry: Mutable<CompareFileEntry> = {
-    file: file.filename,
-    status: file.status,
-  };
-
-  if (file.previousFilename !== undefined) {
-    entry.previousFile = file.previousFilename;
-  }
-
-  return entry;
 }
 
 /** Dominant frozen parent for a dropped generated group (tie → first frozen). */

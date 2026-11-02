@@ -17,14 +17,12 @@ export async function decideAnchor(
 ): Promise<AnchorDecision> {
   const {
     store,
-    source,
     fullRegeneration,
     generator,
     effort,
     prevBrief,
     priorBriefs,
-    prevSpanFetch,
-    baseSha,
+    prevSpan,
     log,
   } = inputs;
   const { pullRequestId } = payload;
@@ -87,14 +85,12 @@ export async function decideAnchor(
         `generate: fresh restart — model swapped (${prevRow.provider}/${prevRow.model} → ${current.provider}/${current.model})`,
       );
     } else if (previousBody !== undefined) {
-      previous = await buildPreviousBriefInput(payload, {
+      previous = buildPreviousBriefInput(payload, {
         store,
-        source,
         prevBrief,
         previousBrief: previousBody,
         chainGroupIds,
-        prevSpanFetch,
-        baseSha,
+        span: prevSpan,
         log,
       });
       anchor = { state: AnchorStates.ANCHORED };

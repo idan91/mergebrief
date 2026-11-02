@@ -124,6 +124,13 @@ export interface PrSpan {
   readonly filteredDiff: string;
   readonly unfilteredDiff: string;
   readonly hop: Hop;
+  /**
+   * The previous PR diff's removed-line positions moved onto the new one's,
+   * under the same keys as `hop`: identity where the base under a file held
+   * still, a span per run where it moved under the same runs, and no spans
+   * for a changed file or runs that cannot pair.
+   */
+  readonly oldSideHop: Hop;
   readonly isUnchanged: boolean;
 }
 
