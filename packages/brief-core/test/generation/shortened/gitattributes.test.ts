@@ -10,11 +10,16 @@ import {
   type LinguistRule,
 } from "../../../src/generation/shortened/types";
 import { readGitAttributeRules } from "./helpers";
+import {
+  GROWTH_FACTOR,
+  LINEAR_GROWTH_CEILING,
+  measureGrowthRatio,
+} from "../../growth-ratio";
 
 /** The text size `parseGitAttributes` reads at most. */
 const MAX_TEXT_CHARS = 65_536;
-/** Far above a linear parse of one capped line, far below a quadratic one. */
-const LINEAR_BUDGET_MS = 500;
+/** The larger run stays inside the cap, so both sizes parse in full. */
+const BASE_BLANKS = (MAX_TEXT_CHARS - 64) / GROWTH_FACTOR;
 
 function read(gitattributes: string, path: string) {
   const rules = readGitAttributeRules(gitattributes);
@@ -82,11 +87,12 @@ describe("parseGitAttributes", () => {
   });
 
   it("reads a long run of blanks inside a line in linear time", () => {
-    const blanks = " ".repeat(MAX_TEXT_CHARS - 64);
-    const started = performance.now();
-    parseGitAttributes(`a${blanks}b linguist-generated`);
+    const ratio = measureGrowthRatio((scale) => {
+      const line = `a${" ".repeat(BASE_BLANKS * scale)}b linguist-generated`;
+      return () => parseGitAttributes(line);
+    });
 
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("skips directory patterns, which never match a file", () => {

@@ -46,7 +46,10 @@ const BERRY_BEFORE = `__metadata:
   linkType: hard
 `;
 
-const COMMENT_LINES = 10_000_000;
+/** Berry's own legacy-marker test: a long comment block overflows V8's regex backtrack stack. */
+const BERRY_LEGACY_TEST = /^(#.*(\r?\n))*?#\s+yarn\s+lockfile\s+v1\r?\n/i;
+/** Nearly twice the block `BERRY_LEGACY_TEST` first overflows on, about 2.1 million lines. */
+const COMMENT_LINES = 4_000_000;
 
 function summarize(before: string, after: string) {
   return summarizeTexts("yarn.lock", before, after);
@@ -239,6 +242,7 @@ describe("yarn lockfile summary", () => {
   it("reads a long comment block without throwing", () => {
     const comments = "#\n".repeat(COMMENT_LINES);
 
+    expect(() => BERRY_LEGACY_TEST.test(comments)).toThrow(RangeError);
     expect(readYarnLockfile(comments)).toEqual({
       ok: false,
       error: "ambiguous",

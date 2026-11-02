@@ -795,35 +795,41 @@ describe("boundAddressResolver, the lookup bounds", () => {
   });
 
   it("holds lookups past the cap until a slot frees", async () => {
-    const asked: string[] = [];
-    const silent = stubSilentResolver(asked);
-    const bounded = boundAddressResolver(
-      (hostname, callback) => {
-        if (hostname !== "a.example") {
-          silent(hostname, callback);
-          return;
-        }
-        asked.push(hostname);
-        setTimeout(() => callback(null, [PUBLIC_RECORD]), 10);
-      },
-      { timeoutMs: LOOKUP_DEADLINE_MS, maxConcurrent: 2 },
-    );
+    vi.useFakeTimers();
+    try {
+      const asked: string[] = [];
+      const silent = stubSilentResolver(asked);
+      const bounded = boundAddressResolver(
+        (hostname, callback) => {
+          if (hostname !== "a.example") {
+            silent(hostname, callback);
+            return;
+          }
+          asked.push(hostname);
+          setTimeout(() => callback(null, [PUBLIC_RECORD]), 10);
+        },
+        { timeoutMs: LOOKUP_DEADLINE_MS, maxConcurrent: 2 },
+      );
 
-    const answers = Promise.all(
-      ["a.example", "b.example", "c.example"].map((hostname) =>
-        askResolver(bounded, hostname),
-      ),
-    );
-    const askedBeforeAnswer = [...asked];
-    const settled = await answers;
+      const answers = Promise.all(
+        ["a.example", "b.example", "c.example"].map((hostname) =>
+          askResolver(bounded, hostname),
+        ),
+      );
+      const askedBeforeAnswer = [...asked];
+      await vi.advanceTimersByTimeAsync(LOOKUP_DEADLINE_MS);
+      const settled = await answers;
 
-    expect(askedBeforeAnswer).toEqual(["a.example", "b.example"]);
-    expect(asked).toEqual(["a.example", "b.example", "c.example"]);
-    expect(settled.map((answer) => answer.errorCode)).toEqual([
-      undefined,
-      "ELOOKUPTIMEOUT",
-      "ELOOKUPTIMEOUT",
-    ]);
+      expect(askedBeforeAnswer).toEqual(["a.example", "b.example"]);
+      expect(asked).toEqual(["a.example", "b.example", "c.example"]);
+      expect(settled.map((answer) => answer.errorCode)).toEqual([
+        undefined,
+        "ELOOKUPTIMEOUT",
+        "ELOOKUPTIMEOUT",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("never sends a lookup whose deadline passed in the queue", async () => {

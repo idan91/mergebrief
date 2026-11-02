@@ -5,8 +5,13 @@ import {
   stripFenceTags,
   stripKnownFences,
 } from "../../src/generation/fences";
+import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
 
 const MARK = "\uFFFD";
+const SPARSE_TAGS = 100;
+const NESTING_CHARS = 5_000;
+const WHITESPACE_RUN_CHARS = 50_000;
+const RUN_TAGS = 1_250;
 
 describe("stripKnownFences", () => {
   it.each(KNOWN_FENCE_TAGS)(
@@ -46,27 +51,42 @@ describe("stripKnownFences", () => {
   });
 
   it("stays linear on sparse tags separated by long bracket-free filler", () => {
-    const payload = ("a".repeat(199) + "<review_comment>").repeat(400);
-    const started = performance.now();
-    const stripped = stripKnownFences(payload);
-    expect(performance.now() - started).toBeLessThan(200);
-    expect(stripped).toBe(("a".repeat(199) + `${MARK}>`).repeat(400));
+    const filler = "a".repeat(199);
+    const payload = `${filler}<review_comment>`.repeat(SPARSE_TAGS);
+    const ratio = measureGrowthRatio((scale) => {
+      const scaled = payload.repeat(scale);
+      return () => stripKnownFences(scaled);
+    });
+
+    expect(stripKnownFences(payload)).toBe(
+      `${filler}${MARK}>`.repeat(SPARSE_TAGS),
+    );
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("stays linear on a crafted 20,000-char nesting payload", () => {
-    const depth = 20_000 / ("<linked_".length + "context".length);
-    const payload = "<linked_".repeat(depth) + "context".repeat(depth);
-    const started = performance.now();
+    const nestingUnitChars = "<linked_".length + "context".length;
+    const baseDepth = Math.floor(NESTING_CHARS / nestingUnitChars);
+    const ratio = measureGrowthRatio((scale) => {
+      const depth = baseDepth * scale;
+      const payload = "<linked_".repeat(depth) + "context".repeat(depth);
+      return () => stripKnownFences(payload);
+    });
+    const payload = "<linked_".repeat(baseDepth) + "context".repeat(baseDepth);
     const stripped = stripKnownFences(payload);
-    expect(performance.now() - started).toBeLessThan(200);
+
     expect(stripKnownFences(stripped)).toBe(stripped);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("stays linear on a long whitespace run between many tags", () => {
-    const payload = `<${" ".repeat(200_000)}` + "<linked_context".repeat(5_000);
-    const started = performance.now();
-    stripKnownFences(payload);
-    expect(performance.now() - started).toBeLessThan(200);
+    const ratio = measureGrowthRatio((scale) => {
+      const run = " ".repeat(WHITESPACE_RUN_CHARS * scale);
+      const payload = `<${run}${"<linked_context".repeat(RUN_TAGS * scale)}`;
+      return () => stripKnownFences(payload);
+    });
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("handles a long run with no opener in it", () => {

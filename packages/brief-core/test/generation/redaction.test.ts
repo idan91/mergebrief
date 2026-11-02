@@ -19,6 +19,7 @@ import {
   FAKE_SECRET_VARIANTS,
   makeFakePemBlock,
 } from "../secret-fixtures";
+import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
 
 const WHOLE_VALUE_KINDS: readonly SecretKind[] = Object.values(
   SecretKinds,
@@ -26,8 +27,8 @@ const WHOLE_VALUE_KINDS: readonly SecretKind[] = Object.values(
   (kind) =>
     kind !== SecretKinds.URL_PASSWORD && kind !== SecretKinds.PRIVATE_KEY,
 );
-const ONE_MEGABYTE = 1_000_000;
-const LINEAR_TIME_BUDGET_MS = 2_000;
+/** Far past every bounded quantifier, so a lost bound shows as quadratic growth. */
+const BASE_SCAN_CHARS = 64_000;
 
 function stubMarker(kind: SecretKind): string {
   return `[redacted:${kind}]`;
@@ -796,23 +797,37 @@ describe("countPullRequestSecrets", () => {
 
 describe("pattern cost", () => {
   it.each([
-    ["one long word", "a".repeat(ONE_MEGABYTE)],
-    ["repeated prefixes", "ghp_sk-ant-xoxb-AKIAeyJ.".repeat(ONE_MEGABYTE / 24)],
-    ["scheme runs without an at sign", "a://b:".repeat(ONE_MEGABYTE / 6)],
+    ["one long word", (chars: number) => "a".repeat(chars)],
+    [
+      "repeated prefixes",
+      (chars: number) => "ghp_sk-ant-xoxb-AKIAeyJ.".repeat(chars / 24),
+    ],
+    [
+      "scheme runs without an at sign",
+      (chars: number) => "a://b:".repeat(chars / 6),
+    ],
     [
       "key fences without an end",
-      `${FAKE_PEM_BEGIN} `.repeat(ONE_MEGABYTE / 32),
+      (chars: number) => `${FAKE_PEM_BEGIN} `.repeat(chars / 32),
     ],
     [
       "prefixes after one hidden char",
-      `\u200B${"sk-".repeat(ONE_MEGABYTE / 3)}`,
+      (chars: number) => `\u200B${"sk-".repeat(chars / 3)}`,
     ],
-    ["a hidden char before every prefix", "\u200BeyJ".repeat(ONE_MEGABYTE / 4)],
-    ["hidden chars inside a run", "\u200Bsk-a".repeat(ONE_MEGABYTE / 5)],
-  ])("scans a megabyte of %s in linear time", (_label, text) => {
-    const started = performance.now();
-    redactProseSecrets(text);
+    [
+      "a hidden char before every prefix",
+      (chars: number) => "\u200BeyJ".repeat(chars / 4),
+    ],
+    [
+      "hidden chars inside a run",
+      (chars: number) => "\u200Bsk-a".repeat(chars / 5),
+    ],
+  ])("scans a long run of %s in linear time", (_label, makeText) => {
+    const ratio = measureGrowthRatio((scale) => {
+      const text = makeText(BASE_SCAN_CHARS * scale);
+      return () => redactProseSecrets(text);
+    });
 
-    expect(performance.now() - started).toBeLessThan(LINEAR_TIME_BUDGET_MS);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 });

@@ -1,12 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { extractLinks } from "../../src/context/providers/url";
 import { buildContextQuery } from "../../src/context/query";
+import {
+  GROWTH_FACTOR,
+  LINEAR_GROWTH_CEILING,
+  measureGrowthRatio,
+} from "../growth-ratio";
 
 const REPO = { owner: "acme", repo: "widget" };
 /** GitHub's cap on a pull request description. */
 const LARGE_BODY_CHARS = 65_536;
-/** A quadratic pass takes hundreds of milliseconds on the large body; a linear one, a few. */
-const LINEAR_BUDGET_MS = 150;
+const BASE_BODY_CHARS = LARGE_BODY_CHARS / GROWTH_FACTOR;
+
+function measureBodyGrowth(makeBody: (chars: number) => string): number {
+  return measureGrowthRatio((scale) => {
+    const body = makeBody(BASE_BODY_CHARS * scale);
+    return () =>
+      buildContextQuery({
+        title: "",
+        body,
+        branch: "",
+        repo: REPO,
+        trackers: [],
+        readable: ["github"],
+      });
+  });
+}
 
 describe("buildContextQuery", () => {
   it("carries the metadata tier and the resolved primary", () => {
@@ -540,100 +559,72 @@ describe("buildContextQuery", () => {
     ["escaped reference label starts", "\\]["],
     ["definition-like lines", "[\n"],
   ])("reads 64 KB of %s in linear time", (_shape, unit) => {
-    const repeats = Math.ceil(LARGE_BODY_CHARS / unit.length);
-    const started = performance.now();
-    buildContextQuery({
-      title: "",
-      body: unit.repeat(repeats),
-      branch: "",
-      repo: REPO,
-      trackers: [],
-      readable: ["github"],
-    });
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+    const ratio = measureBodyGrowth((chars) =>
+      unit.repeat(Math.ceil(chars / unit.length)),
+    );
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("reads titles sharing one far closer in linear time", () => {
-    const half = LARGE_BODY_CHARS / 2;
-    const titles = "[x](y (".repeat(Math.ceil(half / 7));
-    const started = performance.now();
-    buildContextQuery({
-      title: "",
-      body: `${titles})${" ".repeat(half)}x`,
-      branch: "",
-      repo: REPO,
-      trackers: [],
-      readable: ["github"],
+    const ratio = measureBodyGrowth((chars) => {
+      const title = "[x](y (";
+      const titles = title.repeat(Math.ceil(chars / 2 / title.length));
+      return `${titles})${" ".repeat(chars / 2)}x`;
     });
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("reads block openers sharing one far closer in linear time", () => {
-    const half = LARGE_BODY_CHARS / 2;
-    const openers = "<?\n".repeat(Math.ceil(half / 3));
-    const started = performance.now();
-    buildContextQuery({
-      title: "",
-      body: `${openers}?>${"x".repeat(half)}`,
-      branch: "",
-      repo: REPO,
-      trackers: [],
-      readable: ["github"],
+    const ratio = measureBodyGrowth((chars) => {
+      const opener = "<?\n";
+      const openers = opener.repeat(Math.ceil(chars / 2 / opener.length));
+      return `${openers}?>${"x".repeat(chars / 2)}`;
     });
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("reads openers sharing a closer past a blank line in linear time", () => {
-    const started = performance.now();
-    buildContextQuery({
-      title: "",
-      body: `${"<?".repeat(LARGE_BODY_CHARS / 2)}\n\n>`,
-      branch: "",
-      repo: REPO,
-      trackers: [],
-      readable: ["github"],
-    });
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+    const ratio = measureBodyGrowth(
+      (chars) => `${"<?".repeat(chars / 2)}\n\n>`,
+    );
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("reads a long delimiter-like row in linear time", () => {
-    const started = performance.now();
-    buildContextQuery({
-      title: "",
-      body: `|-${" ".repeat(LARGE_BODY_CHARS)}x`,
-      branch: "",
-      repo: REPO,
-      trackers: [],
-      readable: ["github"],
-    });
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+    const ratio = measureBodyGrowth((chars) => `|-${" ".repeat(chars)}x`);
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("reads link labels holding URLs in linear time", () => {
-    const started = performance.now();
-    buildContextQuery({
-      title: "",
-      body: "[www.](".repeat(LARGE_BODY_CHARS / "[www.](".length),
-      branch: "",
-      repo: REPO,
-      trackers: [],
-      readable: ["github"],
-    });
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+    const ratio = measureBodyGrowth((chars) =>
+      "[www.](".repeat(chars / "[www.](".length),
+    );
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("trims a long run of trailing punctuation in linear time", () => {
-    const started = performance.now();
-    const query = buildContextQuery({
-      title: "",
-      body: `https://notion.so/${".".repeat(LARGE_BODY_CHARS)}x`,
-      branch: "",
-      repo: REPO,
-      trackers: [],
-      readable: ["github", "notion"],
+    const ratio = measureGrowthRatio((scale) => {
+      const body = `https://notion.so/${".".repeat(BASE_BODY_CHARS * scale)}x`;
+      return () => {
+        const query = buildContextQuery({
+          title: "",
+          body,
+          branch: "",
+          repo: REPO,
+          trackers: [],
+          readable: ["github", "notion"],
+        });
+        extractLinks(query.body);
+      };
     });
-    extractLinks(query.body);
-    expect(performance.now() - started).toBeLessThan(LINEAR_BUDGET_MS);
+
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("drops the rest of the text after a tag that never closes", () => {

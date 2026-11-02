@@ -14,6 +14,15 @@ import {
 import { matchesGlob } from "../../src/path-matching";
 import { SecretKinds } from "../../src/generation/redaction/types";
 import { FAKE_SECRETS } from "../secret-fixtures";
+import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
+
+const CHAIN_SEGMENTS = 40;
+const GLOBSTAR_PATH_CHARS = 2_000;
+const STAR_PATH_CHARS = 2_500;
+
+function makeChainPath(segments: number): string {
+  return `a/${"b/".repeat(segments)}almost-z-but-not`;
+}
 
 describe("REPO_INSTRUCTION_CLASSES", () => {
   it("names the load-bearing classes", () => {
@@ -248,21 +257,26 @@ describe("sanitizeCustomAttributes name floor, the prompt injection guard", () =
 });
 
 describe("matchesGlob stays linear on pathological patterns", () => {
-  it("a wildcard chain against a long non-matching path completes instantly", () => {
+  it("a wildcard chain against a long non-matching path stays linear", () => {
     const pattern = "a/*/*/*/*/*/*/*/*/*/*/z";
-    const path = `a/${"b/".repeat(40)}almost-z-but-not`;
-    const started = performance.now();
-    const result = matchesGlob(pattern, path);
-    expect(result).toBe(false);
-    expect(performance.now() - started).toBeLessThan(100);
+    const ratio = measureGrowthRatio((scale) => {
+      const path = makeChainPath(CHAIN_SEGMENTS * scale);
+      return () => matchesGlob(pattern, path);
+    });
+
+    expect(matchesGlob(pattern, makeChainPath(CHAIN_SEGMENTS))).toBe(false);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
-  it("many globstars against a long path completes instantly", () => {
+  it("many globstars against a long path stays linear", () => {
     const pattern = "**a**a**a**a**a**a**a**a**a**a**";
-    const path = "b".repeat(2000);
-    const started = performance.now();
-    expect(matchesGlob(pattern, path)).toBe(false);
-    expect(performance.now() - started).toBeLessThan(100);
+    const ratio = measureGrowthRatio((scale) => {
+      const path = "b".repeat(GLOBSTAR_PATH_CHARS * scale);
+      return () => matchesGlob(pattern, path);
+    });
+
+    expect(matchesGlob(pattern, "b".repeat(GLOBSTAR_PATH_CHARS))).toBe(false);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("mid-string globstar still matches across segments", () => {
@@ -322,8 +336,12 @@ describe("matchesGlob respects segment boundaries for **/", () => {
   });
 
   it("a star after a globstar stays linear instead of quadratic", () => {
-    const started = performance.now();
-    expect(matchesGlob("***z", `${"b".repeat(10_000)}x`)).toBe(false);
-    expect(performance.now() - started).toBeLessThan(100);
+    const ratio = measureGrowthRatio((scale) => {
+      const path = `${"b".repeat(STAR_PATH_CHARS * scale)}x`;
+      return () => matchesGlob("***z", path);
+    });
+
+    expect(matchesGlob("***z", `${"b".repeat(STAR_PATH_CHARS)}x`)).toBe(false);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 });

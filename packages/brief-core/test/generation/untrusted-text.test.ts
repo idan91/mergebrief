@@ -6,8 +6,16 @@ import {
 } from "../../src/generation/untrusted-text";
 import { SecretKinds } from "../../src/generation/redaction/types";
 import { FAKE_SECRETS, makeFakePemBlock } from "../secret-fixtures";
+import { LINEAR_GROWTH_CEILING, measureGrowthRatio } from "../growth-ratio";
 
 const GITHUB_TOKEN = FAKE_SECRETS[SecretKinds.GITHUB_TOKEN];
+/**
+ * Each line start reads up to 999 label units ahead, a cost fixed per line
+ * only where the read reaches that bound. With this many lines most do, so a
+ * healthy ratio stays near linear.
+ */
+const BRACKETED_LINES = 2_000;
+const COMMENT_OPENERS = 12_500;
 
 describe("sanitizeUntrustedText", () => {
   it.each([
@@ -135,19 +143,25 @@ describe("sanitizeUntrustedText", () => {
   });
 
   it("stays linear on many bracketed lines with no definition", () => {
-    const payload = "[a\n".repeat(20_000);
-    const started = performance.now();
+    const payload = "[a\n".repeat(BRACKETED_LINES);
+    const ratio = measureGrowthRatio((scale) => {
+      const scaled = payload.repeat(scale);
+      return () => sanitizeUntrustedText(scaled);
+    });
 
     expect(sanitizeUntrustedText(payload)).toBe(payload);
-    expect(performance.now() - started).toBeLessThan(500);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("stays linear on many unterminated comment openers", () => {
-    const payload = "a <!--".repeat(50_000);
-    const started = performance.now();
+    const payload = "a <!--".repeat(COMMENT_OPENERS);
+    const ratio = measureGrowthRatio((scale) => {
+      const scaled = payload.repeat(scale);
+      return () => sanitizeUntrustedText(scaled);
+    });
 
     expect(sanitizeUntrustedText(payload)).toBe("a ");
-    expect(performance.now() - started).toBeLessThan(200);
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING);
   });
 
   it("strips a forged tag split across a line break in prose", () => {
