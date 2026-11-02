@@ -5,6 +5,7 @@
     "anchored-stamp": 5,
     "coverage-exactly-one-group": 5,
     "id-carried-health.ts": 5,
-    "id-carried-redact.ts": 5
+    "id-carried-redact.ts": 5,
+    "untouched-survives-redact.ts": 5
   }
 }

@@ -1,0 +1,11 @@
+{
+  "key": "claude-code:claude-opus-5-5",
+  "runs": 5,
+  "properties": {
+    "anchored-stamp": 5,
+    "carried-groups-survive": 5,
+    "carries-every-group": 5,
+    "coverage-exactly-one-group": 5,
+    "summary-media-carried": 5
+  }
+}
