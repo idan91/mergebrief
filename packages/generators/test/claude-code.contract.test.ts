@@ -30,7 +30,7 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
   return {
     expectedOrigin: {
       provider: "claude-code",
-      model: "claude-opus-4-8",
+      model: "claude-opus-5-5",
       effort: null,
     },
     // The claude CLI has no distinct refusal signal (capabilities note §1);

@@ -3,7 +3,7 @@
 # take it explicitly: `pnpm categorize --config ./mergebrief.config.yaml <pr-url>`.
 #
 # NO file at all = zero-config default: anthropic + ANTHROPIC_API_KEY +
-# claude-opus-4-8, and draft PRs generate with the normal debounce. Only
+# claude-opus-5-5, and draft PRs generate with the normal debounce. Only
 # create this file to change that.
 #
 # Full reference: docs/self-host/generators.md. Unknown keys refuse boot
@@ -14,7 +14,7 @@ generator:
   # anthropic | openai | openrouter | claude-code | codex | cursor
   provider: anthropic
 
-  # Model id. Optional for anthropic/claude-code (Opus 4.8 default), codex
+  # Model id. Optional for anthropic/claude-code (Opus 5.5 default), codex
   # and cursor (the CLI's configured default runs; provenance stamps
   # "codex-default" / "cursor-default"); REQUIRED for openai and openrouter
   # (full slug there, e.g. anthropic/claude-sonnet-5). cursor takes an id

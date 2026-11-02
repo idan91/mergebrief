@@ -141,7 +141,7 @@ const anthropicOptions = z
   .object({
     provider: z.literal(Providers.ANTHROPIC),
     /**
-     * Model id; default Opus 4.8. Sonnet (`claude-sonnet-5`) is the
+     * Model id; default Opus 5.5. Sonnet (`claude-sonnet-5`) is the
      * documented cost knob.
      */
     model: z.string().min(1).optional(),
@@ -174,7 +174,7 @@ const harnessTimeouts = z
 const claudeCodeOptions = z
   .object({
     provider: z.literal(Providers.CLAUDE_CODE),
-    /** Model id passed via --model; default Opus 4.8. */
+    /** Model id passed via --model; default Opus 5.5. */
     model: z.string().min(1).optional(),
     /** Binary path or name; default "claude" (PATH-resolved). */
     command: z.string().min(1).optional(),

@@ -55,7 +55,7 @@ export interface AnthropicStreamingClient {
  * Convert residual JSON parsing rejections into floor-visible attempts.
  * The shared schema floor owns validation regardless of native structured-output enforcement.
  */
-const DEFAULT_MODEL = "claude-opus-4-8";
+const DEFAULT_MODEL = "claude-opus-5-5";
 const CUT_STOP_REASON: Anthropic.StopReason = "max_tokens";
 const HTTP_BAD_REQUEST = 400;
 const HTTP_TOO_MANY_REQUESTS = 429;

@@ -890,8 +890,9 @@ export const SummaryMediaGenerationSchema = z.object({
           `1 to ${SUMMARY_MEDIA_MAX_POINTER_ITEMS} item numbers from <pr_media>, none of them shown`,
         ),
     })
-    .optional()
-    .describe("at most one pointer to a set of items in the Media strip"),
+    .describe(
+      "at most one pointer to a set of items in the Media strip; an empty label and no items when there is none",
+    ),
 });
 export type SummaryMediaGeneration = z.infer<
   typeof SummaryMediaGenerationSchema
@@ -927,10 +928,7 @@ function readShownPick(entry: unknown): Record<string, unknown> {
   };
 }
 
-function readPointerPick(value: unknown): unknown {
-  if (value === undefined) {
-    return undefined;
-  }
+function readPointerPick(value: unknown): Record<string, unknown> {
   if (!isPlainObject(value)) {
     return { label: "", items: [] };
   }
@@ -946,25 +944,26 @@ function readPointerPick(value: unknown): unknown {
  * A malformed answer trims, never fails the brief, and every trim is
  * counted: on an adapter that does not enforce the schema, a pick keeps
  * its place with what parses of it and the resolver drops and counts the
- * rest. Anything but an object reads as no answer. The wire schema is the
- * strict shape still.
+ * rest. Anything but an object reads as the empty answer. The wire schema
+ * is the strict shape still.
  */
-function trimSummaryMediaAnswer(value: unknown): unknown {
-  if (!isPlainObject(value)) {
-    return undefined;
-  }
-  const shown = Array.isArray(value["shown"]) ? value["shown"] : [];
-  const answer: Record<string, unknown> = { shown: shown.map(readShownPick) };
-  const pointer = readPointerPick(value["pointer"]);
-  if (pointer !== undefined) {
-    answer["pointer"] = pointer;
-  }
-  return answer;
+function trimSummaryMediaAnswer(value: unknown): Record<string, unknown> {
+  const answer = isPlainObject(value) ? value : {};
+  const shown = Array.isArray(answer["shown"]) ? answer["shown"] : [];
+  return {
+    shown: shown.map(readShownPick),
+    pointer: readPointerPick(answer["pointer"]),
+  };
 }
 
+/**
+ * Required, never optional: each optional property multiplies the grammar
+ * the Anthropic API compiles from the wire schema, and the brief sits near
+ * its compile cap. "No pointer" is the empty form.
+ */
 const SUMMARY_MEDIA_GENERATION_FIELDS = {
   summaryMedia: z
-    .preprocess(trimSummaryMediaAnswer, SummaryMediaGenerationSchema.optional())
+    .preprocess(trimSummaryMediaAnswer, SummaryMediaGenerationSchema)
     .describe("Summary Media, by item number; see the Summary Media section"),
 };
 
@@ -1074,7 +1073,9 @@ const BriefWithMediaGenerationSchema = BriefGenerationSchema.extend(
 );
 
 /** A brief generation's answer; `summaryMedia` only when the request offered it. */
-export type BriefGeneration = z.infer<typeof BriefWithMediaGenerationSchema>;
+export interface BriefGeneration extends z.infer<typeof BriefGenerationSchema> {
+  summaryMedia?: SummaryMediaGeneration;
+}
 
 /** One group's hunks in the grouping call's hunk map. */
 export const HunkMapEntrySchema = z.object({
@@ -1118,9 +1119,12 @@ export const StoredGroupingSchema = GroupingGenerationSchema.extend({
 });
 
 export type HunkMapEntry = z.infer<typeof HunkMapEntrySchema>;
-export type GroupingGeneration = z.infer<
-  typeof GroupingWithMediaGenerationSchema
->;
+/** A grouping call's answer; `summaryMedia` only when the request offered it. */
+export interface GroupingGeneration extends z.infer<
+  typeof GroupingGenerationSchema
+> {
+  summaryMedia?: SummaryMediaGeneration;
+}
 export type StoredGrouping = z.infer<typeof StoredGroupingSchema>;
 
 function buildDetailGenerationSchema(riskToken: z.ZodType<string>) {

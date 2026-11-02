@@ -155,12 +155,13 @@ function readPointer(
   context: PointerContext,
   tally: SummaryMediaTally,
 ): MediaPointer | undefined {
-  if (answer.pointer === undefined) {
+  const label = cleanPointerLabel(answer.pointer.label);
+  const isEmptyForm = label === "" && answer.pointer.items.length === 0;
+  if (isEmptyForm) {
     return undefined;
   }
 
   const items = readPointerItems(answer.pointer.items, context, tally);
-  const label = cleanPointerLabel(answer.pointer.label);
   const nothingLeft = items.length === 0 || label === "";
   if (nothingLeft) {
     tally.pointerDropped = true;
@@ -205,7 +206,8 @@ function listTallyIssues(tally: SummaryMediaTally): string[] {
  * The model's item numbers mapped to keys and trimmed, never failed: numbers
  * naming nothing go, the first shown and pointer items within the caps stay,
  * repeats and pointer items already shown go, an unknown position reads as
- * after the lede, and a pointer with no items or label left goes.
+ * after the lede, a pointer with no items or label left goes, and the
+ * empty pointer form is the model's "no pointer", read without a warning.
  */
 export function resolveSummaryMedia(
   answer: SummaryMediaGeneration | undefined,

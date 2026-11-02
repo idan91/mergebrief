@@ -4,7 +4,11 @@ import {
   resolveSummaryMedia,
 } from "../../src/generation/summary-media";
 import { cleanPointerLabel } from "../../src/generation/summary-media/utils";
+import { enumPreservingJsonSchema } from "generators";
+import type { z } from "zod/v4";
 import {
+  briefGenerationSchemaWith,
+  groupingGenerationSchemaWith,
   GroupingWithMediaGenerationSchema,
   SummaryMediaPositions,
   SummaryMediaSchema,
@@ -134,10 +138,37 @@ const SHOTS = ["one", "two", "three", "four", "five"]
   .join("\n");
 const ITEMS = extract(SHOTS);
 const [ONE, TWO, THREE, FOUR, FIVE] = ITEMS.map((item) => item.key);
+const NO_POINTER = { label: "", items: [] };
 
 describe("resolveSummaryMedia mapping", () => {
   it("stores nothing when the model answered nothing", () => {
     expect(resolveSummaryMedia(undefined, ITEMS)).toEqual({ issues: [] });
+  });
+
+  it("reads an empty pointer as no pointer, with no warning", () => {
+    const resolved = resolveSummaryMedia(
+      {
+        shown: [{ item: 1, position: SummaryMediaPositions.BEFORE_LEDE }],
+        pointer: NO_POINTER,
+      },
+      ITEMS,
+    );
+
+    expect(resolved).toEqual({
+      summaryMedia: {
+        shown: [{ key: ONE, position: SummaryMediaPositions.BEFORE_LEDE }],
+      },
+      issues: [],
+    });
+  });
+
+  it("stores nothing for an empty answer, with no warning", () => {
+    const resolved = resolveSummaryMedia(
+      { shown: [], pointer: NO_POINTER },
+      ITEMS,
+    );
+
+    expect(resolved).toEqual({ issues: [] });
   });
 
   it("maps item numbers to keys and keeps each position", () => {
@@ -189,7 +220,7 @@ describe("resolveSummaryMedia mapping", () => {
 
   it("stores nothing when no number names an item", () => {
     const resolved = resolveSummaryMedia(
-      { shown: [{ item: 9, position: "after-lede" }] },
+      { shown: [{ item: 9, position: "after-lede" }], pointer: NO_POINTER },
       ITEMS,
     );
 
@@ -198,7 +229,7 @@ describe("resolveSummaryMedia mapping", () => {
 
   it("reads an unknown position as after-lede", () => {
     const resolved = resolveSummaryMedia(
-      { shown: [{ item: 1, position: "top" }] },
+      { shown: [{ item: 1, position: "top" }], pointer: NO_POINTER },
       ITEMS,
     );
 
@@ -216,6 +247,7 @@ describe("resolveSummaryMedia trims", () => {
     const resolved = resolveSummaryMedia(
       {
         shown: [1, 1, 2, 3].map((item) => ({ item, position: "after-lede" })),
+        pointer: NO_POINTER,
       },
       ITEMS,
     );
@@ -331,6 +363,7 @@ describe("resolveSummaryMedia stored checks", () => {
           { item: 1, position: "after-lede" },
           { item: 2, position: "after-lede" },
         ],
+        pointer: NO_POINTER,
       },
       items,
     );
@@ -380,6 +413,7 @@ describe("summaryMedia parse on an adapter without schema enforcement", () => {
         { item: 1, position: "" },
         { item: 2, position: "" },
       ],
+      pointer: NO_POINTER,
     });
   });
 
@@ -394,6 +428,7 @@ describe("summaryMedia parse on an adapter without schema enforcement", () => {
         { item: 0, position: "" },
         { item: 2, position: "after-lede" },
       ],
+      pointer: NO_POINTER,
     });
   });
 
@@ -418,9 +453,18 @@ describe("summaryMedia parse on an adapter without schema enforcement", () => {
     });
   });
 
-  it("reads an answer that is no object as no answer", () => {
-    expect(field.parse("nonsense")).toBeUndefined();
-    expect(field.parse(undefined)).toBeUndefined();
+  it("reads a missing pointer as the empty pointer", () => {
+    expect(field.parse({ shown: [] })).toEqual({
+      shown: [],
+      pointer: NO_POINTER,
+    });
+  });
+
+  it("reads an answer that is no object as the empty answer", () => {
+    const emptyAnswer = { shown: [], pointer: NO_POINTER };
+
+    expect(field.parse("nonsense")).toEqual(emptyAnswer);
+    expect(field.parse(undefined)).toEqual(emptyAnswer);
   });
 });
 
@@ -452,6 +496,31 @@ describe("resolveSummaryMedia on a malformed answer", () => {
     expect(resolved.issues).toEqual([
       "summaryMedia: dropped 2 item number(s) that name no Media item",
       "summaryMedia: dropped the pointer, which had no items or no label left",
+    ]);
+  });
+});
+
+interface WireObject {
+  required?: string[];
+  properties: Record<string, WireObject>;
+}
+
+function readWire(schema: z.ZodType): WireObject {
+  return enumPreservingJsonSchema(schema) as unknown as WireObject;
+}
+
+describe("Summary Media wire schema", () => {
+  it.each([
+    ["brief", briefGenerationSchemaWith([], true)],
+    ["custom brief", briefGenerationSchemaWith(["example-attribute"], true)],
+    ["grouping", groupingGenerationSchemaWith(true)],
+  ])("requires summaryMedia and its pointer on the %s schema", (_, schema) => {
+    const wire = readWire(schema);
+
+    expect(wire.required).toContain("summaryMedia");
+    expect(wire.properties["summaryMedia"]?.required).toEqual([
+      "shown",
+      "pointer",
     ]);
   });
 });

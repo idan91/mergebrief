@@ -6151,12 +6151,12 @@ exports[`request goldens > summary-media-code-review-1141 sends the recorded req
   {
     "label": "brief",
     "schema": {
-      "bytes": 11547,
-      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+      "bytes": 11620,
+      "sha256": "37e0653cc67b55182fefa52e0d01524b0e829935eccf3a91062c832a8922bee6"
     },
     "system": {
-      "bytes": 27339,
-      "sha256": "802588e5af094cd4d0567419bc75cb897cf6b790e61305107eabb7b40d794675"
+      "bytes": 27380,
+      "sha256": "b746530fc4efeafaed06dec1a0927d2709a02e6eb984be96157ebe030c5e9b4b"
     },
     "user": {
       "bytes": 228769,
@@ -6171,12 +6171,12 @@ exports[`request goldens > summary-media-grafana-107803 sends the recorded reque
   {
     "label": "brief",
     "schema": {
-      "bytes": 11547,
-      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+      "bytes": 11620,
+      "sha256": "37e0653cc67b55182fefa52e0d01524b0e829935eccf3a91062c832a8922bee6"
     },
     "system": {
-      "bytes": 27339,
-      "sha256": "802588e5af094cd4d0567419bc75cb897cf6b790e61305107eabb7b40d794675"
+      "bytes": 27380,
+      "sha256": "b746530fc4efeafaed06dec1a0927d2709a02e6eb984be96157ebe030c5e9b4b"
     },
     "user": {
       "bytes": 56752,
@@ -6191,12 +6191,12 @@ exports[`request goldens > summary-media-home-assistant-55394 sends the recorded
   {
     "label": "brief",
     "schema": {
-      "bytes": 11547,
-      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+      "bytes": 11620,
+      "sha256": "37e0653cc67b55182fefa52e0d01524b0e829935eccf3a91062c832a8922bee6"
     },
     "system": {
-      "bytes": 27339,
-      "sha256": "802588e5af094cd4d0567419bc75cb897cf6b790e61305107eabb7b40d794675"
+      "bytes": 27380,
+      "sha256": "b746530fc4efeafaed06dec1a0927d2709a02e6eb984be96157ebe030c5e9b4b"
     },
     "user": {
       "bytes": 14340,
@@ -6211,12 +6211,12 @@ exports[`request goldens > summary-media-supabase-19466 sends the recorded reque
   {
     "label": "brief",
     "schema": {
-      "bytes": 11547,
-      "sha256": "f4cbff1284e32cea756b1f71df09b946419d1316c591ca4a3c1ad127fb139405"
+      "bytes": 11620,
+      "sha256": "37e0653cc67b55182fefa52e0d01524b0e829935eccf3a91062c832a8922bee6"
     },
     "system": {
-      "bytes": 27339,
-      "sha256": "802588e5af094cd4d0567419bc75cb897cf6b790e61305107eabb7b40d794675"
+      "bytes": 27380,
+      "sha256": "b746530fc4efeafaed06dec1a0927d2709a02e6eb984be96157ebe030c5e9b4b"
     },
     "user": {
       "bytes": 99073,

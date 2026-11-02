@@ -18,7 +18,7 @@ PR URL ──▶ gh pr diff + gh pr view ──▶ the configured generator (Zod
 ```
 
 - **Diff source:** the `gh` CLI (`gh pr diff` + `gh pr view --json`). No GitHub token setup; it uses your existing `gh` auth.
-- **Model:** the generator `--config <mergebrief.config.yaml>` selects (see `docs/self-host/generators.md`). Without `--config` it is the zero-config default: the Anthropic adapter on `claude-opus-4-8`, adaptive thinking, with the taxonomy system prompt prompt-cached. The CLIs ignore an ambient `MERGEBRIEF_CONFIG`.
+- **Model:** the generator `--config <mergebrief.config.yaml>` selects (see `docs/self-host/generators.md`). Without `--config` it is the zero-config default: the Anthropic adapter on `claude-opus-5-5`, adaptive thinking, with the taxonomy system prompt prompt-cached. The CLIs ignore an ambient `MERGEBRIEF_CONFIG`.
 - **Lockfiles:** the CLIs pass no lockfile contents, so every changed pnpm, npm or yarn lockfile carries `changes-package-source` in their briefs; the worker reads both sides and flags only a real source change.
 - **Output contract:** the model must return JSON matching the Zod `BriefSchema` (`packages/brief-core/src/types.ts`), whose enums mirror the closed vocabulary in `docs/vocabulary/labeling-schema.md` and the 19 attributes in `docs/vocabulary/risk-surface.md`.
 

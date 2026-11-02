@@ -29,7 +29,7 @@ if (process.env.SHIM_CWD_LOG) {
 
 const scenario = process.env.SHIM_SCENARIO ?? "valid";
 const output = process.env.SHIM_OUTPUT ?? '{"ok":true}';
-const model = process.env.SHIM_MODEL ?? "claude-opus-4-8";
+const model = process.env.SHIM_MODEL ?? "claude-opus-5-5";
 const servedModel = process.env.SHIM_SERVED_MODEL ?? model;
 
 function emit(event) {

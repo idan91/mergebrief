@@ -631,8 +631,8 @@ Answer \`summaryMedia\` with item numbers only. Never write an address, and neve
 
 - **shown**: 0 to 2 items for the Brief summary. Show an item only when it shows the change better than the lede says it. Two shown items must each show something the other does not. Never show decoration (a logo, a badge, a celebratory GIF). Never show one or both halves of a comparison (before and after, old and new): that set belongs in the pointer. An empty list is the usual answer.
 - **position** of each shown item: \`before-lede\` or \`after-lede\`; when unsure, \`after-lede\`.
-- **pointer** (optional, at most one): a short plain-text label (at most 40 characters, no links, no Markdown) plus 1 to 4 item numbers, for a before/after set or a set better browsed than shown. An item is shown or in the pointer, never both.
-- When no item earns a place, leave \`shown\` empty and omit \`pointer\`.
+- **pointer** (at most one): a short plain-text label (at most 40 characters, no links, no Markdown) plus 1 to 4 item numbers, for a before/after set or a set better browsed than shown. An item is shown or in the pointer, never both.
+- When no set earns a pointer, give it an empty label and no items. When no item earns a place, leave \`shown\` empty too.
 
 ## Anchored regeneration (this run)
 
@@ -1056,8 +1056,8 @@ Answer \`summaryMedia\` with item numbers only. Never write an address, and neve
 
 - **shown**: 0 to 2 items for the Brief summary. Show an item only when it shows the change better than the lede says it. Two shown items must each show something the other does not. Never show decoration (a logo, a badge, a celebratory GIF). Never show one or both halves of a comparison (before and after, old and new): that set belongs in the pointer. An empty list is the usual answer.
 - **position** of each shown item: \`before-lede\` or \`after-lede\`; when unsure, \`after-lede\`.
-- **pointer** (optional, at most one): a short plain-text label (at most 40 characters, no links, no Markdown) plus 1 to 4 item numbers, for a before/after set or a set better browsed than shown. An item is shown or in the pointer, never both.
-- When no item earns a place, leave \`shown\` empty and omit \`pointer\`."
+- **pointer** (at most one): a short plain-text label (at most 40 characters, no links, no Markdown) plus 1 to 4 item numbers, for a before/after set or a set better browsed than shown. An item is shown or in the pointer, never both.
+- When no set earns a pointer, give it an empty label and no items. When no item earns a place, leave \`shown\` empty too."
 `;
 
 exports[`system prompts are byte-pinned > brief, without repo context 1`] = `
@@ -2826,8 +2826,8 @@ Answer \`summaryMedia\` with item numbers only. Never write an address, and neve
 
 - **shown**: 0 to 2 items for the Brief summary. Show an item only when it shows the change better than the lede says it. Two shown items must each show something the other does not. Never show decoration (a logo, a badge, a celebratory GIF). Never show one or both halves of a comparison (before and after, old and new): that set belongs in the pointer. An empty list is the usual answer.
 - **position** of each shown item: \`before-lede\` or \`after-lede\`; when unsure, \`after-lede\`.
-- **pointer** (optional, at most one): a short plain-text label (at most 40 characters, no links, no Markdown) plus 1 to 4 item numbers, for a before/after set or a set better browsed than shown. An item is shown or in the pointer, never both.
-- When no item earns a place, leave \`shown\` empty and omit \`pointer\`."
+- **pointer** (at most one): a short plain-text label (at most 40 characters, no links, no Markdown) plus 1 to 4 item numbers, for a before/after set or a set better browsed than shown. An item is shown or in the pointer, never both.
+- When no set earns a pointer, give it an empty label and no items. When no item earns a place, leave \`shown\` empty too."
 `;
 
 exports[`system prompts are byte-pinned > revision narrative 1`] = `

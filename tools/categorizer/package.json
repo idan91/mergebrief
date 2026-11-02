@@ -10,7 +10,8 @@
     "eval": "tsx eval/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "probe:enum": "tsx scripts/probe-enum-enforcement.ts"
+    "probe:enum": "tsx scripts/probe-enum-enforcement.ts",
+    "smoke:schemas": "tsx scripts/smoke-wire-schemas.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

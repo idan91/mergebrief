@@ -105,7 +105,7 @@ function renderCategory(category: string): string {
 }
 
 /** Same default as the SDK adapter, the stamp must name a real model. */
-const DEFAULT_MODEL = "claude-opus-4-8";
+const DEFAULT_MODEL = "claude-opus-5-5";
 /** The CLI's own output cap, set only for a request that names one. */
 const OUTPUT_CAP_VAR = "CLAUDE_CODE_MAX_OUTPUT_TOKENS";
 const CUT_STOP_REASON = "max_tokens";

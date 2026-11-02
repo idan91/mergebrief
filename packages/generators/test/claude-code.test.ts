@@ -120,7 +120,7 @@ describe("ClaudeCodeGenerator invocation profile", () => {
       "--tools",
       "",
       "--model",
-      "claude-opus-4-8",
+      "claude-opus-5-5",
       "--system-prompt-file",
       expect.stringContaining("claude-code-gen-"),
       "--json-schema",
@@ -468,7 +468,7 @@ describe("ClaudeCodeGenerator usage reporting", () => {
           output_tokens_details: { thinking_tokens: 400 },
         },
         modelUsage: {
-          "claude-opus-4-8": {
+          "claude-opus-5-5": {
             inputTokens: 1200,
             outputTokens: 900,
             costUSD: 0.42,
@@ -502,7 +502,7 @@ describe("ClaudeCodeGenerator usage reporting", () => {
         usage: null,
         total_cost_usd: null,
         modelUsage: {
-          "claude-opus-4-8": {
+          "claude-opus-5-5": {
             inputTokens: 7,
             outputTokens: 8,
             thinkingTokens: 3,
@@ -582,7 +582,7 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
       generator.generate(request((m) => logs.push(m), warnings)),
     ).resolves.toEqual({ ok: true });
     expect(mismatches).toEqual([
-      { requested: "claude-opus-4-8", served: ["claude-haiku-4-5"] },
+      { requested: "claude-opus-5-5", served: ["claude-haiku-4-5"] },
     ]);
     expect(logs.join("\n")).toContain("modelUsage reports claude-haiku-4-5");
     expect(warnings).toEqual([
@@ -592,7 +592,7 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
       },
     ]);
     // The stamp stays the declaration.
-    expect(generator.origin("medium").model).toBe("claude-opus-4-8");
+    expect(generator.origin("medium").model).toBe("claude-opus-5-5");
   });
 
   it("renders hostile modelUsage keys through the model-id grammar", async () => {
@@ -667,11 +667,11 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
     const generator = makeGenerator(
       { SHIM_SCENARIO: "valid", SHIM_OUTPUT: '{"ok":true}' },
       {
-        model: "claude-opus-4-8",
+        model: "claude-opus-5-5",
         onModelMismatch: (requested) => mismatches.push(requested),
       },
     );
-    // fake-claude serves SHIM_MODEL (defaults to claude-opus-4-8).
+    // fake-claude serves SHIM_MODEL (defaults to claude-opus-5-5).
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(mismatches).toEqual([]);
   });

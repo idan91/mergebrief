@@ -177,7 +177,7 @@ function makeAnthropicHarness(): GeneratorContractHarness {
     supportsRefusal: true,
     expectedOrigin: {
       provider: "anthropic",
-      model: "claude-opus-4-8",
+      model: "claude-opus-5-5",
       effort: "medium",
     },
     isAbortRejection: (error) => error === ABORT_ERROR,

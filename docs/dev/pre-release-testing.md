@@ -419,6 +419,13 @@ is the cheapest way to close most of the gap: it natively covers
       (one reasoning and one non-reasoning model; the second must log knob
       discovery and stamp `effort: null`), `openrouter` (one
       structured-outputs slug; one WITHOUT must refuse boot).
+- [ ] Every wire schema compiles at the Anthropic API
+      (`pnpm -C tools/categorizer smoke:schemas`, `ANTHROPIC_API_KEY` in
+      `tools/categorizer/.env`; one tiny request per variant, cents): every
+      variant prints `ok`, and a refusal names its variant. The adapter
+      smoke's tiny schema never compiles the Brief's grammar, and CI and
+      evals run `claude-code`, which compiles none. Also run it after any
+      change to a generation schema.
 - [ ] A compose boot with no `mergebrief.config.yaml` (only the required
       `.env` keys) still generates a brief end to end on the `anthropic`
       default.

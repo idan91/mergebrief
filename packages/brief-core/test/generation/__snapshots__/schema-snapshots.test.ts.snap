@@ -746,7 +746,7 @@ exports[`wire json schemas are byte-pinned > brief offering Summary Media 1`] = 
         },
         "pointer": {
           "type": "object",
-          "description": "at most one pointer to a set of items in the Media strip",
+          "description": "at most one pointer to a set of items in the Media strip; an empty label and no items when there is none",
           "properties": {
             "label": {
               "type": "string",
@@ -769,7 +769,8 @@ exports[`wire json schemas are byte-pinned > brief offering Summary Media 1`] = 
       },
       "additionalProperties": false,
       "required": [
-        "shown"
+        "shown",
+        "pointer"
       ]
     }
   },
@@ -778,7 +779,8 @@ exports[`wire json schemas are byte-pinned > brief offering Summary Media 1`] = 
     "summary",
     "changeGroups",
     "chunks",
-    "intentCheck"
+    "intentCheck",
+    "summaryMedia"
   ],
   "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
 }"
@@ -1166,7 +1168,7 @@ exports[`wire json schemas are byte-pinned > brief offering Summary Media with a
         },
         "pointer": {
           "type": "object",
-          "description": "at most one pointer to a set of items in the Media strip",
+          "description": "at most one pointer to a set of items in the Media strip; an empty label and no items when there is none",
           "properties": {
             "label": {
               "type": "string",
@@ -1189,7 +1191,8 @@ exports[`wire json schemas are byte-pinned > brief offering Summary Media with a
       },
       "additionalProperties": false,
       "required": [
-        "shown"
+        "shown",
+        "pointer"
       ]
     }
   },
@@ -1198,7 +1201,8 @@ exports[`wire json schemas are byte-pinned > brief offering Summary Media with a
     "summary",
     "changeGroups",
     "chunks",
-    "intentCheck"
+    "intentCheck",
+    "summaryMedia"
   ],
   "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
 }"
@@ -2644,7 +2648,7 @@ exports[`wire json schemas are byte-pinned > grouping offering Summary Media 1`]
         },
         "pointer": {
           "type": "object",
-          "description": "at most one pointer to a set of items in the Media strip",
+          "description": "at most one pointer to a set of items in the Media strip; an empty label and no items when there is none",
           "properties": {
             "label": {
               "type": "string",
@@ -2667,7 +2671,8 @@ exports[`wire json schemas are byte-pinned > grouping offering Summary Media 1`]
       },
       "additionalProperties": false,
       "required": [
-        "shown"
+        "shown",
+        "pointer"
       ]
     }
   },
@@ -2676,7 +2681,8 @@ exports[`wire json schemas are byte-pinned > grouping offering Summary Media 1`]
     "summary",
     "changeGroups",
     "hunkMap",
-    "intentCheck"
+    "intentCheck",
+    "summaryMedia"
   ],
   "description": "{$schema: \\"https://json-schema.org/draft/2020-12/schema\\"}"
 }"

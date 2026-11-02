@@ -11,7 +11,7 @@ are visible: in logs, and on the artifact itself (the header's amber
 ## Zero-config default
 
 No config file at all: **Anthropic API + `ANTHROPIC_API_KEY` + Claude Opus
-4.8**.
+5.5**.
 
 The documented cost knob: `model: claude-sonnet-5` on the `anthropic`
 provider (~5x cheaper input/output than Opus at very good Brief quality).

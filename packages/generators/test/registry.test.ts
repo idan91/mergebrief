@@ -22,7 +22,7 @@ const env = { ANTHROPIC_API_KEY: "sk-test-not-a-real-key" };
 const deps = { env, failureDir: "out" };
 
 describe("createGenerator", () => {
-  it("builds the zero-config default: anthropic, ANTHROPIC_API_KEY, Opus 4.8", async () => {
+  it("builds the zero-config default: anthropic, ANTHROPIC_API_KEY, Opus 5.5", async () => {
     const result = await createGenerator(defaultGeneratorConfig, deps);
     expect(result.ok).toBe(true);
     if (!result.ok) {
@@ -30,7 +30,7 @@ describe("createGenerator", () => {
     }
     expect(result.value.origin("medium")).toEqual({
       provider: "anthropic",
-      model: "claude-opus-4-8",
+      model: "claude-opus-5-5",
       effort: "medium",
     });
   });
