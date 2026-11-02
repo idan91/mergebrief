@@ -41,11 +41,8 @@ export function readPullRequest<Value>(
   return answerOk(read(pull));
 }
 
-/** GitHub compares a commit with itself as identical: no diff, no files. */
-const IDENTICAL_COMPARE: FakeCompare = {
-  diff: "",
-  files: { files: [], complete: true },
-};
+/** GitHub compares a commit with itself as identical: no diff. */
+const IDENTICAL_COMPARE: FakeCompare = { diff: "" };
 
 function readCompare<Value>(
   world: FakeWorld,
@@ -192,15 +189,6 @@ export function buildRepoReader(
         input,
         reach: { commits: [span.base, span.head] },
         answer: () => readCheckedCompareDiff(world, input),
-      });
-    },
-    fetchCompareFiles(span) {
-      const input = { ...span, ...bound };
-      return run({
-        operation: "fetchCompareFiles",
-        input,
-        reach: { commits: [span.base, span.head] },
-        answer: () => readCompare(world, input, (compare) => compare.files),
       });
     },
     fetchMergeBase(span) {

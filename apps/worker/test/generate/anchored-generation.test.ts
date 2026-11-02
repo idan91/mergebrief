@@ -27,6 +27,7 @@ import {
   HEAD_2,
   makeConnectionError,
   makeGitHub,
+  makeHeadPrDiff,
   makeTarget,
   makeTask,
   PR_REF,
@@ -179,6 +180,27 @@ async function refuseHopWrites(): Promise<void> {
   );
 }
 
+/** The second head's brief insert throws, as a stop between the hop write and the brief write would. */
+async function refuseSecondHeadBriefWrites(): Promise<void> {
+  await harness.raw(
+    "create function refuse_brief() returns trigger language plpgsql as $$ begin raise exception 'brief write refused'; end $$",
+  );
+  await harness.raw(
+    `create trigger refuse_brief before insert on brief for each row when (new.head_sha = '${HEAD_2}') execute function refuse_brief()`,
+  );
+}
+
+async function allowBriefWrites(): Promise<void> {
+  await harness.raw("drop trigger refuse_brief on brief");
+}
+
+/** A push that changed nothing the PR changes: both heads' PR diffs hold the same a.ts and b.ts change. */
+function arrangeUnchangedPush(github: FakeGitHub): void {
+  const prDiff = `${makeFilePrDiff("a.ts", "1111111..2222222", "added")}${makeFilePrDiff("b.ts", "1111111..3333333", "first")}`;
+  arrangeNewHeadPrDiff(github, prDiff);
+  github.addCompare(REPO, { base: HEAD_1, head: HEAD_2 }, { diff: "" });
+}
+
 setUpHarness();
 
 describe("generate task, anchored generation", () => {
@@ -190,15 +212,12 @@ describe("generate task, anchored generation", () => {
     fullRegeneration?: "always" | "on-model-swap" | "never";
     rev2Model?: string;
     rev2BaseSha?: string;
-    compareFilesEntry?: {
-      files: { filename: string; status: string }[];
-      complete: boolean;
-      status?: string;
-    };
     /** Make the second revision's model call fail (the hop must survive). */
     rev2FailWith?: unknown;
     /** Make the second revision's hop write throw. */
     rev2HopRefused?: boolean;
+    /** Make the second revision's brief write throw after its hop lands. */
+    rev2BriefRefused?: boolean;
     /** Move the row out of scope between the second run's guard and its hop. */
     rev2RowLeavesScope?: boolean;
     /** Fail the second revision's merge-base reads, so its span reads unavailable. */
@@ -228,19 +247,13 @@ describe("generate task, anchored generation", () => {
       );
     }
     const { logger, readLines } = captureLogger();
-    const compareFiles = options.compareFilesEntry ?? {
-      files: [{ filename: "b.ts", status: "modified" }],
-      complete: true,
-      status: "ahead",
-    };
     if (options.rev2ForcePush === true) {
       github.addCompare(REPO, SPAN, {
         diff: DIFF_TOUCHING_B,
-        files: compareFiles,
         mergeBase: FORK_POINT,
       });
     } else {
-      arrangeCompare(github, SPAN, DIFF_TOUCHING_B, compareFiles);
+      arrangeCompare(github, SPAN, DIFF_TOUCHING_B);
     }
     const overrides: Mutable<TaskOverrides> = {
       generator,
@@ -297,13 +310,25 @@ describe("generate task, anchored generation", () => {
       await refuseHopWrites();
       // oxlint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
       await expect(task(second.payload)).rejects.toThrow(TransientJobError);
+    } else if (options.rev2BriefRefused === true) {
+      await refuseSecondHeadBriefWrites();
+      // oxlint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
+      await expect(task(second.payload)).rejects.toThrow(
+        'Failed query: insert into "brief"',
+      );
     } else if (options.rev2RowLeavesScope === true) {
       rowLeavesScope = true;
       await task(second.payload);
     } else {
       await task(second.payload);
     }
-    return { pr: second.pr, generator, github, readLines };
+    return {
+      pr: second.pr,
+      generator,
+      github,
+      readLines,
+      retry: () => task(second.payload),
+    };
   }
 
   it("carries frozen groups verbatim and stamps anchored origin", async () => {
@@ -383,6 +408,46 @@ describe("generate task, anchored generation", () => {
     expect(
       readLines().some((line) => line["evt"] === "artifact.check.fail"),
     ).toBe(false);
+  });
+
+  it("carries the brief with no model call when the push changed nothing", async () => {
+    const { pr, generator } = await runTwoRevisions({
+      rev2Arrange: arrangeUnchangedPush,
+    });
+    const store = createArtifactStore(harness.handle, ctx);
+
+    const briefCalls = generator.requests.filter(
+      (request) => request.label === "brief",
+    );
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    const body = JSON.parse(row?.body ?? "{}") as {
+      changeGroups?: { id: string; title: string }[];
+    };
+    expect(briefCalls).toHaveLength(1);
+    expect(row?.anchorState).toBe("anchored");
+    expect(body.changeGroups?.map((group) => group.title)).toEqual([
+      "alpha",
+      "beta",
+    ]);
+    expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(1);
+  });
+
+  it("writes the hop before the brief, so a retry after a stop writes both", async () => {
+    const { pr, retry } = await runTwoRevisions({
+      rev2Arrange: arrangeUnchangedPush,
+      rev2BriefRefused: true,
+    });
+    const store = createArtifactStore(harness.handle, ctx);
+    const hopsAfterStop = await store.hunkSpans.listForPullRequest(pr.id);
+    const briefAfterStop = await store.briefs.get(pr.id, BASE, HEAD_2);
+
+    await allowBriefWrites();
+    await retry();
+
+    expect(hopsAfterStop.map((hop) => hop.headSha)).toEqual([HEAD_2]);
+    expect(briefAfterStop).toBeUndefined();
+    expect(await store.briefs.get(pr.id, BASE, HEAD_2)).toBeDefined();
+    expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(1);
   });
 
   it("persists the hop and the carried chunk set alongside the brief", async () => {
@@ -710,5 +775,77 @@ describe("generate task, anchored generation", () => {
       .filter((chunk) => chunk.file === "b.ts")
       .map((chunk) => chunk.changeGroupId);
     expect(new Set(owners).size).toBe(2);
+  });
+});
+
+describe("generate task, the hop chain across pushes", () => {
+  const HEAD_3 = "d".repeat(40);
+
+  /** HEAD_3's PR diff adds b.ts's change to HEAD_1's; nothing else moved. */
+  function arrangeThirdHead(github: FakeGitHub, prevHead: string): void {
+    const prDiff = `${makeHeadPrDiff(HEAD_1)}${DIFF_TOUCHING_B}`;
+    arrangeCompare(github, { base: BASE, head: HEAD_3 }, prDiff);
+    arrangeCompare(github, { base: prevHead, head: HEAD_3 }, DIFF_TOUCHING_B);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_3, changedFiles: 2 });
+  }
+
+  async function runHead(
+    task: ReturnType<typeof makeTask>,
+    github: FakeGitHub,
+    headSha: string,
+  ) {
+    github.updatePullRequest(PR_REF, { headSha });
+    const triggered = await trigger(headSha);
+    await task(triggered.payload);
+    return triggered.pr;
+  }
+
+  function startRun() {
+    const generator = stubGenerator();
+    generator.outputs["brief"] = makeTwoGroupBriefOutput(
+      "gA",
+      "alpha",
+      "gB",
+      "beta",
+    );
+    const github = makeGitHub(HEAD_1, [
+      { path: "a.ts", additions: 4, deletions: 0 },
+      { path: "b.ts", additions: 2, deletions: 0 },
+    ]);
+    return { github, task: makeTask({ generator, github }) };
+  }
+
+  async function listHopKeys(
+    pr: Awaited<ReturnType<typeof trigger>>["pr"],
+  ): Promise<string[]> {
+    const store = createArtifactStore(harness.handle, ctx);
+    const hops = await store.hunkSpans.listForPullRequest(pr.id);
+    return hops.map((hop) => `${hop.baselineSha[0]}->${hop.headSha[0]}`);
+  }
+
+  it("writes one hop per push, linking each brief head to the next", async () => {
+    const { github, task } = startRun();
+    await runHead(task, github, HEAD_1);
+    await runHead(task, github, HEAD_2);
+    arrangeThirdHead(github, HEAD_2);
+
+    const pr = await runHead(task, github, HEAD_3);
+
+    expect(await listHopKeys(pr)).toEqual(["a->b", "b->d"]);
+  });
+
+  it("keys the span on the last brief when a push in between never ran", async () => {
+    const { github, task } = startRun();
+    await runHead(task, github, HEAD_1);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    await trigger(HEAD_2);
+    arrangeThirdHead(github, HEAD_1);
+
+    const pr = await runHead(task, github, HEAD_3);
+    const store = createArtifactStore(harness.handle, ctx);
+
+    expect(await listHopKeys(pr)).toEqual(["a->d"]);
+    expect(await store.briefs.get(pr.id, BASE, HEAD_2)).toBeUndefined();
+    expect(await store.briefs.get(pr.id, BASE, HEAD_3)).toBeDefined();
   });
 });

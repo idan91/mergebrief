@@ -3,7 +3,6 @@ import { fetchPullRequestConversation } from "../operations/conversation";
 import {
   fetchCheckedCompareDiff,
   fetchCompareDiff,
-  fetchCompareFiles,
   fetchDiff,
   fetchMergeBase,
   fetchPullRequest,
@@ -50,13 +49,6 @@ export function buildRepoReader(
       return run(
         (octokit) => fetchCheckedCompareDiff(octokit, { ...span, ...repo }),
         "fetch compare diff",
-        { commits: [span.base, span.head] },
-      );
-    },
-    fetchCompareFiles(span) {
-      return run(
-        (octokit) => fetchCompareFiles(octokit, { ...span, ...repo }),
-        "fetch compare files",
         { commits: [span.base, span.head] },
       );
     },

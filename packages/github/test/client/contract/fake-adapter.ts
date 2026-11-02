@@ -179,18 +179,7 @@ function arrangeRepository(github: FakeGitHub, operation: GitHubOperation) {
     viewerCanPush: true,
     viewerIsAdmin: false,
   });
-  github.addCompare(
-    REPO,
-    { base: BASE_SHA, head: HEAD_SHA },
-    {
-      diff: DIFF,
-      files: {
-        files: [{ filename: "src/a.ts", status: "modified" }],
-        complete: true,
-        status: "ahead",
-      },
-    },
-  );
+  github.addCompare(REPO, { base: BASE_SHA, head: HEAD_SHA }, { diff: DIFF });
   github.addRepoFile(
     REPO,
     { path: ".mergebrief.yml", ref: HEAD_SHA },

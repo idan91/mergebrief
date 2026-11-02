@@ -1,4 +1,3 @@
-import type { CompareFiles } from "brief-core";
 import type { InstallationId, RepoId } from "persistence";
 import type { Result, ValueOf } from "types/utils";
 import type { UserInstallation } from "../auth/oauth";
@@ -150,7 +149,6 @@ export interface FakePullRequest {
 
 export interface FakeCompare {
   readonly diff?: string;
-  readonly files?: CompareFiles;
   /** Absent answers the span's base itself, as for a head branched off the base tip. */
   readonly mergeBase?: string;
 }

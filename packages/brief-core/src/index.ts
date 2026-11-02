@@ -91,7 +91,7 @@ export type {
   PreviousBriefInput,
 } from "./generation/brief/types";
 export { planAnchoredGeneration } from "./anchoring";
-export type { AnchorPlan, CompareFile, CompareFiles } from "./anchoring/types";
+export type { AnchorPlan } from "./anchoring/types";
 export {
   CUSTOM_ATTRIBUTE_NAME_PATTERN,
   DeltaSkipReasons,

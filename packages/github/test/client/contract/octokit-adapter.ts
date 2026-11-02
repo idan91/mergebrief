@@ -103,10 +103,6 @@ const OK_ANSWERS: Readonly<Record<GitHubOperation, StubResponse>> = {
   fetchDiff: answerOk(DIFF),
   fetchCompareDiff: answerOk(DIFF),
   fetchCheckedCompareDiff: answerOk(DIFF),
-  fetchCompareFiles: answerOk({
-    status: "ahead",
-    files: [{ filename: "src/a.ts", status: "modified" }],
-  }),
   fetchMergeBase: answerOk({ merge_base_commit: { sha: BASE_SHA } }),
   fetchRepoFile: answerOk({
     type: "file",

@@ -43,7 +43,6 @@ import {
   SINGLE_CALL_MAX_HUNKS,
   createBuiltInContextProviders,
   parseChangedRanges,
-  type CompareFiles,
 } from "brief-core";
 import type {
   InstallationRepoClient,
@@ -635,14 +634,13 @@ export function makePullRequestInfo(headSha: string): PullRequestInfo {
   };
 }
 
-/** A span's compare; its files default to the conservative nothing-confirmable answer. */
+/** A span's compare diff. */
 export function arrangeCompare(
   github: FakeGitHub,
   span: { readonly base: string; readonly head: string },
   diff = SMALL_DIFF,
-  files: CompareFiles = { files: [], complete: false },
 ): void {
-  github.addCompare(REPO, span, { diff, files });
+  github.addCompare(REPO, span, { diff });
 }
 
 /** The PR's own diff at `head`: `SMALL_DIFF` with a line naming the head, so each head's change differs. */

@@ -24,6 +24,7 @@ import {
 } from "./repo-context";
 import type { Effort, Generator, Logger } from "generators";
 import type { Mutable } from "types/utils";
+import type { MediaItem } from "../media";
 import {
   buildSystemPrompt,
   renderAnchorView,
@@ -81,6 +82,7 @@ import {
 } from "./package-sources";
 import type { LockfileSummary } from "./shortened/types";
 import { attributeSafe } from "./fences";
+import { holdsCarriedInputs } from "./carry-inputs";
 import { redactProseSecrets } from "./redaction";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
@@ -539,15 +541,15 @@ export function buildValidationContext(
   return context;
 }
 
-/**
- * One model call and the mechanical shaping a stitch needs to read its output:
- * snapped ranges, derived loc, the stored intent buckets. Nothing here
- * validates; `validateFinalBrief` runs once over the final chunk set.
- */
-export async function generateDraftBrief(
-  options: DraftBriefOptions,
-): Promise<DraftBrief> {
-  const { pr, generator, log, effort, anchor, warnings } = options;
+/** The user message a draft sends, and what its validation reads beside it. */
+interface DraftPrompt {
+  readonly effectiveContext: RepoContext | undefined;
+  readonly primaryText: string;
+  readonly user: string;
+}
+
+function renderDraftPrompt(options: DraftBriefOptions): DraftPrompt {
+  const { pr, log, anchor, warnings } = options;
   // One accepted repo-context view: every gate runs BEFORE any name touches the
   // schema enum or any text touches the prompt.
   const accepted = acceptRepoContext(
@@ -557,8 +559,6 @@ export async function generateDraftBrief(
     warnings,
   );
   const effectiveContext = accepted.context;
-  const customNames =
-    effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
   const anchorBlock =
     anchor === undefined ? "" : `\n\n${renderAnchorView(anchor)}`;
   // Stripped once: the fence body and the corpus entry are the same string.
@@ -572,6 +572,21 @@ export async function generateDraftBrief(
     anchorBlock,
     renderPrimaryTicket(primary, primaryText),
   );
+  return { effectiveContext, primaryText, user };
+}
+
+/**
+ * One model call and the mechanical shaping a stitch needs to read its output:
+ * snapped ranges, derived loc, the stored intent buckets. Nothing here
+ * validates; `validateFinalBrief` runs once over the final chunk set.
+ */
+export async function generateDraftBrief(
+  options: DraftBriefOptions,
+): Promise<DraftBrief> {
+  const { pr, generator, log, effort, anchor, warnings } = options;
+  const { effectiveContext, primaryText, user } = renderDraftPrompt(options);
+  const customNames =
+    effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
   const generated = await generator.generate({
     schema: briefGenerationSchemaWith(customNames),
     system: buildSystemPrompt(
@@ -629,6 +644,58 @@ export async function generateDraftBrief(
     brief.readingOrder = readingOrder;
   }
 
+  return { brief, context };
+}
+
+/**
+ * The draft of a push that left every group's change as it was: the
+ * previous brief's prose and intent over the new head, no group or chunk of
+ * its own, and no model call. The stitch carries every group, and the
+ * prompt a call would have sent is still what validation reads. Nothing
+ * when the inputs beside the diff moved, which a model call must read.
+ */
+export function carryDraftBrief(
+  options: DraftBriefOptions,
+  previous: Brief,
+  media: readonly MediaItem[],
+): DraftBrief | undefined {
+  const { pr } = options;
+  const { effectiveContext, primaryText, user } = renderDraftPrompt(options);
+  const fileDiffs = splitDiffByFile(pr.diff);
+  const context = buildValidationContext(
+    pr,
+    fileDiffs,
+    effectiveContext,
+    primaryText,
+    user,
+  );
+  if (!holdsCarriedInputs(previous, context, media)) {
+    return undefined;
+  }
+
+  const brief: Mutable<Brief> = {
+    summary: previous.summary,
+    changeGroups: [],
+    chunks: [],
+    concernView: buildConcernView([]),
+    diffTotals: diffLocTotals([...context.changedFiles]),
+    pr: buildPrRef(pr.locator, pr.meta, options.commitRange.head),
+    index: options.headIndex,
+    commitRange: options.commitRange,
+    generation: previous.generation,
+  };
+  if (previous.intentCheck !== undefined) {
+    brief.intentCheck = previous.intentCheck;
+  }
+  if (previous.readingOrder !== undefined) {
+    brief.readingOrder = previous.readingOrder;
+  }
+  if (previous.summaryMedia !== undefined) {
+    brief.summaryMedia = previous.summaryMedia;
+  }
+  if (previous.outlineForm !== undefined) {
+    brief.outlineForm = previous.outlineForm;
+  }
   return { brief, context };
 }
 

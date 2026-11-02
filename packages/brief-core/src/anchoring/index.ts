@@ -174,6 +174,14 @@ function decideGroupCarry(input: GroupCarryInput): Result<FrozenCarry, string> {
   if (changed !== undefined) {
     return { ok: false, error: `${changed}: the push changed the PR's change` };
   }
+  const unpairable = new Set(span.unpairableFiles);
+  const unplaced = files.find((file) => unpairable.has(file));
+  if (unplaced !== undefined) {
+    return {
+      ok: false,
+      error: `${unplaced}: no span pairs ${unplaced} across the push`,
+    };
+  }
   // Same post-image over a base that took part of the PR's change: unchanged by blob, yet its runs no longer pair.
   const unpaired = files.find(
     (file) => (sides.removed.get(file) ?? []).length === 0,
@@ -201,23 +209,17 @@ function decideGroupCarry(input: GroupCarryInput): Result<FrozenCarry, string> {
   return { ok: true, value: { group, chunks: moved.value } };
 }
 
-/**
- * A group freezes when every file it owns, alone, holds the same PR change
- * at both heads and every range of its chunks moves through the span's
- * hops; anything else re-looks. No span re-looks every group.
- */
-export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
-  const { previousBrief, span } = args;
-  const chainGroupIds = args.chainGroupIds ?? [];
-  if (span === undefined) {
-    return allReLook(previousBrief, SPAN_UNREAD_REASON, chainGroupIds);
-  }
+interface GroupPlanInput {
+  readonly previousBrief: Brief;
+  readonly span: PrSpan;
+  readonly groupFiles: readonly { id: string; files: readonly string[] }[];
+  /** Groups whose shared files demote them; empty lets a shared file carry. */
+  readonly sharing: ReadonlySet<string>;
+  readonly chainGroupIds: readonly string[];
+}
 
-  const groupFiles = previousBrief.changeGroups.map((group) => ({
-    id: group.id,
-    files: getGroupFiles(previousBrief, group.id),
-  }));
-  const sharing = listSharingGroups(groupFiles);
+function planGroups(input: GroupPlanInput): AnchorPlan {
+  const { previousBrief, span, groupFiles, sharing } = input;
   const sides = {
     added: indexHop(span.hop),
     removed: indexHop(span.oldSideHop),
@@ -250,9 +252,38 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     frozen,
     frozenFiles,
     reLook,
-    previousGroupIds: reserveIds(previousBrief, chainGroupIds),
+    previousGroupIds: reserveIds(previousBrief, input.chainGroupIds),
     hunkSpans: span.hop,
   };
+}
+
+/**
+ * A group freezes when every file it owns, alone, holds the same PR change
+ * at both heads and every range of its chunks moves through the span's
+ * hops; anything else re-looks. No span re-looks every group. A span that
+ * changed no file lets groups sharing a file carry, but only when every
+ * group carries: the stitch drops generated chunks on a frozen file, so a
+ * re-looking group must never share one.
+ */
+export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
+  const { previousBrief, span } = args;
+  const chainGroupIds = args.chainGroupIds ?? [];
+  if (span === undefined) {
+    return allReLook(previousBrief, SPAN_UNREAD_REASON, chainGroupIds);
+  }
+
+  const groupFiles = previousBrief.changeGroups.map((group) => ({
+    id: group.id,
+    files: getGroupFiles(previousBrief, group.id),
+  }));
+  const input = { previousBrief, span, groupFiles, chainGroupIds };
+  if (span.changedFiles.length === 0) {
+    const whole = planGroups({ ...input, sharing: new Set() });
+    if (whole.reLook.length === 0) {
+      return whole;
+    }
+  }
+  return planGroups({ ...input, sharing: listSharingGroups(groupFiles) });
 }
 
 /** Dominant frozen parent for a dropped generated group (tie → first frozen). */

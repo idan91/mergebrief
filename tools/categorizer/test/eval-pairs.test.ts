@@ -494,20 +494,40 @@ function buildRevisionPair(base: Brief, revised: Brief): RevisionPair {
   };
 }
 
+/** A pair whose plan carried `groupId` from the base, ranges as they were. */
+function buildCarriedPair(
+  base: Brief,
+  revised: Brief,
+  groupId: string,
+): RevisionPair {
+  const pair = buildRevisionPair(base, revised);
+  const group = base.changeGroups.find((entry) => entry.id === groupId);
+  if (group === undefined) {
+    return pair;
+  }
+  const chunks = base.chunks.filter((chunk) => chunk.changeGroupId === groupId);
+  return {
+    ...pair,
+    plan: { ...pair.plan, frozen: [{ group, chunks }] },
+  };
+}
+
 describe("shared pair properties fail against broken pairs", () => {
   const base = briefWith([
     { id: "g1", file: "a.ts", attrs: ["touches-auth"] },
     { id: "g2", file: "b.ts" },
   ]);
 
-  it("untouchedGroupSurvives: passes on identical carry, fails on a rewrite", () => {
+  it("untouchedGroupSurvives: passes on its carry, fails on a rewrite", () => {
     const survives = untouchedGroupSurvives("a.ts");
-    expect(survives.check(buildRevisionPair(base, base))).toBe(true);
     const rewritten = briefWith([
       { id: "g1", file: "a.ts", attrs: ["touches-auth"], summary: "REWRITTEN" },
       { id: "g2", file: "b.ts" },
     ]);
-    expect(survives.check(buildRevisionPair(base, rewritten))).toBe(false);
+
+    expect(survives.check(buildCarriedPair(base, base, "g1"))).toBe(true);
+    expect(survives.check(buildCarriedPair(base, rewritten, "g1"))).toBe(false);
+    expect(survives.check(buildRevisionPair(base, base))).toBe(false);
   });
 
   it("frozenAttrsNeverChange: fails when a frozen file's attribute drifts", () => {

@@ -966,6 +966,125 @@ describe("preview, what carries, per subject", () => {
   });
 });
 
+/** The hop a squash that kept the tree writes: the file held still. */
+const IDENTITY_HOP = [
+  {
+    file: "src/app.ts",
+    hunks: [{ oldStart: 0, oldLines: 0, newStart: 0, newLines: 0 }],
+  },
+];
+
+/**
+ * The hop a rebase writes for a file whose PR runs held while the base took
+ * two lines above them: each base stretch is a span, so anything on it
+ * demotes, and the runs at 10-12 and 30-32 between them move down two.
+ */
+const BASE_MOVED_HOP = [
+  {
+    file: "src/app.ts",
+    hunks: [
+      { oldStart: 1, oldLines: 9, newStart: 1, newLines: 11 },
+      { oldStart: 13, oldLines: 17, newStart: 15, newLines: 17 },
+      {
+        oldStart: 33,
+        oldLines: Number.MAX_SAFE_INTEGER,
+        newStart: 35,
+        newLines: Number.MAX_SAFE_INTEGER,
+      },
+    ],
+  },
+];
+
+/** The `sql-injection` flag on `src/app.ts` over one region at the current head. */
+function makeFiring(regionStart: number, regionEnd: number): FlagKey[] {
+  return [
+    {
+      filePath: "src/app.ts",
+      attribute: "sql-injection",
+      regionStart,
+      regionEnd,
+    },
+  ];
+}
+
+describe("preview, carry-over across a revision span's hop", () => {
+  async function previewAcross(
+    hop: unknown,
+    firing: readonly FlagKey[],
+    seedExtra?: (world: World, previous: BriefRowId) => Promise<void>,
+  ): Promise<ReviewSessionView> {
+    const world = await makeWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, ["c5"]);
+    await seedHop(world, 1, 2, hop);
+    await seedPreviousWork(world, previous);
+    await seedExtra?.(world, previous);
+    await seedBriefFacts(world, current, ["g1"], firing);
+    return unwrapPreview(
+      createTenantRepository(world.handle, CTX).reviewSessions.preview({
+        briefId: current,
+        reviewerId: REVIEWER,
+      }),
+    );
+  }
+
+  it("keeps a draft and settles a disposition across a squash", async () => {
+    const view = await previewAcross(IDENTITY_HOP, FIRING);
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: expect.objectContaining({ startLine: 10, endLine: 12 }),
+      }),
+    ]);
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({
+        carryStatus: "settled",
+        regionStart: 30,
+        regionEnd: 32,
+      }),
+    ]);
+  });
+
+  it("moves a draft and a disposition on runs the base moved under", async () => {
+    const view = await previewAcross(BASE_MOVED_HOP, makeFiring(32, 42));
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: expect.objectContaining({ startLine: 12, endLine: 14 }),
+        anchorStatus: "moved",
+      }),
+    ]);
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({
+        carryStatus: "settled",
+        regionStart: 32,
+        regionEnd: 34,
+      }),
+    ]);
+  });
+
+  it("settles nothing on base lines a rebase moved", async () => {
+    const view = await previewAcross(
+      BASE_MOVED_HOP,
+      makeFiring(15, 42),
+      async (world, previous) => {
+        await seedDraft(world, previous, makeLineAnchor(4, 5), "on base");
+        await seedDisposition(world, previous, 20, 22);
+      },
+    );
+
+    const onBase = view.carried.draftComments.find(
+      (draft) => draft.body === "on base",
+    );
+    const statuses = view.carried.dispositions.map((row) => [
+      row.regionStart,
+      row.carryStatus,
+    ]);
+    expect(onBase?.anchorStatus).toBe("orphaned");
+    expect(statuses).toContainEqual([20, "reopened"]);
+  });
+});
+
 describe("preview, the rules a multi-push chain must not loosen", () => {
   it("does NOT carry a read mark that any step of the chain dropped", async () => {
     const world = await makeWorld();

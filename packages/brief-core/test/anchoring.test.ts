@@ -200,7 +200,7 @@ describe("planAnchoredGeneration", () => {
     expect(plan.hunkSpans).toBeUndefined();
   });
 
-  it("forces groups sharing a file to re-look", () => {
+  it("forces groups sharing a file to re-look when a file changed", () => {
     const shared = brief(
       [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
       [
@@ -214,6 +214,7 @@ describe("planAnchoredGeneration", () => {
       { file: "z.ts", hunks: [IDENTITY_SPAN] },
     ];
     const span = makeSpan({
+      changedFiles: ["y.ts"],
       unchangedFiles: ["a.ts", "z.ts"],
       hop: identityHop,
       oldSideHop: identityHop,
@@ -226,6 +227,46 @@ describe("planAnchoredGeneration", () => {
       "g1",
       "g2",
     ]);
+  });
+
+  it("carries groups sharing a file when no file changed", () => {
+    const shared = brief(
+      [group("g1", "alpha"), group("g2", "beta")],
+      [chunk("c1", "g1", "a.ts", 1, 2), chunk("c2", "g2", "a.ts", 10, 12)],
+    );
+    const identityHop = [{ file: "a.ts", hunks: [IDENTITY_SPAN] }];
+    const span = makeSpan({
+      unchangedFiles: ["a.ts"],
+      hop: identityHop,
+      oldSideHop: identityHop,
+    });
+
+    const plan = planAnchoredGeneration({ previousBrief: shared, span });
+
+    expect(plan.frozen.map((carry) => carry.group.id)).toEqual(["g1", "g2"]);
+    expect(plan.reLook).toEqual([]);
+  });
+
+  it("re-looks groups sharing a file when no file changed but one re-looks", () => {
+    const shared = brief(
+      [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
+      [
+        chunk("c1", "g1", "a.ts", 1, 2),
+        chunk("c2", "g2", "a.ts", 10, 12),
+        chunk("c3", "g3", "z.ts", 1, 2),
+      ],
+    );
+    const identityHop = [{ file: "a.ts", hunks: [IDENTITY_SPAN] }];
+    const span = makeSpan({
+      unchangedFiles: ["a.ts", "z.ts"],
+      hop: [...identityHop, { file: "z.ts", hunks: [B_HUNK] }],
+      oldSideHop: [...identityHop, { file: "z.ts", hunks: [IDENTITY_SPAN] }],
+    });
+
+    const plan = planAnchoredGeneration({ previousBrief: shared, span });
+
+    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1", "g2", "g3"]);
   });
 
   it("carries a run's range across a rebase by its exact offset", () => {
@@ -370,6 +411,26 @@ describe("planAnchoredGeneration", () => {
     expect(span.changedFiles).toEqual(["f.ts"]);
     expect(plan.frozen).toEqual([]);
     expect(plan.reLook.map((entry) => entry.id)).toEqual(["g1"]);
+  });
+
+  it("re-looks an unpairable file's owner when its chunk has no added range", () => {
+    const span = makeSpan({
+      unchangedFiles: ["a.ts"],
+      unpairableFiles: ["a.ts"],
+      hop: [{ file: "a.ts", hunks: [] }],
+      oldSideHop: [{ file: "a.ts", hunks: [IDENTITY_SPAN] }],
+    });
+    const removing = {
+      ...chunk("c1", "g1", "a.ts"),
+      addedRanges: [],
+      removedRanges: [{ start: 3, end: 4 }],
+    };
+    const onA = brief([group("g1", "alpha")], [removing]);
+
+    const plan = planAnchoredGeneration({ previousBrief: onA, span });
+
+    expect(plan.frozen).toEqual([]);
+    expect(plan.reLook[0]?.reason).toContain("no span pairs a.ts");
   });
 
   it("re-looks a group whose file left the PR", () => {

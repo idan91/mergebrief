@@ -172,7 +172,6 @@ export {
   listOpenPullRequests,
   fetchDiff,
   fetchCompareDiff,
-  fetchCompareFiles,
   fetchCompareCommitCount,
   fetchReviewCommentsRaw,
   resolveCommitSha,

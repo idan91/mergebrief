@@ -20,11 +20,15 @@ export function groupsOwning(brief: Brief, file: string): string[] {
   return [...ids];
 }
 
+type Chunk = Brief["chunks"][number];
+type ChangeGroup = Brief["changeGroups"][number];
+
 /** Canonical JSON of a group definition + its chunks (order-normalized). */
-function groupSnapshot(brief: Brief, groupId: string): string {
-  const group = brief.changeGroups.find((entry) => entry.id === groupId);
-  const chunks = brief.chunks
-    .filter((chunk) => chunk.changeGroupId === groupId)
+function formatGroupSnapshot(
+  group: ChangeGroup | undefined,
+  groupChunks: readonly Chunk[],
+): string {
+  const chunks = groupChunks
     .map((chunk) => ({
       file: chunk.file,
       concern: chunk.concern,
@@ -36,6 +40,14 @@ function groupSnapshot(brief: Brief, groupId: string): string {
     }))
     .toSorted((a, b) => a.file.localeCompare(b.file));
   return JSON.stringify({ group, chunks });
+}
+
+function groupSnapshot(brief: Brief, groupId: string): string {
+  const group = brief.changeGroups.find((entry) => entry.id === groupId);
+  const chunks = brief.chunks.filter(
+    (chunk) => chunk.changeGroupId === groupId,
+  );
+  return formatGroupSnapshot(group, chunks);
 }
 
 /** Union of risk attributes across a file's chunks. */
@@ -54,24 +66,26 @@ export function attrsOn(brief: Brief, file: string): Set<string> {
 
 /**
  * Spec pair 1 LEFT (mechanical, hard): the group owning `file`, untouched
- * by the increment, survives byte-identical (definition AND chunks,
- * ranges correctly remapped, which for an untouched file means identical).
+ * by the increment, survives as the plan carried it: definition and chunks
+ * equal to its frozen carry, ranges moved only by the span's hop.
  */
 export function untouchedGroupSurvives(file: string): PairEvalProperty {
   return {
     id: `untouched-survives-${file.split("/").at(-1)}`,
-    description: `the group owning untouched ${file} survives byte-identical`,
+    description: `the group owning untouched ${file} survives as carried, its ranges moved only by the span`,
     check: (pair: RevisionPair) => {
       const baseOwners = groupsOwning(pair.base, file);
-      if (baseOwners.length !== 1) {
+      const owner = baseOwners[0];
+      if (baseOwners.length !== 1 || owner === undefined) {
         return false;
       }
-      const owner = baseOwners[0];
-      if (owner === undefined) {
+      const carry = pair.plan.frozen.find((entry) => entry.group.id === owner);
+      if (carry === undefined) {
         return false;
       }
       return (
-        groupSnapshot(pair.base, owner) === groupSnapshot(pair.revised, owner)
+        formatGroupSnapshot(carry.group, carry.chunks) ===
+        groupSnapshot(pair.revised, owner)
       );
     },
   };

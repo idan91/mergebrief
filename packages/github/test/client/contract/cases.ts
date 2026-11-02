@@ -95,17 +95,6 @@ export const REPO_READER_CASES: readonly ContractCase<RepoReader>[] = [
     expected: DIFF,
   }),
   defineCase({
-    operation: "fetchCompareFiles",
-    operatorReach: true,
-    call: (client: RepoReader) =>
-      client.fetchCompareFiles({ base: BASE_SHA, head: HEAD_SHA }),
-    expected: {
-      files: [{ filename: "src/a.ts", status: "modified" }],
-      complete: true,
-      status: "ahead",
-    },
-  }),
-  defineCase({
     operation: "fetchMergeBase",
     operatorReach: true,
     call: (client: RepoReader) =>

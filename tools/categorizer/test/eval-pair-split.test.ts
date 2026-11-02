@@ -96,8 +96,17 @@ describe("the fast-forward pair cases' carry split", () => {
 const HAND_DERIVED_SPANS = [
   {
     id: "pair-rebase-noise",
-    files: ["packages/api/src/routes/health.ts"],
-    headers: ["@@ -3,11 +3,12 @@"],
+    filtered: {
+      files: ["packages/api/src/routes/health.ts"],
+      headers: ["@@ -3,11 +3,12 @@"],
+    },
+    unfiltered: {
+      files: [
+        "packages/api/src/routes/health.ts",
+        "packages/logging/src/redact.ts",
+      ],
+      headers: ["@@ -3,11 +3,12 @@", "@@ -1,3 +1,5 @@"],
+    },
   },
 ];
 
@@ -105,11 +114,6 @@ describe("the hand-derived pair spans", () => {
   it.each(HAND_DERIVED_SPANS)("hold on $id", async (expected) => {
     const shapes = await readPairSpanShapes(PAIR_CASES_DIR, expected.id);
 
-    for (const shape of shapes) {
-      expect(shape).toEqual({
-        files: expected.files,
-        headers: expected.headers,
-      });
-    }
+    expect(shapes).toEqual([expected.filtered, expected.unfiltered]);
   });
 });

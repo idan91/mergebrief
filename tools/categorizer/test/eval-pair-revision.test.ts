@@ -704,6 +704,26 @@ describe("evaluatePairCase with the narrative and delta opt-in", () => {
   });
 });
 
+/** A stored base Brief whose one group carries over a span that changed no file. */
+function makeCarryingBrief() {
+  return makeBrief({
+    commitRange: { base: "basesha", head: PREV_HEAD, commitCount: 1 },
+    chunks: [
+      {
+        id: "c1",
+        changeGroupId: "g1",
+        file: "a.ts",
+        concern: "implementation",
+        role: "core",
+        loc: { added: 1, deleted: 0 },
+        addedRanges: [{ start: 1, end: 1 }],
+        removedRanges: [],
+        riskSurface: [],
+      },
+    ],
+  });
+}
+
 describe("countPairGenerations", () => {
   it("counts the base, revision, narrative and delta calls of one run", async () => {
     const optedIn = await loadOnlyCase(
@@ -720,5 +740,52 @@ describe("countPairGenerations", () => {
     expect(countPairGenerations(optedIn)).toBe(4);
     expect(countPairGenerations(optedIn, "fresh")).toBe(3);
     expect(countPairGenerations(stored)).toBe(1);
+  });
+
+  it("counts no revision call when nothing changed and every group carries", async () => {
+    const carrying = makeCarryingBrief();
+    const unchanged = await loadOnlyCase(
+      writePairCase(
+        "count-unchanged",
+        EXPECTED_TS,
+        makePairJson({
+          baseBrief: carrying,
+          increment: { filteredSpan: "", unfilteredSpan: "" },
+        }),
+      ),
+    );
+    const generator = new SequenceGenerator([]);
+
+    const result = await runPairCase(unchanged, generator, "medium", 1);
+
+    expect(countPairGenerations(unchanged)).toBe(0);
+    expect(countPairGenerations(unchanged, "fresh")).toBe(1);
+    expect(result.failureMessages).toEqual([]);
+    expect(generator.requests).toEqual([]);
+  });
+
+  it("counts the revision call when the revised ticket was relinked", async () => {
+    const pairJson = makePairJson({
+      baseBrief: makeCarryingBrief(),
+      increment: { filteredSpan: "", unfilteredSpan: "" },
+    });
+    const revisedPr = Reflect.get(
+      Reflect.get(Object(pairJson), "revised"),
+      "pr",
+    );
+    Reflect.set(Object(revisedPr), "primaryTicket", {
+      url: "https://tracker.example/ACME-2",
+      key: "ACME-2",
+      content: "Ticket ACME-2",
+    });
+    const relinked = await loadOnlyCase(
+      writePairCase("count-relinked", EXPECTED_TS, pairJson),
+    );
+    const generator = new SequenceGenerator([REVISED_OUTPUT]);
+
+    await runPairCase(relinked, generator, "medium", 1);
+
+    expect(generator.requests).toHaveLength(1);
+    expect(countPairGenerations(relinked)).toBe(1);
   });
 });

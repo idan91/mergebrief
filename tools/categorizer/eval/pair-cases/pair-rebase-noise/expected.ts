@@ -1,8 +1,9 @@
 // BRIEF-143 revision-pair case: AUTHORED fixture (own-repo file shapes,
 // difflib-generated diffs; PR locator is a placeholder). Origin: the
 // BRIEF-143 PR 5 stack; generator script documented in that PR.
-// Rebase noise: the base moved under redact.ts and left the PR's change to it
-// as it was, so its group carries; health.ts changed and re-looks.
+// Rebase noise: the base gained two lines above redact.ts's PR change and
+// left the change as it was, so its group carries with its range moved down
+// two; health.ts changed and re-looks.
 import type { PairEvalProperty } from "../../pairs";
 import {
   anchoredStamp,

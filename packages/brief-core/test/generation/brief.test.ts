@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildPrSpan } from "../../src/diff/pr-span";
 import { buildFastForwardSpan } from "../../src/diff/pr-span/logic/fast-forward-span";
 import { generateBrief } from "../../src/generation/brief";
 import type {
@@ -14,9 +15,13 @@ import {
 import type { FetchedPr } from "../../src/github/types";
 import type { LockfileSummary } from "../../src/generation/shortened/types";
 import { countLines } from "../../src/generation/loc";
+import { buildMermaidMediaKey } from "../../src/media";
+import { ContextProviderTypes } from "../../src/context/types";
 import {
   BriefGenerationSchema,
+  OutlineForms,
   RiskSurfaceAttributes,
+  SummaryMediaPositions,
   type Brief,
   type LineRange,
 } from "../../src/types";
@@ -26,6 +31,13 @@ import { FakeGenerator, type RecordedRequest } from "../helpers";
 import { pr as multiCallPr, singleBrief } from "./fixtures/multi-call-pr";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
 import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
+import {
+  insertAfter,
+  makeBaseLines,
+  makeDiff,
+  makeFilePatch,
+  makeText,
+} from "../diff/pr-span/helpers";
 
 const OVER_CAP_SUMMARY = "s".repeat(300);
 const BILLING_ATTRIBUTE = "touches-billing";
@@ -777,6 +789,285 @@ describe("generateBrief, an anchored run", () => {
       expect.objectContaining({ id: "g1", files: ["src/a.ts"] }),
     );
     expect(findIssues(result.warnings, "anchored stitch")).toEqual([]);
+  });
+});
+
+/** The previous Brief over a push that changed nothing the PR changes. */
+function makeUnchangedPrevious(brief: Brief): PreviousBriefInput {
+  const span = buildFastForwardSpan({
+    betweenHeadsDiff: "",
+    newPrDiff: wholeDiff,
+  });
+  return { brief, span };
+}
+
+const addedFileDiff = [
+  "diff --git a/src/c.ts b/src/c.ts",
+  "@@ -0,0 +1,1 @@",
+  "+c1",
+  "",
+].join("\n");
+
+function makeTicketPr(key: string, body = pr.meta.body): FetchedPr {
+  return {
+    ...pr,
+    meta: { ...pr.meta, body },
+    primaryTicket: {
+      status: "read",
+      snippet: {
+        providerId: "url",
+        source: `https://tracker.example/${key}`,
+        text: `Ticket ${key}`,
+        tracker: "notion",
+        key,
+        title: `Ticket ${key}`,
+        header: "",
+        foundIn: "description",
+      },
+    },
+  };
+}
+
+async function countCarryCalls(
+  previousBrief: Brief,
+  nextPr: FetchedPr,
+): Promise<number> {
+  const generator = makeQueuedGenerator([revisedOutput]);
+  await generateBrief({
+    pr: nextPr,
+    headIndex: 2,
+    commitRange,
+    generator,
+    previous: makeUnchangedPrevious(previousBrief),
+  });
+  return generator.requests.length;
+}
+
+describe("generateBrief, a push that left every group's change as it was", () => {
+  it("carries every group with no model call when no file changed", async () => {
+    const previousBrief = await makePreviousBrief();
+    const generator = makeQueuedGenerator([]);
+    const planned: number[] = [];
+
+    const result = await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator,
+      previous: {
+        ...makeUnchangedPrevious(previousBrief),
+        onPlan: async (plan) => {
+          planned.push(plan.reLook.length);
+        },
+      },
+    });
+
+    expect(generator.requests).toHaveLength(0);
+    expect(planned).toEqual([0]);
+    expect(result.anchoring?.carriedGroupIds).toEqual(["g1", "g2"]);
+    expect(result.brief.chunks.map((chunk) => chunk.id)).toEqual(["c1", "c2"]);
+    expect(result.brief.summary).toBe(previousBrief.summary);
+    expect(result.brief.index).toBe(2);
+    expect(result.brief.generation).toEqual(previousBrief.generation);
+    expect(result.brief.diffTotals).toEqual({ added: 5, deleted: 0 });
+  });
+
+  it("carries two groups sharing a file when no file changed", async () => {
+    const sharedOutput = {
+      ...baseOutput,
+      chunks: [
+        makeChunk("c1", "g1", "src/a.ts", 2),
+        makeChunk("c3", "g1", "src/b.ts", 1),
+        makeChunk("c2", "g2", "src/b.ts", 3, 2),
+      ],
+    };
+    const generator = makeQueuedGenerator([]);
+
+    const result = await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator,
+      previous: makeUnchangedPrevious(await makePreviousBrief(sharedOutput)),
+    });
+
+    expect(generator.requests).toHaveLength(0);
+    expect(result.anchoring?.carriedGroupIds).toEqual(["g1", "g2"]);
+    expect(result.brief.chunks.map((chunk) => chunk.id)).toEqual([
+      "c1",
+      "c3",
+      "c2",
+    ]);
+  });
+
+  it.each([
+    { title: "the same ticket", nextKey: "ACME-1", calls: 0 },
+    { title: "a relinked ticket", nextKey: "ACME-2", calls: 1 },
+  ])("carries only over $title", async ({ nextKey, calls }) => {
+    const generated = await generateBrief({
+      pr: makeTicketPr("ACME-1"),
+      headIndex: 1,
+      commitRange,
+      generator: makeQueuedGenerator([baseOutput]),
+    });
+
+    const count = await countCarryCalls(generated.brief, makeTicketPr(nextKey));
+
+    expect(count).toBe(calls);
+  });
+
+  it.each([
+    { title: "a link it still reads", keepsLink: true, calls: 0 },
+    { title: "an edit dropping its cited link", keepsLink: false, calls: 1 },
+  ])("carries the intent check only over $title", async (row) => {
+    const linkUrl = "https://docs.example/retry";
+    const linkedPr: FetchedPr = {
+      ...pr,
+      links: [
+        {
+          id: "ctx-1",
+          providerId: ContextProviderTypes.URL,
+          source: linkUrl,
+          text: "x",
+        },
+      ],
+    };
+    const citing = {
+      ...baseOutput,
+      intentCheck: {
+        ...noneIntentCheck,
+        ticketUrls: [linkUrl],
+        ticketTitles: ["Retry"],
+      },
+    };
+    const generated = await generateBrief({
+      pr: linkedPr,
+      headIndex: 1,
+      commitRange,
+      generator: makeQueuedGenerator([citing]),
+    });
+    const nextPr = row.keepsLink ? linkedPr : pr;
+
+    const count = await countCarryCalls(generated.brief, nextPr);
+
+    expect(generated.brief.intentCheck?.ticketUrls).toEqual([linkUrl]);
+    expect(count).toBe(row.calls);
+  });
+
+  it.each([
+    { title: "an edit keeping the shown item", keeps: true, calls: 0 },
+    { title: "an edit removing the shown item", keeps: false, calls: 1 },
+  ])("carries summary Media only over $title", async ({ keeps, calls }) => {
+    const diagram = "flowchart LR\n  A --> B\n";
+    const shown = {
+      key: buildMermaidMediaKey(diagram),
+      position: SummaryMediaPositions.AFTER_LEDE,
+    };
+    const previousBrief: Brief = {
+      ...(await makePreviousBrief()),
+      summaryMedia: { shown: [shown] },
+    };
+    const body = keeps ? `\`\`\`mermaid\n${diagram}\`\`\`` : "d";
+    const nextPr = { ...pr, meta: { ...pr.meta, body } };
+
+    const count = await countCarryCalls(previousBrief, nextPr);
+
+    expect(count).toBe(calls);
+  });
+
+  it("calls the model when a file no group owns changed", async () => {
+    const withC = { ...pr, diff: `${wholeDiff}${addedFileDiff}` };
+    const span = buildFastForwardSpan({
+      betweenHeadsDiff: addedFileDiff,
+      newPrDiff: withC.diff,
+    });
+    const generator = makeQueuedGenerator([revisedOutput]);
+
+    await generateBrief({
+      pr: withC,
+      headIndex: 2,
+      commitRange,
+      generator,
+      previous: { brief: await makePreviousBrief(), span },
+    });
+
+    expect(generator.requests).toHaveLength(1);
+  });
+
+  it("calls the model once when a group's range sits on a moved base", async () => {
+    const aPatch = makeFilePatch({
+      path: "src/a.ts",
+      base: "",
+      head: makeText(["a1", "a2"]),
+      isAdded: true,
+    });
+    const base = makeBaseLines(12);
+    const movedBase = insertAfter(base, "b1", ["n"]);
+    const bPatch = (from: readonly string[]) =>
+      makeFilePatch({
+        path: "src/b.ts",
+        base: makeText(from),
+        head: makeText(insertAfter(from, "b8", ["p"])),
+      });
+    const span = buildPrSpan({
+      prevPrDiff: makeDiff([aPatch, bPatch(base)]),
+      newPrDiff: makeDiff([aPatch, bPatch(movedBase)]),
+      betweenHeads: new Map(),
+    });
+    const generator = makeQueuedGenerator([revisedOutput]);
+
+    const result = await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator,
+      previous: { brief: await makePreviousBrief(), span },
+    });
+
+    expect(span.changedFiles).toEqual([]);
+    expect(generator.requests).toHaveLength(1);
+    expect(result.anchoring?.carriedGroupIds).toEqual(["g1"]);
+    expect(result.brief.changeGroups).toHaveLength(2);
+  });
+
+  it("keeps the outline form a carried multi-call brief was grouped from", async () => {
+    const previousBrief: Brief = {
+      ...(await makePreviousBrief()),
+      outlineForm: OutlineForms.LINES_40,
+    };
+    const generator = makeQueuedGenerator([]);
+
+    const result = await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator,
+      previous: makeUnchangedPrevious(previousBrief),
+    });
+
+    expect(generator.requests).toHaveLength(0);
+    expect(result.brief.outlineForm).toBe(OutlineForms.LINES_40);
+  });
+
+  it("makes no call either when the call plan says multi-call", async () => {
+    const generator = makeQueuedGenerator([]);
+
+    const result = await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator,
+      forceMultiCall: true,
+      multiCallHooks: {},
+      previous: makeUnchangedPrevious(await makePreviousBrief()),
+    });
+
+    expect(generator.requests).toHaveLength(0);
+    expect(result.ranAs).toBe("single");
+    expect(result.brief.changeGroups.map((group) => group.id)).toEqual([
+      "g1",
+      "g2",
+    ]);
   });
 });
 

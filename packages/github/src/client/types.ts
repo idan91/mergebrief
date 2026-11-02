@@ -1,4 +1,3 @@
-import type { CompareFiles } from "brief-core";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { Logger } from "logging";
 import type { Octokit } from "octokit";
@@ -223,8 +222,6 @@ export interface RepoReader {
   fetchCheckedCompareDiff(
     span: RepoScoped<CheckedCompareDiffRef>,
   ): GitHubCall<string>;
-  /** Operator fallback: only when base and head are both known commits. */
-  fetchCompareFiles(span: RepoScoped<CompareDiffRef>): GitHubCall<CompareFiles>;
   /** Operator fallback: only when base and head are both known commits. */
   fetchMergeBase(span: RepoScoped<CompareDiffRef>): GitHubCall<string>;
   /** Operator fallback: only at a known commit `ref`; never without one. */

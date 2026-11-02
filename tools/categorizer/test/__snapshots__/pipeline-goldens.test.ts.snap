@@ -1092,8 +1092,8 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
     {
       "addedRanges": [
         {
-          "end": 7,
-          "start": 4
+          "end": 9,
+          "start": 6
         }
       ],
       "changeGroupId": "g1",
@@ -7317,8 +7317,8 @@ exports[`brief goldens > pair-rebase-noise produces the recorded brief 1`] = `
       {
         "addedRanges": [
           {
-            "end": 7,
-            "start": 4
+            "end": 9,
+            "start": 6
           }
         ],
         "changeGroupId": "g1",
@@ -11914,7 +11914,7 @@ exports[`request goldens > pair-rebase-noise sends the recorded request digests 
     },
     "user": {
       "bytes": 2871,
-      "sha256": "a3b7da66d6430a7fa7368300c14657ddc3e90be454366718d1aed1005e4b6caa"
+      "sha256": "31d523076d30b30dfc2dd822b8c4b10c27b2d4e706796f23106bc266074b2366"
     }
   }
 ]"

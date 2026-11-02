@@ -303,12 +303,19 @@ revision span between them: `increment.filteredSpan` and
 `increment.unfilteredSpan` (the PR's own change, filtered and not; on a
 fast-forward both are the three-dot diff). The runner rebuilds the span the
 worker would read from the two PR diffs and `unfilteredSpan`: the fast path
-when both heads share the PR base, the builder otherwise. It then drives the
+when both heads share the PR base, the builder otherwise. Fixtures hold
+no blobs, so the rebuilt span neither slides a run over equal lines nor
+confirms a base rename: on a case that needs either, its carry split can
+differ from the worker's. It then drives the
 PRODUCTION anchoring machinery per run: fresh `categorize` for the base,
 `planAnchoredGeneration` over that span, anchored `categorize` for the
 revision, `stitchBrief`, so the property pairs measure the real pipeline. **One pair run = TWO generations**, up to four with the
-narrative and delta mode below, one fewer with a stored `baseBrief`; the
-pre-flight line counts them per case. A large `pair.json` may ship as
+narrative and delta mode below, one fewer with a stored `baseBrief`, and
+no revision call when that stored Brief carries every group over a span
+that changed no file and the title, description, links, ticket and repo
+context match the base's; the pre-flight line counts them per case, and
+counts the call whenever those inputs differ, even where the run still
+carries. A large `pair.json` may ship as
 `pair.json.gz`, never both.
 
 ### Narrative and delta mode

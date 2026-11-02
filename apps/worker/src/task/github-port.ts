@@ -27,7 +27,6 @@ import {
   type ReviewerCredential,
   type ReviewerGitHub,
 } from "github";
-import type { CompareFiles } from "brief-core";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { Logger } from "logging";
 import {
@@ -72,8 +71,6 @@ export interface PullRequestSource {
   ): GitHubCall<IssueInfo>;
   /** The whole-PR unified diff at the current head. */
   fetchDiff(): GitHubCall<string>;
-  /** The `base...head` span diff (narrative/marks/delta inputs). */
-  fetchCompareDiff(base: string, head: string): GitHubCall<string>;
   /**
    * The span diff refused when GitHub served it short of its declared
    * length, or, given `expectedFileCount`, holding another file count.
@@ -83,11 +80,6 @@ export interface PullRequestSource {
     head: string,
     expectedFileCount?: number,
   ): GitHubCall<string>;
-  /**
-   * The `base...head` compare per-file status metadata: the rename/binary/
-   * mode signals the anchoring predicate needs and the raw diff cannot carry.
-   */
-  fetchCompareFiles(base: string, head: string): GitHubCall<CompareFiles>;
   /**
    * One repo file from the DEFAULT BRANCH (`ref` deliberately unset): a PR
    * head must never be able to weaken its own scrutiny.
@@ -201,14 +193,12 @@ function bindPullRequestReads(
     fetchIssue: (owner, repo, number) =>
       github.fetchIssue({ owner, repo, number }),
     fetchDiff: () => reader.fetchDiff(prNumber),
-    fetchCompareDiff: (base, head) => reader.fetchCompareDiff({ base, head }),
     fetchCheckedCompareDiff: (base, head, expectedFileCount) =>
       reader.fetchCheckedCompareDiff(
         expectedFileCount === undefined
           ? { base, head }
           : { base, head, expectedFileCount },
       ),
-    fetchCompareFiles: (base, head) => reader.fetchCompareFiles({ base, head }),
     fetchRepoFile: (path, maxBytes) => reader.fetchRepoFile({ path, maxBytes }),
     fetchRepoFileAt: (path, ref, maxBytes) =>
       reader.fetchRepoFile({ path, ref, maxBytes }),

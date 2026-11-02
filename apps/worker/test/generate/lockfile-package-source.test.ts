@@ -424,7 +424,6 @@ describe("generate task, changes-package-source from lockfile contents", () => {
     const span = { base: HEAD_1, head: HEAD_2 };
     github.addCompare(REPO, span, {
       diff: DIFF,
-      files: { files: [], complete: false },
       mergeBase: MERGE_BASE,
     });
     for (const ref of [MERGE_BASE, HEAD_1]) {

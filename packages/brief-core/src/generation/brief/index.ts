@@ -5,12 +5,14 @@ import {
   reserveIds,
   stitchBrief,
 } from "../../anchoring";
-import type { AnchorPlanArgs } from "../../anchoring/types";
+import type { AnchorPlan, AnchorPlanArgs } from "../../anchoring/types";
 import type { MediaItem } from "../../media";
 import type { Brief } from "../../types";
 import {
+  carryDraftBrief,
   DEFAULT_EFFORT,
   generateDraftBrief,
+  type DraftBrief,
   type DraftBriefOptions,
 } from "../categorize";
 import { validateFinalBrief } from "../final-validation";
@@ -158,12 +160,10 @@ async function runMultiCall(run: BriefRun): Promise<GenerateBriefOutput> {
   return buildBriefOutput(brief, warnings, CallPlanKinds.MULTI);
 }
 
-/** Fresh without `previous`, else plan the carry, generate against the anchor view and stitch. */
-async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
-  const { options, effort, lockfileSummaries, log, warnings } = run;
-  const { pr, previous } = options;
-  const draftOptions: DraftBriefOptions = {
-    pr,
+function buildDraftOptions(run: BriefRun): DraftBriefOptions {
+  const { options, effort, log, warnings } = run;
+  return {
+    pr: options.pr,
     headIndex: options.headIndex,
     commitRange: options.commitRange,
     generator: options.generator,
@@ -174,6 +174,85 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
     holdsMedia: run.media.length > 0,
     warnings,
   };
+}
+
+/** An anchored run's brief: the draft and the plan stitched and validated once. */
+interface AnchoredBrief {
+  readonly brief: Brief;
+  readonly anchoring: BriefAnchoring;
+}
+
+/** The draft and the plan stitched and validated once, as one anchored single call. */
+function stitchAnchoredBrief(
+  run: BriefRun,
+  plan: AnchorPlan,
+  draft: DraftBrief,
+): AnchoredBrief {
+  const { options, lockfileSummaries, warnings } = run;
+  const {
+    brief: stitched,
+    issues,
+    ...anchoring
+  } = stitchBrief({
+    generated: draft.brief,
+    plan,
+    prFiles: options.pr.meta.files.map((file) => file.path),
+  });
+  warnings.reportIssues(STITCH_CHECK, issues);
+  const brief = validateFinalBrief({
+    brief: stitched,
+    context: draft.context,
+    carriedChunkIds: anchoring.carriedChunkIds,
+    acceptsRevisionDroppedChecks: true,
+    warnings,
+    lockfileSummaries,
+  });
+  return { brief, anchoring: { plan, ...anchoring } };
+}
+
+/**
+ * A push whose span changed no file, left every group carrying and moved
+ * nothing the previous brief read beside the diff: that brief carried whole
+ * over the new head, with no model call. The hop goes to `onPlan` first, so
+ * a Brief row never lands without it.
+ */
+async function carryUnchangedSpan(
+  run: BriefRun,
+  previous: PreviousBriefInput,
+): Promise<GenerateBriefOutput | undefined> {
+  const isUnchanged = previous.span?.changedFiles.length === 0;
+  if (!isUnchanged) {
+    return undefined;
+  }
+  const plan = planAnchoredGeneration(buildPlanArgs(previous));
+  if (plan.reLook.length > 0) {
+    return undefined;
+  }
+
+  const draft = carryDraftBrief(
+    buildDraftOptions(run),
+    previous.brief,
+    run.media,
+  );
+  if (draft === undefined) {
+    return undefined;
+  }
+
+  await previous.onPlan?.(plan);
+  const stitched = stitchAnchoredBrief(run, plan, draft);
+  return buildBriefOutput(
+    stitched.brief,
+    run.warnings,
+    CallPlanKinds.SINGLE,
+    stitched.anchoring,
+  );
+}
+
+/** Fresh without `previous`, else plan the carry, generate against the anchor view and stitch. */
+async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
+  const { options, lockfileSummaries, warnings } = run;
+  const { previous } = options;
+  const draftOptions = buildDraftOptions(run);
 
   if (previous === undefined) {
     const draft = await generateDraftBrief(draftOptions);
@@ -197,30 +276,14 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
       frozenGroupIds: plan.frozen.map((carry) => carry.group.id),
     },
   });
-
-  const {
-    brief: stitched,
-    issues,
-    ...anchoring
-  } = stitchBrief({
-    generated: draft.brief,
-    plan,
-    prFiles: pr.meta.files.map((file) => file.path),
-  });
-  warnings.reportIssues(STITCH_CHECK, issues);
-  const validated = validateFinalBrief({
-    brief: stitched,
-    context: draft.context,
-    carriedChunkIds: anchoring.carriedChunkIds,
-    acceptsRevisionDroppedChecks: true,
+  const stitched = stitchAnchoredBrief(run, plan, draft);
+  const brief = await addSummaryMedia(stitched.brief, run);
+  return buildBriefOutput(
+    brief,
     warnings,
-    lockfileSummaries,
-  });
-  const brief = await addSummaryMedia(validated, run);
-  return buildBriefOutput(brief, warnings, CallPlanKinds.SINGLE, {
-    plan,
-    ...anchoring,
-  });
+    CallPlanKinds.SINGLE,
+    stitched.anchoring,
+  );
 }
 
 /**
@@ -250,6 +313,13 @@ export async function generateBrief(
     warnings,
     media: readDescriptionMedia(options.pr),
   };
+
+  if (options.previous !== undefined) {
+    const carried = await carryUnchangedSpan(run, options.previous);
+    if (carried !== undefined) {
+      return carried;
+    }
+  }
 
   const hooks = options.multiCallHooks;
   const plansMultiCall = callPlan.kind === CallPlanKinds.MULTI;

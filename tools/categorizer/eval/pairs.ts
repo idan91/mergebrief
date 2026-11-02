@@ -473,6 +473,9 @@ export type PairRunMode = "anchored" | "fresh";
  * The span the worker would read for the pair. Fixtures carry no merge base,
  * so one PR base under both heads stands for the fast path; any other pair
  * is built from both PR diffs and the unfiltered span's per-file patches.
+ * They carry no blobs either: no run slides over equal lines and no base
+ * rename is confirmed, so a group can carry or re-look here where the
+ * worker's span would decide it the other way.
  */
 export function readPairSpan(fixture: PairFixture): PrSpan {
   const { base, revised, unfilteredSpan } = fixture;
@@ -652,6 +655,48 @@ function scopeBaselineToCase(
   return { ...baseline, properties: Object.fromEntries(properties) };
 }
 
+/** The inputs beside the diff a carried Brief must still match: title, description, links, ticket and repo context. */
+function readCarriedInputs(side: EvalFixture): string {
+  const { meta, links, primaryTicket } = side.pr;
+  return JSON.stringify({
+    title: meta.title,
+    body: meta.body,
+    links,
+    primaryTicket,
+    repoContext: side.repoContext,
+  });
+}
+
+/**
+ * The revised Brief's calls: none when an anchored run's span changed no
+ * file, the stored base Brief carries every group, and the inputs beside
+ * the diff match the base's. A base generated per run has groups no
+ * pre-flight can know, and moved inputs may still need the call, so both
+ * count it.
+ */
+function countRevisedBriefCalls(
+  fixture: PairFixture,
+  mode: PairRunMode,
+): number {
+  if (mode === "fresh" || fixture.baseBrief === undefined) {
+    return 1;
+  }
+  const span = readPairSpan(fixture);
+  if (span.changedFiles.length > 0) {
+    return 1;
+  }
+  const inputsMoved =
+    readCarriedInputs(fixture.base) !== readCarriedInputs(fixture.revised);
+  if (inputsMoved) {
+    return 1;
+  }
+  const plan = planAnchoredGeneration({
+    previousBrief: fixture.baseBrief,
+    span,
+  });
+  return plan.reLook.length === 0 ? 0 : 1;
+}
+
 /** Model calls one run of the case makes, multi-call Briefs counted as one. */
 export function countPairGenerations(
   pairCase: PairCase,
@@ -659,11 +704,12 @@ export function countPairGenerations(
 ): number {
   const scoped = scopePairCaseToMode(pairCase, mode);
   const baseCalls = scoped.fixture.baseBrief === undefined ? 1 : 0;
+  const revisedCalls = countRevisedBriefCalls(scoped.fixture, mode);
   // An unchanged span writes the no-change records with no model call.
   const spanCalls = isSpanUnchanged(scoped.fixture.filteredSpan) ? 0 : 1;
   const narrativeCalls = scoped.narrativeProperties.length > 0 ? spanCalls : 0;
   const deltaCalls = scoped.deltaProperties.length > 0 ? spanCalls : 0;
-  return baseCalls + 1 + narrativeCalls + deltaCalls;
+  return baseCalls + revisedCalls + narrativeCalls + deltaCalls;
 }
 
 /**

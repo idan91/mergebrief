@@ -21,19 +21,6 @@ export const openPullRequestSchema = z.object({
 
 export const openPullRequestListSchema = z.array(openPullRequestSchema);
 
-export const compareFilesSchema = z.object({
-  status: z.string().optional(),
-  files: z
-    .array(
-      z.object({
-        filename: z.string(),
-        status: z.string(),
-        previous_filename: z.string().optional(),
-      }),
-    )
-    .optional(),
-});
-
 export const compareMergeBaseSchema = z.object({
   merge_base_commit: z.object({ sha: z.string().min(1) }),
 });

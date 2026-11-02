@@ -2,7 +2,6 @@
 // uses the `application/vnd.github.diff` media type, which returns the raw
 // diff as a string body. Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
-import type { CompareFile, CompareFiles } from "brief-core";
 import type { OpenPullRequest, RepoIdentity } from "brief-core/pr-stack";
 import type { Mutable, Result } from "types/utils";
 import {
@@ -14,7 +13,6 @@ import { repoIdSchema } from "../../ids";
 import { GitHubAccountTypes } from "../../types";
 
 import {
-  compareFilesSchema,
   compareMergeBaseSchema,
   gitHubRepoSchema,
   openPullRequestListSchema,
@@ -346,79 +344,4 @@ export async function fetchCompareDiff(
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch compare diff") };
   }
-}
-
-/** GitHub caps the compare response's `files[]` at this many entries. */
-const COMPARE_FILES_CAP = 300;
-
-/**
- * Per-file JSON metadata for a `base...head` span, the signals the raw diff
- * media type cannot carry (pure renames, binaries, and mode-only changes have
- * no hunks). `per_page: 1` minimizes the commit list riding the same response;
- * `files[]` is NOT paginated, it is capped, hence `complete`.
- */
-export async function fetchCompareFiles(
-  octokit: Octokit,
-  ref: CompareDiffRef,
-): Promise<Result<CompareFiles, GitHubApiError>> {
-  try {
-    const response = await octokit.rest.repos.compareCommitsWithBasehead({
-      owner: ref.owner,
-      repo: ref.repo,
-      basehead: `${ref.base}...${ref.head}`,
-      per_page: 1,
-    });
-    const parsed = compareFilesSchema.safeParse(response.data);
-    if (!parsed.success) {
-      return {
-        ok: false,
-        error: unexpectedResponseError("fetch compare files"),
-      };
-    }
-    const spanStatus = parsed.data.status;
-    if (parsed.data.files === undefined) {
-      // A 200 without `files[]` (degraded/oversized compare) proves nothing,
-      // report incomplete so the touched predicate re-looks everything instead
-      // of wrongly confirming "untouched".
-      return { ok: true, value: shapeCompareFiles([], false, spanStatus) };
-    }
-    const files = parsed.data.files.map(shapeCompareFile);
-    const complete = files.length < COMPARE_FILES_CAP;
-    return { ok: true, value: shapeCompareFiles(files, complete, spanStatus) };
-  } catch (error) {
-    return { ok: false, error: mapRequestError(error, "fetch compare files") };
-  }
-}
-
-/** One compare entry; `previous_filename` rides only on renames and copies. */
-function shapeCompareFile(file: {
-  filename: string;
-  status: string;
-  previous_filename?: string | undefined;
-}): CompareFile {
-  const compareFile: Mutable<CompareFile> = {
-    filename: file.filename,
-    status: file.status,
-  };
-
-  if (file.previous_filename !== undefined) {
-    compareFile.previousFilename = file.previous_filename;
-  }
-
-  return compareFile;
-}
-
-/** The span's file list; `status` is absent when the compare omitted it. */
-function shapeCompareFiles(
-  files: readonly CompareFile[],
-  complete: boolean,
-  status: string | undefined,
-): CompareFiles {
-  const compareFiles: Mutable<CompareFiles> = { files, complete };
-
-  if (status !== undefined) {
-    compareFiles.status = status;
-  }
-
-  return compareFiles;
 }
