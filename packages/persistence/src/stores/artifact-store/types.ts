@@ -34,11 +34,12 @@ export interface DeltaSpanRow extends ComparisonSpanRow {
   readonly unchanged: boolean;
 }
 
-/** The prevHead/head pair and the no-change stamp, never the body. */
+/** The prevHead/head pair and the no-change and skip stamps, never the body. */
 export interface NarrativeSpanRow {
   readonly prevHeadSha: string;
   readonly headSha: string;
   readonly unchanged: boolean;
+  readonly skipped: boolean;
 }
 export type DeltaRow = typeof delta.$inferSelect;
 /** The sidecar row with its body as stored text; the api serves it verbatim. */
@@ -140,6 +141,12 @@ export interface HunkSpanWriteInput {
   readonly spans: unknown;
 }
 
+/** The base each head's PR diff was read against when the span was computed. */
+export interface SpanBaseRefs {
+  readonly prevBase: string;
+  readonly newBase: string;
+}
+
 export interface ComparisonMarksWriteInput {
   readonly pullRequestId: PullRequestRowId;
   /**
@@ -148,6 +155,8 @@ export interface ComparisonMarksWriteInput {
    * the natural-key SHAs are taken from the validated body, not passed apart.
    */
   readonly marks: unknown;
+  /** Replaced on every rewrite: a row's refs name the span its marks, narrative and delta came from. */
+  readonly refs: SpanBaseRefs;
 }
 
 export interface BriefStore {
@@ -239,6 +248,12 @@ export interface ComparisonMarksStore {
   listForPullRequest(
     pullRequestId: PullRequestRowId,
   ): Promise<ComparisonSpanRow[]>;
+  /** Drops the key's row before anything under the key is rewritten from other bases; none in scope is a no-op. */
+  delete(
+    pullRequestId: PullRequestRowId,
+    baselineSha: string,
+    headSha: string,
+  ): Promise<void>;
 }
 
 export interface HunkSpanStore {

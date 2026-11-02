@@ -27,11 +27,12 @@ import type { Mutable, ValueOf } from "types/utils";
 import { buildEntryCommentGeneratingBody } from "../../entry-comment";
 import type { ParsedGeneratePayload } from "../../payload";
 import { buildRepoConfigArtifact } from "../../repo-config";
-import type {
-  BriefGenerationInputs,
-  StoredBriefLayoutInputs,
-  GeneratedBrief,
-  StoredBriefRecoveryInputs,
+import {
+  MarksStates,
+  type BriefGenerationInputs,
+  type StoredBriefLayoutInputs,
+  type GeneratedBrief,
+  type StoredBriefRecoveryInputs,
 } from "../types";
 import {
   deriveNextHeadIndex,
@@ -44,6 +45,9 @@ import { collectAllowedRiskNames, warnOnFailedCheck } from "./artifact-check";
 import { runGenerator } from "./errors";
 import { postGeneratingEntry } from "./generating-entry";
 import { readLockfileSummaries } from "./lockfile-summaries";
+import { LockfileSpanKinds } from "./lockfile-summaries/types";
+import { readSpanBaseRefs } from "./revision-span";
+import { readMarksState } from "./span-marks";
 import { throwOnClaimLost } from "./supersession-watch";
 
 /**
@@ -108,7 +112,11 @@ export async function writeFreshBrief(
   const lockfileSummaries = await readLockfileSummaries(
     source,
     diff,
-    { base: prInfo.baseSha, head: headSha },
+    {
+      kind: LockfileSpanKinds.PULL_REQUEST,
+      base: prInfo.baseSha,
+      head: headSha,
+    },
     log,
     inputs.stops,
   );
@@ -280,8 +288,10 @@ async function advancePhase(
 
 /**
  * Retry-resume for the skip path: a prior attempt wrote the brief but may
- * have died before the narrative, so recover the Brief from the stored body
- * when no narrative exists yet. Undefined means nothing to narrate.
+ * have died before the narrative or the marks, or the span's refs moved
+ * since (a same-head retarget back onto a briefed base), so recover the
+ * Brief from the stored body unless the narrative is stored under marks
+ * written from the refs resolved now. Undefined means nothing to narrate.
  */
 export async function recoverStoredBrief(
   payload: ParsedGeneratePayload,
@@ -289,25 +299,24 @@ export async function recoverStoredBrief(
 ): Promise<Brief | undefined> {
   const { store, prevBrief, baseSha, log } = inputs;
   const { pullRequestId, headSha } = payload;
-  let generatedBrief: Brief | undefined;
-
-  // Retry-resume: if a prior attempt wrote the brief but died before the
-  // narrative, recover the Brief object from the stored body so the
-  // narrative isn't permanently lost (marks alone would render the honest
-  // "summary unavailable" state forever).
-  if (prevBrief !== undefined) {
-    const storedNarrative = await store.revisionNarratives.get(
-      pullRequestId,
-      prevBrief.headSha,
-      headSha,
-    );
-    if (storedNarrative === undefined) {
-      const fullRow = await store.briefs.get(pullRequestId, baseSha, headSha);
-      const recovered =
-        fullRow === undefined ? undefined : recoverBrief(fullRow.body, log);
-      generatedBrief = recovered?.ok ? recovered.value : undefined;
-    }
+  if (prevBrief === undefined) {
+    return undefined;
   }
 
-  return generatedBrief;
+  const key = { pullRequestId, baselineSha: prevBrief.headSha, headSha };
+  const refs = readSpanBaseRefs(prevBrief, baseSha);
+  const [storedNarrative, marksState] = await Promise.all([
+    store.revisionNarratives.get(pullRequestId, prevBrief.headSha, headSha),
+    readMarksState(store, key, refs),
+  ]);
+  const isNarrated =
+    storedNarrative !== undefined && marksState === MarksStates.CURRENT;
+  if (isNarrated) {
+    return undefined;
+  }
+
+  const fullRow = await store.briefs.get(pullRequestId, baseSha, headSha);
+  const recovered =
+    fullRow === undefined ? undefined : recoverBrief(fullRow.body, log);
+  return recovered?.ok ? recovered.value : undefined;
 }

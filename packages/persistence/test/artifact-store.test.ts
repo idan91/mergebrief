@@ -698,7 +698,12 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       await aStore.revisionNarratives.get(bPr.id, "prev", "head"),
     ).toBeUndefined();
     expect(await bStore.revisionNarratives.listForPullRequest(bPr.id)).toEqual([
-      { prevHeadSha: "prev", headSha: "head", unchanged: false },
+      {
+        prevHeadSha: "prev",
+        headSha: "head",
+        unchanged: false,
+        skipped: false,
+      },
     ]);
     const kept = await bStore.revisionNarratives.get(bPr.id, "prev", "head");
     expect(kept?.id).toBe(bNarrative.id);
@@ -719,6 +724,7 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
     await expect(
       store.comparisonMarks.write({
         pullRequestId: pr.id,
+        refs: { prevBase: "main", newBase: "main" },
         marks: {
           baselineSha: "base",
           headSha: "head",
@@ -753,6 +759,7 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
       await expect(
         store.comparisonMarks.write({
           pullRequestId: pr.id,
+          refs: { prevBase: "main", newBase: "main" },
           marks: {
             baselineSha: "base",
             headSha: "head",
@@ -778,9 +785,12 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
     const written = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: validMarks("base", "head"),
+      refs: { prevBase: "main1", newBase: "main1" },
     });
     expect(written.baselineSha).toBe("base");
     expect(written.headSha).toBe("head");
+    expect(written.prevBaseSha).toBe("main1");
+    expect(written.newBaseSha).toBe("main1");
 
     const parsedBody: unknown = JSON.parse(written.body);
     expect(parsedBody).toEqual(validMarks("base", "head"));
@@ -791,8 +801,10 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
     const again = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: { ...validMarks("base", "head"), files: [] },
+      refs: { prevBase: "main1", newBase: "main2" },
     });
     expect(again.id).toBe(written.id);
+    expect(again.newBaseSha).toBe("main2");
     expect(JSON.parse(again.body)).toEqual({
       ...validMarks("base", "head"),
       files: [],
@@ -811,6 +823,7 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
 
     const crossTenantWrite = bStore.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: validMarks("base", "head"),
     });
     await expect(crossTenantWrite).rejects.toBeInstanceOf(ScopeViolationError);
@@ -820,6 +833,47 @@ describe("createArtifactStore.comparisonMarks coordinates-only guard", () => {
     expect(await bStore.comparisonMarks.get(pr.id, "base", "head")).toBe(
       undefined,
     );
+  });
+});
+
+describe("createArtifactStore.comparisonMarks delete", () => {
+  it("drops the key's row and leaves the other keys and tenants alone", async () => {
+    const handle = shared.handle;
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrStates.OPEN,
+    });
+    const refs = { prevBase: "main", newBase: "main" };
+    await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: validMarks("base", "head"),
+      refs,
+    });
+    await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: validMarks("other", "head"),
+      refs,
+    });
+
+    await createArtifactStore(handle, CTX_B).comparisonMarks.delete(
+      pr.id,
+      "base",
+      "head",
+    );
+    expect(
+      await store.comparisonMarks.get(pr.id, "base", "head"),
+    ).toBeDefined();
+
+    await store.comparisonMarks.delete(pr.id, "base", "head");
+
+    expect(await store.comparisonMarks.get(pr.id, "base", "head")).toBe(
+      undefined,
+    );
+    expect(
+      await store.comparisonMarks.get(pr.id, "other", "head"),
+    ).toBeDefined();
   });
 });
 
@@ -1142,11 +1196,11 @@ describe("createArtifactStore query shape", () => {
   const BRIEF_ANCHOR_CHECK =
     'select "id" from "brief" where ("brief"."installation_id" = $1 and "brief"."id" = $2 and "brief"."pull_request_id" = $3) limit $4';
   const NARRATIVE_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "brief_id", "prev_head_sha", "head_sha", "unchanged", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
-  const NARRATIVE_UPSERT = `insert into "revision_narrative" (${NARRATIVE_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, default) on conflict ("installation_id","pull_request_id","prev_head_sha","head_sha") do update set "brief_id" = $13, "unchanged" = $14, "provider" = $15, "model" = $16, "effort" = $17, "body_version" = $18, "body" = $19, "byte_size" = $20 returning ${NARRATIVE_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "brief_id", "prev_head_sha", "head_sha", "unchanged", "skipped", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
+  const NARRATIVE_UPSERT = `insert into "revision_narrative" (${NARRATIVE_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, default) on conflict ("installation_id","pull_request_id","prev_head_sha","head_sha") do update set "brief_id" = $14, "unchanged" = $15, "skipped" = $16, "provider" = $17, "model" = $18, "effort" = $19, "body_version" = $20, "body" = $21, "byte_size" = $22 returning ${NARRATIVE_COLUMNS}`;
   const MARKS_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "body", "byte_size", "created_at"';
-  const MARKS_UPSERT = `insert into "comparison_marks" (${MARKS_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "body" = $7, "byte_size" = $8 returning ${MARKS_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "prev_base_sha", "new_base_sha", "body", "byte_size", "created_at"';
+  const MARKS_UPSERT = `insert into "comparison_marks" (${MARKS_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "prev_base_sha" = $9, "new_base_sha" = $10, "body" = $11, "byte_size" = $12 returning ${MARKS_COLUMNS}`;
   const HUNK_COLUMNS =
     '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "spans", "created_at"';
   const HUNK_UPSERT = `insert into "hunk_span" (${HUNK_COLUMNS}) values (default, $1, $2, $3, $4, $5, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "spans" = $6 returning ${HUNK_COLUMNS}`;
@@ -1244,6 +1298,7 @@ describe("createArtifactStore query shape", () => {
     const marks = await recordStatements(log, () =>
       store.comparisonMarks.write({
         pullRequestId: pr.id,
+        refs: { prevBase: "main", newBase: "main" },
         marks: validMarks("prev", "head"),
       }),
     );
@@ -1286,6 +1341,7 @@ describe("createArtifactStore query shape", () => {
     const refused = await recordStatements(log, () =>
       other.comparisonMarks.write({
         pullRequestId: pr.id,
+        refs: { prevBase: "main", newBase: "main" },
         marks: validMarks("prev", "head"),
       }),
     );
@@ -1303,6 +1359,7 @@ describe("createArtifactStore query shape", () => {
     const marks = await recordStatements(log, () =>
       store.comparisonMarks.write({
         pullRequestId: pr.id,
+        refs: { prevBase: "main", newBase: "main" },
         marks: { ...validMarks("prev", "head"), baselineLabel: "x" },
       }),
     );
@@ -1389,7 +1446,7 @@ describe("createArtifactStore query shape", () => {
       'select "baseline_sha", "head_sha", "skipped", "unchanged" from "delta" where ("delta"."installation_id" = $1 and "delta"."pull_request_id" = $2)',
     ]);
     expect(narratives.statements).toEqual([
-      'select "prev_head_sha", "head_sha", "unchanged" from "revision_narrative" where ("revision_narrative"."installation_id" = $1 and "revision_narrative"."pull_request_id" = $2)',
+      'select "prev_head_sha", "head_sha", "unchanged", "skipped" from "revision_narrative" where ("revision_narrative"."installation_id" = $1 and "revision_narrative"."pull_request_id" = $2)',
     ]);
     expect(marks.statements).toEqual([
       'select "baseline_sha", "head_sha" from "comparison_marks" where ("comparison_marks"."installation_id" = $1 and "comparison_marks"."pull_request_id" = $2)',

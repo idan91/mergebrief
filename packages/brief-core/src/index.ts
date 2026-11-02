@@ -42,7 +42,11 @@ export {
   type RevisionChanges,
   type RevisionChangeFile,
 } from "./diff/revchanges";
-export { buildComparisonMarks, writeComparisonMarks } from "./diff/comparison";
+export {
+  buildComparisonMarks,
+  writeComparisonMarks,
+  type ComparisonMarks,
+} from "./diff/comparison";
 export { isHugeSpan, parseHugeSpanRatio } from "./generation/huge-span";
 export {
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,

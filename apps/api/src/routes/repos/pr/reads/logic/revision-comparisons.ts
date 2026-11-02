@@ -59,10 +59,11 @@ export function buildDeltaSpanSets(
   return { available, skipped, unchanged };
 }
 
-/** Every span with a narrative row, and those whose row is the no-change record. */
+/** Every span with a narrative row, and those whose row is the no-change or the skip record. */
 export interface NarrativeSpanSets {
   readonly written: ReadonlySet<string>;
   readonly unchanged: ReadonlySet<string>;
+  readonly skipped: ReadonlySet<string>;
 }
 
 export function buildNarrativeSpanSets(
@@ -70,14 +71,18 @@ export function buildNarrativeSpanSets(
 ): NarrativeSpanSets {
   const written = new Set<string>();
   const unchanged = new Set<string>();
+  const skipped = new Set<string>();
   for (const row of rows) {
     const key = spanKey(row.prevHeadSha, row.headSha);
     written.add(key);
     if (row.unchanged) {
       unchanged.add(key);
     }
+    if (row.skipped) {
+      skipped.add(key);
+    }
   }
-  return { written, unchanged };
+  return { written, unchanged, skipped };
 }
 
 /**
@@ -113,7 +118,7 @@ export function derivePreviousBriefComparison(
       baselineSha: previous.headSha,
       baselineIndex: previous.headIndex,
       unavailable: resolveUnmarkedSpanReason(
-        narrativeSpans.written.has(span),
+        narrativeSpans.skipped.has(span),
         targetPending,
       ),
     };
@@ -129,12 +134,12 @@ export function derivePreviousBriefComparison(
   return view;
 }
 
-/** Marks precede every narrative write but the refused span's skip record, so a narrative row without marks is that span. */
+/** A span GitHub refused keeps the narrative's skip record and never gets marks; any other unmarked span is still landing or lost. */
 function resolveUnmarkedSpanReason(
-  narrativeWritten: boolean,
+  narrativeSkipped: boolean,
   targetPending: boolean,
 ): LastReviewUnavailableReason {
-  if (narrativeWritten) {
+  if (narrativeSkipped) {
     return LastReviewUnavailableReasons.SPAN_TOO_LARGE;
   }
   if (targetPending) {

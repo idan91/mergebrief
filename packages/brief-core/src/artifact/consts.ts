@@ -1,6 +1,7 @@
 import type {
   DeltaSkipped,
   DeltaUnchanged,
+  RevisionNarrativeSkipped,
   RevisionNarrativeUnchanged,
 } from "../types";
 
@@ -14,3 +15,6 @@ export const DELTA_UNCHANGED_KIND: DeltaUnchanged["artifactKind"] =
 
 export const REVISION_NARRATIVE_UNCHANGED_KIND: RevisionNarrativeUnchanged["artifactKind"] =
   "revisionNarrativeUnchanged";
+
+export const REVISION_NARRATIVE_SKIPPED_KIND: RevisionNarrativeSkipped["artifactKind"] =
+  "revisionNarrativeSkipped";

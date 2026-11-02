@@ -268,6 +268,7 @@ describe("stored artifact reads", () => {
     const pr = await seedPullRequest(harness.handle);
     await createArtifactStore(harness.handle, CTX).comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: { baselineSha: "head-1", headSha: "head-2", files: [] },
     });
 

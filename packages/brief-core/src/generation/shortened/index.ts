@@ -1,3 +1,4 @@
+import type { Result } from "types/utils";
 import type { IndexedFile } from "../../diff/hunk-index/types";
 import { changedRangesFromFileDiffs } from "../../diff/revchanges";
 import { Concerns, Roles, ShortenedReadings, type Chunk } from "../../types";
@@ -38,7 +39,10 @@ import {
 } from "./types";
 
 export { LOCKFILE_MAX_BYTES } from "./consts";
-export { LockfileReadFailures } from "./lockfiles/types";
+export {
+  LockfileReadFailures,
+  type LockfileReadFailure,
+} from "./lockfiles/types";
 export {
   LockfileFormats,
   LockfileSideKinds,
@@ -101,15 +105,186 @@ function readSide(
   }
 }
 
+/** Why one of `sides` cannot be read, found before any is parsed. */
+function precheckSides(
+  sides: readonly LockfileSide[],
+): LockfileReadFailure | undefined {
+  for (const side of sides) {
+    const precheck = precheckSide(side);
+    if (precheck !== undefined) {
+      return precheck;
+    }
+  }
+  return undefined;
+}
+
+/** The two entry lists a summary compares. */
+interface ComparedEntries {
+  before: LockfileEntry[];
+  after: LockfileEntry[];
+}
+
+type ComparedRead = Result<ComparedEntries, LockfileReadFailure>;
+
+/** How many records one key holds, with one of them to stand for the rest. */
+interface CountedEntry {
+  entry: LockfileEntry;
+  count: number;
+}
+
+type EntryCounts = Map<string, CountedEntry>;
+
+function readEntryKey(entry: LockfileEntry): string {
+  return JSON.stringify([
+    entry.name,
+    entry.version,
+    entry.source,
+    entry.host,
+    entry.aliasOf,
+  ]);
+}
+
+/** Adds `sign` to each entry's key count; a key back at zero leaves. */
+function addEntryCounts(
+  counts: EntryCounts,
+  entries: readonly LockfileEntry[],
+  sign: number,
+): void {
+  for (const entry of entries) {
+    const key = readEntryKey(entry);
+    const count = (counts.get(key)?.count ?? 0) + sign;
+    if (count === 0) {
+      counts.delete(key);
+    } else {
+      counts.set(key, { entry, count });
+    }
+  }
+}
+
+function readEntryCounts(
+  format: PackageLockfileFormat,
+  side: LockfileSide,
+  sign: number,
+): Result<EntryCounts, LockfileReadFailure> {
+  const read = readSide(format, side);
+  if (!read.ok) {
+    return read;
+  }
+  const counts: EntryCounts = new Map();
+  addEntryCounts(counts, read.value, sign);
+  return { ok: true, value: counts };
+}
+
+/** A head's own change: each key's count at the head less its count at the merge base, zeros left out. */
+function readOwnChange(
+  format: PackageLockfileFormat,
+  mergeBase: LockfileSide,
+  head: LockfileSide,
+): Result<EntryCounts, LockfileReadFailure> {
+  const change = readEntryCounts(format, mergeBase, -1);
+  if (!change.ok) {
+    return change;
+  }
+  const read = readSide(format, head);
+  if (!read.ok) {
+    return read;
+  }
+  addEntryCounts(change.value, read.value, 1);
+  return change;
+}
+
+/**
+ * `change` replayed on `mergeBase`: the entries it added beside the ones
+ * the merge base holds, less the ones it removed. A record the base
+ * already removed stays removed, never below zero.
+ */
+function readReplayedEntries(
+  format: PackageLockfileFormat,
+  mergeBase: LockfileSide,
+  change: EntryCounts,
+): LockfileRead {
+  const counts = readEntryCounts(format, mergeBase, 1);
+  if (!counts.ok) {
+    return counts;
+  }
+  for (const [key, { entry, count }] of change) {
+    const replayed = (counts.value.get(key)?.count ?? 0) + count;
+    counts.value.set(key, { entry, count: Math.max(replayed, 0) });
+  }
+  const entries = [...counts.value.values()].flatMap(({ entry, count }) =>
+    Array.from({ length: count }, () => entry),
+  );
+  return { ok: true, value: entries };
+}
+
+/** Both heads read whole; an absent side reads as no entries. */
+function readHeads(
+  format: PackageLockfileFormat,
+  sides: LockfileSides,
+): ComparedRead {
+  const failure = precheckSides([sides.before, sides.after]);
+  if (failure !== undefined) {
+    return { ok: false, error: failure };
+  }
+  const before = readSide(format, sides.before);
+  if (!before.ok) {
+    return before;
+  }
+  const after = readSide(format, sides.after);
+  if (!after.ok) {
+    return after;
+  }
+  return { ok: true, value: { before: before.value, after: after.value } };
+}
+
+/**
+ * The `before` head's own change replayed on the `after` head's merge
+ * base, beside the `after` head. Read in stages, each side's entries
+ * reduced before the next side parses, so the four sides cost no more heap
+ * than two heads read whole.
+ */
+function readRebasedHeads(
+  format: PackageLockfileFormat,
+  sides: LockfileSides,
+  mergeBases: LockfileSides,
+): ComparedRead {
+  const failure = precheckSides([
+    sides.before,
+    sides.after,
+    mergeBases.before,
+    mergeBases.after,
+  ]);
+  if (failure !== undefined) {
+    return { ok: false, error: failure };
+  }
+  const change = readOwnChange(format, mergeBases.before, sides.before);
+  if (!change.ok) {
+    return change;
+  }
+  const before = readReplayedEntries(format, mergeBases.after, change.value);
+  if (!before.ok) {
+    return before;
+  }
+  const after = readSide(format, sides.after);
+  if (!after.ok) {
+    return after;
+  }
+  return { ok: true, value: { before: before.value, after: after.value } };
+}
+
 /**
  * What a lockfile changes between its full contents at base and head,
- * package by package for pnpm, npm and yarn. A side that cannot be read
- * leaves the summary unread, naming why. Another ecosystem's lockfile is
- * `other`; a file that is not a lockfile has no summary.
+ * package by package for pnpm, npm and yarn. With `mergeBases`, the two
+ * sides are heads of one PR on different merge bases, and the summary
+ * compares their own changes, so a package the base moved between them is
+ * no change. A side that cannot be read leaves the summary unread, naming
+ * why. Another ecosystem's lockfile is `other`; a file that is not a
+ * lockfile has no summary.
  */
 export function summarizeLockfile(
   path: string,
   sides: LockfileSides,
+  mergeBases?: LockfileSides,
 ): LockfileSummary | undefined {
   const format = detectLockfile(path);
   if (format === undefined) {
@@ -119,22 +294,22 @@ export function summarizeLockfile(
     return { format };
   }
 
-  const precheck = precheckSide(sides.before) ?? precheckSide(sides.after);
-  if (precheck !== undefined) {
-    return { format, unread: precheck };
+  const read =
+    mergeBases === undefined
+      ? readHeads(format, sides)
+      : readRebasedHeads(format, sides, mergeBases);
+  if (!read.ok) {
+    return { format, unread: read.error };
   }
-  const before = readSide(format, sides.before);
-  if (!before.ok) {
-    return { format, unread: before.error };
-  }
-  const after = readSide(format, sides.after);
-  if (!after.ok) {
-    return { format, unread: after.error };
-  }
-  const changes = comparePackageEntries(before.value, after.value);
+  const { before, after } = read.value;
+  const changes = comparePackageEntries(before, after);
   const summary: PackageLockfileSummary = { format, changes };
-  if (sides.before.kind !== LockfileSideKinds.ABSENT) {
-    summary.baseHosts = listKnownHosts(before.value);
+  const hasBaseSide =
+    sides.before.kind !== LockfileSideKinds.ABSENT ||
+    (mergeBases !== undefined &&
+      mergeBases.after.kind !== LockfileSideKinds.ABSENT);
+  if (hasBaseSide) {
+    summary.baseHosts = listKnownHosts(before);
   }
   // A copy: a substring of the text pins the whole text while a summary lives.
   return structuredClone(summary);

@@ -3,7 +3,12 @@
 // coordinates-only body: the CLI's read-time context keys must not reach the
 // strict write boundary. Content-addressed on the span, so overlap between the
 // two shapes for one span rewrites a single row harmlessly.
-import { InvalidArtifactBodyError, type PullRequestRow } from "persistence";
+import {
+  InvalidArtifactBodyError,
+  type BriefSpanRow,
+  type PullRequestRow,
+  type SpanBaseRefs,
+} from "persistence";
 import { COMPARISON_FILE, REVCHANGES_FILE } from "../consts";
 import { ComparisonFileSchema, RevchangesSchema } from "../schemas";
 import type { IngestRun } from "../types";
@@ -39,9 +44,46 @@ function projectMarkedFiles(files: readonly MarkedFile[]): {
   }));
 }
 
+/** Each PR's Brief list, read once per ingest run however many marks files name the PR. */
+type BriefListCache = Map<PullRequestRow["id"], Promise<BriefSpanRow[]>>;
+
+/** The base of the newest Brief at `sha`, else the PR's current base, as the worker reads a span's sides. */
+function resolveSideBase(
+  briefs: readonly BriefSpanRow[],
+  sha: string,
+  prBase: string,
+): string {
+  const brief = briefs.findLast((row) => row.headSha === sha);
+  return brief?.baseSha ?? prBase;
+}
+
+/** Every PR row this run resolves was upserted with a base, so each side always has one. */
+async function resolveSpanRefs(
+  run: IngestRun,
+  briefLists: BriefListCache,
+  prRow: PullRequestRow,
+  marks: { baselineSha: string; headSha: string },
+): Promise<SpanBaseRefs> {
+  const prBase = prRow.baseSha;
+  if (prBase === null) {
+    throw new Error("ingest: a pull request row this run wrote has no base");
+  }
+  let briefs = briefLists.get(prRow.id);
+  if (briefs === undefined) {
+    briefs = run.store.briefs.listForPullRequest(prRow.id);
+    briefLists.set(prRow.id, briefs);
+  }
+  const rows = await briefs;
+  return {
+    prevBase: resolveSideBase(rows, marks.baselineSha, prBase),
+    newBase: resolveSideBase(rows, marks.headSha, prBase),
+  };
+}
+
 async function writeMarksRow(
   run: IngestRun,
   name: string,
+  briefLists: BriefListCache,
   prRow: PullRequestRow,
   marks: {
     baselineSha: string;
@@ -49,6 +91,7 @@ async function writeMarksRow(
     files: readonly MarkedFile[];
   },
 ): Promise<void> {
+  const refs = await resolveSpanRefs(run, briefLists, prRow, marks);
   await run.store.comparisonMarks
     .write({
       pullRequestId: prRow.id,
@@ -57,6 +100,7 @@ async function writeMarksRow(
         headSha: marks.headSha,
         files: projectMarkedFiles(marks.files),
       },
+      refs,
     })
     .catch((error: unknown) => {
       if (error instanceof InvalidArtifactBodyError) {
@@ -74,6 +118,7 @@ export async function writeComparisonMarks(
   stemIndex: ReadonlyMap<string, PullRequestRow | null>,
 ): Promise<number> {
   let marksCount = 0;
+  const briefLists: BriefListCache = new Map();
 
   for (const name of comparisonNames) {
     const parsed = ComparisonFileSchema.safeParse(
@@ -93,7 +138,7 @@ export async function writeComparisonMarks(
       continue;
     }
 
-    await writeMarksRow(run, name, resolved.row, {
+    await writeMarksRow(run, name, briefLists, resolved.row, {
       baselineSha: parsed.data.baselineSha,
       headSha: parsed.data.headSha,
       files: parsed.data.files,
@@ -119,7 +164,7 @@ export async function writeComparisonMarks(
       continue;
     }
 
-    await writeMarksRow(run, name, resolved.row, {
+    await writeMarksRow(run, name, briefLists, resolved.row, {
       baselineSha: parsed.data.prevHeadSha,
       headSha: parsed.data.headSha,
       files: parsed.data.files,

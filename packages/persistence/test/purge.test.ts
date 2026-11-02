@@ -238,6 +238,8 @@ async function seedFullGraph(
     pullRequestId,
     baselineSha: PREV_HEAD_SHA,
     headSha: HEAD_SHA,
+    prevBaseSha: "main",
+    newBaseSha: "main",
     ...artifact('{"files":[]}'),
   });
   await db.insert(checkpoint).values({

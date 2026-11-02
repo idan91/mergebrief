@@ -11,7 +11,11 @@ process.on("disconnect", () => {
 process.once("message", (message: unknown) => {
   const request = SummaryRequestSchema.parse(message);
   const reply: SummaryReply = {};
-  const summary = summarizeLockfile(request.path, request.sides);
+  const summary = summarizeLockfile(
+    request.path,
+    request.sides,
+    request.mergeBases,
+  );
   if (summary !== undefined) {
     reply.summary = summary;
   }

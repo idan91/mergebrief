@@ -18,6 +18,7 @@ import {
   makePnpmLockfile,
   makeSides,
   summarizePnpm,
+  summarizeRebasedPnpm,
   summarizeTexts,
 } from "./shortened/helpers";
 
@@ -321,6 +322,77 @@ function summarizeNpm(before: object, after: object): LockfileSummary {
   }
   return summary;
 }
+
+describe("changesPackageSource across a rebase", () => {
+  const PR_OWN = { "bar@1.0.0": REGISTRY };
+
+  it("leaves out a package the base moved to a mirror", () => {
+    const summary = summarizeRebasedPnpm({
+      beforeMergeBase: { "foo@1.0.0": REGISTRY },
+      before: { "foo@1.0.0": REGISTRY, ...PR_OWN },
+      afterMergeBase: { "foo@2.0.0": MIRROR },
+      after: { "foo@2.0.0": MIRROR, ...PR_OWN },
+    });
+
+    expect(summary).toMatchObject({
+      changes: { added: [], removed: [], updated: [], sourceChanged: [] },
+    });
+    expect(changesPackageSource(summary, NO_CONFIG_CHANGE)).toBe(false);
+  });
+
+  it("fires on the PR's own move to a mirror over a rebase", () => {
+    const summary = summarizeRebasedPnpm({
+      beforeMergeBase: { "foo@1.0.0": REGISTRY },
+      before: { "foo@1.0.0": REGISTRY, ...PR_OWN },
+      afterMergeBase: { "foo@2.0.0": MIRROR },
+      after: { "foo@2.0.0": MIRROR, "bar@1.0.0": MIRROR },
+    });
+
+    expect(changesPackageSource(summary, NO_CONFIG_CHANGE)).toBe(true);
+  });
+
+  it("drops a PR package the base already removed", () => {
+    const summary = summarizeRebasedPnpm({
+      beforeMergeBase: { "foo@1.0.0": REGISTRY },
+      before: {},
+      afterMergeBase: {},
+      after: {},
+    });
+
+    expect(summary).toMatchObject({
+      changes: { added: [], removed: [], updated: [], sourceChanged: [] },
+    });
+  });
+
+  it("keeps a package both the PR and the base removed at zero", () => {
+    const summary = summarizeRebasedPnpm({
+      beforeMergeBase: { "foo@1.0.0": REGISTRY },
+      before: PR_OWN,
+      afterMergeBase: { "baz@1.0.0": MIRROR },
+      after: { "baz@1.0.0": MIRROR, ...PR_OWN },
+    });
+
+    expect(summary).toMatchObject({
+      changes: { added: [], removed: [], updated: [], sourceChanged: [] },
+    });
+    expect(changesPackageSource(summary, NO_CONFIG_CHANGE)).toBe(false);
+  });
+
+  it("reads one merge base as the two heads compared directly", () => {
+    const before = { "foo@1.0.0": REGISTRY, ...PR_OWN };
+    const after = { "foo@1.0.0": MIRROR, ...PR_OWN };
+    const mergeBase = { "foo@1.0.0": REGISTRY };
+
+    const rebased = summarizeRebasedPnpm({
+      beforeMergeBase: mergeBase,
+      before,
+      afterMergeBase: mergeBase,
+      after,
+    });
+
+    expect(rebased).toEqual(summarizePnpm(before, after));
+  });
+});
 
 describe("changesPackageSource by fetch identity", () => {
   it("fires on a registry bump from https to plain http", () => {

@@ -268,6 +268,7 @@ export type {
   DeltaWriteInput,
   RevisionNarrativeWriteInput,
   ComparisonMarksWriteInput,
+  SpanBaseRefs,
   HunkSpanWriteInput,
   BriefRow,
   BriefSpanRow,

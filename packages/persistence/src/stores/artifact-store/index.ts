@@ -10,6 +10,7 @@ import { traceStore } from "../trace-store";
 import {
   isDeltaSkipRecord,
   isDeltaUnchangedRecord,
+  isRevisionNarrativeSkipRecord,
   isRevisionNarrativeUnchangedRecord,
   readBriefSessionFacts,
 } from "brief-core/artifact";
@@ -317,6 +318,7 @@ export function createArtifactStore(
         briefId: input.briefId,
         ...shapeBodyColumns(input),
         unchanged: isRevisionNarrativeUnchangedRecord(input.body),
+        skipped: isRevisionNarrativeSkipRecord(input.body),
       };
       return narrativeSpans.write({
         pullRequestId: input.pullRequestId,
@@ -347,6 +349,7 @@ export function createArtifactStore(
             prevHeadSha: revisionNarrative.prevHeadSha,
             headSha: revisionNarrative.headSha,
             unchanged: revisionNarrative.unchanged,
+            skipped: revisionNarrative.skipped,
           })
           .from(revisionNarrative)
           .$dynamic(),
@@ -365,6 +368,8 @@ export function createArtifactStore(
       const marks = parsed.data;
       const serialized = JSON.stringify(marks);
       const columns = {
+        prevBaseSha: input.refs.prevBase,
+        newBaseSha: input.refs.newBase,
         body: serialized,
         byteSize: measureByteSize(serialized),
       };
@@ -398,6 +403,14 @@ export function createArtifactStore(
           .from(comparisonMarks)
           .$dynamic(),
       );
+    },
+
+    delete(pullRequestId, baselineSha, headSha) {
+      return marksSpans.remove({
+        pullRequestId,
+        lowerSha: baselineSha,
+        headSha,
+      });
     },
   };
 

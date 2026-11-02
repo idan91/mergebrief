@@ -873,6 +873,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Marks for the previous-brief span → available, narrative not yet.
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-1",
         headSha: "head-2",
@@ -916,6 +917,61 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       baselineIndex: 1,
       narrativeAvailable: true,
     });
+  });
+
+  it("meta: reads an unmarked narrative as too large only when refused", async () => {
+    stubGate();
+    const cookie = await signIn();
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const store = createArtifactStore(harness.handle, CTX);
+    const writeSpanBrief = (headSha: string, headIndex: number) =>
+      store.briefs.write({
+        pullRequestId: pr.id,
+        baseSha: "base",
+        headSha,
+        headIndex,
+        commitCount: headIndex,
+        provider: "anthropic",
+        model: "claude",
+        effort: "high",
+        bodyVersion: STORED_BODY_VERSION,
+        body: "{}",
+        usedGroupIds: [],
+      });
+    await writeSpanBrief("head-1", 1);
+    const currentBrief = await writeSpanBrief("head-2", 2);
+    const writeNarrative = (body: string) =>
+      store.revisionNarratives.write({
+        pullRequestId: pr.id,
+        briefId: currentBrief.id,
+        prevHeadSha: "head-1",
+        headSha: "head-2",
+        body,
+        provider: "anthropic",
+        model: "claude",
+        effort: "high",
+        bodyVersion: STORED_BODY_VERSION,
+      });
+    const readPreviousBrief = async () => {
+      const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+      const body = (await res.json()) as {
+        comparisons?: { previousBrief?: { unavailable?: string } };
+      };
+      return body.comparisons?.previousBrief?.unavailable;
+    };
+
+    await writeNarrative(JSON.stringify({ overview: "narrated" }));
+    const lostMarks = await readPreviousBrief();
+    await writeNarrative(
+      JSON.stringify({
+        artifactKind: "revisionNarrativeSkipped",
+        skipped: "span too large",
+      }),
+    );
+    const refused = await readPreviousBrief();
+
+    expect(lostMarks).toBe("baseline-unavailable");
+    expect(refused).toBe("span-too-large");
   });
 
   // ------------------------------------------------------ meta: lastReview
@@ -1002,6 +1058,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-1",
         headSha: "head-2",
@@ -1401,6 +1458,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Marks for the (head-2 → head-3) span only.
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-2",
         headSha: "head-3",
@@ -1446,6 +1504,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Forward marks (head-2 → head-3) exist; the backward span never will.
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-2",
         headSha: "head-3",
@@ -1488,6 +1547,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Previous-brief marks + last-review marks both land on the latest span.
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-1",
         headSha: "head-2",
@@ -1535,6 +1595,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Marks for the current revision's previous-brief span (head-3 → head-2).
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-3",
         headSha: "head-2",
@@ -1587,6 +1648,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-3");
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-3",
         headSha: "head-2",

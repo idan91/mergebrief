@@ -6,9 +6,10 @@ import {
   checkRevisionNarrativeForWrite,
   isDeltaSkipRecord,
   isDeltaUnchangedRecord,
+  isRevisionNarrativeSkipRecord,
   isRevisionNarrativeUnchangedRecord,
 } from "../../src/artifact";
-import { BriefSchema } from "../../src/types";
+import { BriefSchema, RevisionNarrativeSkipReasons } from "../../src/types";
 import {
   makeSkippedDelta,
   makeSkippedRevisionNarrative,
@@ -238,6 +239,22 @@ describe("the no-change records", () => {
     expect(isRevisionNarrativeUnchangedRecord(narrative)).toBe(true);
     expect(isRevisionNarrativeUnchangedRecord(delta)).toBe(false);
     expect(isRevisionNarrativeUnchangedRecord("not json")).toBe(false);
+  });
+
+  it("names the narrative's skip record by its kind, whatever the reason", () => {
+    const tooLarge = makeSkippedRevisionNarrative();
+    const disabled = {
+      ...tooLarge,
+      skipped: RevisionNarrativeSkipReasons.DISABLED_BY_CONFIG,
+    };
+    const unchanged = makeUnchangedRevisionNarrative();
+
+    expect(isRevisionNarrativeSkipRecord(JSON.stringify(tooLarge))).toBe(true);
+    expect(isRevisionNarrativeSkipRecord(JSON.stringify(disabled))).toBe(true);
+    expect(isRevisionNarrativeSkipRecord(JSON.stringify(unchanged))).toBe(
+      false,
+    );
+    expect(isRevisionNarrativeSkipRecord("not json")).toBe(false);
   });
 });
 

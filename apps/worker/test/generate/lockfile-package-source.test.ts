@@ -7,6 +7,7 @@ import {
   type PullRequestRowId,
 } from "persistence";
 import {
+  arrangeNewHeadPrDiff,
   arrangeRevisionSpan,
   BASE,
   buildRepoFile,
@@ -16,6 +17,7 @@ import {
   HEAD_1,
   HEAD_2,
   makeGitHub,
+  makeHeadPrDiff,
   makePullRequestInfo,
   makeReviewerId,
   makeTask,
@@ -68,6 +70,18 @@ function makePnpmLockfile(key: string, resolution: string): string {
 }
 
 const REGISTRY = "{integrity: sha512-a}";
+
+function makePnpmLockfileOf(packages: Record<string, string>): string {
+  const keys = Object.keys(packages);
+  return [
+    "lockfileVersion: '9.0'",
+    "packages:",
+    ...keys.map((key) => `  ${key}:\n    resolution: ${packages[key]}`),
+    "snapshots:",
+    ...keys.map((key) => `  ${key}: {}`),
+    "",
+  ].join("\n");
+}
 /** The PR's own lockfile change at the second head: foo@1.0.0 to foo@1.1.0. */
 const FOO_BUMP_DIFF = `diff --git a/${LOCKFILE} b/${LOCKFILE}
 --- a/${LOCKFILE}
@@ -87,6 +101,9 @@ const LOCKFILES_PAST_CAP = 21;
 /** Twenty lockfile children fork one after another. */
 const PAST_CAP_TIMEOUT_MS = 60_000;
 const MERGE_BASE = "d".repeat(40);
+/** The first head's merge base before the rebase onto OTHER_BASE. */
+const OLD_MERGE_BASE = "9".repeat(40);
+const OTHER_BASE = "e".repeat(40);
 /** Long enough for the child to fill its heap cap and be killed. */
 const HEAP_EXHAUSTION_TIMEOUT_MS = 60_000;
 const FLOW_ITEMS = 64;
@@ -133,6 +150,31 @@ function makeRenameDiff(previousPath: string, path: string): string {
     "+new",
     "",
   ].join("\n");
+}
+
+/** The delta's one chunk is the lockfile's, so its risk surface is the rule's answer. */
+function arrangeLockfileDelta(generator: ReturnType<typeof stubGenerator>) {
+  const brief = generator.outputs["brief"] as { changeGroups: object[] };
+  generator.outputs["delta"] = {
+    summary: "bumps foo",
+    commentsAddressed: "",
+    changedGroups: brief.changeGroups,
+    chunks: [
+      {
+        id: "c1",
+        changeGroupId: "g1",
+        file: LOCKFILE,
+        concern: "generated",
+        role: "supporting",
+        addedRanges: [{ start: 2, end: 2 }],
+        removedRanges: [{ start: 2, end: 2 }],
+        riskSurface: [],
+        summary: "bumps foo",
+        addressesComments: [],
+      },
+    ],
+    wholePrImpact: "",
+  };
 }
 
 function arrangeLockfile(before: string, after: string) {
@@ -363,7 +405,7 @@ describe("generate task, changes-package-source from lockfile contents", () => {
     expect(await readLockfileRisks(pr.id)).toBeUndefined();
   });
 
-  it("reads a delta span's lockfile at its merge base for its chunk", async () => {
+  it("reads a delta span's lockfile at its baseline, not its merge base", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = makeGitHub(HEAD_1);
@@ -439,12 +481,67 @@ describe("generate task, changes-package-source from lockfile contents", () => {
     const body = JSON.parse(row?.body ?? "{}") as {
       chunks?: { file: string; riskSurface: string[] }[];
     };
-    expect(mergeBases).toContainEqual(expect.objectContaining(span));
-    expect(reads.filter((ref) => ref !== HEAD_1)).toEqual([
+    expect(mergeBases).not.toContainEqual(expect.objectContaining(span));
+    expect(reads).not.toContain(MERGE_BASE);
+    expect(reads.filter((ref) => ref !== HEAD_1)).toEqual([HEAD_2, HEAD_2]);
+    expect(body.chunks?.map((chunk) => chunk.riskSurface)).toEqual([[]]);
+  });
+
+  it("leaves a rebase's base-only mirror move out of a delta span", async () => {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = makeGitHub(HEAD_1);
+    github.addCompare(
+      REPO,
+      { base: BASE, head: HEAD_1 },
+      { diff: makeHeadPrDiff(HEAD_1), mergeBase: OLD_MERGE_BASE },
+    );
+    const task = makeTask({ generator, github });
+    await task(first.payload);
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: HEAD_1,
+      submittedAt: new Date(),
+    });
+    const newPrDiff = `${makeHeadPrDiff(HEAD_1)}${FOO_BUMP_DIFF}`;
+    arrangeNewHeadPrDiff(github, newPrDiff, OTHER_BASE);
+    github.addCompare(
+      REPO,
+      { base: OTHER_BASE, head: HEAD_2 },
+      { diff: newPrDiff, mergeBase: MERGE_BASE },
+    );
+    const own = { "bar@1.0.0": REGISTRY };
+    const lockfiles = {
+      [OLD_MERGE_BASE]: makePnpmLockfileOf({ "foo@1.0.0": REGISTRY }),
+      [HEAD_1]: makePnpmLockfileOf({ "foo@1.0.0": REGISTRY, ...own }),
+      [MERGE_BASE]: makePnpmLockfileOf({ "foo@2.0.0": MIRROR }),
+      [HEAD_2]: makePnpmLockfileOf({ "foo@2.0.0": MIRROR, ...own }),
+    };
+    for (const [ref, text] of Object.entries(lockfiles)) {
+      github.addRepoFile(
+        REPO,
+        { path: LOCKFILE, ref },
+        buildRepoFile(text, `sha-${ref.slice(0, 1)}`),
+      );
+    }
+    arrangeLockfileDelta(generator);
+
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2, baseSha: OTHER_BASE });
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    const row = await createArtifactStore(harness.handle, ctx).deltas.get(
+      second.pr.id,
+      HEAD_1,
       HEAD_2,
-      MERGE_BASE,
-      HEAD_2,
-    ]);
+    );
+    const body = JSON.parse(row?.body ?? "{}") as {
+      chunks?: { file: string; riskSurface: string[] }[];
+    };
     expect(body.chunks?.map((chunk) => chunk.riskSurface)).toEqual([[]]);
   });
 

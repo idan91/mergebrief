@@ -18,6 +18,13 @@ export const comparisonMarks = pgTable(
     /** Span lower bound: a prevHead OR a checkpoint SHA. */
     baselineSha: text("baseline_sha").notNull(),
     headSha: text("head_sha").notNull(),
+    /**
+     * The base each head's PR diff was read against: the refs the span text
+     * was computed from. Never written over a narrative or delta computed
+     * from other bases, so the row certifies what is stored beside it.
+     */
+    prevBaseSha: text("prev_base_sha").notNull(),
+    newBaseSha: text("new_base_sha").notNull(),
     ...artifactColumns(),
   },
   (table) => [

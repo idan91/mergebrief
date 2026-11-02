@@ -34,10 +34,14 @@ import {
   recoverStoredBrief,
   writeFreshBrief,
 } from "./brief-generation";
-import { generateCheckpointDeltas } from "./checkpoint-deltas";
+import {
+  generateCheckpointDeltas,
+  listCheckpointBaselines,
+} from "./checkpoint-deltas";
 import { createMultiCallRun, sweepSpanParts } from "./generation-parts";
 import { readDefaultBranchGitAttributes } from "./git-attributes";
-import { createRevisionSpanReader } from "./revision-span";
+import { createRevisionSpanReader, readSpanBaseRefs } from "./revision-span";
+import { dropStaleMarks } from "./span-marks";
 import { createSpendCharge } from "./spend-gate";
 import { throwOnClaimLost } from "./supersession-watch";
 import {
@@ -153,8 +157,9 @@ async function writeFreshBriefOverParts(
 
 /**
  * The revision artifacts over the prevHead...head span, then one delta core
- * per checkpoint. The span read before the model call is reused by the delta
- * loop, so a checkpoint at the previous briefed head does not re-read it.
+ * per checkpoint, the one sharing the revision span's key first. The span
+ * read before the model call is reused by the delta loop, so a checkpoint at
+ * the previous briefed head does not re-read it.
  */
 export async function writeFollowOnArtifacts(
   context: RunContext,
@@ -164,10 +169,16 @@ export async function writeFollowOnArtifacts(
 ): Promise<void> {
   const { deps, payload, watch, log } = context;
   const chargeSpend = createSpendCharge(context);
+  const checkpointShas = await listCheckpointBaselines(
+    context.repo,
+    payload,
+    context.prevBrief?.headSha,
+  );
+  const spend = { generator, chargeSpend };
   const prevSpan = await traceRunStep(
     "generation.revision",
     listRunStops(context),
-    () => writeRevisionSpan(context, inputs, brief, { generator, chargeSpend }),
+    () => writeRevisionSpan(context, inputs, brief, spend, checkpointShas),
   );
   const deltaCount = await traceRunStep(
     "generation.deltas",
@@ -176,7 +187,7 @@ export async function writeFollowOnArtifacts(
       const written = await generateCheckpointDeltas(payload, {
         hugeSpanRatio: deps.hugeSpanRatio,
         store: context.store,
-        repo: context.repo,
+        baselineShas: checkpointShas,
         locator: inputs.locator,
         meta: inputs.meta,
         source: context.source,
@@ -254,6 +265,7 @@ async function writeRevisionSpan(
   inputs: RunInputs,
   brief: ProducedBrief,
   spend: Pick<RevisionArtifactInputs, "generator" | "chargeSpend">,
+  checkpointShas: readonly string[],
 ): Promise<PrefetchedSpan | undefined> {
   const { deps, payload, prevBrief, log } = context;
   const spanRead = inputs.prevSpanRead;
@@ -273,13 +285,16 @@ async function writeRevisionSpan(
   }
 
   const span = spanRead.value;
-  await writeRevisionArtifacts(payload, {
+  const refs = readSpanBaseRefs(prevBrief, context.prInfo.baseSha);
+  const marksDuty = await writeRevisionArtifacts(payload, {
     revisionNarrative: deps.revisionNarrative,
     hugeSpanRatio: deps.hugeSpanRatio,
     store: context.store,
     locator: inputs.locator,
     meta: inputs.meta,
     span,
+    refs,
+    checkpointSharesSpan: checkpointShas.includes(baselineSha),
     prevBrief,
     briefRef: brief.briefRef,
     generatedBrief: brief.generatedBrief,
@@ -292,10 +307,10 @@ async function writeRevisionSpan(
     loadContext: inputs.loadContext,
     log,
   });
-  return { baselineSha, span, marksWritten: true };
+  return { baselineSha, span, refs, marksDuty };
 }
 
-/** A span GitHub would not render still gets its skip record, without marks. */
+/** A span GitHub would not render still gets its skip record, without marks: stale ones are dropped first. */
 async function writeRefusedSpanSkip(
   context: RunContext,
   prevBrief: RevisionArtifactInputs["prevBrief"],
@@ -308,7 +323,20 @@ async function writeRefusedSpanSkip(
     return;
   }
 
-  const record = { store, prevBrief, briefRef, generatedBrief, log };
+  const key = {
+    pullRequestId: payload.pullRequestId,
+    baselineSha: prevBrief.headSha,
+    headSha: payload.headSha,
+  };
+  const refs = readSpanBaseRefs(prevBrief, context.prInfo.baseSha);
+  const record = {
+    store,
+    prevBrief,
+    briefRef,
+    generatedBrief,
+    log,
+    dropStaleMarks: () => dropStaleMarks(store, key, refs),
+  };
   await writeSkippedNarrative(payload, record, skipped);
 }
 

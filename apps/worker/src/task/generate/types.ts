@@ -34,6 +34,7 @@ import type {
   GenerationTarget,
   PullRequestRow,
   PullRequestRowId,
+  SpanBaseRefs,
   TenantRepository,
 } from "persistence";
 import type {
@@ -221,12 +222,35 @@ export interface AnchorColumns {
   anchorReason?: string;
 }
 
+export const MarksStates = {
+  ABSENT: "absent",
+  /** Written from the refs resolved now: the key's narrative and delta are current too. */
+  CURRENT: "current",
+  /** Written from other refs: a same-head retarget or a returning head moved the span. */
+  STALE: "stale",
+} as const;
+export type MarksState = ValueOf<typeof MarksStates>;
+
+export const MarksDuties = {
+  /** The key's marks hold this span's refs, stored already or written beside the narrative; a delta written under the key rewrites them. */
+  CURRENT: "current",
+  /** A checkpoint shares the key and a delta is stored under it: the delta step rewrites that delta first, then writes the marks. */
+  AFTER_SHARED_DELTA: "after-shared-delta",
+  /** The narrative failed over stale refs, or the stored brief could not be read back: no marks, and the delta step leaves the key on its old refs. */
+  WITHHELD: "withheld",
+  /** A checkpoint's own key: its delta step writes the marks after the delta. */
+  OWN: "own",
+} as const;
+export type MarksDuty = ValueOf<typeof MarksDuties>;
+
 /** A revision span already read this run, reused, never re-read. */
 export interface FetchedSpan {
   readonly baselineSha: string;
   readonly span: PrSpan;
-  /** Marks for this span were already written this run. */
-  readonly marksWritten: boolean;
+  /** The bases the span was read against; its marks row stores them. */
+  readonly refs: SpanBaseRefs;
+  /** Who writes this key's marks; they never certify a core computed from other bases. */
+  readonly marksDuty: MarksDuty;
 }
 
 /** A span the run could not read: no later step asks again. */
@@ -260,6 +284,10 @@ export interface RevisionArtifactInputs {
   readonly meta: PrMetadata;
   /** The revision span from the previous briefed head, read once by the caller. */
   readonly span: PrSpan;
+  /** The bases `span` was read against. */
+  readonly refs: SpanBaseRefs;
+  /** A reviewer's checkpoint sits at the previous briefed head, so a checkpoint delta shares this span's key. */
+  readonly checkpointSharesSpan: boolean;
   readonly prevBrief: BriefSpanRow;
   readonly briefRef: BriefRef;
   /** Present only when THIS run generated the brief (narrative needs it). */
@@ -281,12 +309,13 @@ export interface CheckpointDeltasInputs {
   readonly store: ArtifactStore;
   /** The huge-span ratio main.ts read; absent means the default. */
   readonly hugeSpanRatio?: number | undefined;
-  readonly repo: TenantRepository;
+  /** Each distinct checkpoint SHA but the run's head, the revision span's key first. */
+  readonly baselineShas: readonly string[];
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
   readonly source: PullRequestSource;
   readonly priorBriefs: readonly BriefSpanRow[];
-  /** The prevHead...head span already read (and marks written) this run. */
+  /** The prevHead...head span already read this run, with who writes its key's marks. */
   readonly prevSpan: PrefetchedSpan | undefined;
   readonly readSpan: RevisionSpanReader;
   /** The PR's current base: a checkpoint no Brief was written at is read against it. */

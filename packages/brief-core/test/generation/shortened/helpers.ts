@@ -63,3 +63,26 @@ export function summarizePnpm(
   }
   return summary;
 }
+
+/** Each head's pnpm lockfile beside its merge base: a span whose heads sit on different bases. */
+export interface RebasedPnpmSides {
+  readonly beforeMergeBase: Record<string, string>;
+  readonly before: Record<string, string>;
+  readonly afterMergeBase: Record<string, string>;
+  readonly after: Record<string, string>;
+}
+
+export function summarizeRebasedPnpm(sides: RebasedPnpmSides): LockfileSummary {
+  const summary = summarizeLockfile(
+    "pnpm-lock.yaml",
+    makeSides(makePnpmLockfile(sides.before), makePnpmLockfile(sides.after)),
+    makeSides(
+      makePnpmLockfile(sides.beforeMergeBase),
+      makePnpmLockfile(sides.afterMergeBase),
+    ),
+  );
+  if (summary === undefined) {
+    throw new Error("pnpm-lock.yaml is a lockfile");
+  }
+  return summary;
+}

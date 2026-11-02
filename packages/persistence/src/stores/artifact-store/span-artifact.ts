@@ -74,6 +74,8 @@ export interface SpanArtifactAccess<TTable extends SpanArtifactTable> {
     select: TQuery,
     order?: SpanOrder,
   ): Promise<SelectedRow<TQuery>[]>;
+  /** Drops the key's row in scope; a row outside the scope, or none, is left as it is. */
+  remove(key: SpanKey): Promise<void>;
 }
 
 function assertSetLeavesStampAlone(set: object): void {
@@ -159,6 +161,10 @@ export function createSpanArtifactAccess<TTable extends SpanArtifactTable>(
 
     list(pullRequestId, select, order) {
       return filterSpans(select, matchesPullRequest(pullRequestId), order);
+    },
+
+    async remove(key) {
+      await db.delete(table).where(matchesSpan(key));
     },
   };
 }

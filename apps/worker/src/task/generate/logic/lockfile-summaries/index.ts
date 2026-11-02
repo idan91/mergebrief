@@ -9,10 +9,12 @@ import {
   LockfileReadFailures,
   LockfileSideKinds,
   summarizeUnreadLockfile,
+  type LockfileReadFailure,
   type LockfileSide,
+  type LockfileSides,
   type LockfileSummary,
 } from "brief-core/shortened";
-import { RepoFileKinds } from "github";
+import { GitHubApiErrorCodes, RepoFileKinds } from "github";
 import type { Logger } from "logging";
 import type { Result } from "types/utils";
 import type { PullRequestSource } from "../../../github-port";
@@ -23,7 +25,10 @@ import {
 } from "../errors";
 import { summarizeInChild } from "./isolated-summary";
 import {
+  LockfileSpanKinds,
   SummaryFailures,
+  type LockfileSpan,
+  type RevisionLockfileSpan,
   type SpanLimits,
   type SummaryFailure,
   type SummaryReply,
@@ -34,10 +39,11 @@ type LockfileReads = Pick<
   "fetchRepoFileAt" | "fetchMergeBase"
 >;
 
-/** The commits a diff spans; the lockfile's base side is read where the diff starts, their merge base. */
-export interface LockfileSpan {
-  readonly base: string;
+/** Where a lockfile's sides are read: `base` (none when unread) and `head`, plus each head's merge base over a rebase. */
+interface SideRefs {
+  readonly base: string | undefined;
   readonly head: string;
+  readonly mergeBases?: { readonly before: string; readonly after: string };
 }
 
 /** Lockfiles read per span; one past it has no summary, so it fires. */
@@ -57,17 +63,24 @@ const UNAVAILABLE_SIDE: LockfileSide = { kind: LockfileSideKinds.UNAVAILABLE };
 /**
  * A side the diff says exists. Content GitHub refuses for good (a missing
  * file, a non-file, one over the cap) reads unavailable, which fails
- * closed; a failure a retry may clear throws for graphile's retry.
+ * closed; a failure a retry may clear throws for graphile's retry. At a
+ * merge base the diff says nothing, so a missing file is `missing`.
  */
 async function readSide(
   source: LockfileReads,
   path: string,
   ref: string,
   log: Logger,
+  missing: LockfileSide = UNAVAILABLE_SIDE,
 ): Promise<LockfileSide> {
   const read = await source.fetchRepoFileAt(path, ref, LOCKFILE_MAX_BYTES);
   if (!read.ok && !isRepoFileRefusedForGood(read.error)) {
     throwOnGitHubFailure(read);
+  }
+  const isMissing =
+    !read.ok && read.error.code === GitHubApiErrorCodes.NOT_FOUND;
+  if (isMissing && missing.kind === LockfileSideKinds.ABSENT) {
+    return missing;
   }
   if (!read.ok) {
     log.warn("generate: lockfile read failed", {
@@ -88,13 +101,14 @@ async function readSide(
   return { kind: LockfileSideKinds.TEXT, text: read.value.content };
 }
 
-/** The commit the diff is taken from; a permanent refusal leaves no base to read. */
+/** The merge base of `base` and `head`; a permanent refusal leaves none. */
 async function readMergeBase(
   source: LockfileReads,
-  span: LockfileSpan,
+  base: string,
+  head: string,
   log: Logger,
 ): Promise<string | undefined> {
-  const read = await source.fetchMergeBase(span.base, span.head);
+  const read = await source.fetchMergeBase(base, head);
   if (!read.ok && !isPermanentGitHubError(read.error)) {
     throwOnGitHubFailure(read);
   }
@@ -105,6 +119,55 @@ async function readMergeBase(
     return undefined;
   }
   return read.value;
+}
+
+const MERGE_BASE_UNREAD: Result<SideRefs, LockfileReadFailure> = {
+  ok: false,
+  error: LockfileReadFailures.UNAVAILABLE,
+};
+
+/**
+ * A revision span compares the two heads. Over one merge base that is each
+ * head's own change; over two, each head is read beside its own merge base.
+ * An unread merge base leaves every lockfile unread: the heads alone miss a
+ * source the PR kept after the base moved off it.
+ */
+async function readRevisionRefs(
+  source: LockfileReads,
+  span: RevisionLockfileSpan,
+  log: Logger,
+): Promise<Result<SideRefs, LockfileReadFailure>> {
+  const heads: SideRefs = { base: span.base, head: span.head };
+  const before = await readMergeBase(
+    source,
+    span.refs.prevBase,
+    span.base,
+    log,
+  );
+  const after = await readMergeBase(source, span.refs.newBase, span.head, log);
+  if (before === undefined || after === undefined) {
+    return MERGE_BASE_UNREAD;
+  }
+  if (before === after) {
+    return { ok: true, value: heads };
+  }
+  return { ok: true, value: { ...heads, mergeBases: { before, after } } };
+}
+
+/** The whole PR's lockfile base side sits at its merge base, as the PR diff is taken from it. */
+async function readSideRefs(
+  source: LockfileReads,
+  span: LockfileSpan,
+  readsBase: boolean,
+  log: Logger,
+): Promise<Result<SideRefs, LockfileReadFailure>> {
+  if (span.kind === LockfileSpanKinds.REVISION) {
+    return readRevisionRefs(source, span, log);
+  }
+  const base = readsBase
+    ? await readMergeBase(source, span.base, span.head, log)
+    : undefined;
+  return { ok: true, value: { base, head: span.head } };
 }
 
 function getDirectory(path: string): string {
@@ -133,16 +196,46 @@ function readBasePath(lockfile: ChangedLockfile): string | undefined {
   return sameLockfile ? previousPath : undefined;
 }
 
+/** The lockfile at each head's merge base, where its PR change starts. */
+async function readMergeBaseSides(
+  source: LockfileReads,
+  lockfile: ChangedLockfile,
+  refs: SideRefs,
+  log: Logger,
+): Promise<LockfileSides | undefined> {
+  if (refs.mergeBases === undefined) {
+    return undefined;
+  }
+  const beforePath = readBasePath(lockfile) ?? lockfile.path;
+  const { mergeBases } = refs;
+  const before = await readSide(
+    source,
+    beforePath,
+    mergeBases.before,
+    log,
+    ABSENT_SIDE,
+  );
+  const after = await readSide(
+    source,
+    lockfile.path,
+    mergeBases.after,
+    log,
+    ABSENT_SIDE,
+  );
+  return { before, after };
+}
+
 /** One changed lockfile's summary, read in a child process; one that fails reads as unparseable. */
 async function summarizeChangedLockfile(
   source: LockfileReads,
   lockfile: ChangedLockfile,
-  refs: { base: string | undefined; head: string },
+  refs: SideRefs,
   limits: SpanLimits,
   log: Logger,
 ): Promise<LockfileSummary | undefined> {
   const basePath = readBasePath(lockfile);
   // One side at a time, so a run holds no more text than the child is handed.
+  const mergeBases = await readMergeBaseSides(source, lockfile, refs, log);
   let before = ABSENT_SIDE;
   if (basePath !== undefined) {
     before =
@@ -163,6 +256,7 @@ async function summarizeChangedLockfile(
           lockfile.path,
           { before, after },
           { timeoutMs: remainingMs, stop: limits.stop },
+          mergeBases,
         );
   limits.stop.throwIfAborted();
   if (read.ok) {
@@ -178,11 +272,25 @@ async function summarizeChangedLockfile(
   );
 }
 
+function summarizeUnreadLockfiles(
+  lockfiles: readonly ChangedLockfile[],
+  failure: LockfileReadFailure,
+): Map<string, LockfileSummary> {
+  const summaries = new Map<string, LockfileSummary>();
+  for (const { path } of lockfiles) {
+    const summary = summarizeUnreadLockfile(path, failure);
+    if (summary !== undefined) {
+      summaries.set(path, summary);
+    }
+  }
+  return summaries;
+}
+
 /**
  * The package summary of every pnpm, npm or yarn lockfile `diff` changes,
  * keyed as its chunks are, for the `changes-package-source` rule. Each is
- * read and summarized before the next, so one lockfile's text is held at a
- * time, and every summary runs in its own child process under one span
+ * read and summarized before the next, so one lockfile's sides are held at
+ * a time, and every summary runs in its own child process under one span
  * budget.
  */
 export async function readLockfileSummaries(
@@ -207,7 +315,10 @@ export async function readLockfileSummaries(
   const readsBase = readable.some(
     (lockfile) => readBasePath(lockfile) !== undefined,
   );
-  const base = readsBase ? await readMergeBase(source, span, log) : undefined;
+  const refs = await readSideRefs(source, span, readsBase, log);
+  if (!refs.ok) {
+    return summarizeUnreadLockfiles(readable, refs.error);
+  }
   const signals = stops.filter((signal) => signal !== undefined);
   const limits: SpanLimits = {
     deadline: Date.now() + SPAN_BUDGET_MS,
@@ -219,7 +330,7 @@ export async function readLockfileSummaries(
     const summary = await summarizeChangedLockfile(
       source,
       lockfile,
-      { base, head: span.head },
+      refs.value,
       limits,
       log,
     );

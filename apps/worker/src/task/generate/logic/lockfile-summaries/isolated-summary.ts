@@ -18,7 +18,7 @@ const CHILD_ENTRY = fileURLToPath(
   new URL("./summary-child.ts", import.meta.url),
 );
 const TSX_LOADER = createRequire(import.meta.url).resolve("tsx");
-/** A realistic side pair near the byte cap parses within 384 MB. */
+/** Four pnpm sides near the byte cap, read in stages, parse within 448 MB, as two heads do. */
 const CHILD_HEAP_MB = 512;
 const CHILD_SEMI_SPACE_MB = 16;
 /**
@@ -61,11 +61,15 @@ export async function summarizeInChild(
   path: string,
   sides: LockfileSides,
   limits: ChildLimits,
+  mergeBases?: LockfileSides,
 ): Promise<SummaryOutcome> {
   if (limits.stop.aborted) {
     return STOPPED;
   }
   const request: SummaryRequest = { path, sides };
+  if (mergeBases !== undefined) {
+    request.mergeBases = mergeBases;
+  }
   const child = fork(CHILD_ENTRY, {
     execArgv: CHILD_EXEC_ARGV,
     env: {},

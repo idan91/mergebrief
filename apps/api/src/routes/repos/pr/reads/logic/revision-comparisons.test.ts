@@ -14,9 +14,14 @@ const NO_NARRATIVES = buildNarrativeSpanSets([]);
 function stubNarrativeRow(
   prevHeadSha: string,
   headSha: string,
-  unchanged = false,
+  flags: { unchanged?: boolean; skipped?: boolean } = {},
 ) {
-  return { prevHeadSha, headSha, unchanged };
+  return {
+    prevHeadSha,
+    headSha,
+    unchanged: flags.unchanged ?? false,
+    skipped: flags.skipped ?? false,
+  };
 }
 
 function stubDeltaRow(flags: { skipped?: boolean; unchanged?: boolean }) {
@@ -100,7 +105,23 @@ describe("derivePreviousBriefComparison", () => {
     });
   });
 
-  it("says too large when a narrative record stands without marks", () => {
+  it("says too large when the narrative's skip record stands without marks", () => {
+    const refused = stubNarrativeRow("h1", "h3", { skipped: true });
+    const view = derivePreviousBriefComparison(
+      brief(3, "h3"),
+      briefs,
+      new Set(),
+      buildNarrativeSpanSets([refused]),
+      false,
+    );
+    expect(view).toEqual({
+      baselineSha: "h1",
+      baselineIndex: 2,
+      unavailable: "span-too-large",
+    });
+  });
+
+  it("says pending for a narrative without marks while the run goes on", () => {
     const view = derivePreviousBriefComparison(
       brief(3, "h3"),
       briefs,
@@ -111,7 +132,22 @@ describe("derivePreviousBriefComparison", () => {
     expect(view).toEqual({
       baselineSha: "h1",
       baselineIndex: 2,
-      unavailable: "span-too-large",
+      unavailable: "pending",
+    });
+  });
+
+  it("says unavailable for a narrative left without marks by a run", () => {
+    const view = derivePreviousBriefComparison(
+      brief(3, "h3"),
+      briefs,
+      new Set(),
+      buildNarrativeSpanSets([stubNarrativeRow("h1", "h3")]),
+      false,
+    );
+    expect(view).toEqual({
+      baselineSha: "h1",
+      baselineIndex: 2,
+      unavailable: "baseline-unavailable",
     });
   });
 
@@ -148,7 +184,9 @@ describe("derivePreviousBriefComparison", () => {
       brief(1, "h1"),
       briefs,
       new Set([spanKey("h0", "h1")]),
-      buildNarrativeSpanSets([stubNarrativeRow("h0", "h1", true)]),
+      buildNarrativeSpanSets([
+        stubNarrativeRow("h0", "h1", { unchanged: true }),
+      ]),
       false,
     );
     expect(view).toEqual({

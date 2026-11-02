@@ -135,9 +135,14 @@ describe("ingestBriefDirectory", () => {
     expect(narratives).toHaveLength(1);
     expect(String(narratives[0]?.["brief_id"])).toBe(String(rev2.id));
 
-    // Marks projected to coordinates-only (the CLI's context keys dropped).
-    const marks = await harness.raw("select body from comparison_marks");
+    // Marks projected to coordinates-only (the CLI's context keys dropped),
+    // each side's base read off the Brief at that head.
+    const marks = await harness.raw(
+      "select body, prev_base_sha, new_base_sha from comparison_marks",
+    );
     expect(marks).toHaveLength(1);
+    expect(marks[0]?.["prev_base_sha"]).toBe(rev1.baseSha);
+    expect(marks[0]?.["new_base_sha"]).toBe(rev2.baseSha);
     const body: unknown = JSON.parse(String(marks[0]?.["body"]));
     expect(Object.keys(body as object).toSorted()).toEqual([
       "baselineSha",

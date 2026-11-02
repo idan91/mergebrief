@@ -17,38 +17,64 @@ import {
 } from "brief-core/artifact";
 import { PrSpanFailureKinds } from "brief-core/pr-span";
 import type { DeltaBrief, DeltaSkipReason } from "brief-core/types";
-import { GenerationKinds } from "persistence";
+import {
+  GenerationKinds,
+  type SpanBaseRefs,
+  type TenantRepository,
+} from "persistence";
 import type { ParsedGeneratePayload } from "../../payload";
-import type {
-  CheckpointDeltasInputs,
-  GenerationOrigin,
-  PrefetchedSpan,
+import {
+  MarksDuties,
+  MarksStates,
+  type CheckpointDeltasInputs,
+  type FetchedSpan,
+  type GenerationOrigin,
+  type PrefetchedSpan,
 } from "../types";
 import { getGenerationOrigin } from "../utils";
 import { warnOnFailedCheck } from "./artifact-check";
 import { isOutputCut, runGenerator } from "./errors";
 import { readLockfileSummaries } from "./lockfile-summaries";
-import { resolveSpanBaseline } from "./revision-span";
+import { LockfileSpanKinds } from "./lockfile-summaries/types";
+import { readSpanBaseRefs, resolveSpanBaseline } from "./revision-span";
+import { dropStaleMarks, readMarksState, writeSpanMarks } from "./span-marks";
 
 /**
- * Prewarm each distinct checkpoint: skip stored cores, write mechanical marks, then the
- * size checks before model spend. A span too large for its delta stores a skip record.
- * A failed span aborts with its classification; stored earlier spans survive for retry.
+ * Each distinct checkpoint SHA but the run's head. The revision span's key
+ * comes first, so marks waiting on its shared delta land after one call.
+ */
+export async function listCheckpointBaselines(
+  repo: TenantRepository,
+  payload: ParsedGeneratePayload,
+  revisionBaselineSha: string | undefined,
+): Promise<string[]> {
+  const { pullRequestId, headSha } = payload;
+  const checkpoints = await repo.checkpoints.listForPullRequest(pullRequestId);
+  const distinctShas = [
+    ...new Set(checkpoints.map((checkpoint) => checkpoint.lastSubmittedSha)),
+  ].filter((sha) => sha !== headSha);
+  if (revisionBaselineSha === undefined) {
+    return distinctShas;
+  }
+  const isRevisionKey = (sha: string) => sha === revisionBaselineSha;
+  return [
+    ...distinctShas.filter(isRevisionKey),
+    ...distinctShas.filter((sha) => !isRevisionKey(sha)),
+  ];
+}
+
+/**
+ * Prewarm each checkpoint span in order: skip a delta stored under current marks, run
+ * the size checks before model spend, write the delta, then its marks. A span too large
+ * for its delta stores a skip record. A failed span aborts with its classification;
+ * stored earlier spans survive for retry.
  */
 export async function generateCheckpointDeltas(
   payload: ParsedGeneratePayload,
   inputs: CheckpointDeltasInputs,
 ): Promise<number> {
-  const { repo } = inputs;
-  const { pullRequestId, headSha } = payload;
-
-  const checkpoints = await repo.checkpoints.listForPullRequest(pullRequestId);
-  const distinctShas = [
-    ...new Set(checkpoints.map((checkpoint) => checkpoint.lastSubmittedSha)),
-  ].filter((sha) => sha !== headSha);
-
   let generated = 0;
-  for (const baselineSha of distinctShas) {
+  for (const baselineSha of inputs.baselineShas) {
     // oxlint-disable-next-line no-await-in-loop -- spans run sequentially by design (one model call at a time)
     const wroteDelta = await warmCheckpointSpan(payload, inputs, baselineSha);
     if (wroteDelta) {
@@ -58,16 +84,24 @@ export async function generateCheckpointDeltas(
   return generated;
 }
 
-/** True when the span got a generated Delta Brief this run. */
+/**
+ * True when the span got a generated Delta Brief this run. A stored delta
+ * is kept only under marks written from the refs resolved now; otherwise
+ * the delta is rewritten and the marks come after it. A key whose marks the
+ * revision step withheld keeps its old refs: its delta is left as stored.
+ */
 async function warmCheckpointSpan(
   payload: ParsedGeneratePayload,
   inputs: CheckpointDeltasInputs,
   baselineSha: string,
 ): Promise<boolean> {
-  const { store, locator, meta, priorBriefs } = inputs;
-  const { pullRequestId, headSha } = payload;
-  const already = await store.deltas.get(pullRequestId, baselineSha, headSha);
-  if (already !== undefined) {
+  const { locator, meta, priorBriefs, prevSpan } = inputs;
+  const { headSha } = payload;
+  const isWithheld =
+    prevSpan?.baselineSha === baselineSha &&
+    "marksDuty" in prevSpan &&
+    prevSpan.marksDuty === MarksDuties.WITHHELD;
+  if (isWithheld || (await isDeltaCurrent(payload, inputs, baselineSha))) {
     return false;
   }
 
@@ -82,9 +116,17 @@ async function warmCheckpointSpan(
     baselineIndex,
     headIndex: inputs.briefHeadIndex,
   };
+  const key = { pullRequestId: payload.pullRequestId, baselineSha, headSha };
   if ("unread" in span) {
     // A span GitHub will not render has no marks; the record says why.
     if (span.diffTooLarge) {
+      const baseline = resolveSpanBaseline(
+        priorBriefs,
+        baselineSha,
+        inputs.baseSha,
+      );
+      const refs = readSpanBaseRefs(baseline, inputs.baseSha);
+      await dropStaleMarks(inputs.store, key, refs);
       await writeDeltaSkip(
         payload,
         inputs,
@@ -95,18 +137,45 @@ async function warmCheckpointSpan(
     return false;
   }
 
-  const { filteredDiff, isUnchanged } = span.span;
-  if (!span.marksWritten) {
-    // Span marks BEFORE the LLM call: a failed delta still leaves
-    // highlights for the checkpoint span.
-    await writeCheckpointMarks(payload, inputs, spanRef, filteredDiff);
+  await dropStaleMarks(inputs.store, key, span.refs);
+  const wroteDelta = await writeSpanDeltaRecord(payload, inputs, spanRef, span);
+  await writeCheckpointMarks(payload, inputs, spanRef, span);
+  return wroteDelta;
+}
+
+/** The stored delta, kept when the key's marks were written from the refs resolved now. */
+async function isDeltaCurrent(
+  payload: ParsedGeneratePayload,
+  inputs: CheckpointDeltasInputs,
+  baselineSha: string,
+): Promise<boolean> {
+  const { store, priorBriefs, baseSha } = inputs;
+  const { pullRequestId, headSha } = payload;
+  const stored = await store.deltas.get(pullRequestId, baselineSha, headSha);
+  if (stored === undefined) {
+    return false;
   }
+  const baseline = resolveSpanBaseline(priorBriefs, baselineSha, baseSha);
+  const refs = readSpanBaseRefs(baseline, baseSha);
+  const key = { pullRequestId, baselineSha, headSha };
+  const state = await readMarksState(store, key, refs);
+  return state === MarksStates.CURRENT;
+}
+
+/** The span's delta record: no change, a skip, or the generated Delta Brief (true). */
+async function writeSpanDeltaRecord(
+  payload: ParsedGeneratePayload,
+  inputs: CheckpointDeltasInputs,
+  spanRef: DeltaSpanRef,
+  fetched: FetchedSpan,
+): Promise<boolean> {
+  const { filteredDiff, isUnchanged } = fetched.span;
   if (isUnchanged) {
     await writeDeltaUnchanged(payload, inputs, spanRef);
     return false;
   }
   const spanInput: DeltaInput = { ...spanRef, incrementalDiff: filteredDiff };
-  return writeSpanDelta(payload, inputs, spanInput);
+  return writeSpanDelta(payload, inputs, spanInput, fetched.refs);
 }
 
 /** No Delta Brief is owed where the PR's own change did not move: no charge, no call. */
@@ -122,27 +191,26 @@ async function writeDeltaUnchanged(
   );
 }
 
+/** The key's marks, right after its delta: the revision span's shared key included, same span and refs. */
 async function writeCheckpointMarks(
   payload: ParsedGeneratePayload,
   inputs: CheckpointDeltasInputs,
   spanRef: DeltaSpanRef,
-  spanDiff: string,
+  fetched: FetchedSpan,
 ): Promise<void> {
   const marks = buildComparisonMarks(
     spanRef.headSha,
     spanRef.baselineSha,
     "checkpoint",
     spanRef.baselineIndex ?? null,
-    spanDiff,
+    fetched.span.filteredDiff,
   );
-  await inputs.store.comparisonMarks.write({
-    pullRequestId: payload.pullRequestId,
-    marks: {
-      baselineSha: marks.baselineSha,
-      headSha: marks.headSha,
-      files: marks.files,
-    },
-  });
+  await writeSpanMarks(
+    inputs.store,
+    payload.pullRequestId,
+    marks,
+    fetched.refs,
+  );
 }
 
 /**
@@ -162,7 +230,9 @@ async function readCheckpointSpan(
   const baseline = resolveSpanBaseline(priorBriefs, baselineSha, baseSha);
   const read = await inputs.readSpan(baseline);
   if (read.ok) {
-    return { baselineSha, span: read.value, marksWritten: false };
+    const refs = readSpanBaseRefs(baseline, baseSha);
+    const marksDuty = MarksDuties.OWN;
+    return { baselineSha, span: read.value, refs, marksDuty };
   }
   const diffTooLarge = read.error.kind === PrSpanFailureKinds.TOO_LARGE;
   if (!diffTooLarge) {
@@ -176,6 +246,7 @@ async function writeSpanDelta(
   payload: ParsedGeneratePayload,
   inputs: CheckpointDeltasInputs,
   spanInput: DeltaInput,
+  refs: SpanBaseRefs,
 ): Promise<boolean> {
   const { SPAN_TOO_LARGE, OUTPUT_CUT } = DeltaSkipReasons;
   const ratioHuge = isHugeSpan(
@@ -200,7 +271,12 @@ async function writeSpanDelta(
   const lockfileSummaries = await readLockfileSummaries(
     inputs.source,
     spanInput.incrementalDiff,
-    { base: spanInput.baselineSha, head: spanInput.headSha },
+    {
+      kind: LockfileSpanKinds.REVISION,
+      base: spanInput.baselineSha,
+      head: spanInput.headSha,
+      refs,
+    },
     inputs.log,
     inputs.stops,
   );

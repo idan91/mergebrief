@@ -289,6 +289,7 @@ describe("owner-scoped span artifacts", () => {
     const marks = await store.comparisonMarks.write({
       pullRequestId,
       marks: makeMarks("prev", "head"),
+      refs: { prevBase: "main", newBase: "main" },
     });
     const hop = await store.hunkSpans.write({
       pullRequestId,
@@ -370,6 +371,7 @@ describe("owner-scoped span artifacts", () => {
       }),
       storeB.comparisonMarks.write({
         pullRequestId: pr.id,
+        refs: { prevBase: "main", newBase: "main" },
         marks: makeMarks("prev-2", "head"),
       }),
       storeB.hunkSpans.write({
@@ -389,7 +391,12 @@ describe("owner-scoped span artifacts", () => {
       { baselineSha: "chk", headSha: "head", skipped: false, unchanged: false },
     ]);
     expect(await storeA.revisionNarratives.listForPullRequest(pr.id)).toEqual([
-      { prevHeadSha: "prev", headSha: "head", unchanged: false },
+      {
+        prevHeadSha: "prev",
+        headSha: "head",
+        unchanged: false,
+        skipped: false,
+      },
     ]);
     expect(await storeA.comparisonMarks.listForPullRequest(pr.id)).toEqual([
       { baselineSha: "prev", headSha: "head" },
@@ -558,6 +565,7 @@ describe("owner-scoped span artifact query shape", () => {
     const marks = await recordStatements(log, () =>
       store.comparisonMarks.write({
         pullRequestId: pr.id,
+        refs: { prevBase: "main", newBase: "main" },
         marks: { baselineSha: "prev", headSha: "head", files: [] },
       }),
     );

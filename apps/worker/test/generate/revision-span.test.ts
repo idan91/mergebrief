@@ -3,14 +3,19 @@ import {
   createArtifactStore,
   createGenerationProjection,
   createTenantRepository,
+  type BriefSpanRow,
   type PullRequestRow,
 } from "persistence";
 import { FakeFailures, type FakeGitHub } from "github/testing";
 import { GenerationStatuses } from "types/generations";
 import { describe, expect, it } from "vitest";
+import type { z } from "zod/v4";
+import type { Effort, GenerateRequest, Generator } from "generators";
+import { resolveSpanBaseline } from "../../src/task/generate/logic/revision-span";
 import {
   arrangeCompare,
   arrangeNewHeadPrDiff,
+  interceptInstallationRepo,
   BASE,
   buildRepoFile,
   captureLogger,
@@ -18,6 +23,7 @@ import {
   FIRST_ATTEMPT,
   harness,
   HEAD_1,
+  makeConnectionError,
   HEAD_2,
   LAST_ATTEMPT,
   makeGitHub,
@@ -26,6 +32,7 @@ import {
   makeTarget,
   makeTask,
   PR_REF,
+  readRowStatus,
   REPO,
   setUpHarness,
   stubGenerator,
@@ -38,6 +45,8 @@ setUpHarness();
 
 /** A base the PR is retargeted onto between its two heads. */
 const OTHER_BASE = "e".repeat(40);
+/** A head pushed while a run is still writing its span artifacts. */
+const NEWER_HEAD = "f".repeat(40);
 /** A reviewer's checkpoint SHA no Brief was ever written for. */
 const UNBRIEFED_HEAD = "d".repeat(40);
 
@@ -150,6 +159,74 @@ function listCompareSpans(github: FakeGitHub): string[] {
   return calls.map((call) => {
     const input = call.input as { base: string; head: string };
     return `${input.base.slice(0, 1)}...${input.head.slice(0, 1)}`;
+  });
+}
+
+/** The stub's answers, with `afterCall` run once a `label` call returns. */
+function stubHookedGenerator(
+  inner: StubGenerator,
+  label: string,
+  afterCall: () => void,
+): Generator {
+  return {
+    async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      const output = await inner.generate(req);
+      if (req.label === label) {
+        afterCall();
+      }
+      return output;
+    },
+    origin: (effort: Effort) => inner.origin(effort),
+  };
+}
+
+/** The stub's answers, with every delta call failing on a dropped connection. */
+function stubFailingDeltaGenerator(inner: StubGenerator): Generator {
+  return {
+    async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      if (req.label === "delta") {
+        throw makeConnectionError();
+      }
+      return inner.generate(req);
+    },
+    origin: (effort: Effort) => inner.origin(effort),
+  };
+}
+
+/** Once `isArmed` holds, the next Entry comment write lands and NEWER_HEAD is pushed. */
+function pushHeadAfterEntryWrite(
+  github: FakeGitHub,
+  isArmed: () => boolean,
+): void {
+  function pushIfArmed(): void {
+    if (isArmed()) {
+      github.updatePullRequest(PR_REF, { headSha: NEWER_HEAD });
+    }
+  }
+  interceptInstallationRepo(github, (client) => ({
+    ...client,
+    async postEntryComment(comment) {
+      const posted = await client.postEntryComment(comment);
+      pushIfArmed();
+      return posted;
+    },
+    async editComment(commentId, body) {
+      const edited = await client.editComment(commentId, body);
+      pushIfArmed();
+      return edited;
+    },
+  }));
+}
+
+async function countStartedRuns(): Promise<number> {
+  const window = 60_000;
+  return createGenerationProjection(harness.handle, ctx).countStartedRuns({
+    from: new Date(Date.now() - window),
+    to: new Date(Date.now() + window),
   });
 }
 
@@ -363,5 +440,295 @@ describe("generate task, a revision span GitHub fails to serve", () => {
     ).rejects.toThrow("generate: revision span read failed");
 
     expect((await readSpanBodies(second.pr)).marks).toBeUndefined();
+  });
+});
+
+async function readMarksRefs(pr: PullRequestRow) {
+  const row = await createArtifactStore(
+    harness.handle,
+    ctx,
+  ).comparisonMarks.get(pr.id, HEAD_1, HEAD_2);
+  return row === undefined
+    ? undefined
+    : { prevBase: row.prevBaseSha, newBase: row.newBaseSha };
+}
+
+/** HEAD_2 briefed over BASE with a checkpoint at HEAD_1, then the PR retargeted onto `base` at the same head. */
+async function retargetSecondHead(
+  github: FakeGitHub,
+  base: string,
+): Promise<SecondHead> {
+  arrangeNewHeadPrDiff(github, `${A_PR_DIFF}${C_PR_DIFF}`, base);
+  github.updatePullRequest(PR_REF, { headSha: HEAD_2, baseSha: base });
+  return trigger(HEAD_2);
+}
+
+describe("generate task, the refs a span's marks row certifies", () => {
+  it("rewrites the delta, narrative and marks after a same-head retarget", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    await makeTask({ github })(second.payload);
+    const retargeted = await retargetSecondHead(github, OTHER_BASE);
+    const generator = stubGenerator();
+    const runsBefore = await countStartedRuns();
+
+    await makeTask({ github, generator })(retargeted.payload);
+
+    expect(listSpanCalls(generator).toSorted()).toEqual([
+      "delta",
+      "revision narrative",
+    ]);
+    expect(await readMarksRefs(second.pr)).toEqual({
+      prevBase: BASE,
+      newBase: OTHER_BASE,
+    });
+    expect(await countStartedRuns()).toBe(runsBefore + 1);
+  });
+
+  it("drops a stale shared key's marks before rewriting its narrative", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    await makeTask({ github })(second.payload);
+    const retargeted = await retargetSecondHead(github, OTHER_BASE);
+    const inner = stubGenerator();
+    const generator = stubFailingDeltaGenerator(inner);
+
+    const failed = makeTask({ github, generator })(retargeted.payload, {
+      job: FIRST_ATTEMPT,
+    });
+    await expect(failed).rejects.toThrow("Connection error");
+
+    expect(inner.calls).toContain("revision narrative");
+    expect(await readMarksRefs(second.pr)).toBeUndefined();
+  });
+
+  it("reads a returning head's span from its highest-index Brief", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`, OTHER_BASE);
+    arrangeCompare(github, { base: OTHER_BASE, head: HEAD_1 }, A_PR_DIFF);
+    const second = await pushSecondHead(github);
+    await makeTask({ github })(second.payload);
+    github.updatePullRequest(PR_REF, {
+      headSha: HEAD_1,
+      baseSha: OTHER_BASE,
+      changedFiles: 1,
+    });
+    const returned = await trigger(HEAD_1);
+    await makeTask({ github })(returned.payload);
+    const callsBefore = listCompareSpans(github).length;
+    const again = await retargetSecondHead(github, OTHER_BASE);
+
+    await makeTask({ github })(again.payload);
+
+    const spans = listCompareSpans(github).slice(callsBefore);
+    expect(spans).toContain("e...a");
+    expect(spans).not.toContain("c...a");
+    expect(await readMarksRefs(second.pr)).toEqual({
+      prevBase: OTHER_BASE,
+      newBase: OTHER_BASE,
+    });
+  });
+
+  it("rewrites a stored brief's narrative when its refs went stale", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    await makeTask({ github })(second.payload);
+    const away = await retargetSecondHead(github, OTHER_BASE);
+    await makeTask({ github })(away.payload);
+    const back = await retargetSecondHead(github, BASE);
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(back.payload);
+
+    expect(generator.calls).not.toContain("brief");
+    expect(listSpanCalls(generator).toSorted()).toEqual([
+      "delta",
+      "revision narrative",
+    ]);
+    expect(await readMarksRefs(second.pr)).toEqual({
+      prevBase: BASE,
+      newBase: BASE,
+    });
+  });
+
+  it("skips every span artifact when the stored refs still hold", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    await makeTask({ github })(second.payload);
+    const generator = stubGenerator();
+
+    await makeTask({ github, generator })(second.payload);
+
+    expect(listSpanCalls(generator)).toEqual([]);
+  });
+
+  it("keeps the stale refs when the narrative over them fails", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    await makeTask({ github })(second.payload);
+    const away = await retargetSecondHead(github, OTHER_BASE);
+    await makeTask({ github })(away.payload);
+    const back = await retargetSecondHead(github, BASE);
+    const generator = stubGenerator();
+    generator.failNextWith = new Error("provider down");
+    generator.outputs["delta"] = {
+      summary: "delta over the new refs",
+      commentsAddressed: "",
+      changedGroups: [],
+      chunks: [],
+      wholePrImpact: "",
+    };
+
+    await makeTask({ github, generator })(back.payload);
+
+    const { delta } = await readSpanBodies(second.pr);
+    expect(await readMarksRefs(second.pr)).toEqual({
+      prevBase: BASE,
+      newBase: OTHER_BASE,
+    });
+    expect(listSpanCalls(generator)).toEqual([]);
+    expect(delta.summary).toBe("stub delta");
+  });
+
+  it("writes no marks over a stored narrative when the narrative fails", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    await makeTask({ github })(second.payload);
+    await createArtifactStore(harness.handle, ctx).comparisonMarks.delete(
+      second.pr.id,
+      HEAD_1,
+      HEAD_2,
+    );
+    const again = await retargetSecondHead(github, BASE);
+    const generator = stubGenerator();
+    generator.failNextWith = new Error("provider down");
+
+    await makeTask({ github, generator })(again.payload);
+
+    expect(listSpanCalls(generator)).toEqual([]);
+    expect(await readMarksRefs(second.pr)).toBeUndefined();
+  });
+
+  it("leaves no marks row when its write fails; the retry writes all three", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    await harness.raw(`
+      create function refuse_marks() returns trigger language plpgsql as
+        $$ begin raise exception 'marks write refused'; end $$
+    `);
+    await harness.raw(`
+      create trigger refuse_marks before insert on comparison_marks
+        for each row execute function refuse_marks()
+    `);
+
+    const failed = makeTask({ github })(second.payload, { job: FIRST_ATTEMPT });
+    await expect(failed).rejects.toThrow('insert into "comparison_marks"');
+    const afterFailure = await readSpanBodies(second.pr);
+    await harness.raw("drop trigger refuse_marks on comparison_marks");
+    await harness.raw("drop function refuse_marks()");
+    const generator = stubGenerator();
+    await makeTask({ github, generator })(second.payload);
+
+    expect(afterFailure.marks).toBeUndefined();
+    expect(afterFailure.narrative).toBeUndefined();
+    expect(afterFailure.delta).toBeUndefined();
+    expect(listSpanCalls(generator).toSorted()).toEqual([
+      "delta",
+      "revision narrative",
+    ]);
+    expect(await readMarksRefs(second.pr)).toEqual({
+      prevBase: BASE,
+      newBase: BASE,
+    });
+  });
+});
+
+describe("generate task, the revision marks beside a delta that stops", () => {
+  it("writes the revision marks before a push stops the narrative", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    const inner = stubGenerator();
+    let isBriefDone = false;
+    const generator = stubHookedGenerator(inner, "brief", () => {
+      isBriefDone = true;
+    });
+    pushHeadAfterEntryWrite(github, () => isBriefDone);
+
+    await makeTask({ github, generator })(second.payload);
+
+    const bodies = await readSpanBodies(second.pr);
+    expect(await readRowStatus(second.pr, HEAD_2)).toBe(
+      GenerationStatuses.SUPERSEDED,
+    );
+    expect(inner.calls).not.toContain("revision narrative");
+    expect(bodies.narrative).toBeUndefined();
+    expect(await readMarksRefs(second.pr)).toEqual({
+      prevBase: BASE,
+      newBase: BASE,
+    });
+  });
+
+  it("keeps the revision marks when a push supersedes the delta call", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    const inner = stubGenerator();
+    const generator = stubHookedGenerator(inner, "revision narrative", () => {
+      github.updatePullRequest(PR_REF, { headSha: NEWER_HEAD });
+    });
+
+    await makeTask({ github, generator })(second.payload);
+
+    const bodies = await readSpanBodies(second.pr);
+    expect(await readRowStatus(second.pr, HEAD_2)).toBe(
+      GenerationStatuses.SUPERSEDED,
+    );
+    expect(inner.calls).not.toContain("delta");
+    expect(bodies.narrative).toBeDefined();
+    expect(bodies.delta).toBeUndefined();
+    expect(bodies.marks).toBeDefined();
+  });
+
+  it("keeps the revision marks past a failed delta; the retry pays the delta", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    const generator = stubFailingDeltaGenerator(stubGenerator());
+
+    const failed = makeTask({ github, generator })(second.payload, {
+      job: FIRST_ATTEMPT,
+    });
+    await expect(failed).rejects.toThrow("Connection error");
+    const afterFailure = await readSpanBodies(second.pr);
+    const retry = stubGenerator();
+    await makeTask({ github, generator: retry })(second.payload);
+
+    expect(afterFailure.narrative).toBeDefined();
+    expect(afterFailure.delta).toBeUndefined();
+    expect(afterFailure.marks).toBeDefined();
+    expect(listSpanCalls(retry)).toEqual(["delta"]);
+  });
+});
+
+describe("resolveSpanBaseline", () => {
+  it("takes the base of the newest Brief of two at one head", () => {
+    const rows = [
+      { id: 1n, baseSha: BASE, headSha: HEAD_1, headIndex: 1 },
+      { id: 2n, baseSha: OTHER_BASE, headSha: HEAD_1, headIndex: 2 },
+      { id: 3n, baseSha: BASE, headSha: HEAD_2, headIndex: 3 },
+    ].map((row) => ({ ...row, createdAt: new Date() }) as BriefSpanRow);
+
+    expect(resolveSpanBaseline(rows, HEAD_1, BASE)).toEqual({
+      headSha: HEAD_1,
+      baseSha: OTHER_BASE,
+    });
   });
 });

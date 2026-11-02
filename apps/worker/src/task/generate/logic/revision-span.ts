@@ -1,5 +1,9 @@
-import { PrSpanFailureKinds, readPrSpan } from "brief-core/pr-span";
-import type { BriefSpanRow } from "persistence";
+import {
+  PrSpanFailureKinds,
+  readPrSpan,
+  type PrSpanRefs,
+} from "brief-core/pr-span";
+import type { BriefSpanRow, SpanBaseRefs } from "persistence";
 import { GenerationFailureCodes } from "types/generations";
 import { TransientJobError } from "../../failure";
 import type { RevisionSpanReader, RunContext, SpanBaseline } from "../types";
@@ -40,7 +44,7 @@ export function createRevisionSpanReader(
   const signal = AbortSignal.any(stops);
 
   return async (baseline) => {
-    const refs = {
+    const refs: PrSpanRefs = {
       prevBase: baseline.baseSha,
       prevHead: baseline.headSha,
       newBase: prInfo.baseSha,
@@ -72,4 +76,12 @@ export function resolveSpanBaseline(
 ): SpanBaseline {
   const brief = priorBriefs.findLast((row) => row.headSha === headSha);
   return { headSha, baseSha: brief?.baseSha ?? currentBase };
+}
+
+/** The bases a span from `baseline` to the run's head is read against, as its marks row stores them. */
+export function readSpanBaseRefs(
+  baseline: SpanBaseline,
+  currentBase: string,
+): SpanBaseRefs {
+  return { prevBase: baseline.baseSha, newBase: currentBase };
 }

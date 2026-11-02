@@ -22,6 +22,7 @@ import {
 import {
   DELTA_SKIPPED_KIND,
   DELTA_UNCHANGED_KIND,
+  REVISION_NARRATIVE_SKIPPED_KIND,
   REVISION_NARRATIVE_UNCHANGED_KIND,
 } from "./consts";
 import { isRecord, parseJsonObject, parseStored, readStored } from "./utils";
@@ -172,6 +173,13 @@ export function isRevisionNarrativeUnchangedRecord(json: string): boolean {
   const body = parseJsonObject(json);
   const kind = body.ok ? body.value["artifactKind"] : undefined;
   return kind === REVISION_NARRATIVE_UNCHANGED_KIND;
+}
+
+/** A stored revision narrative body that is the span's skip record, whatever its reason. */
+export function isRevisionNarrativeSkipRecord(json: string): boolean {
+  const body = parseJsonObject(json);
+  const kind = body.ok ? body.value["artifactKind"] : undefined;
+  return kind === REVISION_NARRATIVE_SKIPPED_KIND;
 }
 
 /**

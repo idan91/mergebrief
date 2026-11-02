@@ -28,6 +28,9 @@ import {
 
 setUpHarness();
 
+/** A base no head of these tests was read against: marks written from it are stale. */
+const STALE_BASE = "0".repeat(40);
+
 /** Briefs HEAD_1, then pushes HEAD_2 with its revision span refused. */
 async function runSecondHeadWithSpanRefused(
   failure: FakeFailure,
@@ -75,6 +78,24 @@ describe("generate task, a refused revision span", () => {
     expect(readLines()).toContainEqual(
       expect.objectContaining({ msg: expect.stringContaining("skip stub") }),
     );
+  });
+
+  it("drops the key's stale marks before its skip record", async () => {
+    const { second, task } = await runSecondHeadWithSpanRefused(
+      FakeFailures.NOT_ACCEPTABLE,
+    );
+    const store = createArtifactStore(harness.handle, ctx);
+    await store.comparisonMarks.write({
+      pullRequestId: second.pr.id,
+      marks: { baselineSha: HEAD_1, headSha: HEAD_2, files: [] },
+      refs: { prevBase: STALE_BASE, newBase: STALE_BASE },
+    });
+
+    await task(second.payload);
+
+    expect(
+      await store.comparisonMarks.get(second.pr.id, HEAD_1, HEAD_2),
+    ).toBeUndefined();
   });
 
   it("records a disabled narrative as disabled on a 406 span", async () => {

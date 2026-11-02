@@ -155,6 +155,7 @@ describe("comparison artifact reads", () => {
     });
     await bStore.comparisonMarks.write({
       pullRequestId: bPr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-1",
         headSha: "head-2",
@@ -246,6 +247,7 @@ describe("batched span listings and per-revision joins", () => {
 
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: {
         baselineSha: "head-1",
         headSha: "head-2",
@@ -303,7 +305,12 @@ describe("batched span listings and per-revision joins", () => {
       ]),
     );
     expect(await store.revisionNarratives.listForPullRequest(pr.id)).toEqual([
-      { prevHeadSha: "head-1", headSha: "head-2", unchanged: false },
+      {
+        prevHeadSha: "head-1",
+        headSha: "head-2",
+        unchanged: false,
+        skipped: false,
+      },
     ]);
 
     // Another tenant sees none of these spans.
@@ -397,6 +404,10 @@ describe("the no-change stamp", () => {
   const UNCHANGED_NARRATIVE = JSON.stringify({
     artifactKind: "revisionNarrativeUnchanged",
   });
+  const SKIPPED_NARRATIVE = JSON.stringify({
+    artifactKind: "revisionNarrativeSkipped",
+    skipped: "span too large",
+  });
 
   it("stamps a delta no-change record apart from a skip record", async () => {
     const handle = shared.handle;
@@ -436,7 +447,7 @@ describe("the no-change stamp", () => {
     );
   });
 
-  it("stamps a narrative no-change record and lists the flag", async () => {
+  it("stamps narrative no-change and skip records and lists the flags", async () => {
     const handle = shared.handle;
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -475,13 +486,36 @@ describe("the no-change stamp", () => {
       headSha: "head-2",
       body: "{}",
     });
+    const skippedRow = await store.revisionNarratives.write({
+      ...span,
+      prevHeadSha: "head-x",
+      headSha: "head-2",
+      body: SKIPPED_NARRATIVE,
+    });
 
     expect(unchangedRow.unchanged).toBe(true);
     expect(rewritten.unchanged).toBe(true);
+    expect([skippedRow.skipped, skippedRow.unchanged]).toEqual([true, false]);
     expect(await store.revisionNarratives.listForPullRequest(pr.id)).toEqual(
       expect.arrayContaining([
-        { prevHeadSha: "head-1", headSha: "head-2", unchanged: true },
-        { prevHeadSha: "head-0", headSha: "head-2", unchanged: false },
+        {
+          prevHeadSha: "head-1",
+          headSha: "head-2",
+          unchanged: true,
+          skipped: false,
+        },
+        {
+          prevHeadSha: "head-0",
+          headSha: "head-2",
+          unchanged: false,
+          skipped: false,
+        },
+        {
+          prevHeadSha: "head-x",
+          headSha: "head-2",
+          unchanged: false,
+          skipped: true,
+        },
       ]),
     );
   });

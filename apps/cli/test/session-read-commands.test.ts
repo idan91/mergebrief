@@ -167,6 +167,7 @@ describe("session read commands over the real api app", () => {
     }
     await store.comparisonMarks.write({
       pullRequestId: pr.id,
+      refs: { prevBase: "main", newBase: "main" },
       marks: { baselineSha: PREV_HEAD_SHA, headSha: HEAD_SHA, files: [] },
     });
     await store.revisionNarratives.write({

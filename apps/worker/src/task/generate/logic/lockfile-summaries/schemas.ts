@@ -18,9 +18,15 @@ const LockfileSideSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal(LockfileSideKinds.UNAVAILABLE) }),
 ]);
 
+const LockfileSidesSchema = z.object({
+  before: LockfileSideSchema,
+  after: LockfileSideSchema,
+});
+
 export const SummaryRequestSchema: z.ZodType<SummaryRequest> = z.object({
   path: z.string(),
-  sides: z.object({ before: LockfileSideSchema, after: LockfileSideSchema }),
+  sides: LockfileSidesSchema,
+  mergeBases: LockfileSidesSchema.exactOptional(),
 });
 
 const HostsSchema = z.array(z.string()).exactOptional();

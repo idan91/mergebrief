@@ -38,6 +38,9 @@ import {
 
 setUpHarness();
 
+/** A base no head of these tests was read against: marks written from it are stale. */
+const STALE_BASE = "0".repeat(40);
+
 const FILE_HEADER = "diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n";
 
 /** One changed line in b.ts: a span the delta call reads. */
@@ -248,6 +251,29 @@ describe("generate task, a checkpoint span too large for its delta", () => {
       skipped: "span-too-large",
     });
     expect(countDeltaCalls(generator)).toBe(0);
+  });
+
+  it("drops the key's stale marks before the refused span's skip record", async () => {
+    const github = makeGitHub(HEAD_1);
+    const task = makeTask({ github });
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    await checkpointReviewerAt(first.pr, BASE);
+    github.updatePullRequest(PR_REF, { headSha: HEAD_2 });
+    github.failOn("fetchCheckedCompareDiff", FakeFailures.NOT_ACCEPTABLE);
+    const second = await trigger(HEAD_2);
+    const store = createArtifactStore(harness.handle, ctx);
+    await store.comparisonMarks.write({
+      pullRequestId: second.pr.id,
+      marks: { baselineSha: BASE, headSha: HEAD_2, files: [] },
+      refs: { prevBase: STALE_BASE, newBase: STALE_BASE },
+    });
+
+    await task(second.payload);
+
+    expect(
+      await store.comparisonMarks.get(second.pr.id, BASE, HEAD_2),
+    ).toBeUndefined();
   });
 
   it("writes no record when the span's commits are gone", async () => {
