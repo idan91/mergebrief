@@ -18,6 +18,7 @@ import { countLines } from "../../src/generation/loc";
 import { buildMermaidMediaKey } from "../../src/media";
 import { ContextProviderTypes } from "../../src/context/types";
 import {
+  AnchorWarnings,
   BriefGenerationSchema,
   OutlineForms,
   RiskSurfaceAttributes,
@@ -462,6 +463,32 @@ describe("generateBrief, an anchored run", () => {
     expect(anchoring?.carriedChunkIds).toEqual(["c1"]);
     expect(anchoring?.regeneratedGroupIds).toEqual(["g2"]);
     expect(generator.requests[0]?.user).toContain("<anchor_brief");
+  });
+
+  it("stores the plan's warning on the brief when no span was read", async () => {
+    const generator = makeQueuedGenerator([revisedOutput]);
+
+    const { brief } = await generateBrief({
+      pr,
+      headIndex: 2,
+      commitRange,
+      generator,
+      previous: { brief: await makePreviousBrief() },
+    });
+
+    expect(brief.anchorWarnings).toEqual([AnchorWarnings.SPAN_UNAVAILABLE]);
+  });
+
+  it("stores no warning on a brief whose span paired every hunk", async () => {
+    const { brief } = await runAnchored(revisedOutput);
+
+    expect(brief.anchorWarnings).toBeUndefined();
+  });
+
+  it("keeps anchor warnings out of the model's output schema", () => {
+    expect(Object.keys(BriefGenerationSchema.shape)).not.toContain(
+      "anchorWarnings",
+    );
   });
 
   it("rolls concerns and totals up over carried and regenerated chunks", async () => {

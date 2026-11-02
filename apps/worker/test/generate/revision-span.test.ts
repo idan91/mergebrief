@@ -1,3 +1,4 @@
+import { AnchorWarnings } from "brief-core/types";
 import { claimTestRun } from "persistence/testing";
 import {
   createArtifactStore,
@@ -454,6 +455,26 @@ describe("generate task, a revision span GitHub fails to serve", () => {
       String(line["msg"]).includes("revision span"),
     );
     expect(spanWarnings).toHaveLength(1);
+  });
+
+  it("stores the unavailable span on the last attempt's brief", async () => {
+    const github = makeGitHub(HEAD_1);
+    arrangePrDiffs(github, A_PR_DIFF, `${A_PR_DIFF}${C_PR_DIFF}`);
+    const second = await pushSecondHead(github);
+    github.failOn("fetchCheckedCompareDiff", FakeFailures.SERVER_ERROR);
+
+    await makeTask({ github, generator: stubGenerator() })(second.payload, {
+      job: LAST_ATTEMPT,
+    });
+
+    const row = await createArtifactStore(harness.handle, ctx).briefs.get(
+      second.pr.id,
+      BASE,
+      HEAD_2,
+    );
+    expect(JSON.parse(row?.body ?? "{}")).toMatchObject({
+      anchorWarnings: [AnchorWarnings.SPAN_UNAVAILABLE],
+    });
   });
 
   it("hands a takeover's transient failure back at the attempt limit", async () => {

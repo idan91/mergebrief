@@ -454,7 +454,7 @@ exports[`adversarial stitch goldens > pair-ask-edit stitches the adversarial out
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -1086,7 +1086,7 @@ exports[`adversarial stitch goldens > pair-force-push-amend stitches the adversa
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim\\nfrozen group g3 re-emitted without a new file — no claim evidence, carry kept\\nfrozen group g4 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c2 and c6 (packages/api/src/rate-limit.ts) both claim added line(s) 1-21 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/rate-limit.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -1761,7 +1761,7 @@ exports[`adversarial stitch goldens > pair-intent-transition stitches the advers
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-13, 15 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -2412,7 +2412,7 @@ exports[`adversarial stitch goldens > pair-new-material stitches the adversarial
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c3 and c5 (packages/api/src/routes/version.ts) both claim added line(s) 1-10 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c3 (packages/api/src/routes/version.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g3 summary is 251 chars — exceeds the 250-char cap"
@@ -10537,7 +10537,7 @@ exports[`adversarial stitch goldens > pair-rebase-conflict-resolution stitches t
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\nfrozen group g2 re-emitted without a new file — no claim evidence, carry kept\\ngenerated group reused frozen id g3 without its files — treated as a numbering slip, not a claim\\nfrozen group g4 re-emitted without a new file — no claim evidence, carry kept",
     "⚠ loc overlap issues:\\nchunks c1 and c6 (packages/api/src/config.ts) both claim added line(s) 4, 10-11 — counted in both\\nchunks c1 and c6 (packages/api/src/config.ts) both claim removed line(s) 9 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references group \\"g3\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)"
   ],
   "index": 2,
@@ -10737,7 +10737,7 @@ exports[`adversarial stitch goldens > pair-rebase-noise stitches the adversarial
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 4-14, 16 — counted in both\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim removed line(s) 5 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"
@@ -11327,7 +11327,7 @@ exports[`adversarial stitch goldens > pair-risk-add-new-file stitches the advers
     "chunk ranges aligned to the diff: 0 range(s) moved one line onto the change beside them, 1 claimed line(s) off the changed lines clipped",
     "⚠ anchored stitch issues:\\ngenerated chunk on packages/departed/src/gone.ts dropped — the PR no longer changes it\\ngenerated group reused frozen id g1 without its files — treated as a numbering slip, not a claim",
     "⚠ loc overlap issues:\\nchunks c2 and c4 (packages/api/src/routes/health.ts) both claim added line(s) 1-16 — counted in both",
-    "⚠ reading order issues:\\nreadingOrder references group \\"g1\\" more than once\\nreadingOrder references unknown group \\"t2\\"",
+    "⚠ reading order issues:\\nreadingOrder references unknown group \\"t2\\"",
     "⚠ intent check issues:\\ndoneButUnstated item \\"Canned unstated work in t2\\" references unknown group \\"t2\\" — pruned\\ndoneButUnstated item \\"Canned unstated work in t2\\" has no valid group anchor — dropped (no grounding)",
     "⚠ risk attrs issues:\\nchunk c2 (packages/api/src/routes/health.ts): dropped comment-contradicts-code — no riskNotes citation",
     "⚠ text length issues:\\ngroup g1 summary is 251 chars — exceeds the 250-char cap\\ngroup g2 summary is 251 chars — exceeds the 250-char cap"

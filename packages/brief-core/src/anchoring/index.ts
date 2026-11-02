@@ -10,12 +10,13 @@ import {
   type HunkSpan,
   type RemapResult,
 } from "../diff/remap";
-import type {
-  Brief,
-  IntentCheck,
-  IntentItem,
-  LineRange,
-  ReadingOrderStep,
+import {
+  AnchorWarnings,
+  type Brief,
+  type IntentCheck,
+  type IntentItem,
+  type LineRange,
+  type ReadingOrderStep,
 } from "../types";
 import type {
   AnchorPlan,
@@ -53,6 +54,7 @@ function allReLook(
       reason,
     })),
     previousGroupIds: reserveIds(brief, chainGroupIds),
+    warnings: [AnchorWarnings.SPAN_UNAVAILABLE],
   };
 }
 
@@ -166,51 +168,65 @@ interface GroupCarryInput {
   readonly sides: SpanSides;
 }
 
+/** Why a group re-looks, and whether the cause was a file whose hunks could not pair. */
+interface CarryRefusal {
+  readonly reason: string;
+  readonly isUnpaired: boolean;
+}
+
+function refuseCarry(
+  reason: string,
+  isUnpaired = false,
+): {
+  ok: false;
+  error: CarryRefusal;
+} {
+  return { ok: false, error: { reason, isUnpaired } };
+}
+
 /** A group carries when it owns its files alone, the PR's change to each held, and every range moves. */
-function decideGroupCarry(input: GroupCarryInput): Result<FrozenCarry, string> {
+function decideGroupCarry(
+  input: GroupCarryInput,
+): Result<FrozenCarry, CarryRefusal> {
   const { previousBrief, group, files, span, sides } = input;
   if (input.isSharing) {
-    return {
-      ok: false,
-      error: "file shared across previous groups, cannot carry exclusively",
-    };
+    return refuseCarry(
+      "file shared across previous groups, cannot carry exclusively",
+    );
   }
   const unchanged = new Set(span.unchangedFiles);
   const changed = files.find((file) => !unchanged.has(file));
   if (changed !== undefined) {
-    return { ok: false, error: `${changed}: the push changed the PR's change` };
+    return refuseCarry(`${changed}: the push changed the PR's change`);
   }
   const unpairable = new Set(span.unpairableFiles);
   const unplaced = files.find((file) => unpairable.has(file));
   if (unplaced !== undefined) {
-    return {
-      ok: false,
-      error: `${unplaced}: no span pairs ${unplaced} across the push`,
-    };
+    return refuseCarry(
+      `${unplaced}: no span pairs ${unplaced} across the push`,
+      true,
+    );
   }
   // Same post-image over a base that took part of the PR's change: unchanged by blob, yet its runs no longer pair.
   const unpaired = files.find(
     (file) => (sides.removed.get(file) ?? []).length === 0,
   );
   if (unpaired !== undefined) {
-    return {
-      ok: false,
-      error: `${unpaired}: no span pairs the PR's change across the push`,
-    };
+    return refuseCarry(
+      `${unpaired}: no span pairs the PR's change across the push`,
+      true,
+    );
   }
   const chunks = previousBrief.chunks.filter(
     (chunk) => chunk.changeGroupId === group.id,
   );
   if (chunks.length === 0) {
-    return {
-      ok: false,
-      error: "previous group has no chunks, nothing carriable",
-    };
+    return refuseCarry("previous group has no chunks, nothing carriable");
   }
 
   const moved = moveChunks(chunks, sides);
   if (!moved.ok) {
-    return { ok: false, error: `range remap ambiguous, ${moved.error}` };
+    return refuseCarry(`range remap ambiguous, ${moved.error}`);
   }
   return { ok: true, value: { group, chunks: moved.value } };
 }
@@ -234,6 +250,7 @@ function planGroups(input: GroupPlanInput): AnchorPlan {
   const frozen: FrozenCarry[] = [];
   const frozenFiles = new Set<string>();
   const reLook: ReLookEntry[] = [];
+  let hasUnpairedHunks = false;
   for (const [index, group] of previousBrief.changeGroups.entries()) {
     const files = groupFiles[index]?.files ?? [];
     const carry = decideGroupCarry({
@@ -245,7 +262,8 @@ function planGroups(input: GroupPlanInput): AnchorPlan {
       sides,
     });
     if (!carry.ok) {
-      reLook.push({ id: group.id, files, reason: carry.error });
+      reLook.push({ id: group.id, files, reason: carry.error.reason });
+      hasUnpairedHunks ||= carry.error.isUnpaired;
       continue;
     }
     frozen.push(carry.value);
@@ -259,6 +277,7 @@ function planGroups(input: GroupPlanInput): AnchorPlan {
     frozenFiles,
     reLook,
     previousGroupIds: reserveIds(previousBrief, input.chainGroupIds),
+    warnings: hasUnpairedHunks ? [AnchorWarnings.HUNKS_UNPAIRED] : [],
     hunkSpans: span.hop,
   };
 }
@@ -290,6 +309,43 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     }
   }
   return planGroups({ ...input, sharing: listSharingGroups(groupFiles) });
+}
+
+/**
+ * A dropped group's step points at its frozen parent, which may hold a step
+ * of its own: the first step naming a group keeps its place, so each group
+ * holds one and the order survives final validation, and it reads the
+ * group's own `why` when the model wrote one for it.
+ */
+function dropRepeatedSteps(
+  steps: readonly ReadingOrderStep[],
+  ownWhy: ReadonlyMap<string, string>,
+): ReadingOrderStep[] {
+  const seen = new Set<string>();
+  const kept: ReadingOrderStep[] = [];
+  for (const step of steps) {
+    if (seen.has(step.groupId)) {
+      continue;
+    }
+    seen.add(step.groupId);
+    kept.push({ ...step, why: ownWhy.get(step.groupId) ?? step.why });
+  }
+  return kept;
+}
+
+/** Each carried group's first step the model wrote under the carried id itself, by id. */
+function readOwnWhy(
+  order: readonly ReadingOrderStep[],
+  carriedIds: ReadonlySet<string>,
+): Map<string, string> {
+  const ownWhy = new Map<string, string>();
+  for (const step of order) {
+    const isOwnStep = carriedIds.has(step.groupId) && !ownWhy.has(step.groupId);
+    if (isOwnStep) {
+      ownWhy.set(step.groupId, step.why);
+    }
+  }
+  return ownWhy;
 }
 
 /** Each kept group the model listed under a carried id, by that id, under its descended id. */
@@ -668,7 +724,9 @@ export function stitchBrief(args: StitchArgs): StitchResult {
         ? step
         : { ...step, groupId: referenceMap.get(step.groupId) ?? step.groupId },
     );
-    brief.readingOrder = insertSlipSteps(mapped, slips);
+    const ordered = insertSlipSteps(mapped, slips);
+    const ownWhy = readOwnWhy(generated.readingOrder, new Set(carriedIds));
+    brief.readingOrder = dropRepeatedSteps(ordered, ownWhy);
   }
   if (generated.intentCheck !== undefined) {
     brief.intentCheck = remapIntentCheck(generated.intentCheck, referenceMap);

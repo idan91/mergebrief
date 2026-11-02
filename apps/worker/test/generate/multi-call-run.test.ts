@@ -16,6 +16,7 @@ import {
 import {
   GeneratorError,
   GeneratorErrorKinds,
+  type GenerateRequest,
   type Generator,
 } from "generators";
 import { FakeFailures, type FakeGitHub } from "github/testing";
@@ -25,6 +26,7 @@ import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
 import { CommentAnchorKinds, DiffSides } from "types/comments";
 import { ChangeGroupCategories } from "types/reviews";
 import { describe, expect, it, onTestFinished } from "vitest";
+import type { z } from "zod/v4";
 import { PermanentJobError } from "../../src/task/failure";
 import {
   createMultiCallRun,
@@ -37,6 +39,8 @@ import {
   type RunContext,
 } from "../../src/task/generate/types";
 import {
+  arrangeCompare,
+  arrangeForcePush,
   BASE,
   buildRepoFile,
   captureLogger,
@@ -56,7 +60,11 @@ import {
   makeReviewerId,
   makeTarget,
   makeTask,
+  MULTI_CALL_DIFF,
+  MULTI_CALL_FILES,
   MULTI_CALL_GROUPING,
+  MULTI_CALL_PATHS,
+  PR_REF,
   PUBLIC_URL,
   readLiveBodies,
   REPO,
@@ -295,6 +303,58 @@ async function readStoredBrief(pr: PullRequestRow) {
 async function readStatus(pr: PullRequestRow) {
   const projection = createGenerationProjection(harness.handle, ctx);
   return projection.get(makeTarget(pr, HEAD_1));
+}
+
+/** The three-group stub, whose single call also groups each `src/` file as the grouping fixture does. */
+function stubSourceBriefGenerator(): Generator {
+  const base = stubThreeGroupGenerator();
+  return {
+    origin: (effort) => base.origin(effort),
+    async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      const answer: unknown = await base.generate(req);
+      if (
+        req.label !== "brief" ||
+        typeof answer !== "object" ||
+        answer === null
+      ) {
+        return req.schema.parse(answer);
+      }
+      return req.schema.parse({
+        ...answer,
+        changeGroups: MULTI_CALL_GROUPING.changeGroups,
+        chunks: MULTI_CALL_PATHS.map((file, position) => ({
+          id: `c${position + 1}`,
+          changeGroupId: `g${position + 1}`,
+          file,
+          concern: "implementation",
+          role: "core",
+          loc: { added: 1, deleted: 1 },
+          addedRanges: [{ start: 1, end: 1 }],
+          removedRanges: [{ start: 1, end: 1 }],
+          riskSurface: [],
+        })),
+      });
+    },
+  };
+}
+
+/** A file the force push adds to the PR; adding one reads no blob. */
+const D_FILE_DIFF = `diff --git a/src/d.ts b/src/d.ts
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/src/d.ts
+@@ -0,0 +1,2 @@
++one
++two
+`;
+
+/** The group ids a Brief's chunks on `file` name, in chunk order, once each. */
+function readChunkFileGroups(brief: Brief, file: string): string[] {
+  const chunks = brief.chunks.filter((chunk) => chunk.file === file);
+  return [...new Set(chunks.map((chunk) => chunk.changeGroupId))];
 }
 
 /** Two multi-call pushes of one PR, HEAD_1 then HEAD_2; both stored rows. */
@@ -743,6 +803,59 @@ describe("a multi-call run", () => {
       [HEAD_1, HEAD_2],
     ]);
   });
+
+  it.each([
+    ["multi", "single"],
+    ["single", "multi"],
+  ])(
+    "carries frozen ids across a force push from %s-call to %s-call",
+    async (from, to) => {
+      const first = await trigger(HEAD_1);
+      await makeTask({
+        generator: stubSourceBriefGenerator(),
+        github: makeMultiCallGitHub(HEAD_1),
+        forceMultiCall: from === "multi",
+      })(first.payload);
+      const second = await trigger(HEAD_2);
+      const amended = `${MULTI_CALL_DIFF}${D_FILE_DIFF}`;
+      const github = makeGitHub(
+        HEAD_2,
+        [...MULTI_CALL_FILES, { path: "src/d.ts", additions: 2, deletions: 0 }],
+        amended,
+      );
+      arrangeCompare(github, { base: BASE, head: HEAD_1 }, MULTI_CALL_DIFF);
+      arrangeCompare(github, { base: BASE, head: HEAD_2 }, amended);
+      arrangeForcePush(github);
+      github.updatePullRequest(PR_REF, { changedFiles: 4 });
+      github.addRepoFile(
+        REPO,
+        { path: "src/d.ts", ref: HEAD_2 },
+        buildRepoFile("one\ntwo\n", "4444444"),
+      );
+
+      await makeTask({
+        generator: stubSourceBriefGenerator(),
+        github,
+        forceMultiCall: to === "multi",
+      })(second.payload);
+
+      const store = createArtifactStore(harness.handle, ctx);
+      const previous = await store.briefs.get(first.pr.id, BASE, HEAD_1);
+      const row = await store.briefs.get(second.pr.id, BASE, HEAD_2);
+      const hops = await store.hunkSpans.listForPullRequest(second.pr.id);
+      const previousBody = JSON.parse(previous?.body ?? "{}") as Brief;
+      const body = JSON.parse(row?.body ?? "{}") as Brief;
+      expect(row?.anchorState).toBe("anchored");
+      expect(hops.map((hop) => [hop.baselineSha, hop.headSha])).toEqual([
+        [HEAD_1, HEAD_2],
+      ]);
+      expect(body.outlineForm === undefined).toBe(to === "single");
+      expect(readChunkFileGroups(body, "src/a.ts")).toEqual(
+        readChunkFileGroups(previousBody, "src/a.ts"),
+      );
+      expect(row?.carriedChunkIds?.length).toBeGreaterThan(0);
+    },
+  );
 
   it("starts over when a stored part is off the shape the store accepts", async () => {
     const { pr, payload } = await trigger(HEAD_1);

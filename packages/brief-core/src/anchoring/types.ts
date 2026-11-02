@@ -1,6 +1,6 @@
 import type { PrSpan } from "../diff/pr-span/types";
 import type { Hop } from "../diff/remap";
-import type { Brief } from "../types";
+import type { AnchorWarning, Brief } from "../types";
 
 export type ChangeGroup = Brief["changeGroups"][number];
 export type Chunk = Brief["chunks"][number];
@@ -29,6 +29,8 @@ export interface AnchorPlan {
   readonly frozenFiles: ReadonlySet<string>;
   readonly reLook: readonly ReLookEntry[];
   readonly previousGroupIds: readonly string[];
+  /** Why the plan carried less than the push allowed; the stitched Brief stores them. */
+  readonly warnings: readonly AnchorWarning[];
   /** The span's hop, every file of either head's PR diff; absent with no span, so the chain demotes. */
   readonly hunkSpans?: Hop;
 }

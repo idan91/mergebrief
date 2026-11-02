@@ -9,7 +9,7 @@ import { buildPrSpan } from "../src/diff/pr-span";
 import type { PrSpan } from "../src/diff/pr-span/types";
 import { remapThroughHops } from "../src/diff/remap";
 import { validateReadingOrder } from "../src/generation/validate";
-import type { Brief } from "../src/types";
+import { AnchorWarnings, type Brief } from "../src/types";
 import {
   insertAfter,
   makeBaseLines,
@@ -190,6 +190,17 @@ describe("planAnchoredGeneration", () => {
     ]);
   });
 
+  it("warns of an unread span and of none on a clean one", () => {
+    const unread = planAnchoredGeneration({ previousBrief: previous });
+    const clean = planAnchoredGeneration({
+      previousBrief: previous,
+      span: SPAN_B,
+    });
+
+    expect(unread.warnings).toEqual([AnchorWarnings.SPAN_UNAVAILABLE]);
+    expect(clean.warnings).toEqual([]);
+  });
+
   it("re-looks every group when the span could not be read", () => {
     const plan = planAnchoredGeneration({ previousBrief: previous });
 
@@ -347,6 +358,7 @@ describe("planAnchoredGeneration", () => {
 
     expect(plan.frozen).toEqual([]);
     expect(plan.reLook[0]?.reason).toContain("no span pairs a.ts");
+    expect(plan.warnings).toEqual([AnchorWarnings.HUNKS_UNPAIRED]);
   });
 
   it("re-looks a group whose added lines a rebase moved into the base", () => {
@@ -793,6 +805,59 @@ describe("stitchBrief", () => {
     expect(
       validateReadingOrder(merged.readingOrder, merged.changeGroups),
     ).toEqual([]);
+  });
+
+  it("a dropped group's step on its frozen parent never names it twice", () => {
+    const generated = brief(
+      [group("tmpA", "alpha rewritten"), group("tmpB", "beta v2")],
+      [chunk("x1", "tmpA", "a.ts", 5, 8), chunk("x2", "tmpB", "b.ts", 1, 3)],
+      {
+        readingOrder: [
+          { groupId: "g1", why: "the carried work" },
+          { groupId: "tmpA", why: "the same work again" },
+          { groupId: "tmpB", why: "builds on it" },
+        ],
+      },
+    );
+
+    const { brief: merged } = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+    });
+
+    expect(merged.readingOrder?.map((step) => step.groupId)).toEqual([
+      "g1",
+      "g2",
+    ]);
+    expect(
+      validateReadingOrder(merged.readingOrder, merged.changeGroups),
+    ).toEqual([]);
+  });
+
+  it("keeps a frozen parent's own why when a dropped step comes first", () => {
+    const generated = brief(
+      [group("tmpA", "alpha rewritten"), group("tmpB", "beta v2")],
+      [chunk("x1", "tmpA", "a.ts", 5, 8), chunk("x2", "tmpB", "b.ts", 1, 3)],
+      {
+        readingOrder: [
+          { groupId: "tmpA", why: "the same work again" },
+          { groupId: "g1", why: "the carried work" },
+          { groupId: "tmpB", why: "builds on it" },
+        ],
+      },
+    );
+
+    const { brief: merged } = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+    });
+
+    expect(merged.readingOrder).toEqual([
+      { groupId: "g1", why: "the carried work" },
+      { groupId: "g2", why: "builds on it" },
+    ]);
   });
 
   it("a frozen-id re-emission with only its own files keeps the carry", () => {

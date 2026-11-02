@@ -2,6 +2,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AnchorWarnings } from "brief-core/types";
+
 import { appI18n } from "@web/i18n/I18nProvider";
 import type { Brief } from "../../../../../model/types";
 import { BriefDetailsPanel } from ".";
@@ -256,6 +258,42 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     const items = within(region).getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual(warnings);
     expect(within(region).getByRole("list").getAttribute("role")).toBe("list");
+  });
+
+  it("shows an anchor warning as its own counted line", () => {
+    renderPanel({
+      ...baseBrief,
+      generationWarnings: [],
+      anchorWarnings: [AnchorWarnings.SPAN_UNAVAILABLE],
+    });
+    fireEvent.click(warningsChip());
+
+    const region = screen.getByRole("region", { name: /warnings/i });
+    expect(warningsChip().textContent).toBe("1 generation warning");
+    expect(
+      within(region)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([appI18n.t("brief.details.anchorWarning.spanUnavailable")]);
+  });
+
+  it("lists anchor warnings before the pipeline's warning lines", () => {
+    renderPanel({
+      ...baseBrief,
+      anchorWarnings: [AnchorWarnings.HUNKS_UNPAIRED],
+    });
+    fireEvent.click(infoTrigger());
+
+    const region = screen.getByRole("region", { name: /warnings/i });
+    expect(warningsChip().textContent).toBe("2 generation warnings");
+    expect(
+      within(region)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      appI18n.t("brief.details.anchorWarning.hunksUnpaired"),
+      "⚠ salvaged brief: dropped 1 entry",
+    ]);
   });
 
   it("Repo config: reports no-config when no snapshot is present", () => {

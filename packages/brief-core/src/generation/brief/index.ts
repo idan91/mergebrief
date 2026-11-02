@@ -3,7 +3,7 @@ import type { Mutable } from "types/utils";
 import { planAnchoredGeneration, stitchBrief } from "../../anchoring";
 import type { AnchorPlan, AnchorPlanArgs } from "../../anchoring/types";
 import type { MediaItem } from "../../media";
-import type { Brief } from "../../types";
+import type { AnchorWarning, Brief } from "../../types";
 import {
   carryDraftBrief,
   DEFAULT_EFFORT,
@@ -203,6 +203,17 @@ interface AnchoredBrief {
   readonly anchoring: BriefAnchoring;
 }
 
+/** The plan's warnings stored on the Brief; a Brief that lost nothing holds none. */
+function stampAnchorWarnings(
+  brief: Brief,
+  anchorWarnings: readonly AnchorWarning[],
+): Brief {
+  if (anchorWarnings.length === 0) {
+    return brief;
+  }
+  return { ...brief, anchorWarnings: [...anchorWarnings] };
+}
+
 /** The draft and the plan stitched and validated once, as one anchored run. */
 function stitchAnchoredBrief(
   run: BriefRun,
@@ -220,7 +231,7 @@ function stitchAnchoredBrief(
     prFiles: options.pr.meta.files.map((file) => file.path),
   });
   warnings.reportIssues(STITCH_CHECK, issues);
-  const brief = validateFinalBrief({
+  const validated = validateFinalBrief({
     brief: stitched,
     context: draft.context,
     carriedChunkIds: anchoring.carriedChunkIds,
@@ -228,6 +239,7 @@ function stitchAnchoredBrief(
     warnings,
     lockfileSummaries,
   });
+  const brief = stampAnchorWarnings(validated, plan.warnings);
   return { brief, anchoring: { plan, ...anchoring } };
 }
 

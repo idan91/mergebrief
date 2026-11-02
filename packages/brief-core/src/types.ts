@@ -329,6 +329,19 @@ export const OutlineForms = {
 } as const;
 export type OutlineForm = ValueOf<typeof OutlineForms>;
 
+/**
+ * Why an anchored run carried less than its push allowed. Stored on the
+ * Brief, never model-produced; a reader shows each through a catalog key.
+ */
+export const AnchorWarnings = {
+  /** The previous head's PR diff could not be read or was too large, so no span read and every group re-looked. */
+  SPAN_UNAVAILABLE: "span-unavailable",
+  /** A file's hunks could not be paired across the push, so its groups re-looked. */
+  HUNKS_UNPAIRED: "hunks-unpaired",
+} as const;
+
+export type AnchorWarning = ValueOf<typeof AnchorWarnings>;
+
 /** The stored chunk shape: the generation chunk plus the derived `loc` and `readAs`. */
 const buildChunkSchema = (riskToken: z.ZodType<string>) =>
   buildChunkGenerationSchema(riskToken).extend({
@@ -989,6 +1002,12 @@ export const BriefSchema = z.object({
   anchor: AnchorSchema.optional().describe(
     "cross-revision anchor origin: anchored | fresh-restart(reason) | none. CLI-assigned, never model-produced; optional on the read path — pre-feature briefs lack it.",
   ),
+  anchorWarnings: z
+    .array(z.enum(AnchorWarnings))
+    .optional()
+    .describe(
+      "why an anchored run carried less than its push allowed. Pipeline-assigned, never model-produced; absent when nothing was lost and on briefs stored before it.",
+    ),
   anchoring: AnchoringDetailSchema.optional().describe(
     "internal per-group carried-vs-regenerated stamp for anchored generations. Pipeline-assigned, never model-produced, not user-visible; present only on anchored briefs.",
   ),
@@ -1055,6 +1074,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   generation: true,
   generationWarnings: true,
   anchor: true,
+  anchorWarnings: true,
   anchoring: true,
   lengthViolations: true,
   concernView: true,

@@ -452,6 +452,65 @@ describe("preview, several pushes are ONE evaluation", () => {
     ]);
   });
 
+  it("reads a same-head retarget in the chain as no move", async () => {
+    const world = await makeWorld();
+    const previous = await seedBrief(world, 1);
+    await seedBrief(world, 2, [], "base-2", "anchored", "head-1");
+    const current = await seedBrief(world, 3, [], "base-2");
+    await seedHop(world, 1, 3);
+    await seedPreviousComment(world, previous);
+
+    const view = await unwrapPreview(
+      createTenantRepository(world.handle, CTX).reviewSessions.preview({
+        briefId: current,
+        reviewerId: REVIEWER,
+      }),
+    );
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: expect.objectContaining({ startLine: 13, endLine: 15 }),
+        anchorStatus: "moved",
+      }),
+    ]);
+  });
+
+  it("keeps every anchor across a pure same-head retarget", async () => {
+    const world = await makeWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(
+      world,
+      2,
+      ["c5"],
+      "base-2",
+      "anchored",
+      "head-1",
+    );
+    await seedPreviousWork(world, previous);
+    await seedBriefFacts(world, current, ["g1"], FIRING);
+
+    const view = await unwrapPreview(
+      createTenantRepository(world.handle, CTX).reviewSessions.preview({
+        briefId: current,
+        reviewerId: REVIEWER,
+      }),
+    );
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: expect.objectContaining({ startLine: 10, endLine: 12 }),
+        anchorStatus: null,
+      }),
+    ]);
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({
+        carryStatus: "settled",
+        regionStart: 30,
+        regionEnd: 32,
+      }),
+    ]);
+  });
+
   it("orphans every anchor when one hop of the chain is missing", async () => {
     const world = await makeWorld();
     const previous = await seedBrief(world, 7);

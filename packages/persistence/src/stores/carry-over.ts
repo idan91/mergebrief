@@ -127,9 +127,11 @@ export interface HopRow {
  * Link the stored hops into one chain by SHA, oldest first. `heads` is the
  * consecutive Brief heads from the previous session's Brief to the current
  * one. Row order is insertion order and never chain order, and rows fork on a
- * shared baseline, so the pair is the only link. A missing or unparseable
- * link returns `null`: a partial chain places anchors on post-push line
- * numbers, which is the one outcome worse than orphaning them.
+ * shared baseline, so the pair is the only link. Two consecutive heads at
+ * one SHA, a same-head retarget, are the same commit and lines: no hop. A
+ * missing or unparseable link returns `null`: a partial chain places anchors
+ * on post-push line numbers, which is the one outcome worse than orphaning
+ * them.
  */
 export function assembleHops(
   heads: readonly string[],
@@ -140,6 +142,9 @@ export function assembleHops(
   );
   const chain: Hop[] = [];
   for (let index = 1; index < heads.length; index++) {
+    if (heads[index - 1] === heads[index]) {
+      continue;
+    }
     const row = byPair.get(hopKey(heads[index - 1], heads[index]));
     if (row === undefined) {
       return null;
@@ -168,7 +173,11 @@ function readJson(raw: string): unknown {
   }
 }
 
-/** Remap one anchor's single range, or `undefined` when it cannot be placed. */
+/**
+ * Remap one anchor's single range, or `undefined` when it cannot be placed.
+ * A linked chain with no hop is every Brief at one head, a same-head
+ * retarget: the same commit and lines, so the range stays where it is.
+ */
 function replace(
   context: CarryOverContext,
   filePath: string,
@@ -177,6 +186,9 @@ function replace(
 ): { start: number; end: number } | undefined {
   if (context.hops === null) {
     return undefined;
+  }
+  if (context.hops.length === 0) {
+    return { start, end };
   }
   const result = remapThroughHops(filePath, [{ start, end }], context.hops);
   if (result.outcome === RemapOutcomes.DEMOTED) {

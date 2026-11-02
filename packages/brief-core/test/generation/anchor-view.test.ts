@@ -10,7 +10,7 @@ import {
   renderAnchorView,
   type AnchorViewInput,
 } from "../../src/generation/prompt";
-import type { Brief } from "../../src/types";
+import { AnchorWarnings, type Brief } from "../../src/types";
 import type { FetchedPr } from "../../src/github/types";
 import { makeFakeGenerator } from "../helpers";
 
@@ -111,6 +111,18 @@ describe("renderAnchorView", () => {
     expect(view).toContain("touches-auth");
     // Frozen entries are marked as not-to-be-re-emitted.
     expect(view.toLowerCase()).toContain("frozen");
+  });
+
+  it("never shows the previous brief's anchor warnings", () => {
+    const warned = renderAnchorView({
+      ...anchorInput,
+      previousBrief: {
+        ...previousBrief,
+        anchorWarnings: [AnchorWarnings.SPAN_UNAVAILABLE],
+      },
+    });
+
+    expect(warned).toBe(view);
   });
 
   it("gives re-look groups their full previous definition", () => {

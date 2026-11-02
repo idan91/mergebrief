@@ -19,6 +19,7 @@ const BRIEF_SECTIONS: BriefSectionSchemas = {
   commitRange: BriefSchema.shape.commitRange,
   generation: BriefSchema.shape.generation,
   anchor: BriefSchema.shape.anchor,
+  anchorWarnings: BriefSchema.shape.anchorWarnings,
   anchoring: BriefSchema.shape.anchoring,
   generationWarnings: BriefSchema.shape.generationWarnings,
   lengthViolations: BriefSchema.shape.lengthViolations,

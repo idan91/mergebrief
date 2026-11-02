@@ -21,6 +21,7 @@ import {
   IconSizes,
 } from "@web/components/Icon/types";
 import styles from "./BriefDetailsPanel.module.scss";
+import { listWarningLines } from "./utils";
 
 export interface BriefDetailsPanelProps {
   brief: Brief;
@@ -134,7 +135,7 @@ export function BriefDetailsPanel({
     // is harmless and keeps the handler's closure fresh.
   });
 
-  const warnings = [...new Set(brief.generationWarnings ?? [])];
+  const warnings = listWarningLines(t, brief);
 
   return (
     <>
@@ -171,7 +172,11 @@ export function BriefDetailsPanel({
                 totalCoreAdded={totalCoreAdded}
                 totalCoreDeleted={totalCoreDeleted}
               />
-              <GenerationSection brief={brief} warningsRef={landOnWarnings} />
+              <GenerationSection
+                brief={brief}
+                warnings={warnings}
+                warningsRef={landOnWarnings}
+              />
               <RepoConfigSection repoConfig={repoConfig} />
             </span>
           </Callout>
@@ -309,14 +314,16 @@ function ArtifactSection({
 
 function GenerationSection({
   brief,
+  warnings,
   warningsRef,
 }: {
   brief: Brief;
+  /** The panel's warning lines, anchor warnings first, each once. */
+  warnings: readonly string[];
   warningsRef: (node: HTMLDivElement | null) => void;
 }) {
   const { t } = useTranslation();
   const generation = brief.generation;
-  const warnings = [...new Set(brief.generationWarnings ?? [])];
   return (
     <section className={styles["section"]} data-details-section="generation">
       <h2 className={styles["heading"]}>

@@ -494,6 +494,7 @@ function buildRevisionPair(base: Brief, revised: Brief): RevisionPair {
       frozenFiles: new Set(),
       reLook: [],
       previousGroupIds: [],
+      warnings: [],
     },
   };
 }

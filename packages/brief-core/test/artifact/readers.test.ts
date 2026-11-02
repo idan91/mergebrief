@@ -206,6 +206,7 @@ describe("readStoredBrief", () => {
     ["commitRange", makeBodyWith({ commitRange: NOT_A_SECTION })],
     ["generation", makeBodyWith({ generation: { provider: 1 } })],
     ["anchor", makeBodyWith({ anchor: { state: "sideways" } })],
+    ["anchorWarnings", makeBodyWith({ anchorWarnings: ["span-lost"] })],
     ["anchoring", makeBodyWith({ anchoring: NOT_A_SECTION })],
     ["generationWarnings", makeBodyWith({ generationWarnings: [1] })],
     ["lengthViolations", makeBodyWith({ lengthViolations: [NOT_A_SECTION] })],

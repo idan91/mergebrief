@@ -470,6 +470,10 @@
       "noRepoConfig": "No .mergebrief configuration applied to this generation.",
       "warnings_one": "{{count}} generation warning",
       "warnings_other": "{{count}} generation warnings",
+      "anchorWarning": {
+        "spanUnavailable": "The previous push's diff couldn't be read, so no group was carried over: every group was looked at again.",
+        "hunksUnpaired": "Some changes couldn't be matched across the push, so the groups holding them were looked at again instead of carried over."
+      },
       "applied": "Applied",
       "notApplied": "Not applied",
       "collisionsLine_one": "Built-in wins over custom name: {{names}}",

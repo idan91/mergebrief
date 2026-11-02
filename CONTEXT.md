@@ -13,7 +13,7 @@ The comprehension artifact the tool produces for a PR: summary, multi-tag catego
 _Avoid_: report, analysis, AI summary, brief number (for index)
 
 **Delta Brief**:
-The comprehension artifact for re-review: what changed between a **Checkpoint** tree and the current head tree, computed as a diff between two states rather than a replay of commits, so it holds across rebases and force-pushes. It carries a summary, the changed groups, the changed chunks with the shipped **Comments** each one addresses, and the whole-PR impact. Stored once per PR, Checkpoint SHA and head SHA and shared by every reviewer at that Checkpoint; per-reviewer carry-over state lives on the **Review Session**, never here. A reviewer with no Checkpoint gets the full **Brief**, no Delta.
+The comprehension artifact for re-review: what changed between a **Checkpoint** and the current head, read off the **Revision span** between the two rather than a replay of commits, so it holds across rebases and force-pushes. It carries a summary, the changed groups, the changed chunks with the shipped **Comments** each one addresses, and the whole-PR impact. Stored once per PR, Checkpoint SHA and head SHA and shared by every reviewer at that Checkpoint; per-reviewer carry-over state lives on the **Review Session**, never here. A reviewer with no Checkpoint gets the full **Brief**, no Delta.
 _Avoid_: incremental brief, diff-of-diff (informal only), update
 
 **Checkpoint**:
@@ -37,8 +37,20 @@ The immediately preceding full **Brief** for the same PR, used as the shared **C
 _Avoid_: prior run, last brief (ambiguous with personal last review)
 
 **Revision changes**:
-The shared, per-revision **Comparison overlay** on a full **Brief** that highlights which lines changed versus the **Previous Brief** (prevHead→head). Computed mechanically from the two head trees, never the per-reviewer **Delta Brief**, never reviewer-relative: every reviewer of a given head sees the same marking. Answers "what moved in this push", distinct from the **Delta Brief**'s "what changed since *I* last looked", and absent on the first **Brief** (no previous head).
+The shared, per-revision **Comparison overlay** on a full **Brief** that highlights which lines changed versus the **Previous Brief** (prevHead→head). Read mechanically off the **Revision span** between the two heads, never the per-reviewer **Delta Brief**, never reviewer-relative: every reviewer of a given head sees the same marking. Answers "what moved in this push", distinct from the **Delta Brief**'s "what changed since *I* last looked", and absent on the first **Brief** (no previous head).
 _Avoid_: delta (reserved for the per-reviewer artifact), delta overlay, blue diff, revision delta
+
+**Revision span**:
+The PR's own change between two of its heads: the PR diff at one head diffed against the PR diff at the other, so a rebase or a base merge shows only what it moved in the PR's own lines. Read once per run for the pair of heads it covers; **Revision changes**, the **Revision narrative**, the **Delta Brief** and **Anchored generation** all read it.
+_Avoid_: incremental diff, between-heads diff, compare diff
+
+**Span refs**:
+The base each head's PR diff was read against when a **Revision span** was computed, stored with the span's marks. A span is served again only under the same refs, so a retarget that keeps the head reads a new span.
+_Avoid_: bases (bare)
+
+**Fast-forward span**:
+A **Revision span** whose two heads share one merge base and whose new head descends from the previous one: the between-heads compare, read as served.
+_Avoid_: fast path (informal)
 
 **Revision narrative**:
 The shared, generated explanation of what changed between a **Brief** and the immediately previous **Brief** for the same PR (prevHead→head), used to summarize **Revision changes** on a full **Brief** without any reviewer-specific **Checkpoint** or carry-over state.
@@ -276,15 +288,19 @@ Why a pending **Generation** has not started, read off its **Queued** **Job**: `
 _Avoid_: queue status, pending reason, delay reason
 
 **Anchored generation**:
-Generating a new revision's **Brief** against the previous one: groups the push did not touch are carried frozen and only touched groups get a re-look, with group and chunk ids descended through the push. A base SHA move (rebase), a missing span diff or a non-fast-forward push sends every group to re-look; a file two previous groups shared, or an ambiguous range remap, sends only the groups that own it. The stored anchor state is `anchored`, `fresh-restart` (the generator config's `full-regeneration` fired on a model swap) or `none` (a first Brief). Distinct from **Comment anchoring**, which places a draft on a moved line.
+Generating a new revision's **Brief** against the previous one: groups the push did not touch are carried frozen and only touched groups get a re-look, with group and chunk ids descended through the push. It reads the **Revision span**, whatever the push (fast-forward, rebase, amend or force push): a file the span changed, a file whose hunks could not pair, a file two previous groups shared (unless the push changed no file and every group carries), or an ambiguous range remap re-looks only the groups that own it. With no span every group re-looks. A **Multi-call run** anchors the same way, and the Brief keeps an **Anchor warning** for what it could not carry. The stored anchor state is `anchored`, `fresh-restart` (the generator config's `full-regeneration` fired on a model swap) or `none` (a first Brief). Distinct from **Comment anchoring**, which places a draft on a moved line.
 _Avoid_: incremental generation, partial regeneration, anchoring (bare)
+
+**Anchor warning**:
+A note an anchored **Brief** keeps on why it carried less than its push allowed: the **Revision span** could not be read, so every group re-looked, or some file's hunks could not pair across the push, so the groups owning it re-looked.
+_Avoid_: anchor error, carry failure
 
 **Stitch**:
 The merge step of **Anchored generation**: carry frozen groups verbatim, judge the model's claims about re-look groups, descend ids and re-point the model's references to them. Merge only; validation, rollups and the **Unattributed remainder** come after, over the merged brief.
 _Avoid_: merge (bare), splice, assemble
 
 **Multi-call run**:
-Generating a **Brief** in more than one model call because the PR is too large for one: a **Grouping call** forms the **Change-groups** and the whole-PR fields, then **Detail calls** write the **Chunks** of those groups, and the pipeline merges the answers into one Brief and validates it once. The reader gets the same Brief shape either way; the **Receipt** says which **Outline** the grouping read and which files were read **Shortened**. A multi-call run re-looks every group, so it is never an **Anchored generation**. A Brief whose single call ran out of room is retried once as a multi-call run, and a retry of that run resumes it rather than sending the single call again.
+Generating a **Brief** in more than one model call because the PR is too large for one: a **Grouping call** forms the **Change-groups** and the whole-PR fields, then **Detail calls** write the **Chunks** of those groups, and the pipeline merges the answers into one Brief and validates it once. The reader gets the same Brief shape either way; the **Receipt** says which **Outline** the grouping read and which files were read **Shortened**. Over a previous Brief it is an **Anchored generation** like a single call: only the files outside frozen groups are grouped and detailed. A Brief whose single call ran out of room is retried once as a multi-call run, and a retry of that run resumes it rather than sending the single call again.
 _Avoid_: split generation, chunked generation (collides with **Chunk**), batch run, large-PR mode
 
 **Grouping call**:
