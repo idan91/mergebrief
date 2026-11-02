@@ -4,6 +4,7 @@
 // the LIVE reads (span diff, file range, stack) on the viewer's binding,
 // cached per session and NEVER persisted.
 import {
+  DIFF_MODE_HEADER,
   ProductQueryIds,
   WARM_SPAN_DIFF_HEADER,
   type PullMetaView,
@@ -11,6 +12,7 @@ import {
 import type { Handler } from "hono";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import { DEFAULT_DRAFT_POLICY } from "generators/instance-policy";
+import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
 import { HttpStatuses } from "types/http";
 import type { z } from "zod/v4";
@@ -48,6 +50,8 @@ import {
   readNarrative,
 } from "./read-artifact";
 import { createLargeDiffCache } from "./logic/large-diff-cache";
+import { createSpanThread } from "./logic/span-thread";
+import { createSpanKeyReader } from "./logic/span-keys";
 import { createSpanDiffCache } from "./logic/span-diff-cache";
 import { readDiff, warmDiff } from "./read-diff";
 import { readFileRange } from "./read-file-range";
@@ -66,6 +70,7 @@ import type {
   ReadArtifactResult,
   ReadDiffDeps,
   ReadFileRangeDeps,
+  ReadsRouteDeps,
 } from "./types";
 import { parseQuery } from "./utils";
 
@@ -178,7 +183,10 @@ function createReadGenerationClaimsHandler(
 function createReadDiffHandler(deps: ReadDiffDeps): Handler<PullRequestEnv> {
   return async (c) => {
     const query = parseQuery(c, diffQuerySchema, ["base", "head"]);
-    const read = await readDiff(deps, c.get("pullRequestAccess"), query);
+    const access = c.get("pullRequestAccess");
+    const { mode, read } = await readDiff(deps, access, query);
+    // Set before any throw: the error answer names which read refused.
+    c.header(DIFF_MODE_HEADER, mode);
     if (!read.ok) {
       throw resolveDiffError(read.error);
     }
@@ -221,11 +229,13 @@ function createReadStackHandler(
 }
 
 /**
- * The span diff's caches and in-flight calls, created once per `createApp`
- * and shared by the diff read and the brief read's warm.
+ * The span diff's caches, in-flight calls and span thread, created once
+ * per `createApp` and shared by the diff read and the brief read's warm.
  */
-function createDiffReads(): ReadDiffDeps {
+function createDiffReads(handle: AppDatabase, log: Logger): ReadDiffDeps {
   return {
+    spanKeys: createSpanKeyReader(handle),
+    spanRunner: createSpanThread({ log }).runner,
     // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
     diffCache: createSpanDiffCache(SPAN_DIFF_CACHE_LIMITS),
     // Same keys, for diffs past the small cache's entry cap.
@@ -291,10 +301,10 @@ function declareLiveReads(
 }
 
 export function readsRoutes(
-  deps: AuthRouteDeps,
+  deps: ReadsRouteDeps,
 ): ProductRouter<PullRequestEnv> {
   const app = productRouter<PullRequestEnv>();
-  const diffReads = createDiffReads();
+  const diffReads = createDiffReads(deps.handle, deps.logger);
   app.query(
     {
       id: ProductQueryIds.READ_PULL,

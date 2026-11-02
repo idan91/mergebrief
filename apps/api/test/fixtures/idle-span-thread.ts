@@ -1,9 +1,9 @@
-// Runs one diff on a real line-diff thread, then leaves the thread idle: the
+// Runs one diff on a real span thread, then leaves the thread idle: the
 // process exits only if an idle thread holds no reference on it.
-import { createLineDiffThread } from "../../src/routes/repos/pr/reads/logic/line-diff-thread";
+import { createSpanThread } from "../../src/routes/repos/pr/reads/logic/span-thread";
 
-const thread = createLineDiffThread();
-const patch = await thread.runLineDiff(
+const thread = createSpanThread();
+const patch = await thread.runner.runLineDiff(
   {
     contents: {
       prevPath: "a.ts",

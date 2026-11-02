@@ -17,8 +17,9 @@ import {
   PrSpanFailureKinds,
   type BetweenHeadsFile,
   type BlobRead,
-  type ComparedFile,
+  type BaseRenameCandidate,
   type HeadTexts,
+  type LineDiffFile,
   type PrSpanFailure,
   type PrSpanRefs,
   type PrSpanSource,
@@ -220,7 +221,7 @@ async function runBoundedLineDiff(
  * takes the fallback too.
  */
 async function diffWithinBound(
-  file: ComparedFile,
+  file: LineDiffFile,
   blobs: HeadBlobs,
   budget: LineDiffBudget,
   runLineDiff: LineDiffRunner,
@@ -281,7 +282,7 @@ async function diffWithinBound(
 async function readHeadBlobs(
   source: PrSpanSource,
   refs: PrSpanRefs,
-  file: ComparedFile,
+  file: LineDiffFile,
   signal: AbortSignal,
 ): Promise<Result<HeadBlobs, PrSpanFailure>> {
   const [prevBlob, newBlob] = await Promise.all([
@@ -315,7 +316,7 @@ async function readHeadBlobs(
 async function readBatchBlobs(
   source: PrSpanSource,
   refs: PrSpanRefs,
-  batch: readonly ComparedFile[],
+  batch: readonly LineDiffFile[],
   signal: AbortSignal,
 ): Promise<Result<HeadBlobs[], PrSpanFailure>> {
   const reads = await Promise.all(
@@ -352,7 +353,7 @@ async function readBatchBlobs(
 export async function readBetweenHeadsFiles(
   source: PrSpanSource,
   refs: PrSpanRefs,
-  files: readonly ComparedFile[],
+  files: readonly LineDiffFile[],
   signal: AbortSignal,
   runLineDiff: LineDiffRunner,
   bounds: SpanLineDiffBounds = DEFAULT_SPAN_BOUNDS,
@@ -407,7 +408,7 @@ function isAbsent(read: Result<BlobRead, PrSpanFailure>): boolean {
 async function probeBaseRename(
   source: PrSpanSource,
   refs: PrSpanRefs,
-  file: ComparedFile,
+  file: BaseRenameCandidate,
   signal: AbortSignal,
 ): Promise<Result<boolean, PrSpanFailure>> {
   const [atPrevHead, atNewHead] = await Promise.all([
@@ -445,7 +446,7 @@ async function probeBaseRename(
 export async function confirmBaseRenames(
   source: PrSpanSource,
   refs: PrSpanRefs,
-  candidates: readonly ComparedFile[],
+  candidates: readonly BaseRenameCandidate[],
   signal: AbortSignal,
 ): Promise<Result<Set<string>, PrSpanFailure>> {
   const confirmed = new Set<string>();

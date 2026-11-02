@@ -1,4 +1,4 @@
-// A line-diff thread stand-in: answers each request with its path and how
+// A span thread stand-in: answers each line diff with its path and how
 // many requests it has received, throws on the path "crash", never answers
 // the path "hang", answers the path "malformed" out of shape, and answers
 // the path "probe" with the flags and env keys the thread started with.
@@ -6,7 +6,9 @@ import { parentPort } from "node:worker_threads";
 
 interface EchoRequest {
   readonly id: number;
-  readonly input: { readonly contents: { readonly path: string } };
+  readonly step: {
+    readonly input: { readonly contents: { readonly path: string } };
+  };
 }
 
 function isEchoRequest(message: unknown): message is EchoRequest {
@@ -16,10 +18,10 @@ function isEchoRequest(message: unknown): message is EchoRequest {
 let received = 0;
 parentPort?.on("message", (message: unknown) => {
   if (!isEchoRequest(message)) {
-    throw new Error("not a line-diff request");
+    throw new Error("not a span step request");
   }
   received += 1;
-  const path = message.input.contents.path;
+  const path = message.step.input.contents.path;
   if (path === "crash") {
     throw new Error("crash requested");
   }

@@ -1,18 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
   formatLineDiffPatch,
+  IN_PROCESS_SPAN_RUNNER,
   PrSpanFailureKinds,
   readPrSpan,
   SpanRunnerError,
   type LineDiffInput,
   type LineDiffRunner,
+  type PrSpanInput,
   type PrSpanRefs,
+  type PrSpanRunner,
 } from "../../../src/diff/pr-span";
 import { LINE_DIFF_MAX_EDIT_LENGTH } from "../../../src/diff/pr-span/consts";
 import {
   insertAfter,
   makeBaseLines,
   makeDiff,
+  makeFastForwardMergeBases,
   makeFilePatch,
   makeText,
   stubSource,
@@ -56,7 +60,33 @@ function makeSignal(): AbortSignal {
   return new AbortController().signal;
 }
 
-describe("readPrSpan with an injected line-diff runner", () => {
+function makeLineDiffRunner(runLineDiff: LineDiffRunner): PrSpanRunner {
+  return { ...IN_PROCESS_SPAN_RUNNER, runLineDiff };
+}
+
+/** A fast-forward of `b.ts` on one merge base: the push only added commits. */
+function stubFastForwardSource(): StubSource {
+  return stubSource({
+    diffs: {
+      "base1..head2": {
+        ok: true,
+        value: makeDiff([
+          makeFilePatch({ path: "b.ts", base: baseText, head: withP1 }),
+        ]),
+      },
+      "head1..head2": {
+        ok: true,
+        value: makeDiff([
+          makeFilePatch({ path: "b.ts", base: baseText, head: withP1 }),
+        ]),
+      },
+    },
+    blobs: {},
+    mergeBases: makeFastForwardMergeBases(REFS, "fork"),
+  });
+}
+
+describe("readPrSpan with an injected span runner", () => {
   it("hands the runner each file in path order under its edit bound", async () => {
     const inputs: LineDiffInput[] = [];
     const recordingRunner: LineDiffRunner = (input) => {
@@ -68,7 +98,7 @@ describe("readPrSpan with an injected line-diff runner", () => {
       stubTwoFileSource(),
       REFS,
       makeSignal(),
-      recordingRunner,
+      makeLineDiffRunner(recordingRunner),
     );
     const inProcess = await readPrSpan(stubTwoFileSource(), REFS, makeSignal());
 
@@ -88,7 +118,7 @@ describe("readPrSpan with an injected line-diff runner", () => {
       stubTwoFileSource(),
       REFS,
       makeSignal(),
-      refusingRunner,
+      makeLineDiffRunner(refusingRunner),
     );
 
     expect(result.ok && result.value.changedFiles).toEqual(["a.ts", "b.ts"]);
@@ -104,7 +134,7 @@ describe("readPrSpan with an injected line-diff runner", () => {
       stubTwoFileSource(),
       REFS,
       makeSignal(),
-      failingRunner,
+      makeLineDiffRunner(failingRunner),
     );
 
     expect(result).toEqual({
@@ -118,7 +148,12 @@ describe("readPrSpan with an injected line-diff runner", () => {
     const buggyRunner: LineDiffRunner = () => Promise.reject(bug);
 
     await expect(
-      readPrSpan(stubTwoFileSource(), REFS, makeSignal(), buggyRunner),
+      readPrSpan(
+        stubTwoFileSource(),
+        REFS,
+        makeSignal(),
+        makeLineDiffRunner(buggyRunner),
+      ),
     ).rejects.toBe(bug);
   });
 
@@ -131,7 +166,86 @@ describe("readPrSpan with an injected line-diff runner", () => {
     };
 
     await expect(
-      readPrSpan(stubTwoFileSource(), REFS, controller.signal, abortingRunner),
+      readPrSpan(
+        stubTwoFileSource(),
+        REFS,
+        controller.signal,
+        makeLineDiffRunner(abortingRunner),
+      ),
     ).rejects.toBe(reason);
+  });
+
+  it.each([
+    ["plan", "planBuiltSpan", stubTwoFileSource],
+    ["build", "buildPrSpan", stubTwoFileSource],
+    ["fast-forward", "buildFastForwardSpan", stubFastForwardSource],
+  ] as const)(
+    "reads transient when the %s step fails",
+    async (_title, step, makeSource) => {
+      const runner: PrSpanRunner = {
+        ...IN_PROCESS_SPAN_RUNNER,
+        [step]: () => Promise.reject(new SpanRunnerError("thread stopped")),
+      };
+
+      const result = await readPrSpan(makeSource(), REFS, makeSignal(), runner);
+
+      expect(result).toEqual({
+        ok: false,
+        error: { kind: PrSpanFailureKinds.TRANSIENT },
+      });
+    },
+  );
+
+  it("rethrows a step's own bug instead of reading transient", async () => {
+    const bug = new TypeError("cannot read properties of undefined");
+    const runner: PrSpanRunner = {
+      ...IN_PROCESS_SPAN_RUNNER,
+      planBuiltSpan: () => Promise.reject(bug),
+    };
+
+    await expect(
+      readPrSpan(stubTwoFileSource(), REFS, makeSignal(), runner),
+    ).rejects.toBe(bug);
+  });
+
+  it("rethrows the abort reason when the read aborts during a step", async () => {
+    const controller = new AbortController();
+    const reason = new Error("deadline");
+    const runner: PrSpanRunner = {
+      ...IN_PROCESS_SPAN_RUNNER,
+      planBuiltSpan: () => {
+        controller.abort(reason);
+        return Promise.reject(new Error("thread stopped"));
+      },
+    };
+
+    await expect(
+      readPrSpan(stubTwoFileSource(), REFS, controller.signal, runner),
+    ).rejects.toBe(reason);
+  });
+
+  it("hands the build step the plan's files and the confirmed renames", async () => {
+    const built: PrSpanInput[] = [];
+    const runner: PrSpanRunner = {
+      ...IN_PROCESS_SPAN_RUNNER,
+      buildPrSpan: (input, signal) => {
+        built.push(input);
+        return IN_PROCESS_SPAN_RUNNER.buildPrSpan(input, signal);
+      },
+    };
+
+    const result = await readPrSpan(
+      stubTwoFileSource(),
+      REFS,
+      makeSignal(),
+      runner,
+    );
+
+    expect([...(built[0]?.betweenHeads.keys() ?? [])]).toEqual([
+      "a.ts",
+      "b.ts",
+    ]);
+    expect(built[0]?.baseRenames).toEqual(new Set());
+    expect(result.ok && result.value.changedFiles).toEqual(["a.ts", "b.ts"]);
   });
 });

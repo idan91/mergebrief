@@ -1,245 +1,17 @@
 import type { Result } from "types/utils";
-import { parseHunkSpans, type FileHunkSpans, type HunkSpan } from "../remap";
-import {
-  FILES_PER_BASE_RENAME_CANDIDATE,
-  IDENTITY_SPAN,
-  MAX_SPAN_CHANGED_FILES,
-} from "./consts";
-import { buildBaseMovedSpans, buildLineDiffSpans } from "./logic/build-hop";
-import { readChangeRuns } from "./logic/change-runs";
-import { comparePrDiffs, settleBaseRenames } from "./logic/compare-patches";
-import { buildFastForwardSpan } from "./logic/fast-forward-span";
-import {
-  formatFallbackPatch,
-  formatHeaderOnlyPatch,
-  formatReshapedPatch,
-} from "./logic/fallback-patch";
-import {
-  filterBetweenHeadsHunks,
-  NO_PR_CHANGE,
-  readPrChangePlaces,
-} from "./logic/filter-hunks";
+import { MAX_SPAN_CHANGED_FILES } from "./consts";
 import { pickLastingFailure } from "./logic/lasting-failure";
-import { runLineDiffInProcess, type LineDiffRunner } from "./logic/line-diff";
+import { SpanRunnerError } from "./logic/line-diff";
 import { confirmBaseRenames, readBetweenHeadsFiles } from "./logic/read-blobs";
+import { IN_PROCESS_SPAN_RUNNER } from "./logic/span-runner";
 import {
-  BetweenHeadsKinds,
-  FileVerdicts,
   PrSpanFailureKinds,
-  type BetweenHeadsFile,
-  type ComparedFile,
-  type PrSpan,
-  type PrSpanInput,
+  type PrSpanFailure,
   type PrSpanRefs,
   type PrSpanResult,
-  type PrSpanFailure,
+  type PrSpanRunner,
   type PrSpanSource,
 } from "./types";
-
-interface FileSpan {
-  readonly isChanged: boolean;
-  readonly hunks: readonly HunkSpan[];
-  /** The file's part of the unfiltered span, then of the filtered one. */
-  readonly unfiltered?: string;
-  readonly filtered?: string;
-}
-
-function readChangedFileSpan(
-  file: ComparedFile,
-  betweenHeads: BetweenHeadsFile | undefined,
-): FileSpan {
-  if (betweenHeads?.kind !== BetweenHeadsKinds.PATCH) {
-    const fallback = formatFallbackPatch(file);
-    return {
-      isChanged: true,
-      hunks: [],
-      unfiltered: fallback,
-      filtered: fallback,
-    };
-  }
-
-  const { patch } = betweenHeads;
-  const prevPlaces = file.prev
-    ? readPrChangePlaces(file.prev.runs)
-    : NO_PR_CHANGE;
-  const nextPlaces = file.next
-    ? readPrChangePlaces(file.next.runs)
-    : NO_PR_CHANGE;
-  const samePath = file.prevPath === file.path;
-  const patchHunks = parseHunkSpans(patch);
-  if (patchHunks.length === 0) {
-    return {
-      isChanged: true,
-      hunks: samePath ? [IDENTITY_SPAN] : [],
-      unfiltered: patch,
-      filtered: patch,
-    };
-  }
-  // A range cannot stay on a path that moved, so a moved file demotes whatever its hunks say.
-  const hunks = samePath ? patchHunks : [];
-  // Every between-heads hunk away from the PR change is base noise, yet the PR's runs differ: send those runs.
-  const filtered =
-    filterBetweenHeadsHunks(
-      patch,
-      prevPlaces,
-      nextPlaces,
-      betweenHeads.texts,
-    ) ?? formatFallbackPatch(file);
-  return { isChanged: true, hunks, unfiltered: patch, filtered };
-}
-
-/**
- * A file whose runs match over a moved base but whose context does not:
- * changed when its line diff keeps a hunk touching either head's PR
- * change, unchanged when every between-heads edit is base noise.
- */
-function readContextMovedFileSpan(
-  file: ComparedFile,
-  betweenHeads: BetweenHeadsFile | undefined,
-): FileSpan {
-  if (betweenHeads?.kind !== BetweenHeadsKinds.PATCH) {
-    return readChangedFileSpan(file, betweenHeads);
-  }
-
-  const { patch } = betweenHeads;
-  const hunks = buildLineDiffSpans(readChangeRuns(patch));
-  const filtered = filterBetweenHeadsHunks(
-    patch,
-    readPrChangePlaces(file.prev?.runs ?? []),
-    readPrChangePlaces(file.next?.runs ?? []),
-    betweenHeads.texts,
-  );
-  if (filtered === undefined) {
-    return { isChanged: false, hunks, unfiltered: patch };
-  }
-  return { isChanged: true, hunks, unfiltered: patch, filtered };
-}
-
-function readFileSpan(
-  file: ComparedFile,
-  betweenHeads: BetweenHeadsFile | undefined,
-): FileSpan {
-  if (file.verdict === FileVerdicts.IDENTICAL) {
-    return { isChanged: false, hunks: [IDENTITY_SPAN] };
-  }
-  if (file.verdict === FileVerdicts.BASE_RENAMED) {
-    return { isChanged: false, hunks: [] };
-  }
-  if (file.verdict === FileVerdicts.CHANGE_RESHAPED_BY_BASE) {
-    const patch = formatReshapedPatch(file);
-    return {
-      isChanged: true,
-      hunks: [IDENTITY_SPAN],
-      unfiltered: patch,
-      filtered: patch,
-    };
-  }
-  if (file.verdict === FileVerdicts.BASE_MOVED) {
-    const spans = buildBaseMovedSpans(
-      file.prev?.runs ?? [],
-      file.next?.runs ?? [],
-    );
-    return { isChanged: false, hunks: spans ?? [] };
-  }
-  if (file.verdict === FileVerdicts.CONTEXT_MOVED) {
-    return readContextMovedFileSpan(file, betweenHeads);
-  }
-  if (file.verdict === FileVerdicts.HEADER_CHANGED) {
-    const patch = formatHeaderOnlyPatch(file);
-    return { isChanged: true, hunks: [], unfiltered: patch, filtered: patch };
-  }
-  return readChangedFileSpan(file, betweenHeads);
-}
-
-/** A file only both heads' blobs can settle: its content changed, or its context moved. */
-function needsLineDiff(file: ComparedFile): boolean {
-  return (
-    file.verdict === FileVerdicts.CONTENT_CHANGED ||
-    file.verdict === FileVerdicts.CONTEXT_MOVED
-  );
-}
-
-/** A file that may read changed, so it counts against the file bound. */
-function mayBeChanged(file: ComparedFile): boolean {
-  return (
-    needsLineDiff(file) ||
-    file.verdict === FileVerdicts.HEADER_CHANGED ||
-    file.verdict === FileVerdicts.CHANGE_RESHAPED_BY_BASE
-  );
-}
-
-function hasBaseRenameVerdict(file: ComparedFile): boolean {
-  return file.verdict === FileVerdicts.BASE_RENAMED;
-}
-
-function assemblePrSpan(
-  compared: readonly ComparedFile[],
-  betweenHeads: ReadonlyMap<string, BetweenHeadsFile>,
-): PrSpan {
-  const hop = new Map<string, FileHunkSpans>();
-  const pathsByPrevPath = new Map<string, string[]>();
-  const unfiltered: string[] = [];
-  const filtered: string[] = [];
-  const changedFiles: string[] = [];
-  const unchangedFiles: string[] = [];
-
-  for (const file of compared) {
-    const fileSpan = readFileSpan(file, betweenHeads.get(file.path));
-    const sharers = pathsByPrevPath.get(file.prevPath) ?? [];
-    sharers.push(file.path);
-    pathsByPrevPath.set(file.prevPath, sharers);
-    // Two files leaving from one previous path cannot both place its ranges.
-    const hunks = sharers.length > 1 ? [] : fileSpan.hunks;
-    hop.set(file.prevPath, { file: file.prevPath, hunks });
-    if (fileSpan.unfiltered !== undefined) {
-      unfiltered.push(fileSpan.unfiltered);
-    }
-    if (fileSpan.filtered !== undefined) {
-      filtered.push(fileSpan.filtered);
-    }
-    const side = fileSpan.isChanged ? changedFiles : unchangedFiles;
-    side.push(file.path);
-  }
-
-  const hopEntries = [...hop.values()];
-  const filteredDiff = filtered.join("\n");
-  const unpairableFiles = hopEntries
-    .filter((entry) => entry.hunks.length === 0)
-    .flatMap((entry) => pathsByPrevPath.get(entry.file) ?? []);
-  return {
-    changedFiles,
-    unchangedFiles,
-    unpairableFiles,
-    filteredDiff,
-    unfilteredDiff: unfiltered.join("\n"),
-    hop: hopEntries,
-    isUnchanged: isSpanUnchanged(filteredDiff),
-  };
-}
-
-/**
- * The no-change rule the worker, the dev CLI and the eval harness share:
- * every changed file adds text to the filtered diff, so an empty one means
- * the PR's own change did not move.
- */
-export function isSpanUnchanged(filteredDiff: string): boolean {
-  return filteredDiff === "";
-}
-
-/**
- * The revision span between two heads from both heads' PR diffs and the
- * between-heads patch of each file `readPrSpan` line-diffs, keyed by its
- * new-head path. Such a file with no patch reads changed and takes the
- * patch-level fallback.
- */
-export function buildPrSpan(input: PrSpanInput): PrSpan {
-  const compared = comparePrDiffs(input.prevPrDiff, input.newPrDiff);
-  const settled = settleBaseRenames(
-    compared,
-    input.baseRenames ?? new Set<string>(),
-  );
-  return assemblePrSpan(settled, input.betweenHeads);
-}
 
 function pickRoundFailure(
   reads: readonly Result<unknown, PrSpanFailure>[],
@@ -248,11 +20,32 @@ function pickRoundFailure(
   return failures.reduce(pickLastingFailure);
 }
 
+/**
+ * The runner step's answer. A `SpanRunnerError` is infrastructure, so the
+ * span reads transient; an aborted read throws the signal's reason, and any
+ * other throw is a bug that propagates.
+ */
+async function runSpanStep<Answer>(
+  step: Promise<Answer>,
+  signal: AbortSignal,
+): Promise<Result<Answer, PrSpanFailure>> {
+  try {
+    return { ok: true, value: await step };
+  } catch (error) {
+    signal.throwIfAborted();
+    if (!(error instanceof SpanRunnerError)) {
+      throw error;
+    }
+    return { ok: false, error: { kind: PrSpanFailureKinds.TRANSIENT } };
+  }
+}
+
 async function readFastForwardSpan(
   source: PrSpanSource,
   refs: PrSpanRefs,
   newPrDiff: string,
   signal: AbortSignal,
+  runner: PrSpanRunner,
 ): Promise<PrSpanResult> {
   const betweenHeads = await source.fetchPrDiff(
     { base: refs.prevHead, head: refs.newHead },
@@ -262,14 +55,15 @@ async function readFastForwardSpan(
     return betweenHeads;
   }
 
-  const span = buildFastForwardSpan({
-    betweenHeadsDiff: betweenHeads.value,
-    newPrDiff,
-  });
-  if (span.changedFiles.length > MAX_SPAN_CHANGED_FILES) {
+  const input = { betweenHeadsDiff: betweenHeads.value, newPrDiff };
+  const span = await runSpanStep(
+    runner.buildFastForwardSpan(input, signal),
+    signal,
+  );
+  if (span.ok && span.value.changedFiles.length > MAX_SPAN_CHANGED_FILES) {
     return { ok: false, error: { kind: PrSpanFailureKinds.TOO_LARGE } };
   }
-  return { ok: true, value: span };
+  return span;
 }
 
 async function readBuiltSpan(
@@ -277,7 +71,7 @@ async function readBuiltSpan(
   refs: PrSpanRefs,
   newPrDiff: string,
   signal: AbortSignal,
-  runLineDiff: LineDiffRunner,
+  runner: PrSpanRunner,
 ): Promise<PrSpanResult> {
   const prevPrDiff = await source.fetchPrDiff(
     { base: refs.prevBase, head: refs.prevHead },
@@ -287,47 +81,62 @@ async function readBuiltSpan(
     return prevPrDiff;
   }
 
-  const compared = comparePrDiffs(prevPrDiff.value, newPrDiff);
-  const candidates = compared.filter(hasBaseRenameVerdict);
-  const changedCount =
-    compared.filter(mayBeChanged).length +
-    candidates.length * FILES_PER_BASE_RENAME_CANDIDATE;
+  const prDiffs = { prevPrDiff: prevPrDiff.value, newPrDiff };
+  const plan = await runSpanStep(runner.planBuiltSpan(prDiffs, signal), signal);
+  if (!plan.ok) {
+    return plan;
+  }
+  const { changedCount, lineDiffFiles, baseRenameCandidates } = plan.value;
   if (changedCount > MAX_SPAN_CHANGED_FILES) {
     return { ok: false, error: { kind: PrSpanFailureKinds.TOO_LARGE } };
   }
 
-  const confirmed = await confirmBaseRenames(source, refs, candidates, signal);
+  const confirmed = await confirmBaseRenames(
+    source,
+    refs,
+    baseRenameCandidates,
+    signal,
+  );
   if (!confirmed.ok) {
     return confirmed;
   }
-  const settled = settleBaseRenames(compared, confirmed.value);
+  const refusedFiles = baseRenameCandidates
+    .filter((candidate) => !confirmed.value.has(candidate.path))
+    .flatMap((candidate) => candidate.refusedLineDiffFiles);
   const betweenHeads = await readBetweenHeadsFiles(
     source,
     refs,
-    settled.filter(needsLineDiff),
+    [...lineDiffFiles, ...refusedFiles],
     signal,
-    runLineDiff,
+    runner.runLineDiff,
   );
   if (!betweenHeads.ok) {
     return betweenHeads;
   }
-  return { ok: true, value: assemblePrSpan(settled, betweenHeads.value) };
+
+  const input = {
+    ...prDiffs,
+    baseRenames: confirmed.value,
+    betweenHeads: betweenHeads.value,
+  };
+  return runSpanStep(runner.buildPrSpan(input, signal), signal);
 }
 
 /**
  * Read the revision span through `source`. A fast-forward over an unmoved
  * merge base is the between-heads compare as served; anything else is built
  * from both heads' PR diffs, base-rename probes and both blobs of each file
- * only a line diff settles, each diffed through `runLineDiff` (in-process by
- * default; a runner that fails reads `transient`). A changed set past the
- * file bound, a built span counting each such file and candidate as two,
- * is `too-large` before any blob read.
+ * only a line diff settles. Every step whose cost grows with the diffs or
+ * the blobs runs through `runner` (in-process by default; a step that fails
+ * reads `transient`). A changed set past the file bound, a built span
+ * counting each such file and candidate as two, is `too-large` before any
+ * blob read.
  */
 export async function readPrSpan(
   source: PrSpanSource,
   refs: PrSpanRefs,
   signal: AbortSignal,
-  runLineDiff: LineDiffRunner = runLineDiffInProcess,
+  runner: PrSpanRunner = IN_PROCESS_SPAN_RUNNER,
 ): Promise<PrSpanResult> {
   const reads = await Promise.all([
     source.fetchMergeBase({ base: refs.prevBase, head: refs.prevHead }, signal),
@@ -345,12 +154,14 @@ export async function readPrSpan(
   const isSameMergeBase = prevMergeBase.value === newMergeBase.value;
   const isFastForward = headsMergeBase.value === refs.prevHead;
   if (isSameMergeBase && isFastForward) {
-    return readFastForwardSpan(source, refs, newPrDiff.value, signal);
+    return readFastForwardSpan(source, refs, newPrDiff.value, signal, runner);
   }
-  return readBuiltSpan(source, refs, newPrDiff.value, signal, runLineDiff);
+  return readBuiltSpan(source, refs, newPrDiff.value, signal, runner);
 }
 
 export { LINE_DIFF_TIMEOUT_MS } from "./consts";
+export { buildPrSpan, isSpanUnchanged } from "./logic/build-span";
+export { buildFastForwardSpan } from "./logic/fast-forward-span";
 export {
   formatLineDiffPatch,
   SpanRunnerError,
@@ -358,18 +169,27 @@ export {
   type LineDiffInput,
   type LineDiffRunner,
 } from "./logic/line-diff";
+export { planBuiltSpan } from "./logic/plan-span";
+export { IN_PROCESS_SPAN_RUNNER } from "./logic/span-runner";
 export {
   BetweenHeadsKinds,
   BlobReadKinds,
   PrSpanFailureKinds,
+  type BaseRenameCandidate,
   type BetweenHeadsFile,
   type BlobRead,
   type BlobRef,
+  type BuiltSpanPlan,
+  type FastForwardSpanInput,
+  type HeadTexts,
+  type LineDiffFile,
+  type PrDiffPair,
   type PrDiffRef,
   type PrSpan,
   type PrSpanFailure,
   type PrSpanInput,
   type PrSpanRefs,
   type PrSpanResult,
+  type PrSpanRunner,
   type PrSpanSource,
 } from "./types";

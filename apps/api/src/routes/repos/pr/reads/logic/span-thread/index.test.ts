@@ -17,20 +17,17 @@ import {
 } from "brief-core/pr-span";
 import type { Result } from "types/utils";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  createLineDiffThread,
-  LineDiffThreadError,
-  type LineDiffThread,
-} from ".";
-import type { LineDiffThreadOptions } from "./types";
+import { createSpanThread, SpanThreadError } from ".";
+import type { SpanThread, SpanThreadOptions } from "./types";
+import { testLogging } from "../../../../../../../test/logging";
 
 const IDLE_THREAD_SCRIPT = new URL(
-  "../../../../../../../test/fixtures/idle-line-diff-thread.ts",
+  "../../../../../../../test/fixtures/idle-span-thread.ts",
   import.meta.url,
 );
 const IDLE_EXIT_TIMEOUT_MS = 15_000;
 const ECHO_THREAD = new URL(
-  "../../../../../../../test/fixtures/echo-line-diff-thread.ts",
+  "../../../../../../../test/fixtures/echo-span-thread.ts",
   import.meta.url,
 );
 const SLOW_PAIR_LINES = 40_000;
@@ -39,12 +36,32 @@ const TICK_MS = 10;
 /** Room past a real jsdiff timeout for the thread's start and the test's own reads. */
 const SLOW_TEST_MARGIN_MS = 15_000;
 const SLOW_TEST_TIMEOUT_MS = LINE_DIFF_TIMEOUT_MS + SLOW_TEST_MARGIN_MS;
-const PROBE_ENV_KEY = "LINE_DIFF_THREAD_PROBE";
-const SHORT_LIMIT_MS = 200;
+const PROBE_ENV_KEY = "SPAN_THREAD_PROBE";
+/** A limit a fresh thread's start under a loaded test run stays inside: its start counts against the first answer. */
+const COLD_START_LIMIT_MS = 5_000;
+const COLD_START_TEST_TIMEOUT_MS = COLD_START_LIMIT_MS * 4;
 const SHORT_BACKOFF_MS = 100;
 const BLOB_ID_LENGTH = 7;
 const ADDED_BLOB_ID = "0000000";
 const FILE_MODE = "100644";
+/** Node #65881's push: about 2,250 files and 6 MB in each head's PR diff. */
+const SIZED_PR_FILES = 2_250;
+const SIZED_HUNKS_PER_FILE = 6;
+const SIZED_HUNK_STRIDE = 40;
+const SIZED_RUN_LINES = 4;
+const SIZED_CONTEXT_LINES = 3;
+/** Lines the base gained above every hunk between the two heads. */
+const SIZED_BASE_SHIFT = 5;
+const SIZED_REWRITTEN_FILES = 3;
+/**
+ * The thread leaves at most this share of the in-process path's longest step
+ * on the event loop: a ratio holds under coverage and load, where a fixed
+ * millisecond bar does not.
+ */
+const IN_PROCESS_STEP_SHARE = 0.25;
+const WATCHDOG_INTERVAL_MS = 1;
+const SIZED_TEST_TIMEOUT_MS = 60_000;
+const MICROSECONDS_PER_MS = 1_000;
 const REFS: PrSpanRefs = {
   prevBase: "base1",
   prevHead: "head1",
@@ -52,10 +69,10 @@ const REFS: PrSpanRefs = {
   newHead: "head2",
 };
 
-const threads: LineDiffThread[] = [];
+const threads: SpanThread[] = [];
 
-function startThread(options?: LineDiffThreadOptions): LineDiffThread {
-  const thread = createLineDiffThread(options);
+function startThread(options?: SpanThreadOptions): SpanThread {
+  const thread = createSpanThread(options);
   threads.push(thread);
   return thread;
 }
@@ -168,11 +185,119 @@ function stubSpanSource(fixture: SpanFixture): PrSpanSource {
   };
 }
 
+interface SizedPatchShape {
+  /** `<base blob>..<head blob>`. */
+  readonly blobIds: string;
+  readonly shift: number;
+  readonly runVerb: string;
+}
+
+/** A PR patch of hunks around replaced runs, every hunk moved down `shift` lines. */
+function makeSizedPrPatch(path: string, shape: SizedPatchShape): string {
+  const hunkLines = SIZED_CONTEXT_LINES * 2 + SIZED_RUN_LINES;
+  const lines = [
+    `diff --git a/${path} b/${path}`,
+    `index ${shape.blobIds} ${FILE_MODE}`,
+    `--- a/${path}`,
+    `+++ b/${path}`,
+  ];
+  for (let hunk = 0; hunk < SIZED_HUNKS_PER_FILE; hunk += 1) {
+    const start = hunk * SIZED_HUNK_STRIDE + 1 + shape.shift;
+    lines.push(`@@ -${start},${hunkLines} +${start},${hunkLines} @@`);
+    const context = makeLines(` const context${hunk}_`, SIZED_CONTEXT_LINES);
+    const runs = makeLines(` value${hunk}_`, SIZED_RUN_LINES);
+    lines.push(...context);
+    lines.push(...runs.map((line) => `-${line} = readOld("${path}");`));
+    lines.push(
+      ...runs.map((line) => `+${line} = ${shape.runVerb}("${path}");`),
+    );
+    lines.push(...context);
+  }
+  return lines.join("\n");
+}
+
+function makeSizedPaths(): string[] {
+  return Array.from(
+    { length: SIZED_PR_FILES },
+    (_, index) => `lib/internal/f${String(index).padStart(4, "0")}.js`,
+  );
+}
+
+/**
+ * Two heads of a Node-sized PR on a moved base: every file's runs match
+ * over the move, except the first few, which the new head rewrote.
+ */
+function makeSizedRebaseFixture(
+  prevText: string,
+  newText: string,
+): SpanFixture {
+  const paths = makeSizedPaths();
+  const rewritten = paths.slice(0, SIZED_REWRITTEN_FILES);
+  const blobs: Record<string, string> = {};
+  for (const path of rewritten) {
+    blobs[`head1:${path}`] = prevText;
+    blobs[`head2:${path}`] = newText;
+  }
+  const prevPatch = (path: string): string =>
+    makeSizedPrPatch(path, {
+      blobIds: "1111111..aaaaaaa",
+      shift: 0,
+      runVerb: "readNew",
+    });
+  const newPatch = (path: string): string =>
+    makeSizedPrPatch(path, {
+      blobIds: "2222222..bbbbbbb",
+      shift: SIZED_BASE_SHIFT,
+      runVerb: rewritten.includes(path) ? "readRewritten" : "readNew",
+    });
+  return {
+    prDiffs: {
+      "base1..head1": paths.map(prevPatch),
+      "base1..head2": paths.map(newPatch),
+    },
+    blobs,
+  };
+}
+
+/** A push that only added commits, its PR diffs over one merge base. */
+function stubFastForwardSource(fixture: SpanFixture): PrSpanSource {
+  const source = stubSpanSource(fixture);
+  return {
+    ...source,
+    fetchMergeBase(span) {
+      const value = span.base === REFS.prevHead ? REFS.prevHead : "fork";
+      return Promise.resolve({ ok: true, value });
+    },
+  };
+}
+
+/** The longest stretch of main-thread CPU between two watchdog ticks while `read` runs. */
+async function measureLongestMainThreadStep(
+  read: () => Promise<unknown>,
+): Promise<number> {
+  let longestMs = 0;
+  let last = process.threadCpuUsage();
+  function sample(): void {
+    const spent = process.threadCpuUsage(last);
+    longestMs = Math.max(
+      longestMs,
+      (spent.user + spent.system) / MICROSECONDS_PER_MS,
+    );
+    last = process.threadCpuUsage();
+  }
+  const watchdog = setInterval(sample, WATCHDOG_INTERVAL_MS);
+
+  await read();
+  clearInterval(watchdog);
+  sample();
+  return longestMs;
+}
+
 afterEach(async () => {
   await Promise.all(threads.splice(0).map((thread) => thread.terminate()));
 });
 
-describe("createLineDiffThread", () => {
+describe("createSpanThread", () => {
   it("answers the in-process patch byte for byte", async () => {
     const thread = startThread();
     const inputs: LineDiffInput[] = [
@@ -217,7 +342,7 @@ describe("createLineDiffThread", () => {
     ];
 
     const answers = await Promise.all(
-      inputs.map((input) => thread.runLineDiff(input, SIGNAL)),
+      inputs.map((input) => thread.runner.runLineDiff(input, SIGNAL)),
     );
 
     expect(answers).toEqual(inputs.map((input) => formatLineDiffPatch(input)));
@@ -229,7 +354,7 @@ describe("createLineDiffThread", () => {
     "keeps the event loop free and falls back when a diff times out",
     async () => {
       const thread = startThread();
-      await thread.runLineDiff(makeInput("warm.ts"), SIGNAL);
+      await thread.runner.runLineDiff(makeInput("warm.ts"), SIGNAL);
       const input: LineDiffInput = {
         contents: {
           prevPath: "big.txt",
@@ -245,7 +370,7 @@ describe("createLineDiffThread", () => {
       }, TICK_MS);
       const startedAt = Date.now();
 
-      const patch = await thread.runLineDiff(input, SIGNAL);
+      const patch = await thread.runner.runLineDiff(input, SIGNAL);
       clearInterval(ticker);
 
       expect(patch).toBeUndefined();
@@ -269,8 +394,11 @@ describe("createLineDiffThread", () => {
       maxEditLength: 0,
     };
 
-    const answer = await thread.runLineDiff(moved, SIGNAL);
-    const next = await thread.runLineDiff(makeInput("after.ts", 100), SIGNAL);
+    const answer = await thread.runner.runLineDiff(moved, SIGNAL);
+    const next = await thread.runner.runLineDiff(
+      makeInput("after.ts", 100),
+      SIGNAL,
+    );
 
     expect(answer).toBe(formatLineDiffPatch(moved));
     expect(next).toBe(formatLineDiffPatch(makeInput("after.ts", 100)));
@@ -280,7 +408,7 @@ describe("createLineDiffThread", () => {
     process.env[PROBE_ENV_KEY] = "inherited";
     const thread = startThread({ entry: ECHO_THREAD });
 
-    const probe = await thread.runLineDiff(makeInput("probe"), SIGNAL);
+    const probe = await thread.runner.runLineDiff(makeInput("probe"), SIGNAL);
     delete process.env[PROBE_ENV_KEY];
 
     expect(JSON.parse(probe ?? "")).toEqual({ execArgv: [], envKeys: [] });
@@ -290,39 +418,63 @@ describe("createLineDiffThread", () => {
     const thread = startThread({ entry: ECHO_THREAD });
 
     const outcomes = await Promise.allSettled([
-      thread.runLineDiff(makeInput("crash"), SIGNAL),
-      thread.runLineDiff(makeInput("queued"), SIGNAL),
+      thread.runner.runLineDiff(makeInput("crash"), SIGNAL),
+      thread.runner.runLineDiff(makeInput("queued"), SIGNAL),
     ]);
 
     for (const outcome of outcomes) {
       expect(outcome.status).toBe("rejected");
       expect(outcome.status === "rejected" && outcome.reason).toBeInstanceOf(
-        LineDiffThreadError,
+        SpanThreadError,
       );
     }
-    await expect(thread.runLineDiff(makeInput("next"), SIGNAL)).resolves.toBe(
-      "next:1",
-    );
+    await expect(
+      thread.runner.runLineDiff(makeInput("next"), SIGNAL),
+    ).resolves.toBe("next:1");
   });
 
-  it("stops a thread that never answers and fails its diffs", async () => {
-    const thread = startThread({
-      entry: ECHO_THREAD,
-      answerLimitMs: SHORT_LIMIT_MS,
-    });
+  it(
+    "stops a thread that never answers and fails its diffs",
+    async () => {
+      const thread = startThread({
+        entry: ECHO_THREAD,
+        answerLimitMs: COLD_START_LIMIT_MS,
+      });
 
-    const outcomes = await Promise.allSettled([
-      thread.runLineDiff(makeInput("hang"), SIGNAL),
-      thread.runLineDiff(makeInput("queued"), SIGNAL),
+      const outcomes = await Promise.allSettled([
+        thread.runner.runLineDiff(makeInput("hang"), SIGNAL),
+        thread.runner.runLineDiff(makeInput("queued"), SIGNAL),
+      ]);
+
+      expect(outcomes.map(readOutcome)).toEqual([
+        "rejected: the span thread stopped",
+        "rejected: the span thread stopped",
+      ]);
+      await expect(
+        thread.runner.runLineDiff(makeInput("next"), SIGNAL),
+      ).resolves.toBe("next:1");
+    },
+    COLD_START_TEST_TIMEOUT_MS,
+  );
+
+  it("logs one warning per thread stop, with its cause", async () => {
+    const logging = testLogging();
+    const thread = startThread({ entry: ECHO_THREAD, log: logging.logger });
+
+    await Promise.allSettled([
+      thread.runner.runLineDiff(makeInput("crash"), SIGNAL),
+      thread.runner.runLineDiff(makeInput("queued"), SIGNAL),
     ]);
 
-    expect(outcomes.map(readOutcome)).toEqual([
-      "rejected: the line-diff thread stopped",
-      "rejected: the line-diff thread stopped",
+    const stops = logging
+      .lines()
+      .filter(
+        (line) => line["msg"] === "span thread stopped; its steps failed",
+      );
+    expect(stops).toEqual([
+      expect.objectContaining({ level: "warn", stopsInARow: 1 }),
     ]);
-    await expect(thread.runLineDiff(makeInput("next"), SIGNAL)).resolves.toBe(
-      "next:1",
-    );
+    expect(stops[0]?.["cause"] ?? stops[0]?.["err"]).toBeDefined();
   });
 
   it("waits before restarting a thread that stopped twice in a row", async () => {
@@ -330,17 +482,17 @@ describe("createLineDiffThread", () => {
       entry: ECHO_THREAD,
       respawnBackoffMs: SHORT_BACKOFF_MS,
     });
-    await thread.runLineDiff(makeInput("crash"), SIGNAL).catch(() => "");
-    await thread.runLineDiff(makeInput("crash"), SIGNAL).catch(() => "");
+    await thread.runner.runLineDiff(makeInput("crash"), SIGNAL).catch(() => "");
+    await thread.runner.runLineDiff(makeInput("crash"), SIGNAL).catch(() => "");
 
     const [early] = await Promise.allSettled([
-      thread.runLineDiff(makeInput("early"), SIGNAL),
+      thread.runner.runLineDiff(makeInput("early"), SIGNAL),
     ]);
     await new Promise((resolve) => setTimeout(resolve, SHORT_BACKOFF_MS * 2));
-    const late = await thread.runLineDiff(makeInput("late"), SIGNAL);
+    const late = await thread.runner.runLineDiff(makeInput("late"), SIGNAL);
 
     expect(early.status === "rejected" && early.reason).toBeInstanceOf(
-      LineDiffThreadError,
+      SpanThreadError,
     );
     expect(late).toBe("late:1");
   });
@@ -349,14 +501,29 @@ describe("createLineDiffThread", () => {
     const thread = startThread({ entry: ECHO_THREAD });
 
     const [malformed] = await Promise.allSettled([
-      thread.runLineDiff(makeInput("malformed"), SIGNAL),
+      thread.runner.runLineDiff(makeInput("malformed"), SIGNAL),
     ]);
-    const next = await thread.runLineDiff(makeInput("next"), SIGNAL);
+    const next = await thread.runner.runLineDiff(makeInput("next"), SIGNAL);
 
     expect(readOutcome(malformed)).toBe(
-      "rejected: the line-diff answer is malformed",
+      "rejected: the span step answer is malformed",
     );
     expect(next).toBe("next:2");
+  });
+
+  it("logs one error for an answer out of shape", async () => {
+    const logging = testLogging();
+    const thread = startThread({ entry: ECHO_THREAD, log: logging.logger });
+
+    await thread.runner
+      .runLineDiff(makeInput("malformed"), SIGNAL)
+      .catch(() => "");
+
+    expect(
+      logging
+        .lines()
+        .filter((line) => line["msg"] === "span step answer malformed"),
+    ).toEqual([expect.objectContaining({ level: "error" })]);
   });
 
   it(
@@ -377,10 +544,13 @@ describe("createLineDiffThread", () => {
     const thread = startThread({ entry: ECHO_THREAD });
     const request = new AbortController();
 
-    const first = thread.runLineDiff(makeInput("first"), SIGNAL);
-    const dropped = thread.runLineDiff(makeInput("dropped"), request.signal);
+    const first = thread.runner.runLineDiff(makeInput("first"), SIGNAL);
+    const dropped = thread.runner.runLineDiff(
+      makeInput("dropped"),
+      request.signal,
+    );
     request.abort(new Error("deadline"));
-    const last = thread.runLineDiff(makeInput("last"), SIGNAL);
+    const last = thread.runner.runLineDiff(makeInput("last"), SIGNAL);
     const outcomes = await Promise.allSettled([first, dropped, last]);
 
     expect(outcomes.map(readOutcome)).toEqual([
@@ -396,7 +566,7 @@ describe("createLineDiffThread", () => {
     request.abort(new Error("gone"));
 
     await expect(
-      thread.runLineDiff(makeInput("late"), request.signal),
+      thread.runner.runLineDiff(makeInput("late"), request.signal),
     ).rejects.toThrow("gone");
   });
 
@@ -404,17 +574,17 @@ describe("createLineDiffThread", () => {
     const thread = startThread();
 
     const [outcome] = await Promise.allSettled([
-      thread.runLineDiff(makeInput("a.ts"), SIGNAL),
+      thread.runner.runLineDiff(makeInput("a.ts"), SIGNAL),
       thread.terminate(),
     ]);
 
     expect(outcome.status === "rejected" && outcome.reason).toBeInstanceOf(
-      LineDiffThreadError,
+      SpanThreadError,
     );
   });
 });
 
-describe("readPrSpan on the line-diff thread", () => {
+describe("readPrSpan on the span thread", () => {
   const base = makeLines("b", 12);
   const withP1 = base.toSpliced(5, 0, "p1");
   const withP1AndP2 = withP1.toSpliced(11, 0, "p2");
@@ -450,10 +620,13 @@ describe("readPrSpan on the line-diff thread", () => {
     const threadPaths: string[] = [];
     const countingRunner: LineDiffRunner = (input, signal) => {
       threadPaths.push(input.contents.path);
-      return thread.runLineDiff(input, signal);
+      return thread.runner.runLineDiff(input, signal);
     };
 
-    const onThread = await readPrSpan(source, REFS, SIGNAL, countingRunner);
+    const onThread = await readPrSpan(source, REFS, SIGNAL, {
+      ...thread.runner,
+      runLineDiff: countingRunner,
+    });
     const inProcess = await readPrSpan(source, REFS, SIGNAL);
 
     expect(threadPaths).toEqual(["c.ts", "d.ts", "e.ts", "n.ts"]);
@@ -481,13 +654,16 @@ describe("readPrSpan on the line-diff thread", () => {
       });
       // The work bound keeps a timeout out of reach, so lift it to meet one.
       const unboundedRunner: LineDiffRunner = (input, signal) =>
-        thread.runLineDiff(
+        thread.runner.runLineDiff(
           { ...input, maxEditLength: UNBOUNDED_EDIT_LENGTH },
           signal,
         );
       const startedAt = Date.now();
 
-      const result = await readPrSpan(source, REFS, SIGNAL, unboundedRunner);
+      const result = await readPrSpan(source, REFS, SIGNAL, {
+        ...thread.runner,
+        runLineDiff: unboundedRunner,
+      });
 
       expect(Date.now() - startedAt).toBeGreaterThanOrEqual(
         LINE_DIFF_TIMEOUT_MS,
@@ -499,6 +675,53 @@ describe("readPrSpan on the line-diff thread", () => {
     SLOW_TEST_TIMEOUT_MS,
   );
 
+  it(
+    "keeps each main-thread step short on a Node-sized rebased PR",
+    async () => {
+      const thread = startThread();
+      await thread.runner.runLineDiff(makeInput("warm.ts"), SIGNAL);
+      const source = stubSpanSource(makeSizedRebaseFixture(baseText, p1Text));
+
+      let onThread: Awaited<ReturnType<typeof readPrSpan>> | undefined;
+      const longestMs = await measureLongestMainThreadStep(async () => {
+        onThread = await readPrSpan(source, REFS, SIGNAL, thread.runner);
+      });
+      let inProcess: Awaited<ReturnType<typeof readPrSpan>> | undefined;
+      const inProcessMs = await measureLongestMainThreadStep(async () => {
+        inProcess = await readPrSpan(source, REFS, SIGNAL);
+      });
+
+      expect(onThread).toEqual(inProcess);
+      expect(inProcess?.ok && inProcess.value.changedFiles).toHaveLength(
+        SIZED_REWRITTEN_FILES,
+      );
+      expect(longestMs).toBeLessThan(inProcessMs * IN_PROCESS_STEP_SHARE);
+    },
+    SIZED_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "reads a Node-sized fast-forward the in-process runner reads",
+    async () => {
+      const thread = startThread();
+      const sized = makeSizedRebaseFixture(baseText, p1Text);
+      const source = stubFastForwardSource({
+        prDiffs: {
+          "base1..head2": sized.prDiffs["base1..head2"] ?? [],
+          "head1..head2": [makePrFilePatch("c.ts", baseText, p1Text)],
+        },
+        blobs: {},
+      });
+
+      const onThread = await readPrSpan(source, REFS, SIGNAL, thread.runner);
+      const inProcess = await readPrSpan(source, REFS, SIGNAL);
+
+      expect(onThread).toEqual(inProcess);
+      expect(inProcess.ok && inProcess.value.changedFiles).toEqual(["c.ts"]);
+    },
+    SIZED_TEST_TIMEOUT_MS,
+  );
+
   it("reads transient when the thread stops during the read", async () => {
     const thread = startThread({ entry: ECHO_THREAD });
     const source = stubSpanSource({
@@ -506,7 +729,7 @@ describe("readPrSpan on the line-diff thread", () => {
       blobs: { "head1:crash": baseText, "head2:crash": p1Text },
     });
 
-    const result = await readPrSpan(source, REFS, SIGNAL, thread.runLineDiff);
+    const result = await readPrSpan(source, REFS, SIGNAL, thread.runner);
 
     expect(result).toEqual({
       ok: false,

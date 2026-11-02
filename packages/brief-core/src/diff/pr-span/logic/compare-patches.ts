@@ -312,8 +312,8 @@ export function comparePrDiffs(
 
 /** Code-unit order on the new-head path: the span's text and its line bound follow it, never the diff's own order. */
 export function compareFilePaths(
-  left: ComparedFile,
-  right: ComparedFile,
+  left: Pick<ComparedFile, "path">,
+  right: Pick<ComparedFile, "path">,
 ): number {
   if (left.path < right.path) {
     return -1;

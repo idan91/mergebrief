@@ -204,6 +204,11 @@ export type {
   RevokeSessionsResponse,
   RevokeTokenResponse,
 } from "./tokens";
-export { WARM_SPAN_DIFF_HEADER } from "./span-diff";
+export {
+  DIFF_MODE_HEADER,
+  DiffModes,
+  WARM_SPAN_DIFF_HEADER,
+  type DiffMode,
+} from "./span-diff";
 export type { DismissVersionNoticeBody, VersionResponse } from "./version";
 export type { AuthSessionResponse, ViewerView } from "./viewer";

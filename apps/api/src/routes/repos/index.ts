@@ -6,6 +6,7 @@
 // GitHub failure is a 401 or 502 rather than a DB-only fallback. Beneath it
 // sit the per-repo attachments purge and collaborators leaves and the per-PR
 // subtree, all behind the ONE repo gate mounted over `/:repoId/*`.
+import type { Logger } from "logging";
 import {
   ApiErrorCodes,
   ProductQueryIds,
@@ -38,6 +39,8 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 
 /** The slice of app deps the repos subtree needs. `AppDeps` satisfies it. */
 export interface ReposRouteDeps extends AuthRouteDeps, InstallationBindingDeps {
+  /** The process logger, for state no request owns: the span thread. */
+  readonly logger: Logger;
   readonly attachmentQuota?: UploadQuotaLimits;
   readonly committedLookupBudget?: CommittedLookupBudgetLimits;
   readonly mediaMaxBytes?: number | undefined;

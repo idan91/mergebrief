@@ -8,8 +8,13 @@ import {
   isDeltaUnchangedRecord,
   isRevisionNarrativeSkipRecord,
   isRevisionNarrativeUnchangedRecord,
+  isSpanTooLargeSkipRecord,
 } from "../../src/artifact";
-import { BriefSchema, RevisionNarrativeSkipReasons } from "../../src/types";
+import {
+  BriefSchema,
+  DeltaSkipReasons,
+  RevisionNarrativeSkipReasons,
+} from "../../src/types";
 import {
   makeSkippedDelta,
   makeSkippedRevisionNarrative,
@@ -199,6 +204,40 @@ describe("isDeltaSkipRecord", () => {
   it("names a body that is not a JSON object not a skip record", () => {
     expect(isDeltaSkipRecord("not json")).toBe(false);
     expect(isDeltaSkipRecord('["deltaSkipped"]')).toBe(false);
+  });
+});
+
+describe("isSpanTooLargeSkipRecord", () => {
+  it("names a narrative or delta skipped for size a too-large record", () => {
+    const narrative = JSON.stringify(makeSkippedRevisionNarrative());
+    const delta = JSON.stringify(makeSkippedDelta());
+
+    expect(isSpanTooLargeSkipRecord(narrative)).toBe(true);
+    expect(isSpanTooLargeSkipRecord(delta)).toBe(true);
+  });
+
+  it("names a skip for config or a cut output not a too-large record", () => {
+    const narrative = JSON.stringify({
+      ...makeSkippedRevisionNarrative(),
+      skipped: RevisionNarrativeSkipReasons.DISABLED_BY_CONFIG,
+    });
+    const delta = JSON.stringify({
+      ...makeSkippedDelta(),
+      skipped: DeltaSkipReasons.OUTPUT_CUT,
+    });
+
+    expect(isSpanTooLargeSkipRecord(narrative)).toBe(false);
+    expect(isSpanTooLargeSkipRecord(delta)).toBe(false);
+  });
+
+  it("names a reason under the other kind's spelling not a too-large record", () => {
+    const delta = JSON.stringify({
+      ...makeSkippedDelta(),
+      skipped: RevisionNarrativeSkipReasons.SPAN_TOO_LARGE,
+    });
+
+    expect(isSpanTooLargeSkipRecord(delta)).toBe(false);
+    expect(isSpanTooLargeSkipRecord("not json")).toBe(false);
   });
 });
 

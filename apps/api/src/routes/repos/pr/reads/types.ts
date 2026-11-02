@@ -1,10 +1,19 @@
+import type { PrSpanRefs, PrSpanRunner } from "brief-core/pr-span";
+import type { DiffMode } from "contract";
 import type { OpenPullRequest } from "brief-core/pr-stack";
 import type { GitHubCallFailure } from "github";
 import type { Logger } from "logging";
-import type { AppDatabase } from "persistence";
+import type { AppDatabase, SpanBaseRefs } from "persistence";
 import type { DraftPolicy, Result, ValueOf } from "types";
+import type { PullRequestAccess } from "../../../../access/types";
 import type { FailureKinds } from "../../../../shared-errors/failures";
 import type { LiveFactsReader } from "../../../live-read/types";
+import type { AuthRouteDeps } from "../../../auth/session/types";
+
+/** The reads leaf's deps: the process logger serves state no request owns, the span thread. */
+export interface ReadsRouteDeps extends AuthRouteDeps {
+  readonly logger: Logger;
+}
 import type { TtlCache } from "../../../ttl-cache";
 
 /** The span names no artifact stored on the access step's row. */
@@ -90,6 +99,15 @@ export interface ReadDiffDeps {
   readonly largeDiffCache: LargeDiffCache;
   /** The GitHub call each cache key is waiting on, removed once it settles. */
   readonly diffFetches: Map<string, Promise<DiffRead>>;
+  /** How a pair is served, from the PR's stored rows. */
+  readonly spanKeys: SpanKeyReader;
+  /** The span's steps that grow with the PR diffs and blobs, off the event loop. */
+  readonly spanRunner: PrSpanRunner;
+}
+
+/** Reads the PR's Brief pairs and the pair's span key; a database error rejects. */
+export interface SpanKeyReader {
+  classify(access: PullRequestAccess, pair: SpanPair): Promise<SpanRead>;
 }
 
 export interface ReadFileRangeDeps {
@@ -115,17 +133,66 @@ export interface GitHubReadFailure {
   readonly error: GitHubCallFailure;
 }
 
+/** A span past the line and file bounds, or one the worker stored as refused. */
+export interface SpanTooLargeFailure {
+  readonly kind: "span-too-large";
+}
+
+/** The read's deadline passed, or the span thread stopped, before the span was read. */
+export interface DiffDeadlineFailure {
+  readonly kind: "deadline";
+}
+
 /** Result-side failures of the live diff proxy; the adapter owns posture. */
-export type DiffFailure = RepoNameFailure | GitHubReadFailure;
+export type DiffFailure =
+  | RepoNameFailure
+  | GitHubReadFailure
+  | SpanTooLargeFailure
+  | DiffDeadlineFailure;
 
 export type DiffRead = Result<string, DiffFailure>;
 
-/** Result-side failures of the live stack read; the same two the diff proxy has. */
-export type StackFailure = DiffFailure;
+/** A diff read and the read it served, which rides the answer's mode header. */
+export interface ModedDiffRead {
+  readonly mode: DiffMode;
+  readonly read: DiffRead;
+}
+
+/** Result-side failures of the live stack read: the diff proxy's GitHub two. */
+export type StackFailure = RepoNameFailure | GitHubReadFailure;
 
 /** Result-side failures of the file-range read; the adapter owns posture. */
 export type FileRangeFailure =
-  | DiffFailure
+  | RepoNameFailure
+  | GitHubReadFailure
   | { readonly kind: "file-absent" }
   | { readonly kind: "file-too-large" }
   | { readonly kind: "file-not-text" };
+
+/** How a diff read is served for a `base...head` pair. */
+export const SpanReadKinds = {
+  /** GitHub's `base...head` compare: a whole-PR read, or a pair no span key covers. */
+  COMPARE: "compare",
+  /** The revision span the key's marks row certifies, on the refs that row stores. */
+  SPAN: "span",
+  /** The worker stored the span as refused: no marks, a skip record. */
+  REFUSED: "refused",
+} as const;
+
+export interface SpanPair {
+  readonly base: string;
+  readonly head: string;
+}
+
+export type SpanRead =
+  | { readonly kind: typeof SpanReadKinds.COMPARE }
+  | { readonly kind: typeof SpanReadKinds.SPAN; readonly refs: PrSpanRefs }
+  | { readonly kind: typeof SpanReadKinds.REFUSED };
+
+/** What the worker stored under one span key. */
+export interface SpanKeyFacts {
+  /** The bases the key's marks row was written from; absent with no row. */
+  readonly marksRefs?: SpanBaseRefs;
+  /** A narrative or delta skipped under the key as too large to read. */
+  readonly isRefused: boolean;
+}

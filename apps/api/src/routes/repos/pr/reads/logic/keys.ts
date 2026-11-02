@@ -1,15 +1,25 @@
 // Pure key/body builders for the reads ops.
+import type { PrSpanRefs } from "brief-core/pr-span";
 import type { RepoId } from "persistence";
 
-/** Per-session diff-cache key; the session hash scopes it to one viewer. */
+/**
+ * Per-session diff-cache key; the session hash scopes it to one viewer. A
+ * revision span adds the bases its marks row stores, so a span read on
+ * other refs, or a compare of the same pair, never answers from it.
+ */
 export function buildDiffCacheKey(input: {
   readonly sessionTokenHash: string;
   readonly repoId: RepoId;
   readonly prNumber: number;
   readonly base: string;
   readonly head: string;
+  readonly refs?: PrSpanRefs;
 }): string {
-  return `${input.sessionTokenHash}:${String(input.repoId)}:${input.prNumber}:${input.base}:${input.head}`;
+  const pairKey = `${input.sessionTokenHash}:${String(input.repoId)}:${input.prNumber}:${input.base}:${input.head}`;
+  if (input.refs === undefined) {
+    return pairKey;
+  }
+  return `${pairKey}:span:${input.refs.prevBase}:${input.refs.newBase}`;
 }
 
 /**

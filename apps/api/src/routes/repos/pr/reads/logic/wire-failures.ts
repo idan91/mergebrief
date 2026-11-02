@@ -11,10 +11,18 @@ import {
 } from "../../../../../shared-errors/api-error";
 import { resolveGitHubDenialError } from "../../../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
-import type { DiffFailure, FileRangeFailure, StackFailure } from "../types";
+import type {
+  DiffFailure,
+  FileRangeFailure,
+  GitHubReadFailure,
+  RepoNameFailure,
+  StackFailure,
+} from "../types";
 
 /** Every live read runs on the viewer's credential: a refusal reads as absence. */
-function resolveLiveReadError(failure: DiffFailure): ApiError {
+function resolveLiveReadError(
+  failure: RepoNameFailure | GitHubReadFailure,
+): ApiError {
   if (failure.kind === "not-found") {
     return new NotFound();
   }
@@ -23,12 +31,19 @@ function resolveLiveReadError(failure: DiffFailure): ApiError {
 
 /**
  * GitHub's 406 refuses to render a diff over its size limits, permanent for
- * this span, so it answers 413 rather than a retryable-looking 502. A render
- * GitHub did not finish inside the read's deadline answers 504.
+ * this span, so it answers 413 rather than a retryable-looking 502, as does
+ * a revision span past its bounds. A render GitHub did not finish, or a span
+ * read past its deadline, answers 504, never 500.
  */
 export function resolveDiffError(failure: DiffFailure): ApiError {
   if (failure.kind === "not-found") {
     return new NotFound();
+  }
+  if (failure.kind === "span-too-large") {
+    return new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
+  }
+  if (failure.kind === "deadline") {
+    return new GatewayTimeout(ApiErrorCodes.DIFF_FETCH_TIMEOUT);
   }
   if (isNotAcceptable(failure.error)) {
     return new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);

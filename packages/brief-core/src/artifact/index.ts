@@ -1,4 +1,10 @@
-import { DeltaBriefSchema, type Brief, type ChangeGroup } from "../types";
+import {
+  DeltaBriefSchema,
+  DeltaSkipReasons,
+  RevisionNarrativeSkipReasons,
+  type Brief,
+  type ChangeGroup,
+} from "../types";
 import {
   splitGroupMembership,
   reportSharedGroupIds,
@@ -180,6 +186,23 @@ export function isRevisionNarrativeSkipRecord(json: string): boolean {
   const body = parseJsonObject(json);
   const kind = body.ok ? body.value["artifactKind"] : undefined;
   return kind === REVISION_NARRATIVE_SKIPPED_KIND;
+}
+
+/** A stored narrative or delta body that is the skip record of a span too large to read. */
+export function isSpanTooLargeSkipRecord(json: string): boolean {
+  const body = parseJsonObject(json);
+  if (!body.ok) {
+    return false;
+  }
+
+  const { artifactKind, skipped } = body.value;
+  const isNarrativeSkip =
+    artifactKind === REVISION_NARRATIVE_SKIPPED_KIND &&
+    skipped === RevisionNarrativeSkipReasons.SPAN_TOO_LARGE;
+  const isDeltaSkip =
+    artifactKind === DELTA_SKIPPED_KIND &&
+    skipped === DeltaSkipReasons.SPAN_TOO_LARGE;
+  return isNarrativeSkip || isDeltaSkip;
 }
 
 /**

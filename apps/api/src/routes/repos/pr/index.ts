@@ -23,13 +23,14 @@ import {
 import type { AttachmentsRouteDeps } from "./attachments/types";
 import { deletePullRoute } from "./delete";
 import { readsRoutes } from "./reads";
+import type { ReadsRouteDeps } from "./reads/types";
 import { markReadyRoute } from "./ready";
 import { regenerateRoute } from "./regenerate";
 import { reviewSubmitRoute } from "./review";
 import { sessionRoutes } from "./session";
 
 export function prRoutes(
-  deps: InstallationBindingDeps & AttachmentsRouteDeps,
+  deps: InstallationBindingDeps & AttachmentsRouteDeps & ReadsRouteDeps,
 ): ProductRouter<PullRequestEnv> {
   const app = productRouter<PullRequestEnv>();
   app.use(createPullRequestAccessLayer(deps));

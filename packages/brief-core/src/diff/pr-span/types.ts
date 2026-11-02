@@ -1,5 +1,6 @@
 import type { Result, ValueOf } from "types/utils";
 import type { Hop } from "../remap";
+import type { LineDiffRunner } from "./logic/line-diff";
 
 export const PrSpanFailureKinds = {
   TRANSIENT: "transient",
@@ -90,9 +91,13 @@ export type BetweenHeadsFile =
     }
   | { readonly kind: typeof BetweenHeadsKinds.UNREADABLE };
 
-export interface PrSpanInput {
+/** Both heads' PR diffs, each `base...head` as the compare endpoint serves it. */
+export interface PrDiffPair {
   readonly prevPrDiff: string;
   readonly newPrDiff: string;
+}
+
+export interface PrSpanInput extends PrDiffPair {
   /** Keyed by the file's path at the new head; a file `readPrSpan` line-diffs with no entry is unreadable and reads changed. */
   readonly betweenHeads: ReadonlyMap<string, BetweenHeadsFile>;
   /** New-head paths of base renames confirmed by absence at the swapped paths; any other candidate reads as two changed files. */
@@ -199,4 +204,56 @@ export interface RunContext {
 export interface PatchHunks {
   readonly header: readonly string[];
   readonly hunks: readonly (readonly string[])[];
+}
+
+/** The paths and modes reading and line-diffing one file's two head blobs needs. */
+export interface LineDiffFile {
+  readonly path: string;
+  readonly prevPath: string;
+  readonly modeChange?: ModeChange | undefined;
+  /** Each head's mode, shaped as a `ComparedFile` holds it. */
+  readonly prev?: HeadMode;
+  readonly next?: HeadMode;
+}
+
+export interface HeadMode {
+  readonly mode?: string | undefined;
+}
+
+/** A file pair that may be one file the base renamed between the heads. */
+export interface BaseRenameCandidate {
+  readonly path: string;
+  readonly prevPath: string;
+  /** The files its two halves line-diff as when the swapped paths do not both read absent. */
+  readonly refusedLineDiffFiles: readonly LineDiffFile[];
+}
+
+/** What a built span reads after both heads' PR diffs, decided from those diffs alone. */
+export interface BuiltSpanPlan {
+  /** Files that may read changed, each base-rename candidate counted as `FILES_PER_BASE_RENAME_CANDIDATE`. */
+  readonly changedCount: number;
+  readonly lineDiffFiles: readonly LineDiffFile[];
+  readonly baseRenameCandidates: readonly BaseRenameCandidate[];
+}
+
+/**
+ * The span's steps whose cost grows with the PR diffs or the blobs, each a
+ * function of its input alone, run wherever the caller chooses: the worker
+ * runs them in-process, the api on a thread. A step that rejects with a
+ * `SpanRunnerError` is infrastructure, never a verdict on the PR.
+ */
+export interface PrSpanRunner {
+  readonly planBuiltSpan: (
+    input: PrDiffPair,
+    signal: AbortSignal,
+  ) => Promise<BuiltSpanPlan>;
+  readonly buildPrSpan: (
+    input: PrSpanInput,
+    signal: AbortSignal,
+  ) => Promise<PrSpan>;
+  readonly buildFastForwardSpan: (
+    input: FastForwardSpanInput,
+    signal: AbortSignal,
+  ) => Promise<PrSpan>;
+  readonly runLineDiff: LineDiffRunner;
 }
