@@ -7,9 +7,7 @@ import { cleanPointerLabel } from "../../src/generation/summary-media/utils";
 import { enumPreservingJsonSchema } from "generators";
 import type { z } from "zod/v4";
 import {
-  briefGenerationSchemaWith,
-  groupingGenerationSchemaWith,
-  GroupingWithMediaGenerationSchema,
+  SummaryMediaAnswerSchema,
   SummaryMediaPositions,
   SummaryMediaSchema,
 } from "../../src/types";
@@ -403,7 +401,7 @@ describe("cleanPointerLabel", () => {
 });
 
 describe("summaryMedia parse on an adapter without schema enforcement", () => {
-  const field = GroupingWithMediaGenerationSchema.shape.summaryMedia;
+  const field = SummaryMediaAnswerSchema;
 
   it("keeps a shown entry with no position for the resolver to place", () => {
     const answer = { shown: [{ item: 1 }, { item: 2, position: 7 }] };
@@ -469,7 +467,7 @@ describe("summaryMedia parse on an adapter without schema enforcement", () => {
 });
 
 describe("resolveSummaryMedia on a malformed answer", () => {
-  const field = GroupingWithMediaGenerationSchema.shape.summaryMedia;
+  const field = SummaryMediaAnswerSchema;
 
   it("shows a pick with no position after the lede and counts it", () => {
     const answer = field.parse({ shown: [{ item: 1 }] });
@@ -502,7 +500,6 @@ describe("resolveSummaryMedia on a malformed answer", () => {
 
 interface WireObject {
   required?: string[];
-  properties: Record<string, WireObject>;
 }
 
 function readWire(schema: z.ZodType): WireObject {
@@ -510,15 +507,8 @@ function readWire(schema: z.ZodType): WireObject {
 }
 
 describe("Summary Media wire schema", () => {
-  it.each([
-    ["brief", briefGenerationSchemaWith([], true)],
-    ["custom brief", briefGenerationSchemaWith(["example-attribute"], true)],
-    ["grouping", groupingGenerationSchemaWith(true)],
-  ])("requires summaryMedia and its pointer on the %s schema", (_, schema) => {
-    const wire = readWire(schema);
-
-    expect(wire.required).toContain("summaryMedia");
-    expect(wire.properties["summaryMedia"]?.required).toEqual([
+  it("requires shown and the pointer", () => {
+    expect(readWire(SummaryMediaAnswerSchema).required).toEqual([
       "shown",
       "pointer",
     ]);

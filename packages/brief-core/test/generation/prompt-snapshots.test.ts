@@ -4,6 +4,7 @@ import {
   buildDetailSystemPrompt,
   buildGroupingSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
+  buildSummaryMediaSystemPrompt,
   buildSystemPrompt,
 } from "../../src/generation/prompt";
 import type { RepoContext } from "../../src/generation/repo-context";
@@ -43,11 +44,11 @@ describe("system prompts are byte-pinned", () => {
     expect(buildSystemPrompt(bothRepoSections, true)).toMatchSnapshot();
   });
 
-  it("brief, with the Summary Media rule", () => {
+  it("brief, with the Media note", () => {
     expect(buildSystemPrompt(undefined, false, true)).toMatchSnapshot();
   });
 
-  it("brief, anchored with the Summary Media rule", () => {
+  it("brief, anchored with the Media note", () => {
     expect(buildSystemPrompt(undefined, true, true)).toMatchSnapshot();
   });
 
@@ -70,10 +71,14 @@ describe("system prompts are byte-pinned", () => {
     expect(prompt).toMatchSnapshot();
   });
 
-  it("grouping, with the Summary Media rule", () => {
+  it("grouping, with the Media note", () => {
     expect(
       buildGroupingSystemPrompt(OutlineForms.FULL, undefined, true),
     ).toMatchSnapshot();
+  });
+
+  it("summary media", () => {
+    expect(buildSummaryMediaSystemPrompt()).toMatchSnapshot();
   });
 
   it("detail, without repo context", () => {

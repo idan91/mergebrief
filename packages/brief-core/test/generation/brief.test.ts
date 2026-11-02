@@ -20,7 +20,9 @@ import {
   type Brief,
   type LineRange,
 } from "../../src/types";
-import { FakeGenerator } from "../helpers";
+import { GeneratorError, GeneratorErrorKinds } from "generators";
+import { SUMMARY_MEDIA_LABEL } from "../../src/generation/summary-media/consts";
+import { FakeGenerator, type RecordedRequest } from "../helpers";
 import { pr as multiCallPr, singleBrief } from "./fixtures/multi-call-pr";
 import { retryPr, retryRepoContext } from "./fixtures/retry-pr";
 import { makePnpmLockfile, summarizeTexts } from "./shortened/helpers";
@@ -913,16 +915,38 @@ function makeMediaOptions(
   };
 }
 
+const mediaAnswer = {
+  shown: [{ item: 3, position: "before-lede" }],
+  pointer: { label: "Before and after", items: [1, 2] },
+};
+
+function answerMediaRun(request: RecordedRequest): unknown {
+  return request.label === SUMMARY_MEDIA_LABEL ? mediaAnswer : singleBrief;
+}
+
+function stubMediaFailure(error: Error): FakeGenerator {
+  return new FakeGenerator((request) => {
+    if (request.label === SUMMARY_MEDIA_LABEL) {
+      throw error;
+    }
+    return singleBrief;
+  });
+}
+
 describe("generateBrief Summary Media, one call", () => {
-  it("sends the pr_media block after the description", async () => {
-    const generator = new FakeGenerator(() => singleBrief);
+  it("picks Media in its own call after the brief", async () => {
+    const generator = new FakeGenerator(answerMediaRun);
 
     await generateBrief(makeMediaOptions(generator));
 
-    const [request] = generator.requests;
-    expect(request?.user).toContain(
+    const [briefRequest, mediaRequest] = generator.requests;
+    expect(generator.requests).toHaveLength(2);
+    expect(briefRequest?.schema).toBe(BriefGenerationSchema);
+    expect(briefRequest?.user).not.toContain("<pr_media>");
+    expect(briefRequest?.system).not.toContain("## Summary Media");
+    expect(mediaRequest?.label).toBe(SUMMARY_MEDIA_LABEL);
+    expect(mediaRequest?.user).toContain(
       [
-        "</pr_description>",
         "<pr_media>",
         '1. image | caption: "Login before" | heading: "Screenshots"',
         '2. image | caption: "Login after" | heading: "Screenshots"',
@@ -930,30 +954,34 @@ describe("generateBrief Summary Media, one call", () => {
         "</pr_media>",
       ].join("\n"),
     );
-    const block = request?.user.split("<pr_media>")[1] ?? "";
+    expect(mediaRequest?.user).toContain(
+      `<brief_summary>\n${singleBrief.summary}\n</brief_summary>`,
+    );
+    const block = mediaRequest?.user.split("<pr_media>")[1] ?? "";
     expect(block).not.toContain("cdn.test");
-    expect(request?.system).toContain("## Summary Media");
   });
 
-  it("sends no block, rule or field without Media", async () => {
+  it("tells the brief call to keep Media out of the summary", async () => {
+    const generator = new FakeGenerator(answerMediaRun);
+
+    await generateBrief(makeMediaOptions(generator));
+
+    expect(generator.requests[0]?.system).toContain("## Media (this run)");
+  });
+
+  it("sends one plain brief call without Media", async () => {
     const generator = new FakeGenerator(() => singleBrief);
 
     await generateBrief(makeMediaOptions(generator, { pr: multiCallPr }));
 
+    expect(generator.requests).toHaveLength(1);
     const [request] = generator.requests;
-    expect(request?.user).not.toContain("<pr_media>");
-    expect(request?.system).not.toContain("Summary Media");
     expect(request?.schema).toBe(BriefGenerationSchema);
+    expect(request?.system).not.toContain("Media");
   });
 
   it("stores the picked items by key", async () => {
-    const generator = new FakeGenerator(() => ({
-      ...singleBrief,
-      summaryMedia: {
-        shown: [{ item: 3, position: "before-lede" }],
-        pointer: { label: "Before and after", items: [1, 2] },
-      },
-    }));
+    const generator = new FakeGenerator(answerMediaRun);
 
     const { brief, warnings } = await generateBrief(
       makeMediaOptions(generator),
@@ -967,10 +995,11 @@ describe("generateBrief Summary Media, one call", () => {
   });
 
   it("warns with counts when it trims the answer", async () => {
-    const generator = new FakeGenerator(() => ({
-      ...singleBrief,
-      summaryMedia: { shown: [{ item: 7, position: "middle" }] },
-    }));
+    const generator = new FakeGenerator((request) =>
+      request.label === SUMMARY_MEDIA_LABEL
+        ? { shown: [{ item: 7, position: "middle" }] }
+        : singleBrief,
+    );
 
     const { brief, warnings } = await generateBrief(
       makeMediaOptions(generator),
@@ -988,32 +1017,48 @@ describe("generateBrief Summary Media, one call", () => {
     ]);
   });
 
-  it("stores no summaryMedia when the model leaves it out", async () => {
-    const generator = new FakeGenerator(() => singleBrief);
+  it("ships the brief without Summary Media when the media call fails", async () => {
+    const generator = stubMediaFailure(
+      new GeneratorError(GeneratorErrorKinds.SCHEMA_FLOOR, "no valid answer"),
+    );
 
-    const { brief } = await generateBrief(makeMediaOptions(generator));
+    const { brief, warnings } = await generateBrief(
+      makeMediaOptions(generator),
+    );
 
+    expect(brief.summary).toBe(singleBrief.summary);
     expect(brief).not.toHaveProperty("summaryMedia");
+    expect(
+      warnings.filter(
+        (warning) =>
+          warning.kind === GenerationWarningKinds.SUMMARY_MEDIA_FAILED,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("rejects when the media call is aborted", async () => {
+    const abort = new Error("aborted");
+    abort.name = "AbortError";
+
+    await expect(
+      generateBrief(makeMediaOptions(stubMediaFailure(abort))),
+    ).rejects.toBe(abort);
   });
 
   it("keeps the picked items through an anchored run", async () => {
-    const answer = {
-      ...singleBrief,
-      summaryMedia: { shown: [{ item: 1, position: "after-lede" }] },
-    };
     const first = await generateBrief(
-      makeMediaOptions(new FakeGenerator(() => answer)),
+      makeMediaOptions(new FakeGenerator(answerMediaRun)),
     );
 
     const { brief } = await generateBrief(
-      makeMediaOptions(new FakeGenerator(() => answer), {
+      makeMediaOptions(new FakeGenerator(answerMediaRun), {
         headIndex: 2,
         previous: { brief: first.brief, baseShaMoved: false },
       }),
     );
 
     expect(brief.summaryMedia?.shown).toEqual([
-      { key: SHOT_BEFORE, position: "after-lede" },
+      { key: SHOT_WIDE, position: "before-lede" },
     ]);
   });
 });

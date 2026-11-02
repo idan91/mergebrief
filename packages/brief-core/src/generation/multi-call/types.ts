@@ -17,7 +17,6 @@ import type {
 } from "../../types";
 import type { AcceptedRepoContext } from "../categorize";
 import type { Outline } from "../outline/types";
-import type { MediaItem } from "../../media";
 import type { LockfileSummary } from "../shortened/types";
 import type { RepoContext } from "../repo-context";
 import type { WarningCollector } from "../warnings/types";
@@ -29,8 +28,8 @@ export interface GroupingRequestInput {
   readonly hunkCount: number;
   /** The run's one accepted repo-context view; the detail calls read the same one. */
   readonly accepted: AcceptedRepoContext;
-  /** The description's Media; the block, rule and schema field ride only when it holds any. */
-  readonly media: readonly MediaItem[];
+  /** The description holds Media: the prompt keeps them out of the summary. */
+  readonly holdsMedia: boolean;
 }
 
 /** The grouping call's prompts, plus the ticket text the validation context verifies against. */
@@ -184,6 +183,8 @@ export interface MultiCallOptions {
   /** Every group id the PR's brief chain has used; the grouping's ids are minted past them. */
   readonly reservedGroupIds?: readonly string[] | undefined;
   readonly hooks?: MultiCallHooks | undefined;
+  /** The description holds Media: the grouping prompt keeps them out of the summary. */
+  readonly holdsMedia: boolean;
   readonly log: Logger;
   readonly warnings: WarningCollector;
 }

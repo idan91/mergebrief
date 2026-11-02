@@ -421,8 +421,10 @@ is the cheapest way to close most of the gap: it natively covers
       structured-outputs slug; one WITHOUT must refuse boot).
 - [ ] Every wire schema compiles at the Anthropic API
       (`pnpm -C tools/categorizer smoke:schemas`, `ANTHROPIC_API_KEY` in
-      `tools/categorizer/.env`; one tiny request per variant, cents): every
-      variant prints `ok`, and a refusal names its variant. The adapter
+      `tools/categorizer/.env`; two tiny requests per variant, cents): every
+      variant prints `ok`, compiling as sent and with 8 more required
+      fields. `REFUSED` names a variant the API refuses, and `LOW` one that
+      is a small field away from refusal. The adapter
       smoke's tiny schema never compiles the Brief's grammar, and CI and
       evals run `claude-code`, which compiles none. Also run it after any
       change to a generation schema.

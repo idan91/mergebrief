@@ -10,3 +10,6 @@ export const MEDIA_TEXT_MAX_CHARS = 160;
 
 /** The warning check name the trims report under. */
 export const SUMMARY_MEDIA_CHECK = "summary media";
+
+/** The Summary Media call's request label. */
+export const SUMMARY_MEDIA_LABEL = "summary-media";

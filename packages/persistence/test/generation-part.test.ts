@@ -225,40 +225,29 @@ describe("createGenerationPartStore.write", () => {
     expect(listed.map((row) => row.body.kind)).toEqual(["grouping"]);
   });
 
-  it("keeps the grouping's Summary Media as keys", async () => {
+  it("drops the Summary Media an older grouping part carries", async () => {
     const pr = await openPullRequest(CTX_A);
     const store = openStore(CTX_A);
     const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
-    const summaryMedia = {
-      shown: [{ key: "https://cdn.test/a.png", position: "after-lede" }],
-      pointer: {
-        label: "Before and after",
-        items: ["https://cdn.test/b.png", "https://cdn.test/c.png"],
-      },
-    };
     const body = {
       kind: GenerationPartKinds.GROUPING,
-      grouping: { ...GROUPING, summaryMedia },
+      grouping: GROUPING,
       gitAttributesDigest: GIT_ATTRIBUTES_DIGEST,
     };
+    const summaryMedia = {
+      shown: [{ key: "https://cdn.test/a.png", position: "after-lede" }],
+    };
 
-    const written = await store.write({ ...span, partKey: "grouping", body });
+    const written = await store.write({
+      ...span,
+      partKey: "grouping",
+      body: { ...body, grouping: { ...GROUPING, summaryMedia } },
+    });
 
     expect(written.body).toEqual(body);
   });
 
   it.each([
-    [
-      "a grouping holding Summary Media item numbers",
-      {
-        kind: GenerationPartKinds.GROUPING,
-        grouping: {
-          ...GROUPING,
-          summaryMedia: { shown: [{ item: 1, position: "after-lede" }] },
-        },
-        gitAttributesDigest: GIT_ATTRIBUTES_DIGEST,
-      },
-    ],
     ["a key beyond the chunks", { ...makeDetailBody([]), patch: "+code" }],
     [
       "a chunk carrying code text",

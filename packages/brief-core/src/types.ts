@@ -957,15 +957,14 @@ function trimSummaryMediaAnswer(value: unknown): Record<string, unknown> {
 }
 
 /**
- * Required, never optional: each optional property multiplies the grammar
- * the Anthropic API compiles from the wire schema, and the brief sits near
- * its compile cap. "No pointer" is the empty form.
+ * The Summary Media call's answer. It has its own call because the brief and
+ * grouping schemas sit just under the grammar size the Anthropic API compiles,
+ * and any Summary Media field inside them is refused.
  */
-const SUMMARY_MEDIA_GENERATION_FIELDS = {
-  summaryMedia: z
-    .preprocess(trimSummaryMediaAnswer, SummaryMediaGenerationSchema)
-    .describe("Summary Media, by item number; see the Summary Media section"),
-};
+export const SummaryMediaAnswerSchema = z.preprocess(
+  trimSummaryMediaAnswer,
+  SummaryMediaGenerationSchema,
+);
 
 export const BriefSchema = z.object({
   pr: PrRefSchema,
@@ -1068,14 +1067,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   intentCheck: IntentCheckGenerationSchema,
 });
 
-const BriefWithMediaGenerationSchema = BriefGenerationSchema.extend(
-  SUMMARY_MEDIA_GENERATION_FIELDS,
-);
-
-/** A brief generation's answer; `summaryMedia` only when the request offered it. */
-export interface BriefGeneration extends z.infer<typeof BriefGenerationSchema> {
-  summaryMedia?: SummaryMediaGeneration;
-}
+export type BriefGeneration = z.infer<typeof BriefGenerationSchema>;
 
 /** One group's hunks in the grouping call's hunk map. */
 export const HunkMapEntrySchema = z.object({
@@ -1104,28 +1096,9 @@ export const GroupingGenerationSchema = z.object({
   intentCheck: IntentCheckGenerationSchema,
 });
 
-/** The grouping schema of a run whose description holds Media. */
-export const GroupingWithMediaGenerationSchema =
-  GroupingGenerationSchema.extend(SUMMARY_MEDIA_GENERATION_FIELDS);
-
-/**
- * A grouping part as stored: the grouping answer with its Summary Media
- * already mapped from item numbers to keys, so a resumed run never reads a
- * number against a description edited since. A part without the field
- * still reads.
- */
-export const StoredGroupingSchema = GroupingGenerationSchema.extend({
-  summaryMedia: SummaryMediaSchema.optional(),
-});
-
 export type HunkMapEntry = z.infer<typeof HunkMapEntrySchema>;
-/** A grouping call's answer; `summaryMedia` only when the request offered it. */
-export interface GroupingGeneration extends z.infer<
-  typeof GroupingGenerationSchema
-> {
-  summaryMedia?: SummaryMediaGeneration;
-}
-export type StoredGrouping = z.infer<typeof StoredGroupingSchema>;
+/** A grouping call's answer, which a multi-call run also stores as its grouping part. */
+export type StoredGrouping = z.infer<typeof GroupingGenerationSchema>;
 
 function buildDetailGenerationSchema(riskToken: z.ZodType<string>) {
   return z.object({
@@ -1161,32 +1134,13 @@ export function detailGenerationSchemaWith(
  */
 export function briefGenerationSchemaWith(
   customNames: readonly string[],
-  offersSummaryMedia = false,
 ): z.ZodType<BriefGeneration> {
-  const vocabulary =
-    customNames.length === 0
-      ? BriefGenerationSchema
-      : BriefGenerationSchema.extend({
-          chunks: z.array(
-            buildChunkGenerationSchema(riskTokenEnum(customNames)),
-          ),
-        });
-  if (!offersSummaryMedia) {
-    return vocabulary;
-  }
   if (customNames.length === 0) {
-    return BriefWithMediaGenerationSchema;
+    return BriefGenerationSchema;
   }
-  return vocabulary.extend(SUMMARY_MEDIA_GENERATION_FIELDS);
-}
-
-/** The grouping schema for one run: Summary Media only when the description holds Media. */
-export function groupingGenerationSchemaWith(
-  offersSummaryMedia: boolean,
-): z.ZodType<GroupingGeneration> {
-  return offersSummaryMedia
-    ? GroupingWithMediaGenerationSchema
-    : GroupingGenerationSchema;
+  return BriefGenerationSchema.extend({
+    chunks: z.array(buildChunkGenerationSchema(riskTokenEnum(customNames))),
+  });
 }
 
 /**

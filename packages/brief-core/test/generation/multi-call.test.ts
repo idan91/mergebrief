@@ -10,12 +10,12 @@ import type {
 import { INSTRUCTIONS_INJECTION_BUDGET_BYTES } from "../../src/generation/repo-context";
 import { DETAIL_BATCH_MAX_DIFF_TOKENS } from "../../src/generation/multi-call/consts";
 import { BYTES_PER_TOKEN } from "../../src/generation/size/consts";
+import { SUMMARY_MEDIA_LABEL } from "../../src/generation/summary-media/consts";
 import { CallPlanKinds } from "../../src/generation/size/types";
 import { GenerationWarningKinds } from "../../src/generation/warnings/types";
 import { buildMermaidMediaKey } from "../../src/media";
 import {
   GroupingGenerationSchema,
-  GroupingWithMediaGenerationSchema,
   type Brief,
   type DetailGeneration,
 } from "../../src/types";
@@ -1037,54 +1037,57 @@ const MEDIA_BODY = [
   "```",
 ].join("\n");
 const mediaPr = { ...pr, meta: { ...pr.meta, body: MEDIA_BODY } };
-const mediaGrouping = {
-  ...grouping,
-  summaryMedia: {
-    shown: [{ item: 2, position: "after-lede" }],
-    pointer: { label: "The layout", items: [1] },
-  },
+const mediaAnswer = {
+  shown: [{ item: 2, position: "after-lede" }],
+  pointer: { label: "The layout", items: [1] },
 };
 
-function answerMediaGrouping(request: RecordedRequest): unknown {
-  return request.label === "grouping" ? mediaGrouping : answerDetail(request);
+function answerMediaRun(request: RecordedRequest): unknown {
+  if (request.label === SUMMARY_MEDIA_LABEL) {
+    return mediaAnswer;
+  }
+  return request.label === "grouping" ? grouping : answerDetail(request);
 }
 
-describe("generateBrief Summary Media, grouping call", () => {
-  it("sends the block and rule to the grouping call only", async () => {
-    const generator = new FakeGenerator(answerMediaGrouping);
+describe("generateBrief Summary Media, multi-call run", () => {
+  it("picks Media in its own call after the detail calls", async () => {
+    const generator = new FakeGenerator(answerMediaRun);
 
     await generateBrief(makeOptions(generator, { pr: mediaPr }));
 
-    const [groupingRequest, ...detailRequests] = generator.requests;
-    expect(groupingRequest?.user).toContain(
+    const [groupingRequest, ...rest] = generator.requests;
+    const mediaRequest = rest.at(-1);
+    expect(groupingRequest?.schema).toBe(GroupingGenerationSchema);
+    expect(groupingRequest?.system).toContain("## Media (this run)");
+    for (const request of generator.requests.slice(0, -1)) {
+      expect(`${request.userPrefix}${request.user}`).not.toContain(
+        "<pr_media>",
+      );
+    }
+    expect(mediaRequest?.label).toBe(SUMMARY_MEDIA_LABEL);
+    expect(mediaRequest?.user).toContain(
       [
-        "</pr_description>",
         "<pr_media>",
         '1. image | caption: "New layout"',
         "2. diagram | type: flowchart",
         "</pr_media>",
       ].join("\n"),
     );
-    expect(groupingRequest?.system).toContain("## Summary Media");
-    expect(groupingRequest?.schema).toBe(GroupingWithMediaGenerationSchema);
-    for (const request of detailRequests) {
-      expect(`${request.userPrefix}${request.user}`).not.toContain(
-        "<pr_media>",
-      );
-    }
   });
 
-  it("sends the plain grouping schema without Media", async () => {
+  it("sends no media call or note without Media", async () => {
     const generator = new FakeGenerator(makeAnswer());
 
     await generateBrief(makeOptions(generator));
 
+    const labels = generator.requests.map((request) => request.label);
+    expect(labels).not.toContain(SUMMARY_MEDIA_LABEL);
     expect(generator.requests[0]?.schema).toBe(GroupingGenerationSchema);
-    expect(generator.requests[0]?.system).not.toContain("Summary Media");
+    expect(generator.requests[0]?.system).not.toContain("Media (this run)");
   });
 
-  it("stores the grouping call's picks by key", async () => {
-    const generator = new FakeGenerator(answerMediaGrouping);
+  it("stores the media call's picks by key", async () => {
+    const generator = new FakeGenerator(answerMediaRun);
 
     const { brief } = await generateBrief(
       makeOptions(generator, { pr: mediaPr }),
@@ -1098,9 +1101,9 @@ describe("generateBrief Summary Media, grouping call", () => {
     });
   });
 
-  it("stores the grouping part with its picks already as keys", async () => {
+  it("stores the grouping part without Summary Media", async () => {
     const stored = new Map<PartKey, unknown>();
-    const generator = new FakeGenerator(answerMediaGrouping);
+    const generator = new FakeGenerator(answerMediaRun);
 
     await generateBrief(
       makeOptions(generator, {
@@ -1113,52 +1116,6 @@ describe("generateBrief Summary Media, grouping call", () => {
       }),
     );
 
-    expect(stored.get("grouping")).toMatchObject({
-      summaryMedia: {
-        shown: [
-          { key: buildMermaidMediaKey(DIAGRAM_CODE), position: "after-lede" },
-        ],
-        pointer: { label: "The layout", items: [SHOT] },
-      },
-    });
-  });
-
-  it("keeps the same picks when the description reorders before a resume", async () => {
-    const stored = new Map<PartKey, unknown>();
-    await generateBrief(
-      makeOptions(new FakeGenerator(answerMediaGrouping), {
-        pr: mediaPr,
-        multiCallHooks: {
-          onPartDone: async (key, body) => {
-            stored.set(key, body);
-          },
-        },
-      }),
-    );
-    const reordered = [
-      "```mermaid",
-      DIAGRAM_CODE.trimEnd(),
-      "```",
-      "",
-      `![New layout](${SHOT})`,
-    ].join("\n");
-    const generator = new FakeGenerator(answerMediaGrouping);
-
-    const { brief } = await generateBrief(
-      makeOptions(generator, {
-        pr: { ...pr, meta: { ...pr.meta, body: reordered } },
-        multiCallHooks: { loadPart: async (key) => stored.get(key) },
-      }),
-    );
-
-    expect(generator.requests.map((request) => request.label)).not.toContain(
-      "grouping",
-    );
-    expect(brief.summaryMedia).toEqual({
-      shown: [
-        { key: buildMermaidMediaKey(DIAGRAM_CODE), position: "after-lede" },
-      ],
-      pointer: { label: "The layout", items: [SHOT] },
-    });
+    expect(stored.get("grouping")).not.toHaveProperty("summaryMedia");
   });
 });

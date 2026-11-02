@@ -1,5 +1,8 @@
+import type { Effort, Generator, Logger } from "generators";
+import type { FetchedPr } from "../../github/types";
 import type { MediaItem, MediaKey } from "../../media";
 import type { SummaryMedia } from "../../types";
+import type { WarningCollector } from "../warnings/types";
 
 export interface SummaryMediaResolution {
   /** Absent when nothing valid survived the trims. */
@@ -25,4 +28,16 @@ export interface SummaryMediaTally {
 export interface PointerContext {
   readonly items: readonly MediaItem[];
   readonly shownKeys: ReadonlySet<MediaKey>;
+}
+
+/** One Summary Media call, made after the brief when the description holds Media. */
+export interface SummaryMediaRequest {
+  readonly generator: Generator;
+  readonly pr: FetchedPr;
+  readonly media: readonly MediaItem[];
+  /** The finished brief's summary, which the picks sit beside. */
+  readonly summary: string;
+  readonly effort: Effort;
+  readonly log: Logger;
+  readonly warnings: WarningCollector;
 }

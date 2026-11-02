@@ -11,8 +11,7 @@ import { indexDiff } from "../../diff/hunk-index";
 import type { FileId, HunkId, IndexedFile } from "../../diff/hunk-index/types";
 import {
   detailGenerationSchemaWith,
-  groupingGenerationSchemaWith,
-  StoredGroupingSchema,
+  GroupingGenerationSchema,
   type Brief,
   type ChangeGroup,
   type Chunk,
@@ -30,7 +29,6 @@ import {
 } from "../categorize";
 import { buildConcernView, deriveChunkLoc, diffLocTotals } from "../loc";
 import { chooseOutline } from "../outline";
-import type { MediaItem } from "../../media";
 import type { Outline } from "../outline/types";
 import {
   buildShortenedChunk,
@@ -49,8 +47,6 @@ import type {
 } from "../shortened/types";
 import { snapChunkRanges } from "../snap-ranges";
 import { alignChunkRanges } from "../align-ranges";
-import { readDescriptionMedia, resolveSummaryMedia } from "../summary-media";
-import { SUMMARY_MEDIA_CHECK } from "../summary-media/consts";
 import { restoreRawGroupIds, restoreRawPaths } from "../untrusted-text";
 import { dropUnknownGroupChunks, fanOutIntentCheck } from "../validate";
 import { planDetailBatches, splitBatch } from "./batches";
@@ -124,7 +120,7 @@ export async function hasStoredGrouping(
     const stored = await loadStoredPart(
       hooks,
       PART_KEY_GROUPING,
-      StoredGroupingSchema,
+      GroupingGenerationSchema,
     );
     return stored !== undefined;
   } catch (error) {
@@ -232,7 +228,6 @@ interface RunInputs {
   /** Every hunk a detail call may show, redacted and weighed once. */
   readonly shownHunks: ReadonlyMap<HunkId, ShownHunk>;
   readonly accepted: AcceptedRepoContext;
-  readonly media: readonly MediaItem[];
 }
 
 /** The run's detail schema: the repo's custom attribute names join the closed risk vocabulary. */
@@ -305,19 +300,13 @@ interface GroupingStep {
   storedGroupIds: StoredGroupIds;
 }
 
-/**
- * The grouping call, its Summary Media item numbers mapped to keys against
- * this run's description before the part is stored: a resumed run reads
- * keys, which a later reorder of the description cannot repoint.
- */
 async function generateGrouping(
   options: MultiCallOptions,
-  inputs: RunInputs,
   request: GroupingRequest,
 ): Promise<StoredGrouping> {
   const { generator, log, warnings } = options;
-  const answer = await generator.generate({
-    schema: groupingGenerationSchemaWith(inputs.media.length > 0),
+  return generator.generate({
+    schema: GroupingGenerationSchema,
     system: request.system,
     user: request.user,
     effort: options.groupingEffort,
@@ -327,15 +316,6 @@ async function generateGrouping(
     log,
     onWarning: warnings.recordGeneratorWarning,
   });
-
-  const { summaryMedia, ...grouping } = answer;
-  const resolved = resolveSummaryMedia(summaryMedia, inputs.media);
-  warnings.reportIssues(SUMMARY_MEDIA_CHECK, resolved.issues);
-  const keyed: StoredGrouping = grouping;
-  if (resolved.summaryMedia !== undefined) {
-    keyed.summaryMedia = resolved.summaryMedia;
-  }
-  return keyed;
 }
 
 async function runGroupingCall(
@@ -350,16 +330,15 @@ async function runGroupingCall(
     outline,
     hunkCount,
     accepted: inputs.accepted,
-    media: inputs.media,
+    holdsMedia: options.holdsMedia,
   });
 
   const stored = await loadStoredPart(
     hooks,
     PART_KEY_GROUPING,
-    StoredGroupingSchema,
+    GroupingGenerationSchema,
   );
-  const generated =
-    stored ?? (await generateGrouping(options, inputs, request));
+  const generated = stored ?? (await generateGrouping(options, request));
   const reservedGroupIds = options.reservedGroupIds ?? [];
   const grouping =
     reservedGroupIds.length === 0
@@ -721,7 +700,6 @@ export async function generateMultiCallBrief(
       log,
       warnings,
     ),
-    media: readDescriptionMedia(pr),
   };
 
   const step = await runGroupingCall(options, inputs, outline);
@@ -754,7 +732,6 @@ export async function generateMultiCallBrief(
   const {
     readingOrder,
     intentCheck,
-    summaryMedia,
     hunkMap: _resolved,
     ...rest
   } = step.grouping;
@@ -782,9 +759,6 @@ export async function generateMultiCallBrief(
   };
   if (kept.readingOrder !== undefined) {
     brief.readingOrder = kept.readingOrder;
-  }
-  if (summaryMedia !== undefined) {
-    brief.summaryMedia = summaryMedia;
   }
   return { brief, context };
 }

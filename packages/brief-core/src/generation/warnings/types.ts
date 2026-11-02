@@ -19,6 +19,8 @@ export const GenerationWarningKinds = {
   SINGLE_CALL_CUT: "single-call-cut",
   /** Chunk ranges code moved one line onto the change beside them, or clipped to the diff's changed lines. */
   RANGES_ALIGNED: "ranges-aligned",
+  /** The Summary Media call failed; the brief shipped without Summary Media. */
+  SUMMARY_MEDIA_FAILED: "summary-media-failed",
 } as const;
 /** @public */
 export type GenerationWarningKind = ValueOf<typeof GenerationWarningKinds>;
@@ -82,13 +84,19 @@ export interface RangesAlignedWarning {
   clippedLines: number;
 }
 
+export interface SummaryMediaFailedWarning {
+  kind: typeof GenerationWarningKinds.SUMMARY_MEDIA_FAILED;
+  message: string;
+}
+
 export type GenerationWarning =
   | GeneratorWarning
   | ValidationWarning
   | RepoInstructionsOmittedWarning
   | HunkMapWarning
   | OutputCutWarning
-  | RangesAlignedWarning;
+  | RangesAlignedWarning
+  | SummaryMediaFailedWarning;
 
 export interface WarningCollector {
   /** Records a warning the generator already logged. */
@@ -98,7 +106,8 @@ export interface WarningCollector {
       | RepoInstructionsOmittedWarning
       | HunkMapWarning
       | OutputCutWarning
-      | RangesAlignedWarning,
+      | RangesAlignedWarning
+      | SummaryMediaFailedWarning,
   ) => void;
   /** Reports nothing for an empty issue list. */
   reportIssues: (check: string, issues: readonly string[]) => void;

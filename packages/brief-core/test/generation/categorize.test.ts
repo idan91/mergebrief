@@ -223,11 +223,8 @@ const revisionNarrativeGen = {
   ],
 };
 
-const {
-  intentCheck: _wireIntentCheck,
-  summaryMedia: _wireSummaryMedia,
-  ...storedBriefFields
-} = twoGroupBriefGen;
+const { intentCheck: _wireIntentCheck, ...storedBriefFields } =
+  twoGroupBriefGen;
 
 const narrativeBrief: Brief = {
   ...storedBriefFields,

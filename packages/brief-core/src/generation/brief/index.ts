@@ -6,6 +6,7 @@ import {
   stitchBrief,
 } from "../../anchoring";
 import type { AnchorPlanArgs } from "../../anchoring/types";
+import type { MediaItem } from "../../media";
 import type { Brief } from "../../types";
 import {
   DEFAULT_EFFORT,
@@ -19,6 +20,7 @@ import {
   isOutputCut,
 } from "../multi-call";
 import { decideCallPlan } from "../size";
+import { pickSummaryMedia, readDescriptionMedia } from "../summary-media";
 import { CallPlanKinds, type CallPlan, type CallPlanKind } from "../size/types";
 import { createWarningCollector, formatGenerationWarnings } from "../warnings";
 import {
@@ -79,6 +81,28 @@ interface BriefRun {
   readonly lockfileSummaries: ReadonlyMap<string, LockfileSummary>;
   readonly log: Logger;
   readonly warnings: WarningCollector;
+  /** The description's Media, read once: the brief prompts note them, the Summary Media call picks from them. */
+  readonly media: readonly MediaItem[];
+}
+
+/** The finished brief with its Summary Media, picked in a call of its own when the description holds Media. */
+async function addSummaryMedia(brief: Brief, run: BriefRun): Promise<Brief> {
+  if (run.media.length === 0) {
+    return brief;
+  }
+  const summaryMedia = await pickSummaryMedia({
+    generator: run.options.generator,
+    pr: run.options.pr,
+    media: run.media,
+    summary: brief.summary,
+    effort: run.effort,
+    log: run.log,
+    warnings: run.warnings,
+  });
+  if (summaryMedia === undefined) {
+    return brief;
+  }
+  return { ...brief, summaryMedia };
 }
 
 function buildBriefOutput(
@@ -125,16 +149,18 @@ async function runMultiCall(run: BriefRun): Promise<GenerateBriefOutput> {
     detailConcurrency: options.detailConcurrency,
     reservedGroupIds,
     hooks: options.multiCallHooks,
+    holdsMedia: run.media.length > 0,
     log,
     warnings,
   });
-  const brief = validateFinalBrief({
+  const validated = validateFinalBrief({
     ...draft,
     carriedChunkIds: [],
     acceptsRevisionDroppedChecks: false,
     warnings,
     lockfileSummaries,
   });
+  const brief = await addSummaryMedia(validated, run);
   return buildBriefOutput(brief, warnings, CallPlanKinds.MULTI);
 }
 
@@ -151,18 +177,20 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
     repoContext: options.repoContext,
     effort,
     anchor: undefined,
+    holdsMedia: run.media.length > 0,
     warnings,
   };
 
   if (previous === undefined) {
     const draft = await generateDraftBrief(draftOptions);
-    const brief = validateFinalBrief({
+    const validated = validateFinalBrief({
       ...draft,
       carriedChunkIds: [],
       acceptsRevisionDroppedChecks: false,
       warnings,
       lockfileSummaries,
     });
+    const brief = await addSummaryMedia(validated, run);
     return buildBriefOutput(brief, warnings, CallPlanKinds.SINGLE);
   }
 
@@ -186,7 +214,7 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
     prFiles: pr.meta.files.map((file) => file.path),
   });
   warnings.reportIssues(STITCH_CHECK, issues);
-  const brief = validateFinalBrief({
+  const validated = validateFinalBrief({
     brief: stitched,
     context: draft.context,
     carriedChunkIds: anchoring.carriedChunkIds,
@@ -194,6 +222,7 @@ async function runSingleCall(run: BriefRun): Promise<GenerateBriefOutput> {
     warnings,
     lockfileSummaries,
   });
+  const brief = await addSummaryMedia(validated, run);
   return buildBriefOutput(brief, warnings, CallPlanKinds.SINGLE, {
     plan,
     ...anchoring,
@@ -225,6 +254,7 @@ export async function generateBrief(
     lockfileSummaries: options.lockfileSummaries ?? new Map(),
     log,
     warnings,
+    media: readDescriptionMedia(options.pr),
   };
 
   const hooks = options.multiCallHooks;

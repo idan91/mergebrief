@@ -81,12 +81,6 @@ import {
 import type { LockfileSummary } from "./shortened/types";
 import { attributeSafe } from "./fences";
 import { redactProseSecrets } from "./redaction";
-import {
-  readDescriptionMedia,
-  renderPrMedia,
-  resolveSummaryMedia,
-} from "./summary-media";
-import { SUMMARY_MEDIA_CHECK } from "./summary-media/consts";
 import { listUnseenLinkIssues, removeUnseenLinks } from "./unseen-links";
 import {
   restoreRawPaths,
@@ -435,7 +429,6 @@ function renderUser(
   defuseForgedFences = false,
   anchorBlock = "",
   primaryBlock = renderPrimaryTicket(readPrimary(pr.primaryTicket)),
-  mediaBlock = "",
 ): string {
   // With repo context in play, forged fences elsewhere in the message are
   // neutralized so a PR cannot impersonate default-branch config.
@@ -449,7 +442,7 @@ Number: ${pr.locator.number}
 Title: ${renderPrTitle(pr.meta)}${renderBranchFacts(pr.meta)}
 
 ## Description
-${renderPrDescription(pr.meta)}${mediaBlock}
+${renderPrDescription(pr.meta)}
 
 ${clean(primaryBlock)}## Linked context
 ${clean(renderLinked(pr.links))}${repoBlocks}${clean(anchorBlock)}
@@ -472,6 +465,8 @@ export interface DraftBriefOptions {
   readonly repoContext: RepoContext | undefined;
   readonly effort: Effort;
   readonly anchor: AnchorViewInput | undefined;
+  /** The description holds Media: the prompt keeps them out of the summary. */
+  readonly holdsMedia: boolean;
   readonly warnings: WarningCollector;
 }
 
@@ -569,22 +564,19 @@ export async function generateDraftBrief(
   const primary = readPrimary(pr.primaryTicket);
   const primaryText =
     primary === undefined ? "" : buildPrimaryTicketText(primary);
-  const media = readDescriptionMedia(pr);
-  const offersSummaryMedia = media.length > 0;
   const user = renderUser(
     pr,
     accepted.blocks,
     effectiveContext !== undefined,
     anchorBlock,
     renderPrimaryTicket(primary, primaryText),
-    renderPrMedia(media),
   );
   const generated = await generator.generate({
-    schema: briefGenerationSchemaWith(customNames, offersSummaryMedia),
+    schema: briefGenerationSchemaWith(customNames),
     system: buildSystemPrompt(
       effectiveContext,
       anchor !== undefined,
-      offersSummaryMedia,
+      options.holdsMedia,
     ),
     user,
     effort,
@@ -617,7 +609,7 @@ export async function generateDraftBrief(
     changedFiles,
   );
 
-  const { readingOrder, intentCheck, summaryMedia, ...rest } = generated;
+  const { readingOrder, intentCheck, ...rest } = generated;
   const brief: Brief = {
     ...rest,
     chunks,
@@ -634,11 +626,6 @@ export async function generateDraftBrief(
 
   if (readingOrder !== undefined) {
     brief.readingOrder = readingOrder;
-  }
-  const resolved = resolveSummaryMedia(summaryMedia, media);
-  warnings.reportIssues(SUMMARY_MEDIA_CHECK, resolved.issues);
-  if (resolved.summaryMedia !== undefined) {
-    brief.summaryMedia = resolved.summaryMedia;
   }
 
   return { brief, context };

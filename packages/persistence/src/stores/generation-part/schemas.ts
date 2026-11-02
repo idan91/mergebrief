@@ -1,5 +1,5 @@
 import type { PartKey } from "brief-core";
-import { PartChunkSchema, StoredGroupingSchema } from "brief-core/types";
+import { GroupingGenerationSchema, PartChunkSchema } from "brief-core/types";
 import { z } from "zod/v4";
 import { GenerationPartKinds } from "./types";
 
@@ -23,7 +23,7 @@ const Sha256HexSchema = z.string().regex(/^[0-9a-f]{64}$/);
 const GroupingPartBodySchema = z
   .object({
     kind: z.literal(GenerationPartKinds.GROUPING),
-    grouping: StoredGroupingSchema,
+    grouping: GroupingGenerationSchema,
     gitAttributesDigest: Sha256HexSchema,
   })
   .strict();

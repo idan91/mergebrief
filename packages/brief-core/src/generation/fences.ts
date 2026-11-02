@@ -16,6 +16,7 @@ export const KNOWN_FENCE_TAGS = [
   "pr_branch_facts",
   "pr_grouping",
   "pr_media",
+  "brief_summary",
 ] as const;
 
 /** The two tags a PR could forge to impersonate default-branch config. */

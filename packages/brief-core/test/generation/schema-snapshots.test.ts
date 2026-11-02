@@ -7,8 +7,8 @@ import {
   detailGenerationSchemaWith,
   DetailGenerationSchema,
   GroupingGenerationSchema,
-  GroupingWithMediaGenerationSchema,
   RevisionNarrativeGenerationSchema,
+  SummaryMediaAnswerSchema,
 } from "../../src/types";
 
 // Snapshotted as a string so key order is pinned: these bytes are what every
@@ -26,18 +26,6 @@ describe("wire json schemas are byte-pinned", () => {
 
   it("brief with a custom attribute", () => {
     const schema = briefGenerationSchemaWith(["example-attribute"]);
-
-    expect(serializeWireSchema(schema)).toMatchSnapshot();
-  });
-
-  it("brief offering Summary Media", () => {
-    const schema = briefGenerationSchemaWith([], true);
-
-    expect(serializeWireSchema(schema)).toMatchSnapshot();
-  });
-
-  it("brief offering Summary Media with a custom attribute", () => {
-    const schema = briefGenerationSchemaWith(["example-attribute"], true);
 
     expect(serializeWireSchema(schema)).toMatchSnapshot();
   });
@@ -60,10 +48,8 @@ describe("wire json schemas are byte-pinned", () => {
     expect(serializeWireSchema(GroupingGenerationSchema)).toMatchSnapshot();
   });
 
-  it("grouping offering Summary Media", () => {
-    expect(
-      serializeWireSchema(GroupingWithMediaGenerationSchema),
-    ).toMatchSnapshot();
+  it("summary media", () => {
+    expect(serializeWireSchema(SummaryMediaAnswerSchema)).toMatchSnapshot();
   });
 
   it("revision narrative", () => {
@@ -73,7 +59,11 @@ describe("wire json schemas are byte-pinned", () => {
   });
 });
 
-/** The plain brief's count, which compiles: each optional property multiplies the compiled grammar. */
+/**
+ * The plain brief's count. The API's real limit is the compiled grammar's
+ * size, which only `smoke:schemas` measures; this holds what the docs name as
+ * costly: optional properties and unions.
+ */
 const MAX_OPTIONAL_PROPERTIES = 2;
 
 interface WireComplexity {
@@ -120,17 +110,12 @@ function measureWireSchema(
 const WIRE_VARIANTS = [
   ["brief", BriefGenerationSchema],
   ["custom brief", briefGenerationSchemaWith(["example-attribute"])],
-  ["media brief", briefGenerationSchemaWith([], true)],
-  [
-    "custom media brief",
-    briefGenerationSchemaWith(["example-attribute"], true),
-  ],
   ["delta", DeltaBriefGenerationSchema],
   ["detail", DetailGenerationSchema],
   ["custom detail", detailGenerationSchemaWith(["example-attribute"])],
   ["grouping", GroupingGenerationSchema],
-  ["media grouping", GroupingWithMediaGenerationSchema],
   ["revision narrative", RevisionNarrativeGenerationSchema],
+  ["summary media", SummaryMediaAnswerSchema],
 ] as const;
 
 describe("wire json schemas stay within the compile budget", () => {
@@ -146,13 +131,4 @@ describe("wire json schemas stay within the compile budget", () => {
       );
     },
   );
-
-  it.each([
-    ["brief", BriefGenerationSchema, briefGenerationSchemaWith([], true)],
-    ["grouping", GroupingGenerationSchema, GroupingWithMediaGenerationSchema],
-  ])("Summary Media adds no optional property to the %s", (_, plain, media) => {
-    expect(measureWireSchema(media).optional).toBe(
-      measureWireSchema(plain).optional,
-    );
-  });
 });
