@@ -18,6 +18,7 @@ import {
   WIDE_TEXT_CHAR_WEIGHT,
 } from "../../../src/diff/pr-span/consts";
 import { comparePrDiffs } from "../../../src/diff/pr-span/logic/compare-patches";
+import { runLineDiffInProcess } from "../../../src/diff/pr-span/logic/line-diff";
 import {
   readBetweenHeadsFiles,
   type SpanLineDiffBounds,
@@ -659,6 +660,7 @@ async function readSpanKinds(
     REFS,
     compared,
     makeSignal(),
+    runLineDiffInProcess,
     bounds,
   );
 

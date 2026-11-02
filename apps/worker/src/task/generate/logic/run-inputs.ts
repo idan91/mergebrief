@@ -1,4 +1,5 @@
 import { MAX_BRIEFED_CHANGED_FILES } from "brief-core/types";
+import { isNotAcceptable } from "github";
 
 import {
   acquireRepoConfig,
@@ -14,7 +15,7 @@ import {
 } from "../types";
 import { getPrLocator } from "../utils";
 import { resolveEntryCommentAllowed } from "./entry-comment-gate";
-import { isNotAcceptable, throwOnGitHubFailure } from "./errors";
+import { throwOnGitHubFailure } from "./errors";
 import { buildPrMetadata, recordResolvedStack } from "./pr-metadata";
 import { createRevisionSpanReader } from "./revision-span";
 import { throwOnClaimLost } from "./supersession-watch";

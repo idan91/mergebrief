@@ -1,4 +1,8 @@
-import type { GitHubCallFailure, IssueComment } from "github";
+import {
+  isPermanentGitHubError,
+  type GitHubCallFailure,
+  type IssueComment,
+} from "github";
 import {
   EntryCommentSwapErrorCodes,
   type EntryCommentSwapError,
@@ -8,7 +12,6 @@ import type { Result } from "types/utils";
 import { isEntryCommentBody } from "../../entry-comment";
 import type { EntryCommentLink } from "../../entry-comment/types";
 import type { ParsedGeneratePayload } from "../../payload";
-import { isPermanentGitHubError } from "./errors";
 import {
   EntryWrites,
   LiveBodyKinds,

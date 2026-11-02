@@ -67,7 +67,18 @@
       ],
     },
     "apps/api": {
-      "entry": ["src/index.ts", "src/migrate.ts", "src/instrument.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/migrate.ts",
+        "src/instrument.ts",
+        // Reached through `new Worker(url)` and tsx's `tsImport`, never by an
+        // import statement: the line-diff thread, its test stand-in and the
+        // script a test runs in a child process.
+        "src/routes/repos/pr/reads/logic/line-diff-thread/entry.ts",
+        "src/routes/repos/pr/reads/logic/line-diff-thread/thread-body.ts",
+        "test/fixtures/echo-line-diff-thread.ts",
+        "test/fixtures/idle-line-diff-thread.ts",
+      ],
     },
     "packages/contract": { "entry": ["src/index.ts"] },
     "packages/brief-core": {

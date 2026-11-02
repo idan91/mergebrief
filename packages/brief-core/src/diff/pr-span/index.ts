@@ -20,6 +20,7 @@ import {
   readPrChangePlaces,
 } from "./logic/filter-hunks";
 import { pickLastingFailure } from "./logic/lasting-failure";
+import { runLineDiffInProcess, type LineDiffRunner } from "./logic/line-diff";
 import { confirmBaseRenames, readBetweenHeadsFiles } from "./logic/read-blobs";
 import {
   BetweenHeadsKinds,
@@ -276,6 +277,7 @@ async function readBuiltSpan(
   refs: PrSpanRefs,
   newPrDiff: string,
   signal: AbortSignal,
+  runLineDiff: LineDiffRunner,
 ): Promise<PrSpanResult> {
   const prevPrDiff = await source.fetchPrDiff(
     { base: refs.prevBase, head: refs.prevHead },
@@ -304,6 +306,7 @@ async function readBuiltSpan(
     refs,
     settled.filter(needsLineDiff),
     signal,
+    runLineDiff,
   );
   if (!betweenHeads.ok) {
     return betweenHeads;
@@ -313,18 +316,18 @@ async function readBuiltSpan(
 
 /**
  * Read the revision span through `source`. A fast-forward over an unmoved
- * merge base is the between-heads compare as GitHub serves it, past the
- * file bound `too-large`. Anything else is built from both heads' PR
- * diffs: the swapped paths of each base-rename candidate, then both blobs
- * of each content-changed file and of each file whose runs match over a
- * moved base with different context. A built span's changed set past the
- * file bound, counting each such file and each candidate as the two
- * changed files it may split into, is `too-large` before any blob read.
+ * merge base is the between-heads compare as served; anything else is built
+ * from both heads' PR diffs, base-rename probes and both blobs of each file
+ * only a line diff settles, each diffed through `runLineDiff` (in-process by
+ * default; a runner that fails reads `transient`). A changed set past the
+ * file bound, a built span counting each such file and candidate as two,
+ * is `too-large` before any blob read.
  */
 export async function readPrSpan(
   source: PrSpanSource,
   refs: PrSpanRefs,
   signal: AbortSignal,
+  runLineDiff: LineDiffRunner = runLineDiffInProcess,
 ): Promise<PrSpanResult> {
   const reads = await Promise.all([
     source.fetchMergeBase({ base: refs.prevBase, head: refs.prevHead }, signal),
@@ -344,9 +347,17 @@ export async function readPrSpan(
   if (isSameMergeBase && isFastForward) {
     return readFastForwardSpan(source, refs, newPrDiff.value, signal);
   }
-  return readBuiltSpan(source, refs, newPrDiff.value, signal);
+  return readBuiltSpan(source, refs, newPrDiff.value, signal, runLineDiff);
 }
 
+export { LINE_DIFF_TIMEOUT_MS } from "./consts";
+export {
+  formatLineDiffPatch,
+  SpanRunnerError,
+  type BetweenHeadsContents,
+  type LineDiffInput,
+  type LineDiffRunner,
+} from "./logic/line-diff";
 export {
   BetweenHeadsKinds,
   BlobReadKinds,

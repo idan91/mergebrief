@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import type { PullRequestInfo } from "github";
+import { isPermanentGitHubError, type PullRequestInfo } from "github";
 import type { Logger } from "logging";
 import {
   createArtifactStore,
@@ -49,7 +49,6 @@ import {
 } from "../utils";
 import { createEntryCommentManager } from "./entry-comment-manager";
 import { resolveEntryCommentAllowed } from "./entry-comment-gate";
-import { isPermanentGitHubError } from "./errors";
 
 /** The body the head's row names, and the live bodies it may replace. */
 interface EntrySyncPlan {

@@ -1,3 +1,4 @@
+import { isPermanentGitHubError } from "github";
 import { createIngestRoutines } from "persistence";
 import { isTrustedBot } from "repo-config";
 import { GenerationFailureCodes, GenerationStatuses } from "types/generations";
@@ -16,7 +17,6 @@ import {
   resolveRunEntryCommentAllowed,
 } from "./entry-comment-gate";
 import { queueEntrySync, queueEntrySyncOnLostWrite } from "./entry-sync";
-import { isPermanentGitHubError } from "./errors";
 
 const PROCEED_WITHOUT_CONFIG: AuthorGateOutcome = {
   kind: AuthorGateKinds.PROCEED,

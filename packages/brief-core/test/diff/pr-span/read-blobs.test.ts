@@ -1,12 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
-import { BetweenHeadsKinds, type PrSpanRefs } from "../../../src/diff/pr-span";
+import { describe, expect, it } from "vitest";
+import {
+  BetweenHeadsKinds,
+  formatLineDiffPatch,
+  type LineDiffInput,
+  type LineDiffRunner,
+  type PrSpanRefs,
+} from "../../../src/diff/pr-span";
 import {
   LINE_DIFF_CHARS_PER_LINE,
   SPAN_LINE_DIFF_MAX_CHARS,
   SPAN_LINE_DIFF_MAX_LINES,
 } from "../../../src/diff/pr-span/consts";
 import { comparePrDiffs } from "../../../src/diff/pr-span/logic/compare-patches";
-import { formatBetweenHeadsPatch } from "../../../src/diff/pr-span/logic/line-diff";
 import { readBetweenHeadsFiles } from "../../../src/diff/pr-span/logic/read-blobs";
 import {
   makeBaseLines,
@@ -15,16 +20,6 @@ import {
   makeText,
   stubSource,
 } from "./helpers";
-
-vi.mock("../../../src/diff/pr-span/logic/line-diff", async (importOriginal) => {
-  const original = await importOriginal<{
-    formatBetweenHeadsPatch: typeof formatBetweenHeadsPatch;
-  }>();
-  return {
-    ...original,
-    formatBetweenHeadsPatch: vi.fn(original.formatBetweenHeadsPatch),
-  };
-});
 
 const REFS: PrSpanRefs = {
   prevBase: "base1",
@@ -35,7 +30,7 @@ const REFS: PrSpanRefs = {
 const FILE = "a.ts";
 
 describe("readBetweenHeadsFiles when the work left affords no edit", () => {
-  it("falls back before the line diff for a file whose lines only moved", async () => {
+  it("falls back before any runner for a file whose lines only moved", async () => {
     const lines = makeBaseLines(12);
     const prev = makeText(lines);
     const reordered = makeText(lines.toReversed());
@@ -48,12 +43,18 @@ describe("readBetweenHeadsFiles when the work left affords no edit", () => {
     });
     const patch = makeFilePatch({ path: FILE, base: prev, head: reordered });
     const compared = comparePrDiffs(makeDiff([]), makeDiff([patch]));
+    const seen: LineDiffInput[] = [];
+    const recordingRunner: LineDiffRunner = (input) => {
+      seen.push(input);
+      return Promise.resolve(formatLineDiffPatch(input));
+    };
 
     const result = await readBetweenHeadsFiles(
       source,
       REFS,
       compared,
       new AbortController().signal,
+      recordingRunner,
       {
         maxLines: SPAN_LINE_DIFF_MAX_LINES,
         maxChars: SPAN_LINE_DIFF_MAX_CHARS,
@@ -64,6 +65,6 @@ describe("readBetweenHeadsFiles when the work left affords no edit", () => {
     expect(result.ok && result.value.get(FILE)?.kind).toBe(
       BetweenHeadsKinds.UNREADABLE,
     );
-    expect(vi.mocked(formatBetweenHeadsPatch)).not.toHaveBeenCalled();
+    expect(seen).toEqual([]);
   });
 });

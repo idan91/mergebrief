@@ -24,8 +24,6 @@ export const GITATTRIBUTES_PATH = ".gitattributes";
 /** The Entry sync waits this long, so a run's own post lands first and the sync finds it live. */
 export const ENTRY_SYNC_DELAY_SECONDS = 30;
 
-/** GitHub refuses to render the diff (too large); permanent per span. */
-export const HTTP_STATUS_NOT_ACCEPTABLE = 406;
 export const HTTP_STATUS_REQUEST_TIMEOUT = 408;
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 /** Every status at or above this is a server-side failure worth a retry. */

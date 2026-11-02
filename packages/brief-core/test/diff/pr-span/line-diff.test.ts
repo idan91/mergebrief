@@ -5,6 +5,7 @@ import {
 } from "../../../src/diff/pr-span/consts";
 import {
   formatBetweenHeadsPatch,
+  formatLineDiffPatch,
   isPastByteBound,
 } from "../../../src/diff/pr-span/logic/line-diff";
 import { parsePatchPaths } from "../../../src/diff/chunk-layout/logic/header-paths";
@@ -100,5 +101,30 @@ describe("isPastByteBound", () => {
 
     expect(isPastByteBound(twoByteChars)).toBe(true);
     expect(isPastByteBound("x".repeat(MAX_LINE_DIFF_BYTES))).toBe(false);
+  });
+});
+
+describe("formatLineDiffPatch", () => {
+  const contents = {
+    prevPath: "f",
+    path: "f",
+    prevContent: "a\nb\nc\n",
+    newContent: "a\nx\nc\n",
+  };
+
+  it("diffs under the afforded edit length and the per-file time limit", () => {
+    const patch = formatLineDiffPatch({ contents, maxEditLength: 2 });
+
+    expect(patch).toBe(
+      formatBetweenHeadsPatch(contents, {
+        maxEditLength: 2,
+        timeoutMs: LINE_DIFF_TIMEOUT_MS,
+      }),
+    );
+    expect(patch).toContain("+x");
+  });
+
+  it("answers no patch past the afforded edit length", () => {
+    expect(formatLineDiffPatch({ contents, maxEditLength: 1 })).toBeUndefined();
   });
 });

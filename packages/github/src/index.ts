@@ -15,6 +15,15 @@ export type { GitHubAccountType } from "./types";
 export { GitHubApiErrorCodes, buildRenewalUnavailableError } from "./errors";
 export type { GitHubApiError, GitHubApiErrorCode } from "./errors";
 
+// How a caller ranks a failed call: too large, a render timeout, permanent.
+export {
+  isDiffTooLarge,
+  isNotAcceptable,
+  isPermanentGitHubError,
+  isRenderTimedOut,
+  isSpanUnrendered,
+} from "./call-failures";
+
 // --- auth/: how a client gets CONSTRUCTED + AUTHENTICATED ------------------
 
 // GitHub App authentication. JWT signing and installation-token

@@ -29,6 +29,28 @@ export interface LineDiffBounds {
   readonly timeoutMs: number;
 }
 
+/** One changed file's line diff, under the edit length the span's work bound affords it. */
+export interface LineDiffInput {
+  readonly contents: BetweenHeadsContents;
+  readonly maxEditLength: number;
+}
+
+/** A runner's own failure, such as its thread stopping: infrastructure, never a verdict on the file. */
+export class SpanRunnerError extends Error {
+  override readonly name: string = "SpanRunnerError";
+}
+
+/**
+ * Runs one file's line diff: the patch, or nothing when a bound sends the
+ * file to its fallback. Rejects with a `SpanRunnerError` when the runner
+ * itself fails, and with the signal's reason once it aborts. A span read awaits each file before
+ * the next, so one read holds at most one diff in a runner at a time.
+ */
+export type LineDiffRunner = (
+  input: LineDiffInput,
+  signal: AbortSignal,
+) => Promise<string | undefined>;
+
 const DEFAULT_BOUNDS: LineDiffBounds = {
   maxEditLength: LINE_DIFF_MAX_EDIT_LENGTH,
   timeoutMs: LINE_DIFF_TIMEOUT_MS,
@@ -91,4 +113,19 @@ export function formatBetweenHeadsPatch(
   const formatted = formatPatch(structured, OMIT_HEADERS);
   const hunks = formatted.endsWith("\n") ? formatted.slice(0, -1) : formatted;
   return [...lines, ...formatFileLines(header), hunks].join("\n");
+}
+
+/** The line diff every runner computes, so a span's text does not depend on where it ran. */
+export function formatLineDiffPatch(input: LineDiffInput): string | undefined {
+  return formatBetweenHeadsPatch(input.contents, {
+    maxEditLength: input.maxEditLength,
+    timeoutMs: LINE_DIFF_TIMEOUT_MS,
+  });
+}
+
+/** The runner the worker and the dev CLI keep: the line diff on the calling thread. */
+export function runLineDiffInProcess(
+  input: LineDiffInput,
+): Promise<string | undefined> {
+  return Promise.resolve(formatLineDiffPatch(input));
 }

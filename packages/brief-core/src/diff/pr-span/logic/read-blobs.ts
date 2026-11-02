@@ -4,7 +4,6 @@ import {
   LINE_DIFF_CHARS_PER_LINE,
   LINE_DIFF_MAX_EDIT_LENGTH,
   LINE_DIFF_MAX_WORK_SHARE,
-  LINE_DIFF_TIMEOUT_MS,
   MAX_LINE_DIFF_BYTES,
   SPAN_LINE_DIFF_MAX_CHARS,
   SPAN_LINE_DIFF_MAX_LINES,
@@ -15,6 +14,7 @@ import {
 import {
   BetweenHeadsKinds,
   BlobReadKinds,
+  PrSpanFailureKinds,
   type BetweenHeadsFile,
   type BlobRead,
   type ComparedFile,
@@ -27,7 +27,13 @@ import { readChangeRuns } from "./change-runs";
 import { compareFilePaths } from "./compare-patches";
 import { splitTextLines } from "./utils";
 import { pickLastingFailure } from "./lasting-failure";
-import { formatBetweenHeadsPatch, isPastByteBound } from "./line-diff";
+import {
+  isPastByteBound,
+  SpanRunnerError,
+  type BetweenHeadsContents,
+  type LineDiffInput,
+  type LineDiffRunner,
+} from "./line-diff";
 
 /** Both heads' blobs of one changed file. */
 interface HeadBlobs {
@@ -68,6 +74,11 @@ const DEFAULT_SPAN_BOUNDS: SpanLineDiffBounds = {
 };
 
 const UNREADABLE: BetweenHeadsFile = { kind: BetweenHeadsKinds.UNREADABLE };
+
+const READ_UNREADABLE: Result<BetweenHeadsFile, PrSpanFailure> = {
+  ok: true,
+  value: UNREADABLE,
+};
 
 function readTextContent(blob: BlobRead): string | undefined {
   return blob.kind === BlobReadKinds.TEXT ? blob.content : undefined;
@@ -178,23 +189,45 @@ function countEditLength(patch: string): number {
 }
 
 /**
+ * The runner's answer. A `SpanRunnerError` is infrastructure, not the
+ * file's content, so the span reads transient; an aborted read throws the
+ * signal's reason, and any other throw is a bug that propagates.
+ */
+async function runBoundedLineDiff(
+  runLineDiff: LineDiffRunner,
+  input: LineDiffInput,
+  signal: AbortSignal,
+): Promise<Result<string | undefined, PrSpanFailure>> {
+  try {
+    return { ok: true, value: await runLineDiff(input, signal) };
+  } catch (error) {
+    signal.throwIfAborted();
+    if (!(error instanceof SpanRunnerError)) {
+      throw error;
+    }
+    return { ok: false, error: { kind: PrSpanFailureKinds.TRANSIENT } };
+  }
+}
+
+/**
  * The file's line diff, its edit length capped by its share of the work
- * left. A file whose share affords no edit, or whose least edit length
- * passes the cap, falls back with nothing charged and never reaches a line
- * diff, so every runner answers it alike; one whose diff passes the cap
- * falls back charged for the cap.
- * Past the byte bound the file falls back alone: the content decided it,
- * so a retry would decide it again. The time limit, a crash-only stop,
+ * left, decided before the runner sees the file so every runner gets the
+ * same input. A file whose share affords no edit, or whose least edit
+ * length passes that cap, falls back with nothing charged and never reaches
+ * a runner; one whose diff passes it falls back charged for the cap. Past
+ * the byte bound the file falls back alone: the content decided it, so a
+ * retry would decide it again. The time limit, a crash-only stop,
  * takes the fallback too.
  */
-function diffWithinBound(
+async function diffWithinBound(
   file: ComparedFile,
   blobs: HeadBlobs,
   budget: LineDiffBudget,
+  runLineDiff: LineDiffRunner,
   signal: AbortSignal,
-): BetweenHeadsFile {
+): Promise<Result<BetweenHeadsFile, PrSpanFailure>> {
   if (!isLineDiffable(blobs)) {
-    return UNREADABLE;
+    return READ_UNREADABLE;
   }
   const texts: HeadTexts = {
     prevContent: readTextContent(blobs.prev),
@@ -202,7 +235,7 @@ function diffWithinBound(
   };
   const afforded = chargeText(texts, budget);
   if (afforded === undefined) {
-    return UNREADABLE;
+    return READ_UNREADABLE;
   }
   const { weightedChars, prevLines, newLines } = afforded;
   const lines = prevLines.length + newLines.length;
@@ -212,28 +245,37 @@ function diffWithinBound(
     maxEditLength < 1 ||
     countLeastEditLength(prevLines, newLines) > maxEditLength;
   if (isUnaffordable) {
-    return UNREADABLE;
+    return READ_UNREADABLE;
   }
 
   signal.throwIfAborted();
-  const patch = formatBetweenHeadsPatch(
-    {
-      prevPath: file.prevPath,
-      path: file.path,
-      ...texts,
-      modeChange: file.modeChange,
-      prevMode: file.prev?.mode,
-      newMode: file.next?.mode,
-    },
-    { maxEditLength, timeoutMs: LINE_DIFF_TIMEOUT_MS },
+  const contents: BetweenHeadsContents = {
+    prevPath: file.prevPath,
+    path: file.path,
+    ...texts,
+    modeChange: file.modeChange,
+    prevMode: file.prev?.mode,
+    newMode: file.next?.mode,
+  };
+  const patch = await runBoundedLineDiff(
+    runLineDiff,
+    { contents, maxEditLength },
+    signal,
   );
-  const editLength =
-    patch === undefined ? maxEditLength : countEditLength(patch);
-  budget.remainingWork -= compareCost * editLength;
-  if (patch === undefined) {
-    return UNREADABLE;
+  if (!patch.ok) {
+    return patch;
   }
-  return { kind: BetweenHeadsKinds.PATCH, patch, texts };
+
+  const editLength =
+    patch.value === undefined ? maxEditLength : countEditLength(patch.value);
+  budget.remainingWork -= compareCost * editLength;
+  if (patch.value === undefined) {
+    return READ_UNREADABLE;
+  }
+  return {
+    ok: true,
+    value: { kind: BetweenHeadsKinds.PATCH, patch: patch.value, texts },
+  };
 }
 
 async function readHeadBlobs(
@@ -299,19 +341,20 @@ async function readBatchBlobs(
 
 /**
  * Both heads' blobs of every content-changed file, a few at a time, each
- * line-diffed in path order while the span's bounds afford it. The file
- * whose text the line or character bound cannot afford and every later one
- * fall back, and no later batch reads a blob; a file whose diff its share
- * of the work left cannot afford falls back alone. The text depends only
- * on the refs, the blobs and the bounds: the time limit is a crash-only
- * stop. A failed read fails the span, a batch's most lasting failure
- * winning; an aborted signal throws its reason before each batch and diff.
+ * diffed through `runLineDiff` in path order while the span's bounds afford
+ * it. The file whose text the line or character bound cannot afford and
+ * every later one fall back, with no later batch read; a file whose diff its
+ * share of the work left cannot afford falls back alone. The time limit is a
+ * crash-only stop. A failed read fails the span, a batch's most lasting
+ * failure winning, and a failed runner reads transient; an aborted signal
+ * throws its reason before each batch and diff.
  */
 export async function readBetweenHeadsFiles(
   source: PrSpanSource,
   refs: PrSpanRefs,
   files: readonly ComparedFile[],
   signal: AbortSignal,
+  runLineDiff: LineDiffRunner,
   bounds: SpanLineDiffBounds = DEFAULT_SPAN_BOUNDS,
 ): Promise<Result<Map<string, BetweenHeadsFile>, PrSpanFailure>> {
   const ordered = files.toSorted(compareFilePaths);
@@ -339,10 +382,17 @@ export async function readBetweenHeadsFiles(
       if (file === undefined) {
         continue;
       }
-      betweenHeads.set(
-        file.path,
-        diffWithinBound(file, fileBlobs, budget, signal),
+      const diffed = await diffWithinBound(
+        file,
+        fileBlobs,
+        budget,
+        runLineDiff,
+        signal,
       );
+      if (!diffed.ok) {
+        return diffed;
+      }
+      betweenHeads.set(file.path, diffed.value);
     }
   }
   signal.throwIfAborted();

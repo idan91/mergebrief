@@ -8,13 +8,14 @@ import {
 } from "brief-core/pr-span";
 import {
   GitHubApiErrorCodes,
+  isPermanentGitHubError,
+  isSpanUnrendered,
   RepoFileKinds,
   type GitHubCallFailure,
   type RepoFileResult,
 } from "github";
 import type { Result } from "types/utils";
 import type { PullRequestSource } from "../../github-port";
-import { isPermanentGitHubError, isSpanUnrendered } from "./errors";
 
 type SpanReads = Pick<
   PullRequestSource,

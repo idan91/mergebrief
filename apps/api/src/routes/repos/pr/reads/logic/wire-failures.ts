@@ -1,8 +1,7 @@
 // The reads domain's failure-to-throw mapping: an operation failure becomes
 // the ApiError the adapter throws, and nothing else decides posture.
 import { ApiErrorCodes } from "contract";
-import { GitHubApiErrorCodes, type GitHubCallFailure } from "github";
-import { HttpStatuses } from "types/http";
+import { GitHubApiErrorCodes, isNotAcceptable } from "github";
 import {
   BadRequest,
   GatewayTimeout,
@@ -13,10 +12,6 @@ import {
 import { resolveGitHubDenialError } from "../../../../../shared-errors/github-denial";
 import { DenialPostures } from "../../../../../shared-errors/github-denial/types";
 import type { DiffFailure, FileRangeFailure, StackFailure } from "../types";
-
-function isDiffTooLarge(error: GitHubCallFailure): boolean {
-  return "status" in error && error.status === HttpStatuses.NOT_ACCEPTABLE;
-}
 
 /** Every live read runs on the viewer's credential: a refusal reads as absence. */
 function resolveLiveReadError(failure: DiffFailure): ApiError {
@@ -35,7 +30,7 @@ export function resolveDiffError(failure: DiffFailure): ApiError {
   if (failure.kind === "not-found") {
     return new NotFound();
   }
-  if (isDiffTooLarge(failure.error)) {
+  if (isNotAcceptable(failure.error)) {
     return new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
   }
   if (failure.error.code === GitHubApiErrorCodes.DIFF_TIMED_OUT) {

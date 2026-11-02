@@ -14,15 +14,15 @@ import {
   type LockfileSides,
   type LockfileSummary,
 } from "brief-core/shortened";
-import { GitHubApiErrorCodes, RepoFileKinds } from "github";
+import {
+  GitHubApiErrorCodes,
+  isPermanentGitHubError,
+  RepoFileKinds,
+} from "github";
 import type { Logger } from "logging";
 import type { Result } from "types/utils";
 import type { PullRequestSource } from "../../../github-port";
-import {
-  isPermanentGitHubError,
-  isRepoFileRefusedForGood,
-  throwOnGitHubFailure,
-} from "../errors";
+import { isRepoFileRefusedForGood, throwOnGitHubFailure } from "../errors";
 import { summarizeInChild } from "./isolated-summary";
 import {
   LockfileSpanKinds,
