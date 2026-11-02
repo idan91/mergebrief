@@ -36,9 +36,10 @@ const SINGLE_LINE_CHANGE = [
 
 /**
  * The shape of the Node changelog hunk `-149,15 +150,15`: added 153, 155-156
- * and 159-161, removed 152, 154-155 and 158-160.
+ * and 159-161, removed 152, 154-155 and 158-160. A second hunk holds two
+ * lone changes per side: added 172 and 175, removed 171 and 174.
  */
-const NODE_HUNK = [
+const NODE_CHANGELOG = [
   "diff --git a/a.ts b/a.ts",
   "--- a/a.ts",
   "+++ b/a.ts",
@@ -64,6 +65,16 @@ const NODE_HUNK = [
   " * fs: handle recursive watch setup races",
   " * fs: apply nocase to literal glob exclude patterns",
   " * fs: improve performance of recursive directory read",
+  "@@ -170,7 +171,7 @@",
+  " * http: add maxHeaderSize to the agent options",
+  "-* 51c0a8e3d2 http: reject invalid header values early",
+  "+* 7d24e9b1f0 http: reject invalid header values early",
+  " * http: keep sockets alive across redirects",
+  " * inspector: report worker targets",
+  "-* c3f1d07a95 module: cache resolved package scopes",
+  "+* e0b6a4c281 module: cache resolved package scopes",
+  " * module: fix require of a directory symlink",
+  " * net: validate the autoSelectFamily timeout",
   "",
 ].join("\n");
 
@@ -211,7 +222,7 @@ describe("revision chunk ranges aligned to the span", () => {
     expect(warnings).not.toContain("loc overlap");
   });
 
-  it("clips a Node hunk written one line high and leaves mark 153 open", async () => {
+  it("moves a Node tie by the file's unanimous one-line-high offset", async () => {
     const answer = stubNarrativeAnswer([
       {
         addedRanges: [
@@ -225,31 +236,41 @@ describe("revision chunk ranges aligned to the span", () => {
           { start: 159, end: 161 },
         ],
       },
+      {
+        addedRanges: [
+          { start: 173, end: 173 },
+          { start: 176, end: 176 },
+        ],
+        removedRanges: [
+          { start: 172, end: 172 },
+          { start: 175, end: 175 },
+        ],
+      },
     ]);
 
     const narrative = await categorizeRevisionNarrative(
       {
-        ...makeNarrativeInput(NODE_HUNK),
-        marksFiles: parseChangedRanges(NODE_HUNK),
+        ...makeNarrativeInput(NODE_CHANGELOG),
+        marksFiles: parseChangedRanges(NODE_CHANGELOG),
       },
       makeFakeGenerator(answer),
     );
 
     expect(narrative.chunks[0]).toMatchObject({
       addedRanges: [
+        { start: 153, end: 153 },
         { start: 156, end: 156 },
         { start: 160, end: 161 },
       ],
       removedRanges: [
+        { start: 152, end: 152 },
         { start: 155, end: 155 },
         { start: 159, end: 160 },
       ],
     });
     const warnings = narrative.generationWarnings?.join("\n") ?? "";
-    expect(warnings).toContain(formatAlignedWarning(0, 6));
-    expect(warnings).toContain(
-      "no narrative chunk covers added 153; removed 152",
-    );
+    expect(warnings).toContain(formatAlignedWarning(6, 4));
+    expect(warnings).not.toContain("no narrative chunk covers");
   });
 
   it("drops removes-validation from a delta chunk removing no changed line", async () => {
