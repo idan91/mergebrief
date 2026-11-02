@@ -33,6 +33,7 @@ import {
   buildDbRevisionNarrativeQueryOptions,
   buildPrDiffQueryOptions,
   buildPrMetaQueryOptions,
+  buildPrSpanDiffQueryOptions,
   buildPrStackQueryOptions,
   buildSessionQueryOptions,
   createSessionReads,
@@ -555,6 +556,28 @@ describe("buildPrDiffQueryOptions", () => {
     const options = buildPrDiffQueryOptions("424242", 7, "b", "h", 300);
 
     expect(options.gcTime).toBe(30 * minuteMs);
+  });
+
+  it("keys a revision span read apart from a compare of one pair", () => {
+    const compare = buildPrDiffQueryOptions("424242", 7, "h1", "h2");
+    const span = buildPrSpanDiffQueryOptions("424242", 7, "h1", "h2");
+
+    expect(compare.queryKey).toEqual([
+      "pr-diff",
+      "424242",
+      7,
+      "h1",
+      "h2",
+      "compare",
+    ]);
+    expect(span.queryKey).toEqual([
+      "pr-diff",
+      "424242",
+      7,
+      "h1",
+      "h2",
+      "revision-span",
+    ]);
   });
 
   it("keeps a very large or unsized diff for five minutes", () => {

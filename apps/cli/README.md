@@ -63,6 +63,9 @@ npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
   one. One exception: when writing stdout fails for a reason other than
   the reader closing it (EIO, ENOSPC), a successful command exits 1 and
   stdout may hold a partial write.
+- **`diff` names its read:** on exit 0 it writes one stderr line,
+  `diff mode: revision-span` or `diff mode: compare`, after the diff; a
+  server that names neither prints none.
 - **Passthrough by default:** most commands emit the server response
   verbatim: one canonical shape across web, API, and CLI. Exactly three
   shapes are CLI-synthesized: the `delta` union, `auth status`, and

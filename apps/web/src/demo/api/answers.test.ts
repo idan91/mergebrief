@@ -4,6 +4,8 @@ import { splitUnifiedDiffByFile } from "brief-core/chunk-layout";
 import {
   ApiErrorCodes,
   buildOperationPath,
+  DIFF_MODE_HEADER,
+  DiffModes,
   parseApiErrorBody,
   ProductActionIds,
   ProductQueryIds,
@@ -167,6 +169,15 @@ describe("answerDemoRequest reads", () => {
   });
 
   it.each([
+    { span: REV2_SPAN, mode: DiffModes.COMPARE },
+    { span: PREVIOUS_BRIEF_SPAN, mode: DiffModes.REVISION_SPAN },
+  ])("names the $mode read it served", ({ span, mode }) => {
+    const response = readPullOperation(ProductQueryIds.READ_DIFF, span);
+
+    expect(response.headers.get(DIFF_MODE_HEADER)).toBe(mode);
+  });
+
+  it.each([
     {
       name: "reversed",
       span: `base=${FIXTURE_REV2_HEAD}&head=${FIXTURE_REV1_HEAD}`,
@@ -180,6 +191,7 @@ describe("answerDemoRequest reads", () => {
     expect(parseApiErrorBody(await response.json())?.code).toBe(
       ApiErrorCodes.NOT_FOUND,
     );
+    expect(response.headers.get(DIFF_MODE_HEADER)).toBe(DiffModes.COMPARE);
   });
 
   it("serves the previous-brief marks and the revision narrative", async () => {

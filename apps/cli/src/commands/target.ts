@@ -64,7 +64,12 @@ export function resolveFromDisk(
 }
 
 export function readIo(deps: CliDeps, global: GlobalOptions): CommandIo {
-  return { stdout: deps.stdout, stderr: deps.stderr, json: global.json };
+  return {
+    stdout: deps.stdout,
+    stderr: deps.stderr,
+    successNotice: deps.successNotice ?? deps.stderr,
+    json: global.json,
+  };
 }
 
 export function parsePrNumber(raw: string): number {

@@ -13,9 +13,11 @@ import {
 
 import {
   buildOperationPath,
+  DiffModes,
   ProductQueryIds,
   VIDEO_ASSETS_MISSING_PARAM,
   type AttachmentAssetId,
+  type DiffMode,
   type OperationParams,
   type ProductQueryId,
   type VideoAssetsResponse,
@@ -584,19 +586,26 @@ const DIFF_GC_MS = 30 * 60 * 1000;
 const LARGE_DIFF_GC_MS = 5 * 60 * 1000;
 
 /**
- * The span diff (text), never persisted. A span between two full SHAs never
- * changes, so it is fresh for the page's life, as the brief is; a span naming
- * a branch matches the api's ~60s cache. A very large diff, or one whose size
- * the caller does not know, leaves memory sooner.
+ * The span diff (text), never persisted. A span between two full SHAs is
+ * fresh for the page's life, as the brief is: the server's answer for it
+ * moves only when the pair's marks row lands or is rewritten, which a reload
+ * reads. A span naming a branch matches the api's ~60s cache. A very large
+ * diff, or one whose size the caller does not know, leaves memory sooner.
+ * The key carries the read the caller expects, so a compare cached before a
+ * pair's marks landed never answers a revision-span read.
  */
-export function buildPrDiffQueryOptions(
+function buildDiffQueryOptions(
   repoId: string,
   prNumber: number,
-  base: string,
-  head: string,
-  fileCount?: number,
+  span: {
+    readonly base: string;
+    readonly head: string;
+    readonly mode: DiffMode;
+  },
+  fileCount: number | undefined,
 ) {
-  const queryKey: QueryKey = ["pr-diff", repoId, prNumber, base, head];
+  const { base, head, mode } = span;
+  const queryKey: QueryKey = ["pr-diff", repoId, prNumber, base, head, mode];
   const pinned = isFullCommitSha(base) && isFullCommitSha(head);
   const sized = fileCount !== undefined && fileCount <= LARGE_DIFF_FILE_COUNT;
   return queryOptions({
@@ -607,4 +616,27 @@ export function buildPrDiffQueryOptions(
     refetchOnReconnect: !pinned,
     gcTime: sized ? DIFF_GC_MS : LARGE_DIFF_GC_MS,
   });
+}
+
+/** A whole-PR span's diff: GitHub's `base...head` compare. */
+export function buildPrDiffQueryOptions(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+  fileCount?: number,
+) {
+  const span = { base, head, mode: DiffModes.COMPARE };
+  return buildDiffQueryOptions(repoId, prNumber, span, fileCount);
+}
+
+/** The raw diff between two heads the api serves as their revision span: the PR's own change, rebase noise left out. */
+export function buildPrSpanDiffQueryOptions(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+) {
+  const span = { base, head, mode: DiffModes.REVISION_SPAN };
+  return buildDiffQueryOptions(repoId, prNumber, span, undefined);
 }

@@ -75,6 +75,7 @@ export interface ApiResponse {
   readonly status: number;
   /** The VERBATIM body text, passthrough, never re-serialized. */
   readonly bodyText: string;
+  readonly headers: Headers;
 }
 
 /**
@@ -257,7 +258,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         const statusLabel = describeStatus(response, exitCode, now());
         throw new CliError(exitCode, serverErrorLine(bodyText, statusLabel));
       }
-      return { status: response.status, bodyText };
+      return { status: response.status, bodyText, headers: response.headers };
     },
   };
 }

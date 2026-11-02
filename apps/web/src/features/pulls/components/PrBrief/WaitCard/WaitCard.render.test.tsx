@@ -36,7 +36,7 @@ function renderWaitCard(span: Span | undefined): void {
     defaultOptions: { queries: { retry: false } },
   });
   client.setQueryData(
-    ["pr-diff", REPO_ID, PR_NUMBER, SPAN.base, SPAN.head],
+    ["pr-diff", REPO_ID, PR_NUMBER, SPAN.base, SPAN.head, "compare"],
     DIFF_TEXT,
   );
   render(

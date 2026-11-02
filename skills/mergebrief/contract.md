@@ -19,7 +19,13 @@ none of them appear in `--help`.
   be removed, and each removal is listed in the API changelog. Ignore fields
   you do not recognize.
 - `diff` rejects `--json` (exit 2); its raw unified diff is the machine
-  format.
+  format. On exit 0 it also writes one stderr line naming what it served:
+  `diff mode: revision-span` for a `--base`/`--head` pair MergeBrief stored
+  revision marks for (the PR's own change between those heads, with base
+  moves and rebase noise left out), unless the pair reads the whole PR: any
+  pair on the PR's current base, or a brief's own base and head. Every other
+  pair prints `diff mode: compare` for GitHub's `base...head` compare. A
+  server that names neither prints no line.
 
 ## Exit table
 

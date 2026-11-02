@@ -1,4 +1,4 @@
-import type { ProductQueryIds } from "contract";
+import type { DiffMode, ProductQueryIds } from "contract";
 
 /** The reads scoped to one pull request: every path takes `repoId` and `prNumber`. */
 export type PullReadId =
@@ -14,10 +14,11 @@ export type PullReadId =
   | typeof ProductQueryIds.READ_REVIEW_SESSION
   | typeof ProductQueryIds.READ_FILE_RANGE;
 
-/** A diffs sidecar for one exact compare span, as GitHub's compare answers it. */
+/** A diffs sidecar for one exact span, and the read the api serves it as. */
 export interface DemoSpanDiff {
   readonly base: string;
   readonly head: string;
+  readonly mode: DiffMode;
   readonly text: string;
 }
 

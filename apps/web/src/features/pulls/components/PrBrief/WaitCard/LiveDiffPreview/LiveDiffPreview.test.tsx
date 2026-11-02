@@ -45,7 +45,7 @@ function stubClient(files: readonly string[]): QueryClient {
     defaultOptions: { queries: { retry: false } },
   });
   client.setQueryData(
-    ["pr-diff", REPO_ID, PR_NUMBER, SPAN.base, SPAN.head],
+    ["pr-diff", REPO_ID, PR_NUMBER, SPAN.base, SPAN.head, "compare"],
     makeDiffText(files),
   );
 

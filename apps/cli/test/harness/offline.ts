@@ -6,6 +6,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ApiErrorCodes } from "contract";
+import type { Mutable } from "types/utils";
 import { expect } from "vitest";
 import type { FetchInit } from "../../src/client";
 import { ExitCodes } from "../../src/exit";
@@ -35,6 +36,7 @@ export interface ScriptedRoute {
   readonly path: string;
   readonly status?: number;
   readonly body?: string;
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 export interface OfflineRunOptions {
@@ -43,6 +45,8 @@ export interface OfflineRunOptions {
   /** The files `-F <path>` and `draft attach <file>` may read; any other path throws. */
   readonly files?: Readonly<Record<string, string | Uint8Array>>;
   readonly env?: CliDeps["env"];
+  /** The success-only sink `bin.ts` prints after the flush; absent, those lines go to stderr. */
+  readonly successNotice?: CliDeps["successNotice"];
 }
 
 export interface OfflineRun {
@@ -79,7 +83,7 @@ function makeScriptedResponse(route: ScriptedRoute): Response {
   }
   return new Response(route.body, {
     status: route.status ?? 200,
-    headers: { "content-type": JSON_CONTENT_TYPE },
+    headers: { "content-type": JSON_CONTENT_TYPE, ...route.headers },
   });
 }
 
@@ -134,7 +138,7 @@ export async function runCliOffline(
   const requests: SentRequest[] = [];
   const files = options.files ?? {};
 
-  const code = await runCli(argv, {
+  const deps: Mutable<CliDeps> = {
     fetch: makeScriptedFetch(options.routes ?? [], requests),
     env: options.env ?? {},
     configDir,
@@ -155,8 +159,12 @@ export async function runCliOffline(
         : content;
     },
     gitOriginUrl: () => OFFLINE_ORIGIN_URL,
-  });
+  };
+  if (options.successNotice !== undefined) {
+    deps.successNotice = options.successNotice;
+  }
 
+  const code = await runCli(argv, deps);
   return { code, out: out.join(""), err, requests, configDir };
 }
 

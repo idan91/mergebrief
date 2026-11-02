@@ -178,6 +178,14 @@ describe("usePrBriefPlans", () => {
       expect(result.current.comparisonPlan.lastReview?.delta).toBeUndefined();
     });
 
+    it("reads both raw span diffs as revision spans", () => {
+      const { result } = renderPlans({ meta: meta({ comparisons }) });
+      const { previousBrief, lastReview } = result.current.comparisonPlan;
+
+      expect(previousBrief?.rawDiff?.queryKey.at(-1)).toBe("revision-span");
+      expect(lastReview?.rawDiff?.queryKey.at(-1)).toBe("revision-span");
+    });
+
     it("tells the last-review plan its delta was skipped as too large", () => {
       const skipped: PrSummary["comparisons"] = {
         lastReview: {

@@ -3,7 +3,13 @@
 // CLI-synthesized shapes. One command may make two API reads (`delta` =
 // pr-meta → delta; `diff --group` = brief + diff).
 import { formatDisplayPath, formatDisplayText } from "brief-core/hidden-chars";
-import { ProductOperations, ProductQueryIds } from "contract";
+import {
+  DIFF_MODE_HEADER,
+  DiffModes,
+  ProductOperations,
+  ProductQueryIds,
+  type DiffMode,
+} from "contract";
 import { z } from "zod/v4";
 import type { ApiClient } from "../../client";
 import type { CommandIo } from "../../types";
@@ -222,6 +228,21 @@ export function requireDiffFlags(options: DiffOptions): void {
   }
 }
 
+const DIFF_MODE_VALUES: ReadonlySet<string> = new Set(Object.values(DiffModes));
+
+function isDiffMode(value: string): value is DiffMode {
+  return DIFF_MODE_VALUES.has(value);
+}
+
+/** The read the server says it served; nothing from a server that names none, or one this CLI does not know. */
+function readDiffMode(headers: Headers): DiffMode | undefined {
+  const value = headers.get(DIFF_MODE_HEADER);
+  if (value === null || !isDiffMode(value)) {
+    return undefined;
+  }
+  return value;
+}
+
 /**
  * `diff <n>`: the raw unified diff IS the machine format, `--json` is
  * rejected by the caller (exit 2) before this runs. `--group` filters to a
@@ -298,11 +319,15 @@ export async function runDiff(
     text = filtered.diff;
   }
 
-  if (options.pager !== undefined) {
+  if (options.pager === undefined) {
+    io.stdout(text);
+  } else {
     await options.pager(text);
-    return;
   }
-  io.stdout(text);
+  const mode = readDiffMode(diff.headers);
+  if (mode !== undefined) {
+    io.successNotice(`diff mode: ${mode}`);
+  }
 }
 
 export interface DeltaOptions {

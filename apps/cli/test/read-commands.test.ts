@@ -21,6 +21,7 @@ import {
   type TenantContext,
 } from "persistence";
 import { seedGrant, type PgliteHarness } from "persistence/testing";
+import { ApiErrorCodes, DIFF_MODE_HEADER, DiffModes } from "contract";
 import { PrStates, AccessLevels } from "types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
@@ -42,6 +43,7 @@ const REVIEWER_ID = 555;
 const REPO_A = 42001;
 const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
+const SPAN_MODE_HEADERS = { [DIFF_MODE_HEADER]: DiffModes.REVISION_SPAN };
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -365,6 +367,7 @@ describe("read commands over the real api app", () => {
     const raw = await run(["diff", "7"]);
     expect(raw.code).toBe(ExitCodes.OK);
     expect(raw.out).toBe(RAW_DIFF);
+    expect(raw.err).toEqual([`diff mode: ${DiffModes.COMPARE}`]);
 
     const filtered = await run(["diff", "7", "--group", "grp-1"]);
     expect(filtered.code).toBe(ExitCodes.OK);
@@ -559,7 +562,12 @@ describe("diff --group over a scripted api", () => {
             ],
           }),
         },
-        { method: "GET", path: `${pull}/diff?${span}`, body: RAW_DIFF },
+        {
+          method: "GET",
+          path: `${pull}/diff?${span}`,
+          body: RAW_DIFF,
+          headers: SPAN_MODE_HEADERS,
+        },
       ],
     });
   }
@@ -568,6 +576,7 @@ describe("diff --group over a scripted api", () => {
     const result = await runMissingFiles("src/\u202Etxt.exe");
 
     expect(result.code).toBe(ExitCodes.GENERIC);
+    expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("(src/[U+202E]txt.exe)");
   });
 
@@ -575,6 +584,68 @@ describe("diff --group over a scripted api", () => {
     const result = await runMissingFiles("docs/שלום.md");
 
     expect(result.err[0]).toContain("(docs/שלום.md)");
+  });
+});
+
+describe("diff over a scripted api", () => {
+  const span = `base=${BASE_SHA}&head=${HEAD_SHA}`;
+  const diffPath = `/api/repos/${OFFLINE_REPO_ID}/pulls/7/diff?${span}`;
+  const argv = ["diff", "7", "--base", BASE_SHA, "--head", HEAD_SHA];
+
+  it("names the revision span on the success-only channel", async () => {
+    const notices: string[] = [];
+    const result = await runCliOffline(argv, {
+      successNotice: (line) => notices.push(line),
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: diffPath,
+          body: RAW_DIFF,
+          headers: SPAN_MODE_HEADERS,
+        },
+      ],
+    });
+
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).toBe(RAW_DIFF);
+    expect(notices).toEqual([`diff mode: ${DiffModes.REVISION_SPAN}`]);
+    expect(result.err).toEqual([]);
+  });
+
+  it("prints one error line for a refused span, its mode left out", async () => {
+    const refusal = JSON.stringify({
+      error: "too large",
+      code: ApiErrorCodes.DIFF_TOO_LARGE,
+    });
+    const result = await runCliOffline(argv, {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: diffPath,
+          status: 413,
+          body: refusal,
+          headers: SPAN_MODE_HEADERS,
+        },
+      ],
+    });
+
+    expect(result.code).not.toBe(ExitCodes.OK);
+    expect(result.out).toBe("");
+    expect(result.err).toHaveLength(1);
+  });
+
+  it("prints no mode line when the server names none", async () => {
+    const result = await runCliOffline(argv, {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        { method: "GET", path: diffPath, body: RAW_DIFF },
+      ],
+    });
+
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.err).toEqual([]);
   });
 });
 
@@ -615,6 +686,7 @@ function sinkPair() {
     io: {
       stdout: (t: string) => out.push(t),
       stderr: () => undefined,
+      successNotice: () => undefined,
       json: true,
     },
   };

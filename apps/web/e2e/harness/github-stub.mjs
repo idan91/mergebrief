@@ -4,6 +4,7 @@
 // GitHub dependency fails loudly instead of hitting the network.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const FIXTURE_DIR = process.env.MERGEBRIEF_E2E_FIXTURES;
 const REPO_ID = process.env.MERGEBRIEF_E2E_REPO_ID ?? "424242";
@@ -23,6 +24,18 @@ const OUTDATED_THREAD_PATH =
 const MINUTE_MS = 60_000;
 const SYNTHETIC_FILE_LINES = 900;
 const FIXTURE_PR_NUMBER = 1;
+/** Compares between two fixture heads, by both heads' first eight characters. */
+const BETWEEN_HEADS_DIFFS = new Map([
+  [
+    "11111111...22222222",
+    fileURLToPath(
+      new URL(
+        "../../src/demo/api/previous-brief-span-diffs.json",
+        import.meta.url,
+      ),
+    ),
+  ],
+]);
 const realFetch = globalThis.fetch;
 
 function buildFixturePull(number) {
@@ -67,6 +80,20 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+function joinPatches(path) {
+  const entries = JSON.parse(readFileSync(path, "utf8"));
+  return entries.map((entry) => entry.patch).join("\n");
+}
+
+/**
+ * The compare between two heads: GitHub's diff of the revision span when the
+ * second head fast-forwards the first, as the fixture's does.
+ */
+function loadHeadsDiff(base8, head8) {
+  const path = BETWEEN_HEADS_DIFFS.get(`${base8}...${head8}`);
+  return path === undefined ? undefined : joinPatches(path);
+}
+
 /** Concatenated unified patches for the revision whose head starts `head8`. */
 function loadDiff(head8) {
   const names = readdirSync(FIXTURE_DIR).filter((name) =>
@@ -76,8 +103,22 @@ function loadDiff(head8) {
   if (name === undefined) {
     return undefined;
   }
-  const entries = JSON.parse(readFileSync(join(FIXTURE_DIR, name), "utf8"));
-  return entries.map((entry) => entry.patch).join("\n");
+  return joinPatches(join(FIXTURE_DIR, name));
+}
+
+function isDiffRequest(input, init) {
+  const headers = new Headers(
+    init?.headers ?? (input instanceof Request ? input.headers : undefined),
+  );
+  return (headers.get("accept") ?? "").includes("diff");
+}
+
+/**
+ * The compare's JSON: every head branched off its base's tip, so the merge
+ * base is the base itself and the second head fast-forwards the first.
+ */
+function answerCompareJson(base) {
+  return jsonResponse({ merge_base_commit: { sha: base } });
 }
 
 /** The request URL, whatever shape `fetch` was handed. */
@@ -321,8 +362,13 @@ globalThis.fetch = async (input, init) => {
     `^/repos/${REPO_SLUG}/compare/(?<basehead>.+)$`,
   ).exec(pathname);
   if (compare) {
-    const head = compare.groups.basehead.split("...")[1] ?? "";
-    const diff = loadDiff(head.slice(0, 8));
+    const [base = "", head = ""] = compare.groups.basehead.split("...");
+    if (!isDiffRequest(input, init)) {
+      return answerCompareJson(base);
+    }
+    const diff =
+      loadHeadsDiff(base.slice(0, 8), head.slice(0, 8)) ??
+      loadDiff(head.slice(0, 8));
     if (diff === undefined) {
       // Unknown span head = the app compared against the wrong revision,
       // fail loudly, never serve a plausible wrong diff.

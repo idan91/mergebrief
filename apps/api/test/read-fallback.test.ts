@@ -3,6 +3,7 @@
 // own token GitHub refuses could hold a brief they could not open. The gate
 // runs the same ladder, but ONLY for a PR the reader owns in the url-box
 // world, so an App-world brief stays governed by the installation alone.
+import { DIFF_MODE_HEADER, DiffModes } from "contract";
 import { RepoFileKinds } from "github";
 import {
   CredentialKinds,
@@ -590,6 +591,97 @@ describe("the per-repo gate's operator-PAT rung", () => {
       // Gate: reader then PAT. Stack: nothing, the repo's open list is not owed.
       expect(listGateTokens(fake)).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
       expect(listCallsPastGate(fake, OPERATOR_GATE_CALLS)).toEqual([]);
+    });
+
+    /** A marked span from a Checkpoint SHA to the head, which the viewer's token cannot read. */
+    async function arrangeMarkedCheckpointSpan(): Promise<PullRequestRow> {
+      arrangeOperatorGate(fake);
+      await seedOwnerBrief(harness.handle);
+      const pr = await readOwnerRow();
+      if (pr === undefined) {
+        throw new Error("owner row missing");
+      }
+      await createArtifactStore(
+        harness.handle,
+        OWNER_CTX,
+      ).comparisonMarks.write({
+        pullRequestId: pr.id,
+        refs: { prevBase: BASE_SHA, newBase: BASE_SHA },
+        marks: { baselineSha: UNKNOWN_SHA, headSha: HEAD_SHA, files: [] },
+      });
+      fake.addCompare(
+        REPO,
+        { base: BASE_SHA, head: HEAD_SHA },
+        { diff: DIFF_TEXT },
+      );
+      fake.addCompare(
+        REPO,
+        { base: BASE_SHA, head: UNKNOWN_SHA },
+        { diff: "" },
+      );
+      fake.addCompare(
+        REPO,
+        { base: UNKNOWN_SHA, head: HEAD_SHA },
+        { diff: DIFF_TEXT },
+      );
+      for (const operation of [
+        "fetchMergeBase",
+        "fetchCheckedCompareDiff",
+      ] as const) {
+        fake.failOn(
+          operation,
+          FakeFailures.NOT_FOUND,
+          CredentialKinds.REVIEWER,
+        );
+      }
+      return pr;
+    }
+
+    function listOperatorReadsAt(sha: string): unknown[] {
+      const calls = listCallsPastGate(fake, OPERATOR_GATE_CALLS);
+      const operatorCalls = calls.filter(
+        (call) =>
+          "token" in call.credential && call.credential.token === FALLBACK_PAT,
+      );
+      return operatorCalls.filter((call) =>
+        JSON.stringify(call.input).includes(sha),
+      );
+    }
+
+    it("refuses a marked Checkpoint span no Delta records on the PAT", async () => {
+      await arrangeMarkedCheckpointSpan();
+
+      const res = await getLive(
+        buildApp(FALLBACK_PAT),
+        `${DIFF_PATH}?base=${UNKNOWN_SHA}&head=${HEAD_SHA}`,
+      );
+
+      expect(res.status).toBe(404);
+      expect(res.headers.get(DIFF_MODE_HEADER)).toBe(DiffModes.REVISION_SPAN);
+      expect(listOperatorReadsAt(UNKNOWN_SHA)).toEqual([]);
+    });
+
+    it("reads a marked Checkpoint span a Delta records on the PAT", async () => {
+      const pr = await arrangeMarkedCheckpointSpan();
+      await createArtifactStore(harness.handle, OWNER_CTX).deltas.write({
+        pullRequestId: pr.id,
+        baselineSha: UNKNOWN_SHA,
+        headSha: HEAD_SHA,
+        provider: "p",
+        model: "m",
+        effort: "e",
+        bodyVersion: STORED_BODY_VERSION,
+        body: "{}",
+      });
+
+      const res = await getLive(
+        buildApp(FALLBACK_PAT),
+        `${DIFF_PATH}?base=${UNKNOWN_SHA}&head=${HEAD_SHA}`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get(DIFF_MODE_HEADER)).toBe(DiffModes.REVISION_SPAN);
+      expect(await res.text()).toBe(DIFF_TEXT);
     });
   });
 

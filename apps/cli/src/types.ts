@@ -42,6 +42,8 @@ export interface BriefSpan {
 export interface CommandIo {
   readonly stdout: (text: string) => void;
   readonly stderr: (line: string) => void;
+  /** A stderr line that prints only once the command exits 0, after stdout flushed. */
+  readonly successNotice: (line: string) => void;
   readonly json: boolean;
 }
 

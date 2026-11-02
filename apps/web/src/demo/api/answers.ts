@@ -1,4 +1,11 @@
-import { ApiErrorCodes, buildOperationPath, ProductQueryIds } from "contract";
+import {
+  ApiErrorCodes,
+  buildOperationPath,
+  DIFF_MODE_HEADER,
+  DiffModes,
+  ProductQueryIds,
+  type DiffMode,
+} from "contract";
 import { HttpMethods } from "types";
 
 import { parseFileDiffPatches } from "@web/features/brief/model";
@@ -59,21 +66,29 @@ function answerBrief(query: URLSearchParams): Response {
   return answerStoredJson(text);
 }
 
-/** The span diff for an exact `(base, head)` pair, its sidecar's patches joined. */
+/** A diff answer naming the read that served or refused it. */
+function nameDiffMode(response: Response, mode: DiffMode): Response {
+  response.headers.set(DIFF_MODE_HEADER, mode);
+  return response;
+}
+
+/** The span diff for an exact `(base, head)` pair, its sidecar's patches joined; an unmarked pair is the server's compare. */
 function answerDiff(query: URLSearchParams): Response {
   const span = spanDiffs.find(({ base, head }) =>
     matchesQuery(query, { base, head }),
   );
   if (span === undefined) {
-    return answerRefusal(ApiErrorCodes.NOT_FOUND);
+    const refusal = answerRefusal(ApiErrorCodes.NOT_FOUND);
+    return nameDiffMode(refusal, DiffModes.COMPARE);
   }
 
   const patches = parseFileDiffPatches(JSON.parse(span.text));
   if (!patches.ok) {
-    return answerRefusal(ApiErrorCodes.ARTIFACT_UNREADABLE);
+    const refusal = answerRefusal(ApiErrorCodes.ARTIFACT_UNREADABLE);
+    return nameDiffMode(refusal, span.mode);
   }
   const joined = patches.value.map((entry) => entry.patch);
-  return answerText(joined.join(PATCH_SEPARATOR));
+  return nameDiffMode(answerText(joined.join(PATCH_SEPARATOR)), span.mode);
 }
 
 function answerMarks(query: URLSearchParams): Response {

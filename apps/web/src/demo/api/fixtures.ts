@@ -5,6 +5,7 @@
 import {
   type AuthSessionResponse,
   type ConversationResponse,
+  DiffModes,
   type GenerationSummaryView,
   InboxQueryBounds,
   type InboxResponse,
@@ -406,16 +407,28 @@ export const briefTextByHead: Readonly<Record<string, string>> = {
 };
 
 /**
- * Every span the screen compares: each revision's full span, and the
- * previous-brief span, which holds only the files that differ between the
- * two heads.
+ * Every span the screen compares: each revision's full span as a compare,
+ * and the previous-brief revision span, which holds only the files that
+ * differ between the two heads. The second head fast-forwards the first on
+ * one merge base, so that span is GitHub's compare between the heads.
  */
 export const spanDiffs: readonly DemoSpanDiff[] = [
-  { base: FIXTURE_BASE_SHA, head: FIXTURE_REV1_HEAD, text: diffsRev1Text },
-  { base: FIXTURE_BASE_SHA, head: FIXTURE_REV2_HEAD, text: diffsRev2Text },
+  {
+    base: FIXTURE_BASE_SHA,
+    head: FIXTURE_REV1_HEAD,
+    mode: DiffModes.COMPARE,
+    text: diffsRev1Text,
+  },
+  {
+    base: FIXTURE_BASE_SHA,
+    head: FIXTURE_REV2_HEAD,
+    mode: DiffModes.COMPARE,
+    text: diffsRev2Text,
+  },
   {
     base: FIXTURE_REV1_HEAD,
     head: FIXTURE_REV2_HEAD,
+    mode: DiffModes.REVISION_SPAN,
     text: previousBriefSpanDiffsText,
   },
 ];

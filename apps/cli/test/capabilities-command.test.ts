@@ -67,7 +67,11 @@ const OPERATIONS = [
 
 function stubClient(body: unknown): ApiClient {
   return {
-    request: async () => ({ status: 200, bodyText: JSON.stringify(body) }),
+    request: async () => ({
+      status: 200,
+      bodyText: JSON.stringify(body),
+      headers: new Headers(),
+    }),
   };
 }
 
@@ -86,6 +90,7 @@ function capture(): Capture {
     io: {
       stdout: (text) => out.push(text),
       stderr: (line) => err.push(line),
+      successNotice: (line) => err.push(line),
       json: true,
     },
   };

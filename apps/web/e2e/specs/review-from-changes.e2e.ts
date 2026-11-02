@@ -21,7 +21,8 @@ import { gotoBrief } from "../support/page";
 
 const CHANGES = `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`;
 /** The fixture's Header chunk: its one added line, which its own card renders. */
-const HEADER_LINE = { file: "Header.tsx", line: 75, chunkId: "c1" };
+/** A line the push between the heads added, so the revision span carries it. */
+const SPAN_LINE = { file: "viewModel.ts", line: 37, chunkId: "c3" };
 const FULL = `${FIXTURE_ROUTE_REV2}&view=full&compare=previous-brief`;
 const DISMISSAL_REASON = "Known and accepted for this fixture.";
 /** How long cleanup waits for a leftover to show before deciding it is gone. */
@@ -212,7 +213,7 @@ test("the raw span diff takes a comment and a left row opens its reason", async 
   const body = makeDraftBody("Comment made from the raw span diff", testInfo);
   await gotoBrief(page, CHANGES);
   await page.getByRole("button", { name: "Raw diff" }).click();
-  const row = findSpanRowOnLine(page, HEADER_LINE.file, HEADER_LINE.line);
+  const row = findSpanRowOnLine(page, SPAN_LINE.file, SPAN_LINE.line);
   await row.scrollIntoViewIfNeeded();
   await row.locator("[data-comment-anchor]").first().click();
   await saveDraft(page, body);
@@ -230,7 +231,7 @@ test("the raw span diff takes a comment and a left row opens its reason", async 
   await expect(reason).toBeHidden();
   await expect(deleted).toBeFocused();
 
-  await expectDraftInFullAfterReload(page, body, HEADER_LINE.chunkId);
+  await expectDraftInFullAfterReload(page, body, SPAN_LINE.chunkId);
 });
 
 test("a flag dismissed from a section reads dismissed on the group card", async ({

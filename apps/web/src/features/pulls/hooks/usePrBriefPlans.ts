@@ -41,7 +41,7 @@ import {
   buildDbComparisonMarksQueryOptions,
   buildDbDeltaQueryOptions,
   buildDbRevisionNarrativeQueryOptions,
-  buildPrDiffQueryOptions,
+  buildPrSpanDiffQueryOptions,
   buildPrMetaQueryOptions,
 } from "../queries";
 import { submitReview } from "../transport/submitReview";
@@ -109,7 +109,7 @@ export function usePrBriefPlans(
           previous.baselineIndex,
         ),
         // Raw span diff toggle: previous head → selected head.
-        rawDiff: buildPrDiffQueryOptions(
+        rawDiff: buildPrSpanDiffQueryOptions(
           repoId,
           prNumber,
           previous.baselineSha,
@@ -140,7 +140,7 @@ export function usePrBriefPlans(
           lastReview.baselineIndex ?? null,
         ),
         // Raw span diff toggle: checkpoint → selected head.
-        rawDiff: buildPrDiffQueryOptions(
+        rawDiff: buildPrSpanDiffQueryOptions(
           repoId,
           prNumber,
           lastReview.baselineSha,
