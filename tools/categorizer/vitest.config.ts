@@ -16,9 +16,7 @@ export default defineConfig({
       include: ["eval/*.ts", "src/**/*.ts"],
       exclude: coverageExclude,
       reporter: coverageReporter,
-      // TEMPORARY floor: the standard is 75, and a catch-up ticket owns
-      // raising it. Never lower this to absorb a drop.
-      thresholds: { lines: 60 },
+      thresholds: { lines: 75 },
     },
   },
 });

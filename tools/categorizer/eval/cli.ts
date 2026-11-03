@@ -38,6 +38,7 @@ import {
   buildReport,
   renderCostLine,
   type BillingKind,
+  type BuiltReport,
   type CaseOutcome,
   type InvocationUsage,
 } from "./report";
@@ -48,6 +49,7 @@ import {
   loadPairCases,
   selectCases,
   type PairCase,
+  type PairRunMode,
 } from "./pairs";
 import { persistRunBriefs } from "./specimens";
 import { withUsageSink } from "./usageSink";
@@ -468,9 +470,24 @@ function loadEnv(): void {
   }
 }
 
+export interface BuiltGenerator {
+  readonly generator: Generator;
+  readonly effort: Effort;
+}
+
+export interface EvalPaths extends CaseSetDirs {
+  readonly outDir: string;
+}
+
+const EvalExitCodes = {
+  PASSED: 0,
+  REGRESSED: 1,
+  REFUSED: 2,
+} as const;
+
 async function buildGenerator(
   configPath: string,
-): Promise<Result<{ generator: Generator; effort: Effort }, string>> {
+): Promise<Result<BuiltGenerator, string>> {
   const loaded = loadGeneratorConfigFile(configPath);
   if (!loaded.ok) {
     return { ok: false, error: loaded.error.issues.join("; ") };
@@ -506,6 +523,7 @@ async function evaluateCase(
   key: string,
   baselineMode: BaselineMode,
   progress: (message: string) => void,
+  outDir: string,
 ): Promise<Result<EvaluatedCase, string>> {
   const { fixture } = evalCase;
   let run = 0;
@@ -529,7 +547,7 @@ async function evaluateCase(
     return generated.brief;
   };
   const result = await runCase(generate, runs);
-  persistRunBriefs(join(OUT_DIR, "eval-runs", evalCase.id), result);
+  persistRunBriefs(join(outDir, "eval-runs", evalCase.id), result);
   const scored = scoreRuns(
     evalCase.properties,
     result.briefs,
@@ -609,14 +627,14 @@ function meterGenerator(generator: Generator): MeteredGenerator {
 /** `--record-base-brief`: one base Brief for the one pair case `--case` named, then the cost line. */
 async function runBaseBriefRecording(
   pairCases: readonly PairCase[],
-  built: { generator: Generator; effort: Effort },
+  built: BuiltGenerator,
   key: string,
   billingKind: BillingKind,
-): Promise<void> {
+): Promise<number> {
   const [pairCase] = pairCases;
   if (pairCase === undefined) {
     console.error("--record-base-brief needs --case to name a pair case");
-    process.exit(2);
+    return EvalExitCodes.REFUSED;
   }
   console.error(
     `${pairCase.id}: recording its base Brief, one generation (${key})`,
@@ -635,96 +653,28 @@ async function runBaseBriefRecording(
   );
   if (!recorded.ok) {
     console.error(recorded.error);
-    process.exit(2);
+    return EvalExitCodes.REFUSED;
   }
   console.error(`wrote ${recorded.value}: review and commit it`);
+  return EvalExitCodes.PASSED;
 }
 
-async function main(): Promise<void> {
-  const parsed = parseEvalArgs(process.argv.slice(2));
-  if (!parsed.ok) {
-    console.error(parsed.error);
-    console.error(USAGE);
-    process.exit(2);
-  }
-  const args = parsed.value;
-  loadEnv();
-
-  const generator = await buildGenerator(
-    args.configPath ?? DEFAULT_CONFIG_PATH,
-  );
-  if (!generator.ok) {
-    console.error(generator.error);
-    process.exit(2);
-  }
-  const origin = generator.value.generator.origin(generator.value.effort);
-  const key = `${origin.provider}:${origin.model}`;
-  const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(origin.provider)
-    ? BillingKinds.SUBSCRIPTION
-    : BillingKinds.API;
-
-  // Load BOTH case sets unfiltered, then select, `--case` may name a single
-  // OR a revision-pair case; an id in neither is the error.
-  const caseSets = await loadCaseSets({
-    casesDir: CASES_DIR,
-    pairsDir: PAIRS_DIR,
-    privateCasesDir: PRIVATE_CASES_DIR,
-    privatePairsDir: PRIVATE_PAIRS_DIR,
-  });
-  if (!caseSets.ok) {
-    console.error(caseSets.error);
-    process.exit(2);
-  }
-  const selected = selectCases(
-    caseSets.value.singles,
-    caseSets.value.pairs,
-    args.caseId,
-  );
-  if (!selected.ok) {
-    console.error(selected.error);
-    process.exit(2);
-  }
-  const { singles: singleCases, pairs: pairCases } = selected.value;
-  if (args.recordBaseBrief) {
-    await runBaseBriefRecording(pairCases, generator.value, key, billingKind);
-    return;
-  }
-  const recorded = checkBaseBriefsRecorded(pairCases);
-  if (!recorded.ok) {
-    console.error(recorded.error);
-    process.exit(2);
-  }
-
-  const prices = loadPrices(args.pricesPath);
-  if (!prices.ok) {
-    console.error(prices.error);
-    process.exit(2);
-  }
-
-  let baselineMode: BaselineMode = BaselineModes.COMPARE;
+function resolveBaselineMode(args: EvalArgs): BaselineMode {
   if (args.rebaseline) {
-    baselineMode = BaselineModes.REBASELINE;
-  } else if (args.noBaseline) {
-    baselineMode = BaselineModes.NONE;
+    return BaselineModes.REBASELINE;
   }
+  return args.noBaseline ? BaselineModes.NONE : BaselineModes.COMPARE;
+}
 
-  // Refuse cross-key runs before the first generation spends money.
-  // --rebaseline intends to overwrite keys and --no-baseline compares
-  // nothing, so only the compare mode preflights.
-  if (baselineMode === BaselineModes.COMPARE) {
-    const preflight = preflightBaselineKeys(
-      [...singleCases, ...pairCases],
-      key,
-    );
-    if (!preflight.ok) {
-      console.error(preflight.error);
-      process.exit(2);
-    }
-  }
-
+function announceRun(
+  singleCases: readonly EvalCase[],
+  pairCases: readonly PairCase[],
+  args: EvalArgs,
+  pairMode: PairRunMode,
+  key: string,
+): void {
   // Invocation size IS the spend control. A pair case costs up to four
   // generations per run (base, anchored revision, narrative, delta).
-  const pairMode = args.pairFresh ? "fresh" : "anchored";
   const pairGenerations = pairCases.reduce(
     (sum, pairCase) => sum + countPairGenerations(pairCase, pairMode),
     0,
@@ -735,30 +685,51 @@ async function main(): Promise<void> {
     `${caseCount} case${caseCount === 1 ? "" : "s"} (${pairCases.length} pair${pairCases.length === 1 ? "" : "s"}) × ` +
       `${args.runs} runs = ${generationCount} generations (${key})`,
   );
+}
 
-  const { totals, metered } = meterGenerator(generator.value.generator);
+interface EvaluatedCases {
+  readonly outcomes: readonly CaseOutcome[];
+  readonly skippedRebaselines: readonly string[];
+}
 
+interface RunWiring {
+  readonly args: EvalArgs;
+  readonly metered: Generator;
+  readonly effort: Effort;
+  readonly key: string;
+  readonly baselineMode: BaselineMode;
+  readonly pairMode: PairRunMode;
+  readonly outDir: string;
+}
+
+function reportProgress(message: string): void {
+  console.error(message);
+}
+
+async function evaluateSelectedCases(
+  singleCases: readonly EvalCase[],
+  pairCases: readonly PairCase[],
+  wiring: RunWiring,
+): Promise<Result<EvaluatedCases, string>> {
+  const { args, metered, effort, key, baselineMode, pairMode, outDir } = wiring;
   const outcomes: CaseOutcome[] = [];
   const skippedRebaselines: string[] = [];
-  const knobNotes = listIdleKnobNotes(singleCases, pairCases, args.knobs);
-  for (const note of knobNotes) {
-    console.error(note);
-  }
+
   for (const evalCase of singleCases) {
     // oxlint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
     const evaluated = await evaluateCase(
       evalCase,
       metered,
-      generator.value.effort,
+      effort,
       args.knobs,
       args.runs,
       key,
       baselineMode,
-      (message) => console.error(message),
+      reportProgress,
+      outDir,
     );
     if (!evaluated.ok) {
-      console.error(evaluated.error);
-      process.exit(2);
+      return evaluated;
     }
     outcomes.push(evaluated.value.outcome);
     if (args.rebaseline && !evaluated.value.rebaselined) {
@@ -770,65 +741,189 @@ async function main(): Promise<void> {
     const evaluated = await evaluatePairCase(
       pairCase,
       metered,
-      generator.value.effort,
+      effort,
       args.runs,
       key,
       baselineMode,
-      OUT_DIR,
-      (message) => console.error(message),
+      outDir,
+      reportProgress,
       pairMode,
     );
     if (!evaluated.ok) {
-      console.error(evaluated.error);
-      process.exit(2);
+      return evaluated;
     }
     outcomes.push(evaluated.value.outcome);
     if (args.rebaseline && !evaluated.value.rebaselined) {
       skippedRebaselines.push(pairCase.id);
     }
   }
+  return { ok: true, value: { outcomes, skippedRebaselines } };
+}
+
+/** Cost is shown on EVERY spend, and an incomplete rebaseline must not read as done. */
+function finishRebaseline(
+  costLine: string,
+  skippedRebaselines: readonly string[],
+): number {
+  console.error(costLine);
+  if (skippedRebaselines.length > 0) {
+    console.error(
+      `rebaseline INCOMPLETE — skipped (generation failures): ${skippedRebaselines.join(", ")} — rerun before committing`,
+    );
+    return EvalExitCodes.REFUSED;
+  }
+  console.error(
+    "rebaseline complete — review and commit the baseline.json diffs",
+  );
+  return EvalExitCodes.PASSED;
+}
+
+function writeEvalReport(report: BuiltReport, outDir: string): number {
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(
+    join(outDir, "eval-report.json"),
+    `${JSON.stringify(report.json, null, 2)}\n`,
+  );
+  writeFileSync(join(outDir, "eval-report.md"), `${report.markdown}\n`);
+  console.info(report.terminal);
+  console.error(`report: ${join(outDir, "eval-report.json")} + .md`);
+  return report.regressions > 0
+    ? EvalExitCodes.REGRESSED
+    : EvalExitCodes.PASSED;
+}
+
+/** Everything past the env and the generator's construction; answers the exit code. */
+export async function runEval(
+  args: EvalArgs,
+  built: BuiltGenerator,
+  paths: EvalPaths,
+): Promise<number> {
+  const origin = built.generator.origin(built.effort);
+  const key = `${origin.provider}:${origin.model}`;
+  const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(origin.provider)
+    ? BillingKinds.SUBSCRIPTION
+    : BillingKinds.API;
+
+  // Load BOTH case sets unfiltered, then select, `--case` may name a single
+  // OR a revision-pair case; an id in neither is the error.
+  const caseSets = await loadCaseSets(paths);
+  if (!caseSets.ok) {
+    console.error(caseSets.error);
+    return EvalExitCodes.REFUSED;
+  }
+  const selected = selectCases(
+    caseSets.value.singles,
+    caseSets.value.pairs,
+    args.caseId,
+  );
+  if (!selected.ok) {
+    console.error(selected.error);
+    return EvalExitCodes.REFUSED;
+  }
+  const { singles: singleCases, pairs: pairCases } = selected.value;
+  if (args.recordBaseBrief) {
+    return runBaseBriefRecording(pairCases, built, key, billingKind);
+  }
+  const recorded = checkBaseBriefsRecorded(pairCases);
+  if (!recorded.ok) {
+    console.error(recorded.error);
+    return EvalExitCodes.REFUSED;
+  }
+
+  const prices = loadPrices(args.pricesPath);
+  if (!prices.ok) {
+    console.error(prices.error);
+    return EvalExitCodes.REFUSED;
+  }
+
+  const baselineMode = resolveBaselineMode(args);
+
+  // Refuse cross-key runs before the first generation spends money.
+  // --rebaseline intends to overwrite keys and --no-baseline compares
+  // nothing, so only the compare mode preflights.
+  if (baselineMode === BaselineModes.COMPARE) {
+    const preflight = preflightBaselineKeys(
+      [...singleCases, ...pairCases],
+      key,
+    );
+    if (!preflight.ok) {
+      console.error(preflight.error);
+      return EvalExitCodes.REFUSED;
+    }
+  }
+
+  const pairMode: PairRunMode = args.pairFresh ? "fresh" : "anchored";
+  announceRun(singleCases, pairCases, args, pairMode, key);
+
+  const { totals, metered } = meterGenerator(built.generator);
+  const knobNotes = listIdleKnobNotes(singleCases, pairCases, args.knobs);
+  for (const note of knobNotes) {
+    console.error(note);
+  }
+  const evaluated = await evaluateSelectedCases(singleCases, pairCases, {
+    args,
+    metered,
+    effort: built.effort,
+    key,
+    baselineMode,
+    pairMode,
+    outDir: paths.outDir,
+  });
+  if (!evaluated.ok) {
+    console.error(evaluated.error);
+    return EvalExitCodes.REFUSED;
+  }
 
   const usage = totals.calls > 0 ? totals : null;
   const row = prices.value?.[key];
   const costUsd =
     usage !== null && row !== undefined ? priceUsage(key, usage, row) : null;
+  const billing = { kind: billingKind };
 
   if (args.rebaseline) {
-    // Cost is shown on EVERY spend, and an incomplete rebaseline must not
-    // read as done.
-    console.error(
-      renderCostLine({ key, billing: { kind: billingKind }, usage, costUsd }),
+    return finishRebaseline(
+      renderCostLine({ key, billing, usage, costUsd }),
+      evaluated.value.skippedRebaselines,
     );
-    if (skippedRebaselines.length > 0) {
-      console.error(
-        `rebaseline INCOMPLETE — skipped (generation failures): ${skippedRebaselines.join(", ")} — rerun before committing`,
-      );
-      process.exit(2);
-    }
-    console.error(
-      "rebaseline complete — review and commit the baseline.json diffs",
-    );
-    return;
   }
   const report = buildReport({
     key,
-    billing: { kind: billingKind },
-    cases: outcomes,
+    billing,
+    cases: [...evaluated.value.outcomes],
     usage,
     costUsd,
     knobs: listKnobFlags(args.knobs),
     knobNotes,
   });
+  return writeEvalReport(report, paths.outDir);
+}
 
-  mkdirSync(OUT_DIR, { recursive: true });
-  writeFileSync(
-    join(OUT_DIR, "eval-report.json"),
-    `${JSON.stringify(report.json, null, 2)}\n`,
+async function main(): Promise<void> {
+  const parsed = parseEvalArgs(process.argv.slice(2));
+  if (!parsed.ok) {
+    console.error(parsed.error);
+    console.error(USAGE);
+    process.exitCode = EvalExitCodes.REFUSED;
+    return;
+  }
+  loadEnv();
+
+  const generator = await buildGenerator(
+    parsed.value.configPath ?? DEFAULT_CONFIG_PATH,
   );
-  writeFileSync(join(OUT_DIR, "eval-report.md"), `${report.markdown}\n`);
-  console.info(report.terminal);
-  console.error(`report: ${join(OUT_DIR, "eval-report.json")} + .md`);
-  process.exit(report.regressions > 0 ? 1 : 0);
+  if (!generator.ok) {
+    console.error(generator.error);
+    process.exitCode = EvalExitCodes.REFUSED;
+    return;
+  }
+
+  process.exitCode = await runEval(parsed.value, generator.value, {
+    casesDir: CASES_DIR,
+    pairsDir: PAIRS_DIR,
+    privateCasesDir: PRIVATE_CASES_DIR,
+    privatePairsDir: PRIVATE_PAIRS_DIR,
+    outDir: OUT_DIR,
+  });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

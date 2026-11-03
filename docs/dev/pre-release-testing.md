@@ -34,8 +34,7 @@ pnpm -C apps/web test:e2e     # chromium over a disposable Postgres container
 
 Exit code is the judge for every line. Root `pnpm test` is the categorizer
 alone; `-r` is what runs the workspace. The standard line floor is 75; the
-api carries 85 and the categorizer a temporary 60. `packages/types` has no
-suite. When a packaging file changed (`Dockerfile`, `docker-entrypoint.sh`,
+api carries 85. `packages/types` has no suite. When a packaging file changed (`Dockerfile`, `docker-entrypoint.sh`,
 `.dockerignore`, `pnpm-workspace.yaml`, a lockfile), also build the image
 and run its entrypoint with a bogus word: it must exit 1 and print the four
 words `api | web | worker | migrate`.

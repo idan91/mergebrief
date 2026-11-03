@@ -237,8 +237,7 @@ Judge each by its exit code, not its output.
   member.
 - **Coverage floors** ride inside each member's `test`: its vitest config
   commits a lines threshold, and a drop below it fails. The standard is 75%;
-  `apps/api` holds 85% and `tools/categorizer` 60%. Never lower a floor to
-  absorb a drop.
+  `apps/api` holds 85%. Never lower a floor to absorb a drop.
 - **`pnpm -C apps/web test:e2e`** when you touch the web app or anything it
   calls. Playwright's global setup starts its own Postgres container, so
   Docker must be running; install the browser once with
