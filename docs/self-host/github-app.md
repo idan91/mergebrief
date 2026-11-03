@@ -207,6 +207,9 @@ to the section that explains it.
 - [ ] **Members is approved in every organization.** An organization that
       installed the App before Members was added must approve the new
       permission; until its owner does, team suggestions stay empty there.
+      Any permission added after install needs the same approval: without
+      Pull requests write, no Entry comment posts
+      ([troubleshooting.md](./troubleshooting.md#no-entry-comment-appears)).
 - [ ] **Credentials are in `.env`**, never the config file or the
       repository: `GITHUB_APP_ID`, one of `GITHUB_APP_PRIVATE_KEY` or
       `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_OAUTH_CLIENT_ID`,

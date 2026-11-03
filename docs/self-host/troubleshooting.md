@@ -21,6 +21,7 @@ Three habits apply to every fix below:
 | `up` fails with a Dockerfile-not-found error | [The stack does not start](#the-stack-does-not-start) |
 | `api` or `worker` shows `Exited (0)` | [A service exits with code 0](#a-service-exits-with-code-0) |
 | Webhooks answer 200 but no brief appears | [A service exits with code 0](#a-service-exits-with-code-0), then [No brief appears](#no-brief-appears) |
+| A brief generates but the pull request gets no Entry comment | [No Entry comment appears](#no-entry-comment-appears) |
 | Sign in returns to the signed-out Home | [Sign-in does not stick](#sign-in-does-not-stick) |
 | Sign-in fails on `http://` with a real hostname | [The browser refuses the `__Host-` cookie](#the-browser-refuses-the-__host--cookie) |
 | GitHub reports a `redirect_uri` mismatch | [Sign-in does not stick](#sign-in-does-not-stick) |
@@ -61,7 +62,7 @@ Read the last line of `docker compose logs worker`:
 | --- | --- | --- |
 | `worker composition: invalid configuration` | A worker variable is missing or malformed; the line names it. | Fix it in `.env`, then `docker compose up -d`. |
 | `worker composition: invalid GitHub configuration` | A GitHub App variable is missing or malformed. | Same. |
-| `worker composition: invalid generator configuration` | The provider block refused, for example a missing key or a CLI provider in the shipped image ([generators.md](./generators.md#harness-clis-are-host-process-only-in-v1-deliberately)). | Fix the `generator:` block or its key variable. |
+| `worker composition: invalid generator configuration` | The provider block refused, for example a missing key or a CLI provider in the shipped image ([generators.md](./generators.md#harness-clis-are-host-process-only-in-v1-deliberately)). | Fix the `generator:` block or its key variable. If the line says `config file: not readable (EACCES)`, UID 1000 cannot read the mounted file: `chmod 644 mergebrief.config.yaml`. |
 | `worker composition: invalid tracker configuration` or `worker composition: trackers` | A tracker in the instance config cannot be read, such as a `notion` entry whose token is unset ([trackers.md](./trackers.md#notion)). | Set the token, or remove the entry. |
 | `worker composition: invalid tracing configuration` | An `OTEL_*` value is invalid while an endpoint is set ([observability.md](./observability.md#tracing)). | Fix the value, or unset the endpoint. |
 | `worker composition: invalid logging configuration` | `LOG_LEVEL` is not `error`, `warn`, `info` or `debug`. | Fix or remove the variable. |
@@ -201,6 +202,22 @@ registration ([github-app.md](./github-app.md#webhook)).
 | The generation row is `failed` with `error_code` `diff-too-large` | The pull request changes more than 3,000 files, MergeBrief's limit, or GitHub served its diff short. Past GitHub's pull request diff limit the worker reads the same span from the compare API and accepts it only when it holds every changed file. | Split the pull request. |
 | The generation row is `failed`; the worker logs `job.fail` or `job.retries.exhausted` | A permanent failure, such as GitHub's "diff too large", or retries ran out. | Read the row's `error_code` with the query in [compose.md](./compose.md#verifying--troubleshooting). |
 | The worker logs `provider.error` with `status` 401 or 403 | The provider refused the key. | Fix the key the `generator:` block names ([observability.md](./observability.md#event-vocabulary)). |
+
+## No Entry comment appears
+
+**You see:** the brief opens in MergeBrief, but the pull request has no comment
+from the App. The worker logs `warn`
+`generate: entry comment post failed (job unaffected)`, ending in
+`GitHub API returned status 403`.
+
+**Cause:** the App lacks **Pull requests: Read & write**, or GitHub is still
+waiting for the installation to accept that permission. The generation itself
+succeeds, so nothing in the UI reports this.
+
+**Fix:** set the permission ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these-four)),
+then accept the pending request on the installation's settings page on GitHub.
+Changing the App's settings alone does not reach an existing installation. Then
+push a commit to the pull request: the comment is not posted retroactively.
 
 ## The brief shows warnings
 

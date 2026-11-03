@@ -47,10 +47,8 @@ its own.
 
 - [Hetzner and EC2 deployment guide](cloud-deployment.md): database on the
   VM, private RDS, or external Neon/Supabase, with HTTPS and validation.
-- [Vercel deployment trial](vercel-deployment.md): candidate Services and
-  Daemon configuration, platform limitations and validation still required.
 - [Provider research notes](cloud-provider-notes.md): official sources and
-  connection/runtime details behind those guides.
+  connection details behind that guide.
 
 ## Reading order
 

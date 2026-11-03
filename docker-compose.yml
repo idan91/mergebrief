@@ -81,7 +81,10 @@ services:
       # Reachable from the web service, not from the host.
       MERGEBRIEF_API_HOST: 0.0.0.0
       MERGEBRIEF_API_PORT: "3001"
-    # See the web service's mergebrief.config.yaml mount note.
+    # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
+    # the image carries no config file (.dockerignore), so this mount is
+    # required whenever MERGEBRIEF_CONFIG names one, and edits apply on
+    # restart. Uncomment here AND in the worker service, both read the file.
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only: /healthz is static — never /readyz here, or a DB blip
@@ -136,12 +139,6 @@ services:
       OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-}
       OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-}
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-}
-    # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
-    # the image carries no config file (.dockerignore), so this mount is
-    # required whenever MERGEBRIEF_CONFIG names one, and edits apply on
-    # restart. Uncomment here AND in the worker service, both read the file.
-    # volumes:
-    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only: /healthz is static — never /readyz here,
     # or an upstream blip would trigger web restart churn.
     healthcheck:
@@ -187,7 +184,7 @@ services:
     # else.
     deploy:
       replicas: ${WORKER_COUNT:-1}
-    # See the web service's mergebrief.config.yaml mount note — uncomment
+    # See the api service's mergebrief.config.yaml mount note. Uncomment
     # both together.
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro

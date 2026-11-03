@@ -14,7 +14,7 @@ live on the daemon filesystem.
 
 Use this track to evaluate Vercel compatibility. For a first complete
 self-host trial with the existing supported packaging, use
-[Hetzner or EC2](cloud-deployment.md).
+[Hetzner or EC2](../../self-host/cloud-deployment.md).
 
 Before deploying, account for these differences:
 
@@ -35,7 +35,7 @@ Before deploying, account for these differences:
   is available and verified.
 
 Sources and exact limits are collected in
-[cloud provider notes](cloud-provider-notes.md#vercel-services-and-daemons).
+[the research notes below](#vercel-services-and-daemons).
 
 ## 2. Prepare the database and identity
 
@@ -52,7 +52,7 @@ Sources and exact limits are collected in
    certificate is public; the DSN is secret. The existing Dockerfile does
    not automatically include a new certificate file. Never disable TLS
    verification to avoid this packaging step.
-5. Register a dedicated GitHub App following [github-app.md](github-app.md).
+5. Register a dedicated GitHub App following [github-app.md](../../self-host/github-app.md).
    Use a stable domain such as `brief-vercel.example.com` for the homepage,
    OAuth callback and webhook. Keep the webhook inactive until boot works.
 
@@ -170,7 +170,7 @@ Check that deployment protection does not block GitHub's webhook. Verify:
 3. Login succeeds on the stable hostname and cookies persist. Internal
    service routing preserves the Host/Origin assumptions used by the app.
 4. Activate the webhook and run the complete PR/generation/review checklist
-   in [the VM guide](cloud-deployment.md#6-verify-the-trial-before-calling-it-successful).
+   in [the VM guide](../../self-host/cloud-deployment.md#6-verify-the-trial-before-calling-it-successful).
 5. Let HTTP services idle, then repeat login and generation. Confirm cold
    starts and API periodic tasks do not break expected behavior.
 6. Test attachments and media near the app's configured bounds, plus long
@@ -198,3 +198,30 @@ To stop the trial, disable the GitHub webhook, stop/remove its daemon and
 project, then remove the external database only after preserving needed
 data. Revoke dedicated credentials. Deleting a Vercel project does not
 necessarily delete an independently provisioned database.
+
+## Vercel Services and Daemons
+
+Current Vercel docs describe both container HTTP Services and continuous Daemons in beta on all plans. A blanket claim that Vercel cannot run containers or workers is obsolete. Vercel does not consume Compose; the three processes need explicit configuration and external PostgreSQL. Sources: [Services](https://vercel.com/docs/services), [Daemons](https://vercel.com/docs/daemons), [Compose mapping](https://vercel.com/i/can-you-run-docker-compose-on-vercel).
+
+### Configuration candidate, not a validated recipe
+
+The candidate `vercel.json` is in section 3 above.
+
+Service `command` overrides Docker `CMD`; daemon `command` replaces **both** `ENTRYPOINT` and `CMD`, hence the full executable above. Daemons require `root`, Dockerfile-relative `entrypoint`, and regional `instances`; they reject `runtime`, `framework`, and `buildCommand`. The Dockerfile's directory is the daemon build context. Sources: [service configuration](https://vercel.com/docs/services/config-reference), [daemon configuration](https://vercel.com/docs/daemons/config-reference).
+
+The caller binding injects `MERGEBRIEF_API_ORIGIN`; do not supply Compose's `http://api:3001`. Only web needs a public rewrite, preserving its existing API proxy. Bindings work at runtime, not build time. Source: [service bindings](https://vercel.com/docs/services/bindings).
+
+Set project `PORT=3000`, `MERGEBRIEF_WEB_PORT=3000`, `MERGEBRIEF_API_PORT=3000`, and both host variables to `0.0.0.0`: separate containers can share a port, and MergeBrief's own port variables must agree with Vercel's router. Supply the documented app environment and HTTPS `PUBLIC_BASE_URL`. Vercel otherwise expects port 80. HTTP containers scale down after five idle minutes in production, 30 seconds in preview, with 30 seconds after SIGTERM. API periodic work therefore cannot assume continuous uptime. Source: [container runtime](https://vercel.com/docs/functions/runtimes/container).
+
+### Limits that affect this proposal
+
+- Daemons: production only; no inbound application traffic, persistent storage, autoscaling, or `vercel dev` execution. Project root cannot be a subfolder. Linux amd64; memory choices 1/2/4/8 GiB with 1/1/2/4 vCPUs. Default shutdown grace 30 seconds, configurable to 3,600. At most 100 daemons/project, 100 instances/daemon/region, and a default effective cap of 50 instances/project environment. Pro defaults to 16 vCPUs and 32 GiB/team. Hobby allows only 1/2 GiB instances and 5 CPU-hours plus 420 GB-hours/month; either exhaustion stops daemons. An always-on worker therefore needs a paid capacity assessment. Source: [daemon limits](https://vercel.com/docs/daemons/limits).
+- Daemons restart even after a successful exit, unlike Compose's `on-failure` policy. Do not add an HTTP liveness probe to the current worker without implementing a listener. Sources: [daemon lifecycle and probes](https://vercel.com/docs/daemons).
+- Services inherit Function limits. Published limits include 4.5 MB request/response payloads, 2 GB Hobby / 4 GB paid maximum memory, and bounded request duration. These need reconciling with MergeBrief attachments/media. The documented 1,800-second extended duration and 5 GB large-function beta name specific language runtimes; do not assume they apply to custom containers. Sources: [Services limits](https://vercel.com/docs/services/pricing), [Function limits](https://vercel.com/docs/functions/limitations).
+- Custom containers currently lack Secure Compute and Static IPs: do not present the private EC2/RDS networking recipe as directly reusable on Vercel. Images also face VCR limits: 2 GB/compressed layer, 15 GB total compressed image, and two million filesystem entries during optimization. Sources: [container restrictions](https://vercel.com/docs/functions/runtimes/container), [registry limits](https://vercel.com/docs/container-registry/limits-and-pricing).
+
+## Unresolved before calling this tested
+
+1. Validate Vercel's shared-root build, image optimization, service commands, binding URL/path handling, Host/Origin checks, OAuth cookies, webhook body signatures, and attachment size behavior. Confirm environment isolation: Services share project environment, whereas Compose deliberately withholds secrets from web.
+2. Check API timers under scale-to-zero, pool exhaustion under HTTP autoscaling, and production-only daemon testing strategy.
+3. Confirm effective container request/image limits and paid quotas with Vercel before publishing an operational recipe. No source reviewed proves this exact MergeBrief image has been deployed there successfully.

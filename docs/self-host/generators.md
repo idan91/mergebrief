@@ -123,7 +123,11 @@ services:
       - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
 ```
 
-Edits to the file then apply when `api` and `worker` restart.
+The containers run as UID 1000, so that user must be able to read the file.
+Under a restrictive `umask`, or when root created it, run
+`chmod 644 mergebrief.config.yaml`. Keep credentials out of the file: it holds
+env var names, not keys. Edits to the file then apply when `api` and `worker`
+restart.
 
 > **Packaged distributions (future)**: workspace-root anchoring assumes the
 > process runs inside a repo checkout. If MergeBrief ever ships as an
@@ -338,7 +342,7 @@ know when a typo gets caught:
 
 | provider | where the valid names live | what a typo does |
 |---|---|---|
-| `anthropic` | [platform.claude.com/docs: models overview](https://platform.claude.com/docs/en/about-claude/models/overview) (ids like `claude-opus-4-8`, `claude-sonnet-5`), or query `GET /v1/models` with your key | fails the **first generation** with a config-classified error (no boot check) |
+| `anthropic` | [platform.claude.com/docs: models overview](https://platform.claude.com/docs/en/about-claude/models/overview) (ids like `claude-opus-5-5`, `claude-sonnet-5`), or query `GET /v1/models` with your key | fails the **first generation** with a config-classified error (no boot check) |
 | `openai` | [platform.openai.com/docs/models](https://platform.openai.com/docs/models); with `baseUrl`, whatever your server's `/models` serves | **refuses boot**: the `/models/{id}` preflight 404s on a bad id (downgraded to a warning when `baseUrl` is set) |
 | `openrouter` | [openrouter.ai/models](https://openrouter.ai/models): copy the full slug, e.g. `anthropic/claude-sonnet-5` | **refuses boot**: the `/models` preflight requires your slug to exist (and list `structured_outputs`) |
 | `claude-code` | whatever your installed `claude` CLI accepts: aliases like `opus` / `sonnet` / `haiku` or full ids from the Anthropic models page above ([model config docs](https://code.claude.com/docs)) | fails the **first generation** (`model_not_found` → config error); post-run the served model is verified against the CLI's own report, mismatch = warning |

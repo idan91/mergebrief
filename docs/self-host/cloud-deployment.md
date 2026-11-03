@@ -1,4 +1,4 @@
-# Cloud deployment trial: Hetzner, EC2 and Vercel
+# Cloud deployment trial: Hetzner and EC2
 
 This guide is for an operator testing MergeBrief with a real domain and a
 small repository. It describes deployment; it does not provision resources.
@@ -6,9 +6,8 @@ Provider documentation was checked on 2026-11-01. Commands below are for a
 fresh Ubuntu 24.04 LTS VM. Replace example domains and placeholders before
 running them. No example contains working credentials.
 
-Compose is the supported application deployment. Vercel is a separate
-integration experiment, not a verified one-click deployment. Track H1 has
-been run once, from a source build of main. No other track has been run.
+Compose is the supported application deployment. Track H1 has been run once,
+from a source build of main. No other track has been run.
 
 ## Choose the experiment
 
@@ -19,7 +18,6 @@ been run once, from a source build of main. No other track has been run.
 | E1 | EC2, Compose | Postgres on that EC2 instance | Same installation inside AWS |
 | E2 | EC2, Compose | Private RDS PostgreSQL | AWS private networking and managed DB |
 | E3 | EC2, Compose | Neon or Supabase | Cross-provider managed DB trial |
-| V1 | Vercel HTTP services and daemon | External Postgres | Validate a new platform integration |
 
 Start each track with a fresh database and a separate hostname/GitHub App.
 Do not point two independent trials at the same database: their workers
@@ -243,8 +241,10 @@ cp .env.example .env
 ```
 
 Record the full SHA with your test results. This fixes the trial to the main
-commit fetched at that moment. Do not run `git pull` during the experiment.
-The source build reports version `dev`; it is not a published release.
+commit fetched at that moment. Do not run `git pull` during the experiment;
+move to a newer commit deliberately with
+[section 7](#7-move-a-source-build-to-a-newer-commit). The source build reports
+version `dev`; it is not a published release.
 
 ### Testing an existing release instead
 
@@ -304,6 +304,14 @@ For a trial, choose a low daily generation cap in instance YAML, following
 token dollars; also use the model provider's available spending controls.
 If you set MERGEBRIEF_CONFIG, mount that YAML read-only into API and worker
 as the Compose guide requires. The image does not contain your config.
+
+The `umask 077` from section 3 still applies in this shell, so a config file
+created here is unreadable by the containers' UID 1000. Open it up before
+starting the stack. It holds env var names, not keys:
+
+```sh
+chmod 644 mergebrief.config.yaml
+```
 
 ## 5A. Database on the same VM: H1 or E1
 
@@ -382,9 +390,9 @@ Postgres login. The connection still needs credentials and verified TLS.
 Do not paste a short-lived RDS IAM authentication token into DATABASE_URL:
 the current static DSN configuration is not an IAM-token refresh integration.
 
-Private RDS is not reachable directly from Hetzner or ordinary public Vercel
-compute. Keep it private and establish a routed VPN/private connectivity if
-that is the experiment; for the first cross-cloud trial use Neon/Supabase.
+Private RDS is not reachable directly from Hetzner. Keep it private and
+establish a routed VPN/private connectivity if that is the experiment; for the
+first cross-cloud trial use Neon/Supabase.
 
 ### H2/E3: Neon or Supabase from either VM
 
@@ -502,6 +510,8 @@ results of each test:
 - Sign in with GitHub; sign out and back in.
 - Open a PR on the installed test repository; inspect a successful signed
   webhook delivery and a generated brief.
+- Confirm the App posted its Entry comment on that PR. A missing comment does
+  not fail the generation, so a successful brief does not prove this.
 - Push another commit and verify the new head's brief appears.
 - Submit a review from MergeBrief and verify its author/content on GitHub.
 - Restart the worker during generation and confirm eventual job recovery
@@ -519,11 +529,23 @@ and test the selected plan's snapshot/PITR functionality. Back up instance
 secrets separately, particularly SESSION_KEY_V1. A VM disk snapshot alone
 is not proof of a consistent live Postgres backup.
 
-## 7. Vercel track
+## 7. Move a source build to a newer commit
 
-See [the Vercel deployment track](vercel-deployment.md). It needs its own
-platform configuration and validation before it becomes a supported recipe;
-VM instructions above remain the immediately usable path.
+Back up first if the trial holds data you want to keep
+([backup](operations.md#backup)). API and worker apply new migrations when they
+start. From the checkout:
+
+```sh
+git fetch origin main
+git checkout --detach origin/main
+git rev-parse HEAD
+sudo docker compose build
+sudo docker compose up -d --wait --pull never
+```
+
+Record the new SHA with your results, then repeat the section 6 checks. A
+release installation upgrades through [operations](operations.md#upgrading-to-a-new-version)
+instead.
 
 ## Troubleshooting and cleanup
 
@@ -533,6 +555,8 @@ VM instructions above remain the immediately usable path.
 | Readiness fails | API logs, DB DNS/routing/firewall, TLS CA and credentials |
 | DB rejects SSL mode | Replace require with verify-full; mount correct CA |
 | Permission denied reading secret | Mounted file exists and UID 1000 can read it |
+| API or worker exits 0, log says `config file: not readable (EACCES)` | `chmod 644 mergebrief.config.yaml`, then restart both |
+| Brief generates but no Entry comment on the PR | Worker log 403: [Pull requests write missing or not accepted](troubleshooting.md#no-entry-comment-appears) |
 | Login does not persist | HTTPS, exact PUBLIC_BASE_URL and GitHub callback |
 | Worker exited but Compose command succeeded | Worker configuration error in logs |
 | Webhook succeeds but no brief | Installation, author trigger policy, model key, worker logs |
