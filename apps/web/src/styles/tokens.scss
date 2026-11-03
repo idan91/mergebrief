@@ -166,8 +166,10 @@
 
     // The document base size (body in base.scss) — the measuring stick the
     // steps above are chosen against, not a step itself. The only fluid
-    // value in the app; deliberately left alone.
-    --font-size-root: clamp(14px, 0.8rem + 0.2vw, 15px);
+    // value in the app; deliberately left alone. The round() is a measured
+    // constraint: unrounded, every width step restyles every element that
+    // inherits it, and a window drag falls behind its own frames.
+    --font-size-root: clamp(14px, round(0.8rem + 0.2vw, 0.25px), 15px);
 
     // There is deliberately no em token family — an em token pins nothing.
     // Genuine parent-relative text writes its em value at the site, with a
