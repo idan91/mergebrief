@@ -30,12 +30,15 @@ import {
 /** Default scale: large enough to reproduce the lag, small enough to boot. */
 const DEFAULT_GROUPS = 12;
 const DEFAULT_CHUNKS_PER_GROUP = 25;
+const DEFAULT_LINE_SCALE = 1;
 
 const OUT_DIR_DEFAULT = fileURLToPath(new URL("./generated", import.meta.url));
 
 interface Scale {
   groups: number;
   chunksPerGroup: number;
+  /** Multiplies every chunk's changed lines, for a page with a large DOM. */
+  lineScale: number;
   outDir: string;
 }
 
@@ -43,6 +46,7 @@ function parseArgs(argv: string[]): Scale {
   const scale: Scale = {
     groups: DEFAULT_GROUPS,
     chunksPerGroup: DEFAULT_CHUNKS_PER_GROUP,
+    lineScale: DEFAULT_LINE_SCALE,
     outDir: OUT_DIR_DEFAULT,
   };
   for (let i = 0; i < argv.length; i += 2) {
@@ -55,6 +59,8 @@ function parseArgs(argv: string[]): Scale {
       scale.groups = Number(value);
     } else if (flag === "--chunks-per-group") {
       scale.chunksPerGroup = Number(value);
+    } else if (flag === "--line-scale") {
+      scale.lineScale = Number(value);
     } else if (flag === "--out") {
       scale.outDir = resolve(value);
     } else {
@@ -66,6 +72,9 @@ function parseArgs(argv: string[]): Scale {
   }
   if (!Number.isInteger(scale.chunksPerGroup) || scale.chunksPerGroup < 1) {
     throw new Error("--chunks-per-group must be a positive integer");
+  }
+  if (!Number.isInteger(scale.lineScale) || scale.lineScale < 1) {
+    throw new Error("--line-scale must be a positive integer");
   }
   return scale;
 }
@@ -96,8 +105,8 @@ function buildChunkSpecs(scale: Scale): ChunkSpec[] {
   for (let g = 1; g <= scale.groups; g += 1) {
     for (let c = 1; c <= scale.chunksPerGroup; c += 1) {
       n += 1;
-      const added = 12 + vary(n, 40);
-      const deleted = 2 + vary(n, 14);
+      const added = (12 + vary(n, 40)) * scale.lineScale;
+      const deleted = (2 + vary(n, 14)) * scale.lineScale;
       const start = 10 + vary(n, 300);
       let risk: string[] = [];
       if (n % 13 === 0) {
