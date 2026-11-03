@@ -359,11 +359,11 @@ Create an isolated database/project for the trial in a region near the VM.
 The API and worker need the same database. The browser and web process do
 not need database credentials.
 
-Choose a direct PostgreSQL connection for the first trial. The worker uses
-persistent connections, LISTEN/NOTIFY and session behavior; transaction
-poolers are not an interchangeable endpoint. Do not replace Postgres with
-a provider's REST API. See [provider notes](cloud-provider-notes.md) for
-Neon/Supabase endpoint details and current limitations.
+The worker uses persistent connections, LISTEN/NOTIFY and session behavior, so
+never use a transaction pooler, and do not replace Postgres with a provider's
+REST API. Follow your provider's steps below, then
+[store the connection string](#store-the-connection-string).
+[Provider notes](cloud-provider-notes.md) has the sources behind these choices.
 
 ### E2: private RDS from EC2
 
@@ -394,100 +394,223 @@ Private RDS is not reachable directly from Hetzner. Keep it private and
 establish a routed VPN/private connectivity if that is the experiment; for the
 first cross-cloud trial use Neon/Supabase.
 
-### H2/E3: Neon or Supabase from either VM
+### H2/E3: Neon
 
-1. Create a dedicated project/database and login. Select the same or nearby
-   region as the VM; every API/worker database round trip crosses that link.
-2. Copy the provider's PostgreSQL connection parameters. Choose Neon's
-   **direct, non-pooler** hostname. On Supabase prefer the direct endpoint;
-   verify VM IPv6 reachability, or use a supported IPv4 option. A session
-   pooler is a separate compatibility test, not the transaction endpoint.
-3. Use verified TLS. Replace a dashboard's `sslmode=require` with
-   `sslmode=verify-full`. Mount the provider CA when its certificate needs
-   one, especially for Supabase; do not disable verification to fix it.
-4. Where available on the selected plan, restrict database network access
-   to the VM's static outbound IP, including IPv6 if that is the connection
-   path. IP restrictions supplement credentials and TLS, not replace them.
-5. Check connection limits, backup retention and idle/suspend policy on the
-   chosen tier. An always-connected worker can keep a database active;
-   do not assume a serverless database bill falls to zero while idle.
+These steps follow Neon's documentation as of 2026-11-03. No trial has run them
+yet.
 
-### Store the DSN without putting it in command arguments
+1. In the [Neon console](https://console.neon.tech), create a project:
 
-```sh
-mkdir -p secrets
-chmod 700 secrets
-```
+   | Field | Value |
+   | --- | --- |
+   | Project name | `mergebrief-h2-test` |
+   | Postgres version | 17 |
+   | Region | The one closest to your VM. Every API and worker query crosses this link. |
+	
+2. Click **Connect**. If Neon offers an agent prompt, choose **wire it myself**:
+   that prompt edits the checkout's code and `.env`, and MergeBrief needs only
+   the connection string. Keep the default branch, compute, database and role.
+   That role owns the database, so it can create the app's schemas.
+3. Turn off **Connection pooling**. Check that the hostname no longer contains
+   `-pooler`.
+4. Copy the connection string, then change its ending:
 
-Use an editor to create `secrets/database-url` containing exactly one DSN.
-Percent-encode reserved characters in an external DB username/password;
-this differs from the bundled POSTGRES_PASSWORD interpolation rule.
+   | Neon shows | Use instead |
+   | --- | --- |
+   | `?sslmode=require&channel_binding=require` | `?sslmode=verify-full` |
 
-Example with a provider CA:
+   MergeBrief refuses `require` at boot, and its database driver ignores
+   `channel_binding` in the URL. Neon's certificate chains to a public root
+   (ISRG Root X1), so you need no CA file.
+
+The finished string looks like this:
 
 ```text
-postgresql://mergebrief:<url-encoded-password>@<database-dns>:5432/mergebrief?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem
+postgresql://neondb_owner:<password>@ep-example-a1b2c3d4.eu-central-1.aws.neon.tech/neondb?sslmode=verify-full
 ```
 
-For a publicly trusted certificate, omit `sslrootcert` and its CA mount.
-MergeBrief accepts `verify-full` or explicit `disable`, but use only
-`verify-full` for these external tracks. `require` is rejected.
+Neon's Free plan gives 100 CU-hours a month, which is 400 hours at 0.25 CU, or
+about 16 days of continuous running. The worker polls its queue every 2 seconds,
+so expect the compute not to scale to zero and the allowance to drain around the
+clock; this is not yet measured. When it runs out, Neon suspends the compute
+until the next billing period and the app loses its database. Keep the compute
+at 0.25 CU for a trial.
 
-Compose file-backed secrets are mounted files, not an encrypted vault.
-The image runs as UID 1000; ensure that UID can read the secret file:
+Continue with [Store the connection string](#store-the-connection-string).
 
-```sh
-sudo chown 1000:1000 secrets/database-url
-sudo chmod 400 secrets/database-url
+### H2/E3: Supabase
+
+These steps follow Supabase's documentation as of 2026-11-03. No trial has run
+them yet.
+
+1. In the [Supabase dashboard](https://supabase.com/dashboard), create a project:
+
+   | Field | Value |
+   | --- | --- |
+   | Project name | `mergebrief-h2-test` |
+   | Database password | Generate one and save it in your password manager |
+   | Region | The one closest to your VM. Every API and worker query crosses this link. |
+
+2. Click **Connect** at the top of the project, then choose **Session pooler**:
+
+   | Option | Use it? | Why |
+   | --- | --- | --- |
+   | Session pooler | Yes | Reachable over IPv4 on every plan, and keeps the sessions the worker needs |
+   | Direct connection | No | IPv6 only without the paid IPv4 add-on, and Compose containers have no IPv6 route by default |
+   | Transaction pooler | Never | It drops the session state the worker relies on |
+
+3. Copy the connection string and replace `[YOUR-PASSWORD]` with your password.
+   Percent-encode any reserved character in it, such as `&`, `#`, `?`, `@`, `/`
+   or a space. Keep the host and the `postgres.<project-ref>` username as shown.
+4. Open the project's **Database Settings** page and download the CA certificate
+   from its **SSL Configuration** section.
+5. On the VM, from the checkout, create the folder for it:
+
+   ```sh
+   mkdir -p secrets
+   chmod 700 secrets
+   ```
+
+6. On your computer, copy the certificate over, using the file you downloaded:
+
+   ```sh
+   scp <downloaded-ca-file> root@<server-public-ipv4>:~/deploy/mergebrief/secrets/provider-ca.pem
+   ```
+
+7. On the VM, let the containers read it. A CA certificate is public:
+
+   ```sh
+   chmod 644 secrets/provider-ca.pem
+   ```
+
+8. Add `?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem` to the
+   end of the connection string. If TLS fails, fix the certificate. Never turn
+   verification off to get past it.
+
+The finished string looks like this:
+
+```text
+postgresql://postgres.abcdefghijklmnop:<url-encoded-password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem
 ```
 
-Keep the enclosing host directory private. A CA certificate is public and
-may be mode 644. Create `docker-compose.override.yml`:
+The session pooler holds one database connection per client, and the Free plan's
+default pool size is 15. The `DATABASE_POOL_MAX=3` set below needs up to 12, so
+leave it at 3. Supabase's session mode is also the least proven path here: when
+you reach [section 6](#6-verify-the-trial-before-calling-it-successful), confirm
+that a push actually produces a brief.
 
-```yaml
-services:
-  api:
-    secrets:
-      - database-url
-    volumes:
-      - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
-  worker:
-    secrets:
-      - database-url
-    volumes:
-      - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
-secrets:
-  database-url:
-    file: ./secrets/database-url
-```
+### Store the connection string
 
-If no CA file is needed, remove both volumes blocks. Preserve any instance
-YAML mounts already needed by your generator configuration.
+Run these on the VM, from the checkout.
 
-Set in `.env`:
+1. Create the file. Paste the single line, then save. Typing it into an editor
+   keeps the password out of your shell history:
 
-```dotenv
-COMPOSE_FILE=docker-compose.external-db.yml:docker-compose.override.yml
-DATABASE_URL_FILE=/run/secrets/database-url
-DATABASE_POOL_MAX=3
-MERGEBRIEF_AUTO_MIGRATE=true
-```
+   ```sh
+   mkdir -p secrets
+   chmod 700 secrets
+   nano secrets/database-url
+   ```
 
-Remove DATABASE_URL to avoid ambiguity. The external Compose ignores the
-bundled POSTGRES_* settings. COMPOSE_FILE explicitly includes the override
-because custom file selection disables implicit override loading.
+2. Let the container's user read it. The image runs as UID 1000:
+
+   ```sh
+   sudo chown 1000:1000 secrets/database-url
+   sudo chmod 400 secrets/database-url
+   ```
+
+3. Create `docker-compose.override.yml`. If one already exists, merge these
+   entries into it instead of replacing it, and keep any
+   `mergebrief.config.yaml` mount under `volumes`.
+
+   With a public certificate (Neon):
+
+   ```yaml
+   services:
+     api:
+       secrets:
+         - database-url
+     worker:
+       secrets:
+         - database-url
+   secrets:
+     database-url:
+       file: ./secrets/database-url
+   ```
+
+   With a provider CA (Supabase, RDS):
+
+   ```yaml
+   services:
+     api:
+       secrets:
+         - database-url
+       volumes:
+         - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+     worker:
+       secrets:
+         - database-url
+       volumes:
+         - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+   secrets:
+     database-url:
+       file: ./secrets/database-url
+   ```
+
+4. Add these to `.env`, and remove any `DATABASE_URL` line:
+
+   ```dotenv
+   COMPOSE_FILE=docker-compose.external-db.yml:docker-compose.override.yml
+   DATABASE_URL_FILE=/run/secrets/database-url
+   DATABASE_POOL_MAX=3
+   MERGEBRIEF_AUTO_MIGRATE=true
+   ```
+
+5. Build and start:
+
+   ```sh
+   sudo docker compose build
+   sudo docker compose up -d --wait --pull never
+   sudo docker compose ps -a
+   ```
+
+The external Compose file ignores the bundled `POSTGRES_*` settings.
+`COMPOSE_FILE` lists the override because setting it turns off the automatic
+override load. Compose file-backed secrets are mounted files, not an encrypted
+vault, so keep the `secrets` folder private. If your plan offers an IP
+allowlist, restrict the database to the VM's address too.
 
 A pool max of 3 is an initial small-trial choice. With one API, one worker,
 and large concurrency 1, the documented pool budget is 12 connections:
 `3 + (2 * 3 + 1 + 2)`. Leave capacity for migrations, administration and
 provider reservations. Raise the pool size only within the DB limit.
 
-Build and start with the same commands as track 5A. For a fresh external
-track there is no bundled Postgres to pull. The app login applies migrations
-at startup; a private DB still needs DDL permissions for that operation.
-For separate migration/runtime roles, follow
+The app login applies migrations at startup, so it needs DDL permissions. For
+separate migration and runtime roles, follow
 [restricted-role migration instructions](compose.md#restricted-database-roles-mergebrief_auto_migratefalse)
 instead. Setting AUTO_MIGRATE=false alone does not initialize a database.
+
+### Moving an existing H1 server to an external database
+
+To reuse a running H1 server instead of a new one, stop it **before** you change
+`.env`. Once `COMPOSE_FILE` is set, Compose no longer knows the `postgres`
+service:
+
+```sh
+sudo docker compose down
+```
+
+Never add `-v`: that deletes the Postgres volume. Then follow your provider's
+steps and [Store the connection string](#store-the-connection-string), merging
+the override with the one you have.
+
+Data does not move. The new database starts empty, so everyone signs in again
+and each pull request gets its next brief on its next push. Keep the same
+hostname and GitHub App only while the H1 stack stays stopped.
+
+To switch back, run `down` again, remove `COMPOSE_FILE` and `DATABASE_URL_FILE`
+from `.env`, take the database entries out of the override, and start the stack
+with the section 5A commands.
 
 ## 6. Verify the trial before calling it successful
 
