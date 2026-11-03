@@ -206,6 +206,11 @@ stored yet. Settings, Instance shows how many of the day's runs were briefed
 in parts and how many units they took; a pull request pushed or retried the
 same day counts once per run.
 
+A pull request whose description holds images or videos makes one more model
+call after the brief, to pick its Summary Media. The cap does not count that
+call, but the provider bills it. If it fails, the brief ships without Summary
+Media and carries a `summary-media-failed` warning.
+
 The count is exact across slots and worker processes: the start and the
 `running` mark share one transaction under one instance-wide advisory lock,
 so N slots cannot start past the cap together. It is still a guardrail, not

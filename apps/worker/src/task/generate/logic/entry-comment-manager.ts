@@ -1,4 +1,5 @@
 import {
+  GitHubApiErrorCodes,
   isPermanentGitHubError,
   type GitHubCallFailure,
   type IssueComment,
@@ -22,6 +23,8 @@ import {
   type LiveBodyMatcher,
 } from "../types";
 
+const REQUIRED_WRITE_PERMISSION = "Pull requests: write";
+
 function isOrphanedEntryComment(
   comment: IssueComment,
   tracked: IssueComment,
@@ -30,6 +33,14 @@ function isOrphanedEntryComment(
   const sameAuthor = comment.authorId === tracked.authorId;
   const orphaned = older && sameAuthor && isEntryCommentBody(comment.body);
   return orphaned;
+}
+
+/** The job still succeeds and no UI reports this, so the log line is the operator's only signal. */
+function describeWriteFailure(error: GitHubCallFailure): string {
+  if (error.code === GitHubApiErrorCodes.FORBIDDEN) {
+    return `${error.message}; check the App has ${REQUIRED_WRITE_PERMISSION}, accepted on its installation`;
+  }
+  return error.message;
 }
 
 function classifyFailedWrite(error: GitHubCallFailure): EntryWrite {
@@ -125,7 +136,7 @@ export function createEntryCommentManager(
     const deleted = await comments.deleteComment(liveEntryCommentId);
     if (!deleted.ok) {
       log.warn(
-        `generate: stale entry comment delete failed (job unaffected) — ${deleted.error.message}`,
+        `generate: stale entry comment delete failed (job unaffected) — ${describeWriteFailure(deleted.error)}`,
       );
       return;
     }
@@ -261,7 +272,7 @@ export function createEntryCommentManager(
         // Skip the repost: posting past a live comment we failed to delete
         // would leave two. The stored id survives for the next run's retry.
         log.warn(
-          `generate: entry comment delete failed (job unaffected) — ${deleted.error.message}`,
+          `generate: entry comment delete failed (job unaffected) — ${describeWriteFailure(deleted.error)}`,
         );
         return classifyFailedWrite(deleted.error);
       }
@@ -275,7 +286,7 @@ export function createEntryCommentManager(
       // The old comment is gone and the stored id now dangles; the next
       // refresh's 404-tolerant delete self-heals before reposting.
       log.warn(
-        `generate: entry comment post failed (job unaffected) — ${posted.error.message}`,
+        `generate: entry comment post failed (job unaffected) — ${describeWriteFailure(posted.error)}`,
       );
       return classifyFailedWrite(posted.error);
     }
@@ -315,7 +326,7 @@ export function createEntryCommentManager(
     const edited = await comments.editComment(liveEntryCommentId, body);
     if (!edited.ok) {
       log.warn(
-        `generate: entry comment edit failed (job unaffected), ${edited.error.message}`,
+        `generate: entry comment edit failed (job unaffected), ${describeWriteFailure(edited.error)}`,
       );
       return classifyFailedWrite(edited.error);
     }

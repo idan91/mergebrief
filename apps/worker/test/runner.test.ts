@@ -52,7 +52,7 @@ describe("startWorker", () => {
     });
   });
 
-  it("starts the large pool as a second runner without the crontab", async () => {
+  it("starts the large pool as a second runner with nothing scheduled", async () => {
     vi.mocked(run).mockResolvedValue(stubRunner());
     const largeTaskList = { "generate-large": () => Promise.resolve() };
 
@@ -72,6 +72,7 @@ describe("startWorker", () => {
       taskList: largeTaskList,
       maxPoolSize: LARGE_SLOTS + 2,
       noHandleSignals: true,
+      parsedCronItems: [],
     });
     expect(large).not.toHaveProperty("crontab");
   });

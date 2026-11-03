@@ -156,6 +156,8 @@ function runLargePool(
     taskList: largePool.taskList,
     maxPoolSize: largePool.concurrency + LARGE_POOL_SPARE_CONNECTIONS,
     noHandleSignals: true,
+    // Graphile reads an empty crontab string as unset and looks for a crontab file.
+    parsedCronItems: [],
   };
   if (options.logger !== undefined) {
     largeOptions.logger = options.logger;

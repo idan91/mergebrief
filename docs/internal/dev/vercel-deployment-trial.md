@@ -146,6 +146,10 @@ have implemented their file delivery. Leave MERGEBRIEF_API_ORIGIN to the
 binding. Do not upload a Compose .env file as a source asset.
 The two HTTP services can use the same port because they run separately.
 Both the platform PORT and the app-specific variables must agree.
+Vercel also passes these variables to the image build as build arguments. The
+Dockerfile declares none of them, so never add an `ARG` named after a secret.
+On Hobby a 2 GiB daemon, the default, reaches the 420 GB-hour quota in about 9
+days and a 1 GiB one in about 17; Vercel then stops it until next month.
 
 If using another generator or a custom cap, package an instance YAML at a
 known path and set MERGEBRIEF_CONFIG. The existing image excludes your local

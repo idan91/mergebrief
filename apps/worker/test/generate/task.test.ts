@@ -853,6 +853,49 @@ describe("generate task", () => {
     ).toBe(true);
   });
 
+  it("a 403 on the Entry comment post names the missing permission", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.failOn("postEntryComment", FakeFailures.FORBIDDEN);
+    const logs: string[] = [];
+    const task = makeTask({
+      github,
+      log: createLogger({
+        env: {},
+        destination: { write: (line: string) => void logs.push(line) },
+      }),
+    });
+
+    await task(payload);
+
+    const failure = logs.find((line) =>
+      line.includes("entry comment post failed"),
+    );
+    expect(failure).toContain("Pull requests: write");
+  });
+
+  it("a 5xx on the Entry comment post names no permission", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = makeGitHub(HEAD_1);
+    github.failOn("postEntryComment", FakeFailures.SERVER_ERROR);
+    const logs: string[] = [];
+    const task = makeTask({
+      github,
+      log: createLogger({
+        env: {},
+        destination: { write: (line: string) => void logs.push(line) },
+      }),
+    });
+
+    await task(payload);
+
+    const failure = logs.find((line) =>
+      line.includes("entry comment post failed"),
+    );
+    expect(failure).toBeDefined();
+    expect(failure).not.toContain("Pull requests: write");
+  });
+
   it("best-effort deletes posted Entries when storing their ids fails", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = makeGitHub(HEAD_1);

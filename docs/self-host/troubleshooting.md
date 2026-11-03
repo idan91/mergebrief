@@ -207,8 +207,8 @@ registration ([github-app.md](./github-app.md#webhook)).
 
 **You see:** the brief opens in MergeBrief, but the pull request has no comment
 from the App. The worker logs `warn`
-`generate: entry comment post failed (job unaffected)`, ending in
-`GitHub API returned status 403`.
+`generate: entry comment post failed (job unaffected)`, naming status 403 and
+`Pull requests: write`.
 
 **Cause:** the App lacks **Pull requests: Read & write**, or GitHub is still
 waiting for the installation to accept that permission. The generation itself
