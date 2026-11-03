@@ -3,8 +3,8 @@ import {
   buildSummaryMediaGuards,
   listPointerKeys,
   listShownKeys,
-  readItemKey,
 } from "../../summary-media-props";
+import { readItemKey } from "../summary-media-items";
 
 /**
  * home-assistant/frontend#55394: a Before | After table of two screenshots.

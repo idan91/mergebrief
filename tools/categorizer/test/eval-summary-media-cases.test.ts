@@ -11,7 +11,7 @@ import {
 } from "brief-core/types";
 import { loadCases, type EvalCase } from "../eval/loadCase";
 import { scoreRuns } from "../eval/properties";
-import { readItemKey } from "../eval/summary-media-props";
+import { readItemKey } from "../eval/private-cases/summary-media-items";
 import { makeBrief } from "./eval-fixtures";
 
 const CASES_DIR = fileURLToPath(

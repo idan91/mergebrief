@@ -2,8 +2,8 @@ import type { EvalProperty } from "../../properties";
 import {
   buildSummaryMediaGuards,
   listShownKeys,
-  readItemKey,
 } from "../../summary-media-props";
+import { readItemKey } from "../summary-media-items";
 
 /**
  * grafana/grafana#107803: the description's one Media item is a Mermaid

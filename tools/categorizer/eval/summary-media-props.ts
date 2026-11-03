@@ -4,8 +4,8 @@ import type { EvalProperty } from "./properties";
 
 /**
  * Property builders for the Summary Media cases. The item list is read from
- * the brief's own description the way generation reads it, so an item number
- * here is the number the model saw in `<pr_media>`.
+ * the brief's own description the way generation reads it, so an item's place
+ * in that list is the number the model saw in `<pr_media>`.
  */
 
 /** The description's Media keys in `<pr_media>` order. */
@@ -14,20 +14,6 @@ export function listDescriptionMediaKeys(brief: Brief): MediaKey[] {
     repoSlug: brief.pr.repo,
   });
   return items.map((item) => item.key);
-}
-
-/** The description holds at least one Media item, so `<pr_media>` was offered. */
-export function hasDescriptionMedia(brief: Brief): boolean {
-  return listDescriptionMediaKeys(brief).length > 0;
-}
-
-/** The key of the 1-based `<pr_media>` item `itemNumber`. */
-export function readItemKey(brief: Brief, itemNumber: number): MediaKey {
-  const key = listDescriptionMediaKeys(brief)[itemNumber - 1];
-  if (key === undefined) {
-    throw new Error(`the description holds no Media item ${itemNumber}`);
-  }
-  return key;
 }
 
 export function listShownKeys(brief: Brief): MediaKey[] {

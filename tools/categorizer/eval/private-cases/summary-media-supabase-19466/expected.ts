@@ -1,8 +1,6 @@
 import type { EvalProperty } from "../../properties";
-import {
-  buildSummaryMediaGuards,
-  hasDescriptionMedia,
-} from "../../summary-media-props";
+import { buildSummaryMediaGuards } from "../../summary-media-props";
+import { hasDescriptionMedia } from "../summary-media-items";
 
 /**
  * supabase/supabase#19466: the whole description is one GIF with alt text
