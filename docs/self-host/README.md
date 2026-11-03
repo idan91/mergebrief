@@ -43,6 +43,15 @@ its own.
   Read your own with `docker compose stats --no-stream`, once idle and once
   while a brief generates, and size the host from the peak.
 
+## Cloud deployment trials
+
+- [Hetzner and EC2 deployment guide](cloud-deployment.md): database on the
+  VM, private RDS, or external Neon/Supabase, with HTTPS and validation.
+- [Vercel deployment trial](vercel-deployment.md): candidate Services and
+  Daemon configuration, platform limitations and validation still required.
+- [Provider research notes](cloud-provider-notes.md): official sources and
+  connection/runtime details behind those guides.
+
 ## Reading order
 
 1. [github-app.md](./github-app.md): which permissions and events to give the
