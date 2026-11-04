@@ -77,7 +77,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       headIndex: 0,
       commitCount: 2,
       ...PROV,
-      body: "v1",
+      body: '{"v":"v1"}',
       usedGroupIds: [],
     });
     const second = await store.briefs.write({
@@ -87,17 +87,16 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       headIndex: 0,
       commitCount: 2,
       ...PROV,
-      body: "v2-longer",
+      body: '{"v":"v2-longer"}',
       usedGroupIds: [],
     });
 
     expect(second.id).toBe(first.id); // same row
-    expect(second.body).toBe("v2-longer"); // updated in place
-    expect(second.byteSize).toBe(Buffer.byteLength("v2-longer", "utf8"));
+    expect(second.body).toBe('{"v":"v2-longer"}'); // updated in place
     expect(second).toMatchObject(PROV);
 
     const read = await store.briefs.get(pr.id, "base", "head");
-    expect(read?.body).toBe("v2-longer");
+    expect(read?.body).toBe('{"v":"v2-longer"}');
   });
 
   it("reads one span's repo-config snapshot without the body", async () => {
@@ -116,7 +115,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "v1",
+      body: '{"v":"v1"}',
       usedGroupIds: [],
     };
 
@@ -165,7 +164,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "v1",
+      body: '{"v":"v1"}',
       repoConfig: snapshot,
       usedGroupIds: [],
     });
@@ -180,7 +179,7 @@ describe("createArtifactStore.briefs idempotent content-addressed write", () => 
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "v2",
+      body: '{"v":"v2"}',
       usedGroupIds: [],
     });
     expect(without.repoConfig).toBeNull();
@@ -204,7 +203,7 @@ describe("createArtifactStore.briefs unique head index per PR", () => {
       headIndex: 1,
       commitCount: 1,
       ...PROV,
-      body: "v1",
+      body: '{"v":"v1"}',
       usedGroupIds: [],
     });
 
@@ -216,7 +215,7 @@ describe("createArtifactStore.briefs unique head index per PR", () => {
         headIndex: 1,
         commitCount: 1,
         ...PROV,
-        body: "v1",
+        body: '{"v":"v1"}',
         usedGroupIds: [],
       }),
     ).rejects.toMatchObject({
@@ -243,7 +242,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "v1",
+      body: '{"v":"v1"}',
       anchorState: "none",
       usedGroupIds: [],
     });
@@ -257,7 +256,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "v2",
+      body: '{"v":"v2"}',
       anchorState: "fresh-restart",
       anchorReason: "model-swap",
       usedGroupIds: [],
@@ -287,7 +286,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "v1",
+      body: '{"v":"v1"}',
       usedGroupIds: [],
     });
     expect(written.anchorState).toBeNull();
@@ -310,7 +309,7 @@ describe("createArtifactStore.briefs anchor origin columns", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "v1",
+      body: '{"v":"v1"}',
       usedGroupIds: [],
     };
 
@@ -346,12 +345,12 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
       usedGroupIds: [],
     };
 
-    const legacy = await store.briefs.write({ ...span, body: "v1" });
+    const legacy = await store.briefs.write({ ...span, body: '{"v":"v1"}' });
     expect(legacy.carriedChunkIds).toBeNull();
 
     const carried = await store.briefs.write({
       ...span,
-      body: "v2",
+      body: '{"v":"v2"}',
       anchorState: "anchored",
       carriedChunkIds: ["chunk-a", "chunk-b"],
     });
@@ -360,7 +359,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     // A fresh restart carries nothing, an empty list rather than a null.
     const restarted = await store.briefs.write({
       ...span,
-      body: "v3",
+      body: '{"v":"v3"}',
       anchorState: "fresh-restart",
       anchorReason: "model-swap",
       carriedChunkIds: [],
@@ -370,7 +369,7 @@ describe("createArtifactStore.briefs carried chunk ids", () => {
     expect(legacy.usedGroupIds).toEqual([]);
     const used = await store.briefs.write({
       ...span,
-      body: "v4",
+      body: '{"v":"v4"}',
       usedGroupIds: ["g1", "g2"],
     });
     expect(used.usedGroupIds).toEqual(["g1", "g2"]);
@@ -394,17 +393,17 @@ describe("createArtifactStore.deltas", () => {
       baselineSha: "chk",
       headSha: "head",
       ...PROV,
-      body: "d1",
+      body: '{"v":"d1"}',
     });
     const second = await aStore.deltas.write({
       pullRequestId: pr.id,
       baselineSha: "chk",
       headSha: "head",
       ...PROV,
-      body: "d2",
+      body: '{"v":"d2"}',
     });
     expect(second.id).toBe(first.id);
-    expect(second.body).toBe("d2");
+    expect(second.body).toBe('{"v":"d2"}');
     expect(second.provider).toBe(PROV.provider);
 
     await expect(
@@ -413,7 +412,7 @@ describe("createArtifactStore.deltas", () => {
         baselineSha: "chk",
         headSha: "head2",
         ...PROV,
-        body: "x",
+        body: '{"v":"x"}',
       }),
     ).rejects.toBeInstanceOf(ScopeViolationError);
     expect(await aStore.deltas.get(pr.id, "chk", "head2")).toBeUndefined();
@@ -430,7 +429,6 @@ describe("createSpanArtifactAccess owns the stamped columns", () => {
     effort: "high",
     bodyVersion: STORED_BODY_VERSION,
     body: "{}",
-    byteSize: 2,
   };
 
   it("writes under the checked parent whatever the values name", async () => {
@@ -508,7 +506,7 @@ describe("createArtifactStore rejects a cross-tenant write before the DB", () =>
         headIndex: 0,
         commitCount: 1,
         ...PROV,
-        body: "x",
+        body: '{"v":"x"}',
         usedGroupIds: [],
       }),
     ).rejects.toBeInstanceOf(ScopeViolationError);
@@ -540,7 +538,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "b-brief",
+      body: '{"v":"b-brief"}',
       usedGroupIds: [],
     });
 
@@ -557,7 +555,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
         prevHeadSha: "prev",
         headSha: "head",
         ...PROV,
-        body: "narrative",
+        body: '{"v":"narrative"}',
       }),
     ).rejects.toBeInstanceOf(ScopeViolationError);
     expect(
@@ -581,7 +579,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       headIndex: 1,
       commitCount: 3,
       ...PROV,
-      body: "brief",
+      body: '{"v":"brief"}',
       usedGroupIds: [],
     });
 
@@ -591,7 +589,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       prevHeadSha: "prev",
       headSha: "head",
       ...PROV,
-      body: "narrative",
+      body: '{"v":"narrative"}',
     });
     expect(result.briefId).toBe(brief.id);
     expect(result).toMatchObject(PROV);
@@ -612,7 +610,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       headSha: "head",
       commitCount: 1,
       ...PROV,
-      body: "brief",
+      body: '{"v":"brief"}',
       usedGroupIds: [],
     };
     const firstBrief = await store.briefs.write({ ...briefSpan, headIndex: 1 });
@@ -626,7 +624,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       prevHeadSha: "prev",
       headSha: "head",
       ...PROV,
-      body: "n1",
+      body: '{"v":"n1"}',
     };
 
     const first = await store.revisionNarratives.write({
@@ -637,16 +635,15 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       ...narrative,
       briefId: secondBrief.id,
       model: "sonnet",
-      body: "n2",
+      body: '{"v":"n2"}',
     });
 
     expect(second.id).toBe(first.id);
-    expect(second.body).toBe("n2");
-    expect(second.byteSize).toBe(Buffer.byteLength("n2", "utf8"));
+    expect(second.body).toBe('{"v":"n2"}');
     expect(second.briefId).toBe(secondBrief.id);
     expect(second.model).toBe("sonnet");
     const read = await store.revisionNarratives.get(pr.id, "prev", "head");
-    expect(read?.body).toBe("n2");
+    expect(read?.body).toBe('{"v":"n2"}');
   });
 
   it("refuses a narrative on another tenant's pull request", async () => {
@@ -666,7 +663,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       headIndex: 0,
       commitCount: 1,
       ...PROV,
-      body: "b-brief",
+      body: '{"v":"b-brief"}',
       usedGroupIds: [],
     });
 
@@ -676,7 +673,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       prevHeadSha: "prev",
       headSha: "head",
       ...PROV,
-      body: "b-narrative",
+      body: '{"v":"b-narrative"}',
     });
 
     const refused = aStore.revisionNarratives.write({
@@ -685,7 +682,7 @@ describe("createArtifactStore.revisionNarratives brief anchoring", () => {
       prevHeadSha: "prev",
       headSha: "head-2",
       ...PROV,
-      body: "narrative",
+      body: '{"v":"narrative"}',
     });
     await expect(refused).rejects.toBeInstanceOf(ScopeViolationError);
     await expect(refused).rejects.toThrow(/^pull_request /);
@@ -1014,7 +1011,7 @@ async function writeStampedArtifacts(prNumber: number, bodyVersion: number) {
     headIndex: 0,
     commitCount: 1,
     ...PROV,
-    body: "brief",
+    body: '{"v":"brief"}',
     usedGroupIds: [],
     bodyVersion,
   });
@@ -1023,7 +1020,7 @@ async function writeStampedArtifacts(prNumber: number, bodyVersion: number) {
     baselineSha: "chk",
     headSha: "head",
     ...PROV,
-    body: "delta",
+    body: '{"v":"delta"}',
     bodyVersion,
   });
   const narrative = await store.revisionNarratives.write({
@@ -1032,7 +1029,7 @@ async function writeStampedArtifacts(prNumber: number, bodyVersion: number) {
     prevHeadSha: "prev",
     headSha: "head",
     ...PROV,
-    body: "narrative",
+    body: '{"v":"narrative"}',
     bodyVersion,
   });
   return { store, pr, brief, delta, narrative };
@@ -1086,7 +1083,7 @@ describe("createArtifactStore body version stamp", () => {
         provider: PROV.provider,
         model: PROV.model,
         effort: PROV.effort,
-        body: "brief",
+        body: '{"v":"brief"}',
         usedGroupIds: [],
       }),
     ).rejects.toMatchObject({ cause: { code: NOT_NULL_VIOLATION } });
@@ -1172,7 +1169,10 @@ describe("createArtifactStore.briefs session record counts", () => {
     };
     await store.briefs.write({ ...span, body: TWO_CHUNKS });
 
-    const unreadable = await store.briefs.write({ ...span, body: "{ no" });
+    const unreadable = await store.briefs.write({
+      ...span,
+      body: '{"not":"a brief"}',
+    });
 
     expect(unreadable).toMatchObject({
       sessionChunkCount: null,
@@ -1186,21 +1186,21 @@ describe("createArtifactStore query shape", () => {
   const PARENT_CHECK =
     'select "id" from "pull_request" where ("pull_request"."installation_id" = $1 and "pull_request"."id" = $2) limit $3';
   const BRIEF_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "base_sha", "head_sha", "head_index", "commit_count", "provider", "model", "effort", "repo_config", "anchor_state", "anchor_reason", "carried_chunk_ids", "used_group_ids", "body_version", "session_chunk_count", "session_group_count", "session_flag_count", "body", "byte_size", "created_at"';
-  const BRIEF_UPSERT = `insert into "brief" (${BRIEF_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, default) on conflict ("installation_id","pull_request_id","base_sha","head_sha") do update set "head_index" = $21, "commit_count" = $22, "provider" = $23, "model" = $24, "effort" = $25, "repo_config" = $26, "anchor_state" = $27, "anchor_reason" = $28, "carried_chunk_ids" = $29, "used_group_ids" = $30, "body_version" = $31, "session_chunk_count" = $32, "session_group_count" = $33, "session_flag_count" = $34, "body" = $35, "byte_size" = $36 returning ${BRIEF_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "base_sha", "head_sha", "head_index", "commit_count", "provider", "model", "effort", "repo_config", "anchor_state", "anchor_reason", "carried_chunk_ids", "used_group_ids", "body_version", "session_chunk_count", "session_group_count", "session_flag_count", "body", "created_at"';
+  const BRIEF_UPSERT = `insert into "brief" (${BRIEF_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, default) on conflict ("installation_id","pull_request_id","base_sha","head_sha") do update set "head_index" = $20, "commit_count" = $21, "provider" = $22, "model" = $23, "effort" = $24, "repo_config" = $25, "anchor_state" = $26, "anchor_reason" = $27, "carried_chunk_ids" = $28, "used_group_ids" = $29, "body_version" = $30, "session_chunk_count" = $31, "session_group_count" = $32, "session_flag_count" = $33, "body" = $34 returning ${BRIEF_COLUMNS}`;
   const SIDECAR_DROP =
     'delete from "chunk_layout" where ("chunk_layout"."installation_id" = $1 and "chunk_layout"."brief_id" = $2)';
   const DELTA_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "skipped", "unchanged", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
-  const DELTA_UPSERT = `insert into "delta" (${DELTA_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "skipped" = $13, "unchanged" = $14, "provider" = $15, "model" = $16, "effort" = $17, "body_version" = $18, "body" = $19, "byte_size" = $20 returning ${DELTA_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "skipped", "unchanged", "provider", "model", "effort", "body_version", "body", "created_at"';
+  const DELTA_UPSERT = `insert into "delta" (${DELTA_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "skipped" = $12, "unchanged" = $13, "provider" = $14, "model" = $15, "effort" = $16, "body_version" = $17, "body" = $18 returning ${DELTA_COLUMNS}`;
   const BRIEF_ANCHOR_CHECK =
     'select "id" from "brief" where ("brief"."installation_id" = $1 and "brief"."id" = $2 and "brief"."pull_request_id" = $3) limit $4';
   const NARRATIVE_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "brief_id", "prev_head_sha", "head_sha", "unchanged", "skipped", "provider", "model", "effort", "body_version", "body", "byte_size", "created_at"';
-  const NARRATIVE_UPSERT = `insert into "revision_narrative" (${NARRATIVE_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, default) on conflict ("installation_id","pull_request_id","prev_head_sha","head_sha") do update set "brief_id" = $14, "unchanged" = $15, "skipped" = $16, "provider" = $17, "model" = $18, "effort" = $19, "body_version" = $20, "body" = $21, "byte_size" = $22 returning ${NARRATIVE_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "brief_id", "prev_head_sha", "head_sha", "unchanged", "skipped", "provider", "model", "effort", "body_version", "body", "created_at"';
+  const NARRATIVE_UPSERT = `insert into "revision_narrative" (${NARRATIVE_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, default) on conflict ("installation_id","pull_request_id","prev_head_sha","head_sha") do update set "brief_id" = $13, "unchanged" = $14, "skipped" = $15, "provider" = $16, "model" = $17, "effort" = $18, "body_version" = $19, "body" = $20 returning ${NARRATIVE_COLUMNS}`;
   const MARKS_COLUMNS =
-    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "prev_base_sha", "new_base_sha", "body", "byte_size", "created_at"';
-  const MARKS_UPSERT = `insert into "comparison_marks" (${MARKS_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, $8, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "prev_base_sha" = $9, "new_base_sha" = $10, "body" = $11, "byte_size" = $12 returning ${MARKS_COLUMNS}`;
+    '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "prev_base_sha", "new_base_sha", "body", "created_at"';
+  const MARKS_UPSERT = `insert into "comparison_marks" (${MARKS_COLUMNS}) values (default, $1, $2, $3, $4, $5, $6, $7, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "prev_base_sha" = $8, "new_base_sha" = $9, "body" = $10 returning ${MARKS_COLUMNS}`;
   const HUNK_COLUMNS =
     '"id", "installation_id", "pull_request_id", "baseline_sha", "head_sha", "spans", "created_at"';
   const HUNK_UPSERT = `insert into "hunk_span" (${HUNK_COLUMNS}) values (default, $1, $2, $3, $4, $5, default) on conflict ("installation_id","pull_request_id","baseline_sha","head_sha") do update set "spans" = $6 returning ${HUNK_COLUMNS}`;

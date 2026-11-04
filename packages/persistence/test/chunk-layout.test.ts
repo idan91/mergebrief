@@ -133,7 +133,6 @@ describe("createArtifactStore.chunkLayouts", () => {
 
     expect(read?.briefId).toBe(briefId);
     expect(readBody(read)).toEqual(LAYOUT);
-    expect(read?.byteSize).toBe(Buffer.byteLength(read?.body ?? "", "utf8"));
   });
 
   it("keeps a card's row runs and split widths beside its counts", async () => {

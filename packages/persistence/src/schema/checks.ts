@@ -29,6 +29,15 @@ export function isDistinctFrom(column: AnyPgColumn, value: string): SQL {
   return sql`${column} is distinct from ${sql.raw(literal)}`;
 }
 
+/** A NULL passes, as it does in every CHECK, so a nullable column stays nullable. */
+export function isJsonObject(column: AnyPgColumn): SQL {
+  return sql`${column} is json object`;
+}
+
+export function isJsonArray(column: AnyPgColumn): SQL {
+  return sql`${column} is json array`;
+}
+
 /** The pattern's source must read the same as a POSIX regex. */
 export function matchesPattern(column: AnyPgColumn, pattern: RegExp): SQL {
   const literal = quoteLiteral(pattern.source);

@@ -108,13 +108,6 @@ const ORIGIN = {
   bodyVersion: STORED_BODY_VERSION,
 } as const;
 
-function artifact(body: string): {
-  readonly body: string;
-  readonly byteSize: number;
-} {
-  return { body, byteSize: Buffer.byteLength(body, "utf8") };
-}
-
 interface PrSeed {
   readonly installationId: InstallationId;
   readonly repoId?: RepoId;
@@ -161,7 +154,7 @@ async function seedFullGraph(
       headIndex: 1,
       commitCount: 3,
       ...ORIGIN,
-      ...artifact('{"brief":true}'),
+      body: '{"brief":true}',
       usedGroupIds: [],
     })
     .returning({ id: brief.id });
@@ -222,7 +215,7 @@ async function seedFullGraph(
     baselineSha: CHECKPOINT_SHA,
     headSha: HEAD_SHA,
     ...ORIGIN,
-    ...artifact('{"delta":true}'),
+    body: '{"delta":true}',
   });
   await db.insert(revisionNarrative).values({
     installationId,
@@ -231,7 +224,7 @@ async function seedFullGraph(
     prevHeadSha: PREV_HEAD_SHA,
     headSha: HEAD_SHA,
     ...ORIGIN,
-    ...artifact('{"narrative":true}'),
+    body: '{"narrative":true}',
   });
   await db.insert(comparisonMarks).values({
     installationId,
@@ -240,7 +233,7 @@ async function seedFullGraph(
     headSha: HEAD_SHA,
     prevBaseSha: "main",
     newBaseSha: "main",
-    ...artifact('{"files":[]}'),
+    body: '{"files":[]}',
   });
   await db.insert(checkpoint).values({
     installationId,
@@ -263,7 +256,7 @@ async function seedFullGraph(
     baseSha: BASE_SHA,
     headSha: HEAD_SHA,
     partKey: "detail:1",
-    ...artifact('{"chunks":[]}'),
+    body: '{"chunks":[]}',
   });
   await db.insert(generation).values({
     installationId,

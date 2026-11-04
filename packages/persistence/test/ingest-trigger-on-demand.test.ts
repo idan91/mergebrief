@@ -150,7 +150,7 @@ async function storeBrief(world: TriggerOnDemandWorld): Promise<void> {
     model: "opus",
     effort: "high",
     bodyVersion: STORED_BODY_VERSION,
-    body: "stored",
+    body: '{"v":"stored"}',
     usedGroupIds: [],
   });
 }

@@ -300,7 +300,7 @@ describe("read-review-session", () => {
     // writes. A failed read the reviewer can retry is the only
     // acceptable answer.
     const previous = await seedBrief(harness.handle, 1);
-    await seedBrief(harness.handle, 2, "{ not json");
+    await seedBrief(harness.handle, 2, '{"not":"a brief"}');
     await seedPreviousWork(harness.handle, previous);
     const before = await sessionRows();
 

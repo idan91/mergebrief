@@ -1210,7 +1210,7 @@ describe("the review work operations", () => {
   });
 
   it("skips the caps when the Brief body cannot be read", async () => {
-    const { client, sessions, key } = await openWorld("{ not json");
+    const { client, sessions, key } = await openWorld('{"not":"a brief"}');
 
     const marked = await sessions.setChunkRead(key, {
       chunkId: "c1",
@@ -1233,9 +1233,10 @@ describe("the review work operations", () => {
   it("caps a held session from the stored counts, never the body", async () => {
     const { client, sessions, key } = await openWorld();
     await sessions.setChunkRead(key, { chunkId: "c1", read: true });
-    await client.query("update brief set body = '{ not json' where id = $1", [
-      key.briefId.toString(),
-    ]);
+    await client.query(
+      `update brief set body = '{"not":"a brief"}' where id = $1`,
+      [key.briefId.toString()],
+    );
 
     const marked = await sessions.setChunkRead(key, {
       chunkId: "c2",

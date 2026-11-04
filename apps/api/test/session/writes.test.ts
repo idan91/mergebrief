@@ -289,7 +289,7 @@ describe("the Review Session writes", () => {
     // The read route's failure has a worse twin here: empty facts would write
     // every carried decision to the new session as DROPPED, permanently.
     const previous = await seedBrief(harness.handle, 1);
-    await seedBrief(harness.handle, 2, "{ not json");
+    await seedBrief(harness.handle, 2, '{"not":"a brief"}');
     await seedPreviousWork(harness.handle, previous);
     expect(await countRows("review_session")).toBe(1);
 

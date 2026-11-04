@@ -6,12 +6,14 @@
 import {
   bigint,
   boolean,
+  check,
   index,
   pgTable,
   text,
   unique,
 } from "drizzle-orm/pg-core";
 import type { BriefRowId, PullRequestRowId } from "../types";
+import { isJsonObject } from "./checks";
 import { artifactColumns, bodyVersionColumn, tenantColumns } from "./columns";
 import { brief } from "./brief";
 import { pullRequest } from "./pull-request";
@@ -52,5 +54,6 @@ export const revisionNarrative = pgTable(
       .nullsNotDistinct(),
     index("revision_narrative_pull_request_idx").on(table.pullRequestId),
     index("revision_narrative_brief_idx").on(table.briefId),
+    check("revision_narrative_body_check", isJsonObject(table.body)),
   ],
 );

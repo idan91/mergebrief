@@ -44,10 +44,6 @@ import type {
 
 export { InvalidArtifactBodyError } from "./errors";
 
-function measureByteSize(body: string): number {
-  return Buffer.byteLength(body, "utf8");
-}
-
 /** The `brief` columns a review session's record limits read. */
 interface SessionRecordCounts {
   readonly sessionChunkCount: number | null;
@@ -76,14 +72,13 @@ interface BodyInput extends Origin {
   readonly bodyVersion: number;
 }
 
-/** The origin trio, the body with its size, and the version stamp. */
+/** The origin trio, the body, and the version stamp. */
 function shapeBodyColumns(input: BodyInput) {
   return {
     provider: input.provider,
     model: input.model,
     effort: input.effort,
     body: input.body,
-    byteSize: measureByteSize(input.body),
     bodyVersion: input.bodyVersion,
   };
 }
@@ -366,12 +361,10 @@ export function createArtifactStore(
 
       // The natural-key SHAs ARE the body's SHA pair.
       const marks = parsed.data;
-      const serialized = JSON.stringify(marks);
       const columns = {
         prevBaseSha: input.refs.prevBase,
         newBaseSha: input.refs.newBase,
-        body: serialized,
-        byteSize: measureByteSize(serialized),
+        body: JSON.stringify(marks),
       };
       return marksSpans.write({
         pullRequestId: input.pullRequestId,

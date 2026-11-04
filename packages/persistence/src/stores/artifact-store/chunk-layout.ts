@@ -20,10 +20,9 @@ export type AssertBriefAnchored = (
   briefId: BriefRowId,
 ) => Promise<void>;
 
-/** A checked sidecar body, serialized, with its stored size. */
+/** A checked sidecar body, serialized. */
 export interface ChunkLayoutColumns {
   readonly body: string;
-  readonly byteSize: number;
 }
 
 /** The brief whose sidecar a write replaces, already resolved in scope. */
@@ -37,7 +36,6 @@ function shapeRow(row: typeof chunkLayout.$inferSelect): ChunkLayoutRow {
     id: row.id,
     briefId: row.briefId,
     body: row.body,
-    byteSize: row.byteSize,
     createdAt: row.createdAt,
   };
 }
@@ -48,8 +46,7 @@ export function shapeChunkLayoutColumns(body: unknown): ChunkLayoutColumns {
   if (!parsed.success) {
     throw new InvalidArtifactBodyError(parsed.error.message);
   }
-  const text = JSON.stringify(parsed.data);
-  return { body: text, byteSize: Buffer.byteLength(text, "utf8") };
+  return { body: JSON.stringify(parsed.data) };
 }
 
 /**

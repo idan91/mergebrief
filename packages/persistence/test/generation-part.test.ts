@@ -136,9 +136,6 @@ describe("createGenerationPartStore.write", () => {
     expect(listed[0]?.body).toEqual(
       makeDetailBody([makeChunk("c1", ["no-tests"])]),
     );
-    expect(listed[0]?.byteSize).toBe(
-      Buffer.byteLength(JSON.stringify(listed[0]?.body), "utf8"),
-    );
   });
 
   it("rewrites the same span and key in place as one row", async () => {
@@ -324,7 +321,7 @@ describe("createGenerationPartStore.listForSpan", () => {
     );
   });
 
-  it("refuses a stored body that is not JSON", async () => {
+  it("refuses a stored body off the part shape", async () => {
     const pr = await openPullRequest(CTX_A);
     const store = openStore(CTX_A);
     const span = { pullRequestId: pr.id, baseSha: BASE, headSha: HEAD };
@@ -333,7 +330,9 @@ describe("createGenerationPartStore.listForSpan", () => {
       partKey: "detail:1",
       body: makeDetailBody([]),
     });
-    await shared.harness.raw("update generation_part set body = '{chunks'");
+    await shared.harness.raw(
+      `update generation_part set body = '{"chunks":1}'`,
+    );
 
     await expect(store.listForSpan(span)).rejects.toBeInstanceOf(
       InvalidArtifactBodyError,

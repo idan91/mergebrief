@@ -21,7 +21,7 @@ Numbered, append-only records of the decisions behind MergeBrief. Each carries a
 | [0015](0015-self-hosted-runtime-postgres-single-dependency.md) | Self-Hosted Runtime: One Long-Lived Worker + Postgres as the Single Stateful Dependency | amended (see Amendments) |
 | [0016](0016-github-app-auth-and-trust-tenancy-boundary.md) | GitHub App, Reviewer Auth, and the Trust/Tenancy Boundary | superseded in part by 0034, 0040, 0042, 0043 |
 | [0017](0017-oss-self-host-first-distribution.md) | OSS Self-Host-First Distribution (Open-Core) | superseded in part by 0023 |
-| [0018](0018-m1-postgres-schema.md) | M1 Postgres Schema | superseded in part by 0040, 0043 |
+| [0018](0018-m1-postgres-schema.md) | M1 Postgres Schema | superseded in part by 0040, 0043, 0048 |
 | [0019](0019-brief-timeline-navigation.md) | Brief Timeline Navigation | superseded in part by 0024, 0040 |
 | [0020](0020-brief-trigger-and-activation-model.md) | Brief Trigger, Entry, and the Draft-First Activation Model | superseded in part by 0032 |
 | [0021](0021-revision-changes-overlay-on-full-brief.md) | Revision-Changes Overlay on the Full Brief | superseded in part by 0024 |
@@ -51,3 +51,4 @@ Numbered, append-only records of the decisions behind MergeBrief. Each carries a
 | [0045](0045-one-version-number-and-expand-and-contract.md) | One version number, and expand and contract on every release | amended (see Amendments) |
 | [0046](0046-opentelemetry-tracing.md) | OpenTelemetry tracing, off by default | amended (see Amendments) |
 | [0047](0047-url-pull-requests-belong-to-their-reviewer.md) | A URL pull request belongs to the reviewer who pasted it | accepted |
+| [0048](0048-json-documents-stay-text.md) | JSON documents are stored as checked `text` | accepted |

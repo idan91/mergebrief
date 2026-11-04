@@ -33,8 +33,8 @@ import {
   type GenerationPhase,
   type GenerationStatus,
 } from "types/generations";
-import { isNullOrOneOf, isOneOf } from "./checks";
-import { tenantColumns } from "./columns";
+import { isJsonObject, isNullOrOneOf, isOneOf } from "./checks";
+import { jsonDocument, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
 const GENERATION_KINDS = Object.values(GenerationKinds);
@@ -67,7 +67,7 @@ export const generation = pgTable(
      * still show their outcomes. The policy snapshot lives on the brief
      * artifact, not here.
      */
-    repoConfig: text("repo_config"),
+    repoConfig: jsonDocument("repo_config"),
     attempts: integer("attempts").notNull().default(0),
     /** Runs that claimed the row since a trigger last projected it pending. */
     claims: integer("claims").notNull().default(0),
@@ -118,6 +118,7 @@ export const generation = pgTable(
         table.createdAt,
       ),
       check("generation_kind_check", isOneOf(table.kind, GENERATION_KINDS)),
+      check("generation_repo_config_check", isJsonObject(table.repoConfig)),
       check(
         "generation_status_check",
         isOneOf(table.status, GENERATION_STATUSES),

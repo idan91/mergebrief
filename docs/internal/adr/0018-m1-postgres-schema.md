@@ -1,6 +1,6 @@
 # 0018: M1 Postgres Schema
 
-Status: superseded in part by 0040, 0043
+Status: superseded in part by 0040, 0043, 0048
 
 ADR 0008's logical persistence model realized as the physical M1 schema on vanilla Postgres + Drizzle (ADR 0015), with GitHub-native numeric identity, mandatory `(installation_id, repo_id)` tenant scoping on every row (ADR 0016; amended, see Amendments), and large artifacts as content-addressed `TEXT`. This ADR records the physical schema decisions; it is filled in incrementally as the schema grill resolves each entity.
 
@@ -513,3 +513,7 @@ D5 and D10 (migration 0069): `generation.status` gains `awaiting-trigger`, a ter
 ### 2026-10-25: A takeover can hand its row back
 
 D10 (migration 0070): `generation.awaits_recovery` (boolean, default false) is set when a recovery takeover hands its row back after a transient failure or a shutdown, so the head's next recovery job reruns it, and is cleared by every later claim, trigger and row write. `endReleasedClaim` ends only a `pending` row carrying it with no run id. The migration only adds the column.
+
+### 2026-11-04: JSON document columns are checked, and `byte_size` is gone
+
+D6 stands: artifact bodies stay inline as `TEXT`. ADR 0048 adds an `IS JSON` CHECK and a write guard on every JSON document column, records why the type is not `jsonb` and when to revisit that, and removes `byte_size`, which nothing read.

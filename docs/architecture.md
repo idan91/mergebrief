@@ -217,6 +217,34 @@ reviewer's.
 The worker gets its scope from the validated job payload and from nothing
 else.
 
+## Stored documents
+
+Nine columns hold a JSON document: each artifact body (`brief`, `delta`,
+`revision_narrative`, `comparison_marks`, `chunk_layout`, `generation_part`),
+`hunk_span.spans`, and `repo_config` on `brief` and `generation`. They are `text`,
+not `jsonb`.
+
+Each document is written as a unit and read whole, no query reads inside one, and
+the API serves the stored text as it is. Any value SQL needs has a column of its
+own. Against that, `jsonb` costs about 20% more storage on these documents and
+loses their exact bytes, and its driver handling would add a parse and a serialize
+to every read. Indexing does not decide it either: an expression index on
+`(body::jsonb ->> 'field')` works on a `text` column.
+
+Two safeguards hold the type honest. Every column carries an `IS JSON` CHECK, so
+Postgres refuses anything else. Every write passes through the `jsonDocument`
+column type, which replaces NUL and lone surrogates, the two things a `jsonb` cast
+refuses. The migration that added the checks moved existing rows to the same
+shape, so a cast reads every stored row.
+
+The rule for what comes next:
+
+- A new query on a value inside a document gives that value its own column.
+- Where a column does not fit, it adds an expression index on the cast.
+- Should searching arbitrary fields inside briefs become a product feature, these
+  columns move to `jsonb`, because fields nobody can plan for are what `jsonb` and
+  GIN indexes exist for.
+
 ## Versioning
 
 One git tag `vX.Y.Z` is the version of everything a release ships; the

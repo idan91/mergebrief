@@ -4,11 +4,12 @@
 import type { NotNull } from "drizzle-orm";
 import {
   bigint,
+  customType,
   integer,
-  text,
   timestamp,
   type PgIntegerBuilderInitial,
 } from "drizzle-orm/pg-core";
+import { cleanJsonText } from "../db/json-text";
 import type { InstallationId } from "../types";
 
 type BodyVersionColumn = NotNull<PgIntegerBuilderInitial<"body_version">>;
@@ -48,11 +49,22 @@ export function bodyVersionColumn(): BodyVersionColumn {
   return integer("body_version").notNull();
 }
 
-/** Inline `body` plus `byte_size` and `created_at`; erasure stays one FK cascade. */
+/**
+ * A JSON document read and written whole: `text`, not `jsonb`, because no query
+ * reads inside it and the API serves the stored text as it is. Each table pairs
+ * it with an `IS JSON` CHECK. A value SQL must filter on takes a column of its own.
+ */
+export const jsonDocument = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return "text";
+  },
+  toDriver: cleanJsonText,
+});
+
+/** Inline `body` and `created_at`; erasure stays one FK cascade. */
 export function artifactColumns() {
   return {
-    body: text("body").notNull(),
-    byteSize: integer("byte_size").notNull(),
+    body: jsonDocument("body").notNull(),
     ...stampColumns(),
   };
 }

@@ -860,7 +860,7 @@ describe("a multi-call run", () => {
   it("starts over when a stored part is off the shape the store accepts", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     await harness.raw(
-      `insert into generation_part (installation_id, pull_request_id, base_sha, head_sha, part_key, body, byte_size) values (42, ${pr.id}, '${BASE}', '${HEAD_1}', 'grouping', '{"kind":"grouping"}', 18)`,
+      `insert into generation_part (installation_id, pull_request_id, base_sha, head_sha, part_key, body) values (42, ${pr.id}, '${BASE}', '${HEAD_1}', 'grouping', '{"kind":"grouping"}')`,
     );
     const generator = stubThreeGroupGenerator();
 

@@ -43,7 +43,7 @@ const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);
 const OTHER_REVIEWER: ReviewerId = brandWith(isReviewerId, 42n);
 const CTX: TenantContext = { installationId: TENANT };
 const EMPTY_BRIEF_BODY = '{"changeGroups":[],"chunks":[]}';
-const UNREADABLE_BODY = "{ not json";
+const UNREADABLE_BODY = '{"not":"a brief"}';
 
 /** A hop shifting everything after line 1 down by three. */
 const SHIFT_BY_THREE = [
@@ -1358,7 +1358,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
   });
 
   it.each([
-    ["a body that is not JSON", UNREADABLE_BODY],
+    ["a body off the brief shape", UNREADABLE_BODY],
     ["a body missing the carry lists", '{"summary":"the brief"}'],
   ])("refuses a pending carry-over over %s", async (_label, body) => {
     const world = await makeWorld();

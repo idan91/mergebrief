@@ -610,6 +610,13 @@
       "when": 1793585941891,
       "tag": "0087_refund-run-units",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1793750531933,
+      "tag": "0088_stored-json-documents",
+      "breakpoints": true
     }
   ]
 }

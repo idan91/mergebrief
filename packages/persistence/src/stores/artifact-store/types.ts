@@ -45,7 +45,7 @@ export type DeltaRow = typeof delta.$inferSelect;
 /** The sidecar row with its body as stored text; the api serves it verbatim. */
 export type ChunkLayoutRow = Pick<
   typeof chunkLayout.$inferSelect,
-  "id" | "briefId" | "body" | "byteSize" | "createdAt"
+  "id" | "briefId" | "body" | "createdAt"
 >;
 export type RevisionNarrativeRow = typeof revisionNarrative.$inferSelect;
 export type ComparisonMarksRow = typeof comparisonMarks.$inferSelect;

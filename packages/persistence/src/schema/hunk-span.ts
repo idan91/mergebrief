@@ -5,9 +5,17 @@
 // content, so it is NOT code-bearing. A sibling table rather than a
 // `comparison_marks` column because marks store added and removed ranges
 // unpaired, and a remap needs both sides of each header paired.
-import { bigint, index, pgTable, text, unique } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  check,
+  index,
+  pgTable,
+  text,
+  unique,
+} from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
-import { stampColumns, tenantColumns } from "./columns";
+import { isJsonArray } from "./checks";
+import { jsonDocument, stampColumns, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
 export const hunkSpan = pgTable(
@@ -22,7 +30,7 @@ export const hunkSpan = pgTable(
     baselineSha: text("baseline_sha").notNull(),
     headSha: text("head_sha").notNull(),
     /** JSON `[{file, hunks:[{oldStart, oldLines, newStart, newLines}]}]`. */
-    spans: text("spans").notNull(),
+    spans: jsonDocument("spans").notNull(),
     ...stampColumns(),
   },
   (table) => [
@@ -35,5 +43,6 @@ export const hunkSpan = pgTable(
       )
       .nullsNotDistinct(),
     index("hunk_span_pull_request_idx").on(table.pullRequestId),
+    check("hunk_span_spans_check", isJsonArray(table.spans)),
   ],
 );

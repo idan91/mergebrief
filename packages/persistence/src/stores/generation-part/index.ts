@@ -74,7 +74,6 @@ function shapeRow(row: typeof generationPart.$inferSelect): GenerationPartRow {
     id: row.id,
     partKey: parseStoredKey(row.partKey),
     body: parseStoredBody(row.body),
-    byteSize: row.byteSize,
     createdAt: row.createdAt,
   };
 }
@@ -110,8 +109,7 @@ export function createGenerationPartStore(
       if (!parsed.success) {
         throw new InvalidArtifactBodyError(parsed.error.message);
       }
-      const body = JSON.stringify(parsed.data);
-      const columns = { body, byteSize: Buffer.byteLength(body, "utf8") };
+      const columns = { body: JSON.stringify(parsed.data) };
 
       return db.transaction(async (tx) => {
         await assertPullRequestInScope(tx, scope, input.pullRequestId);

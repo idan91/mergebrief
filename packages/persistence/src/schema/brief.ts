@@ -14,8 +14,13 @@ import {
 } from "drizzle-orm/pg-core";
 import type { BriefRowId, PullRequestRowId } from "../types";
 import { AnchorStates, FreshRestartReasons } from "types/generations";
-import { isDistinctFrom, isNullOrOneOf, isOneOf } from "./checks";
-import { artifactColumns, bodyVersionColumn, tenantColumns } from "./columns";
+import { isDistinctFrom, isJsonObject, isNullOrOneOf, isOneOf } from "./checks";
+import {
+  artifactColumns,
+  bodyVersionColumn,
+  jsonDocument,
+  tenantColumns,
+} from "./columns";
 import { pullRequest } from "./pull-request";
 
 const ANCHOR_STATES = Object.values(AnchorStates);
@@ -41,7 +46,7 @@ export const brief = pgTable(
      * weight from THIS snapshot, never live policy. NULL when the run read no
      * repo config, or when a non-generation writer made the row.
      */
-    repoConfig: text("repo_config"),
+    repoConfig: jsonDocument("repo_config"),
     /** 'anchored' | 'fresh-restart' | 'none', CHECK-constrained; NULL from a non-generation writer. */
     anchorState: text("anchor_state"),
     /** Non-null exactly when `anchor_state = 'fresh-restart'` (CHECK). */
@@ -103,6 +108,8 @@ export const brief = pgTable(
         "brief_anchor_reason_shape",
         sql`(${freshRestart} and ${modelSwap}) or (${notFreshRestart} and ${table.anchorReason} is null)`,
       ),
+      check("brief_body_check", isJsonObject(table.body)),
+      check("brief_repo_config_check", isJsonObject(table.repoConfig)),
     ];
   },
 );

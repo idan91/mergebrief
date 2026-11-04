@@ -187,17 +187,20 @@ describe("owner-scoped artifact store", () => {
       headSha: "h".repeat(40),
       headIndex: 1,
       commitCount: 3,
-      body: "brief-body",
+      body: '{"v":"brief-body"}',
       ...ORIGIN,
       usedGroupIds: [],
     };
     const first = await store.briefs.write(input);
-    const second = await store.briefs.write({ ...input, body: "rewritten" });
+    const second = await store.briefs.write({
+      ...input,
+      body: '{"v":"rewritten"}',
+    });
     expect(second.id).toBe(first.id);
     expect(second.installationId).toBeNull();
 
     const read = await store.briefs.get(pr.id, input.baseSha, input.headSha);
-    expect(read?.body).toBe("rewritten");
+    expect(read?.body).toBe('{"v":"rewritten"}');
   });
 
   it("another owner cannot read or write against the first owner's PR", async () => {
@@ -213,7 +216,7 @@ describe("owner-scoped artifact store", () => {
       headSha: "h".repeat(40),
       headIndex: 1,
       commitCount: 1,
-      body: "secret",
+      body: '{"v":"secret"}',
       ...ORIGIN,
       usedGroupIds: [],
     };
@@ -241,7 +244,7 @@ describe("owner-scoped artifact store", () => {
       headSha: "h".repeat(40),
       headIndex: 1,
       commitCount: 1,
-      body: "secret",
+      body: '{"v":"secret"}',
       ...ORIGIN,
       usedGroupIds: [],
     });
@@ -266,7 +269,7 @@ describe("owner-scoped span artifacts", () => {
       headSha: "head",
       headIndex: 1,
       commitCount: 1,
-      body: "brief",
+      body: '{"v":"brief"}',
       repoConfig: "{}",
       ...ORIGIN,
       usedGroupIds: [],
@@ -275,7 +278,7 @@ describe("owner-scoped span artifacts", () => {
       pullRequestId,
       baselineSha: "chk",
       headSha: "head",
-      body: "delta",
+      body: '{"v":"delta"}',
       ...ORIGIN,
     });
     const narrative = await store.revisionNarratives.write({
@@ -283,7 +286,7 @@ describe("owner-scoped span artifacts", () => {
       briefId: brief.id,
       prevHeadSha: "prev",
       headSha: "head",
-      body: "narrative",
+      body: '{"v":"narrative"}',
       ...ORIGIN,
     });
     const marks = await store.comparisonMarks.write({
@@ -358,7 +361,7 @@ describe("owner-scoped span artifacts", () => {
         pullRequestId: pr.id,
         baselineSha: "chk-2",
         headSha: "head",
-        body: "planted",
+        body: '{"v":"planted"}',
         ...ORIGIN,
       }),
       storeB.revisionNarratives.write({
@@ -366,7 +369,7 @@ describe("owner-scoped span artifacts", () => {
         briefId: own.brief.id,
         prevHeadSha: "prev-2",
         headSha: "head",
-        body: "planted",
+        body: '{"v":"planted"}',
         ...ORIGIN,
       }),
       storeB.comparisonMarks.write({
@@ -419,7 +422,7 @@ describe("owner-scoped span artifacts", () => {
       headSha: "head",
       headIndex: 1,
       commitCount: 1,
-      body: "brief",
+      body: '{"v":"brief"}',
       ...ORIGIN,
       usedGroupIds: [],
     });
@@ -429,7 +432,7 @@ describe("owner-scoped span artifacts", () => {
       briefId: briefA.id,
       prevHeadSha: "prev",
       headSha: "head",
-      body: "narrative",
+      body: '{"v":"narrative"}',
       ...ORIGIN,
     });
 
@@ -557,7 +560,7 @@ describe("owner-scoped span artifact query shape", () => {
       headSha: "head",
       headIndex: 1,
       commitCount: 1,
-      body: "brief",
+      body: '{"v":"brief"}',
       ...ORIGIN,
       usedGroupIds: [],
     });
@@ -575,7 +578,7 @@ describe("owner-scoped span artifact query shape", () => {
         briefId: brief.id,
         prevHeadSha: "prev",
         headSha: "head",
-        body: "narrative",
+        body: '{"v":"narrative"}',
         ...ORIGIN,
       }),
     );
@@ -675,7 +678,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
       headSha: "h".repeat(40),
       headIndex: 1,
       commitCount: 1,
-      body: "body",
+      body: '{"v":"body"}',
       ...ORIGIN,
       usedGroupIds: [],
     });

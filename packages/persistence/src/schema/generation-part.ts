@@ -11,7 +11,7 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
-import { matchesPattern } from "./checks";
+import { isJsonObject, matchesPattern } from "./checks";
 import { artifactColumns, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
@@ -43,6 +43,7 @@ export const generationPart = pgTable(
       )
       .nullsNotDistinct(),
     index("generation_part_pull_request_idx").on(table.pullRequestId),
+    check("generation_part_body_check", isJsonObject(table.body)),
     check(
       "generation_part_part_key_check",
       matchesPattern(table.partKey, GENERATION_PART_KEY_PATTERN),

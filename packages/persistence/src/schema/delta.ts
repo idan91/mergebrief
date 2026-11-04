@@ -4,12 +4,14 @@
 import {
   bigint,
   boolean,
+  check,
   index,
   pgTable,
   text,
   unique,
 } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
+import { isJsonObject } from "./checks";
 import { artifactColumns, bodyVersionColumn, tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
@@ -44,5 +46,6 @@ export const delta = pgTable(
       )
       .nullsNotDistinct(),
     index("delta_pull_request_idx").on(table.pullRequestId),
+    check("delta_body_check", isJsonObject(table.body)),
   ],
 );

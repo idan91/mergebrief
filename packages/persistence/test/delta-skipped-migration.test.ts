@@ -57,7 +57,7 @@ async function seedDeltasOnPreviousSchema(client: PGlite): Promise<void> {
       union all
       select 1, id, 'chk', 'brief', 'p', 'm', 'e', 2, '{"summary":"s","changedGroups":[]}', 1 from pull_request
       union all
-      select 1, id, 'chk', 'broken', 'p', 'm', 'e', 2, 'not json', 1 from pull_request;
+      select 1, id, 'chk', 'broken', 'p', 'm', 'e', 2, '{"broken":true}', 1 from pull_request;
   `);
 }
 

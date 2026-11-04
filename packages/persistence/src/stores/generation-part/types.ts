@@ -31,7 +31,6 @@ export interface GenerationPartRow {
   readonly id: bigint;
   readonly partKey: PartKey;
   readonly body: GenerationPartBody;
-  readonly byteSize: number;
   readonly createdAt: Date;
 }
 
