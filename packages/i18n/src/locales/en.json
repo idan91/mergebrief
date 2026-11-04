@@ -396,7 +396,7 @@
         "cappedUnits": "This push needed more runs than this instance had left, so it was skipped.",
         "pasted": "A pasted pull request is briefed only when someone asks. Generate the new brief to cover the newer commits.",
         "pastedNoAction": "Paste this pull request's URL on the home page to generate the new brief.",
-        "waiting": "No run is queued for the newer commits yet.",
+        "noRun": "MergeBrief has no run for the newer commits. Request a review or push a commit to start one.",
         "newerBriefOlderPush": "A newer brief is ready to read. It does not cover the latest push.",
         "newerBriefEarlierBase": "A newer brief is ready to read. It covers the latest push on an earlier base.",
         "generateAfterReset": "Generate the new brief after the reset."

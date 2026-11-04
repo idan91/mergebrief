@@ -348,7 +348,7 @@ function readInstalledNoBriefLine(t: TFunction, meta: PrSummary): string {
   if (awaitsReadyForReview(meta)) {
     return t("pulls.empty.awaitsReadyCopy");
   }
-  return t("pulls.newerCommits.explain.waiting");
+  return t("pulls.newerCommits.explain.noRun");
 }
 
 /** A url row GitHub is ahead of may paste whatever its PR state; an installation row says why none comes. */

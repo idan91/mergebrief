@@ -63,8 +63,7 @@ async function proxyToApi(
   try {
     transport = getApiTransport();
   } catch (error) {
-    // A misconfigured origin. Answer 503 so GitHub redelivers later; never
-    // surface the underlying reason to the caller.
+    // A misconfigured origin. Never surface the underlying reason to the caller.
     logger.error("api transport unavailable", {
       err: error,
       reqId: requestId,

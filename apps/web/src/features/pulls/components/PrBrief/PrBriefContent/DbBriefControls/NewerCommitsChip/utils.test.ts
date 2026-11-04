@@ -672,14 +672,14 @@ describe("deriveNewerCommitsStatus: no run covers the newer commits", () => {
     ...makeGenerationFields({ status: "succeeded" }),
   } as const;
 
-  it("says no run is queued yet on an open installation row", () => {
+  it("names the remedy for no run on an open installation row", () => {
     const status = derive(makeMeta(covered));
 
     expect(status?.state).toBe(NewerCommitsStates.NO_BRIEF);
     expect(status?.statusLabel).toBe("No new brief");
     expect(status?.action).toBeUndefined();
     expect(status?.explanation).toContain(
-      "No run is queued for the newer commits yet.",
+      "MergeBrief has no run for the newer commits. Request a review or push a commit to start one.",
     );
   });
 

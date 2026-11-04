@@ -826,7 +826,7 @@ async function dispatchOnce(
   return dispatched;
 }
 
-/** Plain warn, no taxonomy row: the 502 itself is what GitHub's redelivery answers. */
+/** No taxonomy row: the 502 in GitHub's delivery log is the signal; redelivery is manual. */
 function logUnconfirmed(log: Logger, failure: ConfirmationFailure): void {
   const fields: Record<string, unknown> = {
     timedOut: failure.error === undefined,

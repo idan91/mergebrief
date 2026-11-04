@@ -327,6 +327,68 @@ The [Restore](#restore) notes apply. On an external database, use the
 provider's major-version upgrade instead; the supported floor stays
 Postgres 16 or newer.
 
+## Starting on boot
+
+A reboot leaves the stack down. `restart: on-failure` brings `api`, `web` and
+`worker` back after a nonzero exit, not when the Docker daemon restarts, and
+`postgres` has no restart policy. Do not switch to `unless-stopped`: a
+configuration error exits 0 so the service stays down, and that policy would
+restart it into the same error forever.
+
+While the stack is down every webhook delivery fails. GitHub
+[never retries one on its own](./troubleshooting.md#other-webhook-answers),
+and you can redeliver one from the App's **Advanced** tab only within 3 days.
+
+A systemd unit runs `docker compose up` once at boot. Set `WorkingDirectory`
+to the folder that holds `docker-compose.yml` and `.env`
+([compose.md](./compose.md#what-the-host-holds)). Compose names the project
+after that folder, so any other folder starts a second, empty stack.
+`COMPOSE_FILE` in `.env` still applies, so an external database needs no
+change.
+
+```ini
+# /etc/systemd/system/mergebrief.service
+[Unit]
+Description=MergeBrief
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/mergebrief
+ExecStart=/usr/bin/docker compose up -d --wait
+ExecStop=/usr/bin/docker compose stop
+TimeoutStopSec=240
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable docker mergebrief
+sudo reboot
+```
+
+After the reboot, run `docker compose ps -a` in that folder. Every service
+should be up, and `api` and `web` should read `healthy`, along with `postgres`
+on the bundled database.
+
+- **A configuration error still stays down, and the unit may not show it.** The
+  unit has no `Restart=`. `--wait` waits for the health checks on `api` and `web`,
+  so an error in either shows as failed in `systemctl status mergebrief`. `worker`
+  has no health check, so a `worker` that exits a moment after it starts leaves the
+  unit active with webhooks still answering and no brief appearing. `docker compose
+  ps -a` is the check that catches it. Go to
+  [A service exits with code 0](./troubleshooting.md#a-service-exits-with-code-0).
+- **`TimeoutStopSec`** covers the grace periods in `docker-compose.yml`, so
+  systemd does not kill a drain at shutdown.
+- **To keep an instance down across reboots**, run
+  `sudo systemctl disable mergebrief`. A plain `docker compose stop` lasts only
+  until the next boot.
+
 ## Backup
 
 **External database?** The provider owns backup and restore. Use its

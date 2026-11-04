@@ -21,6 +21,7 @@ Three habits apply to every fix below:
 | --- | --- |
 | `up` fails with a Dockerfile-not-found error | [The stack does not start](#the-stack-does-not-start) |
 | `api` or `worker` shows `Exited (0)` | [A service exits with code 0](#a-service-exits-with-code-0) |
+| The stack is down after a host reboot | [Starting on boot](./operations.md#starting-on-boot) |
 | Webhooks answer 200 but no brief appears | [A service exits with code 0](#a-service-exits-with-code-0), then [No brief appears](#no-brief-appears) |
 | A brief generates but the pull request gets no Entry comment | [No Entry comment appears](#no-entry-comment-appears) |
 | Sign in returns to the signed-out Home | [Sign-in does not stick](#sign-in-does-not-stick) |
@@ -69,7 +70,7 @@ Read the last line of `docker compose logs worker`:
 | `worker composition: invalid tracker configuration` or `worker composition: trackers` | A tracker in the instance config cannot be read, such as a `notion` entry whose token is unset ([trackers.md](./trackers.md#notion)). | Set the token, or remove the entry. |
 | `worker composition: invalid tracing configuration` | An `OTEL_*` value is invalid while an endpoint is set ([observability.md](./observability.md#tracing)). | Fix the value, or unset the endpoint. |
 | `worker composition: invalid logging configuration` | `LOG_LEVEL` is not `error`, `warn`, `info` or `debug`. | Fix or remove the variable. |
-| `worker: stopped` | A plain stop, such as a host reboot. | `docker compose up -d`. |
+| `worker: stopped` | A plain stop, such as a host reboot. | `docker compose up -d`. To bring it back on its own after a reboot, see [Starting on boot](./operations.md#starting-on-boot). |
 
 `api` follows the same rule; its lines start with `api composition:`.
 [generators.md](./generators.md#when-something-degrades) has the same triage
