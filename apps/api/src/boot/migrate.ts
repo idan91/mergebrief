@@ -12,12 +12,12 @@ export async function runMigrate(deps: RunMigrateDeps): Promise<ExitCode> {
       autoMigrate: true,
       runningVersion: deps.runningVersion,
       log: deps.log,
+      migrateQueue: deps.migrateQueue,
     });
     if (!ensured.ok) {
       deps.log.error(`migrate: ${ensured.error.message}`);
       return ExitCodes.FAILURE;
     }
-    await deps.migrateQueue(deps.databaseUrl);
   } catch (error) {
     deps.log.error("migrate: failed", { err: error });
     return ExitCodes.FAILURE;

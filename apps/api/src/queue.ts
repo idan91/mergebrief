@@ -5,9 +5,10 @@
 import { runMigrations } from "graphile-worker";
 
 /**
- * Idempotently install/upgrade the `graphile_worker` schema. Opens its own
- * short-lived pool and releases it before resolving — it does NOT start a
- * worker or hold a connection open.
+ * Install/upgrade the `graphile_worker` schema. Opens its own short-lived pool
+ * and releases it before resolving, and starts no worker. Graphile's install
+ * is not safe against a concurrent one: `ensureAppSchema` runs this under the
+ * migration lock.
  */
 export async function migrateQueue(connectionString: string): Promise<void> {
   await runMigrations({ connectionString });

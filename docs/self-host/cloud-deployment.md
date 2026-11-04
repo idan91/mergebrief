@@ -359,9 +359,9 @@ Create an isolated database/project for the trial in a region near the VM.
 The API and worker need the same database. The browser and web process do
 not need database credentials.
 
-The worker uses persistent connections, LISTEN/NOTIFY and session behavior, so
-never use a transaction pooler, and do not replace Postgres with a provider's
-REST API. Follow your provider's steps below, then
+The worker uses persistent connections, LISTEN/NOTIFY and session behavior, and
+the boot migrations take a session advisory lock, so never use a transaction
+pooler, and do not replace Postgres with a provider's REST API. Follow your provider's steps below, then
 [store the connection string](#store-the-connection-string).
 [Provider notes](cloud-provider-notes.md) has the sources behind these choices.
 

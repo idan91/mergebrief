@@ -59,13 +59,14 @@ async function main(): Promise<void> {
   }
 
   const { databaseUrl } = boot.persistence;
-  // Idempotent: whoever boots first applies, the rest no-op. Under
-  // MERGEBRIEF_AUTO_MIGRATE=false this is a read-only check instead.
+  // Idempotent: whoever takes the migration lock first applies, the rest wait
+  // and no-op. Under MERGEBRIEF_AUTO_MIGRATE=false this is a read-only check.
   const ensured = await ensureAppSchema(databaseUrl, {
     autoMigrate: boot.persistence.autoMigrate,
     runningVersion: boot.api.serverVersion,
     log: logger,
     migrateCommand: resolveMigrateCommand(env[RUNTIME_MARKER_VAR]),
+    migrateQueue,
   });
   if (!ensured.ok) {
     // FAILURE, not the config-error SUCCESS: pending migrations are fixed by
@@ -73,7 +74,6 @@ async function main(): Promise<void> {
     logger.error(`api composition: ${ensured.error.message}`);
     process.exit(ExitCodes.FAILURE);
   }
-  await migrateQueue(databaseUrl);
   const handle: AppDatabase = createDb(databaseUrl, {
     onError: (error) => logger.warn("postgres client error", { err: error }),
     maxConnections: boot.persistence.poolMax,

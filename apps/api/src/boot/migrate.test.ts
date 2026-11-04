@@ -26,9 +26,10 @@ function makeDeps(overrides: Partial<RunMigrateDeps> = {}): {
     databaseUrl: DATABASE_URL,
     runningVersion: VERSION,
     log: logging.logger,
-    ensure: async (_databaseUrl, options) => {
+    ensure: async (databaseUrl, options) => {
       recorded.steps.push("schema");
       recorded.options.push(options);
+      await options.migrateQueue?.(databaseUrl);
       return { ok: true, value: undefined };
     },
     migrateQueue: async () => {

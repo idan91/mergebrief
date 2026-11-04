@@ -3,9 +3,9 @@
 //
 // Idempotent by construction: drizzle records applied migrations in
 // `drizzle.__drizzle_migrations` and no-ops when current, so every process may
-// call it at startup. Scope is the app schema only; the `graphile_worker`
-// schema is graphile-owned, migrated by graphile's own `runMigrations`, and
-// drizzle must not manage it.
+// call it at startup. Drizzle's scope is the app schema only; the
+// `graphile_worker` schema is graphile-owned, and its migrate step reaches this
+// module as the caller's `migrateQueue`, which runs under the same lock.
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -18,6 +18,7 @@ import { Runtimes } from "types/runtime";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types/utils";
 import { recordInstanceVersion } from "./instance-version";
+import { runUnderMigrationLock } from "./migration-lock";
 
 /**
  * Locate the checked-in `drizzle/` folder at RUNTIME. Two cases:
@@ -38,43 +39,32 @@ function migrationsFolder(): string {
   return join(dirname(entry), "..", "drizzle");
 }
 
-/**
- * Session-scoped advisory-lock key serializing concurrent `migrateApp` runs.
- * Drizzle's node-postgres migrator takes NO lock of its own (unlike
- * graphile's `runMigrations`), so two composition roots booting together (the
- * compose `worker` at startup and `web` on its first webhook) would race
- * CREATE TABLEs and one would die on "already exists". Arbitrary but
- * stable int64; only this function uses it.
- */
-const MIGRATE_LOCK_KEY = 0x62726965_66n; // "brief"
+export interface MigrateAppOptions {
+  /** The caller's queue-schema step; runs after the app schema, inside the same
+   * lock hold. This package takes no `graphile-worker` dependency. */
+  readonly migrateQueue?: ((databaseUrl: string) => Promise<void>) | undefined;
+  readonly log?: Logger | undefined;
+}
 
 /**
  * Idempotently apply the checked-in app-schema migrations to the target
- * database, serialized across processes by a Postgres advisory lock. Opens
- * its own short-lived single connection and releases it before resolving. It
- * does NOT return a handle; open one with `createDb` after.
+ * database, then the caller's queue-schema step, serialized across processes
+ * by the migration lock: concurrent callers wait and then find nothing left to
+ * do. Opens its own short-lived connection and releases it before resolving.
+ * It does NOT return a handle; open one with `createDb` after.
  */
-export async function migrateApp(databaseUrl: string): Promise<void> {
-  const pool = new Pool({ connectionString: databaseUrl, max: 1 });
-  try {
-    const client = await pool.connect();
-    try {
-      // Session-level lock on this dedicated connection: concurrent callers
-      // queue here and then no-op on the recorded-migrations check.
-      await client.query("select pg_advisory_lock($1)", [MIGRATE_LOCK_KEY]);
-      try {
-        await migrate(drizzle(client), {
-          migrationsFolder: migrationsFolder(),
-        });
-      } finally {
-        await client.query("select pg_advisory_unlock($1)", [MIGRATE_LOCK_KEY]);
-      }
-    } finally {
-      client.release();
-    }
-  } finally {
-    await pool.end();
-  }
+export async function migrateApp(
+  databaseUrl: string,
+  options: MigrateAppOptions = {},
+): Promise<void> {
+  await runUnderMigrationLock(
+    databaseUrl,
+    async (client) => {
+      await migrate(drizzle(client), { migrationsFolder: migrationsFolder() });
+      await options.migrateQueue?.(databaseUrl);
+    },
+    { log: options.log },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -222,12 +212,19 @@ export interface EnsureAppSchemaOptions {
   readonly log?: Logger;
   /** Named in the refusal; defaults to the checkout form. */
   readonly migrateCommand?: MigrateCommand;
+  /** The caller's queue-schema step. Applying runs it inside the migration
+   * lock. A check-only boot writes nothing, so it runs it with no lock, after
+   * a passing check. */
+  readonly migrateQueue?: (databaseUrl: string) => Promise<void>;
 }
 
 /** Injectable apply/check implementations, a TEST interface (the real ones need
  * a live pg). Not re-exported from `index.ts`; production callers omit it. */
 export interface EnsureAppSchemaDeps {
-  readonly apply: (databaseUrl: string) => Promise<void>;
+  readonly apply: (
+    databaseUrl: string,
+    options: MigrateAppOptions,
+  ) => Promise<void>;
   readonly check: (
     databaseUrl: string,
     migrateCommand: MigrateCommand,
@@ -241,9 +238,9 @@ export interface EnsureAppSchemaDeps {
 
 /**
  * The one boot-time boundary both startup-wiring paths call: apply the
- * app-schema migrations, or, under `MERGEBRIEF_AUTO_MIGRATE=false`, verify
- * read-only that nothing is pending. The returned error is the operator
- * refusal; infra failures still throw.
+ * app-schema migrations and the queue step, or, under
+ * `MERGEBRIEF_AUTO_MIGRATE=false`, verify read-only that nothing is pending.
+ * The returned error is the operator refusal; infra failures still throw.
  */
 export async function ensureAppSchema(
   databaseUrl: string,
@@ -255,13 +252,20 @@ export async function ensureAppSchema(
   },
 ): Promise<Result<undefined, SchemaCheckError>> {
   if (!options.autoMigrate) {
-    return deps.check(
+    const checked = await deps.check(
       databaseUrl,
       options.migrateCommand ?? CHECKOUT_MIGRATE_COMMAND,
     );
+    if (checked.ok) {
+      await options.migrateQueue?.(databaseUrl);
+    }
+    return checked;
   }
 
-  await deps.apply(databaseUrl);
+  await deps.apply(databaseUrl, {
+    migrateQueue: options.migrateQueue,
+    log: options.log,
+  });
   if (options.runningVersion !== undefined && options.log !== undefined) {
     await deps.record(databaseUrl, options.runningVersion, options.log);
   }

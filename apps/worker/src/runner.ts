@@ -1,5 +1,5 @@
-// Boot app-schema migrations before graphile's queue migrations, then start the runner.
-// Both migrators are idempotent across processes. Graphile owns graceful signal handling,
+// Boot app-schema migrations before graphile's queue migrations, both under persistence's
+// migration lock, then start the runner. Graphile owns graceful signal handling,
 // job claiming and its pool; main releases the persistence pool after runner.promise settles.
 import {
   parseCrontab,
@@ -80,6 +80,10 @@ export function assertScheduledTasksRegistered(
   }
 }
 
+function migrateQueue(connectionString: string): Promise<void> {
+  return runMigrations({ connectionString });
+}
+
 /**
  * Resolve once listening; the runner's promise settles on shutdown. With
  * autoMigrate false, check app-schema currency read-only and refuse stale
@@ -95,9 +99,12 @@ export async function startWorker(
   assertScheduledTasksRegistered(options.crontab, options.taskList);
   const schemaOptions: Mutable<EnsureAppSchemaOptions> = {
     autoMigrate: options.autoMigrate ?? true,
+    migrateQueue,
   };
-  if (options.runningVersion !== undefined && options.log !== undefined) {
+  if (options.runningVersion !== undefined) {
     schemaOptions.runningVersion = options.runningVersion;
+  }
+  if (options.log !== undefined) {
     schemaOptions.log = options.log;
   }
   if (options.migrateCommand !== undefined) {
@@ -107,7 +114,6 @@ export async function startWorker(
   if (!ensured.ok) {
     throw new Error(`worker boot: ${ensured.error.message}`);
   }
-  await runMigrations({ connectionString: options.databaseUrl });
 
   const runnerOptions: RunnerOptions = {
     connectionString: options.databaseUrl,

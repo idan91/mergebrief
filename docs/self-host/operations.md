@@ -134,10 +134,12 @@ their own:
 node-postgres migrator against the SQL files in
 `packages/persistence/drizzle/`, recorded in the
 `drizzle.__drizzle_migrations` table, so a process that starts against an
-up-to-date database does nothing. Concurrent starts are safe: the migrator
-takes a Postgres advisory lock, so one service applies and the other waits,
-then finds nothing left to do. The `graphile_worker` schema is migrated by
-graphile's own `runMigrations` and never touched by drizzle.
+up-to-date database does nothing. The `graphile_worker` schema is migrated by
+graphile's own `runMigrations` and never touched by drizzle. Concurrent starts
+are safe: one Postgres advisory lock covers both steps, in both services and
+in the migrate command, so one process applies and the others wait, then find
+nothing left to do. A process waiting past 5 minutes exits 1, and a
+`migration lock:` warning every 30 seconds says why it is still waiting.
 
 Whichever service applies the migrations first also records the running
 version in the one-row `instance_version` table (a check-only boot under

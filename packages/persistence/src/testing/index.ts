@@ -42,6 +42,10 @@ export { warmPgliteSnapshot } from "./pglite-snapshot";
 export { resetPgliteHarness } from "./pglite-reset";
 // The suites PGlite cannot exercise, in this package, the api and the worker.
 export { readTestPostgresUrl, type TestPostgresUrl } from "./postgres-url";
+export {
+  createFreshPostgresDatabase,
+  type FreshPostgresDatabase,
+} from "./fresh-database";
 export { seedGrant, type SeedGrantInput } from "./seed-grant";
 export {
   buildNamedPostgresUrl,

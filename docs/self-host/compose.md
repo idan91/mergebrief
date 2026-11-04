@@ -100,8 +100,11 @@ name covers every api replica, so one `web` can front several apis
 ([Running more than one api](./operations.md#running-more-than-one-api)).
 
 Migrations (app schema + graphile queue schema) run **idempotently at boot**
-in both `api` and `worker`: whoever starts first applies them, the other
-no-ops. There is no separate migrate step. (Exception: restricted database
+in both `api` and `worker`, under one Postgres advisory lock: the process
+that takes it applies them, and the others wait, then find nothing left to
+do. A process waiting past 5 minutes exits 1, and a `migration lock:` warning
+every 30 seconds says why it is still waiting. There is no separate migrate
+step. (Exception: restricted database
 roles can opt out with `MERGEBRIEF_AUTO_MIGRATE=false`; see the external
 Postgres section below.)
 
@@ -239,6 +242,15 @@ provider-specific behavior (TLS handshakes, pooled proxies, permission
 models) is exactly what the suites cannot see; the smoke checklist below
 is how a provider setup is actually proven.
 
+**Use a direct or session-mode connection, never a transaction pooler.** The
+worker's `LISTEN`/`NOTIFY` and the boot migrations' advisory lock both belong
+to one database session, which a transaction pooler does not keep. On Neon,
+take the host without `-pooler`; on Supabase, the direct host or the Session
+pooler on port 5432, not port 6543
+([provider notes](./cloud-provider-notes.md#neon-and-supabase-connection-selection)).
+A lock that lands on the wrong session shows up as a `migration lock:` warning,
+or as an exit 1 once the wait runs out; the line names the pooler either way.
+
 ### TLS: verify-full or disable (`sslmode` in the DSN)
 
 A `DATABASE_URL` whose host is not loopback **boots only on
@@ -314,10 +326,11 @@ the shadowed `DATABASE_URL`.
 
 By default both services apply migrations at boot, which needs DDL. If
 your runtime role is read/write-only (least-privilege posture), set
-`MERGEBRIEF_AUTO_MIGRATE=false`: boot then only *checks*, read-only, that
-the database matches the release's migrations, and exits 1 naming the
-pending count when it is behind. The apply step moves to you and runs as
-`docker compose run --rm api migrate` with a DDL-capable DSN; see
+`MERGEBRIEF_AUTO_MIGRATE=false`: boot then only *checks*, read-only and
+without the migration lock, that the database matches the release's
+migrations, and exits 1 naming the pending count when it is behind. The
+apply step moves to you and runs as `docker compose run --rm api migrate`
+with a DDL-capable DSN; see
 [operations.md](./operations.md#external-database-auto-migratefalse).
 
 ## Other platforms

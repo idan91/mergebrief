@@ -214,6 +214,59 @@ describe("migration check ensureAppSchema dispatch", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("autoMigrate=true hands the queue step to the apply", async () => {
+    const migrateQueue = async (): Promise<void> => {
+      throw new Error("the apply owns when this runs");
+    };
+    const handed: unknown[] = [];
+
+    await ensureAppSchema(
+      URL,
+      { autoMigrate: true, migrateQueue },
+      {
+        apply: async (_databaseUrl, options) => {
+          handed.push(options.migrateQueue);
+        },
+        check: async () => ({ ok: true, value: undefined }),
+        record: stubNeverRecord,
+      },
+    );
+
+    expect(handed).toEqual([migrateQueue]);
+  });
+
+  it("autoMigrate=false runs the queue step only after a passing check", async () => {
+    const steps: string[] = [];
+    const migrateQueue = async (): Promise<void> => {
+      steps.push("queue");
+    };
+    const stubNeverApply = async (): Promise<void> => {
+      throw new Error("must not apply");
+    };
+
+    await ensureAppSchema(
+      URL,
+      { autoMigrate: false, migrateQueue },
+      {
+        apply: stubNeverApply,
+        check: async () => ({ ok: false, error: REFUSAL }),
+        record: stubNeverRecord,
+      },
+    );
+    expect(steps).toEqual([]);
+
+    await ensureAppSchema(
+      URL,
+      { autoMigrate: false, migrateQueue },
+      {
+        apply: stubNeverApply,
+        check: async () => ({ ok: true, value: undefined }),
+        record: stubNeverRecord,
+      },
+    );
+    expect(steps).toEqual(["queue"]);
+  });
+
   it("records the running version after the apply, never on a check", async () => {
     const recorded: string[] = [];
     const log = createLogger({ env: {}, destination: { write: () => {} } });
