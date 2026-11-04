@@ -494,6 +494,16 @@ from Home, or a reviewer deletes a pull request they pasted themselves.
 That delete takes the same set; the purge's audit row names the reviewer
 who asked for it.
 
+Those sessions hold text reviewers wrote, unencrypted, so a database copy
+can read it. `review_draft_comment.body` stores a comment from the moment
+it is drafted. Posting it to GitHub marks the row `submitted` and keeps the
+text. A reviewer can delete a comment they have not posted, but a push copies
+unposted comments into the new head's session, and deleting that copy leaves
+the earlier session's row. Every other row goes only with its brief or
+pull request, as above, so without `PR_RETENTION_DAYS` it stays. A risk's
+dismissal reason or addressing note in `disposition` follows the same rule,
+and reopening the risk deletes it from that session.
+
 The audit log is the one exception. It is append-only (nothing edits a row),
 and its only removal is the retention sweep, which the worker runs once a day
 across every installation. The sweep keeps everything unless you set

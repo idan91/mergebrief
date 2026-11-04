@@ -221,9 +221,13 @@ before the prompt reaches your provider (see
 [What the model receives](docs/self-host/generators.md#what-the-model-receives)). What it stores is deliberately minimal:
 
 - **Stored:** generated briefs and revision summaries (descriptions *of* your code), review
-  positions (which commit each reviewer last reviewed), and encrypted login sessions.
+  positions (which commit each reviewer last reviewed), encrypted login sessions, and what
+  reviewers write in MergeBrief: comments they draft, in plain text, which stay stored after
+  they post to GitHub, and their reasons and notes on risks
+  ([details](docs/self-host/operations.md#retention-what-grows-and-what-does-not-prune-itself)).
 - **Not stored:** your code. Diffs are fetched live from GitHub per session and thrown away.
-- **Also not stored:** comment text (comments live on GitHub), emails, or IP addresses.
+- **Also not stored:** the pull request conversation MergeBrief reads from GitHub, emails, or
+  IP addresses.
 
 **Forgetting is built in, and it's your policy, not ours.** GitHub stays the source of truth,
 so stored artifacts are safe to expire: set `PR_RETENTION_DAYS` and a daily sweep deletes every
