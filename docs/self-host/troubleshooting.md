@@ -33,6 +33,7 @@ Three habits apply to every fix below:
 | `url-fallback-token.owner.fail` in the api or worker log | [GitHub refused the URL fallback token](#github-refused-the-url-fallback-token) |
 | A brief carries an amber warnings block | [The brief shows warnings](#the-brief-shows-warnings) |
 | The ticket card says the ticket is unread | [The brief shows warnings](#the-brief-shows-warnings) |
+| The page says the change was too large to summarize or compare | [The brief shows warnings](#the-brief-shows-warnings) |
 | No version notice, and `update.check.fail` in the api log | [The update check fails](#the-update-check-fails) |
 
 ## The stack does not start
@@ -231,6 +232,10 @@ push a commit to the pull request: the comment is not posted retroactively.
 - **The ticket card says unread:** the card names one of five codes
   ([trackers.md](./trackers.md#when-the-ticket-is-unread)). The brief is
   produced from the diff either way.
+- **"Too large to compare" or "too large to summarize":** the push changed more
+  than 300 files, GitHub would not serve the diff, its changed lines reached
+  `HUGE_SPAN_RATIO`, or it exceeds one call's limits. The brief itself is complete
+  ([generators.md](./generators.md#the-300-file-span-limit)).
 
 ## GitHub refused the URL fallback token
 

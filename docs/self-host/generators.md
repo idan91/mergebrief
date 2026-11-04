@@ -573,6 +573,107 @@ This is best effort, not data-loss prevention. A secret with no recognizable
 format, such as a `password=` assignment, reaches your model provider as
 written. Treat a credential committed to a pull request as leaked and rotate it.
 
+A pull request [briefed in parts](#the-large-pool) shortens lockfiles and marked
+files. A pnpm, npm or yarn lockfile reaches the model as its package changes, or
+as counts when they cannot be read. Any other known lockfile, such as `Cargo.lock`
+or `go.sum`, reaches it as counts only. A file marked `linguist-generated` or `linguist-vendored` reaches it as, at most, its
+path, status, line counts and hunk headers, with no code. Those marks come from
+the root `.gitattributes` on the default branch. The worker reads neither a
+nested `.gitattributes` nor the pull request's own copy, so a pull request cannot
+shorten its own code. If that file is over 64 KiB or holds rules this reader
+refuses, such as more than 200, marked files are read in full and lockfiles stay
+shortened. A brief made in one call shortens nothing. The
+pipeline writes each shortened file's chunk and marks it "Read as package changes"
+or "Read as counts only", and the receipt counts these files under "Files read
+shortened". The `adds-secret` and `changes-package-source` flags still read their
+full code.
+
+## Pushes, rebases and force pushes
+
+The revision narrative, the delta and the comparison highlights read the revision
+span: the pull request's own diff at two heads, and what differs between them.
+One head is the new push. The other is the previous brief's head, or for a delta
+the head of the reviewer's last review, so several quick pushes read as one.
+
+A rebase or force push does not retell the commits it rewrote, and merging the
+base branch in does not show the base branch's changes. A conflict resolution that
+changes the pull request's own diff does show. A file over 1 MB, or past the span's
+line-diff budget, skips the line diff, so it can read as changed when only the code
+around the pull request's change moved.
+
+### A push that changes nothing
+
+When the span shows no change, the narrative and the delta make no model call and
+the page says "No change since the previous brief." The brief makes no model call
+either if nothing it read beside the diff moved: the title, branch names, stack
+position, description, linked pages, primary ticket and the repository's
+`.mergebrief/` instructions and custom attributes. That run costs nothing against the [daily cap](#daily-generation-cap).
+
+Two cases still spend. Edit the description and push a rebase, and the brief calls
+the model while the page still says no change. A reviewer whose last review
+predates a real change gets a delta against the new head, which is a model call,
+and the run counts.
+
+### What carries over
+
+The next brief keeps each group the push left alone and looks again only at the
+groups it touched, whatever the push was and whether the run is one call or in
+parts. Groups that share a file carry or re-look together. Read marks on kept groups
+stay, and a re-looked group starts unread.
+
+A draft comment on a new-side line moves with its code, and is orphaned when those
+lines changed. A draft on the old side is orphaned when the pull request's base
+moved, which a rebase usually does. A reviewer re-places or deletes an orphaned
+draft before the review can post.
+
+Nothing carries when `generator.full-regeneration` asks for a fresh brief: `always`
+on every revision, a no-change push included, and `on-model-swap` when the provider
+or model changed ([configuration.md](./configuration.md#generator)).
+
+When changes cannot be matched across a push, Brief details says so and the groups
+holding them are looked at again. A force push can also leave GitHub unable to serve
+the old head. On that failure, or one retries do not clear, the worker logs `warn`
+`generate: revision span unavailable; skipping its artifacts` and writes no
+narrative, delta or highlights, every group is looked at again, and the page says
+the change could not be read.
+
+### The 300-file span limit
+
+A span holds at most 300 changed files, and no setting changes that. A fast-forward
+over an unmoved merge base counts the files changed between the two heads. Any other
+push counts the files that may have changed once both pull request diffs are
+compared, and a possible base rename counts as two. GitHub refusing a diff the span
+needs, serving it short, or timing out on every attempt has the same result.
+
+What a push past the limit loses:
+
+- **Its comparison.** It gets no narrative, no delta for a review at the previous
+  brief's head, and no changed-line highlights. The page says the change was too
+  large to summarize or compare.
+- **The carry.** Every group is looked at again, so the brief pays for its model
+  calls in full, and Brief details says no group carried over.
+- **Reviewer state.** Read marks do not carry and every line draft is orphaned. A
+  draft on a whole file stays while that file is in the brief.
+
+The next push compares against this push's brief as usual.
+
+This limit covers the span only. A pull request can change up to 3,000 files and
+still get a brief ([troubleshooting.md](./troubleshooting.md#no-brief-appears)). A
+smaller span can also go without a narrative or delta when its changed lines reach
+`HUGE_SPAN_RATIO` of the pull request's, 0.65 by default, or when it exceeds one
+call's limits. That skip keeps the highlights and the carried groups.
+
+### GitHub API calls
+
+A fast-forward over an unmoved merge base reads three merge bases and two diffs.
+Any other push reads the same merge bases and both heads' pull request diffs, plus
+two file reads per file only a line diff can settle and the probes for possible base
+renames. Past the limit it stops before those file reads. The worker makes these calls for the
+previous brief's span and for each other review checkpoint. The api makes them on
+the reviewer's token when a reviewer opens the changes-only view, and caches the
+answer per session. Frequent force pushes on a large pull request spend more of your
+GitHub rate limit than the same number of fast-forwards.
+
 ## When something degrades
 
 Salvage (a dropped invalid enum entry), the one feedback retry, a

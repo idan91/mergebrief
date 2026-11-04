@@ -57,7 +57,8 @@ its own.
 2. [compose.md](./compose.md): the services, every `.env` variable, an
    external database, and the hardening steps before real exposure.
 3. [generators.md](./generators.md): the provider and model, the daily
-   generation cap, and the `operators` list.
+   generation cap, the `operators` list, and what force pushes and rebases do
+   to a brief.
 4. [security-model.md](./security-model.md): who can sign in, what each user
    can see, the trust boundaries, and every outbound destination with its off
    switch.

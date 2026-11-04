@@ -540,8 +540,8 @@ grant sealed under that name:
 
 The fix is to put the old value back and run `docker compose up -d`. If the
 old value is gone, each user recovers on their own: signing out and in again
-seals a new grant under the current key. A CLI token stays bound to the
-sign-in it was minted from, so each user also revokes their old CLI tokens
+seals a new grant under the current key. An API token stays bound to the
+sign-in it was minted from, so each user also revokes their old API tokens
 in `/settings` and mints new ones.
 
 ### The GitHub App private key
@@ -897,13 +897,13 @@ step needs the instance running.
 A user leaving a running instance, or one who does not want to wait for the
 operator, can clear their own side:
 
-- **CLI tokens**: revoke each one in `/settings`.
+- **API tokens**: revoke each one in `/settings`.
 - **Sessions**: **Sign out**, then **Everywhere**. Once no session and no
-  live CLI token uses their sign-in, MergeBrief revokes their GitHub token
+  live API token uses their sign-in, MergeBrief revokes their GitHub token
   at GitHub and deletes its stored copy.
 - **The App's access to their account**: on GitHub, **Settings**,
   **Applications**, **Authorized GitHub Apps**, then **Revoke** next to the
-  App. GitHub tells a running instance, which deletes every session, CLI
+  App. GitHub tells a running instance, which deletes every session, API
   token and stored GitHub credential the user held there.
 
 ## See also

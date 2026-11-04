@@ -92,7 +92,7 @@ connection, and only `web` reaches it, over the compose network.
 - **Same-origin writes.** A cookie request that changes state must prove it
   came from this instance: it carries `Sec-Fetch-Site: same-origin`, or an
   `Origin` equal to `PUBLIC_BASE_URL`'s origin. Anything else answers 403.
-- **API tokens.** A CLI token starts with `mergebrief_`, is stored as a
+- **API tokens.** An API token starts with `mergebrief_`, is stored as a
   SHA-256 hash, and carries the access level chosen when it was minted. The
   `/api/auth/*` routes ignore it, so a stolen token cannot mint another token
   or sign its owner out ([cli.md](./cli.md#minting-a-token-operator-walkthrough)).
