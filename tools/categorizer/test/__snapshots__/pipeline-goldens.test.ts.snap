@@ -28241,7 +28241,7 @@ exports[`request goldens > next-60530 sends the recorded request digests 1`] = `
     },
     "user": {
       "bytes": 57344,
-      "sha256": "ab23de05bd656b9e0f177aa5a9ab1d331fd01e58801db2f35b2d644e37cd3aad"
+      "sha256": "8ad71b623c64f0a146db25b904cdb79da95b678f44430612df4a246ba1533c06"
     },
     "userPrefix": {
       "bytes": 224367,

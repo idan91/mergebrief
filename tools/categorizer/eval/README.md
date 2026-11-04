@@ -138,8 +138,11 @@ public; every checked-in diff must be publishable. A third-party case
 is allowed only from an MIT-licensed project, with that project's
 `LICENSE` at the PR's head committed beside the fixture. Any other
 license needs its own decision first. CI's secret scan and the release
-export's both read inside a gzipped fixture, and a published demo key the
-upstream diff carries is allowlisted by value in `.github/gitleaks.toml`.
+export's both read inside a gzipped fixture, so a key the upstream diff
+carries is replaced by a placeholder, never allowlisted: `next-60530` holds
+one, fences renamed on the removed line because the scanner's rule matches
+across both, so the added line still reads as a key to the redactor and
+`adds-secret`. A gzipped fixture is written with level 9 and mtime 0.
 
 **Private cases.** A case whose fixture embeds private material (plan or
 internal-doc text, private process) lives in `private-cases/<id>/` or
