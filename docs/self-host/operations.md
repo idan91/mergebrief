@@ -667,9 +667,10 @@ answers 401, logs `webhook.verify.fail` and writes nothing.
    `GITHUB_WEBHOOK_SECRET` in `.env` and run `docker compose up -d`. Only
    `api` verifies deliveries, but `worker` parses the same variable, and
    both are recreated.
-3. On the App's **Advanced** tab, open **Recent Deliveries** and redeliver
-   any that failed in between. GitHub never retries a failed delivery on its
-   own.
+3. The worker resends what failed in between within about 15 minutes
+   ([troubleshooting.md](./troubleshooting.md#other-webhook-answers)). To do it
+   sooner, open **Recent Deliveries** on the App's **Advanced** tab and redeliver
+   them.
 
 A `webhook.verify.fail` rate that stays up after the rotation means one side
 did not move.

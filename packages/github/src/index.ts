@@ -154,6 +154,14 @@ export {
 } from "./operations/repo";
 export type { InstallationRepository, RepositoryInfo } from "./operations/repo";
 // Installation presence, on the App's own JWT: 404 reads gone.
+export {
+  listHookDeliveries,
+  redeliverHookDelivery,
+} from "./operations/hook-deliveries";
+export type {
+  HookDelivery,
+  HookDeliveryPage,
+} from "./operations/hook-deliveries";
 export { readInstallationPresence } from "./operations/installation";
 export { InstallationPresences } from "./operations/installation/types";
 export type { InstallationPresence } from "./operations/installation/types";

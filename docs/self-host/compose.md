@@ -555,9 +555,10 @@ sheds a flood of them before it reaches `api`. Scope the limit to the
 webhook path and size it for GitHub's bursts: closing or labelling many
 pull requests at once sends one delivery per pull request, and they all
 arrive from a small pool of GitHub addresses, so a per-address limit sees
-them as one caller. GitHub never retries a failed delivery on its own, so
-a delivery the limit refuses is lost until you redeliver it from the App's
-**Advanced** tab.
+them as one caller. GitHub never retries a failed delivery on its own. The worker
+asks it to resend what failed within three days
+([troubleshooting.md](./troubleshooting.md#other-webhook-answers)), and you can
+redeliver from the App's **Advanced** tab.
 
 nginx ships the limiter (`ngx_http_limit_req_module`):
 

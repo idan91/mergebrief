@@ -71,6 +71,7 @@ function buildRecordingTaskList(generate: Task): TaskList {
     sweepPullRequests: failUnexpectedTask,
     sweepWebhookDeliveries: failUnexpectedTask,
     sweepGenerationParts: failUnexpectedTask,
+    reconcileWebhookDeliveries: failUnexpectedTask,
   });
 }
 
@@ -185,6 +186,7 @@ function buildSyncTaskList(
     sweepPullRequests: failUnexpectedTask,
     sweepWebhookDeliveries: failUnexpectedTask,
     sweepGenerationParts: failUnexpectedTask,
+    reconcileWebhookDeliveries: failUnexpectedTask,
   });
 }
 

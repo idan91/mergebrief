@@ -14,6 +14,8 @@ import {
   createOAuthApp,
   loadConfig as loadGitHubConfig,
   resolveOperatorTokenOwner,
+  listHookDeliveries,
+  redeliverHookDelivery,
 } from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
 import { createI18n } from "i18n";
@@ -39,6 +41,8 @@ import {
   type GenerateTaskDeps,
 } from "./task/generate";
 import { RunPools } from "./task/generate/types";
+import { createReconcileWebhookDeliveriesTask } from "./task/reconcile-webhook-deliveries";
+import { RECONCILE_WEBHOOK_DELIVERIES_CRONTAB } from "./task/reconcile-webhook-deliveries/consts";
 import { createSweepAuditTask, SWEEP_AUDIT_CRONTAB } from "./task/sweep-audit";
 import {
   createSweepGenerationPartsTask,
@@ -215,13 +219,11 @@ async function main(): Promise<void> {
     },
     listCredentialVars(config.value.generator, config.value.contextSources),
   );
+  const appClient = createAppClient(githubConfig.value);
   const generateDeps: Mutable<GenerateTaskDeps> = {
     handle,
     generator: guardGeneratorOutput(generator.value, outputSecrets),
-    github: createGitHubPort(
-      createAppGitHubBinders(createAppClient(githubConfig.value)),
-      urlBoxDeps,
-    ),
+    github: createGitHubPort(createAppGitHubBinders(appClient), urlBoxDeps),
     publicBaseUrl: config.value.publicBaseUrl,
     translate: createI18n().t,
     spend: config.value.spend,
@@ -277,6 +279,12 @@ async function main(): Promise<void> {
     handle,
     log: logger,
   });
+  const reconcileWebhookDeliveries = createReconcileWebhookDeliveriesTask({
+    listDeliveries: (cursor) => listHookDeliveries(appClient, cursor),
+    redeliver: (deliveryId) => redeliverHookDelivery(appClient, deliveryId),
+    log: logger,
+    now: () => new Date(),
+  });
   const sweepGenerationParts = createSweepGenerationPartsTask({
     handle,
     log: logger,
@@ -313,6 +321,7 @@ async function main(): Promise<void> {
       sweepPullRequests: () => sweepPullRequests(),
       sweepWebhookDeliveries: () => sweepWebhookDeliveries(),
       sweepGenerationParts: () => sweepGenerationParts(),
+      reconcileWebhookDeliveries: () => reconcileWebhookDeliveries(),
     }),
     // Unset retention → a retention job still runs and deletes nothing.
     crontab: [
@@ -321,6 +330,7 @@ async function main(): Promise<void> {
       SWEEP_PULL_REQUESTS_CRONTAB,
       SWEEP_WEBHOOK_DELIVERIES_CRONTAB,
       SWEEP_GENERATION_PARTS_CRONTAB,
+      RECONCILE_WEBHOOK_DELIVERIES_CRONTAB,
     ].join("\n"),
     // graphile's lifecycle logs flow through the logging boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),

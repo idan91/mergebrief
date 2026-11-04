@@ -1,6 +1,7 @@
 import type { Task, TaskList } from "graphile-worker";
 import { QueueTasks } from "types/jobs";
 import { traceJob } from "./task/job-span";
+import { RECONCILE_WEBHOOK_DELIVERIES_TASK } from "./task/reconcile-webhook-deliveries/consts";
 import { SWEEP_AUDIT_TASK } from "./task/sweep-audit";
 import { SWEEP_GENERATION_PARTS_TASK } from "./task/sweep-generation-parts";
 import { SWEEP_PULL_REQUESTS_TASK } from "./task/sweep-pull-requests";
@@ -16,6 +17,7 @@ export interface WorkerTasks {
   readonly sweepPullRequests: Task;
   readonly sweepWebhookDeliveries: Task;
   readonly sweepGenerationParts: Task;
+  readonly reconcileWebhookDeliveries: Task;
 }
 
 /** The large pool's tasks: the same runs, told their pool. */
@@ -59,6 +61,10 @@ export function buildTaskList(tasks: WorkerTasks): TaskList {
     [SWEEP_GENERATION_PARTS_TASK]: traceJob(
       SWEEP_GENERATION_PARTS_TASK,
       tasks.sweepGenerationParts,
+    ),
+    [RECONCILE_WEBHOOK_DELIVERIES_TASK]: traceJob(
+      RECONCILE_WEBHOOK_DELIVERIES_TASK,
+      tasks.reconcileWebhookDeliveries,
     ),
   };
 }

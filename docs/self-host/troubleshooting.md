@@ -205,8 +205,12 @@ sustained rate after a rotation means one side did not move
 | 500 | An unexpected failure; the api logs `webhook.dispatch.fail` at `error`. | Read that line, then redeliver. |
 | 502 | An uninstall or removed-repositories event GitHub could not confirm in time. Nothing was purged. | Redeliver. |
 
-GitHub never retries a failed delivery on its own; redeliver from the App's
-**Advanced** tab. GitHub also refuses a `localhost` or private webhook URL at
+GitHub never retries a failed delivery on its own, so the worker asks it to: every
+15 minutes it resends what failed in the last three days, waiting longer after each
+attempt and stopping after five. A 400 or 413 is never resent, nor is a revoked
+authorization, and a push or review stays back once its installation had a later
+uninstall or removed repositories. You can also redeliver from the App's **Advanced**
+tab. GitHub also refuses a `localhost` or private webhook URL at
 registration ([github-app.md](./github-app.md#webhook)).
 
 ## No brief appears
