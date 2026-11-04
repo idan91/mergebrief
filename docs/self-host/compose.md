@@ -368,7 +368,7 @@ health-endpoint semantics, and Grafana/Datadog/CloudWatch recipes live in
 [`observability.md`](./observability.md).
 
 ```sh
-docker compose ps                     # api + web healthy, worker running
+docker compose ps -a                  # api + web healthy, worker running
 docker compose logs -f worker        # job pickup, generation progress
 docker compose exec postgres \
   sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \

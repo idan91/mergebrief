@@ -703,7 +703,7 @@ all; it is a model-quality property. If you see either persistently,
 the fix is a stronger `model:`, not configuration.
 
 Webhooks answering 200 but no briefs appearing? Check the worker:
-`docker compose ps`. A worker shown `Exited (0)` either refused boot on a
+`docker compose ps -a`. A worker shown `Exited (0)` either refused boot on a
 config error or was stopped gracefully (e.g. a host reboot); the last
 line of `docker compose logs worker` tells you which: a refusal names the
 config problem (a harness provider reaching the compose worker lands

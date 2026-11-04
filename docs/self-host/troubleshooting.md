@@ -5,9 +5,10 @@ status you will see, so you can confirm the cause before you change anything.
 
 Three habits apply to every fix below:
 
-- **Read the last log line first.** `docker compose ps` shows what is down,
-  and `docker compose logs <service>` shows why. A process that refuses boot
-  names the variable and the reason, never the value.
+- **Read the last log line first.** `docker compose ps -a` shows what is down
+  (without `-a` a stopped container is not listed), and
+  `docker compose logs <service>` shows why. A process that refuses boot names
+  the variable and the reason, never the value.
 - **Apply `.env` edits with `docker compose up -d`.** It recreates the
   services with the new environment; `docker compose restart` keeps the old
   one.
@@ -54,7 +55,7 @@ Three habits apply to every fix below:
 `api` and `worker` exit 0 on a configuration error, so compose's
 `restart: on-failure` leaves them down instead of restarting into the same
 error. A transient fault, such as a Postgres boot race, exits 1 and restarts.
-The `worker` has no HTTP surface, so `docker compose ps` showing
+The `worker` has no HTTP surface, so `docker compose ps -a` showing
 `Exited (0)` is the only sign, and webhooks keep answering 200 while no brief
 appears.
 
@@ -197,7 +198,7 @@ registration ([github-app.md](./github-app.md#webhook)).
 
 | You see | Cause | Fix |
 | --- | --- | --- |
-| `docker compose ps` shows the worker `Exited (0)` | The worker refused boot or was stopped. | [A service exits with code 0](#a-service-exits-with-code-0). |
+| `docker compose ps -a` shows the worker `Exited (0)` | The worker refused boot or was stopped. | [A service exits with code 0](#a-service-exits-with-code-0). |
 | The pull request shows it is awaiting a trigger | Its author is not on the repository's team. | Someone with push access starts the first brief ([github-app.md](./github-app.md#who-triggers-a-brief)). |
 | A draft gets no brief | The instance config sets `drafts.generate: off`. | Mark it ready, or change the policy ([repo-config.md](./repo-config.md#related-instance-block-drafts-operator-side)). |
 | The brief view says the daily generation cap was reached; the worker logs `spend.cap.trip` | The instance hit `spend.maxGenerationsPerDay`. | Raise the cap, or wait for 00:00 UTC and the next push ([generators.md](./generators.md#daily-generation-cap)). |

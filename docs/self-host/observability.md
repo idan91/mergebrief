@@ -252,7 +252,7 @@ for.
 The **worker has no HTTP surface** by design (cohort norm): its liveness is
 the process itself: compose runs it with `restart: on-failure`, so
 transient crashes restart while a config error exits 0 and **stays down**:
-look for `Exited (0)` in `docker compose ps` and the reason in
+look for `Exited (0)` in `docker compose ps -a` and the reason in
 the last line of `docker compose logs worker`. The queue-level signal is
 `job.retries.exhausted`.
 
