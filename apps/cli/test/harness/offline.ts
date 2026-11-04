@@ -2,7 +2,7 @@
 // process. A refusal decided before any request proves it with an empty
 // request log; a relay test pins the request the CLI sends (method, path,
 // body) and what it prints back from the scripted answer.
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ApiErrorCodes } from "contract";
@@ -48,6 +48,10 @@ export interface OfflineRunOptions {
   readonly env?: CliDeps["env"];
   /** The config on disk; absent, one logged-in `default` profile. */
   readonly config?: CliConfig;
+  /** One profile's repo cache on disk before the run, by profile name. */
+  readonly repoCaches?: Readonly<Record<string, string>>;
+  /** Profiles whose cache file is a folder, so deleting it fails whoever runs the test. */
+  readonly undeletableRepoCaches?: readonly string[];
   /** The success-only sink `bin.ts` prints after the flush; absent, those lines go to stderr. */
   readonly successNotice?: CliDeps["successNotice"];
 }
@@ -58,6 +62,7 @@ export interface OfflineRun {
   readonly err: string[];
   readonly requests: SentRequest[];
   readonly configDir: string;
+  readonly cacheDir: string;
 }
 
 const NO_CONTENT = 204;
@@ -146,6 +151,13 @@ export async function runCliOffline(
       profiles: { default: { baseUrl: BASE_URL, token: OFFLINE_TOKEN } },
     },
   );
+  for (const [profile, body] of Object.entries(options.repoCaches ?? {})) {
+    mkdirSync(join(cacheDir, profile), { recursive: true });
+    writeFileSync(join(cacheDir, profile, "repos.json"), body);
+  }
+  for (const profile of options.undeletableRepoCaches ?? []) {
+    mkdirSync(join(cacheDir, profile, "repos.json"), { recursive: true });
+  }
   const out: string[] = [];
   const err: string[] = [];
   const requests: SentRequest[] = [];
@@ -181,7 +193,7 @@ export async function runCliOffline(
   }
 
   const code = await runCli(argv, deps);
-  return { code, out: out.join(""), err, requests, configDir };
+  return { code, out: out.join(""), err, requests, configDir, cacheDir };
 }
 
 /** A usage refusal: exit 2, empty stdout, one stderr line, nothing requested. */

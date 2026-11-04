@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { loadConfig, type CliConfig } from "../src/profile/config";
@@ -490,10 +492,25 @@ describe("auth login over an existing profile", () => {
 
     expectRefusedBeforeRequest(run, "--profile");
     expect(run.err[0]).toContain('"octo"');
-    expect(run.err[0]).toContain('"work"');
     const saved = readSavedConfig(run.configDir).profiles;
     expect(saved["octo"]?.token).toBeUndefined();
     expect(saved["work"]?.token).toBe(STORED_TOKEN);
+  });
+
+  it("refuses an owner's route when the config names no default", async () => {
+    const run = await runCliOffline(["auth", "login", "--json"], {
+      config: {
+        profiles: {
+          default: { baseUrl: BASE_URL, owners: ["octo"] },
+          work: { baseUrl: WORK_URL },
+        },
+      },
+      stdin: "mergebrief_pasted\n",
+    });
+
+    expectRefusedBeforeRequest(run, '"default"');
+    const saved = readSavedConfig(run.configDir).profiles;
+    expect(saved["default"]?.token).toBeUndefined();
   });
 
   it("lets --profile settle a route that differs from the default", async () => {
@@ -818,5 +835,158 @@ describe("auth owners", () => {
     });
 
     expect(JSON.parse(run.out)).toMatchObject({ profile: "work" });
+  });
+});
+
+describe("MERGEBRIEF_TOKEN when the clone's owner routes away from the default", () => {
+  const ENV_TOKEN = "mergebrief_from_env";
+  const ROUTED_AWAY: CliConfig = {
+    defaultProfile: "work",
+    profiles: {
+      work: { baseUrl: WORK_URL },
+      octo: { baseUrl: BASE_URL, owners: ["octo"], token: STORED_TOKEN },
+    },
+  };
+
+  it("refuses rather than send the token where the origin points", async () => {
+    const run = await runCliOffline(REPOS, {
+      config: ROUTED_AWAY,
+      env: { MERGEBRIEF_TOKEN: ENV_TOKEN },
+    });
+
+    expectRefusedBeforeRequest(run, "MERGEBRIEF_TOKEN");
+    expect(run.err[0]).toContain('"octo"');
+    expect(run.err[0]).not.toContain(ENV_TOKEN);
+  });
+
+  it("refuses auth status, which the skill's preflight reads as exit 2", async () => {
+    const run = await runCliOffline(["auth", "status", "--json"], {
+      config: ROUTED_AWAY,
+      env: { MERGEBRIEF_TOKEN: ENV_TOKEN },
+    });
+
+    expectRefusedBeforeRequest(run, "MERGEBRIEF_TOKEN");
+    expect(run.err[0]).not.toContain(ENV_TOKEN);
+  });
+
+  it.each([
+    ["--profile", ["--profile", "octo"], {}],
+    ["MERGEBRIEF_PROFILE", [], { MERGEBRIEF_PROFILE: "octo" }],
+  ])("%s settles which instance gets it", async (_name, flags, env) => {
+    const run = await runCliOffline([...REPOS, ...flags], {
+      config: ROUTED_AWAY,
+      env: { MERGEBRIEF_TOKEN: ENV_TOKEN, ...env },
+      routes: [OFFLINE_REPOS_ROUTE],
+    });
+
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(run.requests[0]?.headers).toMatchObject({
+      authorization: `Bearer ${ENV_TOKEN}`,
+    });
+  });
+
+  it("sends it when the owner routes to the default itself", async () => {
+    const run = await runCliOffline(REPOS, {
+      config: {
+        defaultProfile: "octo",
+        profiles: { octo: { baseUrl: BASE_URL, owners: ["octo"] } },
+      },
+      env: { MERGEBRIEF_TOKEN: ENV_TOKEN },
+      routes: [OFFLINE_REPOS_ROUTE],
+    });
+
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(run.requests[0]?.headers).toMatchObject({
+      authorization: `Bearer ${ENV_TOKEN}`,
+    });
+  });
+
+  it.each([
+    ["sets", ["auth", "owners", "octo", "acme"], ["octo", "acme"]],
+    ["clears", ["auth", "owners", "--clear"], []],
+  ])("still %s owners, which sends no token", async (_verb, argv, owners) => {
+    const run = await runCliOffline(argv, {
+      config: ROUTED_AWAY,
+      env: { MERGEBRIEF_TOKEN: ENV_TOKEN },
+    });
+
+    expect(run.err).toEqual([]);
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(run.requests).toEqual([]);
+    const saved = readSavedConfig(run.configDir).profiles["octo"];
+    expect(saved?.owners).toEqual(owners);
+    expect(saved?.token).toBe(STORED_TOKEN);
+  });
+
+  it("still routes a stored token by owner", async () => {
+    const run = await runCliOffline(REPOS, {
+      config: ROUTED_AWAY,
+      routes: [OFFLINE_REPOS_ROUTE],
+    });
+
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(run.requests[0]?.headers).toMatchObject({
+      authorization: `Bearer ${STORED_TOKEN}`,
+    });
+  });
+});
+
+describe("the repo cache across an auth login", () => {
+  const STALE_CACHE = JSON.stringify({
+    repos: [{ repoId: "1", fullName: "octo/hello" }],
+  });
+
+  function hasRepoCache(cacheDir: string, profile: string): boolean {
+    return existsSync(join(cacheDir, profile, "repos.json"));
+  }
+
+  it("drops the old instance's list when the origin changes", async () => {
+    const run = await runCliOffline(
+      ["auth", "login", "--profile", "work", "--base-url", BASE_URL, "--json"],
+      {
+        config: TWO_PROFILES,
+        stdin: "mergebrief_pasted\n",
+        routes: [OFFLINE_VERSION_ROUTE],
+        repoCaches: { work: STALE_CACHE, default: STALE_CACHE },
+      },
+    );
+
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(hasRepoCache(run.cacheDir, "work")).toBe(false);
+    expect(hasRepoCache(run.cacheDir, "default")).toBe(true);
+  });
+
+  it("stores nothing and says why when the old list can't be deleted", async () => {
+    const run = await runCliOffline(
+      ["auth", "login", "--profile", "work", "--base-url", BASE_URL, "--json"],
+      {
+        config: TWO_PROFILES,
+        stdin: "mergebrief_pasted\n",
+        undeletableRepoCaches: ["work"],
+      },
+    );
+
+    expect(run.code).toBe(ExitCodes.GENERIC);
+    expect(run.out).toBe("");
+    expect(run.err).toHaveLength(1);
+    expect(run.err[0]).toContain("repos.json");
+    const saved = readSavedConfig(run.configDir).profiles["work"];
+    expect(saved?.baseUrl).toBe(WORK_URL);
+    expect(saved?.token).toBeUndefined();
+  });
+
+  it("keeps the list on the same origin", async () => {
+    const run = await runCliOffline(
+      ["auth", "login", "--profile", "default", "--json"],
+      {
+        config: TWO_PROFILES,
+        stdin: "mergebrief_pasted\n",
+        routes: [OFFLINE_VERSION_ROUTE],
+        repoCaches: { default: STALE_CACHE },
+      },
+    );
+
+    expect(run.code).toBe(ExitCodes.OK);
+    expect(hasRepoCache(run.cacheDir, "default")).toBe(true);
   });
 });

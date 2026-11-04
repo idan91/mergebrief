@@ -141,7 +141,9 @@ Resolution order per invocation: `--profile` / `MERGEBRIEF_PROFILE` → an
 `owners:` match on the current repo's origin owner → the default profile (the
 first one you logged into, until you change it). `MERGEBRIEF_TOKEN` overrides
 the resolved profile's stored token, handy in CI where the token lives in a
-secret store, not on disk.
+secret store, not on disk. A clone's origin must not choose where that token
+goes, so when its owner routes away from the default profile a command that sends
+a request refuses until `--profile` or `MERGEBRIEF_PROFILE` names the instance.
 
 ```sh
 mergebrief auth profiles                   # names, base URLs, owners, the default

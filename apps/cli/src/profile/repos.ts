@@ -6,7 +6,7 @@
 //   `--refresh`           → bypass the cache outright
 // Not-found AFTER a refresh is the DISTINCT not-found exit with an honest
 // error naming the profile, never a guess, never a prompt.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   buildOperationPath,
@@ -29,8 +29,15 @@ export interface RepoCacheDeps {
   readonly otherProfileNames?: readonly string[];
 }
 
-function cachePath(deps: RepoCacheDeps): string {
+function cachePath(
+  deps: Pick<RepoCacheDeps, "cacheDir" | "profileName">,
+): string {
   return join(deps.cacheDir, deps.profileName, "repos.json");
+}
+
+/** A profile moved to another instance: its list named the old one's repos. */
+export function clearRepoCache(cacheDir: string, profileName: string): void {
+  rmSync(cachePath({ cacheDir, profileName }), { force: true });
 }
 
 /** A cache read keeps the RAW disk bytes alongside the parsed shape: the

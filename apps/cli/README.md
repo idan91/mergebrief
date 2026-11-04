@@ -348,7 +348,9 @@ failure. Agents run this before driving a workflow.
 
 `auth login` reads the token from stdin (paste prompt on a TTY), stores it
 per profile, and verifies it immediately; its output is the `auth status`
-shape. `auth status` is three-level: config (profile, base URL, token
+shape. With no `--profile` or `MERGEBRIEF_PROFILE` it writes to the default
+profile, and refuses when the clone's owner routes to a different one, so a
+clone's origin can't choose where a pasted token goes. `auth status` is three-level: config (profile, base URL, token
 present), the CLI's own version, and server (reachable, authenticated,
 **server version** (the API changelog is keyed to it), plus the newest
 release the server knows of, when its update check has an answer). Dead
@@ -361,7 +363,9 @@ without special-casing failures.
 token, optional `owners: ["acme"]` mapping and extra static `headers` (the
 IdP escape hatch). Resolution order: `--profile` / `MERGEBRIEF_PROFILE` →
 `owners:` match on the git-remote owner → the default profile.
-`MERGEBRIEF_TOKEN` overrides the resolved profile's stored token.
+`MERGEBRIEF_TOKEN` overrides the resolved profile's stored token, and a command
+that sends a request refuses it when the owner match routes away from the default
+profile, until `--profile` or `MERGEBRIEF_PROFILE` names the instance.
 
 Three commands manage them without opening the file, and none makes a request:
 
@@ -383,9 +387,9 @@ see. A status that shows this instance answered, such as a 409, doesn't. `auth
 status` prints the same names beside a failed probe on a terminal; its JSON stays
 the documented shape, so a script reads them from `auth profiles`.
 `auth login --base-url` that moves a profile to another origin drops its stored
-headers and owners, since those belong to the old instance. `auth login` refuses
-a profile name it couldn't store: `__proto__`, `.`, `..`, an empty name, or one
-with a path separator or a control character.
+headers, owners and cached repo list, since those belong to the old instance.
+`auth login` refuses a profile name it couldn't store: `__proto__`, `.`, `..`, an
+empty name, or one with a path separator or a control character.
 
 Deploy-side setup (IdP `/api/*` exemption, minting walkthrough):
 [`docs/self-host/cli.md`](../../docs/self-host/cli.md).

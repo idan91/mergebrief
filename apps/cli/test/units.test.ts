@@ -105,7 +105,8 @@ describe("profile resolution order", () => {
     const resolved = resolveProfile({
       config,
       env: { MERGEBRIEF_TOKEN: "mergebrief_override" },
-      gitRemoteOwner: "octo",
+      flagProfile: "oss",
+      gitRemoteOwner: "acme",
     });
     expect(resolved.name).toBe("oss");
     expect(resolved.token).toBe("mergebrief_override");

@@ -7,7 +7,7 @@ import {
 } from "../../client";
 import { CliError, ExitCodes } from "../../exit";
 import {
-  findOwnerProfileName,
+  findRoutedAwayProfileName,
   loadConfigOrRefuse,
   readDefaultProfileName,
   readHeldProfile,
@@ -16,7 +16,11 @@ import {
   type Profile,
   type ResolvedProfile,
 } from "../../profile/config";
-import { loadRepos, type RepoCacheDeps } from "../../profile/repos";
+import {
+  clearRepoCache,
+  loadRepos,
+  type RepoCacheDeps,
+} from "../../profile/repos";
 import type { CliDeps, GlobalOptions } from "../../types";
 import { isRecord } from "../../utils";
 import { formatSemver, parseSemver } from "../../version";
@@ -181,16 +185,19 @@ function resolveLoginProfileName(
   }
 
   const owner = readGitRemoteOwner(deps);
-  const routed =
-    owner === undefined ? undefined : findOwnerProfileName(config, owner);
-  const defaultName = readDefaultProfileName(config) ?? "default";
-  if (routed !== undefined && routed !== defaultName) {
+  const routedAway =
+    owner === undefined ? undefined : findRoutedAwayProfileName(config, owner);
+  if (routedAway !== undefined) {
     throw new CliError(
       ExitCodes.USAGE,
-      `this clone's owner routes to "${routed}" but the default profile is "${defaultName}"; name the one this token is for with --profile`,
+      `this clone's owner routes to "${routedAway}", not the default profile; name the one this token is for with --profile`,
     );
   }
-  return defaultName;
+  return readDefaultProfileName(config) ?? "default";
+}
+
+function movesOrigin(existing: Profile, baseUrl: string): boolean {
+  return new URL(existing.baseUrl).origin !== new URL(baseUrl).origin;
 }
 
 /** Headers and owners belong to an instance, so neither follows a profile to another origin. */
@@ -199,12 +206,10 @@ function shapeLoginProfile(
   baseUrl: string,
   token: string,
 ): Profile {
-  if (existing === undefined) {
+  if (existing === undefined || movesOrigin(existing, baseUrl)) {
     return { baseUrl, token };
   }
-  const movesOrigin =
-    new URL(existing.baseUrl).origin !== new URL(baseUrl).origin;
-  return movesOrigin ? { baseUrl, token } : { ...existing, baseUrl, token };
+  return { ...existing, baseUrl, token };
 }
 
 /**
@@ -277,6 +282,9 @@ export async function runAuthLogin(
   const baseUrl = readLoginBaseUrl(profileName, existing, options.baseUrl);
   const token = await readPastedToken(deps, baseUrl);
 
+  if (existing !== undefined && movesOrigin(existing, baseUrl)) {
+    clearRepoCache(deps.cacheDir, profileName);
+  }
   const next = {
     defaultProfile: config.defaultProfile ?? profileName,
     profiles: {

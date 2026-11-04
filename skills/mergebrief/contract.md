@@ -40,7 +40,7 @@ none of them appear in `--help`.
 | ---- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
 | 0    | Success, including modeled unavailability             | Parse stdout if any, continue                                                  |
 | 1    | Network, 5xx, version skew                            | Retry later or surface; check `auth status`                                    |
-| 2    | Usage error, client-side                              | Fix the invocation; never resend as-is                                         |
+| 2    | Usage error, client-side                              | Fix the invocation; never resend as-is. On `auth status`, report and stop      |
 | 3    | Auth (401)                                            | Token is dead; the user re-mints at `<baseUrl>/settings`                       |
 | 4    | Not found                                             | Re-derive ids from `repos`/`pr`/`groups`                                       |
 | 5    | Server rejected the payload                           | Fix and retry only what you can change; 403s and policy refusals are permanent |

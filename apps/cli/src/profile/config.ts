@@ -4,8 +4,8 @@
 //   explicit `--profile` flag / MERGEBRIEF_PROFILE env
 //     → `owners:` match on the git-remote owner
 //       → the default profile.
-// `MERGEBRIEF_TOKEN` overrides the STORED TOKEN of whatever profile resolved
-// it never changes which profile resolves.
+// `MERGEBRIEF_TOKEN` overrides the STORED TOKEN of the resolved profile, never picks
+// one, and is refused where only an owner match moved a request off the default.
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod/v4";
@@ -91,6 +91,15 @@ export interface ResolvedProfile {
   readonly otherProfileNames: readonly string[];
 }
 
+export interface StoredProfile {
+  readonly name: string;
+  readonly profile: Profile;
+  /** Only an owner match chose it, and it isn't the default. */
+  readonly routesAway: boolean;
+  /** Names only: a failure may print them, so never a profile's other fields. */
+  readonly otherProfileNames: readonly string[];
+}
+
 export interface ResolveProfileInput {
   readonly config: CliConfig;
   readonly env: ConfigEnv;
@@ -122,6 +131,15 @@ export function findOwnerProfileName(
   return routed?.[0];
 }
 
+/** The profile an owner routes to when no default answers the same: the one name a pasted or env token must not follow. */
+export function findRoutedAwayProfileName(
+  config: CliConfig,
+  owner: string,
+): string | undefined {
+  const routed = findOwnerProfileName(config, owner);
+  return routed === readDefaultProfileName(config) ? undefined : routed;
+}
+
 /** Own keys only: `constructor` must not resolve through the object's prototype. */
 export function readHeldProfile(
   config: CliConfig,
@@ -134,14 +152,17 @@ export function readHeldProfile(
 }
 
 /**
- * The locked resolution order. A named profile that does not exist is a hard
- * USAGE error, never a silent fallback.
+ * The locked resolution order, for a command that sends no token. A named
+ * profile that does not exist is a hard USAGE error, never a silent fallback.
  */
-export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
+export function resolveStoredProfile(
+  input: ResolveProfileInput,
+): StoredProfile {
   const { config, env } = input;
 
   const explicit = input.flagProfile ?? env["MERGEBRIEF_PROFILE"];
   let name: string | undefined;
+  let routesAway = false;
   if (explicit !== undefined) {
     if (readHeldProfile(config, explicit) === undefined) {
       throw new CliError(
@@ -152,6 +173,8 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
     name = explicit;
   } else if (input.gitRemoteOwner !== undefined) {
     name = findOwnerProfileName(config, input.gitRemoteOwner);
+    routesAway =
+      findRoutedAwayProfileName(config, input.gitRemoteOwner) !== undefined;
   }
   if (name === undefined) {
     name = readDefaultProfileName(config);
@@ -166,11 +189,29 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
   return {
     name,
     profile,
-    token: env["MERGEBRIEF_TOKEN"] ?? profile.token,
+    routesAway,
     otherProfileNames: Object.keys(config.profiles).filter(
       (candidate) => candidate !== name,
     ),
   };
+}
+
+/**
+ * The stored profile with the token a request sends. A clone's origin must not
+ * choose where the env token goes: a stored token stays with its own instance,
+ * but this one would follow the route.
+ */
+export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
+  const { routesAway, ...stored } = resolveStoredProfile(input);
+  const envToken = input.env["MERGEBRIEF_TOKEN"];
+  const originPicksInstance = routesAway && envToken !== undefined;
+  if (originPicksInstance) {
+    throw new CliError(
+      ExitCodes.USAGE,
+      `MERGEBRIEF_TOKEN is set and this clone's owner routes to "${stored.name}", not the default profile; name the instance it is for with --profile or MERGEBRIEF_PROFILE`,
+    );
+  }
+  return { ...stored, token: envToken ?? stored.profile.token };
 }
 
 /** Parse the owner (org/user) out of a git origin remote URL, if possible. */

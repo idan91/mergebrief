@@ -73,7 +73,11 @@ Never suggest a bare `auth login`: it writes over the default profile.
    `server.reachable:false`, which still exits 0: report the `profile` and
    `baseUrl` it printed, run `mergebrief auth profiles --json`, and let the user
    pick from the other profiles for `--profile <name>`. Never open the config
-   file to look: it holds the tokens.
+   file to look: it holds the tokens. Exit 2 stops the run too, and is not yours
+   to fix: `MERGEBRIEF_TOKEN` may be set in a clone whose owner routes away from
+   the default profile, and adding `--profile` yourself would choose where that
+   token goes. Report stderr verbatim. Only an instance the user's own message
+   named lets you pass `--profile`.
 2. `mergebrief capabilities --json --require read-pull read-brief
 read-brief-context read-review-session read-diff create-draft-comment
 update-draft-comment mark-chunk-read reclassify-group set-review-outcome
@@ -148,8 +152,8 @@ something in the payload you can change: fix it and resend. An exit 5
 carrying HTTP 403 is a credential fact, a human-only operation or a token
 below the scope the operation needs ([contract.md](contract.md)); a policy
 refusal, like GitHub rejecting APPROVE on your own PR, is just as
-permanent. Surface either and stop. Exit 2 is your invocation. Fix it, never resend
-as-is. Exit 3 and exit 6 end the run: report and stop. Exit 7 is a rate
+permanent. Surface either and stop. Past preflight, exit 2 is your invocation. Fix
+it, never resend as-is. Exit 3 and exit 6 end the run: report and stop. Exit 7 is a rate
 limit: wait the `retry after <n>s` stderr names, then resend once. A 409 on a session
 write means the PR moved under you. Re-read `mergebrief pr <n>`, then the
 new session, and re-target the new span.

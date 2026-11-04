@@ -8,7 +8,7 @@ import {
   type CliConfig,
 } from "../../profile/config";
 import type { CliDeps, GlobalOptions } from "../../types";
-import { resolveFromDisk } from "../target";
+import { resolveStoredFromDisk } from "../target";
 import { GITHUB_OWNER_SLUG } from "./consts";
 import type { AuthProfilesBody, ProfileSummary } from "./types";
 
@@ -100,7 +100,7 @@ export function runAuthOwners(
   }
 
   const config = loadConfigOrRefuse(deps.configDir);
-  const { name, profile } = resolveFromDisk(deps, global.profile);
+  const { name, profile } = resolveStoredFromDisk(deps, global.profile);
   assertOwnersFree(config, owners, name);
 
   saveConfig(deps.configDir, {

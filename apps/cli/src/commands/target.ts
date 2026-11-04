@@ -5,7 +5,10 @@ import {
   loadConfigOrRefuse,
   ownerFromOriginUrl,
   resolveProfile,
+  resolveStoredProfile,
   type ResolvedProfile,
+  type ResolveProfileInput,
+  type StoredProfile,
 } from "../profile/config";
 import { resolveRepoId } from "../profile/repos";
 import { recordServerVersion } from "../version";
@@ -52,16 +55,31 @@ export function readGitRemoteOwner(deps: CliDeps): string | undefined {
   return originUrl === undefined ? undefined : ownerFromOriginUrl(originUrl);
 }
 
-export function resolveFromDisk(
+function readResolveInput(
   deps: CliDeps,
   flagProfile: string | undefined,
-): ResolvedProfile {
-  return resolveProfile({
+): ResolveProfileInput {
+  return {
     config: loadConfigOrRefuse(deps.configDir),
     env: deps.env,
     flagProfile,
     gitRemoteOwner: readGitRemoteOwner(deps),
-  });
+  };
+}
+
+export function resolveFromDisk(
+  deps: CliDeps,
+  flagProfile: string | undefined,
+): ResolvedProfile {
+  return resolveProfile(readResolveInput(deps, flagProfile));
+}
+
+/** For a command that sends no token, so the env token's route never refuses it. */
+export function resolveStoredFromDisk(
+  deps: CliDeps,
+  flagProfile: string | undefined,
+): StoredProfile {
+  return resolveStoredProfile(readResolveInput(deps, flagProfile));
 }
 
 export function readIo(deps: CliDeps, global: GlobalOptions): CommandIo {
