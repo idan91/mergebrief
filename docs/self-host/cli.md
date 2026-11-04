@@ -4,6 +4,37 @@ How to get the CLI (and the agents it drives) talking to your deployment.
 Assumes the compose stack ([compose.md](compose.md)) and the GitHub App
 ([github-app.md](github-app.md)) are already up.
 
+## Install
+
+The CLI needs Node 24, or 26 and later:
+
+```sh
+npm i -g mergebrief
+mergebrief --version
+```
+
+To run it without installing, use `npx mergebrief` in place of `mergebrief`.
+Agents and CI usually do. [`npx` or a global install](#npx-or-a-global-install)
+covers how the two differ on versions.
+
+Don't run `npx` inside a checkout of code you don't trust, such as a pull
+request's head in CI. It prefers a `mergebrief` bin from the local project and
+reads the project's `.npmrc`, so that code can choose what runs. Install the CLI
+first, or run `npx` from another directory and name the repository with `-R`
+and the instance with `--profile`.
+
+If the shell answers `command not found: mergebrief`, npm's global bin directory
+is not on `PATH`. On macOS or Linux, add this line to your shell's startup file
+and open a new shell:
+
+```sh
+export PATH="$(npm prefix -g)/bin:$PATH"
+```
+
+If you installed with `pnpm add -g mergebrief`, run `pnpm setup` and open a new
+shell instead. Add `--force` if it reports that your shell's startup file already
+has a pnpm section, which an older pnpm leaves.
+
 ## What the CLI needs from your deployment
 
 The CLI is a thin client over the public HTTP API (`/api/*`) with an opaque
@@ -152,7 +183,8 @@ The update line and the CLI-behind warning suggest `npx mergebrief@x.y.z`
 when the CLI runs under `npx` (npm sets `npm_command=exec`), and
 `npm i -g mergebrief@x.y.z` otherwise. The server-behind warning always
 suggests `npx mergebrief@<server version>`, which runs a matching CLI
-without touching a global install.
+without touching a global install. Run any suggested `npx` command from outside
+a checkout you don't trust, for the reason [Install](#install) gives.
 
 ### How the CLI knows
 

@@ -247,7 +247,8 @@ Judge each by its exit code, not its output.
   code.
 - **`pnpm -C apps/cli build`** and **`pnpm -C apps/cli docs:check`** when
   you touch the CLI. `pnpm -C apps/cli docs:appendix` rewrites the appendix
-  `docs:check` compares.
+  `docs:check` compares. `pnpm --dir apps/cli link-dev` puts your build on
+  `PATH` as `mergebrief`.
 - **Generated files** are committed, and CI fails on any drift. A change
   under `apps/web/src/routes/` regenerates `routeTree.gen.ts` through
   `pnpm -C apps/web build`; a change under `packages/persistence/src/schema/`

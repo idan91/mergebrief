@@ -4,30 +4,36 @@ The MergeBrief CLI: the Brief review loop for humans and AI agents, over
 your deployment's HTTP API. One binary-shaped npm package; the web app stays
 the interactive surface.
 
-Published to npm by the release workflow as `mergebrief@X.Y.Z`; this
-monorepo dogfoods the dev build via `pnpm --dir apps/cli link-dev`, which needs
-pnpm's global bin directory on `PATH`: if it stops with `The configured global
-bin directory ... is not in PATH`, run `pnpm setup`, open a new shell and run it
-again. Humans: `npm i -g mergebrief`.
-Agents/CI: `npx mergebrief`. Once released, always-latest is safe: the
-output contract is additive within a major (see below). Pinning is supported
-but never required for compatibility.
+The release workflow publishes it to npm as `mergebrief@X.Y.Z`. Once released,
+always-latest is safe: the output contract is additive within a major (see
+below). Pinning is supported but never required for compatibility.
 
 ## Quickstart
 
-1. **Mint a token** in the web app: sign in, open `/settings`, name the
+1. **Install** on Node 24 or 26 and later. Humans:
+
+   ```sh
+   npm i -g mergebrief
+   mergebrief --version
+   ```
+
+   Agents and CI: run `npx mergebrief` in place of `mergebrief`, but not inside
+   a checkout of untrusted code, such as a pull request's head. If the shell
+   answers `command not found`, npm's global bin directory is not on `PATH`.
+   [Install](../../docs/self-host/cli.md#install) covers both.
+2. **Mint a token** in the web app: sign in, open `/settings`, name the
    token, pick its scope, and choose an expiry.
    The token is shown **exactly once**; treat it like a password. The CLI
    stores it **in plaintext** in a `chmod 600` file under
    `~/.config/mergebrief/`; anyone with the token can act as you, up to its
    scope, on every repository you reach.
-2. **Log in** (paste, or pipe the token on stdin):
+3. **Log in** (paste, or pipe the token on stdin):
 
    ```sh
    mergebrief auth login --base-url https://mergebrief.your-org.example
    ```
 
-3. **Check the wiring**: config level and server level in one shape:
+4. **Check the wiring**: config level and server level in one shape:
 
    ```sh
    mergebrief auth status --json
@@ -37,7 +43,7 @@ but never required for compatibility.
    {"profile":"default","baseUrl":"https://mergebrief.your-org.example","tokenConfigured":true,"cli":{"version":"1.2.0"},"server":{"reachable":true,"authenticated":true,"version":"1.4.0","latest":"1.6.0","releaseNotesUrl":"https://github.com/Idan91/mergebrief/releases/tag/v1.6.0","checkedAt":"2026-10-03T10:00:00.000Z","breaking":false,"security":false}}
    ```
 
-4. **First read**: your Inbox, every installation you reach (no repo
+5. **First read**: your Inbox, every installation you reach (no repo
    targeting needed):
 
    ```sh
@@ -54,6 +60,17 @@ workflow, the authority policy, and the wire contract:
 ```sh
 npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
 ```
+
+## Working on the CLI
+
+`pnpm --dir apps/cli link-dev` builds this checkout and puts it on `PATH` as
+`mergebrief`, through pnpm's global packages. It runs whatever was last built,
+so rebuild after switching branches, and don't build it from a pull request you
+are reviewing: the linked command then runs that code with your token. If pnpm
+reports that the global bin
+directory is not in `PATH`, or that it can't find one, run `pnpm setup`, open a
+new shell and run it again. Add `--force` to `pnpm setup` if it reports that your
+shell's startup file already has a pnpm section, which an older pnpm leaves.
 
 ## The output contract (what scripts may rely on)
 

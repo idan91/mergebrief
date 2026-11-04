@@ -171,6 +171,10 @@ every brief: [`docs/self-host/repo-config.md`](./docs/self-host/repo-config.md).
 
 ## The CLI (humans + agents)
 
+Install it with `npm i -g mergebrief`, or run `npx mergebrief` anywhere but inside a
+checkout of untrusted code. If the shell answers `command not found`,
+[Install](docs/self-host/cli.md#install) has the fix.
+
 The same review loop, scriptable: **`mergebrief`** ([apps/cli](apps/cli/README.md))
 drives `pr` → `groups` → `diff --group` → `submit` over your deployment's API with an
 opaque token minted in the web app. `--json` output is a stability-promised contract

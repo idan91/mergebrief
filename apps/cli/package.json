@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "build": "tsup",
-    "link-dev": "pnpm build && pnpm link --global",
+    "link-dev": "pnpm build && pnpm add -g link:.",
     "docs:appendix": "tsx scripts/embed-help.ts",
     "docs:check": "tsx scripts/embed-help.ts --check",
     "map:check": "tsx scripts/check-operations-map.ts",
