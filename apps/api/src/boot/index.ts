@@ -92,6 +92,7 @@ export function loadBootConfig(
     draftPolicy: instancePolicy.value.draftPolicy,
     spendPolicy: instancePolicy.value.spendPolicy,
     operatorIds: instancePolicy.value.operatorIds,
+    allowedAccess: instancePolicy.value.allowedAccess,
   };
 }
 

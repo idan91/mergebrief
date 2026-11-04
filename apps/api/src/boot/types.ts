@@ -26,6 +26,7 @@ export interface BootConfig {
   readonly draftPolicy: DraftPolicy;
   readonly spendPolicy: LoadedInstancePolicy["spendPolicy"];
   readonly operatorIds: LoadedInstancePolicy["operatorIds"];
+  readonly allowedAccess: LoadedInstancePolicy["allowedAccess"];
 }
 
 /** The two values the migrate entry loads: nothing about GitHub, sessions

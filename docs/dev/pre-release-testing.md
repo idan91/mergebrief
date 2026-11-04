@@ -472,7 +472,8 @@ against an in-memory collector`.
 ### Local dev loop (quick confidence)
 
 - [ ] `pnpm app:host` (Postgres in compose; api, worker and web on the
-      host), paste a public PR URL, Generate, the brief renders; the same
+      host), with your id under `operators` in the config file, paste a
+      public PR URL, Generate, the brief renders; the same
       head reuses the cached artifact (no second spend).
       `manual-forever: generates against a live model; real spend.`
 - [ ] `pnpm -C tools/categorizer categorize <pr-url>` and `pnpm -C

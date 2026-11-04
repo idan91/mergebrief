@@ -127,3 +127,9 @@ export interface GateRequest {
 export interface OperatorRungRequest extends GateRequest {
   readonly error: GitHubCallFailure;
 }
+
+export const TokenAccessFailures = {
+  NOT_ALLOWED: "not-allowed",
+  UNAVAILABLE: "unavailable",
+} as const;
+export type TokenAccessFailure = ValueOf<typeof TokenAccessFailures>;

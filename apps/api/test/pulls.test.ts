@@ -43,6 +43,7 @@ import {
 } from "./fixtures";
 import { spyPullRequestLookups } from "./pull-request-lookups";
 import {
+  LISTED_REVIEWER_DEPS,
   UNUSED_INSTALLATION_DEPS,
   arrangeFakePullRequest,
   buildFakeAuthDeps,
@@ -194,6 +195,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
   });
 
@@ -531,6 +533,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
       operatorToken: buildOperatorToken("ghp_OPERATOR_PAT"),
     });
 
@@ -726,6 +729,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });
     const policyRes = await policyApp.request(`/api/repos/${REPO_A}/pulls/7`, {

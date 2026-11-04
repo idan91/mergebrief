@@ -3,6 +3,7 @@
 // the session that links it. No token or secret is ever logged.
 import { randomBytes } from "node:crypto";
 import {
+  deleteUserToken,
   exchangeWebFlowCode,
   fetchAuthenticatedUser,
   OAuthErrorCodes,
@@ -17,6 +18,8 @@ import {
 import { SignInFailures, type SignInFailure } from "contract";
 import type { Logger } from "logging";
 import type { Result } from "types";
+import { checkTokenAccess } from "../../../access/instance-access";
+import { TokenAccessFailures } from "../../../access/types";
 import type { AuthRouteDeps } from "../session/types";
 import { sha256Hex } from "../session/utils";
 
@@ -35,6 +38,20 @@ interface SignedInSession {
   readonly accessToken: string;
   readonly refreshToken: string;
   readonly refreshExpiresAt: Date;
+}
+
+/** A token no grant will hold has no reason to stay live at GitHub. */
+async function revokeUnusedToken(
+  oauthApp: GitHubOAuthApp,
+  accessToken: string,
+  log: Logger,
+): Promise<void> {
+  const revoked = await deleteUserToken(oauthApp, { accessToken });
+  if (!revoked.ok) {
+    log.warn("sign-in refused: GitHub did not revoke the unused token", {
+      code: revoked.error.code,
+    });
+  }
 }
 
 /** Answers the session token the cookie carries. */
@@ -60,6 +77,26 @@ export async function completeSignIn(
   if (!user.ok) {
     log.warn("sign-in failed: GitHub did not answer the user read");
     return { ok: false, error: SignInFailures.GITHUB_UNAVAILABLE };
+  }
+
+  const { accessToken } = tokens.value;
+  const { reviewerId } = user.value;
+  const allowed = await checkTokenAccess(deps, accessToken, reviewerId);
+  if (!allowed.ok) {
+    await revokeUnusedToken(oauthApp, accessToken, log);
+    if (allowed.error === TokenAccessFailures.UNAVAILABLE) {
+      return {
+        ok: false,
+        error: SignInFailures.GITHUB_UNAVAILABLE,
+      };
+    }
+    log.info("sign-in refused: the account is not allowed on this instance", {
+      reviewerId: String(reviewerId),
+    });
+    return {
+      ok: false,
+      error: SignInFailures.NOT_ALLOWED,
+    };
   }
 
   const sessionToken = randomBytes(SESSION_TOKEN_BYTES).toString("base64url");

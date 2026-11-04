@@ -34,6 +34,7 @@ import {
   createKeyProvider,
 } from "./fixtures";
 import {
+  LISTED_REVIEWER_DEPS,
   UNUSED_INSTALLATION_DEPS,
   arrangeFakeGate,
   buildFakeAuthDeps,
@@ -208,6 +209,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
   });
 
@@ -303,6 +305,59 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/regenerate", () => {
     expect(res.status).toBe(502);
     expect(await readStatus(harness)).toBe(GenerationStatuses.FAILED);
     expect(await readGenerateJobs(harness)).toHaveLength(0);
+  });
+
+  it("refuses a pusher on an account the instance does not list", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID, accountId: 7070n });
+    await seedHead(harness, TENANT, "failed");
+    const listing = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await listing.request(PATH, {
+      method: "POST",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+
+    expect(res.status).toBe(403);
+    expect(await readCode(res)).toBe("account-not-allowed");
+    expect(await readGenerateJobs(harness)).toEqual([]);
+    expect(await readStatus(harness)).toBe(GenerationStatuses.FAILED);
+  });
+
+  it("reruns for a pusher on a listed account", async () => {
+    arrangeFakeGate(fake, { repoId: REPO_ID, accountId: 9919n });
+    await seedHead(harness, TENANT, "failed");
+    const listing = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildFakeAuthDeps(kp, fake),
+      ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await listing.request(PATH, {
+      method: "POST",
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+
+    expect(res.status).toBe(202);
   });
 
   it("answers 404 on a repo in no installation", async () => {

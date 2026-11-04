@@ -12,6 +12,7 @@ import {
   type ProductRouter,
 } from "../product-operations/product-router";
 import { authRoutes } from "./auth";
+import { createInstanceAccessCheck } from "../access/instance-access";
 import { createAccessibleInstallationsResolver } from "./auth/accessible-installations";
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
@@ -69,6 +70,8 @@ export interface AppDeps {
   readonly spendPolicy?: LoadedInstancePolicy["spendPolicy"];
   /** GitHub user ids of the Instance's Operators; omitted = nobody. */
   readonly operatorIds?: LoadedInstancePolicy["operatorIds"];
+  /** Who besides Operators may use the instance; omitted = nobody. */
+  readonly allowedAccess?: LoadedInstancePolicy["allowedAccess"];
   /** Audit knobs from persistence config; omitted = private writes on. */
   readonly audit?: AuditEmitConfig;
   /**
@@ -98,13 +101,14 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
   // allowed-set caches, so one GitHub walk serves them all inside the TTL.
   const installations = createAccessibleInstallationsResolver();
   const resolver = createInstallationResolver(installations);
+  const instanceAccess = createInstanceAccessCheck(deps, installations);
   // The Inbox's own open-PR lists, viewer token only: the Brief page's stack
   // read may fill its cache through the operator PAT, and a list the viewer
   // cannot see must never place their rows.
   const inboxOpenPullsCache = createTtlCache<readonly OpenPullRequest[]>(
     INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES,
   );
-  app.route("/auth", authRoutes(deps));
+  app.route("/auth", authRoutes(deps, instanceAccess));
   const readSnapshot = (): VersionSnapshot =>
     deps.updateCheck === undefined
       ? { version: serverVersion }
@@ -114,10 +118,10 @@ export function apiRoutes(deps: AppDeps): ProductRouter<ApiRoutesEnv> {
   app.route("/version/dismiss", versionDismissRoutes(versionDeps));
   app.route("/capabilities", capabilitiesRoute(deps));
   app.route("/spend", spendRoute(deps));
-  app.route("/repos", reposRoutes(deps, resolver));
+  app.route("/repos", reposRoutes(deps, resolver, instanceAccess));
   // Session-gated only: the pasted URL's repo is outside the installation
   // model, so the engine's viewer-token fetch is the access check.
-  app.route("/generate", generateRoute(deps));
+  app.route("/generate", generateRoute(deps, instanceAccess));
   app.route(
     "/inbox",
     inboxRoutes(deps, {

@@ -3,6 +3,7 @@ import type {
   bindReviewerGitHub,
   OwnedOperatorToken,
 } from "github";
+import type { LoadedInstancePolicy } from "generators/instance-policy";
 import type { AppDatabase, AuthSessionRow, KeyProvider } from "persistence";
 import type { DraftPolicy, ValueOf, AccessLevel } from "types";
 
@@ -35,6 +36,10 @@ export interface AuthRouteDeps {
   readonly operatorToken?: OwnedOperatorToken | undefined;
   /** The App's URL name (`GITHUB_APP_SLUG`); the Inbox builds its Install link from it. */
   readonly githubAppSlug?: string | undefined;
+  /** GitHub user ids of the Instance's Operators; omitted = nobody. */
+  readonly operatorIds?: LoadedInstancePolicy["operatorIds"];
+  /** Who besides Operators may use the instance; omitted = nobody. */
+  readonly allowedAccess?: LoadedInstancePolicy["allowedAccess"];
 }
 
 // A cookie session and a Bearer token resolve into the SAME principal shape,

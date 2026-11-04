@@ -17,6 +17,10 @@ import { HttpStatuses } from "types/http";
 import { bindOperatorReader } from "../../access/operator-token";
 import { bindRequestGitHub } from "../../access/reviewer-binding";
 import { accessStampLayer, sessionLayer } from "../../access/session-layer";
+import {
+  throwInstanceAccessFailure,
+  type InstanceAccessCheck,
+} from "../../access/instance-access";
 import type { AuthzEnv } from "../../access/types";
 import { stampAuditTarget } from "../../product-operations/audit";
 import {
@@ -39,7 +43,10 @@ function parseLocator(url: string): PrLocator {
   }
 }
 
-function createGenerateBriefHandler(deps: AuthRouteDeps): Handler<AuthzEnv> {
+function createGenerateBriefHandler(
+  deps: AuthRouteDeps,
+  instanceAccess: InstanceAccessCheck,
+): Handler<AuthzEnv> {
   return async (c) => {
     const body = bodySchema.safeParse(
       await c.req.json().catch(() => undefined),
@@ -52,6 +59,11 @@ function createGenerateBriefHandler(deps: AuthRouteDeps): Handler<AuthzEnv> {
     const log = c.get("logger");
     const session = c.get("session");
     const request = bindRequestGitHub(deps, session, log);
+    const allowed = await instanceAccess.check(request);
+    if (!allowed.ok) {
+      throwInstanceAccessFailure(allowed.error);
+    }
+
     const operator = bindOperatorReader(deps, session.reviewerId);
     const generated = await generateBrief(
       { handle: deps.handle, operator, log },
@@ -69,7 +81,10 @@ function createGenerateBriefHandler(deps: AuthRouteDeps): Handler<AuthzEnv> {
   };
 }
 
-export function generateRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
+export function generateRoute(
+  deps: AuthRouteDeps,
+  instanceAccess: InstanceAccessCheck,
+): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.action(
@@ -82,7 +97,7 @@ export function generateRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       requiresStoredPullRequest: false,
     },
     "/",
-    createGenerateBriefHandler(deps),
+    createGenerateBriefHandler(deps, instanceAccess),
   );
   return app;
 }

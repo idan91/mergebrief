@@ -211,9 +211,21 @@ export function writeThrowawayGitHubKey(): string {
  * that is where they now live; the GitHub stub intercepts `api.github.com`
  * inside this process, which is what keeps the suite network-free.
  */
+/** The instance closes to everyone it omits, so the seeded viewer is listed. */
+function writeInstanceConfig(): string {
+  mkdirSync(ARTIFACTS_DIR, { recursive: true });
+  const path = resolve(ARTIFACTS_DIR, "mergebrief.config.yaml");
+  writeFileSync(
+    path,
+    `allowed:\n  users:\n    - ${String(E2E_OWNER_USER_ID)}\n`,
+  );
+  return path;
+}
+
 export function buildApiServerEnv(): Record<string, string> {
   return {
     DATABASE_URL: E2E_DATABASE_URL,
+    MERGEBRIEF_CONFIG: writeInstanceConfig(),
     SESSION_KEY_V1: E2E_SESSION_KEY,
     PUBLIC_BASE_URL: E2E_BASE_URL,
     MERGEBRIEF_API_PORT: String(E2E_API_PORT),

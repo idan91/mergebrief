@@ -253,14 +253,15 @@ the variable that holds it.
 | `generator` | worker | `provider: anthropic` | The generation backend. |
 | `drafts` | api; worker validates | `generate: on`, no extra debounce | Draft pull request policy. |
 | `spend` | worker; api reads it too | `maxGenerationsPerDay: 300` | The daily generation cap. |
-| `operators` | api; worker validates | nobody | The GitHub user ids of the instance's Operators. |
+| `operators` | api; worker validates | nobody, so nobody can sign in | The GitHub user ids of the instance's Operators. |
+| `allowed` | api; worker validates | Operators alone | Who else may sign in and start a brief. |
 | `contextSources` | worker | built-in sources only | Ticket sources that need a credential. |
 | `trackers` | worker | none: GitHub issues only | The boards every repository reads tickets from. |
 | `linkFetch` | worker | `mode: public` | Which links in a PR description the worker may fetch. |
 | `x-*` | nobody | | Any root key starting with `x-` is ignored. |
 
 Any other root key refuses boot in `worker`. `api` reads only `drafts`,
-`spend` and `operators`, so it ignores the rest of the file and needs no
+`spend`, `operators` and `allowed`, so it ignores the rest of the file and needs no
 provider key. Every block rejects keys it does not define.
 
 ### `generator`
@@ -287,7 +288,7 @@ provider key. Every block rejects keys it does not define.
 The harness providers are refused in the shipped image
 ([generators.md](./generators.md#harness-clis-are-host-process-only-in-v1-deliberately)).
 
-### `drafts`, `spend`, `operators`
+### `drafts`, `spend`, `operators`, `allowed`
 
 | Key | Default | Accepts |
 | --- | --- | --- |
@@ -295,6 +296,8 @@ The harness providers are refused in the shipped image
 | `drafts.debounceSeconds` | unset (the normal window) | A positive number of seconds: the debounce for a draft's regenerations. |
 | `spend.maxGenerationsPerDay` | `300` | A positive whole number, or `unlimited` for no cap ([Daily generation cap](./generators.md#daily-generation-cap)). |
 | `operators` | empty list | A list of up to 100 GitHub user ids, positive whole numbers, never logins. A bare `operators:` with no list refuses boot ([Operators](./generators.md#operators)). |
+| `allowed.users` | empty list | Up to 1000 GitHub user ids who may sign in and start a brief ([Who may start a brief](./generators.md#who-may-start-a-brief)). |
+| `allowed.accounts` | empty list | Up to 1000 org or personal account ids whose installations count. The block must name `users` or `accounts`; a bare `allowed:` refuses boot. |
 
 ### `contextSources`, `trackers`
 

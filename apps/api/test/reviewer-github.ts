@@ -7,6 +7,7 @@ import type {
   PullRequestInfo,
   ReviewCommentListing,
   ReviewerRepoClient,
+  UserInstallation,
 } from "github";
 import {
   CredentialKinds,
@@ -237,6 +238,14 @@ export const UNUSED_INSTALLATION_DEPS: InstallationDeps = {
   readInstallationPresence: () => failUnexpected("installation presence"),
 };
 
+/** The instance closes to everyone it omits, so a suite lists its reviewer. */
+export const LISTED_REVIEWER_DEPS = {
+  allowedAccess: {
+    users: new Set([BigInt(REVIEWER_ID)]),
+    accounts: new Set<bigint>(),
+  },
+};
+
 /** The installation binding and presence read served by `fake`. */
 export function buildFakeInstallationDeps(fake: FakeGitHub): InstallationDeps {
   return {
@@ -259,6 +268,8 @@ export interface GateGitHubOptions {
   readonly push?: boolean;
   /** The name GitHub verifies for the repo; the suites' slug by default. */
   readonly fullName?: string;
+  /** The installation's account id, which `allowed.accounts` matches. */
+  readonly accountId?: bigint;
 }
 
 export interface GateGitHub {
@@ -334,7 +345,8 @@ export function makeTokenSuccess(
 interface SignInStubOptions {
   readonly token: TokenBody;
   readonly tokenStatus?: number;
-  readonly installations?: { id: number }[];
+  readonly installations?: { id: number; accountId?: number }[];
+  readonly installationsStatus?: number;
   readonly user?: { id: number; login: string };
   readonly userStatus?: number;
 }
@@ -359,11 +371,20 @@ export function stubGitHub(opts: SignInStubOptions): ReturnType<typeof vi.fn> {
         return answerJson(opts.user ?? { id: REVIEWER_ID, login: "octocat" });
       }
       if (url.includes("/user/installations")) {
+        if (opts.installationsStatus !== undefined) {
+          return answerJson(
+            { message: "unavailable" },
+            opts.installationsStatus,
+          );
+        }
         const installations = (
           opts.installations ?? [{ id: INSTALLATION_ID }]
         ).map((installation) => ({
           id: installation.id,
-          account: { login: `org-${installation.id}` },
+          account: {
+            id: installation.accountId,
+            login: `org-${installation.id}`,
+          },
         }));
         return answerJson({
           total_count: installations.length,
@@ -455,10 +476,13 @@ export function arrangeFakeGate(
   if (options.inInstallation !== false) {
     listed.set(repoId, { fullName, viewerIsAdmin: admin });
   }
-  const installation = {
+  const installation: Mutable<UserInstallation> = {
     installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
     accountLogin: `org-${INSTALLATION_ID}`,
   };
+  if (options.accountId !== undefined) {
+    installation.accountId = options.accountId;
+  }
   fake.addInstallation(installation, listed);
   if (options.viewerStatus !== undefined && options.viewerStatus !== 200) {
     refuseViewer(fake, options.viewerStatus);

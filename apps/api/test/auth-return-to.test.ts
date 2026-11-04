@@ -7,6 +7,7 @@ import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
 import { SECRET, buildAuthDeps, createKeyProvider } from "./fixtures";
 import {
+  LISTED_REVIEWER_DEPS,
   UNUSED_INSTALLATION_DEPS,
   makeTokenSuccess,
   stubGitHub,
@@ -56,6 +57,7 @@ describe("sign-in return-to", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(createKeyProvider()),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
   });
 

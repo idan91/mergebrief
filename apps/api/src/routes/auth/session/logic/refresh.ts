@@ -5,6 +5,7 @@
 // timeout; nothing but the two seals runs between its answer and the UPDATE.
 import {
   createOAuthApp,
+  deleteUserToken,
   OAuthErrorCodes,
   refreshUserToken,
   type GitHubOAuthApp,
@@ -23,6 +24,11 @@ import {
 } from "persistence";
 import type { Logger } from "logging";
 import type { Mutable, Result } from "types";
+import {
+  checkTokenAccess,
+  namesAnyone,
+} from "../../../../access/instance-access";
+import { TokenAccessFailures } from "../../../../access/types";
 import {
   AuthChannels,
   RefreshErrorCodes,
@@ -179,6 +185,46 @@ async function confirmReferentLive(
 }
 
 /**
+ * A rotation re-asks who may use the instance, so removing someone ends their
+ * sessions and API tokens by their next rotation. Retiring cannot be undone, so
+ * an unanswered read or a config naming nobody keeps them.
+ */
+async function refuseUnlistedRotation(
+  deps: AuthRouteDeps,
+  oauthApp: GitHubOAuthApp,
+  session: ViewerPrincipal,
+  accessToken: string,
+  log: Logger,
+): Promise<RefreshError | undefined> {
+  if (!namesAnyone(deps)) {
+    log.error(
+      "the instance config names nobody; check MERGEBRIEF_CONFIG. Sign-in and new briefs stay refused, and no session or token was ended",
+    );
+    return undefined;
+  }
+  const allowed = await checkTokenAccess(deps, accessToken, session.reviewerId);
+  if (allowed.ok || allowed.error === TokenAccessFailures.UNAVAILABLE) {
+    return undefined;
+  }
+
+  await createGrantAuth(deps.handle).retireGrant(session.grantId, new Date());
+  log.info("grant retired: the account is no longer allowed on this instance", {
+    reviewerId: String(session.reviewerId),
+  });
+  const revoked = await deleteUserToken(oauthApp, { accessToken });
+  if (!revoked.ok) {
+    log.warn("GitHub did not revoke a retired grant's token", {
+      evt: "grant.revoke.fail",
+      code: revoked.error.code,
+    });
+  }
+  return {
+    code: RefreshErrorCodes.GRANT_DEAD,
+    message: "the account is not allowed on this instance",
+  };
+}
+
+/**
  * ONE refresh orchestrator for both channels, anchored on the grant row. The
  * caller passes the principal it ALREADY held when GitHub 401ed, never a
  * re-resolved one: its `ghTokenCiphertext` is the compare-and-swap seed. If it
@@ -255,6 +301,16 @@ export async function refreshSessionToken(
   }
 
   if (rotatedAccessToken !== undefined) {
+    const refused = await refuseUnlistedRotation(
+      deps,
+      oauthApp,
+      session,
+      rotatedAccessToken,
+      log,
+    );
+    if (refused !== undefined) {
+      return { ok: false, error: refused };
+    }
     return {
       ok: true,
       value: { session: principal, accessToken: rotatedAccessToken },

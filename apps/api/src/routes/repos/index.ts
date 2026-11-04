@@ -29,6 +29,7 @@ import { purgeAttachmentsRoute } from "./attachments";
 import { collaboratorsRoute } from "./collaborators";
 import { mentionSuggestionsRoute, mentionTargetsRoute } from "./mentions";
 import { listRepos } from "./list-repos";
+import type { InstanceAccessCheck } from "../../access/instance-access";
 import { prRoutes } from "./pr";
 import type {
   CommittedLookupBudgetLimits,
@@ -72,6 +73,7 @@ function createListReposHandler(
 export function reposRoutes(
   deps: ReposRouteDeps,
   installations: InstallationResolver,
+  instanceAccess: InstanceAccessCheck,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
 
@@ -97,7 +99,7 @@ export function reposRoutes(
   app.route("/:repoId/collaborators", collaboratorsRoute(deps));
   app.route("/:repoId/mention-suggestions", mentionSuggestionsRoute());
   app.route("/:repoId/mention-targets", mentionTargetsRoute());
-  app.route("/:repoId/pulls/:prNumber", prRoutes(deps));
+  app.route("/:repoId/pulls/:prNumber", prRoutes(deps, instanceAccess));
 
   return app;
 }

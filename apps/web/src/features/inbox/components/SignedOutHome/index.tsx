@@ -1,4 +1,4 @@
-import type { SignInFailure } from "contract";
+import { SignInFailures, type SignInFailure } from "contract";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
@@ -33,6 +33,11 @@ export function SignedOutHome({ failure }: SignedOutHomeProps) {
             {failureCopy}
           </p>
         )}
+        {failure === SignInFailures.NOT_ALLOWED ? (
+          <p className={styles["failure"]}>
+            {t("home.signedOut.accountNotAllowedOwner")}
+          </p>
+        ) : null}
         <Button
           as="a"
           className={styles["signIn"]}

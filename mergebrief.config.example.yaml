@@ -117,11 +117,24 @@ generator:
 # --- Operators ---------------------------------------------------------------
 # The GitHub users who run this instance, by numeric user id (never a login:
 # a renamed login can be claimed by someone else). An Operator can read
-# instance-wide state such as the day's started runs. Omit the block, or write
-# `operators: []`, for nobody; a bare `operators:` with no list refuses boot.
+# instance-wide state such as the day's started runs, and may always sign in and
+# start a brief. Omit the block, or write `operators: []`, for nobody; a bare
+# `operators:` with no list refuses boot.
 # Find an id with `gh api users/<login> --jq .id`.
 # operators:
 #   - 583231
+
+# --- Who may start a brief ----------------------------------------------------
+# An instance starts closed: name someone under `operators` or here, or nobody
+# can sign in. `accounts` lets in everyone in an installation of this App on those
+# orgs or personal accounts; `users` adds people on top, such as an external
+# reviewer. Ids, never logins. Find one with `gh api orgs/<org> --jq .id`. A bare
+# `allowed:` refuses boot.
+# allowed:
+#   users:
+#     - 9919
+#   accounts:
+#     - 12345678
 
 # --- Link fetch (the links a PR description cites) ---------------------------
 # The worker fetches up to five links from a PR description as context.

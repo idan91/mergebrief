@@ -110,6 +110,7 @@ async function main(): Promise<void> {
     draftPolicy: boot.draftPolicy,
     spendPolicy: boot.spendPolicy,
     operatorIds: boot.operatorIds,
+    allowedAccess: boot.allowedAccess,
     updateCheck,
     audit: {
       privateWrites: boot.persistence.auditPrivateWrites,

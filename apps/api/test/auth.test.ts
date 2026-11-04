@@ -22,6 +22,7 @@ import {
   RefreshErrorCodes,
   refreshSessionToken,
   type ApiApp,
+  type AppDeps,
 } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
@@ -38,6 +39,7 @@ import {
 } from "./fixtures";
 import {
   BAD_REFRESH_TOKEN_BODY,
+  LISTED_REVIEWER_DEPS,
   UNUSED_INSTALLATION_DEPS,
   makeOAuthErrorBody,
   makeTokenSuccess,
@@ -86,6 +88,7 @@ describe("reviewer auth routes", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
   });
 
@@ -177,6 +180,7 @@ describe("reviewer auth routes", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
     const state = "state-wrong-client-secret";
 
@@ -285,6 +289,238 @@ describe("reviewer auth routes", () => {
     );
   });
 
+  describe("who may sign in", () => {
+    const LISTED_ACCOUNT = 9919;
+    const OTHER_ACCOUNT = 7070;
+
+    function buildListingApp(
+      policy: Pick<AppDeps, "allowedAccess" | "operatorIds">,
+    ): ApiApp {
+      return createApp({
+        logger: testLogger(),
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: buildAuthDeps(kp),
+        ...UNUSED_INSTALLATION_DEPS,
+        ...policy,
+      });
+    }
+
+    async function signIn(listing: ApiApp): Promise<Response> {
+      const state = "state-allowed-block";
+      return listing.request(
+        `/api/auth/github/callback?code=c&state=${state}`,
+        { headers: { Cookie: `__Host-mergebrief_oauth_state=${state}` } },
+      );
+    }
+
+    function listTokenDeletes(fetchFn: ReturnType<typeof vi.fn>): string[] {
+      return fetchFn.mock.calls
+        .filter((call) => {
+          const init: unknown = call[1];
+          if (typeof init !== "object" || init === null) {
+            return false;
+          }
+          const isDelete = "method" in init && init.method === "DELETE";
+          return isDelete;
+        })
+        .map((call) => String(call[0]));
+    }
+
+    const listingAccounts = {
+      users: new Set<bigint>(),
+      accounts: new Set([BigInt(LISTED_ACCOUNT)]),
+    };
+
+    it("refuses an unlisted account and revokes its token", async () => {
+      const fetchFn = stubGitHub({
+        token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+        installations: [{ id: INSTALLATION_ID, accountId: OTHER_ACCOUNT }],
+      });
+
+      const res = await signIn(
+        buildListingApp({ allowedAccess: listingAccounts }),
+      );
+
+      expect(res.status).toBe(302);
+      expect(res.headers.get("location")).toBe("/?error=account-not-allowed");
+      expect(res.headers.get("set-cookie") ?? "").not.toContain(
+        "__Host-mergebrief_session=",
+      );
+      expect(await countRows(harness, "auth_session")).toBe(0);
+      expect(await countRows(harness, "github_grant")).toBe(0);
+      expect(listTokenDeletes(fetchFn)).toHaveLength(1);
+    });
+
+    it("refuses everyone on an instance with nothing configured", async () => {
+      const fetchFn = stubGitHub({
+        token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+        installations: [{ id: INSTALLATION_ID, accountId: LISTED_ACCOUNT }],
+      });
+
+      const res = await signIn(buildListingApp({}));
+
+      expect(res.headers.get("location")).toBe("/?error=account-not-allowed");
+      expect(await countRows(harness, "auth_session")).toBe(0);
+      expect(listTokenDeletes(fetchFn)).toHaveLength(1);
+    });
+
+    it("signs in a viewer in a listed account's installation", async () => {
+      stubGitHub({
+        token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+        installations: [{ id: INSTALLATION_ID, accountId: LISTED_ACCOUNT }],
+      });
+
+      const res = await signIn(
+        buildListingApp({ allowedAccess: listingAccounts }),
+      );
+
+      expect(res.headers.get("location")).toBe("/");
+      expect(await countRows(harness, "auth_session")).toBe(1);
+    });
+
+    it("signs in a listed user with no installation read", async () => {
+      const fetchFn = stubGitHub({
+        token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+        installations: [],
+      });
+
+      const res = await signIn(
+        buildListingApp({
+          allowedAccess: {
+            users: new Set([BigInt(REVIEWER_ID)]),
+            accounts: new Set(),
+          },
+        }),
+      );
+
+      expect(res.headers.get("location")).toBe("/");
+      const urls = fetchFn.mock.calls.map((call) => String(call[0]));
+      expect(urls.filter((url) => url.includes("/user/installations"))).toEqual(
+        [],
+      );
+    });
+
+    it("signs in an Operator on no list", async () => {
+      stubGitHub({
+        token: makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+        installations: [],
+      });
+
+      const res = await signIn(
+        buildListingApp({
+          allowedAccess: listingAccounts,
+          operatorIds: new Set([BigInt(REVIEWER_ID)]),
+        }),
+      );
+
+      expect(res.headers.get("location")).toBe("/");
+    });
+
+    it("stores nothing when GitHub cannot answer the installation read", async () => {
+      const fetchFn = vi.fn(async (input: string | URL | Request) => {
+        const url = getRequestUrl(input);
+        if (url.includes("/login/oauth/access_token")) {
+          return jsonResponse(makeTokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN));
+        }
+        if (url.endsWith("/user")) {
+          return jsonResponse({ id: REVIEWER_ID, login: "octocat" });
+        }
+        if (url.includes("/user/installations")) {
+          return jsonResponse({ message: "unavailable" }, 502);
+        }
+        return new Response(null, { status: 204 });
+      });
+      vi.stubGlobal("fetch", fetchFn);
+
+      const res = await signIn(
+        buildListingApp({ allowedAccess: listingAccounts }),
+      );
+
+      expect(res.headers.get("location")).toBe("/?error=github-unavailable");
+      expect(await countRows(harness, "auth_session")).toBe(0);
+      expect(listTokenDeletes(fetchFn)).toHaveLength(1);
+    });
+  });
+
+  describe("a token rotation re-asks who may use the instance", () => {
+    const LISTED_ACCOUNT = 9919;
+    const listing = {
+      allowedAccess: {
+        users: new Set<bigint>(),
+        accounts: new Set([BigInt(LISTED_ACCOUNT)]),
+      },
+    };
+
+    async function rotate(
+      policy: Pick<AppDeps, "allowedAccess" | "operatorIds"> = listing,
+    ): Promise<boolean> {
+      const { cookieHash } = await seedSignIn(harness.handle, kp);
+      const resolved = await createSessionAuth(harness.handle).findSession(
+        cookieHash,
+      );
+      if (resolved === undefined) {
+        throw new Error("seeded session not found");
+      }
+      const result = await refreshSessionToken(
+        { handle: harness.handle, auth: buildAuthDeps(kp), ...policy },
+        derivePrincipalFromSession(resolved),
+        testLogger(),
+      );
+      return result.ok;
+    }
+
+    it("ends every sign-in of an account no longer listed", async () => {
+      const fetchFn = stubGitHub({
+        token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+        installations: [],
+      });
+
+      expect(await rotate()).toBe(false);
+
+      expect(await countRows(harness, "auth_session")).toBe(0);
+      const urls = fetchFn.mock.calls.map((call) => String(call[0]));
+      expect(urls.some((url) => url.includes("/token"))).toBe(true);
+    });
+
+    it("keeps a viewer whose account is still listed", async () => {
+      stubGitHub({
+        token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+        installations: [{ id: INSTALLATION_ID, accountId: LISTED_ACCOUNT }],
+      });
+
+      expect(await rotate()).toBe(true);
+
+      expect(await countRows(harness, "auth_session")).toBe(1);
+    });
+
+    it("destroys nothing when the config names nobody", async () => {
+      const fetchFn = stubGitHub({
+        token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+        installations: [],
+      });
+
+      expect(await rotate({})).toBe(true);
+
+      expect(await countRows(harness, "auth_session")).toBe(1);
+      const urls = fetchFn.mock.calls.map((call) => String(call[0]));
+      expect(urls.filter((url) => url.includes("/user/installations"))).toEqual(
+        [],
+      );
+    });
+
+    it("keeps the session when GitHub cannot answer the read", async () => {
+      stubGitHub({
+        token: makeTokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH),
+        installationsStatus: 502,
+      });
+
+      expect(await rotate()).toBe(true);
+
+      expect(await countRows(harness, "auth_session")).toBe(1);
+    });
+  });
+
   it("logout deletes the session and its orphaned grant, clearing the cookie", async () => {
     stubTokenDelete(204);
     const { cookie: token } = await seedSignIn(harness.handle, kp);
@@ -318,6 +554,7 @@ describe("reviewer auth routes", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
 
     // A foreign Origin rides along so the last assertion can catch it.
@@ -454,6 +691,7 @@ describe("reviewer auth routes", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
 
     const res = await logOut(loggedApp, cookie);
@@ -479,6 +717,7 @@ describe("reviewer auth routes", () => {
       webhookSecret: SECRET,
       auth: { ...buildAuthDeps(kp), oauthRequestTimeoutMs: SHORT_TIMEOUT_MS },
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
 
     const res = await logOut(boundedApp, cookie);
@@ -523,6 +762,7 @@ describe("reviewer auth routes", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
 
     const res = await capturedApp.request("/api/repos", {
@@ -575,6 +815,7 @@ describe("reviewer auth routes", () => {
       auth: buildAuthDeps(kp),
       operatorIds: new Set([reviewerId]),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
 
     const res = await operatorApp.request("/api/auth/session", {
@@ -601,7 +842,11 @@ describe("reviewer auth routes", () => {
       throw new Error("seeded session not found");
     }
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      {
+        handle: harness.handle,
+        auth: buildAuthDeps(kp),
+        ...LISTED_REVIEWER_DEPS,
+      },
       derivePrincipalFromSession(resolved),
       testLogger(),
     );
@@ -698,7 +943,11 @@ describe("reviewer auth routes", () => {
     const capture = testLogging();
 
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      {
+        handle: harness.handle,
+        auth: buildAuthDeps(kp),
+        ...LISTED_REVIEWER_DEPS,
+      },
       principal,
       capture.logger,
     );
@@ -718,7 +967,11 @@ describe("reviewer auth routes", () => {
     const principal = await makeBearerPrincipal(tokenHash);
 
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      {
+        handle: harness.handle,
+        auth: buildAuthDeps(kp),
+        ...LISTED_REVIEWER_DEPS,
+      },
       principal,
       testLogger(),
     );
@@ -739,7 +992,11 @@ describe("reviewer auth routes", () => {
     const capture = testLogging();
 
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      {
+        handle: harness.handle,
+        auth: buildAuthDeps(kp),
+        ...LISTED_REVIEWER_DEPS,
+      },
       principal,
       capture.logger,
     );
@@ -869,7 +1126,11 @@ describe("reviewer auth routes", () => {
     }
 
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      {
+        handle: harness.handle,
+        auth: buildAuthDeps(kp),
+        ...LISTED_REVIEWER_DEPS,
+      },
       derivePrincipalFromSession(stale), // still carries the PRE-rotation ciphertext
       testLogger(),
     );
@@ -910,7 +1171,11 @@ describe("reviewer auth routes", () => {
     await createSessionAuth(harness.handle).deleteSession(hash);
 
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      {
+        handle: harness.handle,
+        auth: buildAuthDeps(kp),
+        ...LISTED_REVIEWER_DEPS,
+      },
       derivePrincipalFromSession(resolved),
       testLogger(),
     );
@@ -974,7 +1239,11 @@ describe("reviewer auth routes", () => {
 
     const capture = testLogging();
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: buildAuthDeps(kp) },
+      {
+        handle: harness.handle,
+        auth: buildAuthDeps(kp),
+        ...LISTED_REVIEWER_DEPS,
+      },
       principal,
       capture.logger,
     );

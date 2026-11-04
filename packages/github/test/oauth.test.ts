@@ -490,7 +490,7 @@ describe("listUserInstallations", () => {
     ]);
   });
 
-  it("follows Link pagination and returns every installation", async () => {
+  it("reads every page and returns every installation", async () => {
     const firstPage = Array.from({ length: 30 }, (_, index) => ({
       id: 1000 + index,
       account: { login: `org-${index}` },
@@ -526,6 +526,87 @@ describe("listUserInstallations", () => {
       installationId: 1030n,
       accountLogin: "org-30",
     });
+  });
+
+  it("refuses a 409 instead of reading it as no installations", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ message: "conflict" }, 409)),
+    );
+
+    const result = await listUserInstallations("ghu_ACCESS");
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses an empty 200 instead of reading it as no installations", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({})),
+    );
+
+    const result = await listUserInstallations("ghu_ACCESS");
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses a list that stops short of its count", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(getRequestUrl(input));
+        if (url.searchParams.get("page") === "2") {
+          return jsonResponse({ total_count: 2, installations: [] });
+        }
+        return jsonResponse({
+          total_count: 2,
+          installations: [{ id: 1000, account: { login: "acme" } }],
+        });
+      }),
+    );
+
+    const result = await listUserInstallations("ghu_ACCESS");
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("carries a user or org account's id, and marks a suspended install", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          total_count: 3,
+          installations: [
+            { id: 1000, account: { id: 77, login: "acme" } },
+            { id: 2000, account: { id: 88, slug: "big-corp" } },
+            { id: 3000, account: null },
+            {
+              id: 4000,
+              account: { id: 99, login: "paused" },
+              suspended_at: "2026-11-01T00:00:00Z",
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await listUserInstallations("ghu_ACCESS");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error("unreachable");
+    }
+    expect(result.value).toEqual([
+      { installationId: 1000n, accountLogin: "acme", accountId: 77n },
+      { installationId: 2000n, accountLogin: "big-corp" },
+      { installationId: 3000n, accountLogin: "3000" },
+      {
+        installationId: 4000n,
+        accountLogin: "paused",
+        accountId: 99n,
+        suspended: true,
+      },
+    ]);
   });
 
   it("keeps an installation whose account is an enterprise or gone", async () => {

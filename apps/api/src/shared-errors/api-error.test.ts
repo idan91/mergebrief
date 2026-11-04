@@ -31,6 +31,7 @@ describe("ApiError classes", () => {
     new Forbidden(ApiErrorCodes.NO_REPO_WRITE_ACCESS),
     new Forbidden(ApiErrorCodes.REPO_ADMIN_ONLY),
     new Forbidden(ApiErrorCodes.OPERATOR_ONLY),
+    new Forbidden(ApiErrorCodes.ACCOUNT_NOT_ALLOWED),
     new Forbidden(ApiErrorCodes.ATTACHMENTS_DISABLED),
     new Forbidden(ApiErrorCodes.ATTACHMENTS_ADMIN_ONLY),
     new NotFound(),

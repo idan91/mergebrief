@@ -4,6 +4,10 @@
 import { ProductActionIds } from "contract";
 import type { Handler } from "hono";
 import { HttpStatuses } from "types/http";
+import {
+  throwInstanceAccessFailure,
+  type InstanceAccessCheck,
+} from "../../../../access/instance-access";
 import type { PullRequestEnv } from "../../../../access/types";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import {
@@ -16,9 +20,17 @@ import { regenerateBrief } from "./regenerate-brief";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-function createRegenerateHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
+function createRegenerateHandler(
+  deps: AuthRouteDeps,
+  instanceAccess: InstanceAccessCheck,
+): Handler<PullRequestEnv> {
   return async (c) => {
     const access = c.get("pullRequestAccess");
+    const allowed = await instanceAccess.check(access);
+    if (!allowed.ok) {
+      throwInstanceAccessFailure(allowed.error);
+    }
+
     const regenerated = await regenerateBrief(deps.handle, access);
     if (!regenerated.ok) {
       throwRegenerateFailure(regenerated.error, access.footing);
@@ -31,6 +43,7 @@ function createRegenerateHandler(deps: AuthRouteDeps): Handler<PullRequestEnv> {
 
 export function regenerateRoute(
   deps: AuthRouteDeps,
+  instanceAccess: InstanceAccessCheck,
 ): ProductRouter<PullRequestEnv> {
   const app = productRouter<PullRequestEnv>();
   app.action(
@@ -43,7 +56,7 @@ export function regenerateRoute(
       requiresStoredPullRequest: true,
     },
     "/",
-    createRegenerateHandler(deps),
+    createRegenerateHandler(deps, instanceAccess),
   );
   return app;
 }

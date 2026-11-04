@@ -25,6 +25,7 @@ Three habits apply to every fix below:
 | Webhooks answer 200 but no brief appears | [A service exits with code 0](#a-service-exits-with-code-0), then [No brief appears](#no-brief-appears) |
 | A brief generates but the pull request gets no Entry comment | [No Entry comment appears](#no-entry-comment-appears) |
 | Sign in returns to the signed-out Home | [Sign-in does not stick](#sign-in-does-not-stick) |
+| "This GitHub account isn't allowed on this instance" | [A person is refused a brief or sign-in](#a-person-is-refused-a-brief-or-sign-in) |
 | Sign-in fails on `http://` with a real hostname | [The browser refuses the `__Host-` cookie](#the-browser-refuses-the-__host--cookie) |
 | GitHub reports a `redirect_uri` mismatch | [Sign-in does not stick](#sign-in-does-not-stick) |
 | Every page answers 403 `forbidden host` | [Every request answers 403 forbidden host](#every-request-answers-403-forbidden-host) |
@@ -76,6 +77,18 @@ Read the last line of `docker compose logs worker`:
 `api` follows the same rule; its lines start with `api composition:`.
 [generators.md](./generators.md#when-something-degrades) has the same triage
 from the generation side.
+
+## A person is refused a brief or sign-in
+
+"This GitHub account isn't allowed on this instance" means the account is not an
+Operator, is not in `allowed.users`, and is in no installation on a listed account
+([who may start a brief](./generators.md#who-may-start-a-brief)). An instance with
+no config file refuses everyone, you included. Find the id with
+`gh api users/<login> --jq .id`, or in the api log's refusal line, and add it under
+`operators` or `allowed.users`, or list its organization under `allowed.accounts`,
+then restart the api. Never take an id from someone else's link or message without
+checking whose it is. Check that `MERGEBRIEF_CONFIG` names the
+file and that `api` and `worker` both mount it.
 
 ## Sign-in does not stick
 

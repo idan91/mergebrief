@@ -25,12 +25,14 @@ import { deletePullRoute } from "./delete";
 import { readsRoutes } from "./reads";
 import type { ReadsRouteDeps } from "./reads/types";
 import { markReadyRoute } from "./ready";
+import type { InstanceAccessCheck } from "../../../access/instance-access";
 import { regenerateRoute } from "./regenerate";
 import { reviewSubmitRoute } from "./review";
 import { sessionRoutes } from "./session";
 
 export function prRoutes(
   deps: InstallationBindingDeps & AttachmentsRouteDeps & ReadsRouteDeps,
+  instanceAccess: InstanceAccessCheck,
 ): ProductRouter<PullRequestEnv> {
   const app = productRouter<PullRequestEnv>();
   app.use(createPullRequestAccessLayer(deps));
@@ -50,7 +52,7 @@ export function prRoutes(
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
-  app.route("/regenerate", regenerateRoute(deps));
+  app.route("/regenerate", regenerateRoute(deps, instanceAccess));
   const mediaBudget = createMediaStreamBudget(deps.mediaMaxBytes);
   const renderedSources = createRenderedSourcesStore();
   app.route(

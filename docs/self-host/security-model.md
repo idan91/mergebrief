@@ -7,21 +7,34 @@ the model those steps protect.
 
 ## Who can sign in
 
-Any GitHub account that completes the App's sign-in gets a session.
-MergeBrief keeps no list of allowed users. Sign-in runs through your own
-GitHub App ([github-app.md](./github-app.md#reviewer-sign-in)), and every
-reviewer then acts on their own user token, bounded by the App's permissions
-and by what that account can reach on GitHub.
+An instance starts closed. Nobody can sign in or start a brief until its config
+names them ([generators.md](./generators.md#who-may-start-a-brief)):
 
-A session alone is enough to spend. A signed-in user with no repository in an
-Installation can paste the URL of any pull request their own token can read,
-public repositories included, and the paste starts a generation on your
-provider key, counted against the
-[daily cap](./generators.md#daily-generation-cap). If people you do not know
-can reach the instance, decide who signs in at the network. An identity-aware
-proxy that exempts `/api/*` but keeps `/api/auth/*` behind it admits only the
-people it lets through to sign in, and still lets the webhook and the CLI
-reach the API ([cli.md](./cli.md#idp--sso-proxies-exempt-api)).
+| Named by | Who that lets in |
+| --- | --- |
+| `operators` | Those people, and anyone in an installation of the App on their personal accounts, which includes collaborators on those repositories |
+| `allowed.users` | Those people, whatever they can install |
+| `allowed.accounts` | Anyone in an installation of the App on those organizations or personal accounts |
+
+Each of them can paste a pull request URL or Regenerate, and each of those runs
+spends your provider key, counted against the
+[daily cap](./generators.md#daily-generation-cap). A person you take off the list
+loses access at their next GitHub token rotation, about every 8 hours of use: it
+ends their sessions and their API tokens, including one with no expiry. Until
+then they can read what their own GitHub access allows, and they cannot start a
+brief or mint a token.
+
+Sign-in runs through your own GitHub App
+([github-app.md](./github-app.md#reviewer-sign-in)), and every reviewer then acts
+on their own user token, bounded by the App's permissions and by what that
+account can reach on GitHub. Register the App as private, owned by your
+organization
+([github-app.md](./github-app.md#who-can-install-and-sign-in)).
+
+You can also decide who signs in at the network. An identity-aware proxy that
+exempts `/api/*` but keeps `/api/auth/*` behind it admits only the people it lets
+through to sign in, and still lets the webhook and the CLI reach the API
+([cli.md](./cli.md#idp--sso-proxies-exempt-api)).
 
 Signed out, a visitor sees the Home pitch and a Sign in button. Without a
 session every `/api` route answers 401, apart from the webhook, the sign-in
@@ -34,7 +47,7 @@ without a session and carry no data
 | User | How they reach a pull request | What they read | What they write |
 | --- | --- | --- | --- |
 | Reviewer on an Installation | The App is installed on the repository, and their own token can read it. | The briefs of that repository's pull requests and each pull request's conversation. Every read checks their own token first, then finds the Installation that holds the repository. | Comments, replies and reviews on their own token, authored as them. A Trigger approval or a regenerate needs push access; deleting a pull request's data needs admin. Their Review Session is theirs alone. |
-| Reviewer with a URL pull request | They paste a pull request URL on Home, for a repository in no Installation. | The brief the worker built with their own Grant. Their Inbox lists the pull requests they pasted, and any other reviewer whose token can read the repository opens the same stored brief. | Comments and reviews on their own token, and deleting their own URL row. No regenerate and no image attachments; the worker never writes to GitHub for a URL pull request, so it gets no Entry comment. |
+| Reviewer with a URL pull request | They may start a brief, as above, and paste a pull request URL on Home, for a repository in no Installation. | The brief the worker built with their own Grant. Their Inbox lists the pull requests they pasted, and any other reviewer whose token can read the repository opens the same stored brief. | Comments and reviews on their own token, and deleting their own URL row. No regenerate and no image attachments; the worker never writes to GitHub for a URL pull request, so it gets no Entry comment. |
 | Operator | Their GitHub user id is in the instance config's `operators` list ([generators.md](./generators.md#operators)). | Everything their reviewer access gives them, plus instance-wide state no repository scopes: today's started runs against the daily cap, on the Instance tab of Settings or with `mergebrief spend`. | Nothing beyond their reviewer access. |
 
 The Operator role grants no repository reach. Owning the URL fallback token

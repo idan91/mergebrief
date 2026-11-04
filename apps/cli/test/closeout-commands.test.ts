@@ -2,7 +2,7 @@
 // and `collaborators` (push-gated roster passthrough) against the REAL api
 // app, in one world.
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -131,12 +131,17 @@ describe("generate + collaborators over the real api app", () => {
   let cacheDir: string;
 
   beforeEach(async () => {
-    world = await startCliApiHarness();
+    configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
+    cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
+    const configPath = join(configDir, "mergebrief.config.yaml");
+    writeFileSync(
+      configPath,
+      `allowed:\n  users:\n    - ${String(REVIEWER_ID)}\n`,
+    );
+    world = await startCliApiHarness({ configPath });
     harness = world.harness;
     kp = world.keyProvider;
     appFetch = world.fetch;
-    configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
-    cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
     stubGitHub(world);
   });
 

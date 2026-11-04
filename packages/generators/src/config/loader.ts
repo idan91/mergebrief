@@ -8,6 +8,7 @@ import {
 import { validateDraftsBlock } from "./instancePolicy";
 import { DEFAULT_LINK_FETCH, validateLinkFetchBlock } from "./link-fetch";
 import type { LinkFetchPolicy } from "./link-fetch/types";
+import { validateAllowedBlock } from "./allowed";
 import { validateOperatorsBlock } from "./operators";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
@@ -112,6 +113,7 @@ export function loadGeneratorConfigFile(
       key === "drafts" ||
       key === "spend" ||
       key === "operators" ||
+      key === "allowed" ||
       key === "contextSources" ||
       key === "trackers" ||
       key === "linkFetch" ||
@@ -141,6 +143,14 @@ export function loadGeneratorConfigFile(
   const operators = root["operators"];
   if (operators !== undefined) {
     const validated = validateOperatorsBlock(operators);
+    if (!validated.ok) {
+      return validated;
+    }
+  }
+
+  const allowed = root["allowed"];
+  if (allowed !== undefined) {
+    const validated = validateAllowedBlock(allowed);
     if (!validated.ok) {
       return validated;
     }

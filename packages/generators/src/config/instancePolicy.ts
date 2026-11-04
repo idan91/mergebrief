@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import type { DraftPolicy, Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
+import { validateAllowedBlock, type AllowedAccess } from "./allowed";
 import {
   NO_OPERATORS,
   validateOperatorsBlock,
@@ -23,7 +24,8 @@ export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
 
 /**
  * The narrow instance-policy loader: the api startup wiring reads ONLY the
- * `drafts`, `spend` and `operators` blocks out of `mergebrief.config.yaml`.
+ * `drafts`, `spend`, `operators` and `allowed` blocks out of
+ * `mergebrief.config.yaml`.
  * Deliberately tolerant of everything else in the file. An invalid generator
  * block or an unknown root key is the FULL loader's (worker's) problem; the
  * api process must boot without adapter validation and without provider
@@ -42,6 +44,8 @@ export interface LoadedInstancePolicy {
   readonly draftPolicy: DraftPolicy;
   readonly spendPolicy: SpendPolicy;
   readonly operatorIds: OperatorIds;
+  /** Who besides Operators may use the instance; absent = nobody. */
+  readonly allowedAccess: AllowedAccess | undefined;
   /** The file the policy came from; null for zero-config defaults. */
   readonly source: string | null;
 }
@@ -51,6 +55,7 @@ export const DEFAULT_INSTANCE_POLICY: Omit<LoadedInstancePolicy, "source"> = {
   draftPolicy: DEFAULT_DRAFT_POLICY,
   spendPolicy: DEFAULT_SPEND_POLICY,
   operatorIds: NO_OPERATORS,
+  allowedAccess: undefined,
 };
 
 /**
@@ -142,6 +147,14 @@ export function loadInstancePolicy(
   if (!operatorIds.ok) {
     return operatorIds;
   }
+  const allowedAccess = readBlock<AllowedAccess | undefined>(
+    blocks["allowed"],
+    validateAllowedBlock,
+    undefined,
+  );
+  if (!allowedAccess.ok) {
+    return allowedAccess;
+  }
 
   return {
     ok: true,
@@ -149,6 +162,7 @@ export function loadInstancePolicy(
       draftPolicy: draftPolicy.value,
       spendPolicy: spendPolicy.value,
       operatorIds: operatorIds.value,
+      allowedAccess: allowedAccess.value,
       source: resolved.value,
     },
   };

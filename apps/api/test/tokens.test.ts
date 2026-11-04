@@ -29,7 +29,10 @@ import {
   getRequestUrl,
   SAME_ORIGIN_HEADERS,
 } from "./fixtures";
-import { UNUSED_INSTALLATION_DEPS } from "./reviewer-github";
+import {
+  LISTED_REVIEWER_DEPS,
+  UNUSED_INSTALLATION_DEPS,
+} from "./reviewer-github";
 import { ACCESS_TOKEN, REFRESH_TOKEN, seedSignIn } from "./sign-in";
 import { registerSharedPglite } from "./shared-pglite";
 
@@ -224,6 +227,7 @@ describe("Bearer presentation on /api/*", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
   });
 
@@ -429,6 +433,7 @@ describe("Bearer presentation on /api/*", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
     const bearer = await seedApiToken(harness.handle, kp);
 
@@ -489,6 +494,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
     });
   });
 
@@ -520,6 +526,36 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       readonly expiresAt: string | null;
     };
   }
+
+  it("refuses a mint for an account the instance no longer lists", async () => {
+    const closed = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      ...UNUSED_INSTALLATION_DEPS,
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ total_count: 0, installations: [] })),
+    );
+    const { cookie } = await seedSignIn(harness.handle, kp);
+
+    const res = await closed.request("/api/auth/tokens", {
+      method: "POST",
+      body: JSON.stringify({ name: "ci", scope: "read", expiresInDays: 30 }),
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "account-not-allowed" });
+    expect(await harness.raw("select id from api_token")).toEqual([]);
+  });
 
   it("mints a token shown exactly once, stored hash-only, usable as Bearer", async () => {
     stubGitHub({

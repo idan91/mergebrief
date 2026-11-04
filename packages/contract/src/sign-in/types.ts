@@ -5,5 +5,6 @@ import { ApiErrorCodes } from "../errors";
 export const SignInFailures = {
   SIGN_IN_FAILED: ApiErrorCodes.SIGN_IN_FAILED,
   GITHUB_UNAVAILABLE: ApiErrorCodes.GITHUB_UNAVAILABLE,
+  NOT_ALLOWED: ApiErrorCodes.ACCOUNT_NOT_ALLOWED,
 } as const;
 export type SignInFailure = ValueOf<typeof SignInFailures>;

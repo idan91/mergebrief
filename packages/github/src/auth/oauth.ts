@@ -20,7 +20,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import { isInstallationId, isReviewerId } from "../ids";
-import type { Result, ValueOf } from "types/utils";
+import type { Mutable, Result, ValueOf } from "types/utils";
 import { HttpStatuses } from "types/http";
 
 // `Options<"github-app">` makes `createToken`/`refreshToken` resolve to the
@@ -385,30 +385,43 @@ export async function requestAuthenticatedUser(
 export interface UserInstallation {
   readonly installationId: InstallationId;
   readonly accountLogin: string;
+  /** A user or org's rename-proof id, which `allowed.accounts` matches. Absent for an enterprise, whose ids are a separate series, and a gone account. */
+  readonly accountId?: bigint;
+  /** GitHub holds the installation suspended, so it grants nothing. */
+  readonly suspended?: true;
 }
 
 const USER_INSTALLATIONS_PAGE_SIZE = 100;
+const USER_INSTALLATIONS_MAX_PAGES = 100;
 
 // `account` is a user or organization (`login`), an enterprise (`slug`), or
 // null once the target is gone; the id is what authorization keys on, so no
 // account shape may fail the whole walk.
 const installationAccountSchema = z
   .union([
-    z.object({ login: z.string().min(1) }),
+    z.object({
+      id: z.number().int().positive().optional(),
+      login: z.string().min(1),
+    }),
     z.object({ slug: z.string().min(1) }),
   ])
   .nullable();
 
-// `paginate` follows the Link header to exhaustion and flattens the
-// `installations`-wrapped pages into one item array.
-const userInstallationsPageSchema = z.array(
-  z.object({
-    id: z.number().int(),
-    account: installationAccountSchema,
-  }),
-);
+// Each page is parsed whole: `paginate` turns a 409 or an empty body into an
+// empty list, and a token rotation retires a grant on what this answers.
+const userInstallationsPageSchema = z.object({
+  total_count: z.number().int().nonnegative(),
+  installations: z.array(
+    z.object({
+      id: z.number().int(),
+      account: installationAccountSchema,
+      suspended_at: z.string().nullable().optional(),
+    }),
+  ),
+});
 
 type InstallationAccount = z.infer<typeof installationAccountSchema>;
+type UserInstallationsPage = z.infer<typeof userInstallationsPageSchema>;
 
 /** Display name for the installation's target; the numeric id is the fallback. */
 function deriveAccountLogin(account: InstallationAccount, id: number): string {
@@ -428,7 +441,40 @@ function deriveAccountLogin(account: InstallationAccount, id: number): string {
 export function listUserInstallations(
   accessToken: string,
 ): Promise<Result<UserInstallation[], GitHubApiError>> {
-  return fetchUserInstallations(new Octokit({ auth: accessToken }));
+  // Sign-in and a token rotation wait on this: no retry, and no wait on a limit.
+  return fetchUserInstallations(
+    createUserOctokit(accessToken, { retry: false, maxRetryAfterSeconds: 0 }),
+  );
+}
+
+/** Every page; an off-shape page or a count that falls short refuses the list. */
+async function readEveryInstallationPage(
+  octokit: Octokit,
+): Promise<Result<UserInstallationsPage["installations"], GitHubApiError>> {
+  const refused = {
+    ok: false,
+    error: unexpectedResponseError("list user installations"),
+  } as const;
+  const collected: UserInstallationsPage["installations"] = [];
+  for (let page = 1; page <= USER_INSTALLATIONS_MAX_PAGES; page += 1) {
+    // oxlint-disable-next-line no-await-in-loop -- each page names the next.
+    const response = await octokit.request("GET /user/installations", {
+      per_page: USER_INSTALLATIONS_PAGE_SIZE,
+      page,
+    });
+    const parsed = userInstallationsPageSchema.safeParse(response.data);
+    if (!parsed.success) {
+      return refused;
+    }
+    collected.push(...parsed.data.installations);
+    if (collected.length >= parsed.data.total_count) {
+      return { ok: true, value: collected };
+    }
+    if (parsed.data.installations.length === 0) {
+      return refused;
+    }
+  }
+  return refused;
 }
 
 /** `listUserInstallations` on a client the caller built and tuned. */
@@ -436,18 +482,12 @@ export async function fetchUserInstallations(
   octokit: Octokit,
 ): Promise<Result<UserInstallation[], GitHubApiError>> {
   try {
-    const items: unknown = await octokit.paginate("GET /user/installations", {
-      per_page: USER_INSTALLATIONS_PAGE_SIZE,
-    });
-    const parsed = userInstallationsPageSchema.safeParse(items);
-    if (!parsed.success) {
-      return {
-        ok: false,
-        error: unexpectedResponseError("list user installations"),
-      };
+    const pages = await readEveryInstallationPage(octokit);
+    if (!pages.ok) {
+      return pages;
     }
     const result: UserInstallation[] = [];
-    for (const installation of parsed.data) {
+    for (const installation of pages.value) {
       const id = BigInt(installation.id);
       if (!isInstallationId(id)) {
         return {
@@ -455,10 +495,20 @@ export async function fetchUserInstallations(
           error: unexpectedResponseError("list user installations"),
         };
       }
-      result.push({
+      const listed: Mutable<UserInstallation> = {
         installationId: id,
         accountLogin: deriveAccountLogin(installation.account, installation.id),
-      });
+      };
+      const { account } = installation;
+      const namesId = account !== null && "id" in account;
+      const accountId = namesId ? account.id : undefined;
+      if (accountId !== undefined) {
+        listed.accountId = BigInt(accountId);
+      }
+      if (typeof installation.suspended_at === "string") {
+        listed.suspended = true;
+      }
+      result.push(listed);
     }
     return { ok: true, value: result };
   } catch (error) {

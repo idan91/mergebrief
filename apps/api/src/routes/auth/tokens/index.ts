@@ -7,15 +7,19 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
+import type { InstanceAccessCheck } from "../../../access/instance-access";
 import { accessStampLayer, sessionLayer } from "../../../access/session-layer";
 import type { AuthzEnv } from "../../../access/types";
 import type { AuthRouteDeps } from "../session/types";
 import { createTokensHandlers } from "./handler";
 
 /** Mount the token-management surface over the cookie session gate. */
-export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
+export function tokensRoutes(
+  deps: AuthRouteDeps,
+  instanceAccess: InstanceAccessCheck,
+): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const handlers = createTokensHandlers(deps);
+  const handlers = createTokensHandlers(deps, instanceAccess);
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.use("/:id", sessionLayer(deps), accessStampLayer());
   app.action(

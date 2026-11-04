@@ -29,6 +29,7 @@ import {
 } from "./fixtures";
 import {
   ROTATED_ACCESS_TOKEN,
+  LISTED_REVIEWER_DEPS,
   UNUSED_INSTALLATION_DEPS,
   buildFakeAuthDeps,
   listFakeCallTokens,
@@ -142,6 +143,7 @@ describe("POST /api/generate: the url-box door", () => {
       webhookSecret: SECRET,
       auth: buildFakeAuthDeps(kp, fake),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_REVIEWER_DEPS,
       operatorToken:
         fallbackToken === undefined
           ? undefined

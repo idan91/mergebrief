@@ -26,6 +26,30 @@ Replace `v0.1.0`, the first release, with the release you want; the
 > configuration on a loopback-only dev box; they are not a production
 > credential.
 
+An instance starts closed, so nobody can sign in until its config names them. Put
+your GitHub user id (`gh api users/<login> --jq .id`) in `mergebrief.config.yaml`:
+
+```yaml
+operators:
+  - 583231
+```
+
+Set `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env`, mount the file in
+`docker-compose.override.yml`, and run `docker compose up -d --wait` again:
+
+```yaml
+services:
+  api:
+    volumes:
+      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+  worker:
+    volumes:
+      - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+```
+
+To let an organization in, see
+[who may start a brief](./generators.md#who-may-start-a-brief).
+
 Then install your GitHub App on a repo (see [`github-app.md`](./github-app.md)),
 point its webhook at your public URL, and open http://localhost:3000. From
 here on, the pushes to an open PR get their Brief generated in the

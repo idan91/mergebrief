@@ -167,6 +167,21 @@ account is a *single* installation covering them all; every row is scoped by
 `(installation_id, repo)`, so per-repo data is cleanly separated while living under that one
 tenant. A different account/org installing the App is a separate tenant.
 
+## Who can install and sign in
+
+GitHub's "Where can this GitHub App be installed?" setting decides more than the
+install page:
+
+| Registered as | Who can install it | Who can authorize it |
+| --- | --- | --- |
+| Only on this account, owned by an organization | That organization | Its members |
+| Only on this account, owned by a person | That person's account | GitHub's docs do not say |
+| Any account | Anyone | Anyone |
+
+Pick the first. The instance answers to its own list either way
+([who may start a brief](./generators.md#who-may-start-a-brief)), so installing
+the App does not by itself let anyone in.
+
 ## Dev vs. production registration
 
 - **Dev:** register manually via the UI (**Settings → Developer settings → GitHub

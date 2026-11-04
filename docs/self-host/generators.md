@@ -19,8 +19,8 @@ provider (~5x cheaper input/output than Opus at very good Brief quality).
 ## The config file
 
 One optional YAML file selects the backend for the **worker and the
-categorizer CLIs** alike; the api reads its `drafts`, `spend` and
-`operators` blocks from the same file. A ready-to-copy annotated template ships
+categorizer CLIs** alike; the api reads its `drafts`, `spend`,
+`operators` and `allowed` blocks from the same file. A ready-to-copy annotated template ships
 at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.example.yaml)
 (copy to `mergebrief.config.yaml`, which is gitignored, the same convention as
 `.env.example`).
@@ -84,6 +84,14 @@ generator:
 # run this instance. See "Operators" below.
 # operators:
 #   - 583231
+
+# allowed: the SEVENTH root block: who besides Operators may use this instance.
+# With neither block nobody can. See "Who may start a brief" below.
+# allowed:
+#   users:
+#     - 9919
+#   accounts:
+#     - 12345678
 
 # x-*: root keys starting with "x-" are ignored (compose-style extension
 # slot); ANY other unknown key, root or inside generator:/drafts:/spend:/
@@ -248,6 +256,41 @@ GitHub avatar URL (`avatars.githubusercontent.com/u/<id>`).
 The api reads this block, together with `drafts` and `spend`, from the same
 `MERGEBRIEF_CONFIG` file as the worker. A change takes effect when the api
 restarts.
+
+## Who may start a brief
+
+An instance starts closed: nobody can sign in or start a brief until this file
+names them. A paste, a Regenerate and a minted API token all answer to the same
+rule. On a solo instance, your id under `operators` is all you need.
+
+```yaml
+operators:
+  - 583231
+allowed:
+  users:
+    - 9919
+  accounts:
+    - 12345678
+```
+
+- `operators` lets those people in. Your personal account's id is your user id,
+  so an installation of the App on your own account counts too, and that lets in
+  every collaborator on the repositories it holds.
+- `accounts` lists the organizations and personal accounts whose people may use
+  the instance, once the App is installed there. GitHub decides who that is: it
+  lists the installations a person has explicit access to, through ownership, as
+  a collaborator or through organization membership. Reading a public repository
+  does not count, and neither does a suspended installation.
+- `users` adds people on top, such as an external reviewer. They need no
+  installation.
+- A bare `allowed:`, or one that names neither list, refuses boot.
+
+List ids, not logins, for the reason [above](#operators). Find an organization's
+with `gh api orgs/<org> --jq .id`. A refused sign-in logs the account's id at
+`info`. An installation made at enterprise level never matches, so list each
+organization. A change takes effect when the api restarts, and someone you remove
+loses access at their next GitHub token rotation
+([security-model.md](./security-model.md#who-can-sign-in)).
 
 ## Worker slots
 
