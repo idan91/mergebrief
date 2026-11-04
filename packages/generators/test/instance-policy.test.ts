@@ -6,7 +6,7 @@ import { loadInstancePolicy } from "../src/config/instancePolicy";
 
 /**
  * The narrow instance-policy loader: the api process
- * reads ONLY the `drafts`, `spend` and `operators` blocks out of
+ * reads ONLY the `drafts`, `spend`, `operators` and `allowed` blocks out of
  * mergebrief.config.yaml. It must
  * succeed on files whose generator block would refuse the full loader;
  * the api never validates adapters and never needs provider keys.

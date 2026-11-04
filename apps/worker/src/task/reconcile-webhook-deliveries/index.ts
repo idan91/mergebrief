@@ -1,6 +1,6 @@
 // The `reconcile-webhook-deliveries` task: GitHub never retries a delivery the
-// api could not take, so a restart or an outage loses it silently. Instance-wide,
-// and the one scheduled job that calls GitHub. A failed tick waits for the next.
+// api could not take, so a restart or an outage loses it silently. Instance-wide.
+// A failed tick waits for the next.
 import {
   GitHubApiErrorCodes,
   type HookDelivery,
@@ -29,7 +29,7 @@ export interface ReconcileWebhookDeliveriesTaskDeps {
   listDeliveries(
     cursor?: string,
   ): Promise<Result<HookDeliveryPage, GitHubFailure>>;
-  redeliver(deliveryId: number): Promise<Result<void, GitHubFailure>>;
+  redeliver(deliveryId: string): Promise<Result<void, GitHubFailure>>;
   readonly log: Logger;
   now(): Date;
 }

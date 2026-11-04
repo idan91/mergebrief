@@ -128,7 +128,7 @@ it, so the worker's parser takes a new field as optional.
 
 ## GitHub integration
 
-The App needs four permissions (`docs/self-host/github-app.md`) and parses four
+The App needs five permissions (`docs/self-host/github-app.md`) and parses four
 webhook events (`packages/github/src/webhook/events.ts`):
 
 - `pull_request`: `opened`, `synchronize`, `reopened`, `ready_for_review` and

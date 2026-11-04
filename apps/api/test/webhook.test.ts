@@ -406,6 +406,179 @@ describe("webhook deliveries by repository owner", () => {
     expect(await countRuns()).toBe(1);
   });
 
+  it("keeps the newer head for a review from before its push", async () => {
+    const newerHead = "a".repeat(40);
+    const listed = buildApp(LISTED_OWNER_DEPS);
+    await deliver(
+      listed,
+      "pull_request",
+      pullRequestPayload({
+        action: "opened",
+        headSha: newerHead,
+        updatedAt: "2026-07-07T12:00:00Z",
+      }),
+    );
+
+    await deliver(
+      listed,
+      "pull_request_review",
+      pullRequestReviewPayload({ submittedAt: "2020-01-01T00:00:00Z" }),
+    );
+
+    const jobs = await harness.raw(
+      "select payload->>'head_sha' as head from graphile_worker.jobs",
+    );
+    expect(jobs.map((job) => job["head"])).toEqual([newerHead]);
+  });
+
+  it("records a close from an unlisted owner on a stored PR", async () => {
+    await deliver(
+      buildApp(LISTED_OWNER_DEPS),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+    const runsBefore = await countRuns();
+
+    const res = await deliver(
+      buildApp({}),
+      "pull_request",
+      pullRequestPayload({ action: "closed", merged: true }),
+    );
+
+    expect(res.status).toBe(200);
+    const prs = await harness.raw("select state, closed_at from pull_request");
+    expect(prs[0]?.["state"]).toBe("merged");
+    expect(prs[0]?.["closed_at"]).not.toBeNull();
+    expect(await countRuns()).toBe(runsBefore);
+  });
+
+  it("runs a push after an unlisted close and reopen, once relisted", async () => {
+    const newerHead = "a".repeat(40);
+    const listed = buildApp(LISTED_OWNER_DEPS);
+    const unlisted = buildApp({});
+    await deliver(
+      listed,
+      "pull_request",
+      pullRequestPayload({
+        action: "opened",
+        updatedAt: "2026-07-07T12:00:00Z",
+      }),
+    );
+
+    await deliver(
+      unlisted,
+      "pull_request",
+      pullRequestPayload({
+        action: "closed",
+        merged: false,
+        updatedAt: "2026-07-07T12:01:00Z",
+      }),
+    );
+    await deliver(
+      unlisted,
+      "pull_request",
+      pullRequestPayload({
+        action: "reopened",
+        updatedAt: "2026-07-07T12:02:00Z",
+      }),
+    );
+    const prs = await harness.raw("select state, closed_at from pull_request");
+    expect(prs[0]?.["state"]).toBe("open");
+    expect(prs[0]?.["closed_at"]).toBeNull();
+
+    await deliver(
+      listed,
+      "pull_request",
+      pullRequestPayload({
+        action: "synchronize",
+        headSha: newerHead,
+        updatedAt: "2026-07-07T12:03:00Z",
+      }),
+    );
+    const jobs = await harness.raw(
+      "select payload->>'head_sha' as head from graphile_worker.jobs",
+    );
+    expect(jobs.map((job) => job["head"])).toEqual([newerHead]);
+  });
+
+  async function readEntrySyncJobs(): Promise<unknown[]> {
+    return harness.raw(
+      "select id from graphile_worker.jobs where task_identifier = 'sync-entry'",
+    );
+  }
+
+  it("re-renders a tracked Entry comment on an unlisted close", async () => {
+    await deliver(
+      buildApp(LISTED_OWNER_DEPS),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+    await harness.raw("update pull_request set entry_comment_id = 41");
+
+    await deliver(
+      buildApp({}),
+      "pull_request",
+      pullRequestPayload({ action: "closed", merged: false }),
+    );
+
+    expect(await readEntrySyncJobs()).toHaveLength(1);
+  });
+
+  it("queues no Entry sync on an unlisted reopen, which could post", async () => {
+    await deliver(
+      buildApp(LISTED_OWNER_DEPS),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+    await harness.raw(
+      "update pull_request set entry_comment_id = 41, state = 'closed', closed_at = now()",
+    );
+
+    await deliver(
+      buildApp({}),
+      "pull_request",
+      pullRequestPayload({ action: "reopened" }),
+    );
+
+    expect(await readEntrySyncJobs()).toEqual([]);
+  });
+
+  it("queues no Entry sync for an unlisted close with no comment", async () => {
+    await deliver(
+      buildApp(LISTED_OWNER_DEPS),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+
+    await deliver(
+      buildApp({}),
+      "pull_request",
+      pullRequestPayload({ action: "closed", merged: false }),
+    );
+
+    expect(await readEntrySyncJobs()).toEqual([]);
+  });
+
+  it("stores no row for an unlisted owner's reopen of an unknown PR", async () => {
+    await deliver(
+      buildApp({}),
+      "pull_request",
+      pullRequestPayload({ action: "reopened" }),
+    );
+
+    expect(await harness.raw("select id from pull_request")).toEqual([]);
+  });
+
+  it("stores no row for an unlisted owner's close of an unknown PR", async () => {
+    await deliver(
+      buildApp({}),
+      "pull_request",
+      pullRequestPayload({ action: "closed", merged: false }),
+    );
+
+    expect(await harness.raw("select id from pull_request")).toEqual([]);
+  });
+
   it("writes no checkpoint for a review from an unlisted owner", async () => {
     await deliver(
       buildApp(LISTED_OWNER_DEPS),

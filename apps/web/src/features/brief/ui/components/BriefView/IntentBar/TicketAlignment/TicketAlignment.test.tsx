@@ -180,7 +180,7 @@ describe("TicketAlignment", () => {
     );
 
     expect(screen.getByRole("status").textContent).toContain(
-      "GitHub refused the read: no credential is configured for it on this deployment.",
+      "GitHub refused the read: this deployment has no credential for it, or the credential lacks permission.",
     );
     expect(screen.getByText("GitHub")).toBeTruthy();
   });

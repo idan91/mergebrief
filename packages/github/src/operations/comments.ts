@@ -1,7 +1,7 @@
 // Entry-comment operations: the single comment is maintained by
 // delete-and-repost, or edited in place where no notification is wanted. It lives on the issues timeline, so it uses the
 // issues-comments endpoints; for a pull request those are authorized by
-// `Pull requests: write`, so the App needs NO `Issues` scope. Every failure
+// `Pull requests: write`, so comments need no `Issues` scope. Every failure
 // funnels through `mapRequestError`.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";

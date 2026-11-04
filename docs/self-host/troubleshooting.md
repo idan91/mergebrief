@@ -206,7 +206,7 @@ sustained rate after a rotation means one side did not move
 | 502 | An uninstall or removed-repositories event GitHub could not confirm in time. Nothing was purged. | Redeliver. |
 
 GitHub never retries a failed delivery on its own, so the worker asks it to: every
-15 minutes it resends what failed in the last three days, waiting longer after each
+15 minutes it resends up to 20 of what failed in the last three days, waiting longer after each
 attempt and stopping after five. A 400 or 413 is never resent, nor is a revoked
 authorization, and a push or review stays back once its installation had a later
 uninstall or removed repositories. You can also redeliver from the App's **Advanced**
@@ -237,7 +237,7 @@ from the App. The worker logs `warn`
 waiting for the installation to accept that permission. The generation itself
 succeeds, so nothing in the UI reports this.
 
-**Fix:** set the permission ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these-four)),
+**Fix:** set the permission ([github-app.md](./github-app.md#permissions-least-privilege-exactly-these-five)),
 then accept the pending request on the installation's settings page on GitHub.
 Changing the App's settings alone does not reach an existing installation. Then
 push a commit to the pull request: the comment is not posted retroactively.

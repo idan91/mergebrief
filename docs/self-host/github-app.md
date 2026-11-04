@@ -5,13 +5,14 @@ own account/org, wired to your own deployment. There is no shared hosted App.
 
 This doc is the canonical setup reference for both contributors and self-hosters.
 
-## Permissions (least-privilege, exactly these four)
+## Permissions (least-privilege, exactly these five)
 
 | Repository permission | Access | Why |
 |---|---|---|
 | **Contents** | Read & write | **Read** PR diffs. **Write** serves two things: GitHub's `markPullRequestReadyForReview` GraphQL mutation (the "mark ready for review" author affordance) is gated on `contents: write`, and image attachments a reviewer pastes into a comment are pushed to an orphan `mergebrief/attachments` branch ([attachments.md](attachments.md)). The App still **never writes code**: that branch holds images only, and no other branch is ever touched. |
-| **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. Also authorizes reading the primary ticket when it is a GitHub issue (`Get an issue` accepts `Pull requests: read`), so the ticket-alignment read needs no `Issues` permission; see [trackers.md](trackers.md). |
+| **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. |
 | **Metadata** | Read-only | Mandatory baseline (auto-selected). |
+| **Issues** | Read-only | Reads the issue a pull request names as its ticket ([trackers.md](./trackers.md#github-issues)). |
 
 | Organization permission | Access | Why |
 |---|---|---|
@@ -20,6 +21,9 @@ This doc is the canonical setup reference for both contributors and self-hosters
 > **Adding Members to an App you already registered:** GitHub asks each installation's
 > organization owner to approve the new permission. Until they do, the installation keeps
 > working on its old permissions and team suggestions stay empty there.
+
+> **Adding Issues to an App you already registered:** GitHub asks for the same approval. Until
+> then, a GitHub ticket reads as refused on the brief, and generation continues without it.
 
 > **Why Contents is Read & write, not Read-only:**
 > marking a draft PR ready via GitHub's GraphQL `markPullRequestReadyForReview` mutation returns
@@ -32,8 +36,8 @@ This doc is the canonical setup reference for both contributors and self-hosters
 > `mergebrief/*` refusing the push is `403 attachments-disabled`. The UI names each.
 
 **Deliberately NOT enabled:**
-- **Issues**: a comment on the PR *conversation* timeline uses the issue-comments endpoint,
-  but for a pull request that endpoint is authorized by `Pull requests: write`, so `Issues` is
+- **Issues: write**: a comment on the PR *conversation* timeline uses the issue-comments endpoint,
+  but for a pull request that endpoint is authorized by `Pull requests: write`, so write is
   redundant.
 - **Checks**: posting brief status as a Check Run is deferred. Un-parking it
   would need `Checks: write` and is a design change, not a config toggle.
@@ -214,9 +218,9 @@ to the section that explains it.
 - [ ] **Expire user authorization tokens** stays checked. Without it GitHub
       issues no refresh token and every sign-in fails
       ([Reviewer sign-in](#reviewer-sign-in)).
-- [ ] **Permissions** are exactly the four in
-      [Permissions](#permissions-least-privilege-exactly-these-four):
-      Contents and Pull requests read and write, Metadata read, and
+- [ ] **Permissions** are exactly the five in
+      [Permissions](#permissions-least-privilege-exactly-these-five):
+      Contents and Pull requests read and write, Metadata and Issues read, and
       organization Members read.
 - [ ] **Events**: only **Pull request** and **Pull request review**
       ([Events to subscribe to](#events-to-subscribe-to)).

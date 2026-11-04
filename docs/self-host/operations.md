@@ -338,8 +338,10 @@ configuration error exits 0 so the service stays down, and that policy would
 restart it into the same error forever.
 
 While the stack is down every webhook delivery fails. GitHub
-[never retries one on its own](./troubleshooting.md#other-webhook-answers),
-and you can redeliver one from the App's **Advanced** tab only within 3 days.
+[never retries one on its own](./troubleshooting.md#other-webhook-answers), so
+the worker resends what failed, up to 20 every 15 minutes, starting within about
+30 minutes of coming back. To do it sooner, redeliver one from the App's
+**Advanced** tab, within 3 days.
 
 A systemd unit runs `docker compose up` once at boot. Set `WorkingDirectory`
 to the folder that holds `docker-compose.yml` and `.env`
@@ -667,7 +669,8 @@ answers 401, logs `webhook.verify.fail` and writes nothing.
    `GITHUB_WEBHOOK_SECRET` in `.env` and run `docker compose up -d`. Only
    `api` verifies deliveries, but `worker` parses the same variable, and
    both are recreated.
-3. The worker resends what failed in between within about 15 minutes
+3. The worker resends what failed in between, up to 20 every 15 minutes, starting
+   within about 30 minutes
    ([troubleshooting.md](./troubleshooting.md#other-webhook-answers)). To do it
    sooner, open **Recent Deliveries** on the App's **Advanced** tab and redeliver
    them.

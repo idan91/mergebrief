@@ -73,7 +73,7 @@ export function loadBootConfig(
       configExitCode,
     );
   }
-  // The drafts, spend and operators blocks only: the generator block is the
+  // The drafts, spend, operators and allowed blocks only: the generator block is the
   // worker's concern, so this process needs no adapter validation and no
   // provider keys.
   const instancePolicy = loadInstancePolicy(env);

@@ -215,6 +215,7 @@ async function refuseUnlistedRotation(
   if (!revoked.ok) {
     log.warn("GitHub did not revoke a retired grant's token", {
       evt: "grant.revoke.fail",
+      grantId: String(session.grantId),
       code: revoked.error.code,
     });
   }

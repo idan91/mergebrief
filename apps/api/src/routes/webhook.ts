@@ -236,6 +236,31 @@ function shapePullRequestUpsert(
   return upsert;
 }
 
+function shapeCloseUpsert(
+  event: ParsedPullRequestEvent,
+): PullRequestUpsertInput {
+  return shapePullRequestUpsert(event, {
+    state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
+    closedAt: event.closedAt ?? new Date(),
+  });
+}
+
+type IngestRoutines = ReturnType<typeof createIngestRoutines>;
+
+/** A tracked Entry comment may still promise a brief, so its head's Entry sync re-renders it. */
+async function syncTrackedEntry(
+  ingest: IngestRoutines,
+  recorded: Awaited<ReturnType<IngestRoutines["recordState"]>>,
+): Promise<void> {
+  const tracksEntry = recorded.pullRequest.entryCommentId !== null;
+  if (recorded.applied && tracksEntry) {
+    await ingest.queueEntrySync({
+      pullRequestId: recorded.pullRequest.id,
+      delaySeconds: CLOSE_ENTRY_SYNC_DELAY_SECONDS,
+    });
+  }
+}
+
 /** The late-event guard left the row alone; the delivery was older. */
 function logSkippedEvent(
   log: Logger,
@@ -258,25 +283,13 @@ async function handlePullRequest(
   const { handle } = deps;
   if (event.action === PullRequestActions.CLOSED) {
     // Terminal state write, no generation; the close time is what the
-    // worker's retention sweep reads. A tracked Entry comment may still
-    // promise a brief, so its head's Entry sync re-renders it.
+    // worker's retention sweep reads.
     const ingest = createIngestRoutines(handle, ctx);
-    const recorded = await ingest.recordState(
-      shapePullRequestUpsert(event, {
-        state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
-        closedAt: event.closedAt ?? new Date(),
-      }),
-    );
+    const recorded = await ingest.recordState(shapeCloseUpsert(event));
     if (!recorded.applied) {
       logSkippedEvent(log, event);
-      return;
     }
-    if (recorded.pullRequest.entryCommentId !== null) {
-      await ingest.queueEntrySync({
-        pullRequestId: recorded.pullRequest.id,
-        delaySeconds: CLOSE_ENTRY_SYNC_DELAY_SECONDS,
-      });
-    }
+    await syncTrackedEntry(ingest, recorded);
     return;
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
@@ -572,6 +585,9 @@ async function triggerGeneration(
     reopen,
     ...options,
   };
+  if (event.kind === ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
+    input.reviewSubmittedAt = event.submittedAt;
+  }
   const uncoveredWork = nameUncoveredWork(event);
   if (uncoveredWork !== undefined) {
     input.uncoveredWork = uncoveredWork;
@@ -772,6 +788,46 @@ function findUnlistedOwnerDelivery(
   return listed ? undefined : event;
 }
 
+/**
+ * A stored PR's close and reopen still land: retention never reaches a row left
+ * open, and a row left closed refuses every push once the account is relisted.
+ * Neither writes a new row or starts a run, since the account is out. Only a
+ * close syncs the Entry: a closed PR's sync never posts, and an open PR's may.
+ */
+async function recordUnlistedLifecycle(
+  deps: WebhookRouteDeps,
+  event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
+): Promise<void> {
+  if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+    return;
+  }
+  const isClose = event.action === PullRequestActions.CLOSED;
+  const isReopen = event.action === PullRequestActions.REOPENED;
+  if (!isClose && !isReopen) {
+    return;
+  }
+
+  const ctx = parseTenantContext({ installationId: event.installationId });
+  const known = await createTenantRepository(
+    deps.handle,
+    ctx,
+  ).pullRequests.getByNumber(event.repoId, event.prNumber);
+  if (known === undefined) {
+    return;
+  }
+
+  const ingest = createIngestRoutines(deps.handle, ctx);
+  if (isClose) {
+    const recorded = await ingest.recordState(shapeCloseUpsert(event));
+    await syncTrackedEntry(ingest, recorded);
+    return;
+  }
+  await ingest.recordState(
+    shapePullRequestUpsert(event, { state: PrStates.OPEN }),
+    { reopen: true },
+  );
+}
+
 /** A destructive event's failure is the route's 502; every other event's work throws or completes. */
 async function dispatch(
   deps: WebhookRouteDeps,
@@ -829,6 +885,7 @@ async function dispatchOnce(
         repo: unlisted.repoFullName,
       },
     );
+    await recordUnlistedLifecycle(deps, unlisted);
     return DISPATCHED;
   }
 
@@ -863,7 +920,7 @@ async function dispatchOnce(
   return dispatched;
 }
 
-/** No taxonomy row: the 502 in GitHub's delivery log is the signal; redelivery is manual. */
+/** No taxonomy row: the 502 in GitHub's delivery log is the signal, and the worker resends it. */
 function logUnconfirmed(log: Logger, failure: ConfirmationFailure): void {
   const fields: Record<string, unknown> = {
     timedOut: failure.error === undefined,

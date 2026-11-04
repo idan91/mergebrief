@@ -7,6 +7,7 @@ import {
 import { makeAppConfig, stubGitHubFetch } from "./client/helpers";
 
 const LIST_PATH = "/app/hook/deliveries";
+const BIG_DELIVERY_ID = "3852189609249234945";
 const DELIVERY = {
   id: 12345,
   guid: "0b989ba4",
@@ -46,7 +47,7 @@ describe("listHookDeliveries", () => {
       value: {
         deliveries: [
           {
-            id: 12345,
+            id: "12345",
             guid: "0b989ba4",
             deliveredAt: new Date("2026-11-04T10:00:00Z"),
             statusCode: 502,
@@ -76,6 +77,19 @@ describe("listHookDeliveries", () => {
     expect(listed.ok && listed.value.nextCursor).toBe("v1_77");
   });
 
+  it("keeps every digit of an id past 2^53", async () => {
+    stubGitHub(() => ({
+      status: 200,
+      body: [],
+      rawBody: JSON.stringify([DELIVERY]).replace("12345", BIG_DELIVERY_ID),
+    }));
+
+    const appClient = createAppClient(makeAppConfig());
+    const listed = await listHookDeliveries(appClient);
+
+    expect(listed.ok && listed.value.deliveries[0]?.id).toBe(BIG_DELIVERY_ID);
+  });
+
   it("refuses a page off its shape", async () => {
     stubGitHub(() => ({ status: 200, body: { message: "odd" } }));
 
@@ -91,12 +105,12 @@ describe("redeliverHookDelivery", () => {
     const stub = stubGitHub(() => ({ status: 202, body: {} }));
 
     const appClient = createAppClient(makeAppConfig());
-    const sent = await redeliverHookDelivery(appClient, 12345);
+    const sent = await redeliverHookDelivery(appClient, BIG_DELIVERY_ID);
 
     expect(sent.ok).toBe(true);
     expect(stub.requests[0]).toMatchObject({
       method: "POST",
-      path: "/app/hook/deliveries/12345/attempts",
+      path: `/app/hook/deliveries/${BIG_DELIVERY_ID}/attempts`,
     });
   });
 
@@ -104,7 +118,7 @@ describe("redeliverHookDelivery", () => {
     stubGitHub(() => ({ status: 422, body: { message: "spammed" } }));
 
     const appClient = createAppClient(makeAppConfig());
-    const sent = await redeliverHookDelivery(appClient, 12345);
+    const sent = await redeliverHookDelivery(appClient, BIG_DELIVERY_ID);
 
     expect(sent.ok).toBe(false);
   });

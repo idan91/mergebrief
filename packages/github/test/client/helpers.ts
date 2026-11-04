@@ -27,6 +27,8 @@ export interface RecordedRequest {
 export interface StubResponse {
   readonly status: number;
   readonly body: unknown;
+  /** The body as GitHub's bytes, for digits `JSON.stringify` could not print. */
+  readonly rawBody?: string;
   readonly headers?: Readonly<Record<string, string>>;
 }
 
@@ -89,7 +91,7 @@ export function stubGitHubFetch(route: RouteHandler): GitHubFetchStub {
     if (followed && init?.redirect !== "manual") {
       return answerRequest(new URL(location, url), init);
     }
-    return new Response(JSON.stringify(answer.body), {
+    return new Response(answer.rawBody ?? JSON.stringify(answer.body), {
       status: answer.status,
       headers: { "content-type": "application/json", ...answer.headers },
     });

@@ -253,7 +253,7 @@ whoever registers it next would inherit the role; an id never changes. To
 find yours, run `gh api users/<login> --jq .id`, or read the number in your
 GitHub avatar URL (`avatars.githubusercontent.com/u/<id>`).
 
-The api reads this block, together with `drafts` and `spend`, from the same
+The api reads this block, together with `drafts`, `spend` and `allowed`, from the same
 `MERGEBRIEF_CONFIG` file as the worker. A change takes effect when the api
 restarts.
 

@@ -11,10 +11,11 @@ import {
 
 const PAGE_SIZE = 100;
 const NEXT_CURSOR = /[?&]cursor=([^&>]+)[^>]*>;\s*rel="next"/;
+const NUMERIC_ID_FIELD = /"id":\s*(\d+)/g;
 
 const hookDeliveriesSchema = z.array(
   z.object({
-    id: z.number().int().positive(),
+    id: z.string().regex(/^\d+$/),
     guid: z.string().min(1),
     delivered_at: z.iso.datetime({ offset: true }),
     status_code: z.number().int().nonnegative(),
@@ -27,7 +28,8 @@ const hookDeliveriesSchema = z.array(
 
 /** One attempt: a redelivery is its own row under the original's `guid`. */
 export interface HookDelivery {
-  readonly id: number;
+  /** Digits, never a number: GitHub's ids pass 2^53. */
+  readonly id: string;
   readonly guid: string;
   readonly deliveredAt: Date;
   /** 0 when GitHub could not connect at all. */
@@ -64,13 +66,34 @@ export interface HookDeliveryPage {
   readonly nextCursor?: string;
 }
 
+/**
+ * Quotes each id ahead of the parse, because a parsed id past 2^53 prints other
+ * digits and would resend the wrong delivery. No string value can match: JSON
+ * escapes the quotes inside one.
+ */
+async function parseDeliveriesBody(body: unknown): Promise<unknown> {
+  if (!(body instanceof ReadableStream)) {
+    return undefined;
+  }
+  const text = await new Response(body).text();
+  const parsed: unknown = JSON.parse(
+    text.replace(NUMERIC_ID_FIELD, '"id":"$1"'),
+  );
+  return parsed;
+}
+
 export async function listHookDeliveries(
   app: AppClient,
   cursor?: string,
 ): Promise<Result<HookDeliveryPage, GitHubApiError>> {
   try {
-    const parameters: { per_page: number; cursor?: string } = {
+    const parameters: {
+      per_page: number;
+      cursor?: string;
+      request: { parseSuccessResponseBody: boolean };
+    } = {
       per_page: PAGE_SIZE,
+      request: { parseSuccessResponseBody: false },
     };
     if (cursor !== undefined) {
       parameters.cursor = cursor;
@@ -79,7 +102,9 @@ export async function listHookDeliveries(
       "GET /app/hook/deliveries",
       parameters,
     );
-    const parsed = hookDeliveriesSchema.safeParse(response.data);
+    const parsed = hookDeliveriesSchema.safeParse(
+      await parseDeliveriesBody(response.data),
+    );
     if (!parsed.success) {
       return {
         ok: false,
@@ -103,13 +128,15 @@ export async function listHookDeliveries(
 /** GitHub answers 422 when it reads the attempts as spam. */
 export async function redeliverHookDelivery(
   app: AppClient,
-  deliveryId: number,
+  deliveryId: string,
 ): Promise<Result<void, GitHubApiError>> {
   try {
-    await app.octokit.request(
-      "POST /app/hook/deliveries/{delivery_id}/attempts",
-      { delivery_id: deliveryId, request: { retries: 0 } },
-    );
+    await app.octokit.request({
+      method: "POST",
+      url: "/app/hook/deliveries/{delivery_id}/attempts",
+      delivery_id: deliveryId,
+      request: { retries: 0 },
+    });
     return { ok: true, value: undefined };
   } catch (error) {
     return {

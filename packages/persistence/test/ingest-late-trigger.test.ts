@@ -17,6 +17,7 @@ const OLDER_HEAD = "b".repeat(40);
 const NEWER_HEAD = "c".repeat(40);
 const UNSEEN_HEAD = "d".repeat(40);
 const BASE_SHA = "f".repeat(40);
+const MS_PER_MINUTE = 60_000;
 const PULL_REQUEST = {
   repoId: REPO_ID,
   prNumber: 7,
@@ -41,10 +42,14 @@ describe("triggerGeneration with a late untimed trigger", () => {
     });
   }
 
-  async function review(headSha: string): Promise<void> {
+  async function review(
+    headSha: string,
+    submission: { reviewSubmittedAt?: Date } = {},
+  ): Promise<void> {
     await createIngestRoutines(harness.handle, CTX).triggerGeneration({
       pullRequest: PULL_REQUEST,
       headSha,
+      ...submission,
     });
   }
 
@@ -133,6 +138,24 @@ describe("triggerGeneration with a late untimed trigger", () => {
     await pushHead(OLDER_HEAD, "2026-11-01T10:00:00Z");
 
     await review(UNSEEN_HEAD);
+
+    expect(await readJobHeads()).toEqual([UNSEEN_HEAD]);
+  });
+
+  it("keeps the current head for an older review of an unseen head", async () => {
+    const reviewSubmittedAt = new Date(Date.now() - MS_PER_MINUTE);
+    await pushHead(NEWER_HEAD, "2026-11-01T10:00:30Z");
+
+    await review(UNSEEN_HEAD, { reviewSubmittedAt });
+
+    expect(await readJobHeads()).toEqual([NEWER_HEAD]);
+  });
+
+  it("runs an unseen head whose review follows the current head", async () => {
+    await pushHead(OLDER_HEAD, "2026-11-01T10:00:00Z");
+    const reviewSubmittedAt = new Date(Date.now() + MS_PER_MINUTE);
+
+    await review(UNSEEN_HEAD, { reviewSubmittedAt });
 
     expect(await readJobHeads()).toEqual([UNSEEN_HEAD]);
   });

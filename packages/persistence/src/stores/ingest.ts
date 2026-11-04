@@ -303,8 +303,10 @@ async function readCurrentHeadSha(
 }
 
 /**
- * A head with a row and not current is one the PR has left. A head with no row
- * keeps the trigger as named: its push may have been lost, and this is the heal.
+ * A head with a row and not current is one the PR has left, and so is a head
+ * whose review came before the current head's trigger. Any other head with no
+ * row keeps the trigger as named: its push may have been lost, and this is the
+ * heal.
  */
 async function pinLateTriggerToCurrentHead(
   tx: IngestTransaction,
@@ -312,10 +314,19 @@ async function pinLateTriggerToCurrentHead(
   pullRequestId: PullRequestRowId,
   input: TriggerGenerationInput,
 ): Promise<TriggerGenerationInput> {
-  const current = await readCurrentHeadSha(tx, scope, pullRequestId);
-  if (current === undefined || current === input.headSha) {
+  const current = await readCurrentBriefHead(tx, scope, pullRequestId);
+  if (current === undefined || current.row.headSha === input.headSha) {
     return input;
   }
+  const pinned = { ...input, headSha: current.row.headSha };
+  const { reviewSubmittedAt } = input;
+  const predatesCurrent =
+    reviewSubmittedAt !== undefined &&
+    reviewSubmittedAt < current.row.triggeredAt;
+  if (predatesCurrent) {
+    return pinned;
+  }
+
   const named = await tx
     .select({ id: generation.id })
     .from(generation)
@@ -328,7 +339,7 @@ async function pinLateTriggerToCurrentHead(
       ),
     )
     .limit(1);
-  return named.length > 0 ? { ...input, headSha: current } : input;
+  return named.length > 0 ? pinned : input;
 }
 
 /** A rerun of these fails the same way and still spends. */
@@ -381,6 +392,8 @@ async function findTriggerOnDemandRefusal(
 // ---------------------------------------------------------------------------
 
 export interface TriggerGenerationInput {
+  /** When a review event's review was submitted; absent on any other trigger. */
+  readonly reviewSubmittedAt?: Date;
   /** The PR the event describes; a trigger carries `state: open`. */
   readonly pullRequest: PullRequestUpsertInput;
   /** The head SHA the pending brief generation targets. */

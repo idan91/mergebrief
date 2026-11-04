@@ -94,10 +94,9 @@ body, capped at 20,000 characters.
 | Worker (URL job) | the viewer's token, or `MERGEBRIEF_URL_FALLBACK_TOKEN` when the job's owner owns it | whatever that token can read |
 | `categorize` and `delta` dev CLIs | `gh`: `GH_TOKEN` / `GITHUB_TOKEN`, or `gh auth login` | whatever the logged-in account can read |
 
-**No permission change.** GitHub authorizes `Get an issue` under
-`Issues: read` **or** `Pull requests: read`, and the App already holds
-`Pull requests: write` ([github-app.md](github-app.md)). `Issues` stays
-off.
+**The App needs `Issues: read`** ([github-app.md](github-app.md)). Without it
+GitHub answers `Get an issue` with a 403, even when the App holds
+`Pull requests: write`, and the brief reports the ticket as refused.
 
 Installation reach, in practice:
 

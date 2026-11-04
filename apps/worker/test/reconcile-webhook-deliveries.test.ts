@@ -21,7 +21,7 @@ function makeDelivery(
   overrides: Partial<HookDelivery> = {},
 ): HookDelivery {
   return {
-    id,
+    id: String(id),
     guid,
     statusCode,
     deliveredAt: new Date(NOW.getTime() - ageMs),
@@ -43,7 +43,8 @@ function makeAttempt(
 }
 
 function selectIds(deliveries: readonly HookDelivery[]): number[] {
-  return selectRedeliveries(deliveries, NOW).map((delivery) => delivery.id);
+  const selected = selectRedeliveries(deliveries, NOW);
+  return selected.map((delivery) => Number(delivery.id));
 }
 
 describe("selectRedeliveries", () => {
@@ -232,8 +233,8 @@ describe("the reconcile task", () => {
     return {
       sent,
       async redeliver(id) {
-        sent.push(id);
-        return id === failOn
+        sent.push(Number(id));
+        return Number(id) === failOn
           ? { ok: false, error: failure }
           : { ok: true, value: undefined };
       },

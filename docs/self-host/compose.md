@@ -68,7 +68,7 @@ One folder, no checkout of the repository and no build:
 - **`docker-compose.yml`**, a GitHub Release asset. It pins that release's
   exact image tag, and an upgrade replaces it byte for byte, so never edit
   it.
-- **`.env`**, your settings, started from the same release's `.env.example`
+- **`.env`**, your settings, started from the same release's `env.example`
   asset.
 - **`docker-compose.override.yml`**, optional, for your own edits:
   [ports](#moving-a-host-port), volumes, resource limits, a mount for `mergebrief.config.yaml`, an
@@ -194,7 +194,7 @@ reads, with what an empty value does.
 | `MERGEBRIEF_WEB_HOST` / `_PORT` | web | optional; where the web process listens, default `0.0.0.0` and `3000`. The web service reads no `.env`, so set them under its `environment:`, and move its port mapping and healthcheck with the port |
 | `SERVER_VERSION` | api, worker | set by the image; unset or empty means `dev`. An override must be printable ASCII without spaces, or api and worker refuse boot |
 | `ANTHROPIC_API_KEY` | worker | your model key (BYOK: your spend; the zero-config default) |
-| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model; see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:`, `spend:` and `operators:` blocks through a narrow loader, so it needs no provider keys. The image carries no config file: mount it into `api` and `worker` from `docker-compose.override.yml` ([generators.md](./generators.md#the-config-file)) |
+| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model; see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:`, `spend:`, `operators:` and `allowed:` blocks through a narrow loader, so it needs no provider keys. The image carries no config file: mount it into `api` and `worker` from `docker-compose.override.yml` ([generators.md](./generators.md#the-config-file)) |
 | `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1. What a slot costs depends on the provider class, see [generators.md](./generators.md#worker-slots) |
 | `WORKER_LARGE_CONCURRENCY` | worker | optional; slots of the large pool, which runs the multi-call briefs, default 1. See [generators.md](./generators.md#the-large-pool) |
 | `REVISION_NARRATIVE_ENABLED` | worker | optional, default `true`; `false` skips the revision narrative. A token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |

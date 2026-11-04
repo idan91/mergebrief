@@ -299,11 +299,27 @@ Keep user authorization token expiration enabled. Configure permissions and
 events exactly as [github-app.md](github-app.md) specifies, then install the
 App on the test repository. Activate the webhook after readiness succeeds.
 
-For a trial, choose a low daily generation cap in instance YAML, following
+An instance starts closed: nobody can sign in until its config names them.
+Create `mergebrief.config.yaml` with your GitHub user id, which
+`gh api users/<login> --jq .id` prints
+([who may start a brief](generators.md#who-may-start-a-brief)):
+
+```yaml
+operators:
+  - 583231
+```
+
+That covers repositories on your own account. For a test repository in an
+organization, also list the organization under `allowed.accounts`, or its
+deliveries start nothing.
+
+Set `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env`, and mount the file
+read-only into API and worker from `docker-compose.override.yml`, as the Compose
+guide requires. The image does not contain your config.
+
+For a trial, also choose a low daily generation cap in that file, following
 [generator configuration](generators.md). This limits generation count, not
 token dollars; also use the model provider's available spending controls.
-If you set MERGEBRIEF_CONFIG, mount that YAML read-only into API and worker
-as the Compose guide requires. The image does not contain your config.
 
 The `umask 077` from section 3 still applies in this shell, so a config file
 created here is unreadable by the containers' UID 1000. Open it up before

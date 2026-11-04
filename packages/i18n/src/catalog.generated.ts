@@ -123,7 +123,7 @@ export type Catalog = typeof en & {
       ticketUnread: "{{key}} could not be read.";
       reason: (typeof en)["brief"]["intent"]["reason"] & {
         "not-found": "{{tracker}} returned not found. The page was moved, or the integration has no access to it";
-        "no-credential": "{{tracker}} refused the read: no credential is configured for it on this deployment";
+        "no-credential": "{{tracker}} refused the read: this deployment has no credential for it, or the credential lacks permission";
         timeout: "{{tracker}} did not answer in time";
         "rate-limited": "{{tracker}} rate-limited the read";
         unsupported: "No {{tracker}} reader is configured on this deployment";
