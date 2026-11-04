@@ -248,7 +248,7 @@ version `dev`; it is not a published release.
 
 ### Testing an existing release instead
 
-Download the chosen release's Compose file and `.env.example` following
+Download the chosen release's Compose file and `env.example` following
 [the release installation instructions](compose.md). For an external DB,
 download `docker-compose.external-db.yml` from that same release too. Pin an
 exact release, and use `docker compose pull` instead of the source build

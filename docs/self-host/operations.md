@@ -10,7 +10,9 @@ Two facts carry the whole page:
 
 ## Upgrading to a new version
 
-The examples below use an instance on 1.4.0 and a newest release of 1.6.0.
+The notices below use an instance on 1.4.0 and a newest release of 1.6.0. The
+commands name `v0.1.0`, the first release: replace it with the release you
+are moving to.
 
 ### How you learn a release exists
 
@@ -69,7 +71,7 @@ Run these in the folder that holds `docker-compose.yml` and `.env`
 DUMP=mergebrief-$(date -u +%Y%m%dT%H%M%SZ).dump
 docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=custom "$POSTGRES_DB"' > "$DUMP" \
   && docker compose exec -T postgres pg_restore --list < "$DUMP" > /dev/null \
-  && curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v1.6.0/docker-compose.yml \
+  && curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml \
   && docker compose pull api web worker \
   && docker compose stop api web worker \
   && docker compose up -d --wait
@@ -96,7 +98,7 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=cust
    compose merges on its own (through its `COMPOSE_FILE` entry on an
    external database) and the upgrade never touches. `.env` stays as it
    is.
-3. **Pull, stop, recreate.** `pull` fetches `ghcr.io/idan91/mergebrief:1.6.0`
+3. **Pull, stop, recreate.** `pull` fetches `ghcr.io/idan91/mergebrief:0.1.0`
    for the three app services only, so the floating `postgres:17-alpine` tag
    is left alone,
    picking the image for the host's architecture, while the old release
@@ -110,11 +112,11 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" --format=cust
    `--wait` returns once the health checks pass.
 
 If the release needs a new `.env` key, the `api` refuses to boot and names
-the key in `docker compose logs api`. Add it (the release's `.env.example`
+the key in `docker compose logs api`. Add it (the release's `env.example`
 asset shows it) and rerun the last line.
 
 Confirm with `mergebrief auth status`, or open `/api/version` on your
-public URL in a signed-in browser: `version` reads `1.6.0`. A plain `curl`
+public URL in a signed-in browser: `version` reads `0.1.0`. A plain `curl`
 gets a 401, because the route needs a session. The notice disappears once
 the instance runs the newest release.
 
@@ -187,7 +189,7 @@ then fetch the release's compose file and pull the images, which needs no
 credential and stops at the first failure:
 
 ```sh
-curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v1.6.0/docker-compose.external-db.yml \
+curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml \
   && docker compose pull api web worker
 ```
 
@@ -246,10 +248,10 @@ external database the compose file in every case below is
 as in the upgrade step.
 
 - **One release back** is the previous release's compose file alone, no
-  restore:
+  restore. `vX.Y.Z` is the release you are going back to:
 
   ```sh
-  curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v1.5.0/docker-compose.yml
+  curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/vX.Y.Z/docker-compose.yml
   docker compose up -d --wait
   ```
 
@@ -280,7 +282,7 @@ release in the gap apply on top, in order.
 
 **A new env key.** The `api` refuses to boot and names the missing key in
 `docker compose logs api`. Add it to `.env`, using the release's
-`.env.example` asset for its shape, and run `docker compose up -d --wait`
+`env.example` asset for its shape, and run `docker compose up -d --wait`
 again.
 
 **A Postgres major.** The shipped compose file pins the Postgres major (17
@@ -303,11 +305,11 @@ only the archive's table of contents, so the `pg_dump` exit code is what
 proves the dump complete. Only once that block prints `dump ok` does the
 second one run, in the same shell, because it reads `$DUMP`; its first
 link refuses a missing or empty dump file, and nothing after it runs. It
-drops the old data:
+drops the old data; `vX.Y.Z` is the breaking release:
 
 ```sh
 test -s "${DUMP:-}" \
-  && curl -fsSLo docker-compose.next.yml https://github.com/Idan91/mergebrief/releases/download/v2.0.0/docker-compose.yml \
+  && curl -fsSLo docker-compose.next.yml https://github.com/Idan91/mergebrief/releases/download/vX.Y.Z/docker-compose.yml \
   && docker compose down \
   && docker volume rm mergebrief_postgres_data \
   && mv docker-compose.next.yml docker-compose.yml \

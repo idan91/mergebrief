@@ -93,13 +93,18 @@ Five jobs. `cli` and `image` run in parallel after `verify`; `npm` waits for
 4. **image** pushes `ghcr.io/idan91/mergebrief:X.Y.Z` for linux/amd64 and
    linux/arm64, and tags it `latest` only when `verify` placed it there.
 5. **release** creates a draft Release, uploads `version.json`, the two
-   compose files with the exact image pin, and `.env.example` as it is,
+   compose files with the exact image pin, and `.env.example` as it is under the name `env.example`,
    then publishes, passing `--latest` by placement. `version.json` is built
    only for the highest stable release, because every instance reads
    `releases/latest/download/version.json`.
 
 `latest` on npm, on ghcr and on the Releases page moves only when the tag is
 the highest stable version.
+
+The Release's compose files pin an image nobody can pull while the ghcr package
+is private, so a package's first release also changes its visibility to public.
+Check it with no login: `docker logout ghcr.io`, then `docker manifest inspect
+ghcr.io/idan91/mergebrief:X.Y.Z`.
 
 ## Release candidates
 

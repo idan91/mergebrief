@@ -112,14 +112,14 @@ is public, the host needs `docker login ghcr.io` first.
 - [ ] The dispatch rehearsal: Actions, Release, Run workflow, `version` set
       to an unpublished version whose notes file exists. Every job runs,
       nothing publishes, and the artifact holds both compose files pinned to
-      that version, `.env.example`, the Release body, and `version.json`
+      that version, `env.example`, the Release body, and `version.json`
       when the rehearsed version is the highest stable one.
       `manual-until: Actions billing is on` (then it is the first thing to
       run after every change to `release.yml` or `tools/release`).
 - [ ] The candidate tag `vX.Y.Z-rc.N`: npm holds the version under `next`
       (or `superseded` when a newer tag already exists), the Release is a
       prerelease with both compose files pinned to the exact tag plus
-      `.env.example` and no `version.json`, and `latest` moved nowhere (npm,
+      `env.example` and no `version.json`, and `latest` moved nowhere (npm,
       ghcr, the Releases page). `npm i -g mergebrief@next` installs it and
       `mergebrief --version` prints the candidate.
       `manual-forever: a real tag against the real registries`.
@@ -149,7 +149,7 @@ smoke builds from source and never pulls`.
 
 Fresh-host recipe:
 [`../self-host/compose.md`](../self-host/compose.md) opens with it (curl the
-compose file and `.env.example` from the Release, `docker compose up -d
+compose file and `env.example` from the Release, `docker compose up -d
 --wait`).
 Tunnel and App plumbing:
 [`webhook-loop.md`](./webhook-loop.md). Source builds are the developer

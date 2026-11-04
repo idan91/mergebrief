@@ -6,13 +6,13 @@ worker that generates Briefs as pull requests are pushed.
 
 ```sh
 mkdir mergebrief && cd mergebrief
-curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v1.6.0/docker-compose.yml
-curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v1.6.0/.env.example
+curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
+curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v0.1.0/env.example
 cp .env.example .env      # fill in (see the env table below)
 docker compose up -d --wait
 ```
 
-Replace `v1.6.0` with the release you want; the
+Replace `v0.1.0`, the first release, with the release you want; the
 [releases page](https://github.com/Idan91/mergebrief/releases) lists them.
 
 > **Set `POSTGRES_PASSWORD` in `.env` before the first `up`** if this
@@ -44,8 +44,8 @@ One folder, no checkout of the repository and no build:
   it.
 - **`.env`**, your settings, started from the same release's `.env.example`
   asset.
-- **`docker-compose.override.yml`**, optional, for your own edits: ports,
-  volumes, resource limits, a mount for `mergebrief.config.yaml`, an
+- **`docker-compose.override.yml`**, optional, for your own edits:
+  [ports](#moving-a-host-port), volumes, resource limits, a mount for `mergebrief.config.yaml`, an
   external database. Compose merges it into `docker-compose.yml` on its
   own (on an external database, through `COMPOSE_FILE`: see below), and an
   upgrade never touches it.
@@ -61,7 +61,7 @@ that matches the host. Postgres runs the official `postgres:17-alpine`
 image, never bundled into ours.
 
 **Exact pin, never `latest`.** The shipped compose file names one release,
-`ghcr.io/idan91/mergebrief:1.6.0`, and that pin is what makes the
+`ghcr.io/idan91/mergebrief:0.1.0`, and that pin is what makes the
 [upgrade](./operations.md#the-upgrade-step) and the
 [rollback](./operations.md#rolling-back) a matter of swapping one file. The
 registry also publishes a `latest` tag that moves to every release, majors
@@ -104,6 +104,39 @@ in both `api` and `worker`: whoever starts first applies them, the other
 no-ops. There is no separate migrate step. (Exception: restricted database
 roles can opt out with `MERGEBRIEF_AUTO_MIGRATE=false`; see the external
 Postgres section below.)
+
+### Moving a host port
+
+`docker-compose.yml` fixes the host side of both published ports, and an
+upgrade replaces that file, so a move goes in `docker-compose.override.yml`.
+Compose appends an override's `ports:` to the list it merges into, which
+leaves the old port bound too: `up` still fails on a host where 3000 is
+taken. The `!override` tag replaces the list:
+
+```yaml
+# docker-compose.override.yml
+services:
+  web:
+    ports: !override
+      - "127.0.0.1:3461:3000"
+  postgres:
+    ports: !override
+      - "127.0.0.1:5433:5432"
+```
+
+`!override` needs Docker Compose 2.24.4 or newer. `docker compose config`
+shows the result: each service should list one published port. Change only
+the host port, the number after `127.0.0.1`, and keep the loopback address.
+List only the service you are moving. On an external database
+drop the `postgres` entry, since naming a service the file does not define
+fails every compose command, and add the override to `COMPOSE_FILE`
+([below](#external-postgres-managed-database)).
+
+With no proxy in front, moving `web` moves the origin reviewers browse: set
+`PUBLIC_BASE_URL=http://localhost:3461` in `.env` and point the GitHub App's
+OAuth callback at it. Behind a proxy, `PUBLIC_BASE_URL` stays the public
+origin and the proxy's upstream moves instead. Either way, read 3461 for 3000
+in the commands on these pages.
 
 ## Environment (`.env` beside `docker-compose.yml`)
 

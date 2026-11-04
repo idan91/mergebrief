@@ -38,7 +38,7 @@ describe("the Release body", () => {
       readNotes("0.2.0.md", makeNotesFile({}, BODY)),
     );
 
-    const documented = readDocumentedChain().replaceAll("v1.6.0", "v0.2.0");
+    const documented = readDocumentedChain().replaceAll("v0.1.0", "v0.2.0");
     expect(documented).toContain("releases/download/v0.2.0/docker-compose.yml");
     expect(body.startsWith("## Upgrade to 0.2.0\n")).toBe(true);
     expect(body).toContain(`\`\`\`sh\n${documented}\n\`\`\``);
