@@ -28,11 +28,13 @@ overrides:
   "probe-image-size@7": "7.4.0"
   # Event-loop DoS, fixed in 1.2.2; reached via vite > postcss.
   "source-map-js@1": "1.2.2"
-  # GHSA-p6vx-979v-rg4c (fromJSON thenable assimilation, fixed in 1.6.1) and
-  # the unchecked TypedArray memory exhaustion (fixed in 1.6.3); reached via
-  # @tanstack/router-core's serializer.
-  "seroval@1": "1.6.9"
-  "seroval-plugins@1": "1.6.9"
+  # GHSA-p6vx-979v-rg4c (fromJSON thenable assimilation, fixed in 1.6.1), the
+  # unchecked TypedArray memory exhaustion (fixed in 1.6.3), script injection
+  # through RegExp sources (fixed in 1.6.10) and code injection through a typed
+  # array's constructor (fixed in 1.6.11); reached via @tanstack/router-core's
+  # serializer.
+  "seroval@1": "1.6.11"
+  "seroval-plugins@1": "1.6.11"
 
 # `pnpm audit --prod --audit-level=high` is a blocking gate.
 # Every entry below is an advisory we have read and accepted, with the reason
