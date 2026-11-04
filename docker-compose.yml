@@ -84,7 +84,8 @@ services:
     # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
     # the image carries no config file (.dockerignore), so this mount is
     # required whenever MERGEBRIEF_CONFIG names one, and edits apply on
-    # restart. Uncomment here AND in the worker service, both read the file.
+    # restart. Add it to api and worker in docker-compose.override.yml: both
+    # read the file, and an upgrade replaces this one.
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only: /healthz is static — never /readyz here, or a DB blip
@@ -184,8 +185,8 @@ services:
     # else.
     deploy:
       replicas: ${WORKER_COUNT:-1}
-    # See the api service's mergebrief.config.yaml mount note. Uncomment
-    # both together.
+    # See the api service's mergebrief.config.yaml mount note. Add both
+    # together, in docker-compose.override.yml.
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # No HTTP surface to probe; liveness = the runner process itself.

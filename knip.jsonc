@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  // Dead exports, unused deps and unreachable files across the pnpm workspace
-  // (ADR 0038 §7) — the mechanical half of the BRIEF-90 entry-barrel policy.
+  // Dead exports, unused deps and unreachable files across the pnpm workspace:
+  // the mechanical half of the entry-barrel policy.
   // Entry points are stated per workspace even where knip infers them from
   // `exports`/`bin`, because the entry IS the policy here: `src/index.ts` is a
   // package's curated public surface, and anything not reachable from one of
@@ -30,8 +30,8 @@
     },
     "apps/web": {
       // Routes are the app's entry surface; the feature `index.tsx` barrels
-      // are the curated internal one (ADR 0037) — a barrel export is the
-      // published surface, not a call site, so it is an entry, not dead code.
+      // are the curated internal one: a barrel export is the published
+      // surface, not a call site, so it is an entry, not dead code.
       "entry": [
         "src/router.tsx",
         "src/server.ts",
@@ -50,7 +50,7 @@
         // Reached by the browser through `new Worker(new URL(...))`, never by
         // an import statement.
         "src/utils/diffTokens/worker.ts",
-        // The browser suite (BRIEF-113) is run by Playwright, not imported:
+        // The browser suite is run by Playwright, not imported:
         // its config and specs are entries, and `e2e/support` + `e2e/fixtures`
         // hang off them.
         "playwright.config.ts",
@@ -151,7 +151,7 @@
     },
     "tools/categorizer": {
       // Each eval case's `expected.ts` is dynamically imported by absolute
-      // path from the case loader (BRIEF-59), so it is an entry too.
+      // path from the case loader, so it is an entry too.
       "entry": [
         "eval/cli.ts",
         "src/cli/categorize.ts",

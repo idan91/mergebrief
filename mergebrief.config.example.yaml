@@ -142,7 +142,7 @@ generator:
 # block lists the providers that need a deployment credential. Omit it for the
 # built-ins only. Credentials are BYOK-by-env-NAME, like generator.apiKeyEnv:
 # the file names the env var, never a value. A listed entry whose var is unset
-# refuses boot. Which board a key like BRIEF-12 resolves in is the trackers:
+# refuses boot. Which board a key like ACME-12 resolves in is the trackers:
 # block below, or a repo's own `.mergebrief/settings.yaml`; see
 # docs/self-host/trackers.md.
 # contextSources:
@@ -152,7 +152,7 @@ generator:
 #     tokenEnv: NOTION_TOKEN
 
 # --- Trackers (the boards every repo reads tickets from) --------------------
-# One entry per board, up to 8, any mix of kinds; a key like BRIEF-12 resolves
+# One entry per board, up to 8, any mix of kinds; a key like ACME-12 resolves
 # on the board whose keyPrefix it carries. A repo whose
 # `.mergebrief/settings.yaml` names trackers replaces this list for that repo;
 # a repo that names none reads these. A Notion board here needs the notion
@@ -160,7 +160,7 @@ generator:
 # prefix may appear once. Omit the block and only GitHub issues (#N) are read.
 # trackers:
 #   - kind: notion
-#     keyPrefix: BRIEF
+#     keyPrefix: ACME
 #     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9   # database or data source id
 #   - kind: notion
 #     keyPrefix: DS
