@@ -7,6 +7,16 @@ import type {
 import type { CommentAnchorKinds } from "types/comments";
 import type { BriefSpan } from "../../types";
 
+export interface ChunkMarks {
+  readonly id:
+    | typeof ProductActionIds.MARK_CHUNK_READ
+    | typeof ProductActionIds.MARK_CHUNK_UNREAD;
+  readonly repoId: string;
+  readonly prNumber: number;
+  readonly span: BriefSpan;
+  readonly chunkIds: readonly string[];
+}
+
 /**
  * The anchor flags `draft create`/`draft reanchor` share. The explicit
  * `| undefined` is for `exactOptionalPropertyTypes`: callers assign

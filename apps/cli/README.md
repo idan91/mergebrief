@@ -229,10 +229,13 @@ mutually exclusive (exit 2):
   one pushes to the repository, so a token needs external-write scope; an
   upload over the instance's quota is 429 (exit 7).
 
-### `chunk-read <n> <chunkId>`
+### `chunk-read <n> <chunkId...>` / `chunk-read <n> --group <id>`
 
-Mark a brief chunk read (`--unread` clears; the flags are mutually
-exclusive). Span required. Prints nothing on success.
+Mark brief chunks read (`--unread` clears; the flags are mutually exclusive).
+Name the chunk ids, or `--group` for every chunk in a change group of the brief
+at that span, not both. Chunks go one at a time and the first failure stops the
+rest, its error line naming the chunk and how many were done; a rerun is safe.
+Span required. Prints nothing on success.
 
 ### `risk dismiss|address|reopen <n> -F <file>`
 
@@ -248,8 +251,8 @@ signed-in reviewers (a token gets the relayed 403 → exit 5). Receipt:
 
 ### `reclassify <n> <groupId> --category <category>`
 
-Override a change group's category in your session. Span required.
-Prints nothing on success.
+Override a change group's category in your session; `--help` lists the values,
+and the server validates them. Span required. Prints nothing on success.
 
 ### `outcome <n> <comment|approve|request-changes>`
 
@@ -402,40 +405,42 @@ Usage: mergebrief [options] [command]
 MergeBrief: PR briefs for humans and agents, over your deployment's API
 
 Options:
-  -V, --version                            output the version number
-  --json                                   machine output: the documented JSON contract (default: false)
-  --agents                                 deprecated: prints where the agent guide moved (default: false)
-  --profile <name>                         config profile (default: owners match, then the default profile)
-  -R, --repo <owner/name>                  target repository (default: the origin remote)
-  -h, --help                               display help for command
+  -V, --version                               output the version number
+  --json                                      machine output: the documented JSON contract (default: false)
+  --agents                                    deprecated: prints where the agent guide moved (default: false)
+  --profile <name>                            config profile (default: owners match, then the default profile)
+  -R, --repo <owner/name>                     target repository (default: the origin remote)
+  -h, --help                                  display help for command
 
 Commands:
-  auth                                     authentication against your deployment
-  repos [options]                          repositories visible to the profile's token (cached; see --refresh)
-  pr [number]                              your PRs (no argument), or one PR's metadata
-  generation <number>                      the PR head's generation claims, last failure and takeover job
-  groups <number>                          the PR's brief: change groups over the current span
-  conversation <number>                    the PR's review conversation
-  diff [options] <number>                  the PR's unified diff (its raw text IS the machine format)
-  reply [options] <commentId>              reply to a review comment (the viewer's own voice)
-  submit [options] <number>                submit a review of the brief span you name (its saved drafts go with it)
-  session [options] <number>               your review session on the brief span you name
-  marks [options] <number>                 comparison marks (coordinates only) for a baseline..head span
-  narrative [options] <number>             the revision narrative for a prevHead..head hop
-  context [options] <number>               the brief's repo-config snapshot for the span you name
-  draft                                    draft review comments in your session (posted at submit)
-  chunk-read [options] <number> <chunkId>  mark a brief chunk read (--unread clears the mark)
-  risk                                     disposition the brief's risk flags in your session
-  reclassify [options] <number> <groupId>  override a change group's category in your session
-  outcome [options] <number> <outcome>     set your session's review intent (publishing is `submit`)
-  thread                                   review-thread state on GitHub (the viewer's own act)
-  ready <number>                           mark a draft PR ready for review (GitHub-enforced authorship)
-  generate <url>                           generate a brief for a PR URL (no confirm; your own key)
-  collaborators                            the target repo's collaborator roster (push access required)
-  capabilities [options]                   what this server+CLI pair can run; --require makes it a fail-closed check
-  spend                                    today's started runs against the daily cap (Operators only)
-  delta [options] <number>                 what changed since your last review (union: available | not)
-  help [command]                           display help for command
+  auth                                        authentication against your deployment
+  repos [options]                             repositories visible to the profile's token (cached; see --refresh)
+  pr [number]                                 your PRs (no argument), or one PR's metadata
+  generation <number>                         the PR head's generation claims, last failure and takeover job
+  groups <number>                             the PR's brief: change groups over the current span
+  conversation <number>                       the PR's review conversation
+  diff [options] <number>                     the PR's unified diff (its raw text IS the machine format)
+  reply [options] <commentId>                 reply to a review comment (the viewer's own voice)
+  submit [options] <number>                   submit a review of the brief span you name (its saved drafts go with it)
+  session [options] <number>                  your review session on the brief span you name
+  marks [options] <number>                    comparison marks (coordinates only) for a baseline..head span
+  narrative [options] <number>                the revision narrative for a prevHead..head hop
+  context [options] <number>                  the brief's repo-config snapshot for the span you name
+  draft                                       draft review comments in your session (posted at submit)
+  chunk-read [options] <number> [chunkId...]  mark brief chunks read (--unread clears the marks)
+  risk                                        disposition the brief's risk flags in your session
+  reclassify [options] <number> <groupId>     override a change group's category in your session
+  outcome [options] <number> <outcome>        set your session's review intent (publishing is `submit`)
+  thread                                      review-thread state on GitHub (the viewer's own act)
+  ready <number>                              mark a draft PR ready for review (GitHub-enforced authorship)
+  generate <url>                              generate a brief for a PR URL (no confirm; your own key)
+  collaborators                               the target repo's collaborator roster (push access required)
+  capabilities [options]                      what this server+CLI pair can run; --require makes it a fail-closed check
+  spend                                       today's started runs against the daily cap (Operators only)
+  delta [options] <number>                    what changed since your last review (union: available | not)
+  help [command]                              display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief auth login`
@@ -448,6 +453,8 @@ store a token for a profile (paste it, or pipe it on stdin)
 Options:
   --base-url <url>  deployment origin, e.g. https://mergebrief.example.com
   -h, --help        display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief auth status`
@@ -459,6 +466,8 @@ config + server status for the resolved profile
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief auth profiles`
@@ -470,6 +479,8 @@ every profile in the config, tokens and headers left out
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief auth use`
@@ -484,6 +495,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief auth owners`
@@ -499,6 +512,8 @@ Arguments:
 Options:
   --clear     remove every owner from the profile (default: false)
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief repos`
@@ -511,6 +526,8 @@ repositories visible to the profile's token (cached; see --refresh)
 Options:
   --refresh   bypass the disk cache (default: false)
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief pr`
@@ -525,6 +542,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief groups`
@@ -539,6 +558,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief conversation`
@@ -553,6 +574,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief diff`
@@ -570,6 +593,8 @@ Options:
   --head <sha>  span head (with --base)
   --group <id>  filter to one change group's whole hunks (brief span only)
   -h, --help    display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief delta`
@@ -586,6 +611,8 @@ Options:
   --baseline <sha>  override the checkpoint baseline (with --head)
   --head <sha>      override the head (with --baseline)
   -h, --help        display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief session`
@@ -602,6 +629,8 @@ Options:
   --base <sha>  span base of the brief (required)
   --head <sha>  span head of the brief (required)
   -h, --help    display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief marks`
@@ -618,6 +647,8 @@ Options:
   --baseline <sha>  comparison baseline (required)
   --head <sha>      comparison head (required)
   -h, --help        display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief narrative`
@@ -634,6 +665,8 @@ Options:
   --prev-head <sha>  prior briefed head (required)
   --head <sha>       revision head (required)
   -h, --help         display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief context`
@@ -650,6 +683,8 @@ Options:
   --base <sha>  span base of the brief (required)
   --head <sha>  span head of the brief (required)
   -h, --help    display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief draft create`
@@ -674,6 +709,11 @@ Options:
   --base <sha>          span base of the brief (required)
   --head <sha>          span head of the brief (required)
   -h, --help            display help for command
+
+Example payload:
+  {"filePath":"src/a.ts","side":"new","startLine":10,"endLine":12,"body":"tighten this"}
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief draft update`
@@ -693,6 +733,11 @@ Options:
   --base <sha>          span base of the brief (required)
   --head <sha>          span head of the brief (required)
   -h, --help            display help for command
+
+Example payload:
+  {"body":"tighten this further"}
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief draft reanchor`
@@ -717,6 +762,11 @@ Options:
   --base <sha>          span base of the brief (required)
   --head <sha>          span head of the brief (required)
   -h, --help            display help for command
+
+Example payload:
+  {"filePath":"src/a.ts","side":"new","startLine":14,"endLine":16}
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief draft delete`
@@ -734,6 +784,8 @@ Options:
   --base <sha>  span base of the brief (required)
   --head <sha>  span head of the brief (required)
   -h, --help    display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief draft attach`
@@ -753,25 +805,30 @@ Options:
   --base <sha>       span base of the brief (with --draft)
   --head <sha>       span head of the brief (with --draft)
   -h, --help         display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief chunk-read`
 
 ```
-Usage: mergebrief chunk-read [options] <number> <chunkId>
+Usage: mergebrief chunk-read [options] <number> [chunkId...]
 
-mark a brief chunk read (--unread clears the mark)
+mark brief chunks read (--unread clears the marks)
 
 Arguments:
   number        PR number
-  chunkId       the chunk id as the brief spells it
+  chunkId       the chunk ids as the brief spells them
 
 Options:
+  --group <id>  every chunk in this change group, in place of ids
   --read        mark read (the default)
   --unread      clear the read mark
   --base <sha>  span base of the brief (required)
   --head <sha>  span head of the brief (required)
   -h, --help    display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief risk dismiss`
@@ -790,6 +847,11 @@ Options:
   --base <sha>          span base of the brief (required)
   --head <sha>          span head of the brief (required)
   -h, --help            display help for command
+
+Example payload:
+  {"flags":[{"filePath":"src/a.ts","attribute":"touches-auth","regionStart":10,"regionEnd":12}],"reason":"the caller already checks this"}
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief risk address`
@@ -807,6 +869,11 @@ Options:
   --base <sha>          span base of the brief (required)
   --head <sha>          span head of the brief (required)
   -h, --help            display help for command
+
+Example payload:
+  {"flags":[{"filePath":"src/a.ts","attribute":"touches-auth","regionStart":10,"regionEnd":12,"evidence":{"kind":"chunk-reviewed","ref":"c1"}}]}
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief risk reopen`
@@ -824,6 +891,11 @@ Options:
   --base <sha>          span base of the brief (required)
   --head <sha>          span head of the brief (required)
   -h, --help            display help for command
+
+Example payload:
+  {"flags":[{"filePath":"src/a.ts","attribute":"touches-auth","regionStart":10,"regionEnd":12}]}
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief reclassify`
@@ -838,10 +910,14 @@ Arguments:
   groupId                the change group id (see `groups <n>`)
 
 Options:
-  --category <category>  the category to record
+  --category <category>  the category to record: bugfix | logic-refactor |
+                         move-with-edits | lib-bump | pure-move | new-feature |
+                         dependency-update | schema-change
   --base <sha>           span base of the brief (required)
   --head <sha>           span head of the brief (required)
   -h, --help             display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief outcome`
@@ -859,6 +935,8 @@ Options:
   --base <sha>  span base of the brief (required)
   --head <sha>  span head of the brief (required)
   -h, --help    display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief thread resolve`
@@ -874,6 +952,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief thread unresolve`
@@ -889,6 +969,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief ready`
@@ -903,6 +985,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief generate`
@@ -917,6 +1001,8 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief collaborators`
@@ -928,6 +1014,8 @@ the target repo's collaborator roster (push access required)
 
 Options:
   -h, --help  display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief capabilities`
@@ -941,6 +1029,8 @@ Options:
   --require <ids...>  operation ids that must be runnable here (any failure →
                       exit 6)
   -h, --help          display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief reply`
@@ -958,6 +1048,8 @@ Options:
   --body <text>       reply text
   --body-file <path>  reply text from a file, or "-" for stdin
   -h, --help          display help for command
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 ### `mergebrief submit`
@@ -968,15 +1060,21 @@ Usage: mergebrief submit [options] <number>
 submit a review of the brief span you name (its saved drafts go with it)
 
 Arguments:
-  number               PR number
+  number                PR number
 
 Options:
-  -F, --file <path>    full JSON payload from a file, or "-" for stdin
-  --outcome <outcome>  comment | approve | request-changes (flag form)
-  --body <text>        review body (flag form)
-  --base <sha>         span base of the brief you reviewed
-  --head <sha>         span head of the brief you reviewed
-  -h, --help           display help for command
+  -F, --payload <path>  full JSON payload from a file, or "-" for stdin
+  --file <path>         the same as --payload
+  --outcome <outcome>   comment | approve | request-changes (flag form)
+  --body <text>         review body (flag form)
+  --base <sha>          span base of the brief you reviewed
+  --head <sha>          span head of the brief you reviewed
+  -h, --help            display help for command
+
+Example payload:
+  {"outcome":"comment","body":"one question inline"}
+
+Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
 
 <!-- END GENERATED FLAG APPENDIX -->

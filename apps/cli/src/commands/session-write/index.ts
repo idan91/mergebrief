@@ -1,24 +1,36 @@
 import type { Command } from "commander";
 import { ProductActionIds } from "contract";
 import type { Mutable } from "types";
+import { CliError, ExitCodes } from "../../exit";
 import type { CommandContext } from "../../types";
 import { readPayload } from "../inputs";
 import {
   addAnchorOptions,
+  addPayloadExample,
   addPayloadOption,
   addSpanOptions,
+  CATEGORY_CHOICES,
   FULL_PAYLOAD_DESCRIPTION,
   REQUIRED_PAYLOAD_DESCRIPTION,
   REVIEW_OUTCOME_CHOICES,
   requireSpan,
 } from "../options";
+import {
+  ADDRESS_RISK_EXAMPLE,
+  CREATE_DRAFT_EXAMPLE,
+  DISMISS_RISK_EXAMPLE,
+  REANCHOR_DRAFT_EXAMPLE,
+  REOPEN_RISK_EXAMPLE,
+  UPDATE_DRAFT_EXAMPLE,
+} from "../payload-examples";
+import { readGroupChunks } from "../brief-chunks";
 import { parsePrNumber, resolveRepoTarget } from "../target";
 import {
   readAttachmentFile,
   runAttach,
   type AttachDraftTarget,
 } from "./attach";
-import { runSessionOperation } from "./run";
+import { runChunkMarks, runSessionOperation } from "./run";
 import type {
   AnchorFlags,
   CreateDraftInput,
@@ -59,6 +71,7 @@ function registerDraftCreateCommand(
     .description("draft a new inline comment on the brief span you name")
     .argument("<number>", "PR number");
   addPayloadOption(create, FULL_PAYLOAD_DESCRIPTION);
+  addPayloadExample(create, CREATE_DRAFT_EXAMPLE);
   addAnchorOptions(create).option("--body <text>", "comment body (flag form)");
   addSpanOptions(create).action(
     async (
@@ -114,6 +127,7 @@ function registerDraftUpdateCommand(
     "--body <text>",
     "new comment body (flag form)",
   );
+  addPayloadExample(update, UPDATE_DRAFT_EXAMPLE);
   addSpanOptions(update).action(
     async (
       raw: string,
@@ -159,6 +173,7 @@ function registerDraftReanchorCommand(
     .argument("<number>", "PR number")
     .argument("<draftId>", "the draft id (see `session <n>`)");
   addPayloadOption(reanchor, FULL_PAYLOAD_DESCRIPTION);
+  addPayloadExample(reanchor, REANCHOR_DRAFT_EXAMPLE);
   addAnchorOptions(reanchor);
   addSpanOptions(reanchor).action(
     async (
@@ -277,16 +292,18 @@ export function registerChunkReadCommand(
 ): void {
   const chunkRead = program
     .command("chunk-read")
-    .description("mark a brief chunk read (--unread clears the mark)")
+    .description("mark brief chunks read (--unread clears the marks)")
     .argument("<number>", "PR number")
-    .argument("<chunkId>", "the chunk id as the brief spells it")
+    .argument("[chunkId...]", "the chunk ids as the brief spells them")
+    .option("--group <id>", "every chunk in this change group, in place of ids")
     .option("--read", "mark read (the default)")
     .option("--unread", "clear the read mark");
   addSpanOptions(chunkRead).action(
     async (
       raw: string,
-      chunkId: string,
+      chunkIds: string[],
       options: {
+        group?: string;
         read?: boolean;
         unread?: boolean;
         base?: string;
@@ -299,13 +316,26 @@ export function registerChunkReadCommand(
       const id = read
         ? ProductActionIds.MARK_CHUNK_READ
         : ProductActionIds.MARK_CHUNK_UNREAD;
+      const { group } = options;
+      const namesChunks = chunkIds.length > 0;
+      const namesGroup = group !== undefined;
+      const namesOneTarget = namesChunks !== namesGroup;
+      if (!namesOneTarget) {
+        throw new CliError(
+          ExitCodes.USAGE,
+          "name the chunk ids or pass --group, not both",
+        );
+      }
 
       const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        { id, params: { repoId, prNumber, chunkId }, span },
-        io,
-      );
+      const target = { repoId, prNumber, span };
+      const ids =
+        group === undefined
+          ? chunkIds
+          : (await readGroupChunks(client, target, group)).map(
+              (chunk) => chunk.id,
+            );
+      await runChunkMarks(client, { ...target, id, chunkIds: ids }, io);
     },
   );
 }
@@ -352,6 +382,7 @@ export function registerRiskCommands(
     "--reason <text>",
     "dismissal reason (unless the payload carries one)",
   );
+  addPayloadExample(dismiss, DISMISS_RISK_EXAMPLE);
   addSpanOptions(dismiss).action(
     createRiskAction(context, ProductActionIds.DISMISS_RISK, true),
   );
@@ -361,6 +392,7 @@ export function registerRiskCommands(
     .description("mark risk flags addressed (each flag carries its evidence)")
     .argument("<number>", "PR number");
   addPayloadOption(address, REQUIRED_PAYLOAD_DESCRIPTION);
+  addPayloadExample(address, ADDRESS_RISK_EXAMPLE);
   addSpanOptions(address).action(
     createRiskAction(context, ProductActionIds.ADDRESS_RISK, false),
   );
@@ -370,6 +402,7 @@ export function registerRiskCommands(
     .description("undo dispositions on risk flags")
     .argument("<number>", "PR number");
   addPayloadOption(reopen, REQUIRED_PAYLOAD_DESCRIPTION);
+  addPayloadExample(reopen, REOPEN_RISK_EXAMPLE);
   addSpanOptions(reopen).action(
     createRiskAction(context, ProductActionIds.REOPEN_RISK, false),
   );
@@ -384,7 +417,10 @@ export function registerReclassifyCommand(
     .description("override a change group's category in your session")
     .argument("<number>", "PR number")
     .argument("<groupId>", "the change group id (see `groups <n>`)")
-    .requiredOption("--category <category>", "the category to record");
+    .requiredOption(
+      "--category <category>",
+      `the category to record: ${CATEGORY_CHOICES}`,
+    );
   addSpanOptions(reclassify).action(
     async (
       raw: string,

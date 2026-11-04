@@ -1,8 +1,16 @@
 import type { Command } from "commander";
 import type { Mutable } from "types";
+import { CliError, ExitCodes } from "../../exit";
 import type { CommandContext } from "../../types";
 import { readBodySource, readPayload } from "../inputs";
-import { REVIEW_OUTCOME_CHOICES, requireSpan } from "../options";
+import {
+  addPayloadExample,
+  addPayloadOption,
+  FULL_PAYLOAD_DESCRIPTION,
+  REVIEW_OUTCOME_CHOICES,
+  requireSpan,
+} from "../options";
+import { SUBMIT_REVIEW_EXAMPLE } from "../payload-examples";
 import {
   parsePrNumber,
   resolveProfileTarget,
@@ -51,16 +59,16 @@ export function registerSubmitCommand(
   program: Command,
   context: CommandContext,
 ): void {
-  program
+  const submit = program
     .command("submit")
     .description(
       "submit a review of the brief span you name (its saved drafts go with it)",
     )
-    .argument("<number>", "PR number")
-    .option(
-      "-F, --file <path>",
-      'full JSON payload from a file, or "-" for stdin',
-    )
+    .argument("<number>", "PR number");
+  addPayloadOption(submit, FULL_PAYLOAD_DESCRIPTION);
+  addPayloadExample(submit, SUBMIT_REVIEW_EXAMPLE);
+  submit
+    .option("--file <path>", "the same as --payload")
     .option("--outcome <outcome>", `${REVIEW_OUTCOME_CHOICES} (flag form)`)
     .option("--body <text>", "review body (flag form)")
     .option("--base <sha>", "span base of the brief you reviewed")
@@ -69,6 +77,7 @@ export function registerSubmitCommand(
       async (
         raw: string,
         options: {
+          payload?: string;
           file?: string;
           outcome?: string;
           body?: string;
@@ -76,13 +85,20 @@ export function registerSubmitCommand(
           head?: string;
         },
       ) => {
+        if (options.payload !== undefined && options.file !== undefined) {
+          throw new CliError(
+            ExitCodes.USAGE,
+            "--payload and --file name the same input: pass one",
+          );
+        }
         const input: Mutable<SubmitInput> = {
           outcome: options.outcome,
           body: options.body,
         };
 
-        if (options.file !== undefined) {
-          input.payload = await readPayload(context.deps, options.file);
+        const payloadPath = options.payload ?? options.file;
+        if (payloadPath !== undefined) {
+          input.payload = await readPayload(context.deps, payloadPath);
         }
 
         // Usage validation BEFORE any network work: a malformed PR number or

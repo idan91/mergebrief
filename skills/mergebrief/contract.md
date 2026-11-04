@@ -30,6 +30,10 @@ none of them appear in `--help`.
   pair prints `diff mode: compare` for GitHub's `base...head` compare. A
   server that names neither prints no line.
 
+- `session` reports `reviewOutcome` even before any write. With
+  `materialized:false` that value is the column's default, not a choice anyone
+  made.
+
 ## Exit table
 
 | Code | Meaning                                               | Next move                                                                      |

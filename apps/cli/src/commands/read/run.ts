@@ -14,9 +14,10 @@ import { z } from "zod/v4";
 import type { ApiClient } from "../../client";
 import type { CommandIo } from "../../types";
 import { CliError, ExitCodes } from "../../exit";
+import { readGroupChunks } from "../brief-chunks";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 import { buildRequestPath } from "../request-path";
-import { isRecord } from "../../utils";
+import { buildSkewError, isRecord } from "../../utils";
 
 // ---------------------------------------------------------------------------
 // The PR-meta slices these commands consume (tolerant-read: only the fields
@@ -44,24 +45,6 @@ const prMetaSliceSchema = z.object({
     .optional(),
 });
 
-const briefChunkSliceSchema = z.object({
-  chunks: z.array(
-    z.object({
-      changeGroupId: z.string(),
-      file: z.string(),
-      addedRanges: z.array(z.object({ start: z.number(), end: z.number() })),
-      removedRanges: z.array(z.object({ start: z.number(), end: z.number() })),
-    }),
-  ),
-});
-
-function skewError(what: string): CliError {
-  return new CliError(
-    ExitCodes.GENERIC,
-    `the server's ${what} response did not match the documented shape (version skew? check \`mergebrief auth status\`)`,
-  );
-}
-
 interface PrMetaSlice {
   readonly bodyText: string;
   readonly slice: z.infer<typeof prMetaSliceSchema>;
@@ -79,11 +62,11 @@ async function fetchPrMeta(
   try {
     parsedJson = JSON.parse(response.bodyText);
   } catch {
-    throw skewError("PR-meta");
+    throw buildSkewError("PR-meta");
   }
   const slice = prMetaSliceSchema.safeParse(parsedJson);
   if (!slice.success) {
-    throw skewError("PR-meta");
+    throw buildSkewError("PR-meta");
   }
   return { bodyText: response.bodyText, slice: slice.data };
 }
@@ -263,32 +246,11 @@ export async function runDiff(
   if (options.group !== undefined) {
     const meta = await fetchPrMeta(client, repoId, prNumber);
     span = briefSpan(meta, prNumber);
-    const brief = await client.request({
-      path: buildRequestPath(
-        ProductQueryIds.READ_BRIEF,
-        { repoId, prNumber },
-        { base: span.base, head: span.head },
-      ),
-    });
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(brief.bodyText);
-    } catch {
-      throw skewError("brief");
-    }
-    const parsed = briefChunkSliceSchema.safeParse(parsedJson);
-    if (!parsed.success) {
-      throw skewError("brief");
-    }
-    groupChunks = parsed.data.chunks.filter(
-      (chunk) => chunk.changeGroupId === options.group,
+    groupChunks = await readGroupChunks(
+      client,
+      { repoId, prNumber, span },
+      options.group,
     );
-    if (groupChunks.length === 0) {
-      throw new CliError(
-        ExitCodes.NOT_FOUND,
-        `change group "${options.group}" is not in this PR's brief (see \`mergebrief groups ${prNumber}\`)`,
-      );
-    }
   } else if (options.base !== undefined && options.head !== undefined) {
     span = { base: options.base, head: options.head };
   } else {

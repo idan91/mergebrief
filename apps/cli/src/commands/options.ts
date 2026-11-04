@@ -1,9 +1,14 @@
 import type { Command } from "commander";
-import { ReviewOutcomes } from "types";
+import { ChangeGroupCategories, ReviewOutcomes } from "types";
 import { CliError, ExitCodes } from "../exit";
 import type { BriefSpan } from "../types";
 
 export const REVIEW_OUTCOME_CHOICES = Object.values(ReviewOutcomes).join(" | ");
+
+/** Help text only: the server validates, so an older CLI never refuses a newer value. */
+export const CATEGORY_CHOICES = Object.values(ChangeGroupCategories).join(
+  " | ",
+);
 
 export const FULL_PAYLOAD_DESCRIPTION =
   'full JSON payload from a file, or "-" for stdin';
@@ -22,6 +27,13 @@ export function addPayloadOption(
   description: string,
 ): Command {
   return command.option("-F, --payload <path>", description);
+}
+
+export function addPayloadExample(command: Command, example: unknown): void {
+  command.addHelpText(
+    "after",
+    `\nExample payload:\n  ${JSON.stringify(example)}`,
+  );
 }
 
 /** The flag form of a draft's anchor, shared by `draft create` and `reanchor`. */

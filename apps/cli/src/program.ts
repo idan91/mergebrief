@@ -67,6 +67,10 @@ export function buildProgram(deps: CliDeps): Command {
       "-R, --repo <owner/name>",
       "target repository (default: the origin remote)",
     )
+    .addHelpText(
+      "afterAll",
+      "\nGlobal options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)",
+    )
     .exitOverride()
     // Fixed help width: the README appendix embeds this output, so wrapping
     // must not depend on the generating terminal.

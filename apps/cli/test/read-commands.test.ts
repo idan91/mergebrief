@@ -554,6 +554,7 @@ describe("diff --group over a scripted api", () => {
           body: JSON.stringify({
             chunks: [
               {
+                id: "c1",
                 changeGroupId: "grp-1",
                 file,
                 addedRanges: [{ start: 1, end: 1 }],

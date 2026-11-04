@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { LastReviewUnavailableReasons } from "contract";
 import { cliCommandPaths } from "../scripts/command-paths";
 import operationsMap from "../product-operations.map.json";
+import { runCliOffline } from "./harness/offline";
 
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const SKILL_DIR = join(REPO_ROOT, "skills", "mergebrief");
@@ -84,7 +85,39 @@ function collectInvocations(text: string): readonly string[] {
   return invocations;
 }
 
+/** Each flag a `mergebrief` invocation spells, with the command path it sits on. */
+function collectInvocationFlags(
+  text: string,
+): readonly (readonly [readonly string[], string])[] {
+  const flags: (readonly [readonly string[], string])[] = [];
+  for (const match of text.matchAll(/`mergebrief ([^`]+)`/g)) {
+    const tokens = (match[1] ?? "").split(/\s+/);
+    const pathEnd = tokens.findIndex(
+      (token) => token.startsWith("<") || token.startsWith("--"),
+    );
+    const path = tokens
+      .slice(0, pathEnd === -1 ? tokens.length : pathEnd)
+      .map((token) => token.split("|")[0] ?? token);
+    for (const token of tokens.filter((candidate) =>
+      candidate.startsWith("--"),
+    )) {
+      flags.push([path, token]);
+    }
+  }
+  return flags;
+}
+
 describe("skill drift", () => {
+  it("every flag a skill invocation spells is one its command takes", async () => {
+    const flags = collectInvocationFlags(fullText);
+    expect(flags.length).toBeGreaterThan(0);
+
+    for (const [path, flag] of flags) {
+      const help = await runCliOffline([...path, "--help"]);
+      expect(help.out, `mergebrief ${path.join(" ")} ${flag}`).toContain(flag);
+    }
+  });
+
   it("the --require blocks name exactly the expected operation ids", () => {
     const found = collectRequiredIds(fullText);
     expect([...found].toSorted()).toEqual([...EXPECTED_OP_IDS].toSorted());

@@ -109,7 +109,8 @@ submit-review`. Every operation the
    repo-config snapshot when per-file weighting matters.
 6. Per group, run `mergebrief diff <n> --group <id>` and read the code.
    Record progress with `mergebrief chunk-read <n> <chunkId>` as you finish
-   each chunk. Draft findings as you go with `mergebrief draft create`,
+   each chunk; it takes several ids, or `mergebrief chunk-read <n> --group <id>`
+   once you have read a whole group. Draft findings as you go with `mergebrief draft create`,
    revised with `mergebrief draft update`. Drafts stay private until submit.
    Deleting or re-anchoring a held draft is the operator's act, like risk
    clearing; the server refuses a token.
