@@ -138,11 +138,20 @@ echo "$OSS_TOKEN"  | mergebrief auth login --base-url https://mb.oss.example  --
 ```
 
 Resolution order per invocation: `--profile` / `MERGEBRIEF_PROFILE` → an
-`owners:` match on the current repo's origin owner (add
-`"owners": ["acme"]` to a profile to route `acme/*` clones automatically) →
-the default profile (the first one you logged into). `MERGEBRIEF_TOKEN`
-overrides the resolved profile's stored token, handy in CI where the token
-lives in a secret store, not on disk.
+`owners:` match on the current repo's origin owner → the default profile (the
+first one you logged into, until you change it). `MERGEBRIEF_TOKEN` overrides
+the resolved profile's stored token, handy in CI where the token lives in a
+secret store, not on disk.
+
+```sh
+mergebrief auth profiles                   # names, base URLs, owners, the default
+mergebrief auth use work                   # make work the default
+mergebrief --profile work auth owners acme # route acme/* clones to work
+```
+
+`auth profiles` never prints a token or a header value. When an instance can't
+be reached, the error line names your other profiles, and `auth status` prints
+them beside a failed probe.
 
 ## Versions
 

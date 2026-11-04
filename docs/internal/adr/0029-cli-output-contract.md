@@ -137,3 +137,7 @@ success prints nothing (exit 0 stays the signal). The catalog fingerprint and
 its mismatch warning are gone on both sides: `capabilities` joins the server's
 operations with `cliVersion` and the binary's command map, and the server
 version is the only skew signal (#8).
+
+### 2026-11-04: `auth profiles`
+
+`auth profiles` is the fourth sanctioned CLI-synthesized shape: `{profiles: [{name, baseUrl, owners, isDefault, tokenConfigured}]}`, read from the local config with no request, additive-only. It leaves out tokens and `headers`, since a header can hold a client secret. An agent could not otherwise learn which instances exist, because the config file holds the tokens.

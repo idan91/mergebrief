@@ -7,13 +7,16 @@ none of them appear in `--help`.
 
 - exit 0 means stdout is documented JSON (or the raw unified diff, for
   `diff`), or empty for a write whose success carries no body (`draft
-  update|reanchor|delete`, `reclassify`). Any other exit means stdout is
+  update|reanchor|delete`, `reclassify`, `chunk-read`, `ready`, `auth
+  use|owners`). Any other exit means stdout is
   empty and stderr carries one line, except a local stdout write failure
   (EIO, ENOSPC), which exits 1 and may leave a partial write.
   Branch on the exit code, never on stderr text.
 - Reads and write receipts are the server's response bytes, verbatim.
-  Exactly three shapes are CLI-synthesized: the `delta` union, `auth status`,
-  and `capabilities`.
+  Exactly four shapes are CLI-synthesized: the `delta` union, `auth status`,
+  `auth profiles` (`{"profiles":[{name, baseUrl, owners, isDefault,
+  tokenConfigured}]}`, read from the local config with no request), and
+  `capabilities`.
 - Once released, output is additive within a major: fields are never
   removed, renamed, or retyped. Before the first release a field may still
   be removed, and each removal is listed in the API changelog. Ignore fields

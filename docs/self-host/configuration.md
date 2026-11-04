@@ -370,7 +370,7 @@ It never reads the server's variables.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `MERGEBRIEF_PROFILE` | unset | Picks the profile, like `--profile`; the flag wins. A name with no configured profile is a usage error. `auth login` writes to it, or to `default` when unset. |
+| `MERGEBRIEF_PROFILE` | unset | Picks the profile, like `--profile`; the flag wins. A name with no configured profile is a usage error. When it is unset, `auth login` writes to the default profile, and refuses if the current repo's owner routes to a different one. |
 | `MERGEBRIEF_TOKEN` | unset | Replaces the resolved profile's stored token; it never changes which profile resolves. |
 | `MERGEBRIEF_NO_VERSION_WARNING` | unset | Set to any value, even empty, it silences the update line and the major-version warning, and the CLI stops asking npm ([Versions](./cli.md#versions)). |
 | `XDG_CONFIG_HOME` | `~/.config` | The CLI keeps `mergebrief/config.json` under it. |

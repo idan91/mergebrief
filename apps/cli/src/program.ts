@@ -1,6 +1,7 @@
 // `runCli` is the whole CLI behind an injected-deps boundary, command tests
 // run it against the REAL api Hono app and assert the contract surface:
 // exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
+import { formatDisplayText } from "brief-core/hidden-chars";
 import { Command } from "commander";
 import type { Mutable } from "types";
 import { CliError, ExitCodes } from "./exit";
@@ -127,6 +128,7 @@ function readGlobalOptions(program: Command): GlobalOptions {
   return globalOptions;
 }
 
+const COMMANDER_CODE_PREFIX = "commander.";
 const AGENTS_MOVED = `The packaged agent guide moved: it now ships as the \`mergebrief\`
 agent skill, alongside the CLI in its repository (skills/mergebrief).
 Install it into your agent with skills.sh:
@@ -164,6 +166,23 @@ function describeSkewSuffix(deps: CliDeps): string {
   return buildFailureSuffix(skew);
 }
 
+/** Every failure's one line, whatever a server, a config or an argument put in it. */
+function emitErrorLine(deps: CliDeps, message: string): void {
+  const line = `${message}${describeSkewSuffix(deps)}`;
+  deps.stderr(formatDisplayText(line));
+}
+
+/** Commander's own exits only: a Node system error also carries a string `code`. */
+function readCommanderExitCode(error: unknown): string | undefined {
+  if (!isRecord(error)) {
+    return undefined;
+  }
+  const code = error["code"];
+  const isCommanderExit =
+    typeof code === "string" && code.startsWith(COMMANDER_CODE_PREFIX);
+  return isCommanderExit ? code : undefined;
+}
+
 /**
  * Run the CLI: parse + execute + map every failure to the stream/exit
  * invariant. Returns the process exit code; never throws.
@@ -182,12 +201,12 @@ export async function runCli(
     return ExitCodes.OK;
   } catch (error) {
     if (error instanceof CliError) {
-      deps.stderr(`${error.message}${describeSkewSuffix(deps)}`);
+      emitErrorLine(deps, error.message);
       return error.code;
     }
     // Commander's own exits (bad flags, --help). Help/version are success.
-    if (isRecord(error) && typeof error["code"] === "string") {
-      const code = error["code"];
+    const code = readCommanderExitCode(error);
+    if (code !== undefined) {
       if (
         code === "commander.helpDisplayed" ||
         code === "commander.help" ||
@@ -199,7 +218,7 @@ export async function runCli(
       return ExitCodes.USAGE;
     }
     const message = error instanceof Error ? error.message : "unexpected error";
-    deps.stderr(`${message}${describeSkewSuffix(deps)}`);
+    emitErrorLine(deps, message);
     return ExitCodes.GENERIC;
   }
 }

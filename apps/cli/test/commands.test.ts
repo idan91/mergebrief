@@ -17,7 +17,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
 import { BASE_URL } from "./harness/consts";
-import { expectRefusedBeforeRequest, runCliOffline } from "./harness/offline";
+import {
+  expectRefusedBeforeRequest,
+  OFFLINE_VERSION_ROUTE,
+  runCliOffline,
+} from "./harness/offline";
 import { CLI_VERSION } from "../src/client";
 import { runCli } from "../src/program";
 import type { CliDeps } from "../src/types";
@@ -198,11 +202,6 @@ describe("mergebrief commands over the real api", () => {
 });
 
 const LOGIN = ["auth", "login", "--base-url", BASE_URL, "--json"];
-const VERSION_ROUTE = {
-  method: "GET",
-  path: "/api/version",
-  body: JSON.stringify({ version: "test-version" }),
-};
 
 describe("auth login before any request", () => {
   it("rejects a non-mergebrief paste as exit 2 with empty stdout", async () => {
@@ -237,7 +236,7 @@ describe("auth login profile selection and verification", () => {
     const result = await runCliOffline(LOGIN, {
       env: { MERGEBRIEF_PROFILE: "work" },
       stdin: "mergebrief_pasted\n",
-      routes: [VERSION_ROUTE],
+      routes: [OFFLINE_VERSION_ROUTE],
     });
     expect(result.code).toBe(ExitCodes.OK);
     const config = readFileSync(join(result.configDir, "config.json"), "utf8");
@@ -246,7 +245,7 @@ describe("auth login profile selection and verification", () => {
     expect(status.profile).toBe("work");
     expect(result.requests).toHaveLength(1);
     expect(result.requests[0]).toMatchObject({
-      path: VERSION_ROUTE.path,
+      path: OFFLINE_VERSION_ROUTE.path,
       headers: { authorization: "Bearer mergebrief_pasted" },
     });
   });
@@ -257,7 +256,7 @@ describe("auth login profile selection and verification", () => {
       stdin: "mergebrief_bogus_paste\n",
       routes: [
         {
-          ...VERSION_ROUTE,
+          ...OFFLINE_VERSION_ROUTE,
           status: 401,
           body: JSON.stringify({ error: "unauthorized" }),
         },
@@ -270,7 +269,7 @@ describe("auth login profile selection and verification", () => {
     expect(status.server.authenticated).toBe(false);
     expect(result.requests).toHaveLength(1);
     expect(result.requests[0]).toMatchObject({
-      path: VERSION_ROUTE.path,
+      path: OFFLINE_VERSION_ROUTE.path,
       headers: { authorization: "Bearer mergebrief_bogus_paste" },
     });
   });

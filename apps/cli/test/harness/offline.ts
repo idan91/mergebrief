@@ -10,7 +10,7 @@ import type { Mutable } from "types/utils";
 import { expect } from "vitest";
 import type { FetchInit } from "../../src/client";
 import { ExitCodes } from "../../src/exit";
-import { saveConfig } from "../../src/profile/config";
+import { saveConfig, type CliConfig } from "../../src/profile/config";
 import { runCli } from "../../src/program";
 import type { CliDeps } from "../../src/types";
 import { BASE_URL } from "./consts";
@@ -41,10 +41,13 @@ export interface ScriptedRoute {
 
 export interface OfflineRunOptions {
   readonly routes?: readonly ScriptedRoute[];
-  readonly stdin?: string;
+  /** An `Error` makes reading stdin fail with it. */
+  readonly stdin?: string | Error;
   /** The files `-F <path>` and `draft attach <file>` may read; any other path throws. */
   readonly files?: Readonly<Record<string, string | Uint8Array>>;
   readonly env?: CliDeps["env"];
+  /** The config on disk; absent, one logged-in `default` profile. */
+  readonly config?: CliConfig;
   /** The success-only sink `bin.ts` prints after the flush; absent, those lines go to stderr. */
   readonly successNotice?: CliDeps["successNotice"];
 }
@@ -59,6 +62,13 @@ export interface OfflineRun {
 
 const NO_CONTENT = 204;
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+
+/** `GET /api/version`, the probe `auth login` and `auth status` verify with. */
+export const OFFLINE_VERSION_ROUTE: ScriptedRoute = {
+  method: "GET",
+  path: "/api/version",
+  body: JSON.stringify({ version: "test-version" }),
+};
 
 /** `GET /api/repos` naming the offline repository, the first hop of every PR command. */
 export const OFFLINE_REPOS_ROUTE: ScriptedRoute = {
@@ -129,10 +139,13 @@ export async function runCliOffline(
 ): Promise<OfflineRun> {
   const configDir = mkdtempSync(join(tmpdir(), "mb-offline-config-"));
   const cacheDir = mkdtempSync(join(tmpdir(), "mb-offline-cache-"));
-  saveConfig(configDir, {
-    defaultProfile: "default",
-    profiles: { default: { baseUrl: BASE_URL, token: OFFLINE_TOKEN } },
-  });
+  saveConfig(
+    configDir,
+    options.config ?? {
+      defaultProfile: "default",
+      profiles: { default: { baseUrl: BASE_URL, token: OFFLINE_TOKEN } },
+    },
+  );
   const out: string[] = [];
   const err: string[] = [];
   const requests: SentRequest[] = [];
@@ -148,6 +161,9 @@ export async function runCliOffline(
     readStdin: async () => {
       if (options.stdin === undefined) {
         throw new Error("stdin not expected");
+      }
+      if (options.stdin instanceof Error) {
+        throw options.stdin;
       }
       return options.stdin;
     },

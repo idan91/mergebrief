@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import type { CommandContext } from "../../types";
+import { runAuthOwners, runAuthProfiles, runAuthUse } from "./profiles";
 import { runAuthLogin, runAuthStatus, runRepos } from "./run";
 
 export function registerAuthCommands(
@@ -23,6 +24,29 @@ export function registerAuthCommands(
     .command("status")
     .description("config + server status for the resolved profile")
     .action(async () => runAuthStatus(context.deps, context.readGlobals()));
+  auth
+    .command("profiles")
+    .description("every profile in the config, tokens and headers left out")
+    .action(() => {
+      runAuthProfiles(context.deps, context.readGlobals());
+    });
+  auth
+    .command("use")
+    .description("set the default profile")
+    .argument("<name>", "a profile `auth profiles` lists")
+    .action((name: string) => {
+      runAuthUse(context.deps, context.readGlobals(), name);
+    });
+  auth
+    .command("owners")
+    .description(
+      "set the GitHub owners the resolved profile serves, replacing its list",
+    )
+    .argument("[owner...]", "owner slugs whose clones route to this profile")
+    .option("--clear", "remove every owner from the profile", false)
+    .action((owners: string[], options: { clear: boolean }) => {
+      runAuthOwners(context.deps, context.readGlobals(), owners, options);
+    });
 }
 
 export function registerReposCommand(

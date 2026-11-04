@@ -76,7 +76,8 @@ shell's startup file already has a pnpm section, which an older pnpm leaves.
 
 - **exit 0 ⇒ stdout is documented JSON** (or the raw unified diff, for
   `diff`), or empty for an operation whose success carries no body
-  (`draft update|reanchor|delete`, `reclassify`, `chunk-read`, `ready`). **exit ≠ 0 ⇒ stdout is
+  (`draft update|reanchor|delete`, `reclassify`, `chunk-read`, `ready`,
+  `auth use|owners`). **exit ≠ 0 ⇒ stdout is
   empty** and stderr carries exactly one
   line. For server responses it relays the error text + HTTP status;
   client-side usage and network/proxy failures explain themselves without
@@ -87,9 +88,9 @@ shell's startup file already has a pnpm section, which an older pnpm leaves.
   `diff mode: revision-span` or `diff mode: compare`, after the diff; a
   server that names neither prints none.
 - **Passthrough by default:** most commands emit the server response
-  verbatim: one canonical shape across web, API, and CLI. Exactly three
-  shapes are CLI-synthesized: the `delta` union, `auth status`, and
-  `capabilities`.
+  verbatim: one canonical shape across web, API, and CLI. Exactly four
+  shapes are CLI-synthesized: the `delta` union, `auth status`,
+  `auth profiles`, and `capabilities`.
 - **Additive within a major, once released:** fields are never removed,
   renamed, or retyped within a major; new fields may appear any release;
   read tolerantly. Breaking changes ship expand/contract with a deprecation
@@ -359,6 +360,30 @@ IdP escape hatch). Resolution order: `--profile` / `MERGEBRIEF_PROFILE` →
 `owners:` match on the git-remote owner → the default profile.
 `MERGEBRIEF_TOKEN` overrides the resolved profile's stored token.
 
+Three commands manage them without opening the file, and none makes a request:
+
+- `auth profiles` lists each profile's name, base URL, owners, whether it is the
+  default and whether it stores a token. It never prints a token or a header:
+
+  ```json
+  {"profiles":[{"name":"default","baseUrl":"https://mergebrief.your-org.example","owners":["acme"],"isDefault":true,"tokenConfigured":true}]}
+  ```
+
+- `auth use <name>` sets the default profile.
+- `auth owners <owner...>` replaces the resolved profile's owners, and `--clear`
+  empties them. Each owner is one GitHub slug as its own argument. Owners ignore
+  case, and an owner routes to one profile only.
+
+A failure that can mean the wrong instance names the other profiles on its error
+line: no answer, a proxy's page, a 401, a 404, a 5xx, or a repo the profile can't
+see. A status that shows this instance answered, such as a 409, doesn't. `auth
+status` prints the same names beside a failed probe on a terminal; its JSON stays
+the documented shape, so a script reads them from `auth profiles`.
+`auth login --base-url` that moves a profile to another origin drops its stored
+headers and owners, since those belong to the old instance. `auth login` refuses
+a profile name it couldn't store: `__proto__`, `.`, `..`, an empty name, or one
+with a path separator or a control character.
+
 Deploy-side setup (IdP `/api/*` exemption, minting walkthrough):
 [`docs/self-host/cli.md`](../../docs/self-host/cli.md).
 
@@ -433,6 +458,46 @@ Usage: mergebrief auth status [options]
 config + server status for the resolved profile
 
 Options:
+  -h, --help  display help for command
+```
+
+### `mergebrief auth profiles`
+
+```
+Usage: mergebrief auth profiles [options]
+
+every profile in the config, tokens and headers left out
+
+Options:
+  -h, --help  display help for command
+```
+
+### `mergebrief auth use`
+
+```
+Usage: mergebrief auth use [options] <name>
+
+set the default profile
+
+Arguments:
+  name        a profile `auth profiles` lists
+
+Options:
+  -h, --help  display help for command
+```
+
+### `mergebrief auth owners`
+
+```
+Usage: mergebrief auth owners [options] [owner...]
+
+set the GitHub owners the resolved profile serves, replacing its list
+
+Arguments:
+  owner       owner slugs whose clones route to this profile
+
+Options:
+  --clear     remove every owner from the profile (default: false)
   -h, --help  display help for command
 ```
 

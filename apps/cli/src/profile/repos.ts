@@ -14,7 +14,7 @@ import {
   type ListReposResponse,
 } from "contract";
 import { z } from "zod/v4";
-import type { ApiClient } from "../client";
+import { describeOtherProfiles, type ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 
 const reposBodySchema = z.object({
@@ -25,6 +25,8 @@ export interface RepoCacheDeps {
   readonly client: ApiClient;
   readonly cacheDir: string;
   readonly profileName: string;
+  /** Named when a repo is not visible, since it may live on one of them. */
+  readonly otherProfileNames?: readonly string[];
 }
 
 function cachePath(deps: RepoCacheDeps): string {
@@ -107,9 +109,10 @@ export async function resolveRepoId(
   const { body } = await refreshRepos(deps);
   const fresh = body.repos.find((repo) => repo.fullName === fullName);
   if (fresh === undefined) {
+    const otherProfiles = describeOtherProfiles(deps.otherProfileNames ?? []);
     throw new CliError(
       ExitCodes.NOT_FOUND,
-      `${fullName} is not visible to profile "${deps.profileName}": not in its installation, or your access changed (try --refresh, -R owner/name, or another profile)`,
+      `${fullName} is not visible to profile "${deps.profileName}": not in its installation, or your access changed (try --refresh, -R owner/name, or another profile)${otherProfiles}`,
     );
   }
   return fresh.repoId;

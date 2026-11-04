@@ -64,6 +64,14 @@ export function loadConfig(configDir: string): Result<CliConfig, string> {
   return { ok: true, value: parsed.data };
 }
 
+export function loadConfigOrRefuse(configDir: string): CliConfig {
+  const config = loadConfig(configDir);
+  if (!config.ok) {
+    throw new CliError(ExitCodes.USAGE, config.error);
+  }
+  return config.value;
+}
+
 /** Write the config with owner-only permissions (it holds token plaintext). */
 export function saveConfig(configDir: string, config: CliConfig): void {
   mkdirSync(configDir, { recursive: true, mode: 0o700 });
@@ -79,6 +87,8 @@ export interface ResolvedProfile {
   readonly profile: Profile;
   /** The effective Bearer token: MERGEBRIEF_TOKEN env beats the stored one. */
   readonly token: string | undefined;
+  /** Names only: a failure may print them, so never a profile's other fields. */
+  readonly otherProfileNames: readonly string[];
 }
 
 export interface ResolveProfileInput {
@@ -90,18 +100,50 @@ export interface ResolveProfileInput {
   readonly gitRemoteOwner?: string | undefined;
 }
 
+/** The profile a run lands on when nothing names one: a lone profile is the default. */
+export function readDefaultProfileName(config: CliConfig): string | undefined {
+  const names = Object.keys(config.profiles);
+  return config.defaultProfile ?? (names.length === 1 ? names[0] : undefined);
+}
+
+function holdsOwner(profile: Profile, slug: string): boolean {
+  return (profile.owners ?? []).some((held) => held.toLowerCase() === slug);
+}
+
+/** GitHub owner slugs ignore case, so `Acme` and `acme` route the same way. */
+export function findOwnerProfileName(
+  config: CliConfig,
+  owner: string,
+): string | undefined {
+  const slug = owner.toLowerCase();
+  const routed = Object.entries(config.profiles).find(([, profile]) =>
+    holdsOwner(profile, slug),
+  );
+  return routed?.[0];
+}
+
+/** Own keys only: `constructor` must not resolve through the object's prototype. */
+export function readHeldProfile(
+  config: CliConfig,
+  name: string | undefined,
+): Profile | undefined {
+  if (name === undefined || !Object.hasOwn(config.profiles, name)) {
+    return undefined;
+  }
+  return config.profiles[name];
+}
+
 /**
  * The locked resolution order. A named profile that does not exist is a hard
  * USAGE error, never a silent fallback.
  */
 export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
   const { config, env } = input;
-  const names = Object.keys(config.profiles);
 
   const explicit = input.flagProfile ?? env["MERGEBRIEF_PROFILE"];
   let name: string | undefined;
   if (explicit !== undefined) {
-    if (config.profiles[explicit] === undefined) {
+    if (readHeldProfile(config, explicit) === undefined) {
       throw new CliError(
         ExitCodes.USAGE,
         `profile "${explicit}" is not configured (run: mergebrief auth login --profile ${explicit})`,
@@ -109,16 +151,12 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
     }
     name = explicit;
   } else if (input.gitRemoteOwner !== undefined) {
-    name = names.find((candidate) =>
-      (config.profiles[candidate]?.owners ?? []).includes(
-        input.gitRemoteOwner ?? "",
-      ),
-    );
+    name = findOwnerProfileName(config, input.gitRemoteOwner);
   }
   if (name === undefined) {
-    name = config.defaultProfile ?? (names.length === 1 ? names[0] : undefined);
+    name = readDefaultProfileName(config);
   }
-  const profile = name === undefined ? undefined : config.profiles[name];
+  const profile = readHeldProfile(config, name);
   if (name === undefined || profile === undefined) {
     throw new CliError(
       ExitCodes.USAGE,
@@ -129,6 +167,9 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
     name,
     profile,
     token: env["MERGEBRIEF_TOKEN"] ?? profile.token,
+    otherProfileNames: Object.keys(config.profiles).filter(
+      (candidate) => candidate !== name,
+    ),
   };
 }
 

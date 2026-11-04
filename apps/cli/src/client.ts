@@ -1,6 +1,7 @@
 // Keep success bodies verbatim. Non-2xx responses become one stderr line plus an exit code.
 // Known wire codes use catalog templates and HTTP status; unknown ones relay server error text.
 // Inject fetch so CLI tests exercise the real Hono app without network calls.
+import { formatDisplayText } from "brief-core/hidden-chars";
 import { parseApiErrorBody } from "contract";
 import { createI18n } from "i18n";
 import { HttpMethods, type HttpMethod, type Mutable, type Result } from "types";
@@ -17,6 +18,12 @@ const IMF_FIXDATE =
   /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
 const MS_PER_SECOND = 1000;
 const UNRECOGNIZED_RETRY_AFTER = "not delta-seconds or an IMF-fixdate";
+/** A 401, a 404 or a server failure can mean the wrong instance; the rest show this one answered. */
+const WRONG_INSTANCE_EXITS: ReadonlySet<ExitCode> = new Set([
+  ExitCodes.GENERIC,
+  ExitCodes.AUTH,
+  ExitCodes.NOT_FOUND,
+]);
 const RETRY_AFTER_OUT_OF_RANGE = "delta-seconds past the safe integer range";
 const INVALID_RETRY_AFTER_DATE = "an IMF-fixdate that is no calendar date";
 
@@ -51,6 +58,8 @@ export interface ApiClientOptions {
   readonly headers?: Readonly<Record<string, string>> | undefined;
   /** Named on a failure the server gave no text for. */
   readonly profileName?: string | undefined;
+  /** Named when a failure may mean the wrong instance, since one of them may be the one meant. */
+  readonly otherProfileNames?: readonly string[];
   /** The build-time version by default; a test seam. */
   readonly cliVersion?: string | undefined;
   /** Told once, on the first response that carries `MergeBrief-Version`. */
@@ -188,10 +197,45 @@ export interface ApiClient {
   request(req: ApiRequest): Promise<ApiResponse>;
 }
 
+/**
+ * Asks the Headers class fetch builds, so the answer can't drift from fetch's. Its
+ * error can print the whole value, a token or a client secret, so that stays here.
+ */
+export function isSendableHeader(name: string, value: string): boolean {
+  try {
+    new Headers().set(name, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function assertSendableHeaders(
+  headers: Readonly<Record<string, string>>,
+): void {
+  for (const [name, value] of Object.entries(headers)) {
+    if (!isSendableHeader(name, value)) {
+      throw new CliError(
+        ExitCodes.USAGE,
+        `the ${name} header can't be sent: it holds a character HTTP refuses; check the profile's stored headers and token, and MERGEBRIEF_TOKEN`,
+      );
+    }
+  }
+}
+
+export function describeOtherProfiles(names: readonly string[]): string {
+  if (names.length === 0) {
+    return "";
+  }
+  const shown = names.map((name) => formatDisplayText(name));
+  return `; other profiles: ${shown.join(", ")}`;
+}
+
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const base = options.baseUrl.replace(/\/+$/, "");
   const cliVersion = options.cliVersion ?? CLI_VERSION;
   const userAgent = `mergebrief/${cliVersion}`;
+  const otherProfiles = describeOtherProfiles(options.otherProfileNames ?? []);
   const deployment =
     options.profileName === undefined
       ? base
@@ -217,6 +261,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       if (options.token !== undefined) {
         headers["authorization"] = `Bearer ${options.token}`;
       }
+      assertSendableHeaders(headers);
       let body: string | Uint8Array | undefined;
       if (req.bytes !== undefined) {
         headers["content-type"] = req.bytes.contentType;
@@ -243,7 +288,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       } catch (error) {
         throw new CliError(
           ExitCodes.GENERIC,
-          `could not reach ${base}: ${error instanceof Error ? error.message : "network error"}`,
+          `could not reach ${base}: ${error instanceof Error ? error.message : "network error"}${otherProfiles}`,
         );
       }
 
@@ -258,7 +303,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       ) {
         throw new CliError(
           ExitCodes.GENERIC,
-          `${base} answered like an identity-provider proxy (redirect/HTML). Exempt /api/* from the IdP for Bearer traffic (see docs/self-host)`,
+          `${base} answered like an identity-provider proxy (redirect/HTML). Exempt /api/* from the IdP for Bearer traffic (see docs/self-host)${otherProfiles}`,
         );
       }
 
@@ -267,7 +312,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         const exitCode = exitCodeForStatus(response.status);
         const statusLabel = describeStatus(response, exitCode, now());
         const line = serverErrorLine(bodyText, statusLabel, deployment);
-        throw new CliError(exitCode, line);
+        const suffix = WRONG_INSTANCE_EXITS.has(exitCode) ? otherProfiles : "";
+        throw new CliError(exitCode, `${line}${suffix}`);
       }
       return { status: response.status, bodyText, headers: response.headers };
     },

@@ -15,6 +15,21 @@ export interface ServerStatus extends ServerReleaseFields {
   readonly version: string | null;
 }
 
+/** One row of `auth profiles`: never the token or the profile's headers. */
+export interface ProfileSummary {
+  readonly name: string;
+  readonly baseUrl: string;
+  readonly owners: readonly string[];
+  readonly isDefault: boolean;
+  /** Whether the profile stores a token; `MERGEBRIEF_TOKEN` is not read here. */
+  readonly tokenConfigured: boolean;
+}
+
+/** The `auth profiles` shape, additive-only. */
+export interface AuthProfilesBody {
+  readonly profiles: readonly ProfileSummary[];
+}
+
 /** The two-level `auth status` shape, additive-only. */
 export interface AuthStatusBody {
   readonly profile: string;

@@ -2,7 +2,7 @@ import { CLI_VERSION, createApiClient, type ApiClient } from "../client";
 import { CliError, ExitCodes } from "../exit";
 import {
   fullNameFromOriginUrl,
-  loadConfig,
+  loadConfigOrRefuse,
   ownerFromOriginUrl,
   resolveProfile,
   type ResolvedProfile,
@@ -41,26 +41,26 @@ export function createClient(
     token: resolved.token,
     headers: resolved.profile.headers,
     profileName: resolved.name,
+    otherProfileNames: resolved.otherProfileNames,
     cliVersion: resolveCliVersion(deps),
     onServerVersion: (version) => recordServerVersion(deps, version),
   });
+}
+
+export function readGitRemoteOwner(deps: CliDeps): string | undefined {
+  const originUrl = deps.gitOriginUrl();
+  return originUrl === undefined ? undefined : ownerFromOriginUrl(originUrl);
 }
 
 export function resolveFromDisk(
   deps: CliDeps,
   flagProfile: string | undefined,
 ): ResolvedProfile {
-  const config = loadConfig(deps.configDir);
-  if (!config.ok) {
-    throw new CliError(ExitCodes.USAGE, config.error);
-  }
-  const originUrl = deps.gitOriginUrl();
   return resolveProfile({
-    config: config.value,
+    config: loadConfigOrRefuse(deps.configDir),
     env: deps.env,
     flagProfile,
-    gitRemoteOwner:
-      originUrl === undefined ? undefined : ownerFromOriginUrl(originUrl),
+    gitRemoteOwner: readGitRemoteOwner(deps),
   });
 }
 
@@ -120,7 +120,12 @@ export async function resolveRepoTarget(
 
   const client = createClient(deps, resolved);
   const repoId = await resolveRepoId(
-    { client, cacheDir: deps.cacheDir, profileName: resolved.name },
+    {
+      client,
+      cacheDir: deps.cacheDir,
+      profileName: resolved.name,
+      otherProfileNames: resolved.otherProfileNames,
+    },
     fullName,
   );
   return { client, repoId, io: readIo(deps, global) };
