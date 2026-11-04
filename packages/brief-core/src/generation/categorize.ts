@@ -74,7 +74,7 @@ import type {
 } from "../context/types";
 import { toPrimaryTicket } from "../context/primary";
 import { flagAddedSecrets } from "./added-secrets";
-import { dropNoTestsOnNonExecutableFiles } from "./non-executable-files";
+import { dropNoTestsOnExemptFiles } from "./no-tests-exempt-files";
 import {
   flagPackageSourceChanges,
   readPackageSourceContext,
@@ -886,7 +886,7 @@ export async function categorizeDelta(
   collector.reportIssues("loc overlap", detectChunkOverlaps(chunksWithLoc));
   const trio = validateRiskAttributes(chunksWithLoc, fileDiffs);
   collector.reportIssues("risk attrs", trio.issues);
-  const noTestsScoped = dropNoTestsOnNonExecutableFiles(trio.chunks);
+  const noTestsScoped = dropNoTestsOnExemptFiles(trio.chunks);
   const withSecrets = flagAddedSecrets(noTestsScoped, [], fileDiffs);
   const flagged = flagPackageSourceChanges(
     withSecrets.chunks,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dropNoTestsOnNonExecutableFiles } from "../../src/generation/non-executable-files";
-import { RiskSurfaceAttributes } from "../../src/types";
+import { dropNoTestsOnExemptFiles } from "../../src/generation/no-tests-exempt-files";
+import { Concerns, RiskSurfaceAttributes } from "../../src/types";
 
 const NO_TESTS = RiskSurfaceAttributes.NO_TESTS;
 const EXTERNAL_IO = RiskSurfaceAttributes.EXTERNAL_IO;
@@ -9,6 +9,7 @@ const HOT_PATH = RiskSurfaceAttributes.HOT_PATH;
 interface TestChunk {
   id: string;
   file: string;
+  concern?: string;
   riskSurface: string[];
   riskNotes?: { attr: string; note: string }[] | undefined;
 }
@@ -26,11 +27,11 @@ function makeChunk(
 }
 
 function readRiskSurface(file: string): string[] {
-  const [chunk] = dropNoTestsOnNonExecutableFiles([makeChunk(file)]);
+  const [chunk] = dropNoTestsOnExemptFiles([makeChunk(file)]);
   return chunk?.riskSurface ?? [];
 }
 
-describe("dropNoTestsOnNonExecutableFiles", () => {
+describe("dropNoTestsOnExemptFiles", () => {
   it.each([
     "src/app.css",
     "src/Button/Button.scss",
@@ -63,6 +64,24 @@ describe("dropNoTestsOnNonExecutableFiles", () => {
     "media/intro.webm",
     "media/intro.mov",
     "docs/spec.pdf",
+    "docker-compose.yml",
+    ".github/workflows/ci.yaml",
+    "pyproject.toml",
+    "setup.cfg",
+    "pytest.ini",
+    "nginx.conf",
+    "tsconfig.json",
+    "Dockerfile",
+    "docker/Dockerfile.prod",
+    "worker.dockerfile",
+    "Containerfile",
+    "Makefile",
+    "tools/GNUmakefile",
+    "build/rules.mk",
+    "scripts/release.sh",
+    "scripts/run.bash",
+    "scripts/setup.zsh",
+    "scripts/setup.fish",
   ])("drops no-tests on %s", (file) => {
     expect(readRiskSurface(file)).toEqual([]);
   });
@@ -74,10 +93,30 @@ describe("dropNoTestsOnNonExecutableFiles", () => {
     "src/index.test.ts",
     "src/theme.css.ts",
     "src/styles.css/index.ts",
-    "Makefile",
+    "src/Makefile.ts",
+    "src/dockerfiles/index.ts",
     ".gitignore",
   ])("keeps no-tests on %s", (file) => {
     expect(readRiskSurface(file)).toEqual([NO_TESTS]);
+  });
+
+  it("drops no-tests on a chunk the model labels config", () => {
+    const chunk = { ...makeChunk(".env.example"), concern: Concerns.CONFIG };
+
+    const [scoped] = dropNoTestsOnExemptFiles([chunk]);
+
+    expect(scoped?.riskSurface).toEqual([]);
+  });
+
+  it("keeps no-tests on a source file the model labels implementation", () => {
+    const chunk = {
+      ...makeChunk("src/index.ts"),
+      concern: Concerns.IMPLEMENTATION,
+    };
+
+    const [scoped] = dropNoTestsOnExemptFiles([chunk]);
+
+    expect(scoped?.riskSurface).toEqual([NO_TESTS]);
   });
 
   it("drops no-tests on a compound or upper-case extension", () => {
@@ -96,7 +135,7 @@ describe("dropNoTestsOnNonExecutableFiles", () => {
       ],
     );
 
-    const [result] = dropNoTestsOnNonExecutableFiles([chunk]);
+    const [result] = dropNoTestsOnExemptFiles([chunk]);
 
     expect(result?.riskSurface).toEqual([EXTERNAL_IO, HOT_PATH]);
     expect(result?.riskNotes).toEqual([
@@ -112,7 +151,7 @@ describe("dropNoTestsOnNonExecutableFiles", () => {
       [{ attr: NO_TESTS, note: "no doc test" }],
     );
 
-    const [result] = dropNoTestsOnNonExecutableFiles([chunk]);
+    const [result] = dropNoTestsOnExemptFiles([chunk]);
 
     expect(result?.riskSurface).toEqual([]);
     expect(result).not.toHaveProperty("riskNotes");
@@ -128,7 +167,7 @@ describe("dropNoTestsOnNonExecutableFiles", () => {
       ],
     );
 
-    const [result] = dropNoTestsOnNonExecutableFiles([chunk]);
+    const [result] = dropNoTestsOnExemptFiles([chunk]);
 
     expect(result?.riskSurface).toEqual([HOT_PATH]);
     expect(result?.riskNotes).toEqual([
@@ -140,7 +179,7 @@ describe("dropNoTestsOnNonExecutableFiles", () => {
     const styled = makeChunk("src/app.css", [HOT_PATH]);
     const code = makeChunk("src/index.ts");
 
-    const result = dropNoTestsOnNonExecutableFiles([styled, code]);
+    const result = dropNoTestsOnExemptFiles([styled, code]);
 
     expect(result[0]).toBe(styled);
     expect(result[1]).toBe(code);
@@ -154,7 +193,7 @@ describe("dropNoTestsOnNonExecutableFiles", () => {
     );
     const before = structuredClone(chunk);
 
-    dropNoTestsOnNonExecutableFiles([chunk]);
+    dropNoTestsOnExemptFiles([chunk]);
 
     expect(chunk).toEqual(before);
   });

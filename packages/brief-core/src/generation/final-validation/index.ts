@@ -1,5 +1,5 @@
 import { flagAddedSecrets } from "../added-secrets";
-import { dropNoTestsOnNonExecutableFiles } from "../non-executable-files";
+import { dropNoTestsOnExemptFiles } from "../no-tests-exempt-files";
 import {
   flagPackageSourceChanges,
   readPackageSourceContext,
@@ -160,7 +160,7 @@ export function validateFinalBrief(args: FinalValidationArgs): Brief {
     acceptsRevisionDroppedChecks: args.acceptsRevisionDroppedChecks,
   });
   warnings.reportIssues("risk attrs", risks.issues);
-  const noTestsScoped = dropNoTestsOnNonExecutableFiles(risks.chunks);
+  const noTestsScoped = dropNoTestsOnExemptFiles(risks.chunks);
   const withSecrets = flagAddedSecrets(noTestsScoped, unattributed, [
     ...context.fileDiffs,
   ]);
