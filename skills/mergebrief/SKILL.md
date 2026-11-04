@@ -40,7 +40,11 @@ instruction covers it, hold the write and report what you would have done.
 ## Preflight
 
 1. `mergebrief auth status --json`. A dead or missing token stops the run.
-   The user re-mints in the browser; you never handle credentials.
+   The user re-mints in the browser; you never handle credentials. So does
+   `server.reachable:false`, which still exits 0: report the `profile` and
+   `baseUrl` it printed, say that another deployment's profile may be the one
+   meant, and let the user name it for `--profile <name>`. Never open the
+   config file to look: it holds the tokens.
 2. `mergebrief capabilities --json --require read-pull read-brief
 read-brief-context read-review-session read-diff create-draft-comment
 update-draft-comment mark-chunk-read reclassify-group set-review-outcome
@@ -48,7 +52,8 @@ read-conversation reply-to-comment resolve-thread unresolve-thread
 submit-review`. Every operation the
    loop below may drive, checked before the first read; `generate-brief`
    stays out because it runs only on the user's ask and fails loudly at
-   use. Exit 0 means proceed. Exit 6 means
+   use. Send stdout, the whole operation catalog, to `/dev/null` and branch on
+   the exit code. Exit 0 means proceed. Exit 6 means
    this server and CLI pair cannot run the loop; report stderr verbatim and
    stop. Exit 6 is a deployment fact, never a retry.
 3. `mergebrief pr <n> --json`. Record `baseSha` and `headSha`. Every session
@@ -84,7 +89,8 @@ submit-review`. Every operation the
    publishing act.
 8. `mergebrief conversation <n> --json` for existing threads. Reply and
    resolve are external writes; the authority rule above governs them.
-9. Risk flags arrive in the session payload with their dispositions.
+9. Open risk flags are the `riskSurface` of each chunk in `groups`. The
+   session payload holds only recorded dispositions and attention items.
    Clearing one (`mergebrief risk dismiss|address|reopen`) is the operator's
    act, and the server enforces that. Weigh open flags while reading, and
    name the ones your reading confirms or contradicts in the review body.
@@ -98,6 +104,10 @@ belong in dispositions and the review body, not scattered across comments.
 The brief's groups and flags direct where you look. Assert only what the
 code showed you. When the brief and the code disagree, the code wins, and
 the review body says so.
+
+The brief routes you; findings come from the code. Before you settle on the
+outcome, list the pull request's strongest claims and try to break each one
+against the code.
 
 ## Failure
 

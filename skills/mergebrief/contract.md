@@ -58,9 +58,10 @@ the flags.
 The comments `mergebrief submit` publishes are the drafts the server holds
 for the span you name; the outcome and body ride the payload its `--help`
 documents. Exit 0
-returns `{reviewId, commentsDegraded}`; `commentsDegraded: true` means the
-inline anchors were rejected upstream and the comments were folded into the
-review body. The review posted; never re-submit for it. GitHub rejects
+returns `{reviewId, commentsDegraded, commentsFolded, commentsTotal}`.
+`commentsFolded` of `commentsTotal` had their inline anchors rejected upstream
+and were folded into the review body; `commentsDegraded` is true when any were.
+The review posted; never re-submit for it. GitHub rejects
 APPROVE and REQUEST_CHANGES on your own PR (COMMENT passes); that arrives as
 a server-relayed error, not a retry case.
 
@@ -76,9 +77,15 @@ resolve|unresolve`, `ready` and `draft attach` write to GitHub and need a
 token minted with external-write scope.
 
 `risk dismiss|address|reopen` take `-F` with a `flags` array naming each
-flag by anchor: copy `filePath`, `attribute`, `regionStart`, `regionEnd`
-verbatim from `session --json`. Flag ids dangle across brief regenerations;
-anchors do not.
+flag by anchor: `filePath`, `attribute`, `regionStart`, `regionEnd`. Flag ids
+dangle across brief regenerations; anchors do not. `session --json` lists
+anchors only for flags with a recorded disposition. An open flag is a
+`riskSurface` entry on a chunk or `unattributed` entry in `groups --json`, and
+the wire carries no anchor for it: `filePath` is its `file`, `attribute` the
+entry, `regionStart` the lowest `start` and `regionEnd` the highest `end`
+across `addedRanges` and `removedRanges`, or 1 and 1 when both are empty. A
+signed-in reviewer normally clears flags in the web app, which needs none of
+this.
 
 ## The delta union
 

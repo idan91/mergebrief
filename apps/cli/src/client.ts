@@ -49,6 +49,8 @@ export interface ApiClientOptions {
   readonly token: string | undefined;
   /** Extra static per-profile headers (the IdP escape hatch). */
   readonly headers?: Readonly<Record<string, string>> | undefined;
+  /** Named on a failure the server gave no text for. */
+  readonly profileName?: string | undefined;
   /** The build-time version by default; a test seam. */
   readonly cliVersion?: string | undefined;
   /** Told once, on the first response that carries `MergeBrief-Version`. */
@@ -100,7 +102,11 @@ function resolveCatalogErrorLine(
   return line;
 }
 
-function serverErrorLine(bodyText: string, statusLabel: string): string {
+function serverErrorLine(
+  bodyText: string,
+  statusLabel: string,
+  deployment: string,
+): string {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     const catalogLine = resolveCatalogErrorLine(parsed, statusLabel);
@@ -117,7 +123,7 @@ function serverErrorLine(bodyText: string, statusLabel: string): string {
   } catch {
     // Non-JSON error body, fall through to the generic line.
   }
-  const fallback = `request failed (${statusLabel})`;
+  const fallback = `request failed (${statusLabel}) from ${deployment}`;
   return fallback;
 }
 
@@ -186,6 +192,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const base = options.baseUrl.replace(/\/+$/, "");
   const cliVersion = options.cliVersion ?? CLI_VERSION;
   const userAgent = `mergebrief/${cliVersion}`;
+  const deployment =
+    options.profileName === undefined
+      ? base
+      : `${base}, profile ${options.profileName}`;
   const now = options.now ?? Date.now;
   let serverVersion: string | undefined;
 
@@ -256,7 +266,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       if (!response.ok) {
         const exitCode = exitCodeForStatus(response.status);
         const statusLabel = describeStatus(response, exitCode, now());
-        throw new CliError(exitCode, serverErrorLine(bodyText, statusLabel));
+        const line = serverErrorLine(bodyText, statusLabel, deployment);
+        throw new CliError(exitCode, line);
       }
       return { status: response.status, bodyText, headers: response.headers };
     },

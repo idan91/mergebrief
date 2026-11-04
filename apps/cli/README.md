@@ -5,7 +5,10 @@ your deployment's HTTP API. One binary-shaped npm package; the web app stays
 the interactive surface.
 
 Published to npm by the release workflow as `mergebrief@X.Y.Z`; this
-monorepo dogfoods the dev build via `pnpm --dir apps/cli link-dev`. Humans: `npm i -g mergebrief`.
+monorepo dogfoods the dev build via `pnpm --dir apps/cli link-dev`, which needs
+pnpm's global bin directory on `PATH`: if it stops with `The configured global
+bin directory ... is not in PATH`, run `pnpm setup`, open a new shell and run it
+again. Humans: `npm i -g mergebrief`.
 Agents/CI: `npx mergebrief`. Once released, always-latest is safe: the
 output contract is additive within a major (see below). Pinning is supported
 but never required for compatibility.
@@ -13,11 +16,11 @@ but never required for compatibility.
 ## Quickstart
 
 1. **Mint a token** in the web app: sign in, open `/settings`, name the
-   token, pick the organization it is bound to, and choose an expiry.
+   token, pick its scope, and choose an expiry.
    The token is shown **exactly once**; treat it like a password. The CLI
    stores it **in plaintext** in a `chmod 600` file under
-   `~/.config/mergebrief/`; anyone with the token can act as you in that
-   organization.
+   `~/.config/mergebrief/`; anyone with the token can act as you, up to its
+   scope, on every repository you reach.
 2. **Log in** (paste, or pipe the token on stdin):
 
    ```sh
@@ -217,7 +220,9 @@ exclusive). Span required. Prints nothing on success.
 
 Disposition the brief's risk flags. `-F` is **required**: the payload's
 `flags` array names each flag by anchor (`filePath`, `attribute`,
-`regionStart`, `regionEnd`), copied through from `session --json`.
+`regionStart`, `regionEnd`): `session --json` lists them for a flag already
+decided, and an open flag's come from its chunk in `groups --json`
+([the rule](../../skills/mergebrief/contract.md#human-only-operations)).
 `dismiss` adds `--reason <text>` as a convenience, mutually exclusive with
 a `reason` in the payload (exit 2). Span required. Server-gated to
 signed-in reviewers (a token gets the relayed 403 → exit 5). Receipt:

@@ -216,6 +216,22 @@ describe("auth login before any request", () => {
   });
 });
 
+describe("a server failure with no error text", () => {
+  it("prints one line naming the deployment and the profile", async () => {
+    const result = await runCliOffline(["repos", "--refresh", "--json"], {
+      routes: [
+        { method: "GET", path: "/api/repos", status: 502, body: "bad gateway" },
+      ],
+    });
+
+    expect(result.code).toBe(ExitCodes.GENERIC);
+    expect(result.out).toBe("");
+    expect(result.err).toEqual([
+      `request failed (HTTP 502) from ${BASE_URL}, profile default`,
+    ]);
+  });
+});
+
 describe("auth login profile selection and verification", () => {
   it("MERGEBRIEF_PROFILE selects the login target like --profile", async () => {
     const result = await runCliOffline(LOGIN, {

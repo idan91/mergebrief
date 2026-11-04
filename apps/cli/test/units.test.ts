@@ -230,6 +230,16 @@ describe("client proxy/IdP detection", () => {
     });
   });
 
+  it("names the deployment on a failure with no error text", async () => {
+    const client = clientWith(new Response("bad gateway", { status: 502 }));
+    await expect(
+      client.request({ path: "/api/version" }),
+    ).rejects.toMatchObject({
+      code: ExitCodes.GENERIC,
+      message: "request failed (HTTP 502) from https://mb.example",
+    });
+  });
+
   it("relays the server's error text + status in one line", async () => {
     const client = clientWith(
       new Response(JSON.stringify({ error: "unauthorized" }), {

@@ -40,6 +40,7 @@ export function createClient(
     baseUrl: resolved.profile.baseUrl,
     token: resolved.token,
     headers: resolved.profile.headers,
+    profileName: resolved.name,
     cliVersion: resolveCliVersion(deps),
     onServerVersion: (version) => recordServerVersion(deps, version),
   });
