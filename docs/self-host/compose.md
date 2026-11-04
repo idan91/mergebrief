@@ -476,6 +476,12 @@ Any proxy works: nginx, Traefik, a cloud load balancer. Forward the
 original Host, and don't strip `X-Request-Id` if you correlate logs
 ([observability.md](./observability.md)).
 
+The app sets `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`,
+`X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`
+on every answer, documents and `/api` alike, so your proxy needs to add none
+of them. The app sends no `Strict-Transport-Security`: that one belongs to the
+proxy, because the proxy owns TLS.
+
 ### 3. The webhook secret is the ONLY gate on the webhook route
 
 `POST /api/webhooks/github` is unauthenticated by design: GitHub cannot

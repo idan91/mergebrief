@@ -21,6 +21,7 @@ import { apiUnavailable, requestApi } from "./server/api/proxy";
 import { answerInternalError } from "./server/json-answer";
 import { isRefusedPath } from "./server/refused-paths";
 import { stampRequestId } from "./server/request-id";
+import { copyWithSecurityHeaders } from "./server/security-headers";
 
 const logger = getServerLogger();
 const NOT_FOUND_STATUS = 404;
@@ -77,36 +78,44 @@ async function proxyToApi(
   return compressDiffReply(stamped, reply);
 }
 
+async function answerRequest(
+  request: Request,
+  requestOpts: Parameters<ServerEntry["fetch"]>[1],
+): Promise<Response> {
+  const { pathname } = new URL(request.url);
+  // Health surface answered BEFORE the API branch and the page router, so
+  // it stays reachable even if router init throws. Unauthenticated JSON.
+  const health = await handleHealthRequest(pathname, {
+    checkReadiness: checkApiReadiness,
+  });
+  if (health !== undefined) {
+    return health;
+  }
+  if (isRefusedPath(pathname)) {
+    return new Response(null, { status: NOT_FOUND_STATUS });
+  }
+  // Every request past health gets the id its API calls carry, the proxied
+  // one and each SSR read alike.
+  const requestId = crypto.randomUUID();
+  const stamped = stampRequestId(request, requestId);
+  try {
+    if (isApiPath(pathname)) {
+      nameRequestSpan(request.method, API_PROXY_ROUTE);
+      return await proxyToApi(stamped, requestId);
+    }
+    nameRequestSpan(request.method, PAGE_ROUTE);
+    const page = await handleStartRequest(stamped, requestOpts);
+    return withNoStoreForDocuments(page);
+  } catch (error) {
+    logger.error("web request failed", { err: error, reqId: requestId });
+    return answerInternalError();
+  }
+}
+
 const serverEntry: ServerEntry = {
   async fetch(request, requestOpts) {
-    const { pathname } = new URL(request.url);
-    // Health surface answered BEFORE the API branch and the page router, so
-    // it stays reachable even if router init throws. Unauthenticated JSON.
-    const health = await handleHealthRequest(pathname, {
-      checkReadiness: checkApiReadiness,
-    });
-    if (health !== undefined) {
-      return health;
-    }
-    if (isRefusedPath(pathname)) {
-      return new Response(null, { status: NOT_FOUND_STATUS });
-    }
-    // Every request past health gets the id its API calls carry, the proxied
-    // one and each SSR read alike.
-    const requestId = crypto.randomUUID();
-    const stamped = stampRequestId(request, requestId);
-    try {
-      if (isApiPath(pathname)) {
-        nameRequestSpan(request.method, API_PROXY_ROUTE);
-        return await proxyToApi(stamped, requestId);
-      }
-      nameRequestSpan(request.method, PAGE_ROUTE);
-      const page = await handleStartRequest(stamped, requestOpts);
-      return withNoStoreForDocuments(page);
-    } catch (error) {
-      logger.error("web request failed", { err: error, reqId: requestId });
-      return answerInternalError();
-    }
+    const response = await answerRequest(request, requestOpts);
+    return copyWithSecurityHeaders(response);
   },
 };
 

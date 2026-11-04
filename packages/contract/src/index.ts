@@ -210,5 +210,6 @@ export {
   WARM_SPAN_DIFF_HEADER,
   type DiffMode,
 } from "./span-diff";
+export { SECURITY_RESPONSE_HEADERS } from "./security-headers";
 export type { DismissVersionNoticeBody, VersionResponse } from "./version";
 export type { AuthSessionResponse, ViewerView } from "./viewer";

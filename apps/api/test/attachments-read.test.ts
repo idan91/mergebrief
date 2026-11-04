@@ -236,6 +236,7 @@ describe("GET attachments/:assetId", () => {
       expect(response.headers.get("content-type")).toBe("image/png");
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(response.headers.get("x-frame-options")).toBe("DENY");
       expect(response.headers.get("content-disposition")).toBe("inline");
       expect(response.headers.get("content-security-policy")).toBe(
         "default-src 'none'; sandbox",

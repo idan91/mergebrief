@@ -1,10 +1,15 @@
 // The real listener on an ephemeral port: what a browser and the compose
 // healthcheck see, and what a stop does to a request still in flight.
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { Agent, request as sendHttpRequest } from "node:http";
+import {
+  Agent,
+  request as sendHttpRequest,
+  type IncomingHttpHeaders,
+} from "node:http";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SECURITY_RESPONSE_HEADERS } from "contract";
 import type { Server } from "srvx";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { startWebServer, stopWebServer } from ".";
@@ -91,6 +96,33 @@ function sendRequest(
   });
 }
 
+/** Every header a reply carried, for the answers a body check says nothing about. */
+function readReplyHeaders(
+  port: number,
+  path: string,
+  host: string,
+  requestHeaders: Record<string, string> = {},
+  method = "GET",
+): Promise<IncomingHttpHeaders> {
+  return new Promise((resolve, reject) => {
+    const outgoing = sendHttpRequest(
+      {
+        host: "127.0.0.1",
+        port,
+        path,
+        method,
+        headers: { host, ...requestHeaders },
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolve(response.headers));
+      },
+    );
+    outgoing.on("error", reject);
+    outgoing.end();
+  });
+}
+
 describe("startWebServer", () => {
   it("serves a built client file without reaching the server entry", async () => {
     const port = await startServer({
@@ -168,6 +200,65 @@ describe("startWebServer error answers", () => {
     const reply = await sendRequest(port, "/", "localhost", "TRACE");
 
     expect(reply.status).toBe(405);
+  });
+});
+
+describe("startWebServer security headers", () => {
+  const CLIENT_FILE = "/assets/app-abc123.js";
+
+  it.each([
+    ["a built client file", CLIENT_FILE, "localhost", "GET"],
+    ["the server entry's answer", "/", "localhost", "GET"],
+    ["a refused host", "/", "evil.example.net", "GET"],
+    ["a refused method", "/", "localhost", "TRACE"],
+  ])("stamps %s", async (_answer, path, host, method) => {
+    const port = await startServer();
+
+    const headers = await readReplyHeaders(port, path, host, {}, method);
+
+    expect(headers).toMatchObject(SECURITY_RESPONSE_HEADERS);
+  });
+
+  it("stamps a client file's 304", async () => {
+    const port = await startServer();
+    const first = await readReplyHeaders(port, CLIENT_FILE, "localhost");
+    const validator = { "if-none-match": String(first.etag) };
+
+    const headers = await readReplyHeaders(
+      port,
+      CLIENT_FILE,
+      "localhost",
+      validator,
+    );
+
+    expect(headers).toMatchObject(SECURITY_RESPONSE_HEADERS);
+  });
+
+  it("stamps the answer to a handler's throw", async () => {
+    const port = await startServer({
+      fetch: () => {
+        throw new Error("boom");
+      },
+    });
+
+    const headers = await readReplyHeaders(port, "/", "localhost");
+
+    expect(headers).toMatchObject(SECURITY_RESPONSE_HEADERS);
+  });
+
+  it("keeps a stricter policy the server entry answered with", async () => {
+    const policy = "default-src 'none'; sandbox";
+    const port = await startServer({
+      fetch: () =>
+        new Response("bytes", {
+          headers: { "content-security-policy": policy },
+        }),
+    });
+
+    const headers = await readReplyHeaders(port, "/", "localhost");
+
+    expect(headers["content-security-policy"]).toBe(policy);
+    expect(headers["x-frame-options"]).toBe("DENY");
   });
 });
 

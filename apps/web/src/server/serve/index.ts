@@ -14,6 +14,7 @@ import {
   METHOD_NOT_ALLOWED_STATUS,
   UNSERVED_METHODS,
 } from "./consts";
+import { applySecurityHeaders } from "../security-headers";
 import { rejectForeignHost } from "./host-check";
 import { serveStaticFiles } from "./static-files";
 import {
@@ -33,6 +34,18 @@ function rejectUnservedMethod(): ServerMiddleware {
   };
 }
 
+/**
+ * Outermost, for the answers that never reach the server entry. In place,
+ * because a client file's FastResponse hands its bytes to the socket uncopied.
+ */
+function stampSecurityHeaders(): ServerMiddleware {
+  return async (_request, next) => {
+    const response = await next();
+    applySecurityHeaders(response.headers);
+    return response;
+  };
+}
+
 export async function startWebServer(
   options: WebServerOptions,
 ): Promise<Server> {
@@ -43,6 +56,7 @@ export async function startWebServer(
     gracefulShutdown: false,
     silent: true,
     middleware: [
+      stampSecurityHeaders(),
       rejectForeignHost(options.allowedHosts),
       rejectUnservedMethod(),
       serveStaticFiles(options.staticFiles),
@@ -53,7 +67,9 @@ export async function startWebServer(
     // its own failures under the request id; this catches what escapes it.
     error: (error) => {
       options.logger.error("web request failed", { err: error });
-      return answerInternalError();
+      const answer = answerInternalError();
+      applySecurityHeaders(answer.headers);
+      return answer;
     },
   });
   return server.ready();

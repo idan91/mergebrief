@@ -10,6 +10,7 @@ import { productOperationRegistry } from "./product-operations/registry";
 import { createRequestBodyLimit } from "./request-body-limit";
 import { requestLogging, type RequestLogEnv } from "./request-logging";
 import { apiRoutes, type AppDeps } from "./routes";
+import { stampSecurityHeaders } from "./security-headers";
 import { createErrorHandler } from "./shared-errors/on-error";
 
 export type ApiApp = Hono<RequestLogEnv>;
@@ -22,6 +23,9 @@ export function createApp(deps: AppDeps): ApiApp {
   // `ApiError` subclass and exits here; non-ApiError throws stay sanitized
   // 500s.
   root.app.onError(createErrorHandler(deps.logger));
+
+  // Outermost, so it sees every answer below, an `onError` one included.
+  root.use(stampSecurityHeaders());
 
   // Request id + the one api.access line per request; every route below reads
   // its child logger from context.
