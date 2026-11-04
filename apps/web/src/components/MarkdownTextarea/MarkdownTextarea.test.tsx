@@ -735,6 +735,28 @@ function AttachHarness({
   );
 }
 
+const holdCommits = { current: false };
+let releaseHeldCommit: () => void = () => undefined;
+
+/** An owner whose commit lands later than a zero timer, as it does in a browser. */
+function HeldCommitHarness() {
+  const [value, setValue] = useState("");
+  function holdOrCommit(next: string) {
+    if (!holdCommits.current) {
+      setValue(next);
+      return;
+    }
+    releaseHeldCommit = () => {
+      act(() => setValue(next));
+    };
+  }
+  return (
+    <AttachmentScopeProvider installed prNumber={7} repoId="555">
+      <MarkdownTextarea label="Comment" value={value} onChange={holdOrCommit} />
+    </AttachmentScopeProvider>
+  );
+}
+
 async function flush(): Promise<void> {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -750,6 +772,7 @@ describe("MarkdownTextarea image attachments", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     resetAttachmentUploadState();
+    holdCommits.current = false;
   });
 
   it("pastes an image as a placeholder and swaps in the image line", async () => {
@@ -1074,6 +1097,60 @@ describe("MarkdownTextarea image attachments", () => {
     await flush();
 
     expect(input.value).toBe(`![Image](${BRANCH_URL})\nmore words`);
+    const expected = input.value.length - " words".length;
+    expect(input.selectionStart).toBe(expected);
+    expect(input.selectionEnd).toBe(expected);
+  });
+
+  it("keeps the caret when React commits the swap after a timer", async () => {
+    const { resolve } = deferUpload();
+    render(<HeldCommitHarness />);
+    const input = textarea();
+    input.focus();
+    fireEvent.paste(input, {
+      clipboardData: { files: [makeImageFile()], getData: () => "" },
+    });
+    await flush();
+    fireEvent.change(input, {
+      target: { value: `${input.value}\nmore words` },
+    });
+    const caret = input.value.length - " words".length;
+    input.setSelectionRange(caret, caret);
+
+    holdCommits.current = true;
+    resolve(uploadedResponse());
+    await flush();
+    await flush();
+    releaseHeldCommit();
+
+    expect(input.value).toBe(`![Image](${BRANCH_URL})\nmore words`);
+    const expected = input.value.length - " words".length;
+    expect(input.selectionStart).toBe(expected);
+    expect(input.selectionEnd).toBe(expected);
+  });
+
+  it("keeps the caret when a refused batch removes two placeholders", async () => {
+    const { resolve } = deferUpload();
+    render(<AttachHarness />);
+    const input = textarea();
+    input.focus();
+    fireEvent.drop(input, {
+      dataTransfer: {
+        files: [makeImageFile("a.png"), makeImageFile("b.png")],
+      },
+    });
+    await flush();
+    fireEvent.change(input, {
+      target: { value: `${input.value}\nmore words` },
+    });
+    const caret = input.value.length - " words".length;
+    input.setSelectionRange(caret, caret);
+
+    resolve(refusedResponse("attachments-disabled", 403));
+    await flush();
+    await flush();
+
+    expect(input.value).toBe("more words");
     const expected = input.value.length - " words".length;
     expect(input.selectionStart).toBe(expected);
     expect(input.selectionEnd).toBe(expected);

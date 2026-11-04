@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ClipboardEvent,
@@ -89,6 +90,13 @@ const ATTACH_DISABLED_TITLE_KEYS = {
   [AttachDisabledReasons.NO_PERMISSION]: "shell.attach.noPermission",
 } as const satisfies Record<AttachDisabledReason, string>;
 
+/** Where the caret goes once `text`, the settled value, has committed. */
+interface SettledSelection {
+  readonly text: string;
+  readonly start: number;
+  readonly end: number;
+}
+
 function readCommonPrefixLength(left: string, right: string): number {
   const limit = Math.min(left.length, right.length);
   let index = 0;
@@ -145,19 +153,33 @@ export function useMarkdownTextareaFacade({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const settledSelection = useRef<SettledSelection | undefined>(undefined);
+  useLayoutEffect(() => {
+    const settled = settledSelection.current;
+    if (settled?.text !== value) {
+      return;
+    }
+    settledSelection.current = undefined;
+    textareaRef.current?.setSelectionRange(settled.start, settled.end);
+  }, [value]);
+
   /**
    * Writes a settle into the value while keeping the writer's caret where
    * it is: the swap changes the text's length above the caret, so the
-   * selection shifts by that much and is put back once React has set the
-   * new value, which alone would park the caret at the end.
+   * selection shifts by that much. It is put back in the commit that sets
+   * the value, which alone would park the caret at the end. A timer cannot
+   * do this: a settle runs outside any event, so browsers commit it after a
+   * zero timer. Settles before that commit stack on the first one's position.
    */
   function applySettleEdit(next: TextEdit, previous: string): void {
     const textarea = textareaRef.current;
     const focused = textarea !== null && document.activeElement === textarea;
     const changedAt = readCommonPrefixLength(previous, next.text);
     const delta = next.text.length - previous.length;
-    const start = textarea?.selectionStart ?? 0;
-    const end = textarea?.selectionEnd ?? 0;
+    const pending = settledSelection.current;
+    const held = pending?.text === previous ? pending : undefined;
+    const start = held?.start ?? textarea?.selectionStart ?? 0;
+    const end = held?.end ?? textarea?.selectionEnd ?? 0;
     valueRef.current = next.text;
     onChange(next.text);
     if (!focused) {
@@ -165,9 +187,11 @@ export function useMarkdownTextareaFacade({
     }
     const shift = (position: number) =>
       position >= changedAt ? Math.max(changedAt, position + delta) : position;
-    window.setTimeout(() => {
-      textareaRef.current?.setSelectionRange(shift(start), shift(end));
-    }, 0);
+    settledSelection.current = {
+      text: next.text,
+      start: shift(start),
+      end: shift(end),
+    };
   }
 
   /** Applies the edit unless read-only or the edit declines (null). */
