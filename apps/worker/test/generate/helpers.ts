@@ -19,6 +19,7 @@ import {
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
+  type PullRequestUpsertInput,
 } from "persistence";
 import type { GenerationStatus } from "types/generations";
 import { PrStates } from "types/pull-requests";
@@ -1066,23 +1067,29 @@ export interface TriggeredJob {
 export interface TriggerOptions {
   /** The webhook's author gate: the PR author is not a trusted author. */
   readonly requiresTriggerApproval?: boolean;
+  /** A push carries this; a trigger without it can't move the PR to a head it left. */
+  readonly githubUpdatedAt?: Date;
 }
 
 /** Enqueue via the REAL ingest boundary and return {pr row, job payload}. */
 export async function trigger(
   headSha: string,
-  options: TriggerOptions = {},
+  { githubUpdatedAt, ...options }: TriggerOptions = {},
 ): Promise<TriggeredJob> {
+  const pullRequest: Mutable<PullRequestUpsertInput> = {
+    repoId: makeRepoId(7n),
+    prNumber: 7,
+    repoSlug: "acme/widget",
+    state: PrStates.OPEN,
+  };
+  if (githubUpdatedAt !== undefined) {
+    pullRequest.githubUpdatedAt = githubUpdatedAt;
+  }
   const outcome = await createIngestRoutines(
     harness.handle,
     ctx,
   ).triggerGeneration({
-    pullRequest: {
-      repoId: makeRepoId(7n),
-      prNumber: 7,
-      repoSlug: "acme/widget",
-      state: PrStates.OPEN,
-    },
+    pullRequest,
     headSha,
     debounceSeconds: 0,
     ...options,

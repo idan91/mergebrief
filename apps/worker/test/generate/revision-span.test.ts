@@ -39,6 +39,7 @@ import {
   setUpHarness,
   stubGenerator,
   trigger,
+  type TriggerOptions,
   type StubGenerator,
   type TaskOverrides,
 } from "./helpers";
@@ -511,10 +512,11 @@ async function readMarksRefs(pr: PullRequestRow) {
 async function retargetSecondHead(
   github: FakeGitHub,
   base: string,
+  options: TriggerOptions = {},
 ): Promise<SecondHead> {
   arrangeNewHeadPrDiff(github, `${A_PR_DIFF}${C_PR_DIFF}`, base);
   github.updatePullRequest(PR_REF, { headSha: HEAD_2, baseSha: base });
-  return trigger(HEAD_2);
+  return trigger(HEAD_2, options);
 }
 
 describe("generate task, the refs a span's marks row certifies", () => {
@@ -570,10 +572,14 @@ describe("generate task, the refs a span's marks row certifies", () => {
       baseSha: OTHER_BASE,
       changedFiles: 1,
     });
-    const returned = await trigger(HEAD_1);
+    const returned = await trigger(HEAD_1, {
+      githubUpdatedAt: new Date("2099-01-01T00:00:00Z"),
+    });
     await makeTask({ github })(returned.payload);
     const callsBefore = listCompareSpans(github).length;
-    const again = await retargetSecondHead(github, OTHER_BASE);
+    const again = await retargetSecondHead(github, OTHER_BASE, {
+      githubUpdatedAt: new Date("2099-01-02T00:00:00Z"),
+    });
 
     await makeTask({ github })(again.payload);
 

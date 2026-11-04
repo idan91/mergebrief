@@ -302,6 +302,35 @@ async function readCurrentHeadSha(
   return current?.row.headSha;
 }
 
+/**
+ * A head with a row and not current is one the PR has left. A head with no row
+ * keeps the trigger as named: its push may have been lost, and this is the heal.
+ */
+async function pinLateTriggerToCurrentHead(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  input: TriggerGenerationInput,
+): Promise<TriggerGenerationInput> {
+  const current = await readCurrentHeadSha(tx, scope, pullRequestId);
+  if (current === undefined || current === input.headSha) {
+    return input;
+  }
+  const named = await tx
+    .select({ id: generation.id })
+    .from(generation)
+    .where(
+      and(
+        scope.matchesChild(generation.installationId, generation.pullRequestId),
+        eq(generation.pullRequestId, pullRequestId),
+        eq(generation.kind, GenerationKinds.BRIEF),
+        eq(generation.headSha, input.headSha),
+      ),
+    )
+    .limit(1);
+  return named.length > 0 ? { ...input, headSha: current } : input;
+}
+
 /** A rerun of these fails the same way and still spends. */
 function isRerunHopeless(row: GenerationRow): boolean {
   if (row.errorCode === null) {
@@ -616,6 +645,12 @@ export function createIngestRoutines(
           return { pullRequest: prRow, applied: true, queued: false };
         }
 
+        // A review carries a head the PR may have left: it counts for the head
+        // the PR is on, or its job would replace that head's and strand it.
+        const trigger = namesCurrentHead
+          ? input
+          : await pinLateTriggerToCurrentHead(tx, scope, prRow.id, input);
+
         // 1a. A brief for the pair covers the event. Work the brief leaves
         // undone, named by the event or owed to a checkpointed reviewer, still
         // queues a job, with no projection write beyond naming the head as the
@@ -624,15 +659,15 @@ export function createIngestRoutines(
           tx,
           scope,
           prRow,
-          input.headSha,
+          trigger.headSha,
         );
         if (storedBrief !== undefined) {
           if (namesCurrentHead) {
-            await stampBriefTriggered(tx, scope, prRow.id, input.headSha);
+            await stampBriefTriggered(tx, scope, prRow.id, trigger.headSha);
           }
           const owesWork =
-            namesUncoveredWork(input) ||
-            (await owesCheckpointDelta(tx, scope, prRow.id, input.headSha));
+            namesUncoveredWork(trigger) ||
+            (await owesCheckpointDelta(tx, scope, prRow.id, trigger.headSha));
           if (!owesWork) {
             return {
               pullRequest: prRow,
@@ -682,18 +717,18 @@ export function createIngestRoutines(
           queued: false,
         };
         if (storedBrief === undefined) {
-          const gated = owesTriggerApproval(scope, input, prRow);
+          const gated = owesTriggerApproval(scope, trigger, prRow);
           const project = gated
             ? projectAwaitingTrigger
             : projectPendingGeneration;
           const projected = await project(tx, scope, {
             pullRequestId: prRow.id,
             kind: GenerationKinds.BRIEF,
-            headSha: input.headSha,
+            headSha: trigger.headSha,
             baselineSha: null,
           });
           if (namesCurrentHead) {
-            await stampBriefTriggered(tx, scope, prRow.id, input.headSha);
+            await stampBriefTriggered(tx, scope, prRow.id, trigger.headSha);
           }
           value.generation = projected.row;
           if (projected.held) {
@@ -712,7 +747,7 @@ export function createIngestRoutines(
         await enqueueGenerateJob(
           tx,
           scope,
-          input,
+          trigger,
           prRow.id,
           effectiveDebounceSeconds,
         );
