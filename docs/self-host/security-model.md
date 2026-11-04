@@ -37,9 +37,10 @@ account can reach on GitHub. Register the App as private, owned by your
 organization
 ([github-app.md](./github-app.md#who-can-install-and-sign-in)).
 
-You can also decide who signs in at the network. An identity-aware proxy that
-exempts `/api/*` but keeps `/api/auth/*` behind it admits only the people it lets
-through to sign in, and still lets the webhook and the CLI reach the API
+If your company has an identity provider, we recommend also deciding who signs in
+at the network. An identity-aware proxy that exempts `/api/*` but keeps
+`/api/auth/*` behind it admits only the people it lets through to sign in, and
+still lets the webhook and the CLI reach the API
 ([cli.md](./cli.md#idp--sso-proxies-exempt-api)).
 
 Signed out, a visitor sees the Home pitch and a Sign in button. Without a

@@ -19,22 +19,31 @@ Bearer token. Three things must be true:
 
 ## IdP / SSO proxies: exempt `/api/*`
 
-If your deployment sits behind an identity-aware proxy (Cloudflare Access,
-oauth2-proxy, Authelia, Pomerium, …), browser sessions work but the CLI's
-Bearer requests get answered with a login redirect or an HTML page. The CLI
-detects this and says so (a redirect/HTML answer produces an explicit
-"identity-provider proxy" error). The fix is one rule:
+If your company has an identity provider such as Okta, we recommend putting the
+instance behind an identity-aware proxy (Cloudflare Access, oauth2-proxy,
+Authelia, Pomerium, …). Your provider's docs cover the setup. These are the paths
+to give it, with the `/api/auth/*` rule matched first:
 
-> **Exempt the `/api/*` path prefix from the IdP.**
+| Path | At the proxy | Used by |
+| --- | --- | --- |
+| `/api/auth/*` | Behind the IdP | The browser: sign-in and its GitHub callback, session, sign-out, API tokens |
+| `/api/webhooks/github` | Open, with a rate limit | GitHub. Its signature is the only gate |
+| Every other `/api/*` | Open | The CLI and agents. The API checks a session or token on each request |
+| Everything else | Behind the IdP | The browser: pages and assets |
 
-This is the SAME exemption the GitHub webhook needs
-(`/api/webhooks/github`), so most deployments already have half of it. The
-application enforces its own auth on every `/api/*` request (hint-free 401s;
-tokens are hashed at rest and limited to the scope chosen at mint), so the IdP adds nothing on
-this path but breakage. `/api/auth/*` (login, token minting) stays
-browser-only (Bearer tokens are ignored there), so if you want your IdP in
-front of auth management, scope the IdP exemption to exclude `/api/auth/*`
-rather than exempting all of `/api/*`.
+- **CLI:** it never calls `/api/auth/*`. If its requests do reach the IdP, they
+  get a login redirect or an HTML page, and the CLI reports an
+  "identity-provider proxy" error.
+- **Health checks:** the compose checks skip the proxy. Open `/healthz` and
+  `/readyz` only for a monitor outside it.
+- **An open tab:** it calls `/api/auth/*` too, so it needs a reload once the IdP
+  session expires.
+- **Access rules:** the proxy adds to `operators` and `allowed` and replaces
+  neither.
+- **Leavers:** disabling someone in the IdP leaves their API tokens working,
+  because those skip the proxy. Also remove them from the instance config or from
+  the GitHub account that lets them in, and they lose access at their
+  [next token rotation](./security-model.md#who-can-sign-in).
 
 If your proxy can inject static headers and you keep it in the path anyway,
 per-profile `headers` in the CLI config are the escape hatch:
