@@ -179,8 +179,9 @@ install page:
 | Any account | Anyone | Anyone |
 
 Pick the first. The instance answers to its own list either way
-([who may start a brief](./generators.md#who-may-start-a-brief)), so installing
-the App does not by itself let anyone in.
+([who may start a brief](./generators.md#who-may-start-a-brief)): installing the
+App lets nobody in and starts no brief until the account is listed. A stranger's
+install on an "Any account" App spends nothing.
 
 ## Dev vs. production registration
 

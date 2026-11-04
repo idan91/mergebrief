@@ -452,7 +452,7 @@ describe("createPurgeRoutines.purgePullRequest, cascade + no-FK audit survival",
 });
 
 describe("createPurgeRoutines.purgeRepos, set-based multi-repo purge", () => {
-  it("purges every named repo in one tx with one audit entry per repo", async () => {
+  it("purges every named repo in one tx, auditing each repo that held a row", async () => {
     const { raw, handle } = makePair();
     const a1 = await insertPr(raw, {
       installationId: TENANT_A,
@@ -471,8 +471,8 @@ describe("createPurgeRoutines.purgeRepos, set-based multi-repo purge", () => {
     });
     await seedFullGraph(raw, TENANT_A, a1);
 
-    // REPO holds two PRs; a third repo (never seeded) still gets its own
-    // count-0 audit entry.
+    // REPO holds two PRs; a third repo (never seeded) writes no audit entry,
+    // since any account can repeat this event on a public App.
     const emptyRepo: RepoId = brandWith(isRepoId, 999n);
     const count = await createPurgeRoutines(handle, CTX_A).purgeRepos([
       REPO,
@@ -489,9 +489,8 @@ describe("createPurgeRoutines.purgeRepos, set-based multi-repo purge", () => {
     expect(await countChildTables(raw, a1)).toBe(0);
     void a2;
 
-    // One delete audit per unique requested repo (REPO count 2, emptyRepo 0).
     const deletes = await deleteAudits(raw, TENANT_A);
-    expect(deletes).toHaveLength(2);
+    expect(deletes).toHaveLength(1);
     expect(deletes.every((d) => d.targetType === "repo")).toBe(true);
   });
 

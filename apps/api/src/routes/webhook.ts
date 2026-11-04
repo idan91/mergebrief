@@ -23,6 +23,10 @@
 //   502 a destructive event GitHub could not confirm (nothing purged, delivery not recorded)
 //   500 unexpected throw, the seen-set read and record included (sanitized body)
 /* oxlint-enable house/comment-run */
+import {
+  isAccountListed,
+  type InstanceAccessPolicy,
+} from "../access/instance-access";
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
 import {
@@ -90,7 +94,8 @@ import type {
   InstallationPresenceReader,
 } from "../access/types";
 
-export interface WebhookRouteDeps {
+/** The access policy says which repository owners' deliveries may start a run. */
+export interface WebhookRouteDeps extends InstanceAccessPolicy {
   readonly handle: AppDatabase;
   /** `GITHUB_WEBHOOK_SECRET`, injected by the startup wiring. */
   readonly webhookSecret: string;
@@ -747,6 +752,26 @@ async function handleAppAuthorization(
   });
 }
 
+/**
+ * A delivery naming no owner matches nothing, so it starts nothing. Checked
+ * ahead of the seen-set: a drop records nothing, so a redelivery after the
+ * account is listed still runs.
+ */
+function findUnlistedOwnerDelivery(
+  deps: WebhookRouteDeps,
+  event: ParsedWebhookEvent,
+): ParsedPullRequestEvent | ParsedPullRequestReviewEvent | undefined {
+  const startsRuns =
+    event.kind === ParsedWebhookEventKinds.PULL_REQUEST ||
+    event.kind === ParsedWebhookEventKinds.PULL_REQUEST_REVIEW;
+  if (!startsRuns) {
+    return undefined;
+  }
+  const ownerId = event.repoOwnerId;
+  const listed = ownerId !== undefined && isAccountListed(deps, ownerId);
+  return listed ? undefined : event;
+}
+
 /** A destructive event's failure is the route's 502; every other event's work throws or completes. */
 async function dispatch(
   deps: WebhookRouteDeps,
@@ -795,6 +820,18 @@ async function dispatchOnce(
   delivery: VerifiedDelivery,
   log: Logger,
 ): Promise<Result<void, ConfirmationFailure>> {
+  const unlisted = findUnlistedOwnerDelivery(deps, event);
+  if (unlisted !== undefined) {
+    log.warn(
+      "webhook: ignored a delivery from an account this instance does not list",
+      {
+        accountId: String(unlisted.repoOwnerId),
+        repo: unlisted.repoFullName,
+      },
+    );
+    return DISPATCHED;
+  }
+
   const policy = deps.draftPolicy ?? DEFAULT_DRAFT_POLICY;
   const runDispatch = () =>
     traceStep("webhook.dispatch", readEventAttributes(event), () =>

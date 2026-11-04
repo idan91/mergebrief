@@ -86,7 +86,8 @@ export interface PurgeRoutines {
   /**
    * Set-based purge for the `installation_repositories`
    * `removed` webhook: one `repo_id = ANY(...)` delete plus one `delete`
-   * audit entry PER repo, a repo that held none included. One query rather
+   * audit entry PER repo that held a row, since any account can repeat this
+   * event on an "Any account" App and the log has no default retention. One query rather
    * than a per-repo `Promise.all`, which would open N pool connections on a
    * large deselection. Returns the total number of PRs purged; empty
    * `repoIds` is 0 with no tx.
@@ -196,6 +197,9 @@ export function createPurgeRoutines(
         }
         // One `delete` audit entry per repo, same tx.
         for (const [repoId, count] of countByRepo) {
+          if (count === 0) {
+            continue;
+          }
           await insertAudit(tx, {
             installationId: scope.installationId,
             source: scope.source,
@@ -220,6 +224,9 @@ export function createPurgeRoutines(
           .delete(pullRequest)
           .where(scope.matchesPullRequest())
           .returning({ id: pullRequest.id });
+        if (purgedPrs.length === 0) {
+          return { pullRequests: 0 };
+        }
         await insertAudit(tx, {
           installationId: scope.installationId,
           source: scope.source,

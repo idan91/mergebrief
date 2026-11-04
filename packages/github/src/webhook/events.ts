@@ -101,6 +101,8 @@ export interface ParsedPullRequestEvent {
   readonly action: PullRequestAction;
   readonly installationId: InstallationId;
   readonly repoId: RepoId;
+  /** The account holding the repository, which `allowed.accounts` matches. */
+  readonly repoOwnerId?: bigint;
   readonly repoFullName: string;
   /**
    * Private and not internal, so only invited people see it. A missing or
@@ -141,6 +143,8 @@ export interface ParsedPullRequestReviewEvent {
   readonly kind: typeof ParsedWebhookEventKinds.PULL_REQUEST_REVIEW;
   readonly installationId: InstallationId;
   readonly repoId: RepoId;
+  /** The account holding the repository, which `allowed.accounts` matches. */
+  readonly repoOwnerId?: bigint;
   readonly repoFullName: string;
   /**
    * Private and not internal, so only invited people see it. A missing or
@@ -235,6 +239,7 @@ const installationRefSchema = z.object({ id: installationIdSchema });
 const repositoryRefSchema = z.object({
   id: repoIdSchema,
   full_name: z.string().min(1),
+  owner: z.object({ id: z.number().int().positive() }).optional(),
 });
 const shaRefSchema = z.object({ sha: z.string().min(1) });
 const githubTimestampSchema = z
@@ -405,6 +410,9 @@ function parsePullRequest(
     draft: data.pull_request.draft,
     authorIsBot: isBotAccount(data.pull_request.user),
   };
+  if (data.repository.owner !== undefined) {
+    event.repoOwnerId = BigInt(data.repository.owner.id);
+  }
 
   const author = data.pull_request.user;
   if (author !== null && author !== undefined) {
@@ -465,6 +473,9 @@ function parsePullRequestReview(
     commitId: data.review.commit_id,
     submittedAt: data.review.submitted_at,
   };
+  if (data.repository.owner !== undefined) {
+    event.repoOwnerId = BigInt(data.repository.owner.id);
+  }
 
   const reviewerType = data.review.user.type;
   if (reviewerType !== undefined) {

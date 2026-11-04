@@ -215,6 +215,7 @@ registration ([github-app.md](./github-app.md#webhook)).
 | --- | --- | --- |
 | `docker compose ps -a` shows the worker `Exited (0)` | The worker refused boot or was stopped. | [A service exits with code 0](#a-service-exits-with-code-0). |
 | The pull request shows it is awaiting a trigger | Its author is not on the repository's team. | Someone with push access starts the first brief ([github-app.md](./github-app.md#who-triggers-a-brief)). |
+| A push answers 200, no job, and `ignored a delivery from an account this instance does not list` in the api log | The repository's account is not listed. | Add the logged id under [`allowed.accounts`](./generators.md#who-may-start-a-brief) and restart the api. Redeliver it from the App's **Advanced** tab, or push again. |
 | A draft gets no brief | The instance config sets `drafts.generate: off`. | Mark it ready, or change the policy ([repo-config.md](./repo-config.md#related-instance-block-drafts-operator-side)). |
 | The brief view says the daily generation cap was reached; the worker logs `spend.cap.trip` | The instance hit `spend.maxGenerationsPerDay`. | Raise the cap, or wait for 00:00 UTC and the next push ([generators.md](./generators.md#daily-generation-cap)). |
 | The generation row is `failed` with `error_code` `diff-too-large` | The pull request changes more than 3,000 files, MergeBrief's limit, or GitHub served its diff short. Past GitHub's pull request diff limit the worker reads the same span from the compare API and accepts it only when it holds every changed file. | Split the pull request. |

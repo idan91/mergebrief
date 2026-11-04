@@ -280,7 +280,8 @@ allowed:
   the instance, once the App is installed there. GitHub decides who that is: it
   lists the installations a person has explicit access to, through ownership, as
   a collaborator or through organization membership. Reading a public repository
-  does not count, and neither does a suspended installation.
+  does not count, and neither does a suspended installation. Their repositories'
+  webhook deliveries start briefs; every other account's start nothing.
 - `users` adds people on top, such as an external reviewer. They need no
   installation.
 - A bare `allowed:`, or one that names neither list, refuses boot.

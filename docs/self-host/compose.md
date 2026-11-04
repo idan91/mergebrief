@@ -47,8 +47,10 @@ services:
       - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
 ```
 
-To let an organization in, see
-[who may start a brief](./generators.md#who-may-start-a-brief).
+Installing the App does not start briefs by itself: a repository's deliveries count
+only when its account is listed. An organization needs a line under
+[`allowed.accounts`](./generators.md#who-may-start-a-brief), and your own personal
+account counts through `operators`.
 
 Then install your GitHub App on a repo (see [`github-app.md`](./github-app.md)),
 point its webhook at your public URL, and open http://localhost:3000. From

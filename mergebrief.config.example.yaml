@@ -126,8 +126,9 @@ generator:
 
 # --- Who may start a brief ----------------------------------------------------
 # An instance starts closed: name someone under `operators` or here, or nobody
-# can sign in. `accounts` lets in everyone in an installation of this App on those
-# orgs or personal accounts; `users` adds people on top, such as an external
+# can sign in and no delivery starts a brief. `accounts` lets in everyone in an
+# installation of this App on those orgs or personal accounts and starts briefs on
+# their repositories; `users` adds people on top, such as an external
 # reviewer. Ids, never logins. Find one with `gh api orgs/<org> --jq .id`. A bare
 # `allowed:` refuses boot.
 # allowed:

@@ -25,7 +25,12 @@ import { AccessLevels } from "types/access-levels";
 import { startTestTracing, type TestTracing } from "logging/testing";
 import { FakeFailures, makeFakeGitHub, type FakeGitHub } from "github/testing";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import {
+  createApp,
+  type ApiApp,
+  type AppDeps,
+  type AuthDeps,
+} from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {
   brandInstallationId,
@@ -57,6 +62,13 @@ const DUMMY_AUTH: AuthDeps = buildAuthDeps(
 );
 const REPO_ID = 186853002;
 const OTHER_REPO_ID = 186853003;
+const REPO_OWNER_ID = 77001;
+const LISTED_OWNER_DEPS = {
+  allowedAccess: {
+    users: new Set<bigint>(),
+    accounts: new Set([BigInt(REPO_OWNER_ID)]),
+  },
+};
 const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
 const BASE_SHA = "f95f852bd8fca8fcc58a9a2d6c842781e32a215e";
 /** A `run_at` no delivery computes, so one that moved it cannot match. */
@@ -131,6 +143,7 @@ function makeRepository(
   return {
     id: repoId,
     full_name: "acme/widgets",
+    owner: { id: REPO_OWNER_ID },
     private: visibility !== "public",
     visibility,
   };
@@ -289,6 +302,129 @@ async function countRows(
 
 const harness = registerSharedPglite();
 
+describe("webhook deliveries by repository owner", () => {
+  function buildApp(
+    policy: Pick<AppDeps, "allowedAccess" | "operatorIds">,
+  ): ApiApp {
+    return createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: DUMMY_AUTH,
+      ...UNUSED_INSTALLATION_DEPS,
+      ...policy,
+    });
+  }
+
+  async function countRuns(): Promise<number> {
+    const jobs = await harness.raw("select id from graphile_worker.jobs");
+    return jobs.length;
+  }
+
+  it("starts nothing on an instance with nothing configured", async () => {
+    const res = await deliver(
+      buildApp({}),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await countRuns()).toBe(0);
+    expect(await harness.raw("select id from pull_request")).toEqual([]);
+  });
+
+  it("starts nothing for an owner the instance does not list", async () => {
+    const closed = buildApp({
+      allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+    });
+
+    const res = await deliver(
+      closed,
+      "pull_request",
+      pullRequestPayload({ action: "synchronize" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await countRuns()).toBe(0);
+  });
+
+  it("does not count a listed user as a listed account", async () => {
+    const res = await deliver(
+      buildApp({
+        allowedAccess: {
+          users: new Set([BigInt(REPO_OWNER_ID)]),
+          accounts: new Set(),
+        },
+      }),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await countRuns()).toBe(0);
+  });
+
+  it("starts a run for a listed owner", async () => {
+    await deliver(
+      buildApp(LISTED_OWNER_DEPS),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+
+    expect(await countRuns()).toBe(1);
+  });
+
+  it("starts a run on an Operator's personal account", async () => {
+    await deliver(
+      buildApp({ operatorIds: new Set([BigInt(REPO_OWNER_ID)]) }),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+
+    expect(await countRuns()).toBe(1);
+  });
+
+  it("starts nothing from a delivery that names no owner", async () => {
+    const payload = pullRequestPayload({ action: "opened" });
+    const repository = { ...makeRepository(REPO_ID, "private") };
+    delete repository["owner"];
+
+    await deliver(buildApp(LISTED_OWNER_DEPS), "pull_request", {
+      ...payload,
+      repository,
+    });
+
+    expect(await countRuns()).toBe(0);
+  });
+
+  it("runs a redelivery once the account is listed", async () => {
+    const payload = pullRequestPayload({ action: "opened" });
+
+    await deliver(buildApp({}), "pull_request", payload);
+    await deliver(buildApp(LISTED_OWNER_DEPS), "pull_request", payload);
+
+    expect(await countRuns()).toBe(1);
+  });
+
+  it("writes no checkpoint for a review from an unlisted owner", async () => {
+    await deliver(
+      buildApp(LISTED_OWNER_DEPS),
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
+
+    await deliver(
+      buildApp({
+        allowedAccess: { users: new Set(), accounts: new Set([9919n]) },
+      }),
+      "pull_request_review",
+      pullRequestReviewPayload(),
+    );
+
+    expect(await harness.raw("select * from checkpoint")).toEqual([]);
+  });
+});
+
 describe("POST /api/webhooks/github", () => {
   let app: ApiApp;
 
@@ -299,6 +435,7 @@ describe("POST /api/webhooks/github", () => {
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_OWNER_DEPS,
     });
   });
 
@@ -626,6 +763,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
       });
       await seedPullRequest(harness, BigInt(REPO_ID), 2);
     });
@@ -788,6 +926,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
         bindInstallationGitHub: (installationId) => {
           const bound = fake.bindInstallationGitHub(installationId);
           return {
@@ -847,6 +986,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
       });
     });
 
@@ -1158,6 +1298,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
         bindInstallationGitHub: (installationId) => {
           const bound = fake.bindInstallationGitHub(installationId);
           return {
@@ -1275,6 +1416,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
         draftPolicy: { generate: false, debounceSeconds: null },
       });
       const res = await deliver(
@@ -1299,6 +1441,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
         draftPolicy: { generate: false, debounceSeconds: null },
       });
       await deliver(
@@ -1733,6 +1876,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
       });
     });
 
@@ -1831,6 +1975,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(recovered),
+        ...LISTED_OWNER_DEPS,
       });
       const res = await deliver(later, "installation", payload);
 
@@ -1864,6 +2009,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...buildFakeInstallationDeps(fake),
+        ...LISTED_OWNER_DEPS,
         readInstallationPresence: () => new Promise(() => undefined),
         webhookConfirmationTimeoutMs: 20,
       });
@@ -2086,6 +2232,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...UNUSED_INSTALLATION_DEPS,
+        ...LISTED_OWNER_DEPS,
         draftPolicy: policy,
       });
     }
@@ -2234,6 +2381,7 @@ describe("POST /api/webhooks/github", () => {
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
         ...UNUSED_INSTALLATION_DEPS,
+        ...LISTED_OWNER_DEPS,
         draftPolicy: { generate: false, debounceSeconds: null },
       });
       await deliver(
@@ -2342,6 +2490,7 @@ describe("POST /api/webhooks/github, github_app_authorization", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(keyProvider),
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_OWNER_DEPS,
     });
   });
 
@@ -2418,6 +2567,7 @@ describe("webhook delivery dedup", () => {
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
       ...buildFakeInstallationDeps(goneGitHub),
+      ...LISTED_OWNER_DEPS,
     });
   });
 
@@ -2581,6 +2731,7 @@ describe("webhook delivery dedup", () => {
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
       ...buildFakeInstallationDeps(goneGitHub),
+      ...LISTED_OWNER_DEPS,
     });
     return { own, ownApp };
   }
@@ -2694,6 +2845,7 @@ describe("webhook event logging", () => {
       webhookSecret: SECRET,
       auth: DUMMY_AUTH,
       ...UNUSED_INSTALLATION_DEPS,
+      ...LISTED_OWNER_DEPS,
     });
     return { app, capture };
   }

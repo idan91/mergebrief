@@ -54,7 +54,7 @@ function isNamedInConfig(
   return policy.allowedAccess?.users.has(viewerId) === true;
 }
 
-function isAccountListed(
+export function isAccountListed(
   policy: InstanceAccessPolicy,
   accountId: bigint,
 ): boolean {
