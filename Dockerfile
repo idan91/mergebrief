@@ -15,12 +15,13 @@
 # checks the HOST's binary, and none of the scripts matter at runtime. An
 # alpine (musl) base is part of that contract: a glibc NODE_IMAGE would boot
 # without the bindings.
-ARG NODE_IMAGE=node:24-alpine
+ARG NODE_IMAGE=node:26.13.0-alpine
 
 FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS workspace
 
-# corepack pins pnpm to the workspace's `packageManager` field.
-RUN corepack enable
+# corepack pins pnpm to the workspace's `packageManager` field. Node 25 stopped
+# bundling it, so it installs at its own pin.
+RUN npm install --global corepack@0.36.0 && corepack enable
 
 WORKDIR /app
 RUN chown node:node /app

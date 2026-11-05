@@ -29,6 +29,9 @@ export default defineConfig(
   mergeConfig(buildSharedViteConfig(), {
     test: {
       ...testIsolation,
+      // Node 25+ defines a global localStorage that shadows jsdom's and reads
+      // undefined without --localstorage-file. --no-webstorage breaks on Node 24.
+      execArgv: ["--no-experimental-webstorage"],
       setupFiles: ["./src/test/setup.ts"],
       // The route suites render a real router under jsdom and legitimately take
       // seconds. `pnpm -r test` runs every package's workers at once, and under
