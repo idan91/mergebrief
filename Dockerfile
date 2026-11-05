@@ -102,8 +102,9 @@ LABEL org.opencontainers.image.source="https://github.com/Idan91/mergebrief" \
 ENV SERVER_VERSION=${MERGEBRIEF_VERSION}
 
 # Runtime marker: this image ships no harness CLI binaries, so the worker
-# refuses claude-code/codex with a targeted message, and a check-only boot
-# names `docker compose run --rm api migrate` as the manual step.
+# refuses claude-code, codex and cursor with a targeted message, and a
+# check-only boot names `docker compose run --rm api migrate` as the manual
+# step.
 ENV MERGEBRIEF_RUNTIME=compose-worker
 
 # Final stage only: on an install stage pnpm would skip devDependencies. The

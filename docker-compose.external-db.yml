@@ -9,6 +9,10 @@
 # or set `COMPOSE_FILE=docker-compose.external-db.yml` in `.env` so every
 # plain `docker compose` command reads this file.
 #
+# An upgrade replaces this file: put your own edits (a config mount, a CA
+# bundle, the DSN as a secret) in docker-compose.override.yml and append it to
+# COMPOSE_FILE. docs/self-host/compose.md has the recipes.
+#
 # DATABASE_URL comes from `.env` (env_file below) or the shell you run
 # compose from (the pass-through entries under `environment:`; a shell value
 # wins over `.env`). A NON-loopback host boots only on `sslmode=verify-full`
@@ -49,7 +53,7 @@ services:
       # Pass-through (no `=`): each rides in from the shell running compose
       # when set there, otherwise the `.env` value applies; an entry unset in
       # both stays genuinely ABSENT in the container (the loaders distinguish
-      # unset from empty — do not give these empty defaults).
+      # unset from empty, so do not give these empty defaults).
       - DATABASE_URL
       - DATABASE_URL_FILE
       - MERGEBRIEF_AUTO_MIGRATE
@@ -59,16 +63,6 @@ services:
       # Reachable from the web service, not from the host.
       - MERGEBRIEF_API_HOST=0.0.0.0
       - MERGEBRIEF_API_PORT=3001
-    # Uncomment to hand the DSN over as a file instead of an env var (and
-    # set DATABASE_URL_FILE=/run/secrets/database-url in .env). The CA mount
-    # pairs with sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem.
-    # Instance config (mergebrief.config.yaml): uncomment here AND in the
-    # worker service; both read the same file.
-    # secrets:
-    #   - database-url
-    # volumes:
-    #   - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
-    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only: /healthz is static, never /readyz here, or a DB blip
     # would trigger restart churn on the tier that owns the database.
     healthcheck:
@@ -107,7 +101,8 @@ services:
         # until the schema and queue migrations finish.
         condition: service_healthy
     # No `env_file` on purpose: the internet-facing tier holds no
-    # credentials, so `.env` never reaches its process environment.
+    # credentials, so `.env` never reaches its process environment. A bad
+    # value here exits 1, so unlike api and worker it restarts until fixed.
     environment:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
       MERGEBRIEF_API_ORIGIN: http://api:3001
@@ -120,8 +115,6 @@ services:
       OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-}
       OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-}
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-}
-    # volumes:
-    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only: /healthz is static, never /readyz here,
     # or an upstream blip would trigger web restart churn.
     healthcheck:
@@ -153,31 +146,16 @@ services:
       # Defaulted (not pass-through): parity with the default compose, so an
       # .env that omits it keeps working after switching files.
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:3000}
-      # Slots per worker and per large pool; same contract as the default
-      # compose.
-      # - WORKER_CONCURRENCY
-      # - WORKER_LARGE_CONCURRENCY
     # Worker containers, same contract as the default compose:
     # `--scale worker=N` wins for that run.
     deploy:
       replicas: ${WORKER_COUNT:-1}
-    # secrets:
-    #   - database-url
-    # volumes:
-    #   - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
-    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # No HTTP surface to probe; liveness = the runner process itself.
     # on-failure: transient crashes (nonzero exit, e.g. a network blip or
-    # provider failover) self-heal; config errors exit 0 and STAY DOWN
-    # The reason is the last line of `docker compose logs worker`.
+    # provider failover) self-heal; config errors exit 0 and STAY DOWN. The
+    # reason is the last line of `docker compose logs worker`.
     restart: on-failure
     # A job aborts within 5s of a stop, then the pool closes and the last
     # spans flush within 5s more; the default 10s would cut that flush.
     stop_grace_period: 30s
     logging: *log-rotation
-# The compose `secrets:` block the commented service entries reference —
-# lands as /run/secrets/database-url in the container. `secrets/` is
-# gitignored; keep the DSN file there (never somewhere `git add .` reaches).
-# secrets:
-#   database-url:
-#     file: ./secrets/database-url

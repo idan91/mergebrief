@@ -54,8 +54,8 @@ its own.
 
 1. [github-app.md](./github-app.md): which permissions and events to give the
    App, how reviewer sign-in works, and who triggers a brief.
-2. [compose.md](./compose.md): the services, every `.env` variable, an
-   external database, and the hardening steps before real exposure.
+2. [compose.md](./compose.md): the services, the `.env` values a first boot
+   needs, an external database, and the hardening steps before real exposure.
 3. [generators.md](./generators.md): the provider and model, the daily
    generation cap, the `operators` list, and what force pushes and rebases do
    to a brief.

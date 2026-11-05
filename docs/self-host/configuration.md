@@ -22,7 +22,7 @@ explain when to change one; this page says what each one accepts.
   before it does anything else, logs the variable's name and the reason
   (never the value), and exits. `api` and `worker` exit 0 on a config error
   so compose's `restart: on-failure` leaves them down; `web` and `migrate`
-  exit 1. The one exception is `MERGEBRIEF_API_ORIGIN`, which `web` checks
+  exit 1, so `web` restarts until the value is fixed. The one exception is `MERGEBRIEF_API_ORIGIN`, which `web` checks
   on its first request instead.
 - **Empty is not always unset.** Compose passes `${VAR:-}` through as an
   empty string. Most variables treat empty as unset; the exceptions are
@@ -49,6 +49,14 @@ A file never overwrites a variable already set in the process environment.
 In the image the working directories hold no `.env`, so compose's
 `env_file` and `environment:` are the whole input.
 
+### Which file to fill in
+
+| How you run it | File | Notes |
+| --- | --- | --- |
+| `docker compose` | `.env` beside the compose file, from `.env.example` | [What compose passes to each service](#what-compose-passes-to-each-service). |
+| `pnpm app:host`, `pnpm app:host:prod` | the repo root `.env`, from `.env.example` | Sourced into the shell for all three processes. Also set the host `DATABASE_URL` the example shows, since nothing derives it here. |
+| `pnpm dev` | `apps/api/.env` and `apps/web/.env`, from each member's `.env.example` | Runs `api` and `web` only, so there is no worker file. Each example lists what a dev run usually sets; this page lists the rest. `vite dev` reads `PUBLIC_BASE_URL` from the shell ([webhook loop](../dev/webhook-loop.md)). |
+
 ## Environment variables
 
 Columns: **Read by** names every process that parses the variable, so a bad
@@ -60,42 +68,44 @@ it.
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
 | `GITHUB_APP_ID` | api, worker | none | yes | The App's numeric id, digits only. |
-| `GITHUB_APP_PRIVATE_KEY` | api, worker | none | one of the pair | The App's PEM private key, inline. Exactly one of this and `GITHUB_APP_PRIVATE_KEY_PATH` may be set; both, neither, or an empty value refuses boot. |
+| `GITHUB_APP_PRIVATE_KEY` | api, worker | none | one of the pair | The App's PEM private key, inline. Exactly one of this and `GITHUB_APP_PRIVATE_KEY_PATH` may be set; both, neither, or an empty value refuses boot. Quote a multi-line value in `.env`. |
 | `GITHUB_APP_PRIVATE_KEY_PATH` | api, worker | none | one of the pair | Path to a file holding the PEM. An unreadable or empty file refuses boot. |
 | `GITHUB_WEBHOOK_SECRET` | api, worker | none | yes | The HMAC secret GitHub signs deliveries with. At least 32 characters after trimming; the HMAC keys on the value as set. Only `api` verifies deliveries. |
 | `GITHUB_OAUTH_CLIENT_ID` | api, worker | none | yes | The App's OAuth client id, for reviewer sign-in. The worker uses it to revoke a dead grant's token at GitHub. |
 | `GITHUB_OAUTH_CLIENT_SECRET` | api, worker | none | yes | The App's OAuth client secret. |
-| `GITHUB_APP_SLUG` | api, worker | unset | no | The App's URL name, the last segment of `https://github.com/apps/<slug>`: lowercase letters, digits and hyphens. Set, Home links a viewer with no reachable installation to the install page. Empty reads as unset. |
-| `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | unset | no | A GitHub token tried after a reviewer's own token is denied on a pasted pull request. It serves only the GitHub account that owns it ([compose.md](./compose.md#hardening-before-real-exposure)). Empty reads as unset. |
+| `GITHUB_APP_SLUG` | api, worker | unset | no | The App's URL name, the last segment of `https://github.com/apps/<slug>`: lowercase letters, digits and hyphens. Set, Home links a viewer with no reachable installation to the install page; unset, that line carries no link. Empty reads as unset. |
+| `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | unset | no | A GitHub token (fine-grained, Contents and Pull requests read) tried after a reviewer's own token is denied on a pasted pull request. It serves only the GitHub account that owns it ([compose.md](./compose.md#hardening-before-real-exposure)). Empty reads as unset. |
 | `SESSION_KEY_REF` | api | `SESSION_KEY_V1` | no | The NAME of the variable new GitHub tokens are sealed under: an uppercase letter, then uppercase letters, digits or underscores. Anything else refuses boot. Empty takes the default. |
-| `SESSION_KEY_V1` (or the name `SESSION_KEY_REF` gives) | api, worker | none | api: yes | Base64 of exactly 32 bytes (`openssl rand -base64 32`). `api` resolves the variable `SESSION_KEY_REF` names at boot and refuses when it is missing, not base64, or the wrong length. Each stored grant names its own key variable, and both services open it by that name when they need it, so a rotated-out key stays set until no grant names it ([Tokens at rest](./operations.md#tokens-at-rest)). |
+| `SESSION_KEY_V1` (or the name `SESSION_KEY_REF` gives) | api, worker | none | api: yes | Base64 of exactly 32 bytes (`openssl rand -base64 32`). `api` resolves the variable `SESSION_KEY_REF` names at boot and refuses when it is missing, not base64, or the wrong length. Each stored grant names its own key variable, and both services open it by that name when they need it (the worker for pasted pull requests and the hourly sweep's GitHub revokes), so a rotated-out key stays set until no grant names it ([Tokens at rest](./operations.md#tokens-at-rest)). |
 
 ### Database
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `DATABASE_URL` | api, worker, migrate | none | yes, unless `DATABASE_URL_FILE` is set | A `postgres://` or `postgresql://` URL. A host that is not loopback (`localhost`, `127.0.0.0/8`, `::1`, or a unix socket path) must carry `sslmode=verify-full` or `sslmode=disable`, and `uselibpqcompat=true` only beside `verify-full`; anything else refuses boot ([TLS](./compose.md#tls-verify-full-or-disable-sslmode-in-the-dsn)). A file the DSN names, such as `sslrootcert`, that cannot be read refuses boot naming the path. The default compose file sets its own value. |
-| `DATABASE_URL_FILE` | api, worker, migrate | unset | no | Path to a file holding the DSN, trimmed. Wins over `DATABASE_URL` and logs a warning when `DATABASE_URL` is also set and non-empty. An unreadable file refuses boot. Empty reads as unset. |
-| `DATABASE_POOL_MAX` | api, worker, migrate | `10` | no | Connections each Postgres pool opens at most: a whole number of at least 2. An `api` opens one pool; a `worker` opens two at this size, its store and its job queue, plus the large pool's job queue at `WORKER_LARGE_CONCURRENCY` + 2. A request waits up to 10 seconds for a free connection. Empty takes the default. |
+| `DATABASE_URL` | api, worker, migrate | none | yes, unless `DATABASE_URL_FILE` is set | A `postgres://` or `postgresql://` URL. A host that is not loopback (`localhost`, `127.0.0.0/8`, `::1`, or a unix socket path) must carry `sslmode=verify-full` or `sslmode=disable`, and `uselibpqcompat=true` only beside `verify-full`; anything else refuses boot ([TLS](./compose.md#tls-verify-full-or-disable-sslmode-in-the-dsn)). A file the DSN names, such as `sslrootcert`, that cannot be read refuses boot naming the path. The default compose file sets its own value, so there this is ignored; `pnpm app:host` and an external database need it. |
+| `DATABASE_URL_FILE` | api, worker, migrate | unset | no | Path to a file holding the DSN, trimmed, for a compose `secrets:` mount. Wins over `DATABASE_URL` and logs a warning when `DATABASE_URL` is also set and non-empty. An unreadable file refuses boot. Empty reads as unset. |
+| `DATABASE_POOL_MAX` | api, worker, migrate | `10` | no | Connections each Postgres pool opens at most: a whole number of at least 2. An `api` opens one pool; a `worker` opens two at this size, its store and its job queue, plus the large pool's job queue at `WORKER_LARGE_CONCURRENCY` + 2. A request waits up to 10 seconds for a free connection, then fails. Keep `api` replicas x this value + `worker` count x (2 x this value + `WORKER_LARGE_CONCURRENCY` + 2) under Postgres `max_connections` ([operations.md](./operations.md#running-more-than-one-api)). Empty takes the default. |
 | `MERGEBRIEF_AUTO_MIGRATE` | api, worker, migrate | `true` | no | `true` applies pending migrations at boot. `false` makes boot a read-only check that exits 1 when the database is behind ([operations.md](./operations.md#external-database-auto-migratefalse)). `migrate` always applies. **Empty reads as `false`.** |
 
 ### Addresses and listeners
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `PUBLIC_BASE_URL` | api, worker, web | compose: `http://localhost:3000` | api, worker: yes | The origin reviewers browse. An absolute `http` or `https` URL with no credentials in it, or `api` and `worker` refuse boot. `api` builds the OAuth callback from it and accepts a state-changing browser request only from its origin; `worker` builds the Entry comment's links from it; `web` adds its hostname to the hosts it serves, and refuses boot on a value that does not parse. Unset or empty in `web` serves `localhost` names and bare IPs only. |
+| `PUBLIC_BASE_URL` | api, worker, web | compose: `http://localhost:3000` | api, worker: yes | The origin reviewers browse, matching the GitHub App's OAuth callback origin. An absolute `http` or `https` URL with no credentials in it, or `api` and `worker` refuse boot. `api` builds the OAuth callback from it and accepts a state-changing browser request only from its origin; `worker` builds the Entry comment's links from it; `web` adds its hostname to the hosts it serves, and refuses boot on a value that does not parse. Unset or empty in `web` serves `localhost` names and bare IPs only. |
 | `MERGEBRIEF_API_HOST` | api | `127.0.0.1` | no | The address the API listens on. Compose sets `0.0.0.0` so `web` can reach it. Empty refuses boot. |
 | `MERGEBRIEF_API_PORT` | api | `3001` | no | The API's port, digits only, 0 to 65535. Compose sets `3001`. Empty refuses boot. |
 | `MERGEBRIEF_API_ORIGIN` | web | `http://127.0.0.1:3001` | no | Where `web` proxies `/api/*` and sends its server-side reads: an absolute `http` or `https` URL, reduced to its origin. Compose sets `http://api:3001`. Empty takes the default. Checked on the first request, not at boot: a bad value lets `web` start and pass its healthcheck, then fails every proxied and server-rendered request. |
-| `MERGEBRIEF_WEB_HOST` | web | `0.0.0.0` | no | The address the web server listens on. Empty refuses boot. |
-| `MERGEBRIEF_WEB_PORT` | web | `3000` | no | The web server's port, a whole number from 1 to 65535. Empty refuses boot. |
+| `MERGEBRIEF_WEB_HOST` | web | `0.0.0.0` | no | The address the web server listens on. `web` reads no `.env`: set it under the service's `environment:` in the override file. Empty refuses boot. |
+| `MERGEBRIEF_WEB_PORT` | web | `3000` | no | The web server's port, a whole number from 1 to 65535. Set it the same way as `MERGEBRIEF_WEB_HOST`, and move the service's port mapping and healthcheck with it. Empty refuses boot. |
 
 ### Instance config, generation and the worker
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
 | `MERGEBRIEF_CONFIG` | api, worker | unset | no | Path to `mergebrief.config.yaml`. Unset runs the zero-config defaults. A relative path resolves against the workspace root (the nearest directory above the working directory holding `pnpm-workspace.yaml`); an absolute one passes through. Set but empty, unreadable, not YAML, or a root that is not a mapping refuses boot. `api` reads only the `drafts`, `spend`, `operators` and `allowed` blocks; `worker` reads the whole file ([Instance config](#instance-config-mergebriefconfigyaml)). |
-| `ANTHROPIC_API_KEY` | worker | none | with the default provider | The key the zero-config `anthropic` provider reads. `generator.apiKeyEnv` names another variable; `OPENAI_API_KEY` and `OPENROUTER_API_KEY` are the defaults for those providers. A provider whose key variable is unset or empty refuses boot. |
+| `ANTHROPIC_API_KEY` | worker | none | with the default provider | The key the zero-config `anthropic` provider reads. `generator.apiKeyEnv` names another variable. A provider whose key variable is unset or empty refuses boot. |
+| `OPENAI_API_KEY` | worker | none | with `provider: openai` | The `openai` provider's default key variable; same rules. |
+| `OPENROUTER_API_KEY` | worker | none | with `provider: openrouter` | The `openrouter` provider's default key variable; same rules. |
 | `WORKER_CONCURRENCY` | worker | `1` | no | Jobs one worker process runs at once: a whole number of at least 1 ([Worker slots](./generators.md#worker-slots)). Empty takes the default. |
 | `WORKER_LARGE_CONCURRENCY` | worker | `1` | no | Slots of the large pool, which runs the multi-call briefs: a whole number of at least 1 ([The large pool](./generators.md#the-large-pool)). Empty takes the default. |
 | `REVISION_NARRATIVE_ENABLED` | worker | `true` | no | Boolean. `false` skips the revision narrative against the previous brief. Empty takes the default. |
@@ -126,7 +136,7 @@ it.
 
 | Variable | Read by | Default | Required | Accepts and does |
 | --- | --- | --- | --- | --- |
-| `LOG_LEVEL` | api, worker, web, migrate | `info` | no | `error`, `warn`, `info` or `debug`, lowercase. Anything else refuses boot. Empty takes the default. |
+| `LOG_LEVEL` | api, worker, web, migrate | `info` | no | `error`, `warn`, `info` or `debug`, lowercase. Anything else refuses boot. Empty takes the default. Compose does not pass it to `web`: set it under the service's `environment:` in the override file. |
 | `NODE_ENV` | api, worker, web, migrate | `production` in the image; unset in a source checkout | no | `production` makes `web` render pages with the production builds of React and its router; anything else renders with their development builds, which cost up to 1.6x the CPU per page on a large brief. `development` switches log output to pino-pretty, which the image does not ship, so the logger cannot start there. In `api`, `production` also turns off `MERGEBRIEF_OUT_DIR`. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | api, worker, web | unset (tracing off) | no | The OTLP base URL; `/v1/traces` is appended. An `http` or `https` URL, or boot refuses. |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | api, worker, web | unset | no | The full traces URL. Wins over the base endpoint. |
@@ -167,7 +177,7 @@ protocol refuses boot in `api` and `worker` but never reaches `web`.
 
 | Variable | Read by | Default | What it does |
 | --- | --- | --- | --- |
-| `MERGEBRIEF_OUT_DIR` | api | unset | A directory of locally generated briefs the API serves to a dev checkout. Ignored under `MERGEBRIEF_RUNTIME=compose-worker` or `NODE_ENV=production`; blank reads as unset. |
+| `MERGEBRIEF_OUT_DIR` | api | unset | A directory of locally generated briefs the API serves to a signed-in session on a dev checkout: absolute, or relative to the checkout root. Ignored under `MERGEBRIEF_RUNTIME=compose-worker` or `NODE_ENV=production`; blank reads as unset. |
 | `ENABLE_LANGUAGE_SELECTION` | `vite build` of `web` | off | `true` or `1` shows the language picker. Read when the web bundle is built, not at run time, so it has no effect on a pulled image. |
 
 ### Compose file variables
@@ -178,16 +188,27 @@ under these names.
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `code_review` each | The bundled Postgres's role, password and database, written on its first start only. Compose derives the in-network `DATABASE_URL` for `api` and `worker` from them, with `sslmode=disable` ([compose.md](./compose.md#1-postgres-credentials)). |
-| `API_COUNT` | `1` | `api` replicas. `docker compose up --scale api=N` wins for that run. |
-| `WORKER_COUNT` | `1` | `worker` replicas. Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`. |
-| `COMPOSE_FILE` | unset | Compose's own variable. Set it to `docker-compose.external-db.yml` for an external database ([compose.md](./compose.md#external-postgres-managed-database)). |
+| `API_COUNT` | `1` | `api` replicas. `docker compose up --scale api=N` wins for that run. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api). |
+| `WORKER_COUNT` | `1` | `worker` replicas. `docker compose up --scale worker=N` wins for that run. Concurrent generations are `WORKER_COUNT` times the sum of `WORKER_CONCURRENCY` and `WORKER_LARGE_CONCURRENCY`. |
+| `COMPOSE_FILE` | unset | Compose's own variable. Set it to `docker-compose.external-db.yml` for an external database, and append `:docker-compose.override.yml` once you have an override file, since setting it turns off the automatic load ([compose.md](./compose.md#external-postgres-managed-database)). |
 
-The default compose file sets `DATABASE_URL`, `PUBLIC_BASE_URL`,
-`MERGEBRIEF_API_HOST` and `MERGEBRIEF_API_PORT` in the services'
-`environment:` blocks, and a service's `environment:` value wins over the
-same variable in `.env`. The external-database file
-passes `DATABASE_URL`, `DATABASE_URL_FILE` and `MERGEBRIEF_AUTO_MIGRATE`
-through from `.env`.
+### What compose passes to each service
+
+A service's `environment:` value wins over the same variable in `.env`.
+
+| Service | From `.env` | Set by the default compose file |
+| --- | --- | --- |
+| `postgres` | nothing directly | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, interpolated from `.env` |
+| `api` | every variable (`env_file`) | `DATABASE_URL` (derived), `PUBLIC_BASE_URL`, `MERGEBRIEF_API_HOST=0.0.0.0`, `MERGEBRIEF_API_PORT=3001` |
+| `worker` | every variable (`env_file`) | `DATABASE_URL` (derived), `PUBLIC_BASE_URL` |
+| `web` | nothing (no `env_file`) | `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN=http://api:3001`, and the six `OTEL_*` variables named [above](#logging-and-tracing), interpolated from `.env` |
+
+`docker-compose.external-db.yml` has no `postgres` service and derives
+nothing: `api` and `worker` take `DATABASE_URL`, `DATABASE_URL_FILE` and
+`MERGEBRIEF_AUTO_MIGRATE` from the shell running compose when set there, else
+from `.env`. Under either file `DATABASE_URL_FILE` wins over `DATABASE_URL`,
+so setting it under the default file moves the services off the bundled
+database.
 
 ### Read by the provider SDKs
 
@@ -222,9 +243,21 @@ passes none of them to `web`.
 | `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` | Removed. Set and non-empty, `api` and `worker` log one warning and ignore it. |
 | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_ADMIN_KEY` | Ignored by the API providers; `generator.baseUrl` is the only way to change the host ([generators.md](./generators.md#the-six-providers)). |
 
-A harness CLI provider, run outside the image, receives only a short list of
-the worker's variables: process basics, locale, proxy and CA settings, and
-its own login variables ([generators.md](./generators.md#billing-what-subscription-actually-guarantees)).
+### Read by the harness CLIs
+
+A harness CLI provider runs only outside the image, so none of these does
+anything under compose. It receives a short list of the worker's variables:
+process basics, locale, proxy and CA settings, and its own login variables
+([generators.md](./generators.md#billing-what-subscription-actually-guarantees)).
+No other credential the worker holds reaches it.
+
+| Variable | CLI | What it does |
+| --- | --- | --- |
+| `CLAUDE_CODE_OAUTH_TOKEN`, `CLAUDE_CONFIG_DIR` | `claude-code` | Its login token and config folder. |
+| `CODEX_HOME` | `codex` | The folder holding its login. |
+| `CURSOR_API_KEY` | `cursor` | Outranks `cursor-agent login` and bills the same subscription pool. On macOS the CLI persists it to the keychain. |
+| `CURSOR_CONFIG_DIR`, `XDG_CONFIG_HOME` | `cursor` | Its config folder. |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, their lowercase forms, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE` | all | Proxy and CA settings, passed through. |
 
 ### Empty values
 

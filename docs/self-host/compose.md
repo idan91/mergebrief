@@ -8,7 +8,7 @@ worker that generates Briefs as pull requests are pushed.
 mkdir mergebrief && cd mergebrief
 curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
 curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v0.1.0/env.example
-cp .env.example .env      # fill in (see the env table below)
+cp .env.example .env      # fill in (see the first-boot table below)
 docker compose up -d --wait
 ```
 
@@ -80,9 +80,9 @@ Tracing is off until `.env` names an OTLP endpoint; a collector or the
 Datadog Agent goes in the override file
 ([observability.md](./observability.md#tracing)).
 
-**One image, three commands.** `api`, `web` and `worker` all run
-`ghcr.io/idan91/mergebrief:X.Y.Z`, each started with its own command. The
-image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one
+**One image, three services.** `api`, `web` and `worker` all run
+`ghcr.io/idan91/mergebrief:X.Y.Z`, each started with its own command; a fourth
+command, `migrate`, applies pending migrations and exits. The image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one
 that matches the host. Postgres runs the official `postgres:17-alpine`
 image, never bundled into ours.
 
@@ -113,10 +113,11 @@ not for upgrading an instance: a source build reports its version as
 All published ports bind **loopback-only**. Put a reverse proxy (or a
 tunnel, for the dev loop) in front for anything internet-facing.
 
-The `worker` restarts only on nonzero exits (`restart: on-failure`): a
-config error logs its reason and exits 0, staying down instead of
-restart-looping; see [generators.md](./generators.md)'s "When something
-degrades" for the triage.
+Every service but `postgres` restarts only on nonzero exits
+(`restart: on-failure`). In `api` and `worker` a config error logs its reason
+and exits 0, staying down instead of restart-looping; see
+[generators.md](./generators.md)'s "When something degrades" for the triage.
+`web` exits 1 on a bad value, so it restarts until the value is fixed.
 
 The `api` port is deliberately unpublished: it is reachable on the compose
 network but from no published port, so nothing outside the project reaches it
@@ -169,49 +170,25 @@ in the commands on these pages.
 
 ## Environment (`.env` beside `docker-compose.yml`)
 
-Compose loads `.env` into `api` and `worker` (`env_file`) and uses it for
-`${...}` interpolation everywhere. `web` gets no `env_file`: it is the
-internet-facing tier and holds no credentials, so compose sets what it reads
-on it directly: `PUBLIC_BASE_URL`, `MERGEBRIEF_API_ORIGIN` and six tracing
-variables, the two OTLP endpoints, `OTEL_RESOURCE_ATTRIBUTES`, the sampler
-pair and `OTEL_SDK_DISABLED`. Every other `OTEL_*` variable in `.env`,
-`OTEL_TRACES_EXPORTER` included, reaches `api` and `worker` only. Leave a variable OUT entirely (don't set it empty) when it
-doesn't apply: several loaders distinguish unset from empty.
-[configuration.md](./configuration.md) lists every variable each process
-reads, with what an empty value does.
+[configuration.md](./configuration.md) is the reference for every variable:
+who reads it, its default, what it accepts and what an empty value does.
+[What compose passes to each service](./configuration.md#what-compose-passes-to-each-service)
+covers `web`, which reads no `.env`. Leave a variable OUT entirely (don't set
+it empty) when it doesn't apply: several loaders distinguish unset from empty.
 
-| var | needed by | notes |
-|---|---|---|
-| `GITHUB_APP_ID` | api, worker | numeric App id |
-| `GITHUB_APP_PRIVATE_KEY` / `..._PATH` | api, worker | exactly ONE of the two |
-| `GITHUB_WEBHOOK_SECRET` | api, worker | HMAC for inbound deliveries, which only `api` receives; the worker parses the same GitHub config. `openssl rand -hex 32`; under 32 characters refuses boot |
-| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api, worker | reviewer login; the worker uses them to revoke a dead grant's token at GitHub after its hourly sweep, and refuses boot without them |
-| `GITHUB_APP_SLUG` | api, worker | optional; the App's URL name, the last segment of `https://github.com/apps/<slug>`. Set, Home links a viewer with no reachable installation to its install page; unset, that line carries no link |
-| `MERGEBRIEF_URL_FALLBACK_TOKEN` | api, worker | optional; a GitHub token (fine-grained, Contents and Pull requests read) that reads a pasted private PR the App is not installed on, tried only after the reviewer's own token is denied. It serves only the GitHub account that owns it, so make it on your own account. `MERGEBRIEF_URL_BOX_TOKEN` and `MERGEBRIEF_URL_BOX_TOKEN_REVIEWERS` are no longer read: set, each logs one warning and is ignored |
-| `SESSION_KEY_V1` | api, worker | `openssl rand -base64 32`; the worker opens grants with it for pasted PRs and for the hourly sweep's GitHub revokes. Both services read the same `.env` |
-| `SESSION_KEY_REF` | api | optional; the env var name new GitHub tokens are sealed under, default `SESSION_KEY_V1`. A value that is not an env var name refuses boot. See [Tokens at rest](./operations.md#tokens-at-rest) for rotation |
-| `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it. An absolute http(s) URL with no credentials in it, or api and worker refuse boot |
-| `MERGEBRIEF_WEB_HOST` / `_PORT` | web | optional; where the web process listens, default `0.0.0.0` and `3000`. The web service reads no `.env`, so set them under its `environment:`, and move its port mapping and healthcheck with the port |
-| `SERVER_VERSION` | api, worker | set by the image; unset or empty means `dev`. An override must be printable ASCII without spaces, or api and worker refuse boot |
-| `ANTHROPIC_API_KEY` | worker | your model key (BYOK: your spend; the zero-config default) |
-| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model; see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:`, `spend:`, `operators:` and `allowed:` blocks through a narrow loader, so it needs no provider keys. The image carries no config file: mount it into `api` and `worker` from `docker-compose.override.yml` ([generators.md](./generators.md#the-config-file)) |
-| `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1. What a slot costs depends on the provider class, see [generators.md](./generators.md#worker-slots) |
-| `WORKER_LARGE_CONCURRENCY` | worker | optional; slots of the large pool, which runs the multi-call briefs, default 1. See [generators.md](./generators.md#the-large-pool) |
-| `REVISION_NARRATIVE_ENABLED` | worker | optional, default `true`; `false` skips the revision narrative. A token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
-| `HUGE_SPAN_RATIO` | worker | optional, default `0.65`; the share of a PR's changed lines at which an incremental span falls back to the full brief. Above 0 and at most 1, or boot is refused |
-| `WORKER_COUNT` | compose | optional; worker containers compose starts, default 1. Concurrent generations = `WORKER_COUNT` x (`WORKER_CONCURRENCY` + `WORKER_LARGE_CONCURRENCY`); `docker compose up --scale worker=N` wins for that run |
-| `API_COUNT` | compose | optional; api containers compose starts, default 1. Every replica serves every request, with the caveats in [operations.md](./operations.md#running-more-than-one-api); `docker compose up --scale api=N` wins for that run |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned: the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24`, since the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
-| `DATABASE_URL` | none | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input when the database is external ([below](#external-postgres-managed-database)). Non-loopback hosts must carry `sslmode=verify-full` or `sslmode=disable` or boot is refused ([TLS](#tls-verify-full-or-disable-sslmode-in-the-dsn)) |
-| `DATABASE_URL_FILE` | api, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
-| `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`; empty reads as `false`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
-| `DATABASE_POOL_MAX` | api, worker | optional, default `10` (empty included); the size of each Postgres pool. An api process opens one pool and a worker two at this size (its store and its job queue) plus the large pool's job queue at `WORKER_LARGE_CONCURRENCY` + 2. A request waits up to 10 seconds for a free connection, then fails. api replicas x this value + worker count x (2 x this value + `WORKER_LARGE_CONCURRENCY` + 2) must stay under Postgres `max_connections` ([operations.md](./operations.md#running-more-than-one-api)). A whole number of at least 2 (the job queue keeps one connection for its listener and needs another to work), or api and worker refuse boot |
-| `MERGEBRIEF_API_HOST` / `MERGEBRIEF_API_PORT` | api | optional; where the API listens. Compose sets `0.0.0.0:3001` so `web` can reach it; the default is loopback |
-| `MERGEBRIEF_API_ORIGIN` | web | optional; where `/api/*` is proxied. Compose sets `http://api:3001`; the default is the API's loopback default |
-| `MERGEBRIEF_UPDATE_CHECK` | api | optional, default `true` (empty included); the hourly fetch of the release file that drives the version notice ([operations.md](./operations.md#the-update-check)). `false` turns it off; a token other than `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` refuses boot |
-| `MERGEBRIEF_UPDATE_CHECK_URL` | api | optional; a mirror of `version.json` for a network that blocks github.com. An absolute http(s) URL with no credentials in it, or api refuses boot |
-| `MERGEBRIEF_ATTACHMENT_QUOTA_FILES` / `MERGEBRIEF_ATTACHMENT_QUOTA_MB` / `MERGEBRIEF_ATTACHMENT_QUOTA_WINDOW_MINUTES` | api | optional, defaults `10` / `30` / `10` (empty included); what one reviewer may attach per window, per api replica ([attachments.md](./attachments.md#upload-quota)). Positive whole numbers, and the megabytes at least `10`, the size limit of one file; anything else refuses boot |
-| `MERGEBRIEF_MEDIA_MAX_MB` | api | optional, default `100` (empty included); the largest video or image, in megabytes, the API streams, judged on the file's full size ([attachments.md](./attachments.md)). A positive whole number, or api refuses boot |
+Set these for a first boot:
+
+| var | value |
+|---|---|
+| `GITHUB_APP_ID` | the App's numeric id ([github-app.md](./github-app.md)) |
+| `GITHUB_APP_PRIVATE_KEY` or `GITHUB_APP_PRIVATE_KEY_PATH` | exactly one of the two |
+| `GITHUB_WEBHOOK_SECRET` | `openssl rand -hex 32`; under 32 characters refuses boot |
+| `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` | the App's OAuth client |
+| `SESSION_KEY_V1` | `openssl rand -base64 32` |
+| `ANTHROPIC_API_KEY` | your model key, or the variable your provider's [config](./generators.md#the-config-file) names |
+| `MERGEBRIEF_CONFIG` | `mergebrief.config.yaml`, so its `operators` can sign in (above) |
+| `PUBLIC_BASE_URL` | the origin reviewers browse; defaults to `http://localhost:3000` |
+| `POSTGRES_PASSWORD` | the raw output of `openssl rand -hex 24`, before the first boot ([why](#1-postgres-credentials)) |
 
 ### Who owns which setting
 
@@ -243,6 +220,7 @@ name it in `.env`, so every plain `docker compose` command in these pages
 reads it:
 
 ```sh
+curl -fsSLo docker-compose.external-db.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.external-db.yml
 # .env: DATABASE_URL=postgres://...?sslmode=verify-full&sslrootcert=...
 # .env: COMPOSE_FILE=docker-compose.external-db.yml
 docker compose up -d --wait
@@ -488,8 +466,8 @@ brief.example.com {
 sudo caddy run --config ./Caddyfile     # or: caddy start / systemd unit
 ```
 
-Then set `PUBLIC_BASE_URL=https://brief.example.com` in `.env` and restart
-both services (`docker compose up -d`). It must match the value you register
+Then set `PUBLIC_BASE_URL=https://brief.example.com` in `.env` and recreate
+the services that read it (`docker compose up -d`). It must match the value you register
 as the GitHub App's OAuth callback origin and webhook URL. It is also the
 one origin a signed-in browser may send state-changing requests from: a
 POST that arrives with another `Origin` is refused with a 403, so the value

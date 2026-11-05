@@ -1,12 +1,15 @@
-# One-command self-host: `docker compose up` brings up
-# Postgres (the single stateful dependency), the API, the web tier that
-# proxies to it, and the long-lived generation worker. Credentials come from a
-# repo-root `.env`
-# (copy `.env.example`; compose reads it automatically for ${...}
-# interpolation AND `api` and `worker` load it via env_file, so a var you
-# leave out of .env is genuinely ABSENT in the container — the config loaders
-# treat empty-string and unset differently, e.g. the private-key one-of).
-# The web tier is deliberately left off that list; it holds no credentials.
+# One-command self-host: `docker compose up` brings up Postgres (the single
+# stateful dependency), the API, the web tier that proxies to it, and the
+# long-lived generation worker.
+#
+# An upgrade replaces this file: put your own edits in
+# docker-compose.override.yml, which compose merges in on its own.
+#
+# Settings come from `.env` beside this file (copy `.env.example`). Compose uses
+# it for ${...} interpolation, and `api` and `worker` load it via env_file, so a
+# var you leave out of .env is ABSENT in the container: the config loaders treat
+# empty and unset differently. `web` holds no credentials and gets no env_file.
+# Every variable: docs/self-host/configuration.md
 #
 # All published ports bind loopback-only: dev/self-host credentials must not
 # be reachable from the LAN. Put a reverse proxy in front for real exposure.
@@ -71,7 +74,7 @@ services:
       # from .env (which points at 127.0.0.1 for host tooling).
       # sslmode=disable is REQUIRED, not optional: `postgres` is a
       # non-loopback hostname, so the TLS allowlist gate refuses boot
-      # without an explicit choice — and the compose bridge network is exactly
+      # without an explicit choice, and the compose bridge network is exactly
       # the private-network case explicit disable exists for. The bundled
       # postgres image does not speak TLS.
       DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
@@ -82,13 +85,11 @@ services:
       MERGEBRIEF_API_HOST: 0.0.0.0
       MERGEBRIEF_API_PORT: "3001"
     # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
-    # the image carries no config file (.dockerignore), so this mount is
-    # required whenever MERGEBRIEF_CONFIG names one, and edits apply on
-    # restart. Add it to api and worker in docker-compose.override.yml: both
-    # read the file, and an upgrade replaces this one.
-    # volumes:
-    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
-    # Liveness only: /healthz is static — never /readyz here, or a DB blip
+    # the image carries no config file (.dockerignore), so whenever
+    # MERGEBRIEF_CONFIG names one, mount it into api and worker from
+    # docker-compose.override.yml (docs/self-host/compose.md). Edits apply on
+    # restart.
+    # Liveness only: /healthz is static, never /readyz here, or a DB blip
     # would trigger restart churn on the tier that owns the database.
     healthcheck:
       test:
@@ -129,7 +130,8 @@ services:
     # No `env_file` on purpose. This tier is the internet-facing one and it
     # holds no credentials, so `.env` never reaches its process environment.
     # What it needs is set below; LOG_LEVEL falls back to its default and
-    # NODE_ENV to the image's `production`, which this service wants.
+    # NODE_ENV to the image's `production`, which this service wants. A bad
+    # value here exits 1, so unlike api and worker it restarts until fixed.
     environment:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
       MERGEBRIEF_API_ORIGIN: http://api:3001
@@ -142,7 +144,7 @@ services:
       OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-}
       OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-}
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-}
-    # Liveness only: /healthz is static — never /readyz here,
+    # Liveness only: /healthz is static, never /readyz here,
     # or an upstream blip would trigger web restart churn.
     healthcheck:
       test:
@@ -172,29 +174,20 @@ services:
       # Derived from the postgres credentials, same as the api service, see
       # the sslmode=disable note there (required).
       DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
-      # The Entry comment's deep-link base — same value the web tier uses.
+      # The Entry comment's deep-link base, the same value the web tier uses.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
-      # Slots this worker drains jobs into. What a slot costs depends on the
-      # provider class: an API provider holds one in-process stream per slot,
-      # a CLI provider one child process (docs/self-host/generators.md,
-      # "Worker slots").
-      # WORKER_CONCURRENCY: 1
-      # Slots of the large pool, which runs the multi-call briefs.
-      # WORKER_LARGE_CONCURRENCY: 1
     # Worker containers. Concurrent generations = WORKER_COUNT x
-    # (WORKER_CONCURRENCY + WORKER_LARGE_CONCURRENCY). `docker compose up
-    # --scale worker=N` wins over this for that run. No container_name and no ports, so scaling needs nothing
-    # else.
+    # (WORKER_CONCURRENCY + WORKER_LARGE_CONCURRENCY), both slot counts set in
+    # .env (docs/self-host/generators.md, "Worker slots"). `docker compose up
+    # --scale worker=N` wins over this for that run. No container_name and no
+    # ports, so scaling needs nothing else.
     deploy:
       replicas: ${WORKER_COUNT:-1}
-    # See the api service's mergebrief.config.yaml mount note. Add both
-    # together, in docker-compose.override.yml.
-    # volumes:
-    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+    # See the api service's mergebrief.config.yaml mount note.
     # No HTTP surface to probe; liveness = the runner process itself.
     # on-failure: transient crashes (nonzero exit, e.g. a Postgres boot race)
-    # self-heal; config errors exit 0 and STAY DOWN — the reason
-    # is the last line of `docker compose logs worker`.
+    # self-heal; config errors exit 0 and STAY DOWN. The reason is the last
+    # line of `docker compose logs worker`.
     restart: on-failure
     # A job aborts within 5s of a stop, then the pool closes and the last
     # spans flush within 5s more; the default 10s would cut that flush.

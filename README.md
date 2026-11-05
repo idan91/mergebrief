@@ -85,13 +85,15 @@ deliberately refuses to be (no hosted SaaS, no moat-building, no AI-authored rev
 With Docker installed:
 
 ```bash
-git clone https://github.com/Idan91/mergebrief.git
-cd mergebrief
+mkdir mergebrief && cd mergebrief
+curl -fsSLo docker-compose.yml https://github.com/Idan91/mergebrief/releases/download/v0.1.0/docker-compose.yml
+curl -fsSLo .env.example https://github.com/Idan91/mergebrief/releases/download/v0.1.0/env.example
 cp .env.example .env    # GitHub App creds + your Anthropic key
-docker compose up -d
+docker compose up -d --wait
 ```
 
-That's the whole product running: Postgres, the web app on
+An instance starts closed, so nobody signs in until its config lists them under `operators`
+([setup](./docs/self-host/compose.md)). Once it does, that's the whole product running: Postgres, the web app on
 http://localhost:3000, and a background worker that briefs **the pushes to
 every PR** on the repos your GitHub App is installed on, debounced and under
 the instance's daily cap, with no manual step for an author the repository
@@ -99,7 +101,7 @@ trusts. Any other author's PR waits for one Generate click from a
 collaborator with push access, and its later pushes run as usual. Start with
 [`docs/self-host/README.md`](./docs/self-host/README.md): prerequisites, sizing
 and a reading order for every self-host page. Setup details (App registration,
-env table, verification, hardening before you expose it):
+first-boot settings, verification, hardening before you expose it):
 [`docs/self-host/compose.md`](./docs/self-host/compose.md). Every environment
 variable, instance config key and CLI setting, with its default:
 [`docs/self-host/configuration.md`](./docs/self-host/configuration.md). Upgrades,
