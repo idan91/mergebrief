@@ -37,6 +37,8 @@ interface StubState {
 }
 
 let bundlePath = "";
+const REVISION_NOTICE = `revision 1 ${BASE_SHA.slice(0, 7)}..${HEAD_SHA.slice(0, 7)}\n`;
+
 let server: Server;
 let configHome = "";
 let cacheHome = "";
@@ -58,6 +60,7 @@ function makeStubServer(): Server {
           headSha: HEAD_SHA,
           briefAvailable: true,
           comparisons: {},
+          revisions: [{ baseSha: BASE_SHA, headSha: HEAD_SHA, headIndex: 1 }],
         }),
       );
       return;
@@ -147,7 +150,7 @@ describe("the built CLI writing into a pipe", () => {
     const run = await runBin();
 
     expect(run.code).toBe(ExitCodes.OK);
-    expect(run.stderr).toBe("");
+    expect(run.stderr).toBe(REVISION_NOTICE);
     expect(run.stdout.length).toBe(Buffer.byteLength(LARGE_DIFF));
     expect(run.stdout.toString("utf8")).toBe(LARGE_DIFF);
   });
@@ -169,6 +172,6 @@ describe("the built CLI writing into a pipe", () => {
     const run = await runBin(true);
 
     expect(run.code).toBe(ExitCodes.OK);
-    expect(run.stderr).toBe("");
+    expect(run.stderr).toBe(REVISION_NOTICE);
   });
 });

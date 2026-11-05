@@ -267,6 +267,11 @@ describe("session read commands over the real api app", () => {
     expect(tty.code).toBe(ExitCodes.OK);
     const sessionWire = await referenceBody(`${pull}/session?${SPAN_QUERY}`);
     expect(tty.out).toBe(`${sessionWire}\n`);
+
+    const latest = await run(["session", "7", "--json"]);
+    expect(latest.code).toBe(ExitCodes.OK);
+    expect(latest.out).toBe(sessionWire);
+    expect(latest.err[0]).toMatch(/^revision \d+ /);
   });
 });
 
@@ -277,7 +282,7 @@ describe("session read span refusals before any request", () => {
       ["narrative", "7", "--prev-head", PREV_HEAD_SHA],
       "--prev-head and --head",
     ],
-    [["context", "7"], "--base and --head"],
+    [["context", "7", "--base", BASE_SHA], "--base and --head"],
   ])("%j exits 2 with one line naming %s", async (argv, flags) => {
     const result = await runCliOffline([...argv, "--json"]);
     expectRefusedBeforeRequest(result, flags);
@@ -293,11 +298,6 @@ describe("session read span refusals before any request", () => {
       command: "narrative",
       argv: ["narrative", "7", "--prev-head", PREV_HEAD_SHA],
       pointer: "`mergebrief pr <n> --json` revisions",
-    },
-    {
-      command: "context",
-      argv: ["context", "7"],
-      pointer: "`mergebrief pr <n> --json` baseSha/headSha",
     },
   ])(
     "points $command at the full SHAs pr --json carries",

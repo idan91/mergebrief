@@ -373,7 +373,6 @@ describe("usage validation before network work", () => {
     [["diff", "7", "--group", "g", "--base", "a"]],
     [["diff", "7", "--group", "g", "--base", "a", "--head", "b"]],
     [["delta", "7", "--baseline", "a"]],
-    [["session", "7"]],
     [["submit", "7", "--outcome", "comment", "--body", "b"]],
     [["draft", "delete", "7", "d1"]],
     [["risk", "address", "7"]],

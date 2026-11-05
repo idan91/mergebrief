@@ -22,6 +22,21 @@ export function addSpanOptions(command: Command): Command {
     .option("--head <sha>", "span head of the brief (required)");
 }
 
+/** `--revision`: a brief by the number the web's `?rev=` also uses. */
+export function addRevisionOption(command: Command): Command {
+  return command.option(
+    "--revision <n>",
+    "the brief revision to read (default: latest; `pr <n> --json` lists them)",
+  );
+}
+
+/** The span flags of a read, which falls back to the latest revision. */
+export function addReadSpanOptions(command: Command): Command {
+  return addRevisionOption(command)
+    .option("--base <sha>", "span base (with --head)")
+    .option("--head <sha>", "span head (with --base)");
+}
+
 export function addPayloadOption(
   command: Command,
   description: string,

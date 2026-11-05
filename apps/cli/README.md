@@ -84,7 +84,7 @@ shell's startup file already has a pnpm section, which an older pnpm leaves.
   one. One exception: when writing stdout fails for a reason other than
   the reader closing it (EIO, ENOSPC), a successful command exits 1 and
   stdout may hold a partial write.
-- **`diff` names its read:** on exit 0 it writes one stderr line,
+- **`diff` names its read:** on exit 0 it writes a stderr line,
   `diff mode: revision-span` or `diff mode: compare`, after the diff; a
   server that names neither prints none.
 - **Passthrough by default:** most commands emit the server response
@@ -152,8 +152,8 @@ the diff), risk-surface attributes.
 
 ### `diff <n>`
 
-The raw unified diff of the PR's brief span (or `--base <sha> --head <sha>`
-together). The raw output **is** the machine format: `--json` is rejected
+The raw unified diff of the latest revision, `--revision <n>`, or
+`--base <sha> --head <sha>` together. The raw output **is** the machine format: `--json` is rejected
 (exit 2).
 
 Piped output is those bytes, unchanged. On a terminal the CLI shows control and
@@ -165,8 +165,8 @@ that quits early changes nothing, and one that cannot run falls back to the CLI'
 own copy.
 
 `--group <id>` filters to one change group's **whole hunks** (the output is
-itself a valid diff, `git apply --check` clean). Brief-span only: combining
-with `--base/--head` is exit 2. If the brief's files disagree with the live
+itself a valid diff, `git apply --check` clean). It reads a brief's own span,
+so it takes `--revision` but combining with `--base/--head` is exit 2. If the brief's files disagree with the live
 diff the command fails loud (exit 1) rather than silently under-showing.
 
 ### `delta <n>`
@@ -188,11 +188,28 @@ since the checkpoint left the pull request's own changes as they were. `--baseli
 (together) skip checkpoint resolution; an artifact missing for an explicit span, a span
 whose delta was skipped or unchanged included, is exit 4.
 
-### `session <n> --base <sha> --head <sha>`
+### `session <n>`
 
-Your review session on the brief span you name, verbatim. The span is
-required and never auto-fetched (exit 2 without it): the same
-`baseSha`/`headSha` pair `pr <n>` reports.
+Your review session on a brief, verbatim: the latest revision, `--revision <n>`,
+or `--base <sha> --head <sha>` together.
+
+The latest revision is the newest finished brief for the PR's current head, or
+the newest finished one when that head has none. `session`,
+`context`, `groups` and `diff` choose it the same way, and print on stderr, only
+on success:
+
+- which revision they served;
+- why, when the head has no brief yet: generating, waiting for a Generate click,
+  or the generation's failure;
+- `this is revision 3; revision 4 is latest`, when `--revision` names an older one;
+- when this read moves you to a newer revision than you last read here, that it
+  did and what happens to your work. A draft that lost its lines needs
+  re-anchoring in MergeBrief, because a token cannot.
+
+No finished revision at all is exit 4; so is a `--revision` not on the PR.
+`--base/--head` read exactly that span and print none of this. The CLI remembers
+the highest revision you read per PR in `<cacheDir>/<profile>/read-revisions.json`,
+which is safe to delete.
 
 ### `marks <n> --baseline <sha> --head <sha>`
 
@@ -204,10 +221,10 @@ Both flags required (exit 2).
 The revision narrative for a `prevHead..head` hop, verbatim. Both flags
 required (exit 2).
 
-### `context <n> --base <sha> --head <sha>`
+### `context <n>`
 
-The brief's repo-config snapshot (`{"repoConfig":…}`), verbatim. Same span
-rule as `session`.
+The brief's repo-config snapshot (`{"repoConfig":…}`), verbatim. Chooses its
+brief as `session` does.
 
 ### `draft create|update|reanchor|delete|attach <n> [draftId]`
 
@@ -429,15 +446,15 @@ Commands:
   repos [options]                             repositories visible to the profile's token (cached; see --refresh)
   pr [number]                                 your PRs (no argument), or one PR's metadata
   generation <number>                         the PR head's generation claims, last failure and takeover job
-  groups <number>                             the PR's brief: change groups over the current span
+  groups [options] <number>                   the PR's brief: change groups (default: the latest revision)
   conversation <number>                       the PR's review conversation
   diff [options] <number>                     the PR's unified diff (its raw text IS the machine format)
   reply [options] <commentId>                 reply to a review comment (the viewer's own voice)
   submit [options] <number>                   submit a review of the brief span you name (its saved drafts go with it)
-  session [options] <number>                  your review session on the brief span you name
+  session [options] <number>                  your review session on a brief (default: the latest revision)
   marks [options] <number>                    comparison marks (coordinates only) for a baseline..head span
   narrative [options] <number>                the revision narrative for a prevHead..head hop
-  context [options] <number>                  the brief's repo-config snapshot for the span you name
+  context [options] <number>                  the brief's repo-config snapshot (default: the latest revision)
   draft                                       draft review comments in your session (posted at submit)
   chunk-read [options] <number> [chunkId...]  mark brief chunks read (--unread clears the marks)
   risk                                        disposition the brief's risk flags in your session
@@ -563,13 +580,15 @@ Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help
 ```
 Usage: mergebrief groups [options] <number>
 
-the PR's brief: change groups over the current span
+the PR's brief: change groups (default: the latest revision)
 
 Arguments:
-  number      PR number
+  number          PR number
 
 Options:
-  -h, --help  display help for command
+  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
+                  lists them)
+  -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
@@ -598,13 +617,15 @@ Usage: mergebrief diff [options] <number>
 the PR's unified diff (its raw text IS the machine format)
 
 Arguments:
-  number        PR number
+  number          PR number
 
 Options:
-  --base <sha>  span base (with --head)
-  --head <sha>  span head (with --base)
-  --group <id>  filter to one change group's whole hunks (brief span only)
-  -h, --help    display help for command
+  --group <id>    filter to one change group's whole hunks (brief span only)
+  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
+                  lists them)
+  --base <sha>    span base (with --head)
+  --head <sha>    span head (with --base)
+  -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
@@ -632,15 +653,17 @@ Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help
 ```
 Usage: mergebrief session [options] <number>
 
-your review session on the brief span you name
+your review session on a brief (default: the latest revision)
 
 Arguments:
-  number        PR number
+  number          PR number
 
 Options:
-  --base <sha>  span base of the brief (required)
-  --head <sha>  span head of the brief (required)
-  -h, --help    display help for command
+  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
+                  lists them)
+  --base <sha>    span base (with --head)
+  --head <sha>    span head (with --base)
+  -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
@@ -686,15 +709,17 @@ Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help
 ```
 Usage: mergebrief context [options] <number>
 
-the brief's repo-config snapshot for the span you name
+the brief's repo-config snapshot (default: the latest revision)
 
 Arguments:
-  number        PR number
+  number          PR number
 
 Options:
-  --base <sha>  span base of the brief (required)
-  --head <sha>  span head of the brief (required)
-  -h, --help    display help for command
+  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
+                  lists them)
+  --base <sha>    span base (with --head)
+  --head <sha>    span head (with --base)
+  -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```

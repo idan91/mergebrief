@@ -1,10 +1,10 @@
 // The four Review Session reads: `session`, `marks`, `narrative`, `context`.
 // Pure passthrough GETs: the span flags are the only client-side checks
-// (exit 2); the server owns everything else. `session`/`context` take the
-// brief span (`--base`/`--head`, via `requireSpan`); `marks` names a
-// comparison (`--baseline`/`--head`); `narrative` names a revision hop
-// (`--prev-head`/`--head`).
-import { ProductQueryIds } from "contract";
+// (exit 2); the server owns everything else. `session`/`context` take a brief
+// (`commands/span`); `marks` names a comparison (`--baseline`/`--head`);
+// `narrative` names a revision hop (`--prev-head`/`--head`).
+import { AttentionItemKinds, ProductQueryIds } from "contract";
+import { z } from "zod/v4";
 import type { ApiClient } from "../../client";
 import { CliError, ExitCodes } from "../../exit";
 import { buildRequestPath } from "../request-path";
@@ -50,24 +50,63 @@ async function passthroughGet(
   client: ApiClient,
   path: string,
   io: CommandIo,
-): Promise<void> {
-  const response = await client.request({ path });
-  if (io.json) {
-    io.stdout(response.bodyText); // verbatim, not one byte more
-    return;
-  }
-  io.stdout(`${response.bodyText}\n`);
+): Promise<string> {
+  const { bodyText } = await client.request({ path });
+  // Verbatim under `--json`, not one byte more.
+  io.stdout(io.json ? bodyText : `${bodyText}\n`);
+  return bodyText;
 }
 
-/** `session <n>`: the reviewer's session on the Brief at (base, head). */
+const sessionWorkSliceSchema = z.object({
+  materialized: z.boolean(),
+  carriedFrom: z.object({ items: z.number() }).nullable(),
+  attention: z.array(z.object({ kind: z.string() })),
+});
+
+/** What a reader moved to a newer revision should know about their work; undefined when the body says nothing readable. */
+function describeCarriedWork(bodyText: string): string | undefined {
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(bodyText);
+  } catch {
+    return undefined;
+  }
+  const work = sessionWorkSliceSchema.safeParse(parsedJson);
+  if (!work.success) {
+    return undefined;
+  }
+
+  const { materialized, carriedFrom, attention } = work.data;
+  if (carriedFrom === null || carriedFrom.items === 0) {
+    return "";
+  }
+
+  const carried = materialized
+    ? "Your work carried over."
+    : "Your work carries over on your next write.";
+  const lost = attention.filter(
+    (item) => item.kind === AttentionItemKinds.ORPHANED_ANCHOR,
+  ).length;
+  if (lost === 0) {
+    return carried;
+  }
+  return lost === 1
+    ? `${carried} 1 draft lost its lines: re-anchor it in MergeBrief.`
+    : `${carried} ${lost} drafts lost their lines: re-anchor them in MergeBrief.`;
+}
+
+/**
+ * `session <n>`: the reviewer's session on the Brief at (base, head). Answers
+ * what it read about the reviewer's carried work, for the moved message.
+ */
 export async function runSession(
   client: ApiClient,
   repoId: string,
   prNumber: number,
   span: BriefSpan,
   io: CommandIo,
-): Promise<void> {
-  await passthroughGet(
+): Promise<string | undefined> {
+  const bodyText = await passthroughGet(
     client,
     buildRequestPath(
       ProductQueryIds.READ_REVIEW_SESSION,
@@ -76,6 +115,7 @@ export async function runSession(
     ),
     io,
   );
+  return describeCarriedWork(bodyText);
 }
 
 /** `marks <n>`: comparison marks for (baseline, head). */

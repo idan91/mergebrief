@@ -57,6 +57,8 @@ export interface OfflineRunOptions {
   /** What `bin.ts` reads off a real stdout; absent, a pipe. */
   readonly stdoutIsTerminal?: boolean;
   readonly pager?: CliDeps["pager"];
+  /** The cache a previous run left; absent, a fresh one. */
+  readonly cacheDir?: string;
 }
 
 export interface OfflineRun {
@@ -146,7 +148,8 @@ export async function runCliOffline(
   options: OfflineRunOptions = {},
 ): Promise<OfflineRun> {
   const configDir = mkdtempSync(join(tmpdir(), "mb-offline-config-"));
-  const cacheDir = mkdtempSync(join(tmpdir(), "mb-offline-cache-"));
+  const cacheDir =
+    options.cacheDir ?? mkdtempSync(join(tmpdir(), "mb-offline-cache-"));
   saveConfig(
     configDir,
     options.config ?? {

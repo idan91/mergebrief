@@ -374,7 +374,7 @@ It never reads the server's variables.
 | `MERGEBRIEF_TOKEN` | unset | Replaces the resolved profile's stored token; it never changes which profile resolves. A command that sends a request refuses it when the current repo's owner routes away from the default profile, until `--profile` or `MERGEBRIEF_PROFILE` names the instance. |
 | `MERGEBRIEF_NO_VERSION_WARNING` | unset | Set to any value, even empty, it silences the update line and the major-version warning, and the CLI stops asking npm ([Versions](./cli.md#versions)). |
 | `XDG_CONFIG_HOME` | `~/.config` | The CLI keeps `mergebrief/config.json` under it. |
-| `XDG_CACHE_HOME` | `~/.cache` | The CLI keeps `mergebrief/update-check.json` under it. |
+| `XDG_CACHE_HOME` | `~/.cache` | The CLI keeps `mergebrief/update-check.json`, and per profile its repo list and the highest revision read on each pull request, under it. |
 | `PAGER` | unset | `diff` on a terminal pipes through it, with control and invisible characters escaped and no color. |
 | `NO_COLOR` | unset | Non-empty, `diff` on a terminal prints no color. Control and invisible characters stay escaped. |
 | `TERM` | set by the terminal | `dumb` prints no color, as `NO_COLOR` does. |

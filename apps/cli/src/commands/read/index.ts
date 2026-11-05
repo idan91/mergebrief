@@ -1,6 +1,9 @@
 import type { Command } from "commander";
 import { CliError, ExitCodes } from "../../exit";
 import type { CommandContext } from "../../types";
+import { addReadSpanOptions, addRevisionOption } from "../options";
+import { parseSpanFlags, runSpanRead } from "../span";
+import type { SpanFlags } from "../span/types";
 import {
   parsePrNumber,
   resolveProfileTarget,
@@ -62,15 +65,21 @@ export function registerGroupsCommand(
   program: Command,
   context: CommandContext,
 ): void {
-  program
+  const groups = program
     .command("groups")
-    .description("the PR's brief: change groups over the current span")
-    .argument("<number>", "PR number")
-    .action(async (raw: string) => {
-      const prNumber = parsePrNumber(raw);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runGroups(client, repoId, prNumber, io);
+    .description("the PR's brief: change groups (default: the latest revision)")
+    .argument("<number>", "PR number");
+  addRevisionOption(groups).action(async (raw: string, options: SpanFlags) => {
+    const prNumber = parsePrNumber(raw);
+    const selection = parseSpanFlags(options);
+
+    const target = await resolveRepoTarget(context);
+    const { client, repoId, io } = target;
+    await runSpanRead(target, prNumber, selection, async (span) => {
+      await runGroups(client, repoId, prNumber, span, io);
+      return undefined;
     });
+  });
 }
 
 export function registerConversationCommand(
@@ -92,45 +101,46 @@ export function registerDiffCommand(
   program: Command,
   context: CommandContext,
 ): void {
-  program
+  const diff = program
     .command("diff")
     .description("the PR's unified diff (its raw text IS the machine format)")
     .argument("<number>", "PR number")
-    .option("--base <sha>", "span base (with --head)")
-    .option("--head <sha>", "span head (with --base)")
     .option(
       "--group <id>",
       "filter to one change group's whole hunks (brief span only)",
-    )
-    .action(
-      async (
-        raw: string,
-        options: { base?: string; head?: string; group?: string },
-      ) => {
-        if (context.readGlobals().json) {
-          throw new CliError(
-            ExitCodes.USAGE,
-            "diff has no JSON arm; its raw output is the machine format",
-          );
-        }
-        const prNumber = parsePrNumber(raw);
-        requireDiffFlags(options);
+    );
+  addReadSpanOptions(diff).action(
+    async (raw: string, options: SpanFlags & { group?: string }) => {
+      if (context.readGlobals().json) {
+        throw new CliError(
+          ExitCodes.USAGE,
+          "diff has no JSON arm; its raw output is the machine format",
+        );
+      }
+      const prNumber = parsePrNumber(raw);
+      requireDiffFlags(options);
+      const selection = parseSpanFlags(options);
 
-        const { deps } = context;
-        const terminal = deps.stdoutIsTerminal
-          ? { color: isTerminalColorEnabled(deps.env) }
-          : undefined;
+      const { deps } = context;
+      const terminal = deps.stdoutIsTerminal
+        ? { color: isTerminalColorEnabled(deps.env) }
+        : undefined;
 
-        const { client, repoId, io } = await resolveRepoTarget(context);
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runSpanRead(target, prNumber, selection, async (span) => {
         await runDiff(
           client,
           repoId,
           prNumber,
-          { ...options, pager: deps.pager, terminal },
+          span,
+          { group: options.group, pager: deps.pager, terminal },
           io,
         );
-      },
-    );
+        return undefined;
+      });
+    },
+  );
 }
 
 export function registerCollaboratorsCommand(

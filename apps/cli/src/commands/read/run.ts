@@ -10,93 +10,16 @@ import {
   ProductQueryIds,
   type DiffMode,
 } from "contract";
-import { z } from "zod/v4";
 import type { ApiClient } from "../../client";
-import type { CommandIo } from "../../types";
+import type { BriefSpan, CommandIo } from "../../types";
 import { CliError, ExitCodes } from "../../exit";
 import { readGroupChunks } from "../brief-chunks";
+import { fetchPrMeta, isSpanBriefStored } from "../span/pr-meta";
+import type { SpanFlags } from "../span/types";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 import { renderTerminalDiff, type TerminalDiffOptions } from "./terminal-diff";
 import { buildRequestPath } from "../request-path";
-import { buildSkewError, isRecord } from "../../utils";
-
-// ---------------------------------------------------------------------------
-// The PR-meta slices these commands consume (tolerant-read: only the fields
-// the CLI actually joins on, everything else passes through untouched).
-// ---------------------------------------------------------------------------
-
-const prMetaSliceSchema = z.object({
-  baseSha: z.string().nullable(),
-  headSha: z.string().nullable(),
-  briefAvailable: z.boolean(),
-  headBriefStored: z.boolean().optional(),
-  comparisons: z
-    .object({
-      lastReview: z
-        .union([
-          z.object({
-            deltaAvailable: z.boolean(),
-            deltaUnchanged: z.literal(true).optional(),
-            baselineSha: z.string(),
-          }),
-          z.object({ unavailable: z.string() }),
-        ])
-        .optional(),
-    })
-    .optional(),
-});
-
-interface PrMetaSlice {
-  readonly bodyText: string;
-  readonly slice: z.infer<typeof prMetaSliceSchema>;
-}
-
-async function fetchPrMeta(
-  client: ApiClient,
-  repoId: string,
-  prNumber: number,
-): Promise<PrMetaSlice> {
-  const response = await client.request({
-    path: buildRequestPath(ProductQueryIds.READ_PULL, { repoId, prNumber }),
-  });
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(response.bodyText);
-  } catch {
-    throw buildSkewError("PR-meta");
-  }
-  const slice = prMetaSliceSchema.safeParse(parsedJson);
-  if (!slice.success) {
-    throw buildSkewError("PR-meta");
-  }
-  return { bodyText: response.bodyText, slice: slice.data };
-}
-
-/**
- * A brief is stored at the meta's own span, on whatever base it was built.
- * A server older than `headBriefStored` meant exactly this by
- * `briefAvailable`.
- */
-function isSpanBriefStored(slice: PrMetaSlice["slice"]): boolean {
-  return slice.headBriefStored ?? slice.briefAvailable;
-}
-
-/** The brief's own span, required by `groups` and `diff --group`. */
-function briefSpan(
-  meta: PrMetaSlice,
-  prNumber: number,
-): { base: string; head: string } {
-  const { baseSha, headSha } = meta.slice;
-  const spanStored =
-    isSpanBriefStored(meta.slice) && baseSha !== null && headSha !== null;
-  if (!spanStored) {
-    throw new CliError(
-      ExitCodes.NOT_FOUND,
-      `no brief generated yet for PR ${prNumber}; \`mergebrief generation ${prNumber}\` shows where its generation stands`,
-    );
-  }
-  return { base: baseSha, head: headSha };
-}
+import { isRecord } from "../../utils";
 
 // ---------------------------------------------------------------------------
 // Commands. Each takes the resolved client + repoId and the io sinks.
@@ -138,19 +61,18 @@ export async function runPrMeta(
   const stored = isSpanBriefStored(meta.slice);
   io.stdout(
     `PR ${prNumber} · brief ${stored ? "available" : "not ready"}` +
-      `${baseSha === null || headSha === null ? "" : ` · span ${baseSha.slice(0, 7)}..${headSha.slice(0, 7)}`}\n`,
+      `${baseSha === null || headSha === null ? "" : ` · span ${formatDisplayText(baseSha.slice(0, 7))}..${formatDisplayText(headSha.slice(0, 7))}`}\n`,
   );
 }
 
-/** `groups <n>`: the brief artifact body for the PR's own span, verbatim. */
+/** `groups <n>`: the brief artifact body for the span, verbatim. */
 export async function runGroups(
   client: ApiClient,
   repoId: string,
   prNumber: number,
+  span: BriefSpan,
   io: CommandIo,
 ): Promise<void> {
-  const meta = await fetchPrMeta(client, repoId, prNumber);
-  const span = briefSpan(meta, prNumber);
   const brief = await client.request({
     path: buildRequestPath(
       ProductQueryIds.READ_BRIEF,
@@ -186,8 +108,6 @@ export async function runConversation(
 }
 
 export interface DiffOptions {
-  readonly base?: string | undefined;
-  readonly head?: string | undefined;
   readonly group?: string | undefined;
   /** TTY pager hook (cosmetic only, wired by bin); it takes the escaped copy, since many pagers pass escapes through. */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
@@ -195,21 +115,13 @@ export interface DiffOptions {
   readonly terminal?: TerminalDiffOptions | undefined;
 }
 
-/** The usage checks `diff` runs on its flags alone, before any network work. */
-export function requireDiffFlags(options: DiffOptions): void {
-  const customSpan = options.base !== undefined || options.head !== undefined;
-  if (options.group !== undefined && customSpan) {
+/** `--group` reads a brief's own chunks, so a custom span has none to filter by. */
+export function requireDiffFlags(flags: SpanFlags & DiffOptions): void {
+  const customSpan = flags.base !== undefined || flags.head !== undefined;
+  if (flags.group !== undefined && customSpan) {
     throw new CliError(
       ExitCodes.USAGE,
       "--group filters the brief's own span, so it cannot be combined with --base/--head",
-    );
-  }
-  const loneSpanFlag =
-    (options.base === undefined) !== (options.head === undefined);
-  if (loneSpanFlag) {
-    throw new CliError(
-      ExitCodes.USAGE,
-      "--base and --head must be given together",
     );
   }
 }
@@ -239,26 +151,17 @@ export async function runDiff(
   client: ApiClient,
   repoId: string,
   prNumber: number,
+  span: BriefSpan,
   options: DiffOptions,
   io: CommandIo,
 ): Promise<void> {
-  requireDiffFlags(options);
-
-  let span: { base: string; head: string };
   let groupChunks: ChunkSpan[] | undefined;
   if (options.group !== undefined) {
-    const meta = await fetchPrMeta(client, repoId, prNumber);
-    span = briefSpan(meta, prNumber);
     groupChunks = await readGroupChunks(
       client,
       { repoId, prNumber, span },
       options.group,
     );
-  } else if (options.base !== undefined && options.head !== undefined) {
-    span = { base: options.base, head: options.head };
-  } else {
-    const meta = await fetchPrMeta(client, repoId, prNumber);
-    span = briefSpan(meta, prNumber);
   }
 
   const diff = await client.request({

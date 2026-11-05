@@ -13,6 +13,18 @@ The contract discipline: response shapes change additively
 within a major; removals/renames ship expand/contract: new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-11-04)
+
+No server change; the CLI reads the same routes.
+
+- **Changed** `mergebrief session` and `context` with no span flags: exit 0 on
+  the latest revision with a finished brief, instead of exit 2. A lone `--base`
+  or `--head` stays exit 2.
+- **Changed** `mergebrief groups` and `diff` when the head has no brief but an
+  older one exists: exit 0 on that older one, naming it on stderr, instead of
+  exit 4. No finished brief at all stays exit 4.
+- **Added** `--revision <headIndex>` on `session`, `context`, `groups` and `diff`.
+
 ## dev (2026-11-01)
 
 - **Added** `deltaUnchanged: true` on an available `comparisons.lastReview`

@@ -26,7 +26,7 @@ import { PrStates, AccessLevels } from "types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
-import { runDelta, runGroups } from "../src/commands/read/run";
+import { runDelta } from "../src/commands/read/run";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
 import { BASE_URL, FIXTURE_BODY_VERSION } from "./harness/consts";
 import { STUB_INSTALLATION_ID } from "./harness/github-stub";
@@ -367,7 +367,10 @@ describe("read commands over the real api app", () => {
     const raw = await run(["diff", "7"]);
     expect(raw.code).toBe(ExitCodes.OK);
     expect(raw.out).toBe(RAW_DIFF);
-    expect(raw.err).toEqual([`diff mode: ${DiffModes.COMPARE}`]);
+    expect(raw.err).toEqual([
+      `diff mode: ${DiffModes.COMPARE}`,
+      `revision 1 ${BASE_SHA.slice(0, 7)}..${HEAD_SHA.slice(0, 7)}`,
+    ]);
 
     const filtered = await run(["diff", "7", "--group", "grp-1"]);
     expect(filtered.code).toBe(ExitCodes.OK);
@@ -466,6 +469,30 @@ describe("groups over a scripted api", () => {
   });
 });
 
+describe("pr <n> over a scripted api", () => {
+  it("escapes a hostile span on its one line", async () => {
+    const result = await runCliOffline(["pr", "7"], {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: `/api/repos/${OFFLINE_REPO_ID}/pulls/7`,
+          body: JSON.stringify({
+            baseSha: "\u001B[2Jaaaa",
+            headSha: HEAD_SHA,
+            briefAvailable: true,
+            comparisons: {},
+          }),
+        },
+      ],
+    });
+
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(result.out).not.toContain("\u001B");
+    expect(result.out).toContain("[U+001B][2Ja");
+  });
+});
+
 describe("TTY renderings over a scripted api", () => {
   const SPOOFED_TITLE = "Fix \u202Etxt.exe \u001B[2Jgone";
   const ESCAPED_TITLE = "Fix [U+202E]txt.exe [U+001B][2Jgone";
@@ -514,6 +541,7 @@ describe("TTY renderings over a scripted api", () => {
             baseSha: BASE_SHA,
             headSha: HEAD_SHA,
             briefAvailable: true,
+            revisions: [{ baseSha: BASE_SHA, headSha: HEAD_SHA, headIndex: 1 }],
             comparisons: {},
           }),
         },
@@ -545,6 +573,7 @@ describe("diff --group over a scripted api", () => {
             baseSha: BASE_SHA,
             headSha: HEAD_SHA,
             briefAvailable: true,
+            revisions: [{ baseSha: BASE_SHA, headSha: HEAD_SHA, headIndex: 1 }],
             comparisons: {},
           }),
         },
@@ -702,32 +731,33 @@ describe("diff over a scripted api", () => {
 });
 
 describe("groups on a head briefed only on a base the PR has left", () => {
-  it("reads the brief at the meta's span", async () => {
-    const paths: string[] = [];
-    const client = createApiClient({
-      fetch: async (input) => {
-        paths.push(input);
-        if (input.includes("/brief?")) {
-          return jsonResponse({ changeGroups: [] });
-        }
-        return jsonResponse({
-          baseSha: BASE_SHA,
-          headSha: HEAD_SHA,
-          briefAvailable: false,
-          headBriefStored: true,
-          comparisons: {},
-        });
-      },
-      baseUrl: BASE_URL,
-      token: "mergebrief_x",
+  it("reads the brief at that revision's own span", async () => {
+    const pull = `/api/repos/${OFFLINE_REPO_ID}/pulls/7`;
+    const result = await runCliOffline(["groups", "7", "--json"], {
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        {
+          method: "GET",
+          path: pull,
+          body: JSON.stringify({
+            baseSha: BASE_SHA,
+            headSha: HEAD_SHA,
+            briefAvailable: false,
+            headBriefStored: true,
+            comparisons: {},
+            revisions: [{ baseSha: BASE_SHA, headSha: HEAD_SHA, headIndex: 1 }],
+          }),
+        },
+        {
+          method: "GET",
+          path: `${pull}/brief?base=${BASE_SHA}&head=${HEAD_SHA}`,
+          body: JSON.stringify({ changeGroups: [] }),
+        },
+      ],
     });
-    const { out, io: sinks } = sinkPair();
 
-    await runGroups(client, "1", 7, sinks);
-
-    const printed = out.join("");
-    expect(JSON.parse(printed)).toEqual({ changeGroups: [] });
-    expect(paths.at(-1)).toContain(`base=${BASE_SHA}`);
+    expect(result.code).toBe(ExitCodes.OK);
+    expect(JSON.parse(result.out)).toEqual({ changeGroups: [] });
   });
 });
 
@@ -768,6 +798,7 @@ describe("delta checkpoint resolution over controlled PR-meta bodies", () => {
     baseSha: BASE_SHA,
     headSha: HEAD_SHA,
     briefAvailable: true,
+    revisions: [{ baseSha: BASE_SHA, headSha: HEAD_SHA, headIndex: 1 }],
   };
 
   it("no checkpoint reports available false with reason no-checkpoint", async () => {

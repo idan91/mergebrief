@@ -21,6 +21,7 @@ import {
   loadRepos,
   type RepoCacheDeps,
 } from "../../profile/repos";
+import { clearReadRevisions } from "../../profile/read-revisions";
 import type { CliDeps, GlobalOptions } from "../../types";
 import { isRecord } from "../../utils";
 import { formatSemver, parseSemver } from "../../version";
@@ -284,6 +285,7 @@ export async function runAuthLogin(
 
   if (existing !== undefined && movesOrigin(existing, baseUrl)) {
     clearRepoCache(deps.cacheDir, profileName);
+    clearReadRevisions(deps.cacheDir, profileName);
   }
   const next = {
     defaultProfile: config.defaultProfile ?? profileName,

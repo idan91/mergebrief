@@ -10,6 +10,7 @@ import {
   type ResolveProfileInput,
   type StoredProfile,
 } from "../profile/config";
+import type { ProfileCache } from "../profile/read-revisions";
 import { resolveRepoId } from "../profile/repos";
 import { recordServerVersion } from "../version";
 import type {
@@ -28,6 +29,7 @@ export interface ProfileTarget {
 
 export interface RepoTarget extends ProfileTarget {
   readonly repoId: string;
+  readonly cache: ProfileCache;
 }
 
 export function resolveCliVersion(deps: CliDeps): string {
@@ -146,5 +148,10 @@ export async function resolveRepoTarget(
     },
     fullName,
   );
-  return { client, repoId, io: readIo(deps, global) };
+  return {
+    client,
+    repoId,
+    io: readIo(deps, global),
+    cache: { cacheDir: deps.cacheDir, profileName: resolved.name },
+  };
 }

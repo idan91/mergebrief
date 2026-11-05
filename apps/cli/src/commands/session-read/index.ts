@@ -1,6 +1,8 @@
 import type { Command } from "commander";
 import type { CommandContext } from "../../types";
-import { addSpanOptions, requireSpan } from "../options";
+import { addReadSpanOptions } from "../options";
+import { parseSpanFlags, runSpanRead } from "../span";
+import type { SpanFlags } from "../span/types";
 import { parsePrNumber, resolveRepoTarget } from "../target";
 import {
   requireComparisonSpan,
@@ -17,15 +19,20 @@ export function registerSessionCommand(
 ): void {
   const session = program
     .command("session")
-    .description("your review session on the brief span you name")
+    .description(
+      "your review session on a brief (default: the latest revision)",
+    )
     .argument("<number>", "PR number");
-  addSpanOptions(session).action(
-    async (raw: string, options: { base?: string; head?: string }) => {
+  addReadSpanOptions(session).action(
+    async (raw: string, options: SpanFlags) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
 
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSession(client, repoId, prNumber, span, io);
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runSpanRead(target, prNumber, selection, (span) =>
+        runSession(client, repoId, prNumber, span, io),
+      );
     },
   );
 }
@@ -80,15 +87,21 @@ export function registerContextCommand(
 ): void {
   const contextCommand = program
     .command("context")
-    .description("the brief's repo-config snapshot for the span you name")
+    .description(
+      "the brief's repo-config snapshot (default: the latest revision)",
+    )
     .argument("<number>", "PR number");
-  addSpanOptions(contextCommand).action(
-    async (raw: string, options: { base?: string; head?: string }) => {
+  addReadSpanOptions(contextCommand).action(
+    async (raw: string, options: SpanFlags) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
 
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runContext(client, repoId, prNumber, span, io);
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runSpanRead(target, prNumber, selection, async (span) => {
+        await runContext(client, repoId, prNumber, span, io);
+        return undefined;
+      });
     },
   );
 }

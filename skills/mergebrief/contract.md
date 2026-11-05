@@ -22,7 +22,7 @@ none of them appear in `--help`.
   be removed, and each removal is listed in the API changelog. Ignore fields
   you do not recognize.
 - `diff` rejects `--json` (exit 2); its raw unified diff is the machine
-  format. On exit 0 it also writes one stderr line naming what it served:
+  format. On exit 0 it also writes a stderr line naming what it served:
   `diff mode: revision-span` for a `--base`/`--head` pair MergeBrief stored
   revision marks for (the PR's own change between those heads, with base
   moves and rebase noise left out), unless the pair reads the whole PR: any
@@ -50,10 +50,13 @@ none of them appear in `--help`.
 
 ## The span rule
 
-Every session command (`session`, `context`, `draft *`, `chunk-read`,
-`risk *`, `reclassify`, `outcome`, `submit`) requires
-`--base <baseSha> --head <headSha>`, the pair `pr <n>` reports; exit 2
-without it. You write against the brief you read, not the newest one. A push
+Every session write (`draft *`, `chunk-read`, `risk *`, `reclassify`,
+`outcome`, `submit`) requires `--base <baseSha> --head <headSha>`, the pair
+`pr <n>` reports; exit 2 without it. You write against the brief you read, not
+the newest one. `session`, `context` and `diff` take that pair too, and they and
+`groups` take `--revision <headIndex>`; with neither they serve the newest
+finished brief for the current head, else the newest finished one, exit 4 if
+none, and name it on stderr. Pass the pair so every command stays on one brief. A push
 mid-review does not freeze your session: it stays writable until the first
 write to the newer brief's session (from any client) carries your work
 over, and from then the old one answers 409. On a 409, re-read `pr <n>`,
