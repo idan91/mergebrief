@@ -11,6 +11,7 @@ const prMetaSliceSchema = z.object({
   headSha: z.string().nullable(),
   briefAvailable: z.boolean(),
   headBriefStored: z.boolean().optional(),
+  behind: z.boolean().optional(),
   generation: z
     .object({
       status: z.string(),
@@ -44,6 +45,8 @@ const prMetaSliceSchema = z.object({
 });
 
 export type PrMetaFields = z.infer<typeof prMetaSliceSchema>;
+
+export type StoredRevision = NonNullable<PrMetaFields["revisions"]>[number];
 
 export interface PrMetaSlice {
   readonly bodyText: string;

@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { CliError, ExitCodes } from "../../exit";
 import type { CommandContext } from "../../types";
-import { addReadSpanOptions, addRevisionOption } from "../options";
+import { addSpanOptions, addRevisionOption } from "../options";
 import { parseSpanFlags, runSpanRead } from "../span";
 import type { SpanFlags } from "../span/types";
 import {
@@ -109,7 +109,7 @@ export function registerDiffCommand(
       "--group <id>",
       "filter to one change group's whole hunks (brief span only)",
     );
-  addReadSpanOptions(diff).action(
+  addSpanOptions(diff).action(
     async (raw: string, options: SpanFlags & { group?: string }) => {
       if (context.readGlobals().json) {
         throw new CliError(

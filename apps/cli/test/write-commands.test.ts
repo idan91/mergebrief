@@ -21,7 +21,6 @@ import { seedGrant, type PgliteHarness } from "persistence/testing";
 import { PrStates, ReviewOutcomes, AccessLevels } from "types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import { requireSpan } from "../src/commands/options";
 import { buildSubmitPayload } from "../src/commands/write/run";
 import { KEY_REF, startCliApiHarness, type CliApiHarness } from "./harness/api";
 import { BASE_URL, FIXTURE_BODY_VERSION } from "./harness/consts";
@@ -89,28 +88,6 @@ describe("buildSubmitPayload plumbing", () => {
       body: "lgtm",
     });
     expect(buildSubmitPayload({})).toEqual({ outcome: "comment" });
-  });
-
-  it("the brief span is the one client-side shape check, exit 2", () => {
-    for (const [base, head] of [
-      [undefined, undefined],
-      [BASE, undefined],
-      [undefined, COMMIT],
-      ["", COMMIT],
-    ]) {
-      let thrown: unknown;
-      try {
-        requireSpan(base, head);
-      } catch (error) {
-        thrown = error;
-      }
-      expect(
-        thrown !== null && typeof thrown === "object" && "code" in thrown
-          ? (thrown as { code: number }).code
-          : undefined,
-      ).toBe(ExitCodes.USAGE);
-    }
-    expect(requireSpan(BASE, COMMIT)).toEqual({ base: BASE, head: COMMIT });
   });
 
   it("-F and flags are mutually exclusive rather than silently merged", () => {

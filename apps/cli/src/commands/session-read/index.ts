@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import type { CommandContext } from "../../types";
-import { addReadSpanOptions } from "../options";
+import { addSpanOptions } from "../options";
 import { parseSpanFlags, runSpanRead } from "../span";
 import type { SpanFlags } from "../span/types";
 import { parsePrNumber, resolveRepoTarget } from "../target";
@@ -23,18 +23,16 @@ export function registerSessionCommand(
       "your review session on a brief (default: the latest revision)",
     )
     .argument("<number>", "PR number");
-  addReadSpanOptions(session).action(
-    async (raw: string, options: SpanFlags) => {
-      const prNumber = parsePrNumber(raw);
-      const selection = parseSpanFlags(options);
+  addSpanOptions(session).action(async (raw: string, options: SpanFlags) => {
+    const prNumber = parsePrNumber(raw);
+    const selection = parseSpanFlags(options);
 
-      const target = await resolveRepoTarget(context);
-      const { client, repoId, io } = target;
-      await runSpanRead(target, prNumber, selection, (span) =>
-        runSession(client, repoId, prNumber, span, io),
-      );
-    },
-  );
+    const target = await resolveRepoTarget(context);
+    const { client, repoId, io } = target;
+    await runSpanRead(target, prNumber, selection, (span) =>
+      runSession(client, repoId, prNumber, span, io),
+    );
+  });
 }
 
 export function registerMarksCommand(
@@ -91,7 +89,7 @@ export function registerContextCommand(
       "the brief's repo-config snapshot (default: the latest revision)",
     )
     .argument("<number>", "PR number");
-  addReadSpanOptions(contextCommand).action(
+  addSpanOptions(contextCommand).action(
     async (raw: string, options: SpanFlags) => {
       const prNumber = parsePrNumber(raw);
       const selection = parseSpanFlags(options);

@@ -12,7 +12,7 @@ export const ExitCodes = {
   AUTH: 3,
   /** Not found (404, incl. an unmodeled delta 404). */
   NOT_FOUND: 4,
-  /** Server rejected the payload (4xx validation); self-correcting loops. */
+  /** Server rejected the payload (4xx validation); self-correcting loops. Also a no-flag `submit` the CLI refuses: same next move, re-read and re-target. */
   SERVER_REJECTED: 5,
   /** `capabilities --require` failed; stop before driving the operation. */
   INCOMPATIBLE: 6,

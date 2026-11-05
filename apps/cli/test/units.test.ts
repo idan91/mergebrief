@@ -373,8 +373,8 @@ describe("usage validation before network work", () => {
     [["diff", "7", "--group", "g", "--base", "a"]],
     [["diff", "7", "--group", "g", "--base", "a", "--head", "b"]],
     [["delta", "7", "--baseline", "a"]],
-    [["submit", "7", "--outcome", "comment", "--body", "b"]],
-    [["draft", "delete", "7", "d1"]],
+    [["submit", "7", "--outcome", "comment", "--body", "b", "--base", "a"]],
+    [["draft", "delete", "7", "d1", "--head", "b"]],
     [["risk", "address", "7"]],
   ])("%j exits 2 without a request", async (argv) => {
     expectRefusedBeforeRequest(await runCliOffline(argv));

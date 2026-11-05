@@ -1,84 +1,31 @@
 // No-flag and `--revision` reads over a scripted api: which brief each serves,
 // what the local record remembers, and what a reader is told when it moves.
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
 import {
   clearReadRevisions,
-  readLastRevision,
-  saveLastRevision,
+  readLastSpan,
+  saveLastSpan,
 } from "../src/profile/read-revisions";
 import {
   expectRefusedBeforeRequest,
   OFFLINE_REPO_ID,
   OFFLINE_REPOS_ROUTE,
   runCliOffline,
-  type ScriptedRoute,
 } from "./harness/offline";
-
-const PULL_PATH = `/api/repos/${OFFLINE_REPO_ID}/pulls/7`;
-
-function makeSha(digit: number): string {
-  return String(digit).repeat(40);
-}
-
-function makeRevision(headIndex: number) {
-  return {
-    baseSha: makeSha(0),
-    headSha: makeSha(headIndex),
-    headIndex,
-    createdAt: "2026-11-04T00:00:00Z",
-    generatedAt: "2026-11-04T00:00:00Z",
-    comparisons: {},
-  };
-}
-
-interface MetaOptions {
-  readonly latest: number;
-  readonly headBriefStored?: boolean;
-  readonly generation?: unknown;
-}
-
-function makeMetaRoute(options: MetaOptions): ScriptedRoute {
-  const { latest, headBriefStored = true, generation = null } = options;
-  const revisions = Array.from({ length: latest }, (_, index) =>
-    makeRevision(index + 1),
-  );
-  const head = headBriefStored ? latest : latest + 1;
-  return {
-    method: "GET",
-    path: PULL_PATH,
-    body: JSON.stringify({
-      baseSha: makeSha(0),
-      headSha: makeSha(head),
-      briefAvailable: headBriefStored,
-      headBriefStored,
-      generation,
-      comparisons: {},
-      revisions,
-    }),
-  };
-}
-
-function makeSessionRoute(
-  headIndex: number,
-  body: unknown = {},
-): ScriptedRoute {
-  return {
-    method: "GET",
-    path: `${PULL_PATH}/session?base=${makeSha(0)}&head=${makeSha(headIndex)}`,
-    body: JSON.stringify(body),
-  };
-}
+import {
+  makeCacheDir,
+  makeHeadBackMetaRoute,
+  makeMetaRoute,
+  makeSessionRoute,
+  makeSha,
+  PULL_PATH,
+} from "./harness/revisions";
 
 const REVISION_THREE_LINE = `revision 3 ${"0".repeat(7)}..${"3".repeat(7)}`;
 const REVISION_FOUR_LINE = `revision 4 ${"0".repeat(7)}..${"4".repeat(7)}`;
-
-function makeCacheDir(): string {
-  return mkdtempSync(join(tmpdir(), "mb-revisions-"));
-}
 
 async function runSession(
   cacheDir: string,
@@ -189,32 +136,36 @@ describe("a hostile server's fields on stderr", () => {
 });
 
 describe("a force-push back to an older head", () => {
-  function makeHeadBackRoute(): ScriptedRoute {
-    const route = makeMetaRoute({ latest: 3 });
-    return {
-      ...route,
-      body: JSON.stringify({
-        ...JSON.parse(route.body ?? "{}"),
-        headSha: makeSha(2),
-        headBriefStored: false,
-        briefAvailable: true,
-        generation: { status: "succeeded" },
-      }),
-    };
-  }
-
   it("serves that head's own brief, not the newest row", async () => {
     const notices: string[] = [];
     const result = await runCliOffline(["session", "7"], {
       successNotice: (line) => notices.push(line),
-      routes: [OFFLINE_REPOS_ROUTE, makeHeadBackRoute(), makeSessionRoute(2)],
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        makeHeadBackMetaRoute(),
+        makeSessionRoute(2),
+      ],
     });
 
     expect(result.code).toBe(ExitCodes.OK);
     expect(notices).toEqual([`revision 2 ${"0".repeat(7)}..${"2".repeat(7)}`]);
   });
 
-  it("moves a reviewer on the abandoned revision to that head", async () => {
+  it("does not repeat a behind signal the push back made unreliable", async () => {
+    const notices: string[] = [];
+    await runCliOffline(["session", "7"], {
+      successNotice: (line) => notices.push(line),
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        makeHeadBackMetaRoute(true),
+        makeSessionRoute(2),
+      ],
+    });
+
+    expect(notices).toEqual([`revision 2 ${"0".repeat(7)}..${"2".repeat(7)}`]);
+  });
+
+  it("keeps a reviewer on the newer revision their session holds", async () => {
     const cacheDir = makeCacheDir();
     await runSession(cacheDir, 3, 3);
 
@@ -222,16 +173,16 @@ describe("a force-push back to an older head", () => {
     await runCliOffline(["session", "7"], {
       cacheDir,
       successNotice: (line) => notices.push(line),
-      routes: [OFFLINE_REPOS_ROUTE, makeHeadBackRoute(), makeSessionRoute(2)],
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        makeHeadBackMetaRoute(),
+        makeSessionRoute(2),
+      ],
     });
     const after = await runSession(cacheDir, 3, 3);
 
-    expect(notices).toContain(
-      "revision 2 is now latest (you were on revision 3).",
-    );
-    expect(after.notices).toContain(
-      "revision 3 is now latest (you were on revision 2).",
-    );
+    expect(notices).toEqual([`revision 2 ${"0".repeat(7)}..${"2".repeat(7)}`]);
+    expect(after.notices).toEqual([REVISION_THREE_LINE]);
   });
 });
 
@@ -275,6 +226,40 @@ describe("the moved message", () => {
     expect(retried.notices).toContain(
       "revision 4 is now latest (you were on revision 3).",
     );
+  });
+
+  it("moves a record whose span left the PR back onto the PR", async () => {
+    const cacheDir = makeCacheDir();
+    saveLastSpan(
+      { cacheDir, profileName: "default" },
+      { repoId: String(OFFLINE_REPO_ID), prNumber: 7 },
+      { base: makeSha(0), head: makeSha(9) },
+    );
+
+    const first = await runSession(cacheDir, 3, 3);
+    const moved = await runSession(cacheDir, 4, 4);
+
+    expect(first.notices).toEqual([REVISION_THREE_LINE]);
+    expect(moved.notices).toContain(
+      "revision 4 is now latest (you were on revision 3).",
+    );
+  });
+
+  it("names a push only GitHub has seen", async () => {
+    const notices: string[] = [];
+    await runCliOffline(["session", "7"], {
+      successNotice: (line) => notices.push(line),
+      routes: [
+        OFFLINE_REPOS_ROUTE,
+        makeMetaRoute({ latest: 3, behind: true }),
+        makeSessionRoute(3),
+      ],
+    });
+
+    expect(notices).toEqual([
+      REVISION_THREE_LINE,
+      "GitHub reports commits no brief covers yet; serving revision 3",
+    ]);
   });
 
   it("reads a corrupt record as nothing read", async () => {
@@ -563,9 +548,9 @@ describe("a profile moved to another instance", () => {
     const cache = { cacheDir: makeCacheDir(), profileName: "default" };
     const address = { repoId: "1", prNumber: 7 };
 
-    saveLastRevision(cache, address, 3);
+    saveLastSpan(cache, address, { base: makeSha(0), head: makeSha(3) });
     clearReadRevisions(cache.cacheDir, cache.profileName);
 
-    expect(readLastRevision(cache, address)).toBeUndefined();
+    expect(readLastSpan(cache, address)).toBeUndefined();
   });
 });

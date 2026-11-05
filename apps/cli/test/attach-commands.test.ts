@@ -453,9 +453,19 @@ describe("draft attach over a scripted api", () => {
     ).toEqual([]);
   });
 
-  it("needs the span beside --draft, exit 2", async () => {
+  it("refuses half a span beside --draft, exit 2", async () => {
     const result = await runCliOffline(
-      ["draft", "attach", "7", IMAGE_PATH, "--draft", DRAFT_ID, "--json"],
+      [
+        "draft",
+        "attach",
+        "7",
+        IMAGE_PATH,
+        "--draft",
+        DRAFT_ID,
+        "--base",
+        "a",
+        "--json",
+      ],
       makeAttachOptions([]),
     );
     expectRefusedBeforeRequest(result, "--base and --head");

@@ -8,9 +8,9 @@ import {
   addPayloadOption,
   FULL_PAYLOAD_DESCRIPTION,
   REVIEW_OUTCOME_CHOICES,
-  requireSpan,
 } from "../options";
 import { SUBMIT_REVIEW_EXAMPLE } from "../payload-examples";
+import { parseSpanFlags, runSubmitWrite } from "../span";
 import {
   parsePrNumber,
   resolveProfileTarget,
@@ -62,7 +62,7 @@ export function registerSubmitCommand(
   const submit = program
     .command("submit")
     .description(
-      "submit a review of the brief span you name (its saved drafts go with it)",
+      "submit a review of the brief you are on (its saved drafts go with it)",
     )
     .argument("<number>", "PR number");
   addPayloadOption(submit, FULL_PAYLOAD_DESCRIPTION);
@@ -71,6 +71,7 @@ export function registerSubmitCommand(
     .option("--file <path>", "the same as --payload")
     .option("--outcome <outcome>", `${REVIEW_OUTCOME_CHOICES} (flag form)`)
     .option("--body <text>", "review body (flag form)")
+    .option("--revision <n>", "the brief revision you reviewed")
     .option("--base <sha>", "span base of the brief you reviewed")
     .option("--head <sha>", "span head of the brief you reviewed")
     .action(
@@ -81,6 +82,7 @@ export function registerSubmitCommand(
           file?: string;
           outcome?: string;
           body?: string;
+          revision?: string;
           base?: string;
           head?: string;
         },
@@ -102,14 +104,17 @@ export function registerSubmitCommand(
         }
 
         // Usage validation BEFORE any network work: a malformed PR number or
-        // a missing span must exit 2 even when target resolution would fail
+        // a bad span flag must exit 2 even when target resolution would fail
         // with exit 4.
         const prNumber = parsePrNumber(raw);
-        const span = requireSpan(options.base, options.head);
+        const selection = parseSpanFlags(options);
         const payload = buildSubmitPayload(input);
 
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runSubmit(client, repoId, prNumber, span, payload, io);
+        const target = await resolveRepoTarget(context);
+        const { client, repoId, io } = target;
+        await runSubmitWrite(target, prNumber, selection, (span) =>
+          runSubmit(client, repoId, prNumber, span, payload, io),
+        );
       },
     );
 }

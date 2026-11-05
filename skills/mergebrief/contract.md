@@ -44,19 +44,27 @@ none of them appear in `--help`.
 | 2    | Usage error, client-side                              | Fix the invocation; never resend as-is. On `auth status`, report and stop      |
 | 3    | Auth (401)                                            | Token is dead; the user re-mints at `<baseUrl>/settings`                       |
 | 4    | Not found                                             | Re-derive ids from `repos`/`pr`/`groups`                                       |
-| 5    | Server rejected the payload                           | Fix and retry only what you can change; 403s and policy refusals are permanent |
+| 5    | Server rejected the payload, or the CLI refused a no-flag `submit` | Fix and retry only what you can change; 403s and policy refusals are permanent |
 | 6    | Required operation cannot run on this server+CLI pair | Report the mismatch and stop                                                   |
 | 7    | Rate limited (429)                                    | Wait the `retry after <n>s` stderr names (a few minutes if none), then retry   |
 
 ## The span rule
 
-Every session write (`draft *`, `chunk-read`, `risk *`, `reclassify`,
-`outcome`, `submit`) requires `--base <baseSha> --head <headSha>`, the pair
-`pr <n>` reports; exit 2 without it. You write against the brief you read, not
-the newest one. `session`, `context` and `diff` take that pair too, and they and
-`groups` take `--revision <headIndex>`; with neither they serve the newest
-finished brief for the current head, else the newest finished one, exit 4 if
-none, and name it on stderr. Pass the pair so every command stays on one brief. A push
+Pass `--base <baseSha> --head <headSha>`, the pair `pr <n>` reports, on every
+session command (`session`, `context`, `draft *`, `chunk-read`, `risk *`,
+`reclassify`, `outcome`, `submit`). You write against the brief you read, not
+the newest one, and the pair holds every command on that brief with nothing
+remembered between runs. A lone `--base` or `--head` is exit 2.
+
+Without the pair the CLI chooses, which suits a person at a terminal. Reads
+serve the newest finished brief for the current head, else the newest finished
+one, exit 4 if none. A write stays on the revision read last on this machine,
+else where the server says your work sits, else the latest. A read with the pair
+records nothing, so a write without it can land on a newer revision than you
+read. `submit` exits 5 unless you are on the latest revision and it covers the
+head. It cannot see a push from the last few minutes that no webhook has
+reported; the review pins the revision you are on, not GitHub's head.
+`--revision <headIndex>` names a brief by number. A push
 mid-review does not freeze your session: it stays writable until the first
 write to the newer brief's session (from any client) carries your work
 over, and from then the old one answers 409. On a 409, re-read `pr <n>`,

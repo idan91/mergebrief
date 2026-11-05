@@ -1,4 +1,4 @@
-// Every session write names a brief span; missing span flags exit 2.
+// Every session write goes to one brief span, which `commands/span` resolves.
 // Keep validation server-owned and receipts verbatim; payload flags remain exclusive with -F.
 import { ProductOperations, type ProductActionId } from "contract";
 import type { ApiClient } from "../../client";

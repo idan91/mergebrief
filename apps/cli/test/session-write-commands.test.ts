@@ -477,12 +477,14 @@ describe("session write refusals before any request", () => {
     expectRefusedBeforeRequest(result, "--start");
   });
 
-  it("draft create without the span exits 2 before any target resolution", async () => {
+  it("draft create with half a span exits 2 before target resolution", async () => {
     const result = await runCliOffline([
       "draft",
       "create",
       "7",
       ...CREATE_FLAGS,
+      "--base",
+      "a",
       "--json",
     ]);
     expectRefusedBeforeRequest(result, "--base and --head");

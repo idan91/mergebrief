@@ -291,11 +291,10 @@ is available. Details in `tools/categorizer/README.md`.
 
 `mergebrief draft attach <number> <file>` pushes a PNG, JPEG, GIF or WebP
 file to the repository's `mergebrief/attachments` branch on the App's token
-and prints its URL ([attachments.md](attachments.md)). Add
-`--draft <id> --base <sha> --head <sha>` to also append the image to that
-held draft comment; `--draft` without the brief span's `--base` and
-`--head` exits 2. It needs an `external-write` token, and the App installed
-on the repository.
+and prints its URL ([attachments.md](attachments.md)). Add `--draft <id>` to
+also append the image to that held draft comment, on the revision you are on,
+or name one with `--revision <n>` or `--base <sha> --head <sha>`. It needs an
+`external-write` token, and the App installed on the repository.
 
 Deleting that branch has no CLI command on purpose: it breaks images in
 comments already on GitHub, so the API takes the confirmation from a browser

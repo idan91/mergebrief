@@ -23,7 +23,12 @@ No server change; the CLI reads the same routes.
 - **Changed** `mergebrief groups` and `diff` when the head has no brief but an
   older one exists: exit 0 on that older one, naming it on stderr, instead of
   exit 4. No finished brief at all stays exit 4.
-- **Added** `--revision <headIndex>` on `session`, `context`, `groups` and `diff`.
+- **Changed** session writes with no span flags: exit 0 on the revision you are
+  on, instead of exit 2. A lone `--base` or `--head` stays exit 2.
+- **Changed** `mergebrief submit` with no span flags: exit 0 on the revision you
+  are on when it is the newest code, otherwise exit 5, instead of exit 2.
+- **Added** `--revision <headIndex>` on `session`, `context`, `groups`, `diff` and
+  every session write.
 
 ## dev (2026-11-01)
 

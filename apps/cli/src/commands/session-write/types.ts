@@ -84,6 +84,7 @@ export type RiskOperationId =
 export interface RiskFlags {
   payload?: string;
   reason?: string;
+  revision?: string;
   base?: string;
   head?: string;
 }

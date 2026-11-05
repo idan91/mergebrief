@@ -13,7 +13,6 @@ import {
   FULL_PAYLOAD_DESCRIPTION,
   REQUIRED_PAYLOAD_DESCRIPTION,
   REVIEW_OUTCOME_CHOICES,
-  requireSpan,
 } from "../options";
 import {
   ADDRESS_RISK_EXAMPLE,
@@ -24,12 +23,10 @@ import {
   UPDATE_DRAFT_EXAMPLE,
 } from "../payload-examples";
 import { readGroupChunks } from "../brief-chunks";
+import { parseSpanFlags, runPrivateWrite } from "../span";
+import type { SpanFlags } from "../span/types";
 import { parsePrNumber, resolveRepoTarget } from "../target";
-import {
-  readAttachmentFile,
-  runAttach,
-  type AttachDraftTarget,
-} from "./attach";
+import { readAttachmentFile, runAttach } from "./attach";
 import { runChunkMarks, runSessionOperation } from "./run";
 import type {
   AnchorFlags,
@@ -68,7 +65,7 @@ function registerDraftCreateCommand(
 ): void {
   const create = draft
     .command("create")
-    .description("draft a new inline comment on the brief span you name")
+    .description("draft a new inline comment on the brief you are on")
     .argument("<number>", "PR number");
   addPayloadOption(create, FULL_PAYLOAD_DESCRIPTION);
   addPayloadExample(create, CREATE_DRAFT_EXAMPLE);
@@ -79,12 +76,15 @@ function registerDraftCreateCommand(
       options: AnchorFlags & {
         payload?: string;
         body?: string;
+        revision?: string;
+
         base?: string;
+
         head?: string;
       },
     ) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
       const input: Mutable<CreateDraftInput> = {
         file: options.file,
         side: options.side,
@@ -99,16 +99,19 @@ function registerDraftCreateCommand(
       }
 
       const payload = buildCreateDraftPayload(input);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.CREATE_DRAFT_COMMENT,
-          params: { repoId, prNumber },
-          span,
-          payload,
-        },
-        io,
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runPrivateWrite(target, prNumber, selection, (span) =>
+        runSessionOperation(
+          client,
+          {
+            id: ProductActionIds.CREATE_DRAFT_COMMENT,
+            params: { repoId, prNumber },
+            span,
+            payload,
+          },
+          io,
+        ),
       );
     },
   );
@@ -135,12 +138,15 @@ function registerDraftUpdateCommand(
       options: {
         payload?: string;
         body?: string;
+        revision?: string;
+
         base?: string;
+
         head?: string;
       },
     ) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
       const input: Mutable<UpdateDraftInput> = { body: options.body };
 
       if (options.payload !== undefined) {
@@ -148,16 +154,19 @@ function registerDraftUpdateCommand(
       }
 
       const payload = buildUpdateDraftPayload(input);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.UPDATE_DRAFT_COMMENT,
-          params: { repoId, prNumber, draftId },
-          span,
-          payload,
-        },
-        io,
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runPrivateWrite(target, prNumber, selection, (span) =>
+        runSessionOperation(
+          client,
+          {
+            id: ProductActionIds.UPDATE_DRAFT_COMMENT,
+            params: { repoId, prNumber, draftId },
+            span,
+            payload,
+          },
+          io,
+        ),
       );
     },
   );
@@ -181,12 +190,15 @@ function registerDraftReanchorCommand(
       draftId: string,
       options: AnchorFlags & {
         payload?: string;
+        revision?: string;
+
         base?: string;
+
         head?: string;
       },
     ) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
       const input: Mutable<ReanchorInput> = {
         file: options.file,
         side: options.side,
@@ -200,16 +212,19 @@ function registerDraftReanchorCommand(
       }
 
       const payload = buildReanchorPayload(input);
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
-          params: { repoId, prNumber, draftId },
-          span,
-          payload,
-        },
-        io,
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runPrivateWrite(target, prNumber, selection, (span) =>
+        runSessionOperation(
+          client,
+          {
+            id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
+            params: { repoId, prNumber, draftId },
+            span,
+            payload,
+          },
+          io,
+        ),
       );
     },
   );
@@ -225,23 +240,22 @@ function registerDraftDeleteCommand(
     .argument("<number>", "PR number")
     .argument("<draftId>", "the draft id (see `session <n>`)");
   addSpanOptions(remove).action(
-    async (
-      raw: string,
-      draftId: string,
-      options: { base?: string; head?: string },
-    ) => {
+    async (raw: string, draftId: string, options: SpanFlags) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
 
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.DELETE_DRAFT_COMMENT,
-          params: { repoId, prNumber, draftId },
-          span,
-        },
-        io,
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runPrivateWrite(target, prNumber, selection, (span) =>
+        runSessionOperation(
+          client,
+          {
+            id: ProductActionIds.DELETE_DRAFT_COMMENT,
+            params: { repoId, prNumber, draftId },
+            span,
+          },
+          io,
+        ),
       );
     },
   );
@@ -258,30 +272,34 @@ function registerDraftAttachCommand(
     )
     .argument("<number>", "PR number")
     .argument("<file>", "a png, jpg, gif or webp file")
-    .option(
-      "--draft <draftId>",
-      "also append the image to this held draft (needs --base and --head)",
-    )
+    .option("--draft <draftId>", "also append the image to this held draft")
+    .option("--revision <n>", "the brief revision holding it (with --draft)")
     .option("--base <sha>", "span base of the brief (with --draft)")
     .option("--head <sha>", "span head of the brief (with --draft)")
     .action(
       async (
         raw: string,
         path: string,
-        options: { draft?: string; base?: string; head?: string },
+        options: SpanFlags & { draft?: string },
       ) => {
         const prNumber = parsePrNumber(raw);
         const file = readAttachmentFile(context.deps, path);
-        let target: AttachDraftTarget | undefined;
-        if (options.draft !== undefined) {
-          target = {
-            draftId: options.draft,
-            span: requireSpan(options.base, options.head),
-          };
-        }
+        const { draft: draftId } = options;
+        const selection = parseSpanFlags(options);
 
-        const { client, repoId, io } = await resolveRepoTarget(context);
-        await runAttach(client, { repoId, prNumber, file, draft: target }, io);
+        const target = await resolveRepoTarget(context);
+        const { client, repoId, io } = target;
+        if (draftId === undefined) {
+          await runAttach(client, { repoId, prNumber, file }, io);
+          return;
+        }
+        await runPrivateWrite(target, prNumber, selection, (span) =>
+          runAttach(
+            client,
+            { repoId, prNumber, file, draft: { draftId, span } },
+            io,
+          ),
+        );
       },
     );
 }
@@ -306,12 +324,15 @@ export function registerChunkReadCommand(
         group?: string;
         read?: boolean;
         unread?: boolean;
+        revision?: string;
+
         base?: string;
+
         head?: string;
       },
     ) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
       const read = resolveReadFlag(options.read, options.unread);
       const id = read
         ? ProductActionIds.MARK_CHUNK_READ
@@ -327,15 +348,18 @@ export function registerChunkReadCommand(
         );
       }
 
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      const target = { repoId, prNumber, span };
-      const ids =
-        group === undefined
-          ? chunkIds
-          : (await readGroupChunks(client, target, group)).map(
-              (chunk) => chunk.id,
-            );
-      await runChunkMarks(client, { ...target, id, chunkIds: ids }, io);
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runPrivateWrite(target, prNumber, selection, async (span) => {
+        const brief = { repoId, prNumber, span };
+        const ids =
+          group === undefined
+            ? chunkIds
+            : (await readGroupChunks(client, brief, group)).map(
+                (chunk) => chunk.id,
+              );
+        await runChunkMarks(client, { ...brief, id, chunkIds: ids }, io);
+      });
     },
   );
 }
@@ -347,7 +371,7 @@ function createRiskAction(
 ): (raw: string, options: RiskFlags) => Promise<void> {
   return async (raw, options) => {
     const prNumber = parsePrNumber(raw);
-    const span = requireSpan(options.base, options.head);
+    const selection = parseSpanFlags(options);
     let flagsPayload: unknown;
     if (options.payload !== undefined) {
       flagsPayload = await readPayload(context.deps, options.payload);
@@ -357,11 +381,14 @@ function createRiskAction(
       takesReason ? options.reason : undefined,
     );
 
-    const { client, repoId, io } = await resolveRepoTarget(context);
-    await runSessionOperation(
-      client,
-      { id, params: { repoId, prNumber }, span, payload },
-      io,
+    const target = await resolveRepoTarget(context);
+    const { client, repoId, io } = target;
+    await runPrivateWrite(target, prNumber, selection, (span) =>
+      runSessionOperation(
+        client,
+        { id, params: { repoId, prNumber }, span, payload },
+        io,
+      ),
     );
   };
 }
@@ -425,21 +452,24 @@ export function registerReclassifyCommand(
     async (
       raw: string,
       groupId: string,
-      options: { category: string; base?: string; head?: string },
+      options: SpanFlags & { category: string },
     ) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
 
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.RECLASSIFY_GROUP,
-          params: { repoId, prNumber, groupId },
-          span,
-          payload: { category: options.category },
-        },
-        io,
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runPrivateWrite(target, prNumber, selection, (span) =>
+        runSessionOperation(
+          client,
+          {
+            id: ProductActionIds.RECLASSIFY_GROUP,
+            params: { repoId, prNumber, groupId },
+            span,
+            payload: { category: options.category },
+          },
+          io,
+        ),
       );
     },
   );
@@ -455,24 +485,23 @@ export function registerOutcomeCommand(
     .argument("<number>", "PR number")
     .argument("<outcome>", REVIEW_OUTCOME_CHOICES);
   addSpanOptions(outcomeCommand).action(
-    async (
-      raw: string,
-      outcome: string,
-      options: { base?: string; head?: string },
-    ) => {
+    async (raw: string, outcome: string, options: SpanFlags) => {
       const prNumber = parsePrNumber(raw);
-      const span = requireSpan(options.base, options.head);
+      const selection = parseSpanFlags(options);
 
-      const { client, repoId, io } = await resolveRepoTarget(context);
-      await runSessionOperation(
-        client,
-        {
-          id: ProductActionIds.SET_REVIEW_OUTCOME,
-          params: { repoId, prNumber },
-          span,
-          payload: { outcome },
-        },
-        io,
+      const target = await resolveRepoTarget(context);
+      const { client, repoId, io } = target;
+      await runPrivateWrite(target, prNumber, selection, (span) =>
+        runSessionOperation(
+          client,
+          {
+            id: ProductActionIds.SET_REVIEW_OUTCOME,
+            params: { repoId, prNumber },
+            span,
+            payload: { outcome },
+          },
+          io,
+        ),
       );
     },
   );

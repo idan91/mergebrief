@@ -107,7 +107,7 @@ shell's startup file already has a pnpm section, which an older pnpm leaves.
 | 2 | Usage error caught client-side (bad flags, `--group` with a custom span, malformed submit JSON shape) |
 | 3 | Auth (401); re-mint the token |
 | 4 | Not found (repo/PR/group/span; incl. an unmodeled delta 404) |
-| 5 | Server rejected the payload (4xx validation). Fix and retry; agent submit loops self-correct on this code |
+| 5 | Server rejected the payload (4xx validation). Fix and retry; agent submit loops self-correct on this code Also the CLI's own refusal of a no-flag `submit`: resending it refuses again, so re-read or pass `--revision`. |
 | 6 | Incompatible: a `--require`d operation is not runnable on this server+CLI pair; do not drive it |
 | 7 | Rate limited (429): the error line names the wait as `retry after <n>s` when the server sent one; wait that long, then retry |
 
@@ -131,8 +131,8 @@ show a rename.
 No argument: the first page of your Inbox, verbatim (`{"items":[...],
 "page":1,"pageSize":25,"total":n,...}`), every installation you reach plus
 the pull requests you pasted. With a number: the
-PR's metadata. Critical fields: **`baseSha`/`headSha`**, the brief span
-your `submit` must name (never auto-fetched); `headBriefStored`: a brief is
+PR's metadata. Critical fields: **`baseSha`/`headSha`**, the span a script
+passes to stay on one brief; `revisions`, every stored brief by number; `headBriefStored`: a brief is
 stored at that span, on a base the PR may since have left; `briefAvailable`:
 one is stored for the PR's current base too. Generation is webhook-driven for
 an installed repo (`generate <url>` queues a pasted PR); poll with backoff
@@ -188,6 +188,22 @@ since the checkpoint left the pull request's own changes as they were. `--baseli
 (together) skip checkpoint resolution; an artifact missing for an explicit span, a span
 whose delta was skipped or unchanged included, is exit 4.
 
+### Writes and revisions
+
+A session write with no span flags stays on the revision you are on: the highest
+one you read here, or where your work sits on the server when this machine has
+no record, or the latest if you have no work anywhere. Your line numbers came
+from that revision, and carry-over moves the work to a newer one later. When a
+newer one exists it says so on stderr; run `session <n>` to move.
+
+`submit` with no span flags is public and pins one commit, so it refuses (exit 5)
+when a newer revision exists, when the head has no brief yet, when GitHub reports
+commits no brief covers, when the head was pushed back to an older brief, or when
+nothing shows you read the PR. `--revision <n>` posts on that revision on purpose. MergeBrief re-reads GitHub's head at most every five minutes, so `submit` cannot see a newer push that no webhook has reported yet; the review pins the revision you are on, not GitHub's head.
+
+`--revision <n>` and `--base/--head` name the brief outright and skip this. A lone
+`--base` or `--head` is exit 2.
+
 ### `session <n>`
 
 Your review session on a brief, verbatim: the latest revision, `--revision <n>`,
@@ -208,7 +224,7 @@ on success:
 
 No finished revision at all is exit 4; so is a `--revision` not on the PR.
 `--base/--head` read exactly that span and print none of this. The CLI remembers
-the highest revision you read per PR in `<cacheDir>/<profile>/read-revisions.json`,
+the span of the highest revision you read per PR in `<cacheDir>/<profile>/read-revisions.json`,
 which is safe to delete.
 
 ### `marks <n> --baseline <sha> --head <sha>`
@@ -229,7 +245,7 @@ brief as `session` does.
 ### `draft create|update|reanchor|delete|attach <n> [draftId]`
 
 Draft inline comments in your session; they post at `submit`. Every draft
-command names the brief span (`--base/--head`, exit 2 without them).
+command picks its brief as [a write does](#writes-and-revisions).
 Payload via `-F <file>` / `-F -` (stdin), or the convenience flags,
 mutually exclusive (exit 2):
 
@@ -250,7 +266,7 @@ mutually exclusive (exit 2):
 - `attach <n> <file>`: upload a png, jpg, gif or webp image to the
   repository's attachments branch and print `{"url":"…"}` for a comment to
   carry. No span unless `--draft <draftId>` also appends the image to that
-  held draft, which needs `--base` and `--head` (exit 2 without them). This
+  held draft, which picks its brief the same way. This
   one pushes to the repository, so a token needs external-write scope; an
   upload over the instance's quota is 429 (exit 7).
 
@@ -340,9 +356,9 @@ Submit a review of the brief span you name; the comments are the drafts
 the server holds for it (`draft create` adds them). Payload via `-F <file>` /
 `-F -` (stdin), or the
 convenience flags (`--outcome comment|approve|request-changes`, `--body`);
-the two forms are mutually exclusive. **`--base` and `--head` are
-required and never auto-fetched** (exit 2 without them): carry the span
-through from `pr <n>`. Receipt verbatim:
+the two forms are mutually exclusive. It picks its brief as
+[a write does](#writes-and-revisions), and with no span flags it refuses unless
+you are on the newest code. Receipt verbatim:
 
 ```json
 {"reviewId":990012,"commentsDegraded":false,"commentsFolded":0,"commentsTotal":2}
@@ -450,7 +466,7 @@ Commands:
   conversation <number>                       the PR's review conversation
   diff [options] <number>                     the PR's unified diff (its raw text IS the machine format)
   reply [options] <commentId>                 reply to a review comment (the viewer's own voice)
-  submit [options] <number>                   submit a review of the brief span you name (its saved drafts go with it)
+  submit [options] <number>                   submit a review of the brief you are on (its saved drafts go with it)
   session [options] <number>                  your review session on a brief (default: the latest revision)
   marks [options] <number>                    comparison marks (coordinates only) for a baseline..head span
   narrative [options] <number>                the revision narrative for a prevHead..head hop
@@ -586,8 +602,7 @@ Arguments:
   number          PR number
 
 Options:
-  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
-                  lists them)
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
   -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
@@ -621,8 +636,7 @@ Arguments:
 
 Options:
   --group <id>    filter to one change group's whole hunks (brief span only)
-  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
-                  lists them)
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
   --base <sha>    span base (with --head)
   --head <sha>    span head (with --base)
   -h, --help      display help for command
@@ -659,8 +673,7 @@ Arguments:
   number          PR number
 
 Options:
-  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
-                  lists them)
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
   --base <sha>    span base (with --head)
   --head <sha>    span head (with --base)
   -h, --help      display help for command
@@ -715,8 +728,7 @@ Arguments:
   number          PR number
 
 Options:
-  --revision <n>  the brief revision to read (default: latest; `pr <n> --json`
-                  lists them)
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
   --base <sha>    span base (with --head)
   --head <sha>    span head (with --base)
   -h, --help      display help for command
@@ -729,7 +741,7 @@ Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help
 ```
 Usage: mergebrief draft create [options] <number>
 
-draft a new inline comment on the brief span you name
+draft a new inline comment on the brief you are on
 
 Arguments:
   number                PR number
@@ -743,8 +755,9 @@ Options:
   --start <line>        anchor start line (flag form)
   --end <line>          anchor end line (flag form)
   --body <text>         comment body (flag form)
-  --base <sha>          span base of the brief (required)
-  --head <sha>          span head of the brief (required)
+  --revision <n>        a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>          span base (with --head)
+  --head <sha>          span head (with --base)
   -h, --help            display help for command
 
 Example payload:
@@ -767,8 +780,9 @@ Arguments:
 Options:
   -F, --payload <path>  full JSON payload from a file, or "-" for stdin
   --body <text>         new comment body (flag form)
-  --base <sha>          span base of the brief (required)
-  --head <sha>          span head of the brief (required)
+  --revision <n>        a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>          span base (with --head)
+  --head <sha>          span head (with --base)
   -h, --help            display help for command
 
 Example payload:
@@ -796,8 +810,9 @@ Options:
                         (flag form)
   --start <line>        anchor start line (flag form)
   --end <line>          anchor end line (flag form)
-  --base <sha>          span base of the brief (required)
-  --head <sha>          span head of the brief (required)
+  --revision <n>        a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>          span base (with --head)
+  --head <sha>          span head (with --base)
   -h, --help            display help for command
 
 Example payload:
@@ -814,13 +829,14 @@ Usage: mergebrief draft delete [options] <number> <draftId>
 delete a held draft
 
 Arguments:
-  number        PR number
-  draftId       the draft id (see `session <n>`)
+  number          PR number
+  draftId         the draft id (see `session <n>`)
 
 Options:
-  --base <sha>  span base of the brief (required)
-  --head <sha>  span head of the brief (required)
-  -h, --help    display help for command
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>    span base (with --head)
+  --head <sha>    span head (with --base)
+  -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
@@ -837,8 +853,8 @@ Arguments:
   file               a png, jpg, gif or webp file
 
 Options:
-  --draft <draftId>  also append the image to this held draft (needs --base and
-                     --head)
+  --draft <draftId>  also append the image to this held draft
+  --revision <n>     the brief revision holding it (with --draft)
   --base <sha>       span base of the brief (with --draft)
   --head <sha>       span head of the brief (with --draft)
   -h, --help         display help for command
@@ -854,16 +870,17 @@ Usage: mergebrief chunk-read [options] <number> [chunkId...]
 mark brief chunks read (--unread clears the marks)
 
 Arguments:
-  number        PR number
-  chunkId       the chunk ids as the brief spells them
+  number          PR number
+  chunkId         the chunk ids as the brief spells them
 
 Options:
-  --group <id>  every chunk in this change group, in place of ids
-  --read        mark read (the default)
-  --unread      clear the read mark
-  --base <sha>  span base of the brief (required)
-  --head <sha>  span head of the brief (required)
-  -h, --help    display help for command
+  --group <id>    every chunk in this change group, in place of ids
+  --read          mark read (the default)
+  --unread        clear the read mark
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>    span base (with --head)
+  --head <sha>    span head (with --base)
+  -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
@@ -881,8 +898,9 @@ Arguments:
 Options:
   -F, --payload <path>  JSON payload from a file, or "-" for stdin (required)
   --reason <text>       dismissal reason (unless the payload carries one)
-  --base <sha>          span base of the brief (required)
-  --head <sha>          span head of the brief (required)
+  --revision <n>        a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>          span base (with --head)
+  --head <sha>          span head (with --base)
   -h, --help            display help for command
 
 Example payload:
@@ -903,8 +921,9 @@ Arguments:
 
 Options:
   -F, --payload <path>  JSON payload from a file, or "-" for stdin (required)
-  --base <sha>          span base of the brief (required)
-  --head <sha>          span head of the brief (required)
+  --revision <n>        a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>          span base (with --head)
+  --head <sha>          span head (with --base)
   -h, --help            display help for command
 
 Example payload:
@@ -925,8 +944,9 @@ Arguments:
 
 Options:
   -F, --payload <path>  JSON payload from a file, or "-" for stdin (required)
-  --base <sha>          span base of the brief (required)
-  --head <sha>          span head of the brief (required)
+  --revision <n>        a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>          span base (with --head)
+  --head <sha>          span head (with --base)
   -h, --help            display help for command
 
 Example payload:
@@ -950,8 +970,9 @@ Options:
   --category <category>  the category to record: bugfix | logic-refactor |
                          move-with-edits | lib-bump | pure-move | new-feature |
                          dependency-update | schema-change
-  --base <sha>           span base of the brief (required)
-  --head <sha>           span head of the brief (required)
+  --revision <n>         a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>           span base (with --head)
+  --head <sha>           span head (with --base)
   -h, --help             display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
@@ -965,13 +986,14 @@ Usage: mergebrief outcome [options] <number> <outcome>
 set your session's review intent (publishing is `submit`)
 
 Arguments:
-  number        PR number
-  outcome       comment | approve | request-changes
+  number          PR number
+  outcome         comment | approve | request-changes
 
 Options:
-  --base <sha>  span base of the brief (required)
-  --head <sha>  span head of the brief (required)
-  -h, --help    display help for command
+  --revision <n>  a brief revision by number (`pr <n> --json` lists them)
+  --base <sha>    span base (with --head)
+  --head <sha>    span head (with --base)
+  -h, --help      display help for command
 
 Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help)
 ```
@@ -1094,7 +1116,7 @@ Global options: --json, --profile <name>, -R <owner/name> (see mergebrief --help
 ```
 Usage: mergebrief submit [options] <number>
 
-submit a review of the brief span you name (its saved drafts go with it)
+submit a review of the brief you are on (its saved drafts go with it)
 
 Arguments:
   number                PR number
@@ -1104,6 +1126,7 @@ Options:
   --file <path>         the same as --payload
   --outcome <outcome>   comment | approve | request-changes (flag form)
   --body <text>         review body (flag form)
+  --revision <n>        the brief revision you reviewed
   --base <sha>          span base of the brief you reviewed
   --head <sha>          span head of the brief you reviewed
   -h, --help            display help for command
