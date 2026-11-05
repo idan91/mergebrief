@@ -6,8 +6,9 @@ Provider documentation was checked on 2026-11-01. Commands below are for a
 fresh Ubuntu 24.04 LTS VM. Replace example domains and placeholders before
 running them. No example contains working credentials.
 
-Compose is the supported application deployment. Track H1 has been run once,
-from a source build of main. No other track has been run.
+Compose is the supported application deployment. Tracks H1 and H2 on Neon have
+each been run once, from source builds of main. H2 on Supabase and the EC2
+tracks have not been run.
 
 ## Choose the experiment
 
@@ -160,19 +161,57 @@ alone does not establish this. Continue with section 2.
 
 ### EC2: E1, E2 or E3
 
-1. Launch Ubuntu Server 24.04 LTS in your chosen AWS region. For example,
-   a `t3.medium` has the suggested starting shape. Select architecture to
-   match the image you will build or pull.
-2. Use an encrypted gp3 root disk, initially 40 GB. Configure an SSH key
-   pair and require IMDSv2. You need no AWS access keys inside MergeBrief.
-3. For this simple trial, place EC2 in a public subnet with an internet
-   gateway route and an Elastic IP. This avoids introducing a NAT gateway
-   solely for outbound GitHub/model API access.
-4. Create `mergebrief-app` security group: TCP 22 from your administrator
-   IP only; TCP 80/443 from the internet. Do not expose 3000/3001/5432.
-5. Point your domain at the Elastic IP; connect as `ubuntu`.
-6. For E2, create RDS using the private-network instructions below before
-   starting the application. E1 needs no RDS resource.
+These steps follow AWS's documentation as of 2026-11-04. No trial has run them
+yet. Console wording moves, so where a label differs, pick the nearest one.
+
+In the [EC2 console](https://console.aws.amazon.com/ec2/), select your region at
+the top right, then click **Launch instance**:
+
+| Console section | Pick for the first trial | Reason |
+| --- | --- | --- |
+| Name | **mergebrief-e2-test** (or `e1`, `e3`) | Makes the database track clear. |
+| Application and OS Images | **Quick Start → Ubuntu → Ubuntu Server 24.04 LTS**, **64-bit (x86)** | Matches this guide. `t3` instances are x86. |
+| Instance type | **t3.medium** | 2 vCPU and 4 GB, the suggested starting shape. |
+| Key pair | **Create new key pair**: name `mergebrief-admin`, type **ED25519**, format **.pem** | Your browser downloads the private key once. |
+| Network settings | Click **Edit**. Keep the default **VPC**, any **Subnet**, **Auto-assign public IP: Enable** | A default subnet routes to an internet gateway, so outbound GitHub and model traffic needs no NAT gateway. |
+| Firewall (security groups) | **Create security group** named `mergebrief-app`, with the rules below | Do not expose 3000, 3001 or 5432. |
+| Configure storage | **40 GiB gp3**. Under **Advanced**, set **Encrypted: Yes** | Image builds need the room. |
+| Advanced details | **Metadata version: V2 only (token required)**. Leave **IAM instance profile** empty | MergeBrief needs no AWS access keys. |
+
+| Type | Source |
+| --- | --- |
+| SSH | **My IP** |
+| HTTP | **Anywhere** |
+| HTTPS | **Anywhere** |
+
+Port 80 supports redirects and certificate validation; 443 serves the
+application, GitHub login callbacks and webhooks. **My IP** is your address at
+that moment. If it changes, for example on a VPN, update the SSH rule in
+`mergebrief-app`. Otherwise SSH hangs.
+
+After launching, on your own computer, protect the key:
+
+```sh
+mv ~/Downloads/mergebrief-admin.pem ~/.ssh/
+chmod 400 ~/.ssh/mergebrief-admin.pem
+```
+
+Give the instance an address that survives a stop:
+
+1. Open **Network & Security → Elastic IPs**, click **Allocate Elastic IP
+   address**, then **Allocate**.
+2. Select it, then **Actions → Associate Elastic IP address**. Set **Resource
+   type** to **Instance**, choose the instance, and click **Associate**.
+3. Point `brief.example.com`'s A record at that address.
+4. Connect as `ubuntu`:
+
+   ```sh
+   ssh -i ~/.ssh/mergebrief-admin.pem ubuntu@<elastic-ip>
+   ```
+
+Continue with section 2. E2 creates its database in
+[section 5B](#e2-private-rds-from-ec2), once this instance exists; E1 needs no
+RDS resource.
 
 EC2, EBS, snapshots and public IPv4 have separate billing lifecycles.
 Stopping a VM does not delete its storage or release every charge. Consult
@@ -383,23 +422,99 @@ pooler, and do not replace Postgres with a provider's REST API. Follow your prov
 
 ### E2: private RDS from EC2
 
-1. Create RDS PostgreSQL 17 in the same VPC and region as EC2. A small
-   Single-AZ instance is sufficient for a trial; Multi-AZ tests availability
-   at extra cost. Enable encrypted storage and automated backups.
-2. Use a DB subnet group covering private subnets in at least two AZs.
-   Set **Publicly accessible: No**.
-3. Create a DB security group whose inbound TCP 5432 source is the
-   `mergebrief-app` security group. Do not use `0.0.0.0/0`. If app egress is
-   restricted, allow 5432 to the DB security group.
-4. Create database `mergebrief` and a dedicated login that owns that
-   database and can create the application/queue schemas. Use the RDS
-   administrator only to provision it; do not grant RDS administration to
-   the app login. Keep passwords in a secret store.
-5. Keep TLS required. Download the appropriate regional CA bundle via the
-   official [RDS TLS documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
-   Store the public bundle at `secrets/provider-ca.pem` on the VM.
-6. Use the RDS DNS endpoint, never a resolved IP, so hostname verification
-   and failover continue working.
+These steps follow AWS's documentation as of 2026-11-04. No trial has run them
+on RDS yet. The commands in steps 5 and 6, the migrations and the TLS check were
+rehearsed on Postgres 17 with a non-superuser admin, a TLS-only server and a
+private CA bundle.
+
+1. In the [RDS console](https://console.aws.amazon.com/rds/), in the same region
+   as the instance, open **Databases → Create database**:
+
+   | Field | Value | Reason |
+   | --- | --- | --- |
+   | Creation method | **Standard create** (may read **Full configuration**) | **Easy create** hides the version and backup settings. |
+   | Engine | **PostgreSQL**, the newest **17** version | Matches the bundled reference. |
+   | Template | **Dev/Test** or **Sandbox**, never **Production** | **Production** preselects Multi-AZ and paid IOPS storage. |
+   | Availability | **Single DB instance** | Multi-AZ tests availability at extra cost. |
+   | DB instance identifier | `mergebrief-e2-test` | Becomes part of the endpoint. |
+   | Master username | `postgres` | Used only to provision the app login below. |
+   | Credentials management | **Self managed**. Generate a password in your password manager | You type it once in step 5. |
+   | Instance class | **Burstable classes → db.t4g.micro** | Enough for a trial. The app's budget below is 12 connections. |
+   | Storage | **General Purpose SSD (gp3)**, 20 GiB, encryption on | |
+   | Compute resource | **Connect to an EC2 compute resource**, then your instance | See below. |
+   | Certificate authority | Leave the default, `rds-ca-rsa2048-g1` | It is in every regional bundle. |
+   | Initial database name | Leave empty | Step 6 creates the database with the right owner. |
+   | Backups | Automated backups on, 7 days | |
+   | Deletion protection | Off for a trial | |
+
+   **Connect to an EC2 compute resource** does the private networking. RDS sets
+   **Public access: No**, picks or creates a DB subnet group with private subnets
+   only, and adds two security groups: `rds-ec2-n` on the database, admitting
+   only the instance, and `ec2-rds-n` on the instance. A default VPC has no
+   private subnets, so without this option you build them yourself. Do not edit
+   these groups afterwards: RDS reuses them only if they stay unmodified.
+2. Wait for status **Available**. On the database's **Connectivity & security**
+   tab, copy the **Endpoint**. Use this DNS name, never a resolved IP, so hostname
+   verification and failover keep working.
+3. On the VM, from the checkout, download your region's CA bundle from
+   [AWS's list](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html#UsingWithRDS.SSL.CertificatesAllRegions).
+   The `chmod` matters: the `umask 077` from section 3 leaves the file private,
+   and the containers read it as UID 1000. A CA certificate is public.
+
+   ```sh
+   mkdir -p secrets
+   chmod 700 secrets
+   curl --fail --show-error --silent \
+     --output secrets/provider-ca.pem \
+     https://truststore.pki.rds.amazonaws.com/eu-central-1/eu-central-1-bundle.pem
+   chmod 644 secrets/provider-ca.pem
+   ```
+
+4. Generate the app login's password and save it in your password manager. Hex
+   needs no percent-encoding in a connection string:
+
+   ```sh
+   openssl rand -hex 24
+   ```
+
+5. Open `psql` as the administrator. The database is private, so this has to run
+   on the VM, and Docker supplies the client. Connecting at all proves the
+   security groups and TLS. It prompts for the master password:
+
+   ```sh
+   sudo docker run --rm -it \
+     -v "$PWD/secrets/provider-ca.pem:/ca.pem:ro" \
+     postgres:17-alpine \
+     psql "host=<rds-endpoint> port=5432 dbname=postgres user=postgres sslmode=verify-full sslrootcert=/ca.pem"
+   ```
+
+6. Create the login and the database it owns. `\password` prompts for the
+   password from step 4, which keeps it out of the server's logs:
+
+   ```sql
+   CREATE ROLE mergebrief_app LOGIN;
+   \password mergebrief_app
+   GRANT mergebrief_app TO CURRENT_USER;
+   CREATE DATABASE mergebrief OWNER mergebrief_app;
+   \q
+   ```
+
+   The `GRANT` is required. The RDS master user is not a superuser, and on
+   Postgres 16 and newer it must be a member of a role to make it an owner;
+   otherwise the last statement answers `must be able to SET ROLE`. As owner,
+   `mergebrief_app` can create the application and queue schemas, and it holds no
+   RDS administration.
+
+The finished string looks like this:
+
+```text
+postgresql://mergebrief_app:<hex-password>@mergebrief-e2-test.abc123xyz.eu-central-1.rds.amazonaws.com:5432/mergebrief?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem
+```
+
+`/etc/ssl/certs/provider-ca.pem` is the path inside the containers, where the
+override below mounts the bundle. Continue with
+[Store the connection string](#store-the-connection-string), and keep the
+provider CA override.
 
 An EC2 security group reference provides network admission; it is not a
 Postgres login. The connection still needs credentials and verified TLS.
@@ -412,8 +527,8 @@ first cross-cloud trial use Neon/Supabase.
 
 ### H2/E3: Neon
 
-These steps follow Neon's documentation as of 2026-11-03. No trial has run them
-yet.
+These steps follow Neon's documentation as of 2026-11-03. Track H2 has run them
+once.
 
 1. In the [Neon console](https://console.neon.tech), create a project:
 
@@ -487,7 +602,8 @@ them yet.
    chmod 700 secrets
    ```
 
-6. On your computer, copy the certificate over, using the file you downloaded:
+6. On your computer, copy the certificate over, using the file you downloaded. On
+   EC2 the login is `ubuntu`, not `root`:
 
    ```sh
    scp <downloaded-ca-file> root@<server-public-ipv4>:~/deploy/mergebrief/secrets/provider-ca.pem
@@ -536,8 +652,8 @@ Run these on the VM, from the checkout.
    ```
 
 3. Create `docker-compose.override.yml`. If one already exists, merge these
-   entries into it instead of replacing it, and keep any
-   `mergebrief.config.yaml` mount under `volumes`.
+   entries into it instead of replacing it. The `mergebrief.config.yaml` mounts
+   are the ones section 4 asks for.
 
    With a public certificate (Neon):
 
@@ -546,9 +662,13 @@ Run these on the VM, from the checkout.
      api:
        secrets:
          - database-url
+       volumes:
+         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
      worker:
        secrets:
          - database-url
+       volumes:
+         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
    secrets:
      database-url:
        file: ./secrets/database-url
@@ -562,11 +682,13 @@ Run these on the VM, from the checkout.
        secrets:
          - database-url
        volumes:
+         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
          - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
      worker:
        secrets:
          - database-url
        volumes:
+         - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
          - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
    secrets:
      database-url:
@@ -668,6 +790,22 @@ and test the selected plan's snapshot/PITR functionality. Back up instance
 secrets separately, particularly SESSION_KEY_V1. A VM disk snapshot alone
 is not proof of a consistent live Postgres backup.
 
+For E2, repeat the `psql` command from [step 5](#e2-private-rds-from-ec2) while
+the stack runs. Every row should show `ssl` as `t`:
+
+```sql
+SELECT a.usename, s.ssl, s.version
+FROM pg_stat_ssl s JOIN pg_stat_activity a USING (pid)
+WHERE a.usename = 'mergebrief_app';
+```
+
+Then, on your own computer, confirm the database is private. This should end in
+a private address, such as `172.31.x.x`:
+
+```sh
+dig +short <rds-endpoint>
+```
+
 ## 7. Move a source build to a newer commit
 
 Back up first if the trial holds data you want to keep
@@ -699,7 +837,9 @@ instead.
 | Login does not persist | HTTPS, exact PUBLIC_BASE_URL and GitHub callback |
 | Worker exited but Compose command succeeded | Worker configuration error in logs |
 | Webhook succeeds but no brief | Installation, author trigger policy, model key, worker logs |
-| External DB times out | IP allowlist, IPv6 availability, private endpoint routing |
+| External DB times out | IP allowlist, IPv6 availability, private endpoint routing; on RDS, that **Connected compute resources** lists the instance |
+| `CREATE DATABASE` answers `must be able to SET ROLE` | Run the `GRANT` in [section 5B](#e2-private-rds-from-ec2) first |
+| API or worker logs `unable to verify the first certificate` | The DSN's `sslrootcert`, and that the bundle is for the database's region |
 | Too many DB connections | All pools and replicas, provider reservations and pool limits |
 
 To retire a trial, disable its GitHub webhook/App installation, save any
@@ -707,4 +847,6 @@ needed data and secrets, stop Compose, and delete the intended cloud
 resources. Explicitly review VM disks, snapshots, Elastic/public IPs,
 managed databases, backup retention and DNS. Only delete volumes once data
 is no longer needed. Rotate/revoke trial-only credentials. Deleting EC2
-does not delete its separately provisioned RDS database.
+does not delete its separately provisioned RDS database. Deleting the database
+does not remove its DB subnet group, private subnets or its `rds-ec2-n` and
+`ec2-rds-n` security groups. An Elastic IP keeps billing until released.

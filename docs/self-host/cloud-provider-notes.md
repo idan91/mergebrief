@@ -1,6 +1,6 @@
 # Cloud provider research notes
 
-Verified against official documentation on **2026-11-01**. Documentation research only. Track H1 of the [deployment guide](./cloud-deployment.md) has run, but it uses the bundled Postgres and exercises nothing below. Feasibility here is an inference from provider contracts and the local image, not a tested deployment claim.
+Verified against official documentation on **2026-11-01**, with RDS and EC2 re-read on **2026-11-04**. Track H2 of the [deployment guide](./cloud-deployment.md) has run on Neon's direct connection, so that choice is tested. RDS and Supabase are documentation research only: their feasibility is an inference from provider contracts and the local image, not a tested deployment claim.
 
 ## MergeBrief constraints
 
@@ -11,6 +11,8 @@ Use PostgreSQL 16+, `sslmode=verify-full`, and an explicit `sslrootcert` path wh
 ## RDS with private EC2 connectivity
 
 - Place EC2 and RDS in the same VPC; keep RDS non-public. Give EC2 an application security group and RDS a separate database security group. Permit RDS inbound TCP 5432 **from the EC2 security-group ID**, not from the internet. If EC2 egress is restricted, permit TCP 5432 to the RDS security group. Security groups do not replace working subnet routing and network ACLs. This follows AWS's [application-server security-group pattern](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.RDSSecurityGroups.html).
+- The console's **Connect to an EC2 compute resource** builds that pattern: `rds-ec2-n` and `ec2-rds-n` groups, **Public access: No**, and a DB subnet group of private subnets, created if the VPC has none. It is console-only. Source: [automatic network connectivity](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateDBInstance.html#USER_CreateDBInstance.Prerequisites.VPC.Automatic).
+- A master user holds `CREATEROLE` and `CREATEDB` but is not a superuser, so `CREATE DATABASE ... OWNER` needs it to be able to `SET ROLE` to the owner, and since Postgres 16 creating a role no longer grants that. Sources: [CREATE DATABASE](https://www.postgresql.org/docs/17/sql-createdatabase.html), [`createrole_self_grant`](https://www.postgresql.org/docs/17/runtime-config-client.html#GUC-CREATEROLE-SELF-GRANT).
 - Connect using the RDS endpoint hostname, preserving hostname verification. Download the regional PEM bundle from AWS's [CA bundle table](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html#UsingWithRDS.SSL.CertificatesAllRegions), mount it read-only, and use `sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem`. AWS advises trusting roots, not intermediate certificates, to avoid rotation failures. RDS PostgreSQL 15+ defaults `rds.force_ssl` to on; retain it. Sources: [RDS PostgreSQL TLS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL.Concepts.General.SSL.html), [certificate lifecycle](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
 
 ## Neon and Supabase connection selection
