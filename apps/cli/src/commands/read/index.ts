@@ -18,6 +18,7 @@ import {
   runPrList,
   runPrMeta,
 } from "./run";
+import { isTerminalColorEnabled } from "./terminal-diff";
 
 export function registerPrCommand(
   program: Command,
@@ -115,12 +116,17 @@ export function registerDiffCommand(
         const prNumber = parsePrNumber(raw);
         requireDiffFlags(options);
 
+        const { deps } = context;
+        const terminal = deps.stdoutIsTerminal
+          ? { color: isTerminalColorEnabled(deps.env) }
+          : undefined;
+
         const { client, repoId, io } = await resolveRepoTarget(context);
         await runDiff(
           client,
           repoId,
           prNumber,
-          { ...options, pager: context.deps.pager },
+          { ...options, pager: deps.pager, terminal },
           io,
         );
       },

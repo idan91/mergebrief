@@ -154,7 +154,15 @@ the diff), risk-surface attributes.
 
 The raw unified diff of the PR's brief span (or `--base <sha> --head <sha>`
 together). The raw output **is** the machine format: `--json` is rejected
-(exit 2). On a TTY it pipes through `$PAGER`.
+(exit 2).
+
+Piped output is those bytes, unchanged. On a terminal the CLI shows control and
+invisible characters as visible escapes, so a pull request cannot drive your
+terminal or blank out code on it. It also colors added, removed, hunk and
+file-header lines, unless `NO_COLOR` is non-empty or `TERM=dumb`. A set `$PAGER`
+takes the escaped copy with no color, so a tool like `bat` does its own. A pager
+that quits early changes nothing, and one that cannot run falls back to the CLI's
+own copy.
 
 `--group <id>` filters to one change group's **whole hunks** (the output is
 itself a valid diff, `git apply --check` clean). Brief-span only: combining

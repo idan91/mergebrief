@@ -54,6 +54,9 @@ export interface OfflineRunOptions {
   readonly undeletableRepoCaches?: readonly string[];
   /** The success-only sink `bin.ts` prints after the flush; absent, those lines go to stderr. */
   readonly successNotice?: CliDeps["successNotice"];
+  /** What `bin.ts` reads off a real stdout; absent, a pipe. */
+  readonly stdoutIsTerminal?: boolean;
+  readonly pager?: CliDeps["pager"];
 }
 
 export interface OfflineRun {
@@ -187,6 +190,8 @@ export async function runCliOffline(
         : content;
     },
     gitOriginUrl: () => OFFLINE_ORIGIN_URL,
+    stdoutIsTerminal: options.stdoutIsTerminal,
+    pager: options.pager,
   };
   if (options.successNotice !== undefined) {
     deps.successNotice = options.successNotice;

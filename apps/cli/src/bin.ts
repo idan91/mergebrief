@@ -7,7 +7,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { CLI_VERSION } from "./client";
+import {
+  isTerminalColorEnabled,
+  renderTerminalDiff,
+} from "./commands/read/terminal-diff";
 import { resolveFinalExitCode, watchStream } from "./flush-output";
+import { createPager } from "./pager";
 import { runCli } from "./program";
 import { startUpdateCheck } from "./version/update-nag";
 
@@ -50,25 +55,18 @@ function gitOriginUrl(): string | undefined {
   }
 }
 
-/** `$PAGER` for `diff` on a TTY; cosmetics only. */
+function writeTerminalDiff(text: string): void {
+  const color = isTerminalColorEnabled(process.env);
+  process.stdout.write(renderTerminalDiff(text, { color }));
+}
+
+/** `$PAGER` for `diff` on a TTY. */
 function makePager(): ((text: string) => Promise<void>) | undefined {
-  const pager = process.env["PAGER"];
-  if (!process.stdout.isTTY || pager === undefined || pager.length === 0) {
+  const command = process.env["PAGER"];
+  if (!process.stdout.isTTY || command === undefined || command.length === 0) {
     return undefined;
   }
-  return (text) =>
-    new Promise((resolve) => {
-      const child = spawn(pager, {
-        shell: true,
-        stdio: ["pipe", "inherit", "inherit"],
-      });
-      child.on("close", () => resolve());
-      child.on("error", () => {
-        process.stdout.write(text);
-        resolve();
-      });
-      child.stdin.end(text);
-    });
+  return createPager({ spawn, command, writeFallback: writeTerminalDiff });
 }
 
 const watchedStdout = watchStream(process.stdout);
@@ -86,6 +84,7 @@ const updateCheck = startUpdateCheck({
 const code = await runCli(process.argv.slice(2), {
   fetch: (input, init) => fetch(input, init),
   pager: makePager(),
+  stdoutIsTerminal: process.stdout.isTTY,
   readFile: (path) => readFileSync(path, "utf8"),
   readBinaryFile: (path) => new Uint8Array(readFileSync(path)),
   env: process.env,

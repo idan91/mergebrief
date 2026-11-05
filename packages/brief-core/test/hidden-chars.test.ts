@@ -1,6 +1,46 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDisplayPath, formatDisplayText } from "../src/hidden-chars";
+import {
+  formatDisplayDiffLine,
+  formatDisplayPath,
+  formatDisplayText,
+} from "../src/hidden-chars";
+
+describe("formatDisplayDiffLine", () => {
+  it("escapes terminal controls and keeps the tab indentation", () => {
+    expect(formatDisplayDiffLine("+\tcode\u001B[2K")).toBe(
+      "+\tcode[U+001B][2K",
+    );
+  });
+
+  it("escapes a carriage return and the bidi overrides", () => {
+    expect(formatDisplayDiffLine("+a\rb‮c")).toBe("+a[U+000D]b[U+202E]c");
+  });
+
+  it("escapes what renders as nothing, so no identifier stays unseen", () => {
+    expect(formatDisplayDiffLine("+aㅤb​c﻿d\u{E0041}e")).toBe(
+      "+a[U+3164]b[U+200B]c[U+FEFF]d[U+E0041]e",
+    );
+  });
+
+  it("escapes a joiner or selector inside a lookalike identifier", () => {
+    expect(formatDisplayDiffLine("+isAd‍min isAdmin️")).toBe(
+      "+isAd[U+200D]min isAdmin[U+FE0F]",
+    );
+  });
+
+  it("escapes the bidi marks a line of code could reorder around", () => {
+    expect(formatDisplayDiffLine("+a‎b‏c؜d")).toBe(
+      "+a[U+200E]b[U+200F]c[U+061C]d",
+    );
+  });
+
+  it("leaves letters of any script alone", () => {
+    expect(formatDisplayDiffLine("+const שלום = 'مرحبا';")).toBe(
+      "+const שלום = 'مرحبا';",
+    );
+  });
+});
 
 describe("formatDisplayPath", () => {
   it("shows a bidi override as a visible escape", () => {

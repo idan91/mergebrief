@@ -28,8 +28,9 @@ none of them appear in `--help`.
   moves and rebase noise left out), unless the pair reads the whole PR: any
   pair on the PR's current base, or a brief's own base and head. Every other
   pair prints `diff mode: compare` for GitHub's `base...head` compare. A
-  server that names neither prints no line.
-
+  server that names neither prints no line. Those bytes are what a pipe
+  receives; a terminal or a set `$PAGER` gets a copy with control and invisible
+  characters escaped, so read `diff` through a pipe when you parse it.
 - `session` reports `reviewOutcome` even before any write. With
   `materialized:false` that value is the column's default, not a choice anyone
   made.

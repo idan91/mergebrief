@@ -614,6 +614,57 @@ describe("diff over a scripted api", () => {
     expect(result.err).toEqual([]);
   });
 
+  describe("on a terminal", () => {
+    const PLANTED_DIFF =
+      "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n" +
+      "@@ -0,0 +1 @@\n+evil()\u001B[2K\n";
+    const routes = [
+      OFFLINE_REPOS_ROUTE,
+      { method: "GET", path: diffPath, body: PLANTED_DIFF },
+    ];
+
+    it("colors the diff and escapes what the author planted", async () => {
+      const result = await runCliOffline(argv, {
+        routes,
+        stdoutIsTerminal: true,
+      });
+
+      expect(result.code).toBe(ExitCodes.OK);
+      expect(result.out).toContain("\u001B[32m+evil()[U+001B][2K\u001B[0m\n");
+    });
+
+    it("escapes without color under NO_COLOR", async () => {
+      const result = await runCliOffline(argv, {
+        routes,
+        stdoutIsTerminal: true,
+        env: { NO_COLOR: "1" },
+      });
+
+      expect(result.out).toContain("\n+evil()[U+001B][2K\n");
+      expect(result.out).not.toContain("\u001B");
+    });
+
+    it("hands a set pager the escaped copy with no color", async () => {
+      const paged: string[] = [];
+      const result = await runCliOffline(argv, {
+        routes,
+        stdoutIsTerminal: true,
+        pager: async (text) => {
+          paged.push(text);
+        },
+      });
+
+      expect(paged).toEqual([PLANTED_DIFF.replace("\u001B", "[U+001B]")]);
+      expect(result.out).toBe("");
+    });
+
+    it("keeps a pipe byte for byte", async () => {
+      const result = await runCliOffline(argv, { routes });
+
+      expect(result.out).toBe(PLANTED_DIFF);
+    });
+  });
+
   it("prints one error line for a refused span, its mode left out", async () => {
     const refusal = JSON.stringify({
       error: "too large",

@@ -16,6 +16,7 @@ import type { CommandIo } from "../../types";
 import { CliError, ExitCodes } from "../../exit";
 import { readGroupChunks } from "../brief-chunks";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
+import { renderTerminalDiff, type TerminalDiffOptions } from "./terminal-diff";
 import { buildRequestPath } from "../request-path";
 import { buildSkewError, isRecord } from "../../utils";
 
@@ -188,8 +189,10 @@ export interface DiffOptions {
   readonly base?: string | undefined;
   readonly head?: string | undefined;
   readonly group?: string | undefined;
-  /** TTY pager hook (cosmetic only, wired by bin, absent in tests). */
+  /** TTY pager hook (cosmetic only, wired by bin); it takes the escaped copy, since many pagers pass escapes through. */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
+  /** Present only when stdout is a terminal; absent, stdout gets the raw bytes. */
+  readonly terminal?: TerminalDiffOptions | undefined;
 }
 
 /** The usage checks `diff` runs on its flags alone, before any network work. */
@@ -281,10 +284,12 @@ export async function runDiff(
     text = filtered.diff;
   }
 
-  if (options.pager === undefined) {
-    io.stdout(text);
+  if (options.pager !== undefined) {
+    await options.pager(renderTerminalDiff(text, { color: false }));
+  } else if (options.terminal !== undefined) {
+    io.stdout(renderTerminalDiff(text, options.terminal));
   } else {
-    await options.pager(text);
+    io.stdout(text);
   }
   const mode = readDiffMode(diff.headers);
   if (mode !== undefined) {

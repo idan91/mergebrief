@@ -14,6 +14,10 @@ const PATH_HIDDEN_CHARS =
  */
 const TEXT_HIDDEN_CHARS = /[\p{Cc}\p{Zl}\p{Zp}\u202A-\u202E\u2066-\u2069]/gu;
 
+/** What can drive a terminal or hide code. A joiner stays out of the exemptions: `isAd\u200Dmin` is a legal identifier that reads as `isAdmin`. */
+const DIFF_LINE_HIDDEN_CHARS =
+  /(?!\t)[\p{Cc}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/gu;
+
 function formatCodePoint(char: string): string {
   const code = char.codePointAt(0) ?? 0;
   return `[U+${code.toString(16).toUpperCase().padStart(4, "0")}]`;
@@ -26,6 +30,11 @@ export function escapeHiddenCharacters(text: string): string {
 /** What a person reads for a title or other prose; a key or match keeps the raw text. */
 export function formatDisplayText(text: string): string {
   return text.replace(TEXT_HIDDEN_CHARS, formatCodePoint);
+}
+
+/** One line of a diff as a terminal shows it; machine output keeps the raw bytes. */
+export function formatDisplayDiffLine(line: string): string {
+  return line.replace(DIFF_LINE_HIDDEN_CHARS, formatCodePoint);
 }
 
 /** What a person reads for a path; a lookup, link or key keeps the raw path. */

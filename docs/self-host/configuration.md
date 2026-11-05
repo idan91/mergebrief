@@ -375,7 +375,9 @@ It never reads the server's variables.
 | `MERGEBRIEF_NO_VERSION_WARNING` | unset | Set to any value, even empty, it silences the update line and the major-version warning, and the CLI stops asking npm ([Versions](./cli.md#versions)). |
 | `XDG_CONFIG_HOME` | `~/.config` | The CLI keeps `mergebrief/config.json` under it. |
 | `XDG_CACHE_HOME` | `~/.cache` | The CLI keeps `mergebrief/update-check.json` under it. |
-| `PAGER` | unset | `diff` on a terminal pipes through it. |
+| `PAGER` | unset | `diff` on a terminal pipes through it, with control and invisible characters escaped and no color. |
+| `NO_COLOR` | unset | Non-empty, `diff` on a terminal prints no color. Control and invisible characters stay escaped. |
+| `TERM` | set by the terminal | `dumb` prints no color, as `NO_COLOR` does. |
 | `npm_command` | set by npm | `exec`, as under `npx`, makes the update hints suggest `npx mergebrief@x.y.z` instead of `npm i -g`. |
 
 ### `config.json`

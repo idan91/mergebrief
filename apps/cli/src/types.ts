@@ -8,6 +8,8 @@ export interface CliDeps {
   readonly readBinaryFile?: ((path: string) => Uint8Array) | undefined;
   /** `$PAGER` hook for `diff` on a TTY (cosmetic); optional. */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
+  /** stdout is a terminal, so `diff` may render for a person; wired by bin. */
+  readonly stdoutIsTerminal?: boolean | undefined;
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly configDir: string;
   readonly cacheDir: string;
