@@ -1,5 +1,8 @@
 // The exit code a config error takes is the entry's choice: a service stays
 // down on 0 under restart: on-failure, the one-shot migrate run answers 1.
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { testLogging } from "../../test/logging";
 import { createBootLogger, loadBootConfig, loadMigrateConfig } from "./index";
@@ -59,6 +62,55 @@ describe("boot loadBootConfig on an empty env", () => {
     );
     expect(code).toBe(ExitCodes.FAILURE);
     expect(lines().some((line) => line["level"] === "error")).toBe(true);
+  });
+});
+
+describe("boot loadBootConfig on an instance's named people", () => {
+  const SERVICE_ENV = {
+    PUBLIC_BASE_URL: "http://localhost:3000",
+    DATABASE_URL: "postgres://app:secret@127.0.0.1:5432/app",
+    GITHUB_APP_ID: "12345",
+    GITHUB_APP_PRIVATE_KEY: "test-private-key",
+    GITHUB_WEBHOOK_SECRET: "x".repeat(64),
+    GITHUB_OAUTH_CLIENT_ID: "test-client-id",
+    GITHUB_OAUTH_CLIENT_SECRET: "test-client-secret",
+    GITHUB_APP_SLUG: "test-app",
+  };
+
+  function readNobodyNamedErrors(
+    lines: ReturnType<typeof testLogging>["lines"],
+  ): unknown[] {
+    return lines().filter(
+      (line) =>
+        line["level"] === "error" &&
+        String(line["msg"]).includes("names nobody"),
+    );
+  }
+
+  function writeConfig(body: string): string {
+    const path = join(mkdtempSync(join(tmpdir(), "boot-config-")), "c.yaml");
+    writeFileSync(path, body);
+    return path;
+  }
+
+  it("logs an error when no config file names anyone", () => {
+    const { logger, lines } = testLogging();
+    loadBootConfig(SERVICE_ENV, logger);
+    expect(readNobodyNamedErrors(lines)).toHaveLength(1);
+  });
+
+  it("logs nothing once the config names an operator", () => {
+    const { logger, lines } = testLogging();
+    const path = writeConfig("operators:\n  - 583231\n");
+    loadBootConfig({ ...SERVICE_ENV, MERGEBRIEF_CONFIG: path }, logger);
+    expect(readNobodyNamedErrors(lines)).toHaveLength(0);
+  });
+
+  it("logs nothing when only an allowed account is named", () => {
+    const { logger, lines } = testLogging();
+    const path = writeConfig("allowed:\n  accounts:\n    - 583231\n");
+    loadBootConfig({ ...SERVICE_ENV, MERGEBRIEF_CONFIG: path }, logger);
+    expect(readNobodyNamedErrors(lines)).toHaveLength(0);
   });
 });
 

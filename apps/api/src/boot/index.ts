@@ -5,6 +5,7 @@ import { loadInstancePolicy } from "generators/instance-policy";
 import { loadConfig as loadGitHubConfig } from "github";
 import { createLogger, type Logger } from "logging";
 import { loadConfig as loadPersistenceConfig } from "persistence";
+import { namesAnyone } from "../access/instance-access";
 import { loadConfig, loadServerVersion } from "../config";
 import {
   ExitCodes,
@@ -82,6 +83,11 @@ export function loadBootConfig(
       logger,
       `api composition: invalid instance policy: ${instancePolicy.error.issues.join("; ")}`,
       configExitCode,
+    );
+  }
+  if (!namesAnyone(instancePolicy.value)) {
+    logger.error(
+      "api composition: the instance config names nobody; put your GitHub user id under operators in the file MERGEBRIEF_CONFIG names. Every sign-in and new brief is refused until then",
     );
   }
 

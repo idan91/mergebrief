@@ -83,7 +83,8 @@ from the generation side.
 "This GitHub account isn't allowed on this instance" means the account is not an
 Operator, is not in `allowed.users`, and is in no installation on a listed account
 ([who may start a brief](./generators.md#who-may-start-a-brief)). An instance with
-no config file refuses everyone, you included. Find the id with
+no config file refuses everyone, you included, and the api logs
+`the instance config names nobody` when it starts. Find the id with
 `gh api users/<login> --jq .id`, or in the api log's refusal line, and add it under
 `operators` or `allowed.users`, or list its organization under `allowed.accounts`,
 then restart the api. Never take an id from someone else's link or message without
