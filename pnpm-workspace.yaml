@@ -35,18 +35,24 @@ overrides:
   # serializer.
   "seroval@1": "1.6.11"
   "seroval-plugins@1": "1.6.11"
-
-# `pnpm audit --prod --audit-level=high` is a blocking gate.
-# Every entry below is an advisory we have read and accepted, with the reason
-# — an unexplained id is a defect. Keyed by GHSA because none of these carry
-# a CVE id. Re-check an entry whenever the owning dependency is bumped; the
-# fix is to drop the line, not to widen the list.
-auditConfig:
-  ignoreGhsas:
-    # immutable — List 32-bit trie overflow DoS. Transitive through
-    # vite > sass, i.e. compilation of our own SCSS at build time. Never
-    # sees request data.
-    - GHSA-v56q-mh7h-f735
-    # immutable — hash-collision complexity DoS in Map/Set. Same build-time
-    # vite > sass path as the entry above.
-    - GHSA-xvcm-6775-5m9r
+  # quote() command injection via a line terminator, fixed in 1.11.0; reached
+  # via concurrently, dev only.
+  "shell-quote@1": "1.12.0"
+  # Host confusion and server-side request forgery advisories, the last fixed
+  # in 3.1.9; reached via stylelint > table > ajv, dev only.
+  "fast-uri@3": "3.1.9"
+  # TLS validation bypass, cache poisoning and DoS advisories, the last fixed
+  # in 7.30.1; reached via jsdom, test only.
+  "undici@7": "7.30.1"
+  # Path traversal through source map auto-loading, fixed in 8.5.18; reached via
+  # tsup, which held an older 8.x than the one the web build resolves.
+  "postcss@8": "8.5.32"
+  # The bundled launch-editor's existence check bypass, fixed in 6.4.4; vitepress
+  # 1.x asks for 5.x and has no stable release on a newer line, so
+  # `pnpm -C apps/docs-site build` is what proves this override holds.
+  "vite@5": "6.4.5"
+  # Memory exhaustion on oversized collections, fixed in 4.6.6. Scoped to knip
+  # so this never moves the zod the product's schemas compile against.
+  "knip>zod": "4.6.6"
+  # List trie overflow and hash-collision DoS, fixed in 5.1.8; reached via sass.
+  "immutable@5": "5.1.9"
