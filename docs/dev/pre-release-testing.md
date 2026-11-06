@@ -12,8 +12,8 @@ of the test-gate ADR: `manual-until: <trigger>` names what will retire it,
 index. The residual is meant to shrink: when a trigger fires, move the
 step, do not keep both copies.
 
-Last consolidated: 2026-10-03 (the version notice, the one image, the
-release flow).
+Last consolidated: 2026-11-05 (live GitHub checks for sign-out, webhook
+replays and purges).
 
 ---
 
@@ -174,6 +174,56 @@ repeated.
       the newer head generates, `attempts` untouched.
 - [ ] Exactly ONE branded entry comment on the PR thread, replaced (never
       duplicated) on the next settled push, deep-linking the exact span.
+
+#### Against real GitHub
+
+The suites mock GitHub, so they cannot prove these. Each step carries the
+same tag, `manual-forever: needs a real App, real tokens and real deliveries`.
+
+Use a throwaway repository and take a `pg_dump` first. An instance starts
+closed, so the signed-in account and the repository's account must both be
+listed in the config, or sign-in is refused and a delivery answers 200 without
+starting a run, which would pass the replay step for the wrong reason. Redeliver
+from the App's settings, under Advanced, Recent Deliveries. Run the api with
+`LOG_LEVEL=debug`, because `webhook.delivery.duplicate` logs at debug.
+
+Sign-out, with the dev App:
+
+- [ ] Sign in and mint no CLI token, because a sign-out leaves the grant alone
+      while a token still uses it. Decrypt the newest grant's access token into
+      memory with a throwaway script, never printing it, and read it with
+      `POST /applications/{client_id}/token` under the App's client id and
+      secret: 200. Sign out: the api logs no `grant.revoke.fail`, and the same
+      read answers 404.
+- [ ] Exchange the paired refresh token and record whether it still works. If
+      it does, `docs/self-host/github-app.md` says so.
+
+Replays and purges, each answered in the App's delivery log:
+
+- [ ] Open a pull request, and see `generation.enqueue` for it. Redeliver that
+      `pull_request` delivery: it answers 200, the api logs
+      `webhook.delivery.duplicate`, and no second job appears. This also proves
+      a redelivery carries the original signature, which the dedup relies on.
+- [ ] Remove the repository from the installation: GitHub confirms the removal
+      and only that repository's data is purged.
+- [ ] Re-add it and redeliver that removal: GitHub says the repository is still
+      there, so the purge is refused with a `warn`, a 200 and nothing purged.
+- [ ] Suspend the installation and redeliver the removal again: 502, nothing
+      purged. Unsuspend.
+- [ ] With a second throwaway App on that repository and a scratch database,
+      because an uninstall wipes every repository on the installation:
+      uninstall purges everything, and a redelivered uninstall after a reinstall
+      is refused.
+
+The rate limit, behind the proxy recipe in
+[`compose.md`](../self-host/compose.md):
+
+- [ ] Send unsigned requests to `/api/webhooks/github` faster than the limit
+      refills: the ones through answer 401 from the api, then 429 from the
+      proxy. nginx lets a burst of 100 through, so send about 150. Caddy needs
+      the `caddy-ratelimit` build and more than 600 inside a minute. Behind
+      another load balancer, confirm the limit keys on the real client address
+      rather than the balancer's.
 
 ### Upgrade
 
