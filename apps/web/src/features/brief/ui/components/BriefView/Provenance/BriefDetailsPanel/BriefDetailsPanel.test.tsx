@@ -89,6 +89,20 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** The span around a trigger that owns its hover preview. */
+function getHoverArea(trigger: HTMLElement): HTMLElement {
+  const hoverArea = trigger.parentElement;
+  if (hoverArea === null) {
+    throw new Error("the trigger has no hover area");
+  }
+  return hoverArea;
+}
+
+/** A mouse entering the hover area that wraps a trigger. */
+function hoverWithMouse(trigger: HTMLElement) {
+  fireEvent.pointerEnter(getHoverArea(trigger), { pointerType: "mouse" });
+}
+
 /** Every callout scroller reports content taller than its zero-height box. */
 function stubOverflowingCallout() {
   vi.spyOn(Element.prototype, "scrollHeight", "get").mockImplementation(
@@ -222,6 +236,90 @@ describe("warnings-chip trigger", () => {
 
     expect(document.activeElement).toBe(warningsNote());
     expect(document.querySelector("[data-details-section]")).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("a mouse on the chip previews the warnings and leaves focus put", () => {
+    renderPanel();
+
+    hoverWithMouse(warningsChip());
+
+    expect(warningsNote()).not.toBeNull();
+    expect(document.activeElement).not.toBe(warningsNote());
+    expect(warningsChip().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("a touch on the chip opens nothing before its tap", () => {
+    renderPanel();
+
+    fireEvent.pointerEnter(getHoverArea(warningsChip()), {
+      pointerType: "touch",
+    });
+
+    expect(warningsNote()).toBeNull();
+  });
+
+  it("hovering the chip leaves an open facts panel in place", () => {
+    renderPanel();
+    fireEvent.click(infoTrigger());
+
+    hoverWithMouse(warningsChip());
+
+    expect(warningsNote()).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("a click on a hovered chip pins the warnings and lands focus in them", () => {
+    renderPanel();
+    hoverWithMouse(warningsChip());
+
+    fireEvent.click(warningsChip());
+
+    expect(warningsNote()).not.toBeNull();
+    expect(document.activeElement).toBe(warningsNote());
+    expect(warningsChip().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("a click on a chip pinned after a hover collapses the warnings", () => {
+    renderPanel();
+    hoverWithMouse(warningsChip());
+    fireEvent.click(warningsChip());
+
+    fireEvent.click(warningsChip());
+
+    expect(warningsNote()).toBeNull();
+    expect(warningsChip().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(warningsChip());
+  });
+
+  it("sliding from the ⓘ preview onto the chip previews the warnings", () => {
+    renderPanel();
+    hoverWithMouse(infoTrigger());
+
+    hoverWithMouse(warningsChip());
+
+    expect(warningsNote()).not.toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).not.toBe(warningsNote());
+  });
+
+  it("sliding from the chip preview onto the ⓘ previews the facts", () => {
+    renderPanel();
+    hoverWithMouse(warningsChip());
+
+    hoverWithMouse(infoTrigger());
+
+    expect(warningsNote()).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("hovering the ⓘ leaves pinned warnings in place", () => {
+    renderPanel();
+    fireEvent.click(warningsChip());
+
+    hoverWithMouse(infoTrigger());
+
+    expect(warningsNote()).not.toBeNull();
     expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
   });
 
@@ -529,19 +627,6 @@ describe("BriefDetailsPanel focus leaving the facts", () => {
 });
 
 describe("BriefDetailsPanel warnings opened by a click", () => {
-  it("stay open when the pointer leaves the chip for the page", () => {
-    renderPanel();
-    fireEvent.click(warningsChip());
-
-    fireEvent.mouseLeave(warningsChip(), {
-      relatedTarget: document.body,
-      clientY: 0,
-    });
-
-    expect(warningsNote()).not.toBeNull();
-    expect(document.activeElement).toBe(warningsNote());
-  });
-
   it("close when focus moves out to a page control", async () => {
     const pageControl = document.createElement("button");
     document.body.append(pageControl);
@@ -556,5 +641,216 @@ describe("BriefDetailsPanel warnings opened by a click", () => {
 
     expect(warningsNote()).toBeNull();
     expect(document.activeElement).toBe(pageControl);
+  });
+});
+
+/** Longer than safePolygon's 40ms close timer, so a stale close has fired. */
+const PAST_CLOSE_TIMER_MS = 80;
+
+async function waitPastCloseTimer() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, PAST_CLOSE_TIMER_MS));
+  });
+}
+
+/**
+ * One mousemove from one trigger onto the next: the pointer events land
+ * before the mouseleave that ends the first surface's hover.
+ */
+async function slideInOneMove(from: HTMLElement, to: HTMLElement) {
+  act(() => {
+    fireEvent.pointerLeave(getHoverArea(from), { pointerType: "mouse" });
+    fireEvent.pointerEnter(getHoverArea(to), { pointerType: "mouse" });
+    fireEvent.mouseLeave(from, { relatedTarget: to, clientX: 5, clientY: 10 });
+  });
+  await waitPastCloseTimer();
+}
+
+/** Leave one trigger for open page, let its surface close, then enter the next. */
+async function slideWithPause(from: HTMLElement, to: HTMLElement) {
+  act(() => {
+    fireEvent.pointerLeave(getHoverArea(from), { pointerType: "mouse" });
+    fireEvent.mouseLeave(from, { relatedTarget: document.body, clientY: 0 });
+  });
+  await waitPastCloseTimer();
+  hoverWithMouse(to);
+}
+
+const SLIDES = [
+  ["in one move", slideInOneMove],
+  ["with a pause", slideWithPause],
+] as const;
+
+/** A mouse resting on the chip with its warnings open, pinned or previewed. */
+function openWarningsUnderMouse(pinned: boolean) {
+  hoverWithMouse(warningsChip());
+  if (pinned) {
+    fireEvent.click(warningsChip());
+  }
+}
+
+/** A mouse resting on the ⓘ with the facts open, pinned or previewed. */
+function openFactsUnderMouse(pinned: boolean) {
+  if (pinned) {
+    fireEvent.click(infoTrigger());
+  }
+  hoverWithMouse(infoTrigger());
+}
+
+describe("BriefDetailsPanel sliding between the chip and the ⓘ", () => {
+  it.each(SLIDES)("chip preview to ⓘ %s shows the facts", async (_, slide) => {
+    renderPanel();
+    openWarningsUnderMouse(false);
+
+    await slide(warningsChip(), infoTrigger());
+
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+    expect(warningsNote()).toBeNull();
+  });
+
+  it.each([
+    ["in one move", slideInOneMove, infoTrigger],
+    ["with a pause", slideWithPause, warningsChip],
+  ] as const)("pinned chip to ⓘ %s shows the facts", async (_, slide, home) => {
+    renderPanel();
+    openWarningsUnderMouse(true);
+    expect(document.activeElement).toBe(warningsNote());
+
+    await slide(warningsChip(), infoTrigger());
+
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+    expect(warningsNote()).toBeNull();
+    expect(document.activeElement).toBe(home());
+  });
+
+  it.each(SLIDES)(
+    "ⓘ preview to chip %s shows the warnings",
+    async (_, slide) => {
+      renderPanel();
+      openFactsUnderMouse(false);
+
+      await slide(infoTrigger(), warningsChip());
+
+      expect(warningsChip().getAttribute("aria-expanded")).toBe("true");
+      expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    },
+  );
+
+  it.each(SLIDES)(
+    "pinned ⓘ to chip %s shows the warnings",
+    async (_, slide) => {
+      renderPanel();
+      openFactsUnderMouse(true);
+
+      await slide(infoTrigger(), warningsChip());
+
+      expect(warningsChip().getAttribute("aria-expanded")).toBe("true");
+      expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    },
+  );
+
+  it.each([false, true])(
+    "leaving the chip for the page closes all",
+    async (pinned) => {
+      renderPanel();
+      openWarningsUnderMouse(pinned);
+
+      act(() => {
+        fireEvent.pointerLeave(getHoverArea(warningsChip()), {
+          pointerType: "mouse",
+        });
+        fireEvent.mouseLeave(warningsChip(), {
+          relatedTarget: document.body,
+          clientY: 0,
+        });
+      });
+      await waitPastCloseTimer();
+
+      expect(warningsNote()).toBeNull();
+      expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    },
+  );
+
+  it("Escape with the mouse on the ⓘ opens nothing in place", () => {
+    renderPanel();
+    openWarningsUnderMouse(true);
+    hoverWithMouse(infoTrigger());
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(warningsNote()).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(warningsChip());
+  });
+
+  it("a leave after Escape in the facts opens no stale facts", async () => {
+    renderPanel();
+    openFactsUnderMouse(false);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    fireEvent.click(warningsChip());
+
+    act(() => {
+      fireEvent.mouseLeave(warningsChip(), {
+        relatedTarget: document.body,
+        clientY: 0,
+      });
+    });
+    await waitPastCloseTimer();
+
+    expect(warningsNote()).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("a tap on the ⓘ swaps tapped warnings for the facts", () => {
+    renderPanel();
+    fireEvent.pointerEnter(getHoverArea(warningsChip()), {
+      pointerType: "touch",
+    });
+    fireEvent.click(warningsChip());
+    fireEvent.pointerEnter(getHoverArea(infoTrigger()), {
+      pointerType: "touch",
+    });
+
+    fireEvent.click(infoTrigger());
+
+    expect(warningsNote()).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+describe("BriefDetailsPanel clicking the other trigger over a pinned surface", () => {
+  /** A press that focuses its target first, as Chrome's mousedown does. */
+  async function pressWithMouse(trigger: HTMLElement) {
+    await act(async () => {
+      trigger.focus();
+      await Promise.resolve();
+    });
+    await waitPastCloseTimer();
+    fireEvent.click(trigger);
+  }
+
+  it("a click on the ⓘ over keyboard-pinned warnings opens the facts", async () => {
+    renderPanel();
+    fireEvent.click(warningsChip());
+    expect(document.activeElement).toBe(warningsNote());
+    hoverWithMouse(infoTrigger());
+
+    await pressWithMouse(infoTrigger());
+
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+    expect(warningsNote()).toBeNull();
+  });
+
+  it("a click on the chip over keyboard-pinned facts opens the warnings", async () => {
+    renderPanel();
+    await pressWithMouse(infoTrigger());
+    expect(document.activeElement).toBe(infoTrigger());
+    hoverWithMouse(warningsChip());
+
+    await pressWithMouse(warningsChip());
+
+    expect(warningsChip().getAttribute("aria-expanded")).toBe("true");
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(warningsNote());
   });
 });

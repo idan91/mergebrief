@@ -1,11 +1,8 @@
-import type { OpenChangeReason } from "@floating-ui/react";
 import { LocalBriefKinds } from "contract";
 import { useTranslation } from "react-i18next";
 import { formatDisplayPath } from "brief-core/hidden-chars";
-import { useEffect, useId, useState } from "react";
 
 import { Callout } from "@web/components/Callout";
-import { CALLOUT_ROOT_SELECTOR } from "@web/components/Callout/consts";
 import { Chip } from "@web/components/Chip";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
@@ -26,7 +23,8 @@ import styles from "./BriefDetailsPanel.module.scss";
 import { GenerationWarnings } from "./GenerationWarnings";
 import { ShaCopy } from "./ShaCopy";
 import { SplitSection } from "./SplitSection";
-import { DetailsSurfaces, type DetailsSurface } from "./types";
+import { DetailsSurfaces } from "./types";
+import { useBriefDetailsPanelFacade } from "./useBriefDetailsPanelFacade";
 import { listWarningLines } from "./utils";
 
 export interface BriefDetailsPanelProps {
@@ -49,8 +47,8 @@ export interface BriefDetailsPanelProps {
  * an unmounted portal node would dump it on <body>. Each trigger opens its own
  * surface, and one is open at a time.
  *
- * Hover previews the facts, click is canonical, Escape-at-capture dismisses
- * without reaching page shortcuts.
+ * Hover previews either surface, click is canonical, Escape-at-capture
+ * dismisses without reaching page shortcuts.
  */
 export function BriefDetailsPanel({
   brief,
@@ -62,91 +60,22 @@ export function BriefDetailsPanel({
   shares,
 }: BriefDetailsPanelProps) {
   const { t } = useTranslation();
-  const surfaceId = useId();
-  const [openSurface, setOpenSurface] = useState<DetailsSurface | undefined>();
-  const [triggerEl, setTriggerEl] = useState<HTMLButtonElement | null>(null);
-  const [chipEl, setChipEl] = useState<HTMLButtonElement | null>(null);
-  const [warningsNode, setWarningsNode] = useState<HTMLDivElement | null>(null);
-
-  // Focus inside the portal would drop to <body> when the surface unmounts,
-  // so it goes home to the trigger of the surface it leaves or lands on,
-  // without scrolling: an outside press closes mid-press, and a jump would
-  // move the page under the pointer before its click lands.
-  const moveTo = (next: DetailsSurface | undefined) => {
-    const callout = document
-      .getElementById(surfaceId)
-      ?.closest(CALLOUT_ROOT_SELECTOR);
-    const focusWasInside = callout?.contains(document.activeElement) ?? false;
-    const home =
-      (next ?? openSurface) === DetailsSurfaces.WARNINGS ? chipEl : triggerEl;
-    setOpenSurface(next);
-    if (focusWasInside) {
-      home?.focus({ preventScroll: true });
-    }
-  };
-  const close = () => moveTo(undefined);
-  // The chip opens its panel only on click, so a wandering pointer keeps it.
-  const closeWarnings = (reason?: OpenChangeReason) => {
-    const pointerLeft = reason === "hover" || reason === "safe-polygon";
-    if (!pointerLeft) {
-      close();
-    }
-  };
-  const toggle = (surface: DetailsSurface) =>
-    moveTo(openSurface === surface ? undefined : surface);
-
-  // The chip lands ON the warnings text. Keyed on the node: Callout's
-  // FloatingPortal mounts its children a commit after the open flip.
-  useEffect(() => {
-    warningsNode?.focus();
-  }, [warningsNode]);
-
-  // Escape must dismiss a hover-opened callout too, and focus may be anywhere,
-  // so listen at the document while open, capture phase, and consume the key
-  // so it never reaches page-level handling.
-  useEffect(() => {
-    if (openSurface === undefined) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        close();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-    // `close` is recreated per render; re-registering per render while open
-    // is harmless and keeps the handler's closure fresh.
-  });
-
+  const {
+    surfaceId,
+    factsOpen,
+    warningsOpen,
+    triggerEl,
+    setTriggerEl,
+    chipEl,
+    setChipEl,
+    setWarningsNode,
+    closeOnLeave,
+    toggle,
+    activateWarnings,
+    previewOnHover,
+    endHover,
+  } = useBriefDetailsPanelFacade();
   const warnings = listWarningLines(t, brief);
-  const factsOpen = openSurface === DetailsSurfaces.FACTS;
-  const warningsOpen = openSurface === DetailsSurfaces.WARNINGS;
-
-  // Hover never closes the click-opened warnings panel, so a press anywhere
-  // outside the chip and the panel does.
-  useEffect(() => {
-    if (!warningsOpen) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (!(event.target instanceof Node)) {
-        return;
-      }
-      const panel = document
-        .getElementById(surfaceId)
-        ?.closest(CALLOUT_ROOT_SELECTOR);
-      const onChip = chipEl?.contains(event.target) ?? false;
-      const onPanel = panel?.contains(event.target) ?? false;
-      if (!onChip && !onPanel) {
-        close();
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  });
   const factsControls = factsOpen ? surfaceId : undefined;
   const warningsControls = warningsOpen ? surfaceId : undefined;
 
@@ -154,15 +83,14 @@ export function BriefDetailsPanel({
     <>
       <span
         className={styles["hoverArea"]}
-        onPointerEnter={(event) => {
-          // Hover preview is a MOUSE affordance; touch/pen go through click
-          // (touch browsers synthesize mouseenter before click, so a
-          // hover-open would be immediately toggled shut). Never clobber an
-          // already-open surface.
-          if (event.pointerType === "mouse" && openSurface === undefined) {
-            setOpenSurface(DetailsSurfaces.FACTS);
-          }
-        }}
+        // Hover preview is a MOUSE affordance; touch/pen go through click
+        // (touch browsers synthesize mouseenter before click, so a
+        // hover-open would be immediately toggled shut). A preview never
+        // clobbers a pinned surface.
+        onPointerEnter={(event) =>
+          previewOnHover(DetailsSurfaces.FACTS, event.pointerType)
+        }
+        onPointerLeave={() => endHover(DetailsSurfaces.FACTS)}
       >
         <IconButton
           aria-controls={factsControls}
@@ -181,7 +109,7 @@ export function BriefDetailsPanel({
             fit
             interactive
             placement="bottom-start"
-            onClose={close}
+            onClose={(reason) => closeOnLeave(DetailsSurfaces.FACTS, reason)}
           >
             <span className={styles["panel"]} id={surfaceId}>
               <ArtifactSection
@@ -199,18 +127,28 @@ export function BriefDetailsPanel({
         ) : null}
       </span>
       {warnings.length > 0 ? (
-        <Chip
-          aria-controls={warningsControls}
-          aria-expanded={warningsOpen}
-          className={styles["warningsChip"]}
-          data-generation-warnings-chip=""
-          ref={setChipEl}
-          tone="warning"
-          onClick={() => toggle(DetailsSurfaces.WARNINGS)}
+        <span
+          className={styles["hoverArea"]}
+          onPointerEnter={(event) =>
+            previewOnHover(DetailsSurfaces.WARNINGS, event.pointerType)
+          }
+          onPointerLeave={() => endHover(DetailsSurfaces.WARNINGS)}
         >
-          <Icon name={IconNames.WARNING} size={IconSizes.SM} />
-          <span>{t("brief.details.warnings", { count: warnings.length })}</span>
-        </Chip>
+          <Chip
+            aria-controls={warningsControls}
+            aria-expanded={warningsOpen}
+            className={styles["warningsChip"]}
+            data-generation-warnings-chip=""
+            ref={setChipEl}
+            tone="warning"
+            onClick={activateWarnings}
+          >
+            <Icon name={IconNames.WARNING} size={IconSizes.SM} />
+            <span>
+              {t("brief.details.warnings", { count: warnings.length })}
+            </span>
+          </Chip>
+        </span>
       ) : null}
       {warningsOpen && chipEl ? (
         <Callout
@@ -218,7 +156,7 @@ export function BriefDetailsPanel({
           fit
           interactive
           placement="bottom-start"
-          onClose={closeWarnings}
+          onClose={(reason) => closeOnLeave(DetailsSurfaces.WARNINGS, reason)}
         >
           <span className={styles["panel"]} id={surfaceId}>
             <GenerationWarnings ref={setWarningsNode} warnings={warnings} />
