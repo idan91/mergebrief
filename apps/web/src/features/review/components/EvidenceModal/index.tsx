@@ -82,7 +82,11 @@ function EvidenceForm({
     (kind === DispositionEvidenceKinds.MANUAL_NOTE && note.trim() === "");
   return (
     <>
-      <h2 id="evidence-modal-heading">{t("review.evidence.heading")}</h2>
+      <Modal.Header
+        close={cancel}
+        id="evidence-modal-heading"
+        title={t("review.evidence.heading")}
+      />
       <div className={styles["target"]}>{target.label}</div>
       <div className={styles["evidenceOptions"]}>
         <label>
@@ -139,7 +143,7 @@ function EvidenceForm({
           onChange={(event) => setNote(event.target.value)}
         />
       ) : null}
-      <div className={styles["actions"]}>
+      <Modal.Footer>
         <Button onClick={cancel}>{t("review.evidence.cancel")}</Button>
         <Button
           disabled={evidenceIncomplete}
@@ -150,7 +154,7 @@ function EvidenceForm({
         >
           {t("review.evidence.confirm")}
         </Button>
-      </div>
+      </Modal.Footer>
     </>
   );
 }

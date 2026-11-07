@@ -27,7 +27,6 @@ export function LineLinkButton({ selection }: LineLinkButtonProps) {
         content={String(selection.startLine)}
         label={label}
         text={() => deriveShareUrl(window.location, deriveLineLink(selection))}
-        title={label}
       />
     </span>
   );

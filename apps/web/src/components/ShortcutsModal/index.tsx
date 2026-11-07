@@ -1,12 +1,9 @@
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
-import { IconButton } from "../IconButton";
 import { Kbd, KbdGroup } from "../Kbd";
 import { REVIEW_MARK_ORDER, ReviewMarkLabelKeys } from "../ReviewMark/consts";
 import { ReviewMarkGlyphs } from "../ReviewMark";
 import { Modal } from "../Modal";
-import { Icon } from "../Icon";
-import { IconNames, IconSizes } from "../Icon/types";
 import styles from "./ShortcutsModal.module.scss";
 
 export interface ShortcutsModalProps {
@@ -34,19 +31,15 @@ export function ShortcutsModal({ open, close, sections }: ShortcutsModalProps) {
     <Modal
       boxClassName={styles["box"]}
       close={close}
+      instant
       labelledBy="shortcuts-modal-heading"
       open={open}
     >
-      <div className={styles["header"]}>
-        <h2 id="shortcuts-modal-heading">{t("brief.shortcuts.heading")}</h2>
-        <IconButton
-          label={t("brief.shortcuts.close")}
-          size="md"
-          onClick={close}
-        >
-          <Icon name={IconNames.X} size={IconSizes.MD} />
-        </IconButton>
-      </div>
+      <Modal.Header
+        close={close}
+        id="shortcuts-modal-heading"
+        title={t("brief.shortcuts.heading")}
+      />
       <div className={styles["sections"]}>
         {sections.map((section) => (
           <section key={section.id}>

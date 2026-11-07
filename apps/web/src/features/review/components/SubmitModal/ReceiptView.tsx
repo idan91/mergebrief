@@ -1,9 +1,8 @@
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import clsx from "clsx";
 
 import { Button } from "@web/components/Button";
-import modalStyles from "@web/components/Modal/Modal.module.scss";
+import { Modal } from "@web/components/Modal";
 import { listReceiptLines, type Receipt } from "../../utils/receipt";
 import type { ReviewOutcome } from "types/reviews";
 import { ReceiptAccordion } from "./ReceiptAccordion";
@@ -32,17 +31,18 @@ export function ReceiptView({
   const rawLines = listReceiptLines(receipt);
   return (
     <>
-      <div className={styles["receiptHead"]}>
-        <div className={styles["receiptTitle"]}>
-          <h2 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
-            {t("review.submit.receiptHeading")}
-          </h2>
+      <Modal.Header
+        close={close}
+        detail={t("review.submit.receiptSub")}
+        headingRef={headingRef}
+        id="submit-modal-heading"
+        title={t("review.submit.receiptHeading")}
+        titleAside={
           <span className={styles["tag"]}>
             {t("review.submit.notAnApproval")}
           </span>
-        </div>
-        <p className={styles["sub"]}>{t("review.submit.receiptSub")}</p>
-      </div>
+        }
+      />
       <div className={styles["receiptBody"]} data-testid="receipt-body">
         <ReceiptAccordion
           outcome={outcome}
@@ -51,12 +51,12 @@ export function ReceiptView({
           signatureLine={signatureLine}
         />
       </div>
-      <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
+      <Modal.Footer>
         <Button onClick={backToVerdict}>
           {t("review.submit.backToVerdict")}
         </Button>
         <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
-      </div>
+      </Modal.Footer>
     </>
   );
 }

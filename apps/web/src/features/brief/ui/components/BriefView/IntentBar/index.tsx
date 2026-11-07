@@ -140,11 +140,11 @@ function IntentItemRow({
             return (
               <IconButton
                 autoWidth={multiGroup}
+                callout="left"
                 className={styles["goto"]}
                 key={groupId}
                 label={label}
                 onClick={() => jumpToGroup(groupId)}
-                title={label}
               >
                 ↳
                 {multiGroup ? (

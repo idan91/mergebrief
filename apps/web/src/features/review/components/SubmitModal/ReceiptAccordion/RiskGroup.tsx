@@ -27,7 +27,7 @@ export function RiskGroup({
 
   return (
     <div className={styles["riskGroup"]}>
-      <h3>{title}</h3>
+      <h4>{title}</h4>
       {items.length === 0 ? (
         <p className={styles["empty"]}>{t("review.summary.none")}</p>
       ) : null}

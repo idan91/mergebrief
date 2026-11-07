@@ -246,6 +246,10 @@ export function MarkdownTextarea({
     toolbarIndex,
     facade.toolbarActions.length - 1,
   );
+  const toolbarButtons = facade.toolbarActions.map((action) => ({
+    action,
+    description: action.title === action.label ? undefined : action.title,
+  }));
   const onToolbarKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const buttons = toolbarRef.current
       ? [...toolbarRef.current.querySelectorAll("button")]
@@ -387,13 +391,15 @@ export function MarkdownTextarea({
             tabIndex={-1}
             onKeyDown={onToolbarKeyDown}
           >
-            {facade.toolbarActions.map((action, index) => (
+            {toolbarButtons.map(({ action, description }, index) => (
               <IconButton
                 aria-disabled={readOnly || action.disabled || undefined}
+                aria-description={description}
+                aria-label={action.label}
+                callout="top"
                 key={action.icon}
-                label={action.label}
+                label={action.title}
                 tabIndex={index === toolbarTabStop ? 0 : -1}
-                title={action.title}
                 onClick={action.run}
               >
                 {ToolbarIcons[action.icon]}

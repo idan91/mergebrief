@@ -9,8 +9,10 @@ import {
   useTransitionStyles,
   type ElementProps,
   type FloatingContext,
+  type MiddlewareState,
   type Placement,
   type ReferenceType,
+  type SideObject,
 } from "@floating-ui/react";
 import {
   useId,
@@ -21,15 +23,18 @@ import {
   type RefObject,
 } from "react";
 
+import {
+  readNumericCssVar,
+  STICKY_STACK_HEIGHT_VAR,
+} from "../../utils/css-vars";
 import { prefersReducedMotion } from "../../utils/motion";
 import {
   POPOVER_ENTER_EASING,
   POPOVER_ENTER_MS,
   POPOVER_OFFSET_PX,
-  POPOVER_VIEWPORT_PADDING_PX,
 } from "./consts";
 import { PopoverFocusTargets, type PopoverFocusTarget } from "./types";
-import { deriveTransformOrigin } from "./utils";
+import { deriveCollisionPadding, deriveTransformOrigin } from "./utils";
 
 export interface PopoverOptions {
   placement?: Placement | undefined;
@@ -91,6 +96,22 @@ function reclaimFocus(
   });
 }
 
+/** Read per computation: the stack's height moves as the header collapses. */
+function readCollisionPadding(): SideObject {
+  return deriveCollisionPadding(readNumericCssVar(STICKY_STACK_HEIGHT_VAR));
+}
+
+/**
+ * Only a panel above its trigger slides along the block axis: one below a
+ * trigger inside the pinned stack would otherwise leave for the stack's edge.
+ */
+function readShiftOptions({ placement }: MiddlewareState) {
+  return {
+    crossAxis: placement.startsWith("top"),
+    padding: readCollisionPadding(),
+  };
+}
+
 function trackWithAncestorScroll(
   reference: ReferenceType,
   floating: HTMLElement,
@@ -148,8 +169,8 @@ export function usePopover({
       : trackWithoutAncestorScroll,
     middleware: [
       offset(offsetPx),
-      flip(),
-      shift({ padding: POPOVER_VIEWPORT_PADDING_PX }),
+      flip(() => ({ padding: readCollisionPadding() })),
+      shift(readShiftOptions),
     ],
   });
   const click = useClick(context);

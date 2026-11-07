@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useBodyScrollLock } from "./useBodyScrollLock";
 
+const CLASSIC_SCROLLBAR_PX = 15;
+
+function stubRootWidth(scrollbarWidth: number): void {
+  vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(
+    window.innerWidth - scrollbarWidth,
+  );
+}
+
 afterEach(() => {
   document.body.style.overflow = "";
+  document.documentElement.style.scrollbarGutter = "";
+  vi.restoreAllMocks();
 });
 
 describe("useBodyScrollLock", () => {
@@ -39,5 +49,33 @@ describe("useBodyScrollLock", () => {
   it("leaves the body alone while inactive", () => {
     renderHook(() => useBodyScrollLock(false));
     expect(document.body.style.overflow).toBe("");
+  });
+
+  it("keeps the scrollbar's width as a gutter while locked", () => {
+    stubRootWidth(CLASSIC_SCROLLBAR_PX);
+    const { unmount } = renderHook(() => useBodyScrollLock(true));
+    expect(document.documentElement.style.scrollbarGutter).toBe("stable");
+
+    unmount();
+    expect(document.documentElement.style.scrollbarGutter).toBe("");
+  });
+
+  it("adds no gutter to a page without a classic scrollbar", () => {
+    stubRootWidth(0);
+    renderHook(() => useBodyScrollLock(true));
+
+    expect(document.documentElement.style.scrollbarGutter).toBe("");
+  });
+
+  it("keeps the gutter until the last of two locks lets go", () => {
+    stubRootWidth(CLASSIC_SCROLLBAR_PX);
+    const first = renderHook(() => useBodyScrollLock(true));
+    const second = renderHook(() => useBodyScrollLock(true));
+
+    first.unmount();
+    expect(document.documentElement.style.scrollbarGutter).toBe("stable");
+
+    second.unmount();
+    expect(document.documentElement.style.scrollbarGutter).toBe("");
   });
 });

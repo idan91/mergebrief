@@ -1,11 +1,11 @@
 import type { TFunction } from "i18next";
 
-import type { ViewParam } from "../../../../model/comparison/compare-state";
 import {
-  CONTENT_START_ATTR,
   readNumericCssVar,
   STICKY_STACK_HEIGHT_VAR,
-} from "../utils";
+} from "@web/utils/css-vars";
+import type { ViewParam } from "../../../../model/comparison/compare-state";
+import { CONTENT_START_ATTR } from "../utils";
 import { ChunkPositionKinds, type ChunkPosition } from "./types";
 
 export interface ChunkPositionInput {

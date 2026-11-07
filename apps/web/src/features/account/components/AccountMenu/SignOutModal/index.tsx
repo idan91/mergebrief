@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 
 import { Button, ButtonVariants } from "@web/components/Button";
 import { Modal } from "@web/components/Modal";
-import modalStyles from "@web/components/Modal/Modal.module.scss";
 import {
   SignOutScopes,
   type SignOutFlow,
@@ -50,14 +49,21 @@ export function SignOutModal({ flow, cancel, confirm }: SignOutModalProps) {
         labelledBy={HEADING_ID}
         open={flow.open}
       >
-        <h2 id={HEADING_ID}>{t("shell.signOutModal.heading")}</h2>
-        <p className={modalStyles["copy"]}>{t("shell.signOutModal.copy")}</p>
-        {flow.failed ? (
-          <p className={styles["failed"]} role="alert">
-            {t("shell.signOutModal.failed")}
-          </p>
-        ) : null}
-        <div className={modalStyles["actions"]}>
+        <Modal.Header
+          close={close}
+          detail={t("shell.signOutModal.copy")}
+          id={HEADING_ID}
+          title={t("shell.signOutModal.heading")}
+        />
+        <Modal.Footer
+          reason={
+            flow.failed ? (
+              <p className={styles["failed"]} role="alert">
+                {t("shell.signOutModal.failed")}
+              </p>
+            ) : undefined
+          }
+        >
           <Button disabled={busy} ref={cancelRef} onClick={cancel}>
             {t("shell.signOutModal.cancel")}
           </Button>
@@ -77,7 +83,7 @@ export function SignOutModal({ flow, cancel, confirm }: SignOutModalProps) {
           >
             {thisDeviceLabel}
           </Button>
-        </div>
+        </Modal.Footer>
       </Modal>
     </FloatingPortal>
   );

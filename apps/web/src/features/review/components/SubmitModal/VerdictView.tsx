@@ -1,14 +1,13 @@
 import type { ReviewOutcome } from "types/reviews";
 import { useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import clsx from "clsx";
 
 import { Button } from "@web/components/Button";
 import { Checkbox } from "@web/components/Checkbox";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { MentionListLayouts } from "@web/components/MarkdownTextarea/types";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
-import modalStyles from "@web/components/Modal/Modal.module.scss";
+import { Modal } from "@web/components/Modal";
 import { useMentionSuggestions } from "@web/features/conversation/hooks";
 import type { MentionSource } from "@web/features/conversation/types";
 import { useReviewActions } from "../../session/flow/provider";
@@ -36,7 +35,7 @@ interface SubmitAffordance {
   attempt: () => void;
 }
 
-/** The three mutually-ranked status lines under the actions row. */
+/** The three mutually-ranked status lines above the actions row. */
 interface SubmitStatus {
   blockedReason: string | undefined;
   error: string | null;
@@ -89,12 +88,17 @@ export function VerdictView({
     }
     submit.attempt();
   };
+  const showsNote = status.note !== null && status.error === null;
+
   return (
     <>
-      <h2 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
-        {t("review.submit.heading")}
-      </h2>
-      <p className={modalStyles["copy"]}>{t("review.submit.intro")}</p>
+      <Modal.Header
+        close={close}
+        detail={t("review.submit.intro")}
+        headingRef={headingRef}
+        id="submit-modal-heading"
+        title={t("review.submit.heading")}
+      />
       <fieldset className={styles["outcomes"]}>
         <legend>{t("review.submit.outcomeLegend")}</legend>
         {OUTCOMES.map((option) => (
@@ -152,7 +156,36 @@ export function VerdictView({
           </div>
         </div>
       ) : null}
-      <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
+      <Modal.Footer
+        reason={
+          <>
+            {status.blockedReason !== undefined ? (
+              <p className={styles["submitStatus"]} id="submit-modal-blocked">
+                {status.blockedReason}
+              </p>
+            ) : null}
+            {status.error !== null ? (
+              <p
+                className={styles["submitStatus"]}
+                data-kind="error"
+                id="submit-modal-error"
+                role="alert"
+              >
+                {status.error}
+              </p>
+            ) : null}
+            {showsNote ? (
+              <p
+                aria-live="polite"
+                className={styles["submitStatus"]}
+                role="status"
+              >
+                {status.note}
+              </p>
+            ) : null}
+          </>
+        }
+      >
         <Button onClick={previewReceipt}>
           {t("review.submit.previewReceipt")}
         </Button>
@@ -168,27 +201,7 @@ export function VerdictView({
             ? t("review.submit.submitting")
             : t("review.submit.submitReview")}
         </Button>
-      </div>
-      {status.blockedReason !== undefined ? (
-        <p className={styles["submitStatus"]} id="submit-modal-blocked">
-          {status.blockedReason}
-        </p>
-      ) : null}
-      {status.error !== null ? (
-        <p
-          className={styles["submitStatus"]}
-          data-kind="error"
-          id="submit-modal-error"
-          role="alert"
-        >
-          {status.error}
-        </p>
-      ) : null}
-      {status.note !== null && status.error === null ? (
-        <p aria-live="polite" className={styles["submitStatus"]} role="status">
-          {status.note}
-        </p>
-      ) : null}
+      </Modal.Footer>
     </>
   );
 }

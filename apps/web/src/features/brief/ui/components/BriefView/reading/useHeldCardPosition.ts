@@ -1,6 +1,9 @@
 import { useEffect, useInsertionEffect, useLayoutEffect, useRef } from "react";
 
-import { readNumericCssVar, STICKY_STACK_HEIGHT_VAR } from "../utils";
+import {
+  readNumericCssVar,
+  STICKY_STACK_HEIGHT_VAR,
+} from "@web/utils/css-vars";
 import type { ChunkWindowRegistry } from "./chunk-windows";
 import {
   findScreenAnchor,

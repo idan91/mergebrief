@@ -90,7 +90,6 @@ export function RiskSurface({
           <div className={styles["toolbar"]}>
             <Button
               size="sm"
-              title={t("brief.group.titleMarkSelectedAddressed")}
               onClick={() => {
                 setEvidenceTarget({
                   flagIds: selectedIds,
@@ -102,7 +101,6 @@ export function RiskSurface({
             </Button>
             <Button
               size="sm"
-              title={t("brief.group.titleMarkSelectedDismissed")}
               onClick={() => {
                 setDismissTarget({
                   flagIds: selectedIds,

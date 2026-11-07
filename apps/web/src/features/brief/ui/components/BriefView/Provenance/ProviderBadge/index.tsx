@@ -1,8 +1,7 @@
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import type { Brief } from "../../../../../model/types";
-import { Icon } from "@web/components/Icon";
-import { IconNames, IconSizes } from "@web/components/Icon/types";
+import { IconNames } from "@web/components/Icon/types";
 import styles from "./ProviderBadge.module.scss";
+import { ProviderMark } from "./ProviderMark";
 import {
   ProviderGenerationTypes,
   type MarkConfig,
@@ -64,32 +63,11 @@ export function ProviderBadge({ generation }: ProviderBadgeProps) {
     : undefined;
   return (
     <span className={styles["badge"]} data-provider-badge="">
-      {/* `title` gives pointer users the provider name; the logo alone
-          isn't universally recognizable. Screen readers keep the sr-only
-          sibling. */}
-      <span className={styles["markCell"]} title={providerConfig?.name}>
-        {providerConfig ? (
-          <>
-            <Icon
-              className={styles["mark"]}
-              name={providerConfig.mark}
-              size={IconSizes.MD}
-            />
-            <ScreenReaderOnly>{providerConfig.name}</ScreenReaderOnly>
-          </>
-        ) : (
-          // Named fallback: the terminal glyph plus the provider key as
-          // visible text, never a hand-drawn brand approximation.
-          <>
-            <Icon
-              className={styles["mark"]}
-              name={IconNames.TERMINAL}
-              size={IconSizes.MD}
-            />
-            <span className={styles["markName"]}>{providerSlug}</span>
-          </>
-        )}
-      </span>
+      <ProviderMark
+        config={providerConfig}
+        key={providerSlug}
+        providerSlug={providerSlug}
+      />
       <span className={styles["modelCell"]}>
         {generation.model}
         {generation.effort ? ` · ${generation.effort}` : ""}

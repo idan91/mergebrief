@@ -24,39 +24,6 @@
     white-space: nowrap;
   }
 
-  // Neutral mark cell — the class is carried by the TEXT end tag, never
-  // color alone.
-  .markCell {
-    display: inline-flex;
-    align-items: center;
-    gap: functions.to-rem(4px);
-    padding-inline: functions.to-rem(5px);
-  }
-
-  // Two thirds of the badge's height, the proportion it had at 18px, so the
-  // mark keeps its weight in the lockup instead of being re-tuned by hand
-  // whenever the badge's height moves.
-  .mark {
-    inline-size: calc(var(--header-meta-control-h) * 2 / 3);
-    block-size: calc(var(--header-meta-control-h) * 2 / 3);
-
-    // The custom property it derives from SNAPS at the collapse boundary —
-    // custom properties do not interpolate — so the derived lengths carry the
-    // ease themselves, or the mark jumps a frame ahead of the box around it.
-    transition:
-      inline-size var(--header-collapse-ease),
-      block-size var(--header-collapse-ease);
-  }
-
-  // Fallback/unknown providers show the key as text inside the cell,
-  // artifact-controlled, so capped with ellipsis.
-  .markName {
-    overflow: hidden;
-    max-inline-size: functions.to-rem(96px);
-    font-size: var(--header-meta-font);
-    text-overflow: ellipsis;
-  }
-
   // Block + line-height centering (not flex) so the model id can ellipsize
   // — the artifact-controlled string is the badge's one unbounded cell. The
   // line box is the badge's height less its two 1px borders, derived rather

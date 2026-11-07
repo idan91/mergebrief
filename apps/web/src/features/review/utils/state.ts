@@ -262,9 +262,17 @@ export function deriveUnresolvedItems(
  * `clearedBy` is carried verbatim, the operations that clear an item are the
  * server's answer, never a table the client keeps.
  */
-export interface CarriedItem extends Omit<UnresolvedItem, "kind"> {
+export interface CarriedItem extends Omit<
+  UnresolvedItem,
+  "kind" | "label" | "riskAttribute"
+> {
   /** The three carried kinds, never the submit list's own. */
   kind: AttentionItemKind;
+  /**
+   * The clearing dialog's target: "attribute @ path" for a flag, the draft's
+   * location otherwise. Rows read `locationLabel` and `attribute` instead.
+   */
+  label: string;
   clearedBy: readonly string[];
   /**
    * What a clearing operation acts on here: the draft row's id, or the

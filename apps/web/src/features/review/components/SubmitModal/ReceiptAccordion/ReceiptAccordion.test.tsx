@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-// The accordion receipt view: outcome pinned, folds carry their counts in
-// the summaries, coverage open by default, raw artifact behind a disclosure.
+// The receipt view: the counts as plain rows, the rest under one Details
+// disclosure, raw artifact behind its own fold inside it.
 // Importing I18nProvider registers appI18n as the react-i18next default.
 // The bare-rendered subtree below resolves it without a provider.
 // oxlint-disable-next-line import/no-unassigned-import -- registration is the point.
 import "../../../../../i18n/I18nProvider";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Receipt, ReceiptLine } from "../../../utils/receipt";
@@ -92,19 +92,22 @@ function findFold(summaryText: RegExp): HTMLDetailsElement | null {
 }
 
 describe("ReceiptAccordion", () => {
-  it("pins the outcome card with the signature line", () => {
+  it("shows the outcome with the signature line under Details", () => {
     renderAccordion();
     expect(screen.getByText("Review outcome")).toBeTruthy();
     expect(screen.getByText("Comment")).toBeTruthy();
     expect(screen.getByText(SIGNATURE_LINE)).toBeTruthy();
   });
 
-  it("opens coverage by default and keeps every other fold collapsed", () => {
+  it("keeps everything past the rows under one closed Details fold", () => {
     renderAccordion();
-    expect(findFold(/what the reviewer covered/i)?.open).toBe(true);
-    expect(findFold(/inline comments \(2\)/i)?.open).toBe(false);
-    expect(findFold(/risk disposition/i)?.open).toBe(false);
-    expect(findFold(/^not checked$/i)?.open).toBe(false);
+    const details = findFold(/^details$/i);
+    expect(details?.open).toBe(false);
+    expect(details?.contains(screen.getByText("Inline comments (2)"))).toBe(
+      true,
+    );
+    expect(details?.contains(screen.getByText(/risk disposition/i))).toBe(true);
+    expect(details?.contains(screen.getByText(/^not checked$/i))).toBe(true);
     expect(findFold(/show raw receipt/i)?.open).toBe(false);
   });
 
@@ -166,14 +169,17 @@ describe("ReceiptAccordion", () => {
     expect(screen.queryByTestId("receipt-outline-form")).toBeNull();
   });
 
-  it("renders coverage metrics from the receipt", () => {
+  it("renders chunks read, flags open and comments as rows", () => {
     renderAccordion();
-    expect(screen.getByText("Chunks reviewed")).toBeTruthy();
-    expect(screen.getByText("3/4")).toBeTruthy();
-    expect(screen.getByText("Risk flags")).toBeTruthy();
+    const readRow = screen.getByText("Chunks read").parentElement;
+    expect(readRow?.textContent).toContain("3/4");
+    const flagsRow = screen.getByText("Flags open").parentElement;
+    expect(flagsRow?.textContent).toContain("1");
+    const commentsRow = screen.getByText("Inline comments").parentElement;
+    expect(commentsRow?.textContent).toContain("2");
   });
 
-  it("puts the counts in the fold summaries", () => {
+  it("puts the counts in the section headings", () => {
     renderAccordion();
     expect(screen.getByText("Inline comments (2)")).toBeTruthy();
     expect(
@@ -210,6 +216,23 @@ describe("ReceiptAccordion", () => {
     expect(screen.getByText("Linked comment token.ts:+12")).toBeTruthy();
     expect(screen.getByText(/measured — bounded at 50 rows/)).toBeTruthy();
     expect(screen.getByText(/Not addressed, not dismissed/)).toBeTruthy();
+  });
+
+  it("nests the risk groups' headings under the disposition heading", () => {
+    renderAccordion();
+    const disposition = screen.getByRole("heading", {
+      hidden: true,
+      level: 3,
+      name: /risk disposition/i,
+    });
+
+    const groups = within(disposition.parentElement!).getAllByRole("heading", {
+      hidden: true,
+      level: 4,
+    });
+    expect(groups.map((heading) => heading.textContent)).toContain(
+      "Addressed risks",
+    );
   });
 
   it("marks mentions in dismiss reasons and comment lines the reviewer wrote", () => {

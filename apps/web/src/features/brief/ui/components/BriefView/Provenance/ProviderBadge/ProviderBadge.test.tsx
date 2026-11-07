@@ -1,8 +1,27 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { CALLOUT_HOVER_DELAY_MS } from "@web/components/Callout/consts";
+import { startColdCalloutTimers } from "@web/test/callouts";
 
 import { ProviderBadge } from ".";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** The pointer of `pointerType` resting on the mark cell past the hover delay. */
+function restOnMark(pointerType: "mouse" | "touch"): void {
+  const markCell = badge().firstElementChild;
+  if (!markCell) {
+    throw new Error("mark cell not rendered");
+  }
+  fireEvent.pointerEnter(markCell, { pointerType });
+  act(() => {
+    vi.advanceTimersByTime(CALLOUT_HOVER_DELAY_MS);
+  });
+}
 
 function badge() {
   const el = document.querySelector("[data-provider-badge]");
@@ -38,8 +57,6 @@ describe("ProviderBadge", () => {
       // wrapper so a visible duplicate next to the mark can't slip in.
       const nameEl = screen.getByText(name);
       expect(nameEl.className).toContain("sr-only");
-      // Pointer users get the provider name as the native tooltip.
-      expect(nameEl.closest("[title]")?.getAttribute("title")).toBe(name);
       expect(badge().textContent).toContain(tag);
       expect(badge().textContent).toContain("m-1 · medium");
     },
@@ -103,5 +120,86 @@ describe("ProviderBadge", () => {
     );
     expect(badge().textContent).toContain("m-1");
     expect(badge().textContent).not.toContain("·");
+  });
+
+  it("names the provider in a callout once a mouse rests on the mark", () => {
+    startColdCalloutTimers();
+    render(
+      <ProviderBadge
+        generation={{ provider: "cursor", model: "m-1", effort: null }}
+      />,
+    );
+
+    restOnMark("mouse");
+
+    expect(screen.getByRole("tooltip").textContent).toBe("Cursor");
+  });
+
+  it("opens no callout for a touch on the mark", () => {
+    startColdCalloutTimers();
+    render(
+      <ProviderBadge
+        generation={{ provider: "cursor", model: "m-1", effort: null }}
+      />,
+    );
+
+    restOnMark("touch");
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("opens no callout over a fallback that already shows its key", () => {
+    startColdCalloutTimers();
+    render(
+      <ProviderBadge
+        generation={{ provider: "codex", model: "m-1", effort: null }}
+      />,
+    );
+
+    restOnMark("mouse");
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("shows no callout when a hovered fallback turns into a known mark", () => {
+    startColdCalloutTimers();
+    const { rerender } = render(
+      <ProviderBadge
+        generation={{ provider: "codex", model: "m-1", effort: null }}
+      />,
+    );
+    restOnMark("mouse");
+
+    rerender(
+      <ProviderBadge
+        generation={{ provider: "cursor", model: "m-1", effort: null }}
+      />,
+    );
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("shows no callout when a fallback swap returns to a known mark", () => {
+    startColdCalloutTimers();
+    const { rerender } = render(
+      <ProviderBadge
+        generation={{ provider: "cursor", model: "m-1", effort: null }}
+      />,
+    );
+    restOnMark("mouse");
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+
+    rerender(
+      <ProviderBadge
+        generation={{ provider: "codex", model: "m-1", effort: null }}
+      />,
+    );
+    rerender(
+      <ProviderBadge
+        generation={{ provider: "anthropic", model: "m-1", effort: null }}
+      />,
+    );
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 });

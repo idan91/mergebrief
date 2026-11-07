@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next";
 import type { Receipt, ReceiptLine } from "../../../utils/receipt";
 import type { ReviewOutcome } from "types/reviews";
 import { CommentList } from "./CommentList";
-import { CoverageMetrics } from "./CoverageMetrics";
+import { GenerationMetrics } from "./GenerationMetrics";
 import { NotCheckedList } from "./NotCheckedList";
-import { OutcomeCard } from "./OutcomeCard";
 import { RawReceipt } from "./RawReceipt";
+import { ReceiptRows } from "./ReceiptRows";
 import { RiskDisposition } from "./RiskDisposition";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
@@ -20,8 +20,7 @@ export interface ReceiptAccordionProps {
   signatureLine?: string | undefined;
 }
 
-/** The modal receipt view: outcome pinned, everything else a fold with its
- * counts in the summary; coverage open by default, raw artifact collapsed. */
+/** The modal receipt view: the counts as plain rows, the rest under one Details disclosure. */
 export function ReceiptAccordion({
   receipt,
   outcome,
@@ -31,18 +30,7 @@ export function ReceiptAccordion({
   const { t } = useTranslation();
   return (
     <div className={styles["stack"]}>
-      <OutcomeCard outcome={outcome} signatureLine={signatureLine} />
-      <details className={styles["fold"]} open>
-        <summary>
-          <Icon
-            className={styles["marker"]}
-            name={IconNames.CARET_DOWN}
-            size={IconSizes.SM}
-          />
-          {t("review.summary.coveredHeading")}
-        </summary>
-        <CoverageMetrics receipt={receipt} />
-      </details>
+      <ReceiptRows outcome={outcome} receipt={receipt} />
       <details className={styles["fold"]}>
         <summary>
           <Icon
@@ -50,48 +38,53 @@ export function ReceiptAccordion({
             name={IconNames.CARET_DOWN}
             size={IconSizes.SM}
           />
-          {t("review.submit.receiptCommentsFold", {
-            total: receipt.comments.length,
-          })}
+          {t("review.submit.details")}
         </summary>
-        <CommentList comments={receipt.comments} />
-      </details>
-      <details className={styles["fold"]}>
-        <summary>
-          <Icon
-            className={styles["marker"]}
-            name={IconNames.CARET_DOWN}
-            size={IconSizes.SM}
-          />
-          {t("review.submit.receiptRiskFold", {
-            addressed: receipt.counts.addressed,
-            dismissed: receipt.counts.dismissed,
-            open: receipt.counts.open,
-          })}
-        </summary>
-        <RiskDisposition receipt={receipt} />
-      </details>
-      <details className={styles["fold"]}>
-        <summary>
-          <Icon
-            className={styles["marker"]}
-            name={IconNames.CARET_DOWN}
-            size={IconSizes.SM}
-          />
-          {t("review.summary.notCheckedHeading")}
-        </summary>
-        <NotCheckedList />
-      </details>
-      <details className={styles["fold"]}>
-        <summary>
-          <Icon
-            className={styles["marker"]}
-            name={IconNames.CARET_DOWN}
-            size={IconSizes.SM}
-          />
-          {t("review.submit.receiptShowRaw")}
-        </summary>
-        <RawReceipt lines={rawLines} />
+        <div className={styles["detailsBody"]}>
+          {signatureLine === undefined ? null : (
+            <div className={styles["signature"]}>{signatureLine}</div>
+          )}
+          {receipt.generation === undefined ? null : (
+            <dl className={styles["metrics"]}>
+              <GenerationMetrics generation={receipt.generation} />
+            </dl>
+          )}
+          <section>
+            <h3 className={styles["sectionHeading"]}>
+              {t("review.submit.receiptCommentsFold", {
+                total: receipt.comments.length,
+              })}
+            </h3>
+            <CommentList comments={receipt.comments} />
+          </section>
+          <section>
+            <h3 className={styles["sectionHeading"]}>
+              {t("review.submit.receiptRiskFold", {
+                addressed: receipt.counts.addressed,
+                dismissed: receipt.counts.dismissed,
+                open: receipt.counts.open,
+              })}
+            </h3>
+            <RiskDisposition receipt={receipt} />
+          </section>
+          <section>
+            <h3 className={styles["sectionHeading"]}>
+              {t("review.summary.notCheckedHeading")}
+            </h3>
+            <NotCheckedList />
+          </section>
+          <details className={styles["fold"]}>
+            <summary>
+              <Icon
+                className={styles["marker"]}
+                name={IconNames.CARET_DOWN}
+                size={IconSizes.SM}
+              />
+              {t("review.submit.receiptShowRaw")}
+            </summary>
+            <RawReceipt lines={rawLines} />
+          </details>
+        </div>
       </details>
     </div>
   );

@@ -10,6 +10,7 @@ import { InboxReviewStates } from "types/inbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CALLOUT_HOVER_DELAY_MS } from "@web/components/Callout/consts";
+import { startColdCalloutTimers } from "@web/test/callouts";
 import { UnknownValues } from "@web/utils/open-enum/types";
 
 import { RowMark } from ".";
@@ -30,7 +31,7 @@ function restOnMark(): HTMLElement {
 
 describe("RowMark", () => {
   it("names its state in a callout once the pointer has rested on it", () => {
-    vi.useFakeTimers();
+    startColdCalloutTimers();
     render(<RowMark reviewState={InboxReviewStates.UPDATED} />);
 
     fireEvent.pointerEnter(screen.getByTestId("inbox-row-mark"));
@@ -45,7 +46,7 @@ describe("RowMark", () => {
   });
 
   it("closes the callout when the pointer leaves the mark", () => {
-    vi.useFakeTimers();
+    startColdCalloutTimers();
     render(<RowMark reviewState={InboxReviewStates.NEW} />);
     const mark = restOnMark();
     expect(screen.getByRole("tooltip")).toBeTruthy();
@@ -59,7 +60,7 @@ describe("RowMark", () => {
   });
 
   it("shows nothing when the pointer leaves before the delay", () => {
-    vi.useFakeTimers();
+    startColdCalloutTimers();
     render(<RowMark reviewState={undefined} />);
     const mark = screen.getByTestId("inbox-row-mark");
 

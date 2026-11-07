@@ -32,7 +32,11 @@ export function DismissModal({
       initialFocus={reasonRef}
       labelledBy="dismiss-modal-heading"
     >
-      <h2 id="dismiss-modal-heading">{t("review.dismiss.heading")}</h2>
+      <Modal.Header
+        close={cancel}
+        id="dismiss-modal-heading"
+        title={t("review.dismiss.heading")}
+      />
       <div className={styles["target"]}>{target?.label}</div>
       <textarea
         ref={reasonRef}
@@ -49,14 +53,14 @@ export function DismissModal({
           {t("review.dismiss.thinWarning")}
         </div>
       ) : null}
-      <div className={styles["actions"]}>
+      <Modal.Footer>
         <Button onClick={cancel}>{t("review.dismiss.cancel")}</Button>
         <Button variant="accent" onClick={confirm}>
           {warned
             ? t("review.dismiss.dismissAnyway")
             : t("review.dismiss.dismissWithReason")}
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 }

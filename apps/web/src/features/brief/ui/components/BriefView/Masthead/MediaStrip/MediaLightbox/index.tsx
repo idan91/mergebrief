@@ -46,6 +46,7 @@ export function MediaLightbox({ gallery }: MediaLightboxProps) {
     <Modal
       boxClassName={styles["lightbox"]}
       close={closeMedia}
+      instant
       labelledBy={headingId}
       open={open}
       opener={opener}

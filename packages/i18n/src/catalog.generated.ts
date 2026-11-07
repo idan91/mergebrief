@@ -97,6 +97,7 @@ export type Catalog = typeof en & {
       stackNext: "Next PR in stack, #{{number}}: {{title}}";
     };
     details: (typeof en)["brief"]["details"] & {
+      copySha: "Copy full SHA {{sha}}";
       commits_one: "{{count}} commit";
       commits_other: "{{count}} commits";
       warnings_one: "{{count}} generation warning";

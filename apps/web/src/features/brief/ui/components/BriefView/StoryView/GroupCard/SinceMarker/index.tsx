@@ -1,4 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { Callout } from "@web/components/Callout";
+import { useCalloutHover } from "@web/components/Callout/useCalloutHover";
 import { LinkButton } from "@web/components/LinkButton";
 import styles from "./SinceMarker.module.scss";
 
@@ -26,6 +30,8 @@ export function SinceMarker({
   openComparison,
 }: SinceMarkerProps) {
   const { t } = useTranslation();
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const hover = useCalloutHover();
   if (changedFileCount === 0) {
     return (
       <span
@@ -41,6 +47,7 @@ export function SinceMarker({
     count: changedFileCount,
     sha: baselineShortSha,
   });
+  const description = t("brief.sinceMarker.titleOpenComparison");
   return (
     <span
       className={styles["marker"]}
@@ -50,13 +57,29 @@ export function SinceMarker({
       {openComparison === undefined ? (
         label
       ) : (
-        <LinkButton
-          className={styles["deltaLink"]}
-          title={t("brief.sinceMarker.titleOpenComparison")}
-          onClick={openComparison}
-        >
-          {label}
-        </LinkButton>
+        <>
+          <LinkButton
+            aria-description={description}
+            className={styles["deltaLink"]}
+            ref={setAnchor}
+            onBlur={hover.close}
+            onClick={openComparison}
+            onFocus={(event) => {
+              if (event.currentTarget.matches(":focus-visible")) {
+                hover.show();
+              }
+            }}
+            onPointerEnter={hover.arm}
+            onPointerLeave={hover.disarm}
+          >
+            {label}
+          </LinkButton>
+          {hover.open && anchor !== null ? (
+            <Callout anchor={anchor} compact fit onClose={hover.close}>
+              <Callout.Title>{description}</Callout.Title>
+            </Callout>
+          ) : null}
+        </>
       )}
     </span>
   );

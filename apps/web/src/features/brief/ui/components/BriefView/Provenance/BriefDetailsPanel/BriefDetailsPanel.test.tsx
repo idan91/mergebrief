@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { AnchorWarnings } from "brief-core/types";
 
+import { CALLOUT_HOVER_DELAY_MS } from "@web/components/Callout/consts";
 import { appI18n } from "@web/i18n/I18nProvider";
+import { startColdCalloutTimers } from "@web/test/callouts";
 import type { Brief } from "../../../../../model/types";
 import { computeConcernShares } from "../../Masthead/utils";
 import { BriefDetailsPanel } from ".";
@@ -176,13 +178,51 @@ describe("warnings-chip trigger", () => {
     expect(document.activeElement).toBe(warningsChip());
   });
 
-  it("lands on the warnings text even when the panel is ALREADY open plain", () => {
+  it("a press outside the chip and the panel closes it", () => {
     renderPanel();
-    fireEvent.click(infoTrigger());
-    expect(warningsNote()).toBeTruthy();
-    expect(document.activeElement).not.toBe(warningsNote());
+    fireEvent.click(warningsChip());
+
+    fireEvent.pointerDown(document.body);
+
+    expect(warningsNote()).toBeNull();
+    expect(warningsChip().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("a press outside returns focus to the chip without scrolling", () => {
+    renderPanel();
     fireEvent.click(warningsChip());
     expect(document.activeElement).toBe(warningsNote());
+    const focusChip = vi.spyOn(warningsChip(), "focus");
+
+    fireEvent.pointerDown(document.body);
+
+    expect(focusChip).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.activeElement).toBe(warningsChip());
+  });
+
+  it("a press on the panel or the chip keeps it open", () => {
+    renderPanel();
+    fireEvent.click(warningsChip());
+
+    fireEvent.pointerDown(warningsNote() ?? document.body);
+    fireEvent.pointerDown(warningsChip());
+
+    expect(warningsNote()).not.toBeNull();
+  });
+
+  it("opens only the warnings, swapping out an open facts panel", () => {
+    renderPanel();
+    fireEvent.click(infoTrigger());
+    expect(warningsNote()).toBeNull();
+    expect(
+      document.querySelector('[data-details-section="artifact"]'),
+    ).not.toBeNull();
+
+    fireEvent.click(warningsChip());
+
+    expect(document.activeElement).toBe(warningsNote());
+    expect(document.querySelector("[data-details-section]")).toBeNull();
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
   });
 
   it("closing via the ⓘ trigger keeps focus off <body> too", () => {
@@ -212,7 +252,7 @@ describe("warnings-chip trigger", () => {
 });
 
 describe("BriefDetailsPanel sections for a full brief", () => {
-  it("Artifact: kind, index, commit range + count, FULL SHAs, LOC caveat", () => {
+  it("Artifact: kind, short SHAs with copy, count and the LOC caveat", () => {
     renderPanel();
     fireEvent.click(infoTrigger());
     const artifact = document.querySelector(
@@ -220,11 +260,17 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     );
     const text = artifact?.textContent ?? "";
     expect(text).toContain("Brief");
-    expect(text).toContain("_3");
-    expect(text).toContain(`${"b".repeat(8)}..${"a".repeat(8)} · 2 commits`);
-    // Full SHAs: this panel is the untruncated home.
-    expect(text).toContain("b".repeat(40));
-    expect(text).toContain("a".repeat(40));
+    expect(text).not.toContain("_3");
+    expect(text).not.toContain("b".repeat(40));
+    expect(text).toContain("b".repeat(7));
+    expect(text).toContain("a".repeat(7));
+    expect(text).toContain("2 commits");
+    expect(
+      screen.getByRole("button", { name: `Copy full SHA ${"a".repeat(7)}` }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: `Copy full SHA ${"b".repeat(7)}` }),
+    ).toBeTruthy();
     expect(text).toContain("+137");
     expect(text).toContain("−76");
     expect(text).toContain("Core lines");
@@ -234,7 +280,7 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     expect(text).toContain("reported as unattributed");
   });
 
-  it("Generation: provider, model, effort, warnings text", () => {
+  it("Generation: provider, model and effort, never the warnings", () => {
     renderPanel();
     fireEvent.click(infoTrigger());
     const generation = document.querySelector(
@@ -244,13 +290,13 @@ describe("BriefDetailsPanel sections for a full brief", () => {
     expect(text).toContain("anthropic");
     expect(text).toContain("claude-opus-4-8");
     expect(text).toContain("high");
-    expect(text).toContain("salvaged brief");
+    expect(text).not.toContain("salvaged brief");
   });
 
   it("keeps a multi-line warning in one list item inside a tab stop", () => {
     const warning = "⚠ loc coverage issues:\nfirst issue\nsecond issue";
     renderPanel({ ...baseBrief, generationWarnings: [warning] });
-    fireEvent.click(infoTrigger());
+    fireEvent.click(warningsChip());
 
     const note = warningsNote();
     const items = note?.querySelectorAll("li") ?? [];
@@ -262,7 +308,7 @@ describe("BriefDetailsPanel sections for a full brief", () => {
   it("lists each warning as its own item", () => {
     const warnings = ["⚠ first long warning", "⚠ second long warning"];
     renderPanel({ ...baseBrief, generationWarnings: warnings });
-    fireEvent.click(infoTrigger());
+    fireEvent.click(warningsChip());
 
     const region = screen.getByRole("region", { name: /warnings/i });
     const items = within(region).getAllByRole("listitem");
@@ -292,7 +338,7 @@ describe("BriefDetailsPanel sections for a full brief", () => {
       ...baseBrief,
       anchorWarnings: [AnchorWarnings.HUNKS_UNPAIRED],
     });
-    fireEvent.click(infoTrigger());
+    fireEvent.click(warningsChip());
 
     const region = screen.getByRole("region", { name: /warnings/i });
     expect(warningsChip().textContent).toBe("2 generation warnings");
@@ -378,7 +424,7 @@ describe("BriefDetailsPanel sections for a full brief", () => {
 });
 
 describe("BriefDetailsPanel sections for a delta artifact", () => {
-  it("Artifact: span with indices and full SHAs, no commit range", () => {
+  it("Artifact: span with short SHAs and no commit range", () => {
     renderPanel(deltaBrief);
     fireEvent.click(infoTrigger());
     const artifact = document.querySelector(
@@ -386,12 +432,12 @@ describe("BriefDetailsPanel sections for a delta artifact", () => {
     );
     const text = artifact?.textContent ?? "";
     expect(text).toContain("Delta brief");
-    expect(text).toContain("_2");
-    expect(text).toContain("_3");
+    expect(text).not.toContain("_2");
+    expect(text).toContain("c".repeat(7));
+    expect(text).toContain("a".repeat(7));
     const spanArrow = artifact?.querySelector('[data-icon="arrow-up"]');
     expect(spanArrow?.getAttribute("data-rotation")).toBe("90");
-    expect(text).toContain("c".repeat(40));
-    expect(text).toContain("a".repeat(40));
+    expect(text).not.toContain("c".repeat(40));
     expect(text).not.toContain(appI18n.t("brief.details.commitRange"));
   });
 });
@@ -406,5 +452,109 @@ describe("BriefDetailsPanel split section", () => {
     expect(section).toContain("+40");
     expect(section).toContain("50%");
     expect(section).toContain("Unattributed");
+  });
+});
+
+describe("BriefDetailsPanel SHA copy labels", () => {
+  it.each([
+    ["commit range", baseBrief],
+    ["delta span", deltaBrief],
+  ])("keeps the facts open on each %s SHA's copy label", (_kind, brief) => {
+    startColdCalloutTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    renderPanel(brief);
+    fireEvent.click(infoTrigger());
+    const shaButtons = screen.getAllByRole("button", { name: /Copy full SHA/ });
+    expect(shaButtons).toHaveLength(2);
+
+    for (const shaButton of shaButtons) {
+      const label = shaButton.getAttribute("aria-label") ?? "";
+      const panel = shaButton.closest("[data-callout]");
+      fireEvent.pointerEnter(shaButton, { pointerType: "mouse" });
+      act(() => {
+        vi.advanceTimersByTime(CALLOUT_HOVER_DELAY_MS);
+      });
+      const tip = screen.getByText(label).closest("[data-callout]");
+      if (panel === null || tip === null) {
+        throw new Error("the SHA or its label sits outside a callout");
+      }
+      expect(panel.contains(tip)).toBe(false);
+
+      fireEvent.mouseLeave(panel, { relatedTarget: tip, clientX: 50 });
+      expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+    }
+  });
+});
+
+describe("BriefDetailsPanel focus leaving the facts", () => {
+  const pageControl = document.createElement("button");
+
+  afterEach(() => {
+    pageControl.remove();
+  });
+
+  function renderFocusedOnSha(): HTMLElement | undefined {
+    document.body.append(pageControl);
+    renderPanel();
+    fireEvent.click(infoTrigger());
+    const [firstSha] = screen.getAllByRole("button", { name: /Copy full SHA/ });
+    firstSha?.focus();
+    return firstSha;
+  }
+
+  it("closes when focus moves from the facts to a page control", async () => {
+    renderFocusedOnSha();
+
+    await act(async () => {
+      pageControl.focus();
+      await Promise.resolve();
+    });
+
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(pageControl);
+  });
+
+  it("stays open when the window loses focus", async () => {
+    const firstSha = renderFocusedOnSha();
+
+    await act(async () => {
+      firstSha?.blur();
+      await Promise.resolve();
+    });
+
+    expect(infoTrigger().getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+describe("BriefDetailsPanel warnings opened by a click", () => {
+  it("stay open when the pointer leaves the chip for the page", () => {
+    renderPanel();
+    fireEvent.click(warningsChip());
+
+    fireEvent.mouseLeave(warningsChip(), {
+      relatedTarget: document.body,
+      clientY: 0,
+    });
+
+    expect(warningsNote()).not.toBeNull();
+    expect(document.activeElement).toBe(warningsNote());
+  });
+
+  it("close when focus moves out to a page control", async () => {
+    const pageControl = document.createElement("button");
+    document.body.append(pageControl);
+    onTestFinished(() => pageControl.remove());
+    renderPanel();
+    fireEvent.click(warningsChip());
+
+    await act(async () => {
+      pageControl.focus();
+      await Promise.resolve();
+    });
+
+    expect(warningsNote()).toBeNull();
+    expect(document.activeElement).toBe(pageControl);
   });
 });

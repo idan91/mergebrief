@@ -1,7 +1,8 @@
+import type { OpenChangeReason } from "@floating-ui/react";
 import { LocalBriefKinds } from "contract";
 import { useTranslation } from "react-i18next";
 import { formatDisplayPath } from "brief-core/hidden-chars";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { Callout } from "@web/components/Callout";
 import { CALLOUT_ROOT_SELECTOR } from "@web/components/Callout/consts";
@@ -22,7 +23,10 @@ import {
   IconSizes,
 } from "@web/components/Icon/types";
 import styles from "./BriefDetailsPanel.module.scss";
+import { GenerationWarnings } from "./GenerationWarnings";
+import { ShaCopy } from "./ShaCopy";
 import { SplitSection } from "./SplitSection";
+import { DetailsSurfaces, type DetailsSurface } from "./types";
 import { listWarningLines } from "./utils";
 
 export interface BriefDetailsPanelProps {
@@ -40,14 +44,13 @@ export interface BriefDetailsPanelProps {
 }
 
 /**
- * The ⓘ Brief-details disclosure and its second trigger, the
- * generation-warnings count chip, co-located so ONE close path owns focus
- * return; a close that leaves keyboard focus on an unmounted portal node
- * would dump it on <body>.
+ * The ⓘ Brief-details disclosure and the generation-warnings chip, co-located
+ * so ONE close path owns focus return; a close that leaves keyboard focus on
+ * an unmounted portal node would dump it on <body>. Each trigger opens its own
+ * surface, and one is open at a time.
  *
- * One anchored callout in the RiskChipDisclosure grammar: hover previews,
- * click is canonical, Escape-at-capture dismisses without reaching page
- * shortcuts.
+ * Hover previews the facts, click is canonical, Escape-at-capture dismisses
+ * without reaching page shortcuts.
  */
 export function BriefDetailsPanel({
   brief,
@@ -59,73 +62,50 @@ export function BriefDetailsPanel({
   shares,
 }: BriefDetailsPanelProps) {
   const { t } = useTranslation();
-  const detailId = useId();
-  const [open, setOpen] = useState(false);
-  const [landing, setLanding] = useState<"warnings" | null>(null);
+  const surfaceId = useId();
+  const [openSurface, setOpenSurface] = useState<DetailsSurface | undefined>();
   const [triggerEl, setTriggerEl] = useState<HTMLButtonElement | null>(null);
-  const chipRef = useRef<HTMLButtonElement>(null);
-  /** Which trigger opened the current panel, the close path's focus home. */
-  const openerRef = useRef<"info" | "chip" | null>(null);
-  /** The mounted warnings node (portal content), for already-open landings. */
-  const warningsNodeRef = useRef<HTMLDivElement | null>(null);
-  const landedRef = useRef(false);
+  const [chipEl, setChipEl] = useState<HTMLButtonElement | null>(null);
+  const [warningsNode, setWarningsNode] = useState<HTMLDivElement | null>(null);
 
-  const close = () => {
-    // Focus return: if focus lives inside the portal (a chip landing put it
-    // there), the unmount would drop it on <body>, so send it back to the
-    // trigger that opened the panel instead.
+  // Focus inside the portal would drop to <body> when the surface unmounts,
+  // so it goes home to the trigger of the surface it leaves or lands on,
+  // without scrolling: an outside press closes mid-press, and a jump would
+  // move the page under the pointer before its click lands.
+  const moveTo = (next: DetailsSurface | undefined) => {
     const callout = document
-      .getElementById(detailId)
+      .getElementById(surfaceId)
       ?.closest(CALLOUT_ROOT_SELECTOR);
     const focusWasInside = callout?.contains(document.activeElement) ?? false;
-    setOpen(false);
-    setLanding(null);
-    landedRef.current = false;
+    const home =
+      (next ?? openSurface) === DetailsSurfaces.WARNINGS ? chipEl : triggerEl;
+    setOpenSurface(next);
     if (focusWasInside) {
-      const home = openerRef.current === "chip" ? chipRef.current : triggerEl;
-      home?.focus();
+      home?.focus({ preventScroll: true });
     }
   };
-
-  const openPlain = () => {
-    openerRef.current = "info";
-    setLanding(null);
-    setOpen(true);
-  };
-
-  const openOnWarnings = () => {
-    openerRef.current = "chip";
-    setLanding("warnings");
-    setOpen(true);
-    // Already open (plain or re-landing): the node is mounted, so the
-    // callback ref below will never re-fire, so land directly.
-    const node = warningsNodeRef.current;
-    if (node) {
-      landedRef.current = true;
-      node.focus();
-    } else {
-      landedRef.current = false;
+  const close = () => moveTo(undefined);
+  // The chip opens its panel only on click, so a wandering pointer keeps it.
+  const closeWarnings = (reason?: OpenChangeReason) => {
+    const pointerLeft = reason === "hover" || reason === "safe-polygon";
+    if (!pointerLeft) {
+      close();
     }
   };
+  const toggle = (surface: DetailsSurface) =>
+    moveTo(openSurface === surface ? undefined : surface);
 
-  // The warnings-chip path lands ON the warnings text. A callback ref, not
-  // an effect: Callout's FloatingPortal mounts its children one commit
-  // AFTER the open flip, so an [open]-keyed effect fires before the node
-  // exists. Landing happens exactly once per open (the flag re-arms on
-  // close) so a re-render mid-read can't yank focus back.
-  const landOnWarnings = (node: HTMLDivElement | null) => {
-    warningsNodeRef.current = node;
-    if (node && landing === "warnings" && !landedRef.current) {
-      landedRef.current = true;
-      node.focus();
-    }
-  };
+  // The chip lands ON the warnings text. Keyed on the node: Callout's
+  // FloatingPortal mounts its children a commit after the open flip.
+  useEffect(() => {
+    warningsNode?.focus();
+  }, [warningsNode]);
 
   // Escape must dismiss a hover-opened callout too, and focus may be anywhere,
   // so listen at the document while open, capture phase, and consume the key
   // so it never reaches page-level handling.
   useEffect(() => {
-    if (!open) {
+    if (openSurface === undefined) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -141,6 +121,34 @@ export function BriefDetailsPanel({
   });
 
   const warnings = listWarningLines(t, brief);
+  const factsOpen = openSurface === DetailsSurfaces.FACTS;
+  const warningsOpen = openSurface === DetailsSurfaces.WARNINGS;
+
+  // Hover never closes the click-opened warnings panel, so a press anywhere
+  // outside the chip and the panel does.
+  useEffect(() => {
+    if (!warningsOpen) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+      const panel = document
+        .getElementById(surfaceId)
+        ?.closest(CALLOUT_ROOT_SELECTOR);
+      const onChip = chipEl?.contains(event.target) ?? false;
+      const onPanel = panel?.contains(event.target) ?? false;
+      if (!onChip && !onPanel) {
+        close();
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", onPointerDown, true);
+  });
+  const factsControls = factsOpen ? surfaceId : undefined;
+  const warningsControls = warningsOpen ? surfaceId : undefined;
 
   return (
     <>
@@ -150,26 +158,32 @@ export function BriefDetailsPanel({
           // Hover preview is a MOUSE affordance; touch/pen go through click
           // (touch browsers synthesize mouseenter before click, so a
           // hover-open would be immediately toggled shut). Never clobber an
-          // already-open panel's landing state.
-          if (event.pointerType === "mouse" && !open) {
-            openPlain();
+          // already-open surface.
+          if (event.pointerType === "mouse" && openSurface === undefined) {
+            setOpenSurface(DetailsSurfaces.FACTS);
           }
         }}
       >
         <IconButton
-          aria-controls={open ? detailId : undefined}
-          aria-expanded={open}
+          aria-controls={factsControls}
+          aria-expanded={factsOpen}
           className={styles["trigger"]}
           data-brief-details-trigger=""
           label={t("brief.details.ariaLabelTrigger")}
           ref={setTriggerEl}
-          onClick={() => (open ? close() : openPlain())}
+          onClick={() => toggle(DetailsSurfaces.FACTS)}
         >
           <span aria-hidden="true">i</span>
         </IconButton>
-        {open && triggerEl ? (
-          <Callout anchor={triggerEl} fit interactive onClose={close}>
-            <span className={styles["panel"]} id={detailId}>
+        {factsOpen && triggerEl ? (
+          <Callout
+            anchor={triggerEl}
+            fit
+            interactive
+            placement="bottom-start"
+            onClose={close}
+          >
+            <span className={styles["panel"]} id={surfaceId}>
               <ArtifactSection
                 brief={brief}
                 totalAdded={totalAdded}
@@ -178,42 +192,49 @@ export function BriefDetailsPanel({
                 totalCoreDeleted={totalCoreDeleted}
               />
               {shares ? <SplitSection shares={shares} /> : null}
-              <GenerationSection
-                brief={brief}
-                warnings={warnings}
-                warningsRef={landOnWarnings}
-              />
+              <GenerationSection brief={brief} />
               <RepoConfigSection repoConfig={repoConfig} />
             </span>
           </Callout>
         ) : null}
       </span>
       {warnings.length > 0 ? (
-        // Opens the SAME panel, landed on the warnings block. A landed-open
-        // chip click closes again: a button announcing aria-expanded must
-        // collapse on activation.
         <Chip
-          aria-controls={open ? detailId : undefined}
-          aria-expanded={open && landing === "warnings"}
+          aria-controls={warningsControls}
+          aria-expanded={warningsOpen}
           className={styles["warningsChip"]}
           data-generation-warnings-chip=""
-          ref={chipRef}
+          ref={setChipEl}
           tone="warning"
-          onClick={() =>
-            open && landing === "warnings" ? close() : openOnWarnings()
-          }
+          onClick={() => toggle(DetailsSurfaces.WARNINGS)}
         >
           <Icon name={IconNames.WARNING} size={IconSizes.SM} />
           <span>{t("brief.details.warnings", { count: warnings.length })}</span>
         </Chip>
       ) : null}
+      {warningsOpen && chipEl ? (
+        <Callout
+          anchor={chipEl}
+          fit
+          interactive
+          placement="bottom-start"
+          onClose={closeWarnings}
+        >
+          <span className={styles["panel"]} id={surfaceId}>
+            <GenerationWarnings ref={setWarningsNode} warnings={warnings} />
+          </span>
+        </Callout>
+      ) : null}
     </>
   );
 }
 
-/** Shorten to the conventional 8-char display form; full SHAs get their own row. */
-function short(sha: string): string {
-  return sha.slice(0, 8);
+export interface ArtifactSectionProps {
+  brief: Brief;
+  totalAdded: number;
+  totalDeleted: number;
+  totalCoreAdded: number;
+  totalCoreDeleted: number;
 }
 
 function ArtifactSection({
@@ -222,18 +243,8 @@ function ArtifactSection({
   totalDeleted,
   totalCoreAdded,
   totalCoreDeleted,
-}: {
-  brief: Brief;
-  totalAdded: number;
-  totalDeleted: number;
-  totalCoreAdded: number;
-  totalCoreDeleted: number;
-}) {
+}: ArtifactSectionProps) {
   const { t } = useTranslation();
-  const hasBaselineIndex =
-    brief.baselineIndex !== null && brief.baselineIndex !== undefined;
-  const hasHeadIndex =
-    brief.headIndex !== null && brief.headIndex !== undefined;
   const artifactKindLabel = getArtifactKindLabel(t, brief.artifactKind);
   return (
     <section className={styles["section"]} data-details-section="artifact">
@@ -243,31 +254,18 @@ function ArtifactSection({
       <dl className={styles["facts"]}>
         <dt>{t("brief.details.kind")}</dt>
         <dd>{artifactKindLabel}</dd>
-        {brief.artifactKind === LocalBriefKinds.BRIEF &&
-        brief.index !== undefined ? (
-          <>
-            <dt>{t("brief.details.briefIndex")}</dt>
-            <dd>_{brief.index}</dd>
-          </>
-        ) : null}
         {brief.artifactKind === LocalBriefKinds.BRIEF && brief.commitRange ? (
           <>
             <dt>{t("brief.details.commitRange")}</dt>
-            <dd>
-              {short(brief.commitRange.base)}..{short(brief.commitRange.head)} ·{" "}
-              {t("brief.details.commits", {
-                count: brief.commitRange.commitCount,
-              })}
-            </dd>
-            <dt>{t("brief.details.fullShas")}</dt>
-            <dd className={styles["shas"]}>
-              {brief.commitRange.base}{" "}
-              <Icon
-                name={IconNames.ARROW_UP}
-                rotation={IconRotations.QUARTER}
-                size={IconSizes.SM}
-              />{" "}
-              {brief.commitRange.head}
+            <dd className={styles["shaRange"]}>
+              <ShaCopy sha={brief.commitRange.base} />
+              <span aria-hidden="true">..</span>
+              <ShaCopy sha={brief.commitRange.head} />
+              <span>
+                {t("brief.details.commits", {
+                  count: brief.commitRange.commitCount,
+                })}
+              </span>
             </dd>
           </>
         ) : null}
@@ -276,26 +274,14 @@ function ArtifactSection({
         brief.headSha ? (
           <>
             <dt>{t("brief.details.span")}</dt>
-            <dd>
-              {hasBaselineIndex
-                ? `_${brief.baselineIndex}`
-                : short(brief.baselineSha)}{" "}
+            <dd className={styles["shaRange"]}>
+              <ShaCopy sha={brief.baselineSha} />
               <Icon
                 name={IconNames.ARROW_UP}
                 rotation={IconRotations.QUARTER}
                 size={IconSizes.SM}
-              />{" "}
-              {hasHeadIndex ? `_${brief.headIndex}` : short(brief.headSha)}
-            </dd>
-            <dt>{t("brief.details.fullShas")}</dt>
-            <dd className={styles["shas"]}>
-              {brief.baselineSha}{" "}
-              <Icon
-                name={IconNames.ARROW_UP}
-                rotation={IconRotations.QUARTER}
-                size={IconSizes.SM}
-              />{" "}
-              {brief.headSha}
+              />
+              <ShaCopy sha={brief.headSha} />
             </dd>
           </>
         ) : null}
@@ -318,16 +304,11 @@ function ArtifactSection({
   );
 }
 
-function GenerationSection({
-  brief,
-  warnings,
-  warningsRef,
-}: {
+export interface GenerationSectionProps {
   brief: Brief;
-  /** The panel's warning lines, anchor warnings first, each once. */
-  warnings: readonly string[];
-  warningsRef: (node: HTMLDivElement | null) => void;
-}) {
+}
+
+function GenerationSection({ brief }: GenerationSectionProps) {
   const { t } = useTranslation();
   const generation = brief.generation;
   return (
@@ -340,7 +321,7 @@ function GenerationSection({
           <dt>{t("brief.details.provider")}</dt>
           <dd>{generation.provider}</dd>
           <dt>{t("brief.details.model")}</dt>
-          <dd className={styles["shas"]}>{generation.model}</dd>
+          <dd className={styles["modelId"]}>{generation.model}</dd>
           {generation.effort ? (
             <>
               <dt>{t("brief.details.effort")}</dt>
@@ -351,34 +332,15 @@ function GenerationSection({
       ) : (
         <p className={styles["caveat"]}>{t("brief.details.noOriginStamp")}</p>
       )}
-      {warnings.length > 0 ? (
-        // A capped scroll region, so a Tab stop; also the header chip's
-        // landing target.
-        <div
-          aria-label={t("brief.details.ariaLabelWarnings")}
-          className={styles["warnings"]}
-          data-details-warnings=""
-          ref={warningsRef}
-          role="region"
-          tabIndex={0}
-        >
-          {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles -- WebKit drops list semantics under list-style: none without it */}
-          <ul className={styles["warningList"]} role="list">
-            {warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
     </section>
   );
 }
 
-function RepoConfigSection({
-  repoConfig,
-}: {
+export interface RepoConfigSectionProps {
   repoConfig: RepoConfigContext | null | undefined;
-}) {
+}
+
+function RepoConfigSection({ repoConfig }: RepoConfigSectionProps) {
   const { t } = useTranslation();
   const anyPresent =
     repoConfig !== null &&

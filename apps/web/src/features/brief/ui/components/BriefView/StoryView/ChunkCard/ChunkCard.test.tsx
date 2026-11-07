@@ -281,9 +281,12 @@ describe("ChunkCard selectable file path", () => {
 
     const toggle = screen.getByTestId("chunk-toggle");
     expect(within(toggle).getByText("src/[U+202E]txt.exe")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /copy file path/i }).title).toBe(
-      "src/[U+202E]txt.exe",
-    );
+    expect(
+      within(toggle)
+        .getByText("src/[U+202E]txt.exe")
+        .closest("[title]")
+        ?.getAttribute("title"),
+    ).toBe("src/[U+202E]txt.exe");
   });
 
   it("copies the full file path without toggling the chunk", async () => {

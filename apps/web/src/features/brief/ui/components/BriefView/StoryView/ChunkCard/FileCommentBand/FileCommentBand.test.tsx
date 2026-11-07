@@ -231,7 +231,8 @@ describe("FileCommentBand", () => {
     const control = screen.getByRole("button", {
       name: "Add a comment on src/a.ts",
     });
-    // Focus shows the callout at once; a pointer earns it after a rest.
+    // Keyboard focus shows the callout at once; a pointer earns it after a rest.
+    vi.spyOn(control, "matches").mockReturnValue(true);
     fireEvent.focus(control);
     expect(screen.getByRole("tooltip").textContent).toBe("Comment on file");
   });

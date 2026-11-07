@@ -453,11 +453,10 @@
       "ariaLabelWarnings": "Generation warnings",
       "artifactHeading": "Artifact",
       "kind": "Kind",
-      "briefIndex": "Brief index",
       "commitRange": "Commit range",
+      "copySha": "Copy full SHA {{sha}}",
       "commits_one": "{{count}} commit",
       "commits_other": "{{count}} commits",
-      "fullShas": "Full SHAs",
       "span": "Span",
       "changedLines": "Changed lines",
       "coreLines": "Core lines",
@@ -484,7 +483,6 @@
     },
     "shortcuts": {
       "heading": "Keyboard shortcuts",
-      "close": "Close",
       "nextChunk": "Next chunk",
       "previousChunk": "Previous chunk",
       "nextGroup": "Next group in reading order",
@@ -612,8 +610,6 @@
     },
     "group": {
       "ariaLabelGroupRiskSurface": "Risk surface of {{title}}",
-      "titleMarkSelectedAddressed": "Mark selected risks as reviewed and handled",
-      "titleMarkSelectedDismissed": "Mark selected risks as not applicable",
       "noGroupFlags": "No risk-surface attributes on this group.",
       "groupOf": "Group {{index}} of {{total}}",
       "dominantKind": "Dominant:",
@@ -1150,8 +1146,6 @@
     },
     "summary": {
       "outcomeLabel": "Review outcome",
-      "coveredHeading": "What the reviewer covered",
-      "chunksReviewed": "Chunks reviewed",
       "inlineComments": "Inline comments",
       "noComments": "No draft comments in this preview.",
       "addressedRisks": "Addressed risks",
@@ -1225,9 +1219,9 @@
       "backToVerdict": "Back to verdict",
       "receiptCommentsFold": "Inline comments ({{total}})",
       "receiptRiskFold": "Risk disposition: {{addressed}} addressed · {{dismissed}} dismissed · {{open}} open",
-      "receiptRiskFlagTotal": "Risk flags",
       "receiptPostedTag": "posted",
       "receiptShowRaw": "Show raw receipt",
+      "details": "Details",
       "tooLargeWithReviewComment": "This review is too large to submit as one review (GitHub's body limit). Shorten the review comment or some inline comments, or submit in parts.",
       "tooLargeComments": "This review's comments are too large to submit as one review (GitHub's body limit). Shorten some comments, or submit in parts.",
       "pathTooLong": "A comment is anchored to a file whose path is too long to submit. Delete that draft to continue.",
@@ -1517,6 +1511,7 @@
     "stale": "The latest refresh failed. This count was read at {{time}}."
   },
   "shell": {
+    "close": "Close",
     "settingsHeading": "Settings",
     "settingsSections": "Settings sections",
     "settingsTabTokens": "API tokens",

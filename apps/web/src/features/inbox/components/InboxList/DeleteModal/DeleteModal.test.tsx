@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { InboxReviewStates } from "types/inbox";
 import { describe, expect, it, vi } from "vitest";
 
+import { stubExitTransition } from "@web/test/transitions";
 import type { InboxItem } from "../../../types";
 import { DeleteModal } from ".";
+
+const EXIT_MS = 120;
 
 function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   return {
@@ -52,7 +61,7 @@ describe("DeleteModal", () => {
     );
   });
 
-  it("names one row in the heading and the cascade in three paragraphs", () => {
+  it("names one row in the heading and the cascade in one paragraph", () => {
     renderModal();
 
     expect(
@@ -65,9 +74,7 @@ describe("DeleteModal", () => {
       .getAllByText(/./, { selector: "p" })
       .map((node) => node.textContent);
     expect(paragraphs).toEqual([
-      "Every brief for this pull request goes, and with it every reviewer's review session, draft comments and flag decisions.",
-      "This cannot be undone.",
-      "The next push is briefed as usual; the comment on GitHub stays.",
+      "Every brief for this pull request goes, and with it every reviewer's review session, draft comments and flag decisions. This cannot be undone. The next push is briefed as usual; the comment on GitHub stays.",
     ]);
     expect(screen.queryByRole("list")).toBeNull();
   });
@@ -126,5 +133,25 @@ describe("DeleteModal", () => {
         .getByRole("button", { name: "Cancel" })
         .getAttribute("aria-disabled"),
     ).toBe("true");
+  });
+
+  it("keeps naming the closed rows through the exit fade", () => {
+    vi.useFakeTimers();
+    const exitStyle = stubExitTransition(EXIT_MS);
+    const props = { busy: false, cancel: vi.fn(), confirm: vi.fn() };
+    const { rerender } = render(
+      <DeleteModal {...props} items={[makeItem()]} open />,
+    );
+
+    rerender(<DeleteModal {...props} items={[]} open={false} />);
+    const heading = screen.getByRole("heading", { hidden: true, level: 2 });
+    expect(heading.textContent).toBe("Delete briefs for #7 acme/payments?");
+
+    act(() => {
+      vi.advanceTimersByTime(EXIT_MS);
+    });
+    expect(heading.textContent).toBe("Delete briefs for 0 pull requests?");
+    exitStyle.remove();
+    vi.useRealTimers();
   });
 });

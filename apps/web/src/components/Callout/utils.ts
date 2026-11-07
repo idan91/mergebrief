@@ -1,5 +1,28 @@
-import { CALLOUT_ROOT_SELECTOR, PARKED_TABINDEX_ATTRIBUTE } from "./consts";
+import {
+  CALLOUT_ROOT_SELECTOR,
+  CALLOUT_WARM_MS,
+  PARKED_TABINDEX_ATTRIBUTE,
+} from "./consts";
 import type { ContentTabStopState } from "./types";
+
+let openCallouts = 0;
+let warmUntil = 0;
+
+/** Marks one callout on screen; the returned function marks it gone. */
+export function holdCalloutsWarm(): () => void {
+  openCallouts += 1;
+  return () => {
+    openCallouts -= 1;
+    warmUntil = Date.now() + CALLOUT_WARM_MS;
+  };
+}
+
+/** Whether a callout is on screen, or left just now: the next skips its delay. */
+export function areCalloutsWarm(): boolean {
+  const anyOnScreen = openCallouts > 0;
+  const leftJustNow = Date.now() < warmUntil;
+  return anyOnScreen || leftJustNow;
+}
 
 /** Whether an event target or focused node sits inside any open callout. */
 export function isInsideCallout(target: EventTarget | null): boolean {

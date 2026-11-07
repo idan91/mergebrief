@@ -337,7 +337,7 @@ export const ChunkCard = memo(function ChunkCard({
               size={IconSizes.SM}
             />
           </span>
-          <span className={styles["file"]}>
+          <span className={styles["file"]} title={displayFile}>
             <bdi dir="ltr">{displayFile}</bdi>
           </span>
         </button>
@@ -345,7 +345,6 @@ export const ChunkCard = memo(function ChunkCard({
           className={styles["copyPath"]}
           label={t("brief.chunk.copyFilePath")}
           text={chunk.file}
-          title={displayFile}
         />
         {shareChunk !== undefined ? (
           <CopyButton
@@ -354,7 +353,6 @@ export const ChunkCard = memo(function ChunkCard({
             label={t("brief.chunk.copyLink")}
             onCopy={() => shareChunk.commit(chunk.id)}
             text={() => shareChunk.deriveUrl(chunk.id)}
-            title={t("brief.chunk.copyLink")}
           />
         ) : null}
         <span className={styles["chips"]}>

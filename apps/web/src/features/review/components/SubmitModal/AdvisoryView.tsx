@@ -2,16 +2,16 @@ import type { RefObject } from "react";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
-import clsx from "clsx";
 
 import { BreakablePath } from "@web/components/BreakablePath";
 import { Button } from "@web/components/Button";
+import { Modal } from "@web/components/Modal";
 import { RowButton } from "@web/components/RowButton";
 import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
-import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { type UnresolvedItem } from "../../utils/state";
 import { UnresolvedItemKinds } from "../../utils/types";
 import styles from "./SubmitModal.module.scss";
+import modalStyles from "@web/components/Modal/Modal.module.scss";
 
 export interface AdvisoryViewProps {
   headingRef: RefObject<HTMLHeadingElement | null>;
@@ -31,10 +31,18 @@ export function AdvisoryView({
   const { t } = useTranslation();
   return (
     <>
-      <h2 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
-        {t("review.submit.beforeYouSubmit")}
-      </h2>
-      <p className={modalStyles["copy"]}>{t("review.submit.advisoryIntro")}</p>
+      <Modal.Header
+        close={close}
+        detail={
+          <>
+            {t("review.submit.advisoryIntro")}{" "}
+            {t("review.submit.jumpClosesDialog")}
+          </>
+        }
+        headingRef={headingRef}
+        id="submit-modal-heading"
+        title={t("review.submit.beforeYouSubmit")}
+      />
       <div className={modalStyles["unresolvedList"]}>
         {items.map((item) => (
           <RowButton
@@ -57,13 +65,12 @@ export function AdvisoryView({
           </RowButton>
         ))}
       </div>
-      <p className={styles["hint"]}>{t("review.submit.jumpClosesDialog")}</p>
-      <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
+      <Modal.Footer>
         <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
         <Button variant="accent" onClick={continueToVerdict}>
           {t("review.submit.continueAction")}
         </Button>
-      </div>
+      </Modal.Footer>
     </>
   );
 }

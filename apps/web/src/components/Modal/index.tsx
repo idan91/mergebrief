@@ -1,7 +1,11 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import clsx from "clsx";
 
+import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { ModalFooter } from "./Footer";
+import { ModalHeader } from "./Header";
+import { useHeldChildren } from "./useHeldChildren";
 import styles from "./Modal.module.scss";
 
 export interface ModalProps {
@@ -27,22 +31,29 @@ export interface ModalProps {
    * opens names it; absent, the element focused at open is used.
    */
   opener?: HTMLElement | undefined;
+  /** No enter or exit, for a surface the keyboard opens many times a session. */
+  instant?: boolean;
   children: ReactNode;
 }
 
-export function Modal({
+function ModalRoot({
   open,
   boxClassName,
   labelledBy,
   close,
   initialFocus,
   opener,
+  instant = false,
   children,
 }: ModalProps) {
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const latestInitialFocus = useRef(initialFocus);
   const latestOpener = useRef(opener);
+
+  useBodyScrollLock(open);
+  const shownChildren = useHeldChildren(open, instant, modalRef, children);
 
   // Read through refs so a caller handing a fresh ref object mid-dialog
   // never re-runs the focus effect and re-captures a stale trigger.
@@ -84,7 +95,9 @@ export function Modal({
         const dropped = active === null || active === document.body;
         const inside = active !== null && box?.contains(active);
         if ((dropped || inside) && trigger !== null && trigger.isConnected) {
-          trigger.focus();
+          // The page was scroll-locked while open, so the trigger has not moved;
+          // a tall trigger like the reading region would otherwise jump the page.
+          trigger.focus({ preventScroll: true });
         }
       });
     };
@@ -111,10 +124,12 @@ export function Modal({
   return (
     <div
       className={styles["modal"]}
+      data-motion={instant ? "instant" : undefined}
       data-state={open ? "open" : "closed"}
-      // Closed modal is display:none, but keep it out of the a11y tree and tab
-      // order explicitly too.
+      // The box stays painted through its exit: inert keeps a leaving dialog
+      // out of the a11y tree, the tab order and the pointer.
       inert={!open}
+      ref={modalRef}
     >
       {/* The keydown is the dialog's Tab TRAP, not an interactive behavior:
           the box only steers focus among the real controls inside it. */}
@@ -128,8 +143,13 @@ export function Modal({
         tabIndex={-1}
         onKeyDown={onTrapKeyDown}
       >
-        {children}
+        {shownChildren}
       </div>
     </div>
   );
 }
+
+export const Modal = Object.assign(ModalRoot, {
+  Header: ModalHeader,
+  Footer: ModalFooter,
+});

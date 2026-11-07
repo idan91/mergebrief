@@ -17,10 +17,6 @@
     flex-direction: column;
   }
 
-  .receiptHead {
-    flex: none;
-  }
-
   .receiptBody {
     flex: 1 1 auto;
     min-block-size: functions.to-rem(120px);
@@ -77,12 +73,6 @@
     }
   }
 
-  // Rides alongside the shared modal actions row: three buttons don't fit a
-  // narrow viewport on one line.
-  .actionsRow {
-    flex-wrap: wrap;
-  }
-
   .hint {
     margin-block: functions.to-rem(6px) functions.to-rem(4px);
     color: var(--color-text-3);
@@ -110,7 +100,7 @@
 
   .submitStatus {
     max-inline-size: 64ch;
-    margin-block-start: functions.to-rem(10px);
+    margin-block-end: functions.to-rem(10px);
     color: var(--color-text-3);
     font-size: var(--font-size-lg);
     line-height: 1.5;
@@ -120,24 +110,10 @@
     }
   }
 
-  .receiptTitle {
-    display: flex;
-    align-items: center;
-    gap: functions.to-rem(12px);
-    margin-block-end: functions.to-rem(4px);
-  }
-
   .tag {
     color: var(--color-text-2);
     font-size: var(--font-size-sm);
     font-weight: 500;
-  }
-
-  .sub {
-    margin-block: functions.to-rem(6px) functions.to-rem(16px);
-    color: var(--color-text-3);
-    font-size: var(--font-size-lg);
-    line-height: 1.5;
   }
 
   @media (width <= 720px) {

@@ -310,13 +310,12 @@ describe("IntentBar", () => {
     const button = screen.getByRole("button", {
       name: "Go to change-group g1: Add the widget endpoint and its store",
     });
-    // The hover tooltip carries the same text as the accessible name.
-    expect(button.getAttribute("title")).toBe(
+    expect(button.getAttribute("title")).toBeNull();
+    vi.spyOn(button, "matches").mockReturnValue(true);
+    fireEvent.focus(button);
+    expect(screen.getByRole("tooltip").textContent).toBe(
       "Go to change-group g1: Add the widget endpoint and its store",
     );
-    // A group with no known title keeps the plain label.
-    const bare = screen.getByRole("button", { name: "Go to change-group g2" });
-    expect(bare.getAttribute("title")).toBe("Go to change-group g2");
   });
 
   it("wires the go-to buttons to jumpToGroup on the TocBar path", () => {

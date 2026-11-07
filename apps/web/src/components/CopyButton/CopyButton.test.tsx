@@ -25,7 +25,6 @@ describe("CopyButton", () => {
     const onCopy = vi.fn();
     render(<CopyButton label="Copy file path" onCopy={onCopy} text="a/b.ts" />);
     const button = screen.getByRole("button", { name: /copy file path/i });
-    expect(button.getAttribute("title")).toBe("a/b.ts");
     fireEvent.click(button);
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("a/b.ts"));
     expect(onCopy).toHaveBeenCalledWith("a/b.ts");
@@ -36,16 +35,9 @@ describe("CopyButton", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     mockClipboard(writeText);
     let current = "first";
-    render(
-      <CopyButton
-        icon="link"
-        label="Copy link"
-        text={() => current}
-        title="Copy link"
-      />,
-    );
+    render(<CopyButton icon="link" label="Copy link" text={() => current} />);
     const button = screen.getByRole("button", { name: /copy link/i });
-    expect(button.getAttribute("title")).toBe("Copy link");
+    expect(button.getAttribute("title")).toBeNull();
     expect(button.querySelector('[data-icon="link"]')).not.toBeNull();
     current = "second";
     fireEvent.click(button);

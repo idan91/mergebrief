@@ -4,23 +4,32 @@ import {
   flip,
   FloatingArrow,
   FloatingFocusManager,
+  FloatingNode,
   FloatingPortal,
+  FloatingTree,
   offset,
   safePolygon,
   shift,
   size,
   useFloating,
+  useFloatingNodeId,
+  useFloatingParentNodeId,
   useHover,
   useInteractions,
   useTransitionStyles,
+  type OpenChangeReason,
   type Placement,
+  type UseFloatingOptions,
 } from "@floating-ui/react";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { prefersReducedMotion } from "../../utils/motion";
+import { POPOVER_ENTER_EASING, POPOVER_ENTER_MS } from "../Popover/consts";
+import { deriveTransformOrigin } from "../Popover/utils";
 import styles from "./Callout.module.scss";
 import { CalloutSurfaces, type CalloutSurface } from "./types";
 import { useContentTabStop } from "./useContentTabStop";
+import { areCalloutsWarm, holdCalloutsWarm } from "./utils";
 
 export interface CalloutProps {
   /** Element the callout anchors to; the parent mounts on hover/focus. */
@@ -45,9 +54,25 @@ export interface CalloutProps {
    * Called when the hover system (anchor + callout, joined by safePolygon)
    * is left; the parent unmounts the callout in response. The pointer can
    * travel into the callout and rest there (select, copy) without closing.
+   * `reason` is floating-ui's: a pointer leave, or focus moving out.
    */
-  onClose: () => void;
+  onClose: (reason?: OpenChangeReason) => void;
   children: ReactNode;
+}
+
+/** The gap the callout keeps from the viewport edge. */
+const VIEWPORT_MARGIN_PX = 8;
+
+/**
+ * A callout opened inside another joins its floating tree, so the outer one's
+ * safePolygon reads the pointer resting on the inner one as still inside.
+ */
+function CalloutTreeBoundary({ children }: { children: ReactNode }) {
+  const parentId = useFloatingParentNodeId();
+  if (parentId !== null) {
+    return children;
+  }
+  return <FloatingTree>{children}</FloatingTree>;
 }
 
 /**
@@ -56,17 +81,6 @@ export interface CalloutProps {
  * scrolling, and points at it with an arrow. Mounted = open; the parent owns the
  * open state and gets `onClose` when hover leaves.
  */
-/** How far the callout slides in from, toward its anchor. */
-const ENTER_SLIDE: Record<string, string> = {
-  top: "translateY(4px)",
-  bottom: "translateY(-4px)",
-  left: "translateX(4px)",
-  right: "translateX(-4px)",
-};
-
-/** The gap the callout keeps from the viewport edge. */
-const VIEWPORT_MARGIN_PX = 8;
-
 function CalloutRoot({
   anchor,
   placement = "top",
@@ -78,14 +92,59 @@ function CalloutRoot({
   onClose,
   children,
 }: CalloutProps) {
+  return (
+    <CalloutTreeBoundary>
+      <CalloutNode
+        anchor={anchor}
+        compact={compact}
+        fit={fit}
+        flush={flush}
+        interactive={interactive}
+        placement={placement}
+        surface={surface}
+        onClose={onClose}
+      >
+        {children}
+      </CalloutNode>
+    </CalloutTreeBoundary>
+  );
+}
+
+function CalloutNode({
+  anchor,
+  placement,
+  fit,
+  compact,
+  flush,
+  surface,
+  interactive,
+  onClose,
+  children,
+}: Required<CalloutProps>) {
   const arrowRef = useRef<SVGSVGElement | null>(null);
   const [contentEl, setContentEl] = useState<HTMLSpanElement | null>(null);
   useContentTabStop(interactive ? contentEl : null);
-  const { refs, floatingStyles, context } = useFloating({
+  const [instant] = useState(areCalloutsWarm);
+  // Only labels warm the next label; an open panel leaves the rest in place.
+  useEffect(
+    () => (interactive ? undefined : holdCalloutsWarm()),
+    [interactive],
+  );
+  // safePolygon's 40ms close timer survives the unmount; once unmounted, the
+  // parent may already show a new callout for the same anchor.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const nodeId = useFloatingNodeId();
+  const floatingOptions: UseFloatingOptions = {
     open: true,
-    onOpenChange: (open) => {
-      if (!open) {
-        onClose();
+    onOpenChange: (open, _event, reason) => {
+      if (!open && mounted.current) {
+        onClose(reason);
       }
     },
     placement,
@@ -106,18 +165,29 @@ function CalloutRoot({
       }),
       arrow({ element: arrowRef }),
     ],
-  });
+  };
+  if (nodeId !== undefined) {
+    floatingOptions.nodeId = nodeId;
+  }
+  const {
+    refs,
+    floatingStyles,
+    context,
+    placement: resolvedPlacement,
+  } = useFloating(floatingOptions);
   const hover = useHover(context, { handleClose: safePolygon() });
   const { getFloatingProps } = useInteractions([hover]);
   const reduceMotion = prefersReducedMotion();
   const { styles: transitionStyles } = useTransitionStyles(context, {
-    duration: reduceMotion ? 0 : 140,
-    common: { transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" },
-    initial: ({ side }) => ({
-      opacity: 0,
-      transform: ENTER_SLIDE[side],
-    }),
+    duration: reduceMotion || instant ? 0 : POPOVER_ENTER_MS,
+    common: { transitionTimingFunction: POPOVER_ENTER_EASING },
+    initial: { opacity: 0, transform: "scale(0.97)" },
   });
+  const floatingStyle = {
+    ...floatingStyles,
+    ...transitionStyles,
+    transformOrigin: deriveTransformOrigin(resolvedPlacement),
+  };
   const floating = (
     <span
       className={styles["callout"]}
@@ -128,7 +198,7 @@ function CalloutRoot({
       data-surface={surface}
       ref={refs.setFloating}
       role={interactive ? undefined : "tooltip"}
-      style={{ ...floatingStyles, ...transitionStyles }}
+      style={floatingStyle}
       {...getFloatingProps()}
     >
       <FloatingArrow
@@ -146,21 +216,23 @@ function CalloutRoot({
     </span>
   );
   return (
-    <FloatingPortal>
-      {interactive ? (
-        <FloatingFocusManager
-          context={context}
-          initialFocus={-1}
-          modal={false}
-          order={["reference", "content"]}
-          returnFocus={false}
-        >
-          {floating}
-        </FloatingFocusManager>
-      ) : (
-        floating
-      )}
-    </FloatingPortal>
+    <FloatingNode id={nodeId}>
+      <FloatingPortal>
+        {interactive ? (
+          <FloatingFocusManager
+            context={context}
+            initialFocus={-1}
+            modal={false}
+            order={["reference", "content"]}
+            returnFocus={false}
+          >
+            {floating}
+          </FloatingFocusManager>
+        ) : (
+          floating
+        )}
+      </FloatingPortal>
+    </FloatingNode>
   );
 }
 

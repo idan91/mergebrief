@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 
 import { Button, ButtonVariants } from "@web/components/Button";
 import { Modal } from "@web/components/Modal";
-import modalStyles from "@web/components/Modal/Modal.module.scss";
 import type { InboxItem } from "../../../types";
 
 export interface DeleteModalProps {
@@ -51,17 +50,19 @@ export function DeleteModal({
       labelledBy="inbox-delete-modal-heading"
       open={open}
     >
-      <h2 id="inbox-delete-modal-heading">{heading}</h2>
-      <p className={modalStyles["copy"]}>
-        {t("home.inbox.deleteModal.goes", { count })}
-      </p>
-      <p className={modalStyles["copy"]}>
-        {t("home.inbox.deleteModal.irreversible")}
-      </p>
-      <p className={modalStyles["copy"]}>
-        {t("home.inbox.deleteModal.next", { count })}
-      </p>
-      <div className={modalStyles["actions"]}>
+      <Modal.Header
+        close={close}
+        detail={
+          <>
+            {t("home.inbox.deleteModal.goes", { count })}{" "}
+            {t("home.inbox.deleteModal.irreversible")}{" "}
+            {t("home.inbox.deleteModal.next", { count })}
+          </>
+        }
+        id="inbox-delete-modal-heading"
+        title={heading}
+      />
+      <Modal.Footer>
         <Button disabled={busy} ref={cancelRef} onClick={cancel}>
           {t("home.inbox.deleteModal.cancel")}
         </Button>
@@ -73,7 +74,7 @@ export function DeleteModal({
         >
           {confirmLabel}
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 }

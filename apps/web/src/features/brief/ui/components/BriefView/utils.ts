@@ -395,26 +395,11 @@ export function resolveRiskEvidence(
   return { kind };
 }
 
-/** The whole pinned stack as one registered length; the header writes it. */
-export const STICKY_STACK_HEIGHT_VAR = "--sticky-stack-h";
-
 /** Air between an under-stack target and the stack; tokens set it. */
 export const CHUNK_SCROLL_GAP_VAR = "--chunk-scroll-gap";
 
 /** Where a placed chunk head rests: the scroll gap, or behind the sideways row. */
 export const CHUNK_HEAD_GAP_VAR = "--chunk-head-gap";
-
-/** The page's value for a registered length; `fallback` where the page carries none. */
-export function readNumericCssVar(name: string, fallback = 0): number {
-  if (typeof window === "undefined") {
-    return fallback;
-  }
-  const value = window
-    .getComputedStyle(document.documentElement)
-    .getPropertyValue(name);
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 /**
  * The header queries this boundary to collapse its title as content reaches it.

@@ -1,10 +1,28 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { useState } from "react";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
 import { Button } from "@web/components/Button";
+import { startColdCalloutTimers } from "@web/test/callouts";
 
 import { Callout } from ".";
+import { areCalloutsWarm } from "./utils";
 
 const VIEWPORT = { width: 1280, height: 600 };
 const FLOATING = { width: 320, height: 900 };
@@ -284,5 +302,169 @@ describe("Callout", () => {
     );
     const hoverOnly = screen.getByTestId("body").parentElement;
     expect(hoverOnly?.hasAttribute("tabindex")).toBe(false);
+  });
+});
+
+/** A label callout opened from a button inside an interactive callout. */
+function NestedCallouts({ onOuterClose }: { onOuterClose: () => void }) {
+  const [innerAnchor, setInnerAnchor] = useState<HTMLButtonElement | null>(
+    null,
+  );
+  const [innerOpen, setInnerOpen] = useState(true);
+  return (
+    <Callout anchor={anchor} interactive onClose={onOuterClose}>
+      <Button ref={setInnerAnchor} variant="secondary">
+        Inner anchor
+      </Button>
+      {innerOpen && innerAnchor ? (
+        <Callout anchor={innerAnchor} onClose={() => setInnerOpen(false)}>
+          Inner label
+        </Callout>
+      ) : null}
+    </Callout>
+  );
+}
+
+function getCalloutRoot(text: string): HTMLElement {
+  const root = screen.getByText(text).closest<HTMLElement>("[data-callout]");
+  if (root === null) {
+    throw new Error(`no callout holds ${text}`);
+  }
+  return root;
+}
+
+const ABOVE_ANCHOR = { clientX: 120, clientY: 50 };
+const BELOW_ANCHOR = { clientX: 120, clientY: 300 };
+
+describe("Callout nested in a callout", () => {
+  it("keeps the outer open while the pointer rests on the inner", () => {
+    const onOuterClose = vi.fn();
+    render(<NestedCallouts onOuterClose={onOuterClose} />);
+    const outer = getCalloutRoot("Inner anchor");
+    const inner = getCalloutRoot("Inner label");
+    expect(outer.contains(inner)).toBe(false);
+
+    fireEvent.mouseLeave(outer, { relatedTarget: inner, ...ABOVE_ANCHOR });
+    fireEvent.mouseMove(inner, ABOVE_ANCHOR);
+
+    expect(onOuterClose).not.toHaveBeenCalled();
+  });
+
+  it("closes the outer once the pointer leaves the inner for the page", () => {
+    const onOuterClose = vi.fn();
+    render(<NestedCallouts onOuterClose={onOuterClose} />);
+    const outer = getCalloutRoot("Inner anchor");
+    const inner = getCalloutRoot("Inner label");
+    const innerAnchor = screen.getByRole("button", { name: "Inner anchor" });
+
+    fireEvent.mouseLeave(anchor, { relatedTarget: outer, ...ABOVE_ANCHOR });
+    fireEvent.mouseLeave(innerAnchor, {
+      relatedTarget: inner,
+      ...ABOVE_ANCHOR,
+    });
+    fireEvent.mouseLeave(outer, { relatedTarget: inner, ...ABOVE_ANCHOR });
+    fireEvent.mouseMove(outside, BELOW_ANCHOR);
+    expect(screen.queryByText("Inner label")).toBeNull();
+
+    fireEvent.mouseMove(outside, BELOW_ANCHOR);
+    expect(onOuterClose).toHaveBeenCalledOnce();
+  });
+});
+
+const FLOATING_ABOVE_ANCHOR = { x: 60, y: 20, width: 120, height: 60 };
+/** Off the anchor's column but inside the triangle toward the callout. */
+const HEADING_FOR_CALLOUT = { clientX: 95, clientY: 100 };
+const PAST_CLOSE_TIMER_MS = 80;
+
+/** The callout sits above the anchor, so a leave toward it arms the timer. */
+function stubCalloutAboveAnchor(): void {
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function measure(this: Element) {
+      if (this === anchor) {
+        return stubRect(ANCHOR_RECT);
+      }
+      if (this.hasAttribute("data-callout")) {
+        return stubRect(FLOATING_ABOVE_ANCHOR);
+      }
+      return stubRect({ x: 0, y: 0, width: 0, height: 0 });
+    },
+  );
+}
+
+async function waitPastCloseTimer(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, PAST_CLOSE_TIMER_MS));
+  });
+}
+
+describe("Callout close timer", () => {
+  it("closes a mounted callout once its timer fires", async () => {
+    stubCalloutAboveAnchor();
+    const onClose = vi.fn();
+    render(
+      <Callout anchor={anchor} onClose={onClose}>
+        Label
+      </Callout>,
+    );
+
+    fireEvent.mouseLeave(anchor, {
+      relatedTarget: outside,
+      ...HEADING_FOR_CALLOUT,
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    await waitPastCloseTimer();
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("drops a close its timer fires after the callout unmounted", async () => {
+    stubCalloutAboveAnchor();
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <Callout anchor={anchor} onClose={onClose}>
+        Label
+      </Callout>,
+    );
+
+    fireEvent.mouseLeave(anchor, {
+      relatedTarget: outside,
+      ...HEADING_FOR_CALLOUT,
+    });
+    rerender(null);
+    await waitPastCloseTimer();
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("Callout warmth", () => {
+  it("leaves the next label cold while a panel is open", () => {
+    startColdCalloutTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+
+    render(
+      <Callout anchor={anchor} interactive onClose={() => {}}>
+        Panel
+      </Callout>,
+    );
+
+    expect(areCalloutsWarm()).toBe(false);
+  });
+
+  it("warms the next label while a label is open", () => {
+    startColdCalloutTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+
+    render(
+      <Callout anchor={anchor} onClose={() => {}}>
+        Label
+      </Callout>,
+    );
+
+    expect(areCalloutsWarm()).toBe(true);
   });
 });

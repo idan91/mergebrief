@@ -1,12 +1,14 @@
 import { findRowByLine } from "@web/components/DiffRows/utils";
 import { revisionJumpSelector } from "../../../../model/comparison/runs";
 import {
+  readNumericCssVar,
+  STICKY_STACK_HEIGHT_VAR,
+} from "@web/utils/css-vars";
+import {
   CHUNK_HEAD_GAP_VAR,
   CHUNK_SCROLL_GAP_VAR,
   deriveGroupHeadingId,
   deriveGroupSectionId,
-  readNumericCssVar,
-  STICKY_STACK_HEIGHT_VAR,
 } from "../utils";
 import { CHUNK_SCROLL_GAP_PX } from "./engine/consts";
 import {

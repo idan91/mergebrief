@@ -11,7 +11,8 @@
     box-shadow: var(--shadow-elevation-md);
 
     &[data-variant="floating"] {
-      z-index: 1;
+      // Clears a dialog's sticky footer, which is later in the DOM at z-index 1.
+      z-index: 2;
       margin: 0;
       overflow-y: auto;
       border-radius: var(--radius-panel);

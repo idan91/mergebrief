@@ -7,36 +7,7 @@
     gap: functions.to-rem(10px);
   }
 
-  .card {
-    padding: functions.to-rem(14px);
-    border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-1);
-  }
-
-  .outcomeRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: functions.to-rem(12px);
-  }
-
-  .outcomeValue {
-    padding-block: functions.to-rem(4px);
-    padding-inline: functions.to-rem(9px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
-    color: var(--color-text-1);
-    font-size: var(--font-size-md);
-  }
-
   .signature {
-    padding-block: functions.to-rem(9px);
-    padding-inline: functions.to-rem(11px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
-    margin-block-start: functions.to-rem(10px);
-    background: var(--color-background);
     color: var(--color-text-2);
     font-family: var(--mono);
     font-size: var(--font-size-sm);
@@ -45,14 +16,8 @@
 
   .metrics {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
     gap: functions.to-rem(6px);
-
-    div {
-      padding: functions.to-rem(8px);
-      border: 1px solid var(--color-outline-1);
-      border-radius: var(--radius-md);
-    }
+    margin: 0;
 
     dt {
       color: var(--color-text-3);
@@ -66,14 +31,25 @@
     }
   }
 
+  .detailsBody {
+    display: grid;
+    gap: functions.to-rem(14px);
+    padding-block-end: functions.to-rem(4px);
+  }
+
+  .sectionHeading {
+    margin-block: 0 functions.to-rem(4px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
   .fold {
-    border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-1);
+    border-block-start: 1px solid var(--color-outline-1);
 
     summary {
       padding-block: functions.to-rem(9px);
-      padding-inline: functions.to-rem(12px);
       color: var(--color-text-2);
       font-size: var(--font-size-md);
       cursor: pointer;
@@ -100,12 +76,8 @@
       transform: rotate(-90deg);
     }
 
-    > div,
-    > dl,
-    > p,
     > pre {
       padding-block: 0 functions.to-rem(10px);
-      padding-inline: functions.to-rem(12px);
     }
   }
 
@@ -129,14 +101,11 @@
   }
 
   .riskGroup {
-    h3 {
+    h4 {
       margin-block: functions.to-rem(10px) functions.to-rem(4px);
       color: var(--color-text-2);
       font-size: var(--font-size-md);
       font-weight: 700;
-
-      // Pinned: the Modal shell's heading rule would otherwise set 1.55 here.
-      line-height: 1.35;
     }
   }
 
@@ -154,7 +123,7 @@
       padding-block: functions.to-rem(3px);
       padding-inline: functions.to-rem(8px);
       border: 1px solid var(--color-outline-2);
-      border-radius: var(--radius-pill);
+      border-radius: var(--radius-chip);
       color: var(--color-text-2);
       font-size: var(--font-size-sm);
     }

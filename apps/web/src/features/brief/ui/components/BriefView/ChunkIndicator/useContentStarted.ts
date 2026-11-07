@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
 import {
-  CONTENT_START_ATTR,
   readNumericCssVar,
   STICKY_STACK_HEIGHT_VAR,
-} from "../utils";
+} from "@web/utils/css-vars";
+import { CONTENT_START_ATTR } from "../utils";
 import type { ContentStart } from "./types";
 import { isScrolledToEnd, pageScrolls } from "./utils";
 

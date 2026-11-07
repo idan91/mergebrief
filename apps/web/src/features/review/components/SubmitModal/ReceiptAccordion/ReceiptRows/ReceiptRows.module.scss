@@ -1,0 +1,30 @@
+@use "functions";
+
+@layer components {
+  .rows {
+    margin: 0;
+  }
+
+  .row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: functions.to-rem(16px);
+    padding-block: functions.to-rem(8px);
+    font-size: var(--font-size-lg);
+
+    & + & {
+      border-block-start: 1px solid var(--color-outline-1);
+    }
+
+    dt {
+      color: var(--color-text-2);
+    }
+
+    dd {
+      margin: 0;
+      color: var(--color-text-1);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}

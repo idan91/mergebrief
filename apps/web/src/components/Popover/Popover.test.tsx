@@ -7,12 +7,30 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import type * as FloatingModule from "@floating-ui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { STICKY_STACK_HEIGHT_VAR } from "@web/utils/css-vars";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { Button } from "../Button";
 import { Popover } from ".";
+import { POPOVER_VIEWPORT_PADDING_PX } from "./consts";
 import { PopoverFocusTargets, type PopoverFocusTarget } from "./types";
+
+const flipPaddings = vi.hoisted((): unknown[] => []);
+
+vi.mock("@floating-ui/react", async (importOriginal) => {
+  const floating = await importOriginal<typeof FloatingModule>();
+  function recordFlip(options: Parameters<typeof floating.flip>[0]) {
+    return floating.flip((state) => {
+      const derived = typeof options === "function" ? options(state) : options;
+      const resolved = derived ?? {};
+      flipPaddings.push(resolved.padding);
+      return resolved;
+    });
+  }
+  return { ...floating, flip: recordFlip };
+});
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
@@ -186,5 +204,38 @@ describe("Popover", () => {
     expect(closing.hasAttribute("inert")).toBe(true);
     expect(document.activeElement).toBe(trigger);
     await waitFor(() => expect(screen.queryByLabelText("Details")).toBeNull());
+  });
+});
+
+describe("Popover collision padding", () => {
+  afterEach(() => {
+    document.documentElement.style.removeProperty(STICKY_STACK_HEIGHT_VAR);
+    flipPaddings.length = 0;
+  });
+
+  it("keeps the top edge clear of the Brief page's pinned stack", async () => {
+    document.documentElement.style.setProperty(
+      STICKY_STACK_HEIGHT_VAR,
+      "120px",
+    );
+    renderPopover();
+
+    await openPopover();
+
+    await waitFor(() => expect(flipPaddings.length).toBeGreaterThan(0));
+    expect(flipPaddings.at(-1)).toMatchObject({
+      top: 120 + POPOVER_VIEWPORT_PADDING_PX,
+    });
+  });
+
+  it("pads only the viewport margin on a page with no pinned stack", async () => {
+    renderPopover();
+
+    await openPopover();
+
+    await waitFor(() => expect(flipPaddings.length).toBeGreaterThan(0));
+    expect(flipPaddings.at(-1)).toMatchObject({
+      top: POPOVER_VIEWPORT_PADDING_PX,
+    });
   });
 });

@@ -1,0 +1,28 @@
+@use "functions";
+
+@layer components {
+  .markCell {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(4px);
+    padding-inline: functions.to-rem(5px);
+  }
+
+  .mark {
+    inline-size: calc(var(--header-meta-control-h) * 2 / 3);
+    block-size: calc(var(--header-meta-control-h) * 2 / 3);
+
+    // Custom properties do not interpolate: the control height snaps at the
+    // collapse boundary, so the lengths derived from it carry the ease.
+    transition:
+      inline-size var(--header-collapse-ease),
+      block-size var(--header-collapse-ease);
+  }
+
+  .markName {
+    overflow: hidden;
+    max-inline-size: functions.to-rem(96px);
+    font-size: var(--header-meta-font);
+    text-overflow: ellipsis;
+  }
+}

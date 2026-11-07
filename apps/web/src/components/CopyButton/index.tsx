@@ -10,10 +10,8 @@ import { useCopyFeedback } from "./useCopyFeedback";
 export interface CopyButtonProps {
   /** The text written to the clipboard, or a resolver run at click time. */
   text: string | (() => string);
-  /** Accessible action label, e.g. "Copy file path". */
+  /** The action's name and its callout, e.g. "Copy file path". */
   label: string;
-  /** Tooltip; defaults to a literal text, else to the label. */
-  title?: string | undefined;
   /** The resting glyph; the copied state always shows the check. */
   icon?: IconName | undefined;
   /** Visible content in place of the resting icon; the width follows it. */
@@ -33,7 +31,6 @@ export interface CopyButtonProps {
 export function CopyButton({
   text,
   label,
-  title,
   icon = IconNames.COPY,
   content,
   onCopy,
@@ -58,10 +55,10 @@ export function CopyButton({
   return (
     <IconButton
       autoWidth={content !== undefined}
+      callout="top"
       className={`${styles["copyButton"]}${className ? ` ${className}` : ""}`}
       data-state={state}
       label={label}
-      title={title ?? (typeof text === "string" ? text : label)}
       onClick={() => void copy()}
     >
       {glyph}

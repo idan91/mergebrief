@@ -121,11 +121,9 @@ describe("SubmitModal views", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
     expect(screen.getByText(/not an approval/i)).toBeTruthy();
-    // The accordion view: outcome pinned, coverage open, raw behind a fold.
+    // Plain rows first, the rest under one closed Details disclosure.
     expect(screen.getByText("Review outcome")).toBeTruthy();
-    expect(
-      screen.getByText(/what the reviewer covered/i).closest("details")?.open,
-    ).toBe(true);
+    expect(screen.getByText("Details").closest("details")?.open).toBe(false);
     expect(screen.getByText(/show raw receipt/i)).toBeTruthy();
     expect(screen.getByText(/not checked:/i)).toBeTruthy();
     // The receipt is a pure preview: no submit control on this view.

@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 
 import { Button, ButtonVariants } from "@web/components/Button";
 import { Modal } from "@web/components/Modal";
-import modalStyles from "@web/components/Modal/Modal.module.scss";
 import type { InboxItem } from "../../../types";
 import styles from "./PurgeAttachmentsModal.module.scss";
 
@@ -53,15 +52,17 @@ export function PurgeAttachmentsModal({
       labelledBy="inbox-purge-modal-heading"
       open
     >
-      <h2 id="inbox-purge-modal-heading">
-        {t("home.inbox.purgeModal.heading", { repo })}
-      </h2>
-      <p className={modalStyles["copy"]}>
-        {t("home.inbox.purgeModal.consequence")}
-      </p>
-      <p className={modalStyles["copy"]}>
-        {t("home.inbox.purgeModal.irreversible")}
-      </p>
+      <Modal.Header
+        close={close}
+        detail={
+          <>
+            {t("home.inbox.purgeModal.consequence")}{" "}
+            {t("home.inbox.purgeModal.irreversible")}
+          </>
+        }
+        id="inbox-purge-modal-heading"
+        title={t("home.inbox.purgeModal.heading", { repo })}
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -80,7 +81,7 @@ export function PurgeAttachmentsModal({
             value={typed}
           />
         </label>
-        <div className={modalStyles["actions"]}>
+        <Modal.Footer>
           <Button
             disabled={busy}
             ref={cancelRef}
@@ -97,7 +98,7 @@ export function PurgeAttachmentsModal({
           >
             {confirmLabel}
           </Button>
-        </div>
+        </Modal.Footer>
       </form>
     </Modal>
   );

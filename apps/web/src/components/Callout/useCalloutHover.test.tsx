@@ -3,8 +3,9 @@ import { act, renderHook } from "@testing-library/react";
 import type { PointerEvent } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CALLOUT_HOVER_DELAY_MS } from "./consts";
+import { CALLOUT_HOVER_DELAY_MS, CALLOUT_WARM_MS } from "./consts";
 import { useCalloutHover } from "./useCalloutHover";
+import { holdCalloutsWarm } from "./utils";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -67,5 +68,24 @@ describe("useCalloutHover", () => {
     unmount();
 
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("skips the delay while a callout is on screen or just left", () => {
+    vi.useFakeTimers();
+    const release = holdCalloutsWarm();
+    const { result } = renderHook(() => useCalloutHover());
+
+    act(() => result.current.arm(makePointer("mouse")));
+    expect(result.current.open).toBe(true);
+
+    act(() => result.current.close());
+    release();
+    act(() => result.current.arm(makePointer("mouse")));
+    expect(result.current.open).toBe(true);
+
+    act(() => result.current.close());
+    vi.advanceTimersByTime(CALLOUT_WARM_MS);
+    act(() => result.current.arm(makePointer("mouse")));
+    expect(result.current.open).toBe(false);
   });
 });

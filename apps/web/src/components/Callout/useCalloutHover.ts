@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 
 import { CALLOUT_HOVER_DELAY_MS } from "./consts";
 import type { CalloutHover } from "./types";
+import { areCalloutsWarm } from "./utils";
 
 /**
  * The hover half of a callout: open after a pointer has rested on the
- * anchor for the delay, never for a touch (it gets no leave until the
+ * anchor for the delay, at once while another callout is warm, never for a touch (it gets no leave until the
  * finger lifts, so a callout it opened would have no close), and cleared
  * when the anchor unmounts. The caller mounts `Callout` while `open` and
  * hands it `close`; the callout's own hover system decides when to leave.
@@ -20,6 +21,10 @@ export function useCalloutHover(): CalloutHover {
       return;
     }
     window.clearTimeout(timer.current);
+    if (areCalloutsWarm()) {
+      setOpen(true);
+      return;
+    }
     timer.current = window.setTimeout(
       () => setOpen(true),
       CALLOUT_HOVER_DELAY_MS,

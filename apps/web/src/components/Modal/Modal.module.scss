@@ -3,17 +3,46 @@
 
 @layer components {
   .modal {
+    --modal-enter: 160ms;
+    --modal-exit: var(--motion-fast);
+    --modal-box-from: scale(0.98);
+
     position: fixed;
     inset: 0;
     z-index: 100;
     display: none;
     align-items: center;
     justify-content: center;
-    background: rgb(0 0 0 / 60%);
-    backdrop-filter: blur(3px);
+    background: var(--color-scrim);
+    opacity: 0;
+    transition:
+      opacity var(--modal-exit) var(--ease-out),
+      display var(--modal-exit) allow-discrete;
 
     &[data-state="open"] {
       display: flex;
+      opacity: 1;
+      transition:
+        opacity var(--modal-enter) var(--ease-out),
+        display var(--modal-enter) allow-discrete;
+
+      @starting-style {
+        opacity: 0;
+      }
+    }
+
+    // A box emptied by its close has nothing to fade: it would collapse.
+    &[data-motion="instant"][data-state],
+    &[data-state="closed"]:has(> .box:empty) {
+      transition: none;
+
+      > .box {
+        transition: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      --modal-box-from: none;
     }
   }
 
@@ -25,21 +54,31 @@
 
     inline-size: functions.to-rem(460px);
     max-inline-size: 92vw;
-    padding-block: functions.to-rem(26px);
-    padding-inline: functions.to-rem(28px);
+    max-block-size: calc(100dvh - functions.to-rem(24px));
+    overflow-y: auto;
+    padding-block: functions.to-rem(24px);
+    padding-inline: functions.to-rem(24px);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-lg);
     background: var(--color-surface-3);
     outline: none;
+    opacity: 0;
+    transform: var(--modal-box-from);
+    transition:
+      opacity var(--modal-exit) var(--ease-out),
+      transform var(--modal-exit) var(--ease-out);
 
-    // The dialog's heading at whatever level the outline gives it.
-    :where(h1, h2, h3, h4, h5, h6) {
-      margin-block-end: functions.to-rem(3px);
-      font-size: var(--font-size-xl);
-      font-weight: 600;
+    .modal[data-state="open"] > & {
+      opacity: 1;
+      transform: none;
+      transition:
+        opacity var(--motion-base) var(--ease-out),
+        transform var(--motion-base) var(--ease-out);
 
-      // Pre-scale body line-height pinned (base heading defaults set 1.35).
-      line-height: 1.55;
+      @starting-style {
+        opacity: 0;
+        transform: var(--modal-box-from);
+      }
     }
 
     textarea {
@@ -83,9 +122,9 @@
 
   .unresolvedList {
     display: grid;
-    max-block-size: functions.to-rem(320px);
-    overflow: auto;
     gap: functions.to-rem(8px);
+    padding-block-end: functions.to-rem(8px);
+    border-block-end: 1px solid var(--color-outline-1);
   }
 
   .evidenceOptions {
@@ -115,6 +154,7 @@
   }
 
   .target {
+    min-block-size: 1lh;
     margin-block-end: functions.to-rem(16px);
     color: var(--color-text-2);
     font-size: var(--font-size-md);
@@ -137,13 +177,6 @@
     &[data-state="visible"] {
       display: block;
     }
-  }
-
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: functions.to-rem(10px);
-    margin-block-start: functions.to-rem(18px);
   }
 
   .postDraftsToggle {

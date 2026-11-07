@@ -1320,14 +1320,16 @@ describe("MarkdownTextarea image attachments", () => {
     const { unmount } = render(<AttachHarness scoped={false} />);
     const unscoped = screen.getByRole("button", { name: "Attach image" });
     expect(unscoped.getAttribute("aria-disabled")).toBe("true");
-    expect(unscoped.getAttribute("title")).toContain("inside a pull request");
+    expect(unscoped.getAttribute("aria-description")).toContain(
+      "inside a pull request",
+    );
     expect(screen.queryByText(/mergebrief\/attachments/)).toBeNull();
     unmount();
 
     render(<AttachHarness installed={false} />);
     const urlBox = screen.getByRole("button", { name: "Attach image" });
     expect(urlBox.getAttribute("aria-disabled")).toBe("true");
-    expect(urlBox.getAttribute("title")).toContain("App installed");
+    expect(urlBox.getAttribute("aria-description")).toContain("App installed");
     fireEvent.paste(textarea(), {
       clipboardData: { files: [makeImageFile()], getData: () => "" },
     });

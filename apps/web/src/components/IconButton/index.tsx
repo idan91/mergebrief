@@ -96,7 +96,10 @@ export function IconButton(props: IconButtonProps) {
         }}
         onClick={handleClick}
         onFocus={(event) => {
-          if (callout !== undefined) {
+          if (
+            callout !== undefined &&
+            event.currentTarget.matches(":focus-visible")
+          ) {
             hover.show();
           }
           onFocus?.(event);

@@ -6,8 +6,11 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { startColdCalloutTimers } from "@web/test/callouts";
+
+import { Callout } from "../Callout";
 import { CALLOUT_HOVER_DELAY_MS } from "../Callout/consts";
 import { IconButton } from ".";
 
@@ -22,6 +25,13 @@ function restPointer(button: HTMLElement): void {
   act(() => {
     vi.advanceTimersByTime(CALLOUT_HOVER_DELAY_MS);
   });
+}
+
+function focusByKeyboard(button: HTMLElement): void {
+  vi.spyOn(button, "matches").mockImplementation(
+    (selector) => selector === ":focus-visible",
+  );
+  fireEvent.focus(button);
 }
 
 describe("IconButton", () => {
@@ -43,7 +53,7 @@ describe("IconButton", () => {
         +
       </IconButton>,
     );
-    vi.useFakeTimers();
+    startColdCalloutTimers();
     const button = screen.getByRole("button", {
       name: "Add a comment on src/deeply/nested/path/a.ts",
     });
@@ -91,7 +101,7 @@ describe("IconButton", () => {
   });
 
   it("shows its label in a callout on hover and focus when asked", () => {
-    vi.useFakeTimers();
+    startColdCalloutTimers();
     render(
       <IconButton callout="left" label="Scroll to top">
         ↑
@@ -103,13 +113,13 @@ describe("IconButton", () => {
     restPointer(button);
     expect(screen.getByRole("tooltip").textContent).toBe("Scroll to top");
 
-    fireEvent.focus(button);
+    focusByKeyboard(button);
     fireEvent.blur(button);
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
   it("a pointer that leaves before the delay earns no callout", () => {
-    vi.useFakeTimers();
+    startColdCalloutTimers();
     render(
       <IconButton callout="left" label="Scroll to top">
         ↑
@@ -127,17 +137,58 @@ describe("IconButton", () => {
     });
     expect(screen.queryByRole("tooltip")).toBeNull();
 
-    fireEvent.focus(button);
+    focusByKeyboard(button);
     expect(screen.getByRole("tooltip")).toBeTruthy();
   });
 
+  it("waits the full rest beside an open panel callout", () => {
+    startColdCalloutTimers();
+    const panelAnchor = document.createElement("span");
+    document.body.append(panelAnchor);
+    onTestFinished(() => panelAnchor.remove());
+    render(
+      <>
+        <Callout anchor={panelAnchor} interactive onClose={() => {}}>
+          Panel
+        </Callout>
+        <IconButton callout="left" label="Scroll to top">
+          ↑
+        </IconButton>
+      </>,
+    );
+    const button = screen.getByRole("button", { name: "Scroll to top" });
+
+    fireEvent.pointerEnter(button);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(CALLOUT_HOVER_DELAY_MS);
+    });
+
+    expect(screen.getByRole("tooltip").textContent).toBe("Scroll to top");
+  });
+
+  it("opens no callout when focus returns without a keyboard", () => {
+    startColdCalloutTimers();
+    render(
+      <IconButton callout="left" label="Scroll to top">
+        ↑
+      </IconButton>,
+    );
+    const button = screen.getByRole("button", { name: "Scroll to top" });
+    vi.spyOn(button, "matches").mockReturnValue(false);
+
+    fireEvent.focus(button);
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
   it("shows no callout without the prop", () => {
-    vi.useFakeTimers();
+    startColdCalloutTimers();
     render(<IconButton label="Copy path">×</IconButton>);
     const button = screen.getByRole("button", { name: "Copy path" });
 
     restPointer(button);
-    fireEvent.focus(button);
+    focusByKeyboard(button);
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
 

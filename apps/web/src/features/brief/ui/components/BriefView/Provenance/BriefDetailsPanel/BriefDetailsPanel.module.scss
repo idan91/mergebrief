@@ -114,9 +114,14 @@
     }
   }
 
-  // Full SHAs / model ids: mono, allowed to wrap (never truncated here —
-  // this panel IS the untruncated home).
-  .shas {
+  .shaRange {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(4px);
+  }
+
+  .modelId {
     font-family: var(--mono);
     font-size: var(--font-size-sm);
     overflow-wrap: anywhere;
@@ -130,38 +135,6 @@
 
     b {
       color: var(--color-text-1);
-    }
-  }
-
-  .warnings {
-    max-block-size: functions.to-rem(240px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    color: var(--color-warning);
-    font-size: var(--font-size-md);
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-
-    &:focus-visible {
-      @include mixins.focus-ring;
-    }
-  }
-
-  .warningList {
-    display: flex;
-    flex-direction: column;
-    gap: functions.to-rem(8px);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-
-    li {
-      white-space: pre-line;
-    }
-
-    li + li {
-      border-block-start: 1px solid var(--color-outline-1);
-      padding-block-start: functions.to-rem(8px);
     }
   }
 

@@ -93,6 +93,11 @@ export function MarkReadyModal({
     attributeLabel: getRiskAttributeLabel(t, flag.attr),
     caption: buildRepoPolicyCaption(t, flag),
   }));
+  const advisory =
+    flags.length > 0
+      ? t("pulls.markReadyModal.advisoryFlags")
+      : t("pulls.markReadyModal.advisoryDrafts");
+
   return (
     // Escape is gated on busy exactly like the buttons: dismissing the gate
     // mid-batch would drop the progress feedback while outward writes
@@ -103,43 +108,39 @@ export function MarkReadyModal({
       close={busy ? undefined : close}
       labelledBy="mark-ready-modal-heading"
     >
-      <h2 id="mark-ready-modal-heading">{t("pulls.markReadyModal.heading")}</h2>
       {/* Zero flags: the gate can open for unposted drafts alone; no
           risk-flag copy over an empty list; the advisory line focuses on the
           drafts instead. */}
+      <Modal.Header
+        close={busy ? undefined : close}
+        detail={advisory}
+        id="mark-ready-modal-heading"
+        title={t("pulls.markReadyModal.heading")}
+      />
       {flags.length > 0 ? (
-        <>
-          <p className={styles["copy"]}>
-            {t("pulls.markReadyModal.advisoryFlags")}
-          </p>
-          <div className={styles["unresolvedList"]}>
-            {flagRows.map(({ flag, displayFile, attributeLabel, caption }) => (
-              <RowButton
-                disabled={busy}
-                key={flag.id}
-                variant="card"
-                onClick={() => jumpToFlag(flag)}
+        <div className={styles["unresolvedList"]}>
+          {flagRows.map(({ flag, displayFile, attributeLabel, caption }) => (
+            <RowButton
+              disabled={busy}
+              key={flag.id}
+              variant="card"
+              onClick={() => jumpToFlag(flag)}
+            >
+              <span
+                className={rowButtonStyles["cardEyebrow"]}
+                data-deemphasized={flag.deEmphasized ? "" : undefined}
+                data-source={flag.source}
               >
-                <span
-                  className={rowButtonStyles["cardEyebrow"]}
-                  data-deemphasized={flag.deEmphasized ? "" : undefined}
-                  data-source={flag.source}
-                >
-                  {attributeLabel}
-                </span>
-                <b>{displayFile}</b>
-                {caption === undefined ? null : (
-                  <i data-kind="risk-caption">{caption}</i>
-                )}
-              </RowButton>
-            ))}
-          </div>
-        </>
-      ) : (
-        <p className={styles["copy"]}>
-          {t("pulls.markReadyModal.advisoryDrafts")}
-        </p>
-      )}
+                {attributeLabel}
+              </span>
+              <b>{displayFile}</b>
+              {caption === undefined ? null : (
+                <i data-kind="risk-caption">{caption}</i>
+              )}
+            </RowButton>
+          ))}
+        </div>
+      ) : null}
       {/* Count-only intent line: a factual count below the flags list, never
           gap-first, only when the intent source is precise and asks are
           missing (the caller gates it). */}
@@ -186,7 +187,7 @@ export function MarkReadyModal({
           </div>
         </>
       ) : null}
-      <div className={styles["actions"]}>
+      <Modal.Footer>
         <Button disabled={busy} onClick={close}>
           {t("pulls.markReadyModal.keepReviewing")}
         </Button>
@@ -201,7 +202,7 @@ export function MarkReadyModal({
         >
           {busyLabel ?? t("pulls.markReadyModal.markReadyAnyway")}
         </Button>
-      </div>
+      </Modal.Footer>
       {/* Batch progress for screen readers: the confirm button's visual
           relabel is silent to AT, so each step is announced politely here. */}
       <span

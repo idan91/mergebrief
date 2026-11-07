@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { compile } from "sass";
 import { describe, expect, it } from "vitest";
 
-import { STICKY_STACK_HEIGHT_VAR } from "./utils";
+import { STICKY_STACK_HEIGHT_VAR } from "@web/utils/css-vars";
 
 const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const STYLES_DIRECTORY = join(TEST_DIRECTORY, "../../../../../styles");
