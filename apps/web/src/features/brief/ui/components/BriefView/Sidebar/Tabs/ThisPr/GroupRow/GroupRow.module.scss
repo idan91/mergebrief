@@ -1,0 +1,124 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .row {
+    display: grid;
+    grid-template-columns:
+      functions.to-rem(24px) minmax(0, 1fr)
+      functions.to-rem(10px);
+    gap: functions.to-rem(3px) functions.to-rem(10px);
+    inline-size: 100%;
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-2);
+    font-family: var(--sans);
+    text-align: start;
+    cursor: pointer;
+    transition:
+      background-color 0.15s,
+      color 0.15s;
+
+    @include mixins.hover {
+      &:hover {
+        background: var(--color-surface-1);
+        color: var(--color-text-1);
+
+        .name {
+          color: var(--color-text-1);
+        }
+      }
+    }
+
+    &:active {
+      background: var(--color-surface-2);
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    &[data-current] {
+      background: var(--color-changed-fill);
+      color: var(--color-text-1);
+
+      .name {
+        color: var(--color-text-1);
+      }
+
+      .ordinal {
+        color: var(--color-accent);
+      }
+    }
+  }
+
+  .ordinal {
+    grid-row: 1 / span 2;
+    align-self: start;
+    color: var(--color-text-3);
+    font-size: var(--font-size-lg);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+    text-align: end;
+  }
+
+  .name {
+    display: -webkit-box;
+    grid-column: 2;
+    overflow: hidden;
+    color: var(--color-text-read);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .meta {
+    display: flex;
+    grid-column: 2 / -1;
+    gap: var(--space-4);
+    align-items: baseline;
+    color: var(--color-text-3);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    min-inline-size: 0;
+    font-variant-numeric: tabular-nums;
+
+    > * + *::before {
+      content: "\00B7";
+      margin-inline: var(--space-2);
+    }
+  }
+
+  .lines {
+    flex: none;
+    margin-inline-start: auto;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .marker {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row {
+      transition: none;
+    }
+  }
+}

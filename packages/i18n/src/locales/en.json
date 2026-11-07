@@ -636,7 +636,8 @@
       "notesToggle": "Risk notes",
       "resolved_one": "{{count}} resolved",
       "resolved_other": "{{count}} resolved",
-      "selectFile": "Select flags on {{file}}"
+      "selectFile": "Select flags on {{file}}",
+      "coreChunkCount": "{{core}} core"
     },
     "category": {
       "bugfix": "Bug fix",

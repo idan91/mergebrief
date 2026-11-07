@@ -158,6 +158,7 @@ export type Catalog = typeof en & {
       resolved_one: "{{count}} resolved";
       resolved_other: "{{count}} resolved";
       selectFile: "Select flags on {{file}}";
+      coreChunkCount: "{{core}} core";
     };
     story: (typeof en)["brief"]["story"] & {
       stepOf: "Step {{step}} of {{total}}";

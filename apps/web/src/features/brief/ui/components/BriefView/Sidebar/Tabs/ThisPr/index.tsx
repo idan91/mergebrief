@@ -1,16 +1,10 @@
 import { useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
 
-import { LocSign, LocSigns } from "@web/components/LocSign";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
-
-import { GroupViewKinds } from "../../../../../../model/utils/remainder";
-import { getCategoryLabel } from "../../../../../../model/utils/view-model";
 import type { GroupView } from "../../../../../../model/utils/view-model";
-import { resolveGroupName } from "../../../../../../model/utils/resolve-group-name";
 import type { JumpChunkFromSidebar, JumpFromSidebar } from "../../types";
 import { ChunkRows } from "./ChunkRows";
 import { CHUNK_ROW_SELECTOR } from "./ChunkRows/consts";
+import { GroupRow } from "./GroupRow";
 import { ViewedSummary } from "./ViewedSummary";
 import styles from "./ThisPr.module.scss";
 
@@ -34,7 +28,6 @@ export function ThisPr({
   jumpToChunk,
   selected,
 }: ThisPrProps) {
-  const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   // The Sidebar sheet shows This PR where you are, not at the first group.
@@ -51,59 +44,19 @@ export function ThisPr({
     <div className={styles["panel"]} ref={panelRef}>
       {jumpToChunk === undefined ? null : <ViewedSummary groups={groups} />}
       <ol className={styles["list"]}>
-        {groups.map((group) => {
-          const current = group.id === activeGroupId;
-          const hasConversation = conversationGroupIds?.has(group.id) ?? false;
-          return (
-            <li key={group.id}>
-              {/* oxlint-disable-next-line house/no-raw-button -- two-line list row on an alignment grid: block content the shared Button does not model */}
-              <button
-                aria-current={current ? "true" : undefined}
-                className={styles["row"]}
-                data-current={current ? "" : undefined}
-                type="button"
-                onClick={(event) => jumpToGroup(group.id, event)}
-              >
-                <span aria-hidden="true" className={styles["ordinal"]}>
-                  {group.index + 1}
-                </span>
-                <span className={styles["name"]}>
-                  {resolveGroupName(t, group)}
-                </span>
-                <span className={styles["meta"]}>
-                  {group.kind === GroupViewKinds.ATTRIBUTED ? (
-                    <>
-                      <span className={styles["category"]}>
-                        {getCategoryLabel(t, group.group.dominantCategory)}
-                      </span>
-                      <span className={styles["counts"]}>
-                        {t("brief.group.chunkCounts", {
-                          core: group.coreChunks.length,
-                          supporting: group.supportingChunks.length,
-                        })}
-                      </span>
-                    </>
-                  ) : (
-                    <span className={styles["counts"]}>
-                      <LocSign sign={LocSigns.ADD} count={group.added} />{" "}
-                      <LocSign sign={LocSigns.DEL} count={group.deleted} />
-                    </span>
-                  )}
-                </span>
-                {hasConversation ? (
-                  <span className={styles["marker"]}>
-                    <ScreenReaderOnly>
-                      {t("brief.toc.srHasConversation")}
-                    </ScreenReaderOnly>
-                  </span>
-                ) : null}
-              </button>
-              {jumpToChunk === undefined ? null : (
-                <ChunkRows chunks={group.chunks} jumpToChunk={jumpToChunk} />
-              )}
-            </li>
-          );
-        })}
+        {groups.map((group) => (
+          <li key={group.id}>
+            <GroupRow
+              activeGroupId={activeGroupId}
+              conversationGroupIds={conversationGroupIds}
+              group={group}
+              jumpToGroup={jumpToGroup}
+            />
+            {jumpToChunk === undefined ? null : (
+              <ChunkRows chunks={group.chunks} jumpToChunk={jumpToChunk} />
+            )}
+          </li>
+        ))}
       </ol>
     </div>
   );
