@@ -609,7 +609,11 @@ describe("Sidebar below the tablet breakpoint", () => {
       .getByTestId("sidebar-sheet")
       .querySelector(`${CHUNK_ROW_SELECTOR}[aria-current="true"]`);
     expect(currentRow).not.toBeNull();
-    expect(scrollIntoView.mock.contexts).toEqual([currentRow]);
+    const rowScrolls = scrollIntoView.mock.contexts.filter(
+      (scrolled) =>
+        scrolled instanceof Element && scrolled.hasAttribute("data-chunk-row"),
+    );
+    expect(rowScrolls).toEqual([currentRow]);
   });
 
   it("never writes the sheet state", () => {

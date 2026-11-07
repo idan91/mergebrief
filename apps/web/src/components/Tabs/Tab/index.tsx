@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 
 import { useTabsContext } from "../context";
 import { derivePanelId, deriveTabId, resolveNextIndex } from "../utils";
@@ -34,6 +34,12 @@ function moveAmongSiblings(event: KeyboardEvent<HTMLButtonElement>): void {
 export function TabsTab({ value, children }: TabsTabProps) {
   const { value: selectedValue, baseId, select, variant } = useTabsContext();
   const selected = value === selectedValue;
+  // Safari never focuses a clicked button, so focus alone would leave a tab
+  // half under the edge of a row that scrolls.
+  const selectTab = (event: MouseEvent<HTMLButtonElement>) => {
+    event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+    select(value);
+  };
 
   return (
     <button
@@ -45,7 +51,7 @@ export function TabsTab({ value, children }: TabsTabProps) {
       role="tab"
       tabIndex={selected ? 0 : -1}
       type="button"
-      onClick={() => select(value)}
+      onClick={selectTab}
       onKeyDown={moveAmongSiblings}
     >
       {children}

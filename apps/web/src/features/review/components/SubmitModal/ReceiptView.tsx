@@ -11,7 +11,10 @@ import {
 import { Modal } from "@web/components/Modal";
 import { listReceiptLines, type Receipt } from "../../utils/receipt";
 import type { ReviewOutcome } from "types/reviews";
-import { ReceiptAccordion } from "./ReceiptAccordion";
+import { ReceiptBody } from "./ReceiptBody";
+import { SubmitButton } from "./SubmitButton";
+import { SubmitStatusLines } from "./SubmitStatusLines";
+import type { SubmitAffordance, SubmitStatus } from "./types";
 import styles from "./SubmitModal.module.scss";
 
 export interface ReceiptViewProps {
@@ -19,6 +22,12 @@ export interface ReceiptViewProps {
   outcome: ReviewOutcome | undefined;
   receipt: Receipt;
   signatureLine?: string | undefined;
+  submit: SubmitAffordance;
+  status: SubmitStatus;
+  /** Someone has tried Submit, so its blocked reason shows. */
+  reasonShown: boolean;
+  /** Set while a moved head waits for the acknowledgement the verdict view asks for. */
+  staleWarning?: string | undefined;
   close: () => void;
   backToVerdict: () => void;
 }
@@ -28,6 +37,10 @@ export function ReceiptView({
   outcome,
   receipt,
   signatureLine,
+  submit,
+  status,
+  reasonShown,
+  staleWarning,
   close,
   backToVerdict,
 }: ReceiptViewProps) {
@@ -54,18 +67,24 @@ export function ReceiptView({
         }
       />
       <div className={styles["receiptBody"]} data-testid="receipt-body">
-        <ReceiptAccordion
+        <ReceiptBody
           outcome={outcome}
           rawLines={rawLines}
           receipt={receipt}
           signatureLine={signatureLine}
         />
       </div>
-      <Modal.Footer>
-        <Button onClick={backToVerdict}>
-          {t("review.submit.backToVerdict")}
-        </Button>
-        <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
+      <Modal.Footer
+        reason={
+          <SubmitStatusLines
+            reasonShown={reasonShown}
+            staleWarning={staleWarning}
+            status={status}
+          />
+        }
+      >
+        <Button onClick={backToVerdict}>{t("review.submit.back")}</Button>
+        <SubmitButton submit={submit} />
       </Modal.Footer>
     </>
   );

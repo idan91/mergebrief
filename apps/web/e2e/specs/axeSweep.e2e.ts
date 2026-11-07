@@ -258,7 +258,7 @@ test("the submit modal is clean on all views", async ({ page }, testInfo) => {
   ).toBeVisible();
   await page.mouse.move(0, 0);
   await expectNoSeriousAxeViolations(page, testInfo, "submit-modal-receipt");
-  await page.getByRole("button", { name: "Back to verdict" }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Submit review" }),
   ).toBeVisible();

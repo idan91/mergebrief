@@ -1,18 +1,19 @@
 import type { ReviewOutcome } from "types/reviews";
-import { useState, type ReactNode, type RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
 import { Checkbox } from "@web/components/Checkbox";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { MentionListLayouts } from "@web/components/MarkdownTextarea/types";
-import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { Modal } from "@web/components/Modal";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { useMentionSuggestions } from "@web/features/conversation/hooks";
 import type { MentionSource } from "@web/features/conversation/types";
 import { useReviewActions } from "../../session/flow/provider";
 import { reviewOutcomeLabel } from "../../utils/state";
+import { SubmitButton } from "./SubmitButton";
+import { SubmitStatusLines } from "./SubmitStatusLines";
+import type { SubmitAffordance, SubmitStatus } from "./types";
 import styles from "./SubmitModal.module.scss";
 
 const OUTCOMES: readonly ReviewOutcome[] = [
@@ -26,21 +27,6 @@ interface StaleAck {
   head: boolean;
   acked: boolean;
   setAcked: (acked: boolean) => void;
-}
-
-/** Everything the Submit control needs, including why it is off. */
-interface SubmitAffordance {
-  disabled: boolean;
-  pending: boolean;
-  describedBy: string | undefined;
-  attempt: () => void;
-}
-
-/** The three mutually-ranked status lines above the actions row. */
-interface SubmitStatus {
-  blockedReason: string | undefined;
-  error: string | null;
-  note: string | null;
 }
 
 export interface VerdictViewProps {
@@ -83,28 +69,11 @@ export function VerdictView({
     setReviewComment(comment);
     setAttachError(undefined);
   };
-  // The modal refuses a body that still holds a placeholder, since it would
-  // ship in place of the image; saying so is this view's.
-  const attemptSubmit = () => {
-    if (hasUploadPlaceholder(reviewComment)) {
-      setAttachError(t("shell.attach.waitForUpload"));
-    }
-    submit.attempt();
-  };
-  const showsNote = status.note !== null && status.error === null;
 
-  let blockedLine: ReactNode = null;
-  if (status.blockedReason !== undefined) {
-    blockedLine = reasonShown ? (
-      <p className={styles["submitStatus"]} id="submit-modal-blocked">
-        {status.blockedReason}
-      </p>
-    ) : (
-      <ScreenReaderOnly id="submit-modal-blocked">
-        {status.blockedReason}
-      </ScreenReaderOnly>
-    );
-  }
+  const attachErrorRepeatsReason =
+    reasonShown && attachError === status.blockedReason;
+  const attachErrorShown =
+    attachError !== undefined && !attachErrorRepeatsReason;
 
   return (
     <>
@@ -146,9 +115,9 @@ export function VerdictView({
         announce={announce}
         announceQuietly={announceQuietly}
         onAttachError={setAttachError}
-        onSubmit={attemptSubmit}
+        onSubmit={submit.attempt}
       />
-      {attachError !== undefined ? (
+      {attachErrorShown ? (
         <p className={styles["submitStatus"]} data-kind="error" role="alert">
           {attachError}
         </p>
@@ -169,46 +138,13 @@ export function VerdictView({
         </div>
       ) : null}
       <Modal.Footer
-        reason={
-          <>
-            {blockedLine}
-            {status.error !== null ? (
-              <p
-                className={styles["submitStatus"]}
-                data-kind="error"
-                id="submit-modal-error"
-                role="alert"
-              >
-                {status.error}
-              </p>
-            ) : null}
-            {showsNote ? (
-              <p
-                aria-live="polite"
-                className={styles["submitStatus"]}
-                role="status"
-              >
-                {status.note}
-              </p>
-            ) : null}
-          </>
-        }
+        reason={<SubmitStatusLines reasonShown={reasonShown} status={status} />}
       >
         <Button onClick={previewReceipt}>
           {t("review.submit.previewReceipt")}
         </Button>
         <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
-        <Button
-          aria-describedby={submit.describedBy}
-          aria-disabled={submit.disabled ? true : undefined}
-          loading={submit.pending}
-          variant="accent"
-          onClick={attemptSubmit}
-        >
-          {submit.pending
-            ? t("review.submit.submitting")
-            : t("review.submit.submitReview")}
-        </Button>
+        <SubmitButton submit={submit} />
       </Modal.Footer>
     </>
   );

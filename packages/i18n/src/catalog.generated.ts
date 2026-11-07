@@ -293,10 +293,6 @@ export type Catalog = typeof en & {
       evidenceManualWithNote: "Manually verified: {{note}}";
       evidenceManualWithNote_inline: "manually verified: {{note}}";
     };
-    submit: (typeof en)["review"]["submit"] & {
-      receiptCommentsFold: "Inline comments ({{total}})";
-      receiptRiskFold: "Risk disposition: {{addressed}} addressed · {{dismissed}} dismissed · {{open}} open";
-    };
     comment: (typeof en)["review"]["comment"] & {
       anchorCross: "{{start}} → {{end}}";
       addressesComments: "Addresses comments {{ids}}";

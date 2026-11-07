@@ -1,0 +1,145 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: functions.to-rem(14px);
+  }
+
+  .tabList {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: functions.to-rem(10px);
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+
+    > [role="tab"] {
+      flex: none;
+      white-space: nowrap;
+      scroll-snap-align: start;
+    }
+  }
+
+  .count {
+    color: var(--color-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Outranks the shared panel's flex: 1, which would size it to its content.
+  .stack .panel {
+    flex: none;
+    block-size: functions.to-rem(136px);
+    padding-block: functions.to-rem(10px) functions.to-rem(4px);
+    overflow-y: auto;
+    outline: none;
+
+    @include mixins.focus-visible;
+
+    @media (pointer: coarse) and (height > #{functions.get-breakpoint("landscape-height")}) {
+      overscroll-behavior: contain;
+    }
+  }
+
+  .signature {
+    padding-inline-start: functions.to-rem(10px);
+    border-inline-start: 2px solid var(--color-outline-2);
+    color: var(--color-text-read);
+    font-size: var(--font-size-lg);
+    line-height: 1.55;
+  }
+
+  .groupHeading {
+    margin-block: functions.to-rem(4px) functions.to-rem(2px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .itemRow {
+    padding-block: functions.to-rem(7px);
+
+    & + & {
+      border-block-start: 1px solid var(--color-outline-2);
+    }
+  }
+
+  .itemHead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: functions.to-rem(12px);
+    font-size: var(--font-size-lg);
+
+    b {
+      max-inline-size: 100%;
+      overflow: hidden;
+      color: var(--color-text-1);
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .itemAnchor {
+    display: flex;
+    align-items: baseline;
+    gap: functions.to-rem(4px);
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    margin-inline-start: auto;
+    color: var(--color-text-2);
+    white-space: nowrap;
+
+    code {
+      overflow: hidden;
+      font-family: var(--mono);
+      text-overflow: ellipsis;
+
+      // RTL puts the ellipsis on the left, so the filename stays; the label
+      // sits in an LTR isolate, or its leading characters move to the end.
+      direction: rtl;
+    }
+  }
+
+  .itemDetail {
+    margin-block-start: functions.to-rem(2px);
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    line-height: 1.45;
+  }
+
+  .empty {
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+  }
+
+  .notChecked {
+    display: grid;
+    gap: functions.to-rem(4px);
+    padding: 0;
+    margin: 0;
+    color: var(--color-text-read);
+    font-size: var(--font-size-lg);
+    list-style: none;
+  }
+
+  .metrics {
+    display: grid;
+    gap: functions.to-rem(6px);
+    margin-block: functions.to-rem(12px) 0;
+
+    dt {
+      color: var(--color-text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    dd {
+      margin-block-start: functions.to-rem(3px);
+      color: var(--color-text-1);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}

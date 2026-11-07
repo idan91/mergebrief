@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import type { ReactNode } from "react";
 
 import { useMobileViewport } from "@web/hooks/useMobileViewport";
@@ -8,9 +9,10 @@ import styles from "./List.module.scss";
 export interface TabsListProps {
   label: string;
   children: ReactNode;
+  className?: string | undefined;
 }
 
-export function TabsList({ label, children }: TabsListProps) {
+export function TabsList({ label, children, className }: TabsListProps) {
   const { variant } = useTabsContext();
   const mobile = useMobileViewport();
   const railStands = variant === TabsVariants.RAIL && !mobile;
@@ -20,7 +22,7 @@ export function TabsList({ label, children }: TabsListProps) {
     <div
       aria-label={label}
       aria-orientation={orientation}
-      className={styles["list"]}
+      className={clsx(styles["list"], className)}
       data-variant={variant}
       role="tablist"
     >

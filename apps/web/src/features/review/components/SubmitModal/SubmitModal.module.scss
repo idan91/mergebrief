@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .submitBox {
@@ -15,18 +16,34 @@
   .receiptBox {
     display: flex;
     flex-direction: column;
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      overscroll-behavior: contain;
+    }
   }
 
   .receiptBody {
     flex: 1 1 auto;
     min-block-size: functions.to-rem(120px);
 
-    // The scrollport would clip a fold's focus ring at its edges: the padding
-    // makes room for it and the margin keeps the folds where they sat.
+    // The scrollport would clip a tab's or the panel's focus ring at its
+    // edges: the padding makes room for it and the margin cancels the shift.
     padding: functions.to-rem(5px);
     margin: functions.to-rem(-5px);
     overflow-y: auto;
     overscroll-behavior: contain;
+
+    @include mixins.for-size(
+      functions.get-breakpoint("landscape-height"),
+      max,
+      height
+    ) {
+      overscroll-behavior: auto;
+    }
   }
 
   .outcomes {

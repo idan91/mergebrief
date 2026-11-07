@@ -1,40 +1,16 @@
 import type { ReviewOutcome } from "types/reviews";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import type { ReactNode } from "react";
 import clsx from "clsx";
 
-import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { Modal } from "@web/components/Modal";
 import type { MentionSource } from "@web/features/conversation/types";
-import { useReviewActions, useReviewFlow } from "../../session/flow/provider";
 import { type Receipt } from "../../utils/receipt";
 import { type UnresolvedItem } from "../../utils/state";
 import { AdvisoryView } from "./AdvisoryView";
 import { ReceiptView } from "./ReceiptView";
+import { useSubmitModalFacade } from "./useSubmitModalFacade";
 import { VerdictView } from "./VerdictView";
 import styles from "./SubmitModal.module.scss";
-
-/** The modal's in-flow position: verdict is the default, receipt a preview
- * one step away, advisory a conditional first stop with no way back to it. */
-type SubmitView = "advisory" | "verdict" | "receipt";
-
-/** The id of the text explaining why Submit is off; the first reason wins. */
-function deriveSubmitDescribedBy(
-  blockedReason: string | undefined,
-  staleUnacked: boolean,
-  submitError: string | null,
-): string | undefined {
-  if (blockedReason !== undefined) {
-    return "submit-modal-blocked";
-  }
-  if (staleUnacked) {
-    return "submit-modal-stale-warning";
-  }
-  if (submitError !== null) {
-    return "submit-modal-error";
-  }
-  return undefined;
-}
 
 export interface SubmitModalProps {
   open: boolean;
@@ -100,120 +76,49 @@ export function SubmitModal({
   staleHead = false,
   mentionSource,
 }: SubmitModalProps) {
-  const { t } = useTranslation();
-  const outcomeGroupName = useId();
-  const reviewComment = useReviewFlow((state) => state.reviewComment);
-  const { setReviewComment, announceQuietly } = useReviewActions();
-
-  // Reset modal view and stale acknowledgment on open; store data survives close.
-  // Returning staleness requires fresh consent even while the modal stays open.
-  // Lazy initializers also cover mounting open, without an open transition.
-  const [view, setView] = useState<SubmitView>(() =>
-    open && unresolvedItems.length > 0 ? "advisory" : "verdict",
-  );
-  const [ackStale, setAckStale] = useState(false);
-  // Why Submit is off shows once someone tries it; until then it is only
-  // the button's description.
-  const [submitTried, setSubmitTried] = useState(false);
-  const [wasOpen, setWasOpen] = useState(open);
-  const [wasStale, setWasStale] = useState(staleHead);
-  // Advisory items are CAPTURED at open: a live list would let a mid-flow
-  // refetch reshuffle the view under the reviewer.
-  const [advisoryItems, setAdvisoryItems] = useState<UnresolvedItem[]>(() =>
-    open ? unresolvedItems : [],
-  );
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
-  const prevViewRef = useRef(view);
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) {
-      const entryView = unresolvedItems.length > 0 ? "advisory" : "verdict";
-      setView(entryView);
-      setAdvisoryItems(unresolvedItems);
-      setAckStale(false);
-      setSubmitTried(false);
-      // Also reset the focus-effect's view memory: reopening after a receipt
-      // preview must NOT read as a view switch, or the heading focus below
-      // would steal the Modal's own open-focus claim on the dialog box.
-      prevViewRef.current = entryView;
-    }
-  }
-  if (staleHead !== wasStale) {
-    setWasStale(staleHead);
-    if (staleHead) {
-      setAckStale(false);
-    }
-  }
-
-  // An in-modal view switch unmounts the control that carried focus; move it
-  // to the new view's heading so the switch is announced and the Tab cycle
-  // restarts from the top. Open itself is the Modal's focus claim, not ours.
-  useEffect(() => {
-    if (open && prevViewRef.current !== view) {
-      headingRef.current?.focus();
-    }
-    prevViewRef.current = view;
-  }, [open, view]);
-
-  const blockedReason =
-    blockedReasonOverride ?? blockedReasonWith?.(reviewComment);
-  // Focusable-disabled (aria-disabled, not the disabled attribute): keyboard
-  // and screen-reader users can reach the control and hear WHY it is off via
-  // the described-by reason text.
-  const staleUnacked = staleHead && !ackStale;
-  const submitDisabled =
-    submitPending || blockedReason !== undefined || staleUnacked;
-  const submitDescribedBy = deriveSubmitDescribedBy(
-    blockedReason,
-    staleUnacked,
+  const facade = useSubmitModalFacade({
+    open,
+    unresolvedItems,
+    submit,
+    submitPending,
+    blockedReasonOverride,
+    blockedReasonWith,
     submitError,
+    submitNote,
+    staleHead,
+  });
+  const { view, headingRef, reasonShown, submitAffordance } = facade;
+  const boxClassName = clsx(
+    styles["submitBox"],
+    view === "receipt" && styles["receiptBox"],
   );
-  const submitAllowed = !submitDisabled && !hasUploadPlaceholder(reviewComment);
-  const staleRefusal = staleUnacked
-    ? t("review.submit.staleWarning")
-    : undefined;
-  const refusal = blockedReason ?? staleRefusal;
-  // A refused try says why each time; the shown reason is no live region.
-  const attemptSubmit = () => {
-    setSubmitTried(true);
-    if (submitAllowed) {
-      submit();
-    } else if (refusal !== undefined) {
-      announceQuietly(refusal);
-    }
-  };
 
   let content: ReactNode;
   if (view === "advisory") {
     content = (
       <AdvisoryView
         headingRef={headingRef}
-        items={advisoryItems}
+        items={facade.advisoryItems}
         jumpToItem={jumpToItem}
         close={close}
-        continueToVerdict={() => setView("verdict")}
+        continueToVerdict={facade.showVerdict}
       />
     );
   } else if (view === "verdict") {
     content = (
       <VerdictView
         headingRef={headingRef}
-        outcomeGroupName={outcomeGroupName}
+        outcomeGroupName={facade.outcomeGroupName}
         outcome={outcome}
         setOutcome={setOutcome}
-        reviewComment={reviewComment}
-        setReviewComment={setReviewComment}
-        stale={{ head: staleHead, acked: ackStale, setAcked: setAckStale }}
-        submit={{
-          disabled: submitDisabled,
-          pending: submitPending,
-          describedBy: submitDescribedBy,
-          attempt: attemptSubmit,
-        }}
-        status={{ blockedReason, error: submitError, note: submitNote }}
-        reasonShown={submitTried}
+        reviewComment={facade.reviewComment}
+        setReviewComment={facade.setReviewComment}
+        stale={facade.staleAck}
+        submit={submitAffordance}
+        status={facade.verdictStatus}
+        reasonShown={reasonShown}
         close={close}
-        previewReceipt={() => setView("receipt")}
+        previewReceipt={facade.showReceipt}
         mentionSource={mentionSource}
       />
     );
@@ -224,8 +129,12 @@ export function SubmitModal({
         outcome={outcome}
         receipt={receipt}
         signatureLine={signatureLine}
+        submit={submitAffordance}
+        status={facade.receiptStatus}
+        reasonShown={reasonShown}
+        staleWarning={facade.receiptStaleWarning}
         close={close}
-        backToVerdict={() => setView("verdict")}
+        backToVerdict={facade.showVerdict}
       />
     );
   }
@@ -233,10 +142,7 @@ export function SubmitModal({
   return (
     <Modal
       open={open}
-      boxClassName={clsx(
-        styles["submitBox"],
-        view === "receipt" && styles["receiptBox"],
-      )}
+      boxClassName={boxClassName}
       close={close}
       labelledBy="submit-modal-heading"
     >

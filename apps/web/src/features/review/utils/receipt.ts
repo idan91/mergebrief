@@ -335,7 +335,7 @@ export function buildReceipt(
 
 /**
  * `file:+start[-end]`, the on-screen anchor for a receipt comment
- * (ReceiptAccordion). NOT the frozen artifact's shape, which
+ * (ReceiptBody). NOT the frozen artifact's shape, which
  * prints no side sign.
  */
 export function receiptCommentLabel(comment: ReceiptComment): string {

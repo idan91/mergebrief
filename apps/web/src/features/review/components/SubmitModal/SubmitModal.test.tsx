@@ -125,23 +125,37 @@ describe("SubmitModal views", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
     expect(screen.getByText(/not an approval/i)).toBeTruthy();
-    // Plain rows first, the rest under one closed Details disclosure.
     expect(screen.getByText("Review outcome")).toBeTruthy();
-    expect(screen.getByText("Details").closest("details")?.open).toBe(false);
-    expect(screen.getByText(/show raw receipt/i)).toBeTruthy();
-    expect(screen.getByText(/not checked:/i)).toBeTruthy();
-    // The receipt is a pure preview: no submit control on this view.
     expect(
-      screen.queryByRole("button", { name: /^submit review$/i }),
-    ).toBeNull();
+      screen.getByRole("tablist", { name: /receipt sections/i }),
+    ).toBeTruthy();
     expect(document.activeElement).toBe(
       screen.getByRole("heading", { name: /verification receipt/i }),
     );
-    fireEvent.click(screen.getByRole("button", { name: /back to verdict/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
     expect(submitButton()).toBeTruthy();
     expect(document.activeElement).toBe(
       screen.getByRole("heading", { name: /submit review/i }),
     );
+  });
+
+  it("submits from the receipt under the verdict view's rules", () => {
+    const { submit } = renderModal({ blockedReasonWith: blockedWhenEmpty });
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+
+    fireEvent.click(submitButton());
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("A comment-only review needs content.").classList,
+    ).not.toContain("sr-only");
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /review comment/i }), {
+      target: { value: "Looks fine overall." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+    fireEvent.click(submitButton());
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 
   it("says the receipt stays off GitHub, not that only the signature posts", () => {
@@ -156,12 +170,24 @@ describe("SubmitModal views", () => {
     expect(screen.queryByText(/only the one-line signature/i)).toBeNull();
   });
 
+  it("keeps a Submit in flight on the receipt disabled-looking and inert", () => {
+    const { submit } = renderModal({ submitPending: true });
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+    const button = screen.getByRole("button", { name: /^submitting/i });
+
+    fireEvent.click(button);
+
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("keeps the review comment across a receipt preview and back", () => {
     renderModal();
     const field = screen.getByRole("textbox", { name: /review comment/i });
     fireEvent.change(field, { target: { value: "worth a second look" } });
     fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
-    fireEvent.click(screen.getByRole("button", { name: /back to verdict/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
     expect(
       screen.getByRole("textbox", { name: /review comment/i }).textContent,
     ).toBe("worth a second look");
@@ -179,7 +205,7 @@ describe("SubmitModal views", () => {
     expect(close).toHaveBeenCalled();
   });
 
-  it("scrolls the receipt's folds and keeps its actions out of the scroll", () => {
+  it("scrolls the receipt's sections and keeps its actions out of the scroll", () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
 
@@ -187,9 +213,10 @@ describe("SubmitModal views", () => {
       name: /verification receipt/i,
     });
     const body = within(dialog).getByTestId("receipt-body");
-    expect(within(body).getByText(/show raw receipt/i)).toBeTruthy();
-    const back = screen.getByRole("button", { name: /back to verdict/i });
+    expect(within(body).getByRole("tablist")).toBeTruthy();
+    const back = screen.getByRole("button", { name: /^back$/i });
     expect(body.contains(back)).toBe(false);
+    expect(body.contains(submitButton())).toBe(false);
   });
 
   it("reopening lands on the verdict view again", () => {
@@ -316,9 +343,58 @@ describe("SubmitModal views", () => {
     fireEvent.click(submitButton());
 
     fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
-    fireEvent.click(screen.getByRole("button", { name: /back to verdict/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
 
     expect(getBlockedReason().classList.contains("sr-only")).toBe(false);
+  });
+
+  it("sends a stale head on the receipt Back to its acknowledgement", () => {
+    const { submit } = renderModal({ staleHead: true });
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+
+    fireEvent.click(submitButton());
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/go back to confirm/i).classList.contains("sr-only"),
+    ).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
+    fireEvent.click(ackCheckbox());
+    fireEvent.click(submitButton());
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["a stale head", { staleHead: true }, /go back to confirm/i],
+    [
+      "a refused comment",
+      { blockedReasonWith: blockedWhenEmpty },
+      /needs content/i,
+    ],
+  ])("announces the receipt's reason for %s", async (_case, props, reason) => {
+    const { store } = renderModal(props);
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+
+    fireEvent.click(submitButton());
+
+    await vi.waitFor(() => {
+      expect(store.getState().liveMessage).toMatch(reason);
+    });
+  });
+
+  it("sends an unplaced upload on the receipt Back to the comment", () => {
+    const { submit } = renderModal();
+    fireEvent.change(screen.getByRole("textbox", { name: /review comment/i }), {
+      target: { value: "see\n![Uploading shot.png…]()" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+
+    fireEvent.click(submitButton());
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/go back to the comment/i).classList.contains("sr-only"),
+    ).toBe(false);
   });
 
   it("Submit holds while the comment still carries an upload placeholder", () => {
@@ -330,16 +406,43 @@ describe("SubmitModal views", () => {
     fireEvent.click(submitButton());
 
     expect(submit).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert").textContent).toBe(
-      "An image is still uploading; wait for it to land before submitting.",
-    );
+    expect(submitButton().getAttribute("aria-disabled")).toBe("true");
+    expect(
+      screen.getByText(
+        "An image is still uploading; wait for it to land before submitting.",
+      ).classList,
+    ).not.toContain("sr-only");
 
     fireEvent.change(screen.getByRole("textbox", { name: /review comment/i }), {
       target: { value: "see\n![Image](https://x/y.png)" },
     });
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/still uploading/)).toBeNull();
     fireEvent.click(submitButton());
     expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["Submit then Cmd+Enter", ["click", "keys"]],
+    ["Cmd+Enter then Submit", ["keys", "click"]],
+  ])("says an upload is pending once after %s", (_order, steps) => {
+    renderModal();
+    const textbox = screen.getByRole("textbox", { name: /review comment/i });
+    fireEvent.change(textbox, {
+      target: { value: "see\n![Uploading shot.png…]()" },
+    });
+
+    for (const step of steps) {
+      if (step === "click") {
+        fireEvent.click(submitButton());
+      } else {
+        fireEvent.keyDown(textbox, { key: "Enter", metaKey: true });
+      }
+    }
+
+    const shownLines = screen
+      .getAllByText(/still uploading/)
+      .filter((line) => !line.classList.contains("sr-only"));
+    expect(shownLines).toHaveLength(1);
   });
 
   it("the override reason wins over the live rule and describes the button", () => {
@@ -394,7 +497,7 @@ describe("SubmitModal advisory view", () => {
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(submitButton()).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
-    fireEvent.click(screen.getByRole("button", { name: /back to verdict/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
     // The advisory list is a stop, never a destination.
     expect(submitButton()).toBeTruthy();
   });

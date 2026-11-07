@@ -116,6 +116,24 @@ describe("Tabs", () => {
     expect(screen.getByText("Panel B").hidden).toBe(true);
   });
 
+  it("makes a focusable panel its own tab stop and leaves others out", () => {
+    render(
+      <Tabs value="a" onValueChange={() => {}}>
+        <Tabs.List label="Sections">
+          <Tabs.Tab value="a">First</Tabs.Tab>
+          <Tabs.Tab value="b">Second</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel focusable value="a">
+          Panel A
+        </Tabs.Panel>
+        <Tabs.Panel value="b">Panel B</Tabs.Panel>
+      </Tabs>,
+    );
+
+    expect(screen.getByText("Panel A").getAttribute("tabindex")).toBe("0");
+    expect(screen.getByText("Panel B").hasAttribute("tabindex")).toBe(false);
+  });
+
   it("selects on click", () => {
     const onValueChange = vi.fn();
     renderTabs("a", onValueChange);
@@ -123,6 +141,36 @@ describe("Tabs", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Second" }));
 
     expect(onValueChange).toHaveBeenCalledWith("b");
+  });
+
+  it("scrolls a clicked tab fully into a row that scrolls", () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    renderTabs("a", () => {});
+
+    fireEvent.click(screen.getByRole("tab", { name: "Second" }));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "nearest",
+      inline: "nearest",
+    });
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+      screen.getByRole("tab", { name: "Second" }),
+    );
+    scrollIntoView.mockRestore();
+  });
+
+  it("adds a caller's class to the tablist", () => {
+    render(
+      <Tabs value="a" onValueChange={() => {}}>
+        <Tabs.List className="receipt-tabs" label="Sections">
+          <Tabs.Tab value="a">First</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="a">Panel A</Tabs.Panel>
+      </Tabs>,
+    );
+
+    const list = screen.getByRole("tablist", { name: "Sections" });
+    expect(list.classList.contains("receipt-tabs")).toBe(true);
   });
 
   it("moves and selects with the arrow keys, wrapping, plus Home and End", () => {
