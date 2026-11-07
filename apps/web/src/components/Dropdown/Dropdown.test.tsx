@@ -84,6 +84,25 @@ async function openList(): Promise<HTMLElement> {
   return trigger;
 }
 
+function renderSheet(value: string | undefined = "banana") {
+  const onValueChange = vi.fn<(value: string) => void>();
+  render(
+    <Dropdown value={value} onValueChange={onValueChange}>
+      <Dropdown.Trigger>
+        <Button variant="secondary">Fruit</Button>
+      </Dropdown.Trigger>
+      <Dropdown.Content label="Fruit" sheet>
+        {OPTIONS.map((option) => (
+          <Dropdown.Item key={option.value} value={option.value}>
+            {option.label}
+          </Dropdown.Item>
+        ))}
+      </Dropdown.Content>
+    </Dropdown>,
+  );
+  return { onValueChange };
+}
+
 async function press(key: string): Promise<void> {
   const target = document.activeElement ?? document.body;
   await act(async () => {
@@ -222,5 +241,90 @@ describe("Dropdown", () => {
     expect(document.activeElement).toBe(apple);
     await press("b");
     expect(document.activeElement).toBe(banana);
+  });
+
+  describe("as a sheet", () => {
+    it("opens a modal BottomSheet around the list, on its ticked row", async () => {
+      renderSheet();
+      await openList();
+
+      const sheet = screen.getByRole("dialog", { name: "Fruit" });
+      expect(sheet.getAttribute("aria-modal")).toBe("true");
+      const list = screen.getByRole("listbox", { name: "Fruit" });
+      expect(sheet.contains(list)).toBe(true);
+      expect(screen.getByRole("button", { name: /full height/i })).toBeTruthy();
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole("option", { name: "Banana" }),
+        ),
+      );
+    });
+
+    it("a press on the scrim or handle waits for the scrim's click", async () => {
+      renderSheet();
+      const trigger = await openList();
+      const scrim = screen.getByRole("button", { name: "Close the sheet" });
+      const handle = screen.getByRole("button", { name: /full height/i });
+
+      await act(async () => {
+        fireEvent.pointerDown(handle);
+        fireEvent.mouseDown(handle);
+        fireEvent.pointerDown(scrim);
+        fireEvent.mouseDown(scrim);
+      });
+      expect(scrim.isConnected).toBe(true);
+      expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+      await act(async () => {
+        fireEvent.click(scrim);
+      });
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+    });
+
+    it("Escape closes the sheet and returns focus to the trigger", async () => {
+      renderSheet();
+      const trigger = await openList();
+      const banana = screen.getByRole("option", { name: "Banana" });
+      await waitFor(() => expect(document.activeElement).toBe(banana));
+
+      await press("Escape");
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+    });
+
+    it("Tab cycles inside the sheet", async () => {
+      renderSheet();
+      await openList();
+      const banana = screen.getByRole("option", { name: "Banana" });
+      await waitFor(() => expect(document.activeElement).toBe(banana));
+
+      await press("Tab");
+
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: /full height/i }),
+      );
+      await act(async () => {
+        fireEvent.keyDown(document.activeElement ?? document.body, {
+          key: "Tab",
+          shiftKey: true,
+        });
+      });
+      expect(document.activeElement).toBe(banana);
+    });
+
+    it("a choice closes a single sheet and returns focus", async () => {
+      const { onValueChange } = renderSheet();
+      const trigger = await openList();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("option", { name: "Cherry" }));
+      });
+
+      expect(onValueChange).toHaveBeenCalledWith("cherry");
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 });

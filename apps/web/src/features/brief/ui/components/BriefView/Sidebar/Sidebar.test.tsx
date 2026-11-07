@@ -10,6 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import { ReviewSessionProvider } from "@web/features/review/session";
 import { briefFixture } from "@web/features/brief/test-utils";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import { buildBriefViewModel } from "../../../../model/utils/view-model";
@@ -22,6 +23,7 @@ import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { Sidebar } from ".";
 import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
+import { CHUNK_ROW_SELECTOR } from "./Tabs/ThisPr/ChunkRows/consts";
 import type { RevisionTimelinePlan } from "../../../../model/types";
 
 const model = buildBriefViewModel(briefFixture);
@@ -39,6 +41,7 @@ afterEach(() => {
 interface HarnessProps {
   jumpToGroup?: (groupId: string) => void;
   jumpToGroupHeading?: (groupId: string) => void;
+  jumpToChunk?: (chunkId: string, focus: boolean) => void;
   toggleShortcuts?: () => void;
   scrollToTop?: () => void;
   conversationGroupIds?: ReadonlySet<string>;
@@ -58,6 +61,7 @@ function noop(): void {}
 function Harness({
   jumpToGroup = noop,
   jumpToGroupHeading = noop,
+  jumpToChunk,
   toggleShortcuts = noop,
   scrollToTop = noop,
   conversationGroupIds,
@@ -82,6 +86,7 @@ function Harness({
         groups={model.groups}
         jumpToGroup={jumpToGroup}
         jumpToGroupHeading={jumpToGroupHeading}
+        jumpToChunk={jumpToChunk}
         scrollToTop={scrollToTop}
         pending={pending}
         state={state}
@@ -106,9 +111,11 @@ function renderSidebar(
     store.getState().actions.setActive(chunkId, activeGroupId);
   }
   return render(
-    <ReadingPositionProvider store={store}>
-      <Harness {...props} />
-    </ReadingPositionProvider>,
+    <ReviewSessionProvider briefId="fixture-brief" model={model}>
+      <ReadingPositionProvider store={store}>
+        <Harness {...props} />
+      </ReadingPositionProvider>
+    </ReviewSessionProvider>,
   );
 }
 
@@ -501,6 +508,36 @@ describe("Sidebar below the tablet breakpoint", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("a chunk row jump hands focus to the chunk only by keyboard", () => {
+    const jumpToChunk = vi.fn();
+    renderSidebar({ band: "narrow", jumpToChunk });
+    const chunk = firstGroup.chunks[0];
+    if (chunk === undefined) {
+      throw new Error("fixture group has no chunk");
+    }
+    function getChunkRow(): HTMLElement {
+      const sheet = screen.getByTestId("sidebar-sheet");
+      const row = within(sheet)
+        .getAllByRole("button")
+        .find((button) => button.textContent?.includes("leak.ts"));
+      if (row === undefined) {
+        throw new Error("no chunk row");
+      }
+      return row;
+    }
+
+    fireEvent.click(chevronNarrow());
+    fireEvent.click(getChunkRow(), { detail: 1 });
+    expect(jumpToChunk).toHaveBeenLastCalledWith(chunk.id, false);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(chevronNarrow());
+
+    fireEvent.click(chevronNarrow());
+    fireEvent.click(getChunkRow(), { detail: 0 });
+    expect(jumpToChunk).toHaveBeenLastCalledWith(chunk.id, true);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("a close the sidebar did not start still returns focus to the chevron", () => {
     renderSidebar({ band: "narrow" });
     fireEvent.click(chevronNarrow());
@@ -512,6 +549,27 @@ describe("Sidebar below the tablet breakpoint", () => {
 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(chevronNarrow());
+  });
+
+  it("centres the chunk being read when This PR follows Revisions", () => {
+    const scrollIntoView = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(noop);
+    renderSidebar(
+      { band: "narrow", jumpToChunk: vi.fn(), revisions: makeRevisionPlan() },
+      firstGroup.id,
+    );
+    fireEvent.click(chevronNarrow());
+    fireEvent.click(screen.getByRole("tab", { name: "Revisions" }));
+    scrollIntoView.mockClear();
+
+    fireEvent.click(screen.getByRole("tab", { name: "This PR" }));
+
+    const currentRow = screen
+      .getByTestId("sidebar-sheet")
+      .querySelector(`${CHUNK_ROW_SELECTOR}[aria-current="true"]`);
+    expect(currentRow).not.toBeNull();
+    expect(scrollIntoView.mock.contexts).toEqual([currentRow]);
   });
 
   it("never writes the sheet state", () => {

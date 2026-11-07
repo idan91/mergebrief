@@ -1,25 +1,19 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState } from "react";
-import type { ValueOf } from "types/utils";
 
+import { BottomSheet } from "@web/components/BottomSheet";
 import { Tabs } from "@web/components/Tabs";
-import { useBodyScrollLock } from "@web/hooks/useBodyScrollLock";
-import { useFocusTrap } from "@web/hooks/useFocusTrap";
 import type { RevisionTimelinePlan } from "../../../../../model/types";
 import type { GroupView } from "../../../../../model/utils/view-model";
 import { SIDEBAR_PANEL_ID } from "../consts";
 import { Revisions } from "../Tabs/Revisions";
 import { ThisPr } from "../Tabs/ThisPr";
-import { SidebarTabs, type JumpFromSidebar, type SidebarTab } from "../types";
+import {
+  SidebarTabs,
+  type JumpChunkFromSidebar,
+  type JumpFromSidebar,
+  type SidebarTab,
+} from "../types";
 import { isSidebarTab } from "../utils";
-import styles from "./Sheet.module.scss";
-
-export const SheetHeights = {
-  HALF: "half",
-  FULL: "full",
-} as const;
-
-export type SheetHeight = ValueOf<typeof SheetHeights>;
 
 export interface SheetProps {
   groups: GroupView[];
@@ -28,17 +22,15 @@ export interface SheetProps {
   tab: SidebarTab;
   selectTab: (tab: SidebarTab) => void;
   jumpToGroup: JumpFromSidebar;
+  /** Lists each group's chunks under it; absent keeps the groups alone. */
+  jumpToChunk?: JumpChunkFromSidebar | undefined;
   revisions?: RevisionTimelinePlan | undefined;
   /** Runs after a revision row activates; the caller closes the sheet. */
   afterRevision: () => void;
   close: () => void;
 }
 
-/**
- * The expanded Sidebar below the tablet breakpoint: a modal sheet rising
- * from the bar, opening at half height with a handle to the full height.
- * Mounted = open; the caller owns the open state and Escape.
- */
+/** The expanded Sidebar below the tablet breakpoint: This PR with its chunks, and the revisions. */
 export function Sheet({
   groups,
   activeGroupId,
@@ -46,22 +38,13 @@ export function Sheet({
   tab,
   selectTab,
   jumpToGroup,
+  jumpToChunk,
   revisions,
   afterRevision,
   close,
 }: SheetProps) {
   const { t } = useTranslation();
-  const [height, setHeight] = useState<SheetHeight>(SheetHeights.HALF);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const onTrapKeyDown = useFocusTrap(dialogRef);
-  useBodyScrollLock(true);
-
-  useEffect(() => {
-    dialogRef.current
-      ?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
-      ?.focus();
-    // Focus lands once, on open; a later tab change moves it through the tabs row.
-  }, []);
+  const thisPrSelected = tab === SidebarTabs.THIS_PR;
 
   const handleSelectTab = (value: string) => {
     if (isSidebarTab(value)) {
@@ -69,71 +52,42 @@ export function Sheet({
     }
   };
 
-  const full = height === SheetHeights.FULL;
-  const toggleHeight = () =>
-    setHeight(full ? SheetHeights.HALF : SheetHeights.FULL);
-
   return (
-    <>
-      {/* oxlint-disable-next-line house/no-raw-button -- full-viewport scrim: a tap target with no chrome */}
-      <button
-        aria-label={t("brief.sidebar.collapse")}
-        className={styles["scrim"]}
-        type="button"
-        onClick={close}
-      />
-      {/* The keydown is the dialog's Tab trap, not an interaction of its own. */}
-      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-      <div
-        aria-label={t("brief.sidebar.ariaLabel")}
-        aria-modal="true"
-        className={styles["sheet"]}
-        data-height={height}
-        data-testid="sidebar-sheet"
-        id={SIDEBAR_PANEL_ID}
-        ref={dialogRef}
-        role="dialog"
-        tabIndex={-1}
-        onKeyDown={onTrapKeyDown}
-      >
-        {/* oxlint-disable-next-line house/no-raw-button -- the sheet's grab handle: a pill, not a labelled control */}
-        <button
-          aria-expanded={full}
-          aria-label={
-            full
-              ? t("brief.sidebar.sheet.shrinkToHalf")
-              : t("brief.sidebar.sheet.expandToFull")
-          }
-          className={styles["handle"]}
-          type="button"
-          onClick={toggleHeight}
-        />
-        <Tabs value={tab} onValueChange={handleSelectTab}>
-          <Tabs.List label={t("brief.sidebar.tabs.ariaLabel")}>
-            <Tabs.Tab value={SidebarTabs.THIS_PR}>
-              {t("brief.sidebar.tabs.thisPr")}
-            </Tabs.Tab>
-            {revisions === undefined ? null : (
-              <Tabs.Tab value={SidebarTabs.REVISIONS}>
-                {t("brief.sidebar.tabs.revisions")}
-              </Tabs.Tab>
-            )}
-          </Tabs.List>
-          <Tabs.Panel value={SidebarTabs.THIS_PR}>
-            <ThisPr
-              activeGroupId={activeGroupId}
-              conversationGroupIds={conversationGroupIds}
-              groups={groups}
-              jumpToGroup={jumpToGroup}
-            />
-          </Tabs.Panel>
+    <BottomSheet
+      close={close}
+      closeLabel={t("brief.sidebar.collapse")}
+      id={SIDEBAR_PANEL_ID}
+      initialFocusSelector='[role="tab"][aria-selected="true"]'
+      label={t("brief.sidebar.ariaLabel")}
+      testId="sidebar-sheet"
+    >
+      <Tabs value={tab} onValueChange={handleSelectTab}>
+        <Tabs.List label={t("brief.sidebar.tabs.ariaLabel")}>
+          <Tabs.Tab value={SidebarTabs.THIS_PR}>
+            {t("brief.sidebar.tabs.thisPr")}
+          </Tabs.Tab>
           {revisions === undefined ? null : (
-            <Tabs.Panel value={SidebarTabs.REVISIONS}>
-              <Revisions afterActivate={afterRevision} plan={revisions} />
-            </Tabs.Panel>
+            <Tabs.Tab value={SidebarTabs.REVISIONS}>
+              {t("brief.sidebar.tabs.revisions")}
+            </Tabs.Tab>
           )}
-        </Tabs>
-      </div>
-    </>
+        </Tabs.List>
+        <Tabs.Panel value={SidebarTabs.THIS_PR}>
+          <ThisPr
+            activeGroupId={activeGroupId}
+            conversationGroupIds={conversationGroupIds}
+            groups={groups}
+            jumpToChunk={jumpToChunk}
+            jumpToGroup={jumpToGroup}
+            selected={thisPrSelected}
+          />
+        </Tabs.Panel>
+        {revisions === undefined ? null : (
+          <Tabs.Panel value={SidebarTabs.REVISIONS}>
+            <Revisions afterActivate={afterRevision} plan={revisions} />
+          </Tabs.Panel>
+        )}
+      </Tabs>
+    </BottomSheet>
   );
 }

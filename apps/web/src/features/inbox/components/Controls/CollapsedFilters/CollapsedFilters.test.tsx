@@ -111,6 +111,25 @@ describe("CollapsedFilters", () => {
     expect(screen.getByRole("listbox")).toBeTruthy();
   });
 
+  it("opens on a modal sheet and Escape returns focus to the trigger", async () => {
+    render(<CollapsedFilters changedCount={0} filters={[makeFilter()]} />);
+    const trigger = screen.getByRole("button", { name: "Filters" });
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+
+    const sheet = screen.getByRole("dialog", { name: "Filters" });
+    expect(sheet.getAttribute("aria-modal")).toBe("true");
+    const list = screen.getByRole("listbox");
+    expect(sheet.contains(list)).toBe(true);
+
+    await act(async () => {
+      fireEvent.keyDown(sheet, { key: "Escape" });
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("at the default it says Filters alone", () => {
     render(<CollapsedFilters changedCount={0} filters={[makeFilter()]} />);
 

@@ -11,26 +11,28 @@
     background: var(--color-scrim);
     cursor: default;
     touch-action: pinch-zoom;
+    animation: scrim-in var(--motion-base) ease both;
   }
 
   .sheet {
+    --sheet-offset: var(--bottom-sheet-offset, 0px);
+
     position: fixed;
-    inset-block-end: var(--sidebar-bar-h);
+    inset-block-end: var(--sheet-offset);
     inset-inline: 0;
     z-index: 96;
     display: flex;
     flex-direction: column;
-    block-size: calc(50dvh - var(--sidebar-bar-h));
-    border-block-start: 1px solid var(--color-outline-2);
-    border-start-start-radius: var(--radius-lg);
-    border-start-end-radius: var(--radius-lg);
-    background: var(--color-surface-1);
-    box-shadow: var(--shadow-elevation-lg);
+    block-size: calc(50dvh - var(--sheet-offset));
+    outline: none;
     touch-action: pinch-zoom;
     transition: block-size var(--motion-base) var(--ease-in-out);
+    animation: sheet-in var(--motion-slow) var(--ease-out) both;
+
+    @include mixins.bottom-sheet-chrome;
 
     &[data-height="full"] {
-      block-size: calc(100dvh - var(--sticky-stack-h) - var(--sidebar-bar-h));
+      block-size: calc(100dvh - var(--sticky-stack-h) - var(--sheet-offset));
     }
   }
 
@@ -59,6 +61,18 @@
 
     @include mixins.focus-visible {
       outline-offset: -2px;
+    }
+  }
+
+  @keyframes scrim-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
     }
   }
 

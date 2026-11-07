@@ -15,6 +15,7 @@ import {
 import {
   useId,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type RefObject,
@@ -54,6 +55,8 @@ export interface PopoverState {
   readonly setReference: (node: Element | null) => void;
   readonly setFloating: (node: HTMLElement | null) => void;
   readonly floatingStyles: CSSProperties;
+  /** A sheet's scrim, which closes on its own click. */
+  readonly scrimRef: RefObject<HTMLDivElement | null>;
   readonly transition: {
     readonly isMounted: boolean;
     readonly styles: CSSProperties;
@@ -150,7 +153,13 @@ export function usePopover({
     ],
   });
   const click = useClick(context);
-  const dismiss = useDismiss(context, { capture: { escapeKey: true } });
+  const scrimRef = useRef<HTMLDivElement | null>(null);
+  // Closing on the scrim's pointerdown removes it before a slow tap's click,
+  // and that click lands on whatever sits behind it.
+  const dismiss = useDismiss(context, {
+    capture: { escapeKey: true },
+    outsidePress: (event) => event.target !== scrimRef.current,
+  });
   const reduceMotion = prefersReducedMotion();
   const transition = useTransitionStyles(context, {
     duration: reduceMotion ? 0 : POPOVER_ENTER_MS,
@@ -179,6 +188,7 @@ export function usePopover({
       setReference: refs.setReference,
       setFloating: refs.setFloating,
       floatingStyles,
+      scrimRef,
       transition: { isMounted, styles: transitionStyles },
       transformOrigin,
       portal,

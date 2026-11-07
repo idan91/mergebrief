@@ -150,6 +150,7 @@ function BriefViewContent(props: BriefViewProps) {
     dismissLineLinkMiss,
     shareChunk,
     jumpToChunkUnderStack,
+    jumpToChunkFromSidebar,
     staleHead,
     largeTitle,
     attachLargeTitle,
@@ -463,6 +464,7 @@ function BriefViewContent(props: BriefViewProps) {
                         groups={model.groups}
                         jumpToGroup={session.jumpToGroup}
                         jumpToGroupHeading={session.jumpToGroupHeading}
+                        jumpToChunk={jumpToChunkFromSidebar}
                         scrollToTop={scrollToTop}
                         pending={pendingShown}
                         state={sidebar}

@@ -148,11 +148,13 @@ export interface UseReadingSessionValue {
   // navigation,
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
+  /** `focus` moves focus onto the card once the scroll finds it mounted. */
   jumpToChunk: (
     chunkId: string,
     behavior?: ScrollBehavior,
     placement?: ScrollPlacement,
     history?: ScrollHistory,
+    focus?: boolean,
   ) => void;
   /** The page's one scroll to target, for callers past a chunk jump. */
   scrollToTarget: ScrollToTarget["scrollToTarget"];
@@ -477,6 +479,7 @@ export function useReadingSession(
       behavior: ScrollBehavior = "smooth",
       placement: ScrollPlacement = ScrollPlacements.VIEWPORT_TOP,
       history: ScrollHistory = ScrollHistories.NONE,
+      focus = false,
     ) => {
       setActivePosition(chunkId);
       // Focus mode must open the target, every other card is display:none,
@@ -491,6 +494,7 @@ export function useReadingSession(
           motion: deriveScrollMotion(behavior),
           history,
           open: opensTarget,
+          focus,
           placement,
         },
       );

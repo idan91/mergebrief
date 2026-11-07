@@ -259,3 +259,11 @@
     --concern-color: var(--color-concern-generated);
   }
 }
+
+@mixin bottom-sheet-chrome {
+  border-block-start: 1px solid var(--color-outline-2);
+  border-start-start-radius: var(--radius-lg);
+  border-start-end-radius: var(--radius-lg);
+  background: var(--color-surface-1);
+  box-shadow: var(--shadow-elevation-lg);
+}

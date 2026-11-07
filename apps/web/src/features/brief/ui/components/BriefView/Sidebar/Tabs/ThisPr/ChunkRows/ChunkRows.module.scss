@@ -1,0 +1,93 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .row {
+    position: relative;
+    display: grid;
+    grid-template-columns: functions.to-rem(24px) minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    align-items: center;
+    inline-size: 100%;
+    min-block-size: functions.to-rem(44px);
+    padding-inline: functions.to-rem(10px);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+    text-align: start;
+    cursor: pointer;
+
+    &:active {
+      background: var(--color-surface-2);
+    }
+
+    &[aria-current="true"] {
+      background: var(--color-surface-2);
+    }
+
+    &[aria-current="true"]::before {
+      position: absolute;
+      inset-block: var(--space-3);
+      inset-inline-start: 0;
+      inline-size: 3px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      background: var(--color-text-1);
+      content: "";
+    }
+
+    &[data-viewed] .file {
+      color: var(--color-text-2);
+    }
+
+    &[data-viewed] .status {
+      border-color: var(--color-text-3);
+      background: var(--color-text-3);
+      color: var(--color-surface-1);
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 16px;
+    block-size: 16px;
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-pill);
+    color: transparent;
+  }
+
+  .file {
+    overflow: hidden;
+
+    // RTL moves the ellipsis to the start so the file name is cut last; under
+    // RTL, `end` is the left edge a short path keeps.
+    direction: rtl;
+    font-family: var(--mono);
+    text-align: end;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .folder {
+    color: var(--color-text-3);
+  }
+
+  .counts {
+    font-size: var(--font-size-md);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}

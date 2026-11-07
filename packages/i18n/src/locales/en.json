@@ -1060,10 +1060,6 @@
         "title": "Revision {{index}}",
         "latest": "Latest"
       },
-      "sheet": {
-        "expandToFull": "Expand the sheet to full height",
-        "shrinkToHalf": "Shrink the sheet to half height"
-      },
       "diffViewToSplit": "Switch to split view",
       "diffViewToUnified": "Switch to unified view"
     },
@@ -1121,7 +1117,10 @@
       "actionReanchorArmed": "Cancel re-anchor"
     },
     "baseDriftReason": "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.",
-    "demoReadOnlyReason": "This brief is a public demo. Commenting, addressing flags and submitting a review are off."
+    "demoReadOnlyReason": "This brief is a public demo. Commenting, addressing flags and submitting a review are off.",
+    "mobile": {
+      "viewedSummary": "{{viewed}} of {{total}} viewed"
+    }
   },
   "review": {
     "outcome": {
@@ -1649,6 +1648,11 @@
       "settingsHeading": "Sign in to manage API tokens",
       "opening": "Opening GitHub…",
       "note": "Source-available and self-hosted."
+    },
+    "sheet": {
+      "close": "Close the sheet",
+      "expandToFull": "Expand the sheet to full height",
+      "shrinkToHalf": "Shrink the sheet to half height"
     }
   },
   "briefError": {

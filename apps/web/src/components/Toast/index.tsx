@@ -65,8 +65,6 @@ export function Toast({
   }, [showsAction, onRelease]);
 
   return (
-    // The handlers only hold the timer; the action inside stays the interactive element.
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       className={styles["toast"]}
       data-state={toastState}

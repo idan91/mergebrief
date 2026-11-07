@@ -66,4 +66,15 @@ describe("ThisPr", () => {
     expect(row.getAttribute("aria-current")).toBe("true");
     expect(row.textContent).toContain("has conversation");
   });
+
+  it("lists no chunk rows when no chunk jump is wired", () => {
+    render(
+      <ThisPr
+        activeGroupId={null}
+        groups={model.groups}
+        jumpToGroup={() => {}}
+      />,
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(model.groups.length);
+  });
 });

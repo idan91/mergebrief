@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { LocSign, LocSigns } from "@web/components/LocSign";
@@ -7,7 +8,10 @@ import { GroupViewKinds } from "../../../../../../model/utils/remainder";
 import { getCategoryLabel } from "../../../../../../model/utils/view-model";
 import type { GroupView } from "../../../../../../model/utils/view-model";
 import { resolveGroupName } from "../../../../../../model/utils/resolve-group-name";
-import type { JumpFromSidebar } from "../../types";
+import type { JumpChunkFromSidebar, JumpFromSidebar } from "../../types";
+import { ChunkRows } from "./ChunkRows";
+import { CHUNK_ROW_SELECTOR } from "./ChunkRows/consts";
+import { ViewedSummary } from "./ViewedSummary";
 import styles from "./ThisPr.module.scss";
 
 export interface ThisPrProps {
@@ -15,6 +19,10 @@ export interface ThisPrProps {
   activeGroupId: string | null;
   conversationGroupIds?: ReadonlySet<string> | undefined;
   jumpToGroup: JumpFromSidebar;
+  /** Lists each group's chunks under it, for the Sidebar sheet; absent keeps the groups alone. */
+  jumpToChunk?: JumpChunkFromSidebar | undefined;
+  /** True while This PR is the selected tab; the Sidebar sheet centres the chunk being read each time it turns true. */
+  selected?: boolean;
 }
 
 /** The This PR tab's content: the change groups in Brief order, the current one marked, each row a jump. */
@@ -23,11 +31,25 @@ export function ThisPr({
   activeGroupId,
   conversationGroupIds,
   jumpToGroup,
+  jumpToChunk,
+  selected,
 }: ThisPrProps) {
   const { t } = useTranslation();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // The Sidebar sheet shows This PR where you are, not at the first group.
+  useEffect(() => {
+    if (selected !== true) {
+      return;
+    }
+    panelRef.current
+      ?.querySelector(`${CHUNK_ROW_SELECTOR}[aria-current="true"]`)
+      ?.scrollIntoView?.({ block: "center" });
+  }, [selected]);
 
   return (
-    <div className={styles["panel"]}>
+    <div className={styles["panel"]} ref={panelRef}>
+      {jumpToChunk === undefined ? null : <ViewedSummary groups={groups} />}
       <ol className={styles["list"]}>
         {groups.map((group) => {
           const current = group.id === activeGroupId;
@@ -76,6 +98,9 @@ export function ThisPr({
                   </span>
                 ) : null}
               </button>
+              {jumpToChunk === undefined ? null : (
+                <ChunkRows chunks={group.chunks} jumpToChunk={jumpToChunk} />
+              )}
             </li>
           );
         })}

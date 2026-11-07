@@ -350,6 +350,7 @@ export interface ReadingState {
   viewStore: BriefViewStore;
   session: UseReadingSessionValue;
   jumpToChunkUnderStack: (chunkId: string, behavior?: ScrollBehavior) => void;
+  jumpToChunkFromSidebar: (chunkId: string, focus: boolean) => void;
   expansionSource: ExpansionSource | undefined;
   revisionNav: RevisionNavigation;
 }

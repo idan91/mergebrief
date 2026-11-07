@@ -115,6 +115,40 @@ describe("Popover", () => {
     expect(document.activeElement).toBe(before);
   });
 
+  it("a sheet stays over the page until its scrim's click lands", async () => {
+    render(
+      <Popover focusOnOpen={PopoverFocusTargets.TRIGGER}>
+        <Popover.Trigger>
+          <Button>Open</Button>
+        </Popover.Trigger>
+        <Popover.Content label="Details" sheet>
+          <Button>Inside</Button>
+        </Popover.Content>
+      </Popover>,
+    );
+    const trigger = screen.getByRole("button", { name: "Open" });
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+    const scrim = document.querySelector('div[aria-hidden="true"]');
+    if (scrim === null) {
+      throw new Error("expected the sheet's scrim");
+    }
+
+    await act(async () => {
+      fireEvent.pointerDown(scrim);
+      fireEvent.mouseDown(scrim);
+    });
+    expect(scrim.isConnected).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+    await act(async () => {
+      fireEvent.click(scrim);
+    });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("a press inside the panel keeps it open", async () => {
     renderPopover();
     await openPopover();

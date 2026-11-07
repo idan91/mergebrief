@@ -146,6 +146,7 @@ export function Header({
     return () => {
       window.clearTimeout(settle);
       observer.disconnect();
+      document.documentElement.style.removeProperty("--top-bar-h");
     };
   }, []);
 

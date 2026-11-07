@@ -25,6 +25,17 @@ describe("useBodyScrollLock", () => {
     expect(document.body.style.overflow).toBe("auto");
   });
 
+  it("frees the page only when the last of two locks lets go", () => {
+    const first = renderHook(() => useBodyScrollLock(true));
+    const second = renderHook(() => useBodyScrollLock(true));
+
+    first.unmount();
+    expect(document.body.style.overflow).toBe("hidden");
+
+    second.unmount();
+    expect(document.body.style.overflow).toBe("");
+  });
+
   it("leaves the body alone while inactive", () => {
     renderHook(() => useBodyScrollLock(false));
     expect(document.body.style.overflow).toBe("");

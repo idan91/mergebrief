@@ -18,3 +18,9 @@ export type JumpFromSidebar = (
   groupId: string,
   event: MouseEvent<HTMLButtonElement>,
 ) => void;
+
+/** A chunk jump from the Sidebar sheet, with the same event contract as a group's. */
+export type JumpChunkFromSidebar = (
+  chunkId: string,
+  event: MouseEvent<HTMLButtonElement>,
+) => void;

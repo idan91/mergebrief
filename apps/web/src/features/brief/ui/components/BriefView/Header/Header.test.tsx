@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../../../model/types";
@@ -211,6 +217,16 @@ describe("Header identity row", () => {
       sentinel.remove();
       document.documentElement.style.removeProperty("--sticky-stack-h");
     }
+  });
+
+  it("clears its published bar height when it unmounts", async () => {
+    await renderHeader();
+    const root = document.documentElement.style;
+    expect(root.getPropertyValue("--top-bar-h")).not.toBe("");
+
+    cleanup();
+
+    expect(root.getPropertyValue("--top-bar-h")).toBe("");
   });
 
   it("shows its title once the large title scrolls under the bar", async () => {

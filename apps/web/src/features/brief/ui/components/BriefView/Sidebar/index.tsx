@@ -23,7 +23,11 @@ import { NarrowBar } from "./NarrowBar";
 import { Sheet } from "./Sheet";
 import { Revisions } from "./Tabs/Revisions";
 import { ThisPr } from "./Tabs/ThisPr";
-import { SidebarTabs, type JumpFromSidebar } from "./types";
+import {
+  SidebarTabs,
+  type JumpChunkFromSidebar,
+  type JumpFromSidebar,
+} from "./types";
 import type { SidebarState } from "./useSidebarState";
 import { isSidebarTab, resolveShownTab } from "./utils";
 import styles from "./Sidebar.module.scss";
@@ -39,6 +43,11 @@ export interface SidebarProps {
   jumpToGroup: (groupId: string) => void;
   /** The keyboard scroll to target: scrolls to and focuses the group heading. */
   jumpToGroupHeading: (groupId: string) => void;
+  /**
+   * Scrolls a chunk's header under the sticky stack, for the Sidebar sheet's rows;
+   * `focus` lands focus on the card once the scroll finds it.
+   */
+  jumpToChunk?: ((chunkId: string, focus: boolean) => void) | undefined;
   scrollToTop: () => void;
   conversationGroupIds?: ReadonlySet<string> | undefined;
   state: SidebarState;
@@ -64,6 +73,7 @@ export function Sidebar({
   groups,
   jumpToGroup,
   jumpToGroupHeading,
+  jumpToChunk,
   scrollToTop,
   conversationGroupIds,
   state,
@@ -134,6 +144,17 @@ export function Sidebar({
     }
     jumpToGroupHeading(groupId);
   };
+
+  const jumpChunkFromSheet: JumpChunkFromSidebar = (chunkId, event) => {
+    state.collapse();
+    const byKeyboard = event.detail === 0;
+    jumpToChunk?.(chunkId, byKeyboard);
+    if (!byKeyboard) {
+      chevronRef.current?.focus();
+    }
+  };
+  const sheetChunkJump =
+    jumpToChunk === undefined ? undefined : jumpChunkFromSheet;
 
   const collapseToChevron = () => {
     state.collapse();
@@ -208,6 +229,7 @@ export function Sidebar({
             conversationGroupIds={conversationGroupIds}
             groups={groups}
             jumpToGroup={jumpFromSidebar}
+            jumpToChunk={sheetChunkJump}
             afterRevision={afterRevision}
             revisions={revisionPlan}
             selectTab={state.selectTab}

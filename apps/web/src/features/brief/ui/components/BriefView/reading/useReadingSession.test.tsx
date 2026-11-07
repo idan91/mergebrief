@@ -13,6 +13,7 @@ import {
   buildBriefViewModel,
   type BriefViewModel,
 } from "../../../../model/utils/view-model";
+import { ScrollPlacements } from "../scroll-to-target/engine/types";
 import { ScrollHistories } from "../scroll-to-target/types";
 import type { ScopeExitOptions } from "../types";
 import { createBriefViewStore } from "../store";
@@ -206,6 +207,28 @@ describe("useReadingSession heading scroll", () => {
     expect(position.getState().activeChunkId).toBe(firstChunk.id);
     expect(section.scrollIntoView).toHaveBeenCalledTimes(1);
     expect(chunk.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("a focused chunk jump focuses the card once the scroll finds it", () => {
+    vi.useFakeTimers();
+    const { session } = renderSession();
+
+    act(() => {
+      session.jumpToChunk(
+        firstChunk.id,
+        "smooth",
+        ScrollPlacements.UNDER_STACK,
+        ScrollHistories.NONE,
+        true,
+      );
+    });
+    const { chunk } = mountGroup(false);
+    chunk.tabIndex = -1;
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(document.activeElement).toBe(chunk);
   });
 
   it("falls back to the chunk jump when the heading is not mounted", () => {

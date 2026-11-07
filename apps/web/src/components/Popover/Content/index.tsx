@@ -5,11 +5,14 @@ import type { ReactNode } from "react";
 import { FOCUS_ORDER_BY_TARGET, INITIAL_FOCUS_BY_TARGET } from "../consts";
 import { usePopoverContext } from "../context";
 import styles from "./Content.module.scss";
+import { SheetBackdrop } from "./SheetBackdrop";
 
 export interface PopoverContentProps {
   /** The panel's accessible name, where its role wants one. */
   label?: string | undefined;
   className?: string | undefined;
+  /** Rises from the bottom edge over a scrim instead of floating by the trigger. */
+  sheet?: boolean | undefined;
   children: ReactNode;
 }
 
@@ -21,6 +24,7 @@ export interface PopoverContentProps {
 export function PopoverContent({
   label,
   className,
+  sheet = false,
   children,
 }: PopoverContentProps) {
   const popover = usePopoverContext();
@@ -30,32 +34,40 @@ export function PopoverContent({
 
   const initialFocus = INITIAL_FOCUS_BY_TARGET[popover.focusOnOpen];
   const order = FOCUS_ORDER_BY_TARGET[popover.focusOnOpen];
-  const style = {
-    ...popover.floatingStyles,
-    ...popover.transition.styles,
-    transformOrigin: popover.transformOrigin,
-  };
+  const style = sheet
+    ? { opacity: popover.transition.styles.opacity }
+    : {
+        ...popover.floatingStyles,
+        ...popover.transition.styles,
+        transformOrigin: popover.transformOrigin,
+      };
   const panel = (
-    <FloatingFocusManager
-      context={popover.context}
-      initialFocus={initialFocus}
-      modal={false}
-      order={order}
-      returnFocus={false}
-    >
-      <div
-        {...popover.getFloatingProps()}
-        aria-label={label}
-        className={clsx(styles["content"], className)}
-        id={popover.panelId}
-        inert={!popover.open || undefined}
-        ref={popover.setFloating}
-        style={style}
-        tabIndex={-1}
+    <>
+      {sheet ? (
+        <SheetBackdrop close={popover.close} scrimRef={popover.scrimRef} />
+      ) : null}
+      <FloatingFocusManager
+        context={popover.context}
+        initialFocus={initialFocus}
+        modal={false}
+        order={order}
+        returnFocus={false}
       >
-        {children}
-      </div>
-    </FloatingFocusManager>
+        <div
+          {...popover.getFloatingProps()}
+          aria-label={label}
+          className={clsx(styles["content"], className)}
+          data-sheet={sheet ? "" : undefined}
+          id={popover.panelId}
+          inert={!popover.open || undefined}
+          ref={popover.setFloating}
+          style={style}
+          tabIndex={-1}
+        >
+          {children}
+        </div>
+      </FloatingFocusManager>
+    </>
   );
 
   if (!popover.portal) {

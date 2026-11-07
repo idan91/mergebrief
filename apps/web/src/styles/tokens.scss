@@ -342,11 +342,6 @@
     --banner-stack-h: calc(
       var(--focus-indicator-h, 0px) + var(--reanchor-banner-h, 0px)
     );
-
-    // @property-registered in _layers.scss so JS reads a number.
-    --sticky-stack-h: calc(
-      var(--top-bar-h) + var(--banner-stack-h) + var(--toolbar-h, 0px)
-    );
     --sidebar-w-collapsed: 3rem;
     --sidebar-w-expanded: 26.5rem;
     --sidebar-bar-h: calc(3.25rem + env(safe-area-inset-bottom));
@@ -362,6 +357,10 @@
     --sidebar-w: 0px;
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-reserve-bottom: 0px;
+
+    // Height of the bar a bottom sheet rests on; zero where it rests on the edge.
+    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+    --bottom-sheet-offset: 0px;
 
     color-scheme: dark light;
   }

@@ -271,6 +271,9 @@ export type Catalog = typeof en & {
       pending_one: "{{count}} item from your last review needs a re-look";
       pending_other: "{{count}} items from your last review need a re-look";
     };
+    mobile: (typeof en)["brief"]["mobile"] & {
+      viewedSummary: "{{viewed}} of {{total}} viewed";
+    };
   };
   review: (typeof en)["review"] & {
     summary: (typeof en)["review"]["summary"] & {

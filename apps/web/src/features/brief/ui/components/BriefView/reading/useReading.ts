@@ -4,6 +4,7 @@ import { useCreateExpansionStore } from "../../../../model/expansion/useExpansio
 import type { ExpansionSource } from "../../../../model/expansion/useExpansionSource";
 import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import { ScrollPlacements } from "../scroll-to-target/engine/types";
+import { ScrollHistories } from "../scroll-to-target/types";
 import { useCreateBriefViewStore } from "../store";
 import type { ReadingState, UseReadingInput } from "../types";
 import { createChunkWindowRegistry } from "./chunk-windows";
@@ -51,6 +52,17 @@ export function useReading({
       sessionJumpToChunk(chunkId, behavior, ScrollPlacements.UNDER_STACK),
     [sessionJumpToChunk],
   );
+  const jumpToChunkFromSidebar = useCallback(
+    (chunkId: string, focus: boolean) =>
+      sessionJumpToChunk(
+        chunkId,
+        "smooth",
+        ScrollPlacements.UNDER_STACK,
+        ScrollHistories.NONE,
+        focus,
+      ),
+    [sessionJumpToChunk],
+  );
   // Hunk-edge expansion reads the file at the head sha through the pull's
   // API route; the local path has no route, so its edges stay folded.
   const expansionSource = useMemo((): ExpansionSource | undefined => {
@@ -78,6 +90,7 @@ export function useReading({
     viewStore,
     session,
     jumpToChunkUnderStack,
+    jumpToChunkFromSidebar,
     expansionSource,
     revisionNav,
   };

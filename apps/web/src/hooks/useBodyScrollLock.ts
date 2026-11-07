@@ -1,5 +1,9 @@
 import { useEffect } from "react";
 
+// Two sheets can be up at once, and they do not close in the order they opened.
+let lockCount = 0;
+let overflowBeforeLock = "";
+
 /** Holds the page still behind a modal surface; releases on unmount or when inactive. */
 export function useBodyScrollLock(active: boolean): void {
   useEffect(() => {
@@ -7,10 +11,17 @@ export function useBodyScrollLock(active: boolean): void {
       return;
     }
 
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (lockCount === 0) {
+      overflowBeforeLock = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+    lockCount += 1;
+
     return () => {
-      document.body.style.overflow = previous;
+      lockCount -= 1;
+      if (lockCount === 0) {
+        document.body.style.overflow = overflowBeforeLock;
+      }
     };
   }, [active]);
 }

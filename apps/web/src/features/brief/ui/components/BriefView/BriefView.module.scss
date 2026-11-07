@@ -4,6 +4,13 @@
   // Set on :root because the toast and VersionNotice read the reserve
   // outside the reading column.
   :root {
+    // Only the Brief page pins a stack; elsewhere the registered 0px stands.
+    &:has(.readingColumn) {
+      --sticky-stack-h: calc(
+        var(--top-bar-h) + var(--banner-stack-h) + var(--toolbar-h, 0px)
+      );
+    }
+
     &:has(.readingColumn[data-sidebar="collapsed"]) {
       --sidebar-w: var(--sidebar-w-collapsed);
     }

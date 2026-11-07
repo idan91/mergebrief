@@ -13,7 +13,7 @@ export interface CollapsedFiltersProps {
   changedCount: number;
 }
 
-/** Under 760px every filter sits in one listbox, grouped under its name; it stays open across choices. */
+/** Under 760px every filter sits in one listbox on a bottom sheet, grouped under its name; it stays open across choices. */
 export function CollapsedFilters({
   filters,
   changedCount,
@@ -49,7 +49,7 @@ export function CollapsedFilters({
           )}
         </button>
       </Dropdown.Trigger>
-      <Dropdown.Content label={label}>
+      <Dropdown.Content label={label} sheet>
         {filters.map((filter) => (
           <Dropdown.Group key={filter.id} label={filter.name}>
             <FilterRows filter={filter} scoped />
