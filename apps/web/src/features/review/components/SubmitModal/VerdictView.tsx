@@ -1,5 +1,5 @@
 import type { ReviewOutcome } from "types/reviews";
-import { useState, type RefObject } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
@@ -8,6 +8,7 @@ import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
 import { MentionListLayouts } from "@web/components/MarkdownTextarea/types";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { Modal } from "@web/components/Modal";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { useMentionSuggestions } from "@web/features/conversation/hooks";
 import type { MentionSource } from "@web/features/conversation/types";
 import { useReviewActions } from "../../session/flow/provider";
@@ -52,6 +53,8 @@ export interface VerdictViewProps {
   stale: StaleAck;
   submit: SubmitAffordance;
   status: SubmitStatus;
+  /** Someone has tried Submit, so its blocked reason shows. */
+  reasonShown: boolean;
   close: () => void;
   previewReceipt: () => void;
   mentionSource?: MentionSource | undefined;
@@ -67,6 +70,7 @@ export function VerdictView({
   stale,
   submit,
   status,
+  reasonShown,
   close,
   previewReceipt,
   mentionSource,
@@ -79,16 +83,28 @@ export function VerdictView({
     setReviewComment(comment);
     setAttachError(undefined);
   };
-  // The submit's own guards are the modal's; a placeholder still in the
-  // body is this view's, since the body would ship it, not the image.
+  // The modal refuses a body that still holds a placeholder, since it would
+  // ship in place of the image; saying so is this view's.
   const attemptSubmit = () => {
     if (hasUploadPlaceholder(reviewComment)) {
       setAttachError(t("shell.attach.waitForUpload"));
-      return;
     }
     submit.attempt();
   };
   const showsNote = status.note !== null && status.error === null;
+
+  let blockedLine: ReactNode = null;
+  if (status.blockedReason !== undefined) {
+    blockedLine = reasonShown ? (
+      <p className={styles["submitStatus"]} id="submit-modal-blocked">
+        {status.blockedReason}
+      </p>
+    ) : (
+      <ScreenReaderOnly id="submit-modal-blocked">
+        {status.blockedReason}
+      </ScreenReaderOnly>
+    );
+  }
 
   return (
     <>
@@ -124,7 +140,6 @@ export function VerdictView({
         label={t("review.submit.commentLabel")}
         labelVisible
         placeholder={t("review.submit.commentPlaceholder")}
-        describedBy="submit-modal-comment-hint"
         mentionSuggestions={mentions.mentionSuggestions}
         onMentionQueryChange={mentions.onMentionQueryChange}
         mentionListLayout={MentionListLayouts.FLOATING}
@@ -133,9 +148,6 @@ export function VerdictView({
         onAttachError={setAttachError}
         onSubmit={attemptSubmit}
       />
-      <p className={styles["hint"]} id="submit-modal-comment-hint">
-        {t("review.submit.commentHint")}
-      </p>
       {attachError !== undefined ? (
         <p className={styles["submitStatus"]} data-kind="error" role="alert">
           {attachError}
@@ -159,11 +171,7 @@ export function VerdictView({
       <Modal.Footer
         reason={
           <>
-            {status.blockedReason !== undefined ? (
-              <p className={styles["submitStatus"]} id="submit-modal-blocked">
-                {status.blockedReason}
-              </p>
-            ) : null}
+            {blockedLine}
             {status.error !== null ? (
               <p
                 className={styles["submitStatus"]}
@@ -192,7 +200,7 @@ export function VerdictView({
         <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
         <Button
           aria-describedby={submit.describedBy}
-          disabled={submit.disabled}
+          aria-disabled={submit.disabled ? true : undefined}
           loading={submit.pending}
           variant="accent"
           onClick={attemptSubmit}

@@ -68,16 +68,10 @@
         var(--color-text-1)
       );
 
+      border-color: var(--color-text-3);
       background: var(--active-fill);
       color: var(--color-text-1);
     }
-  }
-
-  .hint {
-    margin-block: functions.to-rem(6px) functions.to-rem(4px);
-    color: var(--color-text-3);
-    font-size: var(--font-size-lg);
-    line-height: 1.5;
   }
 
   .staleWarning {

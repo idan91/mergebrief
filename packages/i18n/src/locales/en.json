@@ -1193,7 +1193,7 @@
     "submit": {
       "outcomeLegend": "Review outcome",
       "commentLabel": "Review comment",
-      "commentPlaceholder": "Optional. Your words, posted above the signature line.",
+      "commentPlaceholder": "Summarize your review for the author",
       "submitting": "Submitting…",
       "submitReview": "Submit review",
       "blockerOpenRisk": "Open risk",
@@ -1204,7 +1204,6 @@
       "blockerThinDismissal": "Thin dismissal reason",
       "heading": "Submit review",
       "intro": "The verdict and the words are yours. The tool adds one signature line of mechanical claims under them.",
-      "commentHint": "Posted as your comment, a rule, then the tool's one-line signature.",
       "staleWarning": "This pull request has newer commits. Comments will anchor to the revision you reviewed and may appear as outdated on GitHub.",
       "staleAck": "Submit against the reviewed revision anyway",
       "previewReceipt": "Preview receipt",
@@ -1540,7 +1539,6 @@
     },
     "suggestedChange": "Suggested change",
     "nothingToPreview": "Nothing to preview.",
-    "markdownSupported": "Markdown is supported",
     "media": {
       "imageFailed": "Image could not load",
       "videoFailed": "Video could not load",

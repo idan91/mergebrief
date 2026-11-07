@@ -99,6 +99,9 @@ const blockedWhenEmpty = (comment: string) =>
 
 const submitButton = () =>
   screen.getByRole("button", { name: /^submit review$/i });
+function getBlockedReason() {
+  return screen.getByText("A comment-only review needs content.");
+}
 const ackCheckbox = () =>
   screen.getByRole("checkbox", {
     name: /submit against the reviewed revision anyway/i,
@@ -234,6 +237,77 @@ describe("SubmitModal views", () => {
     expect(button.getAttribute("aria-disabled")).toBeNull();
     fireEvent.click(button);
     expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows why Submit is off only once someone tries it", () => {
+    renderModal({ blockedReasonWith: blockedWhenEmpty });
+    expect(getBlockedReason().classList.contains("sr-only")).toBe(true);
+    expect(submitButton().getAttribute("aria-describedby")).toBe(
+      "submit-modal-blocked",
+    );
+
+    fireEvent.click(submitButton());
+
+    expect(getBlockedReason().classList.contains("sr-only")).toBe(false);
+    expect(getBlockedReason().id).toBe("submit-modal-blocked");
+  });
+
+  it("shows why Submit is off once Cmd+Enter tries it", () => {
+    const { submit } = renderModal({ blockedReasonWith: blockedWhenEmpty });
+    const textbox = screen.getByRole("textbox", { name: /review comment/i });
+
+    fireEvent.keyDown(textbox, { key: "Enter", metaKey: true });
+
+    expect(getBlockedReason().classList.contains("sr-only")).toBe(false);
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("announces why Submit is off on every refused try", async () => {
+    const { store } = renderModal({ blockedReasonWith: blockedWhenEmpty });
+    const textbox = screen.getByRole("textbox", { name: /review comment/i });
+    const reason = "A comment-only review needs content.";
+
+    fireEvent.keyDown(textbox, { key: "Enter", metaKey: true });
+    await vi.waitFor(() => {
+      expect(store.getState().liveMessage).toBe(reason);
+    });
+    fireEvent.click(submitButton());
+
+    expect(store.getState().liveMessage).toBe("");
+    await vi.waitFor(() => {
+      expect(store.getState().liveMessage).toBe(reason);
+    });
+  });
+
+  it("keeps a Submit in flight disabled-looking and inert", () => {
+    const { submit } = renderModal({ submitPending: true });
+    const button = screen.getByRole("button", { name: /^submitting/i });
+
+    fireEvent.click(button);
+
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("hides the blocked reason again after a close and reopen", () => {
+    const { rerender } = renderModal({ blockedReasonWith: blockedWhenEmpty });
+    fireEvent.click(submitButton());
+
+    rerender({ blockedReasonWith: blockedWhenEmpty, open: false });
+    rerender({ blockedReasonWith: blockedWhenEmpty, open: true });
+
+    expect(getBlockedReason().classList.contains("sr-only")).toBe(true);
+  });
+
+  it("keeps the tried reason shown across a receipt preview and back", () => {
+    renderModal({ blockedReasonWith: blockedWhenEmpty });
+    fireEvent.click(submitButton());
+
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back to verdict/i }));
+
+    expect(getBlockedReason().classList.contains("sr-only")).toBe(false);
   });
 
   it("Submit holds while the comment still carries an upload placeholder", () => {
@@ -440,6 +514,20 @@ describe("SubmitModal stale-head ack", () => {
       "submit-modal-stale-warning",
     );
     fireEvent.click(button);
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("announces the newer commits warning when Cmd+Enter is refused", async () => {
+    const { store, submit } = renderModal({ staleHead: true });
+    const textbox = screen.getByRole("textbox", { name: /review comment/i });
+
+    fireEvent.keyDown(textbox, { key: "Enter", metaKey: true });
+
+    await vi.waitFor(() => {
+      expect(store.getState().liveMessage).toBe(
+        appI18n.t("review.submit.staleWarning"),
+      );
+    });
     expect(submit).not.toHaveBeenCalled();
   });
 

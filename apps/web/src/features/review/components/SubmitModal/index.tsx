@@ -1,7 +1,9 @@
 import type { ReviewOutcome } from "types/reviews";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 
+import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import { Modal } from "@web/components/Modal";
 import type { MentionSource } from "@web/features/conversation/types";
 import { useReviewActions, useReviewFlow } from "../../session/flow/provider";
@@ -98,9 +100,10 @@ export function SubmitModal({
   staleHead = false,
   mentionSource,
 }: SubmitModalProps) {
+  const { t } = useTranslation();
   const outcomeGroupName = useId();
   const reviewComment = useReviewFlow((state) => state.reviewComment);
-  const { setReviewComment } = useReviewActions();
+  const { setReviewComment, announceQuietly } = useReviewActions();
 
   // Reset modal view and stale acknowledgment on open; store data survives close.
   // Returning staleness requires fresh consent even while the modal stays open.
@@ -109,6 +112,9 @@ export function SubmitModal({
     open && unresolvedItems.length > 0 ? "advisory" : "verdict",
   );
   const [ackStale, setAckStale] = useState(false);
+  // Why Submit is off shows once someone tries it; until then it is only
+  // the button's description.
+  const [submitTried, setSubmitTried] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
   const [wasStale, setWasStale] = useState(staleHead);
   // Advisory items are CAPTURED at open: a live list would let a mid-flow
@@ -125,6 +131,7 @@ export function SubmitModal({
       setView(entryView);
       setAdvisoryItems(unresolvedItems);
       setAckStale(false);
+      setSubmitTried(false);
       // Also reset the focus-effect's view memory: reopening after a receipt
       // preview must NOT read as a view switch, or the heading focus below
       // would steal the Modal's own open-focus claim on the dialog box.
@@ -161,9 +168,18 @@ export function SubmitModal({
     staleUnacked,
     submitError,
   );
+  const submitAllowed = !submitDisabled && !hasUploadPlaceholder(reviewComment);
+  const staleRefusal = staleUnacked
+    ? t("review.submit.staleWarning")
+    : undefined;
+  const refusal = blockedReason ?? staleRefusal;
+  // A refused try says why each time; the shown reason is no live region.
   const attemptSubmit = () => {
-    if (!submitDisabled) {
+    setSubmitTried(true);
+    if (submitAllowed) {
       submit();
+    } else if (refusal !== undefined) {
+      announceQuietly(refusal);
     }
   };
 
@@ -195,6 +211,7 @@ export function SubmitModal({
           attempt: attemptSubmit,
         }}
         status={{ blockedReason, error: submitError, note: submitNote }}
+        reasonShown={submitTried}
         close={close}
         previewReceipt={() => setView("receipt")}
         mentionSource={mentionSource}

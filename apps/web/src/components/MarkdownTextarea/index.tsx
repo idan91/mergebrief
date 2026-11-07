@@ -488,17 +488,14 @@ export function MarkdownTextarea({
               {announceSearching ? t("shell.mentionSearchingAnnounce") : ""}
             </span>
           </ScreenReaderOnly>
-          <div className={styles["hint"]}>
-            <span>{t("shell.markdownSupported")}</span>
-            {facade.canAttach ? (
-              <span>
-                <Trans
-                  components={[<code key="branch">{ATTACHMENT_BRANCH}</code>]}
-                  i18nKey="shell.attach.hint"
-                />
-              </span>
-            ) : null}
-          </div>
+          {facade.canAttach ? (
+            <p className={styles["hint"]}>
+              <Trans
+                components={[<code key="branch">{ATTACHMENT_BRANCH}</code>]}
+                i18nKey="shell.attach.hint"
+              />
+            </p>
+          ) : null}
         </div>
         <div
           aria-labelledby={tabId(MarkdownTextareaModes.PREVIEW)}

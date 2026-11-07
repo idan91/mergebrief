@@ -109,6 +109,10 @@
 
     @include mixins.touch-field-text;
 
+    &::placeholder {
+      color: var(--color-text-3);
+    }
+
     // Transparent, not none: forced colours paint a transparent outline.
     &:focus-visible {
       border: 0;
@@ -119,9 +123,6 @@
   }
 
   .hint {
-    display: flex;
-    flex-direction: column;
-    gap: functions.to-rem(2px);
     padding-block: 0 functions.to-rem(8px);
     padding-inline: functions.to-rem(12px);
     color: var(--color-text-3);
