@@ -7,6 +7,7 @@
     /* DESIGN.md's keyboard cursor: a 1px inset accent ring at 55%, no animation. */
     --row-cursor-ring: inset 0 0 0 1px
       color-mix(in srgb, var(--color-accent) 55%, transparent);
+    --row-opening-edge: inset 2px 0 0 var(--color-text-2);
 
     position: relative;
     display: grid;
@@ -52,6 +53,15 @@
       );
 
       background: var(--row-bg);
+    }
+
+    &[data-opening] {
+      box-shadow: var(--row-opening-edge);
+      transition: box-shadow var(--motion-fast) ease var(--notice-delay);
+    }
+
+    &[data-opening][data-cursor="true"] {
+      box-shadow: var(--row-opening-edge), var(--row-cursor-ring);
     }
 
     &[data-needs-you="true"] .title {

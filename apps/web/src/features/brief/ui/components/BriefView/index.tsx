@@ -30,6 +30,7 @@ import { Masthead } from "./Masthead";
 import { IntentBar } from "./IntentBar";
 import { CarryOver } from "./CarryOver";
 import { Header } from "./Header";
+import { Toast } from "@web/components/Toast";
 import { ReadingToolbar } from "./ReadingToolbar";
 import { ReanchorBanner } from "./ReanchorBanner";
 import { RiskFlagModals } from "./RiskFlagModals";
@@ -554,16 +555,7 @@ function BriefViewContent(props: BriefViewProps) {
                       />
                     ) : null}
                     {session.focusMode ? <FocusShortcuts /> : null}
-                    <div
-                      className={styles["toast"]}
-                      data-testid="brief-toast"
-                      data-state={toast ? "visible" : "hidden"}
-                      role="status"
-                      aria-live="polite"
-                      aria-atomic="true"
-                    >
-                      {toast}
-                    </div>
+                    <Toast message={toast} testId="brief-toast" />
                     <div
                       className="sr-only"
                       data-testid="brief-live"

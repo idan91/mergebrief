@@ -121,22 +121,21 @@ test("merged and closed rows are hidden until one click shows them", async ({
   expect(faults).toEqual([]);
 });
 
-test("no reachable installation adds one line with the install link", async ({
+test("a first run with no installation leads with installing the App", async ({
   page,
 }, testInfo) => {
   const faults = collectPageFaults(page);
   await openHomeAs(page, "noInstallation");
 
-  const line = page.getByTestId("no-installation");
-  await expect(line).toContainText(
-    "MergeBrief is installed on no repository you can reach.",
-  );
+  const paths = page.getByTestId("install-first");
   await expect(
-    line.getByRole("link", { name: "Install it on GitHub" }),
+    paths.getByRole("link", { name: "Install on GitHub" }),
   ).toHaveAttribute(
     "href",
     `https://github.com/apps/${E2E_APP_SLUG}/installations/new`,
   );
+  await expect(paths).toContainText("Or brief one pull request");
+  await expect(page.getByTestId("no-installation")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { level: 1, name: "Nothing to review yet" }),
   ).toBeVisible();

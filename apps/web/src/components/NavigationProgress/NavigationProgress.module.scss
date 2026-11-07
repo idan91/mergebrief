@@ -1,0 +1,32 @@
+@layer components {
+  .bar {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 130;
+    block-size: 2px;
+    background: var(--color-accent);
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: left;
+    animation:
+      appear 1ms linear var(--notice-delay) forwards,
+      advance 8s var(--ease-out) var(--notice-delay) both;
+  }
+
+  @keyframes appear {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes advance {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: scaleX(0.9);
+    }
+  }
+}

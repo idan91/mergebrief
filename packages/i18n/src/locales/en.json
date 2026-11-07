@@ -1583,6 +1583,7 @@
     "serverUnavailable": "The server did not answer. Your tokens are untouched.",
     "artifactDelta": "Delta brief",
     "artifactBrief": "Brief",
+    "navigating": "Loading the page",
     "pageTitle": {
       "product": "MergeBrief",
       "prNumber": "#{{number}}",
@@ -1736,6 +1737,10 @@
         "unarchived": "Back in your Inbox",
         "archiveFailed": "Archive failed; the row is still here",
         "unarchiveFailed": "Unarchive failed; the row is still archived",
+        "archiveIndeterminate": "We could not confirm this row was archived. Refresh to check.",
+        "unarchiveIndeterminate": "We could not confirm this row came back. Refresh to check.",
+        "archivedIndeterminate": "Archived {{done}} of {{total}}; we could not confirm the rest",
+        "unarchivedIndeterminate": "Unarchived {{done}} of {{total}}; we could not confirm the rest",
         "deletedMany_one": "Deleted {{count}}",
         "deletedMany_other": "Deleted {{count}}",
         "deletedSome": "Deleted {{done}} of {{total}}; {{failed}} failed",
@@ -1744,7 +1749,9 @@
         "archivedSome": "Archived {{done}} of {{total}}; {{failed}} failed",
         "unarchivedMany_one": "Unarchived {{count}}",
         "unarchivedMany_other": "Unarchived {{count}}",
-        "unarchivedSome": "Unarchived {{done}} of {{total}}; {{failed}} failed"
+        "unarchivedSome": "Unarchived {{done}} of {{total}}; {{failed}} failed",
+        "undo": "Undo",
+        "undoHint": "Undo comes right after the heading."
       },
       "select": {
         "row": "Select {{title}}",
@@ -1839,7 +1846,7 @@
     },
     "empty": {
       "heading": "Nothing to review yet",
-      "detail": "Paste a pull request URL below to get its brief. Pull requests from repositories where MergeBrief is installed show up here on their own.",
+      "detail": "Pull requests from repositories where MergeBrief is installed show up here on their own.",
       "filteredHeading": "No pull requests match these filters",
       "hiddenHeading": "No open pull requests",
       "filteredDefaultStatus": "Merged and closed pull requests are hidden by default.",
@@ -1850,7 +1857,9 @@
       "allArchivedHeading_one": "{{count}} pull request is archived",
       "allArchivedHeading_other": "{{count}} pull requests are archived",
       "allArchivedDetail": "An archived pull request comes back on its own when a new brief lands.",
-      "showArchived": "Show archived"
+      "showArchived": "Show archived",
+      "installAction": "Install on GitHub",
+      "urlBoxLabel": "Or brief one pull request"
     },
     "noInstallation": {
       "line": "MergeBrief is installed on no repository you can reach.",

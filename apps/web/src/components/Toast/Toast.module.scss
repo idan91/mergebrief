@@ -1,0 +1,44 @@
+@use "functions";
+
+@layer components {
+  .toast {
+    position: fixed;
+    inset-block-end: calc(
+      #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom)
+    );
+    inset-inline-start: calc((100% - var(--sidebar-w)) / 2);
+    z-index: 120;
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    max-inline-size: min(functions.to-rem(560px), calc(100vw - var(--space-6)));
+    inline-size: max-content;
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(20px);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-3);
+    box-shadow: var(--shadow-elevation-lg);
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    transform: translate(
+      -50%,
+      calc(100% + #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom))
+    );
+    transition:
+      opacity var(--motion-slow) var(--ease-out),
+      transform var(--motion-slow) var(--ease-out);
+
+    // Hidden with opacity, not visibility: the live region inside must stay in
+    // the accessibility tree, or it can drop the announcement.
+    &[data-state="visible"] {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, 0);
+    }
+  }
+}

@@ -1,16 +1,34 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import {
   act,
   cleanup,
   fireEvent,
+  render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { InboxLayouts, InboxReviewStates, InboxSorts } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { NAVIGATION_NOTICE_DELAY } from "@web/components/NavigationProgress/consts";
+import {
+  TOAST_ACTION_VISIBLE_MS,
+  TOAST_VISIBLE_MS,
+} from "@web/components/Toast/consts";
 import { omitFields } from "@web/test/fields";
 import { renderInRouter, renderStageInRouter } from "../../../../test/router";
 import type { InboxItem } from "../../types";
@@ -21,6 +39,7 @@ const fetchMock = vi.fn<typeof fetch>();
 afterEach(() => {
   cleanup();
   fetchMock.mockReset();
+  vi.useRealTimers();
 });
 
 beforeEach(() => {
@@ -65,6 +84,145 @@ function readRequestUrl(input: string | URL | Request): string {
     return input.href;
   }
   return input.url;
+}
+
+const RESTORE_FAILED = "Unarchived 0 of 2; 2 failed";
+const TEST_DIR = dirname(fileURLToPath(import.meta.url));
+const ROW_STYLESHEET = readFileSync(
+  join(TEST_DIR, "InboxRow/InboxRow.module.scss"),
+  "utf8",
+);
+
+/** The toast's shown line, with any spoken hint after it. */
+function readToastLine(): string | null {
+  const [line] = within(screen.getByTestId("inbox-toast")).getAllByRole(
+    "status",
+  );
+  return line?.textContent ?? null;
+}
+
+/** The toast's spoken-only line, where an older run's outcome lands. */
+function readToastAside(): string | null {
+  const regions = within(screen.getByTestId("inbox-toast")).getAllByRole(
+    "status",
+  );
+  return regions[1]?.textContent ?? null;
+}
+
+function readUnarchivedUrls(): string[] {
+  return fetchMock.mock.calls
+    .map(([input]) => readRequestUrl(input ?? ""))
+    .filter((url) => url.includes("/unarchive"));
+}
+
+/**
+ * Archives Alpha and Gamma, then Beta from its menu while their restore
+ * runs; the restore fails once Beta's line and Undo show. Answers Beta's Undo.
+ */
+async function failRestoreUnderNewerUndo(): Promise<HTMLElement> {
+  answerMatchingPages();
+  await renderInRouter(
+    <InboxList
+      items={[
+        makeItem({ prNumber: 1, title: "Alpha" }),
+        makeItem({ prNumber: 2, title: "Beta" }),
+        makeItem({ prNumber: 3, title: "Gamma" }),
+      ]}
+      pageSize={3}
+      params={{}}
+      sort={InboxSorts.UPDATED}
+      layout={InboxLayouts.FOLDED}
+      total={3}
+    />,
+  );
+  await act(async () => {
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Gamma" }));
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Archive 2" }));
+  });
+  await screen.findByText("Archived 2");
+  const undoBulk = screen.getByRole("button", { name: "Undo" });
+
+  let openBeta: () => void = () => {};
+  const betaGate = new Promise<void>((resolve) => {
+    openBeta = resolve;
+  });
+  let openRestore: () => void = () => {};
+  const restoreGate = new Promise<void>((resolve) => {
+    openRestore = resolve;
+  });
+  fetchMock.mockImplementation(async (input) => {
+    const path = new URL(readRequestUrl(input), "http://x").pathname;
+    if (path.endsWith("/pulls/2/archive")) {
+      await betaGate;
+    }
+    if (path.endsWith("/unarchive")) {
+      await restoreGate;
+      return new Response('{"code":"internal-error"}', { status: 500 });
+    }
+    return new Response('{"ok":true}', { status: 200 });
+  });
+  const [, betaMenu] = screen.getAllByRole("button", {
+    name: "More actions",
+  });
+  await act(async () => {
+    fireEvent.click(betaMenu as HTMLElement);
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+  });
+  await act(async () => {
+    fireEvent.click(undoBulk);
+  });
+  await act(async () => {
+    openBeta();
+  });
+  await screen.findByText("Archived; it comes back when a new brief lands");
+  const undoBeta = screen.getByRole("button", { name: "Undo" });
+
+  await act(async () => {
+    openRestore();
+  });
+  await waitFor(() => {
+    expect(readToastAside()).toBe(RESTORE_FAILED);
+  });
+  return undoBeta;
+}
+
+/** The list at "/", beside a brief route whose loader waits on `gate`. */
+async function renderBesideSlowBrief(tree: ReactNode, gate: Promise<void>) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const rootRoute = createRootRoute();
+  const home = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/",
+    component: () => (
+      <QueryClientProvider client={queryClient}>{tree}</QueryClientProvider>
+    ),
+  });
+  const brief = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/repos/$repoId/pulls/$prNumber",
+    loader: () => gate,
+    component: () => null,
+  });
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([home, brief]),
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+  });
+  await router.load();
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+function readOpeningRows(): (string | null)[] {
+  return readRows().map((row) => row.getAttribute("data-opening"));
 }
 
 function readSelectionStatus(): string | null {
@@ -743,13 +901,480 @@ describe("InboxList", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Archived 1")).toBeTruthy();
+      expect(
+        screen.getByText("Archived; it comes back when a new brief lands"),
+      ).toBeTruthy();
     });
     const archived = fetchMock.mock.calls
       .map(([input]) => readRequestUrl(input ?? ""))
       .filter((url) => url.includes("/archive"));
     expect(archived).toHaveLength(1);
     expect(archived[0]).toContain("/pulls/1/");
+  });
+
+  it("Undo after an archive restores the same row and says so", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={2}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 1" }));
+    });
+
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    await act(async () => {
+      fireEvent.click(undo);
+    });
+
+    await screen.findByText("Back in your Inbox");
+    const restored = fetchMock.mock.calls
+      .map(([input]) => readRequestUrl(input ?? ""))
+      .filter((url) => url.includes("/unarchive"));
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).toContain("/pulls/1/");
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  it("hands focus to the heading when a focused Undo leaves", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1, title: "Alpha" })]}
+        pageSize={1}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={1}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 1" }));
+    });
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    const heading = screen.getByRole("heading", { level: 2, name: "Briefs" });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(heading);
+    });
+    let finishRestore = (_response: Response): void => {};
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishRestore = resolve;
+        }),
+    );
+    await act(async () => {
+      fireEvent.click(undo);
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "Undo" }).focus();
+    });
+    await act(async () => {
+      finishRestore(new Response('{"ok":true}', { status: 200 }));
+    });
+
+    await screen.findByText("Back in your Inbox");
+    await waitFor(() => {
+      expect(document.activeElement).toBe(heading);
+    });
+  });
+
+  it("offers Undo again over a restore that failed", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1, title: "Alpha" })]}
+        pageSize={1}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={1}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 1" }));
+    });
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    fetchMock.mockImplementationOnce(() =>
+      Promise.resolve(Response.json({}, { status: 500 })),
+    );
+
+    await act(async () => {
+      fireEvent.click(undo);
+    });
+
+    await screen.findByText("Unarchive failed; the row is still archived");
+    const again = screen.getByRole("button", { name: "Undo" });
+    await act(async () => {
+      fireEvent.click(again);
+    });
+    await screen.findByText("Back in your Inbox");
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  it("holds every Archive while a restore is pending", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        pageSize={2}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={2}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 1" }));
+    });
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    fetchMock.mockImplementationOnce(() => new Promise<Response>(() => {}));
+    await act(async () => {
+      fireEvent.click(undo);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Beta" }));
+    });
+
+    expect(
+      screen
+        .getByRole("button", { name: "Archive 1" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+    const [menu] = screen.getAllByRole("button", { name: "More actions" });
+    await act(async () => {
+      fireEvent.click(menu as HTMLElement);
+    });
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Archive" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("holds Undo while another restore is pending", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+          makeItem({ prNumber: 3, title: "Gamma" }),
+        ]}
+        pageSize={3}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={3}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Gamma" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 2" }));
+    });
+    await screen.findByText("Archived 2");
+    const undoBulk = screen.getByRole("button", { name: "Undo" });
+
+    let openBeta: () => void = () => {};
+    const betaGate = new Promise<void>((resolve) => {
+      openBeta = resolve;
+    });
+    let openRestore: () => void = () => {};
+    const restoreGate = new Promise<void>((resolve) => {
+      openRestore = resolve;
+    });
+    fetchMock.mockImplementation(async (input) => {
+      const path = new URL(readRequestUrl(input), "http://x").pathname;
+      if (path.endsWith("/pulls/2/archive")) {
+        await betaGate;
+      }
+      if (path.endsWith("/unarchive")) {
+        await restoreGate;
+      }
+      return new Response('{"ok":true}', { status: 200 });
+    });
+    const [, betaMenu] = screen.getAllByRole("button", {
+      name: "More actions",
+    });
+    await act(async () => {
+      fireEvent.click(betaMenu as HTMLElement);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Archive" }));
+    });
+    await act(async () => {
+      fireEvent.click(undoBulk);
+    });
+    await act(async () => {
+      openBeta();
+    });
+
+    await screen.findByText("Archived; it comes back when a new brief lands");
+    const undoBeta = screen.getByRole("button", { name: "Undo" });
+    expect(undoBeta.getAttribute("aria-disabled")).toBe("true");
+    await act(async () => {
+      undoBeta.focus();
+      fireEvent.click(undoBeta);
+    });
+    expect(document.activeElement).toBe(undoBeta);
+
+    await act(async () => {
+      openRestore();
+    });
+    await waitFor(() => {
+      expect(readToastAside()).toBe("Unarchived 2");
+    });
+    const restored = fetchMock.mock.calls
+      .map(([input]) => readRequestUrl(input ?? ""))
+      .filter((url) => url.includes("/unarchive"));
+    expect(restored).toHaveLength(2);
+    expect(restored.some((url) => url.includes("/pulls/2/"))).toBe(false);
+
+    expect(
+      screen.getByText("Archived; it comes back when a new brief lands"),
+    ).toBeTruthy();
+    expect(undoBeta.isConnected).toBe(true);
+    expect(undoBeta.getAttribute("aria-disabled")).toBeNull();
+    expect(document.activeElement).toBe(undoBeta);
+    await act(async () => {
+      fireEvent.click(undoBeta);
+    });
+    await waitFor(() => {
+      expect(
+        readUnarchivedUrls().some((url) => url.includes("/pulls/2/")),
+      ).toBe(true);
+    });
+  });
+
+  it("keeps a newer Undo and shows a failed restore once it leaves", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout"],
+      shouldAdvanceTime: true,
+    });
+    const undoBeta = await failRestoreUnderNewerUndo();
+
+    expect(readToastLine()).toContain(
+      "Archived; it comes back when a new brief lands",
+    );
+    expect(undoBeta.isConnected).toBe(true);
+    expect(undoBeta.getAttribute("aria-disabled")).toBeNull();
+
+    await act(async () => {
+      vi.advanceTimersByTime(TOAST_ACTION_VISIBLE_MS);
+    });
+    await waitFor(() => {
+      expect(readToastLine()).toContain(RESTORE_FAILED);
+    });
+    expect(screen.getByTestId("inbox-toast").getAttribute("data-state")).toBe(
+      "visible",
+    );
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response('{"ok":true}', { status: 200 })),
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    });
+    await waitFor(() => {
+      expect(readToastLine()).toBe("Unarchived 2");
+    });
+    const alphaRestores = readUnarchivedUrls().filter((url) =>
+      url.includes("/pulls/1/"),
+    );
+    expect(alphaRestores).toHaveLength(2);
+  });
+
+  it("keeps a waiting retry back until a slow newer restore lands", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout"],
+      shouldAdvanceTime: true,
+    });
+    const undoBeta = await failRestoreUnderNewerUndo();
+    let openBetaRestore: () => void = () => {};
+    const betaRestoreGate = new Promise<void>((resolve) => {
+      openBetaRestore = resolve;
+    });
+    fetchMock.mockImplementation(async () => {
+      await betaRestoreGate;
+      return new Response('{"ok":true}', { status: 200 });
+    });
+
+    await act(async () => {
+      fireEvent.click(undoBeta);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(TOAST_ACTION_VISIBLE_MS * 2);
+    });
+    expect(readToastLine()).toContain(
+      "Archived; it comes back when a new brief lands",
+    );
+
+    await act(async () => {
+      openBetaRestore();
+    });
+    await waitFor(() => {
+      expect(readToastLine()).toBe("Back in your Inbox");
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(TOAST_VISIBLE_MS);
+    });
+    await waitFor(() => {
+      expect(readToastLine()).toContain(RESTORE_FAILED);
+    });
+    const retry = screen.getByRole("button", { name: "Undo" });
+    expect(retry.getAttribute("aria-disabled")).toBeNull();
+  });
+
+  it("marks only the row whose brief is opening", async () => {
+    answerMatchingPages();
+    let openBrief: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      openBrief = resolve;
+    });
+    await renderBesideSlowBrief(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+      gate,
+    );
+    expect(readOpeningRows()).toEqual([null, null]);
+
+    const betaLink = readRows()[1]?.querySelector("a");
+    act(() => {
+      betaLink?.click();
+    });
+
+    await waitFor(() => {
+      expect(readOpeningRows()).toEqual([null, ""]);
+    });
+    await act(async () => {
+      openBrief();
+      await gate;
+    });
+  });
+
+  it("marks the row when its brief opens at a revision", async () => {
+    answerMatchingPages();
+    let openBrief: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      openBrief = resolve;
+    });
+    const router = await renderBesideSlowBrief(
+      <InboxList
+        items={[makeItem({ prNumber: 1, title: "Alpha" })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+      gate,
+    );
+
+    act(() => {
+      void router.navigate({
+        to: "/repos/$repoId/pulls/$prNumber",
+        params: { repoId: "424242", prNumber: "1" },
+        search: { rev: 2 },
+      });
+    });
+
+    await waitFor(() => {
+      expect(readOpeningRows()).toEqual([""]);
+    });
+    await act(async () => {
+      openBrief();
+      await gate;
+    });
+  });
+
+  it("waits out the navigation notice delay before the opening edge", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1, title: "Alpha" })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    const [row] = readRows();
+    expect(row?.style.getPropertyValue("--notice-delay")).toBe(
+      NAVIGATION_NOTICE_DELAY,
+    );
+    const openingRule = ROW_STYLESHEET.match(/&\[data-opening\] \{[^}]*\}/u);
+    expect(openingRule?.[0]).toContain("var(--notice-delay)");
+  });
+
+  it("draws the opening edge in a neutral grey, never the accent", () => {
+    const edge = ROW_STYLESHEET.match(/--row-opening-edge:[^;]*;/u);
+
+    expect(edge?.[0]).toContain("var(--color-text-2)");
+    expect(edge?.[0]).not.toContain("accent");
+  });
+
+  it("places Undo right after the heading and says it is there", async () => {
+    answerMatchingPages();
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1, title: "Alpha" })]}
+        pageSize={1}
+        params={{}}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={1}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Archive 1" }));
+    });
+
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    const heading = document.getElementById("inbox-heading");
+    expect(heading?.nextElementSibling?.contains(undo)).toBe(true);
+    const status = screen
+      .getByTestId("inbox-toast")
+      .querySelector("[role=status]");
+    await waitFor(() => {
+      expect(status?.textContent).toContain(
+        "Undo comes right after the heading",
+      );
+    });
   });
 
   it("a matching delete with nothing deletable says so and opens nothing", async () => {

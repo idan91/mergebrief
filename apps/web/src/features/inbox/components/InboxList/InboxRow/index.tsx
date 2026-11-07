@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useMatchRoute } from "@tanstack/react-router";
 import { useRef, type CSSProperties, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,6 +15,7 @@ import {
   ChipTones,
   ChipVariants,
 } from "@web/components/Chip";
+import { NAVIGATION_NOTICE_DELAY } from "@web/components/NavigationProgress/consts";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import { TitleSegmentKinds, type InboxItem } from "../../../types";
 import { needsReviewer, pickAgeAt, splitTitleCode } from "../../../utils";
@@ -32,6 +33,11 @@ import {
   readRowTitle,
 } from "./utils";
 
+type RowStyle = CSSProperties & {
+  "--index": number;
+  "--notice-delay": typeof NAVIGATION_NOTICE_DELAY;
+};
+
 export interface InboxRowProps {
   item: InboxItem;
   /** Position in the page, for the first-load stagger and the keyboard cursor. */
@@ -48,7 +54,10 @@ export interface InboxRowProps {
   rowRef?: Ref<HTMLLIElement> | undefined;
   /** The view the row sits in, for the archive action's direction. */
   archived: InboxArchivedFilter;
+  /** A restore is pending, so this row's Archive waits for it. */
+  archiveHeld: boolean;
   onAnnounce: (message: string) => void;
+  onArchived: (message: string, gone: readonly InboxItem[]) => void;
   onDelete: (item: InboxItem) => void;
   onPurgeAttachments: (item: InboxItem) => void;
   /** The row archived or unarchived and is leaving the list. */
@@ -74,12 +83,23 @@ export function InboxRow({
   onToggleSelect,
   rowRef,
   archived,
+  archiveHeld,
   onAnnounce,
+  onArchived,
   onDelete,
   onPurgeAttachments,
   onRemoved,
 }: InboxRowProps) {
   const { t } = useTranslation();
+  const rowParams = { repoId: item.repoId, prNumber: String(item.prNumber) };
+  const matchRoute = useMatchRoute();
+  const pendingMatch = matchRoute({
+    to: "/repos/$repoId/pulls/$prNumber",
+    params: rowParams,
+    pending: true,
+    includeSearch: false,
+  });
+  const opening = pendingMatch !== false;
   const generation = useRowGeneration(item);
   const ageAt = pickAgeAt(item, sort);
   const titleSegments = splitTitleCode(
@@ -91,7 +111,10 @@ export function InboxRow({
     item.stack === undefined ? undefined : { ...item.stack };
   const age = ageAt === undefined ? undefined : formatAgeLabel(t, ageAt, now);
   const description = describeRow(t, item, generation);
-  const rowStyle: CSSProperties & { "--index": number } = { "--index": index };
+  const rowStyle: RowStyle = {
+    "--index": index,
+    "--notice-delay": NAVIGATION_NOTICE_DELAY,
+  };
 
   // The change event carries no modifier; the click before it does.
   const shiftRef = useRef(false);
@@ -108,6 +131,7 @@ export function InboxRow({
     <li
       className={styles["row"]}
       data-cursor={cursor}
+      data-opening={opening ? "" : undefined}
       data-needs-you={needsReviewer(item)}
       data-selected={selected}
       data-testid="inbox-row"
@@ -133,7 +157,7 @@ export function InboxRow({
       </span>
       <Link
         className={styles["main"]}
-        params={{ repoId: item.repoId, prNumber: String(item.prNumber) }}
+        params={rowParams}
         to="/repos/$repoId/pulls/$prNumber"
       >
         <ScreenReaderOnly>{description}</ScreenReaderOnly>{" "}
@@ -215,8 +239,10 @@ export function InboxRow({
         <RowEnd draft={item.draft} generation={generation} state={item.state} />
         <RowActions
           archived={archived}
+          archiveHeld={archiveHeld}
           item={item}
           onAnnounce={onAnnounce}
+          onArchived={onArchived}
           onDelete={onDelete}
           onPurgeAttachments={onPurgeAttachments}
           onRemoved={handleRemoved}

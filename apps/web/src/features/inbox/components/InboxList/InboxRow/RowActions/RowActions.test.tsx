@@ -84,18 +84,28 @@ async function renderActions(
   const onDelete = vi.fn();
   const onPurgeAttachments = vi.fn();
   const onRemoved = vi.fn();
+  const onArchived = vi.fn();
   const { queryClient } = await renderInRouter(
     <RowActions
       archived={archived}
+      archiveHeld={false}
       item={item}
       onAnnounce={onAnnounce}
+      onArchived={onArchived}
       onDelete={onDelete}
       onPurgeAttachments={onPurgeAttachments}
       onRemoved={onRemoved}
     />,
   );
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-  return { onAnnounce, onDelete, onPurgeAttachments, onRemoved, invalidate };
+  return {
+    onAnnounce,
+    onArchived,
+    onDelete,
+    onPurgeAttachments,
+    onRemoved,
+    invalidate,
+  };
 }
 
 async function openMenu() {
@@ -165,8 +175,8 @@ describe("RowActions", () => {
 
   it("Archive on any row calls the archive transport and frees the row", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-    const { onAnnounce, onRemoved, invalidate } =
-      await renderActions(makeItem());
+    const item = makeItem();
+    const { onArchived, onRemoved, invalidate } = await renderActions(item);
 
     await openMenu();
     await act(async () => {
@@ -178,8 +188,9 @@ describe("RowActions", () => {
       /\/api\/repos\/424242\/pulls\/7\/archive$/,
     );
     expect(init?.method).toBe("POST");
-    expect(onAnnounce).toHaveBeenCalledWith(
+    expect(onArchived).toHaveBeenCalledWith(
       "Archived; it comes back when a new brief lands",
+      [item],
     );
     expect(onRemoved).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: [INBOX_QUERY_ROOT] });

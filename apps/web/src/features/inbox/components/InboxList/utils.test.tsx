@@ -166,8 +166,12 @@ describe("readSelectionText", () => {
 
 describe("describeArchiveOutcome", () => {
   const t = appI18n.t;
-  const row = { scope: ArchiveScopes.ROW, total: 1 };
-  const selection = { scope: ArchiveScopes.SELECTION, total: 3 };
+  const row = { scope: ArchiveScopes.ROW, total: 1, indeterminate: false };
+  const selection = {
+    scope: ArchiveScopes.SELECTION,
+    total: 3,
+    indeterminate: false,
+  };
 
   it("a row reads its own line for either direction and outcome", () => {
     const archived = { ...row, restoring: false };

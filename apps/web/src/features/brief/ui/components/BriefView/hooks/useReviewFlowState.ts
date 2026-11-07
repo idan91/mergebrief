@@ -14,7 +14,7 @@ import {
   type ReviewComment,
 } from "@web/features/review/utils";
 import { isGuestHost } from "../../../utils/guest-rows";
-import { TOAST_VISIBLE_MS } from "../consts";
+import { TOAST_VISIBLE_MS } from "@web/components/Toast/consts";
 import type {
   BriefReviewFlowState,
   FlowNoticesInput,

@@ -1,0 +1,27 @@
+@use "functions";
+
+@layer components {
+  .paths {
+    display: grid;
+    gap: var(--space-6);
+    justify-items: start;
+  }
+
+  .install {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+    min-block-size: functions.to-rem(44px);
+  }
+
+  .paste {
+    display: grid;
+    gap: var(--space-3);
+    inline-size: 100%;
+  }
+
+  .label {
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+  }
+}

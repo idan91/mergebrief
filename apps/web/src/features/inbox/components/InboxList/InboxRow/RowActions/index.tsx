@@ -22,8 +22,11 @@ export interface RowActionsProps {
   item: InboxItem;
   /** The view the row sits in: Archive in the Inbox, Unarchive in the archived view. */
   archived: InboxArchivedFilter;
+  /** A restore is pending, so Archive waits for it. */
+  archiveHeld: boolean;
   /** Page-level live region: the outcome of a copy, an archive or a regenerate. */
   onAnnounce: (message: string) => void;
+  onArchived: (message: string, gone: readonly InboxItem[]) => void;
   /** The reviewer asked to delete this row; the list confirms and runs it. */
   onDelete: (item: InboxItem) => void;
   /** The reviewer asked to delete the repository's attachment branch; the list confirms and runs it. */
@@ -44,7 +47,9 @@ export interface RowActionsProps {
 export function RowActions({
   item,
   archived,
+  archiveHeld,
   onAnnounce,
+  onArchived,
   onDelete,
   onPurgeAttachments,
   onRemoved,
@@ -61,8 +66,10 @@ export function RowActions({
     href,
     onAnnounce,
     onRemoved,
+    onArchived,
   );
   const inArchive = archived === InboxArchivedFilters.ONLY;
+  const archiveDisabled = facade.archiving || archiveHeld;
   const githubUrl = buildGithubPullUrl(item.repoSlug, item.prNumber);
   // Regenerate takes the paste path, so only a url row can use it.
   const canRegenerate =
@@ -117,7 +124,7 @@ export function RowActions({
             {t("home.inbox.actions.copyLink")}
           </Menu.Item>
           <Menu.Item
-            disabled={facade.archiving}
+            disabled={archiveDisabled}
             glyph={<Icon name={IconNames.ARCHIVE} size={IconSizes.MD} />}
             onSelect={facade.toggleArchive}
           >

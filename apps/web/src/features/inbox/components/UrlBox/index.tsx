@@ -1,11 +1,20 @@
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@web/components/Button";
+import {
+  Button,
+  ButtonVariants,
+  type ButtonVariant,
+} from "@web/components/Button";
 import { Icon } from "@web/components/Icon";
 import { IconNames } from "@web/components/Icon/types";
 import styles from "./UrlBox.module.scss";
 import { UrlBoxStates } from "./types";
 import { useUrlBoxFacade } from "./useUrlBoxFacade";
+
+export interface UrlBoxProps {
+  /** Secondary where another action is the view's one accent. */
+  generateVariant?: ButtonVariant;
+}
 
 /**
  * The quiet paste form: a link icon, the field, a slash hint that gives way
@@ -13,7 +22,9 @@ import { useUrlBoxFacade } from "./useUrlBoxFacade";
  * is replaced by one line of status and a thin accent sweep. The result of
  * a submit is a navigation; a refusal lands in the alert line below.
  */
-export function UrlBox() {
+export function UrlBox({
+  generateVariant = ButtonVariants.ACCENT,
+}: UrlBoxProps) {
   const { t } = useTranslation();
   const facade = useUrlBoxFacade();
   const state = facade.submitting ? UrlBoxStates.PROGRESS : UrlBoxStates.IDLE;
@@ -50,7 +61,7 @@ export function UrlBox() {
           className={styles["submit"]}
           disabled={facade.submitting}
           type="submit"
-          variant="accent"
+          variant={generateVariant}
         >
           {t("home.urlBox.generate")}
         </Button>

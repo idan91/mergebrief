@@ -67,16 +67,18 @@ function renderArchive(scope: ArchiveScope = ArchiveScopes.SELECTION) {
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
   const announce = vi.fn();
   const onRemoved = vi.fn();
+  const announceRestoreFailed = vi.fn();
   function wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
   }
   const { result } = renderHook(
-    () => useInboxArchive({ scope, announce, onRemoved }),
+    () =>
+      useInboxArchive({ scope, announce, announceRestoreFailed, onRemoved }),
     { wrapper },
   );
-  return { result, announce, onRemoved, invalidate };
+  return { result, announce, announceRestoreFailed, onRemoved, invalidate };
 }
 
 function stubHeldReread(
@@ -156,7 +158,7 @@ describe("useInboxArchive over a selection", () => {
     expect(gone.map((row) => row.prNumber)).toEqual([1, 3]);
   });
 
-  it("unarchives in the archived view and tallies a single row", async () => {
+  it("unarchives in the archived view and reads one row as a sentence", async () => {
     answerByPull([]);
     const { result, announce } = renderArchive();
 
@@ -167,10 +169,10 @@ describe("useInboxArchive over a selection", () => {
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(url).toMatch(/\/pulls\/1\/unarchive$/);
     expect(init?.method).toBe("POST");
-    expect(announce).toHaveBeenCalledWith("Unarchived 1");
+    expect(announce).toHaveBeenCalledWith("Back in your Inbox");
   });
 
-  it("a thrown transport counts as failed; nothing going skips the re-read", async () => {
+  it("a thrown transport is unconfirmed and re-reads the list", async () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
     const { result, announce, onRemoved, invalidate } = renderArchive();
 
@@ -179,10 +181,29 @@ describe("useInboxArchive over a selection", () => {
       gone = await result.current.archive(ROWS, InboxArchivedFilters.HIDE);
     });
 
-    expect(announce).toHaveBeenCalledWith("Archived 0 of 3; 3 failed");
+    expect(announce).toHaveBeenCalledWith(
+      "Archived 0 of 3; we could not confirm the rest",
+    );
     expect(onRemoved).not.toHaveBeenCalled();
-    expect(invalidate).not.toHaveBeenCalled();
+    expect(invalidate).toHaveBeenCalled();
     expect(gone).toEqual([]);
+  });
+
+  it("a refused write says failed and skips the re-read", async () => {
+    answerByPull([1, 2, 3]);
+    const { result, announce, invalidate } = renderArchive();
+    const rows = [
+      makeItem({ prNumber: 1 }),
+      makeItem({ prNumber: 2 }),
+      makeItem({ prNumber: 3 }),
+    ];
+
+    await act(async () => {
+      await result.current.archive(rows, InboxArchivedFilters.HIDE);
+    });
+
+    expect(announce).toHaveBeenCalledWith("Archived 0 of 3; 3 failed");
+    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it("frees the selection bar before the re-read lands", async () => {
@@ -253,6 +274,118 @@ describe("useInboxArchive over a selection", () => {
     expect(second).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(announce).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useInboxArchive when an answer goes wrong", () => {
+  it("offers a restore's failed rows back, not the ones that went", async () => {
+    answerByPull([2, 3]);
+    const { result, announce, announceRestoreFailed } = renderArchive();
+    const items = [
+      makeItem({ prNumber: 1 }),
+      makeItem({ prNumber: 2 }),
+      makeItem({ prNumber: 3 }),
+    ];
+
+    await act(async () => {
+      await result.current.archive(items, InboxArchivedFilters.ONLY);
+    });
+
+    expect(announce).not.toHaveBeenCalled();
+    expect(announceRestoreFailed).toHaveBeenCalledWith(
+      "Unarchived 1 of 3; 2 failed",
+      [items[1], items[2]],
+    );
+  });
+
+  it("offers a wholly failed restore back with the row's own words", async () => {
+    answerByPull([1]);
+    const { result, announceRestoreFailed } = renderArchive();
+    const item = makeItem({ prNumber: 1 });
+
+    await act(async () => {
+      await result.current.archive([item], InboxArchivedFilters.ONLY);
+    });
+
+    expect(announceRestoreFailed).toHaveBeenCalledWith(
+      "Unarchive failed; the row is still archived",
+      [item],
+    );
+  });
+
+  it("offers no restore back for a row the server no longer has", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "x", code: "not-found" }), {
+        status: 404,
+      }),
+    );
+    const { result, announce, announceRestoreFailed } = renderArchive();
+
+    await act(async () => {
+      await result.current.archive(
+        [makeItem({ prNumber: 1 })],
+        InboxArchivedFilters.ONLY,
+      );
+    });
+
+    expect(announceRestoreFailed).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenCalledWith(
+      "Unarchive failed; the row is still archived",
+    );
+  });
+
+  it("offers back only the failed rows a second try could restore", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      if (readRequestUrl(input).includes("/pulls/1/")) {
+        return new Response(JSON.stringify({ error: "x", code: "not-found" }), {
+          status: 404,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 500 });
+    });
+    const { result, announceRestoreFailed } = renderArchive();
+    const items = [makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })];
+
+    await act(async () => {
+      await result.current.archive(items, InboxArchivedFilters.ONLY);
+    });
+
+    expect(announceRestoreFailed).toHaveBeenCalledWith(
+      "Unarchived 0 of 2; 2 failed",
+      [items[1]],
+    );
+  });
+
+  it("will not claim a row stayed put when the write got no answer", async () => {
+    fetchMock.mockRejectedValue(new TypeError("network"));
+    const { result, announceRestoreFailed, invalidate } = renderArchive();
+    const item = makeItem({ prNumber: 1 });
+
+    await act(async () => {
+      await result.current.archive([item], InboxArchivedFilters.ONLY);
+    });
+
+    expect(announceRestoreFailed).toHaveBeenCalledWith(
+      "We could not confirm this row came back. Refresh to check.",
+      [item],
+    );
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it("says the same of an archive that got no answer", async () => {
+    fetchMock.mockRejectedValue(new TypeError("network"));
+    const { result, announce } = renderArchive();
+
+    await act(async () => {
+      await result.current.archive(
+        [makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })],
+        InboxArchivedFilters.HIDE,
+      );
+    });
+
+    expect(announce).toHaveBeenCalledWith(
+      "Archived 0 of 2; we could not confirm the rest",
+    );
   });
 });
 

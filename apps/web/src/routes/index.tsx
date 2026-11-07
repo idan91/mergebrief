@@ -22,6 +22,7 @@ import {
   EmptyInbox,
   FailedInbox,
   InboxList,
+  InstallFirst,
   NoInstallationLine,
   Pager,
   PersonalLine,
@@ -149,7 +150,7 @@ function Home() {
   const shortcuts = useHomeShortcuts(listShown);
   useReloadOnChange(signedOut);
   // The hosted demo has no generator behind it, so the box would only refuse.
-  const urlBox = isDemoBuild() ? null : <UrlBox />;
+  const canGenerate = !isDemoBuild();
 
   if (signedOut) {
     return (
@@ -172,12 +173,20 @@ function Home() {
             return result.data?.kind === InboxStates.READY;
           }}
         />
-        {urlBox}
+        {canGenerate ? (
+          <div className={styles["afterFailure"]}>
+            <UrlBox />
+          </div>
+        ) : null}
       </div>
     );
   } else {
     content = (
-      <SignedInHome page={state.page} search={search} urlBox={urlBox} />
+      <SignedInHome
+        canGenerate={canGenerate}
+        page={state.page}
+        search={search}
+      />
     );
   }
 
@@ -237,11 +246,11 @@ function HomeShell({ children, shortcuts }: HomeShellProps) {
 export interface SignedInHomeProps {
   page: InboxPage;
   search: InboxSearch;
-  /** Absent in the hosted demo, which cannot generate. */
-  urlBox: ReactNode;
+  /** False in the hosted demo, which cannot generate. */
+  canGenerate: boolean;
 }
 
-function SignedInHome({ page, search, urlBox }: SignedInHomeProps) {
+function SignedInHome({ canGenerate, page, search }: SignedInHomeProps) {
   const state = useInboxSearchState(search, page.total, page.pageSize);
   const controls = useControlsFacade(page, search, state.choices, state.write);
   const changedCount = countChangedFilters(search);
@@ -251,6 +260,11 @@ function SignedInHome({ page, search, urlBox }: SignedInHomeProps) {
     state.choices.archived,
   );
   const noInstallation = page.reachableInstallations.length === 0;
+  const installUrl = page.installUrl;
+  const firstRun =
+    noInstallation &&
+    installUrl !== undefined &&
+    emptiness === InboxEmptinesses.EMPTY;
   const pageKey = JSON.stringify(search);
 
   function showHidden(): void {
@@ -288,10 +302,16 @@ function SignedInHome({ page, search, urlBox }: SignedInHomeProps) {
           counts={page.counts}
           empty={emptiness === InboxEmptinesses.EMPTY}
         />
-        {urlBox}
-        {noInstallation ? (
-          <NoInstallationLine installUrl={page.installUrl} />
-        ) : null}
+        {firstRun ? (
+          <InstallFirst canGenerate={canGenerate} installUrl={installUrl} />
+        ) : (
+          <>
+            {canGenerate ? <UrlBox /> : null}
+            {noInstallation ? (
+              <NoInstallationLine installUrl={installUrl} />
+            ) : null}
+          </>
+        )}
       </div>
       {emptiness === InboxEmptinesses.EMPTY ? null : (
         <div className={styles["inbox"]}>

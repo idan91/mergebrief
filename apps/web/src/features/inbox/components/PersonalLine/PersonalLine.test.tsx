@@ -22,7 +22,7 @@ describe("PersonalLine", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Nothing to review yet" }),
     ).toBeTruthy();
-    expect(screen.getByText(/Paste a pull request URL below/)).toBeTruthy();
+    expect(screen.getByText(/show up here on their own/)).toBeTruthy();
   });
 
   it("counts every waiting row and lists the states, changed first", () => {

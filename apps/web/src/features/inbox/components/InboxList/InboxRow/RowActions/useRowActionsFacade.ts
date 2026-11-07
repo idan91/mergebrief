@@ -18,6 +18,7 @@ export function useRowActionsFacade(
   href: string,
   onAnnounce: (message: string) => void,
   onRemoved: () => void,
+  onArchived: (message: string, gone: readonly InboxItem[]) => void,
 ) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -25,6 +26,7 @@ export function useRowActionsFacade(
   const archiving = useInboxArchive({
     scope: ArchiveScopes.ROW,
     announce: onAnnounce,
+    announceArchived: onArchived,
     onRemoved,
   });
 

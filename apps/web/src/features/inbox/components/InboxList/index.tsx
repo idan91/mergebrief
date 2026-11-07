@@ -7,7 +7,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useAnnouncer } from "@web/hooks/useAnnouncer";
+import { Toast } from "@web/components/Toast";
+import type { ToastAction } from "@web/components/Toast/types";
+import { useToast } from "@web/components/Toast/useToast";
+import { useLatestRef } from "@web/hooks/useLatestRef";
 import { useTranslation } from "react-i18next";
 import {
   InboxArchivedFilters,
@@ -62,7 +65,8 @@ export interface InboxListProps {
  * On first load the rows fade up with a short stagger; the attribute that
  * arms it leaves once the last row has landed, so a later re-read replays
  * nothing. The keyboard cursor counts rows straight through both sides,
- * and one live region below the list announces what a row action did.
+ * and the Toast on the heading's line says what a row action did, with
+ * Undo after an archive.
  */
 export function InboxList({
   items,
@@ -82,7 +86,7 @@ export function InboxList({
   const firstLoad = useFirstLoad();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const cursorRowRef = useRef<HTMLLIElement>(null);
-  const announcer = useAnnouncer();
+  const toast = useToast();
   const { above, below } =
     layout === InboxLayouts.FOLDED
       ? splitAtFold(items)
@@ -161,15 +165,53 @@ export function InboxList({
     [handleGone],
   );
   const deletion = useInboxDeleteFacade({
-    announce: announcer.announce,
+    announce: toast.show,
     onDeleted: handleGone,
   });
+  // The Undo whose restore is running; an archive made since keeps its own.
+  const restoreSource = useRef<ToastAction | undefined>(undefined);
+  const { showOutcome } = toast;
+  const restoring = useInboxArchive({
+    scope: ArchiveScopes.SELECTION,
+    announce: (message) => {
+      showOutcome(message, restoreSource.current);
+    },
+    announceRestoreFailed: (message, failed) => {
+      showOutcome(message, restoreSource.current, buildUndo(failed));
+    },
+    onRemoved: keepRestoredRows,
+  });
+  const latestRestore = useLatestRef(restoring.archive);
+  const showToast = toast.show;
+  // The row that held the action may be gone by now, so the way back lives here.
+  const buildUndo = useCallback(
+    (gone: readonly InboxItem[]): ToastAction => {
+      const undo: ToastAction = {
+        label: t("home.inbox.actions.undo"),
+        hint: t("home.inbox.actions.undoHint"),
+        run: () => {
+          restoreSource.current = undo;
+          headingRef.current?.focus();
+          void latestRestore.current(gone, InboxArchivedFilters.ONLY);
+        },
+      };
+      return undo;
+    },
+    [latestRestore, t],
+  );
+  const announceArchived = useCallback(
+    (message: string, gone: readonly InboxItem[]): void => {
+      showToast(message, buildUndo(gone));
+    },
+    [buildUndo, showToast],
+  );
   const archiving = useInboxArchive({
     scope: ArchiveScopes.SELECTION,
-    announce: announcer.announce,
+    announce: toast.show,
+    announceArchived,
     onRemoved: handleGone,
   });
-  const purge = useInboxPurgeFacade({ announce: announcer.announce });
+  const purge = useInboxPurgeFacade({ announce: toast.show });
   const { requestDelete } = deletion;
   const handleDelete = useCallback(
     (item: InboxItem): void => requestDelete([item]),
@@ -178,7 +220,9 @@ export function InboxList({
   const deletable = selection.selectedItems.filter(
     (item) => item.viewerCanDelete,
   );
-  const busy = deletion.busy || archiving.pending || collecting;
+  // One restore at a time: a second archive's Undo would meet the guard and do nothing.
+  const archiveHeld = restoring.pending;
+  const busy = deletion.busy || archiving.pending || archiveHeld || collecting;
   const deleteOpen = deletion.pending.length > 0;
   const selectedCount = selection.selectedItems.length;
   const matchingTotal = Math.max(total, ordered.length);
@@ -206,11 +250,11 @@ export function InboxList({
         cap: MATCHING_CAP,
       });
       if (generation !== readGeneration.current) {
-        announcer.announce(t("home.inbox.select.readDropped"));
+        toast.show(t("home.inbox.select.readDropped"));
         return undefined;
       }
       if (rows.length === 0) {
-        announcer.announce(t("home.inbox.select.readFailed"));
+        toast.show(t("home.inbox.select.readFailed"));
         return undefined;
       }
       return rows;
@@ -239,9 +283,7 @@ export function InboxList({
     }
     const deletableRows = rows.filter((item) => item.viewerCanDelete);
     if (deletableRows.length === 0) {
-      announcer.announce(
-        t("home.inbox.select.noneDeletable", { count: rows.length }),
-      );
+      toast.show(t("home.inbox.select.noneDeletable", { count: rows.length }));
       return;
     }
     deletion.requestDelete(deletableRows);
@@ -283,6 +325,17 @@ export function InboxList({
         >
           {t("home.inbox.heading")}
         </h2>
+        <Toast
+          action={toast.action}
+          aside={toast.aside}
+          actionDisabled={restoring.pending}
+          message={toast.message}
+          shown={toast.shown}
+          testId="inbox-toast"
+          onActionLeft={focusHeading}
+          onHold={toast.hold}
+          onRelease={toast.release}
+        />
         {controls}
       </div>
       {children}
@@ -322,7 +375,9 @@ export function InboxList({
                 selected={selection.isSelected(item)}
                 sort={sort}
                 archived={archived}
-                onAnnounce={announcer.announce}
+                archiveHeld={archiveHeld}
+                onAnnounce={toast.show}
+                onArchived={announceArchived}
                 onDelete={handleDelete}
                 onPurgeAttachments={purge.requestPurge}
                 onRemoved={handleRowGone}
@@ -354,7 +409,9 @@ export function InboxList({
                 selected={selection.isSelected(item)}
                 sort={sort}
                 archived={archived}
-                onAnnounce={announcer.announce}
+                archiveHeld={archiveHeld}
+                onAnnounce={toast.show}
+                onArchived={announceArchived}
                 onDelete={handleDelete}
                 onPurgeAttachments={purge.requestPurge}
                 onRemoved={handleRowGone}
@@ -383,14 +440,6 @@ export function InboxList({
         aria-atomic="true"
         aria-live="polite"
         className="sr-only"
-        role="status"
-      >
-        {announcer.text}
-      </p>
-      <p
-        aria-atomic="true"
-        aria-live="polite"
-        className="sr-only"
         data-testid="selection-status"
         role="status"
       >
@@ -399,6 +448,8 @@ export function InboxList({
     </section>
   );
 }
+
+function keepRestoredRows(): void {}
 
 function useFirstLoad(): boolean {
   const [firstLoad, setFirstLoad] = useState(true);

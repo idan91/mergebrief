@@ -88,6 +88,8 @@ export interface ArchiveOutcome {
   readonly done: number;
   /** Rows asked for. */
   readonly total: number;
+  /** A write got no answer, so the rows that did not go may have gone anyway. */
+  readonly indeterminate: boolean;
 }
 
 /** A row's menu answers in the row's own words; the selection bar answers with a count or a tally. */
@@ -95,7 +97,7 @@ export function describeArchiveOutcome(
   t: TFunction,
   outcome: ArchiveOutcome,
 ): string {
-  const { restoring, done, total } = outcome;
+  const { restoring, done, total, indeterminate } = outcome;
   const failed = total - done;
   if (outcome.scope === ArchiveScopes.ROW) {
     if (failed === 0) {
@@ -103,6 +105,12 @@ export function describeArchiveOutcome(
         ? t("home.inbox.actions.unarchived")
         : t("home.inbox.actions.archived");
       return rowDone;
+    }
+    if (indeterminate) {
+      const rowUnconfirmed = restoring
+        ? t("home.inbox.actions.unarchiveIndeterminate")
+        : t("home.inbox.actions.archiveIndeterminate");
+      return rowUnconfirmed;
     }
     const rowFailed = restoring
       ? t("home.inbox.actions.unarchiveFailed")
@@ -115,6 +123,12 @@ export function describeArchiveOutcome(
       ? t("home.inbox.actions.unarchivedMany", { count: done })
       : t("home.inbox.actions.archivedMany", { count: done });
     return allDone;
+  }
+  if (indeterminate) {
+    const someUnconfirmed = restoring
+      ? t("home.inbox.actions.unarchivedIndeterminate", { done, total })
+      : t("home.inbox.actions.archivedIndeterminate", { done, total });
+    return someUnconfirmed;
   }
   const tally = { done, total, failed };
   const someDone = restoring

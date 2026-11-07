@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@web/components/Button";
 import { PageError } from "@web/components/PageError";
+import { NavigationProgress } from "@web/components/NavigationProgress";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import { StatePage } from "@web/components/StatePage";
 import {
@@ -90,6 +91,7 @@ function RootComponent() {
 
   return (
     <I18nProvider>
+      <NavigationProgress />
       <Outlet />
     </I18nProvider>
   );

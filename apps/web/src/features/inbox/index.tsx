@@ -1,5 +1,6 @@
 // Curated feature entry: what Home mounts. Internal inbox files import their
 // targets directly, never this index.
+export { InstallFirst } from "./components/InstallFirst";
 export { InboxList, type InboxListProps } from "./components/InboxList";
 export {
   PersonalLine,

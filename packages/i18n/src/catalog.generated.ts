@@ -399,6 +399,8 @@ export type Catalog = typeof en & {
       stackChipLabel: "Place in a stack: {{index}} of {{size}}";
       byAuthor: "By {{login}}";
       actions: (typeof en)["home"]["inbox"]["actions"] & {
+        archivedIndeterminate: "Archived {{done}} of {{total}}; we could not confirm the rest";
+        unarchivedIndeterminate: "Unarchived {{done}} of {{total}}; we could not confirm the rest";
         deletedMany_one: "Deleted {{count}}";
         deletedMany_other: "Deleted {{count}}";
         deletedSome: "Deleted {{done}} of {{total}}; {{failed}} failed";
