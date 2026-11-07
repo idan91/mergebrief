@@ -88,12 +88,37 @@
     position: relative;
     z-index: 1;
     display: grid;
+    opacity: 0;
     place-items: center;
 
     > label {
       justify-content: center;
       min-inline-size: functions.to-rem(24px);
       min-block-size: functions.to-rem(24px);
+    }
+
+    &:focus-within {
+      opacity: 1;
+    }
+  }
+
+  .row[data-selecting="true"] .start {
+    opacity: 1;
+  }
+
+  @include mixins.hover {
+    .row:hover .start {
+      opacity: 1;
+    }
+  }
+
+  @media (hover: none) {
+    .row:not([data-selecting="true"], :has(.start:focus-within)) {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .row:not([data-selecting="true"]) .start:not(:focus-within) {
+      display: none;
     }
   }
 

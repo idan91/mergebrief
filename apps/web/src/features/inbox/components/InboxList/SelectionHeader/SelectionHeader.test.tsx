@@ -14,6 +14,7 @@ function renderHeader(overrides: Partial<SelectionHeaderProps> = {}) {
     onArchive: vi.fn(),
     onDelete: vi.fn(),
     onClear: vi.fn(),
+    onStartSelecting: vi.fn(),
   };
   render(
     <SelectionHeader
@@ -25,6 +26,7 @@ function renderHeader(overrides: Partial<SelectionHeaderProps> = {}) {
       deletableCount={0}
       pageCount={12}
       selectedCount={0}
+      selecting
       someSelected={false}
       total={37}
       {...handlers}
@@ -35,12 +37,30 @@ function renderHeader(overrides: Partial<SelectionHeaderProps> = {}) {
 }
 
 describe("SelectionHeader", () => {
-  it("hints at zero and offers no action", () => {
-    renderHeader();
+  it("states the total and offers Select when nobody is selecting", () => {
+    const { onStartSelecting } = renderHeader({
+      selecting: false,
+      pageCount: 37,
+    });
+    expect(screen.getByText("37 briefs")).toBeTruthy();
     expect(
-      screen.getByText("12 of 37 · tick rows to act on them together"),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
+      screen.queryByRole("button", { name: "Clear selection" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    expect(onStartSelecting).toHaveBeenCalledOnce();
+  });
+
+  it("says how many of the total a page shows", () => {
+    renderHeader({ selecting: false });
+    expect(screen.getByText("Showing 12 of 37 briefs")).toBeTruthy();
+  });
+
+  it("says nothing is selected at zero and offers only the way out", () => {
+    renderHeader();
+    expect(screen.getByText("Nothing selected")).toBeTruthy();
+    expect(
+      screen.getAllByRole("button").map((button) => button.textContent),
+    ).toEqual(["Clear selection"]);
     expect(
       screen
         .getByRole("checkbox", { name: "Select all on this page" })
@@ -176,6 +196,7 @@ describe("SelectionHeader", () => {
           deletableCount={12}
           pageCount={12}
           selectedCount={12}
+          selecting
           someSelected={false}
           total={37}
           onArchive={vi.fn()}
@@ -184,6 +205,7 @@ describe("SelectionHeader", () => {
           onDelete={vi.fn()}
           onSelectAllMatching={() => setAllMatching(true)}
           onSelectPage={vi.fn()}
+          onStartSelecting={vi.fn()}
         />
       );
     }

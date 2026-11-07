@@ -17,6 +17,7 @@ import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./RowActions.module.scss";
 import { useRowActionsFacade } from "./useRowActionsFacade";
+import { openOnGithub } from "./utils";
 
 export interface RowActionsProps {
   item: InboxItem;
@@ -37,12 +38,13 @@ export interface RowActionsProps {
 
 /**
  * The right-edge actions a hover or the keyboard cursor reveals: Open on
- * GitHub when the repository is known, and a menu with Copy link, Archive
- * (Unarchive in the archived view) and, on the rows the viewer may delete,
- * Delete. An installation row an admin may delete also offers the
- * repository's attachment-branch purge. Regenerate leads the menu when
- * GitHub has commits the latest brief does not cover, unless the latest
- * generation failed in a way a repeat paste fails again.
+ * GitHub when the repository is known, hidden on a touch screen, and a menu
+ * with Copy link, Open on GitHub, Archive (Unarchive in the archived view)
+ * and, on the rows the viewer may delete, Delete. An installation row an
+ * admin may delete also offers the repository's attachment-branch purge.
+ * Regenerate leads the menu when GitHub has commits the latest brief does
+ * not cover, unless the latest generation failed in a way a repeat paste
+ * fails again.
  */
 export function RowActions({
   item,
@@ -123,6 +125,14 @@ export function RowActions({
           >
             {t("home.inbox.actions.copyLink")}
           </Menu.Item>
+          {githubUrl === undefined ? null : (
+            <Menu.Item
+              glyph={<Icon name={IconNames.GITHUB_LOGO} size={IconSizes.MD} />}
+              onSelect={() => openOnGithub(githubUrl)}
+            >
+              {t("home.inbox.actions.openOnGithub")}
+            </Menu.Item>
+          )}
           <Menu.Item
             disabled={archiveDisabled}
             glyph={<Icon name={IconNames.ARCHIVE} size={IconSizes.MD} />}

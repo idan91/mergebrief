@@ -184,7 +184,6 @@ export function BriefControlsSheet({
                 <RiskAttrsDisclosure
                   cycle={toolbar.riskAttrCycle}
                   jumpToGroup={jumpToGroup}
-                  longLabel
                   rail={toolbar.rail}
                   sheet
                 />

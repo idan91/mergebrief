@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .header {
@@ -11,24 +12,60 @@
     padding-inline: var(--space-5);
     border: 1px solid transparent;
     border-radius: var(--radius-panel);
-    transition:
-      background-color var(--motion-fast) ease,
-      border-color var(--motion-fast) ease;
 
-    &[data-selected="true"] {
+    &[data-selecting="true"] {
       border-color: var(--color-outline-2);
       background: var(--color-surface-2);
     }
   }
 
+  .total {
+    color: var(--color-text-2);
+  }
+
+  .selectStart {
+    display: none;
+  }
+
+  @media (hover: none) {
+    .selectStart {
+      display: inline-flex;
+    }
+  }
+
   .start {
     display: grid;
+    opacity: 0;
     place-items: center;
 
     > label {
       justify-content: center;
       min-inline-size: functions.to-rem(24px);
       min-block-size: functions.to-rem(24px);
+    }
+
+    &:focus-within {
+      opacity: 1;
+    }
+  }
+
+  .header[data-selecting="true"] .start {
+    opacity: 1;
+  }
+
+  @include mixins.hover {
+    .header:hover .start {
+      opacity: 1;
+    }
+  }
+
+  @media (hover: none) {
+    .header:not([data-selecting="true"], :has(.start:focus-within)) {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .header:not([data-selecting="true"]) .start:not(:focus-within) {
+      display: none;
     }
   }
 
@@ -37,10 +74,6 @@
     color: var(--color-text-1);
     font-size: var(--font-size-sm);
     font-variant-numeric: tabular-nums;
-  }
-
-  .hint {
-    color: var(--color-text-3);
   }
 
   .actions {
@@ -52,11 +85,11 @@
   }
 
   @media (width < 560px) {
-    .header {
+    .header[data-selecting="true"] {
       grid-template-columns: auto minmax(0, 1fr);
     }
 
-    .actions {
+    .header[data-selecting="true"] .actions {
       grid-column: 2;
       justify-content: flex-start;
       padding-block-end: var(--space-1);

@@ -16,8 +16,8 @@
     --track-h: 3px;
 
     position: relative;
-    flex: 0 1 functions.to-rem(24px);
-    min-inline-size: functions.to-rem(22px);
+    flex: none;
+    inline-size: functions.to-rem(24px);
     block-size: functions.to-rem(24px);
     padding: 0;
     border: 0;

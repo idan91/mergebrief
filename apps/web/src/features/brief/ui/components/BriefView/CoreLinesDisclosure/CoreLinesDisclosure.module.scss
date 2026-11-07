@@ -16,6 +16,10 @@
     text-align: inherit;
   }
 
+  .trigger {
+    @include mixins.hit-area;
+  }
+
   .trigger:focus-visible {
     @include mixins.focus-ring;
 

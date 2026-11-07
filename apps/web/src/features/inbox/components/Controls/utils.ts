@@ -1,4 +1,7 @@
-import type { DropdownSelection } from "@web/components/Dropdown/types";
+import type {
+  DropdownMultipleSelection,
+  DropdownSelection,
+} from "@web/components/Dropdown/types";
 import {
   COLLAPSED_VALUE_SEPARATOR,
   FILTER_ALL_VALUE,
@@ -107,7 +110,7 @@ export function scopeFilterValue(filterId: string, value: string): string {
  */
 export function deriveCollapsedSelection(
   filters: readonly FilterView[],
-): DropdownSelection {
+): DropdownMultipleSelection {
   const ticked = filters.flatMap((filter) =>
     listTickedValues(filter).map((value) => scopeFilterValue(filter.id, value)),
   );

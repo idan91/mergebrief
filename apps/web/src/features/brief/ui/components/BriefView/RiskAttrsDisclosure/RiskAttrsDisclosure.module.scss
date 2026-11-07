@@ -29,28 +29,6 @@
     font-weight: 600;
   }
 
-  .labelShort {
-    display: none;
-  }
-
-  @media (width <= 1280px) {
-    .labelShort {
-      display: inline;
-    }
-
-    .labelLong {
-      display: none;
-    }
-  }
-
-  .wrap[data-label="long"] .labelShort {
-    display: none;
-  }
-
-  .wrap[data-label="long"] .labelLong {
-    display: inline;
-  }
-
   // Positioned by floating-ui, rendered in-tree: z-index clears the sticky
   // chunk headers (z 10) from inside the bar's own stacking context.
   // radius-md matches the trigger family.
@@ -75,6 +53,8 @@
   }
 
   .chipButton {
+    @include mixins.hit-area;
+
     display: inline-flex;
     margin: 0;
     padding: 0;

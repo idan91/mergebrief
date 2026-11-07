@@ -23,6 +23,8 @@
   }
 
   .link {
+    @include mixins.hit-area;
+
     display: inline-flex;
     gap: functions.to-rem(4px);
     align-items: center;

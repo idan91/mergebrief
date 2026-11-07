@@ -28,7 +28,7 @@ import styles from "./InboxList.module.scss";
 import { InboxRow } from "./InboxRow";
 import { PurgeAttachmentsModal } from "./PurgeAttachmentsModal";
 import { SelectionHeader } from "./SelectionHeader";
-import { ArchiveScopes } from "./types";
+import { ArchiveScopes, type ArchiveScope } from "./types";
 import { useInboxArchive } from "./useInboxArchive";
 import { useInboxCursor } from "./useInboxCursor";
 import { useInboxDeleteFacade } from "./useInboxDeleteFacade";
@@ -114,6 +114,8 @@ export function InboxList({
   );
   const [allMatching, setAllMatching] = useState(false);
   const [collecting, setCollecting] = useState(false);
+  // Touch has no hover to reveal a box, so the Select button enters this.
+  const [selectMode, setSelectMode] = useState(false);
   // A matching read answers for the scope it started in: any change to the
   // scope moves the generation, and a read from an older one is dropped.
   const readGeneration = useRef(0);
@@ -123,6 +125,7 @@ export function InboxList({
     readGeneration.current += 1;
     clearSelection();
     setAllMatching(false);
+    setSelectMode(false);
   }, [pageKey, clearSelection]);
   // One row's tick or untick narrows the scope back to the page's ticks.
   const handleToggle = useCallback(
@@ -160,13 +163,33 @@ export function InboxList({
     },
     [focusHeading, removeSelected],
   );
+  // Only the selection bar's actions end select mode; a row's own menu keeps it.
+  const handleSelectionGone = useCallback(
+    (gone: readonly InboxItem[]): void => {
+      handleGone(gone);
+      setSelectMode(false);
+    },
+    [handleGone],
+  );
   const handleRowGone = useCallback(
     (item: InboxItem): void => handleGone([item]),
     [handleGone],
   );
+  // One delete modal serves a row's menu and the selection bar.
+  const deleteScope = useRef<ArchiveScope>(ArchiveScopes.ROW);
+  const handleDeleted = useCallback(
+    (gone: readonly InboxItem[]): void => {
+      if (deleteScope.current === ArchiveScopes.SELECTION) {
+        handleSelectionGone(gone);
+      } else {
+        handleGone(gone);
+      }
+    },
+    [handleGone, handleSelectionGone],
+  );
   const deletion = useInboxDeleteFacade({
     announce: toast.show,
-    onDeleted: handleGone,
+    onDeleted: handleDeleted,
   });
   // The Undo whose restore is running; an archive made since keeps its own.
   const restoreSource = useRef<ToastAction | undefined>(undefined);
@@ -209,12 +232,15 @@ export function InboxList({
     scope: ArchiveScopes.SELECTION,
     announce: toast.show,
     announceArchived,
-    onRemoved: handleGone,
+    onRemoved: handleSelectionGone,
   });
   const purge = useInboxPurgeFacade({ announce: toast.show });
   const { requestDelete } = deletion;
   const handleDelete = useCallback(
-    (item: InboxItem): void => requestDelete([item]),
+    (item: InboxItem): void => {
+      deleteScope.current = ArchiveScopes.ROW;
+      requestDelete([item]);
+    },
     [requestDelete],
   );
   const deletable = selection.selectedItems.filter(
@@ -225,6 +251,7 @@ export function InboxList({
   const busy = deletion.busy || archiving.pending || archiveHeld || collecting;
   const deleteOpen = deletion.pending.length > 0;
   const selectedCount = selection.selectedItems.length;
+  const selecting = selectMode || selectedCount > 0;
   const matchingTotal = Math.max(total, ordered.length);
   const selectionText = readSelectionText(t, {
     selectedCount,
@@ -286,6 +313,7 @@ export function InboxList({
       toast.show(t("home.inbox.select.noneDeletable", { count: rows.length }));
       return;
     }
+    deleteScope.current = ArchiveScopes.SELECTION;
     deletion.requestDelete(deletableRows);
   }
   function archiveSelected(): void {
@@ -302,6 +330,9 @@ export function InboxList({
   function selectAllMatching(): void {
     setAllMatching(true);
   }
+  function startSelecting(): void {
+    setSelectMode(true);
+  }
   function clearAllMatching(): void {
     readGeneration.current += 1;
     setAllMatching(false);
@@ -311,6 +342,7 @@ export function InboxList({
     readGeneration.current += 1;
     selection.clear();
     setAllMatching(false);
+    setSelectMode(false);
     focusHeading();
   }
 
@@ -353,7 +385,9 @@ export function InboxList({
           deletableCount={deletable.length}
           pageCount={ordered.length}
           selectedCount={selectedCount}
+          selecting={selecting}
           someSelected={selection.someSelected}
+          takeFocus={selectMode}
           total={matchingTotal}
           onArchive={archiveSelected}
           onClear={handleClear}
@@ -361,6 +395,7 @@ export function InboxList({
           onDelete={requestBulkDelete}
           onSelectAllMatching={selectAllMatching}
           onSelectPage={selectPage}
+          onStartSelecting={startSelecting}
         />
         {above.length === 0 ? null : (
           <ol className={styles["list"]}>
@@ -373,6 +408,7 @@ export function InboxList({
                 now={now}
                 rowRef={index === cursor ? cursorRowRef : undefined}
                 selected={selection.isSelected(item)}
+                selecting={selecting}
                 sort={sort}
                 archived={archived}
                 archiveHeld={archiveHeld}
@@ -407,6 +443,7 @@ export function InboxList({
                   above.length + index === cursor ? cursorRowRef : undefined
                 }
                 selected={selection.isSelected(item)}
+                selecting={selecting}
                 sort={sort}
                 archived={archived}
                 archiveHeld={archiveHeld}

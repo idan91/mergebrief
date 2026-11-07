@@ -1,6 +1,6 @@
 // Archive puts a row out of the viewer's Inbox: it leaves the list and the
-// personal line, Show: Archived lists it on its own, and Unarchive brings
-// it back.
+// personal line, Archived under More filters lists it on its own, and
+// Unarchive brings it back.
 import { expect, test } from "@playwright/test";
 
 import { INBOX_ROWS } from "../fixtures/inbox";
@@ -9,7 +9,7 @@ import { waitForFirstLoad } from "../support/page";
 
 const [, , inProgressRow] = INBOX_ROWS;
 
-test("Archive hides a row until Unarchive, behind the Show filter", async ({
+test("Archive hides a row until Unarchive, behind More filters", async ({
   page,
 }) => {
   const faults = collectPageFaults(page);
@@ -37,11 +37,12 @@ test("Archive hides a row until Unarchive, behind the Show filter", async ({
     }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Show", exact: true }).click();
+  await page.getByRole("button", { name: "More filters", exact: true }).click();
   await page.getByRole("option", { name: "Archived" }).click();
   await expect(page).toHaveURL(/archived=only/);
+  await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "Show Archived" }),
+    page.getByRole("button", { name: "More filters (1)" }),
   ).toBeVisible();
   await expect(rows).toHaveCount(1);
   await expect(target).toHaveCount(1);

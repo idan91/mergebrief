@@ -28,6 +28,24 @@
   }
 }
 
+// Grows a small control's hit area to the 24px floor and leaves its box alone.
+// An ancestor's overflow clips the area with it.
+@mixin hit-area {
+  position: relative;
+
+  &::after {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: 100%;
+    min-inline-size: functions.to-rem(24px);
+    block-size: 100%;
+    min-block-size: functions.to-rem(24px);
+    content: "";
+    transform: translate(-50%, -50%);
+  }
+}
+
 @mixin for-size($size, $limit-type: min, $size-type: width) {
   @if $size-type == width {
     @media (#{$limit-type}-width: $size) {

@@ -132,7 +132,7 @@ describe("ReadingToolbar clusters", () => {
     expect(screen.queryByRole("button", { name: /Filter/ })).toBeNull();
   });
 
-  it("omits the Risk attrs trigger entirely when no attribute fired", () => {
+  it("omits the Risk attributes trigger entirely when no attribute fired", () => {
     renderToolbar({ rail: EMPTY_RAIL });
     expect(
       screen.queryByRole("button", { name: /Risk attributes/ }),

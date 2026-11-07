@@ -585,7 +585,7 @@ async function renderRouteWithFetch(
   return { router, queryClient };
 }
 
-const PR_NOT_FOUND_HEADING = "This pull request isn't available.";
+const PR_NOT_FOUND_HEADING = "This pull request isn't available";
 
 describe("DB brief route, explicit-span deep link while generating", () => {
   const generatingMeta = meta({

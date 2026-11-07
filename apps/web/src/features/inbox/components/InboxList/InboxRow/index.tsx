@@ -48,6 +48,8 @@ export interface InboxRowProps {
   cursor: boolean;
   /** The row is ticked for a bulk action. */
   selected: boolean;
+  /** Rows are being selected, so every row shows its box. */
+  selecting?: boolean;
   /** `range` is a shift-click: the rows since the last toggle take this one's state. */
   onToggleSelect: (item: InboxItem, range?: boolean) => void;
   /** The list holds the cursor row so it can scroll it into view. */
@@ -80,6 +82,7 @@ export function InboxRow({
   now,
   cursor,
   selected,
+  selecting = false,
   onToggleSelect,
   rowRef,
   archived,
@@ -134,6 +137,7 @@ export function InboxRow({
       data-opening={opening ? "" : undefined}
       data-needs-you={needsReviewer(item)}
       data-selected={selected}
+      data-selecting={selecting}
       data-testid="inbox-row"
       data-unreachable={item.unreachable}
       ref={rowRef}

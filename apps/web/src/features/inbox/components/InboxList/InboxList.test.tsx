@@ -273,6 +273,14 @@ function answerMatchingPages(pageTwoGate?: Promise<void>): void {
   });
 }
 
+async function selectWholePage(): Promise<void> {
+  await act(async () => {
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select all on this page" }),
+    );
+  });
+}
+
 describe("InboxList", () => {
   it("splits at the fold and keeps the server order on each side", async () => {
     await renderInRouter(
@@ -744,15 +752,15 @@ describe("InboxList", () => {
     const box = screen.getByRole("checkbox", { name: "Select Alpha" });
     expect(box.closest("a")).toBeNull();
     expect(readSelectionStatus()).toBe("Nothing selected");
-    const header = screen.getByTestId("selection-header");
-    expect(header.getAttribute("data-selected")).toBe("false");
+    expect(
+      within(screen.getByTestId("selection-header")).getByText("1 brief"),
+    ).toBeTruthy();
     const status = screen.getByTestId("selection-status");
     expect(status.getAttribute("aria-live")).toBe("polite");
     await act(async () => {
       fireEvent.click(box);
     });
     expect(readRows()[0]?.getAttribute("data-selected")).toBe("true");
-    expect(header.getAttribute("data-selected")).toBe("true");
     expect(readSelectionStatus()).toBe("1 selected");
     expect(
       within(screen.getByTestId("selection-header")).getByText("1 selected"),
@@ -803,6 +811,34 @@ describe("InboxList", () => {
     });
   });
 
+  it("unticking the page checkbox leaves the focus on it", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    const page = screen.getByRole("checkbox", {
+      name: "Select all on this page",
+    });
+    page.focus();
+
+    await selectWholePage();
+    expect(readSelectionStatus()).toBe("2 selected");
+    await selectWholePage();
+    await act(async () => {
+      await new Promise((resolve) => {
+        window.requestAnimationFrame(resolve);
+      });
+    });
+
+    expect(document.activeElement).toBe(page);
+  });
+
   it("a shift-click ticks the span since the last toggle", async () => {
     await renderInRouter(
       <InboxList
@@ -841,11 +877,7 @@ describe("InboxList", () => {
         total={4}
       />,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Select all 4 matching" }),
@@ -882,11 +914,7 @@ describe("InboxList", () => {
         total={4}
       />,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Select all 4 matching" }),
@@ -1367,10 +1395,10 @@ describe("InboxList", () => {
 
     const undo = await screen.findByRole("button", { name: "Undo" });
     const heading = document.getElementById("inbox-heading");
-    expect(heading?.nextElementSibling?.contains(undo)).toBe(true);
-    const status = screen
-      .getByTestId("inbox-toast")
-      .querySelector("[role=status]");
+    const toast = screen.getByTestId("inbox-toast");
+    expect(heading?.nextElementSibling).toBe(toast);
+    expect(toast.contains(undo)).toBe(true);
+    const status = toast.querySelector("[role=status]");
     await waitFor(() => {
       expect(status?.textContent).toContain(
         "Undo comes right after the heading",
@@ -1393,11 +1421,7 @@ describe("InboxList", () => {
         total={4}
       />,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Select all 4 matching" }),
@@ -1436,11 +1460,7 @@ describe("InboxList", () => {
         total={4}
       />,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Select all 4 matching" }),
@@ -1482,11 +1502,7 @@ describe("InboxList", () => {
         total={4}
       />,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Select all 4 matching" }),
@@ -1540,11 +1556,7 @@ describe("InboxList", () => {
         total={4}
       />,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Select all 4 matching" }),
@@ -1642,11 +1654,7 @@ describe("InboxList", () => {
       />,
       queryClient,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Delete 2" }));
     });
@@ -1685,11 +1693,7 @@ describe("InboxList", () => {
       />,
       queryClient,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(
         screen.getAllByRole("button", { name: "More actions" })[0]!,
@@ -1726,11 +1730,7 @@ describe("InboxList", () => {
         layout={InboxLayouts.FOLDED}
       />,
     );
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("checkbox", { name: "Select all on this page" }),
-      );
-    });
+    await selectWholePage();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Delete 2" }));
     });
@@ -1810,5 +1810,139 @@ describe("InboxList", () => {
     expect(within(rows[1]!).getByText("Failed")).toBeTruthy();
     expect(within(rows[2]!).getByText("Generating")).toBeTruthy();
     expect(within(rows[3]!).getByText("Capped")).toBeTruthy();
+  });
+
+  it("shows every box and the bulk actions only once rows are selected", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ title: "Alpha" }),
+          makeItem({ title: "Beta", prNumber: 2 }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    const rows = readRows();
+    const header = screen.getByTestId("selection-header");
+    expect(rows[1]?.getAttribute("data-selecting")).toBe("false");
+    expect(header.getAttribute("data-selecting")).toBe("false");
+    expect(screen.queryByRole("button", { name: "Archive 1" })).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha" }));
+    });
+
+    expect(header.getAttribute("data-selecting")).toBe("true");
+    expect(screen.getByRole("button", { name: "Archive 1" })).toBeTruthy();
+    expect(readRows()[1]?.getAttribute("data-selecting")).toBe("true");
+  });
+
+  it("the Select button enters selecting and Clear leaves it", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ title: "Alpha" })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    });
+    expect(
+      within(screen.getByTestId("selection-header")).getByText(
+        "Nothing selected",
+      ),
+    ).toBeTruthy();
+    expect(readRows()[0]?.getAttribute("data-selecting")).toBe("true");
+    expect(document.activeElement).toBe(
+      screen.getByRole("checkbox", { name: "Select all on this page" }),
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    });
+    expect(
+      screen.getByTestId("selection-header").getAttribute("data-selecting"),
+    ).toBe("false");
+    expect(readRows()[0]?.getAttribute("data-selecting")).toBe("false");
+  });
+
+  it.each([
+    ["archive", "Archive", "Archived; it comes back when a new brief lands"],
+    ["delete", "Delete", "Deleted"],
+  ])("a row menu %s keeps select mode on", async (_action, item, outcome) => {
+    fetchMock.mockResolvedValue(new Response('{"ok":true}', { status: 200 }));
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, title: "Alpha" }),
+          makeItem({ prNumber: 2, title: "Beta" }),
+          makeItem({ prNumber: 3, title: "Gamma", viewerCanDelete: true }),
+        ]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    });
+    for (const title of ["Alpha", "Beta"]) {
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("checkbox", { name: `Select ${title}` }),
+        );
+      });
+    }
+    const gammaMenu = screen.getAllByRole("button", {
+      name: "More actions",
+    })[2];
+
+    await act(async () => {
+      fireEvent.click(gammaMenu as HTMLElement);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: item }));
+    });
+    const dialog = screen.queryByRole("dialog");
+    if (dialog !== null) {
+      await act(async () => {
+        fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+      });
+    }
+    await screen.findByText(outcome);
+    for (const title of ["Alpha", "Beta"]) {
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("checkbox", { name: `Select ${title}` }),
+        );
+      });
+    }
+
+    expect(readSelectionStatus()).toBe("Nothing selected");
+    expect(
+      screen.getByTestId("selection-header").getAttribute("data-selecting"),
+    ).toBe("true");
+  });
+
+  it("states how many briefs the page shows of the matching total", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ title: "Alpha" })]}
+        sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
+        total={37}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Briefs" }),
+    ).toBeTruthy();
+    expect(
+      within(screen.getByTestId("selection-header")).getByText(
+        "Showing 1 of 37 briefs",
+      ),
+    ).toBeTruthy();
   });
 });

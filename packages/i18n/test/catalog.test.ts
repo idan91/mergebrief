@@ -187,6 +187,18 @@ describe("checkLocale", () => {
     expect(checkLocale({ attempts_few: "{{count}} pokusy" }, en)).toEqual([]);
   });
 
+  it("lets a locale pluralize the inbox page count line", () => {
+    const polish = {
+      home: {
+        inbox: {
+          select: { showing_few: "Widać {{page}} z {{count}} briefy" },
+        },
+      },
+    };
+
+    expect(checkLocale(polish, enCatalog)).toEqual([]);
+  });
+
   it("flags a plural variant of a non-plural en key as silently dead", () => {
     const issues = checkLocale({ plain_few: "hallo" }, en);
     expect(issues).toHaveLength(1);

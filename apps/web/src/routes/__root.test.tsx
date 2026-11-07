@@ -102,10 +102,10 @@ describe("root route not found", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "This page doesn't exist.",
+        name: "This page doesn't exist",
       }),
     ).toBeTruthy();
-    const home = screen.getByRole("link", { name: "Go Home" });
+    const home = screen.getByRole("link", { name: "Go home" });
     expect(screen.getByRole("main").contains(home)).toBe(true);
     expect(home.getAttribute("href")).toBe("/");
   });

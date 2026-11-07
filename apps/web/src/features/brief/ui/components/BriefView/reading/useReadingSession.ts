@@ -515,7 +515,7 @@ export function useReadingSession(
       // so a collapsed target would show nothing. A large chunk starts
       // closed only to spare the page, so a jump to one opens it. Any other
       // collapsed card is the user's triage: wayfinding jumps (toc, group
-      // stepper, risk attrs) scroll to it WITHOUT re-expanding.
+      // stepper, Jump-rail) scroll to it WITHOUT re-expanding.
       const opensTarget = focusModeRef.current || largeChunkIds.has(chunkId);
       scrollToTarget(
         { kind: ScrollTargetKinds.CHUNK, chunkId },

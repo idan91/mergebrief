@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -68,5 +69,48 @@ describe("Controls", () => {
       });
     });
     expect((await openPanel("Review")).style.transformOrigin).toBe("top left");
+  });
+
+  it("keeps the common filters out and folds the rest under More filters", async () => {
+    render(
+      <Controls
+        changedCount={0}
+        filters={[
+          makeFilter("review", "Review"),
+          { ...makeFilter("author", "Author"), underMore: true },
+        ]}
+        layout={makeFilter("layout", "View")}
+        sort={makeFilter("sort", "Sort")}
+        onClear={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Review" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Author" })).toBeNull();
+    const listbox = await openPanel("More filters");
+    expect(within(listbox).getByText("Author")).toBeTruthy();
+  });
+
+  it("counts the filters in use on More filters", () => {
+    render(
+      <Controls
+        changedCount={1}
+        filters={[
+          {
+            ...makeFilter("author", "Author"),
+            changed: true,
+            underMore: true,
+          },
+          { ...makeFilter("list", "List"), underMore: true },
+        ]}
+        layout={makeFilter("layout", "View")}
+        sort={makeFilter("sort", "Sort")}
+        onClear={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "More filters (1)" }),
+    ).toBeTruthy();
   });
 });

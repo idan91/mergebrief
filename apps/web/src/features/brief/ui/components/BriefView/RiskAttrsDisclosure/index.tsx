@@ -17,12 +17,10 @@ export interface RiskAttrsDisclosureProps {
   cycle: RiskAttrCycle;
   /** The panel rises as a sheet, for a trigger that already sits in one. */
   sheet?: boolean;
-  /** The long label at every width, where the trigger has the room. */
-  longLabel?: boolean;
 }
 
 /**
- * Trigger `Risk attrs · N` opening a panel of attribute chips, keyed by attribute
+ * Trigger `Risk attributes · N` opening a panel of attribute chips, keyed by attribute
  * and never group-ranked; a chip CYCLES its carrying targets in story order, and a
  * floor firing dots the trigger without auto-opening. Rendered IN-TREE because a
  * body portal stutters against a sticky bar.
@@ -32,7 +30,6 @@ export function RiskAttrsDisclosure({
   jumpToGroup,
   cycle,
   sheet,
-  longLabel,
 }: RiskAttrsDisclosureProps) {
   const { t } = useTranslation();
   const chips = rail.entries.map((entry) => {
@@ -53,10 +50,7 @@ export function RiskAttrsDisclosure({
   });
 
   return (
-    <span
-      className={styles["wrap"]}
-      data-label={longLabel ? "long" : undefined}
-    >
+    <span className={styles["wrap"]}>
       <Popover offsetPx={DISCLOSURE_OFFSET_PX} portal={false}>
         <Popover.Trigger>
           <ToolbarButton>
@@ -67,12 +61,7 @@ export function RiskAttrsDisclosure({
                 data-emphasis-dot=""
               />
             ) : null}
-            <span className={styles["labelShort"]}>
-              {t("brief.toolbar.attrsShort")}
-            </span>
-            <span className={styles["labelLong"]}>
-              {t("brief.toolbar.attrsLong")}
-            </span>
+            {t("brief.toolbar.attrsLong")}
             <span aria-hidden="true" className={styles["sep"]}>
               ·
             </span>

@@ -241,7 +241,7 @@
       "signIn": "Sign in with GitHub"
     },
     "notFound": {
-      "heading": "This pull request isn't available.",
+      "heading": "This pull request isn't available",
       "detail": "It may not exist, or your GitHub account may not have access to it."
     },
     "signIn": {
@@ -593,7 +593,6 @@
       "groupCount": "Group {{current}}/{{total}}",
       "changes_one": "{{count}} change",
       "changes_other": "{{count}} changes",
-      "attrsShort": "Attrs",
       "attrsLong": "Risk attributes",
       "srFloorFired": ", floor attribute fired",
       "filterLabel": "Filter",
@@ -1582,13 +1581,13 @@
       "failed": "The image could not be uploaded. It was not attached; try again."
     },
     "notFound": {
-      "heading": "This page doesn't exist.",
-      "home": "Go Home"
+      "heading": "This page doesn't exist",
+      "home": "Go home"
     },
     "pageFailed": {
-      "heading": "This page failed to load.",
+      "heading": "This page failed to load",
       "detail": "Something went wrong showing this page. Reload to try again.",
-      "home": "Go Home"
+      "home": "Go home"
     },
     "skipToContent": "Skip to content",
     "backToBriefs": "Back to briefs",
@@ -1704,6 +1703,11 @@
     },
     "inbox": {
       "heading": "Briefs",
+      "filters": {
+        "more": "More filters",
+        "moreCount_one": "More filters ({{count}})",
+        "moreCount_other": "More filters ({{count}})"
+      },
       "fold": "Not waiting on you",
       "number": "#{{number}}",
       "ageMinutes": "{{count}}m ago",
@@ -1773,11 +1777,16 @@
         "undoHint": "Undo comes right after the heading."
       },
       "select": {
+        "start": "Select",
         "row": "Select {{title}}",
         "page": "Select all on this page",
         "count_one": "{{count}} selected",
         "count_other": "{{count}} selected",
         "none": "Nothing selected",
+        "total_one": "{{count}} brief",
+        "total_other": "{{count}} briefs",
+        "showing_one": "Showing {{page}} of {{count}} brief",
+        "showing_other": "Showing {{page}} of {{count}} briefs",
         "archive_one": "Archive {{count}}",
         "archive_other": "Archive {{count}}",
         "unarchive_one": "Unarchive {{count}}",
@@ -1787,8 +1796,6 @@
         "undeletable_one": "{{count}} cannot be deleted",
         "undeletable_other": "{{count}} cannot be deleted",
         "clear": "Clear selection",
-        "hint_one": "{{page}} of {{count}} · tick rows to act on them together",
-        "hint_other": "{{page}} of {{count}} · tick rows to act on them together",
         "matching_one": "Select all {{count}} matching",
         "matching_other": "Select all {{count}} matching",
         "matchingCapped": "Select the first {{cap}} of {{count}} matching",
@@ -1846,9 +1853,9 @@
       "authorEveryone": "Everyone",
       "authorMine": "Mine",
       "authorOthers": "Others",
-      "show": "Show",
-      "showInbox": "Inbox",
-      "showArchived": "Archived",
+      "list": "List",
+      "listInbox": "Inbox",
+      "listArchived": "Archived",
       "view": "View",
       "viewFolded": "Needs you first",
       "viewMixed": "Mixed",
@@ -1900,7 +1907,7 @@
     "shortcuts": {
       "sectionList": "Briefs",
       "cursorDown": "Move the cursor down the list",
-      "toggleSelect": "Select or deselect the row under the cursor",
+      "toggleSelect": "Select rows",
       "cursorUp": "Move the cursor up the list",
       "openRow": "Open the brief under the cursor",
       "focusUrl": "Focus the URL box",

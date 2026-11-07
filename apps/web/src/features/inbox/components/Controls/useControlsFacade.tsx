@@ -118,6 +118,7 @@ export function useControlsFacade(
       chosen: [choices.author],
       multiple: false,
       changed: search.author !== undefined,
+      underMore: true,
       onChoose: (value) => {
         const author = readKnown(value, InboxAuthorFilters);
         write({
@@ -128,18 +129,19 @@ export function useControlsFacade(
   ];
 
   filters.push({
-    id: "show",
-    name: t("home.filters.show"),
+    id: "list",
+    name: t("home.filters.list"),
     options: [
-      { value: InboxArchivedFilters.HIDE, label: t("home.filters.showInbox") },
+      { value: InboxArchivedFilters.HIDE, label: t("home.filters.listInbox") },
       {
         value: InboxArchivedFilters.ONLY,
-        label: t("home.filters.showArchived"),
+        label: t("home.filters.listArchived"),
       },
     ],
     chosen: [choices.archived],
     multiple: false,
     changed: search.archived !== undefined,
+    underMore: true,
     onChoose: (value) => {
       const archived = readKnown(value, InboxArchivedFilters);
       write({
@@ -159,6 +161,7 @@ export function useControlsFacade(
       chosen: choices.installations,
       multiple: true,
       changed: search.installation !== undefined,
+      underMore: true,
       all: buildAllRow(
         { label: t("home.filters.allInstallations"), triggerLabel },
         choices.installations.length === 0,

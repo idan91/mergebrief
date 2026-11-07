@@ -93,7 +93,12 @@
     display: inline-block;
     max-inline-size: 100%;
     min-inline-size: 0;
+
+    // Padding and a cancelling margin reach the 24px target floor inside its own
+    // clip box.
     overflow: hidden;
+    padding-block: functions.to-rem(4px);
+    margin-block: functions.to-rem(-4px);
     color: var(--color-text-3);
     direction: rtl;
     font-family: var(--mono);

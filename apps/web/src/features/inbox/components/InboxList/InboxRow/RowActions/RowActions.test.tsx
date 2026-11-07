@@ -125,6 +125,23 @@ describe("RowActions", () => {
     expect(link.getAttribute("target")).toBe("_blank");
   });
 
+  it("offers GitHub from the menu too, for a phone that hides the icon", async () => {
+    const opened = vi.spyOn(window, "open").mockReturnValue(null);
+    await renderActions(makeItem());
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Open on GitHub" }));
+    });
+
+    expect(opened).toHaveBeenCalledWith(
+      "https://github.com/acme/payments/pull/7",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    opened.mockRestore();
+  });
+
   it("offers no GitHub link while the repository name is unknown", async () => {
     await renderActions(omitFields(makeItem(), "repoSlug"));
 

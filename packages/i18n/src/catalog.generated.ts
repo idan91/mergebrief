@@ -398,6 +398,10 @@ export type Catalog = typeof en & {
       partInProgress_other: "{{count}} in progress";
     };
     inbox: (typeof en)["home"]["inbox"] & {
+      filters: (typeof en)["home"]["inbox"]["filters"] & {
+        moreCount_one: "More filters ({{count}})";
+        moreCount_other: "More filters ({{count}})";
+      };
       number: "#{{number}}";
       ageMinutes: "{{count}}m ago";
       ageHours: "{{count}}h ago";
@@ -422,6 +426,10 @@ export type Catalog = typeof en & {
         row: "Select {{title}}";
         count_one: "{{count}} selected";
         count_other: "{{count}} selected";
+        total_one: "{{count}} brief";
+        total_other: "{{count}} briefs";
+        showing_one: "Showing {{page}} of {{count}} brief";
+        showing_other: "Showing {{page}} of {{count}} briefs";
         archive_one: "Archive {{count}}";
         archive_other: "Archive {{count}}";
         unarchive_one: "Unarchive {{count}}";
@@ -430,8 +438,6 @@ export type Catalog = typeof en & {
         delete_other: "Delete {{count}}";
         undeletable_one: "{{count}} cannot be deleted";
         undeletable_other: "{{count}} cannot be deleted";
-        hint_one: "{{page}} of {{count}} · tick rows to act on them together";
-        hint_other: "{{page}} of {{count}} · tick rows to act on them together";
         matching_one: "Select all {{count}} matching";
         matching_other: "Select all {{count}} matching";
         matchingCapped: "Select the first {{cap}} of {{count}} matching";

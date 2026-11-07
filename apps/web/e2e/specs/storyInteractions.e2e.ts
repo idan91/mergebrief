@@ -41,8 +41,7 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
     window.scrollTo({ top: 0, behavior: "instant" });
   });
 
-  // The label compresses to "Attrs" below 1280, so match either form.
-  const rail = page.getByRole("button", { name: /attrs/i });
+  const rail = page.getByRole("button", { name: /risk attributes/i });
   await expect(rail).toHaveAttribute("aria-expanded", "false");
   await rail.click();
   await expect(rail).toHaveAttribute("aria-expanded", "true");

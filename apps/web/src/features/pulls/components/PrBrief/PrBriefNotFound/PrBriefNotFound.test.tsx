@@ -60,13 +60,13 @@ describe("PrBriefNotFound", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "This pull request isn't available.",
+        name: "This pull request isn't available",
       }),
     ).toBeTruthy();
     expect(main.textContent).toContain(
       "It may not exist, or your GitHub account may not have access to it.",
     );
-    const home = screen.getByRole("link", { name: "Go Home" });
+    const home = screen.getByRole("link", { name: "Go home" });
     expect(main.contains(home)).toBe(true);
     expect(home.getAttribute("href")).toBe("/");
   });

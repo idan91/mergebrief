@@ -32,6 +32,12 @@
     @include mixins.focus-visible;
   }
 
+  @media (hover: none) {
+    .link {
+      display: none;
+    }
+  }
+
   @media (hover: hover) and (pointer: fine) {
     .actions {
       /* The row sets --row-bg per state; the cast reads the inherited value. */

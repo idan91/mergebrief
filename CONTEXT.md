@@ -432,8 +432,8 @@ The five risk attributes that can never be de-emphasized: `touches-auth`, `remov
 _Avoid_: severity tier, critical attributes (the floor is a display guarantee, not a score), floor (bare, where the Schema floor could be meant)
 
 **Jump-rail**:
-The attribute-keyed disclosure in the reading toolbar, labeled "Risk attrs" with a count: fired attribute names with carrying-group counts; a chip cycles through the carrying groups in story order. Attribute-keyed, never group-ranked. Floor attributes pin first; de-emphasized firings are excluded; a floor firing dots the trigger without opening it. In code `RiskAttrsDisclosure`, fed by `AttributeRail`.
-_Avoid_: risk ranking, hotspot list, risk attrs (the on-screen label)
+The attribute-keyed disclosure in the reading toolbar, labeled "Risk attributes" with a count: fired attribute names with carrying-group counts; a chip cycles through the carrying groups in story order. Attribute-keyed, never group-ranked. Floor attributes pin first; de-emphasized firings are excluded; a floor firing dots the trigger without opening it. In code `RiskAttrsDisclosure`, fed by `AttributeRail`.
+_Avoid_: risk ranking, hotspot list, Risk attributes as the disclosure's name (its on-screen label; what it lists stay risk attributes)
 
 **Operation table**:
 The one list, in the shared wire contract, of every Product Operation the API serves. Each row names one operation: whether it reads or writes, the **Access level** it needs, and its method and full path. Clients build their requests from it and the API checks its own routes against it, so a path exists in one place. Who may call beyond that level (human only, push access) is not in the table: the API holds that, keyed by the operation's id.

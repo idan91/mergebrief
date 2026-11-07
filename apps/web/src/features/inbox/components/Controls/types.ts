@@ -32,6 +32,8 @@ export interface FilterView<Value extends string = string> {
   readonly multiple: boolean;
   /** Off its default, so the control takes the accent. */
   readonly changed: boolean;
+  /** Sits behind More filters on a wide viewport; every filter shares one sheet on a narrow one. */
+  readonly underMore?: boolean;
   /** Print the choice at its default too; a sort is always on something. */
   readonly alwaysNamed?: boolean;
   /** How many choices print by name before the control prints a count. */

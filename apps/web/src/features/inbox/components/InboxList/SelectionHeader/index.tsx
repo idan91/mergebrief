@@ -26,17 +26,22 @@ export interface SelectionHeaderProps {
   archived: InboxArchivedFilter;
   /** A bulk action is running: every action holds. */
   busy: boolean;
+  /** Rows are being picked: the bulk actions and the page checkbox show, and on touch the row boxes do. */
+  selecting: boolean;
+  /** The Select button that opened the bar has just hidden: the page checkbox takes the focus. */
+  takeFocus?: boolean;
   onSelectPage: () => void;
   onSelectAllMatching: () => void;
   onClearAllMatching: () => void;
   onArchive: () => void;
   onDelete: () => void;
   onClear: () => void;
+  onStartSelecting: () => void;
 }
 
 /**
- * The header row on the list, on the rows' own grid: the page checkbox
- * over the row checkboxes, the count or a hint beside it, the way to every
+ * The row over the list, on the rows' own grid: the page checkbox over the
+ * row checkboxes, the total or the selected count beside it, the way to every
  * matching row once the page is ticked, and the bulk actions at the end.
  */
 export function SelectionHeader({
@@ -50,12 +55,15 @@ export function SelectionHeader({
   allMatching,
   archived,
   busy,
+  selecting,
+  takeFocus = false,
   onSelectPage,
   onSelectAllMatching,
   onClearAllMatching,
   onArchive,
   onDelete,
   onClear,
+  onStartSelecting,
 }: SelectionHeaderProps) {
   const { t } = useTranslation();
   const matchingRef = useRef<HTMLButtonElement>(null);
@@ -72,6 +80,11 @@ export function SelectionHeader({
     const replacement = allMatching ? onlyPageRef.current : matchingRef.current;
     (replacement ?? pageRef.current)?.focus();
   }, [allMatching]);
+  useEffect(() => {
+    if (takeFocus) {
+      pageRef.current?.focus();
+    }
+  }, [takeFocus]);
   function handleSelectAllMatching(): void {
     focusSwap.current = true;
     onSelectAllMatching();
@@ -84,7 +97,7 @@ export function SelectionHeader({
   const matched = Math.min(total, cap);
   const beyondPage = total > pageCount;
   const undeletable = selectedCount - deletableCount;
-  const selecting = selectedCount > 0;
+  const hasSelection = selectedCount > 0;
   const actionCount = allMatching ? matched : selectedCount;
 
   let middle: ReactNode;
@@ -107,11 +120,12 @@ export function SelectionHeader({
       </>
     );
   } else if (!selecting) {
-    middle = (
-      <span className={styles["hint"]}>
-        {t("home.inbox.select.hint", { page: pageCount, count: total })}
-      </span>
-    );
+    const totalText = beyondPage
+      ? t("home.inbox.select.showing", { page: pageCount, count: total })
+      : t("home.inbox.select.total", { count: total });
+    middle = <span className={styles["total"]}>{totalText}</span>;
+  } else if (!hasSelection) {
+    middle = <span>{t("home.inbox.select.none")}</span>;
   } else {
     middle = (
       <>
@@ -154,7 +168,7 @@ export function SelectionHeader({
   return (
     <div
       className={styles["header"]}
-      data-selected={selecting}
+      data-selecting={selecting}
       data-testid="selection-header"
     >
       <span className={styles["start"]}>
@@ -169,24 +183,28 @@ export function SelectionHeader({
         </Checkbox>
       </span>
       <p className={styles["middle"]}>{middle}</p>
-      {selecting ? (
-        <div className={styles["actions"]}>
-          <Button
-            disabled={busy}
-            size="sm"
-            variant={ButtonVariants.SECONDARY}
-            onClick={onArchive}
-          >
-            {archiveLabel}
-          </Button>
-          <Button
-            disabled={deleteHeld}
-            size="sm"
-            variant={ButtonVariants.DANGER_OUTLINE}
-            onClick={onDelete}
-          >
-            {deleteLabel}
-          </Button>
+      <div className={styles["actions"]}>
+        {hasSelection ? (
+          <>
+            <Button
+              disabled={busy}
+              size="sm"
+              variant={ButtonVariants.SECONDARY}
+              onClick={onArchive}
+            >
+              {archiveLabel}
+            </Button>
+            <Button
+              disabled={deleteHeld}
+              size="sm"
+              variant={ButtonVariants.DANGER_OUTLINE}
+              onClick={onDelete}
+            >
+              {deleteLabel}
+            </Button>
+          </>
+        ) : null}
+        {selecting ? (
           <Button
             disabled={busy}
             size="sm"
@@ -195,8 +213,18 @@ export function SelectionHeader({
           >
             {t("home.inbox.select.clear")}
           </Button>
-        </div>
-      ) : null}
+        ) : (
+          <span className={styles["selectStart"]}>
+            <Button
+              size="sm"
+              variant={ButtonVariants.SECONDARY}
+              onClick={onStartSelecting}
+            >
+              {t("home.inbox.select.start")}
+            </Button>
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,8 @@
   /* Unstyled disclosure button: the chip inside carries the visuals; the
      button contributes only a visible focus ring (WCAG 2.4.7). */
   .chipButton {
+    @include mixins.hit-area;
+
     background: none;
     border: 0;
     padding: 0;

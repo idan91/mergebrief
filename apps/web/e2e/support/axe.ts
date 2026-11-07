@@ -44,7 +44,7 @@ export async function expectNoSeriousAxeViolations(
   testInfo.setTimeout(testInfo.timeout + AXE_SCAN_BUDGET_MS + SETTLE_BUDGET_MS);
   await waitForSettledPaint(page);
   const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
 
   const violations: AxeViolation[] = results.violations;

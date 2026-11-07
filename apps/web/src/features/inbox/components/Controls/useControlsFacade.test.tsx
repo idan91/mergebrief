@@ -48,7 +48,7 @@ describe("useControlsFacade", () => {
       "repo",
       "review",
       "author",
-      "show",
+      "list",
     ]);
     expect(two.facade.filters.at(-1)?.id).toBe("installation");
   });
@@ -118,31 +118,32 @@ describe("useControlsFacade", () => {
     expect(write).toHaveBeenNthCalledWith(2, { layout: undefined });
   });
 
-  it("the Show filter is Inbox by default and writes only the archived view", () => {
+  it("the List filter is Inbox by default and writes only the archived view", () => {
     const { facade, write } = renderFacade(makePage());
-    const show = facade.filters.find((filter) => filter.id === "show");
-    if (show === undefined) {
-      throw new Error("no Show filter");
+    const list = facade.filters.find((filter) => filter.id === "list");
+    if (list === undefined) {
+      throw new Error("no List filter");
     }
 
-    expect(show).toMatchObject({
-      name: "Show",
+    expect(list).toMatchObject({
+      name: "List",
+      underMore: true,
       multiple: false,
       changed: false,
       chosen: ["hide"],
     });
-    expect(show.options.map((option) => option.label)).toEqual([
+    expect(list.options.map((option) => option.label)).toEqual([
       "Inbox",
       "Archived",
     ]);
-    show.onChoose("only");
-    show.onChoose("hide");
+    list.onChoose("only");
+    list.onChoose("hide");
     expect(write).toHaveBeenNthCalledWith(1, { archived: "only" });
     expect(write).toHaveBeenNthCalledWith(2, { archived: undefined });
 
     const archived = renderFacade(makePage(), { archived: "only" });
     expect(
-      archived.facade.filters.find((filter) => filter.id === "show"),
+      archived.facade.filters.find((filter) => filter.id === "list"),
     ).toMatchObject({ changed: true, chosen: ["only"] });
   });
 
