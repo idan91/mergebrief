@@ -6,6 +6,7 @@
     overflow-wrap: anywhere;
 
     @include mixins.markdown-type;
+    @include mixins.markdown-lists;
 
     p,
     ul,
@@ -13,36 +14,9 @@
       margin-block-end: functions.to-rem(12px);
     }
 
-    // Markers positioned INSIDE start exactly at the content edge — outside
-    // markers right-align against the text column, so a "2." could never sit
-    // flush with a bullet. The hanging indent keeps wrapped lines off the
-    // marker column.
-    ul,
-    ol {
-      padding-inline-start: 0;
-      list-style-position: inside;
-    }
-
-    li {
-      padding-inline-start: functions.to-rem(28px);
-      text-indent: functions.to-rem(-28px);
-    }
-
-    // Nested lists indent one step under their parent item.
     li ul,
     li ol {
       margin-block: functions.to-rem(3px) 0;
-      padding-inline-start: functions.to-rem(28px);
-    }
-
-    // GFM task items: the checkbox IS the marker — no bullet beside it.
-    li:has(> input[type="checkbox"]),
-    li:has(> p:first-child > input[type="checkbox"]) {
-      list-style: none;
-    }
-
-    li input[type="checkbox"] {
-      margin-inline-end: functions.to-rem(6px);
     }
 
     li + li {

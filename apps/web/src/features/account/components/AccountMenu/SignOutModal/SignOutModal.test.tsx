@@ -25,7 +25,7 @@ describe("SignOutModal", () => {
     const { container } = renderModal();
 
     const dialog = screen.getByRole("dialog", { name: "Sign out?" });
-    // Portalled out of its owner, so a header's backdrop-filter cannot hold it.
+    // Portalled out of its owner, so a header's stacking context cannot cap it.
     expect(container.contains(dialog)).toBe(false);
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Cancel" }),

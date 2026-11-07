@@ -21,8 +21,7 @@
     padding: functions.to-rem(8px);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-panel);
-    background: color-mix(in srgb, var(--color-background) 88%, transparent);
-    backdrop-filter: blur(10px);
+    background: var(--color-background);
   }
 
   // Label compression ladder: long label by default, short below 1280px.

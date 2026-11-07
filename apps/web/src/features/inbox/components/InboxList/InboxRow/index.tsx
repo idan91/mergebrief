@@ -195,7 +195,7 @@ export function InboxRow({
         <span className={styles["sub"]}>
           {" "}
           {otherAuthor === undefined ? null : (
-            <span aria-hidden="true">
+            <span aria-hidden="true" className={styles["author"]}>
               <AuthorChip linked={false} login={otherAuthor} />
             </span>
           )}

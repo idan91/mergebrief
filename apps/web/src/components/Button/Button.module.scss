@@ -166,6 +166,16 @@
     &[data-variant="danger"][aria-disabled="true"] {
       background: transparent;
     }
+
+    &[data-variant="accent"][aria-disabled="true"] {
+      border-color: var(--color-outline-1);
+      background: var(--color-surface-2);
+      color: var(--color-text-3);
+
+      &:hover {
+        background: var(--color-surface-2);
+      }
+    }
   }
 
   /* The 44px AIM lands where fingers do; desktop keeps the 24px floor. */

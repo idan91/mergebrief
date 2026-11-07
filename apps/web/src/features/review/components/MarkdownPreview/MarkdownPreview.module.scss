@@ -11,38 +11,15 @@
     background: var(--color-background);
 
     @include mixins.markdown-type;
+    @include mixins.markdown-lists;
 
     p {
       margin-block: 0 functions.to-rem(10px);
     }
 
-    // Flush marker column, matching the shared Markdown renderer: inside
-    // markers start at the content edge; the hanging indent keeps wrapped
-    // lines off the marker column; task-item checkboxes replace bullets.
     ul,
     ol {
       margin-block: functions.to-rem(8px) functions.to-rem(10px);
-      padding-inline-start: 0;
-      list-style-position: inside;
-    }
-
-    li {
-      padding-inline-start: functions.to-rem(28px);
-      text-indent: functions.to-rem(-28px);
-    }
-
-    li ul,
-    li ol {
-      padding-inline-start: functions.to-rem(28px);
-    }
-
-    li:has(> input[type="checkbox"]),
-    li:has(> p:first-child > input[type="checkbox"]) {
-      list-style: none;
-    }
-
-    li input[type="checkbox"] {
-      margin-inline-end: functions.to-rem(6px);
     }
 
     code {

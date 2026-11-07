@@ -82,10 +82,21 @@
     font-size: var(--font-size-lg);
     font-weight: 500;
     text-align: center;
-    transform: translate(-50%, 90px);
-    transition: transform var(--motion-slow) var(--ease-out);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(
+      -50%,
+      calc(100% + #{functions.to-rem(28px)} + var(--sidebar-reserve-bottom))
+    );
+    transition:
+      opacity var(--motion-slow) var(--ease-out),
+      transform var(--motion-slow) var(--ease-out);
 
+    // Hidden with opacity, not visibility: this is the page's live region, and
+    // a region outside the accessibility tree can drop the announcement.
     &[data-state="visible"] {
+      opacity: 1;
+      pointer-events: auto;
       transform: translate(-50%, 0);
     }
   }

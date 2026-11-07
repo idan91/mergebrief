@@ -105,9 +105,8 @@ export interface ChunkCardProps {
 /**
  * The "+N" chip for risk attributes beyond the header's two-chip budget.
  * The full list opens in the shared anchored Callout (portal-rendered, so
- * the card's overflow clip and the sticky header's backdrop-filter
- * containing block can't swallow it) and stays open while the pointer is
- * inside it. Screen readers get the list inline via the hidden span.
+ * the sticky head's stacking context can't cap it) and stays open while the
+ * pointer is inside it. Screen readers get the list inline via the hidden span.
  */
 function OverflowRiskChip({
   attrs,

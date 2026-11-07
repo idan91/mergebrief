@@ -111,6 +111,7 @@
     display: flex;
     gap: var(--space-3);
     align-items: center;
+    block-size: functions.to-rem(20px);
     min-inline-size: 0;
     color: var(--color-text-read);
     font-size: var(--font-size-xl);
@@ -152,7 +153,8 @@
   .sub {
     display: flex;
     gap: var(--space-4);
-    align-items: center;
+    align-items: baseline;
+    block-size: functions.to-rem(18px);
     min-inline-size: 0;
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
@@ -163,6 +165,12 @@
     > * {
       flex: none;
     }
+  }
+
+  // AuthorChip's flex baseline is its avatar's bottom edge, 4px under its text.
+  .author {
+    display: flex;
+    align-self: center;
   }
 
   .repo {

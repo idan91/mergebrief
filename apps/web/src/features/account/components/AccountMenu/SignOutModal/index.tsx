@@ -40,8 +40,8 @@ export function SignOutModal({ flow, cancel, confirm }: SignOutModalProps) {
     ? signingOut
     : t("shell.signOutModal.thisDevice");
 
-  // Portalled out of the header: its backdrop-filter would otherwise contain
-  // the fixed overlay to the header box.
+  // Portalled out of the header: its stacking context would otherwise cap the
+  // overlay's z-index.
   return (
     <FloatingPortal>
       <Modal
