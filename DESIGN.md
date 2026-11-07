@@ -49,7 +49,7 @@ typography:
     lineHeight: 1.4
   code:
     fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "0.88em"
+    fontSize: "0.8125rem"
     fontWeight: 400
 rounded:
   xs: "2px"
@@ -184,16 +184,16 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 **The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.146, surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 
-**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. On the Brief page words may be 12px. Two deliberate exceptions: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead; a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. Focus always shows a 2px accent ring.
+**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. Two deliberate exceptions: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead; a selected diff row lifts the well by 14% of the accent, its number cells by 24%; code and syntax colours read against the row at the AA line, 4.5:1 or better, and the numbers take Text 1 against the number cells, which the same test holds. Focus always shows a 2px accent ring.
 
 ## Typography
 
 **Display and Body Font:** IBM Plex Sans (with -apple-system, Helvetica Neue, sans-serif)
 **Code Font:** IBM Plex Mono, for code and what identifies code
 
-Both are self-hosted through `@fontsource`, every subset behind its `unicode-range` so a Latin page downloads Latin alone and a Cyrillic line still sets in Plex (Plex Mono ships no Greek); sans at 400, 500, 600 and 700 and mono at 400, 500 and 600. The two body files (sans 400, mono 400) are preloaded from the root route so the fallback never flashes; no font loads from a third-party origin.
+Both are self-hosted through `@fontsource`, every subset behind its `unicode-range` so a Latin page downloads Latin alone and a Cyrillic line still sets in Plex (Plex Mono ships no Greek); sans and mono each at 400, 500 and 600. The two body files (sans 400, mono 400) are preloaded from the root route so the fallback never flashes; no font loads from a third-party origin.
 
-**Character:** One family at every size. Hierarchy comes from size, weight and the step from Text 1 to Text 2, not from a second typeface. The scale is 10, 11, 12, 13, 15, 17, 20, 24 and 30px.
+**Character:** One family at every size. Hierarchy comes from size, weight and the step from Text 1 to Text 2, not from a second typeface. The scale is seven steps: 11, 13, 15, 17, 20, 24 and 30px, stated in rem so it follows the reader's browser font size. Weights are 400, 500 and 600; nothing else loads. Two token names run against the step names: Caption is `--font-size-sm` and Small is `--font-size-lg`, because `--font-size-md` was the retired 12px step between them and is not reused.
 
 ### Hierarchy
 
@@ -201,7 +201,8 @@ Both are self-hosted through `@fontsource`, every subset behind its `unicode-ran
 - **Title** (600, 0.9375rem, 1.2): section headings such as the list heading.
 - **Row title** (500, Text 1 when it needs the reviewer and Text Read otherwise, whatever the layout, 0.9375rem, 20px line): one line, cut with an ellipsis.
 - **Body** (400, 1.0625rem, 1.5): the line under the personal line and the signed-out copy, 62 characters wide at most.
-- **Small** (400, 0.8125rem): controls, menus, the pager, and, with an 18px line and tabular numerals, the second line of a row and indicators; a fact chip takes 500. The shortcuts dialog's section headings take the Title step.
+- **Small** (400 to 600, 0.8125rem): controls, menus, the pager, the second line of a row with an 18px line and tabular numerals, the chunk and focus indicators with tabular numerals, and the URL box's slash hint. Running text sets at 400; chips, the chunk indicator and the focus indicator's label and current count at 500; titles and figures inside a panel at 600; buttons at 400 to 600. The shortcuts dialog's section headings take the Title step.
+- **Caption** (400, 500 or 600, 0.6875rem): the Brief page's badges and meta rows, a group's category chips, the generation warnings chip, the change stepper's count outside the Brief controls sheet, small section labels and every other key cap. Nothing smaller ships.
 
 ### Named Rules
 

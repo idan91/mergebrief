@@ -16,8 +16,8 @@ $row-line-height: 1.45;
     padding-inline: functions.to-rem(10px);
     border-block-end: 1px solid var(--color-outline-1);
     color: var(--color-text-1);
-    font-size: var(--font-size-md);
-    font-weight: 650;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
   }
 
   // DiffRows keeps code on one line, and the card sits in a narrow comment
@@ -34,12 +34,11 @@ $row-line-height: 1.45;
     background: var(--diff-fill);
     table-layout: fixed;
 
-    // A suggestion sits inside a comment card, so it runs a step below the
-    // reviewable diff's own type scale. Specificity has to clear DiffRows.
+    // A suggestion sits inside a comment card, so its rows run tighter than
+    // the reviewable diff's. Specificity has to clear DiffRows.
     tbody tr {
-      --diff-line-box: calc(var(--font-size-md) * #{$row-line-height});
+      --diff-line-box: calc(var(--font-size-lg) * #{$row-line-height});
 
-      font-size: var(--font-size-md);
       line-height: $row-line-height;
     }
 

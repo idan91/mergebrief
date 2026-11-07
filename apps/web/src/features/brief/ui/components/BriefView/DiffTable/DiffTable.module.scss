@@ -12,7 +12,7 @@
       display: block;
       margin-block-end: functions.to-rem(6px);
       color: var(--color-text-1);
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-lg);
     }
   }
 
@@ -34,7 +34,7 @@
     padding-inline: functions.to-rem(16px);
     border-block-start: 1px solid var(--color-outline-1);
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   .viewport {

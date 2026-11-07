@@ -13,7 +13,7 @@
 
   .eyebrow {
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     font-weight: 500;
   }
 
@@ -79,7 +79,7 @@
   .chunkFile {
     color: var(--color-text-2);
     font-family: var(--mono);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   .chunkCounts {
@@ -125,7 +125,7 @@
 
   .removedNote {
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   .restartNote {

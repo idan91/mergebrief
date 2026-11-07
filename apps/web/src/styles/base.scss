@@ -74,11 +74,17 @@
   }
 
   h5 {
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   h6 {
     font-size: var(--font-size-sm);
+  }
+
+  b,
+  strong,
+  th {
+    font-weight: 600;
   }
 
   :focus-visible {

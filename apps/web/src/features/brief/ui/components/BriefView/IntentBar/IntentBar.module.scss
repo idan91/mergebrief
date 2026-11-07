@@ -20,7 +20,7 @@
   .inferenceCaution {
     margin-block: functions.to-rem(16px) 0;
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     font-style: italic;
   }
 
@@ -38,7 +38,7 @@
   .splitHead {
     margin: 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     font-weight: 600;
   }
 
@@ -63,7 +63,7 @@
   }
 
   .caution {
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     font-style: italic;
     opacity: 0.6;
     margin-block: 0 functions.to-rem(6px);
@@ -94,7 +94,7 @@
 
   .marker {
     color: var(--color-text-3);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     justify-self: center;
   }
 
@@ -133,7 +133,7 @@
     background: none;
     color: var(--color-text-2);
     font: inherit;
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     letter-spacing: normal;
 
     /* :is(button) matches Chip's hover specificity so the quiet tint wins. */
@@ -165,7 +165,7 @@
   }
 
   .goto {
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   .gotoId {

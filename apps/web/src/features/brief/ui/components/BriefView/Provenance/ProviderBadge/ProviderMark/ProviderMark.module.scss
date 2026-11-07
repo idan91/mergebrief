@@ -22,7 +22,7 @@
   .markName {
     overflow: hidden;
     max-inline-size: functions.to-rem(96px);
-    font-size: var(--header-meta-font);
+    font-size: var(--font-size-sm);
     text-overflow: ellipsis;
   }
 }

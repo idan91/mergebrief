@@ -37,10 +37,6 @@
     flex-wrap: wrap;
   }
 
-  /* The slim resolved row: a settled thread earns one faint line, not a
-     framed row. `center`, not the full row's `baseline`, is deliberate: the
-     mono-xs label/count against the sans-sm author/excerpt mis-centers on a
-     shared baseline at this height. */
   .rowButton[data-variant="row"][data-density="slim"] {
     align-items: center;
     gap: functions.to-rem(6px);
@@ -94,7 +90,7 @@
 
     b {
       font-family: var(--mono);
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-lg);
       font-weight: 500;
 
       /* Long mono file paths must wrap, not clip, on narrow viewports. */

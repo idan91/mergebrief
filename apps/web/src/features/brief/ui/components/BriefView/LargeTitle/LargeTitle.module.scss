@@ -19,7 +19,7 @@
     margin: 0;
     color: var(--color-text-1);
     font-size: var(--font-size-3xl);
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 1.25;
     text-wrap: pretty;
@@ -37,7 +37,7 @@
     gap: functions.to-rem(2px);
     padding-block: functions.to-rem(8px);
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     line-height: functions.to-rem(16px);
 
     dd {
@@ -62,5 +62,6 @@
     align-items: center;
     gap: functions.to-rem(8px) functions.to-rem(12px);
     min-inline-size: 0;
+    font-size: var(--font-size-sm);
   }
 }

@@ -34,7 +34,7 @@ export const DIAGRAM_FONT_FAMILY =
   'system-ui, -apple-system, "Helvetica Neue", sans-serif';
 export const DIAGRAM_FONT_SIZE_TOKEN: DesignToken = "--font-size-lg";
 /** The app's smallest text: a frame never draws a diagram's text smaller. */
-export const DIAGRAM_MIN_FONT_SIZE_TOKEN: DesignToken = "--font-size-xs";
+export const DIAGRAM_MIN_FONT_SIZE_TOKEN: DesignToken = "--font-size-sm";
 /** Mermaid 12 defaults to ELK, a lazy chunk of about 1.5 MB; dagre's chunk is far smaller. */
 export const MERMAID_LAYOUT = "dagre";
 /** What Mermaid draws text at when its theme names no size. */

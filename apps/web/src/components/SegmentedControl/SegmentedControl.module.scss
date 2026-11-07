@@ -53,7 +53,7 @@
     padding-inline: functions.to-rem(8px);
     border-radius: var(--segmented-inner-radius);
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     white-space: nowrap;
     text-align: center;
     cursor: pointer;
@@ -102,7 +102,7 @@
     background: var(--color-surface-3);
     box-shadow: var(--shadow-float);
     color: var(--color-text-1);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     white-space: normal;
     transform: translateX(-50%);
   }

@@ -92,9 +92,9 @@ describe("buildMermaidConfig", () => {
 
 describe("readReadableScale", () => {
   it("is the smallest text size over the diagram's text size", () => {
-    const root = stubRoot("--font-size-lg: 13px; --font-size-xs: 10px");
+    const root = stubRoot("--font-size-lg: 13px; --font-size-sm: 11px");
 
-    expect(readReadableScale(root)).toBeCloseTo(10 / 13);
+    expect(readReadableScale(root)).toBeCloseTo(11 / 13);
   });
 
   it("is absent when the smallest text size cannot be read", () => {

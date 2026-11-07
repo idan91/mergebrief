@@ -29,7 +29,7 @@
   .title {
     margin: 0 0 functions.to-rem(10px);
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     font-weight: 600;
   }
 
@@ -58,7 +58,7 @@
     border-block-start: 1px solid
       color-mix(in srgb, var(--color-outline-1) 80%, transparent);
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
 
     // A one-line box: the svg centres its fixed-width glyph in it, on the
     // first line's middle. A flex baseline would sit the glyph on the text.

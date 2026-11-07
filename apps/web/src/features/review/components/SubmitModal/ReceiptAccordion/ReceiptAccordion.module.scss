@@ -40,7 +40,7 @@
   .sectionHeading {
     margin-block: 0 functions.to-rem(4px);
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     font-weight: 600;
     line-height: 1.35;
   }
@@ -51,7 +51,7 @@
     summary {
       padding-block: functions.to-rem(9px);
       color: var(--color-text-2);
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-lg);
       cursor: pointer;
       user-select: none;
 
@@ -88,14 +88,14 @@
     span {
       color: var(--color-text-2);
       font-family: var(--mono);
-      font-size: var(--font-size-sm);
+      font-size: var(--font-size-lg);
     }
 
     small {
       display: block;
       margin-block-start: functions.to-rem(4px);
       color: var(--color-text-3);
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-lg);
       line-height: 1.45;
     }
   }
@@ -104,14 +104,14 @@
     h4 {
       margin-block: functions.to-rem(10px) functions.to-rem(4px);
       color: var(--color-text-2);
-      font-size: var(--font-size-md);
-      font-weight: 700;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
     }
   }
 
   .empty {
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   .notChecked {

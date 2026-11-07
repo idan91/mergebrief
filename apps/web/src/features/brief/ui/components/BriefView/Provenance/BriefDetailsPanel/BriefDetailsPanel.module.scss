@@ -28,7 +28,7 @@
   .trigger {
     border-color: var(--color-outline-2);
     border-radius: var(--radius-pill);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     line-height: 1;
     vertical-align: middle;
 
@@ -61,7 +61,7 @@
     padding-inline: functions.to-rem(9px);
     color: var(--color-warning);
     font-family: var(--sans);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     letter-spacing: normal;
     vertical-align: middle;
     white-space: nowrap;
@@ -102,7 +102,7 @@
     gap: functions.to-rem(3px) functions.to-rem(12px);
     grid-template-columns: max-content 1fr;
     margin: 0;
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
 
     dt {
       color: var(--color-text-3);
@@ -130,7 +130,7 @@
   .caveat {
     margin: 0;
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     line-height: 1.5;
 
     b {
@@ -144,7 +144,7 @@
     gap: functions.to-rem(4px);
     margin: 0;
     padding: 0;
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     list-style: none;
 
     li {

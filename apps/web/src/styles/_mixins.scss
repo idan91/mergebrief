@@ -172,12 +172,9 @@
     font-size: var(--font-size-xl);
   }
 
-  h5 {
-    font-size: var(--font-size-lg);
-  }
-
+  h5,
   h6 {
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   h3:first-child,
@@ -187,10 +184,12 @@
     margin-block-start: 0;
   }
 
-  // Earned em: inline code is sized by whichever text element encloses it,
-  // a paragraph or a heading. A fixed step would shout inside a heading.
   code {
-    font-size: 0.9em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
+    font-size: var(--font-size-lg);
+  }
+
+  :is(h3, h4, h5, h6) code {
+    font-size: inherit;
   }
 
   a {

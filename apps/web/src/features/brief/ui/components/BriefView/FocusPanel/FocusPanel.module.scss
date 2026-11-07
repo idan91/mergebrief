@@ -44,7 +44,7 @@
     background: color-mix(in oklch, var(--color-surface-2) 80%, transparent);
     backdrop-filter: blur(12px);
     color: var(--color-text-2);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     transition:
       opacity 180ms var(--ease-out) 80ms,
       color var(--motion-fast) ease,

@@ -49,7 +49,7 @@
     padding-block: 0 functions.to-rem(10px);
     padding-inline: functions.to-rem(12px);
     color: var(--color-text-1);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   .body {
@@ -103,12 +103,12 @@
     padding-inline-end: functions.to-rem(12px);
   }
 
-  /* Secondary text actions on LinkButton's grammar: the run stays faint md;
-     rest underline is the shared affordance. */
+  /* Secondary text actions on LinkButton's grammar: the run stays faint at
+     the Small step; rest underline is the shared affordance. */
   .threadActions {
     padding-block-start: 0;
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   /* The recoverable why-not for a blocked Post. */
@@ -116,7 +116,7 @@
     margin-block: 0 functions.to-rem(4px);
     margin-inline: functions.to-rem(12px);
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
   }
 
   // Half a split diff at 1440 leaves a card near 345px; the head stacks so the

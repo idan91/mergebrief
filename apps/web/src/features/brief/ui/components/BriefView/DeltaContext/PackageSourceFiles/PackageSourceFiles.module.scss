@@ -4,7 +4,7 @@
   .eyebrow {
     margin-block-end: functions.to-rem(8px);
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     font-weight: 500;
   }
 
@@ -15,7 +15,7 @@
     padding: 0;
     color: var(--color-text-1);
     font-family: var(--mono);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-lg);
     list-style: none;
     overflow-wrap: anywhere;
   }
