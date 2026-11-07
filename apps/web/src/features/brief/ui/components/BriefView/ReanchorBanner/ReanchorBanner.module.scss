@@ -10,8 +10,7 @@
     padding-inline: max(functions.to-rem(20px), env(safe-area-inset-left))
       max(functions.to-rem(20px), env(safe-area-inset-right));
     border-block-end: 1px solid var(--color-outline-1);
-    background: color-mix(in srgb, var(--color-background) 85%, transparent);
-    backdrop-filter: blur(12px);
+    background: var(--color-background);
   }
 
   .reanchorBanner {

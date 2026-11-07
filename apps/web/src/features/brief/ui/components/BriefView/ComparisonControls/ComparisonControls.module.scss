@@ -18,15 +18,4 @@
     padding: 0;
     border: 0;
   }
-
-  // Faint prefix label OUTSIDE the bordered group — inside it, it reads as
-  // a selectable option. The accessible name stays on the sr-only legend.
-  .labeledComparison {
-    display: flex;
-    align-items: center;
-    gap: functions.to-rem(6px);
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
 }

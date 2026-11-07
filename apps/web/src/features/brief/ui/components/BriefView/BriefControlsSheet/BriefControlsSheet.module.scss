@@ -1,8 +1,10 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .body {
-    display: grid;
+    @include mixins.single-column-grid;
+
     gap: functions.to-rem(16px);
     overflow-y: auto;
     padding-block: functions.to-rem(4px) functions.to-rem(20px);
@@ -34,15 +36,22 @@
 
   .stat {
     display: flex;
-    gap: functions.to-rem(12px);
+    flex-wrap: wrap;
+    gap: functions.to-rem(4px) functions.to-rem(12px);
     align-items: center;
     justify-content: space-between;
     min-block-size: functions.to-rem(36px);
+    padding-block: var(--space-2);
     border-block-end: 1px solid var(--color-outline-1);
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
 
+    dt {
+      white-space: nowrap;
+    }
+
     dd {
+      min-inline-size: 0;
       margin: 0;
       color: var(--color-text-1);
       font-variant-numeric: tabular-nums;
@@ -63,7 +72,7 @@
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
 
-    > span {
+    > span:first-child {
       flex: 1;
     }
 

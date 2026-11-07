@@ -34,8 +34,7 @@
     padding-inline: functions.to-rem(14px) functions.to-rem(4px);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-pill);
-    background: color-mix(in oklch, var(--color-surface-1) 82%, transparent);
-    backdrop-filter: blur(14px) saturate(140%);
+    background: var(--color-surface-1);
     box-shadow: var(--shadow-float);
     color: var(--color-text-3);
     font-size: var(--font-size-lg);
@@ -77,13 +76,6 @@
   @media (width < 480px) {
     .label {
       display: none;
-    }
-  }
-
-  @media (prefers-reduced-transparency: reduce) {
-    .pill {
-      background: var(--color-surface-1);
-      backdrop-filter: none;
     }
   }
 }

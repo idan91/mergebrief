@@ -168,7 +168,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
+    // Atomic, so the title's ellipsis never leaves a strip of it, and capped
+    // at the row with its own ellipsis: an atomic inline wider than the space
+    // left is otherwise hidden whole, and a code-led title shows only the dots.
     code {
+      display: inline-block;
+      max-inline-size: 100%;
+      overflow: hidden;
       padding-block: functions.to-rem(1px);
       padding-inline: functions.to-rem(5px);
       border-radius: var(--radius-chip);
@@ -176,6 +182,8 @@
       font-family: var(--mono);
       font-size: var(--font-size-lg);
       font-weight: 400;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
     }
   }
 

@@ -114,7 +114,6 @@ export function ComparisonControls({
         value={compareState.view ?? "full"}
       />
       <SegmentedControl
-        className={styles["labeledComparison"]}
         density={SegmentedDensities.ROOMY}
         legend={t("brief.timeline.compareLegend")}
         name="local-brief-compare"

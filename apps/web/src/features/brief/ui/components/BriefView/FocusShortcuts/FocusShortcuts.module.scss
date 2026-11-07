@@ -11,8 +11,7 @@
     padding: functions.to-rem(4px);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
-    background: color-mix(in oklch, var(--color-surface-1) 90%, transparent);
-    backdrop-filter: blur(12px);
+    background: var(--color-surface-1);
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
     transition: border-color var(--motion-base) var(--ease-out);
@@ -65,13 +64,6 @@
   @media (hover: none), (width <= 1120px) {
     .corner {
       display: none;
-    }
-  }
-
-  @media (prefers-reduced-transparency: reduce) {
-    .corner {
-      background: var(--color-surface-1);
-      backdrop-filter: none;
     }
   }
 }

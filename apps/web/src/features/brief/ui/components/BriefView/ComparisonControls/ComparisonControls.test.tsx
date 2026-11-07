@@ -3,12 +3,14 @@ import {
   act,
   cleanup,
   fireEvent,
+  render,
   screen,
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { renderInRouter } from "../../../../../../test/router";
+import { SegmentedControl } from "@web/components/SegmentedControl";
 import { resetMediaQueries, setMediaQueryMatches } from "@web/test/setup";
 import { ComparisonControls } from ".";
 
@@ -51,5 +53,24 @@ describe("ComparisonControls", () => {
       compare: "off",
       l: "c2.R4",
     });
+  });
+
+  it("lays out the Compare legend like every segmented control", async () => {
+    await renderControls();
+    const compare = screen.getByRole("group", { name: "Compare" });
+    const { container } = render(
+      <SegmentedControl
+        legend="Compare"
+        name="default-layout"
+        onChange={() => undefined}
+        options={[{ value: "off", label: "Off" }]}
+        showLegend
+        value="off"
+      />,
+    );
+    const defaultFieldset = container.querySelector("fieldset");
+
+    expect(defaultFieldset?.className).toBeTruthy();
+    expect(compare.className).toBe(defaultFieldset?.className);
   });
 });

@@ -70,6 +70,7 @@
 
     select {
       padding-inline-end: functions.to-rem(32px);
+      text-overflow: ellipsis;
       appearance: none;
 
       &:invalid {

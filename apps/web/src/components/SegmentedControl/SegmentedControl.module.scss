@@ -4,6 +4,7 @@
 @layer components {
   .fieldset {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: functions.to-rem(6px);
     margin: 0;
