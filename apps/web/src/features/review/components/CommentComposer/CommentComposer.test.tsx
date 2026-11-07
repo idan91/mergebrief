@@ -161,6 +161,19 @@ describe("CommentComposer store-backed submit label", () => {
   });
 });
 
+describe("CommentComposer actions", () => {
+  it("reads Cancel then the primary action", () => {
+    renderComposer([]);
+
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    const primary = screen.getByRole("button", { name: "Start review" });
+    const primaryFollows =
+      cancel.compareDocumentPosition(primary) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(primaryFollows).toBeTruthy();
+  });
+});
+
 describe("CommentComposer line count", () => {
   it("counts the rows of an anchor the table gave row ids", () => {
     renderComposer([]);

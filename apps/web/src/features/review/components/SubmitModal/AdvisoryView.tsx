@@ -4,8 +4,10 @@ import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 
+import { BreakablePath } from "@web/components/BreakablePath";
 import { Button } from "@web/components/Button";
 import { RowButton } from "@web/components/RowButton";
+import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { type UnresolvedItem } from "../../utils/state";
 import { UnresolvedItemKinds } from "../../utils/types";
@@ -40,8 +42,18 @@ export function AdvisoryView({
             variant="card"
             onClick={() => jumpToItem(item)}
           >
-            <span>{unresolvedKindLabel(t, item.kind)}</span>
-            <b>{item.label}</b>
+            <span className={rowButtonStyles["cardEyebrow"]}>
+              {unresolvedKindLabel(t, item.kind)}
+            </span>
+            <b>
+              {item.riskAttribute === undefined ? null : (
+                <span className={styles["riskAttribute"]}>
+                  {item.riskAttribute}
+                  {" @ "}
+                </span>
+              )}
+              <BreakablePath path={item.label} />
+            </b>
           </RowButton>
         ))}
       </div>

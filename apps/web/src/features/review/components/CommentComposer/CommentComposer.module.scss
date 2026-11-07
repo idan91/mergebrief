@@ -2,11 +2,11 @@
 
 @layer components {
   .composer {
-    overflow: hidden;
-    margin-block: functions.to-rem(8px) functions.to-rem(4px);
-    border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-panel);
-    background: var(--color-surface-1);
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(8px);
+    margin-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(12px);
     font-family: var(--sans);
   }
 
@@ -14,17 +14,16 @@
     display: flex;
     justify-content: space-between;
     gap: functions.to-rem(16px);
-    padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
-    border-block-end: 1px solid var(--color-outline-1);
-    color: var(--color-text-3);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .location[data-anchor="line"] {
     font-family: var(--mono);
-    font-size: var(--font-size-sm);
   }
 
   .error {
-    padding-block: 0 functions.to-rem(10px);
-    padding-inline: functions.to-rem(12px);
     color: var(--color-negative);
     font-size: var(--font-size-md);
   }
@@ -34,7 +33,5 @@
     align-items: center;
     justify-content: flex-end;
     gap: functions.to-rem(8px);
-    padding-block: functions.to-rem(10px) functions.to-rem(12px);
-    padding-inline: functions.to-rem(12px);
   }
 }

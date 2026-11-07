@@ -16,7 +16,7 @@
       inset-block-start: 0;
       inset-inline: 0;
       block-size: var(--focus-indicator-h);
-      background: var(--focus-page-bg);
+      background: var(--color-focus-ground);
     }
   }
 
@@ -54,7 +54,6 @@
   .countFigures {
     display: inline-flex;
     gap: functions.to-rem(4px);
-    font-family: var(--mono);
     font-variant-numeric: tabular-nums;
 
     b {

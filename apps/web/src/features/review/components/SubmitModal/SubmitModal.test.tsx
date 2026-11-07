@@ -5,10 +5,19 @@
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MentionCandidateKinds } from "@web/components/MarkdownTextarea/types";
+import {
+  compileStylesheet,
+  parseCompiledRules,
+  resolveInheritedDeclaration,
+  scopeCompiledRules,
+} from "@web/test/compiled-css";
+import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
 
 import {
   createReviewFlowStore,
@@ -17,6 +26,12 @@ import {
 import { ReviewFlowProvider } from "../../session/flow/provider";
 import type { Receipt } from "../../utils/receipt";
 import { SubmitModal, type SubmitModalProps } from ".";
+import styles from "./SubmitModal.module.scss";
+
+const ROW_BUTTON_STYLESHEET = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../../components/RowButton/RowButton.module.scss",
+);
 
 function receipt(): Receipt {
   return {
@@ -352,6 +367,57 @@ describe("SubmitModal advisory view", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(submitButton()).toBeTruthy();
+  });
+
+  it("sets a risk's attribute apart from its mono file path", () => {
+    renderModal({
+      unresolvedItems: [
+        {
+          id: "risk:hot-path",
+          kind: "open-risk",
+          label: "src/a.ts",
+          riskAttribute: "Hot path",
+          targetId: "chunk-a",
+        },
+      ],
+    });
+
+    const row = screen.getByRole("button", { name: /open risk/i });
+    const attribute = within(row).getByText(/^Hot path/);
+    expect(attribute.className).toBe(styles["riskAttribute"]);
+  });
+
+  it("sets a risk's attribute in its path's size and colour", () => {
+    renderModal({
+      unresolvedItems: [
+        {
+          id: "risk:hot-path",
+          kind: "open-risk",
+          label: "src/a.ts",
+          riskAttribute: "Hot path",
+          targetId: "chunk-a",
+        },
+      ],
+    });
+    const css = compileStylesheet(ROW_BUTTON_STYLESHEET);
+    const rules = scopeCompiledRules(parseCompiledRules(css), rowButtonStyles);
+
+    const row = screen.getByRole("button", { name: /open risk/i });
+    const kind = within(row).getByText("Open risk");
+    const attribute = within(row).getByText(/^Hot path/);
+    const path = row.querySelector("b")!;
+
+    for (const property of ["font-size", "color"]) {
+      expect(resolveInheritedDeclaration(attribute, rules, property)).toBe(
+        resolveInheritedDeclaration(path, rules, property),
+      );
+    }
+    expect(resolveInheritedDeclaration(kind, rules, "font-size")).toBe(
+      "var(--font-size-sm)",
+    );
+    expect(resolveInheritedDeclaration(kind, rules, "color")).toBe(
+      "var(--color-text-3)",
+    );
   });
 });
 

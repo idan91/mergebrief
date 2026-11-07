@@ -32,11 +32,9 @@
   .readOnlyChip {
     padding-block: functions.to-rem(2px);
     padding-inline: functions.to-rem(7px);
-    border: 1px solid
-      color-mix(in srgb, var(--color-warning) 45%, var(--color-outline-2));
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-pill);
-    color: var(--color-warning);
-    font-family: var(--mono);
+    color: var(--color-text-2);
     font-size: var(--font-size-xs);
     white-space: nowrap;
   }

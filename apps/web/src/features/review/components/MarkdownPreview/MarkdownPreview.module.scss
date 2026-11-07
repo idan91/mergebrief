@@ -3,13 +3,6 @@
 
 @layer components {
   .preview {
-    min-block-size: functions.to-rem(118px);
-    padding: functions.to-rem(12px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
-    margin: functions.to-rem(10px);
-    background: var(--color-background);
-
     @include mixins.markdown-type;
     @include mixins.markdown-lists;
 

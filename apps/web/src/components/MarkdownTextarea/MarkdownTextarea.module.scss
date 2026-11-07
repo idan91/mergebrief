@@ -6,27 +6,60 @@
     display: block;
   }
 
+  // No class weight, so a caller's `labelClassName` wins.
+  :where(.markdownTextarea) > label {
+    display: block;
+    margin-block-end: functions.to-rem(6px);
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+  }
+
+  .field {
+    border: 1px solid var(--color-field-edge);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-2);
+    transition:
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease;
+
+    &:has(.textarea:focus-visible) {
+      border-color: var(--color-cursor-ring);
+      box-shadow: var(--shadow-field-focus);
+    }
+  }
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: functions.to-rem(4px);
+    padding-block: functions.to-rem(4px) 0;
+    padding-inline: functions.to-rem(6px);
+  }
+
   .tabs {
     display: flex;
-    gap: functions.to-rem(4px);
-    padding-block: functions.to-rem(8px) 0;
-    padding-inline: functions.to-rem(10px);
+    gap: functions.to-rem(2px);
 
     button {
-      padding-block: functions.to-rem(6px);
-      padding-inline: functions.to-rem(10px);
-      border: 1px solid transparent;
-      border-block-end: 0;
-      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      min-block-size: functions.to-rem(24px);
+      padding-block: functions.to-rem(3px);
+      padding-inline: functions.to-rem(8px);
+      border: 0;
+      border-radius: var(--radius-sm);
       background: transparent;
       color: var(--color-text-3);
       cursor: pointer;
       font-size: var(--font-size-md);
-      font-weight: 600;
+      font-weight: 500;
+
+      &:hover {
+        color: var(--color-text-2);
+      }
 
       &[data-state="active"] {
-        border-color: var(--color-outline-2);
-        background: var(--color-surface-2);
         color: var(--color-text-1);
       }
 
@@ -37,32 +70,33 @@
   .toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(4px);
-    padding: functions.to-rem(10px);
-    border-block-start: 1px solid var(--color-outline-1);
-    background: var(--color-surface-2);
+    gap: functions.to-rem(2px);
+
+    &[hidden] {
+      display: none;
+    }
   }
 
-  .textarea {
+  // Specificity above Modal's `textarea` rule, which reaches every textarea
+  // inside a dialog; the field draws the edge and the ring, not the control.
+  .markdownTextarea .textarea {
     display: block;
-    inline-size: calc(100% - functions.to-rem(20px));
-    min-block-size: functions.to-rem(118px);
+    inline-size: 100%;
+    min-block-size: functions.to-rem(96px);
     max-block-size: functions.to-rem(400px);
-    padding: functions.to-rem(12px);
-    border: 1px solid var(--color-field-edge);
-    border-radius: var(--radius-panel);
-    margin: functions.to-rem(10px);
-    background: var(--color-surface-2);
+    padding-block: functions.to-rem(6px) functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
+    border: 0;
+    border-radius: 0;
+    margin: 0;
+    background: transparent;
     color: var(--color-text-1);
-    transition:
-      background var(--motion-base) ease,
-      box-shadow var(--motion-base) ease;
 
     // Comments are text-first: the body composes in the UI sans; code stays
     // mono inside fences and the suggestion diff card.
     font-family: var(--sans);
-    font-size: var(--font-size-xl);
-    line-height: 1.65;
+    font-size: var(--font-size-lg);
+    line-height: 1.55;
 
     // Autogrow with typing (Chromium; a fixed min elsewhere), capped so a
     // long comment scrolls instead of swallowing the page; the manual
@@ -71,45 +105,14 @@
     overflow-y: auto;
     resize: vertical;
 
-    // Transparent, not none: forced colours paint a transparent outline and
-    // drop the shadow that draws the ring.
+    @include mixins.touch-field-text;
+
+    // Transparent, not none: forced colours paint a transparent outline.
     &:focus-visible {
+      border: 0;
       outline: 2px solid transparent;
-      background: var(--color-surface-3);
-      box-shadow: var(--shadow-field-focus);
-    }
-  }
-
-  .markdownTextarea[data-variant="card"] {
-    overflow: hidden;
-    border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-panel);
-    background: var(--color-surface-1);
-
-    > label {
-      display: block;
-      padding-block: functions.to-rem(10px);
-      padding-inline: functions.to-rem(12px);
-      border-block-end: 1px solid var(--color-outline-1);
-      color: var(--color-text-1);
-      font-size: var(--font-size-lg);
-      font-weight: 500;
-    }
-
-    // Modal's textarea rule reaches in here; the width, the edge and the
-    // ring are restated so the card keeps its own.
-    .textarea {
-      inline-size: calc(100% - functions.to-rem(20px));
-      border: 1px solid var(--color-field-edge);
-      background: var(--color-background);
-
-      &:focus-visible {
-        border-color: var(--color-field-edge);
-        outline: 2px solid transparent;
-        outline-offset: 0;
-        background: var(--color-background);
-        box-shadow: var(--shadow-field-focus);
-      }
+      background: transparent;
+      box-shadow: none;
     }
   }
 
@@ -132,13 +135,16 @@
   }
 
   .previewPanel {
+    min-block-size: functions.to-rem(96px);
+    padding-block: functions.to-rem(6px) functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
+
     &[hidden] {
       display: none;
     }
   }
 
   .empty {
-    padding: functions.to-rem(12px);
     color: var(--color-text-3);
     font-size: var(--font-size-md);
   }

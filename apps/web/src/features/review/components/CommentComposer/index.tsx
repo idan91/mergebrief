@@ -78,7 +78,9 @@ export function CommentComposer({
   return (
     <div className={styles["composer"]}>
       <div className={styles["meta"]}>
-        <span>{commentAnchorLabel(t, anchor)}</span>
+        <span className={styles["location"]} data-anchor={anchor.kind}>
+          {commentAnchorLabel(t, anchor)}
+        </span>
         {lineCount !== undefined ? <span>{lineCount}</span> : null}
       </div>
       <MarkdownTextarea
@@ -108,6 +110,7 @@ export function CommentComposer({
         </div>
       ) : null}
       <div className={styles["actions"]}>
+        <Button onClick={cancel}>{t("review.comment.cancel")}</Button>
         {/* Focusable-disabled: a hard `disabled` would drop keyboard/SR focus
             to <body> the moment saving starts. The click guard is in the
             store's one-in-flight rule. */}
@@ -121,7 +124,6 @@ export function CommentComposer({
             ? t("review.comment.saving")
             : reviewCommentSubmitLabel(t, existingReviewCommentCount)}
         </Button>
-        <Button onClick={cancel}>{t("review.comment.cancel")}</Button>
       </div>
     </div>
   );

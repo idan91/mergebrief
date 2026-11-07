@@ -530,7 +530,8 @@ describe("InboxList", () => {
         name: /GitHub has commits this brief does not cover\./,
       }),
     ).toBeTruthy();
-    expect(screen.getByText("New commits")).toBeTruthy();
+    const chip = screen.getByText("New commits").parentElement;
+    expect(chip?.getAttribute("data-tone")).toBe("changed");
   });
 
   it("j moves the keyboard cursor and Enter opens the row under it", async () => {

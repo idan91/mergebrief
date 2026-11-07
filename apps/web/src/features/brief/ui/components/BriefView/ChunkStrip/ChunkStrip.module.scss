@@ -68,7 +68,6 @@ $mark-min: functions.to-rem(24px);
     gap: functions.to-rem(12px);
     min-block-size: functions.to-rem(22px);
     margin-block-start: functions.to-rem(2px);
-    font-family: var(--mono);
     font-size: var(--font-size-md);
   }
 
@@ -76,6 +75,7 @@ $mark-min: functions.to-rem(24px);
     min-inline-size: 0;
     overflow: hidden;
     color: var(--color-text-1);
+    font-family: var(--mono);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -89,5 +89,6 @@ $mark-min: functions.to-rem(24px);
     margin-inline-start: auto;
     color: var(--color-text-3);
     font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
   }
 }

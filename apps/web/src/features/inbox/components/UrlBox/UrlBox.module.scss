@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .box {
@@ -89,6 +90,8 @@
     color: var(--color-text-1);
     font-size: var(--font-size-xl);
     outline: 0;
+
+    @include mixins.touch-field-text;
 
     &::placeholder {
       color: var(--color-text-3);

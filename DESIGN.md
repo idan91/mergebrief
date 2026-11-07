@@ -189,7 +189,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 ## Typography
 
 **Display and Body Font:** IBM Plex Sans (with -apple-system, Helvetica Neue, sans-serif)
-**Code Font:** IBM Plex Mono, for code and commit hashes only
+**Code Font:** IBM Plex Mono, for code and what identifies code
 
 Both are self-hosted through `@fontsource`, every subset behind its `unicode-range` so a Latin page downloads Latin alone and a Cyrillic line still sets in Plex (Plex Mono ships no Greek); sans at 400, 500, 600 and 700 and mono at 400, 500 and 600. The two body files (sans 400, mono 400) are preloaded from the root route so the fallback never flashes; no font loads from a third-party origin.
 
@@ -207,7 +207,9 @@ Both are self-hosted through `@fontsource`, every subset behind its `unicode-ran
 
 **The No Shouting Rule.** No all-caps labels and no letter-spaced small caps anywhere.
 
-**The Code Only Rule.** Monospace appears only for code and keys: inline code in a title, commit hashes, diffs, and the key caps of the shortcuts dialog.
+**The Code Only Rule.** Monospace appears only for code and what identifies code. The whole list: inline code and code blocks, diffs with their line numbers, file paths, commit hashes, branch names, model ids, and key caps. Everything else is the sans, and a count sets in the sans with tabular numerals: header stats, added and deleted lines, positions like Group 1 of 3, labels, chips and headings.
+
+**The Amber Rule.** Amber means look here or this brief may be wrong, nothing else: risk attributes (the chips, the Risk attributes count and the group card's risk notes), generation warnings, repo-config trouble, a group's Uncertain classification chip, and the Submit dialog's warning that the pull request has newer commits. A de-emphasised risk attribute drops to neutral. Its deliberate exceptions are cautions someone must act on: the Settings spend meter near or at its cap and the capped note, the version notice, a primary ticket that could not be read and the diff-timeout notice. New commits takes the changed tint. "Not an approval" is neutral text.
 
 ## Layout
 
@@ -275,7 +277,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 ### Chips
 
-- **Style:** 5px corner, soft tint (Text 1 at 7%), no border, the sans at 500 in Text Read. A fact chip is 20px tall and states one thing about a row: place in a stack, new commits (in Warning), unreachable. A filter chip keeps the Brief page's 26px and its check glyph.
+- **Style:** 5px corner, soft tint (Text 1 at 7%), no border, the sans at 500 in Text Read. A fact chip is 20px tall and states one thing about a row: place in a stack, new commits (in the changed tint), unreachable. A filter chip keeps the Brief page's 26px and its check glyph.
 - **States:** a pressed chip takes the changed tint, accent at 8% behind a 45% accent edge, with accent text; a warning chip sits on a 12% warning tint in Warning.
 - **Badge:** the chip corner on a 12% tint of its colour, weight 500, no border, and the words in their own case. The Brief header is the exception: its status and stack chips sit on the page ground with no list around them, so each keeps an edge, the status chip in its own colour at 35% and the neutral stack chip in Line Strong. A risk badge from repo policy alone draws a dashed edge in its colour, and a de-emphasized one a dotted edge.
 
@@ -304,4 +306,4 @@ Durations 120, 180 and 320ms, the shared Callout's 140ms entrance, and a 350ms r
 - Do keep the page flat: no page light on either page. Don't add a gradient; the URL box's submit sweep is a signal, not decoration.
 - Do use the accent for what needs the reviewer. Don't use it for decoration or for state.
 - Do give every new token a plan: where the Brief page adopts it and what it replaces.
-- Don't add a card per row, a stat tile, an all-caps label, or monospace outside code and key caps.
+- Don't add a card per row, a stat tile, an all-caps label, or monospace outside the Code Only Rule's list.

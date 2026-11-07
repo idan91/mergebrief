@@ -138,7 +138,8 @@ describe("deriveUnresolvedItems", () => {
       {
         id: "evidence:chunk-a-no-tests-0",
         kind: "missing-evidence",
-        label: "No tests @ src/a.ts",
+        label: "src/a.ts",
+        riskAttribute: "No tests",
         targetId: "chunk-a",
       },
       {
@@ -170,7 +171,7 @@ describe("deriveUnresolvedItems", () => {
     });
 
     expect(items.map((item) => item.label)).toEqual([
-      "No tests @ src/[U+202E]txt.exe",
+      "src/[U+202E]txt.exe",
       "src/[U+202E]txt.exe",
       "src/[U+202E]txt.exe:+12",
     ]);
@@ -192,7 +193,8 @@ describe("deriveUnresolvedItems", () => {
       {
         id: "dismissal:chunk-a-no-tests-0",
         kind: "thin-dismissal",
-        label: "No tests @ src/a.ts",
+        label: "src/a.ts",
+        riskAttribute: "No tests",
         targetId: "chunk-a",
       },
     ]);
@@ -210,7 +212,8 @@ describe("deriveUnresolvedItems", () => {
       {
         id: "risk:chunk-a-no-tests-0",
         kind: "open-risk",
-        label: "No tests @ src/a.ts",
+        label: "src/a.ts",
+        riskAttribute: "No tests",
         targetId: "chunk-a",
       },
     ]);

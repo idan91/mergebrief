@@ -1,8 +1,10 @@
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compile, compileString } from "sass";
 
-const STYLES_DIR = fileURLToPath(new URL("../styles", import.meta.url));
+const STYLES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../styles");
+const CLASS_SELECTOR = /\.([A-Za-z_][\w-]*)/g;
 
 /** A style rule from compiled CSS and the media query it sits under. */
 export interface CompiledRule {
@@ -50,6 +52,58 @@ export function parseCompiledRules(css: string): CompiledRule[] {
     }
   }
   return rules;
+}
+
+/** The rules with each class swapped for the name the CSS module gives it. */
+export function scopeCompiledRules(
+  rules: readonly CompiledRule[],
+  classNames: Readonly<Record<string, string>>,
+): CompiledRule[] {
+  return rules.map((rule) => ({
+    ...rule,
+    selectors: rule.selectors.map((selector) =>
+      selector.replace(
+        CLASS_SELECTOR,
+        (_match, name: string) => `.${classNames[name] ?? name}`,
+      ),
+    ),
+  }));
+}
+
+/**
+ * The `property` value the nearest of `element` and its ancestors declares,
+ * the last matching rule outside any media query winning: what it inherits.
+ */
+export function resolveInheritedDeclaration(
+  element: Element,
+  rules: readonly CompiledRule[],
+  property: string,
+): string | undefined {
+  for (
+    let node: Element | null = element;
+    node !== null;
+    node = node.parentElement
+  ) {
+    const declared = findLastDeclaration(node, rules, property);
+    if (declared !== undefined) {
+      return declared;
+    }
+  }
+  return undefined;
+}
+
+function findLastDeclaration(
+  node: Element,
+  rules: readonly CompiledRule[],
+  property: string,
+): string | undefined {
+  const matching = rules.filter(
+    (rule) =>
+      rule.media === undefined &&
+      rule.declarations.has(property) &&
+      rule.selectors.some((selector) => node.matches(selector)),
+  );
+  return matching.at(-1)?.declarations.get(property);
 }
 
 function buildRule(

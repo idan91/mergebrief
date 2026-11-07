@@ -45,6 +45,12 @@
       }
     }
 
+    &[data-tone="changed"] {
+      border-color: var(--color-changed-edge);
+      background: var(--color-changed-fill);
+      color: var(--color-accent);
+    }
+
     &[aria-disabled="true"] {
       color: var(--color-text-2);
       cursor: default;

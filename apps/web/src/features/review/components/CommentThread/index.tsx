@@ -5,7 +5,7 @@
 import { RequestBounds } from "contract";
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { DraftCommentStatuses } from "types";
 
 import { Button } from "@web/components/Button";
@@ -155,6 +155,11 @@ export function CommentThread({
   // else keeps its visible paragraph as the description.
   const postingReason = posting ? t("review.comment.postingReason") : undefined;
   const postReasonId = useId();
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const keepDraft = () => {
+    setConfirmingDelete(false);
+    deleteTriggerRef.current?.focus();
+  };
   const postDescribed = postingReason ?? postBlocked;
   const locationLabel = isFileCommentAnchor(comment.anchor)
     ? t("review.comment.commentOnFile")
@@ -192,12 +197,14 @@ export function CommentThread({
     <div className={styles["thread"]}>
       <div className={styles["head"]}>
         <span>{headLabel}</span>
-        <span>{locationLabel}</span>
+        <span className={styles["location"]} data-anchor={comment.anchor.kind}>
+          {locationLabel}
+        </span>
       </div>
       {/* An open editor dies with the draft: if a submit lands while the
           textarea is up, the posted record renders read-only regardless. */}
       {editorOpen ? (
-        <>
+        <div className={styles["editor"]}>
           <MarkdownTextarea
             autoFocus
             label={t("review.comment.editLabel")}
@@ -221,14 +228,16 @@ export function CommentThread({
             </p>
           ) : null}
           <div className={styles["actions"]}>
+            <Button onClick={cancelEdit}>{t("review.comment.cancel")}</Button>
             <Button disabled={posting} variant="accent" onClick={saveEdit}>
               {t("review.comment.save")}
             </Button>
-            <Button onClick={cancelEdit}>{t("review.comment.cancel")}</Button>
           </div>
-        </>
+        </div>
       ) : (
-        <MarkdownPreview anchor={comment.anchor} body={comment.body} />
+        <div className={styles["body"]}>
+          <MarkdownPreview anchor={comment.anchor} body={comment.body} />
+        </div>
       )}
       {/* The recoverable why-not for a blocked Post, adjacent to the disabled
           control. */}
@@ -268,6 +277,7 @@ export function CommentThread({
           {readOnly ? null : (
             <LinkButton
               disabled={posting}
+              ref={deleteTriggerRef}
               onClick={() => setConfirmingDelete(true)}
             >
               {t("review.comment.delete")}
@@ -279,6 +289,7 @@ export function CommentThread({
         {confirmDeleteOpen ? (
           <div className={styles["deleteConfirm"]} role="alert">
             <span>{t("review.comment.deleteConfirm")}</span>
+            <Button onClick={keepDraft}>{t("review.comment.keep")}</Button>
             <Button
               disabled={posting}
               onClick={() => {
@@ -287,9 +298,6 @@ export function CommentThread({
               }}
             >
               {t("review.comment.deleteDraft")}
-            </Button>
-            <Button onClick={() => setConfirmingDelete(false)}>
-              {t("review.comment.keep")}
             </Button>
           </div>
         ) : null}

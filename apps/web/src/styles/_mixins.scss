@@ -57,6 +57,13 @@
   }
 }
 
+// iOS Safari zooms the page into a focused field under 16px.
+@mixin touch-field-text {
+  @media (pointer: coarse) {
+    font-size: var(--font-size-touch-field);
+  }
+}
+
 // A one-column grid whose track may shrink below its content. The implicit
 // auto track sizes to a nowrap descendant's min-content and widens every
 // ancestor grid with it, so each grid between the scrollport and that line

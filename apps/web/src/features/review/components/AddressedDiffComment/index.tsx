@@ -22,7 +22,7 @@ export function AddressedDiffComment({
         <span>
           @{comment.author} {label}
         </span>
-        <span>
+        <span className={styles["location"]}>
           {displayFile}
           {addressedCommentRange(comment)}
         </span>

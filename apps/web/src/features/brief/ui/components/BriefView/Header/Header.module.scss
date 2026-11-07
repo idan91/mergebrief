@@ -196,7 +196,7 @@
     b {
       display: block;
       color: var(--color-text-1);
-      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
       font-size: var(--font-size-lg);
       font-weight: 600;
     }
@@ -223,7 +223,7 @@
 
   .header[data-focus] {
     border-block-end-color: transparent;
-    background: var(--focus-page-bg);
+    background: var(--color-focus-ground);
 
     > * {
       opacity: 0.32;

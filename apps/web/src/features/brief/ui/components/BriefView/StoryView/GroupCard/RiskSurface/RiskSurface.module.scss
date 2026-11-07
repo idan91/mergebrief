@@ -27,7 +27,7 @@
     flex-wrap: wrap;
     gap: functions.to-rem(6px);
     color: var(--color-text-2);
-    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-size: var(--font-size-sm);
 
     span + span::before {

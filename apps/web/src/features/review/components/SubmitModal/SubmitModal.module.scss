@@ -7,6 +7,11 @@
     overflow-y: auto;
   }
 
+  // RowButton's card sets a row's main line in the mono for its path.
+  .riskAttribute {
+    font-family: var(--sans);
+  }
+
   .receiptBox {
     display: flex;
     flex-direction: column;
@@ -123,11 +128,7 @@
   }
 
   .tag {
-    padding-block: functions.to-rem(3px);
-    padding-inline: functions.to-rem(10px);
-    border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
-    border-radius: var(--radius-pill);
-    color: var(--color-warning);
+    color: var(--color-text-2);
     font-size: var(--font-size-sm);
     font-weight: 500;
   }

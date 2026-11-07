@@ -7,6 +7,7 @@ import {
   fireEvent,
   render as renderBare,
   screen,
+  within,
 } from "@testing-library/react";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { RequestBounds } from "contract";
@@ -119,6 +120,29 @@ describe("CommentThread", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete draft" }));
     expect(deleteComment).toHaveBeenCalledWith("c1");
+  });
+
+  it("the draft delete confirm offers Keep before Delete draft", () => {
+    renderThread(DraftCommentStatuses.DRAFT);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    const alert = screen.getByRole("alert");
+    const buttons = within(alert).getAllByRole("button");
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Keep",
+      "Delete draft",
+    ]);
+  });
+
+  it("Keep closes the delete confirm and returns focus to Delete", () => {
+    renderThread(DraftCommentStatuses.DRAFT);
+    const deleteTrigger = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(deleteTrigger);
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.activeElement).toBe(deleteTrigger);
   });
 
   it("Cmd+Enter must not save while a Post is in flight", () => {

@@ -28,8 +28,6 @@ import { useMarkdownTextareaFacade } from "./useMarkdownTextareaFacade";
 import {
   MarkdownTextareaModes,
   type MarkdownTextareaMode,
-  MarkdownTextareaFrames,
-  type MarkdownTextareaFrame,
   type MentionCandidate,
   MentionListLayouts,
   type MentionListLayout,
@@ -43,7 +41,6 @@ import styles from "./MarkdownTextarea.module.scss";
 export interface MarkdownTextareaProps {
   value: string;
   onChange: (value: string) => void;
-  frame?: MarkdownTextareaFrame;
   /** Accessible name for the textarea; rendered as a real `<label>`. */
   label: string;
   /** Show the label visually (default: screen-reader only). */
@@ -173,11 +170,8 @@ export function MarkdownTextarea({
   announce,
   announceQuietly,
   onAttachError,
-  frame = MarkdownTextareaFrames.PLAIN,
 }: MarkdownTextareaProps) {
   const { t } = useTranslation();
-  const frameVariant =
-    frame === MarkdownTextareaFrames.PLAIN ? undefined : frame;
   const facade = useMarkdownTextareaFacade({
     value,
     onChange,
@@ -344,7 +338,6 @@ export function MarkdownTextarea({
       // composite-widget shortcut scope, not a keyboard-only interaction.
       aria-label={t("shell.ariaLabelMarkdownEditor")}
       className={styles["markdownTextarea"]}
-      data-variant={frameVariant}
       data-testid="markdown-textarea"
       role="group"
       onKeyDown={onRootKeyDown}
@@ -354,164 +347,169 @@ export function MarkdownTextarea({
       ) : (
         <ScreenReaderOnly>{labelElement}</ScreenReaderOnly>
       )}
-      <div
-        // Deliberately NOT derived from `label`: a substring match on the
-        // textarea's label must find exactly one element (label queries).
-        aria-label={t("shell.ariaLabelEditorMode")}
-        className={styles["tabs"]}
-        role="tablist"
-        tabIndex={-1}
-        onKeyDown={onTablistKeyDown}
-      >
-        {MODES.map((mode) => {
-          const modeLabel = t(MODE_LABEL_KEYS[mode]);
-          return (
-            // oxlint-disable-next-line house/no-raw-button -- role=tab under the tablist's roving tabindex: singleton role plumbing no sibling models
-            <button
-              aria-controls={panelId(mode)}
-              aria-selected={facade.mode === mode}
-              data-state={facade.mode === mode ? "active" : undefined}
-              id={tabId(mode)}
-              key={mode}
-              role="tab"
-              tabIndex={facade.mode === mode ? 0 : -1}
-              type="button"
-              onClick={() => facade.setMode(mode)}
-            >
-              {modeLabel}
-            </button>
-          );
-        })}
-      </div>
-      <div
-        aria-labelledby={tabId(MarkdownTextareaModes.WRITE)}
-        hidden={facade.mode !== MarkdownTextareaModes.WRITE}
-        id={panelId(MarkdownTextareaModes.WRITE)}
-        role="tabpanel"
-      >
-        <div
-          aria-label={t("shell.ariaLabelFormatting")}
-          className={styles["toolbar"]}
-          ref={toolbarRef}
-          role="toolbar"
-          tabIndex={-1}
-          onKeyDown={onToolbarKeyDown}
-        >
-          {facade.toolbarActions.map((action, index) => (
-            <IconButton
-              aria-disabled={readOnly || action.disabled || undefined}
-              key={action.icon}
-              label={action.label}
-              tabIndex={index === toolbarTabStop ? 0 : -1}
-              title={action.title}
-              onClick={action.run}
-            >
-              {ToolbarIcons[action.icon]}
-            </IconButton>
-          ))}
+      <div className={styles["field"]}>
+        <div className={styles["head"]}>
+          <div
+            // Deliberately NOT derived from `label`: a substring match on the
+            // textarea's label must find exactly one element (label queries).
+            aria-label={t("shell.ariaLabelEditorMode")}
+            className={styles["tabs"]}
+            role="tablist"
+            tabIndex={-1}
+            onKeyDown={onTablistKeyDown}
+          >
+            {MODES.map((mode) => {
+              const modeLabel = t(MODE_LABEL_KEYS[mode]);
+              return (
+                // oxlint-disable-next-line house/no-raw-button -- role=tab under the tablist's roving tabindex: singleton role plumbing no sibling models
+                <button
+                  aria-controls={panelId(mode)}
+                  aria-selected={facade.mode === mode}
+                  data-state={facade.mode === mode ? "active" : undefined}
+                  id={tabId(mode)}
+                  key={mode}
+                  role="tab"
+                  tabIndex={facade.mode === mode ? 0 : -1}
+                  type="button"
+                  onClick={() => facade.setMode(mode)}
+                >
+                  {modeLabel}
+                </button>
+              );
+            })}
+          </div>
+          <div
+            aria-label={t("shell.ariaLabelFormatting")}
+            className={styles["toolbar"]}
+            hidden={facade.mode !== MarkdownTextareaModes.WRITE}
+            ref={toolbarRef}
+            role="toolbar"
+            tabIndex={-1}
+            onKeyDown={onToolbarKeyDown}
+          >
+            {facade.toolbarActions.map((action, index) => (
+              <IconButton
+                aria-disabled={readOnly || action.disabled || undefined}
+                key={action.icon}
+                label={action.label}
+                tabIndex={index === toolbarTabStop ? 0 : -1}
+                title={action.title}
+                onClick={action.run}
+              >
+                {ToolbarIcons[action.icon]}
+              </IconButton>
+            ))}
+          </div>
         </div>
-        {/* Reached through the toolbar button; never a tab stop of its own. */}
-        <input
-          accept={ATTACH_ACCEPT}
-          aria-hidden
-          className={styles["fileInput"]}
-          multiple
-          ref={facade.fileInputRef}
-          tabIndex={-1}
-          type="file"
-          onChange={(event) => {
-            const files = event.target.files;
-            if (files !== null) {
-              facade.attachFiles(files);
-            }
-            event.target.value = "";
-          }}
-        />
-        <textarea
-          aria-activedescendant={mentions.activeOptionId}
-          aria-busy={ariaBusy || facade.uploadsInFlight > 0 || undefined}
-          aria-controls={mentions.open ? mentions.listId : undefined}
-          aria-describedby={describedBy}
-          aria-invalid={ariaInvalid || undefined}
-          autoFocus={autoFocus}
-          className={styles["textarea"]}
-          // RTL-first content right-aligns (browser-resolved from the text).
-          dir="auto"
-          id={textareaId}
-          placeholder={placeholder}
-          readOnly={readOnly}
-          ref={attachTextarea}
-          suppressHydrationWarning
-          value={value}
-          onBlur={() => {
-            mentions.onBlur();
-            onBlur?.();
-          }}
-          onChange={(event) => {
-            mentions.onCaretMove(event.target.selectionStart);
-            onChange(event.target.value);
-          }}
-          onKeyDown={(event) => {
-            // The open popup owns navigation/accept/dismiss keys; every
-            // other key falls through to the editing shortcuts.
-            if (mentions.onKeyDown(event)) {
-              return;
-            }
-            facade.onTextareaKeyDown(event);
-          }}
-          onDragOver={facade.onTextareaDragOver}
-          onDrop={facade.onTextareaDrop}
-          onPaste={facade.onTextareaPaste}
-          onSelect={(event) =>
-            mentions.onCaretMove(event.currentTarget.selectionStart)
-          }
-        />
-        {mentions.open ? (
-          <MentionList
-            activeIndex={mentions.activeIndex}
-            layout={mentionListLayout}
-            listId={mentions.listId}
-            optionId={mentions.optionId}
-            options={mentions.options}
-            pending={mentions.searching}
-            positionRef={floatingList.setList}
-            positionStyle={floatingList.listStyle}
-            onSelect={mentions.select}
+        <div
+          aria-labelledby={tabId(MarkdownTextareaModes.WRITE)}
+          hidden={facade.mode !== MarkdownTextareaModes.WRITE}
+          id={panelId(MarkdownTextareaModes.WRITE)}
+          role="tabpanel"
+        >
+          {/* Reached through the toolbar button; never a tab stop of its own. */}
+          <input
+            accept={ATTACH_ACCEPT}
+            aria-hidden
+            className={styles["fileInput"]}
+            multiple
+            ref={facade.fileInputRef}
+            tabIndex={-1}
+            type="file"
+            onChange={(event) => {
+              const files = event.target.files;
+              if (files !== null) {
+                facade.attachFiles(files);
+              }
+              event.target.value = "";
+            }}
           />
-        ) : null}
-        <ScreenReaderOnly>
-          {/* Always mounted so the search is announced; emptied when it lands so the next one announces again. */}
-          <span aria-live="polite" role="status">
-            {announceSearching ? t("shell.mentionSearchingAnnounce") : ""}
-          </span>
-        </ScreenReaderOnly>
-        <div className={styles["hint"]}>
-          <span>{t("shell.markdownSupported")}</span>
-          {facade.canAttach ? (
-            <span>
-              <Trans
-                components={[<code key="branch">{ATTACHMENT_BRANCH}</code>]}
-                i18nKey="shell.attach.hint"
-              />
+          <textarea
+            aria-activedescendant={mentions.activeOptionId}
+            aria-busy={ariaBusy || facade.uploadsInFlight > 0 || undefined}
+            aria-controls={mentions.open ? mentions.listId : undefined}
+            aria-describedby={describedBy}
+            aria-invalid={ariaInvalid || undefined}
+            autoFocus={autoFocus}
+            className={styles["textarea"]}
+            // RTL-first content right-aligns (browser-resolved from the text).
+            dir="auto"
+            id={textareaId}
+            placeholder={placeholder}
+            readOnly={readOnly}
+            ref={attachTextarea}
+            suppressHydrationWarning
+            value={value}
+            onBlur={() => {
+              mentions.onBlur();
+              onBlur?.();
+            }}
+            onChange={(event) => {
+              mentions.onCaretMove(event.target.selectionStart);
+              onChange(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              // The open popup owns navigation/accept/dismiss keys; every
+              // other key falls through to the editing shortcuts.
+              if (mentions.onKeyDown(event)) {
+                return;
+              }
+              facade.onTextareaKeyDown(event);
+            }}
+            onDragOver={facade.onTextareaDragOver}
+            onDrop={facade.onTextareaDrop}
+            onPaste={facade.onTextareaPaste}
+            onSelect={(event) =>
+              mentions.onCaretMove(event.currentTarget.selectionStart)
+            }
+          />
+          {mentions.open ? (
+            <MentionList
+              activeIndex={mentions.activeIndex}
+              layout={mentionListLayout}
+              listId={mentions.listId}
+              optionId={mentions.optionId}
+              options={mentions.options}
+              pending={mentions.searching}
+              positionRef={floatingList.setList}
+              positionStyle={floatingList.listStyle}
+              onSelect={mentions.select}
+            />
+          ) : null}
+          <ScreenReaderOnly>
+            {/* Always mounted so the search is announced; emptied when it lands so the next one announces again. */}
+            <span aria-live="polite" role="status">
+              {announceSearching ? t("shell.mentionSearchingAnnounce") : ""}
             </span>
+          </ScreenReaderOnly>
+          <div className={styles["hint"]}>
+            <span>{t("shell.markdownSupported")}</span>
+            {facade.canAttach ? (
+              <span>
+                <Trans
+                  components={[<code key="branch">{ATTACHMENT_BRANCH}</code>]}
+                  i18nKey="shell.attach.hint"
+                />
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div
+          aria-labelledby={tabId(MarkdownTextareaModes.PREVIEW)}
+          className={styles["previewPanel"]}
+          hidden={facade.mode !== MarkdownTextareaModes.PREVIEW}
+          id={panelId(MarkdownTextareaModes.PREVIEW)}
+          role="tabpanel"
+          // Rendered markdown usually has no focusables, make the panel
+          // itself the tab stop so keyboard users can reach and scroll it
+          // (APG tabs pattern recommendation for content-only panels).
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+        >
+          {facade.mode === MarkdownTextareaModes.PREVIEW ? (
+            <PreviewPanel renderPreview={renderPreview} value={value} />
           ) : null}
         </div>
-      </div>
-      <div
-        aria-labelledby={tabId(MarkdownTextareaModes.PREVIEW)}
-        className={styles["previewPanel"]}
-        hidden={facade.mode !== MarkdownTextareaModes.PREVIEW}
-        id={panelId(MarkdownTextareaModes.PREVIEW)}
-        role="tabpanel"
-        // Rendered markdown usually has no focusables, make the panel
-        // itself the tab stop so keyboard users can reach and scroll it
-        // (APG tabs pattern recommendation for content-only panels).
-        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-        tabIndex={0}
-      >
-        {facade.mode === MarkdownTextareaModes.PREVIEW ? (
-          <PreviewPanel renderPreview={renderPreview} value={value} />
-        ) : null}
       </div>
     </div>
   );

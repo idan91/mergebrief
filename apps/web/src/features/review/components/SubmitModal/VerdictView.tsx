@@ -6,10 +6,7 @@ import clsx from "clsx";
 import { Button } from "@web/components/Button";
 import { Checkbox } from "@web/components/Checkbox";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea";
-import {
-  MarkdownTextareaFrames,
-  MentionListLayouts,
-} from "@web/components/MarkdownTextarea/types";
+import { MentionListLayouts } from "@web/components/MarkdownTextarea/types";
 import { hasUploadPlaceholder } from "@web/components/MarkdownTextarea/utils";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { useMentionSuggestions } from "@web/features/conversation/hooks";
@@ -118,7 +115,6 @@ export function VerdictView({
         ))}
       </fieldset>
       <MarkdownTextarea
-        frame={MarkdownTextareaFrames.CARD}
         value={reviewComment}
         onChange={editComment}
         label={t("review.submit.commentLabel")}

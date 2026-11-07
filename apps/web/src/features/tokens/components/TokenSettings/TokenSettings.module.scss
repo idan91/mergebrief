@@ -55,6 +55,7 @@
       color: var(--color-text-1);
       font-size: var(--font-size-lg);
 
+      @include mixins.touch-field-text;
       @include mixins.focus-visible;
     }
 

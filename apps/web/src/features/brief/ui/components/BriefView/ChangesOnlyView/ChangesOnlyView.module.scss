@@ -85,7 +85,7 @@
   .chunkCounts {
     display: none;
     color: var(--color-text-3);
-    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-size: var(--font-size-sm);
     white-space: nowrap;
   }

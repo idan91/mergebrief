@@ -87,7 +87,7 @@
     /* The old card set no size — uncovered content took the root size. */
     font-size: var(--font-size-root);
 
-    span {
+    .cardEyebrow {
       color: var(--color-text-3);
       font-size: var(--font-size-sm);
     }

@@ -94,6 +94,6 @@
   }
 
   body:has(.readingColumn[data-zen="on"]) {
-    background: var(--focus-page-bg);
+    background: var(--color-focus-ground);
   }
 }

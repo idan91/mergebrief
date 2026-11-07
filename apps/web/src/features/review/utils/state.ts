@@ -76,7 +76,10 @@ export interface UnresolvedInput {
 export interface UnresolvedItem {
   id: string;
   kind: UnresolvedItemKind;
+  /** Where the item sits: a path, with its line for a comment. */
   label: string;
+  /** The risk attribute a flag raises at that place. */
+  riskAttribute?: string;
   targetId: string;
 }
 
@@ -175,12 +178,14 @@ export function deriveUnresolvedItems(
     const disposition = input.dispositions[flag.id] ?? {
       kind: DispositionKinds.OPEN,
     };
-    const label = `${getRiskAttributeLabel(t, flag.attr)} @ ${formatDisplayPath(flag.file)}`;
+    const label = formatDisplayPath(flag.file);
+    const riskAttribute = getRiskAttributeLabel(t, flag.attr);
     if (disposition.kind === DispositionKinds.OPEN) {
       items.push({
         id: `risk:${flag.id}`,
         kind: UnresolvedItemKinds.OPEN_RISK,
         label,
+        riskAttribute,
         targetId: flag.chunkId,
       });
       continue;
@@ -193,6 +198,7 @@ export function deriveUnresolvedItems(
         id: `evidence:${flag.id}`,
         kind: UnresolvedItemKinds.MISSING_EVIDENCE,
         label,
+        riskAttribute,
         targetId: flag.chunkId,
       });
       continue;
@@ -205,6 +211,7 @@ export function deriveUnresolvedItems(
         id: `dismissal:${flag.id}`,
         kind: UnresolvedItemKinds.THIN_DISMISSAL,
         label,
+        riskAttribute,
         targetId: flag.chunkId,
       });
     }

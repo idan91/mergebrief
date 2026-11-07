@@ -136,7 +136,7 @@
     align-items: center;
     gap: functions.to-rem(6px);
     color: var(--color-text-3);
-    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-size: var(--font-size-sm);
     white-space: nowrap;
   }
@@ -191,7 +191,6 @@
 
     span {
       color: var(--color-accent);
-      font-family: var(--mono);
       font-size: var(--font-size-sm);
     }
   }

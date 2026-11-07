@@ -49,7 +49,7 @@
 
   .percent {
     color: var(--color-text-1);
-    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-weight: 600;
   }
 }

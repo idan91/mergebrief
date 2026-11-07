@@ -205,7 +205,7 @@ export function InboxRow({
             <Chip
               as={ChipElements.SPAN}
               className={styles["chip"]}
-              tone={ChipTones.WARNING}
+              tone={ChipTones.CHANGED}
               variant={ChipVariants.FACT}
             >
               <Icon name={IconNames.ARROW_UP} size={IconSizes.SM} />

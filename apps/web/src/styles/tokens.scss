@@ -178,6 +178,9 @@
     // Genuine parent-relative text writes its em value at the site, with a
     // justification and a line-scoped stylelint disable.
 
+    // Off the scale: text fields on a touch screen (mixins.touch-field-text).
+    --font-size-touch-field: #{functions.to-rem(16px)};
+
     // ── Radius scale ─────────────────────────────────────────────────────
     // Corners by role: two named by the thing that wears them, the rest
     // by size; the chip and the panel take the odd values on purpose.
@@ -258,17 +261,6 @@
       100vw - var(--focus-panel-end) - var(--focus-panel-w)
     );
     --focus-overlap: calc(var(--focus-card-end) - var(--focus-panel-start));
-
-    // What focus mode paints behind the page and its chrome; fixed, so the
-    // header and the pill's band match the page pixel for pixel.
-    --focus-page-bg:
-      radial-gradient(
-          120% 70% at 50% 0%,
-          var(--color-background) 0%,
-          var(--color-focus-ground) 62%
-        )
-        fixed,
-      var(--color-focus-ground);
 
     // ── Elevation ────────────────────────────────────────────────────────
     // Two steps and what floats.

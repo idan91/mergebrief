@@ -17,6 +17,7 @@ export const ChipTones = {
   NEUTRAL: "neutral",
   WARNING: "warning",
   MUTED: "muted",
+  CHANGED: "changed",
 } as const;
 export type ChipTone = ValueOf<typeof ChipTones>;
 

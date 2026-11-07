@@ -30,7 +30,7 @@
   .flags {
     margin-block-start: functions.to-rem(12px);
     color: var(--color-text-3);
-    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-size: var(--font-size-md);
   }
 }

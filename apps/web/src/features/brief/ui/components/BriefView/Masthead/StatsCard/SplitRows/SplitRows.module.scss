@@ -38,14 +38,14 @@
   }
 
   .loc {
-    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-size: var(--font-size-md);
   }
 
   .percent {
     min-inline-size: 4ch;
     color: var(--color-text-1);
-    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-size: var(--font-size-xl);
     font-weight: 600;
     text-align: end;

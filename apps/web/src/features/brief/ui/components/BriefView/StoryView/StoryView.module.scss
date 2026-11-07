@@ -94,7 +94,7 @@
     display: block;
     block-size: var(--radius-panel);
     margin-block-end: calc(-1 * var(--radius-panel));
-    background: var(--focus-page-bg);
+    background: var(--color-focus-ground);
   }
 
   // margin-inline: auto inside the story view's flex column shrinks the

@@ -46,8 +46,8 @@ export function RiskBadge({ attribute, children, meta }: RiskBadgeProps) {
   return (
     <Badge
       className={styles["risk"]}
-      // De-emphasis is a HUE shift (amber → neutral), never opacity, small
-      // text under reduced opacity falls below 4.5:1.
+      // De-emphasis is a hue shift, never opacity: small text under reduced
+      // opacity falls below 4.5:1.
       color={meta?.deEmphasized ? BadgeColors.NEUTRAL : BadgeColors.AMBER}
       dataset={{
         source: meta?.source,

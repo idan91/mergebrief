@@ -13,6 +13,7 @@ import { Button } from "@web/components/Button";
 import { Checkbox } from "@web/components/Checkbox";
 import { LinkButton } from "@web/components/LinkButton";
 import { RowButton } from "@web/components/RowButton";
+import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
 import { Modal } from "@web/components/Modal";
 import {
   getRiskAttributeLabel,
@@ -120,6 +121,7 @@ export function MarkReadyModal({
                 onClick={() => jumpToFlag(flag)}
               >
                 <span
+                  className={rowButtonStyles["cardEyebrow"]}
                   data-deemphasized={flag.deEmphasized ? "" : undefined}
                   data-source={flag.source}
                 >

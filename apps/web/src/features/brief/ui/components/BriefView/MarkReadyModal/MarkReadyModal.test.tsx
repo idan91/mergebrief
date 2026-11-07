@@ -4,11 +4,31 @@
 // unposted-drafts reminder when any exist. "Mark ready anyway" is one click
 // and records nothing. The zero-flag bypass (modal skipped entirely) is the
 // CALLER's contract, pinned in own-draft-view.test.tsx.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { RiskFlag } from "@web/features/brief/model/utils/view-model";
+import {
+  compileStylesheet,
+  parseCompiledRules,
+  resolveInheritedDeclaration,
+  scopeCompiledRules,
+} from "@web/test/compiled-css";
+import rowButtonStyles from "@web/components/RowButton/RowButton.module.scss";
 import { MarkReadyModal } from ".";
+
+const ROW_BUTTON_STYLESHEET = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../../../../components/RowButton/RowButton.module.scss",
+);
 
 const FLAGS: RiskFlag[] = [
   {
@@ -62,6 +82,22 @@ describe("MarkReadyModal", () => {
     expect(screen.getByText("src/b.ts")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Touches auth/ }));
     expect(jumpToFlag).toHaveBeenCalledWith(FLAGS[1]);
+  });
+
+  it("sets a flag's attribute small and dim above its mono path", () => {
+    renderModal();
+    const css = compileStylesheet(ROW_BUTTON_STYLESHEET);
+    const rules = scopeCompiledRules(parseCompiledRules(css), rowButtonStyles);
+
+    const row = screen.getByRole("button", { name: /Touches auth/ });
+    const attribute = within(row).getByText("Touches auth");
+
+    expect(resolveInheritedDeclaration(attribute, rules, "font-size")).toBe(
+      "var(--font-size-sm)",
+    );
+    expect(resolveInheritedDeclaration(attribute, rules, "color")).toBe(
+      "var(--color-text-3)",
+    );
   });
 
   it("names a flagged path with a bidi override by a visible escape", () => {
