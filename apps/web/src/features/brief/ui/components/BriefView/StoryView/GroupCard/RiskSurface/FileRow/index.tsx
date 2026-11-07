@@ -94,7 +94,6 @@ export function FileRow({
             ariaLabel={t("brief.group.selectFile", { file: row.displayFile })}
             checked={allSelected}
             disabled={nothingOpen}
-            suppressHydrationWarning
             onChange={() => toggleRiskGroup(openIds)}
           />
         </span>

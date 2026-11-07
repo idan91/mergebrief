@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { appI18n } from "@web/i18n/I18nProvider";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Disposition } from "@web/features/review/session";
@@ -143,6 +144,45 @@ describe("RiskSurface chooser", () => {
       screen.getByRole("checkbox", { name: "Select flags on src/leak.ts" }),
     );
     expect(toggleRiskGroup).toHaveBeenCalledWith(flags.map((flag) => flag.id));
+  });
+
+  it("replays a file tick made before hydration to the selection", () => {
+    const { group, flags } = requireAttributed(briefFixture);
+    function Harness() {
+      const [selected, setSelected] = useState<Set<string>>(new Set());
+      return (
+        <RiskSurface
+          dispositions={{}}
+          flagsReadOnly={false}
+          group={group}
+          groupFlags={flags}
+          jumpToChunk={vi.fn()}
+          reopenFlag={vi.fn()}
+          selectedFlagSet={selected}
+          setDismissTarget={vi.fn()}
+          setEvidenceTarget={vi.fn()}
+          toggleRiskGroup={(flagIds) => setSelected(new Set(flagIds))}
+        />
+      );
+    }
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<Harness />);
+    document.body.append(container);
+    const prerendered = container.querySelector("input");
+    if (prerendered === null) {
+      throw new Error("no file checkbox");
+    }
+    prerendered.checked = true;
+
+    render(<Harness />, { container, hydrate: true });
+
+    const box = screen.getByRole("checkbox", {
+      name: "Select flags on src/leak.ts",
+    });
+    expect(box).toHaveProperty("checked", true);
+    expect(
+      screen.getByRole("button", { name: "Address selected" }),
+    ).toBeTruthy();
   });
 
   it("notes twist starts closed and reveals labeled notes", () => {

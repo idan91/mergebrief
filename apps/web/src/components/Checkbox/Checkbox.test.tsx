@@ -2,7 +2,15 @@
 // These cases pin the parts a hand-rolled div would lose: the box is drawn,
 // but the control underneath is still a real `<input type="checkbox">`.
 import { fireEvent, render, screen } from "@testing-library/react";
-import { createRef } from "react";
+import {
+  createRef,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { Checkbox } from ".";
@@ -88,4 +96,132 @@ describe("Checkbox", () => {
 
     expect(onChange).toHaveBeenCalledWith(true);
   });
+
+  it("replays a tick made before hydration as a change", () => {
+    const onChange = vi.fn<(checked: boolean) => void>();
+    const container = stubPrerenderedCheckbox({ tick: true });
+
+    render(<Checkbox ariaLabel="Row" checked={false} onChange={onChange} />, {
+      container,
+      hydrate: true,
+    });
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(true);
+    expect(screen.getByRole("checkbox", { name: "Row" })).toHaveProperty(
+      "checked",
+      false,
+    );
+  });
+
+  it("stays quiet when nothing changed before hydration", () => {
+    const onChange = vi.fn();
+    const container = stubPrerenderedCheckbox({ tick: false });
+
+    render(<Checkbox ariaLabel="Row" checked={false} onChange={onChange} />, {
+      container,
+      hydrate: true,
+    });
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps a click made after hydration commits, before its effects", async () => {
+    const onToggle = vi.fn();
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(
+      <StubTogglingOwner onToggle={onToggle} />,
+    );
+    document.body.append(container);
+    const actEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
+    Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false);
+    const root = hydrateRoot(
+      container,
+      <StubTogglingOwner onToggle={onToggle} />,
+    );
+
+    try {
+      await waitForSchedulerIdle();
+
+      expect(onToggle).toHaveBeenCalledOnce();
+      expect(container.querySelector("input")).toHaveProperty("checked", true);
+    } finally {
+      root.unmount();
+      container.remove();
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", actEnvironment);
+    }
+  });
+
+  it("opts out of browser form restore", () => {
+    render(<Checkbox ariaLabel="Row" checked={false} onChange={vi.fn()} />);
+
+    expect(screen.getByRole("checkbox").getAttribute("autocomplete")).toBe(
+      "off",
+    );
+  });
 });
+
+/** Server markup for an unticked box, ticked by hand when `tick` mimics a click before hydration. */
+function stubPrerenderedCheckbox({ tick }: { tick: boolean }): HTMLElement {
+  const container = document.createElement("div");
+  container.innerHTML = renderToString(
+    <Checkbox ariaLabel="Row" checked={false} onChange={() => undefined} />,
+  );
+  document.body.append(container);
+  const input = container.querySelector("input");
+  if (input === null) {
+    throw new Error("no input");
+  }
+  input.checked = tick;
+  return container;
+}
+
+const COMMIT_OVERRUN_MS = 10;
+const SCHEDULER_IDLE_MS = 50;
+
+/** An owner that flips on any change, as ChunkCard does. */
+function StubTogglingOwner({ onToggle }: { onToggle: () => void }) {
+  const [ticked, setTicked] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <>
+      <Checkbox
+        ariaLabel="Row"
+        checked={ticked}
+        inputRef={inputRef}
+        onChange={() => {
+          onToggle();
+          setTicked((current) => !current);
+        }}
+      />
+      <StubClickAfterCommit inputRef={inputRef} />
+    </>
+  );
+}
+
+/**
+ * Clicks the box once the commit's task ends. The commit overruns the
+ * scheduler's frame so it yields before running passive effects, and the
+ * click lands in that gap, as a real click can.
+ */
+function StubClickAfterCommit({
+  inputRef,
+}: {
+  inputRef: RefObject<HTMLInputElement | null>;
+}) {
+  useLayoutEffect(() => {
+    const start = performance.now();
+    while (performance.now() - start < COMMIT_OVERRUN_MS) {
+      // Busy: the scheduler measures frame time, not work.
+    }
+    queueMicrotask(() => inputRef.current?.click());
+  }, [inputRef]);
+
+  return null;
+}
+
+function waitForSchedulerIdle(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, SCHEDULER_IDLE_MS);
+  });
+}

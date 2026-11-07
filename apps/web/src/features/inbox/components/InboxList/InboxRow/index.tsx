@@ -50,8 +50,8 @@ export interface InboxRowProps {
   selected: boolean;
   /** Rows are being selected, so every row shows its box. */
   selecting?: boolean;
-  /** `range` is a shift-click: the rows since the last toggle take this one's state. */
-  onToggleSelect: (item: InboxItem, range?: boolean) => void;
+  /** `range` is a shift-click: the rows since the last tick take `checked`. */
+  onSelectRow: (item: InboxItem, checked: boolean, range?: boolean) => void;
   /** The list holds the cursor row so it can scroll it into view. */
   rowRef?: Ref<HTMLLIElement> | undefined;
   /** The view the row sits in, for the archive action's direction. */
@@ -83,7 +83,7 @@ export function InboxRow({
   cursor,
   selected,
   selecting = false,
-  onToggleSelect,
+  onSelectRow,
   rowRef,
   archived,
   archiveHeld,
@@ -121,8 +121,8 @@ export function InboxRow({
 
   // The change event carries no modifier; the click before it does.
   const shiftRef = useRef(false);
-  function handleToggle(): void {
-    onToggleSelect(item, shiftRef.current);
+  function handleSelect(checked: boolean): void {
+    onSelectRow(item, checked, shiftRef.current);
   }
   function handleRemoved(): void {
     onRemoved(item);
@@ -149,7 +149,7 @@ export function InboxRow({
           shiftRef.current = event.shiftKey;
         }}
       >
-        <Checkbox checked={selected} onChange={handleToggle}>
+        <Checkbox checked={selected} onChange={handleSelect}>
           <ScreenReaderOnly>
             {t("home.inbox.select.row", {
               title:

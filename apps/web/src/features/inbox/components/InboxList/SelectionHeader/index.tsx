@@ -30,7 +30,7 @@ export interface SelectionHeaderProps {
   selecting: boolean;
   /** The Select button that opened the bar has just hidden: the page checkbox takes the focus. */
   takeFocus?: boolean;
-  onSelectPage: () => void;
+  onSelectPage: (checked: boolean) => void;
   onSelectAllMatching: () => void;
   onClearAllMatching: () => void;
   onArchive: () => void;

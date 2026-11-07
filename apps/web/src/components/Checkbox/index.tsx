@@ -6,9 +6,14 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import styles from "./Checkbox.module.scss";
+import { useHydrationReplay } from "./useHydrationReplay";
 
 export interface CheckboxProps {
   checked: boolean;
+  /**
+   * Boxes over one shared state must set it to `checked`, not flip it: ticks
+   * made before hydration replay together in one commit.
+   */
   onChange: (checked: boolean) => void;
   /** The visible label; also the accessible name (it wraps the input). */
   children?: ReactNode;
@@ -21,8 +26,6 @@ export interface CheckboxProps {
   testId?: string | undefined;
   /** The native input, for a caller that moves focus onto it. */
   inputRef?: RefObject<HTMLInputElement | null> | undefined;
-  /** For a state the server cannot render, such as one restored in the browser. */
-  suppressHydrationWarning?: boolean;
 }
 
 export function Checkbox({
@@ -34,15 +37,18 @@ export function Checkbox({
   indeterminate = false,
   testId,
   inputRef,
-  suppressHydrationWarning,
 }: CheckboxProps) {
   const ownRef = useRef<HTMLInputElement>(null);
+
   // Indeterminate is a DOM property, not an attribute; it is set by hand.
   useEffect(() => {
     if (ownRef.current !== null) {
       ownRef.current.indeterminate = indeterminate;
     }
   }, [indeterminate]);
+
+  useHydrationReplay(ownRef, checked, onChange);
+
   function setInput(node: HTMLInputElement | null): void {
     ownRef.current = node;
     if (inputRef !== undefined) {
@@ -62,11 +68,12 @@ export function Checkbox({
       <input
         aria-checked={indeterminate ? "mixed" : undefined}
         aria-label={ariaLabel}
+        // Keeps a browser's restored form state from passing for a tick.
+        autoComplete="off"
         checked={checked}
         className={styles["input"]}
         disabled={disabled}
         ref={setInput}
-        suppressHydrationWarning={suppressHydrationWarning}
         type="checkbox"
         {...(testId === undefined ? {} : { "data-testid": testId })}
         onChange={(event) => onChange(event.target.checked)}

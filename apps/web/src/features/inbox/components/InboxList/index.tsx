@@ -108,7 +108,7 @@ export function InboxList({
     (index) => {
       const item = ordered[index];
       if (item !== undefined) {
-        handleToggle(item);
+        handleSelect(item, !selection.isSelected(item));
       }
     },
   );
@@ -119,22 +119,28 @@ export function InboxList({
   // A matching read answers for the scope it started in: any change to the
   // scope moves the generation, and a read from an older one is dropped.
   const readGeneration = useRef(0);
-  const { clear: clearSelection, toggle } = selection;
+  const { clear: clearSelection, setSelected } = selection;
   // The selection belongs to one page of one search; the URL is outside React.
+  // Mount clears nothing: a box ticked before hydration lands in its effect first.
+  const selectedPageKey = useRef(pageKey);
   useEffect(() => {
+    if (selectedPageKey.current === pageKey) {
+      return;
+    }
+    selectedPageKey.current = pageKey;
     readGeneration.current += 1;
     clearSelection();
     setAllMatching(false);
     setSelectMode(false);
   }, [pageKey, clearSelection]);
   // One row's tick or untick narrows the scope back to the page's ticks.
-  const handleToggle = useCallback(
-    (item: InboxItem, range?: boolean): void => {
+  const handleSelect = useCallback(
+    (item: InboxItem, checked: boolean, range?: boolean): void => {
       readGeneration.current += 1;
       setAllMatching(false);
-      toggle(item, range);
+      setSelected(item, checked, range);
     },
-    [toggle],
+    [setSelected],
   );
   const now = new Date();
   const showFold = above.length > 0 && below.length > 0;
@@ -322,10 +328,10 @@ export function InboxList({
   function requestBulkDelete(): void {
     void runBulkDelete();
   }
-  function selectPage(): void {
+  function selectPage(checked: boolean): void {
     readGeneration.current += 1;
     setAllMatching(false);
-    selection.selectPage();
+    selection.selectPage(checked);
   }
   function selectAllMatching(): void {
     setAllMatching(true);
@@ -417,7 +423,7 @@ export function InboxList({
                 onDelete={handleDelete}
                 onPurgeAttachments={purge.requestPurge}
                 onRemoved={handleRowGone}
-                onToggleSelect={handleToggle}
+                onSelectRow={handleSelect}
               />
             ))}
           </ol>
@@ -452,7 +458,7 @@ export function InboxList({
                 onDelete={handleDelete}
                 onPurgeAttachments={purge.requestPurge}
                 onRemoved={handleRowGone}
-                onToggleSelect={handleToggle}
+                onSelectRow={handleSelect}
               />
             ))}
           </ol>

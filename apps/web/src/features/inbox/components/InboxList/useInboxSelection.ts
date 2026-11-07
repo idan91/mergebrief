@@ -10,10 +10,14 @@ export interface InboxSelection {
   /** Some rows ticked, not every one: the page checkbox reads mixed. */
   readonly someSelected: boolean;
   readonly isSelected: (item: InboxItem) => boolean;
-  /** With `range`, every row between the last toggled row and this one takes this row's new state. */
-  readonly toggle: (item: InboxItem, range?: boolean) => void;
-  /** Tick every row on the page, or clear them all when every one is ticked. */
-  readonly selectPage: () => void;
+  /** With `range`, every row between the last ticked row and this one takes `checked`. */
+  readonly setSelected: (
+    item: InboxItem,
+    checked: boolean,
+    range?: boolean,
+  ) => void;
+  /** Tick every row on the page, or clear them all. */
+  readonly selectPage: (checked: boolean) => void;
   /** Untick the rows that went; every other tick stays. */
   readonly remove: (gone: readonly InboxItem[]) => void;
   readonly clear: () => void;
@@ -59,34 +63,27 @@ export function useInboxSelection(items: readonly InboxItem[]): InboxSelection {
     anchorRef.current = undefined;
     setKeys(NONE);
   }, []);
-  // A range takes the clicked row's new state: shift-clicking an unticked
-  // row ticks the span, a ticked one clears it.
-  const toggle = useCallback((item: InboxItem, range = false): void => {
-    const key = readRowKey(item);
-    const anchor = anchorRef.current;
-    anchorRef.current = key;
-    setKeys((current) => {
-      const next = new Set(current);
-      const span = readSpan(itemsRef.current, anchor, key);
-      if (range && span !== undefined) {
-        const on = !current.has(key);
-        for (const rowKey of span) {
-          if (on) {
+  const setSelected = useCallback(
+    (item: InboxItem, checked: boolean, range = false): void => {
+      const key = readRowKey(item);
+      const anchor = anchorRef.current;
+      anchorRef.current = key;
+      setKeys((current) => {
+        const next = new Set(current);
+        const span = readSpan(itemsRef.current, anchor, key);
+        const rowKeys = range && span !== undefined ? span : [key];
+        for (const rowKey of rowKeys) {
+          if (checked) {
             next.add(rowKey);
           } else {
             next.delete(rowKey);
           }
         }
         return next;
-      }
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
+      });
+    },
+    [],
+  );
   const remove = useCallback((gone: readonly InboxItem[]): void => {
     const goneKeys = new Set(gone.map(readRowKey));
     setKeys((current) => {
@@ -103,10 +100,10 @@ export function useInboxSelection(items: readonly InboxItem[]): InboxSelection {
     allSelected,
     someSelected,
     isSelected: (item) => keys.has(readRowKey(item)),
-    toggle,
-    selectPage: () => {
+    setSelected,
+    selectPage: (checked) => {
       anchorRef.current = undefined;
-      setKeys(allSelected ? NONE : new Set(items.map(readRowKey)));
+      setKeys(checked ? new Set(items.map(readRowKey)) : NONE);
     },
     remove,
     clear,

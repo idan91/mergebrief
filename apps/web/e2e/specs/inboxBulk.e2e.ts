@@ -1,7 +1,7 @@
 // The list's header row carries the selection: Archive takes every ticked
 // row, Delete counts only the rows the viewer may delete and confirms once,
 // and Clear hands focus to the list heading. The rows it touches are its own.
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   INBOX_BULK_ARCHIVE_ROW_NUMBERS,
@@ -10,6 +10,10 @@ import {
 } from "../fixtures/inbox";
 import { collectPageFaults } from "../support/console";
 import { waitForFirstLoad } from "../support/page";
+
+// The module TanStack Start's dev server hydrates from; holding it keeps the
+// page server-rendered until the test lets it go.
+const DEV_CLIENT_ENTRY_URL = /\/@id\/virtual:tanstack-start-dev-client-entry/;
 
 const [, , , nonAdminRow] = INBOX_ROWS;
 const deleteRow = INBOX_ROWS.find(
@@ -91,5 +95,66 @@ test("ticked rows archive together, and Delete counts the deletable ones", async
   await expect(rows.filter({ hasText: nonAdminRow.title })).toHaveCount(1);
   await expect(bar.getByText("1 selected")).toBeVisible();
 
+  expect(faults).toEqual([]);
+});
+
+interface HeldClientEntry {
+  isHeld: () => boolean;
+  release: () => void;
+}
+
+/** Holds the client entry so the page stays server-rendered until released. */
+async function holdClientEntry(page: Page): Promise<HeldClientEntry> {
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let held = false;
+  await page.route(DEV_CLIENT_ENTRY_URL, async (route) => {
+    held = true;
+    await released;
+    await route.continue();
+  });
+  return { isHeld: () => held, release };
+}
+
+test("the page checkbox keeps a tick made before the page hydrates", async ({
+  page,
+}) => {
+  const faults = collectPageFaults(page);
+  const clientEntry = await holdClientEntry(page);
+
+  await page.goto("/", { waitUntil: "commit" });
+  const bar = page.getByTestId("selection-header");
+  await bar.locator("label").click();
+  await expect.poll(clientEntry.isHeld).toBe(true);
+  clientEntry.release();
+
+  await expect(bar.getByText(/^\d+ selected/)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(bar.getByRole("checkbox")).toBeChecked();
+  expect(faults).toEqual([]);
+});
+
+test("rows then the page ticked before hydration select every row", async ({
+  page,
+}) => {
+  const faults = collectPageFaults(page);
+  const clientEntry = await holdClientEntry(page);
+
+  await page.goto("/", { waitUntil: "commit" });
+  const rows = page.getByTestId("inbox-row");
+  const bar = page.getByTestId("selection-header");
+  await rows.nth(0).locator("label").click();
+  await rows.nth(1).locator("label").click();
+  await bar.locator("label").click();
+  await expect.poll(clientEntry.isHeld).toBe(true);
+  clientEntry.release();
+
+  await expect(bar.getByRole("checkbox")).toBeChecked({ timeout: 20_000 });
+  const rowCount = await rows.count();
+  const everyRowSelected = new RegExp(`^${String(rowCount)} selected`);
+  await expect(bar.getByText(everyRowSelected)).toBeVisible();
   expect(faults).toEqual([]);
 });
