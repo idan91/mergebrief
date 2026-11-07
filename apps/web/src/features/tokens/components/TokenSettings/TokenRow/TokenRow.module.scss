@@ -1,0 +1,68 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-4);
+    align-items: center;
+    min-block-size: functions.to-rem(56px);
+    padding-block: functions.to-rem(9px);
+    padding-inline: var(--space-5);
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    & + & {
+      border-block-start: 1px solid var(--color-outline-1);
+    }
+
+    &[data-state="revoked"] {
+      .name,
+      .meta {
+        color: var(--color-text-3);
+      }
+    }
+  }
+
+  .text {
+    display: grid;
+    min-inline-size: 0;
+  }
+
+  .name {
+    font-size: var(--font-size-xl);
+    font-weight: 500;
+    line-height: functions.to-rem(20px);
+    overflow-wrap: anywhere;
+  }
+
+  .meta {
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    font-variant-numeric: tabular-nums;
+    line-height: functions.to-rem(18px);
+  }
+
+  .confirm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: flex-end;
+    color: var(--color-text-read);
+    font-size: var(--font-size-lg);
+  }
+
+  @media (width < 760px) {
+    .row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .confirm {
+      justify-content: flex-start;
+    }
+  }
+}

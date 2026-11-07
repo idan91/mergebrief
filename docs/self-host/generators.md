@@ -260,7 +260,7 @@ restarts.
 ## Who may start a brief
 
 An instance starts closed: nobody can sign in or start a brief until this file
-names them. A paste, a Regenerate and a minted API token all answer to the same
+names them. A paste, a Regenerate and a created API token all answer to the same
 rule. On a solo instance, your id under `operators` is all you need.
 
 ```yaml

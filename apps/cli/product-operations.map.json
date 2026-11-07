@@ -82,7 +82,7 @@
   },
   "mint-token": {
     "webOnly": {
-      "reason": "Minting a credential is a browser act \u2014 /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
+      "reason": "Creating a credential is a browser act \u2014 /api/auth/* ignores Bearer headers so a stolen token cannot create another",
       "owner": "idan"
     }
   },
@@ -211,13 +211,13 @@
   },
   "revoke-sessions": {
     "webOnly": {
-      "reason": "Signing out everywhere is cookie-only like minting: /api/auth/* ignores Bearer headers so a stolen token cannot sign its owner out",
+      "reason": "Signing out everywhere is cookie-only like creating a token: /api/auth/* ignores Bearer headers so a stolen token cannot sign its owner out",
       "owner": "idan"
     }
   },
   "revoke-token": {
     "webOnly": {
-      "reason": "Revocation is cookie-only for the same reason as minting: a stolen token must not be able to revoke the owner's tokens",
+      "reason": "Revocation is cookie-only for the same reason as creating a token: a stolen token must not be able to revoke the owner's tokens",
       "owner": "idan"
     }
   },

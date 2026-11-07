@@ -8,7 +8,7 @@ export const ExitCodes = {
   GENERIC: 1,
   /** Usage error caught client-side (bad flags, custom span, bad JSON shape). */
   USAGE: 2,
-  /** Auth (401); re-mint the token. */
+  /** Auth (401); create a new token. */
   AUTH: 3,
   /** Not found (404, incl. an unmodeled delta 404). */
   NOT_FOUND: 4,

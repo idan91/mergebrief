@@ -28,7 +28,7 @@ spends your provider key, counted against the
 loses access at their next GitHub token rotation, about every 8 hours of use: it
 ends their sessions and their API tokens, including one with no expiry. Until
 then they can read what their own GitHub access allows, and they cannot start a
-brief or mint a token.
+brief or create a token.
 
 Sign-in runs through your own GitHub App
 ([github-app.md](./github-app.md#reviewer-sign-in)), and every reviewer then acts
@@ -113,9 +113,9 @@ connection, and only `web` reaches it, over the compose network.
   came from this instance: it carries `Sec-Fetch-Site: same-origin`, or an
   `Origin` equal to `PUBLIC_BASE_URL`'s origin. Anything else answers 403.
 - **API tokens.** An API token starts with `mergebrief_`, is stored as a
-  SHA-256 hash, and carries the access level chosen when it was minted. The
-  `/api/auth/*` routes ignore it, so a stolen token cannot mint another token
-  or sign its owner out ([cli.md](./cli.md#minting-a-token-operator-walkthrough)).
+  SHA-256 hash, and carries the access level chosen when it was created. The
+  `/api/auth/*` routes ignore it, so a stolen token cannot create another token
+  or sign its owner out ([cli.md](./cli.md#creating-a-token-operator-walkthrough)).
 - **GitHub tokens.** Each user's access and refresh token pair is the one
   secret MergeBrief stores, encrypted under the session key
   ([operations.md](./operations.md#tokens-at-rest)). A user who revokes the

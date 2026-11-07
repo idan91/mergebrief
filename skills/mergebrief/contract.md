@@ -42,7 +42,7 @@ none of them appear in `--help`.
 | 0    | Success, including modeled unavailability             | Parse stdout if any, continue                                                  |
 | 1    | Network, 5xx, version skew                            | Retry later or surface; check `auth status`                                    |
 | 2    | Usage error, client-side                              | Fix the invocation; never resend as-is. On `auth status`, report and stop      |
-| 3    | Auth (401)                                            | Token is dead; the user re-mints at `<baseUrl>/settings`                       |
+| 3    | Auth (401)                                            | Token is dead; the user creates a new one at `<baseUrl>/settings`                       |
 | 4    | Not found                                             | Re-derive ids from `repos`/`pr`/`groups`                                       |
 | 5    | Server rejected the payload, or the CLI refused a no-flag `submit` | Fix and retry only what you can change; 403s and policy refusals are permanent |
 | 6    | Required operation cannot run on this server+CLI pair | Report the mismatch and stop                                                   |
@@ -93,7 +93,7 @@ the user instead of retrying. `capabilities --require` cannot see this
 gate, or the token's scope: it checks that an operation exists on both
 sides, not what the credential may do. `submit`, `reply`, `thread
 resolve|unresolve`, `ready` and `draft attach` write to GitHub and need a
-token minted with external-write scope.
+token created with external-write scope.
 
 `risk dismiss|address|reopen` take `-F` with a `flags` array naming each
 flag by anchor: `filePath`, `attribute`, `regionStart`, `regionEnd`. Flag ids
@@ -135,4 +135,4 @@ Commands infer the repo from the `origin` remote; an override flag exists
 (`--help`). The `repos` listing is cached with no TTL, so a renamed repo
 shows there only after a refresh, while PR-addressed commands self-heal on
 the first slug miss. Exit 4 naming a profile means the repo is outside this
-token's installation: switch profiles or re-mint.
+token's installation: switch profiles or create a new token.

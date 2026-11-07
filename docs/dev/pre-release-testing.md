@@ -189,7 +189,7 @@ from the App's settings, under Advanced, Recent Deliveries. Run the api with
 
 Sign-out, with the dev App:
 
-- [ ] Sign in and mint no CLI token, because a sign-out leaves the grant alone
+- [ ] Sign in and create no CLI token, because a sign-out leaves the grant alone
       while a token still uses it. Decrypt the newest grant's access token into
       memory with a throwaway script, never printing it, and read it with
       `POST /applications/{client_id}/token` under the App's client id and
@@ -416,11 +416,11 @@ release`.
       the newest release the server knows only while the instance is
       behind, so it is absent on the newest release. Then `pr`, `groups`, `diff --group`,
       `submit` round-trip. Setup: [`../self-host/cli.md`](../self-host/cli.md).
-      `manual-forever: a real deployment, a real minted token and real
+      `manual-forever: a real deployment, a real CLI token and real
       review writes; the suite covers the same commands against a spawned
       API process over PGlite.`
 - [ ] Agent-driven pass: point an AI coding agent at a briefed PR with only
-      the CLI on PATH, a minted token, and the prompt "review this PR with
+      the CLI on PATH, a CLI token, and the prompt "review this PR with
       mergebrief", no other coaching. Pass = the agent completes the `pr`,
       `groups`, `diff --group`, `submit` round-trip unaided from `--help` and
       `--json` output alone, and never needs a human to interpret an error.

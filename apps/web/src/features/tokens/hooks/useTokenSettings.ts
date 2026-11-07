@@ -8,16 +8,12 @@ import { RequestBounds } from "contract";
 import type { AccessLevel } from "types/access-levels";
 
 import { buildTokensQueryOptions, mintToken, revokeToken } from "../queries";
-import type { ApiTokenView, MintedToken } from "../types";
-
-/** The expiry choices the form offers; `none` = no expiry. */
-export const ExpiryChoices = {
-  THIRTY_DAYS: "30",
-  NINETY_DAYS: "90",
-  ONE_YEAR: "365",
-  NONE: "none",
-} as const;
-export type ExpiryChoice = (typeof ExpiryChoices)[keyof typeof ExpiryChoices];
+import {
+  ExpiryChoices,
+  type ApiTokenView,
+  type ExpiryChoice,
+  type MintedToken,
+} from "../types";
 
 /** No pre-selection: the scope a token carries is always a stated choice. */
 export const SCOPE_UNCHOSEN = "";
@@ -44,6 +40,10 @@ export interface TokenSettingsState {
   readonly dismissMintedToken: () => void;
   // Revoke.
   readonly revokePendingId: string | null;
+  /** The token whose revoke this page confirmed and the server accepted. */
+  readonly revokedHereId: string | undefined;
+  /** Names that token once the list shows it revoked; empty otherwise. */
+  readonly revokeAnnouncement: string;
   readonly revokeError: string | null;
   readonly revoke: (tokenId: string) => void;
 }
@@ -72,8 +72,14 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   });
 
   const [revokePendingId, setRevokePendingId] = useState<string | null>(null);
+  const [revokedHereId, setRevokedHereId] = useState<string | undefined>(
+    undefined,
+  );
   const revoking = useMutation({
     mutationFn: revokeToken,
+    onSuccess: (_answer, tokenId) => {
+      setRevokedHereId(tokenId);
+    },
     onSettled: () => {
       setRevokePendingId(null);
       void queryClient.invalidateQueries({
@@ -118,7 +124,14 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     minting.reset();
   };
 
-  const mintError = minting.isError ? t("tokens.mintFailed") : null;
+  const mintError = minting.isError ? t("tokens.createFailed") : null;
+  const revokedHereToken = tokensQuery.data?.tokens.find(
+    (token) => token.id === revokedHereId && token.revokedAt !== undefined,
+  );
+  const revokeAnnouncement =
+    revokedHereToken === undefined
+      ? ""
+      : t("tokens.revokedAnnouncement", { name: revokedHereToken.name });
 
   return {
     tokens: tokensQuery.data?.tokens,
@@ -136,11 +149,14 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     mintedToken,
     dismissMintedToken,
     revokePendingId,
+    revokedHereId,
+    revokeAnnouncement,
     revokeError: revoking.isError ? t("tokens.revokeFailed") : null,
     revoke: (tokenId) => {
       if (revoking.isPending) {
         return;
       }
+      setRevokedHereId(undefined);
       setRevokePendingId(tokenId);
       revoking.mutate(tokenId);
     },

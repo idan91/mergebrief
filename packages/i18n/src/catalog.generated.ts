@@ -341,6 +341,7 @@ export type Catalog = typeof en & {
     nameTooLong: "Token names are capped at {{max}} characters.";
     rowRevoked: "Revoked {{when}}";
     rowActive: "Expires {{expires}} · last used {{lastUsed}}";
+    revokedAnnouncement: "{{name}} revoked";
   };
   spend: (typeof en)["spend"] & {
     startedOfCap_one: "This instance has started <0>{{started}} of its {{count}}</0> run today.";

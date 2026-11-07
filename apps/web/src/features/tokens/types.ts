@@ -1,7 +1,17 @@
 // Shapes for the /api/auth/tokens endpoints.
 import type { AccessLevel } from "types/access-levels";
+import type { ValueOf } from "types/utils";
 
 import type { UnknownValue } from "@web/utils/open-enum/types";
+
+/** The expiry choices the create form offers; `none` = no expiry. */
+export const ExpiryChoices = {
+  THIRTY_DAYS: "30",
+  NINETY_DAYS: "90",
+  ONE_YEAR: "365",
+  NONE: "none",
+} as const;
+export type ExpiryChoice = ValueOf<typeof ExpiryChoices>;
 
 /** One token as the settings list shows it; metadata only, never material. */
 export interface ApiTokenView {

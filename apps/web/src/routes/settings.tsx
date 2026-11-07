@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
-  Link,
   useRouter,
   useRouterState,
   type ErrorComponentProps,
@@ -12,12 +11,7 @@ import {
 import type { ReactNode } from "react";
 
 import { FailureBlock } from "@web/components/FailureBlock";
-import { Icon } from "@web/components/Icon";
-import {
-  IconNames,
-  IconRotations,
-  IconSizes,
-} from "@web/components/Icon/types";
+import { Header } from "@web/components/Header";
 import {
   deriveEnabledTabs,
   parseSettingsSearch,
@@ -26,6 +20,7 @@ import {
   SettingsTabs,
   type SettingsTabId,
 } from "@web/features/settings";
+import { AccountMenu } from "@web/features/account";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates } from "../features/account/types";
 import { appI18n } from "../i18n/I18nProvider";
@@ -56,37 +51,19 @@ export const Route = createFileRoute("/settings")({
 
 export interface SettingsShellProps {
   children: ReactNode;
-  /** The rail needs a wider column than a lone panel. */
-  wide?: boolean;
 }
 
-/** One shell for every state, so the landmark, the breadcrumb and the heading survive a failed read. */
-function SettingsShell({ children, wide = false }: SettingsShellProps) {
-  const width = wide ? "wide" : "narrow";
+/** Home's shell for every state, so the landmark and the heading survive a failed read. */
+function SettingsShell({ children }: SettingsShellProps) {
   const { t } = useTranslation();
   return (
-    <main
-      className={styles["main"]}
-      data-width={width}
-      id="main-content"
-      tabIndex={-1}
-    >
-      <nav
-        aria-label={t("shell.ariaLabelBreadcrumb")}
-        className={styles["breadcrumb"]}
-      >
-        <Link to="/">
-          <Icon
-            name={IconNames.ARROW_UP}
-            rotation={IconRotations.THREE_QUARTERS}
-            size={IconSizes.MD}
-          />
-          {t("shell.backToBriefs")}
-        </Link>
-      </nav>
-      <h1>{t("shell.settingsHeading")}</h1>
-      {children}
-    </main>
+    <div className={styles["page"]}>
+      <Header end={<AccountMenu />} />
+      <main className={styles["main"]} id="main-content" tabIndex={-1}>
+        <h1>{t("shell.settingsHeading")}</h1>
+        {children}
+      </main>
+    </div>
   );
 }
 
@@ -130,14 +107,12 @@ function SettingsPage() {
   const tabs = deriveEnabledTabs(SETTINGS_TABS, viewer.operator);
   const active = resolveActiveTab(tabs, search.tab);
 
-  const wide = tabs.length > 1;
-
   function selectTab(tab: SettingsTabId) {
     void navigate({ search: { tab }, hash: true, replace: true });
   }
 
   return (
-    <SettingsShell wide={wide}>
+    <SettingsShell>
       <SettingsTabs active={active} onSelect={selectTab} tabs={tabs} />
     </SettingsShell>
   );

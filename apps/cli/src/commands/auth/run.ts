@@ -111,7 +111,7 @@ function describeAuthState(authenticated: boolean | null): string {
     return "authenticated";
   }
   if (authenticated === false) {
-    return "NOT authenticated (re-mint at <baseUrl>/settings)";
+    return "NOT authenticated (create a new token at <baseUrl>/settings)";
   }
   return "server unreachable";
 }
@@ -259,7 +259,7 @@ async function readPastedToken(
   if (!token.startsWith(TOKEN_PREFIX)) {
     throw new CliError(
       ExitCodes.USAGE,
-      `that does not look like a MergeBrief token (expected the ${TOKEN_PREFIX} prefix); mint one at ${baseUrl}/settings`,
+      `that does not look like a MergeBrief token (expected the ${TOKEN_PREFIX} prefix); create one at ${baseUrl}/settings`,
     );
   }
   if (!isSendableHeader("authorization", `Bearer ${token}`)) {

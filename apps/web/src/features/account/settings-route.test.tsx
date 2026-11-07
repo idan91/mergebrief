@@ -140,7 +140,7 @@ describe("the settings route", () => {
       "Settings could not be loaded",
     );
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Back to briefs" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "MergeBrief" })).toBeTruthy();
   });
 
   it("keeps the Settings tab title when the viewer read fails", async () => {

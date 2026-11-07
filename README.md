@@ -179,7 +179,7 @@ checkout of untrusted code. If the shell answers `command not found`,
 
 The same review loop, scriptable: **`mergebrief`** ([apps/cli](apps/cli/README.md))
 drives `pr` → `groups` → `diff --group` → `submit` over your deployment's API with an
-opaque token minted in the web app. `--json` output is a stability-promised contract
+opaque token created in the web app. `--json` output is a stability-promised contract
 (passthrough server shapes, additive-only, an 8-code exit table), which makes it safe to
 hand to an AI agent unattended. Install the packaged skill with
 `npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>`

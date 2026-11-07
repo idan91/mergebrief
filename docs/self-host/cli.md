@@ -45,7 +45,7 @@ Bearer token. Three things must be true:
 2. **`/api/*` accepts `Authorization: Bearer mergebrief_...`** end to end.
    The server side already does; the catch is usually in front of it (next
    section).
-3. **A token exists**, minted in the web app, per user, with the scope you
+3. **A token exists**, created in the web app, per user, with the scope you
    chose for it.
 
 ## IdP / SSO proxies: exempt `/api/*`
@@ -91,7 +91,7 @@ per-profile `headers` in the CLI config are the escape hatch:
 }
 ```
 
-## Minting a token (operator walkthrough)
+## Creating a token (operator walkthrough)
 
 1. Sign in to the web app with GitHub, open **`/settings`**.
 2. Name the token (e.g. `ci-reviewer`), pick its **scope**, and choose an
@@ -114,7 +114,7 @@ per-profile `headers` in the CLI config are the escape hatch:
    least a token needs. No scope reaches `draft reanchor`, `draft delete` or
    `risk dismiss|address|reopen`: they need the signed-in browser session and
    answer `403 human-only` to any token.
-3. Copy the token: it is shown **once**. Revoke and re-mint freely from
+3. Copy the token: it is shown **once**. Revoke and create another freely from
    the same page; `last_used_at` in the list tells you which tokens are
    live.
 4. On the machine that runs the CLI:

@@ -1,73 +1,70 @@
 // API-token settings section. All flow state lives in `useTokenSettings` -
 // this component only wires it to the DOM.
+import { useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { RequestBounds } from "contract";
-import { AccessLevels } from "types/access-levels";
-import {
-  useTokenSettings,
-  ExpiryChoices,
-  SCOPE_UNCHOSEN,
-  type ScopeChoice,
-} from "../../hooks/useTokenSettings";
-import { Button } from "@web/components/Button";
-import { UnknownValues } from "@web/utils/open-enum/types";
-import { formatDate, renderedLocale } from "../../../../i18n/locale";
+import { useTokenSettings, SCOPE_UNCHOSEN } from "../../hooks/useTokenSettings";
+import { Button, ButtonVariants } from "@web/components/Button";
+import { Icon } from "@web/components/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
+import { renderedLocale } from "../../../../i18n/locale";
+import { SCOPE_LABEL_KEY, SCOPE_ORDER } from "./consts";
+import { CreatedToken } from "./CreatedToken";
+import { TokenRow } from "./TokenRow";
 import styles from "./TokenSettings.module.scss";
+import { ExpiryChoices } from "../../types";
+import { describeToken, parseExpiryChoice, parseScopeChoice } from "./utils";
 
 export interface TokenSettingsProps {
   /** Only fetch/render once the viewer is known to be signed in. */
   enabled: boolean;
 }
 
-function formatWhen(
-  iso: string | undefined,
-  locale: string,
-  never: string,
-): string {
-  if (iso === undefined) {
-    return never;
-  }
-  return formatDate(iso, locale, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-// Identifiers, never copy: a translated binary name or shell flag would
-// be a broken instruction.
+// An identifier, never copy: a translated binary name would be a broken instruction.
 const CLI_BINARY = "mergebrief";
-const CHMOD_COMMAND = "chmod 600";
-
-/** Catalog key per rung, the same label in the picker and in the list. */
-const SCOPE_LABEL_KEY = {
-  [AccessLevels.READ]: "tokens.scopeRead",
-  [AccessLevels.PRIVATE_WRITE]: "tokens.scopePrivateWrite",
-  [AccessLevels.EXTERNAL_WRITE]: "tokens.scopeExternalWrite",
-} as const;
-
-/** Narrowest first: the list reads as a ladder, not an unordered set. */
-const SCOPE_ORDER = [
-  AccessLevels.READ,
-  AccessLevels.PRIVATE_WRITE,
-  AccessLevels.EXTERNAL_WRITE,
-] as const;
-
-function toScopeChoice(value: string): ScopeChoice | undefined {
-  if (value === SCOPE_UNCHOSEN) {
-    return SCOPE_UNCHOSEN;
-  }
-  return SCOPE_ORDER.find((scope) => scope === value);
-}
+const SCOPE_HINT_ID = "token-scope-hint";
+const CREATE_BLOCKED_ID = "token-create-blocked";
 
 export function TokenSettings({ enabled }: TokenSettingsProps) {
   const { i18n, t } = useTranslation();
   const state = useTokenSettings(enabled);
   const locale = renderedLocale(i18n.resolvedLanguage);
+  const nameRef = useRef<HTMLInputElement | null>(null);
 
   if (!enabled) {
     return null;
   }
+
+  function finishWithToken() {
+    state.dismissMintedToken();
+    nameRef.current?.focus();
+  }
+
+  const blockedReasonShown =
+    state.mintBlockedReason !== null && state.name !== "";
+  const scopeDescribedBy = blockedReasonShown
+    ? `${SCOPE_HINT_ID} ${CREATE_BLOCKED_ID}`
+    : SCOPE_HINT_ID;
+  const createHeld = state.mintPending || state.mintBlockedReason !== null;
+  const listEmpty = state.tokens !== undefined && state.tokens.length === 0;
+  const hasTokens = state.tokens !== undefined && state.tokens.length > 0;
+  const revokeInFlight = state.revokePendingId !== null;
+  const createLabel = state.mintPending
+    ? t("tokens.creating")
+    : t("tokens.createToken");
+  const tokenRows = (state.tokens ?? []).map((token) => ({
+    id: token.id,
+    name: token.name,
+    meta: describeToken(t, locale, token),
+    revoked: token.revokedAt !== undefined,
+    revokedHere: state.revokedHereId === token.id,
+    revoking: state.revokePendingId === token.id,
+  }));
+  // The shown-once Copy is the view's one accent while the token is up.
+  const createVariant =
+    state.mintedToken === null
+      ? ButtonVariants.ACCENT
+      : ButtonVariants.SECONDARY;
 
   return (
     <section
@@ -83,7 +80,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
       </p>
 
       <form
-        className={styles["mintForm"]}
+        className={styles["createForm"]}
         onSubmit={(event) => {
           event.preventDefault();
           state.submitMint();
@@ -95,72 +92,79 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             maxLength={RequestBounds.TOKEN_NAME_LENGTH}
             onChange={(event) => state.setName(event.target.value)}
             placeholder={t("tokens.namePlaceholder")}
+            ref={nameRef}
             type="text"
             value={state.name}
           />
         </label>
         <label className={styles["field"]}>
           <span>{t("tokens.scopeLabel")}</span>
-          {/* No pre-selection: a token's reach is stated, never inherited -
-              the server refuses a mint that names none. */}
-          <select
-            aria-describedby="token-scope-hint"
-            onChange={(event) => {
-              const choice = toScopeChoice(event.target.value);
-              if (choice !== undefined) {
-                state.setScope(choice);
-              }
-            }}
-            required
-            value={state.scope}
-          >
-            <option value={SCOPE_UNCHOSEN}>{t("tokens.scopeChoose")}</option>
-            {SCOPE_ORDER.map((scope) => (
-              <option key={scope} value={scope}>
-                {t(SCOPE_LABEL_KEY[scope])}
-              </option>
-            ))}
-          </select>
+          <span className={styles["selectWrap"]}>
+            {/* No pre-selection: a token's reach is stated, never inherited -
+                the server refuses a create that names none. */}
+            <select
+              aria-describedby={scopeDescribedBy}
+              onChange={(event) => {
+                const choice = parseScopeChoice(event.target.value);
+                if (choice !== undefined) {
+                  state.setScope(choice);
+                }
+              }}
+              required
+              value={state.scope}
+            >
+              <option value={SCOPE_UNCHOSEN}>{t("tokens.scopeChoose")}</option>
+              {SCOPE_ORDER.map((scope) => (
+                <option key={scope} value={scope}>
+                  {t(SCOPE_LABEL_KEY[scope])}
+                </option>
+              ))}
+            </select>
+            <Icon name={IconNames.CARET_DOWN} size={IconSizes.SM} />
+          </span>
         </label>
-        <p className={styles["hint"]} id="token-scope-hint">
-          {t("tokens.scopeHint")}
-        </p>
         <label className={styles["field"]}>
           <span>{t("tokens.expiresLabel")}</span>
-          <select
-            onChange={(event) => {
-              const value = event.target.value;
-              const choice = Object.values(ExpiryChoices).find(
-                (c) => c === value,
-              );
-              if (choice !== undefined) {
-                state.setExpiry(choice);
-              }
-            }}
-            value={state.expiry}
-          >
-            <option value={ExpiryChoices.THIRTY_DAYS}>
-              {t("tokens.expiry30")}
-            </option>
-            <option value={ExpiryChoices.NINETY_DAYS}>
-              {t("tokens.expiry90")}
-            </option>
-            <option value={ExpiryChoices.ONE_YEAR}>
-              {t("tokens.expiry365")}
-            </option>
-            <option value={ExpiryChoices.NONE}>{t("tokens.noExpiry")}</option>
-          </select>
+          <span className={styles["selectWrap"]}>
+            <select
+              onChange={(event) => {
+                const choice = parseExpiryChoice(event.target.value);
+                if (choice !== undefined) {
+                  state.setExpiry(choice);
+                }
+              }}
+              value={state.expiry}
+            >
+              <option value={ExpiryChoices.THIRTY_DAYS}>
+                {t("tokens.expiry30")}
+              </option>
+              <option value={ExpiryChoices.NINETY_DAYS}>
+                {t("tokens.expiry90")}
+              </option>
+              <option value={ExpiryChoices.ONE_YEAR}>
+                {t("tokens.expiry365")}
+              </option>
+              <option value={ExpiryChoices.NONE}>{t("tokens.noExpiry")}</option>
+            </select>
+            <Icon name={IconNames.CARET_DOWN} size={IconSizes.SM} />
+          </span>
         </label>
         <Button
-          disabled={state.mintPending || state.mintBlockedReason !== null}
+          className={styles["create"]}
+          disabled={createHeld}
           loading={state.mintPending}
           type="submit"
-          variant="accent"
+          variant={createVariant}
         >
-          {state.mintPending ? t("tokens.minting") : t("tokens.mintToken")}
+          {createLabel}
         </Button>
-        {state.mintBlockedReason !== null && state.name !== "" ? (
-          <p className={styles["hint"]}>{state.mintBlockedReason}</p>
+        <p className={styles["hint"]} id={SCOPE_HINT_ID}>
+          {t("tokens.scopeHint")}
+        </p>
+        {blockedReasonShown ? (
+          <p className={styles["hint"]} id={CREATE_BLOCKED_ID}>
+            {state.mintBlockedReason}
+          </p>
         ) : null}
         {state.mintError !== null ? (
           <p className={styles["error"]} role="alert">
@@ -170,92 +174,47 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
       </form>
 
       {state.mintedToken !== null ? (
-        <div aria-live="polite" className={styles["minted"]} role="status">
-          <p className={styles["mintedHeading"]}>{t("tokens.mintedHeading")}</p>
-          <code className={styles["mintedValue"]}>
-            {state.mintedToken.token}
-          </code>
-          <p className={styles["mintedDisclaimer"]}>
-            <Trans
-              components={[<code key="chmod">{CHMOD_COMMAND}</code>]}
-              i18nKey="tokens.disclaimer"
-            />
-          </p>
-          <Button onClick={state.dismissMintedToken}>
-            {t("tokens.dismissMinted")}
-          </Button>
-        </div>
+        <CreatedToken
+          dismiss={finishWithToken}
+          key={state.mintedToken.apiToken.id}
+          token={state.mintedToken.token}
+        />
       ) : null}
 
-      <div className={styles["list"]}>
-        {state.tokensError ? (
-          <p className={styles["error"]} role="alert">
-            {t("tokens.loadFailed")}
-          </p>
-        ) : null}
-        {state.tokens !== undefined && state.tokens.length === 0 ? (
-          <p className={styles["empty"]}>{t("tokens.noTokens")}</p>
-        ) : null}
-        {(state.tokens ?? []).map((token) => (
-          <div
-            className={styles["row"]}
-            data-revoked={token.revokedAt !== undefined}
-            key={token.id}
-          >
-            <span className={styles["rowName"]}>{token.name}</span>
-            <span className={styles["rowScope"]}>
-              {token.scope === UnknownValues.UNKNOWN
-                ? null
-                : t(SCOPE_LABEL_KEY[token.scope])}
-            </span>
-            <span className={styles["rowMeta"]}>
-              {token.revokedAt !== undefined
-                ? t("tokens.rowRevoked", {
-                    when: formatWhen(
-                      token.revokedAt,
-                      locale,
-                      t("tokens.never"),
-                    ),
-                  })
-                : t("tokens.rowActive", {
-                    expires:
-                      token.expiresAt === undefined
-                        ? t("tokens.never")
-                        : formatWhen(
-                            token.expiresAt,
-                            locale,
-                            t("tokens.never"),
-                          ),
-                    lastUsed: formatWhen(
-                      token.lastUsedAt,
-                      locale,
-                      t("tokens.never"),
-                    ),
-                  })}
-            </span>
-            {token.revokedAt === undefined ? (
-              <Button
-                // Token-specific accessible name: multiple rows must be
-                // distinguishable when navigating by buttons.
-                aria-label={t("tokens.ariaLabelRevoke", { name: token.name })}
-                disabled={state.revokePendingId === token.id}
-                loading={state.revokePendingId === token.id}
-                size="sm"
-                onClick={() => state.revoke(token.id)}
-              >
-                {state.revokePendingId === token.id
-                  ? t("tokens.revoking")
-                  : t("tokens.revoke")}
-              </Button>
-            ) : null}
-          </div>
-        ))}
-        {state.revokeError !== null ? (
-          <p className={styles["error"]} role="alert">
-            {state.revokeError}
-          </p>
-        ) : null}
-      </div>
+      {state.tokensError ? (
+        <p className={styles["error"]} role="alert">
+          {t("tokens.loadFailed")}
+        </p>
+      ) : null}
+      {listEmpty ? (
+        <p className={styles["empty"]}>{t("tokens.noTokens")}</p>
+      ) : null}
+      {hasTokens ? (
+        <ul className={styles["list"]}>
+          {tokenRows.map((row) => (
+            <TokenRow
+              key={row.id}
+              meta={row.meta}
+              name={row.name}
+              revoke={() => state.revoke(row.id)}
+              revokeInFlight={revokeInFlight}
+              revoked={row.revoked}
+              revokedHere={row.revokedHere}
+              revoking={row.revoking}
+            />
+          ))}
+        </ul>
+      ) : null}
+      {hasTokens ? (
+        <span className="sr-only" role="status">
+          {state.revokeAnnouncement}
+        </span>
+      ) : null}
+      {state.revokeError !== null ? (
+        <p className={styles["error"]} role="alert">
+          {state.revokeError}
+        </p>
+      ) : null}
     </section>
   );
 }

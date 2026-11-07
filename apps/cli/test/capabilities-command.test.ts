@@ -223,6 +223,50 @@ describe("mergebrief capabilities through runCli", () => {
     });
   });
 
+  it("says create, never mint, in every token web-only reason", async () => {
+    const { deps: d, out } = cliDeps({
+      operations: [
+        {
+          id: "mint-token",
+          kind: "action",
+          classification: AccessLevels.PRIVATE_WRITE,
+          endpoint: "POST /api/auth/tokens",
+        },
+        {
+          id: "revoke-token",
+          kind: "action",
+          classification: AccessLevels.PRIVATE_WRITE,
+          endpoint: "DELETE /api/auth/tokens/:id",
+        },
+        {
+          id: "revoke-sessions",
+          kind: "action",
+          classification: AccessLevels.PRIVATE_WRITE,
+          endpoint: "DELETE /api/auth/sessions",
+        },
+      ],
+    });
+
+    await runCli(["capabilities", "--json"], d);
+
+    const body: unknown = JSON.parse(out.join(""));
+    const parsed = z
+      .object({
+        operations: z.array(
+          z.object({
+            cli: z.object({ webOnly: z.object({ reason: z.string() }) }),
+          }),
+        ),
+      })
+      .parse(body);
+    const reasons = parsed.operations.map(({ cli }) => cli.webOnly.reason);
+    expect(reasons).toHaveLength(3);
+    expect(reasons[0]).toContain("Creating a credential");
+    for (const reason of reasons) {
+      expect(reason).not.toMatch(/mint/iu);
+    }
+  });
+
   it("exit 6 + invariant: empty stdout, one stderr line naming the op", async () => {
     const { deps: d, out, err } = cliDeps(REAL_SHAPED_BODY);
     const code = await runCli(

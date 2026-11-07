@@ -4,139 +4,131 @@
 @layer components {
   .root {
     display: grid;
-    gap: functions.to-rem(14px);
-    padding-block: functions.to-rem(18px);
+    gap: var(--space-5);
+    container-type: inline-size;
 
     h2 {
       margin: 0;
       font-size: var(--font-size-2xl);
-
-      // Pinned: overrides the base heading defaults.
-      font-weight: 700;
-      line-height: 1.55;
+      font-weight: 600;
+      line-height: functions.to-rem(24px);
     }
   }
 
   .copy {
+    max-inline-size: 62ch;
     margin: 0;
     color: var(--color-text-2);
     font-size: var(--font-size-lg);
   }
 
-  .mintForm {
-    display: flex;
-    flex-wrap: wrap;
-    gap: functions.to-rem(12px);
+  .createForm {
+    display: grid;
+    grid-template-columns:
+      minmax(functions.to-rem(160px), 1fr)
+      minmax(functions.to-rem(224px), 1.4fr)
+      functions.to-rem(144px)
+      auto;
+    gap: var(--space-4);
     align-items: end;
+    padding: var(--space-5);
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-1);
   }
 
   .field {
     display: grid;
-    gap: functions.to-rem(4px);
+    gap: functions.to-rem(6px);
+    min-inline-size: 0;
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
-
-    span {
-      color: var(--color-text-3);
-      font-size: var(--font-size-sm);
-    }
 
     input,
     select {
-      padding-block: functions.to-rem(6px);
-      padding-inline: functions.to-rem(10px);
+      inline-size: 100%;
+      block-size: functions.to-rem(38px);
+      padding-inline: var(--space-4);
       border: 1px solid var(--color-outline-2);
       border-radius: var(--radius-md);
-      background: var(--color-surface-1);
+      background: var(--color-background);
       color: var(--color-text-1);
       font-size: var(--font-size-lg);
 
       @include mixins.focus-visible;
     }
+
+    input::placeholder {
+      color: var(--color-text-3);
+    }
+  }
+
+  .selectWrap {
+    position: relative;
+    display: block;
+
+    select {
+      padding-inline-end: functions.to-rem(32px);
+      appearance: none;
+
+      &:invalid {
+        color: var(--color-text-3);
+      }
+    }
+
+    svg {
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-end: var(--space-4);
+      color: var(--color-text-2);
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+  }
+
+  .create {
+    min-block-size: functions.to-rem(38px);
+  }
+
+  .hint,
+  .error {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: var(--font-size-lg);
   }
 
   .hint {
-    flex-basis: 100%;
-    margin: 0;
     color: var(--color-text-3);
-    font-size: var(--font-size-md);
   }
 
   .error {
-    flex-basis: 100%;
-    margin: 0;
     color: var(--color-negative);
-    font-size: var(--font-size-md);
-  }
-
-  .minted {
-    display: grid;
-    gap: functions.to-rem(10px);
-    padding: functions.to-rem(14px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-1);
-  }
-
-  .mintedHeading {
-    margin: 0;
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-  }
-
-  .mintedValue {
-    padding: functions.to-rem(8px) functions.to-rem(10px);
-    border: 1px dashed var(--color-outline-2);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-lg);
-    overflow-wrap: anywhere;
-    user-select: all;
-  }
-
-  .mintedDisclaimer {
-    margin: 0;
-    color: var(--color-text-2);
-    font-size: var(--font-size-md);
   }
 
   .list {
-    display: grid;
-    gap: functions.to-rem(6px);
+    margin: 0;
+    padding: 0;
+    overflow: clip;
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-1);
+    list-style: none;
   }
 
   .empty {
     margin: 0;
-    color: var(--color-text-3);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
   }
 
-  .row {
-    display: flex;
-    gap: functions.to-rem(12px);
-    align-items: baseline;
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
-
-    &[data-revoked="true"] {
-      opacity: 0.6;
+  @container (width < #{functions.to-rem(720px)}) {
+    .createForm {
+      grid-template-columns: 1fr 1fr;
+      padding: var(--space-4);
     }
-  }
 
-  .rowName {
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-  }
-
-  .rowScope {
-    color: var(--color-text-3);
-    font-size: var(--font-size-md);
-    font-weight: 600;
-  }
-
-  .rowMeta {
-    flex: 1;
-    color: var(--color-text-3);
-    font-size: var(--font-size-md);
+    .field:nth-child(-n + 2) {
+      grid-column: 1 / -1;
+    }
   }
 }

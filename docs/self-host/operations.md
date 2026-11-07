@@ -617,8 +617,8 @@ grant sealed under that name:
 The fix is to put the old value back and run `docker compose up -d`. If the
 old value is gone, each user recovers on their own: signing out and in again
 seals a new grant under the current key. An API token stays bound to the
-sign-in it was minted from, so each user also revokes their old API tokens
-in `/settings` and mints new ones.
+sign-in it was created from, so each user also revokes their old API tokens
+in `/settings` and creates new ones.
 
 ### The GitHub App private key
 
@@ -759,7 +759,7 @@ Two things to know before you write a query against it:
   holding the pull request it named, else the repository. A pull request
   added by URL files with a null installation and `source = url`, even in a
   repository an installation holds. So do a request that names no
-  repository, such as a token mint or revoke, and one whose repository sits
+  repository, such as creating or revoking a token, and one whose repository sits
   in no installation the reviewer reaches.
 - **A refusal that never resolved a credential is not in this table.** An
   unknown cookie, a revoked API token, an expired session: there is no actor

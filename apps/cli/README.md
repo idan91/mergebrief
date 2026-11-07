@@ -21,7 +21,7 @@ below). Pinning is supported but never required for compatibility.
    a checkout of untrusted code, such as a pull request's head. If the shell
    answers `command not found`, npm's global bin directory is not on `PATH`.
    [Install](../../docs/self-host/cli.md#install) covers both.
-2. **Mint a token** in the web app: sign in, open `/settings`, name the
+2. **Create a token** in the web app: sign in, open `/settings`, name the
    token, pick its scope, and choose an expiry.
    The token is shown **exactly once**; treat it like a password. The CLI
    stores it **in plaintext** in a `chmod 600` file under
@@ -105,7 +105,7 @@ shell's startup file already has a pnpm section, which an older pnpm leaves.
 | 0 | Success, including modeled unavailability (`delta`'s `available:false` arm) |
 | 1 | Generic/unexpected: network, 5xx, version skew |
 | 2 | Usage error caught client-side (bad flags, `--group` with a custom span, malformed submit JSON shape) |
-| 3 | Auth (401); re-mint the token |
+| 3 | Auth (401); create a new token |
 | 4 | Not found (repo/PR/group/span; incl. an unmodeled delta 404) |
 | 5 | Server rejected the payload (4xx validation). Fix and retry; agent submit loops self-correct on this code Also the CLI's own refusal of a no-flag `submit`: resending it refuses again, so re-read or pass `--revision`. |
 | 6 | Incompatible: a `--require`d operation is not runnable on this server+CLI pair; do not drive it |
@@ -432,7 +432,7 @@ headers, owners and cached repo list, since those belong to the old instance.
 `auth login` refuses a profile name it couldn't store: `__proto__`, `.`, `..`, an
 empty name, or one with a path separator or a control character.
 
-Deploy-side setup (IdP `/api/*` exemption, minting walkthrough):
+Deploy-side setup (IdP `/api/*` exemption, token walkthrough):
 [`docs/self-host/cli.md`](../../docs/self-host/cli.md).
 
 ## Flag appendix (generated)

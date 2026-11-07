@@ -64,12 +64,12 @@ clone's origin, `mergebrief repos --refresh --json` gives its `fullName` for
 predates it or the config is malformed. Report stderr verbatim and ask the user.
 
 No profile with that host stops the run. Show the user the host and say no
-profile knows it. If they recognize it, they mint a token there and log in under
+profile knows it. If they recognize it, they create a token there and log in under
 a new name: `mergebrief auth login --profile <new-name> --base-url https://<host>`.
 Never suggest a bare `auth login`: it writes over the default profile.
 
 1. `mergebrief auth status --json`. A dead or missing token stops the run.
-   The user re-mints in the browser; you never handle credentials. So does
+   The user creates a new token in the browser; you never handle credentials. So does
    `server.reachable:false`, which still exits 0: report the `profile` and
    `baseUrl` it printed, run `mergebrief auth profiles --json`, and let the user
    pick from the other profiles for `--profile <name>`. Never open the config
