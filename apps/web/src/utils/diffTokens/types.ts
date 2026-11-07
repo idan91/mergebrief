@@ -40,6 +40,12 @@ export interface HunkSide {
 export const Preludes = {
   BLOCK_COMMENT: "/*",
   OPEN_TAG: "<Prelude",
+  OPEN_RULE: "a {",
+  OPEN_RULE_COMMENT: "a {\n/*",
+  OPEN_VALUE: "a {\nb:",
+  OPEN_ARGUMENTS: "a {\nb: f(",
+  OPEN_KEYFRAMES: "@keyframes{",
+  OPEN_KEYFRAMES_COMMENT: "@keyframes{\n/*",
 } as const;
 export type Prelude = ValueOf<typeof Preludes>;
 
