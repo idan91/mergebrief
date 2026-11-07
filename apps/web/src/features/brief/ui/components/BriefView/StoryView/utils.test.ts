@@ -5,9 +5,11 @@ import { DiffViews } from "@web/components/DiffRows/types";
 import {
   COLLAPSED_CARD_HEIGHT_PX,
   DESKTOP_CARD_METRICS,
+  DESKTOP_WRAP_COLUMNS,
   DIFF_ROW_HEIGHT_PX,
   estimateChunkCardHeight,
   estimateReservedChunkCardHeight,
+  derivePhoneWrapColumns,
 } from "../reading/chunk-height-model";
 import type { BriefChunk } from "../../../../model/types";
 import { stubLazyDiff } from "../../../../test-utils/fixtures";
@@ -42,6 +44,7 @@ describe("estimateStoryChunkHeight", () => {
       rows: NO_EXPANDED,
       open: true,
       metrics: DESKTOP_CARD_METRICS,
+      wrapColumns: DESKTOP_WRAP_COLUMNS,
       large: false,
     });
     const unified = estimateReservedChunkCardHeight({
@@ -49,12 +52,14 @@ describe("estimateStoryChunkHeight", () => {
       view: DiffViews.UNIFIED,
       open: true,
       metrics: DESKTOP_CARD_METRICS,
+      wrapColumns: DESKTOP_WRAP_COLUMNS,
     });
     const split = estimateReservedChunkCardHeight({
       counts: MID_WIDTH_COUNTS,
       view: DiffViews.SPLIT,
       open: true,
       metrics: DESKTOP_CARD_METRICS,
+      wrapColumns: DESKTOP_WRAP_COLUMNS,
     });
 
     expect(split).toBeGreaterThan(unified);
@@ -69,6 +74,7 @@ describe("estimateStoryChunkHeight", () => {
       rows: NO_EXPANDED,
       open: true,
       metrics: DESKTOP_CARD_METRICS,
+      wrapColumns: DESKTOP_WRAP_COLUMNS,
       large: false,
     });
 
@@ -78,6 +84,7 @@ describe("estimateStoryChunkHeight", () => {
         view: DiffViews.SPLIT,
         open: true,
         metrics: DESKTOP_CARD_METRICS,
+        wrapColumns: DESKTOP_WRAP_COLUMNS,
       }),
     );
   });
@@ -91,12 +98,14 @@ describe("estimateStoryChunkHeight", () => {
       rows,
       large: false,
       metrics: DESKTOP_CARD_METRICS,
+      wrapColumns: DESKTOP_WRAP_COLUMNS,
     };
     const reservedOpen = estimateReservedChunkCardHeight({
       counts: MID_WIDTH_COUNTS,
       view: DiffViews.UNIFIED,
       open: true,
       metrics: DESKTOP_CARD_METRICS,
+      wrapColumns: DESKTOP_WRAP_COLUMNS,
     });
 
     expect(estimateStoryChunkHeight({ ...input, open: true })).toBe(
@@ -104,6 +113,39 @@ describe("estimateStoryChunkHeight", () => {
     );
     expect(estimateStoryChunkHeight({ ...input, open: false })).toBe(
       COLLAPSED_CARD_HEIGHT_PX,
+    );
+  });
+
+  it("wraps a phone card's reservation at the phone's columns", () => {
+    const input = {
+      chunk: TWO_SIDED,
+      groupView: DiffViews.UNIFIED,
+      counts: MID_WIDTH_COUNTS,
+      rows: NO_EXPANDED,
+      open: true,
+      large: false,
+      metrics: DESKTOP_CARD_METRICS,
+    };
+    const phoneColumns = derivePhoneWrapColumns({
+      widthPx: 390,
+      cardBleeds: true,
+    });
+    const phone = estimateStoryChunkHeight({
+      ...input,
+      wrapColumns: phoneColumns,
+    });
+
+    expect(phone).toBe(
+      estimateReservedChunkCardHeight({
+        counts: MID_WIDTH_COUNTS,
+        view: DiffViews.UNIFIED,
+        open: true,
+        metrics: DESKTOP_CARD_METRICS,
+        wrapColumns: phoneColumns,
+      }),
+    );
+    expect(phone).toBeGreaterThan(
+      estimateStoryChunkHeight({ ...input, wrapColumns: DESKTOP_WRAP_COLUMNS }),
     );
   });
 
@@ -115,6 +157,7 @@ describe("estimateStoryChunkHeight", () => {
       rows: { diff: 7, expanded: 0 },
       open: true,
       metrics: DESKTOP_CARD_METRICS,
+      wrapColumns: DESKTOP_WRAP_COLUMNS,
       large: false,
     });
 

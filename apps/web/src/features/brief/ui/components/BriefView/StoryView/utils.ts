@@ -20,6 +20,7 @@ import {
   estimateChunkCardHeight,
   estimateReservedChunkCardHeight,
   type ChunkCardMetrics,
+  type WrapColumns,
 } from "../reading/chunk-height-model";
 import { resolveChunkView } from "../utils";
 
@@ -82,6 +83,7 @@ export interface StoryChunkHeightInput {
   open: boolean;
   large: boolean;
   metrics: ChunkCardMetrics;
+  wrapColumns: WrapColumns;
 }
 
 export function countDiffRows(
@@ -96,7 +98,7 @@ export function countDiffRows(
  * table draw: a one-sided card in a split group draws unified.
  */
 export function estimateStoryChunkHeight(input: StoryChunkHeightInput): number {
-  const { counts, rows, open, large, metrics } = input;
+  const { counts, rows, open, large, metrics, wrapColumns } = input;
   if (counts === undefined) {
     return estimateChunkCardHeight({
       diffRowCount: rows.diff,
@@ -113,6 +115,7 @@ export function estimateStoryChunkHeight(input: StoryChunkHeightInput): number {
     open,
     large,
     metrics,
+    wrapColumns,
   });
   if (!open) {
     return reserved;

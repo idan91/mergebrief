@@ -8,6 +8,7 @@ import { SYNTAX_PALETTE } from "@web/utils/diffTokens/palette";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { DiffRows } from ".";
 import tokenStyles from "./DiffCodeText/DiffCodeText.module.scss";
+import styles from "./DiffRows.module.scss";
 import { DiffViews } from "./types";
 import { isFullWidthDiffRow } from "./utils";
 
@@ -64,6 +65,12 @@ describe("DiffRows intra-line emphasis", () => {
 });
 
 const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
+const ROW_STYLESHEET = join(TEST_DIRECTORY, "DiffRows.module.scss");
+const STYLES_DIRECTORY = join(TEST_DIRECTORY, "../../styles");
+const UNIFIED_HANG =
+  /\.line > \.code \{[^}]*padding-inline-start: calc\(1\.125rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 16ch\)\)\)/;
+const SPLIT_HANG =
+  /\.line > \.code\[data-side\] \{\s*padding-inline-start: calc\(1\.125rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\);\s*text-indent: calc\(-1 \* \(1rem \+ min\(var\(--code-indent, 0\) \* 1ch, 8ch\)\)\)/;
 const TOKEN_STYLESHEET = join(
   TEST_DIRECTORY,
   "DiffCodeText",
@@ -478,5 +485,31 @@ describe("DiffRows", () => {
     expect(
       renderRows().container.querySelector("tbody")?.dataset["tokens"],
     ).toBe(undefined);
+  });
+
+  it.each([
+    [DiffViews.UNIFIED, ["8", "4", ""]],
+    [DiffViews.SPLIT, ["8", "4", "", ""]],
+  ])("writes each %s code cell's indent in columns", (view, indents) => {
+    const rows: DiffLine[] = [
+      { kind: "del", content: "\tgone", oldLine: 1 },
+      { kind: "add", content: "    fresh", newLine: 1 },
+      { kind: "ctx", content: "keep", oldLine: 2, newLine: 2 },
+    ];
+    const rendered = renderRows({ rows, view });
+    const cells = rendered.container.querySelectorAll<HTMLElement>(
+      `td.${styles["code"] ?? "code"}`,
+    );
+
+    expect(
+      [...cells].map((cell) => cell.style.getPropertyValue("--code-indent")),
+    ).toEqual(indents);
+  });
+
+  it("hangs a phone line's wrap under its indent in both views", () => {
+    const { css } = compile(ROW_STYLESHEET, { loadPaths: [STYLES_DIRECTORY] });
+
+    expect(css).toMatch(UNIFIED_HANG);
+    expect(css).toMatch(SPLIT_HANG);
   });
 });

@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChunkLayoutCounts } from "brief-core/chunk-layout";
 import { DiffViews } from "@web/components/DiffRows/types";
 import { SkeletonRows } from "../DiffTable/SkeletonRows";
-import { estimateReservedRowsHeight } from "../reading/chunk-height-model";
+import {
+  DESKTOP_WRAP_COLUMNS,
+  estimateReservedRowsHeight,
+} from "../reading/chunk-height-model";
 import { DIFF_VIEW_COOKIE } from "./diff-view-storage";
 import { useDiffViewPreference } from "./useDiffViewPreference";
 
@@ -29,7 +32,13 @@ const COUNTS: ChunkLayoutCounts = {
 
 function SkeletonFromPreference() {
   const preference = useDiffViewPreference({ search: undefined });
-  return <SkeletonRows counts={COUNTS} view={preference.view} />;
+  return (
+    <SkeletonRows
+      counts={COUNTS}
+      view={preference.view}
+      wrapColumns={DESKTOP_WRAP_COLUMNS}
+    />
+  );
 }
 
 function readBlockSize(html: string): string | undefined {
@@ -44,7 +53,7 @@ describe("the server render of a stored split view", () => {
 
     expect(html).toContain(`data-view="${DiffViews.SPLIT}"`);
     expect(readBlockSize(html)).toBe(
-      `${String(estimateReservedRowsHeight(COUNTS, DiffViews.SPLIT))}px`,
+      `${String(estimateReservedRowsHeight(COUNTS, DiffViews.SPLIT, DESKTOP_WRAP_COLUMNS))}px`,
     );
   });
 
@@ -53,7 +62,7 @@ describe("the server render of a stored split view", () => {
 
     expect(html).toContain(`data-view="${DiffViews.UNIFIED}"`);
     expect(readBlockSize(html)).toBe(
-      `${String(estimateReservedRowsHeight(COUNTS, DiffViews.UNIFIED))}px`,
+      `${String(estimateReservedRowsHeight(COUNTS, DiffViews.UNIFIED, DESKTOP_WRAP_COLUMNS))}px`,
     );
   });
 

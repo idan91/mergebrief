@@ -9,6 +9,7 @@ import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DiffViews } from "@web/components/DiffRows/types";
+import { DESKTOP_WRAP_COLUMNS } from "../../reading/chunk-height-model";
 import { SkeletonRows } from ".";
 import { MAX_SKELETON_ROWS } from "./consts";
 
@@ -74,7 +75,13 @@ function readVariants(row: Element | undefined): (string | null)[] {
 
 describe("SkeletonRows", () => {
   it("marks itself busy and names the wait for a screen reader", () => {
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.UNIFIED} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
 
     const skeleton = screen.getByTestId("skeleton-rows");
     expect(skeleton.getAttribute("aria-busy")).toBe("true");
@@ -82,7 +89,13 @@ describe("SkeletonRows", () => {
   });
 
   it("hides its rows from assistive tech, one element per row", () => {
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.UNIFIED} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
 
     const rows = screen.getByTestId("skeleton-rows").children[1];
     expect(rows?.getAttribute("aria-hidden")).toBe("true");
@@ -90,20 +103,38 @@ describe("SkeletonRows", () => {
   });
 
   it("reserves exactly the lines the height model prices", () => {
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.UNIFIED} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
     const unified = screen.getByTestId("skeleton-rows");
     expect(unified.style.getPropertyValue("--skeleton-block-size")).toBe(
       "291px",
     );
     cleanup();
 
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.SPLIT} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.SPLIT}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
     const split = screen.getByTestId("skeleton-rows");
     expect(split.style.getPropertyValue("--skeleton-block-size")).toBe("269px");
   });
 
   it("draws the stored added and removed rows in muted colour", () => {
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.UNIFIED} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
     const rows = readRows();
 
     expect(screen.getByTestId("skeleton-rows").dataset["ink"]).toBe("mirror");
@@ -115,7 +146,13 @@ describe("SkeletonRows", () => {
   });
 
   it("hatches the split view's empty side across from a lone change", () => {
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.SPLIT} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.SPLIT}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
     const rows = readRows();
 
     expect(readVariants(rows[2])).toEqual([
@@ -129,7 +166,13 @@ describe("SkeletonRows", () => {
   });
 
   it("draws no colour and no hatch without stored row runs", () => {
-    render(<SkeletonRows counts={NO_ROW_RUNS} view={DiffViews.SPLIT} />);
+    render(
+      <SkeletonRows
+        counts={NO_ROW_RUNS}
+        view={DiffViews.SPLIT}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
     const skeleton = screen.getByTestId("skeleton-rows");
     const coloured = skeleton.querySelectorAll(
       "[data-variant='added'], [data-variant='removed'], [data-variant='empty']",
@@ -142,7 +185,12 @@ describe("SkeletonRows", () => {
 
   it("sizes the number columns to the card's widest line number", () => {
     render(
-      <SkeletonRows counts={COUNTS} digits={4} view={DiffViews.UNIFIED} />,
+      <SkeletonRows
+        counts={COUNTS}
+        digits={4}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
     );
 
     const skeleton = screen.getByTestId("skeleton-rows");
@@ -150,7 +198,13 @@ describe("SkeletonRows", () => {
   });
 
   it("lays one hidden shine over the block, carrying the same rows", () => {
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.UNIFIED} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
 
     const shine = screen.getByTestId("skeleton-shine");
     expect(shine.parentElement).toBe(screen.getByTestId("skeleton-rows"));
@@ -168,7 +222,13 @@ describe("SkeletonRows", () => {
 
   it("fills a capped card's well past its rows, on the shine too", () => {
     const counts = { ...NO_ROW_RUNS, rows: 5000 };
-    render(<SkeletonRows counts={counts} view={DiffViews.UNIFIED} />);
+    render(
+      <SkeletonRows
+        counts={counts}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
 
     const rows = screen.getByTestId("skeleton-rows").children[1];
     const track = screen.getByTestId("skeleton-shine").children[0];
@@ -195,7 +255,13 @@ describe("SkeletonRows", () => {
 
   it("mounts no shine when the reader asks for reduced motion", () => {
     stubReducedMotion(true);
-    render(<SkeletonRows counts={COUNTS} view={DiffViews.UNIFIED} />);
+    render(
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />,
+    );
 
     expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
     expect(screen.queryByTestId("skeleton-shine")).toBeNull();
@@ -203,7 +269,13 @@ describe("SkeletonRows", () => {
 
   it("hydrates the server's shine, then drops it under reduced motion", async () => {
     stubReducedMotion(true);
-    const element = <SkeletonRows counts={COUNTS} view={DiffViews.UNIFIED} />;
+    const element = (
+      <SkeletonRows
+        counts={COUNTS}
+        view={DiffViews.UNIFIED}
+        wrapColumns={DESKTOP_WRAP_COLUMNS}
+      />
+    );
     const container = document.createElement("div");
     container.innerHTML = renderToString(element);
     document.body.append(container);

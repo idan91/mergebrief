@@ -4,6 +4,7 @@ import { type DiffLine, type RowTokenMap } from "@web/utils/diffTokens/types";
 import { DiffCodeText } from "../DiffCodeText";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
 import { pairSplitRows } from "../pairSplitRows";
+import { buildCodeIndentStyle } from "../utils";
 import {
   type DiffEdgeRowSlot,
   type DiffFullRowSlot,
@@ -249,6 +250,7 @@ function SideCells({
   const selected = attributes.selected ? "" : undefined;
   const commentable = attributes.commentable ? "" : undefined;
   const focusable = attributes.focusable;
+  const codeStyle = buildCodeIndentStyle(line.content);
 
   return (
     <>
@@ -292,6 +294,7 @@ function SideCells({
         onMouseDown={attributes.onMouseDown}
         onMouseEnter={attributes.onMouseEnter}
         onMouseUp={attributes.onMouseUp}
+        style={codeStyle}
         tabIndex={focusable ? 0 : ARROW_ONLY_STOP}
       >
         <span className={rowStyles["sign"]} {...anchorAttributes}>

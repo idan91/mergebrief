@@ -2,7 +2,7 @@
 // unrecognized value as absent, and `resolveBriefSearch` normalizes an
 // explicit-but-unavailable pair down instead of erroring, because this state
 // is user-editable and shareable. Both halves are asserted here.
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
   FIXTURE_PR_TITLE,
@@ -141,6 +141,18 @@ function findRowShowing(page: Page, side: "old" | "new", line: number) {
   return page.locator(`tr:has(> td[data-line-${side}="${String(line)}"])`);
 }
 
+async function isHitAtCentre(button: Locator): Promise<boolean> {
+  return button.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      box.x + box.width / 2,
+      box.y + box.height / 2,
+    );
+    const hitsButton = hit !== null && element.contains(hit);
+    return hitsButton;
+  });
+}
+
 test("a line link scrolls to that line, selected and focused", async ({
   page,
 }) => {
@@ -151,6 +163,52 @@ test("a line link scrolls to that line, selected and focused", async ({
   await expect(row).toBeFocused();
   await expect(row).toBeInViewport();
   await expect(page).toHaveURL(/[?&]l=c1\.R45(?:&|$)/);
+});
+
+test("a phone keeps a selected deleted line's link number tappable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.L295`);
+
+  const row = findRowShowing(page, "old", 295);
+  await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
+  const copyLink = row.getByRole("button", { name: "Copy link to line 295" });
+  await expect(copyLink).toBeVisible();
+  await expect(copyLink).toHaveText("295");
+
+  expect(await isHitAtCentre(copyLink)).toBe(true);
+  await copyLink.click({ trial: true });
+});
+
+test("a phone shows the link number of a context line linked by old side", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.L296`);
+
+  const row = findRowShowing(page, "old", 296);
+  await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
+  const copyLink = row.getByRole("button", { name: "Copy link to line 296" });
+  await expect(copyLink).toHaveText("296");
+  expect(await isHitAtCentre(copyLink)).toBe(true);
+
+  const newNumber = row.locator('td[data-line-new="378"]');
+  await expect(newNumber).toHaveCSS("color", "rgba(0, 0, 0, 0)");
+});
+
+test("a phone shows the link of an old-side range from a context line", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${FIXTURE_ROUTE_REV1}&l=c1.L296-L299`);
+
+  const row = findRowShowing(page, "old", 296);
+  await expect(row).toHaveAttribute("data-selected", "", { timeout: 15_000 });
+  const copyLink = row.getByRole("button", {
+    name: "Copy link to lines 296 to 299",
+  });
+  expect(await isHitAtCentre(copyLink)).toBe(true);
 });
 
 test("an old-side range link selects every line of the range", async ({

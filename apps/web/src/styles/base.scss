@@ -142,6 +142,7 @@
 
 @layer layout {
   .main {
+    // chunk-height-model.ts copies both gutters; chunk-height-model.stylesheets.test.ts compares.
     --main-gutter: #{functions.to-rem(48px)};
 
     // The body is a column flexbox, so a page grows to the viewport, where auto

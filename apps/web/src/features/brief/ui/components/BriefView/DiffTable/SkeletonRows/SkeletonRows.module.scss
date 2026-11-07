@@ -2,6 +2,7 @@
 @use "sass:math";
 @use "sass:string";
 @use "functions";
+@use "mixins";
 
 $shine-band: 0.3;
 $shine-sweep-end: 80%;
@@ -100,6 +101,13 @@ $fill-widths: 62, 48, 74, 36, 58, 81, 44, 69, 27, 53, 77, 40;
       ),
       calc(#{$rail + $cell-pad + $sign} + var(--skeleton-number-width) * 2)
     );
+
+    @include mixins.for-breakpoint("mobile", max) {
+      background: fill-layers(
+        ($rail + $cell-pad),
+        calc(#{$rail + $cell-pad + $sign} + var(--diff-unified-number-w))
+      );
+    }
   }
 
   .skeleton[data-view="split"] .fill {

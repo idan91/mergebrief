@@ -63,6 +63,7 @@ export function DiffTable(props: DiffTableProps) {
     reserved,
     skeletonView,
     skeletonDigits,
+    wrapColumns,
     viewportState,
     viewportStyle,
     handleViewportAnimationEnd,
@@ -74,6 +75,7 @@ export function DiffTable(props: DiffTableProps) {
         counts={reserved}
         digits={skeletonDigits}
         view={skeletonView}
+        wrapColumns={wrapColumns}
       />
     );
   }

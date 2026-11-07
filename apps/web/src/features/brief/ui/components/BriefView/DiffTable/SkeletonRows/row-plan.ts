@@ -5,7 +5,10 @@ import {
   type RowRun,
 } from "brief-core/chunk-layout";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
-import { countReservedLines } from "../../reading/chunk-height-model";
+import {
+  countReservedLines,
+  type WrapColumns,
+} from "../../reading/chunk-height-model";
 import { HEADER_COLUMNS, MAX_SKELETON_ROWS } from "./consts";
 import {
   makeCodeRow,
@@ -40,12 +43,14 @@ interface PlanState {
 export function planSkeletonRows(
   counts: ChunkLayoutCounts,
   view: DiffView,
+  wrapColumns: WrapColumns,
 ): SkeletonPlan {
   const storedRuns = readMatchingRowRuns(counts);
   const runs = storedRuns ?? synthesizeRuns(counts, view);
-  const context = makePlanContext(counts, view, countNoteRows(runs));
+  const noteRows = countNoteRows(runs);
+  const context = makePlanContext(counts, view, noteRows, wrapColumns);
   const state: PlanState = { rows: [], lines: 0, widthIndex: 0, hunkLanes: 0 };
-  const reservedLines = countReservedLines(counts, view);
+  const reservedLines = countReservedLines(counts, view, wrapColumns);
 
   drawRuns(state, runs, context);
   const filled = reservedLines > MAX_SKELETON_ROWS;

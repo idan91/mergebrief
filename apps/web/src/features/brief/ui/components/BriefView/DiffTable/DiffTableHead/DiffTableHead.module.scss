@@ -1,4 +1,5 @@
 @layer components {
+  // chunk-height-model.ts copies the rail and number columns; chunk-height-model.stylesheets.test.ts compares.
   .rail {
     inline-size: var(--diff-gutter-w);
   }

@@ -40,6 +40,16 @@ test("the brief never scrolls sideways at 320px", async ({ page }) => {
     inner: window.innerWidth,
   }));
   expect(widths.scroll).toBe(widths.inner);
+
+  // A long hunk title must not push the code past the screen inside its scroller.
+  const overflowing = await page.evaluate(
+    () =>
+      [...document.querySelectorAll("table")].filter((table) => {
+        const scroller = table.parentElement;
+        return scroller !== null && scroller.scrollWidth > scroller.clientWidth;
+      }).length,
+  );
+  expect(overflowing).toBe(0);
 });
 
 test("the shortcuts dialog is clean", async ({ page }, testInfo) => {

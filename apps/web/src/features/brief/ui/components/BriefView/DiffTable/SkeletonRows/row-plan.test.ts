@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ChunkLayoutCounts } from "brief-core/chunk-layout";
 import { DiffViews } from "@web/components/DiffRows/types";
+import { DESKTOP_WRAP_COLUMNS } from "../../reading/chunk-height-model";
 import { MAX_SKELETON_ROWS } from "./consts";
 import { planSkeletonRows } from "./row-plan";
 import {
@@ -51,7 +52,11 @@ function countLines(plan: SkeletonPlan): number {
 
 describe("planSkeletonRows", () => {
   it("draws the stored row runs in place in the unified view", () => {
-    const plan = planSkeletonRows(makeCounts(), DiffViews.UNIFIED);
+    const plan = planSkeletonRows(
+      makeCounts(),
+      DiffViews.UNIFIED,
+      DESKTOP_WRAP_COLUMNS,
+    );
 
     expect(plan.ink).toBe(SkeletonInks.MIRROR);
     expect(plan.rows.map(describeRow)).toEqual([
@@ -71,7 +76,11 @@ describe("planSkeletonRows", () => {
   });
 
   it("pairs a removed run with the added run after it in the split view", () => {
-    const plan = planSkeletonRows(makeCounts(), DiffViews.SPLIT);
+    const plan = planSkeletonRows(
+      makeCounts(),
+      DiffViews.SPLIT,
+      DESKTOP_WRAP_COLUMNS,
+    );
 
     expect(plan.rows.map(describeRow)).toEqual([
       "hunk",
@@ -90,7 +99,11 @@ describe("planSkeletonRows", () => {
 
   it("draws every row as context when no row runs are stored", () => {
     const { rowRuns: _rowRuns, ...counts } = makeCounts();
-    const plan = planSkeletonRows(counts, DiffViews.SPLIT);
+    const plan = planSkeletonRows(
+      counts,
+      DiffViews.SPLIT,
+      DESKTOP_WRAP_COLUMNS,
+    );
     const kinds = new Set(plan.rows.map(describeRow));
 
     expect(plan.ink).toBe(SkeletonInks.NEUTRAL);
@@ -106,6 +119,7 @@ describe("planSkeletonRows", () => {
     const plan = planSkeletonRows(
       makeCounts({ rowRuns: "h1c9r1a2c2h1c1a1c1e1" }),
       DiffViews.UNIFIED,
+      DESKTOP_WRAP_COLUMNS,
     );
 
     expect(plan.ink).toBe(SkeletonInks.NEUTRAL);
@@ -121,8 +135,16 @@ describe("planSkeletonRows", () => {
       },
     });
 
-    expect(countLines(planSkeletonRows(counts, DiffViews.UNIFIED))).toBe(12);
-    expect(countLines(planSkeletonRows(counts, DiffViews.SPLIT))).toBe(12);
+    expect(
+      countLines(
+        planSkeletonRows(counts, DiffViews.UNIFIED, DESKTOP_WRAP_COLUMNS),
+      ),
+    ).toBe(12);
+    expect(
+      countLines(
+        planSkeletonRows(counts, DiffViews.SPLIT, DESKTOP_WRAP_COLUMNS),
+      ),
+    ).toBe(12);
   });
 
   it("wraps a split row once for its wider side, not once per side", () => {
@@ -133,7 +155,11 @@ describe("planSkeletonRows", () => {
         overflowColumns: 0,
       },
     });
-    const plan = planSkeletonRows(counts, DiffViews.SPLIT);
+    const plan = planSkeletonRows(
+      counts,
+      DiffViews.SPLIT,
+      DESKTOP_WRAP_COLUMNS,
+    );
     const spans = plan.rows.map((row) =>
       row.type === SkeletonRowTypes.CODE ? row.span : 1,
     );
@@ -146,7 +172,11 @@ describe("planSkeletonRows", () => {
       lineWidths: { counts: [7, 0, 2, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
     });
 
-    expect(countLines(planSkeletonRows(counts, DiffViews.SPLIT))).toBe(13);
+    expect(
+      countLines(
+        planSkeletonRows(counts, DiffViews.SPLIT, DESKTOP_WRAP_COLUMNS),
+      ),
+    ).toBe(13);
   });
 
   it("caps a very long card's lines and fills the rest of its well", () => {
@@ -154,7 +184,11 @@ describe("planSkeletonRows", () => {
       rows: 5000,
       splitRows: 5000,
     });
-    const plan = planSkeletonRows(counts, DiffViews.UNIFIED);
+    const plan = planSkeletonRows(
+      counts,
+      DiffViews.UNIFIED,
+      DESKTOP_WRAP_COLUMNS,
+    );
 
     expect(plan.filled).toBe(true);
     expect(countLines(plan)).toBeLessThanOrEqual(MAX_SKELETON_ROWS);
@@ -172,6 +206,7 @@ describe("planSkeletonRows", () => {
         rowRuns: "",
       }),
       DiffViews.UNIFIED,
+      DESKTOP_WRAP_COLUMNS,
     );
 
     expect(plan.rows).toEqual([]);
@@ -179,8 +214,16 @@ describe("planSkeletonRows", () => {
   });
 
   it("keeps every row the same across plans of the same counts", () => {
-    const first = planSkeletonRows(makeCounts(), DiffViews.SPLIT);
-    const second = planSkeletonRows(makeCounts(), DiffViews.SPLIT);
+    const first = planSkeletonRows(
+      makeCounts(),
+      DiffViews.SPLIT,
+      DESKTOP_WRAP_COLUMNS,
+    );
+    const second = planSkeletonRows(
+      makeCounts(),
+      DiffViews.SPLIT,
+      DESKTOP_WRAP_COLUMNS,
+    );
 
     expect(first).toEqual(second);
   });
@@ -196,7 +239,11 @@ describe("planSkeletonRows", () => {
     });
     const startedAt = performance.now();
 
-    const plan = planSkeletonRows(counts, DiffViews.SPLIT);
+    const plan = planSkeletonRows(
+      counts,
+      DiffViews.SPLIT,
+      DESKTOP_WRAP_COLUMNS,
+    );
 
     expect(plan.filled).toBe(true);
     expect(countLines(plan)).toBeLessThanOrEqual(MAX_SKELETON_ROWS);

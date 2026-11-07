@@ -41,10 +41,21 @@ import type { ChunkLayoutCounts } from "brief-core/chunk-layout";
 import type { StoredChunkCounts } from "../../../../model/chunk-layout/useChunkLayout";
 import { GroupViewKinds } from "../../../../model/utils/remainder";
 import {
+  DESKTOP_WRAP_COLUMNS,
   DIFF_ROW_HEIGHT_PX,
   EMPTY_DIFF_NOTE_PX,
+  estimateReservedRowsHeight,
+  derivePhoneWrapColumns,
   TALL_ROW_EXTRA_PX,
 } from "../reading/chunk-height-model";
+import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import { CARD_BLEED_QUERY } from "../reading/useWrapColumns";
+import {
+  resetMediaQueries,
+  resetViewportWidth,
+  setMediaQueryMatches,
+  setViewportWidth,
+} from "@web/test/setup";
 import {
   ChunkLayoutProvider,
   type ChunkLayoutState,
@@ -485,6 +496,92 @@ describe("DiffTable before the code lands", () => {
     expect(
       screen.getByText("The brief loaded, but no raw diff matches this chunk."),
     ).toBeDefined();
+  });
+});
+
+describe("DiffTable reservations on a phone", () => {
+  /** Ten rows about 100 columns wide: one line on a desktop, three on a phone. */
+  const WIDE_COUNTS: ChunkLayoutCounts = {
+    rows: 11,
+    hunkRows: 1,
+    expandRows: 0,
+    splitRows: 11,
+    lineWidths: { counts: [0, 0, 10, 0, 0, 0, 0, 0, 0], overflowColumns: 0 },
+  };
+  const phoneHeight = estimateReservedRowsHeight(
+    WIDE_COUNTS,
+    DiffViews.UNIFIED,
+    derivePhoneWrapColumns({ widthPx: 390, cardBleeds: true }),
+  );
+
+  afterEach(() => {
+    resetMediaQueries();
+    resetViewportWidth();
+  });
+
+  it("wraps a pending card's skeleton at the phone's columns", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    setMediaQueryMatches(CARD_BLEED_QUERY, true);
+    setViewportWidth(390);
+    renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: WIDE_COUNTS }), codePending: true },
+    );
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.style.getPropertyValue("--skeleton-block-size")).toBe(
+      `${String(phoneHeight)}px`,
+    );
+    expect(phoneHeight).toBeGreaterThan(
+      estimateReservedRowsHeight(
+        WIDE_COUNTS,
+        DiffViews.UNIFIED,
+        DESKTOP_WRAP_COLUMNS,
+      ),
+    );
+  });
+
+  it("keeps the phone's reservation as the landed table's intrinsic size", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    setMediaQueryMatches(CARD_BLEED_QUERY, true);
+    setViewportWidth(390);
+    const { view } = renderTable({ chunk: chunk() }, {}, undefined, undefined, {
+      counts: storeCounts({ c1: WIDE_COUNTS }),
+      codePending: false,
+    });
+
+    const viewport = view.container.querySelector<HTMLElement>(
+      "[style*='--diff-reserved-size']",
+    );
+    expect(viewport?.style.getPropertyValue("--diff-reserved-size")).toBe(
+      `${String(phoneHeight)}px`,
+    );
+  });
+
+  it("wraps an upright tablet's skeleton at its own width's columns", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    setViewportWidth(768);
+    renderTable(
+      { chunk: getDifflessChunks(chunk()) },
+      {},
+      undefined,
+      undefined,
+      { counts: storeCounts({ c1: WIDE_COUNTS }), codePending: true },
+    );
+    const tabletHeight = estimateReservedRowsHeight(
+      WIDE_COUNTS,
+      DiffViews.UNIFIED,
+      derivePhoneWrapColumns({ widthPx: 768, cardBleeds: false }),
+    );
+
+    const skeleton = screen.getByTestId("skeleton-rows");
+    expect(skeleton.style.getPropertyValue("--skeleton-block-size")).toBe(
+      `${String(tabletHeight)}px`,
+    );
+    expect(tabletHeight).toBeLessThan(phoneHeight);
   });
 });
 

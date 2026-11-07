@@ -102,6 +102,26 @@ export function resetMediaQueries(): void {
   mediaQueryMatches.clear();
 }
 
+/** jsdom's window width before any test resizes it. */
+const DEFAULT_VIEWPORT_WIDTH_PX = 1024;
+
+/** Resize the window and notify its listeners, the way a rotation would; no scrollbar. */
+export function setViewportWidth(widthPx: number): void {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: widthPx,
+  });
+  Object.defineProperty(document.documentElement, "clientWidth", {
+    configurable: true,
+    value: widthPx,
+  });
+  window.dispatchEvent(new Event("resize"));
+}
+
+export function resetViewportWidth(): void {
+  setViewportWidth(DEFAULT_VIEWPORT_WIDTH_PX);
+}
+
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = ResizeObserverStub;
 }

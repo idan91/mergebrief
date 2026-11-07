@@ -1,5 +1,10 @@
 import type { ValueOf, DiffSide } from "types";
-import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
+import type {
+  CSSProperties,
+  KeyboardEventHandler,
+  MouseEventHandler,
+  ReactNode,
+} from "react";
 import type {
   DiffLine,
   RowToken,
@@ -168,3 +173,8 @@ export interface TokenSide {
 }
 
 export type EmphasisByRow = ReadonlyMap<number, readonly CharRange[]>;
+
+/** A code cell's leading-whitespace width in columns, which the phone wrap hangs continuation lines under. */
+export interface CodeIndentStyle extends CSSProperties {
+  "--code-indent": number;
+}

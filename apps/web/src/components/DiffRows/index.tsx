@@ -1,9 +1,14 @@
+import clsx from "clsx";
 import { Fragment } from "react";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
 import { DiffCodeText } from "./DiffCodeText";
 import { SplitRows } from "./SplitRows";
 import { type DiffRowsProps, DiffViews, NumberCellStates } from "./types";
-import { buildDiffRowKeys, isFullWidthDiffRow } from "./utils";
+import {
+  buildCodeIndentStyle,
+  buildDiffRowKeys,
+  isFullWidthDiffRow,
+} from "./utils";
 import styles from "./DiffRows.module.scss";
 import { DiffSides } from "types/comments";
 
@@ -81,6 +86,7 @@ export function DiffRows({
 
         const oldContent = lineNumberContent?.(row, index, DiffSides.OLD);
         const newContent = lineNumberContent?.(row, index, DiffSides.NEW);
+        const codeStyle = buildCodeIndentStyle(row.content);
 
         return (
           <Fragment key={key}>
@@ -106,7 +112,7 @@ export function DiffRows({
                 <>
                   <td
                     {...lineNumberAttributes}
-                    className={styles["lineNumber"]}
+                    className={clsx(styles["lineNumber"], styles["oldNumber"])}
                     data-line-number=""
                     data-line-old={row.oldLine}
                     data-state={
@@ -134,7 +140,7 @@ export function DiffRows({
                   </td>
                 </>
               ) : null}
-              <td className={styles["code"]}>
+              <td className={styles["code"]} style={codeStyle}>
                 <span {...anchorAttributes} className={styles["sign"]}>
                   {DIFF_LINE_SIGNS[row.kind]}
                 </span>

@@ -60,10 +60,10 @@
     position: absolute;
 
     // The 24px hit box overhangs the gutter; `z-index` keeps it above the
-    // number cell that follows it and is positioned, so the overhang is
-    // hit-testable. At the edge the viewport clips the start side, so the
-    // box hangs off the end side only.
-    z-index: 1;
+    // number cells that follow it and are positioned, a phone's deleted-line
+    // number included, so the overhang is hit-testable. At the edge the
+    // viewport clips the start side, so the box hangs off the end side only.
+    z-index: 2;
     inset-block: 0;
     inset-inline-start: 0;
     inline-size: functions.to-rem(24px);

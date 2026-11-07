@@ -45,6 +45,7 @@ import {
 } from "../../../../model/utils/line-owner";
 import { resolveChunkCardMetrics } from "../reading/chunk-height-model";
 import { useChunkWindows } from "../reading/chunk-windows";
+import { useWrapColumns } from "../reading/useWrapColumns";
 import { useReadingPosition } from "../reading/reading-position";
 import {
   CHUNK_WINDOW_INDEX_ATTR,
@@ -371,6 +372,7 @@ function WindowedChunkList({
   );
   const mobile = useMobileViewport();
   const metrics = resolveChunkCardMetrics(mobile);
+  const wrapColumns = useWrapColumns();
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = group.chunks[index];
@@ -385,9 +387,18 @@ function WindowedChunkList({
         open: openChunks.has(chunk.id),
         large: isLargeChunk(chunk),
         metrics,
+        wrapColumns,
       });
     },
-    [group.chunks, openChunks, rowCounts, layout, diffView, metrics],
+    [
+      group.chunks,
+      openChunks,
+      rowCounts,
+      layout,
+      diffView,
+      metrics,
+      wrapColumns,
+    ],
   );
 
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });

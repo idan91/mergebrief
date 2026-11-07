@@ -4,6 +4,7 @@ import {
   listBucketWraps,
   resolveWrapHistogram,
   type BucketWrap,
+  type WrapColumns,
 } from "../../reading/chunk-height-model";
 import {
   BUCKET_WIDTH_OFFSET,
@@ -62,9 +63,14 @@ export function makePlanContext(
   counts: ChunkLayoutCounts,
   view: DiffView,
   noteRows: number,
+  wrapColumns: WrapColumns,
 ): PlanContext {
   const split = view === DiffViews.SPLIT;
-  const { histogram, columns } = resolveWrapHistogram(counts, view);
+  const { histogram, columns } = resolveWrapHistogram(
+    counts,
+    view,
+    wrapColumns,
+  );
   const paintedRows = split ? counts.splitRows : counts.rows;
   const widthRows = Math.max(paintedRows - counts.hunkRows - noteRows, 0);
 

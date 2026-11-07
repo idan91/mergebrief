@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 // Track `DiffRows` and `SplitRows`: a 14px rail, 14px cell padding and a
 // 42px split number cell.
@@ -40,6 +41,14 @@ $bar-h: 8px;
         var(--skeleton-number-width) var(--skeleton-number-width)
         minmax(0, 1fr);
       padding-inline-start: $rail;
+
+      @include mixins.for-breakpoint("mobile", max) {
+        grid-template-columns: 0 var(--diff-unified-number-w) minmax(0, 1fr);
+
+        > .number:first-child:not([data-variant="removed"])::after {
+          content: none;
+        }
+      }
     }
 
     &[data-view="split"] {

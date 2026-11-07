@@ -12,6 +12,7 @@ import {
   type LineWidthHistogram,
 } from "brief-core/chunk-layout";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import { SPLIT_MIN_WIDTH_PX } from "../StoryView/useSplitWidth";
 
 export const DIFF_ROW_HEIGHT_PX = 22;
 
@@ -22,10 +23,82 @@ export const TALL_ROW_EXTRA_PX = 9;
  * Columns a code cell fits before a line wraps, a fixed middle of the
  * widths readers use: measured 147 at 1920px and about 105 at 1440px for
  * the unified cell (7.8px a glyph), and 70 and 48 for a split half.
- * Fixed because the server and the client must reserve the same height.
+ * Fixed so the server and the hydrating client reserve the same height.
  */
 export const UNIFIED_CODE_COLUMNS = 125;
 export const SPLIT_CODE_COLUMNS = 58;
+
+/** The columns each view's code cell wraps at. */
+export interface WrapColumns {
+  unified: number;
+  split: number;
+}
+
+export const DESKTOP_WRAP_COLUMNS: WrapColumns = {
+  unified: UNIFIED_CODE_COLUMNS,
+  split: SPLIT_CODE_COLUMNS,
+};
+
+/** A glyph of the diff's 13px IBM Plex Mono: 0.6em. */
+export const CODE_GLYPH_PX = 7.8;
+
+/** The root font size the stylesheets' rem lengths are written against. */
+export const DEFAULT_REM_PX = 16;
+
+export const NARROW_MAIN_GUTTER_PX = 12;
+export const MAIN_GUTTER_PX = 48;
+export const CARD_BLEED_PX = 8;
+export const CARD_BORDERS_PX = 2;
+
+/** A phone code cell's padding: the 16px sign hangs in an 18px start, then 8px at the end. */
+export const PHONE_CODE_PADDING_PX = 26;
+
+/** A phone unified row's 14px rail and 34px number column. */
+export const PHONE_UNIFIED_NUMBERS_PX = 48;
+
+/** The split table's two 14px rails and two 42px number columns: its fixed layout reads the cols, not the phone cell width. */
+export const SPLIT_NUMBERS_PX = 112;
+
+/** The page as the phone layout lays it out. */
+export interface PhoneLayout {
+  /** The page's width inside any scrollbar. */
+  widthPx: number;
+  /** Under 760px `.main` keeps a 12px gutter and a chunk card bleeds 8px past it each side; from 760px the gutter is 48px. */
+  cardBleeds: boolean;
+  /** The root font size, 16 when absent: the stylesheets set every phone length here in rem but the card border. */
+  remPx?: number | undefined;
+}
+
+function countCodeColumns(widthPx: number, glyphPx: number): number {
+  return Math.max(Math.floor(widthPx / glyphPx), 1);
+}
+
+/**
+ * The columns each view wraps at under the mobile breakpoint, from the
+ * page's width. Split renders only on a chunk list `SPLIT_MIN_WIDTH_PX`
+ * wide, so under that the split figure is the narrowest list's that renders it.
+ */
+export function derivePhoneWrapColumns(layout: PhoneLayout): WrapColumns {
+  const { widthPx, cardBleeds, remPx = DEFAULT_REM_PX } = layout;
+  const remScale = remPx / DEFAULT_REM_PX;
+  const gutterPx = cardBleeds ? NARROW_MAIN_GUTTER_PX : MAIN_GUTTER_PX;
+  const listPx = widthPx - 2 * gutterPx * remScale;
+  const bleedPx = cardBleeds ? 2 * CARD_BLEED_PX * remScale : 0;
+  const cardOverListPx = bleedPx - CARD_BORDERS_PX;
+  const splitListPx = Math.max(listPx, SPLIT_MIN_WIDTH_PX);
+  const codePaddingPx = PHONE_CODE_PADDING_PX * remScale;
+  const glyphPx = CODE_GLYPH_PX * remScale;
+
+  const unifiedNumbersPx = PHONE_UNIFIED_NUMBERS_PX * remScale;
+  const unifiedCodePx =
+    listPx + cardOverListPx - unifiedNumbersPx - codePaddingPx;
+  const splitHalfPx =
+    (splitListPx + cardOverListPx - SPLIT_NUMBERS_PX * remScale) / 2;
+  return {
+    unified: countCodeColumns(unifiedCodePx, glyphPx),
+    split: countCodeColumns(splitHalfPx - codePaddingPx, glyphPx),
+  };
+}
 
 /** Card chrome around the diff table: head row, chips, paddings, card gap. */
 export const CHUNK_CARD_OVERHEAD_PX = 96;
@@ -101,6 +174,7 @@ export interface ReservedChunkSizeInput {
   open: boolean;
   large?: boolean | undefined;
   metrics: ChunkCardMetrics;
+  wrapColumns: WrapColumns;
 }
 
 /**
@@ -111,7 +185,7 @@ export interface ReservedChunkSizeInput {
 export function estimateReservedChunkCardHeight(
   input: ReservedChunkSizeInput,
 ): number {
-  const { counts, view, open, large, metrics } = input;
+  const { counts, view, open, large, metrics, wrapColumns } = input;
   if (!open) {
     const collapsed: ChunkCardSizeInput = { diffRowCount: 0, open, metrics };
     if (large !== undefined) {
@@ -121,7 +195,7 @@ export function estimateReservedChunkCardHeight(
   }
 
   const cardHeight =
-    estimateReservedRowsHeight(counts, view) + metrics.overheadPx;
+    estimateReservedRowsHeight(counts, view, wrapColumns) + metrics.overheadPx;
   return cardHeight;
 }
 
@@ -133,13 +207,14 @@ export function estimateReservedChunkCardHeight(
 export function estimateReservedRowsHeight(
   counts: ChunkLayoutCounts,
   view: DiffView,
+  wrapColumns: WrapColumns,
 ): number {
   if (counts.rows === 0) {
     return EMPTY_DIFF_NOTE_PX;
   }
   const tallRows = counts.hunkRows + counts.expandRows;
   const rowsHeight =
-    countReservedLines(counts, view) * DIFF_ROW_HEIGHT_PX +
+    countReservedLines(counts, view, wrapColumns) * DIFF_ROW_HEIGHT_PX +
     tallRows * TALL_ROW_EXTRA_PX;
 
   return rowsHeight;
@@ -152,10 +227,13 @@ export function estimateReservedRowsHeight(
 export function countReservedLines(
   counts: ChunkLayoutCounts,
   view: DiffView,
+  wrapColumns: WrapColumns,
 ): number {
   const codeRows = view === DiffViews.SPLIT ? counts.splitRows : counts.rows;
   const lines =
-    codeRows + counts.expandRows + countViewWrappedLines(counts, view);
+    codeRows +
+    counts.expandRows +
+    countViewWrappedLines(counts, view, wrapColumns);
 
   return lines;
 }
@@ -169,8 +247,13 @@ export function countReservedLines(
 export function countViewWrappedLines(
   counts: ChunkLayoutCounts,
   view: DiffView,
+  wrapColumns: WrapColumns,
 ): number {
-  const { histogram, columns } = resolveWrapHistogram(counts, view);
+  const { histogram, columns } = resolveWrapHistogram(
+    counts,
+    view,
+    wrapColumns,
+  );
 
   return countWrappedLines(histogram, columns);
 }
@@ -184,14 +267,15 @@ export interface WrapHistogram {
 export function resolveWrapHistogram(
   counts: ChunkLayoutCounts,
   view: DiffView,
+  wrapColumns: WrapColumns,
 ): WrapHistogram {
   if (view === DiffViews.SPLIT) {
     return {
       histogram: counts.splitLineWidths ?? counts.lineWidths,
-      columns: SPLIT_CODE_COLUMNS,
+      columns: wrapColumns.split,
     };
   }
-  return { histogram: counts.lineWidths, columns: UNIFIED_CODE_COLUMNS };
+  return { histogram: counts.lineWidths, columns: wrapColumns.unified };
 }
 
 /** Extra lines the histogram's rows take past `columns`. */

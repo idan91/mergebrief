@@ -111,10 +111,12 @@
 
     // Diff table geometry: one width for every revision gutter, edge and
     // seam, both views; the column widths and the under-row insets read it.
+    // chunk-height-model.ts copies the gutter and number widths; chunk-height-model.stylesheets.test.ts compares.
     --diff-gutter-w: #{functions.to-rem(14px)};
     --diff-rail-w: 4px;
     --diff-rail-inset: 5px;
     --diff-number-w: #{functions.to-rem(42px)};
+    --diff-unified-number-w: calc(2 * var(--diff-number-w));
 
     // A selected diff row: 14% is the strongest wash every syntax colour
     // keeps at 4.5:1 over; the number cells paint 24% opaque over the well
@@ -378,6 +380,9 @@
       --sidebar-bar-h: calc(
         #{functions.to-rem(56px)} + env(safe-area-inset-bottom)
       );
+
+      // chunk-height-model.ts copies this width; chunk-height-model.stylesheets.test.ts compares.
+      --diff-unified-number-w: #{functions.to-rem(34px)};
     }
   }
 

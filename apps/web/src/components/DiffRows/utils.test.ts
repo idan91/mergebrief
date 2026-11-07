@@ -2,7 +2,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { findRowByLine, hasPairedSides } from "./utils";
+import {
+  buildCodeIndentStyle,
+  countIndentColumns,
+  findRowByLine,
+  hasPairedSides,
+} from "./utils";
 
 const ctx: DiffLine = { kind: "ctx", content: "a", oldLine: 1, newLine: 1 };
 const add: DiffLine = { kind: "add", content: "b", newLine: 2 };
@@ -14,6 +19,21 @@ describe("hasPairedSides", () => {
     expect(hasPairedSides([ctx, add])).toBe(false);
     expect(hasPairedSides([ctx, del])).toBe(false);
     expect(hasPairedSides([ctx])).toBe(false);
+  });
+});
+
+describe("countIndentColumns", () => {
+  it("counts leading spaces and runs a tab to the next tab stop", () => {
+    expect(countIndentColumns("    return value;")).toBe(4);
+    expect(countIndentColumns("\treturn value;")).toBe(8);
+    expect(countIndentColumns("  \t  value")).toBe(10);
+    expect(countIndentColumns("value  ")).toBe(0);
+    expect(countIndentColumns("   ")).toBe(3);
+  });
+
+  it("writes no indent property for an unindented line", () => {
+    expect(buildCodeIndentStyle("value")).toBeUndefined();
+    expect(buildCodeIndentStyle("  value")).toEqual({ "--code-indent": 2 });
   });
 });
 

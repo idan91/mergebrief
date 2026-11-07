@@ -2,6 +2,10 @@ import { DiffLineKinds, type DiffSide } from "types";
 import { type DiffLine } from "@web/utils/diffTokens/types";
 
 import { LINE_ATTRIBUTES } from "./consts";
+import type { CodeIndentStyle } from "./types";
+
+/** CSS's initial `tab-size`; the code cell sets none. */
+const TAB_SIZE_COLUMNS = 8;
 
 /** Hunk and note rows span every column and take no slot content. */
 export function isFullWidthDiffRow(row: DiffLine): boolean {
@@ -84,4 +88,32 @@ export function findRowByLine(
 
 function isNested(element: Element): boolean {
   return element.closest("table")?.parentElement?.closest("table") !== null;
+}
+
+/** The columns a line's leading whitespace spans, a tab running to the next tab stop. */
+export function countIndentColumns(content: string): number {
+  let columns = 0;
+  for (const character of content) {
+    if (character === " ") {
+      columns += 1;
+    } else if (character === "\t") {
+      columns += TAB_SIZE_COLUMNS - (columns % TAB_SIZE_COLUMNS);
+    } else {
+      break;
+    }
+  }
+
+  return columns;
+}
+
+/** The code cell's indent property; absent for an unindented line. */
+export function buildCodeIndentStyle(
+  content: string,
+): CodeIndentStyle | undefined {
+  const columns = countIndentColumns(content);
+  if (columns === 0) {
+    return undefined;
+  }
+
+  return { "--code-indent": columns };
 }

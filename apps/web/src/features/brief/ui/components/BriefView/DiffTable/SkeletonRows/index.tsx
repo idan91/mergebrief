@@ -7,6 +7,7 @@ import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly";
 import {
   estimateReservedRowsHeight,
   resolveWrapHistogram,
+  type WrapColumns,
 } from "../../reading/chunk-height-model";
 import { MIN_LINE_DIGITS } from "./consts";
 import { planSkeletonRows } from "./row-plan";
@@ -25,6 +26,7 @@ interface SkeletonStyle extends CSSProperties {
 export interface SkeletonRowsProps {
   counts: ChunkLayoutCounts;
   view: DiffView;
+  wrapColumns: WrapColumns;
   /** Digits the card's widest line number takes. */
   digits?: number;
 }
@@ -39,15 +41,17 @@ export interface SkeletonRowsProps {
 export function SkeletonRows({
   counts,
   view,
+  wrapColumns,
   digits = MIN_LINE_DIGITS,
 }: SkeletonRowsProps) {
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
-  const plan = planSkeletonRows(counts, view);
+  const plan = planSkeletonRows(counts, view, wrapColumns);
   const split = view === DiffViews.SPLIT;
-  const { columns } = resolveWrapHistogram(counts, view);
+  const { columns } = resolveWrapHistogram(counts, view, wrapColumns);
+  const reservedHeight = estimateReservedRowsHeight(counts, view, wrapColumns);
   const style: SkeletonStyle = {
-    "--skeleton-block-size": `${String(estimateReservedRowsHeight(counts, view))}px`,
+    "--skeleton-block-size": `${String(reservedHeight)}px`,
     "--skeleton-digits": Math.max(digits, MIN_LINE_DIGITS),
   };
   const rows = plan.rows.map((row) =>

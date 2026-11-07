@@ -1,5 +1,7 @@
 @use "functions";
 
+$row-line-height: 1.45;
+
 @layer components {
   .suggestionCard {
     overflow: hidden;
@@ -35,8 +37,10 @@
     // A suggestion sits inside a comment card, so it runs a step below the
     // reviewable diff's own type scale. Specificity has to clear DiffRows.
     tbody tr {
+      --diff-line-box: calc(var(--font-size-md) * #{$row-line-height});
+
       font-size: var(--font-size-md);
-      line-height: 1.45;
+      line-height: $row-line-height;
     }
 
     tbody td {

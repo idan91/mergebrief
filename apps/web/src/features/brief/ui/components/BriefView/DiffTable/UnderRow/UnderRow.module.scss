@@ -2,7 +2,9 @@
 
 @layer components {
   .row > td {
-    --under-row-inset: calc(var(--diff-gutter-w) + 2 * var(--diff-number-w));
+    --under-row-inset: calc(
+      var(--diff-gutter-w) + var(--diff-unified-number-w)
+    );
 
     vertical-align: top;
     padding-block: 0 functions.to-rem(12px);

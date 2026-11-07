@@ -157,6 +157,8 @@
   .body {
     overflow-x: auto;
     padding: 0;
+
+    // chunk-height-model.ts copies these borders; chunk-height-model.stylesheets.test.ts compares.
     border: 1px solid var(--color-outline-1);
     border-block-start: 0;
     border-end-start-radius: var(--radius-panel);
@@ -199,6 +201,7 @@
   // an inline inline-size on every wrapper above the card.
   @media (width < 760px) {
     :global(.main) .chunk {
+      // chunk-height-model.ts copies this bleed and useWrapColumns.ts its query; chunk-height-model.stylesheets.test.ts compares.
       --chunk-bleed: calc(var(--main-gutter) - var(--space-2));
 
       inline-size: calc(100% + 2 * var(--chunk-bleed));

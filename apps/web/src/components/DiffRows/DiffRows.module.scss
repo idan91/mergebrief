@@ -1,4 +1,14 @@
 @use "functions";
+@use "mixins";
+
+$sign-w: functions.to-rem(16px);
+$sign-inset: functions.to-rem(2px);
+$row-line-height: 1.7;
+
+// A wrapped phone line hangs under its own indent, capped so a deep line
+// keeps room to wrap into: about 40% of the code columns either view fits.
+$unified-hang: min(var(--code-indent, 0) * 1ch, 16ch);
+$split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 
 @layer components {
   .line {
@@ -7,7 +17,11 @@
 
     // Row height: 22px at this font size, the number the chunk height model
     // and the paint-skip estimate are both built on.
-    line-height: 1.7;
+    line-height: $row-line-height;
+
+    // The code's first line box, which a caller that resets the row's type
+    // resets with it.
+    --diff-line-box: calc(var(--font-size-lg) * #{$row-line-height});
 
     > td {
       padding-block: 0;
@@ -196,9 +210,10 @@
 
   .sign {
     display: inline-block;
-    inline-size: functions.to-rem(16px);
+    inline-size: $sign-w;
     color: var(--row-hue);
     opacity: 0.6;
+    text-indent: 0;
 
     // Comment anchor like the gutter.
     cursor: cell;
@@ -208,6 +223,81 @@
     // stylelint-disable-next-line property-no-vendor-prefix
     -webkit-user-select: none;
     user-select: none;
+  }
+}
+
+@layer components {
+  @include mixins.for-breakpoint("mobile", max) {
+    .line {
+      > .lineNumber {
+        inline-size: var(--diff-unified-number-w);
+        min-inline-size: var(--diff-unified-number-w);
+        padding-inline: 0 var(--space-3);
+        font-size: var(--font-size-sm);
+
+        // The code's line box, so the smaller digits centre on its first line.
+        line-height: var(--diff-line-box);
+      }
+
+      // Both number cells stay in the table: comment anchoring and table
+      // navigation read them.
+      > .oldNumber {
+        position: relative;
+        inline-size: 0;
+        min-inline-size: 0;
+        padding-inline: 0;
+
+        > .digits {
+          position: absolute;
+          inline-size: 1px;
+          block-size: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+      }
+
+      // Overhangs the new-number cell, which is positioned and fills when selected.
+      &[data-line-kind="del"] > .oldNumber > .digits,
+      > .oldNumber[data-state="covered"] > .digits {
+        z-index: 1;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        inline-size: var(--diff-unified-number-w);
+        block-size: auto;
+        padding-inline-end: var(--space-3);
+        overflow: visible;
+        clip-path: none;
+      }
+
+      > .oldNumber[data-state="covered"] + .lineNumber {
+        color: transparent;
+      }
+
+      > .code {
+        // chunk-height-model.ts copies this padding; chunk-height-model.stylesheets.test.ts compares.
+        padding-inline: $sign-w + $sign-inset var(--space-3);
+        padding-inline-start: calc($sign-w + $sign-inset + $unified-hang);
+        text-indent: calc(-1 * ($sign-w + $unified-hang));
+      }
+
+      > .code[data-side] {
+        padding-inline-start: calc($sign-w + $sign-inset + $split-hang);
+        text-indent: calc(-1 * ($sign-w + $split-hang));
+      }
+
+      // A cell's nowrap text sets the table's minimum width, and one long hunk
+      // title would push every code line past the screen.
+      &[data-line-kind="hunk"] > td {
+        max-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &[data-line-kind="note"] > td {
+        white-space: pre-wrap;
+      }
+    }
   }
 }
 

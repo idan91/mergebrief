@@ -34,6 +34,7 @@ import {
   useChunkLayout,
 } from "../../../../model/chunk-layout/useChunkLayout";
 import { estimateReservedRowsHeight } from "../reading/chunk-height-model";
+import { useWrapColumns } from "../reading/useWrapColumns";
 import { resolveChunkView } from "../utils";
 import { countLineDigits } from "./SkeletonRows/utils";
 import type { GuestRowReason } from "../../../../model/types";
@@ -290,6 +291,7 @@ export function useDiffTableFacade({
   const storedCounts = readStoredCounts(layout?.counts, chunk);
   const skeletonView = resolveChunkView(diffView, chunk, guest !== undefined);
   const skeletonDigits = countLineDigits(chunk);
+  const wrapColumns = useWrapColumns();
   const [settling, setSettling] = useState(
     () => chunk.diff === undefined && reserved !== undefined,
   );
@@ -309,6 +311,7 @@ export function useDiffTableFacade({
     const reservedHeight = estimateReservedRowsHeight(
       storedCounts,
       model.resolvedView,
+      wrapColumns,
     );
     viewportStyle["--diff-reserved-size"] = `${String(reservedHeight)}px`;
   }
@@ -319,6 +322,7 @@ export function useDiffTableFacade({
     reserved,
     skeletonView,
     skeletonDigits,
+    wrapColumns,
     viewportState,
     viewportStyle,
     handleViewportAnimationEnd,
