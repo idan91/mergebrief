@@ -38,6 +38,9 @@ export function GroupRow({
     ? getCategoryLabel(t, group.group.dominantCategory)
     : undefined;
   const chunkCounts = attributed ? getChunkCountsLabel(t, group) : undefined;
+  const filesCount = attributed
+    ? undefined
+    : t("brief.group.filesCount", { count: group.chunks.length });
   const added = attributed ? group.coreAdded : group.added;
   const deleted = attributed ? group.coreDeleted : group.deleted;
   const showsLines = attributed || hasChangedLines(group);
@@ -61,7 +64,11 @@ export function GroupRow({
             <span>{categoryLabel}</span>
             <span>{chunkCounts}</span>
           </span>
-        ) : null}
+        ) : (
+          <span className={styles["facts"]}>
+            <span>{filesCount}</span>
+          </span>
+        )}
         {showsLines ? (
           <span className={styles["lines"]}>
             <LocSign sign={LocSigns.ADD} count={added} />{" "}

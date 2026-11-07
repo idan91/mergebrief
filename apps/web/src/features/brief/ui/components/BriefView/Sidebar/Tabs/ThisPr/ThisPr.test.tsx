@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ChangeGroupCategories } from "types";
@@ -106,6 +106,38 @@ describe("ThisPr", () => {
     expect(row?.textContent).not.toContain("+0");
     expect(row?.textContent).not.toContain("−0");
   });
+
+  it.each([
+    { count: 1, facts: "1 file" },
+    { count: 2, facts: "2 files" },
+  ])(
+    "shows $facts on an unattributed row beside its lines",
+    ({ count, facts }) => {
+      const chunks = first.chunks.slice(0, count);
+      expect(chunks).toHaveLength(count);
+      const remainder = {
+        kind: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+        id: "remainder",
+        index: 1,
+        chunks,
+        added: 5,
+        deleted: 0,
+      } as GroupView;
+      render(
+        <ThisPr
+          activeGroupId={null}
+          groups={[remainder]}
+          jumpToGroup={() => {}}
+        />,
+      );
+
+      const row = screen.getAllByRole("button").at(-1);
+      if (row === undefined) {
+        throw new Error("no remainder row");
+      }
+      expect(within(row).getByText(facts).textContent).toBe(facts);
+    },
+  );
 
   it("shows a move-with-edits group as move with edits", () => {
     const movedGroup = {
