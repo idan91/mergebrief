@@ -6,7 +6,7 @@ import { CommentList } from "./CommentList";
 import { GenerationMetrics } from "./GenerationMetrics";
 import { NotCheckedList } from "./NotCheckedList";
 import { RawReceipt } from "./RawReceipt";
-import { ReceiptRows } from "./ReceiptRows";
+import { ReceiptTiles } from "./ReceiptTiles";
 import { RiskDisposition } from "./RiskDisposition";
 import { Icon } from "@web/components/Icon";
 import { IconNames, IconSizes } from "@web/components/Icon/types";
@@ -20,7 +20,7 @@ export interface ReceiptAccordionProps {
   signatureLine?: string | undefined;
 }
 
-/** The modal receipt view: the counts as plain rows, the rest under one Details disclosure. */
+/** The modal receipt view: the outcome chip and the counts as tiles, the rest under one Details disclosure. */
 export function ReceiptAccordion({
   receipt,
   outcome,
@@ -30,7 +30,7 @@ export function ReceiptAccordion({
   const { t } = useTranslation();
   return (
     <div className={styles["stack"]}>
-      <ReceiptRows outcome={outcome} receipt={receipt} />
+      <ReceiptTiles outcome={outcome} receipt={receipt} />
       <details className={styles["fold"]}>
         <summary>
           <Icon

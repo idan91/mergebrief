@@ -204,6 +204,16 @@ describe("SubmitModal views", () => {
     );
   });
 
+  it("previews the receipt's tiles before an outcome is picked", () => {
+    renderModal({ outcome: undefined });
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+
+    expect(screen.queryByText("Review outcome")).toBeNull();
+    expect(screen.getByText("Inline comments").parentElement?.textContent).toBe(
+      "Inline comments0",
+    );
+  });
+
   it("Cmd/Ctrl+Enter from the comment field respects the disabled guard", () => {
     const { submit } = renderModal({ staleHead: true });
     const textbox = screen.getByRole("textbox", { name: /review comment/i });

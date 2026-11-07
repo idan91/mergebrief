@@ -1,0 +1,47 @@
+@use "functions";
+
+@layer components {
+  .summary {
+    display: grid;
+    gap: functions.to-rem(10px);
+  }
+
+  .outcome {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(8px);
+    color: var(--color-text-3);
+    font-size: var(--font-size-lg);
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    gap: 0 functions.to-rem(8px);
+    margin: 0;
+  }
+
+  .tile {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-outline-1);
+
+    dt {
+      color: var(--color-text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    dd {
+      margin: functions.to-rem(2px) 0 0;
+      color: var(--color-text-1);
+      font-size: var(--font-size-xl);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+  }
+}

@@ -104,12 +104,6 @@
     }
   }
 
-  .tag {
-    color: var(--color-text-2);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-  }
-
   @media (width <= 720px) {
     .outcomes {
       flex-wrap: wrap;

@@ -2,6 +2,12 @@ import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button";
+import {
+  Chip,
+  ChipElements,
+  ChipTones,
+  ChipVariants,
+} from "@web/components/Chip";
 import { Modal } from "@web/components/Modal";
 import { listReceiptLines, type Receipt } from "../../utils/receipt";
 import type { ReviewOutcome } from "types/reviews";
@@ -38,9 +44,13 @@ export function ReceiptView({
         id="submit-modal-heading"
         title={t("review.submit.receiptHeading")}
         titleAside={
-          <span className={styles["tag"]}>
+          <Chip
+            as={ChipElements.SPAN}
+            tone={ChipTones.MUTED}
+            variant={ChipVariants.FACT}
+          >
             {t("review.submit.notAnApproval")}
-          </span>
+          </Chip>
         }
       />
       <div className={styles["receiptBody"]} data-testid="receipt-body">

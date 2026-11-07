@@ -46,9 +46,12 @@
   }
 
   .fold {
-    border-block-start: 1px solid var(--color-outline-1);
+    border-block-start: 1px solid var(--color-outline-2);
 
     summary {
+      display: flex;
+      align-items: center;
+      gap: functions.to-rem(8px);
       padding-block: functions.to-rem(9px);
       color: var(--color-text-2);
       font-size: var(--font-size-lg);
@@ -67,9 +70,8 @@
     }
 
     .marker {
-      margin-inline-end: functions.to-rem(8px);
+      flex: none;
       color: var(--color-text-3);
-      vertical-align: -1px;
     }
 
     &:not([open]) > summary .marker {

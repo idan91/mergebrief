@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The receipt view: the counts as plain rows, the rest under one Details
-// disclosure, raw artifact behind its own fold inside it.
+// The receipt view: the outcome chip and the counts as tiles, the rest under one
+// Details disclosure, raw artifact behind its own fold inside it.
 // Importing I18nProvider registers appI18n as the react-i18next default.
 // The bare-rendered subtree below resolves it without a provider.
 // oxlint-disable-next-line import/no-unassigned-import -- registration is the point.
@@ -99,7 +99,14 @@ describe("ReceiptAccordion", () => {
     expect(screen.getByText(SIGNATURE_LINE)).toBeTruthy();
   });
 
-  it("keeps everything past the rows under one closed Details fold", () => {
+  it("labels Details without promising sections that may not render", () => {
+    renderAccordion({ counts: { addressed: 0, dismissed: 0, open: 2 } });
+    expect(findFold(/^details$/i)?.querySelector("summary")?.textContent).toBe(
+      "Details",
+    );
+  });
+
+  it("keeps everything past the tiles under one closed Details fold", () => {
     renderAccordion();
     const details = findFold(/^details$/i);
     expect(details?.open).toBe(false);
@@ -169,7 +176,7 @@ describe("ReceiptAccordion", () => {
     expect(screen.queryByTestId("receipt-outline-form")).toBeNull();
   });
 
-  it("renders chunks read, flags open and comments as rows", () => {
+  it("renders chunks read, flags open and comments as tiles", () => {
     renderAccordion();
     const readRow = screen.getByText("Chunks read").parentElement;
     expect(readRow?.textContent).toContain("3/4");
