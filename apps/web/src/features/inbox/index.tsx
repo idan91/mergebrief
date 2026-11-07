@@ -12,7 +12,6 @@ export {
   NoInstallationLine,
   type NoInstallationLineProps,
 } from "./components/NoInstallationLine";
-export { SignedOutHome } from "./components/SignedOutHome";
 export { useControlsFacade } from "./components/Controls/useControlsFacade";
 export { Pager, type PagerProps } from "./components/Pager";
 export { UrlBox } from "./components/UrlBox";

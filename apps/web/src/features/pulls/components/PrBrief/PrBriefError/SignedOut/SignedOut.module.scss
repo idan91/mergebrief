@@ -1,8 +1,0 @@
-@use "functions";
-
-@layer components {
-  .signIn {
-    gap: var(--space-3);
-    min-block-size: functions.to-rem(44px);
-  }
-}

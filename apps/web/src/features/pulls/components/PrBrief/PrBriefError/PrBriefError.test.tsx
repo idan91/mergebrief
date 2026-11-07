@@ -61,7 +61,7 @@ describe("PrBriefError", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "Sign in to read this brief.",
+        name: "Sign in to read this brief",
       }),
     ).toBeTruthy();
     const signIn = screen.getByRole("link", { name: /sign in with github/i });

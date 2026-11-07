@@ -21,7 +21,6 @@
   }
 
   body {
-    // Lets the root footer pin to the page bottom on short pages.
     display: flex;
     flex-direction: column;
     min-block-size: 100vh;
@@ -145,8 +144,8 @@
   .main {
     --main-gutter: #{functions.to-rem(48px)};
 
-    // The body is a column flexbox (footer pinning), where auto inline
-    // margins disable stretch: without an explicit inline-size the region
+    // The body is a column flexbox, so a page grows to the viewport, where auto
+    // inline margins disable stretch: without an explicit inline-size the region
     // shrinks to fit its CONTENT and the page width shifts whenever content
     // changes (revision steps, live diff arriving). Fill, cap, center.
     inline-size: 100%;

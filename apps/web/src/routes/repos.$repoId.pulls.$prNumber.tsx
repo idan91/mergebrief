@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { LinkHTMLAttributes } from "react";
 import {
   createFileRoute,
+  isNotFound,
   notFound,
   redirect,
   useRouterState,
@@ -10,7 +11,7 @@ import {
 
 import { HttpStatuses } from "types";
 
-import { ApiError, ApiErrorCodes } from "../data/apiFetch";
+import { ApiError, ApiErrorCodes, isSignedOutError } from "../data/apiFetch";
 import { applySsrResponseStatus } from "../data/ssr-response-status";
 import { appI18n } from "../i18n/I18nProvider";
 import { buildSignInHref } from "@web/data/sign-in";
@@ -45,8 +46,13 @@ import {
 } from "../features/pulls/queries";
 import type { PrSummary } from "../features/pulls/types";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
-import { buildPrPageTitle, type PrPageTitleInput } from "@web/utils/pageTitle";
+import {
+  buildPageTitle,
+  buildPrPageTitle,
+  type PrPageTitleInput,
+} from "@web/utils/pageTitle";
 import { buildVersionQueryOptions } from "../features/version/queries";
+import { isViewerSignedOutSince } from "../features/account/queries";
 
 function parsePrNumber(raw: string): number {
   const value = Number(raw);
@@ -67,8 +73,17 @@ function isNotFoundError(error: unknown): boolean {
   return error instanceof ApiError && error.code === ApiErrorCodes.NOT_FOUND;
 }
 
-function isSignedOutError(error: unknown): boolean {
-  return error instanceof ApiError && error.code === ApiErrorCodes.SIGNED_OUT;
+/** The tab-title key a failed load names, when it names one. */
+function getFailedLoadTitleKey(
+  error: unknown,
+): "pulls.signIn.heading" | "shell.pageTitle.notFound" | undefined {
+  if (isSignedOutError(error)) {
+    return "pulls.signIn.heading";
+  }
+  if (isNotFound(error)) {
+    return "shell.pageTitle.notFound";
+  }
+  return undefined;
 }
 
 /** A missing PR/brief becomes a real 404 on SSR, not a 500. */
@@ -272,7 +287,27 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       await versionPrefetch;
     }
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, match }) => {
+    // A failed reload keeps the last run's loaderData beside its error; a
+    // session that ends in the tab shows in the cached viewer first. A
+    // signed-out viewer cached before this load succeeded is stale.
+    let failureTitleKey = getFailedLoadTitleKey(match.error);
+    const signedOutSinceLoad = isViewerSignedOutSince(
+      match.context.queryClient,
+      match.updatedAt,
+    );
+    const sessionEndedHere =
+      failureTitleKey === undefined && signedOutSinceLoad;
+    if (sessionEndedHere) {
+      failureTitleKey = "pulls.signIn.heading";
+    }
+    if (failureTitleKey !== undefined) {
+      return {
+        meta: [
+          { title: buildPageTitle(appI18n.t, [appI18n.t(failureTitleKey)]) },
+        ],
+      };
+    }
     if (loaderData === undefined) {
       return {};
     }

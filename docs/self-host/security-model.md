@@ -43,7 +43,7 @@ at the network. An identity-aware proxy that exempts `/api/*` but keeps
 still lets the webhook and the CLI reach the API
 ([cli.md](./cli.md#idp--sso-proxies-exempt-api)).
 
-Signed out, a visitor sees the Home pitch and a Sign in button. Without a
+Signed out, a visitor sees one sign-in page and a Sign in button. Without a
 session every `/api` route answers 401, apart from the webhook, the sign-in
 redirect and its callback, and sign-out. `/healthz` and `/readyz` answer
 without a session and carry no data

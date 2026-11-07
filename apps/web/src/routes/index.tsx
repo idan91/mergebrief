@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { InboxArchivedFilters } from "types/inbox";
 
 import { Header } from "@web/components/Header";
+import { SignInPage } from "@web/components/SignInPage";
 import {
   ShortcutsModal,
   type ShortcutSection,
@@ -24,13 +25,15 @@ import {
   NoInstallationLine,
   Pager,
   PersonalLine,
-  SignedOutHome,
   UrlBox,
   useControlsFacade,
   useInboxSearchState,
   useHomeShortcuts,
 } from "@web/features/inbox";
-import { buildInboxQueryOptions } from "../features/inbox/queries";
+import {
+  buildInboxQueryOptions,
+  readCachedInboxKind,
+} from "../features/inbox/queries";
 import {
   countChangedFilters,
   EVERY_STATUS_PARAM,
@@ -46,6 +49,7 @@ import {
 } from "../features/inbox/types";
 import { readInboxEmptiness } from "../features/inbox/utils";
 import { appI18n } from "../i18n/I18nProvider";
+import { useReloadOnChange } from "@web/hooks/useReloadOnChange";
 import { isDemoBuild } from "@web/utils/demo-build";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./index.module.scss";
@@ -110,9 +114,22 @@ export const Route = createFileRoute("/")({
         replace: true,
       });
     }
+
+    return { signedOut };
   },
-  head: () => {
-    const pageName = appI18n.t("shell.pageTitle.home");
+  head: ({ loaderData, match }) => {
+    // Home renders the cached inbox, which a read since the last load may have moved.
+    const inboxKind = readCachedInboxKind(
+      match.context.queryClient,
+      match.loaderDeps.inbox,
+    );
+    let signedOut = loaderData?.signedOut ?? false;
+    if (inboxKind !== undefined) {
+      signedOut = inboxKind === InboxStates.SIGNED_OUT;
+    }
+    const pageName = signedOut
+      ? appI18n.t("shell.pageTitle.signIn")
+      : appI18n.t("shell.pageTitle.home");
 
     return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
   },
@@ -121,20 +138,31 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const { t } = useTranslation();
   const search = Route.useSearch();
   const inbox = useSuspenseQuery(
     buildInboxQueryOptions(readInboxParams(search)),
   );
   const state = inbox.data;
   const listShown = state.kind === InboxStates.READY;
+  const signedOut = state.kind === InboxStates.SIGNED_OUT;
   const shortcuts = useHomeShortcuts(listShown);
+  useReloadOnChange(signedOut);
   // The hosted demo has no generator behind it, so the box would only refuse.
   const urlBox = isDemoBuild() ? null : <UrlBox />;
 
+  if (signedOut) {
+    return (
+      <SignInPage
+        failure={search.error}
+        heading={t("shell.signIn.heading")}
+        lead={t("shell.signIn.lead")}
+      />
+    );
+  }
+
   let content: ReactNode;
-  if (state.kind === InboxStates.SIGNED_OUT) {
-    content = <SignedOutHome failure={search.error} />;
-  } else if (state.kind === InboxStates.FAILED) {
+  if (state.kind === InboxStates.FAILED) {
     content = (
       <div className={styles["lead"]}>
         <FailedInbox
@@ -153,8 +181,8 @@ function Home() {
     );
   }
 
-  // One shell for every state, so the main landmark survives a state change
-  // and focus handed to it after a retry lands on a node that stays.
+  // One shell for every signed-in state, so the main landmark survives a
+  // state change and focus handed to it after a retry lands on a node that stays.
   return (
     <HomeShell shortcuts={listShown ? shortcuts : undefined}>
       {content}
@@ -186,7 +214,7 @@ export interface HomeShellProps {
   shortcuts?: ReturnType<typeof useHomeShortcuts> | undefined;
 }
 
-/** The one-tier Header over the full-bleed Home column, whatever the state. */
+/** The one-tier Header over the full-bleed Home column, whatever the signed-in state. */
 function HomeShell({ children, shortcuts }: HomeShellProps) {
   return (
     <div className={styles["page"]}>

@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button";
-import { ApiError, ApiErrorCodes } from "@web/data/apiFetch";
+import { isSignedOutError } from "@web/data/apiFetch";
 import { EmptyBlock } from "@web/components/EmptyBlock";
+import { SignInPage } from "@web/components/SignInPage";
 import { SIGN_IN_PATH } from "@web/data/sign-in";
 import { prBriefErrorDetail } from "@web/features/brief/model";
-import { SignedOut } from "./SignedOut";
 import { prBriefErrorNeedsSignIn } from "./utils";
 
 export interface PrBriefErrorProps {
@@ -15,10 +15,14 @@ export interface PrBriefErrorProps {
 
 export function PrBriefError({ error, returnTo }: PrBriefErrorProps) {
   const { t } = useTranslation();
-  const signedOut =
-    error instanceof ApiError && error.code === ApiErrorCodes.SIGNED_OUT;
-  if (signedOut) {
-    return <SignedOut returnTo={returnTo} />;
+  if (isSignedOutError(error)) {
+    return (
+      <SignInPage
+        heading={t("pulls.signIn.heading")}
+        lead={t("pulls.signIn.detail")}
+        returnTo={returnTo}
+      />
+    );
   }
 
   // Curated copy only, never `error.message`: an SSR loader or

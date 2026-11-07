@@ -456,7 +456,7 @@ The two GitHub identities the API acts under. The installation binding is the ap
 _Avoid_: reviewer GitHub client (the per-request client the binding replaced), viewer token (say reviewer), refresh budget (say refreshed at most once per request)
 
 **Home**:
-The page at `/`. Signed in: the one-tier **Header**, a personal line that leads with a fact only this product knows, the URL input and the **Inbox** under the on-screen label "Briefs". Signed out: the pitch, one picture of a brief and Sign in with GitHub, no URL input. "Landing page" now means only the marketing page built later, which is not a screen of the app.
+The page at `/`. Signed in: the one-tier **Header**, a personal line that leads with a fact only this product knows, the URL input and the **Inbox** under the on-screen label "Briefs". Signed out: the sign-in page, one heading and Sign in with GitHub, with no Header and no URL input; a signed-out brief link and Settings show the same page under their own heading. "Landing page" now means only the marketing page built later, which is not a screen of the app.
 _Avoid_: landing page, picker, front door, dashboard
 
 **Inbox**:

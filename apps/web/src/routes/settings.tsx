@@ -1,11 +1,12 @@
 // Settings page. Session-gated like the Inbox: a viewer who is not signed
 // in gets the sign-in pointer, never a broken form.
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
   useRouter,
+  useRouterState,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -17,7 +18,6 @@ import {
   IconRotations,
   IconSizes,
 } from "@web/components/Icon/types";
-import { SIGN_IN_PATH } from "@web/data/sign-in";
 import {
   deriveEnabledTabs,
   parseSettingsSearch,
@@ -29,6 +29,7 @@ import {
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { ViewerStates } from "../features/account/types";
 import { appI18n } from "../i18n/I18nProvider";
+import { SignInPage } from "@web/components/SignInPage";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./settings.module.scss";
 
@@ -40,8 +41,12 @@ export const Route = createFileRoute("/settings")({
       ...buildViewerQueryOptions(),
       retry: false,
     }),
-  head: () => {
-    const pageName = appI18n.t("shell.pageTitle.settings");
+  head: ({ loaderData }) => {
+    const asksForSignIn =
+      loaderData !== undefined && loaderData.kind !== ViewerStates.SIGNED_IN;
+    const pageName = asksForSignIn
+      ? appI18n.t("shell.signIn.settingsHeading")
+      : appI18n.t("shell.pageTitle.settings");
 
     return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
   },
@@ -109,23 +114,16 @@ function SettingsPage() {
   const viewer = useSuspenseQuery(buildViewerQueryOptions()).data;
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const returnTo = useRouterState({ select: (state) => state.location.href });
 
   if (viewer.kind !== ViewerStates.SIGNED_IN) {
     // Only a viewer the API confirmed reaches the tabs; a read that did not
     // answer lands on the sign-in side.
     return (
-      <SettingsShell>
-        <p className={styles["signedOut"]}>
-          <Trans
-            components={[
-              <a href={SIGN_IN_PATH} key="signIn">
-                {t("shell.signInWithGithub")}
-              </a>,
-            ]}
-            i18nKey="shell.signInPrompt"
-          />
-        </p>
-      </SettingsShell>
+      <SignInPage
+        heading={t("shell.signIn.settingsHeading")}
+        returnTo={returnTo}
+      />
     );
   }
 

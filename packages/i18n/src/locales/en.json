@@ -245,7 +245,7 @@
       "detail": "It may not exist, or your GitHub account may not have access to it."
     },
     "signIn": {
-      "heading": "Sign in to read this brief.",
+      "heading": "Sign in to read this brief",
       "detail": "MergeBrief checks with GitHub that your account can see this pull request. You'll come back to this page after signing in."
     },
     "briefError": {
@@ -1508,7 +1508,6 @@
     "mentionSearchingAnnounce": "Searching for mention suggestions",
     "copied": "Copied",
     "copyFailed": "Copy failed",
-    "footerRights": "© {{year}} Idan Ram. All rights reserved.",
     "versionNotice": {
       "regionLabel": "New version notice",
       "available": "MergeBrief <0>{{latest}}</0> is available.",
@@ -1578,8 +1577,6 @@
     "localBriefs": "Local briefs",
     "settingsUnavailable": "Settings could not be loaded",
     "serverUnavailable": "The server did not answer. Your tokens are untouched.",
-    "signInWithGithub": "Sign in with GitHub",
-    "signInPrompt": "<0/> to manage API tokens.",
     "artifactDelta": "Delta brief",
     "artifactBrief": "Brief",
     "pageTitle": {
@@ -1587,7 +1584,9 @@
       "prNumber": "#{{number}}",
       "home": "Briefs",
       "settings": "Settings",
-      "localBrief": "Local brief"
+      "localBrief": "Local brief",
+      "signIn": "Sign in",
+      "notFound": "Page not found"
     },
     "headMeta": {
       "description": "MergeBrief turns a pull request into a brief that groups the changes, summarizes them in plain language and points at what needs a closer look. Source-available and self-hosted. Bring your own model key."
@@ -1638,7 +1637,14 @@
     },
     "editorModeWrite": "Write",
     "editorModePreview": "Preview",
-    "unsavedCommentLeavePrompt": "You have an unsaved comment. Leave this page and discard it?"
+    "unsavedCommentLeavePrompt": "You have an unsaved comment. Leave this page and discard it?",
+    "signIn": {
+      "heading": "Sign in to MergeBrief",
+      "lead": "Understand a pull request before you review it.",
+      "settingsHeading": "Sign in to manage API tokens",
+      "opening": "Opening GitHub…",
+      "note": "Source-available and self-hosted."
+    }
   },
   "briefError": {
     "unexpected": "Something went wrong reading this brief. Check the server logs.",
@@ -1853,14 +1859,11 @@
       "retry": "Try again"
     },
     "signedOut": {
-      "heading": "Understand a pull request before you review it",
-      "copy": "MergeBrief reads the diff, groups the changes by what they do and points at the places that need a closer look. You review group by group, and the brief records what you checked.",
       "signIn": "Sign in with GitHub",
       "signInFailed": "Signing in didn't complete. Try again.",
       "accountNotAllowed": "This GitHub account isn't allowed on this instance. Ask whoever runs it for access.",
       "accountNotAllowedOwner": "If you run this instance, add your GitHub id under operators in mergebrief.config.yaml and restart the api. gh api users/YOUR_LOGIN --jq .id prints it.",
-      "githubUnavailable": "GitHub couldn't be reached. Try signing in again in a moment.",
-      "pictureAlt": "A brief open in MergeBrief: a change-group with its risk surface on the left and the list of change-groups for the pull request on the right"
+      "githubUnavailable": "GitHub couldn't be reached. Try signing in again in a moment."
     },
     "shortcuts": {
       "sectionList": "Briefs",

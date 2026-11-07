@@ -1,0 +1,93 @@
+@use "functions";
+
+@layer components {
+  .page {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-block-size: 100dvh;
+    padding-block: var(--space-8) var(--space-9);
+    padding-inline: var(--space-6);
+  }
+
+  .column {
+    display: grid;
+    gap: var(--space-6);
+    justify-items: center;
+    inline-size: 100%;
+    max-inline-size: functions.to-rem(360px);
+    text-align: center;
+  }
+
+  .mark {
+    display: block;
+    inline-size: 28px;
+    block-size: 28px;
+  }
+
+  .head {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .heading {
+    font-size: var(--font-size-4xl);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .lead {
+    color: var(--color-text-2);
+    font-size: var(--font-size-xl);
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  .status {
+    display: grid;
+    gap: var(--space-3);
+    inline-size: 100%;
+    color: var(--color-negative);
+    font-size: var(--font-size-lg);
+    text-align: start;
+  }
+
+  .owner {
+    color: var(--color-text-2);
+    overflow-wrap: anywhere;
+  }
+
+  .signIn {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: center;
+    inline-size: 100%;
+    min-block-size: functions.to-rem(44px);
+    font-size: var(--font-size-xl);
+  }
+
+  .spinner {
+    inline-size: 14px;
+    block-size: 14px;
+    border: 2px solid color-mix(in srgb, currentcolor 25%, transparent);
+    border-block-start-color: currentcolor;
+    border-radius: var(--radius-pill);
+    animation: spin 700ms linear infinite;
+  }
+
+  .note {
+    color: var(--color-text-3);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

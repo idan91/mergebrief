@@ -2,7 +2,7 @@
 // who is signed in, no GitHub call and no list behind it. A 401 is the
 // signed-out state; anything else throws so react-query retries and refetches
 // instead of holding a blip as an answer.
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import {
   apiFetch,
@@ -31,4 +31,14 @@ export function buildViewerQueryOptions() {
       return parseViewer(await apiJsonFromResponse(response, SESSION_PATH));
     },
   });
+}
+
+/** Whether the cached viewer turned signed out after `since`, without a read. */
+export function isViewerSignedOutSince(
+  queryClient: QueryClient,
+  since: number,
+): boolean {
+  const viewer = queryClient.getQueryState(buildViewerQueryOptions().queryKey);
+  const signedOut = viewer?.data?.kind === ViewerStates.SIGNED_OUT;
+  return signedOut && viewer.dataUpdatedAt > since;
 }

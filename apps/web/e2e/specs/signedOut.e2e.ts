@@ -1,5 +1,5 @@
-// Signed-out Home, under the project that carries no session: the pitch, one
-// picture of a brief, Sign in with GitHub, and no URL box.
+// Signed-out Home, under the project that carries no session: one heading,
+// Sign in with GitHub, and no URL box.
 import { expect, test } from "@playwright/test";
 
 import { FIXTURE_PR_PATH } from "../fixtures/ids";
@@ -9,7 +9,7 @@ import { collectPageFaults } from "../support/console";
 /** A sign-in wall, never a server error: crawlers and monitors read the status. */
 const SIGNED_OUT_STATUS = 401;
 
-test("signed out shows the pitch, the picture and Sign in, never the URL box", async ({
+test("signed out shows one heading and Sign in, never the URL box", async ({
   page,
 }, testInfo) => {
   const faults = collectPageFaults(page);
@@ -20,16 +20,14 @@ test("signed out shows the pitch, the picture and Sign in, never the URL box", a
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Understand a pull request before you review it",
+      name: "Sign in to MergeBrief",
     }),
   ).toBeVisible();
-  // The bar's Sign in is the Account menu's; the pitch's own is inside main.
   await expect(
     page.getByRole("main").getByRole("link", { name: "Sign in with GitHub" }),
   ).toHaveAttribute("href", "/api/auth/github");
-  await expect(
-    page.getByRole("img", { name: /A brief open in MergeBrief/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("banner")).toHaveCount(0);
+  await expect(page).toHaveTitle("Sign in · MergeBrief");
   await expect(page.getByLabel("Pull request URL")).toHaveCount(0);
   await expect(page.getByTestId("inbox-row")).toHaveCount(0);
 
@@ -64,7 +62,7 @@ test("a signed-out deep link signs in and returns to the brief", async ({
   await expect(
     main.getByRole("heading", {
       level: 1,
-      name: "Sign in to read this brief.",
+      name: "Sign in to read this brief",
     }),
   ).toBeVisible();
   const signIn = main.getByRole("link", { name: "Sign in with GitHub" });
@@ -72,6 +70,8 @@ test("a signed-out deep link signs in and returns to the brief", async ({
     "href",
     "/api/auth/github?returnTo=%2Frepos%2F424242%2Fpulls%2F1%3Frev%3D1",
   );
+  // The client re-reads the brief after hydration and remounts this page.
+  await page.waitForLoadState("networkidle");
   await expectNoSeriousAxeViolations(page, testInfo, "pr-signed-out");
 
   const href = await signIn.getAttribute("href");

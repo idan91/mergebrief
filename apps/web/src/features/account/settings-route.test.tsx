@@ -51,18 +51,20 @@ async function loadSettings(
 }
 
 describe("the settings route", () => {
-  it("points a signed-out viewer at sign-in under the page heading", async () => {
+  it("gives a signed-out viewer the sign-in page, returning here", async () => {
     await loadSettings({ kind: ViewerStates.SIGNED_OUT });
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-        "Settings",
+        "Sign in to manage API tokens",
       );
     });
     expect(
-      screen.getByRole("link", { name: "Sign in with GitHub" }),
-    ).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: /API tokens/ })).toBeNull();
+      screen
+        .getByRole("link", { name: "Sign in with GitHub" })
+        .getAttribute("href"),
+    ).toBe("/api/auth/github?returnTo=%2Fsettings");
+    expect(screen.queryByRole("heading", { name: "API tokens" })).toBeNull();
   });
 
   it("shows its tokens to a signed-in viewer", async () => {
@@ -139,5 +141,30 @@ describe("the settings route", () => {
     );
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back to briefs" })).toBeTruthy();
+  });
+
+  it("keeps the Settings tab title when the viewer read fails", async () => {
+    await loadSettings();
+
+    await waitFor(() => {
+      expect(document.title).toBe("Settings · MergeBrief");
+    });
+  });
+
+  it("returns a signed-out viewer to the tab they asked for", async () => {
+    await loadSettings(
+      { kind: ViewerStates.SIGNED_OUT },
+      "/settings?tab=instance",
+    );
+
+    const signIn = await screen.findByRole("link", {
+      name: "Sign in with GitHub",
+    });
+
+    const returnTo = new URL(
+      signIn.getAttribute("href") ?? "",
+      "http://localhost",
+    ).searchParams.get("returnTo");
+    expect(returnTo).toBe("/settings?tab=instance");
   });
 });

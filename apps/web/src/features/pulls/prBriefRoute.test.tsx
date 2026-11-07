@@ -9,6 +9,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -17,10 +18,13 @@ import {
 } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { reportSignedOut } from "@web/data/signed-out";
 import { briefFixture } from "@web/features/brief/test-utils";
 import { listRevisionRows, openRevisionsTab } from "@web/test/revisions";
 import { omitFields } from "@web/test/fields";
 import { routeTree } from "../../routeTree.gen";
+import { buildViewerQueryOptions } from "../account/queries";
+import { ViewerStates } from "../account/types";
 import {
   buildDbBriefQueryOptions,
   buildDbComparisonMarksQueryOptions,
@@ -538,7 +542,7 @@ function readRequestUrl(input: RequestInfo | URL): string {
  */
 async function renderRouteWithFetch(
   seed: (client: QueryClient) => void,
-  fetchStub: (path: string) => Response,
+  fetchStub: (path: string) => Response | Promise<Response>,
   path: string,
 ) {
   vi.stubGlobal(
@@ -653,6 +657,52 @@ describe("DB brief route, explicit-span deep link while generating", () => {
   });
 });
 
+describe("DB brief route, missing pull request", () => {
+  it("titles the tab Page not found", async () => {
+    await renderRouteWithFetch(
+      () => undefined,
+      () => new Response("not found", { status: 404 }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
+    );
+
+    await waitFor(() =>
+      expect(document.title).toBe("Page not found · MergeBrief"),
+    );
+  });
+});
+
+describe("DB brief route, failed read", () => {
+  it("titles a brief the server failed to load with the product", async () => {
+    await renderRouteWithFetch(
+      () => undefined,
+      () =>
+        Response.json(
+          { error: "internal", code: "internal-error" },
+          { status: 500 },
+        ),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
+    );
+
+    await screen.findByRole("heading", { name: "Brief failed to load" });
+    await waitFor(() => expect(document.title).toBe("MergeBrief"));
+  });
+});
+
+function seedSignedInBrief(client: QueryClient): void {
+  client.setQueryData(
+    buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+    meta({}),
+  );
+  client.setQueryData(
+    buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    briefFixture,
+  );
+  client.setQueryData(
+    buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    "",
+  );
+}
+
 function stubUnauthorized(code: string): () => Response {
   return () =>
     new Response(JSON.stringify({ error: code, code }), { status: 401 });
@@ -673,6 +723,100 @@ describe("DB brief route, sign-in returns to the page", () => {
       name: /sign in with github/i,
     });
     expect(signIn.getAttribute("href")).toBe(signInHref);
+  });
+
+  it("titles the tab with the sign-in heading", async () => {
+    await renderRouteWithFetch(
+      () => undefined,
+      stubUnauthorized("signed-out"),
+      path,
+    );
+
+    await waitFor(() =>
+      expect(document.title).toBe("Sign in to read this brief · MergeBrief"),
+    );
+  });
+
+  it("retitles the tab when the session ends on an open brief", async () => {
+    let sessionEnded = false;
+    await renderRouteWithFetch(
+      seedSignedInBrief,
+      (url) =>
+        sessionEnded
+          ? stubUnauthorized("signed-out")()
+          : new Response(`no stub for ${url}`, { status: 404 }),
+      path,
+    );
+    await waitFor(() =>
+      expect(document.title).toBe("t · #7 · octo/hello · MergeBrief"),
+    );
+
+    sessionEnded = true;
+    act(() => {
+      reportSignedOut();
+    });
+
+    await screen.findByRole("heading", { name: "Sign in to read this brief" });
+    await waitFor(() =>
+      expect(document.title).toBe("Sign in to read this brief · MergeBrief"),
+    );
+  });
+
+  it("retitles the tab when the session ends before the reload settles", async () => {
+    let sessionEnded = false;
+    await renderRouteWithFetch(
+      seedSignedInBrief,
+      (url) =>
+        sessionEnded
+          ? new Promise<Response>(() => undefined)
+          : new Response(`no stub for ${url}`, { status: 404 }),
+      path,
+    );
+    await waitFor(() =>
+      expect(document.title).toBe("t · #7 · octo/hello · MergeBrief"),
+    );
+
+    sessionEnded = true;
+    act(() => {
+      reportSignedOut();
+    });
+
+    await waitFor(() =>
+      expect(document.title).toBe("Sign in to read this brief · MergeBrief"),
+    );
+  });
+
+  it("titles a brief that loads over a cached signed-out viewer", async () => {
+    await renderRouteWithFetch(
+      (client) => {
+        client.setQueryData(buildViewerQueryOptions().queryKey, {
+          kind: ViewerStates.SIGNED_OUT,
+        });
+        seedSignedInBrief(client);
+      },
+      (url) => new Response(`no stub for ${url}`, { status: 404 }),
+      path,
+    );
+
+    await waitFor(() =>
+      expect(document.title).toBe("t · #7 · octo/hello · MergeBrief"),
+    );
+  });
+
+  it("keeps Page not found over a signed-out viewer on a bad address", async () => {
+    await renderRouteWithFetch(
+      (client) => {
+        client.setQueryData(buildViewerQueryOptions().queryKey, {
+          kind: ViewerStates.SIGNED_OUT,
+        });
+      },
+      stubUnauthorized("signed-out"),
+      `/repos/${REPO_ID}/pulls/not-a-number`,
+    );
+
+    await waitFor(() =>
+      expect(document.title).toBe("Page not found · MergeBrief"),
+    );
   });
 
   it("sends a session GitHub refused to sign-in back to this page", async () => {

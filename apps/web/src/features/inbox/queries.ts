@@ -4,7 +4,7 @@
 // refusal is the failed list, both answers rather than throws, so the page
 // keeps its header and URL box. The list never polls; a window focus
 // re-reads it, at once after a failure.
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { ProductActionIds, ProductOperations, ProductQueryIds } from "contract";
 
 import {
@@ -63,6 +63,15 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
       return { kind: InboxStates.READY, page: parsed.value };
     },
   });
+}
+
+/** The inbox's state for these params as cached now, without a read; absent before the first. */
+export function readCachedInboxKind(
+  queryClient: QueryClient,
+  params: InboxQueryParams,
+): InboxState["kind"] | undefined {
+  return queryClient.getQueryData(buildInboxQueryOptions(params).queryKey)
+    ?.kind;
 }
 
 type ArchiveFailureKind = Exclude<

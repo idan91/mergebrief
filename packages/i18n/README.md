@@ -35,7 +35,7 @@ A few values wrap part of the sentence in an element the app supplies, such as a
 link, a `<code>` span:
 
 ```json
-"signInPrompt": "<0/> to manage API tokens."
+"intro": "Tokens let the <0/> CLI and agents read and submit through the API as you, across every organization you can reach."
 ```
 
 `<0/>` is a position, not markup: it marks where the app drops that element

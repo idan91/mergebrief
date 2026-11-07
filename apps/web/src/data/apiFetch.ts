@@ -53,6 +53,13 @@ export class ApiError extends Error {
   }
 }
 
+/** The refusal a read meets once the session has ended. */
+export function isSignedOutError(error: unknown): boolean {
+  return (
+    error instanceof ApiError && error.code === WebApiErrorCodes.SIGNED_OUT
+  );
+}
+
 /** An `ApiError` as SSR dehydration carries it: code and status, never the path. */
 interface SerializedApiError {
   readonly code: ApiErrorCode;

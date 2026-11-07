@@ -359,7 +359,6 @@ export type Catalog = typeof en & {
     stale: "The latest refresh failed. This count was read at {{time}}.";
   };
   shell: (typeof en)["shell"] & {
-    footerRights: "© {{year}} Idan Ram. All rights reserved.";
     versionNotice: (typeof en)["shell"]["versionNotice"] & {
       available: "MergeBrief <0>{{latest}}</0> is available.";
       security: "MergeBrief <0>{{latest}}</0> fixes a security issue.";
