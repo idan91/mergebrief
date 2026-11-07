@@ -2,6 +2,8 @@ export const ChunkPositionKinds = {
   /** Above the first chunk, or nothing to place the reader at. */
   OVERVIEW: "overview",
   CHUNK: "chunk",
+  /** Between chunks: no chunk is current, so the indicator counts without a position. */
+  BETWEEN: "between",
   /** Changes-only runs no scroll-spy, so the indicator names the scope and counts nothing. */
   CHANGES: "changes",
 } as const;
@@ -14,6 +16,11 @@ export interface ChangesPosition {
   kind: typeof ChunkPositionKinds.CHANGES;
 }
 
+export interface BetweenPosition {
+  kind: typeof ChunkPositionKinds.BETWEEN;
+  total: number;
+}
+
 export interface CountedPosition {
   kind: typeof ChunkPositionKinds.CHUNK;
   current: number;
@@ -23,6 +30,7 @@ export interface CountedPosition {
 export type ChunkPosition =
   | OverviewPosition
   | ChangesPosition
+  | BetweenPosition
   | CountedPosition;
 
 export interface ContentStart {

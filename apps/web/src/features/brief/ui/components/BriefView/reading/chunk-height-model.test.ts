@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ChunkLayoutCounts } from "brief-core/chunk-layout";
 import { DiffViews } from "@web/components/DiffRows/types";
+import { ViewportShapes } from "@web/hooks/useViewportShape/types";
 import {
   CHUNK_CARD_OVERHEAD_PX,
   COLLAPSED_CARD_HEIGHT_PX,
@@ -17,6 +18,7 @@ import {
   estimateReservedRowsHeight,
   LARGE_CHUNK_NOTICE_PX,
   NARRATIVE_CARD_OVERHEAD_PX,
+  LANDSCAPE_CARD_METRICS,
   PHONE_CARD_METRICS,
   PHONE_HEAD_EXTRA_PX,
   PHONE_NARRATIVE_HEAD_EXTRA_PX,
@@ -308,6 +310,8 @@ describe("derivePhoneWrapColumns", () => {
     [768, false, 76, 32],
     [800, false, 80, 34],
     [880, false, 90, 39],
+    [844, false, 86, 37],
+    [932, false, 97, 42],
   ])(
     "fits a %ipx phone's code cells",
     (widthPx, cardBleeds, unified, split) => {
@@ -315,6 +319,22 @@ describe("derivePhoneWrapColumns", () => {
         unified,
         split,
       });
+    },
+  );
+
+  it.each([
+    [750, true, 47, 47, 74],
+    [750, true, 59, 0, 77],
+    [844, false, 47, 47, 86],
+    [844, false, 59, 59, 83],
+    [932, false, 59, 59, 94],
+  ])(
+    "narrows a %ipx phone's code by its notch insets",
+    (widthPx, cardBleeds, leftPx, rightPx, unified) => {
+      const insets = { leftPx, rightPx };
+      const columns = derivePhoneWrapColumns({ widthPx, cardBleeds, insets });
+
+      expect(columns.unified).toBe(unified);
     },
   );
 
@@ -365,8 +385,23 @@ describe("derivePhoneWrapColumns", () => {
 
 describe("resolveChunkCardMetrics", () => {
   it("takes the phone metrics at or under the mobile breakpoint", () => {
-    expect(resolveChunkCardMetrics(true)).toBe(PHONE_CARD_METRICS);
-    expect(resolveChunkCardMetrics(false)).toBe(DESKTOP_CARD_METRICS);
+    expect(resolveChunkCardMetrics(ViewportShapes.PHONE)).toBe(
+      PHONE_CARD_METRICS,
+    );
+    expect(resolveChunkCardMetrics(ViewportShapes.DESKTOP)).toBe(
+      DESKTOP_CARD_METRICS,
+    );
+  });
+
+  it("prices a sideways phone's one-line head under the desktop's", () => {
+    expect(resolveChunkCardMetrics(ViewportShapes.LANDSCAPE_PHONE)).toBe(
+      LANDSCAPE_CARD_METRICS,
+    );
+    expect(LANDSCAPE_CARD_METRICS).toEqual({
+      overheadPx: 92,
+      collapsedPx: 52,
+      narrativeOverheadPx: 159,
+    });
   });
 
   it("pins the phone chrome the two-line head reserves", () => {

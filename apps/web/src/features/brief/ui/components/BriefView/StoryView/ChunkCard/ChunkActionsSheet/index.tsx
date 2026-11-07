@@ -18,6 +18,7 @@ export interface ChunkActionsSheetProps {
   filePath: string;
   /** The chunk's chips, read-only here. */
   facts: ReactNode;
+  /** Opens the card's file comment composer. */
   requestComment: () => void;
   shareChunk?: ChunkShare | undefined;
   /** The file on GitHub at the brief's head; absent hides the row. */

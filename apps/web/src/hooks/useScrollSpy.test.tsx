@@ -8,7 +8,7 @@ import { cleanup, renderHook } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useScrollSpy } from "./useScrollSpy";
+import { useScrollSpy, type ScrollSpySync } from "./useScrollSpy";
 
 afterEach(() => {
   cleanup();
@@ -27,6 +27,25 @@ function mountCrossing(id: string): HTMLElement {
   el.getBoundingClientRect = () => rectAt(100, 300);
   document.body.append(el);
   return el;
+}
+
+function makeSync(overrides: Partial<ScrollSpySync>): ScrollSpySync {
+  return {
+    readActive: () => undefined,
+    isHeld: () => false,
+    subscribeHoldEnded: () => () => {},
+    isExact: () => false,
+    clearActive: () => {},
+    isAtPageEnd: () => false,
+    ...overrides,
+  };
+}
+
+function mountAt(id: string, top: number, bottom: number): void {
+  const el = document.createElement("div");
+  el.id = id;
+  el.getBoundingClientRect = () => rectAt(top, bottom);
+  document.body.append(el);
 }
 
 function scrollTick(): void {
@@ -96,5 +115,258 @@ describe("useScrollSpy", () => {
     scrollTick();
     expect(onActive.mock.calls).toEqual([["c1"], ["c1"]]);
     vi.useRealTimers();
+  });
+
+  it("corrects an explicit write once a scroll lands off its chunk", () => {
+    vi.useFakeTimers();
+    mountCrossing("a");
+    let active: string | undefined;
+    const onActive = vi.fn((id: string) => {
+      active = id;
+    });
+    const sync = makeSync({ readActive: () => active });
+    renderHook(() => useScrollSpy(["a"], onActive, 150, "", sync));
+    expect(onActive.mock.calls).toEqual([["a"]]);
+
+    active = "b";
+    scrollTick();
+
+    expect(onActive.mock.calls).toEqual([["a"], ["a"]]);
+    expect(active).toBe("a");
+    vi.useRealTimers();
+  });
+
+  it("writes nothing while a jump is flying, then corrects after", () => {
+    vi.useFakeTimers();
+    mountCrossing("a");
+    let active: string | undefined = "b";
+    let held = true;
+    const onActive = vi.fn((id: string) => {
+      active = id;
+    });
+    const sync = makeSync({
+      readActive: () => active,
+      isHeld: () => held,
+    });
+    renderHook(() => useScrollSpy(["a"], onActive, 150, "", sync));
+
+    scrollTick();
+    expect(onActive).not.toHaveBeenCalled();
+
+    held = false;
+    scrollTick();
+    expect(onActive.mock.calls).toEqual([["a"]]);
+    vi.useRealTimers();
+  });
+
+  it("repeats nothing when the store already names the chunk", () => {
+    vi.useFakeTimers();
+    mountCrossing("a");
+    const onActive = vi.fn();
+    const sync = makeSync({ readActive: () => "a" });
+    renderHook(() => useScrollSpy(["a"], onActive, 150, "", sync));
+
+    scrollTick();
+
+    expect(onActive).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("re-reads when a jump ends with no scroll to follow", () => {
+    vi.useFakeTimers();
+    mountCrossing("a");
+    let held = true;
+    let endHold = () => {};
+    const onActive = vi.fn();
+    const sync = makeSync({
+      readActive: () => "b",
+      isHeld: () => held,
+      subscribeHoldEnded: (listener) => {
+        endHold = listener;
+        return () => {};
+      },
+    });
+    renderHook(() => useScrollSpy(["a"], onActive, 150, "", sync));
+    expect(onActive).not.toHaveBeenCalled();
+
+    held = false;
+    act(() => {
+      endHold();
+      vi.advanceTimersByTime(20);
+    });
+
+    expect(onActive.mock.calls).toEqual([["a"]]);
+    vi.useRealTimers();
+  });
+
+  it("names the next element down when an exact line crosses none", () => {
+    mountAt("a", -300, 40);
+    mountAt("b", 100, 300);
+    const onActive = vi.fn();
+    const sync = makeSync({ readActive: () => "a", isExact: () => true });
+
+    renderHook(() => useScrollSpy(["a", "b"], onActive, 50, "", sync));
+
+    expect(onActive.mock.calls).toEqual([["b"]]);
+  });
+
+  it("clears an exact answer when the next element is below the fold", () => {
+    mountAt("a", -300, 40);
+    mountAt("b", window.innerHeight + 10, window.innerHeight + 300);
+    const onActive = vi.fn();
+    const clearActive = vi.fn();
+    const sync = makeSync({
+      readActive: () => "a",
+      isExact: () => true,
+      clearActive,
+    });
+
+    renderHook(() => useScrollSpy(["a", "b"], onActive, 50, "", sync));
+
+    expect(onActive).not.toHaveBeenCalled();
+    expect(clearActive).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it("reports the last answer below the line when scrolled up out of it", () => {
+    mountAt("a", -600, -400);
+    mountAt("b", window.innerHeight + 10, window.innerHeight + 300);
+    const onActive = vi.fn();
+    const clearActive = vi.fn();
+    const sync = makeSync({
+      readActive: () => "b",
+      isExact: () => true,
+      clearActive,
+    });
+
+    renderHook(() => useScrollSpy(["a", "b"], onActive, 50, "", sync));
+
+    expect(onActive).not.toHaveBeenCalled();
+    expect(clearActive).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("keeps the last answer between elements when the line is not exact", () => {
+    mountAt("a", -300, 40);
+    mountAt("b", 100, 300);
+    const onActive = vi.fn();
+    const sync = makeSync({ readActive: () => "a" });
+
+    renderHook(() => useScrollSpy(["a", "b"], onActive, 50, "", sync));
+
+    expect(onActive).not.toHaveBeenCalled();
+  });
+
+  it("re-reads an exact answer when the layout shifts with no scroll", () => {
+    vi.useFakeTimers();
+    let shiftLayout = () => {};
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          shiftLayout = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const card = mountCrossing("a");
+    mountAt("b", 400, 500);
+    let active: string | undefined = "a";
+    const onActive = vi.fn((id: string) => {
+      active = id;
+    });
+    const sync = makeSync({
+      readActive: () => active,
+      isExact: () => true,
+    });
+    renderHook(() => useScrollSpy(["a", "b"], onActive, 150, "", sync));
+
+    card.getBoundingClientRect = () => rectAt(-200, 0);
+    act(() => {
+      shiftLayout();
+      vi.advanceTimersByTime(20);
+    });
+
+    expect(active).toBe("b");
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  describe("at the page end", () => {
+    function endJumpToShortLastChunk(exact: boolean) {
+      mountCrossing("next-to-last");
+      mountAt("last", 400, 500);
+      let active: string | undefined = "last";
+      let held = true;
+      let atEnd = true;
+      let endHold = () => {};
+      const onActive = vi.fn((id: string) => {
+        active = id;
+      });
+      const sync = makeSync({
+        readActive: () => active,
+        isHeld: () => held,
+        isExact: () => exact,
+        isAtPageEnd: () => atEnd,
+        subscribeHoldEnded: (listener) => {
+          endHold = listener;
+          return () => {};
+        },
+      });
+      renderHook(() =>
+        useScrollSpy(["next-to-last", "last"], onActive, 150, "", sync),
+      );
+      held = false;
+      act(() => {
+        endHold();
+        vi.advanceTimersByTime(20);
+      });
+      return {
+        readActive: () => active,
+        scrollUp: () => {
+          atEnd = false;
+          scrollTick();
+        },
+      };
+    }
+
+    it.each([
+      ["a crossing line", false],
+      ["an exact line", true],
+    ])("keeps a short last chunk a jump named on %s", (_line, exact) => {
+      vi.useFakeTimers();
+      const page = endJumpToShortLastChunk(exact);
+
+      expect(page.readActive()).toBe("last");
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["a crossing line", false],
+      ["an exact line", true],
+    ])("corrects again once scrolled up from the end on %s", (_line, exact) => {
+      vi.useFakeTimers();
+      const page = endJumpToShortLastChunk(exact);
+
+      page.scrollUp();
+
+      expect(page.readActive()).toBe("next-to-last");
+      vi.useRealTimers();
+    });
+
+    it("corrects a stored chunk above the line to a last chunk crossing it", () => {
+      mountAt("next-to-last", -300, 100);
+      mountCrossing("last");
+      const onActive = vi.fn();
+      const sync = makeSync({
+        readActive: () => "next-to-last",
+        isAtPageEnd: () => true,
+      });
+
+      renderHook(() =>
+        useScrollSpy(["next-to-last", "last"], onActive, 150, "", sync),
+      );
+
+      expect(onActive.mock.calls).toEqual([["last"]]);
+    });
   });
 });

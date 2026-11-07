@@ -31,6 +31,8 @@ import { IntentBar } from "./IntentBar";
 import { CarryOver } from "./CarryOver";
 import { Header } from "./Header";
 import { BriefControlsSheet } from "./BriefControlsSheet";
+import { LandscapeRow } from "./LandscapeRow";
+import { useRotationHold } from "./hooks/useRotationHold";
 import { PhoneBar } from "./PhoneBar";
 import { Toast } from "@web/components/Toast";
 import { ReadingToolbar } from "./ReadingToolbar";
@@ -256,6 +258,29 @@ function BriefViewContent(props: BriefViewProps) {
   const sheetToolbarControls = regions.toolbar ? toolbarControls : undefined;
   const chunksSheetExpanded = regions.sidebar && sidebar.expanded;
   const openChunksSheet = regions.sidebar ? sidebar.toggle : undefined;
+  useRotationHold(readingPosition, session.placeChunkUnderStack);
+  const landscapeRow = regions.landscapeRow ? (
+    <LandscapeRow
+      key={`landscape-row-${briefId}`}
+      brief={brief}
+      chunkIds={session.chunkIds}
+      controlsRef={phoneChrome.rowControlsRef}
+      sidebarSheetOpen={chunksSheetExpanded}
+      indicatorRef={phoneChrome.rowIndicatorRef}
+      jumpToChunk={jumpToChunkUnderStack}
+      markReviewed={session.markReviewed}
+      marksDisabled={writesDisabled}
+      model={model}
+      openBriefControls={phoneChrome.openControls}
+      openChunks={session.openChunks}
+      placeChunkUnderStack={session.placeChunkUnderStack}
+      openSidebarSheet={openChunksSheet}
+      pending={pendingShown}
+      scope={overlay.compareState.view}
+      shareChunk={shareChunk}
+      toggleChunk={session.toggleChunk}
+    />
+  ) : undefined;
   const focusPanelState = focusPanel.open ? "open" : "closed";
   const focusPanelBeside = focusPanelShown && !focusPanel.sheet;
   const focusPanelAttr = focusPanelBeside ? focusPanelState : undefined;
@@ -277,6 +302,7 @@ function BriefViewContent(props: BriefViewProps) {
                       toggleShortcuts={session.toggleShortcuts}
                       focusMode={session.focusMode}
                       largeTitle={largeTitle}
+                      landscapeRow={landscapeRow}
                       brief={brief}
                       livePrState={pr?.livePrState}
                       authorLogin={pr?.authorLogin}
@@ -487,15 +513,15 @@ function BriefViewContent(props: BriefViewProps) {
                         diffView={diffView}
                         toggleDiffView={toggleDiffView}
                         revisions={reading.revisions}
-                        sheetTriggerRef={phoneChrome.indicatorRef}
+                        sheetTriggerRef={phoneChrome.sheetTriggerRef}
                       />
                     ) : null}
                     {regions.phoneBar ? (
                       <PhoneBar
                         chunkIds={session.chunkIds}
                         chunksExpanded={chunksSheetExpanded}
-                        controlsRef={phoneChrome.controlsRef}
-                        indicatorRef={phoneChrome.indicatorRef}
+                        controlsRef={phoneChrome.barControlsRef}
+                        indicatorRef={phoneChrome.barIndicatorRef}
                         jumpToChunk={jumpToChunkUnderStack}
                         openBriefControls={phoneChrome.openControls}
                         openChunks={openChunksSheet}

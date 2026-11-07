@@ -3,7 +3,10 @@ import { act, renderHook } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import {
+  LANDSCAPE_PHONE_QUERY,
+  MOBILE_QUERY,
+} from "@web/hooks/useMobileViewport";
 import {
   resetMediaQueries,
   resetViewportWidth,
@@ -23,6 +26,14 @@ function WrapColumnsProbe() {
   );
 }
 
+const NOTCH_INSETS = { leftPx: 47, rightPx: 47 };
+
+function stubNotchInsets(): void {
+  const root = document.documentElement.style;
+  root.setProperty("--safe-area-inset-left", `${NOTCH_INSETS.leftPx}px`);
+  root.setProperty("--safe-area-inset-right", `${NOTCH_INSETS.rightPx}px`);
+}
+
 function stubUprightPhone(): void {
   setMediaQueryMatches(MOBILE_QUERY, true);
   setMediaQueryMatches(CARD_BLEED_QUERY, true);
@@ -33,7 +44,7 @@ describe("useWrapColumns", () => {
   afterEach(() => {
     resetMediaQueries();
     resetViewportWidth();
-    document.documentElement.style.fontSize = "";
+    document.documentElement.removeAttribute("style");
   });
 
   it.each([881, 1024, 1440])("keeps the desktop's columns at %ipx", (width) => {
@@ -71,6 +82,35 @@ describe("useWrapColumns", () => {
 
     expect(result.current).toEqual(
       derivePhoneWrapColumns({ widthPx: 844, cardBleeds: false }),
+    );
+  });
+
+  it("narrows a sideways phone's columns by the notch insets", () => {
+    setMediaQueryMatches(MOBILE_QUERY, true);
+    setMediaQueryMatches(LANDSCAPE_PHONE_QUERY, true);
+    setMediaQueryMatches(CARD_BLEED_QUERY, true);
+    setViewportWidth(750);
+    stubNotchInsets();
+    const { result } = renderHook(() => useWrapColumns());
+
+    const expected = derivePhoneWrapColumns({
+      widthPx: 750,
+      cardBleeds: true,
+      insets: NOTCH_INSETS,
+    });
+    expect(result.current).toEqual(expected);
+    expect(expected.unified).toBeLessThan(
+      derivePhoneWrapColumns({ widthPx: 750, cardBleeds: true }).unified,
+    );
+  });
+
+  it("reads no insets on an upright phone", () => {
+    stubUprightPhone();
+    stubNotchInsets();
+    const { result } = renderHook(() => useWrapColumns());
+
+    expect(result.current).toEqual(
+      derivePhoneWrapColumns({ widthPx: 390, cardBleeds: true }),
     );
   });
 

@@ -43,7 +43,7 @@ describe("focusRescueTarget", () => {
     setMediaQueryMatches(MOBILE_QUERY, true);
     const terminalSlot = mountButton(true);
 
-    focusRescueTarget({ current: null });
+    focusRescueTarget({ current: undefined });
 
     expect(document.activeElement).toBe(terminalSlot);
   });

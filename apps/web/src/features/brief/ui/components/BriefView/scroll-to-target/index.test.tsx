@@ -155,6 +155,9 @@ function renderChangesScroll(
 
 const CHUNK_A = { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-a" } as const;
 
+/** Past the longest settle watch, so any flight has ended. */
+const SETTLED_AFTER_MS = 10_000;
+
 describe("useScrollToTarget", () => {
   it("scrolls a near chunk into view once the jump is due", () => {
     const card = mountCard("chunk-a", 300);
@@ -352,6 +355,101 @@ describe("useScrollToTarget", () => {
     });
 
     expect(window.scrollBy).not.toHaveBeenCalled();
+  });
+
+  it("tells listeners when the reader cuts the scroll short", () => {
+    mountCard("chunk-a", 9000);
+    const { result } = renderScrollToTarget();
+    const interrupted = vi.fn();
+    act(() => {
+      result.current.subscribeScrollEnded(interrupted);
+    });
+
+    act(() => {
+      result.current.scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-a" },
+        SMOOTH,
+      );
+      vi.advanceTimersByTime(1);
+      window.dispatchEvent(new Event("wheel"));
+    });
+
+    expect(interrupted).toHaveBeenCalledOnce();
+    expect(result.current.isScrollInFlight()).toBe(false);
+  });
+
+  it("tells listeners once when a scroll settles with no scroll after", () => {
+    mountCard("chunk-a", 9000);
+    const { result } = renderScrollToTarget();
+    const ended = vi.fn();
+    act(() => {
+      result.current.subscribeScrollEnded(ended);
+    });
+
+    act(() => {
+      result.current.scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-a" },
+        SMOOTH,
+      );
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.isScrollInFlight()).toBe(true);
+    expect(ended).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SETTLED_AFTER_MS);
+    });
+
+    expect(result.current.isScrollInFlight()).toBe(false);
+    expect(ended).toHaveBeenCalledOnce();
+  });
+
+  it("tells listeners only when the scroll that replaced another ends", () => {
+    mountCard("chunk-a", 9000);
+    mountCard("chunk-b", 12000);
+    const { result } = renderScrollToTarget();
+    const ended = vi.fn();
+    act(() => {
+      result.current.subscribeScrollEnded(ended);
+    });
+
+    act(() => {
+      result.current.scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-a" },
+        SMOOTH,
+      );
+      vi.advanceTimersByTime(1);
+      result.current.scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-b" },
+        SMOOTH,
+      );
+      vi.advanceTimersByTime(1);
+    });
+    expect(ended).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SETTLED_AFTER_MS);
+    });
+
+    expect(ended).toHaveBeenCalledOnce();
+  });
+
+  it("flies on through a press on steering chrome", () => {
+    mountCard("chunk-a", 9000);
+    const bar = document.createElement("div");
+    bar.dataset["scrollSteering"] = "";
+    document.body.append(bar);
+    const { result } = renderScrollToTarget();
+
+    act(() => {
+      result.current.scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId: "chunk-a" },
+        SMOOTH,
+      );
+      vi.advanceTimersByTime(1);
+      bar.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+
+    expect(result.current.isScrollInFlight()).toBe(true);
+    bar.remove();
   });
 
   it("stops re-placing once the reader presses a pointer in the card", () => {

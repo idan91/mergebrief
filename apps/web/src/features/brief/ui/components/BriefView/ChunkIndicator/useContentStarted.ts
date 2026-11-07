@@ -6,9 +6,7 @@ import {
   STICKY_STACK_HEIGHT_VAR,
 } from "../utils";
 import type { ContentStart } from "./types";
-
-/** A fractional scroll offset can stop the page just short of its height. */
-const PAGE_END_SLACK_PX = 1;
+import { isScrolledToEnd, pageScrolls } from "./utils";
 
 /**
  * Whether the page has scrolled past where the chunks begin: the content
@@ -48,16 +46,4 @@ export function useContentStarted(phone: boolean): ContentStart {
   };
 
   return { started, markJumped };
-}
-
-function pageScrolls(): boolean {
-  const scrollRoom = document.documentElement.scrollHeight - window.innerHeight;
-  return scrollRoom > PAGE_END_SLACK_PX;
-}
-
-function isScrolledToEnd(): boolean {
-  const viewportBottom = window.scrollY + window.innerHeight;
-  const pageEnd = document.documentElement.scrollHeight - PAGE_END_SLACK_PX;
-  const reachedEnd = window.scrollY > 0 && viewportBottom >= pageEnd;
-  return reachedEnd;
 }

@@ -50,7 +50,7 @@ async function renderWritableScreen() {
   });
   await waitFor(() =>
     expect(
-      screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      screen.getAllByRole("heading", { level: 1, name: briefFixture.pr.title }),
     ).toBeTruthy(),
   );
 }
@@ -104,7 +104,7 @@ async function renderBriefView(
   );
   await waitFor(() =>
     expect(
-      screen.getByRole("heading", { level: 1, name: brief.pr.title }),
+      screen.getAllByRole("heading", { level: 1, name: brief.pr.title }),
     ).toBeTruthy(),
   );
   return { queryClient };

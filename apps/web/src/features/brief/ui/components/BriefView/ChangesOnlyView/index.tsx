@@ -14,7 +14,7 @@ import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { IconButton } from "@web/components/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign";
 import { Markdown } from "@web/components/Markdown";
-import { useMobileViewport } from "@web/hooks/useMobileViewport";
+import { useViewportShape } from "@web/hooks/useViewportShape";
 import { useReviewFlow } from "@web/features/review/session";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
 import {
@@ -350,8 +350,8 @@ function WindowedNarrativeList({
     const key = hostedIndex === -1 ? undefined : chunkKeys[hostedIndex];
     return key === undefined ? undefined : new Set([key]);
   }, [chunkKeys, hostedIndex]);
-  const mobile = useMobileViewport();
-  const metrics = resolveChunkCardMetrics(mobile);
+  const shape = useViewportShape();
+  const metrics = resolveChunkCardMetrics(shape);
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = chunks[index];

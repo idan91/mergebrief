@@ -1,11 +1,12 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .largeTitle {
     display: none;
   }
 
-  @media (width <= 880px) {
+  @include mixins.for-phone {
     .largeTitle {
       display: flex;
       flex-direction: column;

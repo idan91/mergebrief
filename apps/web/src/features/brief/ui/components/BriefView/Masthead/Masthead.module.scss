@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 @use "layout";
 
 @layer components {
@@ -63,7 +64,7 @@
     }
   }
 
-  @media (width <= 880px) {
+  @include mixins.for-phone {
     :global(.main) .generatedBar {
       display: none;
     }

@@ -12,7 +12,7 @@
     border-block-start: 1px solid var(--color-outline-1);
     background: var(--color-background);
 
-    @include mixins.for-breakpoint("mobile", max) {
+    @include mixins.for-phone {
       display: none;
     }
   }

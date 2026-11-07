@@ -139,6 +139,62 @@ describe("useReadingSession reading position", () => {
   });
 });
 
+describe("useReadingSession page end", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function mountShortLastChunk(scrollY: number, scrollHeight: number) {
+    vi.spyOn(window, "scrollY", "get").mockImplementation(() => scrollY);
+    vi.spyOn(document.documentElement, "scrollHeight", "get").mockReturnValue(
+      scrollHeight,
+    );
+    vi.useFakeTimers();
+    mountChunk("chunk-a", true);
+    const last = mountChunk("chunk-b", false);
+    last.getBoundingClientRect = () => rectAt(400, 500);
+    const position = createReadingPositionStore();
+    render(
+      <ReviewSessionProvider briefId="fixture-brief" model={model}>
+        <SessionHost position={position} onRender={() => {}} />
+      </ReviewSessionProvider>,
+    );
+    act(() => {
+      position
+        .getState()
+        .actions.setActive(
+          "chunk-b",
+          model.chunkToGroup.get("chunk-b") ?? null,
+        );
+    });
+    const scrollTo = (nextScrollY: number) => {
+      scrollY = nextScrollY;
+      act(() => {
+        window.dispatchEvent(new Event("scroll"));
+        vi.advanceTimersByTime(20);
+      });
+    };
+    return { position, scrollTo };
+  }
+
+  it("keeps a short last chunk at the end, then follows a scroll up", () => {
+    const pageEnd = 2000 - window.innerHeight;
+    const page = mountShortLastChunk(pageEnd, 2000);
+
+    page.scrollTo(pageEnd);
+    expect(page.position.getState().activeChunkId).toBe("chunk-b");
+
+    page.scrollTo(pageEnd - 200);
+    expect(page.position.getState().activeChunkId).toBe("chunk-a");
+  });
+
+  it("keeps a short last chunk on a page that never scrolls", () => {
+    const page = mountShortLastChunk(0, window.innerHeight);
+
+    page.scrollTo(0);
+
+    expect(page.position.getState().activeChunkId).toBe("chunk-b");
+  });
+});
+
 function requireFirst<T>(items: readonly T[], what: string): T {
   const first = items[0];
   if (!first) {

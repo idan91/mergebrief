@@ -10,7 +10,8 @@
     margin-block-end: functions.to-rem(20px);
     margin-inline: auto;
     padding-block: functions.to-rem(10px);
-    padding-inline: functions.to-rem(18px);
+    padding-inline: max(functions.to-rem(18px), env(safe-area-inset-left))
+      max(functions.to-rem(18px), env(safe-area-inset-right));
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);

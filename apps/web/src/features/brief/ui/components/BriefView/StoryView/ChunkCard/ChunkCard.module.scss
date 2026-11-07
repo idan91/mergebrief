@@ -202,7 +202,13 @@
   @media (width < 760px) {
     :global(.main) .chunk {
       // chunk-height-model.ts copies this bleed and useWrapColumns.ts its query; chunk-height-model.stylesheets.test.ts compares.
-      --chunk-bleed: calc(var(--main-gutter) - var(--space-2));
+      --chunk-edge: max(
+        var(--space-2),
+        env(safe-area-inset-left),
+        env(safe-area-inset-right)
+      );
+      /* stylelint-disable-next-line length-zero-no-unit -- max() rejects a unitless 0 */
+      --chunk-bleed: max(0px, calc(var(--main-gutter) - var(--chunk-edge)));
 
       inline-size: calc(100% + 2 * var(--chunk-bleed));
       margin-inline: calc(-1 * var(--chunk-bleed));
@@ -263,6 +269,60 @@
       grid-row: 1 / 3;
       grid-column: 3;
       inline-size: 100%;
+      block-size: 100%;
+      border-radius: 0;
+      border-start-end-radius: var(--radius-panel);
+    }
+  }
+
+  @include mixins.for-landscape-phone {
+    :root:has([data-landscape-row]) .head {
+      position: static;
+    }
+
+    .head {
+      display: flex;
+      align-items: center;
+      block-size: functions.to-rem(44px);
+      gap: functions.to-rem(10px);
+      padding: 0;
+      padding-inline-start: functions.to-rem(12px);
+    }
+
+    .toggle {
+      flex: 1 1 auto;
+      min-inline-size: 0;
+      gap: functions.to-rem(10px);
+    }
+
+    .copyPath,
+    .copyLink,
+    .fileCommentControl {
+      display: none;
+    }
+
+    .chips {
+      display: contents;
+    }
+
+    .chips > :not(.loc) {
+      display: none;
+    }
+
+    .loc {
+      flex: none;
+      padding-inline-start: 0;
+    }
+
+    .reviewToggle {
+      flex: none;
+      padding-inline-end: functions.to-rem(4px);
+    }
+
+    .head .actions {
+      display: grid;
+      flex: none;
+      inline-size: functions.to-rem(44px);
       block-size: 100%;
       border-radius: 0;
       border-start-end-radius: var(--radius-panel);

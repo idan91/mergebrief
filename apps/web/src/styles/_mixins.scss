@@ -38,6 +38,25 @@
   }
 }
 
+// A phone held sideways: short, no wider than a tablet, and touched. Height
+// keys it because a large phone lands past the mobile width; the coarse
+// pointer keeps a short desktop window out. hooks/useMobileViewport.ts reads
+// the same query; styles/breakpoints.test.ts holds them equal.
+@mixin for-landscape-phone {
+  @media (orientation: landscape) and (height <= #{functions.get-breakpoint("landscape-height")}) and (width <= #{functions.get-breakpoint("tablet")}) and (pointer: coarse) {
+    @content;
+  }
+}
+
+// Any phone: the portrait width or the landscape shape. hooks/useMobileViewport.ts
+// reads the same pair.
+@mixin for-phone {
+  @media (width <= #{functions.get-breakpoint("mobile")}),
+    ((orientation: landscape) and (height <= #{functions.get-breakpoint("landscape-height")}) and (width <= #{functions.get-breakpoint("tablet")}) and (pointer: coarse)) {
+    @content;
+  }
+}
+
 // A one-column grid whose track may shrink below its content. The implicit
 // auto track sizes to a nowrap descendant's min-content and widens every
 // ancestor grid with it, so each grid between the scrollport and that line

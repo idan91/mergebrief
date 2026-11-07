@@ -160,7 +160,7 @@ describe("the session read in the route loader", () => {
     await renderRoute();
     // The Brief is on screen…
     expect(
-      screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      screen.getAllByRole("heading", { level: 1, name: briefFixture.pr.title }),
     ).toBeTruthy();
     expect(viewedCheckboxes().length).toBeGreaterThan(0);
     // …and every write is off, not just the composer: a read mark or a

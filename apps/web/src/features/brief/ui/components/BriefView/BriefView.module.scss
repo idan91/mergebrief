@@ -31,6 +31,16 @@
       }
     }
 
+    @include mixins.for-landscape-phone {
+      &:has(.readingColumn[data-sidebar="bar"]),
+      &:has(.readingColumn[data-phone-bar]) {
+        /* stylelint-disable length-zero-no-unit -- calc() rejects a unitless 0 */
+        --sidebar-reserve-bottom: 0px;
+        --bottom-sheet-offset: 0px;
+        /* stylelint-enable length-zero-no-unit */
+      }
+    }
+
     @media (width <= 1120px) {
       &:has(.readingColumn[data-sidebar]) {
         /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
@@ -64,10 +74,18 @@
     }
   }
 
+  @include mixins.for-landscape-phone {
+    .readingColumn {
+      padding-inline: max(var(--main-gutter), env(safe-area-inset-left))
+        max(var(--main-gutter), env(safe-area-inset-right));
+    }
+  }
+
   .diffTimeoutBand {
     margin-block: functions.to-rem(12px) functions.to-rem(20px);
     margin-inline-end: var(--sidebar-w);
-    padding-inline: var(--page-gutter);
+    padding-inline: max(var(--page-gutter), env(safe-area-inset-left))
+      max(var(--page-gutter), env(safe-area-inset-right));
 
     > * {
       max-inline-size: functions.to-rem(880px);

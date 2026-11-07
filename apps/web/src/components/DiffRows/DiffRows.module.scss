@@ -227,7 +227,7 @@ $split-hang: min(var(--code-indent, 0) * 1ch, 8ch);
 }
 
 @layer components {
-  @include mixins.for-breakpoint("mobile", max) {
+  @include mixins.for-phone {
     .line {
       > .lineNumber {
         inline-size: var(--diff-unified-number-w);

@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .sidebar[data-variant="desktop"] {
@@ -33,6 +34,11 @@
     inset-block-end: 0;
     inset-inline: 0;
     z-index: 97;
+
+    @include mixins.for-landscape-phone {
+      /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+      --bottom-sheet-offset: 0px;
+    }
   }
 
   .column {

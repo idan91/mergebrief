@@ -1,15 +1,19 @@
 import { fileURLToPath } from "node:url";
 
-import { compile } from "sass";
 import { describe, expect, it } from "vitest";
 
 import { MOBILE_BREAKPOINT_PX } from "@web/hooks/useMobileViewport";
 import {
-  CARD_BLEED_PX,
+  compileStylesheet,
+  parseCompiledRules,
+  type CompiledRule,
+} from "@web/test/compiled-css";
+import {
   CARD_BORDERS_PX,
   CODE_GLYPH_PX,
   DEFAULT_REM_PX,
   MAIN_GUTTER_PX,
+  NARROW_CARD_EDGE_PX,
   NARROW_MAIN_GUTTER_PX,
   PHONE_CODE_PADDING_PX,
   PHONE_UNIFIED_NUMBERS_PX,
@@ -19,12 +23,6 @@ import { CARD_BLEED_QUERY } from "./useWrapColumns";
 
 // The phone wrap model copies these lengths from the stylesheets; nothing
 // else in the toolchain compares them.
-
-interface CompiledRule {
-  atRules: string[];
-  selector: string;
-  declarations: Map<string, string>;
-}
 
 type CustomProperties = ReadonlyMap<string, string>;
 
@@ -39,59 +37,31 @@ const PLEX_MONO_ADVANCE_EM = 0.6;
 const PHONE_QUERY = new RegExp(
   `(max-width: |width <= )${String(MOBILE_BREAKPOINT_PX)}px`,
 );
-const COMMENT = /\/\*[\s\S]*?\*\//g;
 const VAR_REFERENCE = /var\((--[\w-]+)\)/g;
 const REM_LENGTH = /(\d*\.?\d+)rem/g;
 const PX_LENGTH = /(\d*\.?\d+)px/g;
 const ARITHMETIC_TOKEN = /\d*\.?\d+|[()+\-*/]/g;
 
-function parseDeclarations(body: string): Map<string, string> {
-  const declarations = new Map<string, string>();
-  for (const declaration of body.split(";")) {
-    const colon = declaration.indexOf(":");
-    if (colon !== -1) {
-      const property = declaration.slice(0, colon).trim();
-      declarations.set(property, declaration.slice(colon + 1).trim());
-    }
-  }
-  return declarations;
+/** The compiled sheet's style rules, each with the media query around it. */
+function readCompiledRules(path: string): CompiledRule[] {
+  return parseCompiledRules(compileStylesheet(path));
 }
 
-/** The compiled sheet's style rules, each with the at-rule preludes around it. */
-function readCompiledRules(path: string): CompiledRule[] {
-  const { css } = compile(path, { loadPaths: [STYLES_DIRECTORY] });
-  const rules: CompiledRule[] = [];
-  const preludes: string[] = [];
-  let buffer = "";
-  for (const character of css.replace(COMMENT, "")) {
-    if (character === "{") {
-      preludes.push(buffer.trim());
-      buffer = "";
-    } else if (character === "}") {
-      const selector = preludes.pop() ?? "";
-      const atRules = preludes.filter((prelude) => prelude.startsWith("@"));
-      const declarations = parseDeclarations(buffer);
-      if (!selector.startsWith("@")) {
-        rules.push({ atRules, selector, declarations });
-      }
-      buffer = "";
-    } else {
-      buffer += character;
-    }
-  }
-  return rules;
+/** The rule's selector list as written, for an exact match. */
+function readSelector(rule: CompiledRule): string {
+  return rule.selectors.join(", ");
 }
 
 function isOutsideMedia(rule: CompiledRule): boolean {
-  return !rule.atRules.some((prelude) => prelude.startsWith("@media"));
+  return rule.media === undefined;
 }
 
 function isUnderPhoneQuery(rule: CompiledRule): boolean {
-  return rule.atRules.some((prelude) => PHONE_QUERY.test(prelude));
+  return PHONE_QUERY.test(rule.media ?? "");
 }
 
 function isUnderBleedQuery(rule: CompiledRule): boolean {
-  return rule.atRules.includes(`@media ${CARD_BLEED_QUERY}`);
+  return rule.media === CARD_BLEED_QUERY;
 }
 
 /** The one rule for `selector` in `scope` that sets `property`. */
@@ -103,7 +73,7 @@ function findRule(
 ): CompiledRule {
   const matches = rules.filter(
     (rule) =>
-      rule.selector === selector &&
+      readSelector(rule) === selector &&
       rule.declarations.has(property) &&
       scope(rule),
   );
@@ -122,7 +92,7 @@ function findPhoneRule(
 ): CompiledRule {
   const overridden = rules.some(
     (rule) =>
-      rule.selector === selector &&
+      readSelector(rule) === selector &&
       rule.declarations.has(property) &&
       isUnderPhoneQuery(rule),
   );
@@ -222,7 +192,7 @@ function collectCustomProperties(
 const tokenRules = readCompiledRules(`${STYLES_DIRECTORY}/tokens.scss`);
 const phoneRootRules = tokenRules.filter(
   (rule) =>
-    rule.selector === ":root" &&
+    readSelector(rule) === ":root" &&
     (isOutsideMedia(rule) || isUnderPhoneQuery(rule)),
 );
 const phoneTokens = collectCustomProperties(phoneRootRules);
@@ -242,25 +212,25 @@ describe("phone wrap model stylesheet lengths", () => {
     expect(readNarrowGutterPx()).toBe(NARROW_MAIN_GUTTER_PX);
   });
 
-  it("matches the chunk card's bleed and its body borders", () => {
+  it("matches the chunk card's bleed edge and its body borders", () => {
     const cardRules = readCompiledRules(
       `${BRIEF_VIEW_DIRECTORY}/StoryView/ChunkCard/ChunkCard.module.scss`,
     );
-    const bleedSelector = ":global(.main) .chunk";
-    const bleedRule = findRule(
+    const edgeRule = findRule(
       cardRules,
-      bleedSelector,
-      "--chunk-bleed",
+      ":global(.main) .chunk",
+      "--chunk-edge",
       isUnderBleedQuery,
     );
-    const narrowTokens = new Map(phoneTokens);
-    const narrowGutterPx = readNarrowGutterPx();
-    narrowTokens.set("--main-gutter", `${String(narrowGutterPx)}px`);
-    const bleedPx = readLengthPx(bleedRule, "--chunk-bleed", narrowTokens);
+    const [edgeFloor = ""] = readValue(edgeRule, "--chunk-edge")
+      .replace(/^max\(/, "")
+      .split(",");
     const bodyRule = findPhoneRule(cardRules, ".body", "border");
     const [borderWidth = ""] = readValue(bodyRule, "border").split(" ");
 
-    expect(bleedPx).toBe(CARD_BLEED_PX);
+    expect(resolveLengthPx(edgeFloor.trim(), phoneTokens)).toBe(
+      NARROW_CARD_EDGE_PX,
+    );
     expect(2 * resolveLengthPx(borderWidth, phoneTokens)).toBe(CARD_BORDERS_PX);
   });
 

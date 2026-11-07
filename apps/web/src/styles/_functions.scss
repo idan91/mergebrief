@@ -6,6 +6,7 @@ $breakpoints: (
   "mobile": 880px,
   "tablet": 1120px,
   "wide": 1180px,
+  "landscape-height": 500px,
 );
 
 @function to-rem($px-size, $default-size: $default-font-size) {

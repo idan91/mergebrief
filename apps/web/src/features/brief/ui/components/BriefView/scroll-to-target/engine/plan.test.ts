@@ -14,6 +14,7 @@ import {
 
 const VIEWPORT_HEIGHT = 800;
 const STACK_HEIGHT = 110;
+const SCROLL_GAP = 40;
 /** The pinned stack plus the 40px scroll gap. */
 const STACK_TOP = 150;
 const ROW_HEIGHT = 44;
@@ -27,6 +28,7 @@ function makeReading(
     scrollY,
     viewportHeight: VIEWPORT_HEIGHT,
     stackHeight: STACK_HEIGHT,
+    scrollGap: SCROLL_GAP,
   };
 }
 

@@ -124,7 +124,7 @@ async function renderReadThroughScreen() {
   });
   await waitFor(() =>
     expect(
-      screen.getByRole("heading", {
+      screen.getAllByRole("heading", {
         level: 1,
         name: readThroughFixture.pr.title,
       }),

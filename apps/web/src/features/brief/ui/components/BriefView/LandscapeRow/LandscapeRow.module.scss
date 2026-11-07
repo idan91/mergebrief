@@ -1,0 +1,67 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .row {
+    display: none;
+    align-items: center;
+    gap: functions.to-rem(2px);
+    block-size: functions.to-rem(43px);
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  }
+
+  .back {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    inline-size: functions.to-rem(44px);
+    block-size: functions.to-rem(43px);
+    color: var(--color-text-2);
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  .title {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    margin: 0;
+    overflow: hidden;
+    color: var(--color-text-1);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &[data-state="hidden"] {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      padding: 0;
+      border: 0;
+      clip-path: inset(50%);
+    }
+  }
+
+  .nav {
+    display: flex;
+    flex: none;
+    align-items: center;
+    margin-inline-start: auto;
+  }
+
+  // Nested to outrank IconButton's own size rule: a 44px target on the row.
+  .row .controls {
+    inline-size: functions.to-rem(44px);
+    block-size: functions.to-rem(43px);
+    border-radius: 0;
+  }
+
+  @include mixins.for-landscape-phone {
+    .row {
+      display: flex;
+    }
+  }
+}

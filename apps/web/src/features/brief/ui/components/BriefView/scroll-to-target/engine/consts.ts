@@ -32,7 +32,7 @@ export const PLACEMENT_BLOCKS: Record<ScrollPlacement, ScrollLogicalPosition> =
     [ScrollPlacements.READING_BAND]: "center",
   };
 
-/** Air between a placed card's head and the pinned stack, where every under-stack scroll aims. */
+/** The scroll gap token's declared default, read where the page carries no value. */
 export const CHUNK_SCROLL_GAP_PX = 40;
 
 // A smooth scroll action can take a few frames to start; stillness before
@@ -43,9 +43,23 @@ export const SCROLL_START_FRAMES = 12;
 export const SCROLL_ABORT_EVENTS = [
   "wheel",
   "touchstart",
+  "touchmove",
   "keydown",
   "pointerdown",
 ] as const;
+
+/**
+ * Marks chrome that steers the page, such as a stepper's bar. A press inside
+ * it leaves a scroll in flight running, so a chunk it names stays the chunk
+ * the page is going to. `LandscapeRow` and `PhoneBar` write it.
+ */
+export const SCROLL_STEERING_SELECTOR = "[data-scroll-steering]";
+
+/** The abort events that count as a press; a wheel, drag or key on steering chrome still aborts. */
+export const SCROLL_STEERING_PRESSES: ReadonlySet<string> = new Set([
+  "pointerdown",
+  "touchstart",
+]);
 
 /** Air between a corrected head and the pinned stack. */
 export const ROW_SCROLL_GAP_PX = 16;

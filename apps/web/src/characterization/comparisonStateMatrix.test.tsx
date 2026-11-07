@@ -348,7 +348,7 @@ describe("comparison state matrix characterization", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: PR.title }),
+        screen.getAllByRole("heading", { level: 1, name: PR.title }),
       ).toBeTruthy(),
     );
     // The same region must stay mounted across the pick: a remounted one
@@ -390,7 +390,7 @@ describe("comparison state matrix characterization", () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: PR.title }),
+        screen.getAllByRole("heading", { level: 1, name: PR.title }),
       ).toBeTruthy(),
     );
 
@@ -404,7 +404,7 @@ describe("comparison state matrix characterization", () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: PR.title }),
+        screen.getAllByRole("heading", { level: 1, name: PR.title }),
       ).toBeTruthy(),
     );
 
@@ -426,7 +426,7 @@ describe("comparison state matrix characterization", () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: PR.title }),
+        screen.getAllByRole("heading", { level: 1, name: PR.title }),
       ).toBeTruthy(),
     );
 
@@ -454,7 +454,10 @@ describe("comparison state matrix characterization", () => {
     await renderAt("/briefs/lonely-brief-1");
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: lonelyBrief.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: lonelyBrief.pr.title,
+        }),
       ).toBeTruthy(),
     );
 
@@ -490,7 +493,7 @@ describe("comparison state matrix characterization", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: PR.title }),
+        screen.getAllByRole("heading", { level: 1, name: PR.title }),
       ).toBeTruthy(),
     );
 

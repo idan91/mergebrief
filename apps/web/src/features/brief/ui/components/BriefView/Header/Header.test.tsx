@@ -734,3 +734,14 @@ describe("Header on a phone in focus mode", () => {
     expect(cta).toContain("display:inline-flex");
   });
 });
+
+describe("Header on a sideways phone", () => {
+  it("hides the row's title until the large title scrolls out", () => {
+    const hidden = findDeclarations(
+      readPhoneCss(),
+      ".header:not([data-title-out]) .titleBlock,.header:not([data-title-out]) [data-landscape-row] h1",
+    );
+
+    expect(hidden).toContain("clip-path:inset(50%)");
+  });
+});

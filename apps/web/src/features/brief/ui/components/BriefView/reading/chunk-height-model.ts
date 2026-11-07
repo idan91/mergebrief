@@ -12,6 +12,10 @@ import {
   type LineWidthHistogram,
 } from "brief-core/chunk-layout";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import {
+  ViewportShapes,
+  type ViewportShape,
+} from "@web/hooks/useViewportShape/types";
 import { SPLIT_MIN_WIDTH_PX } from "../StoryView/useSplitWidth";
 
 export const DIFF_ROW_HEIGHT_PX = 22;
@@ -47,7 +51,7 @@ export const DEFAULT_REM_PX = 16;
 
 export const NARROW_MAIN_GUTTER_PX = 12;
 export const MAIN_GUTTER_PX = 48;
-export const CARD_BLEED_PX = 8;
+export const NARROW_CARD_EDGE_PX = 4;
 export const CARD_BORDERS_PX = 2;
 
 /** A phone code cell's padding: the 16px sign hangs in an 18px start, then 8px at the end. */
@@ -63,14 +67,45 @@ export const SPLIT_NUMBERS_PX = 112;
 export interface PhoneLayout {
   /** The page's width inside any scrollbar. */
   widthPx: number;
-  /** Under 760px `.main` keeps a 12px gutter and a chunk card bleeds 8px past it each side; from 760px the gutter is 48px. */
+  /** Under 760px `.main` keeps a 12px gutter and a chunk card bleeds to 4px from the screen each side; from 760px the gutter is 48px. */
   cardBleeds: boolean;
   /** The root font size, 16 when absent: the stylesheets set every phone length here in rem but the card border. */
   remPx?: number | undefined;
+  /** The side safe-area insets a notched phone held sideways reports, in px; zero when absent. */
+  insets?: SideInsets;
 }
+
+export interface SideInsets {
+  leftPx: number;
+  rightPx: number;
+}
+
+/** The chunk list between `.main`'s paddings and how far a card bleeds past it on each side. */
+export interface PhoneCardBox {
+  listPx: number;
+  bleedPx: number;
+}
+
+const NO_INSETS: SideInsets = { leftPx: 0, rightPx: 0 };
 
 function countCodeColumns(widthPx: number, glyphPx: number): number {
   return Math.max(Math.floor(widthPx / glyphPx), 1);
+}
+
+/** `.main` pads each side to the larger of its gutter and that side's inset; a card stops its bleed at the wider inset. */
+export function derivePhoneCardBox(layout: PhoneLayout): PhoneCardBox {
+  const { widthPx, cardBleeds, remPx = DEFAULT_REM_PX } = layout;
+  const { insets = NO_INSETS } = layout;
+  const remScale = remPx / DEFAULT_REM_PX;
+  const baseGutterPx = cardBleeds ? NARROW_MAIN_GUTTER_PX : MAIN_GUTTER_PX;
+  const gutterPx = baseGutterPx * remScale;
+  const startPx = Math.max(gutterPx, insets.leftPx);
+  const endPx = Math.max(gutterPx, insets.rightPx);
+  const edgeFloorPx = NARROW_CARD_EDGE_PX * remScale;
+  const edgePx = Math.max(edgeFloorPx, insets.leftPx, insets.rightPx);
+  const bleedPx = cardBleeds ? Math.max(gutterPx - edgePx, 0) : 0;
+
+  return { listPx: widthPx - startPx - endPx, bleedPx };
 }
 
 /**
@@ -79,12 +114,10 @@ function countCodeColumns(widthPx: number, glyphPx: number): number {
  * wide, so under that the split figure is the narrowest list's that renders it.
  */
 export function derivePhoneWrapColumns(layout: PhoneLayout): WrapColumns {
-  const { widthPx, cardBleeds, remPx = DEFAULT_REM_PX } = layout;
+  const { remPx = DEFAULT_REM_PX } = layout;
   const remScale = remPx / DEFAULT_REM_PX;
-  const gutterPx = cardBleeds ? NARROW_MAIN_GUTTER_PX : MAIN_GUTTER_PX;
-  const listPx = widthPx - 2 * gutterPx * remScale;
-  const bleedPx = cardBleeds ? 2 * CARD_BLEED_PX * remScale : 0;
-  const cardOverListPx = bleedPx - CARD_BORDERS_PX;
+  const { listPx, bleedPx } = derivePhoneCardBox(layout);
+  const cardOverListPx = 2 * bleedPx - CARD_BORDERS_PX;
   const splitListPx = Math.max(listPx, SPLIT_MIN_WIDTH_PX);
   const codePaddingPx = PHONE_CODE_PADDING_PX * remScale;
   const glyphPx = CODE_GLYPH_PX * remScale;
@@ -111,6 +144,9 @@ export const NARRATIVE_CARD_OVERHEAD_PX = 145;
 
 /** The phone head's 56px border box over the desktop's: a 24px row, 11px padding and a 1px border each side. */
 export const PHONE_HEAD_EXTRA_PX = 8;
+
+/** The sideways head's 44px row under the desktop's 48px. */
+export const LANDSCAPE_HEAD_SHORTFALL_PX = 4;
 
 /** The phone narrative head's counts line under the path: a 2px gap and an 11px line at 1.55, past the 24px jump row. */
 export const PHONE_NARRATIVE_HEAD_EXTRA_PX = 14;
@@ -150,9 +186,24 @@ export const PHONE_CARD_METRICS: ChunkCardMetrics = {
     NARRATIVE_CARD_OVERHEAD_PX + PHONE_NARRATIVE_HEAD_EXTRA_PX,
 };
 
-/** The chrome a card draws at or under the mobile breakpoint, else the desktop's. */
-export function resolveChunkCardMetrics(mobile: boolean): ChunkCardMetrics {
-  return mobile ? PHONE_CARD_METRICS : DESKTOP_CARD_METRICS;
+/** Sideways the chunk head is one 44px line; the narrative head keeps the phone's counts line. */
+export const LANDSCAPE_CARD_METRICS: ChunkCardMetrics = {
+  overheadPx: CHUNK_CARD_OVERHEAD_PX - LANDSCAPE_HEAD_SHORTFALL_PX,
+  collapsedPx: COLLAPSED_CARD_HEIGHT_PX - LANDSCAPE_HEAD_SHORTFALL_PX,
+  narrativeOverheadPx:
+    NARRATIVE_CARD_OVERHEAD_PX + PHONE_NARRATIVE_HEAD_EXTRA_PX,
+};
+
+const CARD_METRICS_BY_SHAPE: Record<ViewportShape, ChunkCardMetrics> = {
+  [ViewportShapes.DESKTOP]: DESKTOP_CARD_METRICS,
+  [ViewportShapes.PHONE]: PHONE_CARD_METRICS,
+  [ViewportShapes.LANDSCAPE_PHONE]: LANDSCAPE_CARD_METRICS,
+};
+
+export function resolveChunkCardMetrics(
+  shape: ViewportShape,
+): ChunkCardMetrics {
+  return CARD_METRICS_BY_SHAPE[shape];
 }
 
 export function estimateChunkCardHeight(input: ChunkCardSizeInput): number {

@@ -24,6 +24,13 @@
     @include mixins.bottom-sheet-chrome;
   }
 
+  @include mixins.for-landscape-phone {
+    .content[data-sheet] {
+      max-block-size: calc(100dvh - var(--sticky-stack-h));
+      padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+    }
+  }
+
   @keyframes panel-sheet-in {
     from {
       transform: translateY(100%);

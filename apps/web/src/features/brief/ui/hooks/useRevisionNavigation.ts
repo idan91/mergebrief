@@ -286,7 +286,7 @@ export function useRevisionNavigation(
         }
       }
 
-      const reading = readScrollState(undefined);
+      const reading = readScrollState(undefined, ScrollTargetKinds.RAIL);
       const step = pickRevisionStep({
         targetCount: targets.length,
         mounted,

@@ -8,7 +8,8 @@
     /* stylelint-disable-next-line declaration-property-value-allowed-list -- sits over the header's 1px hairline: a border width, not rhythm */
     margin-block-start: -1px;
     margin-inline-end: var(--sidebar-w);
-    padding-inline: var(--notice-gutter);
+    padding-inline: max(var(--notice-gutter), env(safe-area-inset-left))
+      max(var(--notice-gutter), env(safe-area-inset-right));
     border-block-start: 1px solid
       color-mix(in srgb, var(--color-info) 60%, var(--color-outline-1));
     border-block-end: 1px solid var(--color-outline-1);

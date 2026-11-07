@@ -80,6 +80,7 @@ import type {
   DiffRetryLanding,
 } from "../DiffTimeoutNotice/types";
 import type { BriefAddressPort } from "./address/types";
+import type { ShownButtonRef } from "./hooks/usePhoneChrome";
 import type { UseComparisonOverlayValue } from "./comparison/useComparisonOverlay";
 import type { IntentBarHandle } from "./IntentBar";
 import type { UseMarkReadyFlowValue } from "./mark-ready/useMarkReadyFlow";
@@ -509,7 +510,7 @@ export interface UseReviewCommandsInput {
   >;
   riskModalOpen: boolean;
   conversationWiring: Pick<ConversationWiring, "invalidateConversation">;
-  phoneControlsRef: RefObject<HTMLButtonElement | null>;
+  phoneControlsRef: ShownButtonRef;
 }
 
 export interface ReviewCommands {

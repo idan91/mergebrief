@@ -271,7 +271,7 @@
     display: none;
   }
 
-  @media (width <= 880px) {
+  @include mixins.for-phone {
     .identityRow {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
@@ -326,6 +326,17 @@
       margin-inline-start: functions.to-rem(8px);
     }
   }
+
+  @include mixins.for-landscape-phone {
+    .identityRow {
+      padding-inline: env(safe-area-inset-left)
+        max(functions.to-rem(16px), env(safe-area-inset-right));
+    }
+
+    .header:has([data-landscape-row]) .identityRow {
+      display: none;
+    }
+  }
 }
 
 @layer components {
@@ -360,7 +371,7 @@
 }
 
 @layer components {
-  @media (width <= 880px) {
+  @include mixins.for-phone {
     .metaLine,
     .titleLine > :not(.title) {
       display: none;
@@ -370,7 +381,8 @@
       flex: 1 1 auto;
     }
 
-    .header:not([data-title-out]) .titleBlock {
+    .header:not([data-title-out]) .titleBlock,
+    .header:not([data-title-out]) [data-landscape-row] h1 {
       position: absolute;
       overflow: hidden;
       inline-size: 1px;
@@ -385,7 +397,8 @@
       display: none;
     }
 
-    .header[data-title-out] .titleBlock {
+    .header[data-title-out] .titleBlock,
+    .header[data-title-out] [data-landscape-row] h1 {
       animation: title-in var(--motion-base) var(--ease-out);
     }
   }

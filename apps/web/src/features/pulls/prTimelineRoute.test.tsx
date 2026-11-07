@@ -211,7 +211,10 @@ describe("DB brief route revision timeline", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     expect(screen.queryByTestId("newer-commits-chip")).toBeNull();

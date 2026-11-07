@@ -56,6 +56,9 @@ interface ScrollDeps {
   chunkWindows: ChunkWindowsPort | undefined;
   openChunk: (chunkId: string) => void;
   cancel: () => void;
+  interrupt: () => void;
+  /** Tells the subscribers a scroll ended with nothing left in flight. */
+  notifyEnded: () => void;
 }
 
 function stopFlight(flight: Flight): void {
@@ -131,13 +134,15 @@ function launchScroll(
   const end = () => {
     deps.cancel();
     const card = findFallbackCard(target, arrived);
-    if (card !== undefined) {
-      const cardOptions = {
-        ...options,
-        placement: ScrollPlacements.UNDER_STACK,
-      };
-      launchScroll(card, cardOptions, deps);
+    if (card === undefined) {
+      deps.notifyEnded();
+      return;
     }
+    const cardOptions = {
+      ...options,
+      placement: ScrollPlacements.UNDER_STACK,
+    };
+    launchScroll(card, cardOptions, deps);
   };
 
   const step = () => {
@@ -155,7 +160,11 @@ function launchScroll(
       arriveAt(target, options, found, deps.flash);
     }
 
-    const plan = planScrollFrame(state, readScrollState(element), request);
+    const plan = planScrollFrame(
+      state,
+      readScrollState(element, target.kind),
+      request,
+    );
     const input = { element, chunkId, chunkWindows: deps.chunkWindows };
     const kept = performScrollAction(plan.action, input);
     const { next } = plan;
@@ -168,7 +177,7 @@ function launchScroll(
     const watching = next.phase === ScrollPhases.SETTLE;
     const armsAbort = watching && flight.removeAbort === undefined;
     if (armsAbort) {
-      flight.removeAbort = armScrollAbort(deps.cancel);
+      flight.removeAbort = armScrollAbort(deps.interrupt);
     }
     state = next;
     flight.frame = window.requestAnimationFrame(step);
@@ -207,6 +216,7 @@ export function useScrollToTarget({
   const inChangesScopeRef = useLatestRef(inChangesScope);
   const exitChangesScopeRef = useLatestRef(exitChangesScope);
   const [flash] = useState(createFlash);
+  const [endListeners] = useState(() => new Set<() => void>());
 
   const cancel = useCallback(() => {
     parkedRef.current = undefined;
@@ -216,6 +226,15 @@ export function useScrollToTarget({
     stopFlight(flightRef.current);
     flightRef.current = undefined;
   }, []);
+  const notifyEnded = useCallback(() => {
+    for (const listener of endListeners) {
+      listener();
+    }
+  }, [endListeners]);
+  const interrupt = useCallback(() => {
+    cancel();
+    notifyEnded();
+  }, [cancel, notifyEnded]);
   useEffect(
     () => () => {
       cancel();
@@ -233,9 +252,11 @@ export function useScrollToTarget({
         chunkWindows,
         openChunk,
         cancel,
+        interrupt,
+        notifyEnded,
       });
     },
-    [cancel, chunkWindows, flash, openChunk],
+    [cancel, chunkWindows, flash, interrupt, notifyEnded, openChunk],
   );
 
   useEffect(() => {
@@ -271,5 +292,20 @@ export function useScrollToTarget({
     [cancel, exitChangesScopeRef, inChangesScopeRef, launch],
   );
 
-  return { scrollToTarget };
+  const isScrollInFlight = useCallback(
+    () => flightRef.current !== undefined,
+    [],
+  );
+
+  const subscribeScrollEnded = useCallback(
+    (listener: () => void) => {
+      endListeners.add(listener);
+      return () => {
+        endListeners.delete(listener);
+      };
+    },
+    [endListeners],
+  );
+
+  return { scrollToTarget, isScrollInFlight, subscribeScrollEnded };
 }

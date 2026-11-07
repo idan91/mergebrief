@@ -1125,6 +1125,8 @@
       "overview": "Overview",
       "changesOnly": "Changes only",
       "chunkPosition": "Chunk {{current}} of {{total}}",
+      "chunkTotal_one": "{{count}} chunk",
+      "chunkTotal_other": "{{count}} chunks",
       "openChunks": "Open chunks",
       "briefControls": "Brief controls",
       "closeBriefControls": "Close brief controls",

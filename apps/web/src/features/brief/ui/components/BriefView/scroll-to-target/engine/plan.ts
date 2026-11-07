@@ -1,6 +1,5 @@
 import { prefersReducedMotion } from "@web/utils/motion";
 import {
-  CHUNK_SCROLL_GAP_PX,
   CORRECTION_THRESHOLD_PX,
   FAR_JUMP_VIEWPORTS,
   MOUNT_POLL_FRAMES,
@@ -78,7 +77,7 @@ export function planScrollFrame(
 }
 
 function deriveUnderStackTop(reading: ScrollReading): number {
-  const underStackTop = reading.stackHeight + CHUNK_SCROLL_GAP_PX;
+  const underStackTop = reading.stackHeight + reading.scrollGap;
   return underStackTop;
 }
 

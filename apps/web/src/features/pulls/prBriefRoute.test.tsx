@@ -161,7 +161,10 @@ describe("DB brief route", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
@@ -188,7 +191,7 @@ describe("DB brief route", () => {
       );
       await waitFor(() =>
         expect(
-          screen.getByRole("heading", {
+          screen.getAllByRole("heading", {
             level: 1,
             name: briefFixture.pr.title,
           }),
@@ -233,7 +236,10 @@ describe("DB brief route", () => {
     // Renders the CURRENT span (from the meta), exactly like a span-less link…
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     // …and the dangling key is ignored rather than resolved: no revision
@@ -253,7 +259,10 @@ describe("DB brief route", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     // Disabled options stay focusable (`aria-disabled`) with the reason in a
@@ -296,7 +305,10 @@ describe("DB brief route", () => {
     })();
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     const button = screen.getByRole("radio", { name: /^previous brief$/i });
@@ -459,7 +471,10 @@ describe("DB brief route", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     const button = screen.getByRole("radio", { name: /^your last review$/i });
@@ -482,7 +497,7 @@ describe("DB brief route", () => {
     );
     // Still pinned: the OLD span's brief renders behind the banner.
     expect(
-      screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+      screen.getAllByRole("heading", { level: 1, name: briefFixture.pr.title }),
     ).toBeTruthy();
     // The legacy (no-revisions) path carries the stale-submit ack too, the
     // gate is span-derived, not timeline-derived.
@@ -631,7 +646,10 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     // as the error boundary.
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     expect(screen.queryByText(/brief failed to load/i)).toBeNull();
@@ -897,7 +915,10 @@ describe("DB brief route, rev param", () => {
     expect(router.history.length).toBe(1);
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
   });
@@ -909,7 +930,10 @@ describe("DB brief route, rev param", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     expect(
@@ -926,7 +950,10 @@ describe("DB brief route, rev param", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     await openRevisionsTab();
@@ -976,7 +1003,10 @@ describe("DB brief route, rev param", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     fireEvent.click(screen.getByRole("radio", { name: /^off$/i }));

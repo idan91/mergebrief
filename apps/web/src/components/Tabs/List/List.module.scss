@@ -18,7 +18,7 @@
       padding-inline: 0;
       border: 0;
 
-      @include mixins.for-breakpoint("mobile", max) {
+      @include mixins.for-phone {
         position: static;
         flex-direction: row;
         gap: functions.to-rem(24px);

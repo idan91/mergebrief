@@ -1,0 +1,46 @@
+@use "functions";
+
+@layer components {
+  .current {
+    display: flex;
+    flex: 1 1 auto;
+    gap: functions.to-rem(8px);
+    align-items: center;
+    min-inline-size: 0;
+  }
+
+  .file {
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    color: var(--color-text-1);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: start;
+  }
+
+  .counts {
+    flex: none;
+    color: var(--color-text-3);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+  }
+
+  .viewed {
+    display: grid;
+    flex: none;
+    block-size: 100%;
+  }
+
+  // Nested to outrank IconButton's own size rule: 44px targets on the row.
+  .current .fold,
+  .current .menu {
+    inline-size: functions.to-rem(44px);
+    block-size: functions.to-rem(43px);
+    border-radius: 0;
+  }
+}

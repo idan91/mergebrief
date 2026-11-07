@@ -1,7 +1,7 @@
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { ChunkShare, GithubHeadRef } from "../types";
 import { useMergedRef } from "@web/hooks/useMergedRef";
-import { useMobileViewport } from "@web/hooks/useMobileViewport";
+import { useViewportShape } from "@web/hooks/useViewportShape";
 import { useSplitWidth } from "./useSplitWidth";
 import {
   useCallback,
@@ -370,8 +370,8 @@ function WindowedChunkList({
       }),
     [group.chunks, diffView, expandedEdges, fileRowsCache, storedCounts],
   );
-  const mobile = useMobileViewport();
-  const metrics = resolveChunkCardMetrics(mobile);
+  const shape = useViewportShape();
+  const metrics = resolveChunkCardMetrics(shape);
   const wrapColumns = useWrapColumns();
   const estimateChunk = useCallback(
     (index: number) => {

@@ -1,6 +1,8 @@
 import { findRowByLine } from "@web/components/DiffRows/utils";
 import { revisionJumpSelector } from "../../../../model/comparison/runs";
 import {
+  CHUNK_HEAD_GAP_VAR,
+  CHUNK_SCROLL_GAP_VAR,
   deriveGroupHeadingId,
   deriveGroupSectionId,
   readNumericCssVar,
@@ -20,13 +22,29 @@ import {
   type RowScrollTarget,
   type ScrollActionInput,
   type ScrollTarget,
+  type ScrollTargetKind,
 } from "./types";
 
-/** The pinned stack's height plus the scroll gap, read as one registered length. */
+/** Where an under-stack jump places a chunk head, read from the page. */
 export function readUnderStackTop(): number {
   const underStackTop =
-    readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + CHUNK_SCROLL_GAP_PX;
+    readNumericCssVar(STICKY_STACK_HEIGHT_VAR) +
+    readNumericCssVar(CHUNK_HEAD_GAP_VAR, CHUNK_SCROLL_GAP_PX);
   return underStackTop;
+}
+
+/**
+ * The line the reader's chunk is read at: where an under-stack jump places a
+ * head, so a scroll never hands the position to the chunk above it. A stack
+ * that covers the placed head (the sideways row) keeps the line at its lower
+ * edge, so a chunk gone behind it hands over.
+ */
+export function readReadingLine(): number {
+  const readingLine = Math.max(
+    readUnderStackTop() + 1,
+    readNumericCssVar(STICKY_STACK_HEIGHT_VAR) - 1,
+  );
+  return readingLine;
 }
 
 /** The chunk whose card holds the target; undefined outside the chunk lists. */
@@ -179,12 +197,18 @@ function readMountedTarget(
 
 export function readScrollState(
   element: HTMLElement | undefined,
+  targetKind: ScrollTargetKind,
 ): ScrollReading {
+  const gapVar =
+    targetKind === ScrollTargetKinds.CHUNK
+      ? CHUNK_HEAD_GAP_VAR
+      : CHUNK_SCROLL_GAP_VAR;
   return {
     target: readMountedTarget(element),
     scrollY: window.scrollY,
     viewportHeight: window.innerHeight,
     stackHeight: readNumericCssVar(STICKY_STACK_HEIGHT_VAR),
+    scrollGap: readNumericCssVar(gapVar, CHUNK_SCROLL_GAP_PX),
   };
 }
 

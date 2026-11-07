@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import type { RefObject } from "react";
 import {
   act,
   cleanup,
@@ -28,6 +27,7 @@ import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
 import { CHUNK_ROW_SELECTOR } from "./Tabs/ThisPr/ChunkRows/consts";
 import type { RevisionTimelinePlan } from "../../../../model/types";
+import type { ShownButtonRef } from "../hooks/usePhoneChrome";
 
 const model = buildBriefViewModel(briefFixture);
 const firstGroup = model.groups[0];
@@ -58,7 +58,7 @@ interface HarnessProps {
   revisions?: RevisionTimelinePlan;
   /** The screen keys the Sidebar per brief; a new key remounts it. */
   sidebarKey?: string;
-  sheetTriggerRef?: RefObject<HTMLButtonElement | null>;
+  sheetTriggerRef?: ShownButtonRef;
 }
 
 function noop(): void {}
@@ -281,7 +281,7 @@ describe("Sidebar", () => {
   });
 
   it("ignores the phone bar's empty trigger off phones", () => {
-    renderSidebar({ sheetTriggerRef: { current: null } });
+    renderSidebar({ sheetTriggerRef: { current: undefined } });
     fireEvent.click(chevron());
     screen.getAllByRole("tab")[0]?.focus();
 

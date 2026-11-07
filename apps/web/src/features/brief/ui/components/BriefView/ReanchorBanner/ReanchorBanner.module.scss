@@ -7,7 +7,8 @@
     z-index: 50;
     margin-block-end: functions.to-rem(14px);
     padding-block: functions.to-rem(8px) functions.to-rem(10px);
-    padding-inline: functions.to-rem(20px);
+    padding-inline: max(functions.to-rem(20px), env(safe-area-inset-left))
+      max(functions.to-rem(20px), env(safe-area-inset-right));
     border-block-end: 1px solid var(--color-outline-1);
     background: color-mix(in srgb, var(--color-background) 85%, transparent);
     backdrop-filter: blur(12px);

@@ -79,6 +79,7 @@
     z-index: 96;
     inline-size: auto;
     max-block-size: 70dvh;
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
     border-block-end: 0;
     border-end-start-radius: 0;
     border-end-end-radius: 0;
@@ -93,7 +94,7 @@
   .tab[data-layout="sheet"] {
     inset-block: auto
       calc(#{functions.to-rem(16px)} + env(safe-area-inset-bottom));
-    inset-inline-end: functions.to-rem(16px);
+    inset-inline-end: max(functions.to-rem(16px), env(safe-area-inset-right));
   }
 
   @media (prefers-reduced-transparency: reduce) {

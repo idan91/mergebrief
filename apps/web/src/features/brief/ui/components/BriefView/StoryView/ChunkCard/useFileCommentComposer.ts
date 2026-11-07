@@ -1,9 +1,16 @@
-import { useCallback, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 import { useReviewActions } from "@web/features/review/session";
 import { createFileCommentAnchor } from "@web/features/review/utils";
 import { useReviewPosture } from "../../../../hooks/useReviewPosture";
 import type { BriefChunk } from "../../../../../model/types";
+import { useReadingPositionIfMounted } from "../../reading/reading-position";
 
 export interface UseFileCommentComposerInput {
   chunk: BriefChunk;
@@ -68,6 +75,20 @@ export function useFileCommentComposer({
     }
     requestComposer();
   }, [chunk.id, chunkOpen, composerOpen, requestComposer, toggleChunk]);
+
+  const requested = useReadingPositionIfMounted(
+    (state) => state.fileCommentChunkId === chunk.id,
+  );
+  const clearRequest = useReadingPositionIfMounted(
+    (state) => state.actions.clearFileCommentRequest,
+  );
+
+  useEffect(() => {
+    if (requested) {
+      clearRequest();
+      revealComposer();
+    }
+  }, [clearRequest, requested, revealComposer]);
 
   return {
     bandRef,

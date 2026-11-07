@@ -8,6 +8,7 @@ import { createI18n } from "i18n";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 
+import { readLandscapePhone } from "@web/hooks/useMobileViewport";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { useScrollSpy } from "@web/hooks/useScrollSpy";
 import {
@@ -64,7 +65,8 @@ import {
   ScrollPlacements,
   type ScrollPlacement,
 } from "../scroll-to-target/engine/types";
-import { readUnderStackTop } from "../scroll-to-target/targets";
+import { readReadingLine } from "../scroll-to-target/targets";
+import { isScrolledToEnd, pageScrolls } from "../ChunkIndicator/utils";
 import {
   ScrollHistories,
   ScrollTargetKinds,
@@ -75,18 +77,16 @@ import {
 
 const EMPTY_CHUNK_IDS: string[] = [];
 
+function isPageAtEnd(): boolean {
+  const atEnd = !pageScrolls() || isScrolledToEnd();
+  return atEnd;
+}
+
 const SMOOTH_UNDER_STACK: ScrollTargetOptions = {
   motion: ScrollMotions.SMOOTH,
   history: ScrollHistories.NONE,
   placement: ScrollPlacements.UNDER_STACK,
 };
-
-/** The spy reads the chunk at the line an under-stack jump parks a head on,
- * so a scroll never hands the position to the chunk above it. */
-function readingLineOffset(): number {
-  const lineOffset = readUnderStackTop() + 1;
-  return lineOffset;
-}
 
 export interface UseReadingSessionInput {
   brief: Brief;
@@ -164,6 +164,8 @@ export interface UseReadingSessionValue {
   scrollToTarget: ScrollToTarget["scrollToTarget"];
   /** The reading position's one write path, for a scroll that names a chunk. */
   setActiveChunk: (chunkId: string) => void;
+  /** Seats a chunk's head under the stack at once, leaving it open or closed as the reader set it. */
+  placeChunkUnderStack: (chunkId: string) => void;
   /** The keyboard-shortcut jump: under the stack while focus mode is on. */
   jumpToChunkFromShortcut: (chunkId: string) => void;
   /** Ensure-open for row-target jumps; wayfinding jumps never call it. */
@@ -250,13 +252,14 @@ export function useReadingSession(
     },
     [updateOpenChunks],
   );
-  const { scrollToTarget } = useScrollToTarget({
-    briefId,
-    chunkWindows: chunkWindows ?? undefined,
-    openChunk,
-    inChangesScope: !compareViewFull,
-    exitChangesScope,
-  });
+  const { scrollToTarget, isScrollInFlight, subscribeScrollEnded } =
+    useScrollToTarget({
+      briefId,
+      chunkWindows: chunkWindows ?? undefined,
+      openChunk,
+      inChangesScope: !compareViewFull,
+      exitChangesScope,
+    });
 
   // Derived, never stored: mirrors openChunks, so collapse-on-review and
   // manual toggles keep it honest.
@@ -426,8 +429,23 @@ export function useReadingSession(
   useScrollSpy(
     !focusMode && compareViewFull ? chunkIds : EMPTY_CHUNK_IDS,
     setActivePosition,
-    readingLineOffset,
+    readReadingLine,
     briefId,
+    {
+      readActive: () => {
+        const { activeChunkId, betweenChunks } = position.getState();
+        if (betweenChunks) {
+          return undefined;
+        }
+        return activeChunkId ?? undefined;
+      },
+      clearActive: (lastBelowLine) =>
+        position.getState().actions.leaveChunks(lastBelowLine),
+      isHeld: isScrollInFlight,
+      subscribeHoldEnded: subscribeScrollEnded,
+      isExact: readLandscapePhone,
+      isAtPageEnd: isPageAtEnd,
+    },
   );
 
   const toggleChunk = useCallback(
@@ -511,6 +529,21 @@ export function useReadingSession(
       );
     },
     [focusModeRef, largeChunkIds, scrollToTarget, setActivePosition],
+  );
+  const placeChunkUnderStack = useCallback(
+    (chunkId: string) => {
+      setActivePosition(chunkId);
+      scrollToTarget(
+        { kind: ScrollTargetKinds.CHUNK, chunkId },
+        {
+          motion: deriveScrollMotion("instant"),
+          history: ScrollHistories.NONE,
+          open: focusModeRef.current,
+          placement: ScrollPlacements.UNDER_STACK,
+        },
+      );
+    },
+    [focusModeRef, scrollToTarget, setActivePosition],
   );
   // Plain handlers from here down: no consumer memoizes on their identity
   // (the memo boundaries live at ChunkCard/GroupCard, whose props stay the
@@ -663,6 +696,7 @@ export function useReadingSession(
     toggleChunk,
     markReviewed,
     jumpToChunk,
+    placeChunkUnderStack,
     scrollToTarget,
     setActiveChunk: setActivePosition,
     jumpToChunkFromShortcut,

@@ -611,6 +611,25 @@ describe("ChunkCard chunk actions", () => {
     expect(toggleChunk).toHaveBeenCalledTimes(2);
   });
 
+  it("focuses an open composer when the landscape row asks for it", () => {
+    const { positionStore } = renderCard({ open: true });
+    fireEvent.click(
+      within(openActions().dialog).getByRole("button", {
+        name: "Comment on file",
+      }),
+    );
+    const composer = screen.getByRole<HTMLTextAreaElement>("textbox");
+    fireEvent.change(composer, { target: { value: "half a thought" } });
+    screen.getByRole("button", { name: "Chunk actions" }).focus();
+
+    act(() => {
+      positionStore.getState().actions.requestFileComment(chunk.id);
+    });
+
+    expect(composer.value).toBe("half a thought");
+    expect(document.activeElement).toBe(composer);
+  });
+
   it("returns focus to the actions button on close", () => {
     renderCard();
     const { actions, dialog } = openActions();

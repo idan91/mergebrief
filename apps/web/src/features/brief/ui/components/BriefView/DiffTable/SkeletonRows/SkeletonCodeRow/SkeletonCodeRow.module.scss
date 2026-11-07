@@ -42,7 +42,7 @@ $bar-h: 8px;
         minmax(0, 1fr);
       padding-inline-start: $rail;
 
-      @include mixins.for-breakpoint("mobile", max) {
+      @include mixins.for-phone {
         grid-template-columns: 0 var(--diff-unified-number-w) minmax(0, 1fr);
 
         > .number:first-child:not([data-variant="removed"])::after {

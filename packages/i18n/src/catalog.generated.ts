@@ -274,6 +274,8 @@ export type Catalog = typeof en & {
     mobile: (typeof en)["brief"]["mobile"] & {
       viewedSummary: "{{viewed}} of {{total}} viewed";
       chunkPosition: "Chunk {{current}} of {{total}}";
+      chunkTotal_one: "{{count}} chunk";
+      chunkTotal_other: "{{count}} chunks";
     };
   };
   review: (typeof en)["review"] & {

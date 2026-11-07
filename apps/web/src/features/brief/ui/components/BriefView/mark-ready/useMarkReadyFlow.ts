@@ -1,13 +1,6 @@
 import type { IntentCheck } from "brief-core/types";
 import { useTranslation } from "react-i18next";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { DraftCommentStatuses } from "types";
 
@@ -19,6 +12,7 @@ import {
 } from "@web/features/review/utils";
 import type { MarkReadyAction } from "../../../../model/types";
 import type { RiskFlag } from "../../../../model/utils/view-model";
+import type { ShownButtonRef } from "../hooks/usePhoneChrome";
 import type { BriefViewStore } from "../store";
 import { useMarkReady } from "./useMarkReady";
 import { PostDraftOutcomes, type PostDraftOutcome } from "../types";
@@ -58,7 +52,7 @@ export interface UseMarkReadyFlowInput {
   reviewerOverlayOpen: boolean;
   showIntentBar: () => void;
   /** The phone bar's Brief controls, the rescue target where the header CTA is hidden. */
-  phoneControlsRef: RefObject<HTMLButtonElement | null>;
+  phoneControlsRef: ShownButtonRef;
 }
 
 export interface UseMarkReadyFlowValue {

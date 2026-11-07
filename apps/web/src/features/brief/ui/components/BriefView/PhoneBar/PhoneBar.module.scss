@@ -19,6 +19,10 @@
     @include mixins.for-breakpoint("mobile", max) {
       display: flex;
     }
+
+    @include mixins.for-landscape-phone {
+      display: none;
+    }
   }
 
   // Nested to outrank IconButton's own size rule: a 44px target.

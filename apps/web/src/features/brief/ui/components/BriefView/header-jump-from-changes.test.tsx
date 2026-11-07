@@ -154,7 +154,10 @@ describe("Header Jump from Changes scope", () => {
     await mountBriefHost(<Harness />);
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { level: 1, name: briefFixture.pr.title }),
+        screen.getAllByRole("heading", {
+          level: 1,
+          name: briefFixture.pr.title,
+        }),
       ).toBeTruthy(),
     );
     expect(

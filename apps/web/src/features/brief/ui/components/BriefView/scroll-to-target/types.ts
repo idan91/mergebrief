@@ -95,6 +95,10 @@ export interface ScrollToTarget {
     target: ScrollTarget,
     options: ScrollTargetOptions,
   ) => boolean;
+  /** A scroll is moving the page or still watching where its target landed. */
+  isScrollInFlight: () => boolean;
+  /** A scroll ended, settled or cut short by the reader's input, perhaps with no scroll event to come. Returns the remover. */
+  subscribeScrollEnded: (listener: () => void) => () => void;
 }
 
 /** False when the scroll could not be scheduled; see `ScrollToTarget`. */

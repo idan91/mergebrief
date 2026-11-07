@@ -18,11 +18,13 @@
   }
 
   [data-zen="on"] .footer {
+    --footer-gutter-end: max(var(--focus-gutter), env(safe-area-inset-right));
+
     inline-size: 100%;
     max-inline-size: var(--focus-max);
     margin-inline: auto;
-    padding-inline: var(--focus-gutter)
-      calc(var(--focus-gutter) + var(--chunk-head-reserve));
+    padding-inline: max(var(--focus-gutter), env(safe-area-inset-left))
+      calc(var(--chunk-head-reserve) + var(--footer-gutter-end));
     transition: translate 260ms var(--ease-out);
   }
 

@@ -1,9 +1,11 @@
 import { useMemo, useSyncExternalStore } from "react";
 
-import { MOBILE_QUERY } from "@web/hooks/useMobileViewport";
+import { MOBILE_QUERY, readLandscapePhone } from "@web/hooks/useMobileViewport";
 import {
   DESKTOP_WRAP_COLUMNS,
   derivePhoneWrapColumns,
+  type PhoneLayout,
+  type SideInsets,
   type WrapColumns,
 } from "./chunk-height-model";
 
@@ -22,6 +24,20 @@ function readRemPx(): number | undefined {
   return remPx > 0 ? remPx : undefined;
 }
 
+function readInsetPx(style: CSSStyleDeclaration, property: string): number {
+  const insetPx = Number.parseFloat(style.getPropertyValue(property));
+  return Number.isFinite(insetPx) ? insetPx : 0;
+}
+
+/** The side insets tokens.scss publishes from env(); only a sideways phone has any. */
+function readSideInsets(): SideInsets {
+  const style = getComputedStyle(document.documentElement);
+  return {
+    leftPx: readInsetPx(style, "--safe-area-inset-left"),
+    rightPx: readInsetPx(style, "--safe-area-inset-right"),
+  };
+}
+
 /** Bands from the media queries the CSS reads; the width inside the scrollbar, which a pinch zoom leaves alone. */
 function readWrapColumns(): WrapColumns {
   if (!window.matchMedia(MOBILE_QUERY).matches) {
@@ -29,7 +45,11 @@ function readWrapColumns(): WrapColumns {
   }
   const cardBleeds = window.matchMedia(CARD_BLEED_QUERY).matches;
   const widthPx = document.documentElement.clientWidth;
-  return derivePhoneWrapColumns({ widthPx, cardBleeds, remPx: readRemPx() });
+  const layout: PhoneLayout = { widthPx, cardBleeds, remPx: readRemPx() };
+  if (!readLandscapePhone()) {
+    return derivePhoneWrapColumns(layout);
+  }
+  return derivePhoneWrapColumns({ ...layout, insets: readSideInsets() });
 }
 
 function readUnifiedColumns(): number {

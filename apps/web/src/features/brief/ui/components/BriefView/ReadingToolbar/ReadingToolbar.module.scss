@@ -25,7 +25,7 @@
   }
 
   // Hidden, its measured height publishes 0px to the sticky stack.
-  @include mixins.for-breakpoint("mobile", max) {
+  @include mixins.for-phone {
     .toolbar {
       display: none;
     }

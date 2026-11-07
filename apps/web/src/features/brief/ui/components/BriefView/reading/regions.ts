@@ -21,6 +21,8 @@ export interface VisibleRegions {
   carryOver: boolean;
   /** The phone's bottom bar; CSS shows it only at the mobile breakpoint. */
   phoneBar: boolean;
+  /** The sideways phone's one row; CSS shows it only on a phone held sideways. */
+  landscapeRow: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       sidebar: false,
       carryOver: false,
       phoneBar: false,
+      landscapeRow: false,
     };
   }
   if (modes.scope === "changes") {
@@ -46,6 +49,7 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       sidebar: false,
       carryOver: true,
       phoneBar: true,
+      landscapeRow: true,
     };
   }
   return {
@@ -55,5 +59,6 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
     sidebar: true,
     carryOver: true,
     phoneBar: true,
+    landscapeRow: true,
   };
 }

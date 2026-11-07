@@ -67,6 +67,8 @@ export interface ScrollReading {
   viewportHeight: number;
   /** The pinned stack's height, scroll gap excluded. */
   stackHeight: number;
+  /** Air an under-stack placement leaves between a head and the stack. */
+  scrollGap: number;
 }
 
 export interface ScrollRequest {

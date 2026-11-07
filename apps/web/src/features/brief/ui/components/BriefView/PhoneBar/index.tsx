@@ -61,7 +61,11 @@ export function PhoneBar({
   };
 
   return (
-    <div className={styles["bar"]} data-testid="phone-bar">
+    <div
+      className={styles["bar"]}
+      data-scroll-steering=""
+      data-testid="phone-bar"
+    >
       <IconButton
         aria-haspopup="dialog"
         className={styles["controls"]}

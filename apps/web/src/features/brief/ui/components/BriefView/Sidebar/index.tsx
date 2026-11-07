@@ -1,11 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  useEffect,
-  useRef,
-  type FocusEvent,
-  type KeyboardEvent,
-  type RefObject,
-} from "react";
+import { useEffect, useRef, type FocusEvent, type KeyboardEvent } from "react";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { IconButton } from "@web/components/IconButton";
@@ -17,6 +11,7 @@ import {
 } from "@web/hooks/useViewportBoundary";
 import type { RevisionTimelinePlan } from "../../../../model/types";
 import type { GroupView } from "../../../../model/utils/view-model";
+import type { ShownButtonRef } from "../hooks/usePhoneChrome";
 import { useReadingPosition } from "../reading/reading-position";
 import { SIDEBAR_PANEL_ID } from "./consts";
 import { GroupLines } from "./GroupLines";
@@ -69,7 +64,7 @@ export interface SidebarProps {
   /** The PR's revisions and the route's way to one; absent hides the tab. */
   revisions?: RevisionTimelinePlan | undefined;
   /** The phone bar's indicator, which opens the Sidebar sheet and takes focus back from it. */
-  sheetTriggerRef?: RefObject<HTMLButtonElement | null> | undefined;
+  sheetTriggerRef?: ShownButtonRef | undefined;
 }
 
 /**

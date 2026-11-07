@@ -71,6 +71,8 @@ export interface HeaderProps {
   focusMode: boolean;
   /** The page's large title block; on phones the bar shows the title once it scrolls under. */
   largeTitle: HTMLElement | null;
+  /** A sideways phone's one row; CSS shows it in place of the identity row. */
+  landscapeRow?: ReactNode | undefined;
 }
 
 const SETTLE_MS = 200;
@@ -104,6 +106,7 @@ export function Header({
   toggleShortcuts,
   focusMode,
   largeTitle,
+  landscapeRow,
 }: HeaderProps) {
   const { t } = useTranslation();
   const headerRef = useRef<HTMLElement>(null);
@@ -203,6 +206,7 @@ export function Header({
       data-focus={focusMode ? "" : undefined}
       data-title-out={titleOut}
     >
+      {landscapeRow}
       <div className={styles["identityRow"]}>
         <Link
           aria-label={t("shell.backToBriefs")}

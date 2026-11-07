@@ -14,10 +14,19 @@ export interface ReadingPositionState {
   /** Set together with the chunk by the writer (which holds the chunk→group
    * map); consumers never re-derive the group. */
   activeGroupId: string | null;
+  /** No chunk is on screen; the active chunk stays as where the reader last was. */
+  betweenChunks: boolean;
+  /** Between chunks: the active chunk lies below the reader, who scrolled up out of it. */
+  activeBelowReader: boolean;
+  /** A file comment asked for from outside the card, which owns its composer. */
+  fileCommentChunkId: string | undefined;
 }
 
 export interface ReadingPositionActions {
   setActive: (chunkId: string, groupId: string | null) => void;
+  leaveChunks: (activeBelowReader: boolean) => void;
+  requestFileComment: (chunkId: string) => void;
+  clearFileCommentRequest: () => void;
 }
 
 export interface ReadingPositionStoreValue extends ReadingPositionState {
@@ -30,9 +39,26 @@ export function createReadingPositionStore(): ReadingPositionStore {
   return createStore<ReadingPositionStoreValue>((set) => ({
     activeChunkId: null,
     activeGroupId: null,
+    betweenChunks: false,
+    activeBelowReader: false,
+    fileCommentChunkId: undefined,
     actions: {
       setActive(chunkId, groupId) {
-        set({ activeChunkId: chunkId, activeGroupId: groupId });
+        set({
+          activeChunkId: chunkId,
+          activeGroupId: groupId,
+          betweenChunks: false,
+          activeBelowReader: false,
+        });
+      },
+      leaveChunks(activeBelowReader) {
+        set({ betweenChunks: true, activeBelowReader });
+      },
+      requestFileComment(chunkId) {
+        set({ fileCommentChunkId: chunkId });
+      },
+      clearFileCommentRequest() {
+        set({ fileCommentChunkId: undefined });
       },
     },
   }));

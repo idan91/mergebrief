@@ -1,4 +1,5 @@
 @use "functions";
+@use "mixins";
 
 // Global design tokens (CSS custom properties — runtime cascade, not module-scoped).
 // Loaded once at the root; component styles reference var(--token) with no import.
@@ -348,6 +349,11 @@
     --sidebar-w-expanded: 26.5rem;
     --sidebar-bar-h: calc(3.25rem + env(safe-area-inset-bottom));
 
+    // Air between an under-stack target and the pinned stack, and where a
+    // chunk head rests; the scroll engine reads both as numbers.
+    --chunk-scroll-gap: 40px;
+    --chunk-head-gap: var(--chunk-scroll-gap);
+
     // What a chunk head keeps clear at its end; StoryView and ChunkFooter set it
     // while the focus panel covers that end.
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
@@ -360,6 +366,10 @@
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-reserve-bottom: 0px;
 
+    // @property-registered in _layers.scss so JS reads the inset in px.
+    --safe-area-inset-left: env(safe-area-inset-left);
+    --safe-area-inset-right: env(safe-area-inset-right);
+
     // Height of the bar a bottom sheet rests on; zero where it rests on the edge.
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --bottom-sheet-offset: 0px;
@@ -367,7 +377,7 @@
     color-scheme: dark light;
   }
 
-  @media (width <= 880px) {
+  @include mixins.for-phone {
     :root {
       // Matches what renders here. Does NOT make the fallback correct at
       // these widths — the derivation models two lines and the header wraps
@@ -392,6 +402,12 @@
       // derivation above picks the rest up unchanged.
       --header-pad-block: #{functions.to-rem(9px)};
       --header-identity-min: #{functions.to-rem(46px)};
+    }
+  }
+
+  @include mixins.for-landscape-phone {
+    :root:has([data-landscape-row]) {
+      --chunk-head-gap: calc(-1 * var(--top-bar-h));
     }
   }
 

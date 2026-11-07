@@ -13,7 +13,7 @@
       grid-template-columns: functions.to-rem(184px) minmax(0, 1fr);
       column-gap: functions.to-rem(48px);
 
-      @include mixins.for-breakpoint("mobile", max) {
+      @include mixins.for-phone {
         grid-template-columns: minmax(0, 1fr);
         row-gap: functions.to-rem(32px);
       }
